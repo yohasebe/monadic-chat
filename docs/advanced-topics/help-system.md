@@ -1,23 +1,23 @@
 # Help System
 
-Monadic Chat includes an AI-powered help system that provides contextual assistance based on the project's documentation.
+The Monadic Chat Help app answers questions about Monadic Chat based on its documentation.
 
 ## Overview :id=overview
 
-The help system uses a local sentence-transformer model (`multilingual-e5-base`) to create a searchable knowledge base from the Monadic Chat documentation. Embeddings are computed locally and stored in Qdrant. No external API key is required to embed text or to search the knowledge base.
+The documentation is converted into vectors by a multilingual embedding model that runs on your computer, and stored in Qdrant. No API key is needed to install the help data or to search it.
 
 ## Features :id=features
 
 - **Local-only retrieval**: Both embedding inference and vector storage run on your machine; no provider API key is needed for help search
-- **Multilingual**: `multilingual-e5-base` handles English, Japanese, and many other languages with comparable quality
+- **Multilingual**: Questions can be asked in English, Japanese and many other languages
 - **Multi-chunk Retrieval**: Returns multiple relevant sections per result for comprehensive answers
-- **Prebuilt JSON dump**: The help database is generated at packaging time and shipped inside the Ruby image, ready for installation when you choose to use help search
+- **Bundled data**: The help data is built from the documentation when Monadic Chat is packaged, and ships inside the Ruby image. It is installed when you choose to
 - **Public content only**: The shipped database and the installation feature use public documentation only
 
 ## Requirements :id=requirements
 
 - Running `monadic-chat-qdrant-container` (vector storage)
-- Running `monadic-chat-embeddings-container` (multilingual-e5-base inference)
+- Running `monadic-chat-embeddings-container` (embedding model)
 
 Both containers start automatically with Monadic Chat. The chat model used to generate answers still requires its provider API key. Installing the help data and searching it do not require an API key.
 
@@ -27,12 +27,12 @@ Both containers start automatically with Monadic Chat. The chat model used to ge
 
 1. Start Monadic Chat and ensure all containers are running
 2. Select "Monadic Chat Help" from the app menu
-3. Use the help data panel to install the bundled data. You can also open **Monadic Chat Info → Help Data** to install it without an API key
+3. Install the bundled data from the **Help Data** panel in the sidebar. The same panel opens from **Monadic Chat Info → Help Data**, which works without an API key
 4. Once installation is complete, ask questions about Monadic Chat in any language
 
 Help search is opt-in: starting or rebuilding Monadic Chat does not install or replace the help data. The panel shows the installation status and progress.
 
-When the bundled data changes, the panel shows that an update is available. Use its update button to replace the installed help data. Existing help remains searchable until replacement begins. Users upgrading from an older version are asked to reinstall because the installed data's version cannot be verified.
+When the bundled data is newer than the installed data, the panel offers an update. Use its update button to replace the installed help data; the installed help stays searchable until the replacement begins. When the version of the installed data cannot be verified, the panel asks you to reinstall.
 
 The install, update, reinstall, and retry buttons start their operation without a confirmation dialog. Help search is unavailable during replacement. **Knowledge Base and conversation library data are preserved.** If installation fails, check the displayed reason and use the panel to try again.
 
@@ -44,7 +44,7 @@ The install, update, reinstall, and retry buttons start their operation without 
 
 ## Building the Help Database :id=building-help-database
 
-Most users do not need to build the database manually — it is shipped prebuilt with each release. Developers can regenerate it:
+The help data ships with each release, so users do not build it. Developers regenerate it with:
 
 ```bash
 # Build the help database from docs/* (this is what ships)
@@ -81,7 +81,7 @@ Help data is stored locally in Qdrant, separately from Knowledge Base and conver
 
 2. **Embedding generation**:
    - Each chunk is sent to the embeddings container as a "passage"
-   - The service applies the e5 `passage:` prefix and returns L2-normalized 768-dim vectors
+   - The service adds the `passage:` prefix the model expects and returns L2-normalized 768-dimensional vectors
    - Each document also gets a vector that is the mean of its items' vectors
 
 3. **JSON dump output**:
@@ -91,10 +91,10 @@ Help data is stored locally in Qdrant, separately from Knowledge Base and conver
 ### Runtime Pipeline :id=runtime-pipeline
 
 1. **Installation**:
-   - The user starts installation from the Help app panel or **Monadic Chat Info → Help Data**
+   - The user starts installation from the **Help Data** panel
    - Monadic Chat checks the bundled data, replaces the previous help index, and verifies the result
-   - Search becomes available after installation completes; subsequent starts use the installed data
-   - A new bundled version is offered as an update and requires an explicit installation action
+   - Search becomes available after installation completes; later starts use the installed data
+   - Newer bundled data is offered as an update and is installed only when the user chooses to
 
 2. **Search**:
    - User questions are embedded with the `query:` prefix using the same model
@@ -103,23 +103,20 @@ Help data is stored locally in Qdrant, separately from Knowledge Base and conver
 
 ## Configuration Variables :id=configuration-variables
 
-The help system can be configured via environment variables in `~/monadic/config/env`:
+These variables are read from `~/monadic/config/env`.
 
-- `HELP_CHUNK_SIZE`: Character count per chunk (default: 3000)
-  - Larger chunks provide more context but may reduce search precision
-
-- `HELP_OVERLAP_SIZE`: Characters to overlap between chunks (default: 500)
-  - Provides continuity between adjacent chunks
+Used by the Help app:
 
 - `HELP_CHUNKS_PER_RESULT`: Chunks returned per search result (default: 3)
-  - Number of relevant chunks included in each search result
+- `HELP_DATA_DUMP`: The JSON dump used by the installation (default: `/monadic/help_data/help_db.json` inside the Ruby container). Changing the path does not install the data
 
-- `HELP_DATA_DUMP`: Override the JSON dump used by the installation action (default: `/monadic/help_data/help_db.json` inside the Ruby container). Changing the path does not install the data automatically
+Used only when building the help data with `rake help:build`:
+
+- `HELP_CHUNK_SIZE`: Characters per chunk (default: 3000). Larger chunks give more context per result and less precise matches
+- `HELP_OVERLAP_SIZE`: Characters shared by adjacent chunks (default: 500)
 
 Example:
 ```
-HELP_CHUNK_SIZE=4000
-HELP_OVERLAP_SIZE=600
 HELP_CHUNKS_PER_RESULT=5
 ```
 
@@ -130,7 +127,7 @@ HELP_CHUNKS_PER_RESULT=5
 1. Add or modify markdown files in the `docs/` directory
 2. Run `rake help:build` to regenerate the JSON dump
 3. Rebuild and recreate the Ruby container so it uses the new dump
-4. Open the Help app panel or **Monadic Chat Info → Help Data** and install or update the help data
+4. Open the **Help Data** panel and install or update the help data
 
 Rebuilding alone does not change the running help database. Internal notes under `docs_dev/` are excluded from the shipped database. `rake help:build_internal` generates a development dump, but both packaging and the help data installer reject internal content, including when `DEBUG_MODE=true`.
 
@@ -144,6 +141,8 @@ Rebuilding alone does not change the running help database. Internal notes under
 
 ### Chunk Size Guidelines :id=chunk-size-guidelines
 
+These apply when building the help data with `HELP_CHUNK_SIZE`:
+
 - **Technical documentation**: Use larger chunks (4000-5000) to preserve code examples
 - **FAQ / short content**: Use smaller chunks (2000-3000) for precise matching
 - **General content**: Default (3000) works well for most cases
@@ -151,20 +150,19 @@ Rebuilding alone does not change the running help database. Internal notes under
 ### Search Quality :id=search-quality
 
 - Increase `HELP_CHUNKS_PER_RESULT` if answers seem incomplete
-- Adjust the `top_n` parameter in search calls for more results
-- Use specific search terms for better matching
+- Ask with specific terms for better matches
 
 ## Limitations :id=limitations
 
 - The chat model used to answer questions still requires its provider API key; installation and search require no API key
-- Coverage and accuracy vary by language because each spaCy/sentence-transformer model is trained on a different corpus
+- Search quality differs between languages
 
 ## Troubleshooting :id=troubleshooting
 
 ### Common Issues :id=common-issues
 
 1. **Help search is unavailable or returns no results**
-   - Check the status in the Help app panel or **Monadic Chat Info → Help Data** and install or reinstall if requested
+   - Check the status in the **Help Data** panel and install or reinstall if it asks you to
    - Wait for an active installation to finish; if it fails, check the displayed reason and try again
    - Verify both containers are running: `docker ps | grep -E 'qdrant|embeddings'`
 
@@ -178,7 +176,7 @@ Rebuilding alone does not change the running help database. Internal notes under
    - Inspect container logs: `docker logs monadic-chat-embeddings-container`
    - Wait for the model to finish loading before retrying the build
 
-4. **Help data needs attention after an upgrade**
-   - Open the Help app panel or **Monadic Chat Info → Help Data**
+4. **The Help Data panel asks for an action**
+   - Open the **Help Data** panel
    - Install if no data is installed, update when offered, or reinstall if the previous version cannot be verified
    - Restarting or rebuilding the container does not replace the help data; use the panel's action

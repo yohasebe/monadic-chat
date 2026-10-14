@@ -1,37 +1,35 @@
 # Monadic DSL （ドメイン固有言語）
 
-Monadic DSLは、特定の動作、UI要素、機能を持つAIアプリケーションを簡単に作成するための仕組みです。このドキュメントではDSLの構文と使用方法について詳しく説明します。
+Monadic DSL は、アプリの動作、画面、ツールを定義します。このページでは、その書き方を説明します。
 
 ## はじめに
 
-Monadic DSLは、Ruby言語をベースとした設定システムで、高度なRubyコードを書かなくても、AI駆動のアプリケーションを簡単に定義できるようにします。DSLは宣言的なアプローチでアプリケーションの動作を指定します。
+Monadic DSL は Ruby にもとづく宣言的な形式で、Ruby のクラスを自分で書かずにアプリを定義できます。
 
 ## ファイル形式
 
-Monadic Chatは**`.mdsl`形式**（Monadic Domain Specific Language）をすべてのアプリ定義に使用します。この宣言的な形式により、クリーンで保守しやすいAI駆動アプリケーションを定義できます。
-
-**重要**: すべてのアプリはMDSL形式を使用する必要があります。
+アプリは `.mdsl` ファイル（Monadic Domain Specific Language）で定義します。Monadic Chat は、ファイルごとに、アプリの名前の Ruby のクラスを作ります。
 
 ## 基本構造
 
-基本的なMDSLアプリケーション定義は次のようになります：
+MDSL のアプリの定義の基本形は次のとおりです。
 
 ```ruby
-app "AppNameProvider" do  # Rubyクラス名と正確に一致する必要があります（例: ChatOpenAI）
-  description "このアプリケーションが何をするかの簡単な説明"
-  
-  icon "fa-solid fa-icon-name"  # FontAwesomeアイコンまたはカスタムHTML
-  
-  system_prompt <<~PROMPT
-    AIモデルがこの特定のアプリケーションコンテキストでどのように
-    振る舞うべきかを定義する指示。
-  PROMPT
-  
+app "AppNameProvider" do  # The name of the generated class (e.g., ChatOpenAI)
+  description "A brief description of what this application does"
+
+  icon "fa-solid fa-icon-name"  # Font Awesome class or icon name
+
   llm do
     provider "anthropic"
     model "<model-id>"
     temperature 0.7
   end
+
+  system_prompt <<~PROMPT
+    Instructions for the AI model that define how it should behave
+    in this specific application context.
+  PROMPT
 
   features do
     auto_speech false
@@ -39,79 +37,77 @@ app "AppNameProvider" do  # Rubyクラス名と正確に一致する必要があ
 end
 ```
 
+`llm` ブロックは、`tools` と `import_shared_tools` より前に書きます。ツールの定義は、宣言した時点で設定されているプロバイダーの形式に変換され、`llm` ブロックで設定するまで、プロバイダーは `openai` だからです。
+
 ## 設定ブロック
 
 ### 1. アプリのメタデータ
 
 ```ruby
-app "AppNameProvider" do  # Rubyクラス名と正確に一致する必要があります
-  description "アプリケーションの説明"
-  
-  # アイコンはスマートマッチングで複数の形式で指定できます：
-  icon "brain"                        # シンプルな名前（fa-solid fa-brainになります）
-  # icon "github"                     # 既知のブランド（自動的にfa-brands fa-githubになります）
-  # icon "fa-regular fa-envelope"     # スタイル接頭辞付きの完全なFontAwesomeクラス
-  # icon "<i class='fas fa-code'></i>" # カスタムHTMLはそのまま保持されます
-  
-  # 利用可能なアイコンは次をご覧ください: https://fontawesome.com/v6/search?ic=free
+app "AppNameProvider" do  # e.g., "ChatOpenAI", "CodingAssistantClaude", "ResearchAssistantGemini"
+  description "Application description"
+  # Or one description per UI language:
+  # description do
+  #   en "Application description"
+  #   ja "アプリの説明"
+  # end
 
-  display_name "アプリケーション名"    # UI上に表示される名前
-  
-  # group "カテゴリ名"  # プロバイダーによって自動設定 - 必要でない限り上書きしない
+  # Icon formats:
+  icon "brain"                        # Simple name (becomes fa-solid fa-brain)
+  # icon "github"                     # Known brand (becomes fa-brands fa-github)
+  # icon "fa-regular fa-envelope"     # Full Font Awesome class with style prefix
+  # icon "regular envelope"           # Style + name (becomes fa-regular fa-envelope)
+
+  # For available icons, see: https://fontawesome.com/v6/search?ic=free
+
+  display_name "Application Name"      # Name shown in the UI (default: the app name)
 end
 ```
+
+メニューのグループは、`features` ブロックで設定します（`group "Category Name"`）。既定はプロバイダーのグループです。
 
 ### 2. LLM設定
 
 ```ruby
 llm do
-  provider "anthropic"  # AIプロバイダー (anthropic, openai, cohere, etc.)
-  model "<model-id>"  # モデル名
-  temperature 0.7  # レスポンスのランダム性 (0.0-1.0)
-  max_tokens 4000  # 最大レスポンス長
-  reasoning_effort "high"  # 推論対応モデルでの推論の深さ
-                           # （例: "low"、"medium"、"high"。省略時は
-                           # "none" = 推論無効）
-  context_size 25  # モデルに送信する直近メッセージ数
-                   # （クライアント側スライディングウィンドウ。UIの既定値になる）
+  provider "anthropic"  # AI provider (anthropic, openai, cohere, etc.)
+  model "<model-id>"  # Model name
+  temperature 0.7  # Response randomness (0.0-2.0, default 0.7)
+  max_tokens 4000  # Maximum response length
+  reasoning_effort "high"  # Reasoning depth for reasoning-capable models
+                           # (e.g., "low", "medium", "high"; when omitted,
+                           # defaults to "none" = reasoning disabled)
 end
 ```
 
-サポートされているプロバイダー：
-- `openai` - [https://openai.com](https://openai.com)
-- `anthropic` - [https://anthropic.com](https://anthropic.com) (Claude)
-- `gemini` - [https://ai.google.dev](https://ai.google.dev) (Google)
-- `mistral` - [https://mistral.ai](https://mistral.ai)
-- `cohere` - [https://cohere.com](https://cohere.com)
-- `deepseek` - [https://deepseek.com](https://deepseek.com)
-- `xai` - [https://x.ai](https://x.ai) (Grok)
-- `ollama` - [https://ollama.ai](https://ollama.ai) (ローカルモデル)
+モデルに送る直近のメッセージの数は、`features` ブロックの `context_size` で設定します。[機能フラグ](#feature-flags)を参照してください。
 
-どのアプリがどのモデルと互換性があるかの完全な概要については、基本アプリのドキュメントの[モデル互換性](/ja/basic-usage/basic-apps.md#app-availability)セクションを参照してください。
+対応するプロバイダー：
+- `anthropic`（Claude のモデル）
+- `openai`（GPT のモデル）
+- `cohere`（Command のモデル）
+- `mistral`（Mistral のモデル）
+- `gemini`（Google Gemini のモデル）
+- `deepseek`（DeepSeek のモデル）
+- `xai`（Grok のモデル）
+- `ollama`（Ollama のローカルのモデル）
 
-#### モデル指定のベストプラクティス
+どのアプリがどのモデルで使えるかは、基本アプリのドキュメントの[プロバイダー別のアプリの対応状況](../basic-usage/basic-apps.md#app-availability)を参照してください。
 
-MDSLでモデルを指定する方法は3つあり、それぞれ異なる用途に適しています：
+#### モデル指定のベストプラクティス :id=model-specification-best-practices
 
-**標準アプリ（`docker/services/ruby/apps/`内の組み込みアプリ）**
-
-安定性と予測可能性のために具体的なモデル名を使用：
+**モデルを固定する**
 
 ```ruby
 llm do
   provider "openai"
-  model "<model-id>"  # 明示的なモデル名で一貫した動作を保証
+  model "<model-id>"
 end
 ```
 
-- ✅ 予測可能な動作
-- ✅ デバッグが容易
-- ✅ 本番環境のアプリに適している
-- ⚠️ 新しいモデルがリリースされた際に定期的な更新が必要
+**既定のモデルを使う**
 
-**カスタムアプリ（`~/monadic/data/apps/`内のユーザー作成アプリ）**
-
-特定のモデルを固定する必要がなければ、`llm`ブロックの`model`を省略します：
+モデルを固定する必要がなければ、`llm` ブロックで `model` を省きます。
 
 ```ruby
 llm do
@@ -119,34 +115,33 @@ llm do
 end
 ```
 
-モデルの選択は既定の解決処理に委ねられます。アプリ定義内でモデル名を管理する必要はありません。
+モデルは下の順で決まり、アプリの定義にモデルの名前を書く必要はありません。
 
 **設定の優先順位**
 
-モデル値は以下の順序で解決されます（優先度の高い順）：
+モデルは次の順（高いものから）で決まります。
 
-1. **明示的なMDSL値**: `model "<model-id>"`（最優先）
-2. **環境変数**: Rubyプロセスの`ENV["OPENAI_DEFAULT_MODEL"]`
-3. **プロバイダーデフォルト**: `model_spec.js`内の`providerDefaults`（SSOT）
-4. **ハードコードされたフォールバック**: 組み込みのデフォルト値
+1. **MDSL に書いた値**：`model "<model-id>"`（最優先）
+2. **環境変数**：たとえば `~/monadic/config/env` の `OPENAI_DEFAULT_MODEL`
+3. **プロバイダーの既定値**：`model_spec.js` の `providerDefaults`
 
-**複数のモデル選択肢**
+**いくつものモデルから選ばせる**
 
-配列を使用してユーザーにモデルの選択肢を提供：
+配列で書くと、利用者がモデルを選べます。
 
 ```ruby
 llm do
   provider "openai"
-  model ["<model-1>", "<model-2>", "<model-3>"]  # ユーザーがドロップダウンから選択可能
+  model ["<model-1>", "<model-2>", "<model-3>"]  # Users can select from dropdown
 end
 ```
 
-**プロバイダー固有の環境変数**
+**プロバイダーごとの環境変数**
 
-各プロバイダーには対応する環境変数があります：
+プロバイダーごとに、次の環境変数があります。
 
 | プロバイダー | 環境変数 |
-|------------|---------|
+|--------------|----------|
 | OpenAI | `OPENAI_DEFAULT_MODEL` |
 | Anthropic/Claude | `ANTHROPIC_DEFAULT_MODEL` |
 | Gemini/Google | `GEMINI_DEFAULT_MODEL` |
@@ -160,156 +155,163 @@ end
 
 ```ruby
 system_prompt <<~PROMPT
-  あなたは数学問題を解くのを手助けする専門AIアシスタントです。
-  常に段階的に解法を示してください。
+  You are an AI assistant specialized in helping with math problems.
+  Always show your work step by step.
 PROMPT
 ```
 
-### 4. 機能フラグ
+### 4. 機能フラグ :id=feature-flags
 
 ```ruby
-# 一般的なUI機能:
+# Interface features:
 features do
-  auto_speech false       # アシスタントメッセージの自動テキスト読み上げを有効にする
-  easy_submit true        # Enterキーでのメッセージ送信を有効にする
-  math true            # KaTeXを使用した数学表記のレンダリングを有効にする
-  abc true                # ABC音楽表記のレンダリングと再生を有効にする
-  mermaid true            # Mermaidダイアグラムレンダリングを有効にする
-  websearch true          # ウェブ検索機能を有効にする
+  group "My Apps"         # Group in the app menu (default: the provider's group)
+  disabled false          # Hide the app from the menu when true
+  context_size 20         # Number of recent messages sent to the model
+  auto_speech false       # Enable automatic text-to-speech for assistant messages
+  easy_submit true        # Enable submitting messages with Enter key (without clicking Send)
+  math true               # Enable mathematical notation rendering using KaTeX
+  abc true                # Enable ABC music notation rendering and playback
+  mermaid true            # Enable Mermaid diagram rendering for flowcharts and diagrams
+  websearch true          # Enable web search
+  library_save false      # No saving to the Knowledge Base (default true)
+  library_search false    # No Knowledge Base retrieval (default true; needs library_save)
 end
 
-# プロバイダー固有の機能:
+# Features that require specific implementation in the app:
 features do
-  pdf_vector_storage true # PDFアップロードとRAG（検索拡張生成）を有効にする
-  toggle true             # アシスタントメッセージ内の <div class='toggle'> ブロックを折りたたみ（表示/非表示）セクションとして描画する
-  jupyter true            # Jupyterノートブックインターフェースへのアクセスを有効にする
-  image_generation true   # AI画像生成 - サポート値: true、"upload_only"、false
-  monadic true            # Session Stateアプリでは必須 - ツールによるコンテキスト管理を有効化
-  initiate_from_assistant true # AIメッセージで会話を開始
-  autonomy "high"         # 自律レベルの設定: "high"、"medium"（デフォルト）、"low"
-  expressive_speech false # このアプリを Expressive Speech の対象から除外します。
-                          # 厳密な出力形式（JSON生成アプリなど）を持つアプリで、
-                          # 音声マーカー指示の追加挿入がシステムプロンプトと衝突する場合に使用。
-                          # 未指定時: Auto Speech がオンかつマーカー対応 TTS プロバイダー選択時に自動発動。
+  # The following features are tied to specific system components:
 
-  # speech-to-speech（Live Conversation 系）。speech_to_speech を宣言すると、
-  # テキスト入力パネルが開始/終了ボタンに置き換わり、マイク音声がプロバイダの
-  # realtime API へ直接ストリーミングされます。利用者向けの挙動は
-  # 「チャット・アシスタントアプリ」の Live Conversation 節を参照してください。
-  speech_to_speech true   # このアプリを speech-to-speech アプリにする
-  sts_input_rate 16000    # マイクのサンプルレート（Hz）。既定: 24000
-                          # （Gemini Live は 16000）
-  sts_vad_threshold 0.65  # 音声区間検出の感度（0.0〜1.0）。
-                          # 値が大きいほど環境音に反応しにくい
-  sts_vad_prefix_ms 300   # 発話開始前に保持する音声の長さ（ミリ秒）
-  sts_vad_silence_ms 1000 # ターンの終わりと判定する無音の長さ（ミリ秒）
-  sts_vad_type "semantic_vad"   # ターン判定方式。既定: "server_vad"（無音ベース）。
-                                # "semantic_vad" は意味の完結を待つ（OpenAI のみ）
-  sts_vad_eagerness "low"       # semantic_vad がターンを閉じる速さ:
-                                # low / medium / high / auto（OpenAI のみ）
-  sts_idle_stop_seconds 180 # 無操作がこの秒数続いたらセッションを自動停止。
-                            # 既定: 180。0 で無効化
+  pdf_vector_storage true # Enable PDF file upload and vector storage for RAG (Retrieval-Augmented Generation)
+  toggle true             # Render <div class='toggle'> blocks in assistant messages as collapsible show/hide sections
+  jupyter true            # Enable access to Jupyter notebook interface
+  image_generation true   # Enable AI image generation tools in conversation
+  monadic true            # REQUIRED for Session State apps - enables context management via tools
+  initiate_from_assistant true # Allow assistant to send first message in conversation
+  autonomy "high"         # Set autonomy level: "high", "medium" (default), or "low"
+  expressive_speech false # Opt this app out of Expressive Speech injection.
+                          # Useful for apps with strict output formats (e.g. JSON-producing apps)
+                          # where appended voice-marker instructions would collide with the system prompt.
+                          # Default: not set (the feature activates automatically when Auto Speech is on
+                          # and a marker-capable TTS provider is selected).
+
+  # Speech-to-speech (Live Conversation family). Declaring speech_to_speech
+  # replaces the text input panel with Start/Stop controls and streams the
+  # microphone to the provider's realtime API. See the Live Conversation
+  # section in Chat & Assistant Apps for the user-facing behavior.
+  speech_to_speech true   # Turn this app into a speech-to-speech app
+  sts_input_rate 16000    # Microphone sample rate in Hz. Default: 24000
+                          # (Gemini Live consumes 16000)
+  sts_vad_threshold 0.65  # Voice-activity detection sensitivity (0.0-1.0).
+                          # Higher = less sensitive to background noise
+  sts_vad_prefix_ms 300   # Audio kept before speech starts, in milliseconds
+  sts_vad_silence_ms 1000 # Silence that ends a turn, in milliseconds
+  sts_vad_type "semantic_vad"   # Turn-detection mode. Default: "server_vad"
+                                # (silence-based). "semantic_vad" waits for
+                                # semantic completion (OpenAI only)
+  sts_vad_eagerness "low"       # How quickly semantic_vad ends a turn:
+                                # low / medium / high / auto (OpenAI only)
+  sts_idle_stop_seconds 180 # Stop the session after this much inactivity.
+                            # Default: 180. Set 0 to disable
 end
 ```
 
-`sts_vad_*` は省略するとプロバイダ既定値が使われます。またすべてのプロバイダが
-すべてのキーを解釈するわけではありません（xAI は `sts_vad_prefix_ms` を無視します）。
-OpenAI 変種の Live Conversation では、ユーザーがターン判定セレクタから
-`sts_vad_type` / `sts_vad_eagerness` を選ぶこともでき、選択した値は次のセッションで
-MDSL の既定より優先されます。
+`sts_vad_*` を省くと、プロバイダー自身の既定値が使われます。すべてのプロバイダーがすべての項目を使うわけではありません（xAI は `sts_vad_prefix_ms` を使いません）。Live Conversation の OpenAI 版では、利用者がターン判定のメニューで `sts_vad_type` と `sts_vad_eagerness` を選べ、選んだ値は次のセッションから MDSL の既定値より優先されます。
 
 #### 自律レベル
 
-`autonomy` 機能は、アシスタントがアクション実行前にどの程度確認を求めるかを制御します：
+`autonomy` は、アシスタントが操作の前にどれだけ確認を求めるかを決めます。
 
 | レベル | 動作 |
 |--------|------|
-| `"high"` | 確認なしでアクションを即座に実行。Plan-Approve-Execute プロトコルをスキップ。意図が曖昧な場合、パスワード、破壊的操作の場合のみ一時停止。 |
-| `"medium"` | デフォルト動作。マルチステップタスクでの Plan-Approve-Execute プロトコルを含む、標準的な確認パターンに従う。 |
-| `"low"` | すべてのアクション実行前にユーザーの明示的な確認を要求。2つ以上のステップがあるタスクでは常に `propose_plan` を使用。 |
+| `"high"` | 確認せずにすぐ操作します。Plan-Approve-Execute の手順を省きます。意図があいまいなとき、パスワード、元に戻せない操作のときだけ止まります。 |
+| `"medium"` | 既定の動作です。いくつもの手順がある作業では、Plan-Approve-Execute の手順を含む、ふつうの確認を行います。 |
+| `"low"` | どの操作の前にも、利用者に確認を求めます。2 つ以上の手順がある作業では、必ず `propose_plan` を使います。 |
 
-省略時のデフォルトは `"medium"`（プロンプト注入なし）です。Web Insight では、繰り返しの確認プロンプトなしにスムーズなインタラクティブブラウザセッションを実現するため `"high"` を使用しています。
+省くと、`"medium"` になります（プロンプトには何も加えられません）。Web Insight は、ブラウザーの操作を確認なしで続けられるように `"high"` を使っています。
 
 ### 5. ツール定義
 
-ツールは2つの方法で定義できます：共有ツールグループをインポートする方法と、カスタムツールを定義する方法です。
+ツールは、共有のツールグループを取り込むか、独自のツールを定義するかの 2 つの方法で用意します。
 
 #### 共有ツールグループのインポート
 
-共有ツールグループは、複数のアプリで再利用できる関連ツールのコレクションです：
+共有のツールグループは、いくつものアプリで使える、関連するツールのまとまりです。
 
 ```ruby
-# 常時利用可能なツールグループをインポート
+# Import always-available tool groups
 import_shared_tools :file_operations, visibility: "always"
 import_shared_tools :python_execution, visibility: "always"
 
-# 条件付き利用可能なツールグループをインポート
+# Import conditionally-available tool groups
 import_shared_tools :web_automation, visibility: "conditional"
 ```
 
-**利用可能なツールグループ**: ツールグループは共有ツールレジストリ（`lib/monadic/shared_tools/registry.rb`）で定義されています。グループの完全な一覧、含まれるツール、利用可能条件については[ツールグループ](tool-groups.md)を参照してください。
+**使えるツールグループ**：ツールグループは、共有ツールの登録簿（`lib/monadic/shared_tools/registry.rb`）で定義されています。グループの一覧、含まれるツール、使える条件は、[ツールグループ](tool-groups.md)を参照してください。
 
-**可視性モード**:
-- `always`: ツールグループは常に利用可能
-- `conditional`: ツールグループの可用性は実行時条件に依存（例：Seleniumコンテナが実行中）
+**visibility の値**：
+- `always`：ツールは最初からモデルに送られます
+- `conditional`（既定）：モデルが `request_tool` でグループを求めるまで、ツールは隠れています
+
+環境にも左右されるグループがあります（たとえば、コンテナが動いていること、API キーがあること）。その条件は[ツールグループ](tool-groups.md)のページにあります。プロバイダーにない能力（画像や音声の入力など）が要るグループは、そのプロバイダーでは使われません。
 
 #### 動的スキル（reachable_skills）
 
-すべてのツールグループを最初からインポートする代わりに、`reachable_skills` を使って「会話の流れに応じて獲得できる」グループを宣言できます。これらのグループは、モデルが `request_tool` で名前を指定して要求するまで隠されたままです：
+すべてのツールグループを最初から取り込む代わりに、`reachable_skills` で、会話の途中で必要になったときに使えるグループを宣言できます。モデルが `request_tool` で名前を指定して求めるまで、グループは隠れています。
 
 ```ruby
-# 会話で必要になったときに解除できるグループ
+# Groups the app can unlock when the conversation calls for them
 reachable_skills :web_search_tools, :image_analysis
 
-# または、読み取り専用の安全なグループ群を1行でまとめて指定
+# Or grant the curated pool of read-only safe groups in one line
 reachable_skills :safe
 ```
 
-`reachable_skills :group_a, :group_b` は各グループを `visibility: "conditional"` でインポートするのと同等ですが、意図をより明確に表現します。詳細は[ツールグループ](tool-groups.md)の「動的スキル」の節を参照してください。
+`reachable_skills :group_a, :group_b` は、それぞれのグループを `visibility: "conditional"` で取り込むのと同じですが、意図がわかりやすくなります。詳しくは[ツールグループ](tool-groups.md)の「動的スキル」の節を参照してください。
 
 #### カスタムツールの定義
 
-アプリ固有の機能については、カスタムツールを定義します：
+アプリ独自の機能には、独自のツールを定義します。
 
 ```ruby
 tools do
-  define_tool "book_search", "タイトル、著者、またはISBNで書籍を検索する" do
-    parameter :query, "string", "検索語句（書籍タイトル、著者名、またはISBN）", required: true
-    parameter :search_type, "string", "実行する検索のタイプ", required: false, enum: ["title", "author", "isbn", "any"]
-    parameter :category, "string", "結果をフィルタリングする書籍カテゴリ", required: false, enum: ["fiction", "non-fiction", "science", "history", "biography"]
-    parameter :max_results, "integer", "返す最大結果数（デフォルト: 10）", required: false
+  define_tool "book_search", "Search for books by title, author, or ISBN" do
+    parameter :query, "string", "Search terms (book title, author name, or ISBN)", required: true
+    parameter :search_type, "string", "Type of search to perform", enum: ["title", "author", "isbn", "any"]
+    parameter :category, "string", "Book category to filter results", enum: ["fiction", "non-fiction", "science", "history", "biography"]
+    parameter :max_results, "integer", "Maximum number of results to return (default: 10)"
   end
 end
 ```
 
-**注意**: `parameter`メソッドは`default`キーワードをサポートしていません。デフォルト値は説明文に含めてください。
+**注意**：`parameter` は `default` のキーワードを受け付けません。既定値は説明の文に書いてください。
 
 #### 共有ツールとカスタムツールの組み合わせ
 
-同じアプリで共有ツールグループとカスタムツールの両方を使用できます：
+1 つのアプリで、共有のツールグループと独自のツールの両方を使えます。
 
 ```ruby
-# 共有ツールをインポート
+# Import shared tools
 import_shared_tools :file_operations, visibility: "always"
 
-# カスタムツールを定義
+# Define custom tools
 tools do
-  define_tool "analyze_data", "ファイルからデータを分析する" do
-    parameter :filename, "string", "分析するファイル名", required: true
+  define_tool "analyze_data", "Analyze data from file" do
+    parameter :filename, "string", "Name of file to analyze", required: true
   end
 end
 ```
 
 ### 6. コンテキストコンパクション
 
-OpenAIモデルで動作するアプリでは、`compaction` ブロックによりサーバー側の会話コンパクション（Responses API）を制御できます。標準の閾値でデフォルト有効なので、閾値をカスタマイズするか無効化する場合にのみ宣言します：
+OpenAI のモデルで動くアプリでは、`compaction` ブロックで、サーバー側での会話のコンパクション（Responses API）を設定します。既定でオンで、しきい値は 150,000 トークンです。しきい値を変えるときとオフにするときだけ、このブロックを書きます。
 
 ```ruby
 compaction do
-  compact_threshold 180_000   # カスタムトークン閾値
+  compact_threshold 180_000   # Custom token threshold
 end
 
-compaction false              # 無効化 — context_size のスライディングウィンドウのみに依存
+compaction false              # Opt out — rely on the context_size sliding window only
 ```
 
 ## アプリケーション例
@@ -317,16 +319,16 @@ compaction false              # 無効化 — context_size のスライディン
 ### シンプルなチャットアプリケーション
 
 ```ruby
-app "ChatClaude" do  # クラス名と正確に一致する必要があります
-  description "Claudeを使用した基本的なチャットアプリケーション"
+app "ChatClaude" do  # AppName + Provider
+  description "Basic chat application with Claude"
   icon "fa-solid fa-comments"
-  display_name "チャット"
-  
+  display_name "Chat"
+
   system_prompt <<~PROMPT
-    あなたは正確で簡潔な情報を提供する便利なアシスタントです。
-    常に丁寧に、ユーザーの質問に直接応答してください。
+    You are a helpful assistant that provides accurate and concise information.
+    Always be polite and respond directly to the user's questions.
   PROMPT
-  
+
   llm do
     provider "anthropic"
     model "<model-id>"
@@ -334,44 +336,46 @@ app "ChatClaude" do  # クラス名と正確に一致する必要があります
   end
 
   features do
-    monadic false  # Session State（コンテキスト管理）を無効化
+    monadic false  # Disable Session State (context management)
     initiate_from_assistant true
   end
 end
 ```
 
+> **注意**：動く例は、`docker/services/ruby/apps/` のアプリを参照してください。
+
 ### コードインタープリタ付の数学チューター
 
 ```ruby
-app "MathTutorOpenAI" do  # クラス名と正確に一致する必要があります
-  description "数学問題を段階的に解決するAIアシスタント"
+app "MathTutorOpenAI" do  # AppName + Provider
+  description "AI assistant that helps solve math problems step-by-step"
   icon "fa-solid fa-calculator"
-  display_name "数学チューター"
+  display_name "Math Tutor"
   
   system_prompt <<~PROMPT
-    あなたは有能な数学チューターです。数学の問題が提示されたら：
-    1. 問題を注意深く分析してください
-    2. アプローチを説明してください
-    3. すべての手順を示してください
-    4. 答えを確認してください
+    You are a helpful math tutor. When presented with math problems:
+    1. Analyze the problem carefully
+    2. Explain your approach
+    3. Show all steps of your work
+    4. Verify the answer
     
-    計算や視覚化のためにrun_code関数を使用してください。
-    答えだけではなく、概念を教えることに重点を置いてください。
+    You can use Python code to perform calculations and create visualizations.
+    Focus on teaching the concepts, not just providing answers.
   PROMPT
   
   llm do
     provider "openai"
-    model ["<model-1>", "<model-2>"]  # ユーザー選択用のモデルIDの配列
+    model ["<model-1>", "<model-2>"]  # Array of model IDs for user selection
     temperature 0.7
   end
 
   features do
-    math true        # 数式表記を有効にする
+    math true        # Enable math notation rendering
   end
   
   tools do
-    # run_codeは標準ツール - 定義不要
-    # コード実行のために自動的に利用可能
+    # run_code comes from the :python_execution group
+    import_shared_tools :python_execution, visibility: "always"
   end
 end
 ```
@@ -380,266 +384,252 @@ end
 
 ### ツール/関数呼び出し
 
-Monadic Chatのツールは、MDSLファイルで明示的に定義する必要があります。各ツール定義は、コンパニオンの`*_tools.rb`ファイル内の対応するメソッド実装と一致する必要があります。
+ツールは MDSL ファイルで定義します。独自のツールには、対応する `*_tools.rb` ファイルに同じ名前のメソッドが要ります。
 
 #### ファイル構成
 
-ツール実装は、アプリの`.mdsl`ファイルと同じディレクトリに置くコンパニオンの`*_tools.rb`ファイルに記述します。標準的なディレクトリ構成とファイル命名規則については、アプリ開発ガイドの[ファイル構成パターン](develop_apps.md#ファイル構成パターン)を参照してください。
+ツールの実装は、アプリの `.mdsl` ファイルと並べて置く `*_tools.rb` ファイルに書きます。フォルダの構成とファイルの名前の決まりは、アプリの開発のガイドの[ファイル構成パターン](develop_apps.md#file-structure-patterns)を参照してください。
 
-**共有ツールグループの場合**:
+**共有のツールグループを使うとき**：
 
-`import_shared_tools`を使用する場合、ツール実装は`lib/monadic/shared_tools/`の共有モジュールから提供されます。`*_tools.rb`ファイルで共有モジュールをインクルードする必要があります：
+`import_shared_tools` を使うと、メソッドは `lib/monadic/shared_tools/` の共有のモジュールから来ます。作られるアプリのクラスには、取り込んだグループのモジュールと、アプリの `<アプリ名>Tools` モジュールが含まれるので、ツールのファイルにはアプリ独自のメソッドだけを書きます。
 
 ```ruby
 # apps/my_app/my_app_tools.rb
 module MyAppTools
-  include MonadicHelper
-  include MonadicSharedTools::FileOperations  # :file_operations用
-  include MonadicSharedTools::WebAutomation   # :web_automation用
-
-  # カスタムツール実装もここに追加可能
-  def my_custom_tool(params)
-    # 実装
+  def my_custom_tool(param:)
+    # Implementation
   end
-end
-
-class MyAppOpenAI < MonadicApp
-  include OpenAIHelper
-  include MyAppTools
 end
 ```
 
+どのアプリにも `:file_operations` のグループが加わり、共有フォルダのファイルを読み書きできます。
+
 #### ベストプラクティス
 
-1. **共有ツールを優先する**: コードの重複を避けるため、共通機能には`import_shared_tools`を使用
-2. **ツール定義を明示的にする**: 明確性のため、すべてのツールをMDSLファイルで定義
-3. **実装メソッドを一致させる**: 各カスタムツールに`*_tools.rb`内の対応するメソッドがあることを確認
-4. **わかりやすい名前を使用する**: ツール名とパラメータ名は自己文書化されるべき
-5. **意味のある説明を追加する**: AIが各ツールをいつどのように使用するか理解できるようにする
-6. **ツール実装をテストする**: デプロイ前にツールが正しく動作することを確認
-7. **可用性を確認する**: 条件付きツールについては、使用前に依存関係が満たされているか確認
+1. **共有のツールを使う**：よくある機能には、コードを重ねて書かずに `import_shared_tools` を使います
+2. **ツールの定義をはっきり書く**：すべてのツールを MDSL ファイルで定義します
+3. **実装のメソッドを合わせる**：独自のツールには、`*_tools.rb` に対応するメソッドを用意します
+4. **わかりやすい名前を付ける**：ツールとパラメーターの名前で、何をするかがわかるようにします
+5. **意味のある説明を書く**：いつ、どう使うかを AI がわかるようにします
+6. **ツールの実装を試す**：使う前に、ツールが正しく動くか確かめます
+7. **使える条件を確かめる**：`conditional` のツールでは、必要なものがそろっているか確かめます
 
-DSLはAIが呼び出せるツール（関数）の定義をサポートしています。これらは自動的に各プロバイダーに適した形式に変換されます。
+DSL で定義した、AI が呼び出せるツール（関数）は、プロバイダーごとの形式に自動で変換されます。
 
 ```ruby
 tools do
-  define_tool "generate_image", "テキスト説明に基づいて画像を生成する" do
-    parameter :prompt, "string", "生成する画像のテキスト説明", required: true
-    parameter :style, "string", "画像のスタイル", required: false, enum: ["realistic", "cartoon", "sketch"]
-    parameter :size, "string", "画像のサイズ", required: false, enum: ["small", "medium", "large"]
+  define_tool "generate_image", "Generate an image based on a text description" do
+    parameter :prompt, "string", "Text description of the image to generate", required: true
+    parameter :style, "string", "Style of the image", required: false, enum: ["realistic", "cartoon", "sketch"]
+    parameter :size, "string", "Size of the image", required: false, enum: ["small", "medium", "large"]
   end
 end
 ```
 
 ### MDSLでのツールの実装
 
-MDSLでのツール実装は、ファサードパターンを使用した構造化されたアプローチに従います：
+MDSL でのツールの実装は、ファサードパターンにもとづいて、次の形で行います。
 
-1. **ツールの定義**: ツールはMDSLファイルで明示的に定義する必要があります
-2. **ツールの実装**: ファサードパターンを使用してコンパニオン`*_tools.rb`ファイルにメソッドを実装します
+1. **ツールの定義**：ツールは MDSL ファイルで定義します
+2. **ツールの実装**：対応する `*_tools.rb` ファイルに、ファサードパターンでメソッドを書きます
 
-最小の例 — ツールをMDSLファイルで宣言し、コンパニオンのツールファイル内のファサードメソッドで入力検証とエラーハンドリングを行います：
+最小の例です。ツールを MDSL ファイルで宣言し、ツールのファイルのファサードのメソッドで入力を確かめ、エラーを扱います。
 
 ```ruby
-# my_app_openai.mdsl（抜粋）
+# my_app_openai.mdsl (excerpt)
 tools do
-  define_tool "mermaid_documentation", "mermaid.jsの構文ドキュメントを取得" do
-    parameter :diagram_type, "string", "図のタイプ（graph、sequence、flowchartなど）", required: true
+  define_tool "mermaid_documentation", "Get mermaid.js syntax documentation" do
+    parameter :diagram_type, "string", "Type of diagram (graph, sequence, flowchart, etc.)", required: true
   end
 end
+```
+
+```ruby
+# my_app_openai.mdsl (excerpt): fetch_web_content comes from this group
+import_shared_tools :web_search_tools, visibility: "always"
 ```
 
 ```ruby
 # my_app_tools.rb
-class MyAppOpenAI < MonadicApp
-  # 検証とエラーハンドリング付きファサードメソッド
+module MyAppTools
+  # Facade method with validation and error handling
   def mermaid_documentation(diagram_type: "graph")
     raise ArgumentError, "diagram_type is required" if diagram_type.to_s.empty?
 
-    result = fetch_web_content(url: "https://mermaid.js.org/syntax/#{diagram_type}.html")
-    { success: true, content: result }
+    fetch_web_content(url: "https://mermaid.js.org/syntax/#{diagram_type}.html")
   rescue => e
-    { success: false, error: e.message }
+    "❌ #{e.message}"
   end
 end
 ```
 
-パターンの詳しい解説と標準実装テンプレート（検証、エラーハンドリング、`include_modules`でインポートしたヘルパーモジュールのラップを含む）については、アプリ開発ガイドの[常にファサードパターンを使用](develop_apps.md#常にファサードパターンを使用)を参照してください。完成した実例（ヘルパーモジュールをファサードメソッドでラップするWikipediaアプリなど）は[レシピファイルの例](recipe-examples.md)を参照してください。
+パターンの説明と、`include_modules` で取り込んだヘルパーモジュールを包む書き方を含むひな形は、アプリの開発のガイドの[常にファサードパターンを使用](develop_apps.md#always-use-facade-pattern)を参照してください。完全な例（ファサードのメソッドがヘルパーモジュールを包む Wikipedia のアプリなど）は、[レシピ例](recipe-examples.md)を参照してください。
 
 ### Session Stateアプリ
 
-Session Stateを使用すると、明示的なツール呼び出しを使用して会話ターン間でコンテキストを永続化できます。進捗を追跡したり、情報を蓄積したり、構造化された状態を維持する必要があるアプリに有用です。
+Session State を使うと、アプリは明示的なツールの呼び出しで、会話のターンをまたいで文脈を保てます。進み具合を追う、情報を積み上げる、構造のある状態を保つ、といったアプリで役に立ちます。
 
 #### Session Stateアプリの要件
 
-Session Stateを使用するアプリは、featuresブロックで`monadic true`を**必ず**設定する必要があります：
+Session State を使うアプリでは、features ブロックで `monadic true` を**必ず**設定します。
 
 ```ruby
-app "MySessionStateApp" do
+app "MySessionStateOpenAI" do
+  llm do
+    provider "openai"
+  end
+
   features do
-    monadic true  # 必須 - Session State機能を有効化
+    monadic true  # REQUIRED - enables Session State functionality
   end
 
   tools do
-    # 状態管理用のload/saveツールを定義
-    define_tool "load_context", "セッション状態から現在のコンテキストを読み込む" do
-      parameter :session, "object", "セッションオブジェクト（自動的に提供される）", required: false
+    # Define load/save tools for state management
+    define_tool "load_context", "Load current context from session state" do
+      parameter :session, "object", "Session object (automatically provided)", required: false
     end
 
-    define_tool "save_context", "応答とコンテキストをセッション状態に保存する" do
-      parameter :message, "string", "あなたの応答メッセージ", required: true
-      parameter :topics, "array", "議論されたトピック（累積）", required: false
-      parameter :notes, "array", "重要なメモ（累積）", required: false
+    define_tool "save_context", "Save response and context to session state" do
+      parameter :message, "string", "Your response message", required: true
+      parameter :topics, "array", "Topics discussed (accumulated)", required: false
+      parameter :notes, "array", "Important notes (accumulated)", required: false
     end
   end
 end
 ```
 
-#### なぜ`monadic true`が必要か？
-
-`monadic true`フラグはツール定義から自動的に推論できません。UIおよびバックエンドのいくつかの動作を制御するためです：
-
-- **UIバッジ**：Session Stateアプリ用のビジュアルインジケーターを表示
-- **レンダリング**：構造化レスポンス用の異なるMarkdownレンダリングロジック
-- **TTS処理**：post-completion text-to-speechの動作が異なる
-- **プロバイダー機能**：Claudeのthinkingモードや他のプロバイダー固有機能に影響
-
 #### 組み込みSession Stateアプリ
 
-以下のアプリがコンテキスト管理にSession Stateを使用：
-
-| アプリ | 説明 |
-|-------|------|
-| Chat Plus | 会話コンテキスト（トピック、人物、メモ） |
-| Research Assistant | 研究進捗（発見、ソース、検索履歴） |
-| Math Tutor | 学習進捗（解いた問題、概念、弱点） |
-| Novel Writer | 執筆進捗（プロット、キャラクター、章） |
-| Voice Interpreter | 翻訳コンテキスト |
-| Language Practice Plus | 言語学習フィードバック |
+Session State を使うアプリには、Chat Plus、Research Assistant、Math Tutor、Novel Writer、Translate、Language Practice Plus、Voice Interpreter、Jupyter Notebook などがあります。
 
 ### コンテキストスキーマ（セッションコンテキスト）
 
-Session Stateアプリが明示的なツール呼び出しでコンテキスト管理を行うのに対し、`context_schema`ブロックを使用して**自動コンテキスト抽出**を有効にすることもできます。この機能は会話からキー情報を抽出し、サイドバーパネルに表示します。
+Session State のアプリは明示的なツールの呼び出しで文脈を扱いますが、`context_schema` ブロックで**文脈の自動抽出**も使えます。会話から大事な情報を取り出し、サイドバーのパネルに表示します。
 
-> **注意**: セッションコンテキストの完全なドキュメントは、[セッションコンテキスト](session-context.md)ガイドを参照してください。
+> **注意**：Session Context の説明の全体は、[Session Context](session-context.md) のガイドを参照してください。
 
 #### 基本的な使い方
 
 ```ruby
 app "MyAppOpenAI" do
   features do
-    monadic true  # context_schemaに必須
+    monadic true  # Required for context_schema
   end
 
   context_schema do
     field :topics, icon: "fa-tags", label: "Topics",
-          description: "会話で議論された主なテーマ"
+          description: "Main subjects discussed in conversation"
     field :people, icon: "fa-users", label: "People",
-          description: "言及された人物の名前"
+          description: "Names of people mentioned"
     field :notes, icon: "fa-sticky-note", label: "Notes",
-          description: "記憶すべき重要な事実と好み"
+          description: "Important facts and preferences to remember"
   end
 end
 ```
 
 #### フィールド定義
 
-`context_schema`の各フィールドは以下のオプションを受け付けます：
+`context_schema` のフィールドには、次の項目を指定できます。
 
-| オプション | 型 | 必須 | 説明 |
-|-----------|------|------|------|
-| `name` | Symbol | はい | フィールド識別子（第一引数、例：`:topics`） |
-| `icon` | String | いいえ | FontAwesomeアイコンクラス（例：`"fa-tags"`） |
-| `label` | String | いいえ | サイドバーの表示名（デフォルトはタイトルケースの名前） |
-| `description` | String | はい | 抽出エージェントに何を抽出するかを指示 |
+| 項目 | 型 | 必須 | 説明 |
+|------|----|------|------|
+| `name` | Symbol | はい | フィールドの識別子（最初の引数、例：`:topics`） |
+| `icon` | String | いいえ | Font Awesome のアイコンのクラス（例：`"fa-tags"`） |
+| `label` | String | いいえ | サイドバーに表示する名前（既定：名前の `_` を空白にし、最初の文字を大文字にしたもの） |
+| `description` | String | いいえ | 何を取り出すかを抽出のエージェントに伝えます |
 
 #### デフォルトスキーマ
 
-`context_schema`ブロックが指定されず`monadic true`が設定されている場合、アプリはデフォルトスキーマを使用します：
+`context_schema` のブロックがなく、`monadic true` が設定されているときは、既定のスキーマが使われます。
 
-- **Topics**: 議論された主なテーマ
-- **People**: 言及された人物の名前
-- **Notes**: 記憶すべき重要な事実
+- **Topics**：話題にしたこと
+- **People**：出てきた人の名前
+- **Notes**：覚えておく事実
 
 #### カスタムスキーマの例
 
 ```ruby
-# コードレビューアプリの場合
+# For a Code Review app
 context_schema do
   field :files_reviewed, icon: "fa-file-code", label: "Files",
-        description: "レビューされたソースコードファイル"
+        description: "Source code files that were reviewed"
   field :issues, icon: "fa-bug", label: "Issues",
-        description: "特定されたバグとコードの問題"
+        description: "Bugs and code problems identified"
   field :suggestions, icon: "fa-lightbulb", label: "Suggestions",
-        description: "改善の提案"
+        description: "Improvement recommendations"
 end
 ```
 
-Session State（明示的なツール呼び出し）とセッションコンテキスト（自動抽出）は、いずれも`monadic true`が必要で、同じアプリで併用できます。両メカニズムと関連用語の対照比較については、Monadicモードのドキュメントの[用語ガイド](monadic-mode.md#用語ガイド)を参照してください。
+Session State（明示的なツールの呼び出し）と Session Context（自動の抽出）は、どちらも `monadic true` が必要で、1 つのアプリでいっしょに使えます。2 つの仕組みの比較と用語は、Monadic モードのドキュメントの[用語ガイド](monadic-mode.md#terminology-guide)を参照してください。
 
 ### プロバイダー固有のアダプター
 
-DSLは異なるAIプロバイダーに対して適切な関数定義形式に自動的に変換し、各モデルプロバイダーの特定の要件とフォーマットを処理します：
+DSL は、関数の定義を、プロバイダーごとの形式に自動で変換します。
 
-- OpenAI: `type: "function"`構造を使用してOpenAIの関数呼び出し形式に変換
-- Anthropic: `input_schema`プロパティを持つClaudeのツール形式に適応
-- Cohere: OpenAIスタイルの`type: "function"`形式（JSON Schemaの`parameters`オブジェクト）を使用
-- Mistral: Mistralの関数呼び出しAPIに対応したフォーマット
-- Gemini: `function_declarations`構造を使用してGoogle Geminiモデル向けに構造化
-- DeepSeek: DeepSeekの関数呼び出し形式に変換
-- Grok (xAI): 厳格な検証を持つGrokの関数形式にマッピング
+- OpenAI：`type: "function"` で包んだ OpenAI の関数呼び出しの形式
+- Anthropic：`input_schema` を持つ Claude のツールの形式
+- Cohere：JSON Schema の `parameters` を持つ、OpenAI と同じ `type: "function"` の形式
+- Mistral：Mistral の関数呼び出しの API の形式
+- Gemini：`function_declarations` で包んだ Google Gemini の形式
+- DeepSeek：DeepSeek の関数呼び出しの形式
+- Grok（xAI）：Grok の関数呼び出しの形式
 
-この自動変換により、DSLでツール定義を一度記述するだけで、手動変換なしに異なるプロバイダー間で動作させることができます。
+この変換があるので、ツールの定義は DSL で 1 度書けば、どのプロバイダーでも使えます。
 
-**Font Awesomeアイコンについての注意**: `icon`メソッドを使用してアイコンを指定する場合、Font Awesome 6 Freeの任意のアイコン名を使用できます。利用可能なアイコンは https://fontawesome.com/v6/search?ic=free で確認できます。システムは「brain」のような単純な名前を自動的に適切なスタイルの正しいHTMLに変換します。
+**Font Awesome のアイコンについて**：`icon` には、Font Awesome 6 Free のどのアイコンでも使えます（https://fontawesome.com/v6/search?ic=free）。"brain" のような短い名前は、Font Awesome のクラスに変換されます。
 
 ## デバッグとテスト
 
-DSLアプリのトラブルシューティング時には、次の点を確認してください：
+DSL のアプリの問題を探すときは、次を確かめます。
 
-1. 有効なRuby構文（`end`文の欠落がない、適切なインデントがある）
-2. 必須設定ブロック（アプリ名、説明、システムプロンプト、llm）
-3. 適切に書式設定されたツール定義
-4. 選択した機能とプロバイダー機能の互換性
+1. Ruby の文法が正しいか（`end` が抜けていないか、字下げが正しいか）
+2. `llm` ブロックがツールより前にあるか。説明、アイコン、システムプロンプトがあるか
+3. ツールの定義の書き方が正しいか
+4. 選んだ機能とプロバイダーの能力が合っているか
 
-アプリの読み込みに失敗した場合、起動時にエラーが収集され、失敗した各アプリとその理由がサーバーコンソールに表示されます。詳細なデバッグ出力が必要な場合は、設定で`EXTRA_LOGGING=true`を指定してください。
+アプリの読み込みに失敗しても、ほかのアプリは読み込まれます。失敗したアプリと理由は、サーバーの出力（`docker logs monadic-chat-ruby-container`、開発モードではターミナル）に表示されます。さらに詳しいデバッグの出力には、設定で `EXTRA_LOGGING=true` にします。
 
 ## ベストプラクティス
 
-1. **共有ツールを優先する** - コードの重複を避けるため、共通機能には`import_shared_tools`を使用
-2. **クラス名と一致させる** - アプリ識別子はRubyクラス名と正確に一致する必要があります
-3. **わかりやすい名前を使用** - 明確なアプリ名とツール名は使いやすさを向上させます
-4. **システムプロンプトを集中させる** - 各ユースケースに特化した指示
-5. **必要な機能のみ有効にする** - 不要な機能を有効にしない
-6. **対象プロバイダーでテスト** - 選択したLLMとの互換性を確保
-7. **アプリを論理的に整理** - 一貫したUI表示のため`display_name`を使用
-8. **可用性を確認する** - 条件付きツールについては、使用前に依存関係が満たされているか確認
+1. **共有のツールを使う** - よくある機能には、コードを重ねて書かずに `import_shared_tools` を使います
+2. **ツールのモジュールにアプリの名前を付ける** - `MyAppOpenAI` は `MyAppTools` モジュールを使います
+3. **わかりやすい名前を付ける** - アプリとツールの名前がはっきりしていると、使いやすくなります
+4. **システムプロンプトを絞る** - 用途ごとに、その用途に合った指示を書きます
+5. **要るものだけをオンにする** - アプリで使わない機能はオンにしません
+6. **使うプロバイダーで試す** - 選んだ LLM で動くか確かめます
+7. **アプリを整理する** - `display_name` で、画面での表示をそろえます
+8. **使える条件を確かめる** - `conditional` のツールでは、必要なものがそろっているか確かめます
 
 ## よくある問題と解決策
 
-### 空のツールブロックエラー
+### 定義したツールが失敗する
 
-**問題**: 空の`tools do`ブロックは「Maximum function call depth exceeded」エラーを引き起こします。
+**問題**：モデルがツールを呼ぶと、"undefined method" になります。
 
-**解決策**: ツールを明示的に定義するか、コンパニオン`*_tools.rb`ファイルを作成します：
+**解決策**：メソッドが `<アプリ名>Tools` モジュールにあるか、そのツールのグループを `import_shared_tools` で取り込んでいるかを確かめます。
 
 ```ruby
-# オプション1: 明示的なツール定義
+# Explicit tool definition in the MDSL file
 tools do
-  define_tool "my_tool", "ツールの説明" do
-    parameter :param, "string", "パラメータの説明"
+  define_tool "my_tool", "Tool description" do
+    parameter :param, "string", "Parameter description"
   end
-end
-
-# オプション2: app_name_tools.rbを作成
-class AppNameProvider < MonadicApp
-  # 実装メソッド - すべてのツールはMDSLで定義する必要があります
 end
 ```
 
-### プロバイダー固有の考慮事項
+```ruby
+# my_app_tools.rb
+module MyAppTools
+  def my_tool(param: nil)
+    # ...
+  end
+end
+```
 
-- **関数制限**: ほとんどのプロバイダーは会話ターンあたり最大20回の関数呼び出しを許可（Mistralは30回）。正確な上限は各プロバイダーヘルパーの`MAX_FUNC_CALLS`定数で定義されています
-- **コード実行**: すべてのプロバイダーが`run_code`を使用してコード実行
-- **配列パラメータ**: OpenAIは配列に`items`プロパティが必要
-- **エラー防止**: 組み込みのエラーパターン検出が無限リトライループを防止
+### プロバイダー固有の考慮事項 :id=provider-specific-considerations
+
+- **関数の呼び出しの上限**：会話の 1 つのターンで 20 回まで（Mistral では 30 回）
+- **コードの実行**：どのプロバイダーでも、`:python_execution` のグループの `run_code` を使います
+- **配列のパラメーター**：OpenAI では、配列に `items` が必要です
+- **エラーの防止**：エラーのパターンを見つける仕組みが、いつまでも続くやり直しを防ぎます

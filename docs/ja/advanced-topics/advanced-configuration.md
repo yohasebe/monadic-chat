@@ -1,49 +1,51 @@
 # 高度な設定
 
-このページでは、インストールオプションやコンテナ管理など、Monadic Chatの高度な設定オプションについて説明します。
+このページでは、Install Options、起動、ビルドのログ、ブラウザーのタブ、環境変数について説明します。
 
 ## インストールオプション :id=install-options
 
-アプリのメニュー **アクション → インストールオプション…** から、Pythonコンテナ用のオプションコンポーネントを選択できます。
+**Actions → Install Options** で、Settings ウィンドウの **Install Options** の項目が開きます。ここで、追加のコンポーネントを選べます。
 
-### 利用可能なオプション
+- **LaTeX**：**Install LaTeX (minimal set for diagrams)**。Concept Visualizer と Syntax Tree に必要です
+- **Python Libraries (CPU)**：nltk、spaCy、gensim、mediapipe、transformers
+- **Music Analysis**：librosa + madmom。音楽の分析のアプリに必要です
+- **System Tools (CLI)**：ImageMagick（`convert` / `mogrify`）
+- **Privacy Filter — Additional Languages**：Privacy Filter で英語のほかに扱う言語。保存すると効き、再ビルドは要りません
+- **Knowledge Base Quality Pack (Docling)**：レイアウトの解析と OCR で PDF からテキストを取り出す、別のコンテナ。OCR の言語も選べます
 
-- **LaTeX**（TeX Live + CJK付き）: Concept Visualizer / Syntax Treeで日本語/中国語/韓国語サポートを有効化（OpenAIまたはAnthropicキーが必要）
-- **Pythonライブラリ（CPU）**: `nltk`、`spacy`、`gensim`、`mediapipe`、`transformers`（`librosa`/`madmom`はMusicグループとして提供。`scikit-learn`はベースイメージに含まれます。オプション一覧は[設定リファレンス](/ja/reference/configuration.md)の表を参照）
-- **ツール**: ImageMagick（`convert`/`mogrify`）
+オプションの一覧は[設定リファレンス](/ja/reference/configuration.md)の表にあります。
 
 ### パネルの動作
 
-- インストールオプションウィンドウはモーダルで、設定パネルと同じサイズです
-- 「保存」してもウィンドウは閉じません。保存成功は緑色のチェックで短く通知されます
-- 未保存の変更がある状態で「閉じる」をクリックすると、確認ダイアログが「保存して閉じる」または「キャンセル」を提示します
-- すべてのラベル、説明、ダイアログはUI言語（英/日/中/韓/西/独/仏）に対応しています
+- **Save** を押してもウィンドウは閉じません。Save のボタンに、少しの間チェックの印が出ます。
+- 保存していない変更があるままウィンドウを閉じると、ダイアログで **Close**（変更を捨てる）と **Save and Close** を選べます。
+- ラベル、説明、ダイアログは、UI の言語で表示されます。
 
 ### 再ビルド処理
 
-オプションの保存は自動的に再ビルドをトリガーしません。準備ができたら、アプリメニューから**アクション → Pythonコンテナビルド**を実行してPythonイメージを更新してください。
+オプションを保存しても、再ビルドは始まりません。Python のオプションを反映するには、**Actions → Build Python Container** を実行します。新しいイメージはまずビルドされて確認され、確認に通ったときだけ今のイメージと入れ替わります。進み具合はメインのコンソールに表示されます。
 
-更新はアトミックです（ビルド → 検証 → 成功時のみ昇格）。進捗とログはメインコンソールに表示されます。実行ごとのサマリーとヘルスチェックはログと一緒に書き込まれます。
+保存したオプションがまだイメージに入っていないと、次の **Start** で再ビルドするかを尋ねられます。選べるのは **Rebuild and Start**、**Start Anyway**、**Cancel** です。
 
 ### NLTKとspaCyのセットアップ
 
-- `nltk`を有効にすると、ライブラリのみがインストールされます（データセット/コーパスは自動ダウンロードされません）
-- `spacy`を有効にすると、ライブラリのみがインストールされます（言語モデルはダウンロードされません）
+- `nltk` をオンにすると、ライブラリだけが入ります（データセットやコーパスは自動ではダウンロードされません）
+- `spacy` をオンにすると、ライブラリだけが入ります（言語モデルはダウンロードされません）
 
-**推奨**: `~/monadic/config/pysetup.sh`を追加して、セットアップ後に必要なものを取得してください：
+データやモデルをダウンロードするには、`~/monadic/config/pysetup.sh` を書きます。このスクリプトは Python コンテナのビルドの最後に実行されるので、入れたものはイメージに含まれます。このファイルがあると、Python コンテナは配布されているイメージを使わず、お使いのコンピューターでビルドされます。
 
 ```sh
 #!/usr/bin/env bash
 set -euo pipefail
 
-# NLTKパッケージ
+# NLTK packages
 python - <<'PY'
 import nltk
 for pkg in ["punkt","stopwords","averaged_perceptron_tagger","wordnet","omw-1.4","vader_lexicon"]:
     nltk.download(pkg, raise_on_error=True)
 PY
 
-# spaCyモデル
+# spaCy models
 python -m spacy download en_core_web_sm
 python -m spacy download en_core_web_lg
 ```
@@ -54,11 +56,11 @@ python -m spacy download en_core_web_lg
 #!/usr/bin/env bash
 set -euo pipefail
 
-# spaCy日本語モデル（いずれかを選択）
+# spaCy Japanese models (pick one)
 python -m spacy download ja_core_news_sm
-# または: ja_core_news_md / ja_core_news_lg
+# or: ja_core_news_md / ja_core_news_lg
 
-# NLTK追加コーパス
+# NLTK extra corpora
 python - <<'PY'
 import nltk
 for pkg in ["brown","reuters","movie_reviews","conll2000","wordnet_ic"]:
@@ -72,93 +74,88 @@ PY
 #!/usr/bin/env bash
 set -euo pipefail
 
-export NLTK_DATA=/monadic/data/nltk_data
-mkdir -p "$NLTK_DATA"
-
 python - <<'PY'
-import nltk, os
-nltk.download('all', download_dir=os.environ.get('NLTK_DATA','/monadic/data/nltk_data'))
+import nltk
+nltk.download('all')
 PY
 ```
 
-?> **注意**: 「all」のダウンロードは大容量（数GB）で、かなりの時間がかかる場合があります。
+?> "all" のダウンロードは数 GB あり、長い時間がかかります。`/monadic/data` にはダウンロードしないでください。コンテナが動くときはそこに共有フォルダがマウントされるので、ビルドのときにそこへ置いたファイルは見えなくなります。
 
 ## 起動時ヘルスチューニング :id=startup-health-tuning
 
-**Start**をクリックすると、システムはオーケストレーションヘルスチェックを実行します。必要に応じて、Ruby制御プレーンが自動的に一度リフレッシュされ（キャッシュフレンドリー）、起動が続行されます。
-
-これは情報プロンプトとして表示され、最終的に緑色の「Ready」が成功を示します。
+**Start** をクリックすると、Monadic Chat はコンテナが応答するかを確かめます。Ruby コンテナの準備が整わず、Docker がそのコンテナを unhealthy と報告したときは、Docker のキャッシュを使って 1 回だけ再ビルドし、起動し直します（`AUTO_REFRESH_RUBY_ON_HEALTH_FAIL=false` でオフにできます）。緑の「Ready」が出たら、起動は終わっています。
 
 ### プローブ調整
 
-ヘルスプローブの動作は`~/monadic/config/env`の`START_HEALTH_TRIES`と`START_HEALTH_INTERVAL`で調整できます。下記の[環境変数](#environment-variables)を参照してください。
+確認の動作は、`~/monadic/config/env` の `START_HEALTH_TRIES` と `START_HEALTH_INTERVAL` で調整できます。下の[環境変数](#environment-variables)を参照してください。
 
 ## 依存関係を認識したRuby再ビルド :id=ruby-rebuild
 
-RubyはGem依存関係の指紋（`Gemfile` + `monadic.gemspec`のSHA256）が変更された場合にのみ再ビルドされます。
-
-イメージはこの値を`com.monadic.gems_hash`として保持します。作業コピーと異なる場合、Dockerキャッシュを使用してリフレッシュが実行されるため、bundleレイヤーは可能な限り再利用されます。
+Ruby のイメージは、Gem の依存関係の指紋（`Gemfile` と `monadic.gemspec` の SHA256）を `com.monadic.gems_hash` というラベルで持っています。これが今のファイルと違うと、Docker のキャッシュを使って Ruby コンテナを再ビルドします。そのため、できるかぎり bundle の層が使い回されます。
 
 ### クリーン再ビルドの強制
 
-トラブルシューティング用には、`~/monadic/config/env`の`FORCE_RUBY_REBUILD_NO_CACHE`でクリーン再ビルドを強制できます。下記の[環境変数](#environment-variables)を参照してください。
+問題の切り分けのために、`~/monadic/config/env` の `FORCE_RUBY_REBUILD_NO_CACHE` で、キャッシュを使わない再ビルドを強制できます。下の[環境変数](#environment-variables)を参照してください。
 
 ## ビルドログ :id=build-logs
 
-ログは実行ごとに上書きされます：
+ログはビルドのたびに上書きされます。
 
 ### Pythonビルドログ
 
-- `~/monadic/log/docker_build_python.log`
-- `~/monadic/log/post_install_python.log`
+- `~/monadic/log/docker_build_python.log`（`pysetup.sh` の出力も含みます）
 - `~/monadic/log/python_health.json`
 - `~/monadic/log/python_meta.json`
 
 ### その他のビルドログ
 
-- Ruby/User/Ollamaビルド: `~/monadic/log/docker_build.log`
+- Ruby とユーザーのコンテナ：`~/monadic/log/docker_build.log`
 
 ## マルチタブセッション管理 :id=multi-tab-sessions
 
-Monadic Chatは、複数のブラウザタブを同時に開くことをサポートします。各タブは独立した会話セッションです：
+Monadic Chat は、ブラウザーのいくつものタブで同時に開けます。タブごとに別の会話のセッションになります。
 
-**セッション分離：**
-- 各タブは一意のタブID（`sessionStorage`に保持）を持ち、これがサーバー上のWebSocketセッションを識別します
-- 会話状態（メッセージ、アプリ選択、パラメータ変更）はタブ単位で管理され、他のタブに漏れることはありません
-- タブをリロードしてもセッションは維持され、新しいタブを開くと新しいセッションが始まります
-- 異なるブラウザ、ブラウザプロファイル、シークレット/プライベートウィンドウも同様に別セッションです
+**セッションの分離：**
+- タブごとに固有のタブ ID があり（`sessionStorage` に保存）、サーバー側の WebSocket のセッションを特定します
+- 会話の状態（メッセージ、アプリの選択、パラメーターの変更）はタブごとで、ほかのタブに漏れません
+- タブを再読み込みしてもセッションは続き、新しいタブを開くと新しいセッションが始まります
+- 別のブラウザー、別のブラウザーのプロファイル、シークレットウィンドウやプライベートウィンドウも、それぞれ別のセッションです
 
-**ブラウザ単位で共有されるもの：**
-- ブラウザに保存される設定（UI言語はCookie、音声認識モデルの選択はローカルストレージ）は、同じブラウザプロファイル内の全タブで共有されます
+**ブラウザーごとに共有されるもの：**
+- ブラウザーに保存される設定（たとえば UI の言語と音声認識のモデル。Cookie に保存されます）は、同じブラウザーのプロファイルのすべてのタブで共有されます
 
 ## 環境変数 :id=environment-variables
 
-`~/monadic/config/env`による高度な設定：
+`~/monadic/config/env` で設定できる項目です。
 
 ### Dockerビルド制御
 
 ```
-# キャッシュなしでRuby再ビルドを強制
+# Force Ruby rebuild without cache
 FORCE_RUBY_REBUILD_NO_CACHE=true
 
-# ヘルスプローブ設定
+# Health probe settings
 START_HEALTH_TRIES=20
 START_HEALTH_INTERVAL=2
+
+# Rebuild Ruby once when it is unhealthy at Start (default true)
+AUTO_REFRESH_RUBY_ON_HEALTH_FAIL=true
 ```
 
 ### ロギング
 
 ```
-# 追加ロギングを有効化
+# Enable extra logging
 EXTRA_LOGGING=true
 ```
 
 ### MCPサーバー
 
 ```
-# MCPサーバーを有効化
+# Enable MCP server
 MCP_SERVER_ENABLED=true
 MCP_SERVER_PORT=3100
 ```
 
-環境変数の完全な一覧は[設定リファレンス](/ja/reference/configuration.md)を参照してください。
+環境変数の一覧は[設定リファレンス](/ja/reference/configuration.md)を参照してください。

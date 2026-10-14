@@ -18,7 +18,7 @@ MCP_SERVER_PORT=3100
 CONDUIT_TOKEN_BUDGET=1000000
 ```
 
-In the packaged application the server runs inside the Ruby container and its port is published to the host loopback (`127.0.0.1`) only. In development mode (`rake server:debug`) it runs on the host directly.
+In the packaged application the server runs inside the Ruby container, and port 3100 is published to the host loopback (`127.0.0.1`) only. The published port is fixed in the Ruby container's `compose.yml`, so in the packaged application keep `MCP_SERVER_PORT` at 3100. In development mode (`rake server:debug`) the server runs on the host directly and uses `MCP_SERVER_PORT`.
 
 ## Protocol Details
 
@@ -136,7 +136,7 @@ The `monadic_agent` tool is additionally bounded by a tool-call cap and a wall-c
 
 ## Background Jobs
 
-Long-running tools — code generation, media generation, and video analysis — can be run in the background so a request does not block. Submit the tool with `monadic_submit`, then call `monadic_poll` with the returned job id to read its status, periodic progress, and final result. A running job can be stopped with `monadic_cancel`. The number of concurrently running jobs is capped.
+Long-running tools run only as background jobs: `monadic_generate_code`, `monadic_generate_image`, `monadic_generate_video`, `monadic_generate_music`, `monadic_analyze_video` and `monadic_agent`. Called directly, they return `success: false` with a message to use `monadic_submit`. Submit the tool with `monadic_submit`, then call `monadic_poll` with the returned job id to read its status, periodic progress, and final result. A running job can be stopped with `monadic_cancel`. Up to 3 jobs run at the same time.
 
 ```json
 {
@@ -199,7 +199,7 @@ The server uses standard JSON-RPC 2.0 error codes:
 - `-32602`: Invalid params
 - `-32603`: Internal error
 
-Tools that fail at runtime (a missing file, a refused budget, a provider error) return a result with `success: false` and an `error` message rather than a protocol-level error.
+A tool that fails in a way it handles (a missing file, a refused budget, a provider error) returns a result with `success: false` and an `error` message. Invalid arguments return `-32602` ("Invalid params"), and an unexpected error inside a tool returns `-32603` ("Tool execution failed").
 
 ```json
 {
@@ -214,10 +214,10 @@ Tools that fail at runtime (a missing file, a refused budget, a provider error) 
 
 ## Security
 
-- The server binds to the host loopback only; in the packaged app the container port is published to `127.0.0.1` and is not exposed to the local network.
+- In the packaged app the server's port is published only on `127.0.0.1`, so it is not reachable from the local network.
 - All provider calls use your own API keys, and generated files stay on your machine under `~/monadic/data`.
 - The token budget is a hard ceiling that stops runaway spending.
-- Requests must be `application/json` and must not come from a web page: a request that carries an `Origin` header, or names a host other than `localhost`, `127.0.0.1` or `[::1]`, is refused. MCP clients such as Claude Code send neither.
+- Requests must be `application/json` and must not come from a web page: a request that carries an `Origin` header, or names a host other than `localhost`, `127.0.0.1` or `[::1]`, is refused. MCP clients send neither.
 
 ## Known Limitations
 
@@ -226,4 +226,4 @@ Tools that fail at runtime (a missing file, a refused budget, a provider error) 
 - `monadic_analyze_video` requires the Python container for frame extraction.
 - Generation and analysis tools require an API key for the relevant provider.
 - `monadic_analyze_image`, `monadic_transcribe_audio`, and `monadic_analyze_video` require a `provider` argument. The file is sent only to that provider; there is no automatic choice of another provider that has a key.
-- `monadic_transcribe_audio` transcribes the whole file at once (up to 25 MB). With `timestamps: true` (OpenAI, Google Gemini or xAI Grok), each line starts with the time in the recording, recordings up to 50 minutes are taken without the 25 MB limit, AAC and Opus files included, and the transcript (`transcript.json`) and subtitles (`.vtt`, `.srt`) are saved under `transcriptions/` in the shared volume; the result names them by their paths there. This way must run in the background (`monadic_submit`), returns at most 32 KB of text (`truncated` says when it was cut; the saved transcript is complete), and needs the Python container built for this version.
+- `monadic_transcribe_audio` transcribes the whole file at once (up to 25 MB). With `timestamps: true` (OpenAI, Google Gemini or xAI Grok), each line starts with the time in the recording, recordings up to 50 minutes are taken without the 25 MB limit, AAC and Opus files included, and the transcript (`transcript.json`) and subtitles (`.vtt`, `.srt`) are saved under `transcriptions/` in the shared volume; the result names them by their paths there. This way must run in the background (`monadic_submit`), returns at most 32 KB of text (`truncated` says when it was cut; the saved transcript is complete), and needs the current Python container.

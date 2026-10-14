@@ -1,43 +1,43 @@
 # Monadic DSL (Domain Specific Language)
 
-The Monadic DSL provides a simplified way to create AI applications with specific behaviors, UI elements, and capabilities. This document explains the DSL syntax and usage in detail.
+The Monadic DSL defines an app's behavior, interface and tools. This page describes its syntax.
 
 ## Introduction
 
-Monadic DSL is a Ruby-based configuration system that makes it easier to define AI-powered applications without writing advanced Ruby code. The DSL uses a declarative approach to specify application behavior.
+Monadic DSL is a Ruby-based, declarative format for defining apps without writing the Ruby classes yourself.
 
 ## File Format
 
-Monadic Chat uses the **`.mdsl` format** (Monadic Domain Specific Language) for all app definitions. This declarative format provides a clean, maintainable way to define AI-powered applications.
-
-**Important**: All apps must use the MDSL format.
+Apps are defined in `.mdsl` files (Monadic Domain Specific Language). From each file, Monadic Chat creates a Ruby class with the app's name.
 
 ## Basic Structure
 
 A basic MDSL application definition looks like this:
 
 ```ruby
-app "AppNameProvider" do  # Must match the Ruby class name exactly (e.g., ChatOpenAI)
+app "AppNameProvider" do  # The name of the generated class (e.g., ChatOpenAI)
   description "A brief description of what this application does"
-  
-  icon "fa-solid fa-icon-name"  # FontAwesome icon or custom HTML
-  
-  system_prompt <<~PROMPT
-    Instructions for the AI model that define how it should behave
-    in this specific application context.
-  PROMPT
-  
+
+  icon "fa-solid fa-icon-name"  # Font Awesome class or icon name
+
   llm do
     provider "anthropic"
     model "<model-id>"
     temperature 0.7
   end
 
+  system_prompt <<~PROMPT
+    Instructions for the AI model that define how it should behave
+    in this specific application context.
+  PROMPT
+
   features do
     auto_speech false
   end
 end
 ```
+
+Write the `llm` block before `tools` and `import_shared_tools`: tool definitions are formatted for the provider set at the time they are declared, and the provider is `openai` until the `llm` block sets it.
 
 ## Configuration Blocks
 
@@ -46,23 +46,25 @@ end
 ```ruby
 app "AppNameProvider" do  # e.g., "ChatOpenAI", "CodingAssistantClaude", "ResearchAssistantGemini"
   description "Application description"
-  
-  # Icon can be specified in multiple formats with smart matching:
+  # Or one description per UI language:
+  # description do
+  #   en "Application description"
+  #   ja "アプリの説明"
+  # end
+
+  # Icon formats:
   icon "brain"                        # Simple name (becomes fa-solid fa-brain)
-  # icon "github"                     # Known brand (automatically becomes fa-brands fa-github)
-  # icon "envelope"                   # Simple name (becomes fa-solid fa-envelope)
-  # icon "fa-regular fa-envelope"     # Full FontAwesome class with style prefix
-  # icon "regular envelope"           # Style + name format (becomes fa-regular fa-envelope)
-  # icon "mail"                       # Fuzzy matching (finds closest match like envelope)
-  # icon "<i class='fas fa-code'></i>" # Custom HTML is preserved as-is
-  
+  # icon "github"                     # Known brand (becomes fa-brands fa-github)
+  # icon "fa-regular fa-envelope"     # Full Font Awesome class with style prefix
+  # icon "regular envelope"           # Style + name (becomes fa-regular fa-envelope)
+
   # For available icons, see: https://fontawesome.com/v6/search?ic=free
 
-  display_name "Application Name"      # Name shown in the UI
-  
-  # group "Category Name"  # Set automatically from the provider - do not override unless needed
+  display_name "Application Name"      # Name shown in the UI (default: the app name)
 end
 ```
+
+The menu group is set in the `features` block (`group "Category Name"`); by default it is the provider's group.
 
 ### 2. LLM Configuration
 
@@ -70,15 +72,15 @@ end
 llm do
   provider "anthropic"  # AI provider (anthropic, openai, cohere, etc.)
   model "<model-id>"  # Model name
-  temperature 0.7  # Response randomness (0.0-1.0)
+  temperature 0.7  # Response randomness (0.0-2.0, default 0.7)
   max_tokens 4000  # Maximum response length
   reasoning_effort "high"  # Reasoning depth for reasoning-capable models
                            # (e.g., "low", "medium", "high"; when omitted,
                            # defaults to "none" = reasoning disabled)
-  context_size 25  # Number of recent messages sent to the model
-                   # (client-side sliding window; sets the UI default)
 end
 ```
+
+The number of recent messages sent to the model is set with `context_size` in the `features` block; see [Feature Flags](#feature-flags).
 
 Supported providers:
 - `anthropic` (Claude models)
@@ -92,27 +94,18 @@ Supported providers:
 
 For a complete overview of which apps are compatible with which models, see the [App Availability by Provider](../basic-usage/basic-apps.md#app-availability) section in the Basic Apps documentation.
 
-#### Model Specification Best Practices
+#### Model Specification Best Practices :id=model-specification-best-practices
 
-There are three approaches to specifying models in MDSL, each suited for different use cases:
-
-**Standard Apps (Built-in apps in `docker/services/ruby/apps/`)**
-
-Use specific model names for stability and predictability:
+**A fixed model**
 
 ```ruby
 llm do
   provider "openai"
-  model "<model-id>"  # Explicit model name ensures consistent behavior
+  model "<model-id>"
 end
 ```
 
-- ✅ Predictable behavior
-- ✅ Easy to debug
-- ✅ Suitable for production apps
-- ⚠️ Requires periodic updates when new models are released
-
-**Custom Apps (User-created apps in `~/monadic/data/apps/`)**
+**The default model**
 
 If you do not need a fixed model, omit `model` from the `llm` block:
 
@@ -122,16 +115,15 @@ llm do
 end
 ```
 
-Model selection is delegated to the default resolution process. You do not need to maintain a model name in the app definition.
+The model is then chosen by the order below, and the app definition does not need a model name.
 
 **Configuration Priority**
 
 Model values are resolved in this order (highest to lowest):
 
 1. **Explicit MDSL value**: `model "<model-id>"` (highest priority)
-2. **Environment variable**: `ENV["OPENAI_DEFAULT_MODEL"]` in the Ruby process
-3. **Provider defaults**: `providerDefaults` in `model_spec.js` (SSOT)
-4. **Hardcoded fallback**: Built-in default values
+2. **Environment variable**: for example `OPENAI_DEFAULT_MODEL` in `~/monadic/config/env`
+3. **Provider defaults**: `providerDefaults` in `model_spec.js`
 
 **Multiple Model Options**
 
@@ -168,17 +160,22 @@ system_prompt <<~PROMPT
 PROMPT
 ```
 
-### 4. Feature Flags
+### 4. Feature Flags :id=feature-flags
 
 ```ruby
-# Well-supported UI features:
+# Interface features:
 features do
+  group "My Apps"         # Group in the app menu (default: the provider's group)
+  disabled false          # Hide the app from the menu when true
+  context_size 20         # Number of recent messages sent to the model
   auto_speech false       # Enable automatic text-to-speech for assistant messages
   easy_submit true        # Enable submitting messages with Enter key (without clicking Send)
-  math true            # Enable mathematical notation rendering using KaTeX
+  math true               # Enable mathematical notation rendering using KaTeX
   abc true                # Enable ABC music notation rendering and playback
   mermaid true            # Enable Mermaid diagram rendering for flowcharts and diagrams
-  websearch true          # Enable web search capability (alias: web_search)
+  websearch true          # Enable web search
+  library_save false      # No saving to the Knowledge Base (default true)
+  library_search false    # No Knowledge Base retrieval (default true; needs library_save)
 end
 
 # Features that require specific implementation in the app:
@@ -257,8 +254,10 @@ import_shared_tools :web_automation, visibility: "conditional"
 **Available Tool Groups**: Tool groups are defined in the shared tool registry (`lib/monadic/shared_tools/registry.rb`). See [Tool Groups](tool-groups.md) for the complete list of groups, the tools they contain, and their availability conditions.
 
 **Visibility Modes**:
-- `always`: Tool group is always available
-- `conditional`: Tool group availability depends on runtime conditions (e.g., Selenium container running)
+- `always`: The tools are sent to the model from the start
+- `conditional` (default): The tools stay hidden until the model asks for the group with `request_tool`
+
+Some groups also depend on the environment, for example a running container or an API key; the [Tool Groups](tool-groups.md) page lists these conditions. Groups that need a capability the provider lacks (such as image or audio input) are skipped for that provider.
 
 #### Dynamic Skills (reachable_skills)
 
@@ -309,7 +308,7 @@ end
 
 ### 6. Context Compaction
 
-For apps running on OpenAI models, the `compaction` block controls server-side conversation compaction (Responses API). It is enabled by default with a standard threshold, so apps only declare the block to customize the threshold or to opt out:
+For apps running on OpenAI models, the `compaction` block controls server-side conversation compaction (Responses API). It is on by default, with a threshold of 150,000 tokens, so apps declare the block only to change the threshold or to turn it off:
 
 ```ruby
 compaction do
@@ -324,7 +323,7 @@ compaction false              # Opt out — rely on the context_size sliding win
 ### Simple Chat Application
 
 ```ruby
-app "ChatClaude" do  # Class name must match: AppName + Provider
+app "ChatClaude" do  # AppName + Provider
   description "Basic chat application with Claude"
   icon "fa-solid fa-comments"
   display_name "Chat"
@@ -347,12 +346,12 @@ app "ChatClaude" do  # Class name must match: AppName + Provider
 end
 ```
 
-> **Note**: For actual working examples with current model names, see the app implementations in `docker/services/ruby/apps/`.
+> **Note**: For working examples, see the apps in `docker/services/ruby/apps/`.
 
 ### Code Interpreter-Enabled Math Tutor
 
 ```ruby
-app "MathTutorOpenAI" do  # Class name must match: AppName + Provider
+app "MathTutorOpenAI" do  # AppName + Provider
   description "AI assistant that helps solve math problems step-by-step"
   icon "fa-solid fa-calculator"
   display_name "Math Tutor"
@@ -379,8 +378,8 @@ app "MathTutorOpenAI" do  # Class name must match: AppName + Provider
   end
   
   tools do
-    # run_code is a standard tool - no need to define it
-    # It's automatically available for code execution
+    # run_code comes from the :python_execution group
+    import_shared_tools :python_execution, visibility: "always"
   end
 end
 ```
@@ -389,7 +388,7 @@ end
 
 ### Tool/Function Calling
 
-Tools in Monadic Chat must be explicitly defined in MDSL files. Each tool definition should match a corresponding method implementation in the companion `*_tools.rb` file.
+Tools are defined in MDSL files. Each custom tool needs a method with the same name in the companion `*_tools.rb` file.
 
 #### File Structure
 
@@ -397,26 +396,18 @@ Tool implementations live in a companion `*_tools.rb` file alongside the app's `
 
 **For Shared Tool Groups**:
 
-When using `import_shared_tools`, the tool implementations come from shared modules in `lib/monadic/shared_tools/`. Your `*_tools.rb` file should include the shared module:
+With `import_shared_tools`, the methods come from the shared modules in `lib/monadic/shared_tools/`. The generated app class includes the module of each imported group and the app's `<AppName>Tools` module, so the tools file only holds the app's own methods:
 
 ```ruby
 # apps/my_app/my_app_tools.rb
 module MyAppTools
-  include MonadicHelper
-  include MonadicSharedTools::FileOperations  # For :file_operations
-  include MonadicSharedTools::WebAutomation   # For :web_automation
-
-  # Custom tool implementations can be added here
-  def my_custom_tool(params)
+  def my_custom_tool(param:)
     # Implementation
   end
 end
-
-class MyAppOpenAI < MonadicApp
-  include OpenAIHelper
-  include MyAppTools
-end
 ```
+
+Every app also gets the `:file_operations` group, so it can read and write files in the shared folder.
 
 #### Best Practices
 
@@ -459,16 +450,20 @@ end
 ```
 
 ```ruby
+# my_app_openai.mdsl (excerpt): fetch_web_content comes from this group
+import_shared_tools :web_search_tools, visibility: "always"
+```
+
+```ruby
 # my_app_tools.rb
-class MyAppOpenAI < MonadicApp
+module MyAppTools
   # Facade method with validation and error handling
   def mermaid_documentation(diagram_type: "graph")
     raise ArgumentError, "diagram_type is required" if diagram_type.to_s.empty?
 
-    result = fetch_web_content(url: "https://mermaid.js.org/syntax/#{diagram_type}.html")
-    { success: true, content: result }
+    fetch_web_content(url: "https://mermaid.js.org/syntax/#{diagram_type}.html")
   rescue => e
-    { success: false, error: e.message }
+    "❌ #{e.message}"
   end
 end
 ```
@@ -484,7 +479,11 @@ Session State allows apps to persist context across conversation turns using exp
 Apps using Session State **must** set `monadic true` in the features block:
 
 ```ruby
-app "MySessionStateApp" do
+app "MySessionStateOpenAI" do
+  llm do
+    provider "openai"
+  end
+
   features do
     monadic true  # REQUIRED - enables Session State functionality
   end
@@ -504,27 +503,9 @@ app "MySessionStateApp" do
 end
 ```
 
-#### Why is `monadic true` required?
-
-The `monadic true` flag cannot be automatically inferred from tool definitions because it controls several UI and backend behaviors:
-
-- **UI Badge**: Shows a visual indicator for Session State apps
-- **Rendering**: Different markdown rendering logic for structured responses
-- **TTS Processing**: Post-completion text-to-speech behavior differs
-- **Provider Features**: Affects Claude's thinking mode and other provider-specific features
-
 #### Built-in Session State Apps
 
-The following apps use Session State for context management:
-
-| App | Description |
-|-----|-------------|
-| Chat Plus | Conversation context (topics, people, notes) |
-| Research Assistant | Research progress (findings, sources, search history) |
-| Math Tutor | Learning progress (problems solved, concepts, weak areas) |
-| Novel Writer | Writing progress (plot, characters, chapters) |
-| Voice Interpreter | Translation context |
-| Language Practice Plus | Language learning feedback |
+Apps that use Session State include Chat Plus, Research Assistant, Math Tutor, Novel Writer, Translate, Language Practice Plus, Voice Interpreter and Jupyter Notebook.
 
 ### Context Schema (Session Context)
 
@@ -559,8 +540,8 @@ Each field in `context_schema` accepts the following options:
 |--------|------|----------|-------------|
 | `name` | Symbol | Yes | Field identifier (first argument, e.g., `:topics`) |
 | `icon` | String | No | FontAwesome icon class (e.g., `"fa-tags"`) |
-| `label` | String | No | Display name in sidebar (defaults to titleized name) |
-| `description` | String | Yes | Guides the extraction agent on what to extract |
+| `label` | String | No | Display name in sidebar (default: the name with `_` replaced by spaces and the first letter capitalized) |
+| `description` | String | No | Guides the extraction agent on what to extract |
 
 #### Default Schema
 
@@ -596,27 +577,27 @@ The DSL automatically formats function definitions appropriately for different A
 - Mistral: Formats for Mistral's function calling API
 - Gemini: Structures for Google Gemini models with `function_declarations` wrapper
 - DeepSeek: Converts to DeepSeek's function calling format
-- Grok (xAI): Maps to Grok's function format with strict validation
+- Grok (xAI): Maps to Grok's function calling format
 
 This automatic conversion means you can write your tool definitions once in the DSL, and they will work across different providers without manual conversion.
 
-**Note about Font Awesome Icons**: When specifying icons using the `icon` method, you can use any icon name from Font Awesome 6 Free. Browse the available icons at https://fontawesome.com/v6/search?ic=free. The system will automatically convert simple names like "brain" to the proper HTML with appropriate styles.
+**Note about Font Awesome Icons**: The `icon` method accepts any icon of Font Awesome 6 Free (https://fontawesome.com/v6/search?ic=free). A simple name like "brain" is converted to the Font Awesome class.
 
 ## Debugging and Testing
 
 When troubleshooting DSL apps, check for:
 
 1. Valid Ruby syntax (no missing `end` statements, proper indentation)
-2. Required configuration blocks (app name, description, system prompt, llm)
+2. The `llm` block before the tools, and the description, icon and system prompt
 3. Properly formatted tool definitions
 4. Compatibility between selected features and provider capabilities
 
-When apps fail to load, the errors are collected at startup and printed to the server console, listing each failed app and the reason. Set `EXTRA_LOGGING=true` in the configuration for more detailed debug output.
+When apps fail to load, the other apps still load, and each failed app is listed with the reason in the server output (`docker logs monadic-chat-ruby-container`, or the terminal in development mode). Set `EXTRA_LOGGING=true` in the configuration for more detailed debug output.
 
 ## Best Practices
 
 1. **Prefer shared tools** - Use `import_shared_tools` for common functionality instead of duplicating code
-2. **Match the class name** - The app identifier must match the Ruby class name exactly
+2. **Name the tools module after the app** - `MyAppOpenAI` uses the `MyAppTools` module
 3. **Use descriptive names** - Clear app and tool names make the application easier to use
 4. **Keep system prompts focused** - Write instructions specific to each use case
 5. **Enable only what you need** - Do not turn on features the application does not use
@@ -626,29 +607,33 @@ When apps fail to load, the errors are collected at startup and printed to the s
 
 ## Common Issues and Solutions
 
-### Empty Tools Block Error
+### A Tool Is Defined but Fails
 
-**Problem**: Empty `tools do` blocks cause "Maximum function call depth exceeded" errors.
+**Problem**: The model calls a tool and gets "undefined method".
 
-**Solution**: Either define tools explicitly or create a companion `*_tools.rb` file:
+**Solution**: Check that the method is in the `<AppName>Tools` module, or that the tool's group is imported with `import_shared_tools`:
 
 ```ruby
-# Option 1: Explicit tool definition
+# Explicit tool definition in the MDSL file
 tools do
   define_tool "my_tool", "Tool description" do
     parameter :param, "string", "Parameter description"
   end
 end
+```
 
-# Option 2: Create app_name_tools.rb 
-class AppNameProvider < MonadicApp
-  # Implementation methods - all tools must be defined in MDSL
+```ruby
+# my_app_tools.rb
+module MyAppTools
+  def my_tool(param: nil)
+    # ...
+  end
 end
 ```
 
-### Provider-Specific Considerations
+### Provider-Specific Considerations :id=provider-specific-considerations
 
-- **Function Limits**: Most providers allow up to 20 function calls per conversation turn (Mistral allows 30); the exact limit is defined by each provider helper's `MAX_FUNC_CALLS` constant
-- **Code Execution**: All providers use `run_code` for code execution
+- **Function Limits**: Up to 20 function calls per conversation turn (30 with Mistral)
+- **Code Execution**: All providers use `run_code` from the `:python_execution` group
 - **Array Parameters**: OpenAI requires `items` property for arrays
 - **Error Prevention**: Built-in error pattern detection prevents infinite retry loops

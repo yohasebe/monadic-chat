@@ -1,144 +1,124 @@
 # Monadicモード（Session State）
 
-MonadicモードはMonadic Chatの特徴的な機能で、AIエージェントとの会話を通じて構造化されたコンテキストを維持・更新できます。これにより、より一貫性のある目的志向の対話が可能になります。
+Monadic モードでは、アプリが話題、メモ、設定などの構造のある文脈を、会話を通して保ち、会話が進むにつれて更新できます。
 
-## 用語ガイド
-
-関連用語の使い分けについて説明します：
+## 用語ガイド :id=terminology-guide
 
 | 用語 | 説明 |
 |------|------|
-| **Monadicモード** | コンテキスト対応機能を有効にする機能フラグ（`monadic: true`） |
-| **Session State** | AIが明示的に`load_context`/`save_context`を呼び出すツールベースのコンテキスト管理 |
-| **Session Context** | サイドバーに表示される重要情報の自動抽出（[Session Context](session-context.md)を参照） |
+| **Monadic モード** | アプリで Session State と Session Context をオンにする機能フラグ（`monadic true`） |
+| **Session State** | モデルがツールを呼んで読み書きする文脈 |
+| **Session Context** | ターンごとに自動で取り出され、サイドバーに表示される大事な情報（[セッションコンテキスト](session-context.md)を参照） |
 
-**関係性**: `monadic: true`を有効にすると、以下の機能が利用可能になります：
-1. **Session Stateツール** - 明示的なコンテキスト管理（このドキュメントで説明）
-2. **Session Context抽出** - サイドバーの自動更新（[Session Context](session-context.md)で説明）
-
-これらの機能は補完関係にあります。Session StateはAIの作業メモリを管理し、Session Contextはユーザーに視覚的な追跡情報を提供します。
+`monadic true` だけでは、ツールは加わりません。Session State を使うアプリは、共有の `session_context` のツールグループを取り込むか、独自の読み込みと保存のツールを定義します。
 
 ## 概要
 
-Monadicモードでは、アプリは**Session Stateツール**を使用して会話コンテキストを管理します。AIは`save_context`や`load_context`などのツールを呼び出して、会話全体を通じて構造化データを保存・取得します。
+Session State では、モデルがツールを呼んで、今の文脈を読み、文脈に書き加えます。文脈はセッションの間保たれるので、後のターンで使えます。
 
 ### 動作の仕組み
 
-1. **各ターンの開始時**: AIは`load_context`を呼び出して現在の会話状態を取得
-2. **処理中**: AIは他のツール（ファイル操作、PDF検索など）を使用
-3. **応答前**: AIは`save_context`を呼び出して以下を保存：
-   - 応答メッセージ
-   - 更新されたコンテキストデータ（トピック、人物、メモなど）
+1. モデルが、ツール（たとえば `get_context`）で今の文脈を読みます。
+2. 必要に応じてほかのツールも使いながら、利用者に答えます。
+3. わかったことを、ツール（たとえば `update_context`）で文脈に書き加えます。
 
 ### コンテキスト構造の例
 
+`session_context` のグループは、3 つの一覧を保ちます。
+
 ```json
 {
-  "message": "ユーザーへのAIの応答",
-  "reasoning": "応答の背後にある思考プロセス",
-  "topics": ["トピック1", "トピック2"],
-  "people": ["人物1", "人物2"],
-  "notes": ["重要なメモ1", "重要なメモ2"]
+  "topics": ["topic1", "topic2"],
+  "people": ["person1", "person2"],
+  "notes": ["important note 1", "important note 2"]
 }
 ```
 
 ## Session Stateアプリ
 
-以下のアプリがSession State機構を使用してコンテキスト管理を行います：
+次の組み込みのアプリが、Session State のツールで文脈を保っています。
 
-| アプリ | プロバイダー | 説明 |
-|-------|-------------|------|
-| Chat Plus | OpenAI, Claude, Gemini, Cohere, Mistral, DeepSeek, Grok | コンテキスト追跡機能付き会話AI |
-| Voice Interpreter | OpenAI, Cohere | リアルタイム音声通訳 |
-| Language Practice Plus | OpenAI, Claude | フィードバック付き言語学習 |
+| アプリ | ツール |
+|--------|--------|
+| Chat Plus | `get_context`、`update_context`、`remove_from_context`、`clear_context`（`session_context` のグループ） |
+| Research Assistant | `load_research_progress`、`save_research_progress` |
+| Math Tutor | `load_learning_progress`、`save_learning_progress` |
+| Novel Writer | `load_novel_context`、`save_novel_context` |
+| Translate | `load_translation_context`、`save_translation_context`、語彙のツール |
+| Voice Interpreter | `load_context`、`save_translation`、`set_target_language` |
+| Language Practice Plus | `load_context`、`save_response`、`set_target_language` |
+| Jupyter Notebook、Image Generator、Video Generator | `monadic_load_state`（保存はアプリが自分で行います） |
 
 ## アーキテクチャ
 
-Session Stateは以下を通じて実装されています：
-
-1. **MDSLツール定義**: アプリは`define_tool`を使用してコンテキスト管理ツールを定義
-2. **ツール実装**: 共有Rubyモジュール（`chat_plus_tools.rb`など）がツールメソッドを実装
-3. **セッションストレージ**: コンテキストは`session[:monadic_state]`に保存
-4. **TTS統合**: `tts_target`機能がツールパラメータからTTSテキストを抽出
+1. **ツールの定義**：アプリは `session_context` のグループを取り込むか、`define_tool` でツールを定義します。
+2. **ツールの実装**：共有のモジュールか、アプリの `*_tools.rb` がツールを実装します。
+3. **セッションへの保存**：文脈は、アプリとキーごとに分けてセッションに保存されます（`session[:monadic_state][app][key]`）。版と時刻も記録されます。
+4. **読み上げ**：`tts_target` で、読み上げる文をツールのパラメーターから取れます。
 
 ### ツールフローの例
 
-```text
-ユーザーメッセージ
-    ↓
-load_context() → 既存の状態を取得
-    ↓
-リクエストを処理（他のツールを呼び出す場合あり）
-    ↓
-save_context(message, topics, people, notes) → 状態を保存
-    ↓
-ユーザーに応答を表示
-```
+1. 利用者がメッセージを送ります。
+2. モデルが `get_context` を呼び、今の文脈を受け取ります。
+3. モデルが、必要ならほかのツールも呼びながら、求めに応えます。
+4. モデルが、新しい話題、人物、事実を `update_context` で書き加えます。
+5. 応答が表示され、サイドバーに更新された文脈が表示されます。
 
 ## Session Stateアプリの作成
 
-Session Stateを使用するアプリを作成するには：
+いちばん簡単なのは、`session_context` のグループを取り込むことです。
 
 ```ruby
 app "MyAppOpenAI" do
-  description "コンテキストを維持するアプリ"
-  icon "fa-brain"
+  description "An app that keeps context"
+  icon "fa-solid fa-brain"
+
+  llm do
+    provider "openai"
+  end
 
   features do
-    monadic true  # Session State機構を示す
+    monadic true
   end
 
   system_prompt <<~PROMPT
-    あなたはコンテキストを維持するAIアシスタントです。
-
-    ## 必須のツール使用
-
-    1. 各ターンの開始時に必ず`load_context`を呼び出す
-    2. 必ず`save_context`で応答とコンテキストを保存する
+    You are an assistant that keeps track of the conversation.
+    Call get_context at the start of each turn.
+    When the user mentions new topics, people or facts, call update_context.
   PROMPT
 
   tools do
-    define_tool "load_context", "現在の会話コンテキストを読み込む" do
-      parameter :session, "object", "セッションオブジェクト", required: false
-    end
-
-    define_tool "save_context", "応答とコンテキストを保存する" do
-      parameter :message, "string", "あなたの応答", required: true
-      parameter :topics, "array", "議論されたトピック", required: false
-      parameter :notes, "array", "重要なメモ", required: false
-    end
+    import_shared_tools :session_context, visibility: "always"
   end
 end
 ```
 
+ほかのフィールドを使うときは、上の表のアプリと同じように、アプリの `*_tools.rb` に独自の読み込みと保存のツールを書きます。
+
 ## UI表現
 
-Webインターフェースでは、Session Stateコンテキストは以下のように表示されます：
-- コンテキスト構造を示す折りたたみ可能なセクション
-- 値がないフィールドは「no value」と表示
-- フィールドラベルは太字で表示
-- 「monadic」バッジはアプリがSession Stateを使用していることを示す
+ツールが保つ文脈は、サイドバーのパネルに表示されます。フィールドはアプリの `context_schema` にしたがいます。[セッションコンテキスト](session-context.md)を参照してください。
 
 ## TTS統合
 
-音声出力を持つアプリでは、`tts_target`を使用してTTSテキストを含むツールパラメータを指定します：
+読み上げるアプリでは、`tts_target` で、読み上げる文を持つツールのパラメーターを指定します。
 
 ```ruby
 features do
   monadic true
   auto_speech true
-  tts_target :tool_param, "save_context", "message"
+  tts_target :tool_param, "save_translation", "message"
 end
 ```
 
 ## ベストプラクティス
 
-1. **最初にload_contextを呼び出す**: 最新の状態を確実に取得
-2. **コンテキスト項目を蓄積する**: 明示的に要求されない限り項目を削除しない
-3. **一貫した構造を使用**: 会話全体で同じコンテキストフィールドを維持
-4. **コンテキストを集中させる**: 後で参照される情報のみを保存
+1. **最初に文脈を読む**：ターンの初めに、今の文脈を読みます。
+2. **文脈に書き加える**：利用者に頼まれない限り、項目を消しません。
+3. **同じフィールドを使う**：会話を通して、同じフィールドを使います。
+4. **文脈を絞る**：後のターンで使う情報だけを保存します。
 
 ## 関連項目
 
-- [Monadic DSL](./monadic_dsl.md) - 完全なMDSL構文リファレンス
-- [基本アプリ](../basic-usage/basic-apps.md) - Session Stateを使用するアプリの例
+- [Monadic DSL](./monadic_dsl.md) - MDSL の文法の全体
+- [セッションコンテキスト](./session-context.md) - サイドバーへの自動の抽出

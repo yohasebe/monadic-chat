@@ -1,41 +1,33 @@
 # Monadic Mode (Session State)
 
-Monadic Mode is a distinctive feature of Monadic Chat that allows you to maintain and update structured context throughout your conversation with AI agents. This enables more coherent and purposeful interactions.
+Monadic Mode lets an app keep structured context, such as topics, notes or settings, through the conversation and update it as the conversation goes on.
 
-## Terminology Guide
-
-Before diving in, here's how the related terms are used:
+## Terminology Guide :id=terminology-guide
 
 | Term | Description |
 |------|-------------|
-| **Monadic Mode** | The feature flag (`monadic: true`) that enables context-aware functionality |
-| **Session State** | Tool-based context management where the AI explicitly calls `load_context`/`save_context` |
-| **Session Context** | Automatic extraction of key information displayed in the sidebar (see [Session Context](session-context.md)) |
+| **Monadic Mode** | The feature flag (`monadic true`) that turns on Session State and Session Context for an app |
+| **Session State** | Context that the model reads and writes by calling tools |
+| **Session Context** | Key information extracted automatically after each turn and shown in the sidebar (see [Session Context](session-context.md)) |
 
-**Relationship**: When you enable `monadic: true`, you get:
-1. **Session State tools** for explicit context management (described in this document)
-2. **Session Context extraction** for automatic sidebar updates (described in [Session Context](session-context.md))
-
-These features complement each other - Session State manages the AI's working memory, while Session Context provides visual tracking for users.
+`monadic true` does not add tools by itself. An app that uses Session State imports the shared `session_context` tool group or defines its own load and save tools.
 
 ## Overview
 
-In Monadic Mode, apps use **Session State tools** to manage conversation context. The AI calls tools like `save_context` and `load_context` to persist and retrieve structured data throughout the conversation.
+With Session State, the model calls tools to read the current context and to add to it. The context is kept for the session, so later turns can use it.
 
 ### How It Works
 
-1. **At the start of each turn**: The AI calls `load_context` to retrieve the current conversation state
-2. **During processing**: The AI may use additional tools (file operations, PDF search, etc.)
-3. **Before responding**: The AI calls `save_context` with:
-   - The response message
-   - Updated context data (topics, people, notes, etc.)
+1. The model reads the current context with a tool (for example `get_context`).
+2. It answers the user, using other tools as needed.
+3. It adds what it learned to the context with a tool (for example `update_context`).
 
 ### Context Structure Example
 
+The `session_context` group keeps three lists:
+
 ```json
 {
-  "message": "The AI's response to the user",
-  "reasoning": "The thought process behind the response",
   "topics": ["topic1", "topic2"],
   "people": ["person1", "person2"],
   "notes": ["important note 1", "important note 2"]
@@ -44,101 +36,89 @@ In Monadic Mode, apps use **Session State tools** to manage conversation context
 
 ## Session State Apps
 
-The following apps use Session State mechanism for context management:
+These built-in apps keep context with Session State tools:
 
-| App | Provider | Description |
-|-----|----------|-------------|
-| Chat Plus | OpenAI, Claude, Gemini, Cohere, Mistral, DeepSeek, Grok | Conversational AI with context tracking |
-| Voice Interpreter | OpenAI, Cohere | Real-time voice translation |
-| Language Practice Plus | OpenAI, Claude | Language learning with feedback |
+| App | Tools |
+|-----|-------|
+| Chat Plus | `get_context`, `update_context`, `remove_from_context`, `clear_context` (the `session_context` group) |
+| Research Assistant | `load_research_progress`, `save_research_progress` |
+| Math Tutor | `load_learning_progress`, `save_learning_progress` |
+| Novel Writer | `load_novel_context`, `save_novel_context` |
+| Translate | `load_translation_context`, `save_translation_context`, and vocabulary tools |
+| Voice Interpreter | `load_context`, `save_translation`, `set_target_language` |
+| Language Practice Plus | `load_context`, `save_response`, `set_target_language` |
+| Jupyter Notebook, Image Generator, Video Generator | `monadic_load_state` (the app saves the state itself) |
 
 ## Architecture
 
-Session State is implemented through:
-
-1. **MDSL Tool Definitions**: Apps define context management tools using `define_tool`
-2. **Tool Implementation**: Shared Ruby modules (`chat_plus_tools.rb`, etc.) implement the tool methods
-3. **Session Storage**: Context is stored in `session[:monadic_state]`
-4. **TTS Integration**: The `tts_target` feature extracts TTS text from tool parameters
+1. **Tool definitions**: The app imports the `session_context` group or defines its tools with `define_tool`.
+2. **Tool implementation**: The shared modules or the app's `*_tools.rb` implement the tools.
+3. **Session storage**: The context is stored in the session, separately for each app and key (`session[:monadic_state][app][key]`), with a version and a time stamp.
+4. **Speech**: The `tts_target` feature can read the text to speak from a tool parameter.
 
 ### Tool Flow Example
 
-```text
-User Message
-    ↓
-load_context() → Retrieve existing state
-    ↓
-Process request (may call other tools)
-    ↓
-save_context(message, topics, people, notes) → Persist state
-    ↓
-Response displayed to user
-```
+1. The user sends a message.
+2. The model calls `get_context` and receives the current context.
+3. The model handles the request, calling other tools if needed.
+4. The model calls `update_context` with new topics, people or notes.
+5. The response is shown, and the sidebar shows the updated context.
 
 ## Creating a Session State App
 
-To create an app that uses Session State:
+The simplest way is to import the `session_context` group:
 
 ```ruby
 app "MyAppOpenAI" do
-  description "An app that maintains context"
-  icon "fa-brain"
+  description "An app that keeps context"
+  icon "fa-solid fa-brain"
+
+  llm do
+    provider "openai"
+  end
 
   features do
-    monadic true  # Indicates Session State mechanism
+    monadic true
   end
 
   system_prompt <<~PROMPT
-    You are an AI assistant that maintains context.
-
-    ## MANDATORY TOOL USAGE
-
-    1. ALWAYS call `load_context` at the start of each turn
-    2. ALWAYS call `save_context` with your response and context
+    You are an assistant that keeps track of the conversation.
+    Call get_context at the start of each turn.
+    When the user mentions new topics, people or facts, call update_context.
   PROMPT
 
   tools do
-    define_tool "load_context", "Load current conversation context" do
-      parameter :session, "object", "Session object", required: false
-    end
-
-    define_tool "save_context", "Save response and context" do
-      parameter :message, "string", "Your response", required: true
-      parameter :topics, "array", "Topics discussed", required: false
-      parameter :notes, "array", "Important notes", required: false
-    end
+    import_shared_tools :session_context, visibility: "always"
   end
 end
 ```
 
+For other fields, write your own load and save tools in the app's `*_tools.rb`, as the apps in the table above do.
+
 ## UI Representation
 
-In the web interface, Session State context appears as:
-- Collapsible sections showing the context structure
-- Fields with no value display as "no value"
-- Field labels are shown with increased font weight
-- The "monadic" badge indicates an app uses Session State
+The context that the tools keep is shown in the sidebar panel. Its fields follow the app's `context_schema`; see [Session Context](session-context.md).
 
 ## TTS Integration
 
-For apps with voice output, use `tts_target` to specify which tool parameter contains the TTS text:
+For apps that speak, `tts_target` names the tool parameter that holds the text to speak:
 
 ```ruby
 features do
   monadic true
   auto_speech true
-  tts_target :tool_param, "save_context", "message"
+  tts_target :tool_param, "save_translation", "message"
 end
 ```
 
 ## Best Practices
 
-1. **Always call load_context first**: This ensures you have the latest state
-2. **Accumulate context items**: Don't remove items unless explicitly asked
-3. **Use consistent structure**: Maintain the same context fields throughout
-4. **Keep context focused**: Only store information that will be referenced later
+1. **Read the context first**: Read the current context at the start of each turn.
+2. **Add to the context**: Do not remove items unless the user asks.
+3. **Keep the same fields**: Use the same context fields through the conversation.
+4. **Keep the context focused**: Store only information that later turns will use.
 
 ## See Also
 
 - [Monadic DSL](./monadic_dsl.md) - Full MDSL syntax reference
-- [Basic Apps](../basic-usage/basic-apps.md) - Examples of apps using Session State
+- [Session Context](./session-context.md) - Automatic extraction to the sidebar

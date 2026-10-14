@@ -1,46 +1,43 @@
 # Session Context
 
-Session Context is an automatic context tracking feature for Monadic apps that enables real-time extraction and display of key information from conversations. This feature works in conjunction with the `monadic: true` setting to provide intelligent context management.
+Session Context extracts key information from the conversation after each response and shows it in the sidebar. It works in apps with `monadic true`.
 
-> **Note**: Session Context is one of two context features enabled by `monadic: true`. The other is [Session State](monadic-mode.md) for explicit tool-based context management. These features complement each other.
+> **Note**: `monadic true` also enables [Session State](monadic-mode.md), where the model keeps context by calling tools. The two can be used together.
 
 ## Overview
 
-When enabled, Session Context automatically:
+When enabled, Session Context:
 
-1. **Extracts Key Information**: After each AI response, a lightweight extraction agent analyzes the conversation and extracts relevant information based on a configurable schema
-2. **Displays in Sidebar**: Extracted context appears in a dedicated panel in the sidebar, organized by category
-3. **Tracks Conversation Turns**: Each extracted item includes turn information to show when it was mentioned
-4. **Deduplicates Intelligently**: Recognizes similar variations (e.g., "田中" and "田中さん") and keeps only the most complete form
+1. **Extracts key information**: After each response, an extraction agent reads the turn and extracts information according to the app's schema
+2. **Shows it in the sidebar**: The extracted items appear in a panel in the sidebar, by category
+3. **Tracks turns**: Each item records the turn in which it was mentioned
+4. **Merges variations**: The same name with and without an honorific (for example "田中" and "田中さん") is kept once, in its fuller form
 
 ## How It Works
 
 ### Architecture
 
-```text
-User Message → AI Response → Context Extractor Agent → Sidebar Update
-                                      ↓
-                               Same Provider API
-                               (lightweight model)
-```
+1. The user sends a message and the model responds.
+2. The extraction agent sends the turn to the same provider as the conversation, using the provider's default model.
+3. The extracted items are sent to the browser, and the sidebar panel is updated.
 
-The Context Extractor Agent uses direct HTTP API calls to the same provider as the main conversation, using a cost-efficient model to extract structured information.
+The default model is `<PROVIDER>_DEFAULT_MODEL` in `~/monadic/config/env`, or the provider default in Monadic Chat. With Ollama, when no default is set, the first installed model is used.
 
 ### Default Schema
 
-Without custom configuration, Session Context tracks three categories:
+Without a `context_schema`, Session Context tracks three categories:
 
 | Field | Icon | Description |
 |-------|------|-------------|
-| **Topics** | 🏷️ | Main subjects discussed in the conversation |
-| **People** | 👥 | Names of people mentioned |
-| **Notes** | 📝 | Important facts to remember |
+| **Topics** | `fa-tags` | Main subjects discussed in the conversation |
+| **People** | `fa-users` | Names of people mentioned |
+| **Notes** | `fa-sticky-note` | Important facts to remember |
 
 ## Configuration
 
 ### Enabling Session Context
 
-Session Context is enabled automatically for apps with `monadic: true` in their features:
+Session Context is on for apps with `monadic true` in their features:
 
 ```ruby
 app "MyAppOpenAI" do
@@ -52,7 +49,7 @@ end
 
 ### Custom Context Schema
 
-You can define a custom schema to track app-specific information using the `context_schema` block:
+Define the categories to track with the `context_schema` block:
 
 ```ruby
 app "LanguageTutorOpenAI" do
@@ -79,16 +76,17 @@ Each field in `context_schema` accepts the following options:
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `icon` | String | FontAwesome icon class (e.g., `"fa-tags"`) |
-| `label` | String | Display name shown in the sidebar panel |
-| `description` | String | Description used by the extraction agent to understand what to extract |
+| `icon` | String | Font Awesome icon class (e.g., `"fa-tags"`) |
+| `label` | String | Name shown in the sidebar panel |
+| `description` | String | Tells the extraction agent what to extract |
 
 ### Default Icons and Labels
 
-If not specified, fields use sensible defaults:
+When an option is omitted:
 
-- **Icon**: Derived from field name or falls back to a generic circle icon
-- **Label**: Field name converted to title case (e.g., `:grammar_points` → "Grammar Points")
+- **Icon**: chosen from the field name when the name is a common one, otherwise a generic circle icon
+- **Label**: the field name with `_` replaced by spaces and the first letter capitalized (`:grammar_points` → "Grammar points")
+- **Description**: a default description for common field names
 
 ## Sidebar Display
 
@@ -96,26 +94,25 @@ If not specified, fields use sensible defaults:
 
 The extracted context appears in a collapsible panel in the sidebar:
 
-- **Section Headers**: Each category shows an icon, label, and item count badge
-- **Turn Labels**: Items are grouped by conversation turn (T1, T2, etc.)
-- **Collapsible Sections**: Click section headers to expand/collapse
-- **Toggle All**: Button to expand or collapse all sections at once
-- **Turn Legend**: Shows total number of conversation turns
+- **Section headers**: Each category shows an icon, a label and the number of items
+- **Turn labels**: Items are grouped by turn (T1, T2, and so on). Click a turn label to scroll to that message
+- **Collapsible sections**: Click a section header to expand or collapse it
+- **Toggle all**: A button expands or collapses all sections at once
+- **Turn legend**: Shows the number of turns
 
 ### Visual Indicators
 
-- Items from the same turn appear together
-- Newer items (higher turn numbers) appear first within sections
-- A badge shows the total count of items in each category
+- An indicator is shown while extraction runs
+- Items from the same turn appear together, newer turns first
+- A badge shows the number of items in each category
+- When you edit a message, its turn is extracted again and marked with an edit badge. When you delete a message, the items of its turn are removed and the later turns are renumbered
 
 ## Built-in Apps Using Session Context
-
-The following built-in apps use Session Context:
 
 | App | Context Fields |
 |-----|----------------|
 | **Chat Plus** | Topics, People, Notes |
-| **Research Assistant** | Topics, Findings, Sources |
+| **Research Assistant** | Topics, Findings, Sources (not in the DeepSeek version) |
 | **Math Tutor** | Concepts, Formulas, Tips |
 | **Novel Writer** | Characters, Plot, Settings |
 | **Voice Interpreter** | Languages, Phrases, Notes |
@@ -124,39 +121,29 @@ The following built-in apps use Session Context:
 | **Jupyter Notebook** | Topics, Code, Notes |
 | **Image Generator** | Styles, Prompts, Notes |
 | **Video Generator** | Styles, Prompts, Notes |
-| **Music Generator** | Styles, Prompts, Notes |
 
 ## Provider Support
 
-Session Context works with all major AI providers:
-
-- **OpenAI**
-- **Anthropic** (Claude)
-- **Google** (Gemini)
-- **xAI** (Grok)
-- **Mistral**
-- **Cohere** (Command)
-- **DeepSeek**
-- **Ollama** (local models)
-
-The extraction uses a lightweight model appropriate for each provider to minimize cost and latency.
+Session Context works with every provider: OpenAI, Anthropic (Claude), Google (Gemini), xAI (Grok), Mistral, Cohere, DeepSeek and Ollama. No built-in Ollama app uses `monadic true`; Ollama extraction applies to your own apps.
 
 ## Language Support
 
-Context extraction automatically matches the conversation language:
+- Items are extracted in the language of the conversation
+- The language can also be detected automatically (`auto`)
+- The same name with or without a common Japanese honorific (さん, くん, ちゃん, 様, 氏) is treated as one item
 
-- Extracts items in the same language as the conversation
-- Supports automatic language detection (`auto` mode)
-- Handles honorific variations (e.g., Japanese -san, -kun, -sama suffixes)
+## Privacy Filter
+
+When the Privacy Filter is on, the extraction agent receives the masked text, so the sidebar shows placeholders such as `<<PERSON_1>>` instead of the masked words. If masking fails, or a word you marked would still be in the request to the extraction agent, extraction is skipped for that turn.
 
 ## Best Practices
 
 ### Designing Custom Schemas
 
-1. **Keep fields focused**: Each field should represent a distinct category of information
-2. **Write clear descriptions**: The extraction agent uses descriptions to understand what to extract
-3. **Choose meaningful icons**: Icons help users quickly identify categories
-4. **Limit the number of fields**: 3-6 fields is optimal for usability
+1. **Keep fields focused**: Each field should be a distinct kind of information
+2. **Write clear descriptions**: The extraction agent uses them to decide what to extract
+3. **Choose meaningful icons**: Icons help users find the categories
+4. **Limit the number of fields**: 3 to 6 fields are easy to read
 
 ### Schema Design Examples
 
@@ -190,19 +177,18 @@ end
 
 ### Performance
 
-- Extraction runs asynchronously after each response
-- Uses direct HTTP API calls (not WebSocket) to avoid re-triggering message flow
-- Typical extraction latency: 1-3 seconds depending on provider
+- Extraction runs after each response, without delaying the response
+- It usually takes 1 to 3 seconds, depending on the provider
 
 ### Data Storage
 
-- Context is stored in the session state on the server
-- Context persists for the duration of the session
-- Context is cleared when switching apps or starting a new conversation
+- The context is stored in the session on the server
+- It lasts for the session, and is cleared when you switch apps or start a new conversation
+- It is included when you export a conversation, and restored when you import it
 
 ### WebSocket Communication
 
-Context updates are sent via WebSocket with the message type `context_update`:
+Context updates are sent to the browser as WebSocket messages of type `context_update`:
 
 ```json
 {
@@ -231,25 +217,23 @@ Context updates are sent via WebSocket with the message type `context_update`:
 
 ### Context Not Appearing
 
-1. **Check `monadic: true`**: Ensure the feature is enabled in your app
-2. **Check API Key**: The extraction agent needs access to the same provider's API
-3. **Check Provider**: For Ollama, extraction runs on a local model (the configured default, or the first installed model as a fallback) — ensure Ollama is running and at least one model is installed
-4. **Enable Logging**: Set `EXTRA_LOGGING=true` in `~/monadic/config/env` to see extraction logs
+1. **Check `monadic true`**: Make sure the app has it in `features`
+2. **Check the API key**: The extraction agent uses the same provider's API
+3. **Check Ollama**: With Ollama, make sure Ollama is running and at least one model is installed
+4. **Turn on logging**: Set `EXTRA_LOGGING=true` in `~/monadic/config/env` to see the extraction logs
 
 ### Empty Fields
 
-- The extraction agent only adds new information from each turn
-- Fields with no relevant content remain empty
-- Check your `description` text to ensure it guides extraction correctly
+- The extraction agent adds only new information from each turn
+- Fields with nothing relevant stay empty
+- Check that the `description` describes what to extract
 
 ### Duplicate Items
 
-- The deduplication logic handles common variations
-- If duplicates appear, consider making descriptions more specific
-- Japanese honorific variations (-san, -kun, etc.) are handled automatically
+- Common variations are merged
+- If duplicates appear, make the descriptions more specific
 
 ## See Also
 
-- [Session State (Monadic Mode)](monadic-mode.md) - Explicit tool-based context management
+- [Session State (Monadic Mode)](monadic-mode.md) - Context kept through tool calls
 - [Monadic DSL](./monadic_dsl.md) - Full MDSL syntax reference including `context_schema`
-- [Basic Apps](../basic-usage/basic-apps.md) - Examples of apps using Session Context

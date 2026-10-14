@@ -18,7 +18,7 @@ MCP_SERVER_PORT=3100
 CONDUIT_TOKEN_BUDGET=1000000
 ```
 
-パッケージ版アプリでは、サーバーは Ruby コンテナ内で動作し、ポートはホストのループバック（`127.0.0.1`）にのみ公開されます。開発モード（`rake server:debug`）ではホスト上で直接動作します。
+パッケージ版アプリでは、サーバーは Ruby コンテナの中で動き、ポート 3100 はホストのループバック（`127.0.0.1`）にだけ公開されます。公開するポートは Ruby コンテナの `compose.yml` で決まっているので、パッケージ版アプリでは `MCP_SERVER_PORT` を 3100 のままにしてください。開発モード（`rake server:debug`）では、サーバーはホストの上で直接動き、`MCP_SERVER_PORT` を使います。
 
 ## プロトコルの詳細
 
@@ -136,7 +136,7 @@ Conduit は以下の `monadic_*` ツールを公開します。各ツールの�
 
 ## バックグラウンドジョブ
 
-長時間実行されるツール（コード生成、メディア生成、動画解析）は、リクエストをブロックしないようバックグラウンドで実行できます。`monadic_submit` でツールを投入し、返されたジョブ ID を `monadic_poll` に渡して、状態・定期的な進捗・最終結果を読み取ります。実行中のジョブは `monadic_cancel` で停止できます。同時に実行できるジョブ数には上限があります。
+時間のかかるツールは、バックグラウンドのジョブとしてだけ実行できます：`monadic_generate_code`、`monadic_generate_image`、`monadic_generate_video`、`monadic_generate_music`、`monadic_analyze_video`、`monadic_agent`。直接呼び出すと、`monadic_submit` を使うよう伝えるメッセージとともに `success: false` を返します。`monadic_submit` でツールを投入し、返されたジョブ ID を `monadic_poll` に渡して、状態・定期的な進捗・最終結果を読み取ります。実行中のジョブは `monadic_cancel` で停止できます。同時に実行できるジョブは 3 つまでです。
 
 ```json
 {
@@ -199,7 +199,7 @@ puts client.call_method("tools/list")
 - `-32602`: 不正なパラメータ
 - `-32603`: 内部エラー
 
-実行時に失敗するツール（ファイル不在、予算拒否、プロバイダーエラーなど）は、プロトコルレベルのエラーではなく、`success: false` と `error` メッセージを含む結果を返します。
+ツールが扱える失敗（ファイル不在、予算拒否、プロバイダーエラーなど）では、`success: false` と `error` メッセージを含む結果を返します。引数が正しくないときは `-32602`（"Invalid params"）、ツールの中で予期しないエラーが起きたときは `-32603`（"Tool execution failed"）を返します。
 
 ```json
 {
@@ -214,10 +214,10 @@ puts client.call_method("tools/list")
 
 ## セキュリティ
 
-- サーバーはホストのループバックにのみバインドします。パッケージ版アプリではコンテナのポートは `127.0.0.1` に公開され、ローカルネットワークには公開されません。
+- パッケージ版アプリでは、サーバーのポートは `127.0.0.1` にだけ公開されるので、ローカルネットワークからは届きません。
 - すべてのプロバイダー呼び出しはユーザー自身の API キーを使用し、生成されたファイルは `~/monadic/data` 配下に手元で保持されます。
 - トークン予算は暴走した消費を止めるハード上限です。
-- リクエストは `application/json` でなければならず、Web ページからのものは受け付けません。`Origin` ヘッダーを含むリクエストや、`localhost`・`127.0.0.1`・`[::1]` 以外のホスト名を指すリクエストは拒否されます。Claude Code などの MCP クライアントはどちらも送りません。
+- リクエストは `application/json` でなければならず、Web ページからのものは受け付けません。`Origin` ヘッダーを含むリクエストや、`localhost`・`127.0.0.1`・`[::1]` 以外のホスト名を指すリクエストは拒否されます。MCP クライアントはどちらも送りません。
 
 ## 既知の制限事項
 
@@ -226,4 +226,4 @@ puts client.call_method("tools/list")
 - `monadic_analyze_video` はフレーム抽出のため Python コンテナを必要とします。
 - 生成・解析系ツールは、該当プロバイダーの API キーを必要とします。
 - `monadic_analyze_image`、`monadic_transcribe_audio`、`monadic_analyze_video` には `provider` の指定が必要です。ファイルは指定したプロバイダーにだけ送られ、キーのある別のプロバイダーが自動で選ばれることはありません。
-- `monadic_transcribe_audio` は、ファイル全体を一度に文字起こしします（25 MB まで）。`timestamps: true` を指定すると（OpenAI、Google Gemini、xAI Grok）、各行の先頭に録音の中での時刻が付き、50 分までの録音を 25 MB の上限なしで受け付けます（AAC と Opus も）。文字起こし（`transcript.json`）と字幕（`.vtt`、`.srt`）は共有ボリュームの `transcriptions/` の下に保存され、結果にはそこでのパスが示されます。この方法はバックグラウンドで実行する必要があり（`monadic_submit`）、返すテキストは 32 KB までです（切った場合は `truncated` で示します。保存した文字起こしは全文です）。このバージョン用に作られた Python コンテナが必要です。
+- `monadic_transcribe_audio` は、ファイル全体を一度に文字起こしします（25 MB まで）。`timestamps: true` を指定すると（OpenAI、Google Gemini、xAI Grok）、各行の先頭に録音の中での時刻が付き、50 分までの録音を 25 MB の上限なしで受け付けます（AAC と Opus も）。文字起こし（`transcript.json`）と字幕（`.vtt`、`.srt`）は共有ボリュームの `transcriptions/` の下に保存され、結果にはそこでのパスが示されます。この方法はバックグラウンドで実行する必要があり（`monadic_submit`）、返すテキストは 32 KB までです（切った場合は `truncated` で示します。保存した文字起こしは全文です）。最新の Python コンテナが必要です。

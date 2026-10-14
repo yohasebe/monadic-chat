@@ -1,92 +1,87 @@
 # アプリの開発
 
-Monadic Chatでは、オリジナルのシステムプロンプトを用いたAIチャットボット・アプリケーションを開発することができます。このセクションでは、新しいアプリケーションを開発するための手順を説明します。
-
-?> **重要**: MDSLのアプリ名はRubyクラス名と正確に一致する必要があります。例えば、`app "ChatOpenAI"`は対応する`class ChatOpenAI < MonadicApp`が必要です。これにより適切なメニューグループ化と機能が保証されます。
+Monadic Chat には、独自のシステムプロンプトとツールを持つアプリを加えられます。このページでは、その方法を説明します。
 
 ## MDSL形式によるアプリ開発 :id=how-to-add-a-simple-app
 
-アプリはMDSL（Monadic Domain Specific Language）ファイルで定義します。
+アプリは、拡張子 `.mdsl` の MDSL（Monadic Domain Specific Language）ファイルで定義します。1 つの MDSL ファイルで、1 つのプロバイダー用のアプリを 1 つ定義します。Monadic Chat は MDSL ファイルから、アプリの名前（たとえば `MyAppOpenAI`）の Ruby のクラスを作り、そこにプロバイダーのヘルパーモジュールを含めます。
 
-**一般的なアプリパターン**:
-- **ファサードパターン**: すべてのカスタム機能にファサードメソッドを使用する`*_tools.rb`ファイルを持つアプリ（推奨）
-- **モジュール統合**: 共有機能に`include_modules` + ファサードメソッドを使用するアプリ
-- **標準ツール**: MonadicAppの組み込みメソッドのみを使用するアプリ
+Ruby で書くツールのメソッドは、アプリの名前からプロバイダーの部分を除いて `Tools` を付けた名前のモジュールに置きます。アプリが `MyAppOpenAI` と `MyAppClaude` なら、モジュールは `MyAppTools` です。このモジュールがあると、どのプロバイダーのアプリのクラスにも自動で含められます。
 
-**エラー防止**: システムには無限リトライループを防ぐエラーパターン検出が含まれています：
-- 繰り返されるエラー（フォント、モジュール、権限の問題）を検出
-- 類似のエラーが3回発生すると停止
-- コンテキストに応じた提案を提供
+**よくあるアプリの形**：
+- **ツールのモジュール**：アプリ独自のツールを `<アプリ名>Tools` モジュールに書いた `*_tools.rb` ファイル（推奨）
+- **共有のツール**：`import_shared_tools` で取り込むツールのグループ。[ツールグループ](tool-groups.md)を参照してください
+- **モジュール**：`include_modules` で加えるそのほかのモジュール
 
-**ツール要件**:
-- システムプロンプトで言及されるすべてのツールには対応する`define_tool`ブロックが必要
-- 一貫したパラメータ名を使用: `fetch_text_from_file`、`fetch_text_from_pdf`、`fetch_text_from_office`はいずれも`:file`を使用
-- 空の`tools do`ブロックは「Maximum function call depth exceeded」エラーの原因となることがあります
+**繰り返すエラー**：ツールが同じ種類のエラーで 3 回失敗すると、Monadic Chat はやり直しを止め、対処のしかたを表示します。モデルがいつまでもやり直すことはありません。
 
-### MDSL形式のメリット
+**ツールの要件**：
+- システムプロンプトで触れるツールには、どれも `define_tool` のブロックか、取り込んだツールのグループが必要です。
+- `define_tool` のパラメーターは、Ruby のメソッドのキーワード引数と一致させます。
 
-1. **シンプルな記述**: Rubyのコード記述を最小限に抑制
-2. **プロバイダー対応**: 複数のLLMプロバイダーに対応しやすい
-3. **保守性**: 設定とロジックが分離され管理しやすい
-4. **一貫性**: 統一されたアプリ定義形式
+### ファイル構成パターン :id=file-structure-patterns
 
-### ファイル構成パターン
-
-**パターンA: 定数共有型（複数プロバイダー対応）**
+**パターン A：いくつかのプロバイダーで定数を共有する**
 ```
 apps/coding_assistant/
-├── coding_assistant_constants.rb # 共有定数（ICON、DESCRIPTION等）
-├── coding_assistant_tools.rb     # ツール実装（ファサードパターン）
-├── coding_assistant_openai.mdsl  # OpenAI専用設定
-├── coding_assistant_claude.mdsl  # Claude専用設定
-└── coding_assistant_gemini.mdsl  # Gemini専用設定
+├── coding_assistant_constants.rb # Shared constants (ICON, DESCRIPTION, etc.)
+├── coding_assistant_tools.rb     # CodingAssistantTools module
+├── coding_assistant_openai.mdsl  # OpenAI app
+├── coding_assistant_claude.mdsl  # Claude app
+└── coding_assistant_gemini.mdsl  # Gemini app
 ```
 
-**パターンB: シンプル型（標準ツールのみ）**
+**パターン B：MDSL だけ**
 ```
 apps/simple_app/
-└── simple_app_openai.mdsl # 完全なMDSL定義（追加Rubyファイル不要）
+└── simple_app_openai.mdsl # The whole app; no Ruby file is needed
 ```
 
-**パターンC: ツール実装型（推奨）**
+**パターン C：ツールのモジュール（推奨）**
 ```
 apps/novel_writer/
-├── novel_writer_tools.rb         # ファサードパターンでのツール実装
-├── novel_writer_openai.mdsl      # OpenAI用MDSL定義
-└── novel_writer_claude.mdsl      # Claude用MDSL定義
+├── novel_writer_tools.rb         # NovelWriterTools module
+├── novel_writer_openai.mdsl      # OpenAI app
+└── novel_writer_mistral.mdsl     # Mistral app
 ```
 
 ### サポートファイルの命名規則
 
-- **ツール実装ファイル**: `*_tools.rb` (例: `novel_writer_tools.rb`)
-- **定数ファイル**: `*_constants.rb` (例: `coding_assistant_constants.rb`)
+- **ツールを書くファイル**：`*_tools.rb`（例：`novel_writer_tools.rb`）
+- **定数のファイル**：`*_constants.rb`（例：`coding_assistant_constants.rb`）
 
 ### MDSL形式の基本構造
 
-基本構造のコード例と各ブロック・設定の詳細は、[Monadic DSLドキュメント](monadic_dsl.md)を参照してください。
+MDSL の形式（すべてのブロックと設定）は、[Monadic DSL](monadic_dsl.md) を参照してください。
 
 ## アプリの追加手順
 
-1. MDSLファイルを作成します
-2. 共有フォルダの`apps`ディレクトリに保存します（`~/monadic/data/apps`）
-3. Monadic Chatを再起動します
+1. アプリの MDSL ファイルを作ります。アプリ独自のツールがあれば、`*_tools.rb` ファイルも作ります。
+2. ファイルを共有フォルダの `apps` フォルダ（`~/monadic/data/apps`）に保存します。`apps` の下のどのフォルダでもかまいません。
+3. Monadic Chat を再起動します。
 
-MDSLファイルは`apps`ディレクトリ以下の任意のディレクトリに保存できます。
+読み込みの決まり：
+
+- `.rb` ファイルは `.mdsl` ファイルより先に読み込まれます。
+- 名前が `_` で始まるファイルは読み込まれません。
+- `apps` の中の `test`、`helpers`、`services` という名前のフォルダにあるファイルは、アプリとしては読み込まれません。
+- シンボリックリンクを通した先のファイルは読み込まれません。
+- 開発モード（`rake server:debug`）では、共有フォルダのアプリとヘルパーは、サーバーを起動するシェルで `MONADIC_LOAD_USER_CODE=true` を設定したときだけ読み込まれます。
+
+あるアプリの読み込みに失敗しても、ほかのアプリは読み込まれます。失敗したアプリとエラーは、サーバーの出力（`docker logs monadic-chat-ruby-container`、開発モードではターミナル）に表示されます。
 
 ## 高度なアプリの追加方法
 
-堅牢なアプリ開発には、MDSLとファサードパターンを使用します：
-- 各プロバイダー向けに`app_name_provider.mdsl`を作成（例: `chat_openai.mdsl`）
-- MonadicAppを拡張するファサードメソッドを含む`app_name_tools.rb`を作成
-- ファサードメソッドに入力検証とエラーハンドリングを含める
-- 共有機能には`include_modules`とファサードラッパーを使用
-- MDSLファイルの`tools do`ブロックですべてのツールを明示的に定義
+- プロバイダーごとに MDSL ファイルを 1 つ作ります（例：`my_app_openai.mdsl`、`my_app_claude.mdsl`）。
+- ツールのメソッドは、`my_app_tools.rb` の `MyAppTools` モジュールに書きます。
+- MDSL の `tools do` ブロックで、すべてのツールを定義します。
+- ツールのメソッドで、入力を確かめ、エラーを扱います。
 
-`helpers`フォルダ内のファイルはアプリファイルよりも先に読み込まれるため、アプリケーションの機能を拡張するためにヘルパーファイルを使用できます。これにより、共通の機能をモジュールとしてまとめ、複数のアプリで再利用できます。
+共有フォルダの `helpers` フォルダと、`apps/<アプリ名>/helpers` にある Ruby のファイルは、アプリのファイルより先に読み込まれます。いくつかのアプリで使うモジュールは、そこに置きます。
 
-標準コンテナ以外の新たなコンテナを追加したい場合は、`services`フォルダにDocker関連ファイルを格納します。コンテナ内で利用可能な特定のコマンドを実行したい時や、コードを実行したい場合は、すべての追加アプリの基底クラスである`MonadicApp`に定義されている`send_command`メソッドまたは`send_code`メソッドを使用します（詳細については[関数・ツールの呼び出し](#calling-functions-in-the-app)を参照してください）。
+Docker のコンテナを加えるときは、そのファイルを `services` フォルダに置きます。[Docker コンテナの追加](adding-containers.md)を参照してください。コンテナでコマンドを実行したり、Python のコードを実行したりするには、すべてのアプリの基底クラスである `MonadicApp` の `send_command` か `send_code` を使います（[関数・ツールの呼び出し](#calling-functions-in-the-app)を参照）。
 
-これらを組み合わせてアプリを定義する場合、次のようなフォルダ構成になります。
+これらをそろえると、フォルダは次のようになります。
 
 ```text
 ~/
@@ -97,7 +92,7 @@ MDSLファイルは`apps`ディレクトリ以下の任意のディレクトリ�
         │       ├── my_app_openai.mdsl
         │       ├── my_app_claude.mdsl
         │       ├── my_app_tools.rb
-        │       └── my_app_constants.rb （オプション）
+        │       └── my_app_constants.rb (optional)
         ├── helpers
         │   └── my_helper.rb
         └── services
@@ -108,85 +103,66 @@ MDSLファイルは`apps`ディレクトリ以下の任意のディレクトリ�
 
 ## MDSL開発のベストプラクティス
 
-### 常にファサードパターンを使用
+### 常にファサードパターンを使用 :id=always-use-facade-pattern
 
-保守性と堅牢性のあるMDSLアプリケーションのために：
+ツールは、入力を確かめ、実際の処理を呼び、モデルが読める結果を返すメソッドとして書きます。ツールは文字列を返します。失敗したときは、メッセージを `❌` で始めると、モデルがそれを利用者に伝えられます。
 
-**ファサードパターンの利点:**
-- **明確なAPI**: 明示的なメソッドシグネチャ
-- **入力検証**: 無効な関数呼び出しを防止
-- **エラーハンドリング**: 一貫したエラーレスポンス形式
-- **デバッグ**: メソッド呼び出しの追跡とログが容易
-- **メンテナンス性**: 実装が変更されてもインターフェースの安定性を保つ
+**ひな形：**
 
-**実装テンプレート:**
-
-対応するMDSLファイルを作成：
+MDSL ファイル：
 ```ruby
 # my_app_openai.mdsl
 app "MyAppOpenAI" do
-  description "カスタムアプリ"
-  icon "🚀"
+  description "My custom app"
+  icon "fa-solid fa-rocket"
   display_name "My App"
-  
+
   llm do
     provider "openai"
   end
-  
-  system_prompt "あなたは役立つアシスタントです。"
-  
+
+  system_prompt "You are a helpful assistant."
+
   tools do
-    define_tool "method_name", "このツールが行うことの説明" do
-      parameter :required_param, "string", "パラメータの説明", required: true
-      parameter :optional_param, "string", "オプションパラメータの説明", required: false
+    define_tool "method_name", "Description of what this tool does" do
+      parameter :required_param, "string", "Description of the parameter", required: true
+      parameter :optional_param, "string", "Optional parameter description", required: false
     end
   end
 end
 ```
 
-**アプリ命名規則の注意**: MDSLファイル内のアプリ名は`AppNameProvider`のパターンに従う必要があります：
-- `AppName`はPascalCaseのアプリケーション名
-- `Provider`は大文字化されたLLMプロバイダー名（例：`OpenAI`、`Claude`、`Gemini`）
+**アプリの名前**：アプリの名前は `AppNameProvider` の形にします。
+- `AppName` は、アプリの名前をパスカルケースで書いたもの
+- `Provider` は `OpenAI`、`Claude`、`Gemini`、`Mistral`、`Cohere`、`Grok`、`DeepSeek`、`Ollama` のどれか
 - 例：`ChatOpenAI`、`CodingAssistantClaude`、`ResearchAssistantGemini`
 
-ファサードパターンを使用したツールファイル：
+ツールのファイル：
 ```ruby
 # my_app_tools.rb
-class MyAppOpenAI < MonadicApp  # クラス名はMDSL内のアプリ名と一致する必要があります
-  # 完全な検証とエラーハンドリングを持つファサードメソッド
+module MyAppTools
   def method_name(required_param:, optional_param: nil)
-    # 1. 入力検証
-    validate_inputs!(required_param, optional_param)
-    
-    # 2. 実装の呼び出し
-    result = underlying_implementation(required_param, optional_param)
-    
-    # 3. 構造化されたレスポンスを返す
-    format_response(result)
+    raise ArgumentError, "required_param is empty" if required_param.to_s.strip.empty?
+
+    result = do_the_work(required_param, optional_param)
+    "Done: #{result}"
+  rescue ArgumentError => e
+    "❌ #{e.message}"
   rescue StandardError => e
-    handle_error(e)
+    "❌ method_name failed: #{e.message}"
   end
-  
+
   private
-  
-  def validate_inputs!(required_param, optional_param)
-    raise ArgumentError, "必須パラメータが不足" if required_param.nil?
-    # 特定の検証を追加
-  end
-  
-  def format_response(result)
-    { success: true, data: result }
-  end
-  
-  def handle_error(error)
-    { success: false, error: error.message }
+
+  def do_the_work(required_param, optional_param)
+    # ...
   end
 end
 ```
 
 ### カスタムアプリのモデル指定
 
-**推奨事項**: 特定のモデルを固定する必要がないカスタムアプリでは、`llm`ブロックの`model`を省略し、既定のモデル解決に委ねてください：
+`llm` ブロックで `model` を省くと、プロバイダーの既定のモデルが使われます。
 
 ```ruby
 llm do
@@ -194,280 +170,224 @@ llm do
 end
 ```
 
-| アプリタイプ | 推奨アプローチ | 理由 |
-|------------|--------------|------|
-| 標準アプリ（`docker/services/ruby/apps/`） | 明示的なモデル名 | 安定性と予測可能性 |
-| カスタムアプリ（`~/monadic/data/apps/`） | `model`を省略 | 既定のモデル解決を利用 |
-
-解決順序の全体（MDSL値 > 環境変数 > `providerDefaults` > ハードコードされたフォールバック）、複数モデルのドロップダウン指定、プロバイダー別環境変数の一覧については、Monadic DSLドキュメントの[モデル指定のベストプラクティス](monadic_dsl.md#モデル指定のベストプラクティス)を参照してください。
+既定のモデルは、`~/monadic/config/env` の `<PROVIDER>_DEFAULT_MODEL` で決まり、設定がなければ Monadic Chat のプロバイダーの既定値が使われます。順序の全体と、いくつものモデルを選べるメニューについては、[モデル指定のベストプラクティス](monadic_dsl.md#model-specification-best-practices)を参照してください。
 
 ### セッション安全性の確保
 
-**重要**: Monadic Chatは共有インスタンスアーキテクチャを採用しており、各アプリクラスは全ユーザー間で共有される単一のインスタンスを持ちます。セッション間のデータ汚染を防ぐため、慎重な取り扱いが必要です。
+アプリのクラスごとにインスタンスは 1 つで、すべてのセッションで共有されます。そのため、インスタンス変数に入れたデータはセッションの間で共有されます。
 
 #### ✅ DO: 純粋関数を使用する
 
-すべてのツールメソッドは、パラメータのみに依存する純粋関数であるべきです：
+ツールのメソッドは、パラメーターだけにもとづくようにします。
 
 ```ruby
-class MyApp < MonadicApp
-  def my_tool(input:, options:)
-    # ✅ 正しい: パラメータのみを使用
-    result = process_input(input, options)
-
-    format_tool_response(
-      success: true,
-      output: result
-    )
-  end
-
-  private
-
-  def process_input(input, options)
-    # 純粋関数 - 同じ入力は同じ出力を生成
-    # インスタンス変数なし、副作用なし
-    input.upcase if options[:uppercase]
+module MyAppTools
+  def my_tool(input:, uppercase: false)
+    # Uses only parameters
+    uppercase ? input.upcase : input
   end
 end
 ```
 
-**安全な理由**:
-- ユーザー間で共有される状態がない
-- 設計上スレッドセーフ
-- 予測可能な動作
-
 #### ❌ DON'T: セッション状態にインスタンス変数を使用しない
 
-セッション固有のデータをインスタンス変数に保存してはいけません：
+セッションのデータをインスタンス変数に入れないでください。
 
 ```ruby
-class MyApp < MonadicApp
+module MyAppTools
   def validate_code(code:)
-    # ❌ 間違い: ユーザーBがユーザーAのデータを上書きする可能性がある
+    # WRONG: another session can overwrite this
     @last_validated_code = code
-    @validation_timestamp = Time.now
-
     validate(code)
   end
 
   def preview_code
-    # ❌ 間違い: 他のユーザーのデータを読む可能性がある
-    code = @last_validated_code
-    generate_preview(code)
+    # WRONG: may read another session's code
+    generate_preview(@last_validated_code)
   end
 end
 ```
 
-**安全でない理由**:
-- ユーザーAがコードを検証 → `@last_validated_code`に保存
-- ユーザーBが異なるコードを検証 → `@last_validated_code`を**上書き**
-- ユーザーAがプレビューを要求 → ユーザーBのコードを取得！
+セッション A がコードを検証し、次にセッション B が別のコードを検証すると、セッション A で求めたプレビューにセッション B のコードが表示されます。
 
 #### インスタンス変数の許容される使用法
 
-**読み取り専用の設定**（全ユーザーで同一）：
+すべてのセッションで同じ、読み取り専用の設定：
 
 ```ruby
-class MyApp < MonadicApp
-  def initialize
-    super
-    @config = load_app_config  # ✅ OK: 読み取り専用の設定
+module MyAppTools
+  def my_tool(input:)
+    process(input, max_length: app_config[:max_length])
   end
 
-  def my_tool(input:)
-    # 読み取り専用の設定に@configを使用するのは問題ない
-    process(input, max_length: @config[:max_length])
+  private
+
+  def app_config
+    @app_config ||= { max_length: 1000 }.freeze  # OK: read-only, same for everyone
   end
 end
 ```
 
 #### ベストプラクティスまとめ
 
-1.  **ステートレスなツールを設計する**: 各ツール呼び出しは独立しており、隠れた状態に依存せず入力を処理して出力を返すべきです。
-
-2.  **データはパラメータで渡す**: すべての入力と必要なコンテキストは、明示的な関数引数として渡すべきです。
-
-3.  **すべての出力を返す**: ツールは副作用や隠れた状態の変更に依存せず、すべての関連結果を返すべきです。
-
-4.  **一時的な状態には`session`パラメータを使用する**: 会話固有の非永続データ（例：最後に生成された画像ファイル名、現在のノートブックコンテキスト）には、`session`パラメータを使用します。システムがユーザーごとにこの状態を分離します。
-
-5.  **永続化にはファイルシステムを使用する**: 永続データ（例：長期ログ、ユーザーファイル）には、メモリ内のインスタンス変数の代わりに共有ファイルシステムに書き込みます。
-
-6.  **読み取り専用インスタンス変数のみ**: インスタンス変数（`@variable`）は、全ユーザー・全セッションで同一の読み取り専用設定にのみ使用すべきです。
+1. **状態を持たないツール**：呼び出しのたびに、入力から処理して結果を返します。
+2. **データはパラメーターで渡す**：入力はすべて引数で渡します。
+3. **結果はすべて返す**：結果を隠れた状態に残さず、返します。
+4. **会話の状態には `session` を使う**：1 つの会話に属するデータ（たとえば最後に作ったファイルの名前）は、`session:` のキーワード引数で受け取ります。[Rubyによるメソッドの実行](#define-ruby-methods)を参照してください。
+5. **残すデータはファイルに**：長く残すデータは、共有フォルダに書きます。
+6. **インスタンス変数は読み取り専用だけ**：インスタンス変数は、すべてのセッションで同じ設定にだけ使います。
 
 ## よくある問題のトラブルシューティング
 
 ### メソッドが見つからないエラー
-「undefined method」エラーが発生した場合：
 
-1. **ファサードメソッドの作成**: すべてのカスタムメソッドにファサードパターンを使用した`*_tools.rb`ファイルを使用
-2. **モジュール統合の追加**: 共有機能には`include_modules`とファサードラッパーを使用
-3. **クラス名の検証**: ツールファイルのクラス名がアプリIDと一致することを確認
+ツールの呼び出しが "undefined method" で失敗するとき：
 
-**ファサードパターン修正例**:
-```ruby
-# app_name_tools.rb
-class AppNameProvider < MonadicApp
-  def custom_method(param:, options: {})
-    # 入力検証
-    raise ArgumentError, "パラメータが必要です" if param.nil?
-    
-    # 実装の呼び出し
-    result = underlying_service.method(param, options)
-    
-    # 構造化されたレスポンスを返す
-    { success: true, data: result }
-  rescue StandardError => e
-    { success: false, error: e.message }
-  end
-end
-```
+1. モジュールの名前が、アプリの名前からプロバイダーの部分を除いて `Tools` を付けたものか確かめます（`MyAppOpenAI` → `MyAppTools`）。
+2. メソッドの名前が `define_tool` の名前と一致しているか確かめます。
+3. キーワード引数が `define_tool` のパラメーターと一致しているか確かめます。
 
 ## ヘルパーモジュール :id=helper-modules
 
-アプリで使用できるヘルパーモジュール：
+アプリのクラスには、そのプロバイダーのヘルパーモジュールが含まれます。
 
-- `OpenAIHelper` - OpenAI API統合
-- `ClaudeHelper` - Anthropic Claude API統合
-- `CohereHelper` - Cohere API統合
-- `MistralHelper` - Mistral AI API統合
-- `GeminiHelper` - Google Gemini API統合
-- `DeepSeekHelper` - DeepSeek API統合
-- `GrokHelper` - xAI Grok API統合
-- `OllamaHelper` - Ollamaローカルモデル統合
+- `OpenAIHelper` - OpenAI
+- `ClaudeHelper` - Anthropic Claude
+- `CohereHelper` - Cohere
+- `MistralHelper` - Mistral AI
+- `GeminiHelper` - Google Gemini
+- `DeepSeekHelper` - DeepSeek
+- `GrokHelper` - xAI Grok
+- `OllamaHelper` - Ollama
 
-どのアプリがどのモデルと互換性があるかの完全な概要については、基本アプリのドキュメントの[モデル互換性](/ja/basic-usage/basic-apps.md#app-availability)セクションを参照してください。
-
-?> `OpenAIHelper`、`ClaudeHelper`、`CohereHelper`、`MistralHelper`、`GeminiHelper`、`GrokHelper`、`DeepSeekHelper`、`OllamaHelper`では "function calling" や "tool use" の機能を使うことができます（[関数・ツールの呼び出し](#calling-functions-in-the-app)を参照）。関数呼び出しのサポートはプロバイダーによって異なります - 制限については各プロバイダーのドキュメントを確認してください。
-
-!> レシピファイルがRubyスクリプトとして有効ではなく、エラーが発生する場合、Monadic Chatが起動せず、エラーメッセージがコンソールに表示されます。アプリの読み込みエラーは、サーバー起動時にどのアプリがなぜ読み込みに失敗したかの詳細とともに表示されます。
+どれでもツールの呼び出しが使えます（[関数・ツールの呼び出し](#calling-functions-in-the-app)を参照）。どのアプリがどのプロバイダーで使えるかは、[プロバイダー別のアプリの対応状況](../basic-usage/basic-apps.md#app-availability)を参照してください。
 
 ## 設定項目
 
-設定項目には必須のものと任意の物があります。必須の設定項目が指定されていない場合は、アプリケーションの起動時にブラウザ画面上にエラーメッセージが表示されます。下記は必須の設定項目の例です。
+アプリには次の設定が要ります。ない場合もアプリは読み込まれ、既定の値が使われて、アプリの説明に警告が表示されます。
 
-`display_name` (string, 必須)
+`description`（文字列）
+アプリの説明です。
 
-ユーザーインターフェースに表示されるアプリケーションの名前（必須）を指定します。
+`icon`（文字列）
+アイコンです。`"fa-solid fa-rocket"` のような Font Awesome のクラスか、アイコンの名前を書きます。
 
-`icon` (string, 必須)
+`system_prompt`（文字列）
+システムプロンプトです。
 
-アプリケーションのアイコン（絵文字またはHTML）を指定します。
+次の設定は省けます。
 
-`description` (string, 必須)
+`display_name`（文字列）
+画面に表示する名前です。既定はアプリの名前です。
 
-アプリケーションの説明を記述します。
+`group`（文字列、`features do` の中）
+アプリのメニューでのグループです。既定はプロバイダーのグループ（たとえば "OpenAI"）です。
 
-`system_prompt` (string, 必須)
+```ruby
+features do
+  group "My Apps"
+end
+```
 
-システムプロンプトのテキストを指定します。
-
-`group` (string)
-
-Web 設定画面の Base App セレクタ上でアプリをグループ化するためのグループ名を指定します。必須ではありませんが、独自のアプリを追加する場合には、基本アプリと区別するために何らかのグループ名を指定することが推奨されます。
-
-これらの他に、任意の設定項目が多数あります。[設定項目](./setting-items.md)を参照してください。
+そのほかの設定は、[設定項目](./setting-items.md)を参照してください。
 
 ## 関数・ツールの呼び出し :id=calling-functions-in-the-app
 
-AIエージェントが使用するための関数・ツールを定義することが可能です。MDSL形式では、ツールは`tools do`ブロック内で**明示的に定義する必要があります**。基礎となる機能を実装するには：1）ツールファイルでRubyメソッドを定義、2）コマンドやシェルスクリプトの実行、3）Ruby以外の言語でプログラムコードの実行、の3つの方法があります。
+ツールは MDSL ファイルの `tools do` ブロックで定義します。ツールの裏の処理は、次の 3 つのどれかで行います。1）ツールのモジュールの Ruby のメソッド、2）コンテナの中でのコマンドやシェルスクリプト、3）Python コンテナで実行するプログラムのコード。
 
-### Rubyによるメソッドの実行
+### Rubyによるメソッドの実行 :id=define-ruby-methods
 
-AIエージェントが使用できるRubyメソッドを定義するには：
-1. MDSLファイルの`tools do`ブロックですべてのツールを明示的に定義
-2. `*_tools.rb`ファイルに対応するメソッドを実装
-3. メソッドシグネチャがツール定義と一致することを確認
+1. MDSL の `tools do` ブロックでツールを定義します。
+2. ツールのモジュールに、同じ名前のメソッドを書きます。
+3. メソッドのキーワード引数を、ツールのパラメーターと一致させます。
 
-ツール定義の形式と1ターンあたりの関数呼び出し回数の上限はプロバイダーによってわずかに異なります。Monadic DSLリファレンスの[プロバイダー固有の考慮事項](monadic_dsl.md#プロバイダー固有の考慮事項)を参照してください。
+**`session` の引数：**
+- メソッドが `session:` のキーワード引数を受け取るようになっていると、Monadic Chat は今の会話のセッションを渡します。`define_tool` で `session` を宣言する必要はありません。
+- 1 つの会話に属する状態に使います。例：`session[:last_image_filename] = "image.png"`
+
+ツールの定義の送り方と、1 つのターンでできるツールの呼び出しの数は、プロバイダーによって違います。[プロバイダー別の注意点](monadic_dsl.md#provider-specific-considerations)を参照してください。
 
 ### コマンドやシェルスクリプトの実行
 
-各コンテナで利用可能な特定のコマンドやシェルスクリプトを実行したい時は、すべての追加アプリの基底クラスである`MonadicApp`に定義されている`send_command`メソッドを使用してください。コマンドやシェルスクリプトは、コンテナ内の`/monadic/data`をカレント・ワーキング・ディレクトリとして実行されます。ホストコンピュータの共有フォルダ内の`scripts`ディレクトリに保存されたシェルスクリプトは、コンテナ内でパスが通っており、スクリプト名を指定するだけで実行することができます。
-
-`send_command`メソッドの引数にはコマンド名（またはシェルスクリプト名）、コンテナ名、および実行完了時のメッセージを指定します。戻り値はコマンドの実行結果の文字列にメッセージを前置したものです。
+`send_command` は、共有フォルダ（`/monadic/data`）を作業ディレクトリにして、コンテナの中でコマンドを実行します。
 
 ```ruby
-send_command(command: "ls", container: "python", success_with_output: "Linux ls command executed with the following output:\n")
+send_command(command: "ls", container: "python", success_with_output: "Files in the shared folder:\n")
 ```
 
-例として、上記のコードはPythonコンテナ内で`ls`コマンドを実行し、その結果を返します。`command`引数は実行するコマンドを指定します。`container`引数はコマンドを実行するコンテナを略記で指定します。`python`と指定した場合は`monadic-chat-python-container`を指定することになります。`success`引数と`success_with_output`引数はコマンドの実行が成功した場合に、コマンドの実行結果の文字列の前に挿入するメッセージを指定します。成功時のメッセージは省略可能ですが、適切なメッセージを指定することで、AIエージェントがコマンドの実行結果を正しく解釈できるようになります。`success`引数が省略されたときは "Command has been executed" というメッセージが表示されます。`success_with_output`引数を省略した場合は"Command has been executed with the following output: "というメッセージが表示されます。
+引数：
+- `command`：実行するコマンド
+- `container`：コンテナを短い形で書きます。`python` は `monadic-chat-python-container`、`my-service` は `monadic-chat-my-service-container` です
+- `success`：コマンドが出力なしで成功したときに返すメッセージ（既定："Command has been executed."）
+- `success_with_output`：出力があるとき、その前に付ける文（既定："Command has been executed with the following output: "）
 
-?> AIエージェントに直接`send_command`を呼び出すように設定することも可能ですが、ツールファイル内にラッパー（ファサード）メソッドを定義し、引数の検証とエラー処理を行ってから`send_command`を呼び出すことをお勧めします。こうすることで、引数が不足している場合でもコンテナレベルの失敗ではなく、明確なエラーメッセージをAIエージェントに返せます。
+Python コンテナでは、共有フォルダの `scripts` フォルダが、システムのフォルダの後ろで `PATH` に入っているので、そこに置いたスクリプトを名前で実行できます。
+
+?> `send_command` は、モデルに直接呼ばせず、まず引数を確かめるツールのメソッドから呼んでください。引数がおかしいとき、モデルにわかりやすいメッセージが届きます。
 
 ### プログラム・コードの実行
 
-Rubyだけで書けるメソッドであれば、レシピファイル中に記述して、AIエージェントに呼び出させることができます。しかし、Pythonなどの他のプログラミング言語で書かれたプログラムを実行したい場合は、`send_code`メソッドを使用してください。
-
-?> `send_code`メソッドはPythonコンテナ（`monadic-chat-python-container`）におけるコードの実行のみサポートしています。
-
-`send_code`メソッドは、コンテナ内でプログラムのコードを実行するためのメソッドです。与えられたコードを一時ファイルに保存し、指定されたプログラムでそのファイルを実行します。`code`引数にはコードを文字列で指定します。`command`引数には、コードを実行するプログラムを指定します。`extension`引数には、一時ファイルの拡張子を指定します。`success`引数には、コードの実行が成功した場合に、コードの実行結果の文字列の前に挿入するメッセージを指定します。成功時のメッセージは省略可能ですが、適切なメッセージを指定することで、AIエージェントがコードの実行結果を正しく解釈できるようになります。`success`引数が省略されたときは "The code has been executed successfully." というメッセージが表示されます。
+`send_code` は、Python コンテナ（`monadic-chat-python-container`）でプログラムのコードを実行します。コードを指定の拡張子のファイルに保存して、実行します。
 
 ```ruby
-send_code(code: "print('Hello, World!')", command: "python", extension: "py", success: "Python code executed successfully")
+send_code(code: "print('Hello, world!')", command: "python", extension: "py", success: "Python code executed successfully")
 ```
 
-例として、上記のコードはPythonコンテナ内で`print('Hello, World!')`コードを実行し、その結果を返します。
+引数は、コード（`code`）、コードを実行するコマンド（`command`、`python` など）、ファイルの拡張子（`extension`）、成功したときのメッセージ（`success`、既定は "The code has been executed successfully"）です。
 
-`send_code`メソッドは、コード実行後に新しいファイルが生成されたかどうかを検知し、新しいファイルが生成された場合は、そのファイル名を返します。ファイルが生成されなかった場合は、`success` 引数で指定されたメッセージとコードの実行結果のみを返します。
+結果には、コードが共有フォルダで作ったり変えたりしたファイルが示されます。
 
-**ファイルが生成されていない場合**
+**新しいファイルがないとき：**
 
 ```text
-The code has been executed successfully; Output: OUTPUT_TEXT
+The code has been executed successfully
+
+NOTE: No image files were created. Do NOT display any images.
+
+Output: OUTPUT_TEXT
 ```
 
-**ファイルが生成されている場合**
+**新しい画像のファイルがあるとき：**
 
 ```text
-The code has been executed successfully; File(s) generated: NEW_FILE; Output: OUTPUT_TEXT
+The code has been executed successfully
+
+IMAGE FILES CREATED (verified to exist):
+- /data/plot.png
+
+These images are automatically displayed in the chat. Do NOT include <img> tags in your response.
+
+Output: OUTPUT_TEXT
 ```
 
-生成されたファイルの情報を正しく得ることで、AIエージェントはさらにそれらを用いた処理を続けて行うことができます。
+**そのほかの新しいファイルがあるとき：**
 
-?> `send_code`をAIエージェントから直接呼び出すように設定すると、AIエージェントが必須の引数のいずれかを指定しない場合にコンテナ内でエラーが発生します。そのため、ラッパー（ファサード）メソッドを作成し、エラー処理を適切に行うことをお勧めします。
+```text
+The code has been executed successfully; File(s) generated or modified: /data/report.html
+
+Output: OUTPUT_TEXT
+```
+
+?> `send_command` と同じく、`send_code` も、まず引数を確かめるツールのメソッドから呼んでください。
 
 ## 関数・ツール内でのLLMの使用
 
-AIエージェントから呼び出される関数・ツールの中で、さらにAIエージェントへのリクエストを行いたい場合があります。そのような場合、`MonadicApp`クラスで利用可能な`send_query`メソッドを使うことができます。
-
-`send_query`は、現在のアプリで使用している言語モデル（または同じベンダーによる言語モデル）のAPIを介してAIエージェントにリクエストを送信し、その結果を返します。APIのパラメターを設定したハッシュを引数として渡すことで、AIエージェントにリクエストを送信することができます。
-
-APIパラメターのハッシュには`messages`キーとその値としてメッセージの配列を指定する必要があります。また`model`キーには使用する言語モデルを指定します。その言語モデルのAPIで利用できる各種パラメターも利用可能です。
-
-`send_query`を用いたクエリーでは`stream`は`false`になります（デフォルトで`false`に設定済みですので、明示的に指定する必要はありません）。
-
-ツールファイル内でRubyを使用して作成した関数・ツールの中で、`send_query`を使用する方法は次の通りです。
+ツールから、`send_query` で独自にモデルにリクエストを送れます。`send_query` はプロバイダーのヘルパーモジュールにあり、アプリのプロバイダーの API を使います。`messages` の配列を含む API のパラメーターのハッシュと、`model:` のキーワード引数でモデルを渡します。`model:` を省くと、プロバイダーの既定のモデルが使われます。リクエストはストリーミングされません。
 
 ```ruby
 # my_app_tools.rb
-class MyAppOpenAI < MonadicApp
-  def my_function
-    # パラメータの設定
-    parameters = {
-      message: {
-        model: "<model-id>",  # モデルIDを指定
-        messages: [
-          {
-            role: "user",
-            content: "What is the name of the capital city of Argentina?"
-          }
-        ]
-      }
-    }
-    # OpenAIにリクエストを送信
-    send_query(parameters)
+module MyAppTools
+  def capital_of_argentina
+    send_query(
+      { "messages" => [{ "role" => "user", "content" => "What is the capital of Argentina?" }] },
+      model: "<model-id>"  # optional
+    )
   end
 end
 ```
 
 ## MCP統合
 
-Monadic Chatには、Monadic ConduitというMCP（Model Context Protocol）サーバーが
-組み込まれています。Conduitは`monadic_*`名前空間の固定されたケイパビリティツール群
-（クエリ、ナレッジベース、メディア分析・生成など）を公開する設計で、各アプリの
-個別ツールを再公開するものではありません。そのため、アプリ開発にあたって
-MCP固有の開発や登録作業は不要です。
+Monadic Chat には、Monadic Conduit という MCP（Model Context Protocol）のサーバーがあります。`monadic_*` の名前の決まったツール（問い合わせ、Knowledge Base、メディアの分析と生成など）を公開し、アプリごとのツールは公開しません。アプリを作るときに、MCP のためにすることはありません。
 
-サーバーのセットアップ、利用可能なツール、クライアント設定については
-[MCP統合](/ja/advanced-topics/mcp-integration.md)を参照してください。
+サーバーの設定、ツール、クライアントの設定は、[MCP 統合](/ja/advanced-topics/mcp-integration.md)を参照してください。

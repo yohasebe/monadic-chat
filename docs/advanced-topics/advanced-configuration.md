@@ -1,36 +1,38 @@
 # Advanced Configuration
 
-This page covers advanced configuration options for Monadic Chat, including Install Options and container management.
+This page covers Install Options, startup, build logs, browser tabs and environment variables.
 
 ## Install Options :id=install-options
 
-From the app menu **Actions → Install Options…**, you can choose optional components for the Python container.
+**Actions → Install Options** opens the **Install Options** category of the Settings window. It holds optional components:
 
-### Available Options
+- **LaTeX**: **Install LaTeX (minimal set for diagrams)**, needed by Concept Visualizer and Syntax Tree
+- **Python Libraries (CPU)**: nltk, spaCy, gensim, mediapipe, transformers
+- **Music Analysis**: librosa + madmom, needed by the music analysis apps
+- **System Tools (CLI)**: ImageMagick (`convert` / `mogrify`)
+- **Privacy Filter — Additional Languages**: languages besides English for the Privacy Filter. They apply when you save; no rebuild is needed
+- **Knowledge Base Quality Pack (Docling)**: a separate container for PDF extraction with layout analysis and OCR, with its OCR languages
 
-- **LaTeX** (with TeX Live + CJK): Enables Concept Visualizer / Syntax Tree with built-in Japanese/Chinese/Korean support (requires OpenAI or Anthropic key)
-- **Python libraries (CPU)**: `nltk`, `spacy`, `gensim`, `mediapipe`, `transformers` (plus `librosa`/`madmom` via the Music group; `scikit-learn` is part of the base image — see the option table in the [Configuration Reference](/reference/configuration.md))
-- **Tools**: ImageMagick (`convert`/`mogrify`)
+The option table is in the [Configuration Reference](/reference/configuration.md).
 
 ### Panel Behavior
 
-- The Install Options window is modal and matches the Settings panel size
-- "Save" does not close the window; a green check briefly confirms success
-- If you click "Close" with unsaved changes, a confirmation dialog offers "Save and Close" or "Cancel"
-- All labels, descriptions, and dialogs follow your UI language (EN/JA/ZH/KO/ES/DE/FR)
+- **Save** keeps the window open; the Save button briefly shows a check mark.
+- If you close the window with unsaved changes, a dialog offers **Close** (discard the changes) and **Save and Close**.
+- Labels, descriptions and dialogs follow the UI language.
 
 ### Rebuild Process
 
-Saving options does not trigger a rebuild automatically. When ready, run **Actions → Build Python Container** from the app menu to update the Python image.
+Saving options does not start a rebuild. To apply the Python options, run **Actions → Build Python Container**. The new image is built and checked first, and replaces the current one only when the check passes. Progress appears in the main console.
 
-The update is atomic (build → verify → promote on success) and progress/logs appear in the main console. A per-run summary and health check are written alongside the logs.
+If saved options are not yet in the images, the next **Start** asks whether to rebuild, with **Rebuild and Start**, **Start Anyway** and **Cancel**.
 
 ### NLTK and spaCy Setup
 
 - Enabling `nltk` installs the library only (no datasets/corpora are downloaded automatically)
 - Enabling `spacy` installs the library only (no language models downloaded)
 
-**Recommended**: Add a `~/monadic/config/pysetup.sh` to fetch what you need during post-setup:
+To download data and models, write a `~/monadic/config/pysetup.sh`. It runs at the end of the Python container build, so what it installs is part of the image. When this file exists, the Python container is built on your computer instead of using the prebuilt image.
 
 ```sh
 #!/usr/bin/env bash
@@ -72,22 +74,17 @@ PY
 #!/usr/bin/env bash
 set -euo pipefail
 
-export NLTK_DATA=/monadic/data/nltk_data
-mkdir -p "$NLTK_DATA"
-
 python - <<'PY'
-import nltk, os
-nltk.download('all', download_dir=os.environ.get('NLTK_DATA','/monadic/data/nltk_data'))
+import nltk
+nltk.download('all')
 PY
 ```
 
-?> **Note**: Downloading "all" is large (GBs) and may take considerable time.
+?> Downloading "all" takes several GB and a long time. Do not download into `/monadic/data`: the shared folder is mounted there when the container runs, so files put there during the build are not visible.
 
 ## Startup Health Tuning :id=startup-health-tuning
 
-When you click **Start**, the system runs an orchestration health check. If needed, the Ruby control-plane is automatically refreshed once (cache-friendly) and startup proceeds.
-
-This is presented as informational prompts; finally a green "Ready" indicates success.
+When you click **Start**, Monadic Chat checks that the containers respond. If the Ruby container does not become ready and Docker reports it as unhealthy, it is rebuilt once with the Docker cache and started again (set `AUTO_REFRESH_RUBY_ON_HEALTH_FAIL=false` to turn this off). A green "Ready" means that startup has finished.
 
 ### Probe Tuning
 
@@ -95,9 +92,7 @@ Health probe behavior can be tuned with `START_HEALTH_TRIES` and `START_HEALTH_I
 
 ## Dependency-Aware Ruby Rebuild :id=ruby-rebuild
 
-Ruby is rebuilt only when the Gem dependency fingerprint (SHA256 of `Gemfile` + `monadic.gemspec`) changes.
-
-The image carries this value as `com.monadic.gems_hash`; when it differs from your working copy, a refresh is performed using Docker cache so the bundle layer is reused whenever possible.
+The Ruby image carries a fingerprint of its Gem dependencies (SHA256 of `Gemfile` and `monadic.gemspec`) as the label `com.monadic.gems_hash`. When it differs from the current files, the Ruby container is rebuilt with the Docker cache, so the bundle layer is reused when possible.
 
 ### Force Clean Rebuild
 
@@ -105,22 +100,21 @@ For troubleshooting, a clean rebuild can be forced with `FORCE_RUBY_REBUILD_NO_C
 
 ## Build Logs :id=build-logs
 
-Logs are overwritten each run:
+Logs are overwritten on each build.
 
 ### Python Build Logs
 
-- `~/monadic/log/docker_build_python.log`
-- `~/monadic/log/post_install_python.log`
+- `~/monadic/log/docker_build_python.log` (includes the output of `pysetup.sh`)
 - `~/monadic/log/python_health.json`
 - `~/monadic/log/python_meta.json`
 
 ### Other Build Logs
 
-- Ruby/User/Ollama build: `~/monadic/log/docker_build.log`
+- Ruby and user containers: `~/monadic/log/docker_build.log`
 
 ## Multi-Tab Session Management :id=multi-tab-sessions
 
-Monadic Chat supports opening multiple browser tabs simultaneously. Each tab is an independent conversation session:
+You can open Monadic Chat in several browser tabs at once. Each tab is a separate conversation session:
 
 **Session Isolation:**
 - Each tab has a unique tab ID (kept in `sessionStorage`) that identifies its WebSocket session on the server
@@ -129,7 +123,7 @@ Monadic Chat supports opening multiple browser tabs simultaneously. Each tab is 
 - Different browsers, browser profiles, and incognito/private windows are likewise separate sessions
 
 **Shared per browser:**
-- Preferences stored in the browser (UI language in a cookie, the speech-to-text choice in local storage) are shared by all tabs in the same browser profile
+- Preferences stored in the browser (for example the UI language and the speech-to-text model, kept in cookies) are shared by all tabs in the same browser profile
 
 ## Environment Variables :id=environment-variables
 
@@ -144,6 +138,9 @@ FORCE_RUBY_REBUILD_NO_CACHE=true
 # Health probe settings
 START_HEALTH_TRIES=20
 START_HEALTH_INTERVAL=2
+
+# Rebuild Ruby once when it is unhealthy at Start (default true)
+AUTO_REFRESH_RUBY_ON_HEALTH_FAIL=true
 ```
 
 ### Logging

@@ -69,7 +69,7 @@ You can use these as examples for your own apps.
 ## Logs and Debugging
 
 - Application logs: `~/monadic/log/`
-- Enable "Extra Logging" in Console Panel for detailed logs
+- Turn on **Extra Logging** in the System category of the Settings window for detailed logs (`~/monadic/log/extra.log`)
 - Use `puts` statements in Ruby code for debugging
 
 ## Best Practices

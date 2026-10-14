@@ -1,60 +1,48 @@
 # Developing Apps
 
-In Monadic Chat, you can develop AI chatbot applications using original system prompts. This section explains the steps to develop a new application.
-
-?> **Important**: The app name in MDSL must match the Ruby class name exactly. For example, `app "ChatOpenAI"` requires a corresponding `class ChatOpenAI < MonadicApp`. This ensures proper menu grouping and functionality.
+In Monadic Chat, you can add your own apps, each with its own system prompt and tools. This page explains how.
 
 ## Developing Apps with MDSL :id=how-to-add-a-simple-app
 
-Apps are defined in MDSL (Monadic Domain Specific Language) files.
+Apps are defined in MDSL (Monadic Domain Specific Language) files with the `.mdsl` extension. Each MDSL file defines one app for one provider. From the MDSL file, Monadic Chat creates a Ruby class with the app's name (for example `MyAppOpenAI`) that includes the provider's helper module.
 
-**Common App Patterns**:
-- **Facade Pattern**: Apps with `*_tools.rb` files using facade methods for all custom functionality (Recommended)
-- **Module Integration**: Apps using `include_modules` + facade methods for shared capabilities
-- **Standard Tools**: Apps using only built-in MonadicApp methods
+Tool methods written in Ruby go in a module named after the app without the provider suffix, plus `Tools`: for the apps `MyAppOpenAI` and `MyAppClaude`, the module is `MyAppTools`. When this module exists, it is included in every provider's app class automatically.
 
-**Error Prevention**: The system includes error pattern detection that prevents infinite retry loops by:
-- Detecting repeated errors (font, module, permission issues)
-- Stopping after 3 similar errors
-- Providing context-aware suggestions
+**Common app patterns**:
+- **Tools module**: an `*_tools.rb` file with a `<AppName>Tools` module for the app's own tools (recommended)
+- **Shared tools**: tool groups imported with `import_shared_tools`; see [Tool Groups](tool-groups.md)
+- **Modules**: other modules added with `include_modules`
 
+**Repeated errors**: When tools fail with the same kind of error three times, Monadic Chat stops the retries and shows a suggestion, so the model does not retry without end.
 
-**Tool Requirements**:
-- All tools mentioned in system prompts must have corresponding `define_tool` blocks
-- Use consistent parameter names: `fetch_text_from_file`, `fetch_text_from_pdf`, and `fetch_text_from_office` all take `:file`
-- Empty `tools do` blocks can cause "Maximum function call depth exceeded" errors
+**Tool requirements**:
+- Every tool the system prompt mentions needs a `define_tool` block or an imported tool group.
+- The parameters of `define_tool` must match the keyword arguments of the Ruby method.
 
-### Benefits of MDSL Format
+### File Structure Patterns :id=file-structure-patterns
 
-1. **Simple syntax**: Minimizes Ruby boilerplate code
-2. **Provider support**: Easy to support multiple LLM providers
-3. **Maintainability**: Clean separation of configuration and logic
-4. **Consistency**: Unified app definition format
-
-### File Structure Patterns
-
-**Pattern A: Constants sharing (multi-provider)**
+**Pattern A: Constants shared by several providers**
 ```
 apps/coding_assistant/
 ├── coding_assistant_constants.rb # Shared constants (ICON, DESCRIPTION, etc.)
-├── coding_assistant_tools.rb     # Tool implementation (facade pattern)
-├── coding_assistant_openai.mdsl  # OpenAI-specific config
-├── coding_assistant_claude.mdsl  # Claude-specific config
-└── coding_assistant_gemini.mdsl  # Gemini-specific config
+├── coding_assistant_tools.rb     # CodingAssistantTools module
+├── coding_assistant_openai.mdsl  # OpenAI app
+├── coding_assistant_claude.mdsl  # Claude app
+└── coding_assistant_gemini.mdsl  # Gemini app
 ```
 
-**Pattern B: Simple (standard tools only)**
+**Pattern B: MDSL only**
 ```
 apps/simple_app/
-└── simple_app_openai.mdsl # Complete MDSL definition (no additional Ruby files needed)
+└── simple_app_openai.mdsl # The whole app; no Ruby file is needed
 ```
 
-**Pattern C: Tool implementation (recommended)**
+**Pattern C: Tools module (recommended)**
 ```
 apps/novel_writer/
-├── novel_writer_tools.rb         # Tool implementation with facade pattern
-├── novel_writer_openai.mdsl      # OpenAI MDSL definition
-└── novel_writer_claude.mdsl      # Claude MDSL definition
+├── novel_writer_tools.rb         # NovelWriterTools module
+├── novel_writer_openai.mdsl      # OpenAI app
+└── novel_writer_mistral.mdsl     # Mistral app
 ```
 
 ### Support File Naming Conventions
@@ -64,30 +52,36 @@ apps/novel_writer/
 
 ### Basic MDSL Structure
 
-For detailed information on MDSL format, including all available blocks and settings, see [Monadic DSL Documentation](monadic_dsl.md).
+For the MDSL format, including all blocks and settings, see [Monadic DSL](monadic_dsl.md).
 
 ## Steps to Add an App
 
-1. Create an MDSL file for the app.
-2. Save the MDSL file in the `apps` directory of the shared folder (`~/monadic/data/apps`).
+1. Create an MDSL file for the app, and a `*_tools.rb` file if the app has its own tools.
+2. Save the files in the `apps` folder of the shared folder (`~/monadic/data/apps`). Any subfolder of `apps` works.
 3. Restart Monadic Chat.
 
-MDSL files can be saved in any subdirectory under the `apps` directory.
+Loading rules:
+
+- `.rb` files are loaded before `.mdsl` files.
+- Files whose names start with `_` are not loaded.
+- Files in folders named `test`, `helpers` or `services` inside `apps` are not loaded as apps.
+- Files reached through a symbolic link are not loaded.
+- In development mode (`rake server:debug`), apps and helpers in the shared folder are loaded only when the shell that starts the server sets `MONADIC_LOAD_USER_CODE=true`.
+
+If an app fails to load, the other apps still load. The failed apps and the errors are listed in the server output (`docker logs monadic-chat-ruby-container`, or the terminal in development mode).
 
 ## How to Add an Advanced App
 
-For robust app development, use MDSL with the facade pattern:
-- Create `app_name_provider.mdsl` for each provider (e.g., `chat_openai.mdsl`)
-- Create `app_name_tools.rb` with facade methods extending MonadicApp
-- **Explicitly define all tools** in the MDSL `tools do` block
-- Include input validation and error handling in facade methods
-- Use `include_modules` for shared functionality with facade wrappers
+- Create one MDSL file per provider (e.g., `my_app_openai.mdsl`, `my_app_claude.mdsl`).
+- Write the tool methods in a `MyAppTools` module in `my_app_tools.rb`.
+- Define every tool in the MDSL `tools do` block.
+- Validate the inputs and handle errors in the tool methods.
 
-Files in the `helpers` folder are loaded before the app files, so you can use helper files to extend the functionality of the application. This way, you can consolidate common functions into a module and reuse them in multiple apps.
+Ruby files in the `helpers` folder of the shared folder, and in `apps/<your_app>/helpers`, are loaded before the app files. Put modules that several apps use there.
 
-If you want to add a new container other than the standard container, store Docker-related files in the `services` folder. When you want to execute a specific command available in each container or use a Python function, use the `send_command` method or `send_code` method defined in `MonadicApp`, which is the base class for all additional apps (for more information, see [Calling Functions in the App](#calling-functions-in-the-app)).
+To add a Docker container, put its files in the `services` folder; see [Adding Docker Containers](adding-containers.md). To run a command in a container or run Python code, use the `send_command` or `send_code` method of `MonadicApp`, the base class of every app (see [Calling Functions in the App](#calling-functions-in-the-app)).
 
-When defining an app by combining these elements, the folder structure will look like this:
+With these elements, the folders look like this:
 
 ```text
 ~/
@@ -109,33 +103,26 @@ When defining an app by combining these elements, the folder structure will look
 
 ## Best Practices for MDSL Development
 
-### Always Use Facade Pattern
+### Always Use Facade Pattern :id=always-use-facade-pattern
 
-For maintainable and robust MDSL applications:
-
-**Benefits of Facade Pattern:**
-- **Clear API**: Explicit method signatures
-- **Input Validation**: Prevent invalid function calls
-- **Error Handling**: Consistent error response format
-- **Debugging**: Easy to trace and log method calls
-- **Future-proof**: Interface stability when underlying implementation changes
+Write each tool as a method that checks its inputs, calls the code that does the work, and returns a result the model can read. A tool returns a String; start the message with `❌` when the tool fails, so the model can tell the user.
 
 **Implementation Template:**
 
-Create a corresponding MDSL file:
+The MDSL file:
 ```ruby
 # my_app_openai.mdsl
 app "MyAppOpenAI" do
   description "My custom app"
-  icon "🚀"
+  icon "fa-solid fa-rocket"
   display_name "My App"
-  
+
   llm do
     provider "openai"
   end
-  
+
   system_prompt "You are a helpful assistant."
-  
+
   tools do
     define_tool "method_name", "Description of what this tool does" do
       parameter :required_param, "string", "Description of the parameter", required: true
@@ -145,49 +132,37 @@ app "MyAppOpenAI" do
 end
 ```
 
-**Note on App Naming Convention**: The app name in the MDSL file should follow the pattern `AppNameProvider` where:
-- `AppName` is your application name in PascalCase
-- `Provider` is the LLM provider name capitalized (e.g., `OpenAI`, `Claude`, `Gemini`)
+**App naming**: The app name is `AppNameProvider`:
+- `AppName` is the name of your app in PascalCase
+- `Provider` is one of `OpenAI`, `Claude`, `Gemini`, `Mistral`, `Cohere`, `Grok`, `DeepSeek`, `Ollama`
 - Examples: `ChatOpenAI`, `CodingAssistantClaude`, `ResearchAssistantGemini`
 
-And a tools file with facade pattern:
+The tools file:
 ```ruby
 # my_app_tools.rb
-class MyAppOpenAI < MonadicApp  # Class name must match the app name in MDSL
-  # Facade method with full validation and error handling
+module MyAppTools
   def method_name(required_param:, optional_param: nil)
-    # 1. Input validation
-    validate_inputs!(required_param, optional_param)
-    
-    # 2. Call underlying implementation
-    result = underlying_implementation(required_param, optional_param)
-    
-    # 3. Return structured response
-    format_response(result)
+    raise ArgumentError, "required_param is empty" if required_param.to_s.strip.empty?
+
+    result = do_the_work(required_param, optional_param)
+    "Done: #{result}"
+  rescue ArgumentError => e
+    "❌ #{e.message}"
   rescue StandardError => e
-    handle_error(e)
+    "❌ method_name failed: #{e.message}"
   end
-  
+
   private
-  
-  def validate_inputs!(required_param, optional_param)
-    raise ArgumentError, "Required parameter missing" if required_param.nil?
-    # Add specific validations
-  end
-  
-  def format_response(result)
-    { success: true, data: result }
-  end
-  
-  def handle_error(error)
-    { success: false, error: error.message }
+
+  def do_the_work(required_param, optional_param)
+    # ...
   end
 end
 ```
 
 ### Model Specification for Custom Apps
 
-**Recommendation**: For custom apps that do not need a fixed model, omit `model` from the `llm` block to use the default model resolution:
+Omit `model` from the `llm` block to use the default model of the provider:
 
 ```ruby
 llm do
@@ -195,283 +170,224 @@ llm do
 end
 ```
 
-| App Type | Recommended Approach | Reason |
-|----------|---------------------|--------|
-| Standard apps (`docker/services/ruby/apps/`) | Explicit model names | Stability and predictability |
-| Custom apps (`~/monadic/data/apps/`) | Omit `model` | Use the default model resolution |
-
-For the full resolution order (MDSL value > ENV variable > `providerDefaults` > hardcoded fallback), multiple-model dropdowns, and the per-provider environment variable list, see [Model Specification Best Practices](monadic_dsl.md#model-specification-best-practices) in the Monadic DSL documentation.
+The default comes from the `<PROVIDER>_DEFAULT_MODEL` variable in `~/monadic/config/env`, and otherwise from the provider defaults in Monadic Chat. For the full order and for menus with several models, see [Model Specification Best Practices](monadic_dsl.md#model-specification-best-practices).
 
 ### Ensure Session Safety
 
-**Important**: Monadic Chat uses a shared-instance architecture where each app class has a single instance shared across all users. This requires careful handling to prevent data contamination between sessions.
+Each app class has one instance, shared by every session. Data stored in instance variables is therefore shared between sessions.
 
 #### ✅ DO: Use Pure Functions
 
-All tool methods should be pure functions that rely only on their parameters:
+Tool methods should depend only on their parameters:
 
 ```ruby
-class MyApp < MonadicApp
-  def my_tool(input:, options:)
-    # ✅ CORRECT: Uses only parameters
-    result = process_input(input, options)
-
-    format_tool_response(
-      success: true,
-      output: result
-    )
-  end
-
-  private
-
-  def process_input(input, options)
-    # Pure function - same input produces same output
-    # No instance variables, no side effects
-    input.upcase if options[:uppercase]
+module MyAppTools
+  def my_tool(input:, uppercase: false)
+    # Uses only parameters
+    uppercase ? input.upcase : input
   end
 end
 ```
 
-**Why Safe**:
-- No shared state between users
-- Thread-safe by design
-- Predictable behavior
-
 #### ❌ DON'T: Use Instance Variables for Session State
 
-Never store session-specific data in instance variables:
+Do not store session data in instance variables:
 
 ```ruby
-class MyApp < MonadicApp
+module MyAppTools
   def validate_code(code:)
-    # ❌ WRONG: User B can overwrite User A's data
+    # WRONG: another session can overwrite this
     @last_validated_code = code
-    @validation_timestamp = Time.now
-
     validate(code)
   end
 
   def preview_code
-    # ❌ WRONG: May read another user's data
-    code = @last_validated_code
-    generate_preview(code)
+    # WRONG: may read another session's code
+    generate_preview(@last_validated_code)
   end
 end
 ```
 
-**Why Unsafe**:
-- User A validates code → Stores in `@last_validated_code`
-- User B validates different code → **Overwrites** `@last_validated_code`
-- User A requests preview → Gets User B's code!
+If session A validates code and session B then validates other code, a preview requested in session A shows session B's code.
 
 #### Acceptable Uses of Instance Variables
 
-**Read-only configuration** (same for all users):
+Read-only configuration that is the same for every session:
 
 ```ruby
-class MyApp < MonadicApp
-  def initialize
-    super
-    @config = load_app_config  # ✅ OK: Read-only configuration
+module MyAppTools
+  def my_tool(input:)
+    process(input, max_length: app_config[:max_length])
   end
 
-  def my_tool(input:)
-    # Using @config for read-only settings is fine
-    process(input, max_length: @config[:max_length])
+  private
+
+  def app_config
+    @app_config ||= { max_length: 1000 }.freeze  # OK: read-only, same for everyone
   end
 end
 ```
 
 #### Best Practices Summary
 
-
-
-1.  **Design stateless tools**: Each tool invocation should be independent, processing inputs and returning outputs without relying on hidden state.
-
-2.  **Pass data through parameters**: All inputs and necessary context should be passed as explicit function arguments.
-
-3.  **Return all outputs**: Tools should return all relevant results, not rely on side effects or hidden state mutations.
-
-4.  **Use `session` parameter for transient state**: For conversation-specific, non-persistent data (e.g., last generated image filename, current notebook context), use the `session` parameter. The system ensures this state is isolated per user.
-
-5.  **Use filesystem for persistence**: For persistent data (e.g., long-term logs, user files), write to the shared filesystem instead of in-memory instance variables.
-
-6.  **Read-only instance vars only**: Instance variables (`@variable`) should only be used for read-only configuration that is the same for all users and across all sessions.
+1. **Stateless tools**: Each call works from its inputs and returns its outputs.
+2. **Pass data through parameters**: Give every input as an argument.
+3. **Return all outputs**: Return the results instead of keeping them in hidden state.
+4. **Use `session` for conversation state**: For data that belongs to one conversation (for example the last generated file name), accept a `session:` keyword argument; see [Define Ruby Methods](#define-ruby-methods).
+5. **Use files for persistence**: Write data that must last to the shared folder.
+6. **Read-only instance variables only**: Use instance variables only for configuration that is the same for every session.
 
 ## Troubleshooting Common Issues
 
 ### Missing Method Errors
-If you encounter "undefined method" errors:
 
-1. **Create facade methods**: Use `*_tools.rb` files with facade pattern for all custom methods
-2. **Add module integration**: Use `include_modules` with facade wrappers for shared functionality
-3. **Verify class naming**: Class name in tools file must match the app ID
+If a tool call fails with "undefined method":
 
-**Facade Pattern Fix**:
-```ruby
-# app_name_tools.rb
-class AppNameProvider < MonadicApp
-  def custom_method(param:, options: {})
-    # Input validation
-    raise ArgumentError, "Parameter required" if param.nil?
-    
-    # Call underlying implementation
-    result = underlying_service.method(param, options)
-    
-    # Return structured response
-    { success: true, data: result }
-  rescue StandardError => e
-    { success: false, error: e.message }
-  end
-end
-```
+1. Check that the module name is the app name without the provider suffix, plus `Tools` (`MyAppOpenAI` → `MyAppTools`).
+2. Check that the method name matches the `define_tool` name.
+3. Check that the keyword arguments match the `define_tool` parameters.
 
 ## Helper Modules :id=helper-modules
 
-The following helper modules are available for use in your apps:
+Each app class includes the helper module of its provider:
 
-- `OpenAIHelper` - OpenAI API integration
-- `ClaudeHelper` - Anthropic Claude API integration
-- `CohereHelper` - Cohere API integration
-- `MistralHelper` - Mistral AI API integration
-- `GeminiHelper` - Google Gemini API integration
-- `DeepSeekHelper` - DeepSeek API integration
-- `GrokHelper` - xAI Grok API integration
-- `OllamaHelper` - Ollama local model integration
+- `OpenAIHelper` - OpenAI
+- `ClaudeHelper` - Anthropic Claude
+- `CohereHelper` - Cohere
+- `MistralHelper` - Mistral AI
+- `GeminiHelper` - Google Gemini
+- `DeepSeekHelper` - DeepSeek
+- `GrokHelper` - xAI Grok
+- `OllamaHelper` - Ollama
 
-For a complete overview of which apps are compatible with which models, see the [App Availability by Provider](../basic-usage/basic-apps.md#app-availability) section in the Basic Apps documentation.
-
-?> The "function calling" or "tool use" functions can be used in `OpenAIHelper`, `ClaudeHelper`, `CohereHelper`, `MistralHelper`, `GeminiHelper`, `GrokHelper`, `DeepSeekHelper`, and `OllamaHelper` (see [Calling Functions in the App](#calling-functions-in-the-app)). Function calling support varies by provider - check the specific provider's documentation for limitations.
-
-!> If the Ruby script is not valid and an error occurs, Monadic Chat will not start, and an error message will be displayed in the console. App loading errors are shown when starting the server with details about which apps failed to load and why.
+Tool calling works with all of them (see [Calling Functions in the App](#calling-functions-in-the-app)). For which apps are available with which providers, see [App Availability by Provider](../basic-usage/basic-apps.md#app-availability).
 
 ## Settings
 
-There are required and optional settings. If the required settings are not specified, an error message will be displayed on the browser screen when the application starts. Here are the required settings:
+An app needs these settings. When one is missing, the app still loads, a default is used, and the app's description shows a warning:
 
-`display_name` (string, required)
-Specify the display name of the application that appears in the UI (required).
+`description` (string)
+Describes the app.
 
-`icon` (string, required)
-Specify the icon for the application (emoji or HTML).
+`icon` (string)
+The icon: a Font Awesome class such as `"fa-solid fa-rocket"`, or an icon name.
 
-`description` (string, required)
-Describe the application.
+`system_prompt` (string)
+The system prompt.
 
-`system_prompt` (string, required)
-Specify the text of the system prompt.
+These are optional:
 
-`group` (string)
+`display_name` (string)
+The name shown in the UI. The default is the app name.
 
-Specify the group name for grouping the app on the Base App selector on the web settings screen. Though optional, it is recommended to specify some group name to distinguish custom apps from the base apps.
+`group` (string, inside `features do`)
+The group in the app menu. The default is the provider's group (for example "OpenAI").
 
-There are many optional settings. See [Setting Items](./setting-items.md) for details.
+```ruby
+features do
+  group "My Apps"
+end
+```
+
+For the other settings, see [Setting Items](./setting-items.md).
 
 ## Calling Functions in the App :id=calling-functions-in-the-app
 
-You can define functions and tools that the AI agent can use in the app. With the MDSL format, tools must be defined in the `tools do` block. There are three ways to implement the underlying functionality: 1) Define Ruby methods in the tools file; 2) Execute commands or shell scripts; and 3) Execute program code in languages other than Ruby.
+Tools are defined in the `tools do` block of the MDSL file. The work behind a tool can be done in three ways: 1) Ruby methods in the tools module; 2) commands or shell scripts in a container; 3) program code run in the Python container.
 
-### Define Ruby Methods
+### Define Ruby Methods :id=define-ruby-methods
 
-To define Ruby methods that the AI agent can use:
+1. Define the tool in the MDSL `tools do` block.
+2. Write a method with the same name in the tools module.
+3. Make the keyword arguments of the method match the parameters of the tool.
 
-1.  Define tools explicitly in the MDSL file's `tools do` block, including a `session` parameter (type `"object"`, `required: false`) if the tool needs to interact with conversation state.
-2.  Implement corresponding methods in the `*_tools.rb` file, ensuring the method signature accepts the `session` keyword argument.
-3.  Ensure the method signatures match the tool definitions.
+**The `session` argument:**
+- When the method accepts a `session:` keyword argument, Monadic Chat passes the current conversation's session to it. You do not need to declare `session` in `define_tool`.
+- Use it for state that belongs to one conversation, for example `session[:last_image_filename] = "image.png"`.
 
-**Using the `session` parameter:**
--   The `session` parameter is a Hash-like object that is automatically passed to your tool methods.
--   Use it to store and retrieve conversation-specific, non-persistent state (e.g., `session[:last_image_filename] = "image.png"`).
--   The system ensures `session` data is isolated for each user and conversation.
-
-The tool definition format and per-turn function-call limits vary slightly among providers — see [Provider-Specific Considerations](monadic_dsl.md#provider-specific-considerations) in the Monadic DSL reference.
+How tool definitions are sent, and how many tool calls a turn may make, differ by provider; see [Provider-Specific Considerations](monadic_dsl.md#provider-specific-considerations).
 
 ### Execute Commands or Shell Scripts
 
-You can execute commands or shell scripts in the app. The `send_command` method is used to execute commands or shell scripts. The `send_command` method is defined in the `MonadicApp` module, which is the base class for all additional apps. Commands or shell scripts are executed with the shared folder (`/monadic/data`) as the current working directory in each container. Shell scripts saved in the `scripts` directory in the shared folder on the host computer are executable in the container, and you can execute them by specifying the script name.
-
-The `send_command` method takes the following arguments: the name of the command or shell script to execute (`command`), the container name (`container`), and an optional message to display when the command is executed successfully (`success`). The `container` argument uses short string notation; for example, `python` represents `monadic-chat-python-container`.
+`send_command` runs a command in a container, with the shared folder (`/monadic/data`) as the working directory.
 
 ```ruby
-send_command(command: "ls",container: "python", success_with_output: "Linux `ls` command executed with the following output:\n")
+send_command(command: "ls", container: "python", success_with_output: "Files in the shared folder:\n")
 ```
 
-As an example, the above command executes the `ls` command in the `python` container and displays the message "Linux ls command executed successfully" when the command is executed successfully. If the `success` argument is omitted, the message "Command has been executed" is displayed, and if the `success_with_output` argument is omitted, the message "Command has been executed with the following output: " is displayed.
+Arguments:
+- `command`: the command to run
+- `container`: the container in short form; `python` means `monadic-chat-python-container`, and `my-service` means `monadic-chat-my-service-container`
+- `success`: the message returned when the command succeeds without output (default: "Command has been executed.")
+- `success_with_output`: the text put before the output when there is output (default: "Command has been executed with the following output: ")
 
-?> It is possible to set up a recipe file so that the AI agent can use the `send_command` method directly. However, it is recommended to define a wrapper (facade) method in the tools file and call `send_command` from there, validating the arguments and handling errors before invoking it. This way the AI agent receives a clear error message instead of a container-level failure when an argument is missing.
+In the Python container, the `scripts` folder of the shared folder is on `PATH`, after the system folders, so scripts saved there can be run by name.
 
+?> Call `send_command` from a tool method that checks its arguments first, instead of letting the model call it directly. The model then gets a clear message when an argument is wrong.
 
 ### Execute Program Code
 
-If you want to execute program code in a language other than Ruby, you can use the `send_code` method. The `send_code` method is defined in the `MonadicApp` module, which is the base class for all additional apps. Note that the `send_code` method only supports code execution in the Python container (`monadic-chat-python-container`).
-
-The `send_code` method runs the given program code in the container by first saving the code to a temporary file with the specified extension and then executing the file. It takes the following arguments: the program code to execute (`code`), the command to run the code (such as `python`) (`command`), the extension of the file to save the code (`extension`), and an optional message to display when the code is executed successfully (`success`).
+`send_code` runs program code in the Python container (`monadic-chat-python-container`). It saves the code to a file with the given extension and runs it.
 
 ```ruby
 send_code(code: "print('Hello, world!')", command: "python", extension: "py", success: "Python code executed successfully")
 ```
 
-As an example, the above code runs the `print('Hello, world!')` code in the Python container and returns the result.  If the `success` argument is omitted, the message "The code has been executed successfully." is displayed.
+Arguments: the code (`code`), the command that runs it (`command`, such as `python`), the file extension (`extension`), and the message for success (`success`, default "The code has been executed successfully").
 
-The `send_code` method automatically detects if new files (like images or HTML reports) have been created as a result of the code execution. If new files are present, it returns the file names as part of the response, and also saves the primary generated filename to the session for continuous context. This allows subsequent tool calls to implicitly reference these files for further operations.
+The result tells the model which files the code created or changed in the shared folder:
 
-**Without new files created:**
-
-```text
-The code has been executed successfully; Output: OUTPUT_TEXT
-```
-
-**With new files created:**
+**No new files:**
 
 ```text
-The code has been executed successfully; File(s) generated: NEW_FILE; Output: OUTPUT_TEXT
+The code has been executed successfully
+
+NOTE: No image files were created. Do NOT display any images.
+
+Output: OUTPUT_TEXT
 ```
 
-With the correct information about the generated files, the AI agent can continue processing them further.
+**New image files:**
 
-?> If you set up the recipe file so that the AI agent can call `send_code` directly, an error will occur in the container if any of the required arguments are not specified. Therefore, it is recommended to create a wrapper method and handle errors appropriately.
+```text
+The code has been executed successfully
+
+IMAGE FILES CREATED (verified to exist):
+- /data/plot.png
+
+These images are automatically displayed in the chat. Do NOT include <img> tags in your response.
+
+Output: OUTPUT_TEXT
+```
+
+**Other new files:**
+
+```text
+The code has been executed successfully; File(s) generated or modified: /data/report.html
+
+Output: OUTPUT_TEXT
+```
+
+?> As with `send_command`, call `send_code` from a tool method that checks its arguments first.
 
 ## Using LLM in Functions and Tools
 
-In functions and tools called by the AI agent, you may want to make requests to the AI agent. In such cases, you can use the `send_query` method available in the `MonadicApp` class.
-
-The `send_query` method is used to make requests to the AI agent from within functions and tools in the app. It sends a request to the AI agent through the API of the language model currently used in the app (or a language model by the same vendor) and returns the result. You can send a request to the AI agent by passing a hash with API parameters set to the method as an argument.
-
-The hash of API parameters must specify an array of messages as the value of the `messages` key. The `model` key specifies the language model to use. Various parameters available in the API of that language model can also be used.
-
-In queries using `send_query`, `stream` is set to `false` (it is already set to `false` by default, so there is no need to specify it explicitly).
-
-The following is an example of how to use `send_query` in a function or tool created using Ruby in the tools file.
+A tool can send its own request to a model with `send_query`. It comes from the provider's helper module, so it uses the API of the app's provider. It takes a hash of API parameters with a `messages` array, and the model as the `model:` keyword argument. Without `model:`, the provider's default model is used. The request is not streamed.
 
 ```ruby
 # my_app_tools.rb
-class MyAppOpenAI < MonadicApp
-  def my_function
-    # Set parameters
-    parameters = {
-      message: {
-        model: "<model-id>",  # Specify your model ID
-        messages: [
-          {
-            role: "user",
-            content: "What is the name of the capital city of Argentina?"
-          }
-        ]
-      }
-    }
-    # Send a request to OpenAI
-    send_query(parameters)
+module MyAppTools
+  def capital_of_argentina
+    send_query(
+      { "messages" => [{ "role" => "user", "content" => "What is the capital of Argentina?" }] },
+      model: "<model-id>"  # optional
+    )
   end
 end
 ```
 
 ## MCP Integration
 
-Monadic Chat ships an MCP (Model Context Protocol) server called Monadic
-Conduit. It publishes a fixed set of capability tools in the `monadic_*`
-namespace (query, knowledge base, media analysis/generation, and so on) rather
-than re-exposing each app's individual tools, so there is nothing MCP-specific
-to develop or register when you create an app.
+Monadic Chat has an MCP (Model Context Protocol) server called Monadic Conduit. It publishes a fixed set of tools in the `monadic_*` namespace (queries, Knowledge Base, media analysis and generation, and others) and does not publish the tools of each app. There is nothing MCP-specific to do when you create an app.
 
-See [MCP Integration](/advanced-topics/mcp-integration.md) for server setup,
-the available tools, and client configuration.
+See [MCP Integration](/advanced-topics/mcp-integration.md) for the server setup, the tools, and client configuration.

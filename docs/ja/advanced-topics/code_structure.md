@@ -68,7 +68,7 @@ Monadic Chatのユーザーディレクトリ (`~/monadic/`) には、以下の�
 ## ログとデバッグ
 
 - アプリケーションログ: `~/monadic/log/`
-- 詳細なログについては、コンソールパネルで「Extra Logging」を有効にしてください。
+- 詳しいログは、Settings ウィンドウの System の項目で **Extra Logging** をオンにすると、`~/monadic/log/extra.log` に書かれます。
 - デバッグには、Rubyコードで `puts` 文を使用します。
 
 ## ベストプラクティス

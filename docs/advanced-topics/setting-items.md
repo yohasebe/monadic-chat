@@ -2,8 +2,6 @@
 
 Applications in Monadic Chat are defined using MDSL (Monadic Domain Specific Language) files with the `.mdsl` extension. These settings configure the behavior, appearance, and capabilities of each application.
 
-<!-- > 📸 **Screenshot needed**: MDSL file open in text editor showing app configuration -->
-
 ## Basic MDSL Structure
 
 ```ruby
@@ -35,23 +33,25 @@ end
 ## Required Settings
 
 ### App Definition
-- `app "AppName"` - The app identifier. Must match the Ruby class name exactly (e.g., `app "ChatOpenAI"` requires `class ChatOpenAI`)
+- `app "AppName"` - The app name, which is also the name of the generated Ruby class (e.g., `app "ChatOpenAI"`)
 - `description` - Brief description of the application's purpose
-- `icon` - Icon identifier (Font Awesome class or built-in icon name)
+- `icon` - Icon identifier (Font Awesome class or icon name)
 - `system_prompt` - The system instructions for the AI model
+
+When `description`, `icon` or `system_prompt` is missing, the app still loads with a default, and its description shows a warning.
 
 ### App-Level Optional Settings
 - `display_name` - Name shown in the UI (defaults to the app name). Written at the app level, alongside `description` and `icon`, not inside `features`
 
 ### LLM Configuration
-The `llm` block is required and contains:
-- `provider` - The AI provider (openai, claude, gemini, etc.)
-- `model` - The specific model to use
+The `llm` block contains:
+- `provider` - The AI provider (`openai`, `anthropic`, `gemini`, `mistral`, `cohere`, `deepseek`, `xai`, `ollama`)
+- `model` - The model, or an array of models for a menu. When omitted, the provider's default model is used
 
 ## Optional Settings
 
 ### LLM Block Options
-- `temperature` - Controls randomness in responses. Range and availability depend on provider and model. Some models (e.g., certain reasoning-focused models across providers) don't support temperature adjustment
+- `temperature` - Controls randomness in responses (0.0-2.0, default 0.7). The range a model accepts depends on the provider and model, and some reasoning models do not accept it
 
 - `max_tokens` - Maximum tokens in response (availability and limits vary by model)
 - `presence_penalty` - Penalize repeated topics. Supported by some OpenAI and Mistral models
@@ -61,7 +61,7 @@ The `llm` block is required and contains:
 All settings in the features block are optional:
 
 #### Display and Interaction
-- `group` - Menu group name for organizing apps in the UI. By default, apps are automatically grouped by their provider (e.g., "OpenAI", "Anthropic"). You can override this to create custom groups, but it's recommended to keep the default provider-based grouping
+- `group` - Menu group name for organizing apps in the UI. By default, apps are grouped by their provider (e.g., "OpenAI", "Anthropic")
 - `disabled` - Hide app from menu when true
 - `easy_submit` - Send messages with Enter key alone
 - `auto_speech` - Auto-play AI responses as speech
@@ -69,10 +69,9 @@ All settings in the features block are optional:
 
 #### Content Features
 - `pdf_vector_storage` - Enable PDF database functionality for RAG (Retrieval-Augmented Generation). Shows PDF import button and database panel in the UI
-- `file` - Enable text file uploads
 - `websearch` - Enable web search capability
 - `image_generation` - Enable AI image generation capabilities. Accepts:
-  - `true` - Full image generation (create, edit, variations)
+  - `true` - Image generation and editing
   - `"upload_only"` - Image upload only (no generation/editing)
   - `false` - Disabled (default)
 - `mermaid` - Enable Mermaid diagram rendering
@@ -93,12 +92,10 @@ These apply to Live Conversation apps, which stream the microphone to a provider
 Omitted `sts_vad_*` keys fall back to the provider's defaults, and not every provider honors every key (xAI ignores `sts_vad_prefix_ms`). The OpenAI Live Conversation variant also exposes `sts_vad_type`/`sts_vad_eagerness` to the user as a turn-detection selector — a value chosen there overrides the MDSL default for the next session.
 
 #### Context Management
-- `context_size` - Number of previous messages to include
-- `monadic` - Enable JSON-based state management (available across providers with varying capabilities)
-- `toggle` - Enable collapsible sections (Claude/Gemini/Mistral/Cohere)
+- `context_size` - Number of recent messages sent to the model. It also sets the **Max Context Size** field in the web UI
+- `monadic` - Enable Session State and Session Context; see [Monadic Mode](./monadic-mode.md)
+- `toggle` - Render `<div class='toggle'>` blocks in responses as collapsible sections
 - `prompt_suffix` - Text appended to every user message
-
-!> **Important:** Never enable both `monadic` and `toggle` - they are mutually exclusive display modes.
 
 ### Tools Block
 Define functions the AI can use:
@@ -112,33 +109,35 @@ end
 ```
 
 ### Advanced Settings
-- `response_format` - Specify structured output format (OpenAI)
+- `response_format` - Specify a structured output format (OpenAI; Ollama maps it to its own `format` parameter)
 - `reasoning_effort` - Control reasoning intensity for supported models. Available values depend on the model (e.g., "low", "high" for some models)
-- `models` - Override available model list
 - `jupyter` - Enable Jupyter notebook access
 - `reachable_skills` - Declare tool groups the app is allowed to acquire on demand during a conversation (written at the app level, outside the `tools` block). `reachable_skills :safe` expands to the curated set of read-only safe groups. See [Tool Groups](./tool-groups.md)
 - `compaction` - Control server-side conversation compaction for providers whose APIs support it (written at the app level). OpenAI apps use the default threshold even without this directive; `compaction false` opts out, and a `compaction do ... end` block with `compact_threshold` sets a custom trigger threshold
 
-!> **Important:** The `jupyter` feature only enables the UI capability. Actual Jupyter functionality requires implementing corresponding tool definitions (such as `run_jupyter`, `create_jupyter_notebook`, etc.) in your app. See the Jupyter Notebook app implementation for examples.
+!> **Important:** The `jupyter` feature only enables the UI capability. Actual Jupyter functionality requires implementing corresponding tool definitions (such as `create_jupyter_notebook` and `run_jupyter_cells`, from the `:jupyter_operations` group) in your app. See the Jupyter Notebook app implementation for examples.
 
 ## System-Level Settings
 
-These are configured in the Monadic Chat settings panel, not in MDSL files:
+These are set in the **Settings** window (**Open → Settings**), not in MDSL files. Its categories are General, System, API Keys, Voice & Audio, Services, Install Options, Actions and About. Among the settings:
 
-- API keys for various providers (OpenAI, Claude, Gemini, etc.)
-- Tavily API key for web search
-- Syntax highlighting theme
+- API keys for the providers, ElevenLabs and Tavily
+- UI language, Browser Mode, Launch at Login and Menu Bar Mode
+- Extra Logging
+- The TTS dictionary file and the size limit for Auto Speech
+- The MCP server and its port
+- [Install Options](./advanced-configuration.md#install-options), including the Privacy Filter languages and the Knowledge Base Quality Pack
 
-Settings are loaded at application startup and persist between sessions.
+The settings are saved in `~/monadic/config/env` and kept between sessions.
 
-The speech-to-text model is selected in the **Speech Settings** panel of the web UI (not in the settings panel or MDSL files); the selection is stored in the browser's local storage.
+The speech-to-text model is selected in the **Speech** panel of the web UI (not in the Settings window or MDSL files); the choice is kept in a browser cookie.
 
 ## Complete Example
 
 ```ruby
 app "ChatOpenAI" do
   description "General-purpose chat application with OpenAI"
-  icon "fa-comments"
+  icon "fa-solid fa-comments"
 
   llm do
     provider "openai"
@@ -154,10 +153,6 @@ app "ChatOpenAI" do
     monadic false
     # Note: Image upload is automatically enabled for models with vision capability
     websearch true
-  end
-  
-  tools do
-    # Empty block required even if using only standard tools
   end
   
   system_prompt <<~TEXT

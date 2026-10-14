@@ -2,6 +2,7 @@ require 'cgi'
 require 'json'
 require 'fileutils'
 require 'shellwords'
+require 'securerandom'
 require_relative '../../lib/monadic/utils/environment'
 
 # Shared tools for Mermaid Grapher (provider-independent)
@@ -32,7 +33,8 @@ module MermaidGrapherTools
     return format_tool_response(validation_payload) unless validation_payload[:success]
 
     # 2. Generate HTML
-    timestamp = Time.now.to_i
+    # Unique per call, so concurrent previews never share a file name
+    timestamp = "#{Time.now.to_i}_#{SecureRandom.hex(4)}"
     html_filename = "mermaid_live_#{timestamp}.html"
     screenshot_filename = "mermaid_preview_#{timestamp}.png"
     shared_volume = Monadic::Utils::Environment.shared_volume
@@ -145,7 +147,8 @@ module MermaidGrapherTools
       )
     )
   ensure
-    # Keep latest HTML (browser is displaying it); clean up older ones
+    # Keep the latest HTML (the browser is displaying it); preview images are
+    # read after the tool returns, so only stale ones are removed
     cleanup_old_mermaid_files(keep_latest: html_filename) if html_filename
   end
 
@@ -338,7 +341,12 @@ module MermaidGrapherTools
     )
   end
 
-  # Remove old mermaid_live_*.html and mermaid_preview_*.png files, optionally keeping one HTML
+  # Preview images younger than this may not have been read yet by the vendor
+  # helper of this or another session, so they are left in place
+  PREVIEW_IMAGE_MAX_AGE = 600
+
+  # Remove old mermaid_live_*.html files, optionally keeping one, and preview
+  # images older than PREVIEW_IMAGE_MAX_AGE seconds
   def cleanup_old_mermaid_files(keep_latest: nil)
     shared_volume = Monadic::Utils::Environment.shared_volume
     Dir.glob(File.join(shared_volume, "mermaid_live_*.html")).each do |f|
@@ -347,6 +355,8 @@ module MermaidGrapherTools
       FileUtils.rm_f(f)
     end
     Dir.glob(File.join(shared_volume, "mermaid_preview_*.png")).each do |f|
+      next if Time.now - File.mtime(f) < PREVIEW_IMAGE_MAX_AGE
+
       FileUtils.rm_f(f)
     end
   end

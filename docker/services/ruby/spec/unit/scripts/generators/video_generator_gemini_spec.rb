@@ -384,6 +384,26 @@ RSpec.describe "VideoGeneratorGemini" do
     end
   end
 
+  describe "#generate_video retries" do
+    it "keeps every argument and stops after the given number of attempts" do
+      calls = []
+      allow(script).to receive(:sleep)
+      allow(script).to receive(:request_video_generation) do |*args|
+        calls << args
+        raise StandardError, "request failed"
+      end
+
+      result = script.generate_video(test_prompt, nil, 1, "16:9", nil, "cars", true, 6, 2)
+
+      expect(result["success"]).to be false
+      expect(calls.size).to eq(2)
+      calls.each do |args|
+        expect(args[5]).to eq("cars")
+        expect(args[6]).to eq(6)
+      end
+    end
+  end
+
   describe "#generate_video" do
     let(:operation_url) { "https://generativelanguage.googleapis.com/v1beta/#{mock_operation_name}" }
     

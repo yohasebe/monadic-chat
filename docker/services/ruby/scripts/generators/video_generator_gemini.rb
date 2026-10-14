@@ -748,7 +748,7 @@ def generate_video(prompt, image_path = nil, number_of_videos = 1, aspect_ratio 
     if num_retrials.positive?
       STDERR.puts "Retrying... (#{num_retrials} attempts left)"
       sleep 1
-      return generate_video(prompt, image_path, number_of_videos, aspect_ratio, person_generation, duration_seconds, num_retrials)
+      return generate_video(prompt, image_path, number_of_videos, aspect_ratio, person_generation, negative_prompt, fast_mode, duration_seconds, num_retrials)
     else
       return { 
         "original_prompt" => prompt, 

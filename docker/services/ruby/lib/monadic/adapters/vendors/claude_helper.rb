@@ -167,6 +167,12 @@ module ClaudeHelper
     end
   end
 
+  # ANTHROPIC_NATIVE_WEBSEARCH=false turns off Claude's own web search. The
+  # config reader turns "false" into the boolean, so compare as a string.
+  def claude_native_websearch_allowed?
+    CONFIG["ANTHROPIC_NATIVE_WEBSEARCH"].to_s.strip.downcase != "false"
+  end
+
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
     # Resolve model via SSOT only (no hardcoded fallback)
@@ -1161,7 +1167,7 @@ module ClaudeHelper
 
     use_native_websearch = websearch &&
                           Monadic::Utils::ModelSpec.supports_web_search?(model) &&
-                          CONFIG["ANTHROPIC_NATIVE_WEBSEARCH"] != "false"
+                          claude_native_websearch_allowed?
     obj["use_native_websearch"] = use_native_websearch
 
     # Build system prompts

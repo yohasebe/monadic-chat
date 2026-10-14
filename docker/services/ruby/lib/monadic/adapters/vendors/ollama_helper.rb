@@ -903,8 +903,8 @@ module OllamaHelper
     # Ollama uses OpenAI-compatible tool format
     return [] unless tools_config
 
-    # Tools arrive from app_data.rb as a JSON string (see app_data.rb:78-82
-    # which calls `.to_json` on the Array/Hash before sending via WebSocket).
+    # Tools arrive from utils/websocket/app_data.rb as a JSON string (it calls
+    # `.to_json` on the Array/Hash before sending them over the WebSocket).
     # Parse here so the case statement below can handle it as structured data.
     if tools_config.is_a?(String)
       return [] if tools_config.strip.empty?

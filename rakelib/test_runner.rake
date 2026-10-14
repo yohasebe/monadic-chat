@@ -320,16 +320,14 @@ namespace :test do
     system("rake test:run[unit,\"api_level=#{api_level},focus=critical\"]")
   end
 
-  desc "Run JavaScript tests via unified runner"
+  desc "Run JavaScript tests (Jest)"
   task :js do
-    require_relative '../lib/test_runner'
-    TestRunner.new('js').execute
+    Rake::Task["jstest"].invoke
   end
 
-  desc "Run Python tests via unified runner"
+  desc "Run Python tests"
   task :python do
-    require_relative '../lib/test_runner'
-    TestRunner.new('python').execute
+    Rake::Task["pytest:all"].invoke
   end
 
   desc "Analyze last test run results and extract failures/pending"

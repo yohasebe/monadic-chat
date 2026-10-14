@@ -729,6 +729,11 @@ module MonadicDSL
       class_def << "        @settings[:#{feature}] = #{value.inspect}\n"
     end
     
+    # context_size may be written in the llm block or in features; features wins
+    if state.settings[:context_size] && !state.features.key?(:context_size)
+      class_def << "        @settings[:context_size] = #{state.settings[:context_size].inspect}\n"
+    end
+
     # Add max_tokens if specified
     if state.settings[:max_tokens]
       class_def << "        @settings[:max_tokens] = #{state.settings[:max_tokens].inspect}\n"

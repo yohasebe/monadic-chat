@@ -2414,12 +2414,21 @@ module Monadic
         pdf.split_text
       end
 
+      # PDF_RAG_TOKENS / PDF_RAG_OVERLAP_LINES are read from CONFIG at call
+      # time: the constants in pdf_text_extractor.rb are set from ENV before
+      # ~/monadic/config/env is loaded, so they only carry the defaults.
       def kb_chunk_tokens
-        defined?(RAG_TOKENS) ? RAG_TOKENS : 4000
+        kb_pdf_setting("PDF_RAG_TOKENS", defined?(RAG_TOKENS) ? RAG_TOKENS : 4000)
       end
 
       def kb_overlap_lines
-        defined?(RAG_OVERLAP_LINES) ? RAG_OVERLAP_LINES : 4
+        kb_pdf_setting("PDF_RAG_OVERLAP_LINES", defined?(RAG_OVERLAP_LINES) ? RAG_OVERLAP_LINES : 4)
+      end
+
+      def kb_pdf_setting(key, default)
+        value = defined?(CONFIG) ? CONFIG[key] : nil
+        number = Integer(value.to_s, exception: false)
+        number && number >= 0 ? number : default
       end
 
       def tokenizer_available?

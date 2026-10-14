@@ -1554,7 +1554,10 @@ start_docker_compose() {
   
   # Build containers based on what we need
   if [ "$needs_full_rebuild" = true ]; then
-    build_docker_compose "no-cache"
+    if ! build_docker_compose "no-cache"; then
+      echo "[HTML]: <p>Please check the following log files in the log folder (Open &gt; Open Log Folder):</p><ul><li><code>docker_build.log</code></li></ul>"
+      return 1
+    fi
     if [[ "$1" != "silent" ]]; then
       echo "[HTML]: <p>Starting all Monadic Chat containers...</p>"
     fi

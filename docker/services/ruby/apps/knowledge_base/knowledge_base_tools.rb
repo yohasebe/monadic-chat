@@ -49,27 +49,30 @@ module KnowledgeBaseTools
 
   def library_stats
     stats = with_kb_store { |store| Monadic::Library::Manager.library_stats(store: store) }
-    "Knowledge Base contents:\n" \
-      "- total conversations:    #{stats[:conversations_total]}\n" \
-      "- personal (KB-only):     #{stats[:conversations_personal]}\n" \
-      "- shareable (RAG-ready):  #{stats[:conversations_shareable]}"
+    by_scope = stats[:conversations_by_scope] || {}
+    lines = ["Knowledge Base contents: #{stats[:conversations_total]} entries"]
+    by_scope.sort_by { |scope, count| [scope == KB_SCOPE_GLOBAL ? 0 : 1, -count, scope] }.each do |scope, count|
+      lines << "- #{kb_scope_label(scope)}: #{count}"
+    end
+    lines.join("\n")
   rescue StandardError => e
     "❌ library_stats failed: #{e.message}"
   end
 
   # ─── Mutate ────────────────────────────────────────────────────────────
 
-  def update_conversation_visibility(conversation_id:, visibility:)
+  def update_conversation_scope(conversation_id:, scope:)
+    scope_app = kb_resolve_scope(scope)
     with_kb_store { |store|
-      Monadic::Library::Manager.update_visibility(
-        store: store, conversation_id: conversation_id, visibility: visibility
+      Monadic::Library::Manager.update_scope_app(
+        store: store, conversation_id: conversation_id, scope_app: scope_app
       )
     }
-    "✓ Visibility for #{conversation_id} is now '#{visibility}'."
+    "✓ #{conversation_id} now belongs to #{kb_scope_label(scope_app)}."
   rescue ArgumentError => e
     "❌ #{e.message}"
   rescue StandardError => e
-    "❌ update_conversation_visibility failed: #{e.message}"
+    "❌ update_conversation_scope failed: #{e.message}"
   end
 
   def delete_conversation_from_library(conversation_id:)
@@ -83,18 +86,19 @@ module KnowledgeBaseTools
 
   # ─── Import ───────────────────────────────────────────────────────────
 
-  def import_conversation_from_text(input:, title: nil, license: nil, visibility: 'personal')
+  def import_conversation_from_text(input:, title: nil, license: nil, scope: nil)
+    scope_app = scope.to_s.strip.empty? ? KB_SCOPE_GLOBAL : kb_resolve_scope(scope)
     options = {}
     options[:title] = title unless title.to_s.empty?
     options[:license] = license unless license.to_s.empty?
 
     result = with_kb_store { |store|
       Monadic::Library::Manager.import_from_text(
-        store: store, input: input, options: options, visibility: visibility
+        store: store, input: input, options: options, scope_app: scope_app
       )
     }
     counts = result[:counts]
-    "✓ Imported via #{result[:importer]} as #{result[:conversation_id]} (visibility: #{visibility})\n" \
+    "✓ Imported via #{result[:importer]} as #{result[:conversation_id]} (scope: #{kb_scope_label(scope_app)})\n" \
       "  - turns: #{counts[:turns]}\n" \
       "  - summary: #{counts[:summary] == 1 ? 'created (placeholder)' : 'skipped'}"
   rescue ArgumentError => e
@@ -106,6 +110,47 @@ module KnowledgeBaseTools
   # ─── Internals ─────────────────────────────────────────────────────────
 
   private
+
+  KB_SCOPE_GLOBAL = 'Global'
+  KB_SCOPE_PROVIDERS = %w[OpenAI Claude Gemini Grok Cohere Mistral DeepSeek Ollama].freeze
+
+  # Turn a stored scope_app value into the label the Knowledge Base UI
+  # shows: "ChatOpenAI" -> "Chat (OpenAI)", "Global" stays "Global".
+  def kb_scope_label(scope_app)
+    value = scope_app.to_s
+    return KB_SCOPE_GLOBAL if value.empty? || value == KB_SCOPE_GLOBAL
+    provider = KB_SCOPE_PROVIDERS.find { |p| value.length > p.length && value.end_with?(p) }
+    return value unless provider
+    base = value[0, value.length - provider.length].gsub(/([a-z0-9])([A-Z])/, '\\1 \\2')
+    "#{base} (#{provider})"
+  end
+
+  # Accept "Global", an app class name ("ChatOpenAI"), or the UI label
+  # ("Chat (OpenAI)") and return the value stored in scope_app. App
+  # names are checked against the registered apps when they are loaded.
+  def kb_resolve_scope(scope)
+    value = scope.to_s.strip
+    raise ArgumentError, "scope must be 'Global' or an app, such as 'Chat (OpenAI)'" if value.empty?
+    return KB_SCOPE_GLOBAL if value.casecmp?(KB_SCOPE_GLOBAL)
+
+    if (m = value.match(/\A(.+?)\s*\(([^()]+)\)\z/))
+      provider = KB_SCOPE_PROVIDERS.find { |p| p.casecmp?(m[2].strip) }
+      value = "#{m[1].delete(' ')}#{provider}" if provider
+    end
+
+    apps = kb_registered_app_names
+    return value if apps.nil? || apps.include?(value)
+
+    match = apps.find { |name| name.casecmp?(value) }
+    return match if match
+
+    raise ArgumentError, "No app named '#{scope}'. Use 'Global' or an app with its provider, such as 'Chat (OpenAI)'."
+  end
+
+  def kb_registered_app_names
+    return nil unless defined?(::APPS) && ::APPS.respond_to?(:keys)
+    ::APPS.keys.map(&:to_s)
+  end
 
   # Yields a Library Store and ensures collections exist. Override-able
   # for tests via stubbing.
@@ -121,7 +166,7 @@ module KnowledgeBaseTools
       title = r[:title].to_s.empty? ? '(untitled)' : r[:title]
       lines << "[#{i + 1}] #{title}"
       lines << "    id=#{r[:conversation_id]} source=#{r[:source]} language=#{r[:language]} " \
-               "visibility=#{r[:visibility]} turns=#{r[:turns_count]} created_at=#{r[:created_at]}"
+               "scope=#{kb_scope_label(r[:scope_app])} turns=#{r[:turns_count]} created_at=#{r[:created_at]}"
     end
     lines.join("\n")
   end
@@ -133,7 +178,7 @@ module KnowledgeBaseTools
       ['source', r[:source]],
       ['language', r[:language]],
       ['license', r[:license]],
-      ['visibility', r[:visibility]],
+      ['scope', kb_scope_label(r[:scope_app])],
       ['messages', r[:messages_count]],
       ['turns', r[:turns_count]],
       ['duration_seconds', r[:duration_seconds]],
@@ -146,7 +191,7 @@ module KnowledgeBaseTools
 
   def format_search_results(query, hits)
     return "No matching passages were found in the Knowledge Base for query: #{query.inspect}" if hits.empty?
-    lines = ["Found #{hits.size} relevant passage#{'s' if hits.size != 1} (KB scope, includes personal items):", '']
+    lines = ["Found #{hits.size} relevant passage#{'s' if hits.size != 1} (all entries, every scope):", '']
     hits.each_with_index do |h, i|
       title = h[:conversation_title].to_s.empty? ? '(untitled)' : h[:conversation_title]
       snippet = h[:text].to_s.gsub(/\s+/, ' ').strip

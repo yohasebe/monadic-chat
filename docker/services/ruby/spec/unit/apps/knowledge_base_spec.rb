@@ -25,7 +25,7 @@ RSpec.describe 'Knowledge Base app variants' do
     search_library
     get_conversation_details
     library_stats
-    update_conversation_visibility
+    update_conversation_scope
     delete_conversation_from_library
     import_conversation_from_text
   ].freeze

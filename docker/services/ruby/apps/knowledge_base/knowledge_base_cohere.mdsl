@@ -33,7 +33,7 @@ app "KnowledgeBaseCohere" do
       parameter :limit, "integer", "Maximum number of rows (1-500, default 100)", required: false
     end
 
-    define_tool "search_library", "Search the Knowledge Base across both personal and shareable conversations" do
+    define_tool "search_library", "Search every entry in the Knowledge Base, whatever its scope" do
       parameter :query, "string", "Search query", required: true
       parameter :top_n, "integer", "Number of passages to return (1-10, default 3)", required: false
     end
@@ -42,11 +42,11 @@ app "KnowledgeBaseCohere" do
       parameter :conversation_id, "string", "Conversation ID", required: true
     end
 
-    define_tool "library_stats", "Counts of personal vs shareable vs total conversations"
+    define_tool "library_stats", "Count the entries in the Knowledge Base, in total and per scope"
 
-    define_tool "update_conversation_visibility", "Change a conversation's visibility (personal or shareable)" do
+    define_tool "update_conversation_scope", "Change which apps find an entry: Global (every app) or one app with its provider" do
       parameter :conversation_id, "string", "Conversation ID", required: true
-      parameter :visibility, "string", "personal | shareable", required: true
+      parameter :scope, "string", "'Global', or an app with its provider such as 'Chat (OpenAI)'", required: true
     end
 
     define_tool "delete_conversation_from_library", "Permanently remove a conversation. Always confirm with the user first." do
@@ -54,11 +54,11 @@ app "KnowledgeBaseCohere" do
     end
 
     define_tool "import_conversation_from_text",
-                "Import raw text or JSON into the Library. Auto-detects ChatML, Anthropic Messages, Gemini Contents, Monadic Chat exports, TED Talk transcripts, or speaker-labeled text." do
+                "Import raw text or JSON into the Library. Auto-detects ChatML, Anthropic Messages, Gemini Contents, Monadic Chat exports, or speaker-labeled text." do
       parameter :input, "string", "Conversation data (text, JSON string, or Python-repr transcript)", required: true
       parameter :title, "string", "Title to assign", required: false
       parameter :license, "string", "License (default 'private')", required: false
-      parameter :visibility, "string", "personal (default) | shareable", required: false
+      parameter :scope, "string", "'Global' (default), or an app with its provider such as 'Chat (OpenAI)'", required: false
     end
   end
 end

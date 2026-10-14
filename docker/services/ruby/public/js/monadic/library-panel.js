@@ -1757,9 +1757,7 @@
         var on = ragToggle.checked;
         // Push the preference to localStorage *and* to the server so
         // the next session inherits the same default and the current
-        // session reflects it immediately. The server handles the
-        // first-message lock, so toggling here before the lock fires
-        // is the user's last chance to change it.
+        // session reflects it immediately.
         writeRagDefault(on);
         setRagToggle(on);
         // Refresh the header summary bar so its "Knowledge Base" badge

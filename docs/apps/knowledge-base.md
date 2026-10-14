@@ -1,40 +1,53 @@
 # Knowledge Base
 
-Save chat sessions and import documents into a single searchable library that any app can retrieve from.
+Save chat sessions and import documents into one searchable library.
 
-A unified, project-wide library of conversations and documents. Every Monadic Chat app can retrieve from it, subject to the scope model described below.
+The Knowledge Base holds conversations and documents: conversation transcripts, PDFs, Office files, Markdown, and source code. The Knowledge Base app searches all of it, and other apps can search it as described under the scope model below.
 
-It handles conversation transcripts, PDFs, Office files, Markdown, and source code uniformly.
-
-?> The Knowledge Base is separate from the per-app [PDF Database panel](../basic-usage/pdf_storage.md), which serves app-scoped PDF storage for apps that declare `pdf_vector_storage` (currently Chat Plus and Research Assistant). Content imported into one is not visible in the other.
+?> The Knowledge Base is separate from the [PDF Database](../basic-usage/pdf_storage.md), which stores PDFs for the OpenAI versions of Chat Plus and Research Assistant. Content imported into one is not visible in the other.
 
 **Two ways to add content:**
 
-1. **Save the current chat session** — the **Save** button in the sidebar serialises the active conversation (messages + participants + metadata) into the Knowledge Base.
-2. **Import a file** — open the Knowledge Base Browser and click **Import file** to upload one of the supported formats below. The file is extracted, chunked, embedded, and stored as a single conversation entry that you can search, view, and rename.
+1. **Save the current chat session**: the **Save** button in the Knowledge Base panel of the sidebar saves the current conversation to the Knowledge Base.
+2. **Import a file**: open the Knowledge Base browser (**Browse**) and click **Import file** to upload a file in one of the formats below. The file is extracted, split into sections, and stored as one entry that you can search, view, and rename.
 
 **Supported import formats:**
 
-| Format | Extensions | Notes |
-|---|---|---|
-| Markdown | `.md`, `.markdown`, `.mdx` | YAML frontmatter is promoted into metadata; ATX headings drive section boundaries. |
-| Source code | `.rb`, `.py`, `.js` / `.ts`, `.go`, `.java`, `.kt`, `.swift`, `.rs`, `.c` / `.cpp`, `.cs`, `.php`, `.sh`, `.sql`, and others | Top-level `def`/`class`/`func`/etc. mark chunk boundaries. The programming language is recorded as a topic. |
-| PDF | `.pdf` | Text and tables are extracted and serialised as Markdown — with layout-aware extraction and OCR when the Knowledge Base Quality Pack is installed. PDF metadata title becomes the conversation title. |
-| Office | `.docx`, `.xlsx`, `.pptx` | Word paragraphs, Excel sheets, and PowerPoint slides each become a chunk. The Browse modal shows a per-format icon (Word / Excel / PowerPoint). |
+| Format | Extensions |
+|---|---|
+| Markdown | `.md`, `.markdown`, `.mdx` |
+| Source code | `.rb`, `.py`, `.js` / `.ts`, `.go`, `.java`, `.kt`, `.swift`, `.rs`, `.c` / `.cpp`, `.cs`, `.php`, `.sh`, `.sql`, and others |
+| PDF | `.pdf` |
+| Office | `.docx`, `.xlsx`, `.pptx` |
+
+The text and tables of PDFs are extracted. With the Knowledge Base Quality Pack installed, layout analysis and OCR are used; without it, no text is extracted from image-only PDFs.
+
+Apps that use the Privacy Filter (such as Translate and Mail Composer) do not save to or search the Knowledge Base, and some other apps do not either; in those apps the Save button and the retrieval switch are not available.
 
 **Scope model:**
 
-Each entry is scoped either to a specific app + provider (e.g. `Chat (OpenAI)`) or to `Global`. App-only entries are retrievable only from the same app + provider combination — `Chat (OpenAI)` cannot see entries saved while `Chat (Claude)` was active, and vice versa. `Global` entries are retrievable from every app via the `library_search` tool. Click the rotate icon in the Browse table or the **Make Global / Make app-only** button in the Conversation Viewer to flip between the two.
+Each entry belongs either to the app and provider it was saved in (for example `Chat (OpenAI)`) or to `Global`. When an app searches the Knowledge Base, an app-only entry is found only from the same app and provider: `Chat (OpenAI)` does not find entries saved in `Chat (Claude)`, and the reverse. `Global` entries are found from every app that searches the Knowledge Base. Click the rotate icon in the Browse table, or **Make Global** / **Make app-only** in the Conversation Viewer, to switch between the two.
 
 **Other features:**
 
-- **Save replaces in place** — saving the same chat session a second time updates the existing entry instead of creating a duplicate. The modal switches to "Update Conversation in Knowledge Base" mode (with an "Update" button and a warning banner) when re-saving. The binding clears on Reset, app switch, or when the entry is deleted from Browse.
-- **AI-suggested titles** — on first save the title field is auto-populated by your current provider's LLM, using the first few turns of the conversation. The suggestion is a default — type freely to override it. Suggestions are cached so canceling and re-opening the dialog does not re-run the model.
-- **Rename** — open the Conversation Viewer, click the pencil icon next to the title, edit, and save. The Browse table updates immediately.
-- **Inventory and stats** — the sidebar shows the most recent saves and total counts. The Browse modal supports search, filtering by scope, and sorting.
-- **Conversation Viewer** — clicking a row opens a verbatim playback of every message, with system prompts collapsed behind a `<details>` block.
-- **RAG opt-in (per session)** — the **Use Knowledge Base for retrieval** toggle in any chat session lets the LLM call `library_search` while answering. The cascade applies the active app's scope filter (`scope_app IN [current_app, "Global"]`). Off by default; locks for the duration of the session once you send the first message. The toggle preference is persisted across sessions so you don't have to flip it every time.
-- **Privacy Filter compatibility** — when Privacy Filter is active, snippets returned by `library_search` are masked through the same Privacy Pipeline before they reach the LLM, so PII stored unmasked in the Knowledge Base does not leak via retrieval.
-- **Knowledge Base access badge** — the conversation header shows a green "Knowledge Base" badge whenever the session reads from the Library: when the retrieval toggle is on, and always in the Knowledge Base app itself (which has full access via its own tools).
+- **Saving again updates the entry**: saving the same chat session again updates its entry instead of creating another one. The dialog then reads "Update Conversation in Knowledge Base", with an **Update** button and a note. The link between the session and the entry ends on Reset, on switching apps, or when the entry is deleted in Browse.
+- **Suggested titles**: when you first save a conversation, the title field is filled in by the current provider's model, based on the conversation. You can type over it. The suggestion is kept, so closing and reopening the dialog does not ask the model again.
+- **Rename**: open the Conversation Viewer, click the pencil icon next to the title, edit, and save.
+- **Recent saves and counts**: the sidebar shows the most recent saves and the total counts. The Browse table can be searched, filtered by scope, and sorted.
+- **Conversation Viewer**: click a row to see every message of the entry. The system prompt is folded.
+- **Retrieval in other apps**: turn on **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel to let the model search the Knowledge Base while answering. It finds the entries of the current app and the `Global` entries. The switch is off by default, and your last choice is remembered. Live Conversation uses its own **Tools** switch instead.
+- **Knowledge Base badge**: the conversation header shows a green "Knowledge Base" badge while the session can read from the Knowledge Base: when the retrieval switch is on, and always in the Knowledge Base app.
 
-?> The Knowledge Base uses local embeddings (`multilingual-e5-base`) and a Qdrant vector store — no external API key is needed for import or search. For the extraction, chunking, and storage internals, see the [Vector Database](../docker-integration/vector-database.md) documentation.
+## Knowledge Base app
+
+The Knowledge Base app is a chat for working with the Knowledge Base itself. It sees every entry, whatever its scope. Ask it to:
+
+- search all entries, list the entries, or show the details of one
+- count the entries, in total and per scope
+- change the scope of an entry to `Global` or to an app with its provider, such as `Chat (OpenAI)`
+- import a conversation you paste as text or JSON (ChatML, Anthropic Messages, Gemini Contents, Monadic Chat exports, or text with speaker labels). The entry is `Global` unless you name an app
+- delete an entry (it asks for confirmation first)
+
+Availability by provider is shown in the [availability table](../basic-usage/basic-apps.md#app-availability).
+
+?> The Knowledge Base converts text into vectors on your computer and stores them in Qdrant, so importing and searching need no API key. See [Vector Database](../docker-integration/vector-database.md).

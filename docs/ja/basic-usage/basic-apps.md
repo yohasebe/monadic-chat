@@ -142,11 +142,11 @@ Privacy Filter を使った会話を残すには、上部のバーの Privacy �
 
 ### Image Generator
 
-テキストの説明から画像を生成し、自然言語の指示で既存画像を編集したり、バリエーションを作成したりできます。詳細は[Image Generator](../apps/image-generator.md)を参照してください。
+テキストの説明から画像を生成し、自然な言葉の指示で画像を編集できます。詳細は[Image Generator](../apps/image-generator.md)を参照してください。
 
 ### Video Generator
 
-テキストの説明や既存の画像から動画を作成できます。生成済み動画を修正するリミックスにも対応しています。詳細は[Video Generator](../apps/video-generator.md)を参照してください。
+テキストの説明や画像から動画を作れます。詳細は[Video Generator](../apps/video-generator.md)を参照してください。
 
 ### Music Generator
 
@@ -187,6 +187,6 @@ Mermaid.js、Draw.io、LaTeX/TikZ を使って自然言語の説明から図を�
 - Music Lab
 - Music Analyst
 
-### AutoForge / Artifact Builder
+### Auto Forge
 
-自律的なWebアプリ生成: AIオーケストレーションにより、単一ファイルのWebアプリケーションやCLIツールを完全な形で構築します。詳細は[AutoForge / Artifact Builder](../apps/auto_forge.md)を参照してください。
+説明をもとに、1 つのファイルでできた Web アプリケーションやコマンドラインのツールを作ります。詳細は [Auto Forge](../apps/auto_forge.md) を参照してください。

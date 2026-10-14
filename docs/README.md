@@ -47,7 +47,7 @@ Detailed documentation for each of the built-in applications.
 *   [Knowledge Base](/apps/knowledge-base.md)
 *   [Coding & Notebook Apps](/apps/coding-apps.md)
 *   [Music Lab & Music Analyst](/apps/music-apps.md)
-*   [AutoForge / Artifact Builder](/apps/auto_forge.md)
+*   [Auto Forge](/apps/auto_forge.md)
 
 ## Docker Integration
 

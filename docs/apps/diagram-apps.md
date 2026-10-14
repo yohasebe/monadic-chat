@@ -6,21 +6,14 @@ Apps that turn descriptions and data into diagrams — Mermaid and Draw.io chart
 
 ![Mermaid Grapher app icon](../assets/icons/diagram-draft.png ':size=40')
 
-Visualize your data with [Mermaid.js](https://mermaid.js.org/) diagrams. Simply provide your data or instructions, and the AI will generate and render the appropriate Mermaid code for the diagram.
+Visualize your data with [Mermaid.js](https://mermaid.js.org/) diagrams. Provide your data or instructions, and the AI writes the Mermaid code and the diagram is shown in the chat.
 
 **Key Features:**
-- **Live browser preview**: Diagrams render in a real browser visible via noVNC (`http://localhost:7900`), so you can watch changes in real time
-- **Automatic diagram type selection**: The AI chooses the best diagram type for your data (flowchart, sequence, class, state, ER, Gantt, pie, Sankey, mindmap, etc.)
-- **Real-time validation**: Diagrams are validated using Selenium and the actual Mermaid.js engine before being displayed
-- **Visual self-verification**: The AI captures screenshots of rendered diagrams and visually inspects the output to catch layout issues or rendering errors before responding to the user
-- **Error analysis**: When syntax errors occur, analyzes error patterns and provides fix suggestions
-- **Preview generation**: A PNG preview image is saved to your shared folder for easy access
-- **Web search integration**: Can fetch the latest Mermaid.js documentation and examples for unfamiliar diagram types
-
-**Usage Tips:**
-- Simply describe what you want to visualize, and the AI will create the appropriate diagram
-- Open `http://localhost:7900` in a separate browser window (or use the noVNC menu item in Electron) to watch diagrams render live
-- All preview images are saved as `mermaid_preview_[timestamp].png` in your shared folder
+- **Diagram type selection**: The AI chooses a diagram type that suits your data (flowchart, sequence, class, state, ER, Gantt, pie, Sankey, mindmap, and others)
+- **Render check**: Before the diagram is shown, it is drawn with Mermaid.js in a browser in the Selenium container. If Mermaid reports an error, the AI corrects the code and tries again
+- **Visual check**: The AI looks at a screenshot of the drawn diagram to find layout problems before it answers
+- **Error analysis**: When the code has syntax errors, the AI analyzes them and suggests fixes
+- **Web search**: The AI can look up the Mermaid.js documentation for less common diagram types
 
 Mermaid Grapher supports each provider shown in the [availability table](../basic-usage/basic-apps.md#app-availability).
 
@@ -29,53 +22,45 @@ Mermaid Grapher supports each provider shown in the [availability table](../basi
 
 ![DrawIO Grapher app icon](../assets/icons/diagram-draft.png ':size=40')
 
-Create Draw.io diagrams by describing your requirements. The agent generates Draw.io XML, validates the structure, and renders a live preview in the browser via noVNC.
+Create Draw.io diagrams by describing your requirements. The AI writes Draw.io XML, checks and repairs its structure, and saves the diagram to the shared folder.
 
 **Key Features:**
-- **Live browser preview**: Diagrams render in a real browser visible via noVNC (`http://localhost:7900`), so you can watch changes in real time
-- **Automatic XML validation and repair**: The agent validates the generated Draw.io XML and attempts to repair common structural issues
-- **Wide diagram type support**: Flowcharts, UML diagrams (class, sequence, activity), ER diagrams, network diagrams, org charts, mind maps, BPMN, Venn diagrams, wireframes, and more
-- **Visual self-verification**: The AI captures screenshots of rendered diagrams and visually inspects the output to catch layout issues or rendering errors before responding to the user
-- **Preview generation**: A PNG preview image is saved to your shared folder for easy access
-- **Downloadable .drawio files**: The generated `.drawio` file is saved to your shared folder and can be imported into Draw.io for further editing
+- **XML check and repair**: The generated Draw.io XML is checked, and common structural problems are repaired
+- **Diagram types**: Flowcharts, UML diagrams (class, sequence, activity), ER diagrams, network diagrams, org charts, mind maps, BPMN, Venn diagrams, wireframes, and more
+- **Preview**: The diagram is drawn in a browser in the Selenium container, and a PNG preview is shown in the chat
+- **Files**: The `.drawio` file is saved to the shared folder and can be opened in Draw.io for further editing. A PNG preview (`drawio_preview_<timestamp>.png`) is saved as well
 
-**Usage Tips:**
-- Simply describe the diagram you need, and the AI will create the appropriate Draw.io XML
-- Open `http://localhost:7900` in a separate browser window (or use the noVNC menu item in Electron) to watch diagrams render live
-- All preview images are saved as `drawio_preview_[timestamp].png` in your shared folder
+Unless you give a file name, the diagram is saved as `diagram.drawio`, replacing the previous one. Ask for a file name to keep several diagrams.
 
-DrawIO Grapher is available for the providers marked in the [availability table](../basic-usage/basic-apps.md#app-availability). File generation fidelity depends on each provider's tooling support.
+DrawIO Grapher is available for the providers marked in the [availability table](../basic-usage/basic-apps.md#app-availability).
 
 
 ## Syntax Tree
 
 ![Syntax Tree app icon](../assets/icons/syntax-tree.png ':size=40')
 
-Generate linguistic syntax trees from sentences in multiple languages. The app analyzes grammatical structure and creates visual tree diagrams using LaTeX and tikz-qtree. Key features include:
+Generate linguistic syntax trees from sentences in multiple languages. The app analyzes grammatical structure and draws the tree with LaTeX and tikz-qtree. Key features include:
 
 - Support for multiple languages, including English, Japanese, and Chinese.
-- Editable SVG output for further modification in vector graphics editors.
-- Professional linguistic notation that follows syntactic theory standards.
+- SVG output that can be edited in vector graphics editors.
+- Linguistic notation that follows syntactic theory.
 
-The generated syntax trees are displayed as SVG images with transparent backgrounds.
+The trees are shown in the chat as SVG images with transparent backgrounds and saved to the shared folder.
 
-
-Syntax Tree availability matches the [availability table](../basic-usage/basic-apps.md#app-availability).
+Syntax Tree needs LaTeX: turn on **Install LaTeX (minimal set for diagrams)** in **Actions → Install Options** and rebuild the Python container. Availability by provider is shown in the [availability table](../basic-usage/basic-apps.md#app-availability).
 
 
 ## Concept Visualizer :id=concept-visualizer
 
 ![Concept Visualizer app icon](../assets/icons/diagram-draft.png ':size=40')
 
-Visualize concepts and relationships by describing them in natural language. The app uses LaTeX/TikZ to create a wide variety of diagrams, including mind maps, flowcharts, network diagrams, and even 3D plots. Key features include:
+Visualize concepts and relationships by describing them in natural language. The app uses LaTeX/TikZ to draw many kinds of diagrams. Key features include:
 
-- **Wide variety of diagram types**: Create mind maps, flowcharts, org charts, network diagrams, timelines, Venn diagrams, 3D visualizations, and more.
-- **Natural language input**: Simply describe what you want to visualize.
-- **Multiple domains**: Suitable for business, educational, scientific, and technical diagrams.
-- **Multi-language support**: Handles text in various languages, including CJK (Chinese, Japanese, Korean).
-- **Professional output**: Generates high-quality, editable SVG diagrams suitable for presentations and publications.
-- **3D capabilities**: Supports 3D scatter plots, surfaces, and other three-dimensional visualizations.
+- **Diagram types**: Mind maps, flowcharts, org charts, network diagrams, timelines, Venn diagrams, 3D plots (scatter plots, surfaces), and more.
+- **Natural language input**: Describe what you want to visualize.
+- **Domains**: Business, educational, scientific, and technical diagrams.
+- **Languages**: Text in many languages, including Chinese, Japanese, and Korean.
 
-The generated diagrams are saved to your shared folder and can be modified in any vector graphics editor.
+The diagrams are saved to the shared folder as SVG and PNG. The SVG can be edited in any vector graphics editor.
 
-Concept Visualizer supports the providers listed in the [availability table](../basic-usage/basic-apps.md#app-availability).
+Concept Visualizer needs LaTeX: turn on **Install LaTeX (minimal set for diagrams)** in **Actions → Install Options** and rebuild the Python container. Availability by provider is shown in the [availability table](../basic-usage/basic-apps.md#app-availability).

@@ -142,11 +142,11 @@ Apps for co-writing novels, drafting emails and speeches, and generating Office 
 
 ### Image Generator
 
-Generate images from text descriptions, edit existing images with natural-language instructions, and create image variations. See [Image Generator](../apps/image-generator.md).
+Generate images from text descriptions, and edit images with natural-language instructions. See [Image Generator](../apps/image-generator.md).
 
 ### Video Generator
 
-Create videos from text descriptions or existing images, with remix support for modifying generated videos. See [Video Generator](../apps/video-generator.md).
+Create videos from text descriptions or from an image. See [Video Generator](../apps/video-generator.md).
 
 ### Music Generator
 
@@ -187,6 +187,6 @@ Learn music theory hands-on with playable examples and backing tracks, and evalu
 - Music Lab
 - Music Analyst
 
-### AutoForge / Artifact Builder
+### Auto Forge
 
-Autonomous web-app generation: builds complete single-file web applications and CLI tools through AI orchestration. See [AutoForge / Artifact Builder](../apps/auto_forge.md).
+Builds single-file web applications and command-line tools from your description. See [Auto Forge](../apps/auto_forge.md).

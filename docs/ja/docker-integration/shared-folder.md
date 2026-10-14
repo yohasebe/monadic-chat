@@ -79,7 +79,6 @@ JupyterLab も `/monadic/data` で起動するので、JupyterLab からも共�
 - **Speech Draft Helper**：読み上げの音声（MP3。Gemini では API が返す形式で、ふつうは WAV）
 - **Syntax Tree**：樹形図（SVG）
 - **Concept Visualizer**：概念図（SVG と PNG）
-- **Mermaid Grapher**：図のプレビュー（PNG）
 - **DrawIO Grapher**：図のファイル（`.drawio`）とプレビュー（PNG）
 - **Web Insight**：Web ページのスクリーンショット（PNG）
 

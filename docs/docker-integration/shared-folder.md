@@ -79,7 +79,6 @@ The section is collapsed by default; expand it to view the list of variables and
 - **Speech Draft Helper**: Speech audio (MP3; with Gemini, the format the API returns, usually WAV)
 - **Syntax Tree**: Syntax tree diagrams (SVG)
 - **Concept Visualizer**: Concept diagrams (SVG and PNG)
-- **Mermaid Grapher**: Diagram previews (PNG)
 - **DrawIO Grapher**: Diagram files (`.drawio`) and previews (PNG)
 - **Web Insight**: Web page screenshots (PNG)
 

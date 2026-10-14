@@ -126,11 +126,12 @@ COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# copy `rbsetup.sh` to `/monadic` and run it
-
-COPY rbsetup.sh /monadic/rbsetup.sh
-RUN chmod +x /monadic/rbsetup.sh
-RUN /monadic/rbsetup.sh
+# ~/monadic/config/rbsetup.sh comes in as a build secret: the script is not
+# left in any layer, the image or the build context. RBSETUP_SHA (its hash)
+# reruns this step when the script changes; builds without it skip it.
+ARG RBSETUP_SHA=none
+RUN --mount=type=secret,id=rbsetup,required=false \
+    if [ -s /run/secrets/rbsetup ]; then bash /run/secrets/rbsetup; fi
 
 # Download vendor assets for offline use
 RUN /monadic/scripts/download_assets.sh

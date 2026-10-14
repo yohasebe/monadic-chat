@@ -126,9 +126,12 @@ ENV PIP_ROOT_USER_ACTION=ignore
 # Create symbolic link for data directory
 RUN ln -s /monadic/data /data
 
-# ~/monadic/config/pysetup.sh, copied here by monadic.sh (a comment line
-# when the user has none), runs last so what it installs is in the image.
-COPY pysetup.sh /monadic/pysetup.sh
-RUN bash /monadic/pysetup.sh
+# ~/monadic/config/pysetup.sh runs last, so what it installs is in the image.
+# It comes in as a build secret: the script is not left in any layer, the
+# image or the build context. PYSETUP_SHA (its hash) reruns this step when
+# the script changes; builds without the secret (CI) skip it.
+ARG PYSETUP_SHA=none
+RUN --mount=type=secret,id=pysetup,required=false \
+    if [ -s /run/secrets/pysetup ]; then bash /run/secrets/pysetup; fi
 
 COPY Dockerfile /monadic/Dockerfile

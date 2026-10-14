@@ -74,6 +74,57 @@ HOME_DIR=$(eval echo ~${SUDO_USER})
 # prebuilt services), whose build contexts are interpolated from this var.
 export MONADIC_ROOT_DIR="${ROOT_DIR}"
 
+# The user's setup scripts reach the Ruby and Python image builds as build
+# secrets: the scripts are read from ~/monadic/config and are not copied into
+# the build contexts or left in the images. docker build gets --secret from
+# set_setup_script_build_flags; compose builds read the contents from the
+# environment (export_setup_script_contents), because compose may not read a
+# secret file from outside the build context.
+setup_script_sha() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | cut -d' ' -f1
+  else
+    shasum -a 256 "$1" | cut -d' ' -f1
+  fi
+}
+for _name in pysetup rbsetup; do
+  _file="${HOME_DIR}/monadic/config/${_name}.sh"
+  _upper=$(echo "${_name}" | tr '[:lower:]' '[:upper:]')
+  if [ -s "${_file}" ]; then
+    export "MONADIC_${_upper}_FILE=${_file}"
+    export "MONADIC_${_upper}_SHA=$(setup_script_sha "${_file}")"
+  else
+    unset "MONADIC_${_upper}_FILE" "MONADIC_${_upper}_SHA"
+  fi
+done
+unset _name _file _upper
+
+# Puts the setup scripts' contents in the environment for one compose build;
+# unset_setup_script_contents removes them again right after it.
+export_setup_script_contents() {
+  if [ -n "${MONADIC_PYSETUP_FILE}" ]; then
+    export MONADIC_PYSETUP_CONTENT="$(cat "${MONADIC_PYSETUP_FILE}")"
+  fi
+  if [ -n "${MONADIC_RBSETUP_FILE}" ]; then
+    export MONADIC_RBSETUP_CONTENT="$(cat "${MONADIC_RBSETUP_FILE}")"
+  fi
+}
+unset_setup_script_contents() {
+  unset MONADIC_PYSETUP_CONTENT MONADIC_RBSETUP_CONTENT
+}
+
+# Sets SETUP_BUILD_FLAGS (an array, so paths with spaces stay one word) to
+# the `docker build` flags that pass one setup script (pysetup or rbsetup).
+set_setup_script_build_flags() {
+  local upper
+  upper=$(echo "$1" | tr '[:lower:]' '[:upper:]')
+  local file_var="MONADIC_${upper}_FILE" sha_var="MONADIC_${upper}_SHA"
+  SETUP_BUILD_FLAGS=()
+  if [ -n "${!file_var}" ]; then
+    SETUP_BUILD_FLAGS=(--secret "id=$1,src=${!file_var}" --build-arg "${upper}_SHA=${!sha_var}")
+  fi
+}
+
 # Runtime settings consumed by compose interpolation — NOT build args.
 # PRIVACY_LANGS/EXTRACTOR_LANGS/EXTRACTOR_OCR select languages at runtime
 # (all models are baked into the images); MONADIC_IMAGE_TAG selects the
@@ -493,23 +544,18 @@ ensure_data_dir() {
   # remove extra.log if it exists
   safe_rm "${log_dir}/extra.log"
 
-  # clear rbsetup.sh and pysetup.sh in the root dir by overwriting default comments
-  echo "# This file is overwritten by rbsetup.sh prepared by the user in the shared folder." > "${ROOT_DIR}/services/ruby/rbsetup.sh"
-  echo "# This file is overwritten by pysetup.sh prepared by the user in the shared folder." > "${ROOT_DIR}/services/python/pysetup.sh"
-
   safe_touch "${config_dir}/env"
 
-  # Only show Ruby setup message when building Ruby container or all containers
-  if [[ -f "${config_dir}/rbsetup.sh" && -s "${config_dir}/rbsetup.sh" ]]; then
-    cp -f "${config_dir}/rbsetup.sh" "${ROOT_DIR}/services/ruby/rbsetup.sh"
+  # The setup scripts themselves are passed to the builds as secrets (see
+  # set_setup_script_build_flags); here only the notices are shown.
+  if [ -n "${MONADIC_RBSETUP_FILE}" ]; then
     if [[ "$container_type" == "ruby" || "$container_type" == "" ]]; then
       echo "[HTML]: <p><i class='fa-solid fa-gem' style='color:#CC342D;'></i> Custom Ruby setup script (rbsetup.sh) detected and will be used.</p>"
     fi
   fi
 
   # Only show Python setup message when building Python container or all containers
-  if [[ -f "${config_dir}/pysetup.sh" && -s "${config_dir}/pysetup.sh" ]]; then
-    cp -f "${config_dir}/pysetup.sh" "${ROOT_DIR}/services/python/pysetup.sh"
+  if [ -n "${MONADIC_PYSETUP_FILE}" ]; then
     if [[ "$container_type" == "python" || "$container_type" == "" ]]; then
       echo "[HTML]: <p><i class='fa-brands fa-python' style='color:#3776AB;'></i> Custom Python setup script (pysetup.sh) detected and will be used.</p>"
     fi
@@ -583,7 +629,8 @@ build_ruby_container() {
     build_extra="--no-cache"
     echo "[INFO] Force rebuild requested, using --no-cache" | tee -a "${log_file}"
   fi
-  ${DOCKER} build ${build_extra} \
+  set_setup_script_build_flags rbsetup
+  DOCKER_BUILDKIT=1 ${DOCKER} build ${build_extra} "${SETUP_BUILD_FLAGS[@]}" \
     --build-arg GEMS_FINGERPRINT="${gems_hash}" \
     -f "${dockerfile}" \
     -t yohasebe/monadic-chat:${MONADIC_VERSION} \
@@ -732,7 +779,7 @@ build_python_container() {
     if [ "${!key}" = "true" ]; then all_defaults=false; break; fi
   done
   # The user's pysetup.sh runs in the build, so the prebuilt image is not enough.
-  if [ -s "${HOME_DIR}/monadic/config/pysetup.sh" ]; then
+  if [ -n "${MONADIC_PYSETUP_FILE}" ]; then
     all_defaults=false
   fi
 
@@ -787,7 +834,8 @@ build_python_container() {
   if [ "$image_ready" != "true" ]; then
     echo "[HTML]: <p>Starting Python image build (atomic) . . .</p>" | tee -a "${build_log}"
     # IMPORTANT: cache_flags must not be quoted so an empty value expands to nothing
-    ${DOCKER} build ${cache_flags} -f "${dockerfile}" ${build_args} -t "${temp_tag}" "${ROOT_DIR}/services/python" 2>&1 | tee -a "${build_log}"
+    set_setup_script_build_flags pysetup
+    DOCKER_BUILDKIT=1 ${DOCKER} build ${cache_flags} "${SETUP_BUILD_FLAGS[@]}" -f "${dockerfile}" ${build_args} -t "${temp_tag}" "${ROOT_DIR}/services/python" 2>&1 | tee -a "${build_log}"
     if [ "${PIPESTATUS[0]}" -ne 0 ]; then
       echo "[ERROR] Docker build failed" | tee -a "${build_log}"
       echo "[BUILD_COMPLETE] failed"
@@ -1213,8 +1261,10 @@ build_docker_compose() {
   local build_start_epoch=$(date +%s)
   # The pipe is outside eval: PIPESTATUS after `eval "a | tee"` is eval's
   # own status, which is tee's, so a failed build read as a success.
+  export_setup_script_contents
   eval "GEMS_FINGERPRINT=\"${gems_fingerprint}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} build ${use_cache}" 2>&1 | tee -a "${log_file}"
   local build_status=${PIPESTATUS[0]}
+  unset_setup_script_contents
   local build_end_epoch=$(date +%s)
   local build_duration=$((build_end_epoch - build_start_epoch))
 
@@ -1575,8 +1625,10 @@ start_docker_compose() {
       # (cache_from in the python compose.yml).
       echo "[HTML]: <p><i class='fa-brands fa-python'></i> Rebuilding Python container (Dockerfile changed)... Downloading the updated default image as a cache source first.</p>"
       ${DOCKER} pull "ghcr.io/yohasebe/monadic-python:${MONADIC_IMAGE_TAG:-latest}" 2>&1 | tee -a "${HOME_DIR}/monadic/log/docker_build.log" || true
+      export_setup_script_contents
       eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/python/compose.yml\" build python_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
       [ "${PIPESTATUS[0]}" -eq 0 ] || updated=false
+      unset_setup_script_contents
     fi
     if [ "$SELENIUM_DOCKERFILE_CHANGED" = true ]; then
       # Selenium is prebuilt too (compose.yml has no build section): pull it.
@@ -1797,7 +1849,11 @@ update_monadic() {
   cd "${ROOT_DIR}" && git pull origin main
 
   # Build all Docker Compose services (including profiled services)
+  export_setup_script_contents
   eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} build --no-cache"
+  local build_status=$?
+  unset_setup_script_contents
+  return ${build_status}
 }
 
 # Remove the Docker image and container

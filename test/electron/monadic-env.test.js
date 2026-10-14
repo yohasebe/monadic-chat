@@ -22,7 +22,9 @@ function composeFiles(dir) {
 // own computations, never from the env file.
 const SET_BY_THE_SCRIPTS = new Set([
   'HOST_OS', 'MONADIC_ROOT_DIR', 'MONADIC_VERSION', 'GEMS_FINGERPRINT', 'SUDO_USER',
-  'PIPESTATUS', 'SECONDS', 'FORCE_REBUILD', 'MONADIC_RUBY_CONTAINER', 'MONADIC_CHAT_IMAGE_TAG'
+  'PIPESTATUS', 'SECONDS', 'FORCE_REBUILD', 'MONADIC_RUBY_CONTAINER', 'MONADIC_CHAT_IMAGE_TAG',
+  // Paths and hashes of ~/monadic/config/{py,rb}setup.sh, computed by the script
+  'MONADIC_PYSETUP_FILE', 'MONADIC_RBSETUP_FILE', 'MONADIC_PYSETUP_SHA', 'MONADIC_RBSETUP_SHA'
 ]);
 
 function readFromEnvironment() {

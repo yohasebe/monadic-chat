@@ -7,6 +7,11 @@ services:
       args:
         PROJECT_TAG: "monadic-chat"
         GEMS_FINGERPRINT: ${GEMS_FINGERPRINT:-unknown}
+        RBSETUP_SHA: ${MONADIC_RBSETUP_SHA:-none}
+      # ~/monadic/config/rbsetup.sh, as a build secret (see the Dockerfile).
+      # monadic.sh sets its contents for the build; without them it is empty.
+      secrets:
+        - rbsetup
     container_name: monadic-chat-ruby-container
     environment:
       HOST_OS: ${HOST_OS:-}
@@ -75,3 +80,7 @@ services:
     # ~30-60 seconds to load multilingual-e5-base on first start, and we
     # want the Ruby web UI reachable before that finishes.
     # Python availability is checked dynamically by WebAutomation.available?
+
+secrets:
+  rbsetup:
+    environment: MONADIC_RBSETUP_CONTENT

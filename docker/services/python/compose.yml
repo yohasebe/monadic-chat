@@ -21,6 +21,11 @@ services:
         PYOPT_MEDIAPIPE: ${PYOPT_MEDIAPIPE:-false}
         PYOPT_TRANSFORMERS: ${PYOPT_TRANSFORMERS:-false}
         IMGOPT_IMAGEMAGICK: ${IMGOPT_IMAGEMAGICK:-false}
+        PYSETUP_SHA: ${MONADIC_PYSETUP_SHA:-none}
+      # ~/monadic/config/pysetup.sh, as a build secret (see the Dockerfile).
+      # monadic.sh sets its contents for the build; without them it is empty.
+      secrets:
+        - pysetup
     ports:
       - "127.0.0.1:8889:8889"
     container_name: monadic-chat-python-container
@@ -40,3 +45,7 @@ services:
     command: ["sleep", "infinity"]
     networks:
       - monadic-chat-network
+
+secrets:
+  pysetup:
+    environment: MONADIC_PYSETUP_CONTENT

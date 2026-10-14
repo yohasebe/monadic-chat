@@ -21,7 +21,7 @@ The nltk and spaCy options install the libraries only. NLTK data and spaCy langu
 
 ## Adding libraries with pysetup.sh :id=adding-libraries-with-pysetupsh
 
-Create `~/monadic/config/pysetup.sh` to add your own libraries, data, or OS packages to the Python container. The script is run as the last step of the Python container build, so what it installs is part of the image.
+Create `~/monadic/config/pysetup.sh` to add your own libraries, data, or OS packages to the Python container. The script is run as the last step of the Python container build, so what it installs is part of the image. The script itself is not kept in the image.
 
 - After creating or editing the script, choose **Actions → Build Python Container**
 - The script runs as root during the build. If it exits with an error, the build fails and the current image is kept; the output is in the build log above. Start the script with `set -euo pipefail` so that a failed command stops it

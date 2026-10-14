@@ -58,7 +58,6 @@ app/vendor/README.md
 # --- Docker services --------------------------------------------------------
 docker/monadic.sh
 docker/services/compose.yml
-docker/services/*.sh
 docker/services/*/Dockerfile
 docker/services/*/compose{,.build,.dev}.yml
 docker/services/support_scripts/*.sh

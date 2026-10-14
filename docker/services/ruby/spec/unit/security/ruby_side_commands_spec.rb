@@ -125,7 +125,6 @@ RSpec.describe "Ruby-side commands" do
       callers = {
         list_providers_and_voices: -> { host.list_providers_and_voices },
         text_to_speech: -> { host.text_to_speech(text: "hello") },
-        get_rbsetup: -> { host.get_rbsetup },
         generate_image_with_openai: -> { host.generate_image_with_openai(operation: "generate", model: "gpt-image-1", prompt: "a; touch PWNED") },
         generate_image_with_grok: -> { host.generate_image_with_grok(prompt: "a cat") },
         generate_video_with_grok_imagine: -> { host.generate_video_with_grok_imagine(prompt: "a cat") },

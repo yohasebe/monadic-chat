@@ -32,7 +32,7 @@ If saved options are not yet in the images, the next **Start** asks whether to r
 - Enabling `nltk` installs the library only (no datasets/corpora are downloaded automatically)
 - Enabling `spacy` installs the library only (no language models downloaded)
 
-To download data and models, write a `~/monadic/config/pysetup.sh`. It runs at the end of the Python container build, so what it installs is part of the image. When this file exists, the Python container is built on your computer instead of using the prebuilt image.
+To download data and models, write a `~/monadic/config/pysetup.sh`. It runs at the end of the Python container build, so what it installs is part of the image; the script itself is not kept in the image. When this file exists, the Python container is built on your computer instead of using the prebuilt image.
 
 ```sh
 #!/usr/bin/env bash

@@ -945,7 +945,7 @@ RSpec.describe "WebSocketHelper STS bridge" do
     it "exposes a singleton Async::Semaphore with the configured limit" do
       sem = WebSocketHelper.sts_semaphore
       expect(sem).to be_an(Async::Semaphore)
-      expect(sem.limit).to eq(WebSocketHelper::STS_MAX_CONCURRENT)
+      expect(sem.limit).to eq(WebSocketHelper.sts_max_concurrent)
       expect(WebSocketHelper.sts_semaphore).to equal(sem)
     end
   end

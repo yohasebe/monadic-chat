@@ -87,7 +87,6 @@ docker/services/ruby/views/*.erb
 
 # Ruby service: specs and their fixtures
 docker/services/ruby/spec/**/*.{rb,sh,yml}
-docker/services/ruby/spec/e2e/websearch
 docker/services/ruby/spec/fixtures/office/*.{docx,pptx,xlsx}
 docker/services/ruby/spec/fixtures/*.png
 docker/services/ruby/spec/integration/stt_noise_benchmark/data/truth.txt

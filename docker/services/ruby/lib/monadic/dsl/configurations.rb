@@ -96,7 +96,7 @@ module MonadicDSL
   end
 
   # Privacy Filter Configuration DSL.
-  # See docs_dev/privacy_filter_design.md (Block B §2) for the full spec.
+  # User-facing reference: docs/advanced-topics/privacy-filter.md.
   # Usage:
   #   privacy do
   #     enabled true

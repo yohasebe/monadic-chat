@@ -66,8 +66,8 @@ module Monadic
 
         # Decorate owned tokens for display without expanding them.
         #
-        # NOTE: kept for the provider contract, but no longer on the live path.
-        # Phase 6 ships #resolved_map to the frontend, which decorates the
+        # NOTE: kept for the provider contract; not on the live path.
+        # #resolved_map is sent to the frontend, which decorates the
         # rendered DOM (so it works inside markdown `<code>` spans, where the
         # LLM tends to put paths, and supports click-to-reveal). Backend HTML
         # injection here could not reach tokens inside backtick code.

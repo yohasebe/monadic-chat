@@ -231,12 +231,10 @@ module MonadicDSL
   def self.inject_library_search!(state)
     provider = state.settings[:provider].to_s.downcase.to_sym
     tool_config = ToolConfiguration.new(state, provider)
-    # `conditional` reflects reality: the tool is exposed to the LLM only
-    # when the per-session "Use Knowledge Base for retrieval" toggle in
-    # the Knowledge Base panel is ON. The `web_search_tools` group uses
-    # the same `conditional` visibility for the parallel reason. The
-    # visibility tag affects only badge categorization (Tools (Always) vs
-    # Tools (Conditional)) — actual API gating is independent.
+    # `conditional` hides the tool from the LLM until it calls
+    # `request_tool("library_search")`, and adds `request_tool` to the app.
+    # The tool itself returns a disabled message unless the per-session
+    # "Use Knowledge Base for retrieval" toggle is ON.
     tool_config.import_shared_tools(:library_search, visibility: "conditional")
     new_tools = tool_config.to_h
 
@@ -252,7 +250,7 @@ module MonadicDSL
   end
 
   # After the user's MDSL block runs, ensure shared-folder read/write is wired
-  # into EVERY app so `${SHARED}` is actionable everywhere (Phase 9) — file
+  # into EVERY app so `${SHARED}` is actionable everywhere — file
   # interaction (editing local images, supplying source text, saving
   # transcripts) is broadly useful and reflects Monadic Chat's Docker shared-
   # folder integration. Unlike library_search this is unconditional: no
@@ -528,8 +526,7 @@ module MonadicDSL
         if MonadicDSL.library_search_eligible?(@state) &&
            !MonadicDSL.library_search_already_imported?(@state)
           begin
-            # See `inject_library_search!` for why `conditional`: the tool
-            # is gated by the per-session Knowledge Base retrieval toggle.
+            # Same visibility as `inject_library_search!`.
             tool_config.import_shared_tools(:library_search, visibility: "conditional")
           rescue StandardError => e
             puts "[DSL] library_search inline-inject skipped for #{@state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]

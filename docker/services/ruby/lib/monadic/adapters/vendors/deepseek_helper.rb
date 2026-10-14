@@ -3,6 +3,7 @@
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/usage_normalizer"
 require_relative "../../utils/extra_logger"
+require_relative "../../utils/system_prompt_injector"
 require_relative "../base_vendor_helper"
 require_relative "../../shared_tools/tavily_definitions"
 require 'strscan'
@@ -291,7 +292,14 @@ module DeepSeekHelper
     body["messages"] = context.compact.map do |msg|
       if !system_message_modified && msg["role"] == "system"
         system_message_modified = true
-        content = msg["text"]
+        content = Monadic::Utils::SystemPromptInjector.augment(
+          base_prompt: msg["text"], session: session,
+          options: {
+            websearch_enabled: false, reasoning_model: false,
+            websearch_prompt: nil, system_prompt_suffix: obj["system_prompt_suffix"]
+          },
+          separator: "\n\n---\n\n"
+        )
         # Add websearch prompt if enabled
         content += "\n\n---\n\n" + WEBSEARCH_PROMPT if websearch
         # Add JSON format prompt if monadic/json mode (required by DeepSeek API)

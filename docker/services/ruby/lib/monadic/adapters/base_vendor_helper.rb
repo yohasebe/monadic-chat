@@ -223,9 +223,9 @@ module BaseVendorHelper
   # Substitution Pipeline integration (Vocabulary provider only).
   #
   # Vocabulary lets the user and assistant share `${TOKEN}` variables (e.g.
-  # ${SHARED} for the synced data folder). It is opt-in per app via a
-  # `vocabulary do; use :shared; end` MDSL block and carries zero overhead for
-  # apps that do not declare it.
+  # ${SHARED} for the synced data folder). The default tokens
+  # (Vocabulary::DEFAULT_TOKENS) are on for every app; `vocabulary do; use ...; end`
+  # adds tokens and `vocabulary false` turns it off.
   #
   # Privacy is deliberately NOT registered here: it stays on its own
   # `:_privacy_pipeline` hot path. The two providers have opposite failure

@@ -630,8 +630,7 @@ module ClaudeHelper
     # are automatically attached. Apps can override with custom edits via
     # MDSL `context_management do edits [...] end`, or disable entirely with
     # `context_management false` — in that case only the context_size sliding
-    # window (client-side) trims history. The beta header is still attached
-    # when the model supports it so that the server recognizes our opt-out.
+    # window (client-side) trims history, and the beta header is not sent.
     begin
       supports_context_management = Monadic::Utils::ModelSpec.supports_context_management?(obj["model"])
       app_context_management = APPS[app]&.settings&.[]("context_management")

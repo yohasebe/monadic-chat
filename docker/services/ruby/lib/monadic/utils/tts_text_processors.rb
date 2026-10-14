@@ -18,9 +18,7 @@ module Monadic
     #   * Wrapping tags:  <loud> <soft> <high> <low> <fast> <slow> <whisper> <sing>
     # (see https://docs.x.ai/ Text-to-Speech reference)
     #
-    # ElevenLabs v3 supports a similar inline-tag vocabulary; its sanitizer slot is
-    # reserved below as a TODO so that a future app integration can register it
-    # without touching this file's structure.
+    # ElevenLabs v3 uses a similar inline-tag vocabulary (family "elevenlabs-v3").
     module TtsTextProcessors
       module_function
 

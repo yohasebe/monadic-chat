@@ -479,14 +479,14 @@ module Monadic
 
                       if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
                         if session_id
-                          puts "[OpenAICodeAgent] Sent progress to session #{session_id}: #{progress_message[0..50]}..."
+                          puts "[OpenAICodeAgent] Sent progress to session #{session_id}: #{fragment["content"].to_s[0..50]}..."
                         else
-                          puts "[OpenAICodeAgent] Broadcasting progress to all: #{progress_message[0..50]}..."
+                          puts "[OpenAICodeAgent] Broadcasting progress to all: #{fragment["content"].to_s[0..50]}..."
                         end
                       end
                     end
                   elsif defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-                    puts "[OpenAICodeAgent] Progress (no WebSocket): #{progress_message}"
+                    puts "[OpenAICodeAgent] Progress (no WebSocket): #{fragment["content"]}"
                   end
 
                   last_update = Time.now

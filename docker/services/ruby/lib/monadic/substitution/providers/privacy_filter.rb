@@ -20,7 +20,7 @@ module Monadic
       # orchestration: language/entity-type resolution, registry bookkeeping,
       # restoration, and TTS sanitization.
       #
-      # 8-step pipeline (see docs_dev/privacy_filter_design.md):
+      # 8-step pipeline:
       #   register_input -> extract_entities -> update_registry -> render_masked
       #   -> send_to_llm (vendor adapter) -> validate_placeholders
       #   -> restore_for_user -> append_audit
@@ -32,7 +32,7 @@ module Monadic
       #
       # Two public surfaces coexist:
       #   * Generic Provider hooks (on_input / on_output_render) — String in/out,
-      #     for the Substitution::Pipeline chain (wired in a later phase).
+      #     for the Substitution::Pipeline provider contract.
       #   * Legacy rich methods (before_send_to_llm -> MaskedMessage,
       #     after_receive_from_llm -> RestoredResponse, sanitize_*, registry_*) —
       #     consumed by the existing vendor adapters, handlers, and agents.

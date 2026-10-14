@@ -430,8 +430,8 @@ module OllamaHelper
 
     # Enable thinking for models that support it. For Ollama, the Show Thinking
     # toggle is the sole control (Ollama has no reasoning_effort API parameter —
-    # only binary think on/off). The toggle defaults to ON in the UI; users who
-    # don't want thinking can switch it OFF for faster responses.
+    # only binary think on/off). The toggle defaults to OFF in the UI; users can
+    # switch it ON to see the model's thinking.
     show_thinking = obj["show_thinking"]
     show_thinking_off = [false, "false"].include?(show_thinking)
     if !show_thinking_off && supports_thinking?(obj["model"])

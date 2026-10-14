@@ -151,6 +151,7 @@ module WebSocketHelper
     @sts_tool_host ||= Class.new(MonadicApp) do
       include MonadicSharedTools::WebSearchTools
       include MonadicSharedTools::PythonExecution
+      include MonadicSharedTools::LibrarySearch::Tools
     end
   end
 
@@ -201,13 +202,16 @@ module WebSocketHelper
         required: ["query"],
         additionalProperties: false
       },
-      available?: ->(_provider, _session) { Monadic::Utils::ContainerDependencies.container_running?(:qdrant) },
+      available?: lambda { |_provider, _session|
+        Monadic::Utils::ContainerDependencies.container_running?(:qdrant) &&
+          Monadic::Utils::ContainerDependencies.container_running?(:embeddings)
+      },
       call: lambda { |args, session|
         # The shared tool self-gates on params['library_rag_enabled']; the LC
         # Tools toggle is the explicit opt-in, so shim a session that is
         # enabled and carries the app name for scope resolution.
         shim = { parameters: (session[:parameters] || {}).merge("library_rag_enabled" => true) }
-        MonadicSharedTools::LibrarySearch.library_search(
+        WebSocketHelper.sts_tool_host.new.library_search(
           query: args["query"].to_s, top_n: (args["top_n"] || 3).to_i, session: shim
         )
       }
@@ -395,7 +399,11 @@ module WebSocketHelper
   # Cap on concurrent upstream WebSocket connections to OpenAI's Realtime
   # speech-to-speech endpoint. Same rationale as REALTIME_STT_MAX_CONCURRENT:
   # each engaging tab opens its own upstream socket.
-  STS_MAX_CONCURRENT = (ENV["STS_MAX_CONCURRENT"] || "4").to_i
+  STS_MAX_CONCURRENT = 4
+
+  def self.sts_max_concurrent
+    concurrency_setting("STS_MAX_CONCURRENT", STS_MAX_CONCURRENT)
+  end
 
   # NOTE on scope: Async::Semaphore is per-process. Falcon currently runs
   # a single worker, so STS_MAX_CONCURRENT is the effective cap. If Falcon
@@ -403,7 +411,7 @@ module WebSocketHelper
   # becomes N × STS_MAX_CONCURRENT — divide the configured value down
   # accordingly, or add an out-of-process limiter here.
   def self.sts_semaphore
-    @sts_semaphore ||= Async::Semaphore.new(STS_MAX_CONCURRENT)
+    @sts_semaphore ||= Async::Semaphore.new(sts_max_concurrent)
   end
 
   # True when the current model supports speech-to-speech.
@@ -773,7 +781,7 @@ module WebSocketHelper
     semaphore = WebSocketHelper.sts_semaphore
     if semaphore.blocking?
       Monadic::Utils::ExtraLogger.log do
-        "[STS session=#{ws_session_id}] waiting for upstream WS slot (cap=#{STS_MAX_CONCURRENT})"
+        "[STS session=#{ws_session_id}] waiting for upstream WS slot (cap=#{WebSocketHelper.sts_semaphore.limit})"
       end
     end
 

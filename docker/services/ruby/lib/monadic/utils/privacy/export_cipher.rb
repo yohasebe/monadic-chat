@@ -12,7 +12,6 @@ module Monadic
     module Privacy
       # Encrypted export envelope for privacy-protected conversations.
       # Format: AES-256-GCM ciphertext + Argon2id KDF + SHA-256 header integrity.
-      # See docs_dev/privacy_filter_design.md (Block D §2) for the full spec.
       module ExportCipher
         SCHEMA_VERSION = 1
         SALT_BYTES = 16

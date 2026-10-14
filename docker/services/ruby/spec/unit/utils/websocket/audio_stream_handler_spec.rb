@@ -319,6 +319,15 @@ RSpec.describe "WebSocketHelper realtime STT bridge — wire contract" do
     it "caps concurrent upstream WS connections at 8 by default" do
       expect(WebSocketHelper::REALTIME_STT_MAX_CONCURRENT).to eq(8)
     end
+
+    it "reads REALTIME_STT_MAX_CONCURRENT from the loaded config when called" do
+      stub_const("CONFIG", { "REALTIME_STT_MAX_CONCURRENT" => "12" })
+      expect(WebSocketHelper.realtime_stt_max_concurrent).to eq(12)
+      stub_const("CONFIG", { "REALTIME_STT_MAX_CONCURRENT" => "0" })
+      expect(WebSocketHelper.realtime_stt_max_concurrent).to eq(8)
+      stub_const("CONFIG", { "STS_MAX_CONCURRENT" => 6 })
+      expect(WebSocketHelper.sts_max_concurrent).to eq(6)
+    end
   end
 
   describe "upstream concurrency cap" do
@@ -329,7 +338,7 @@ RSpec.describe "WebSocketHelper realtime STT bridge — wire contract" do
     it "exposes a singleton Async::Semaphore with the configured limit" do
       sem = WebSocketHelper.realtime_stt_semaphore
       expect(sem).to be_an(Async::Semaphore)
-      expect(sem.limit).to eq(WebSocketHelper::REALTIME_STT_MAX_CONCURRENT)
+      expect(sem.limit).to eq(WebSocketHelper.realtime_stt_max_concurrent)
       # Singleton: every call returns the same object.
       expect(WebSocketHelper.realtime_stt_semaphore).to equal(sem)
     end

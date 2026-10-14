@@ -246,7 +246,7 @@ module MermaidGrapherTools
       {
         success: true,
         documentation_url: url,
-        hint: "Use websearch_agent to fetch the latest syntax from this URL",
+        hint: "Use fetch_web_content to read the latest syntax from this URL",
         workflow_status: 'reference_info',
         next_action: 'review_documentation'
       }

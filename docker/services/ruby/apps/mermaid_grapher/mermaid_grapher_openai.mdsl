@@ -156,7 +156,7 @@ app "MermaidGrapherOpenAI" do
 
     ## Additional Diagram Types
     
-    For these less common diagram types, use `websearch_agent` to find current syntax:
+    For these less common diagram types, use web search (`search_web`, `fetch_web_content`) to find current syntax:
     - `journey`
     - `quadrantChart`
     - `requirementDiagram`

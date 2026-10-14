@@ -114,7 +114,8 @@ function handleWait(data) {
 
   if (isAgentProgress) {
     let displayContent = waitContent;
-    if (data["minutes"] !== undefined) {
+    // Code agents send both minutes and step_progress; the step list wins.
+    if (data["minutes"] !== undefined && !data["step_progress"]) {
       const minutes = data["minutes"];
       const remaining = data["remaining"];
       let messageKey;
@@ -181,7 +182,11 @@ function handleWait(data) {
           spIcon = "fa-laptop-code"; spColor = "#6b7280"; break;
       }
 
-      const spHeader = `<i class="fas ${spIcon}" style="color: ${spColor};"></i> ${data["content"] || "Processing..."}`;
+      let spHeader = `<i class="fas ${spIcon}" style="color: ${spColor};"></i> ${data["content"] || "Processing..."}`;
+      if (data["minutes"] > 0) {
+        const _t = typeof getTranslation === 'function' ? getTranslation : (k, f) => f;
+        spHeader += ` (${_t('ui.messages.elapsedTime', '{minutes} minute(s) elapsed').replace('{minutes}', data["minutes"])})`;
+      }
       const indicators = spSteps.map((name, i) => {
         let icon;
         if (spMode === "sequential") {

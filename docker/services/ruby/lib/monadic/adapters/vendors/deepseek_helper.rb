@@ -52,7 +52,12 @@ module DeepSeekHelper
     end
 
   # Simple non-streaming chat completion
-  def send_query(options, model: "deepseek-v4-flash")
+  def send_query(options, model: nil)
+    # Resolve model via SSOT only (no hardcoded fallback)
+    model = model.to_s.strip
+    model = nil if model.empty?
+    model ||= SystemDefaults.get_default_model('deepseek')
+
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     

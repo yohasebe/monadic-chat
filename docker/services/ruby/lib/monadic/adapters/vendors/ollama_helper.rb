@@ -261,6 +261,11 @@ module OllamaHelper
       "Content-Type" => "application/json"
     }
 
+    # Resolve model via SSOT only (no hardcoded fallback), as the other helpers do
+    model = model.to_s.strip
+    model = nil if model.empty?
+    model ||= SystemDefaults.get_default_model('ollama')
+
     body = {
       "model" => model,
       "stream" => false,
@@ -268,6 +273,7 @@ module OllamaHelper
     }
 
     body.merge!(options)
+    body["model"] = model if body["model"].to_s.strip.empty?
     http = HTTP.headers(headers)
 
     res = nil

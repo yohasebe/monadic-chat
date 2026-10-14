@@ -96,6 +96,11 @@ RSpec.describe Monadic::Substitution::Providers::Vocabulary do
       expect(out).to eq("path" => "${SHARED}/x")
     end
 
+    it "leaves an owned token literal while its value is unset" do
+      out = provider(tokens: [:notebook]).on_tool_invoke("t", { "path" => "${NOTEBOOK}" }, context)
+      expect(out["path"]).to eq("${NOTEBOOK}")
+    end
+
     it "passes non-string scalars through untouched" do
       args = { "n" => 3, "flag" => true, "nothing" => nil }
       expect(provider.on_tool_invoke("t", args, context)).to eq(args)

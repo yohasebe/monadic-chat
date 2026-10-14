@@ -687,9 +687,9 @@ build_python_container() {
   local logs_dir="${HOME_DIR}/monadic/log"
   mkdir -p "${logs_dir}"
   local build_log="${logs_dir}/docker_build_python.log"
-  local post_log="${logs_dir}/post_install_python.log"
   local health_json="${logs_dir}/python_health.json"
   local meta_json="${logs_dir}/python_meta.json"
+  : > "${build_log}"
 
   # Echo discovery hints for Electron to pick up paths
   echo "[BUILD_RUN_DIR] ${logs_dir}"
@@ -731,6 +731,10 @@ build_python_container() {
   for key in "${PY_OPTIONS[@]}"; do
     if [ "${!key}" = "true" ]; then all_defaults=false; break; fi
   done
+  # The user's pysetup.sh runs in the build, so the prebuilt image is not enough.
+  if [ -s "${HOME_DIR}/monadic/config/pysetup.sh" ]; then
+    all_defaults=false
+  fi
 
   local build_args=
   for key in "${PY_OPTIONS[@]}"; do
@@ -790,13 +794,6 @@ build_python_container() {
       release_build_lock
       return 1
     fi
-  fi
-
-  # Optional post-setup: execute user's pysetup.sh if present (mounted config)
-  echo "[HTML]: <p>Running post-setup (pysetup.sh) if available . . .</p>" | tee -a "${post_log}"
-  ${DOCKER} run --rm -v "${HOME_DIR}/monadic/config:/monadic/config" "${temp_tag}" sh -lc 'if [ -s /monadic/config/pysetup.sh ]; then bash /monadic/config/pysetup.sh; else echo "No pysetup.sh provided"; fi' 2>&1 | tee -a "${post_log}"
-  if [ "${PIPESTATUS[0]}" -ne 0 ]; then
-    echo "[WARN] Post-setup script encountered errors" | tee -a "${post_log}"
   fi
 
   # Health checks (feature-aware)
@@ -904,7 +901,6 @@ META
   remove_project_dangling_images
 
   echo "[BUILD_LOG] ${build_log}"
-  echo "[POST_SETUP_LOG] ${post_log}"
   echo "[HEALTH_JSON] ${health_json}"
   echo "[META_JSON] ${meta_json}"
   echo "Build logs are available under: ${logs_dir}"
@@ -1580,8 +1576,9 @@ start_docker_compose() {
       [ "${PIPESTATUS[0]}" -eq 0 ] || updated=false
     fi
     if [ "$SELENIUM_DOCKERFILE_CHANGED" = true ]; then
-      echo "[HTML]: <p><i class='fa-solid fa-globe'></i> Rebuilding Selenium container (Dockerfile changed)...</p>"
-      eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/selenium/compose.yml\" build --no-cache selenium_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
+      # Selenium is prebuilt too (compose.yml has no build section): pull it.
+      echo "[HTML]: <p><i class='fa-solid fa-globe'></i> Refreshing Selenium container image (Dockerfile changed)...</p>"
+      eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/selenium/compose.yml\" --profile selenium pull selenium_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
       [ "${PIPESTATUS[0]}" -eq 0 ] || updated=false
     fi
     if [ "$EMBEDDINGS_DOCKERFILE_CHANGED" = true ]; then
@@ -1695,7 +1692,8 @@ start_docker_compose() {
     local startup_log="${HOME_DIR}/monadic/log/docker_startup.log"
     mkdir -p "$(dirname "${startup_log}")"
     local env_file="${HOME_DIR}/monadic/config/env"
-    local tries=15
+    # Same defaults as wait_for_ruby_ready
+    local tries=20
     local interval=2
     if [ -f "$env_file" ]; then
       local t=$(grep -E '^START_HEALTH_TRIES=' "$env_file" | cut -d= -f2 | tr -d '\r')
@@ -1903,7 +1901,7 @@ run_jupyter() {
 
   if [ $? -eq 0 ]; then
     if [ "${command}" == "run" ]; then
-      echo "[HTML]: <p>JupyterLab is running. <a href='http://localhost:8889/lab/tree/data' target='_blank'>Click here to open JupyterLab</a></p><hr />"
+      echo "[HTML]: <p>JupyterLab is running. <a href='http://localhost:8889/lab/tree' target='_blank'>Click here to open JupyterLab</a></p><hr />"
     else
       echo "[HTML]: <p>JupyterLab has been stopped.</p><hr />"
     fi
@@ -2035,7 +2033,7 @@ build_python_container|build_python_container_update)
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Python container has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
-    echo "[HTML]: <p>Please check the following log files in the log folder (Open &gt; Open Log Folder):</p><ul><li><code>docker_build.log</code></li><li><code>docker_startup.log</code></li><li><code>server.log</code></li></ul>"
+    echo "[HTML]: <p>Please check the following log files in the log folder (Open &gt; Open Log Folder):</p><ul><li><code>docker_build_python.log</code></li></ul>"
   fi
   ;;
 build_user_containers)

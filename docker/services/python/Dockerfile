@@ -126,4 +126,9 @@ ENV PIP_ROOT_USER_ACTION=ignore
 # Create symbolic link for data directory
 RUN ln -s /monadic/data /data
 
+# ~/monadic/config/pysetup.sh, copied here by monadic.sh (a comment line
+# when the user has none), runs last so what it installs is in the image.
+COPY pysetup.sh /monadic/pysetup.sh
+RUN bash /monadic/pysetup.sh
+
 COPY Dockerfile /monadic/Dockerfile

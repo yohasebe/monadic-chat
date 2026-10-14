@@ -141,8 +141,13 @@ module Monadic
 
         def expand_segment(segment, context)
           segment.gsub(TOKEN_RE) do
+            literal = Regexp.last_match(0)
             name = Regexp.last_match(1)
-            owns_token?(name) ? resolve(name, context).to_s : Regexp.last_match(0)
+            next literal unless owns_token?(name)
+
+            # An unset value keeps the literal ${TOKEN}, as the display does.
+            value = resolve(name, context)
+            value.nil? ? literal : value.to_s
           end
         end
 

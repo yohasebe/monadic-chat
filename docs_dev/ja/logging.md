@@ -16,8 +16,7 @@ Monadic Chatは、ホスト上の`~/monadic/log`にログを書き込みます�
 ## ビルドログ
 
 - Pythonビルド（実行ごとに上書き）：
-  - `~/monadic/log/docker_build_python.log`：Dockerビルドのstdout/stderr（検証済みプロモーションフローを含む）
-  - `~/monadic/log/post_install_python.log`：`~/monadic/config/pysetup.sh`が存在する場合の実行出力（オプション）
+  - `~/monadic/log/docker_build_python.log`：Dockerビルドのstdout/stderr。`~/monadic/config/pysetup.sh`があればその実行も含む（検証済みプロモーションフロー）
   - `~/monadic/log/python_health.json`：ビルド直後のヘルスチェック結果（LaTeX/convert/Pythonライブラリ）
   - `~/monadic/log/python_meta.json`：実行メタデータ（Monadicバージョン、ホストOS、ビルド引数など）
 - Ruby/User/Ollamaビルド（実行ごとに上書き）：

@@ -16,8 +16,7 @@ Notes:
 ## Build Logs
 
 - Python build (overwritten each run):
-  - `~/monadic/log/docker_build_python.log`: Docker build stdout/stderr (includes verified promotion flow)
-  - `~/monadic/log/post_install_python.log`: Output from running `~/monadic/config/pysetup.sh` if present (optional)
+  - `~/monadic/log/docker_build_python.log`: Docker build stdout/stderr, including `~/monadic/config/pysetup.sh` when present (verified promotion flow)
   - `~/monadic/log/python_health.json`: Health check results right after build (LaTeX/convert/Python libraries)
   - `~/monadic/log/python_meta.json`: Execution metadata (Monadic version, host OS, build args, etc.)
 - Ruby/User/Ollama build (overwritten each run):

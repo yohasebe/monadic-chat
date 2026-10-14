@@ -1,20 +1,20 @@
 # Workflow Viewer
 
-The Workflow Viewer draws a live diagram of the currently selected app: how your input flows through the system prompt and model to the response, and which tools, agents, and features the app can use. Open it from the **Workflow Viewer** control in the System Settings panel.
+The Workflow Viewer draws a live diagram of the currently selected app: how your input flows through the system prompt and model to the response, and which tools, agents, and features the app can use. Open it from the **Workflow Viewer** control in the System Settings screen.
 
 ## Display modes
 
 | Mode | Button | Behavior |
 |------|--------|----------|
 | Hidden | eye-slash icon | The viewer is closed. |
-| Inline | panel icon | The diagram is embedded in the settings area. |
-| Floating | external-link icon | The diagram opens as a movable, resizable panel. |
+| In Panel | window icon | The diagram is embedded in the settings area (default). |
+| Floating | arrow-out icon | The diagram opens as a movable, resizable panel. |
 
-The toolbar inside the viewer provides zoom in/out, fit-to-view, SVG download, and close.
+The toolbar inside the viewer provides Zoom out, Zoom in, Fit to view, Save as SVG, and Close.
 
 ## Reading the diagram
 
-Nodes are color-coded by role — the legend at the bottom lists the categories (Input/Response, Speech, Prompt, Model, Tool, Agent, Feature, Context). The vertical spine shows the conversation flow (input → prompt → model → response, plus speech input/output when enabled); side nodes show the app's tools, agents, features, and Monadic context schema.
+Nodes are color-coded by role — the legend at the bottom lists the categories (Input/Response, Speech (STT/TTS), Prompt, Model, Tool, Agent, Feature, Context). The vertical spine shows the conversation flow (input → prompt → model → response, plus speech input/output when enabled); side nodes show the app's tools, agents, features, and Monadic context schema.
 
 ### Tools and skill groups
 
@@ -28,10 +28,8 @@ When the AI unlocks a skill mid-conversation, the diagram updates automatically,
 
 ### Which apps can extend their tools?
 
-An app's extendable (conditional) skills are declared in its recipe, so the set differs per app:
+Each app has its own set of skill groups it can request (for app developers, see [Tool Groups](../advanced-topics/tool-groups.md)).
 
-- `import_shared_tools :group, visibility: "conditional"` in the app's tools block makes the group requestable on demand; `visibility: "always"` includes it from the start.
-- `reachable_skills :group1, :group2` (or `reachable_skills :safe` for the curated read-only pool) is the shorthand form.
-- **Knowledge Base retrieval** (`library_search`) is added automatically as a conditional skill to tool-capable apps and becomes usable when the *Use Knowledge Base for retrieval* toggle is on.
+- **Knowledge Base retrieval** (`library_search`) is added automatically as a conditional skill to tool-capable apps (except apps with the Privacy Filter and apps that turn it off) and becomes usable when **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel is on (off by default).
 
 If a skill group does not appear in the Tools node at all, the app cannot acquire it — asking the AI to request it will not succeed.

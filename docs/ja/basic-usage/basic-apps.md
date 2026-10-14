@@ -49,9 +49,9 @@
 
 ## アプリ別の Privacy Filter / Knowledge Base 対応 :id=privacy-kb-by-app
 
-Privacy Filter (PF) と Knowledge Base への保存 (KB) はアプリ単位で**相互排他**です。意図的に PII を扱うアプリは「PF を有効にした一過性の会話」として位置づけ、会話そのものに長期的な参照価値があるアプリは「PF オフで KB に保存できる」スコープに配置されます。第三のグループ (画像 / 動画 / 図 / 文書ジェネレーターなどの artifact 中心アプリ) はどちらの機能も持ちません — artifact 自体は `~/monadic/data/` に保存され、周囲の会話はイテレーションのログに過ぎないため、KB に入れても検索ノイズになるだけです。
+アプリは、Privacy Filter (PF) と Knowledge Base への保存 (KB) のどちらか一方に対応し、両方には対応しません。画像・動画・図・音楽・文書を作るアプリはどちらにも対応せず、その出力は共有フォルダ（`~/monadic/data`）に保存されます。
 
-PF で保護された会話を残したい場合は **Privacy Export** (暗号化、必要に応じて placeholder のみの masked) を使ってください。KB エントリの閲覧 / 共有は右サイドバーの **Browse** モーダルから行います。
+Privacy Filter を使った会話を残すには、上部のバーの Privacy の表示をクリックし、**Export this conversation** を使います（暗号化も、伏せた形での書き出しもできます）。Knowledge Base に保存したものを見るには、Knowledge Base パネルの **Browse** をクリックします。
 
 | アプリ | Privacy Filter | Knowledge Base 保存 |
 |-----|:--:|:--:|
@@ -89,7 +89,7 @@ PF で保護された会話を残したい場合は **Privacy Export** (暗号�
 | Document Generator | | |
 | Monadic Chat Help | | ✅ |
 
-両列とも空欄になっているアプリは artifact 中心の生成系で、生成された出力 (画像・動画・図・文書など) 自体に価値があり会話本文ではありません。artifact を保管するにはカードの **Copy** / **Download** ボタンや共有フォルダを使ってください。周囲のチャットには retrieval 価値がないため KB 保存はあえて提供していません。
+両列とも空欄のアプリは、出力（画像・動画・図・文書など）をファイルとして保存するアプリです。メッセージの操作か共有フォルダから残してください。
 
 ## プロバイダー機能概要 :id=provider-capabilities
 
@@ -170,7 +170,7 @@ Mermaid.js、Draw.io、LaTeX/TikZ を使って自然言語の説明から図を�
 
 ### Knowledge Base
 
-保存した会話とインポートしたドキュメント（PDF、Office、Markdown、ソースコード）をプロジェクト全体で共有するライブラリです。各エントリは保存したアプリから検索でき、`Global` スコープに切り替えるとすべてのアプリから検索できるようになります。詳細は[Knowledge Base](../apps/knowledge-base.md)を参照してください。
+保存した会話とインポートしたドキュメント（PDF、Office、Markdown、ソースコード）をプロジェクト全体で共有するライブラリです。各エントリは保存したアプリから検索でき、`Global` スコープに切り替えると、Knowledge Base を検索するほかのアプリからも（**Use Knowledge Base for retrieval (this session)** がオンのとき）検索できます。詳細は[Knowledge Base](../apps/knowledge-base.md)を参照してください。
 
 ### コーディング・ノートブックアプリ
 

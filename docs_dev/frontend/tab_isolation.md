@@ -29,7 +29,7 @@ The store is `WebSocketHelper`'s `@@session_state` (`lib/monadic/utils/websocket
 | `register_live_session` / `unregister_live_session` | Tracks the live session per tab; only the registering generation removes it |
 | `live_chat_ids` | Chats open in some tab |
 
-The WebSocket handlers call `sync_session_state!` when they change messages or parameters. Entries in `@@session_state` stay for the life of the server process.
+The WebSocket handlers call `sync_session_state!` when they change messages or parameters. An entry stays while its tab has an open connection (`register_live_session`). Without one, it is dropped after `STATE_IDLE_TTL` (7 days) without use (the tab then starts with an empty chat), and beyond `STATE_MAX_IDLE` (50) such entries the least recently used go first; `claim_session_state` prunes when a connection opens. Spec: `spec/unit/utils/websocket/session_state_pruning_spec.rb`.
 
 On every connection the server sends `parameters` (even when empty) and then `past_messages`, so the browser drops state it does not have on the server. See [Session Restoration](../session_restoration_improvements.md).
 

@@ -81,6 +81,14 @@ module WebSocketHelper
   @@session_state_mutex = Mutex.new
   @@session_state = {}
 
+  # A tab's state is kept while it has no connection, so a reload or a
+  # reconnect gets its chat back. A tab with an open connection keeps its
+  # state; the others are dropped after STATE_IDLE_TTL without use, and
+  # beyond STATE_MAX_IDLE the least recently used go first. A tab that comes
+  # back after that starts with an empty chat.
+  STATE_IDLE_TTL = 7 * 86_400 # seconds
+  STATE_MAX_IDLE = 50
+
   # Feature Flag for progress broadcasting
   def self.progress_broadcast_enabled?
     return false unless defined?(CONFIG)
@@ -111,6 +119,8 @@ module WebSocketHelper
   def self.claim_session_state(session_id)
     @@session_state_mutex.synchronize do
       state = (@@session_state[session_id] ||= {})
+      state[:used_at] = monotonic_now
+      prune_session_state(keep: session_id)
       state[:generation] = state[:generation].to_i + 1
     end
   end
@@ -130,6 +140,7 @@ module WebSocketHelper
       state = @@session_state[session_id]
       return false if generation && state[:generation] && generation < state[:generation]
 
+      state[:used_at] = monotonic_now
       state[:messages] = deep_clone_session_state(messages || [])
       state[:parameters] = deep_clone_session_state(parameters || {})
       state[:chat_id] = chat_id if chat_id
@@ -144,6 +155,7 @@ module WebSocketHelper
     @@session_state_mutex.synchronize do
       state = @@session_state[session_id]
       if state
+        state[:used_at] = monotonic_now
         {
           messages: deep_clone_session_state(state[:messages] || []),
           parameters: deep_clone_session_state(state[:parameters] || {}),
@@ -230,6 +242,19 @@ module WebSocketHelper
     @@session_state_mutex.synchronize do
       @@pending_imports.delete_if { |_, entry| entry[:session_id] == session_id }
     end
+  end
+
+  # Called with the mutex held.
+  def self.prune_session_state(keep: nil)
+    now = monotonic_now
+    idle = @@session_state.reject { |id, _| id == keep || @@live_sessions.key?(id) }
+    expired = idle.select { |_, state| now - state[:used_at].to_f > STATE_IDLE_TTL }.keys
+    expired.each { |id| @@session_state.delete(id) }
+    rest = idle.reject { |id, _| expired.include?(id) }
+    excess = rest.size - STATE_MAX_IDLE
+    return unless excess.positive?
+
+    rest.sort_by { |_, state| state[:used_at].to_f }.first(excess).each { |id, _| @@session_state.delete(id) }
   end
 
   def self.prune_imports

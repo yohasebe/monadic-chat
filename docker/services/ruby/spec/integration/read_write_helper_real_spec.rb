@@ -164,7 +164,7 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
         filename = "test_write_#{Time.now.to_i}"
         content = "This is test content\nWith multiple lines"
         
-        result = helper.write_to_file(
+        result = helper.send(:write_to_file, 
           filename: filename,
           extension: "txt",
           text: content
@@ -185,7 +185,7 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
         filename = "special_chars_#{Time.now.to_i}"
         content = "Special chars: @#$%^&*() 日本語 émojis 🎉"
         
-        result = helper.write_to_file(
+        result = helper.send(:write_to_file, 
           filename: filename,
           extension: "txt",
           text: content
@@ -205,7 +205,7 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
         # This simulates trying to write to a subdirectory that doesn't exist
         filename_with_path = "nonexistent_#{Time.now.to_i}/subdir/test"
         
-        result = helper.write_to_file(
+        result = helper.send(:write_to_file, 
           filename: filename_with_path,
           extension: "txt",
           text: "Test content"
@@ -224,7 +224,7 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
         # Use a system directory name that would fail
         filename = "/root/test_#{Time.now.to_i}"
         
-        result = helper.write_to_file(
+        result = helper.send(:write_to_file, 
           filename: filename,
           extension: "txt",
           text: "This should fail"
@@ -258,7 +258,7 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
         expect(File.read(local_file)).to eq(content)
         
         # Also test that write_to_file works correctly in development
-        write_result = helper.write_to_file(
+        write_result = helper.send(:write_to_file, 
           filename: "local_test_#{Time.now.to_i}",
           extension: "txt",
           text: "Local write test"
@@ -280,7 +280,7 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
       
       # Test with invalid filename characters (if applicable to the OS)
       if RUBY_PLATFORM !~ /mswin|mingw|cygwin/
-        result = helper.write_to_file(
+        result = helper.send(:write_to_file, 
           filename: "invalid\0name",
           extension: "txt",
           text: "test"

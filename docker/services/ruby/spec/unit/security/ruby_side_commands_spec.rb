@@ -53,7 +53,7 @@ RSpec.describe "Ruby-side commands" do
   it "runs a bundled script with this Ruby, none of the impostors, and without the keys" do
     ENV["MONADIC_TEST_API_KEY"] = "sk-test-MARKER"
     out = File.join(@dir, "probe-out")
-    result = app.send_command(command: "probe.rb #{out}", container: "ruby")
+    result = app.send(:send_command, command: "probe.rb #{out}", container: "ruby")
     expect(result).to start_with("Command has been executed")
     expect(File.read(out)).not_to include("MONADIC_TEST_API_KEY") # the key was not in its environment
     expect(ran_impostors).to be_empty
@@ -61,30 +61,36 @@ RSpec.describe "Ruby-side commands" do
     ENV.delete("MONADIC_TEST_API_KEY")
   end
 
-  it "finds bash, curl and env outside the shared folder" do
-    app.send_command(command: "bash -c 'true'", container: "ruby")
-    app.send_command(command: "curl --version", container: "ruby")
-    app.send_command(command: "env true", container: "ruby")
-    app.send_command(command: "sh -c 'true'", container: "ruby")
+  it "refuses every command that is not a bundled Ruby script" do
+    ["bash -c 'true'", "curl --version", "env true", "sh -c 'true'", "cat /etc/hosts",
+     "/usr/bin/true", "../probe.rb", "cli_tools/probe.rb"].each do |command|
+      expect(app.send(:send_command, command: command, container: "ruby")).to start_with("Error occurred:"), command
+    end
+    expect(ran_impostors).to be_empty
+  end
+
+  it "passes the arguments to the script without a shell" do
+    out = File.join(@dir, "probe-out")
+    app.send(:send_command, command: "probe.rb #{Shellwords.escape(out)} '; touch #{marks}/pwned' '$(touch #{marks}/sub)'", container: "ruby")
+    expect(File).to exist(out)
     expect(ran_impostors).to be_empty
   end
 
   it "refuses a Ruby script that does not come with Monadic Chat" do
-    result = app.send_command(command: "own.rb", container: "ruby")
+    result = app.send(:send_command, command: "own.rb", container: "ruby")
     expect(result).to include("is not a script that comes with Monadic Chat")
     yielded = nil
-    app.send_command(command: "own.rb", container: "ruby") { |_out, err, status| yielded = [err, status.success?] }
+    app.send(:send_command, command: "own.rb", container: "ruby") { |_out, err, status| yielded = [err, status.success?] }
     expect(yielded.last).to be(false)
     expect(ran_impostors).to be_empty
   end
 
-  it "puts neither the shared folder nor a relative directory on PATH, and makes nothing executable" do
-    command = app.ruby_side_command("probe.rb x")
-    path = command[/\Aexport PATH=(\S+)/, 1]
-    expect(Shellwords.split(path).first.split(":")).to all(start_with("/"))
-    expect(path).not_to include(shared)
-    expect(command).not_to include("chmod")
-    expect(command).to include(Shellwords.escape(RbConfig.ruby), Shellwords.escape(File.join(bundled, "cli_tools", "probe.rb")))
+  it "runs this Ruby on the bundled script by absolute path, from the shared folder, with a PATH outside it" do
+    command = app.send(:ruby_side_command, "probe.rb x")
+    expect(command[:argv]).to eq([RbConfig.ruby, File.join(bundled, "cli_tools", "probe.rb"), "x"])
+    expect(command[:chdir]).to eq(shared)
+    expect(command[:path].split(":")).to all(start_with("/"))
+    expect(command[:path]).not_to include(shared)
   end
 
   it "keeps the shared folder off PATH even under another name (a link to it)" do
@@ -92,8 +98,8 @@ RSpec.describe "Ruby-side commands" do
     File.symlink(File.join(shared, "scripts"), alias_dir)
     original = ENV["PATH"]
     ENV["PATH"] = "#{alias_dir}:#{original}"
-    app.send_command(command: "curl --version", container: "ruby")
-    app.send_command(command: "bash -c 'true'", container: "ruby")
+    app.send(:send_command, command: "curl --version", container: "ruby")
+    app.send(:send_command, command: "bash -c 'true'", container: "ruby")
     expect(ran_impostors).to be_empty
   ensure
     ENV["PATH"] = original
@@ -105,8 +111,8 @@ RSpec.describe "Ruby-side commands" do
 
     before do
       calls = recorded
-      allow(MonadicApp).to receive(:capture_command) do |command, timeout:, env:|
-        calls << [command, env]
+      allow(MonadicApp).to receive(:capture_command) do |command, timeout:, env:, chdir: nil|
+        calls << [command, env, chdir]
         ["", "", OpenStruct.new(success?: true)]
       end
       allow(Monadic::Utils::ProgressBroadcaster).to receive(:with_progress) { |**_, &block| block.call }
@@ -140,15 +146,14 @@ RSpec.describe "Ruby-side commands" do
         end
         expect(recorded.size).to be > before_count, "#{name} ran no command"
       end
-      recorded.each do |command, env|
-        expect(command).to start_with("export PATH=")
-        expect(command).not_to include("#{shared}/scripts")
-        expect(command).not_to include("chmod")
-        expect(command).not_to match(/&& (?:bash -c )?[\w.]+\.rb\b/) # no script left to be found on PATH
+      recorded.each do |command, env, chdir|
+        expect(command).to be_an(Array) # no shell
+        expect(command[0]).to eq(RbConfig.ruby)
+        expect(command[1]).to start_with(File.join(bundled, "cli_tools")).and end_with(".rb")
+        expect(env["PATH"]).not_to include(shared)
         expect(env).to include("MONADIC_TEST_API_KEY" => nil)
+        expect(chdir).to eq(shared)
       end
-      scripts = recorded.map(&:first).grep(/[\w-]+\.rb\b/)
-      expect(scripts).to all(include(Shellwords.escape(RbConfig.ruby)))
     end
   end
 end

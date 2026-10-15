@@ -177,11 +177,11 @@ module AutoForgeTools
     # Dynamically extend the appropriate agent module to avoid helper conflicts
     context[:codex_callback] = case agent
     when :claude
-      # Extend ClaudeCodeAgent to get claude_opus_agent method
-      self.extend(Monadic::Agents::ClaudeCodeAgent) unless self.respond_to?(:claude_code_agent)
+      # Extend ClaudeCodeAgent to get call_claude_code method
+      self.extend(Monadic::Agents::ClaudeCodeAgent) unless self.respond_to?(:call_claude_code)
       ->(prompt, app_name, &block) do
         actual_block = block || progress_callback
-        self.claude_code_agent(prompt, app_name || 'ClaudeCodeAgent', &actual_block)
+        self.call_claude_code(prompt: prompt, app_name: app_name || 'ClaudeCodeAgent', &actual_block)
       end
     when :grok
       # Extend GrokCodeAgent to get call_grok_code method
@@ -1744,4 +1744,7 @@ module AutoForgeTools
     # Call the shared Grok-Code implementation
     call_grok_code(prompt: prompt, app_name: "AutoForgeGrok")
   end
+
+  # Declared tools: called by name from the model, so they must be public.
+  public :openai_code_agent, :claude_code_agent, :grok_code_agent
 end

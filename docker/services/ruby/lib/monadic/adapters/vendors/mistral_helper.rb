@@ -515,6 +515,7 @@ module MistralHelper
     Monadic::Utils::ExtraLogger.log { "Processing Mistral query (Call depth: #{call_depth})\n#{JSON.pretty_generate(body)}" }
 
     begin
+      Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
       res = http.timeout(connect: open_timeout,
                         write: write_timeout,
                         read: read_timeout).post(target_uri, json: body)
@@ -1274,14 +1275,18 @@ module MistralHelper
 
     # Call the function
     begin
-      function_return = if function_name == "request_tool"
+      refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
+      function_return = if refusal
+                          # Run only the tools offered to the model in the latest request.
+                          refusal
+                        elsif function_name == "request_tool"
                           Monadic::Utils::ProgressiveToolManager.handle_request_tool(
                             session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: args_hash
                           )
                         elsif args_hash.empty?
-                          APPS[app].send(function_name.to_sym)
+                          APPS[app].public_send(function_name.to_sym)
                         else
-                          APPS[app].send(function_name.to_sym, **args_hash)
+                          APPS[app].public_send(function_name.to_sym, **args_hash)
                         end
     rescue StandardError => e
       function_return = Monadic::Utils::ErrorFormatter.tool_error(

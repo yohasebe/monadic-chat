@@ -434,7 +434,7 @@ RSpec.describe "App Helpers Integration", type: :integration do
 
       # Use 300s timeout: Selenium Grid (maxSessions:1) queues requests,
       # so during full test suite runs we must wait for other tests to release the session
-      result = test_instance.send_command(
+      result = test_instance.send(:send_command, 
         command: fetch_command,
         container: "python",
         timeout: 300
@@ -458,7 +458,7 @@ RSpec.describe "App Helpers Integration", type: :integration do
       ].join(" ")
       
       # Use 300s timeout for Selenium Grid queue wait
-      result = test_instance.send_command(
+      result = test_instance.send(:send_command, 
         command: screenshot_command,
         container: "python",
         timeout: 300

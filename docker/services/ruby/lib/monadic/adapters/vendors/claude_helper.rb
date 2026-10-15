@@ -1078,6 +1078,7 @@ module ClaudeHelper
       }
     end
 
+    Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
     res = post_json_with_retries(http, target_uri, body,
                                  max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
 
@@ -1847,7 +1848,10 @@ module ClaudeHelper
       argument_hash[:session] = session
     end
 
-    if tool_name == "request_tool"
+    if (refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, tool_name))
+      # Run only the tools offered to the model in the latest request.
+      tool_return = refusal
+    elsif tool_name == "request_tool"
       # request_tool has no Ruby method: it is the progressive-disclosure meta-tool.
       tool_return = Monadic::Utils::ProgressiveToolManager.handle_request_tool(
         session: session, app_name: app, app_settings: (app_instance&.settings || {}), argument_hash: argument_hash
@@ -1855,9 +1859,9 @@ module ClaudeHelper
     else
       begin
         if argument_hash.empty?
-          tool_return = app_instance.send(tool_name.to_sym)
+          tool_return = app_instance.public_send(tool_name.to_sym)
         else
-          tool_return = app_instance.send(tool_name.to_sym, **argument_hash)
+          tool_return = app_instance.public_send(tool_name.to_sym, **argument_hash)
         end
 
         Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{tool_name} returned: #{tool_return.to_s[0..500]}" }

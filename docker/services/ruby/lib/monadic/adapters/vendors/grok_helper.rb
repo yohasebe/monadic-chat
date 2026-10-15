@@ -492,6 +492,7 @@ module GrokHelper
     # Words the user marked: masked wherever they are in the body, or nothing is sent.
     protect_marked_words!(body, session, app_settings)
 
+    Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
     res = post_json_with_retries(http, target_uri, body,
                                  max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
 
@@ -630,12 +631,16 @@ module GrokHelper
 
     # Execute function
     begin
-      function_return = if function_name == "request_tool"
+      refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
+      function_return = if refusal
+        # Run only the tools offered to the model in the latest request.
+        refusal
+      elsif function_name == "request_tool"
         Monadic::Utils::ProgressiveToolManager.handle_request_tool(
           session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: argument_hash
         )
       else
-        APPS[app].send(function_name.to_sym, **argument_hash)
+        APPS[app].public_send(function_name.to_sym, **argument_hash)
       end
       send_verification_notification(session, &block) if function_name == "report_verification"
 

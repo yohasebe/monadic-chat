@@ -569,6 +569,7 @@ module OllamaHelper
         end
         target_uri = "#{current_endpoint}/chat"
 
+        Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
         res = http.timeout(connect: open_timeout,
                            write: write_timeout,
                            read: read_timeout).post(target_uri, json: body)
@@ -813,14 +814,19 @@ module OllamaHelper
       end
 
       begin
-        function_return = if function_name == "request_tool"
+        refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
+        function_return = if refusal
+                           # Run only the tools offered to the model in the latest request;
+                           # this also covers calls parsed from the text.
+                           refusal
+                         elsif function_name == "request_tool"
                            Monadic::Utils::ProgressiveToolManager.handle_request_tool(
                              session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: converted
                            )
                          elsif converted.empty?
-                           APPS[app].send(function_name.to_sym)
+                           APPS[app].public_send(function_name.to_sym)
                          else
-                           APPS[app].send(function_name.to_sym, **converted)
+                           APPS[app].public_send(function_name.to_sym, **converted)
                          end
       rescue StandardError => e
         function_return = "ERROR: #{e.message}"

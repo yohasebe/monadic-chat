@@ -255,15 +255,23 @@ module WebSocketHelper
     end
   end
 
+  # The names sent to the bridge; a returned call runs only if its name is
+  # among them (sts_execute_tool_safely).
+  def sts_offer_tools(state)
+    tools = sts_available_tools(state)
+    state[:offered_tool_names] = tools.map(&:first)
+    tools
+  end
+
   def sts_ga_tools(state)
-    sts_available_tools(state).map do |name, entry|
+    sts_offer_tools(state).map do |name, entry|
       { type: "function", name: name, description: entry[:description],
         parameters: entry[:parameters] }
     end
   end
 
   def sts_gemini_tools(state)
-    tools = sts_available_tools(state)
+    tools = sts_offer_tools(state)
     return [] if tools.empty?
     [{ functionDeclarations: tools.map { |name, entry|
       decl = { name: name, description: entry[:description] }
@@ -2267,7 +2275,7 @@ module WebSocketHelper
   end
 
   def sts_execute_tool_safely(call, state, _ws_session_id, sess)
-    entry = STS_TOOLS[call[:name]]
+    entry = Array(state[:offered_tool_names]).include?(call[:name]) ? STS_TOOLS[call[:name]] : nil
     return "❌ Unknown tool: #{call[:name]}" unless entry
 
     args = call[:parsed_arguments] || {}

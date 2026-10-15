@@ -1175,6 +1175,7 @@ module DeepSeekHelper
       body.delete("tool_choice")
     end
 
+    Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
     res = post_json_with_retries(http, target_uri, body,
                                  max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
 
@@ -1223,7 +1224,12 @@ module DeepSeekHelper
     # surface a call via its content fallbacks (JSON or DSML). Block execution
     # here — the single point every request path converges on — so a UI-disabled
     # capability never runs regardless of how it was requested.
-    if Monadic::SharedTools::TavilyDefinitions.web_search_tool?(function_name) &&
+    refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
+    if refusal
+      # Run only the tools offered to the model in the latest request; this also
+      # covers calls written in the content (DSML or JSON).
+      function_return = refusal
+    elsif Monadic::SharedTools::TavilyDefinitions.web_search_tool?(function_name) &&
        !Monadic::SharedTools::TavilyDefinitions.websearch_requested?(session[:parameters])
       Monadic::Utils::ExtraLogger.log { "[DeepSeek] Web Search off — blocked #{function_name}" }
       function_return = "❌ Web search is turned off for this conversation. " \
@@ -1236,9 +1242,9 @@ module DeepSeekHelper
                               session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: converted
                             )
                           elsif converted.empty?
-                            APPS[app].send(function_name.to_sym)
+                            APPS[app].public_send(function_name.to_sym)
                           else
-                            APPS[app].send(function_name.to_sym, **converted)
+                            APPS[app].public_send(function_name.to_sym, **converted)
                           end
       rescue StandardError => e
         function_return = "ERROR: #{e.message}"

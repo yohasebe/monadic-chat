@@ -3,6 +3,7 @@
 require 'json'
 
 require_relative "../utils/http_client"
+require_relative "../utils/tool_dispatch_guard"
 
 # BaseVendorHelper
 # Shared utilities for vendor helpers. Provides macros for common patterns

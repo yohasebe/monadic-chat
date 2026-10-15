@@ -2841,7 +2841,7 @@ RSpec.describe 'STS function calling (wave 1)' do
     end
 
     it 'executes get_current_time end-to-end in a thread and enqueues the result' do
-      state = { cmd_queue: Async::Queue.new }
+      state = { cmd_queue: Async::Queue.new, offered_tool_names: ['get_current_time'] }
       call = { call_id: 'c1', name: 'get_current_time', parsed_arguments: {} }
       harness.sts_spawn_tool_execution(state, call, 'ws')
       deadline = Time.now + 5
@@ -2895,7 +2895,7 @@ RSpec.describe 'STS function calling — audit P1 fixes' do
       define_method(:sync_session_state!) {}
     end.new
 
-    state = { cmd_queue: Async::Queue.new }
+    state = { cmd_queue: Async::Queue.new, offered_tool_names: ['probe_tool'] }
     harness.sts_spawn_tool_execution(state, { call_id: 'c1', name: 'probe_tool', parsed_arguments: {} }, 'ws')
     deadline = Time.now + 5
     sleep 0.01 while captured.nil? && Time.now < deadline

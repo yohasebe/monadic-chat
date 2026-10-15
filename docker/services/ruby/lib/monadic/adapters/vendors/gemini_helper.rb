@@ -2304,6 +2304,7 @@ module GeminiHelper
 
     res = nil
 
+    Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
     Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Sending POST to #{target_uri[0..80]}... body contents_count=#{body["contents"]&.length}" }
     MAX_RETRIES.times do |attempt|
       Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Attempt #{attempt + 1}/#{MAX_RETRIES}" } if attempt > 0
@@ -3446,7 +3447,11 @@ module GeminiHelper
         argument_hash = prepare_gemini_tool_arguments(tool_call, app, function_name, session)
 
         Monadic::Utils::ExtraLogger.log { "[process_functions] Invoking #{function_name} with #{argument_hash.keys.inspect}" }
-        function_return = if function_name == "request_tool"
+        refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
+        function_return = if refusal
+          # Run only the tools offered to the model in the latest request.
+          refusal
+        elsif function_name == "request_tool"
           Monadic::Utils::ProgressiveToolManager.handle_request_tool(
             session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: argument_hash
           )
@@ -3699,9 +3704,9 @@ module GeminiHelper
   # 3b: Look up and invoke the tool function on the app instance or self
   def invoke_gemini_tool_function(app, function_name, argument_hash)
     function_return = if APPS[app] && APPS[app].respond_to?(function_name.to_sym)
-      APPS[app].send(function_name.to_sym, **argument_hash)
+      APPS[app].public_send(function_name.to_sym, **argument_hash)
     elsif respond_to?(function_name.to_sym)
-      send(function_name.to_sym, **argument_hash)
+      public_send(function_name.to_sym, **argument_hash)
     else
       raise NoMethodError, "Function '#{function_name}' not found in app or helper"
     end

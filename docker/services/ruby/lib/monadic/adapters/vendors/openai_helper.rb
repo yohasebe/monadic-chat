@@ -1255,6 +1255,7 @@ module OpenAIHelper
         }
       end
 
+      Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
       res = http.timeout(**timeout_settings).post(target_uri, json: body)
       break if res.status.success?
 
@@ -1964,16 +1965,22 @@ module OpenAIHelper
     skip_function_execution = false
     function_return = nil
 
+    # Run only the tools offered to the model in the latest request.
+    if (refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name))
+      function_return = refusal
+      skip_function_execution = true
+    end
+
     # request_tool has no Ruby method: it is the progressive-disclosure meta-tool.
     # Unlock the requested skill so its tools become visible on the next round.
-    if function_name == "request_tool"
+    if !skip_function_execution && function_name == "request_tool"
       function_return = Monadic::Utils::ProgressiveToolManager.handle_request_tool(
         session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: argument_hash
       )
       skip_function_execution = true
     end
 
-    if function_name == "find_help_topics" && app.to_s == "MonadicHelpOpenAI"
+    if !skip_function_execution && function_name == "find_help_topics" && app.to_s == "MonadicHelpOpenAI"
       obj["help_topics_call_count"] = obj["help_topics_call_count"].to_i + 1
       call_count = obj["help_topics_call_count"]
 
@@ -2016,9 +2023,9 @@ module OpenAIHelper
         end
 
         if argument_hash.empty?
-          function_return = APPS[app].send(function_name.to_sym)
+          function_return = APPS[app].public_send(function_name.to_sym)
         else
-          function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+          function_return = APPS[app].public_send(function_name.to_sym, **argument_hash)
         end
 
         Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{function_name} returned: #{function_return.to_s[0..500]}" }

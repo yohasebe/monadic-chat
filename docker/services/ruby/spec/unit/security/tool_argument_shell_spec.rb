@@ -61,7 +61,7 @@ RSpec.describe "tool arguments never reach a shell" do
 
     it "refuses an execution command that is not an interpreter name" do
       ["python; touch PWNED", "$(touch PWNED)", "`touch PWNED`", "/bin/sh -c x; y", ""].each do |command|
-        result = app.send_code(code: "print(1)", command: command, extension: "py", max_retries: 0)
+        result = app.send(:send_code, code: "print(1)", command: command, extension: "py", max_retries: 0)
         expect(result).to start_with("Error: Invalid execution command")
       end
       expect(calls).to be_empty
@@ -69,14 +69,14 @@ RSpec.describe "tool arguments never reach a shell" do
 
     it "refuses an extension that is not letters and digits" do
       ["py; touch PWNED", "py $(touch PWNED)", "../x", "py\nx"].each do |extension|
-        result = app.send_code(code: "print(1)", command: "python", extension: extension, max_retries: 0)
+        result = app.send(:send_code, code: "print(1)", command: "python", extension: extension, max_retries: 0)
         expect(result).to start_with("Error: Invalid file extension")
       end
       expect(calls).to be_empty
     end
 
     it "runs docker with an argv array, the command split into its own arguments" do
-      result = app.send_code(code: "print(1)", command: "python3 -u", extension: "py", max_retries: 0)
+      result = app.send(:send_code, code: "print(1)", command: "python3 -u", extension: "py", max_retries: 0)
       expect(calls.size).to eq(2), "send_code returned #{result.inspect} before running docker"
       copy, exec = calls
       expect(copy).to be_an(Array)

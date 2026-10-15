@@ -318,7 +318,7 @@ RSpec.describe "Jupyter Notebook Grok Integration", :e2e, :no_api do
     end
     
     it "writes content to files" do
-      app.write_to_file(filename: "output.txt", content: "New content")
+      app.send(:write_to_file, filename: "output.txt", content: "New content")
       
       expect(File.exist?(File.join(data_dir, "output.txt"))).to be true
       expect(File.read(File.join(data_dir, "output.txt"))).to eq("New content")

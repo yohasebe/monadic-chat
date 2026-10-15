@@ -245,7 +245,7 @@ RSpec.describe 'Tool input boundaries' do
       expect(helper.write_file_to_shared_folder(filepath: 'report.txt', content: 'overwrite')[:success]).to be(false)
       writer = Class.new { include MonadicHelper }.new
       stub_const('MonadicApp::LOCAL_SHARED_VOL', @root)
-      expect(writer.write_to_file(filename: 'report', extension: 'txt', text: 'overwrite')).to start_with('Error')
+      expect(writer.send(:write_to_file, filename: 'report', extension: 'txt', text: 'overwrite')).to start_with('Error')
       expect(File.read(target)).to eq('kept')
     end
 

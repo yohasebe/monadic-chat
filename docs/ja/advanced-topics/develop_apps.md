@@ -18,6 +18,7 @@ Ruby で書くツールのメソッドは、アプリの名前からプロバイ
 **ツールの要件**：
 - システムプロンプトで触れるツールには、どれも `define_tool` のブロックか、取り込んだツールのグループが必要です。
 - `define_tool` のパラメーターは、Ruby のメソッドのキーワード引数と一致させます。
+- ツールの Ruby のメソッドは public にします。Monadic Chat が実行するのは、そのリクエストでモデルに渡したツールだけで、それ以外の名前の呼び出しにはモデルにエラーを返します。
 
 ### ファイル構成パターン :id=file-structure-patterns
 
@@ -323,7 +324,9 @@ send_command(command: "ls", container: "python", success_with_output: "Files in 
 
 Python コンテナでは、共有フォルダの `scripts` フォルダが、システムのフォルダの後ろで `PATH` に入っているので、そこに置いたスクリプトを名前で実行できます。
 
-?> `send_command` は、モデルに直接呼ばせず、まず引数を確かめるツールのメソッドから呼んでください。引数がおかしいとき、モデルにわかりやすいメッセージが届きます。
+Ruby 側（`container: "ruby"`）で動くのは、Monadic Chat に付属の Ruby スクリプトだけです。
+
+?> `send_command` と `send_code` は `MonadicApp` の private のメソッドです。まず引数を確かめるツールのメソッドから呼んでください。引数がおかしいとき、モデルにわかりやすいメッセージが届きます。
 
 ### プログラム・コードの実行
 

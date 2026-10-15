@@ -24,6 +24,7 @@
   * [Test Quick Reference](test_quickref.md)
   * [Testing Guide](testing.md)
   * [Anti-Pattern Lints](developer/anti_pattern_lints.md)
+  * [Tool Dispatch](developer/tool_dispatch.md)
 
 * 📦 Feature Documentation
   * [Auto Forge Internals](auto_forge_internals.md)

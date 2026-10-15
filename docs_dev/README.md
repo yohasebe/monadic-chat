@@ -36,6 +36,7 @@ Test infrastructure and procedures:
 - **[Test Quick Reference](test_quickref.md)** - Quick reference for running tests
 - **[Testing Guide](testing.md)** - Testing philosophy and best practices
 - **[Anti-Pattern Lints](developer/anti_pattern_lints.md)** - CI lint rules and the safe helpers they pair with
+- **[Tool Dispatch](developer/tool_dispatch.md)** - Which tool calls run and how they are called
 
 ### Feature Documentation
 In-depth documentation of specific features:

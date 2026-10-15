@@ -116,4 +116,7 @@ module MonadicHelper
     # Keep as fallback for any unexpected errors - maintaining backward compatibility
     "Error: The code could not be executed.\n#{e}"
   end
+
+  # Not a tool: called only from the implementations of declared tools.
+  private :write_to_file
 end

@@ -30,7 +30,7 @@ RSpec.describe "The Python container's PATH" do
 
     sent = nil
     allow(MonadicApp).to receive(:capture_command) { |cmd, **| sent = cmd; ["", "", 0] }
-    MonadicApp.new.send_command(command: "command -v ls own_tool", container: "python")
+    MonadicApp.new.send(:send_command, command: "command -v ls own_tool", container: "python")
 
     bash_command = Shellwords.split(sent).last # docker exec ... bash -c <this>
     out, = Open3.capture2("bash", "-c", bash_command)

@@ -20,7 +20,7 @@ module Monadic
 
       # Keyword argument interface matching GPT5CodexAgent pattern
       def call_claude_code(prompt:, app_name: 'ClaudeCodeAgent', max_tokens: 8000, temperature: 0.3, reasoning_effort: 'medium', &block)
-        claude_code_agent(prompt, app_name, max_tokens: max_tokens, temperature: temperature, reasoning_effort: reasoning_effort, &block)
+        run_claude_code_agent(prompt, app_name, max_tokens: max_tokens, temperature: temperature, reasoning_effort: reasoning_effort, &block)
       end
 
       # Build prompt from structured parameters (matching GPT5CodexAgent pattern)
@@ -41,7 +41,9 @@ module Monadic
         prompt_parts.join("\n\n")
       end
 
-      def claude_code_agent(prompt, app_name = 'ClaudeCodeAgent', max_tokens: 8000, temperature: 0.3, reasoning_effort: 'medium', &block)
+      # Named apart from AutoForge's `claude_code_agent` tool (task:, context:,
+      # files:) so extending an app with this module does not replace the tool.
+      def run_claude_code_agent(prompt, app_name = 'ClaudeCodeAgent', max_tokens: 8000, temperature: 0.3, reasoning_effort: 'medium', &block)
         # Check if we have the necessary methods (from ClaudeHelper or compatible module)
         unless respond_to?(:send_query)
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]

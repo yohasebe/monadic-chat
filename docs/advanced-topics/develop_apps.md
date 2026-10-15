@@ -18,6 +18,7 @@ Tool methods written in Ruby go in a module named after the app without the prov
 **Tool requirements**:
 - Every tool the system prompt mentions needs a `define_tool` block or an imported tool group.
 - The parameters of `define_tool` must match the keyword arguments of the Ruby method.
+- The Ruby method of a tool must be public. Monadic Chat runs only the tools given to the model in the request; a call to any other name returns an error to the model.
 
 ### File Structure Patterns :id=file-structure-patterns
 
@@ -323,7 +324,9 @@ Arguments:
 
 In the Python container, the `scripts` folder of the shared folder is on `PATH`, after the system folders, so scripts saved there can be run by name.
 
-?> Call `send_command` from a tool method that checks its arguments first, instead of letting the model call it directly. The model then gets a clear message when an argument is wrong.
+On the Ruby side (`container: "ruby"`), only the Ruby scripts that come with Monadic Chat run.
+
+?> `send_command` and `send_code` are private methods of `MonadicApp`: call them from a tool method that checks its arguments first. The model then gets a clear message when an argument is wrong.
 
 ### Execute Program Code
 

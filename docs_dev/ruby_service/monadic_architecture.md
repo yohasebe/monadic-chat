@@ -24,7 +24,6 @@ The `session_context` group (`lib/monadic/shared_tools/session_context.rb`) and 
 | `system_prompt_injector.rb` (`__app_is_monadic?`) | Selects the monadic variant of the TTS instruction-mode addendum |
 | `streaming_handler.rb` | No TTS sentinel hold-back for monadic apps |
 | `claude_helper.rb` | No thinking when the model supports structured outputs |
-| `deepseek_helper.rb` | Wraps the user message with `monadic_unit` (`app_extensions.rb`) |
 | `ai_user_agent.rb` | Formats the conversation for the AI User with the flag |
 
 `monadic true` adds no tools; the app imports `session_context` or defines its own load and save tools.

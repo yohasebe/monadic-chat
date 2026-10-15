@@ -110,14 +110,10 @@ module DeepSeekHelper
       "messages" => messages
     }
 
-    # V4 models default to thinking=enabled on the API side, which can consume
-    # the entire max_tokens budget on chain-of-thought and leave content empty.
-    # send_query is a non-streaming probe (used by SecondOpinion / AI User /
-    # ContextExtractor) that wants the final answer directly, so disable
-    # thinking explicitly. The retired pre-V4 generation (API shut down
-    # 2026-07-24; ids kept here only for backward-compat branches)
-    # are unaffected.
-    if model.to_s.include?("deepseek-v4")
+    # Models with a thinking switch think by default on the API side, which can
+    # use the whole max_tokens budget and leave content empty. send_query
+    # (Second Opinion, AI User, context extraction) wants the answer directly.
+    if deepseek_thinking_switch?(model)
       body["thinking"] = { "type" => "disabled" }
     end
     
@@ -211,30 +207,17 @@ module DeepSeekHelper
     if role != "tool"
       message = obj["message"].to_s
 
-      # If the app is monadic, the message is passed through the monadic_map function
-      if obj["monadic"].to_s == "true" && message != ""
-        if message != ""
-          APPS[app].methods
-          message = APPS[app].monadic_unit(message)
-        end
-      end
-
-      # HTML is generated from the original message, not the monadic version
-      html = if obj["message"] != ""
-               markdown_to_html(obj["message"])
-             else
-               obj["message"]
-             end
-
       if message != "" && role == "user"
         res = { "type" => "user",
                 "content" => {
                   "mid" => request_id,
                   "role" => role,
                   "text" => obj["message"],
-                  "html" => markdown_to_html(obj["message"]),
-                  "lang" => detect_language(obj["message"])
+                  "html" => markdown_to_html(obj["message"], math: obj["math"]),
+                  "lang" => detect_language(message),
+                  "app_name" => obj["app_name"]
                 } }
+        res["content"]["images"] = obj["images"] if obj["images"].is_a?(Array)
         block&.call res
 
         # Check if this user message was already added by websocket.rb (for context extraction)
@@ -782,42 +765,34 @@ module DeepSeekHelper
     })
   end
 
+  # True when model_spec.js gives the model a thinking switch
+  # (`reasoning_content: ["disabled", "enabled"]`).
+  def deepseek_thinking_switch?(model)
+    Array(Monadic::Utils::ModelSpec.get_model_property(model.to_s, "reasoning_content")).map(&:to_s).include?("enabled")
+  end
+
+  # True when this request runs with thinking on.
+  def deepseek_thinking_on?(obj)
+    deepseek_thinking_switch?(obj["model"]) && obj["reasoning_content"].to_s != "disabled"
+  end
+
   def configure_deepseek_reasoning(body, obj, is_json, role)
     model = obj["model"].to_s
-    is_v4_model = model.include?("deepseek-v4")
-    is_legacy_reasoner = model.include?("reasoner") || model.include?("-r1")
 
-    if is_v4_model
-      # V4 models use thinking.type parameter (API default: enabled).
-      # Map user's reasoning_content UI setting ("disabled"/"enabled") to thinking.type.
-      reasoning_setting = obj["reasoning_content"].to_s
-      thinking_type = reasoning_setting == "disabled" ? "disabled" : "enabled"
+    if deepseek_thinking_switch?(model)
+      # thinking.type follows the reasoning_content setting (API default: enabled).
+      thinking_type = deepseek_thinking_on?(obj) ? "enabled" : "disabled"
       body["thinking"] = { "type" => thinking_type }
 
       if thinking_type == "enabled"
         effort = obj["reasoning_effort"].to_s
-        body["thinking"]["reasoning_effort"] = effort if %w[high max].include?(effort)
+        levels = Array(Monadic::Utils::ModelSpec.get_model_property(model, "reasoning_effort")).map(&:to_s)
+        body["thinking"]["reasoning_effort"] = effort if levels.include?(effort)
       end
+    end
 
-      if is_json && role != "tool"
-        body["response_format"] ||= { "type" => "json_object" }
-      end
-    elsif is_legacy_reasoner
-      body.delete("temperature")
-      body.delete("presence_penalty")
-      body.delete("frequency_penalty")
-
-      body["messages"] = body["messages"].map.with_index do |msg, idx|
-        msg["content"] = msg["content"]&.sub(/---\n\n/, "") || msg["content"]
-        if msg["role"] == "assistant" && idx < body["messages"].length - 1
-          msg.delete("reasoning_content")
-        end
-        msg
-      end
-    else
-      if is_json && role != "tool"
-        body["response_format"] ||= { "type" => "json_object" }
-      end
+    if is_json && role != "tool"
+      body["response_format"] ||= { "type" => "json_object" }
     end
   end
 
@@ -993,21 +968,11 @@ module DeepSeekHelper
       !valid_tool_names.include?(tc.dig("function", "name"))
     end
 
-    if invalid_calls.any? && call_depth < 1
+    # An unknown name is not retried here: like every provider, the call gets
+    # an error result, which the model sees in the next round.
+    if invalid_calls.any?
       invalid_names = invalid_calls.map { |tc| tc.dig("function", "name") }.join(", ")
-      DebugHelper.debug("DeepSeek: Invalid function name(s) detected: #{invalid_names}. Triggering retry.", category: :api, level: :warn)
-
-      correction_message = "Error: The function name '#{invalid_names}' is not valid. " \
-                           "You must use the exact function name from this list: #{valid_tool_names.join(', ')}. " \
-                           "Please call the correct function with the proper name."
-
-      session[:messages] << {
-        "role" => "user",
-        "text" => correction_message,
-        "active" => true
-      }
-
-      return api_request("user", session, call_depth: call_depth + 1, &block)
+      DebugHelper.debug("DeepSeek: Unknown function name(s) in DSML: #{invalid_names}", category: :api, level: :warn)
     end
 
     text_result["choices"][0]["message"]["tool_calls"] = tool_calls
@@ -1133,10 +1098,7 @@ module DeepSeekHelper
         end
       }
 
-      model_name = obj["model"] || ""
-      is_legacy_reasoner = model_name.include?("reasoner") || model_name.include?("-r1")
-      is_v4_thinking = model_name.include?("deepseek-v4") && obj["reasoning_content"].to_s != "disabled"
-      if is_legacy_reasoner || is_v4_thinking
+      if deepseek_thinking_on?(obj)
         reasoning_content = text_result&.dig("choices", 0, "message", "reasoning_content")
         if reasoning_content && !reasoning_content.empty?
           assistant_msg["reasoning_content"] = reasoning_content

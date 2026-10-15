@@ -45,7 +45,7 @@ Images are sent only as JPEG, PNG, GIF or WebP; other attachments (PDFs) are dro
 The model sometimes writes tool calls as DSML text (`<｜DSML｜function_calls>`, `<｜DSML｜invoke name="…">`, `<｜DSML｜param name="…">`) instead of `tool_calls`.
 
 - While streaming, fragments that contain DSML are not shown. The stream stops early when there are more than 2 `function_calls` blocks, or more than 3 `invoke` tags without a closing tag.
-- After the stream, the content is normalized (fullwidth `｜` → `|`, `</|DSML|tag>` → `<|DSML|/tag>`, whitespace between tags) and parsed into `tool_calls` with generated ids. On the first round, a call to a tool name that is not among the app's tools (and the Tavily tools when web search is on) adds a user message listing the valid names to the session and retries.
+- After the stream, the content is normalized (fullwidth `｜` → `|`, `</|DSML|tag>` → `<|DSML|/tag>`, whitespace between tags) and parsed into `tool_calls` with generated ids. A call to a tool name that is not among the app's tools is logged and dispatched like any other call; it gets an error result, as with the other providers. Nothing is added to the conversation.
 - Malformed DSML (the same counts as above) is retried up to 4 times, waiting 1, 2, 3, 4 seconds and showing `RETRYING TOOL CALL (n/4)`. After that the user gets a "Tool Call Issue" notice and the DSML tags are removed from the text.
 - DSML that yields no valid call is removed from the text.
 - Tavily calls written as a fenced JSON block are also parsed (`parse_deepseek_json_function_call`).

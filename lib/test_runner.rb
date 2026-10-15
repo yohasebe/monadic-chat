@@ -132,8 +132,12 @@ class TestRunner
     # Set other environment variables
     ENV['API_TIMEOUT'] = timeout.to_s if timeout
 
-    # Run each suite
-    suites.each do |suite|
+    # Providers for the provider-matrix specs
+    providers = Array(@profile['providers'])
+    ENV['PROVIDERS'] = providers.join(',') unless providers.empty?
+
+    # Run each suite; every suite runs, and the result is false if any failed
+    results = suites.map do |suite|
       puts "\n=== Running #{suite} tests ==="
       run_suite(suite, format, save_logs)
     end
@@ -143,6 +147,8 @@ class TestRunner
       puts "\n📄 Generating test reports..."
       generate_reports
     end
+
+    results.all?
   end
 
   def execute_suite
@@ -164,12 +170,14 @@ class TestRunner
       set_api_level_env(@options['api_level'])
     end
 
-    run_suite(suite_name, format, save_logs)
+    ok = run_suite(suite_name, format, save_logs)
 
     # Generate HTML report if logs were saved (legacy mode only)
     if save_logs && @run_id && !@output_dir
       generate_reports
     end
+
+    ok
   end
 
   private
@@ -227,13 +235,13 @@ class TestRunner
         json_file = File.join(@output_dir, "#{@suite_output_name}.json")
       elsif @run_id
         # Legacy mode: save with run_id prefix
-        results_dir = File.expand_path('../../../tmp/test_results', __dir__)
+        results_dir = File.expand_path('../tmp/test_results', __dir__)
         FileUtils.mkdir_p(results_dir)
         json_file = File.join(results_dir, "#{@run_id}_#{suite}.json")
       end
     end
 
-    Dir.chdir('docker/services/ruby') do
+    ok = Dir.chdir('docker/services/ruby') do
       # Build format options
       format_opts = if save_logs && json_file
                       "--format #{format} --format json --out #{json_file}"
@@ -269,7 +277,7 @@ class TestRunner
       puts "📝 Test results saved to: #{json_file}"
     end
 
-    true
+    ok != false
   rescue => e
     warn "Error running #{suite} tests: #{e.message}"
     false
@@ -291,7 +299,7 @@ class TestRunner
   def generate_reports
     return unless @run_id
 
-    results_dir = File.expand_path('../../../tmp/test_results', __dir__)
+    results_dir = File.expand_path('../tmp/test_results', __dir__)
 
     # Find all JSON files for this run_id
     json_files = Dir.glob(File.join(results_dir, "#{@run_id}_*.json"))

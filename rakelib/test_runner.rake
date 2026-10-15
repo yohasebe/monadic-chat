@@ -14,40 +14,23 @@ namespace :test do
   task :run, [:suite, :options] do |_t, args|
     require_relative '../lib/test_runner'
     runner = TestRunner.new(args[:suite], args[:options])
-    runner.execute
+    exit 1 unless runner.execute
   end
 
   desc "Run tests using predefined profile from config/test/test-config.yml (fallback: .test-config.yml)"
   task :profile, [:name] do |_t, args|
-    require 'yaml'
     require_relative '../lib/test_runner'
-    # Prefer new path, fall back to legacy path for backward compatibility
-    config_path = ENV['TEST_PROFILE_PATH'] || 'config/test/test-config.yml'
-    unless File.exist?(config_path)
-      legacy = '.test-config.yml'
-      if File.exist?(legacy)
-        config_path = legacy
-        puts "[test:profile] Using legacy profile path: #{legacy}"
-      else
-        puts "Profile config not found: #{config_path} (or #{legacy})"
-        exit 1
-      end
-    end
-    cfg = YAML.safe_load(File.read(config_path)) || {}
-    profiles = cfg['profiles'] || {}
-    profile = profiles[args[:name]]
-    if profile.nil?
-      puts "Profile '#{args[:name]}' not found"
-      puts "Available profiles: #{profiles.keys.join(', ')}"
+    config = TestRunner.load_config
+    unless config
+      puts "Profile config not found: #{ENV['TEST_PROFILE_PATH'] || 'config/test/test-config.yml'} (or .test-config.yml)"
       exit 1
     end
-    suites = profile['suites'] || []
-    common_opts = profile.reject { |k, _| k == 'suites' }
-    suites.each do |suite|
-      options_str = common_opts.map { |k, v| "#{k}=#{Array(v).join(',')}" }.join(',')
-      Rake::Task['test:run'].invoke(suite, options_str)
-      Rake::Task['test:run'].reenable
+    runner = TestRunner.new(nil)
+    unless runner.load_profile(args[:name])
+      puts "Available profiles: #{(config['profiles'] || {}).keys.join(', ')}"
+      exit 1
     end
+    exit 1 unless runner.execute
   end
 
   desc "List recent test results"

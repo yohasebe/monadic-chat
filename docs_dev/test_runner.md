@@ -98,7 +98,7 @@ Troubleshooting
 Profiles (examples)
 - Define reusable profiles in `config/test/test-config.yml` (fallback: `.test-config.yml`) and run with `rake test:profile[ci]`.
 
-A profile lists suites and the options above (`api_level`, `format`, `save`); other keys are ignored.
+A profile lists `suites` and may set `api_level`, `format`, `save`, `timeout` (exported as `API_TIMEOUT`) and `providers` (exported as `PROVIDERS` for the provider-matrix specs). Every suite runs; `rake test:profile` and `rake test:run` exit with status 1 when a suite fails. Results saved without an output directory go to `tmp/test_results/` in the repository.
 
 Example:
 ```

@@ -10,7 +10,6 @@ profiles:
     api_level: none
     format: progress
     save: false
-    docker: off
     timeout: 30
 
   # Standard development workflow (unit + integration, no API calls)
@@ -20,9 +19,6 @@ profiles:
     api_level: none
     format: documentation
     save: true
-    html: true
-    text: true
-    docker: auto
     timeout: 60
 
   # Pre-commit verification (same as dev but with detailed output)
@@ -32,9 +28,6 @@ profiles:
     api_level: none
     format: documentation
     save: true
-    html: true
-    text: true
-    docker: auto
     timeout: 60
 
   # CI pipeline (includes real API tests, no media)
@@ -45,9 +38,6 @@ profiles:
     providers: [openai, anthropic]
     format: documentation
     save: true
-    html: true
-    text: true
-    docker: auto
     timeout: 120
 
   # Full test suite (includes media - slow)
@@ -58,9 +48,6 @@ profiles:
     providers: [openai, anthropic, gemini]
     format: documentation
     save: true
-    html: true
-    text: true
-    docker: auto
     timeout: 180
 
   # Smoke test (minimal real API verification)
@@ -71,9 +58,6 @@ profiles:
     providers: [openai, anthropic]
     format: progress
     save: true
-    html: false
-    text: true
-    docker: auto
     timeout: 90
 
 # API Level Definitions
@@ -87,7 +71,3 @@ profiles:
 # - api:         Real API tests (requires API keys)
 # - e2e:         End-to-end tests (full stack)
 
-# Docker Options
-# - auto: Start if needed, stop after tests
-# - on:   Require Docker to be running
-# - off:  Skip Docker-dependent tests

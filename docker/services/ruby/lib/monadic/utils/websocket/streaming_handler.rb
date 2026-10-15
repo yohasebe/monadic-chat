@@ -16,11 +16,6 @@ require_relative '../tts_marker_vocabulary'
 require_relative '../tts_instruction_extractor'
 
 module WebSocketHelper
-  # Inactive messages longer than this threshold (in characters) are truncated
-  # to save memory. Original text is preserved for potential reactivation.
-  INACTIVE_MSG_TRUNCATION_THRESHOLD = 500
-  INACTIVE_MSG_PREVIEW_LENGTH = 200
-
   # Background thread for token counting using native tokenizer.
   # @param text [String] Text to count tokens for
   # @param encoding_name [String] Encoding name (default: o200k_base)
@@ -81,6 +76,15 @@ module WebSocketHelper
     encoding_name = "o200k_base"
 
     begin
+      # A message that carries its full text in "original_text" (a shortened
+      # copy in "text") gets the full text back before it is counted.
+      messages.each do |m|
+        next unless m["original_text"]
+
+        m["text"] = m.delete("original_text")
+        m["tokens"] = nil
+      end
+
       # Batch process messages that need token counting to reduce HTTP requests
       messages_to_count = []
       messages.each do |m|
@@ -95,7 +99,8 @@ module WebSocketHelper
           messages_to_count << m
         end
 
-        # Mark all messages as active initially
+        # A message counted for the first time starts active. A counted one
+        # keeps the flag the provider helper set when it chose the history.
         m["active"] = true
       end
 
@@ -117,27 +122,8 @@ module WebSocketHelper
         break if context_size.positive? && active_messages.size <= context_size
       end
 
-      # Truncate content of inactive messages to reduce memory footprint.
-      # Original text is preserved in "original_text" so it can be restored
-      # if the message is reactivated (e.g., when token limits change).
-      messages.each do |m|
-        next if m["active"]
-        next if m["role"] == "system"
-        next if m["original_text"] # already truncated
-        next unless m["text"].is_a?(String) && m["text"].size > INACTIVE_MSG_TRUNCATION_THRESHOLD
-
-        m["original_text"] = m["text"]
-        m["text"] = m["text"][0, INACTIVE_MSG_PREVIEW_LENGTH] + "\n\n[... content truncated ...]"
-        m["tokens"] = nil
-      end
-
-      # Restore original text for messages that became active again
-      messages.each do |m|
-        next unless m["active"] && m["original_text"]
-
-        m["text"] = m.delete("original_text")
-        m["tokens"] = nil # will be recounted in next cycle
-      end
+      # Inactive messages keep their whole text: providers choose what to
+      # send, and the browser, exports and reloads show the whole message.
 
       # Calculate total token counts for different roles
       count_total_system_tokens = messages.filter { |m| m["role"] == "system" }.sum { |m| m["tokens"] || 0 }

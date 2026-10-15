@@ -283,6 +283,50 @@ RSpec.describe WebSocketHelper do
       expect(result[:count_total_active_tokens]).to eq(500)
     end
     
+    it 'keeps the whole text of messages that become inactive' do
+      long = "x" * 2000
+      app.session[:messages] = [
+        { "text" => long, "role" => "user", "tokens" => 900, "active" => true },
+        { "text" => "recent", "role" => "user", "tokens" => 200, "active" => true }
+      ]
+      obj = { "max_input_tokens" => "1000", "context_size" => "10" }
+
+      app.check_past_messages(obj)
+
+      expect(app.session[:messages][0]["active"]).to be false
+      expect(app.session[:messages][0]["text"]).to eq(long)
+      expect(app.session[:messages][0]).not_to have_key("original_text")
+    end
+
+    it 'gives a shortened message its full text back' do
+      app.session[:messages] = [
+        { "text" => "short [...]", "original_text" => "the full text", "role" => "user", "tokens" => 900, "active" => false },
+        { "text" => "recent", "role" => "user", "tokens" => 200, "active" => true }
+      ]
+      allow(MonadicApp::TOKENIZER).to receive(:count_tokens).and_return(5)
+      obj = { "max_input_tokens" => "1000", "context_size" => "10" }
+
+      app.check_past_messages(obj)
+
+      expect(app.session[:messages][0]["text"]).to eq("the full text")
+      expect(app.session[:messages][0]).not_to have_key("original_text")
+    end
+
+    it 'counts a shortened message by its full text' do
+      app.session[:messages] = [
+        { "text" => "short", "original_text" => "y" * 1000, "role" => "user", "active" => false }
+      ]
+      allow(MonadicApp::TOKENIZER).to receive(:count_tokens) { |text, _enc| text.length }
+      obj = { "max_input_tokens" => "100", "context_size" => "0" }
+
+      result = app.check_past_messages(obj)
+
+      expect(app.session[:messages][0]["tokens"]).to eq(1000)
+      expect(result[:count_total_active_tokens]).to eq(0)
+      expect(app.session[:messages][0]["active"]).to be false
+      expect(result[:count_all_tokens]).to eq(1000)
+    end
+
     it 'truncates messages based on context_size' do
       # Create many messages
       20.times do |i|

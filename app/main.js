@@ -3951,7 +3951,17 @@ function loadSettings() {
   return envPath ? readEnvFile(envPath) : {};
 }
 
+// The settings carry the API keys, so only the Settings window's own page
+// may read or save them. The main window shares its preload but shows
+// content from outside the app.
+function isSettingsSender(event) {
+  return !!(settingsWindow && !settingsWindow.isDestroyed() &&
+    event.sender === settingsWindow.webContents &&
+    event.senderFrame === event.sender.mainFrame);
+}
+
 ipcMain.on('request-settings', (event) => {
+  if (!isSettingsSender(event)) return;
   sendSettingsToRenderer(event.sender);
 });
 
@@ -4076,7 +4086,8 @@ ipcMain.on('change-ui-language', (_event, language) => {
 
 // Handle settings save from settings window. Returns { success } so the
 // renderer only shows the saved state once the env file is actually written.
-ipcMain.handle('save-settings', (_event, data) => {
+ipcMain.handle('save-settings', (event, data) => {
+  if (!isSettingsSender(event)) return { success: false };
   // Check if interface language has changed
   const envPath = getEnvPath();
   const oldConfig = envPath ? readEnvFile(envPath) : {};

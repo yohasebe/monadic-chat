@@ -90,7 +90,8 @@ post "/library/import" do
   options[:license] = params["libraryLicense"].to_s unless params["libraryLicense"].to_s.strip.empty?
 
   # Persist the upload under the shared volume so the python container
-  # can read it via the same `/monadic/data` mount.
+  # can read it via the same `/monadic/data` mount. The copy is used only
+  # while this import runs and is deleted when it ends, however it ends.
   data_root = Monadic::Utils::Environment.data_path
   imports_dir = File.join(data_root, 'library', 'imports')
   FileUtils.mkdir_p(imports_dir)
@@ -158,6 +159,8 @@ post "/library/import" do
         import_id, stage: 'error', finished_at: Time.now,
         error: "Library import failed: #{e.class.name} - #{e.message}"
       )
+    ensure
+      FileUtils.rm_f(dest_path)
     end
   end
 

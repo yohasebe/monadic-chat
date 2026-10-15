@@ -60,7 +60,7 @@ Each Knowledge Base entry belongs either to the app (and provider) it was saved 
 4. Monadic Chat finds the most relevant sections, first by document and then by section
 5. The LLM answers based on the sections it receives
 
-Imported files are also kept in `~/monadic/data/library/imports/`.
+During an import, the file is copied to `~/monadic/data/library/imports/`; the copy is deleted when the import ends.
 
 ## Use in Monadic Chat Help :id=use-in-monadic-help
 

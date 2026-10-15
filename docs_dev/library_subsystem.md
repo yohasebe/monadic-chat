@@ -84,7 +84,7 @@ PDFs go to the extractor service (`/v1/extract`, layout analysis and OCR) when `
 `POST /library/import` (`lib/monadic/routes/library_import_routes.rb`), form fields `libraryFile`, `libraryTitle`, `libraryLicense`, `libraryScopeApp`:
 
 1. Rejects the upload when its size cannot be read or exceeds `LIBRARY_IMPORT_MAX_BYTES` (default 100 MiB).
-2. Writes it to `<data>/library/imports/<epoch>_<hex>_<filename>`. The file stays there after the import.
+2. Writes it to `<data>/library/imports/<epoch>_<hex>_<filename>`. The worker thread deletes the file when the import ends, whether it succeeds or fails (`ensure`).
 3. Registers an `ImportTracker` entry and returns `202` with `import_id` and `status_url`.
 4. A background thread runs `FileImporter.build_conversation` and `Manager.import_conversation`.
 

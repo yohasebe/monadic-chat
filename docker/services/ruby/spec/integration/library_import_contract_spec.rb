@@ -137,6 +137,40 @@ RSpec.describe '/library/import contract', :integration do
     end
   end
 
+  describe 'the copy in library/imports' do
+    def imports
+      Dir.glob(File.join(@tmp_data_dir, 'library', 'imports', '*'))
+    end
+
+    it 'is readable while the import runs and deleted when it ends' do
+      seen = nil
+      allow(Monadic::Library::FileImporter).to receive(:build_conversation) do |path:, **|
+        seen = File.read(path)
+        fake_conversation
+      end
+      allow(Monadic::Library::Store).to receive(:new).and_return(instance_double(Monadic::Library::Store))
+      allow(Monadic::Library::Manager).to receive(:import_conversation).and_return(import_result)
+
+      post '/library/import', { 'libraryFile' => Rack::Test::UploadedFile.new(
+        StringIO.new('# Hello'), 'text/markdown', original_filename: 'hello.md'
+      ) }
+
+      expect(seen).to eq('# Hello')
+      expect(imports).to be_empty
+    end
+
+    it 'is deleted when the import fails' do
+      allow(Monadic::Library::FileImporter).to receive(:build_conversation)
+        .and_raise(Monadic::Library::FileImporter::ExtractionError, 'extractor died')
+
+      post '/library/import', { 'libraryFile' => Rack::Test::UploadedFile.new(
+        StringIO.new('x'), 'text/plain', original_filename: 'broken.md'
+      ) }
+
+      expect(imports).to be_empty
+    end
+  end
+
   describe 'rejection paths' do
     it 'returns JSON error when libraryFile is missing' do
       post '/library/import', {}

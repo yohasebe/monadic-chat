@@ -60,7 +60,7 @@ Knowledge Base の各項目は、保存したアプリ（とプロバイダー�
 4. Monadic Chat が、まず文書、次に区切りの順で、いちばん関係の深い区切りを探します
 5. LLM は、受け取った区切りにもとづいて答えます
 
-取り込んだファイルは、`~/monadic/data/library/imports/` にも残ります。
+取り込みの間、ファイルは `~/monadic/data/library/imports/` に写され、取り込みが終わると写しは消えます。
 
 ## Monadic Chat Help での使い方 :id=use-in-monadic-help
 

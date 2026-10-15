@@ -3067,10 +3067,17 @@ function resolveHostSharedRoot() {
   if (os.platform() !== 'win32') {
     return path.join(os.homedir(), 'monadic', 'data');
   }
-  const out = execFileSync('wsl.exe', ['sh', '-c', 'wslpath -w "$HOME/monadic/data"'], { encoding: 'utf8', timeout: 15000 });
-  const folder = out.trim();
-  if (!folder) throw new Error('WSL did not give the shared folder');
-  return folder;
+  return wslMonadicPath('data');
+}
+
+// The Windows path of ~/monadic/<entry> inside WSL, from WSL's own $HOME.
+// entry is one of the fixed names below, never user input.
+function wslMonadicPath(entry) {
+  if (!['data', 'config', 'config/env', 'log'].includes(entry)) throw new Error(`unknown entry: ${entry}`);
+  const out = execFileSync('wsl.exe', ['sh', '-c', `wslpath -w "$HOME/monadic/${entry}"`], { encoding: 'utf8', timeout: 15000 });
+  const found = out.trim();
+  if (!found) throw new Error(`WSL did not give ~/monadic/${entry}`);
+  return found;
 }
 
 function openSharedFolder() {
@@ -3103,9 +3110,7 @@ function openConfigFolder() {
     folderPath = path.join(os.homedir(), 'monadic', 'config');
   } else if (os.platform() === 'win32') {
     try {
-      const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
-      const wslPath = `/home/${path.basename(wslHome)}/monadic/config`;
-      folderPath = execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
+      folderPath = wslMonadicPath('config');
     } catch (error) {
       console.error('Error retrieving WSL path:', error);
       return;
@@ -3133,9 +3138,7 @@ function openLogFolder() {
     folderPath = path.join(os.homedir(), 'monadic', 'log');
   } else if (os.platform() === 'win32') {
     try {
-      const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
-      const wslPath = `/home/${path.basename(wslHome)}/monadic/log`;
-      folderPath = execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
+      folderPath = wslMonadicPath('log');
     } catch (error) {
       console.error('Error retrieving WSL path:', error);
       return;
@@ -3625,9 +3628,8 @@ async function promptForPendingRebuilds() {
 function getEnvPath() {
   if (os.platform() === 'win32') {
     try {
-      const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
-      const wslPath = `/home/${path.basename(wslHome)}/monadic/config/env`;
-      return execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
+      // The same file writeEnvContent narrows with chmod in WSL.
+      return wslMonadicPath('config/env');
     } catch (error) {
       console.error('Error getting WSL path:', error);
       return null;
@@ -3639,11 +3641,19 @@ function getEnvPath() {
 
 // The env file holds API keys: only its owner may read or write it.
 // writeFileSync's mode applies only when it creates the file, so an existing
-// file is narrowed as well (no-op on Windows).
+// file is narrowed as well. On Windows the file is inside WSL (see
+// getEnvPath) and a mode set through the \\wsl$ share does not reach it, so
+// WSL changes it.
 function writeEnvContent(envPath, content) {
     fs.writeFileSync(envPath, content, { encoding: 'utf8', mode: 0o600 });
     if (process.platform !== 'win32') {
         fs.chmodSync(envPath, 0o600);
+        return;
+    }
+    try {
+        execFileSync('wsl.exe', ['--exec', 'sh', '-c', 'chmod 600 "$HOME/monadic/config/env"'], { timeout: 15000, windowsHide: true });
+    } catch (error) {
+        console.error('Could not restrict the env file in WSL:', error.message);
     }
 }
 

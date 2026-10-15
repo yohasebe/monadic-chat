@@ -11,6 +11,7 @@
 // reference text, which names the vault and item. Messages carry the key
 // name and a reason code only.
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
@@ -107,7 +108,9 @@ function classify(stderr) {
 
 // Reads every reference with one `op inject`, so 1Password asks at most once.
 // op inject fails as a whole when any reference fails; only then is each one
-// read on its own, to tell which keys failed and why.
+// read on its own, to tell which keys failed and why. Each of those reads is
+// an `op inject` of that reference alone, so the reference goes on stdin and
+// never in argv, where other processes can list it.
 async function resolveReferences(refs, { op = locateOp(), runner = run } = {}) {
   const keys = Object.keys(refs);
   const values = {};
@@ -118,14 +121,18 @@ async function resolveReferences(refs, { op = locateOp(), runner = run } = {}) {
     return { values, failures };
   }
 
-  const template = keys.map(key => `${key}={{ ${refs[key]} }}\n`).join('');
+  // Each value sits between two copies of a random boundary, so a value
+  // that spans lines is kept whole.
+  const boundary = `--monadic-${crypto.randomBytes(16).toString('hex')}--`;
+  const template = keys.map(key => `${boundary}${key}\n{{ ${refs[key]} }}\n`).join('') + boundary;
   const all = await runner(op, ['inject'], template);
   if (all.code === 0) {
-    for (const line of all.stdout.split('\n')) {
-      const eq = line.indexOf('=');
-      if (eq <= 0) continue;
-      const key = line.slice(0, eq);
-      const value = line.slice(eq + 1).replace(/\r$/, '');
+    for (const part of all.stdout.split(boundary)) {
+      const nl = part.indexOf('\n');
+      if (nl <= 0) continue;
+      const key = part.slice(0, nl);
+      // Only the newline the template put after the value comes off.
+      const value = part.slice(nl + 1).replace(/\n$/, '');
       if (refs[key] && value) values[key] = value;
     }
     for (const key of keys) if (!values[key]) failures[key] = 'failed';
@@ -133,7 +140,7 @@ async function resolveReferences(refs, { op = locateOp(), runner = run } = {}) {
   }
 
   for (const key of keys) {
-    const one = await runner(op, ['read', '--no-newline', refs[key]], '');
+    const one = await runner(op, ['inject'], `{{ ${refs[key]} }}`);
     if (one.code === 0 && one.stdout) values[key] = one.stdout;
     else failures[key] = classify(one.stderr);
   }

@@ -12,18 +12,20 @@ const {
   resolveReferences, SecretCache
 } = require('../../app/op_references');
 
-// A fake op: `inject` turns `KEY={{ op://V/ITEM/f }}` lines into
-// `KEY=value-ITEM`; `read` prints `value-ITEM`. A reference whose item is
-// "missing" fails the way op does, with the reference in the message.
-// A file named "locked" beside it makes every call fail as not signed in.
-// Each call is appended to calls.log beside it. (Files, not environment
-// variables: changes to process.env in a test do not reach spawned children.)
+// A fake op: `inject` replaces each `{{ op://V/ITEM/f }}` in the template on
+// stdin with `value-ITEM`, as op does, and fails when an item is "missing",
+// with the reference in the message. A file named "locked" beside it makes
+// every call fail as not signed in. Each call's command is appended to
+// calls.log beside it, and its whole argv to argv.log. (Files, not
+// environment variables: changes to process.env in a test do not reach
+// spawned children.)
 const FAKE_OP = `#!/usr/bin/env node
 const fs = require('fs');
 const path = require('path');
 const here = path.dirname(process.argv[1]);
-const [cmd, ...rest] = process.argv.slice(2);
+const [cmd] = process.argv.slice(2);
 fs.appendFileSync(path.join(here, 'calls.log'), cmd + '\\n');
+fs.appendFileSync(path.join(here, 'argv.log'), process.argv.slice(2).join(' ') + '\\n');
 const input = fs.readFileSync(0, 'utf8');
 const item = ref => ref.split('/')[3];
 if (fs.existsSync(path.join(here, 'locked'))) {
@@ -31,24 +33,18 @@ if (fs.existsSync(path.join(here, 'locked'))) {
   process.exit(1);
 }
 if (cmd === 'inject') {
-  const out = [];
-  for (const line of input.split('\\n').filter(Boolean)) {
-    const [key, tpl] = line.split('=');
-    const ref = tpl.replace(/[{} ]/g, '');
+  const out = input.replace(/\\{\\{\\s*(op:\\/\\/[^}\\s]+)\\s*\\}\\}/g, (_m, ref) => {
     if (item(ref) === 'missing') {
       process.stderr.write('[ERROR] "' + ref + '" isn\\'t an item');
       process.exit(1);
     }
-    out.push(key + '=value-' + item(ref));
-  }
-  process.stdout.write(out.join('\\n') + '\\n');
-} else if (cmd === 'read') {
-  const ref = rest[rest.length - 1];
-  if (item(ref) === 'missing') {
-    process.stderr.write('[ERROR] "' + ref + '" isn\\'t an item in vault Private');
-    process.exit(1);
-  }
-  process.stdout.write('value-' + item(ref));
+    const special = { multiline: 'first\\nsecond', trailingcr: 'end\\r', cronly: '\\r' };
+    return special[item(ref)] !== undefined ? special[item(ref)] : 'value-' + item(ref);
+  });
+  process.stdout.write(out);
+} else {
+  process.stderr.write('[ERROR] unexpected command ' + cmd);
+  process.exit(1);
 }
 `;
 
@@ -138,7 +134,34 @@ describe('reading references', () => {
     const { values, failures } = await resolveReferences(refs, { op });
     expect(values).toEqual({ OPENAI_API_KEY: 'value-OPENAI', GEMINI_API_KEY: 'value-GEMINI' });
     expect(failures).toEqual({ XAI_API_KEY: 'notFound' });
-    expect(calls()).toEqual(['inject', 'read', 'read', 'read']);
+    expect(calls()).toEqual(['inject', 'inject', 'inject', 'inject']);
+  });
+
+  test('keeps a value that spans lines whole, in one read and in the per-key reads', async () => {
+    const refs = { ...REFS, SERVICE_PASSWORD: 'op://Test/multiline/password' };
+    const together = await resolveReferences(refs, { op });
+    expect(together.values.SERVICE_PASSWORD).toBe('first\nsecond');
+    expect(together.values.OPENAI_API_KEY).toBe('value-OPENAI');
+    expect(calls()).toEqual(['inject']);
+
+    const oneByOne = await resolveReferences({ ...refs, XAI_API_KEY: 'op://Test/missing/credential' }, { op });
+    expect(oneByOne.values.SERVICE_PASSWORD).toBe('first\nsecond');
+  });
+
+  test('keeps a carriage return that belongs to the value', async () => {
+    const refs = { A_PASSWORD: 'op://Test/trailingcr/password', B_PASSWORD: 'op://Test/cronly/password' };
+    const together = await resolveReferences(refs, { op });
+    expect(together.values).toEqual({ A_PASSWORD: 'end\r', B_PASSWORD: '\r' });
+    const oneByOne = await resolveReferences({ ...refs, XAI_API_KEY: 'op://Test/missing/credential' }, { op });
+    expect(oneByOne.values).toEqual({ A_PASSWORD: 'end\r', B_PASSWORD: '\r' });
+  });
+
+  test('never puts a reference in argv', async () => {
+    const refs = { ...REFS, XAI_API_KEY: 'op://Test/missing/credential' };
+    await resolveReferences(refs, { op });
+    const argv = fs.readFileSync(path.join(dir, 'argv.log'), 'utf8');
+    expect(argv.split('\n').filter(Boolean)).toEqual(['inject', 'inject', 'inject', 'inject']);
+    expect(argv).not.toContain('op://');
   });
 
   test('reports a locked 1Password per key, with a code and not op\'s message', async () => {

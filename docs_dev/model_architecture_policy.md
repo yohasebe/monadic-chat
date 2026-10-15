@@ -29,8 +29,8 @@ independent track governs models the provider has scheduled for **sunset**.
 
 > **Mark a model `deprecated: true` with a `successor` as soon as a sunset is
 > announced AND any successor exists — a preview successor is acceptable. Keep
-> the slim entry as a redirect bridge until its `sunset_date` passes, then
-> delete it.**
+> the slim entry as a redirect bridge, also after its `sunset_date` passes, so
+> saved sessions that name the model still move to the successor.**
 
 ### `deprecated: true` is an early-migration switch, not just a label
 
@@ -60,7 +60,7 @@ These are different actions with opposite risk profiles:
   model fails as "unknown model" instead of migrating.
 
 **Rule of thumb:** migrate aggressively (flag the moment a successor exists),
-delete conservatively (only after `sunset_date` passes).
+and keep the deprecated entry as the redirect source.
 
 ## The Concrete OpenAI Rule
 

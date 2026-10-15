@@ -196,21 +196,13 @@ module WebSocketHelper
       when "TTS"
           handle_ws_tts(connection, obj, session)
         when "CANCEL"
-          # Get session ID for targeted broadcasting
-          ws_session_id = Thread.current[:websocket_session_id]
-
           thread&.kill
           thread = nil
           suggestion&.kill
           suggestion = nil
           queue.clear
 
-          cancel_message = { "type" => "cancel" }.to_json
-          if ws_session_id
-            WebSocketHelper.send_to_session(cancel_message, ws_session_id)
-          else
-            WebSocketHelper.broadcast_to_all(cancel_message)
-          end
+          handle_ws_cancel(Thread.current[:websocket_session_id])
         when "PDF_TITLES"
           handle_ws_pdf_titles(connection, obj, session)
         when "DELETE_PDF"
@@ -384,6 +376,19 @@ module WebSocketHelper
       WebSocketHelper.send_to_session(message, session_id)
     else
       WebSocketHelper.broadcast_to_all(message)
+    end
+  end
+
+  # After the reply threads are stopped: speech still being made for the
+  # reply stops too (it starts when the text is done), and the browser is told.
+  def handle_ws_cancel(ws_session_id)
+    stop_tts_threads("CANCEL") if respond_to?(:stop_tts_threads, true)
+
+    cancel_message = { "type" => "cancel" }.to_json
+    if ws_session_id
+      WebSocketHelper.send_to_session(cancel_message, ws_session_id)
+    else
+      WebSocketHelper.broadcast_to_all(cancel_message)
     end
   end
 

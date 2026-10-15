@@ -30,6 +30,6 @@ Workflow Viewer は、選択中のアプリの構成をライブ図解します�
 
 アプリごとに、リクエストできるスキルのグループが決まっています（アプリを作る人は[ツールグループ](../advanced-topics/tool-groups.md)を参照してください）。
 
-- **Knowledge Base 検索**（`library_search`）は、ツール対応アプリ（Privacy Filter のあるアプリと、これを切っているアプリを除く）に条件付きスキルとして自動追加され、Knowledge Base パネルの **Use Knowledge Base for retrieval (this session)** がオンのときに利用可能になります（既定はオフ）。
+- **Knowledge Base 検索**（`library_search`）は、ツール対応アプリ（Privacy Filter のあるアプリと、これを切っているアプリを除く）に条件付きスキルとして自動追加され、Knowledge Base パネルの **Use Knowledge Base for retrieval (this session)** がオンの間は、`request_tool` での要求なしに AI に提示されます（既定はオフ）。
 
 Tools ノードにまったく表示されないスキルグループは、そのアプリでは獲得できません — AI にリクエストを頼んでも成功しません。

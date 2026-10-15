@@ -42,6 +42,7 @@ App-defined tools use the same settings inside `define_tool`: `visibility` (`alw
 - `handle_request_tool` runs the `request_tool` call: the argument may be a group key or a single conditional tool name. It returns `Unlocked: …`, and sends a `tool_unlocked` message to the session's connection.
 - `annotate_request_tool` appends the skill menu (one line per still-locked group, each telling the model to call `request_tool("<key>")`) to the description of `request_tool` in the request.
 - When the session's web search is off, the `web_search_tools` tools are removed, left out of the menu, and cannot be unlocked.
+- The `library_search` tool follows the Knowledge Base toggle (`library_rag_enabled`), however the app imports it and also for apps without progressive metadata: it is added while the toggle is on and removed while it is off. It is never in the menu and cannot be unlocked.
 
 The vendor helpers call `visible_tools` and `annotate_request_tool` when they build the tools of a request.
 

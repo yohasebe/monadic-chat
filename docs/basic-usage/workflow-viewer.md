@@ -30,6 +30,6 @@ When the AI unlocks a skill mid-conversation, the diagram updates automatically,
 
 Each app has its own set of skill groups it can request (for app developers, see [Tool Groups](../advanced-topics/tool-groups.md)).
 
-- **Knowledge Base retrieval** (`library_search`) is added automatically as a conditional skill to tool-capable apps (except apps with the Privacy Filter and apps that turn it off) and becomes usable when **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel is on (off by default).
+- **Knowledge Base retrieval** (`library_search`) is added automatically as a conditional skill to tool-capable apps (except apps with the Privacy Filter and apps that turn it off) and is offered to the AI, without a `request_tool` request, while **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel is on (off by default).
 
 If a skill group does not appear in the Tools node at all, the app cannot acquire it — asking the AI to request it will not succeed.

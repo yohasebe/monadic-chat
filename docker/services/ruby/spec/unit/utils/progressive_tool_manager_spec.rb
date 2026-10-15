@@ -117,23 +117,23 @@ RSpec.describe Monadic::Utils::ProgressiveToolManager do
       bad_settings = {
         "progressive_tools" => {
           provider: :openai,
-          all_tool_names: ["library_search", "request_tool"],
+          all_tool_names: ["notes_search", "request_tool"],
           always_visible: ["request_tool"],
           conditional: [
             {
-              name: "library_search",
-              description: "search KB",
+              name: "notes_search",
+              description: "search notes",
               visibility: :conditional,
-              unlock_conditions: [{ tool_request: "library_search" }],
-              # Malformed: says "Call library_search" without routing through request_tool.
-              unlock_hint: "Call library_search when the user references prior knowledge."
+              unlock_conditions: [{ tool_request: "notes_search" }],
+              # Malformed: says "Call notes_search" without routing through request_tool.
+              unlock_hint: "Call notes_search when the user references their notes."
             }
           ]
         }
       }
       lines = described_class.skill_menu(app_settings: bad_settings, session: {}, app_name: "BadApp")
       expect(lines.size).to eq(1)
-      expect(lines.first).to include('request_tool("library_search")')
+      expect(lines.first).to include('request_tool("notes_search")')
     end
   end
 
@@ -187,6 +187,98 @@ RSpec.describe Monadic::Utils::ProgressiveToolManager do
         session: {}, app_name: app_name, app_settings: app_settings, request_key: "web_search_tools"
       )
       expect(newly).to match_array(web_tools)
+    end
+  end
+
+  # The library_search group follows the Knowledge Base toggle: visible without
+  # unlocking while it is on, hidden and not unlockable while it is off.
+  describe "Knowledge Base toggle gating" do
+    let(:kb_settings) do
+      {
+        "progressive_tools" => {
+          provider: :openai,
+          all_tool_names: ["library_search", "analyze_image", "request_tool"],
+          always_visible: ["request_tool"],
+          conditional: [
+            { name: "library_search", visibility: :conditional,
+              unlock_conditions: [{ tool_request: "library_search" }], unlock_hint: "search the Knowledge Base" },
+            { name: "analyze_image", visibility: :conditional,
+              unlock_conditions: [{ tool_request: "image_analysis" }], unlock_hint: "analyze images" }
+          ]
+        }
+      }
+    end
+    let(:kb_tools) do
+      %w[library_search analyze_image request_tool].map { |n| { "type" => "function", "function" => { "name" => n } } }
+    end
+    let(:kb_on) { { parameters: { "library_rag_enabled" => true } } }
+    let(:kb_off) { { parameters: { "library_rag_enabled" => false } } }
+
+    def kb_visible(session)
+      described_class.visible_tools(
+        app_name: "KbApp", session: session, app_settings: kb_settings, default_tools: kb_tools
+      ).map { |t| t["function"]["name"] }
+    end
+
+    it "shows library_search on the first turn while the toggle is on" do
+      expect(kb_visible(kb_on)).to include("library_search")
+      expect(kb_visible(kb_on)).not_to include("analyze_image")
+    end
+
+    it "hides library_search while the toggle is off, and when it is absent" do
+      expect(kb_visible(kb_off)).not_to include("library_search")
+      expect(kb_visible({ parameters: {} })).not_to include("library_search")
+    end
+
+    it "treats the string \"false\" as off" do
+      expect(kb_visible({ parameters: { "library_rag_enabled" => "false" } })).not_to include("library_search")
+    end
+
+    it "follows the toggle when it is switched off after being on" do
+      session = { parameters: { "library_rag_enabled" => true } }
+      expect(kb_visible(session)).to include("library_search")
+      session[:parameters]["library_rag_enabled"] = false
+      expect(kb_visible(session)).not_to include("library_search")
+    end
+
+    it "does not unlock library_search through request_tool" do
+      expect(described_class.unlock_request(
+        session: kb_off, app_name: "KbApp", app_settings: kb_settings, request_key: "library_search"
+      )).to eq([])
+      expect(kb_visible(kb_off)).not_to include("library_search")
+    end
+
+    it "follows the toggle when the app imports library_search as always visible" do
+      always_settings = {
+        "progressive_tools" => {
+          provider: :openai,
+          all_tool_names: ["library_search", "request_tool"],
+          always_visible: ["library_search", "request_tool"],
+          conditional: []
+        }
+      }
+      visible = ->(session) {
+        described_class.visible_tools(app_name: "KbApp", session: session, app_settings: always_settings,
+                                      default_tools: kb_tools).map { |t| t["function"]["name"] }
+      }
+      expect(visible.call(kb_on)).to include("library_search")
+      expect(visible.call(kb_off)).not_to include("library_search")
+      expect(visible.call({ parameters: {} })).not_to include("library_search")
+    end
+
+    it "follows the toggle for an app without progressive metadata" do
+      visible = ->(session) {
+        described_class.visible_tools(app_name: "KbApp", session: session, app_settings: {},
+                                      default_tools: kb_tools).map { |t| t["function"]["name"] }
+      }
+      expect(visible.call(kb_on)).to include("library_search", "analyze_image")
+      expect(visible.call(kb_off)).to contain_exactly("analyze_image", "request_tool")
+    end
+
+    it "leaves library_search out of the skill menu and keeps other groups" do
+      menu = described_class.skill_menu(app_settings: kb_settings, session: kb_on, app_name: "KbApp").join("\n")
+      expect(menu).not_to include("library_search")
+      expect(menu).to include("image_analysis")
     end
   end
 

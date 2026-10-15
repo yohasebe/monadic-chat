@@ -119,7 +119,7 @@ Apps with `library_search` true get the `library_search` tool group (`visibility
 
 ### Session Toggle
 
-The "Use Knowledge Base" toggle sets `session[:parameters]['library_rag_enabled']` (default off). While it is off, `library_search` returns a message telling the model to ask the user to turn it on.
+The "Use Knowledge Base" toggle sets `session[:parameters]['library_rag_enabled']` (default off; only `true` or `"true"` counts as on). `ProgressiveToolManager.visible_tools` offers `library_search` exactly while the toggle is on, whether the app imports it as conditional (the default) or always visible; the group is left out of the skill menu and cannot be unlocked with `request_tool`. If it is called while the toggle is off, `library_search` returns a message telling the model to ask the user to turn it on.
 
 ### System Prompt
 

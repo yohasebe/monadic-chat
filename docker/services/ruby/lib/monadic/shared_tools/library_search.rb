@@ -50,7 +50,8 @@ module MonadicSharedTools
     # use elsewhere: explicit kwarg → @session ivar → Thread-local.
     def self.session_enabled?(session)
       params = (session && (session[:parameters] || session['parameters'])) || {}
-      !!params[SESSION_TOGGLE_KEY]
+      value = params[SESSION_TOGGLE_KEY]
+      value == true || value.to_s == 'true'
     end
 
     # The instance-side mixin that apps include. The MDSL `tools` block

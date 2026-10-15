@@ -10,6 +10,7 @@ require 'async/http/endpoint'
 require 'async/http/server'
 require 'protocol/rack'
 require_relative '../utils/debug_helper'
+require_relative '../utils/error_formatter'
 require_relative '../utils/extra_logger'
 require_relative '../utils/environment'
 require_relative 'cache_invalidator'
@@ -82,7 +83,7 @@ module Monadic
             handle_single_request(request_data)
           end
         rescue => e
-          puts "[MCP] Server error: #{e.message}"
+          puts "[MCP] Server error: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"
           Monadic::Utils::ExtraLogger.log { e.backtrace.join("\n") }
           json_rpc_error(nil, "Internal error", INTERNAL_ERROR, e.message)
         end
@@ -159,7 +160,9 @@ module Monadic
         end
 
         begin
-          result = Monadic::MCP::Conduit.call(tool_name, arguments)
+          # Redacted once, before the text form is made from it: a secret in
+          # escaped form inside the JSON text would not match its value.
+          result = Monadic::Utils::SecretRedactor.redact_deep(Monadic::MCP::Conduit.call(tool_name, arguments))
           # MCP 2025-06-18 lets a tool return both human-readable text and a
           # machine-readable structuredContent object. Conduit handlers return
           # a Hash, so we surface both for calling agents.
@@ -182,7 +185,8 @@ module Monadic
         {
           jsonrpc: JSONRPC_VERSION,
           id: id,
-          result: result
+          # Results reach another vendor's agent: no secret leaves in them.
+          result: Monadic::Utils::SecretRedactor.redact_deep(result)
         }.to_json
       end
 
@@ -192,10 +196,10 @@ module Monadic
           id: id,
           error: {
             code: code,
-            message: message
+            message: Monadic::Utils::ErrorFormatter.scrub_identifiers(message)
           }
         }
-        error[:error][:data] = data if data
+        error[:error][:data] = Monadic::Utils::ErrorFormatter.scrub_identifiers(data.to_s) if data
         error.to_json
       end
 
@@ -332,7 +336,7 @@ module Monadic
             # The flag is cleared only on a genuine error (below) or stop!.
             server.run
           rescue => e
-            puts "[MCP] Server error: #{e.message}"
+            puts "[MCP] Server error: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"
             Monadic::Utils::ExtraLogger.log { e.backtrace.join("\n") }
             @server_running = false
           end

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "timeout"
+require_relative "../error_formatter"
 
 # Streaming speech-to-speech (STS) bridge to OpenAI's Realtime endpoint.
 #
@@ -2285,7 +2286,8 @@ module WebSocketHelper
   rescue Timeout::Error
     "❌ Tool '#{call[:name]}' timed out after #{timeout}s"
   rescue StandardError => e
-    "❌ #{e.class}: #{e.message[0, 200]}"
+    # Sent to the provider: no secrets or identifiers in it.
+    "❌ #{e.class}: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)[0, 200]}"
   end
 
   # Cancel all in-flight tool calls (barge-in / response cancelled /

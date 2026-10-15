@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
+require_relative "secret_redactor"
+
 module Monadic
   module Utils
-    # Centralized logger for EXTRA_LOGGING output
+    # Centralized logger for EXTRA_LOGGING output. Every line passes through
+    # SecretRedactor before it is written.
     # Caches file handle to avoid repeated open/close overhead
     #
     # Usage:
@@ -33,7 +36,7 @@ module Monadic
           return if msg.nil?
 
           timestamp = Time.now.strftime("%Y-%m-%d %H:%M:%S.%L")
-          formatted = "[#{timestamp}] #{msg}"
+          formatted = "[#{timestamp}] #{SecretRedactor.redact(msg.to_s)}"
 
           @mutex.synchronize do
             ensure_file_open
@@ -62,7 +65,7 @@ module Monadic
 
           @mutex.synchronize do
             ensure_file_open
-            @file_handle.puts(message)
+            @file_handle.puts(SecretRedactor.redact(message.to_s))
             @file_handle.flush
           end
         rescue StandardError

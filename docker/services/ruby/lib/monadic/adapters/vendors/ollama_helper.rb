@@ -611,7 +611,7 @@ module OllamaHelper
     Monadic::Utils::ExtraLogger.log { "[Ollama] Unexpected error: #{e.message}" }
     Monadic::Utils::ExtraLogger.log { "[Ollama] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     OllamaHelper.reset_endpoint_cache
-    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}" }
+    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}" }
     block&.call res
     [res]
   end
@@ -829,7 +829,7 @@ module OllamaHelper
                            APPS[app].public_send(function_name.to_sym, **converted)
                          end
       rescue StandardError => e
-        function_return = "ERROR: #{e.message}"
+        function_return = "ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"
       end
 
       # Collect gallery HTML for tool-generated images

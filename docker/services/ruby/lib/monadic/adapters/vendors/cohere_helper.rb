@@ -660,40 +660,11 @@ module CohereHelper
     end
   end
   
-  # Helper for logging debug messages to the extra.log file
+  # Debug messages go to extra.log through ExtraLogger (only with EXTRA_LOGGING, redacted).
   def log_to_extra(message)
-    begin
-      extra_log = File.join(Dir.home, "monadic", "log", "extra.log")
-      File.open(extra_log, "a") do |f|
-        f.puts("[#{Time.now}] COHERE: #{message}")
-      end
-    rescue => e
-      # Silent fail for logging
-    end
+    Monadic::Utils::ExtraLogger.log { "COHERE: #{message}" }
   end
 
-  # Helper for logging debug messages
-  private def log_message(message)
-    begin
-      File.open(File.join(Dir.home, "monadic", "log", "cohere_helper_debug.log"), "a") do |f|
-        f.puts("[#{Time.now}] #{message}")
-      end
-    rescue => e
-      # Silent fail for logging
-    end
-  end
-
-  # Helper for logging error messages
-  private def log_error(message)
-    begin
-      File.open(File.join(Dir.home, "monadic", "log", "cohere_helper_debug.log"), "a") do |f|
-        f.puts("[#{Time.now}] ERROR: #{message}")
-      end
-    rescue => e
-      # Silent fail for logging
-    end
-  end
-  
   # Helper method to extract text from complex response structures
   def extract_text_from_response(response, depth=0, max_depth=3)
     return nil if depth > max_depth || response.nil?

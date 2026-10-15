@@ -79,7 +79,7 @@ module MonadicHelper
       end
       File.open(JUPYTER_LOG_FILE, "a") do |f|
         f.puts "Time: #{Time.now}"
-        f.puts "Cells: #{cells_str}"
+        f.puts "Cells: #{Monadic::Utils::SecretRedactor.redact(cells_str)}"
         f.puts "-----------------------------------"
       end
       Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] Logged to #{JUPYTER_LOG_FILE}" }
@@ -132,8 +132,8 @@ module MonadicHelper
         f.puts "ERROR Time: #{Time.now}"
         f.puts "Operation: #{operation}"
         f.puts "Filename: #{filename}"
-        f.puts "Error: #{error_message}"
-        f.puts "Cells attempted: #{cells.inspect[0..500]}" # Limit length
+        f.puts "Error: #{Monadic::Utils::SecretRedactor.redact(error_message)}"
+        f.puts "Cells attempted: #{Monadic::Utils::SecretRedactor.redact(cells.inspect[0..500])}" # Limit length
         f.puts "==================================="
       end
     rescue StandardError

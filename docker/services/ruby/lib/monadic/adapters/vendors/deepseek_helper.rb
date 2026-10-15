@@ -1247,7 +1247,7 @@ module DeepSeekHelper
                             APPS[app].public_send(function_name.to_sym, **converted)
                           end
       rescue StandardError => e
-        function_return = "ERROR: #{e.message}"
+        function_return = "ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"
       end
     end
 

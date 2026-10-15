@@ -3,6 +3,7 @@
 require 'open3'
 require 'shellwords'
 require 'securerandom'
+require_relative 'utils/secret_redactor'
 
 module Monadic
   # Single point of coupling between Ruby code and the docker CLI.
@@ -173,9 +174,10 @@ module Monadic
       return unless log_path
       File.open(log_path, 'a') do |f|
         f.puts "Time: #{Time.now}"
-        f.puts "Command: #{argv.join(' ')}"
-        f.puts "Error: #{stderr}" if stderr.to_s.strip.length.positive?
-        f.puts "Output: #{stdout}"
+        redact = Monadic::Utils::SecretRedactor.method(:redact)
+        f.puts "Command: #{redact.call(argv.join(' '))}"
+        f.puts "Error: #{redact.call(stderr)}" if stderr.to_s.strip.length.positive?
+        f.puts "Output: #{redact.call(stdout)}"
         f.puts '-----------------------------------'
       end
     rescue StandardError

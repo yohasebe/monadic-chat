@@ -299,19 +299,15 @@ module InteractionUtils
       unless res.status.success?
         error_report = JSON.parse(res.body) rescue { "message" => res.body.to_s }
 
-        # Log detailed error for Gemini
-        if Monadic::Utils::TtsProvider.gemini?(provider)
-          puts "Gemini TTS API Error: #{res.status} - #{error_report}"
-          puts "Request URI: #{target_uri}"
-          puts "Request body: #{body.to_json}"
-        end
+        # The request body holds the user's text: only the status and the error go to the log.
+        Monadic::Utils::ExtraLogger.log { "[TTS] #{provider} API error: #{res.status} - #{error_report}" }
 
         # For ElevenLabs, suppress "something_went_wrong" errors since audio often still works
         if provider&.start_with?("elevenlabs") &&
            (error_report.dig("detail", "status") == "something_went_wrong" ||
             error_report["detail"].to_s.include?("something_went_wrong"))
           # Log the error but don't send to client
-          puts "ElevenLabs API warning (suppressed): #{error_report}"
+          Monadic::Utils::ExtraLogger.log { "[TTS] ElevenLabs API warning (suppressed): #{error_report}" }
           # Return a silent success to avoid error display
           return { "type" => "audio", "content" => "" }
         end

@@ -391,8 +391,8 @@ module WebSocketHelper
   # account identifiers (xAI names the team UUID, Google the project number,
   # OpenAI the organization), and an error shown in the chat is saved with the
   # conversation and travels with any export — so the identifiers are scrubbed
-  # here, once, instead of at every call site. The untouched text still goes to
-  # the EXTRA_LOGGING trace, which stays on the user's own machine.
+  # here, once, instead of at every call site. The EXTRA_LOGGING trace records
+  # the scrubbed text too.
   #
   # Building `{"type" => "error"}` inline elsewhere bypasses this and is pinned
   # against by spec/unit/utils/websocket/error_send_boundary_spec.rb.
@@ -402,7 +402,7 @@ module WebSocketHelper
   def send_error(content, session_id = Thread.current[:websocket_session_id], extra = {})
     scrubbed = scrub_error_content(content)
     if scrubbed != content
-      Monadic::Utils::ExtraLogger.log { "[WebSocket] error text scrubbed before delivery; raw: #{content.inspect}" }
+      Monadic::Utils::ExtraLogger.log { "[WebSocket] error text scrubbed before delivery: #{scrubbed.inspect}" }
     end
     payload = { "type" => "error", "content" => scrubbed }.merge(extra)
     send_or_broadcast(payload.to_json, session_id)

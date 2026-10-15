@@ -122,7 +122,10 @@ RSpec.describe 'Gemini credential transport invariant' do
     expect(messages.join).not_to include(key)
     expect(output.string).not_to include(key)
     expect(messages.join).to include('Sending HTTP POST')
-    expect(output.string).to include('Request URI:')
+    expect(messages.join).to include('API error')
+    # The request body holds the user's text; it is not printed.
+    expect(output.string).not_to include('Hello')
+    expect(messages.join).not_to include('Hello')
   end
 
   it 'authenticates STT in headers' do

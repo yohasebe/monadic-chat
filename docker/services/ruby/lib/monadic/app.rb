@@ -413,6 +413,10 @@ class MonadicApp
                       120  # 2 minutes default
                     end
     stdout, stderr, status = self.capture_command(system_command, timeout: timeout_value, env: command_env, chdir: command_chdir)
+    # What a command prints goes on to tool results and the model: the output
+    # keeps everything but known secret values; the error text is redacted.
+    stdout = Monadic::Utils::SecretRedactor.redact_values(stdout)
+    stderr = Monadic::Utils::SecretRedactor.redact(stderr)
 
     if block_given?
       yield(stdout, stderr, status)
@@ -423,10 +427,11 @@ class MonadicApp
         "#{success_with_output}#{truncate_output(stdout)}"
       end
     else
-      "Error occurred: #{stderr}"
+      # The error text goes back to the model.
+      "Error occurred: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(stderr)}"
     end
   rescue StandardError => e
-    "Error occurred: #{e.message}"
+    "Error occurred: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"
   end
 
   # Truncate large command output to avoid bloating LLM context.
@@ -737,9 +742,10 @@ class MonadicApp
       Monadic::Utils::Environment.rotate_log(COMMAND_LOG_FILE)
       File.open(COMMAND_LOG_FILE, "a") do |f|
         f.puts "Time: #{Time.now}"
-        f.puts "Command: #{command.is_a?(Array) ? Shellwords.join(command) : command}"
-        f.puts "Error: #{stderr}" if stderr.strip.length.positive?
-        f.puts "Output: #{stdout}"
+        redact = Monadic::Utils::SecretRedactor.method(:redact)
+        f.puts "Command: #{redact.call(command.is_a?(Array) ? Shellwords.join(command) : command)}"
+        f.puts "Error: #{redact.call(stderr)}" if stderr.strip.length.positive?
+        f.puts "Output: #{redact.call(stdout)}"
         f.puts "-----------------------------------"
       end
     rescue StandardError
@@ -781,13 +787,6 @@ class MonadicApp
     end
   end
 
-  def log_to_file(message)
-    log_file_path = File.join(Dir.home, "monadic", "log", "monadic_app_debug.log")
-    File.open(log_file_path, "a") do |f|
-      f.puts("[#{Time.now}] #{message}")
-    end
-  end
-
   def markdownify(text)
     provider = CONFIG["AI_USER_PROVIDER"] || "openai"
     
@@ -813,8 +812,7 @@ class MonadicApp
       ]
     }
     
-    # For debugging purpose
-    log_to_file("DEBUG MARKDOWNIFY: Using provider #{provider} with model #{model}")
+    Monadic::Utils::ExtraLogger.log { "[markdownify] provider=#{provider} model=#{model}" }
     
     send_query(parameters)
   end

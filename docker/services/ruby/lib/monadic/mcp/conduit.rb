@@ -970,7 +970,7 @@ module Monadic
             targets.map do |t|
               runner.call(t)
             rescue StandardError => e
-              { provider: t[:provider], model: t[:model], success: false, error: "❌ #{e.class}: #{e.message}" }
+              { provider: t[:provider], model: t[:model], success: false, error: Monadic::Utils::ErrorFormatter.scrub_identifiers("❌ #{e.class}: #{e.message}") }
             end
           else
             run_in_parallel(targets, &runner)
@@ -1186,7 +1186,7 @@ module Monadic
         # a real "no consensus", which the judge would express as a low score).
         parsed.merge(judge_error: "judge response was not a parseable consensus verdict")
       rescue StandardError => e
-        judge_id.merge(score: nil, consensus: "", disagreements: [], judge_error: "❌ #{e.class}: #{e.message}")
+        judge_id.merge(score: nil, consensus: "", disagreements: [], judge_error: Monadic::Utils::ErrorFormatter.scrub_identifiers("❌ #{e.class}: #{e.message}"))
       end
 
       # All balanced top-level {...} substrings of `text`, in order. A depth
@@ -1514,9 +1514,9 @@ module Monadic
       rescue CostGuard::BudgetExceeded => e
         { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
       rescue Monadic::Utils::AudioProbe::Rejected => e
-        { provider: provider, success: false, error: "❌ #{e.message}" }
+        { provider: provider, success: false, error: Monadic::Utils::ErrorFormatter.scrub_identifiers("❌ #{e.message}") }
       rescue Monadic::Workspace::Jobs::Unavailable => e
-        { provider: provider, success: false, error: "❌ #{e.message}" }
+        { provider: provider, success: false, error: Monadic::Utils::ErrorFormatter.scrub_identifiers("❌ #{e.message}") }
       end
 
       def timed_transcription_view(provider, result, job)
@@ -1938,7 +1938,7 @@ module Monadic
         files = text.scan(/Saved file:\s*(\S+)/i).flatten.map { |p| File.basename(p) }
         return { success: true, files: files } if files.any? && !text.start_with?("Error occurred:")
 
-        { success: false, error: text }
+        { success: false, error: Monadic::Utils::ErrorFormatter.scrub_identifiers(text) }
       end
 
       # Shared normalizer for the JSON-returning generators (grok image/video,
@@ -1952,7 +1952,7 @@ module Monadic
           files = media_filenames(data)
           return { success: true, files: files } if files.any?
         end
-        { success: false, error: (data && (data["message"] || data["error"])) || raw.to_s }
+        { success: false, error: Monadic::Utils::ErrorFormatter.scrub_identifiers(((data && (data["message"] || data["error"])) || raw).to_s) }
       end
 
       # Parse a JSON object that may be embedded in surrounding log text. Tries
@@ -2697,7 +2697,7 @@ module Monadic
               yield(target)
             rescue StandardError => e
               { provider: target[:provider], model: target[:model],
-                success: false, error: "❌ #{e.class}: #{e.message}" }
+                success: false, error: Monadic::Utils::ErrorFormatter.scrub_identifiers("❌ #{e.class}: #{e.message}") }
             end
           end]
         end

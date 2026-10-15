@@ -4,6 +4,7 @@ require 'async'
 require 'async/semaphore'
 require 'base64'
 require 'json'
+require_relative 'error_formatter'
 
 module Monadic
   module Utils
@@ -171,8 +172,10 @@ module Monadic
           @on_attempt.call((Integer(seg['end_sample']) - Integer(seg['start_sample'])).to_f / RATE) != false
         end
 
+        # The reason is saved in transcript.json in the chat's folder, which the
+        # model can read and which travels with exports.
         def fail_segment(result, reason)
-          result.merge!('status' => 'failed', 'error' => reason)
+          result.merge!('status' => 'failed', 'error' => Monadic::Utils::ErrorFormatter.scrub_identifiers(reason.to_s))
         end
 
         def now

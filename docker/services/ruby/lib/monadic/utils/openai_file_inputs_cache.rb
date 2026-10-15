@@ -3,6 +3,7 @@
 require "digest"
 require "net/http"
 require "json"
+require_relative "extra_logger"
 
 module Monadic
   module Utils
@@ -87,11 +88,11 @@ module Monadic
           parsed = JSON.parse(response.body)
           parsed["id"]
         else
-          puts "[FileInputsCache] Upload failed (#{response.code}): #{response.body}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+          Monadic::Utils::ExtraLogger.log { "[FileInputsCache] Upload failed (#{response.code}): #{response.body}" }
           nil
         end
       rescue StandardError => e
-        puts "[FileInputsCache] Upload error: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "[FileInputsCache] Upload error: #{e.message}" }
         nil
       end
 

@@ -3637,6 +3637,16 @@ function getEnvPath() {
   }
 }
 
+// The env file holds API keys: only its owner may read or write it.
+// writeFileSync's mode applies only when it creates the file, so an existing
+// file is narrowed as well (no-op on Windows).
+function writeEnvContent(envPath, content) {
+    fs.writeFileSync(envPath, content, { encoding: 'utf8', mode: 0o600 });
+    if (process.platform !== 'win32') {
+        fs.chmodSync(envPath, 0o600);
+    }
+}
+
 // Read the ENV file; if it does not exist, create it
 function readEnvFile(envPath) {
     try {
@@ -3646,7 +3656,7 @@ function readEnvFile(envPath) {
     } catch {
         const envDir = path.dirname(envPath);
         fs.mkdirSync(envDir, { recursive: true });
-        fs.writeFileSync(envPath, '');
+        writeEnvContent(envPath, '');
         return {};
     }
 }
@@ -3660,7 +3670,7 @@ function writeEnvFile(envPath, envConfig) {
         .join('');
 
     try {
-        fs.writeFileSync(envPath, envContent);
+        writeEnvContent(envPath, envContent);
         return true;
     } catch (error) {
         console.error('Error saving settings:', error);
@@ -4202,7 +4212,7 @@ app.whenReady().then(async () => {
       const content = fs.readFileSync(envPath, 'utf8');
       if (content.includes('INTERFACE_LANGUAGE=')) {
         const newContent = content.replace(/INTERFACE_LANGUAGE=/g, 'UI_LANGUAGE=');
-        fs.writeFileSync(envPath, newContent, 'utf8');
+        writeEnvContent(envPath, newContent);
       }
     } catch (error) {
       console.error('Error migrating env file:', error);

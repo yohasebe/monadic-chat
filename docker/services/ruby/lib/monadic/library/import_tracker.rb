@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'securerandom'
+require_relative '../utils/error_formatter'
 
 module Monadic
   module Library
@@ -46,7 +47,12 @@ module Monadic
         id
       end
 
+      # An error is shown in the browser: secrets and identifiers in it
+      # (subprocess stderr, provider errors) are replaced.
       def update(id, **fields)
+        if fields[:error]
+          fields[:error] = Monadic::Utils::ErrorFormatter.scrub_identifiers(fields[:error].to_s)
+        end
         @mutex.synchronize do
           entry = @entries[id]
           return unless entry

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "secret_redactor"
+
 module Monadic
   module Utils
     # Unified error formatting for all providers
@@ -62,7 +64,7 @@ module Monadic
         def scrub_identifiers(text)
           return text if text.nil?
 
-          IDENTIFIER_PATTERNS.reduce(text.to_s) { |acc, re| acc.gsub(re, REDACTION) }
+          IDENTIFIER_PATTERNS.reduce(SecretRedactor.redact(text.to_s)) { |acc, re| acc.gsub(re, REDACTION) }
         end
 
         # Format error with consistent structure
@@ -75,7 +77,8 @@ module Monadic
           code = details[:code]
           suggestion = details[:suggestion]
           
-          error_parts = ["[#{provider}] #{category}: #{message}"]
+          # Formatted errors reach the browser, the model and saved chats.
+          error_parts = ["[#{provider}] #{category}: #{scrub_identifiers(message.to_s)}"]
           error_parts << "Suggestion: #{suggestion}" if suggestion
           error_parts << "(Code: #{code})" if code
           
@@ -131,7 +134,8 @@ module Monadic
           )
         end
 
-        # Format tool execution error
+        # Format tool execution error (the result goes back to the model;
+        # format replaces secrets and identifiers).
         def tool_error(provider:, tool_name:, message:)
           format(
             category: TOOL_ERROR,

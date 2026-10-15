@@ -144,29 +144,6 @@ module ClaudeHelper
     [value, source]
   end
 
-  # Function to write logs to file - enabled for debugging AI User issues
-  def log_to_file(message, type="general")
-    return unless CONFIG["DEBUG_AI_USER"]
-    
-    begin
-      log_dir = File.join(Dir.home, "monadic", "log")
-      FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
-      
-      file_name = case type
-                  when "ai_user"
-                    "claude_ai_user_debug.log"
-                  else
-                    "claude_debug.log"
-                  end
-      
-      File.open(File.join(log_dir, file_name), "a") do |f|
-        f.puts("[#{Time.now}] #{message}")
-      end
-    rescue => e
-      # Silent fail for logging
-    end
-  end
-
   # ANTHROPIC_NATIVE_WEBSEARCH=false turns off Claude's own web search. The
   # config reader turns "false" into the boolean, so compare as a string.
   def claude_native_websearch_allowed?
@@ -1064,7 +1041,7 @@ module ClaudeHelper
 
     if Monadic::Utils::ExtraLogger.enabled? || ENV["DEBUG_CLAUDE"]
       Monadic::Utils::ExtraLogger.log {
-        msg = "\nClaude API Headers:\n  x-api-key: #{headers["x-api-key"]&.slice(0, 20)}...\n  anthropic-beta: #{headers["anthropic-beta"]}"
+        msg = "\nClaude API Headers:\n  x-api-key: #{headers["x-api-key"].to_s.empty? ? "missing" : "set"}\n  anthropic-beta: #{headers["anthropic-beta"]}"
         if headers["anthropic-beta"]
           msg += "\n    Beta headers breakdown:"
           headers["anthropic-beta"].split(",").each { |beta| msg += "\n      - #{beta.strip}" }

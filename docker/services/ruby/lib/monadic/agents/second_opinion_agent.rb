@@ -1,6 +1,7 @@
 require_relative "../utils/system_defaults"
 require_relative '../utils/privacy/outbound'
 require_relative '../utils/error_formatter'
+require_relative '../utils/extra_logger'
 
 module SecondOpinionAgent
 
@@ -224,24 +225,16 @@ module SecondOpinionAgent
 
     begin
       # Use the provider's helper to send the query
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        puts "SecondOpinionAgent: Sending query to #{target_provider} with model #{target_model}"
-        puts "SecondOpinionAgent: Messages: #{messages.inspect}"
-      end
-      
+      Monadic::Utils::ExtraLogger.log { "SecondOpinionAgent: Sending query to #{target_provider} with model #{target_model} (#{messages.length} messages)" }
+
       response = helper.send_query(parameters, model: target_model)
-      
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        puts "SecondOpinionAgent: Received response: #{response.inspect[0..200]}..."
-      end
+
+      Monadic::Utils::ExtraLogger.log { "SecondOpinionAgent: Received response: #{response.inspect[0..200]}..." }
     rescue => e
-      # Error handling
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        puts "SecondOpinionAgent Error: #{e.message}"
-        puts "SecondOpinionAgent Error Backtrace: #{e.backtrace.first(3).join("\n")}"
-      end
+      Monadic::Utils::ExtraLogger.log { "SecondOpinionAgent Error: #{e.message}\n#{e.backtrace.first(3).join("\n")}" }
+      # The comments go back to the model that asked: no secrets or identifiers.
       return {
-        comments: "Failed to get second opinion from #{target_provider}: #{e.message}",
+        comments: "Failed to get second opinion from #{target_provider}: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}",
         validity: "error",
         model: "#{target_provider}:#{target_model}"
       }
@@ -251,7 +244,7 @@ module SecondOpinionAgent
     # to parse.
     if Monadic::Utils::ErrorFormatter.error_reply?(response)
       return {
-        comments: "Failed to get second opinion from #{target_provider}: #{response}",
+        comments: "Failed to get second opinion from #{target_provider}: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(response)}",
         validity: "error",
         model: "#{target_provider}:#{target_model}"
       }

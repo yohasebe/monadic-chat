@@ -72,7 +72,7 @@ docker/services/python/@jupyterlab/**/*.jupyterlab-settings
 
 # Ruby service: application code
 docker/services/ruby/{Dockerfile,Gemfile,config.ru,*.gemspec,*.sh}
-docker/services/ruby/.{dockerignore,rubocop.yml,rubocop_todo.yml,rspec-integration,rspec_env}
+docker/services/ruby/.{dockerignore,rubocop.yml,rubocop_todo.yml,rspec-integration}
 docker/services/ruby/.bundle/config
 docker/services/ruby/apps/**/*.{rb,mdsl}
 docker/services/ruby/apps/auto_forge/config/standard_libraries.json

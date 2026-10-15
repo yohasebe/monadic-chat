@@ -9,7 +9,7 @@ cd docker/services/ruby
 bundle exec rspec spec/unit/model_spec_validation_spec.rb --format documentation
 ```
 
-`bin/check_model_sync` runs the same spec by line number.
+`bin/check_model_sync` runs the report example of the same spec, selected by name (`-e "generates a comprehensive report"`).
 
 ## What It Compares
 

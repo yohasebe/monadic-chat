@@ -49,7 +49,8 @@ fi
 
 # Start support containers
 SUPPORT_CONTAINERS=(
-  "monadic-chat-pgvector-container"
+  "monadic-chat-qdrant-container"
+  "monadic-chat-embeddings-container"
   "monadic-chat-python-container"
   "monadic-chat-selenium-container"
 )

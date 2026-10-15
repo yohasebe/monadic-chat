@@ -91,12 +91,6 @@ end
 namespace :spec do
   desc "Run quick tests (unit + integration only, excludes system tests)"
   task :quick do
-    # Set environment variables for test database connection
-    ENV['POSTGRES_HOST'] ||= 'localhost'
-    ENV['POSTGRES_PORT'] ||= '5433'
-    ENV['POSTGRES_USER'] ||= 'postgres'
-    ENV['POSTGRES_PASSWORD'] ||= 'postgres'
-
     # Set HOST_OS for Docker Compose
     ENV['HOST_OS'] ||= `uname -s`.chomp
 

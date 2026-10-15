@@ -9,7 +9,6 @@ The scripts live in `docker/services/ruby/scripts/`.
 | `cli_tools/` | Command-line tools that the apps call inside the Ruby container |
 | `generators/` | Image and video generators |
 | `utilities/` | `process_documentation.rb` |
-| `diagnostics/` | Standalone checks for developers |
 | (top level) | `download_assets.sh`, `ruby-healthcheck.sh`, `mcp_stdio_bridge.rb`, `mcp_client_example.rb` |
 
 ### `cli_tools/`
@@ -38,7 +37,3 @@ Default models come from `providerDefaults` in `model_spec.js`.
 ### `utilities/process_documentation.rb`
 
 Builds the help database dump `docker/services/ruby/help_data/help_db.json` from `docs/*.md` (and `docs_dev/*.md` with `--include-internal`) using the embeddings service. It does not need Qdrant.
-
-## Diagnostics
-
-See [diagnostics/overview.md](diagnostics/overview.md).

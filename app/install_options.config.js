@@ -10,11 +10,9 @@
 //     Extractor).
 //
 // What does NOT live here (intentional):
-//   - HTML markup for the checkboxes — `app/settings.html` still owns
-//     the visual layout. The runtime code there reads from this file
-//     to populate Save / Load / pyKeys lookup tables, but the DOM
-//     itself is hand-authored to keep i18n attributes (`data-i18n`)
-//     declarative.
+//   - The settings window — `app/settings.html` has its own checkbox
+//     markup and its own env-key → checkbox-id table (`pyKeys`); keep
+//     it in step with this file by hand.
 //   - Dockerfile ARG declarations / `RUN if [ ... ]` blocks. The
 //     Dockerfile remains the build-time contract; this file describes
 //     the runtime UI ↔ env wiring. Adding a new option requires two
@@ -23,10 +21,8 @@
 //   - i18n labels — `docker/services/ruby/public/js/i18n/translations.js`
 //     owns those. This file's `label` is the English fallback only.
 //
-// File format note: this is a plain CommonJS module so it can be
-// `require()`'d from Electron's `app/main.js` (Node) AND read by
-// `monadic.sh` via `node -e "console.log(require('./install_options.config').…)"`
-// without a bundler step.
+// File format note: this is a plain CommonJS module, `require()`'d by
+// Electron's `app/main.js`.
 'use strict';
 
 // Python container build-time options. Each entry maps:

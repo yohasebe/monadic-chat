@@ -55,11 +55,9 @@ RUN uv pip install --no-cache \
       svgwrite~=1.4 cairosvg~=2.8 tinycss~=0.4 cssselect~=1.3 pygal~=3.1 \
       pyecharts~=2.0 pyecharts-snapshot~=0.2 \
       opencv-python~=4.11
-# Note: moviepy removed — extract_frames.py now calls system ffmpeg via
-# subprocess for the single audio-extraction operation that previously
-# required it. The system ffmpeg is already installed via apt above.
-# midiutil + pretty_midi moved to the optional librosa group below since
-# they are only used by the Music Lab pipeline.
+# extract_frames.py extracts audio with the system ffmpeg (installed via apt
+# above). midiutil and pretty_midi are in the optional librosa group below;
+# only the Music Lab pipeline uses them.
 
 # Speech detection for Video Describer's timed transcript
 # (scripts/converters/speech_segments.py): Silero VAD (MIT) on the CPU

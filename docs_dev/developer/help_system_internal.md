@@ -127,9 +127,6 @@ Prints statistics for the current dump.
 Prints the path of the dump and exits non-zero if the file is missing. It does
 not transform or filter anything.
 
-### help:build_dev
-Deprecated alias that warns and redirects to `help:build_internal`.
-
 ## Distribution
 
 The dump reaches users through two paths, both of which take the file as-is:

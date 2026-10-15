@@ -51,7 +51,7 @@ npm run test:no-mock message-input.test.js
 
 ### Test Categories
 - `message-input.test.js` - Message textarea behavior and validation
-- `websocket-communication.test.js` - Real WebSocket message handling
+- `websocket-ui-behavior.test.js` - UI updates driven by WebSocket messages
 - `message-cards.test.js` - Message display and interaction
 
 ## Writing No-Mock Tests

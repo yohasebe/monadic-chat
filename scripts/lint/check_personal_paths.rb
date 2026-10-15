@@ -47,13 +47,13 @@ ROOT = Pathname.new(__dir__).join('..', '..').realpath
 #
 # A scan that reads nothing also finds no violations, so a renamed root or a
 # misresolved ROOT would pass silently. The floors sit about 20% below the
-# current counts of text files (app 22, lib 207, scripts 22, public/js 91,
+# current counts of text files (app 22, lib 207, scripts 14, public/js 91,
 # python 25, extractor 6, embeddings 6, privacy 12); lower one when files are genuinely
 # removed, and drop the entry when a root is retired on purpose.
 SCAN_ROOTS = {
   'app' => 17,
   'docker/services/ruby/lib' => 165,
-  'docker/services/ruby/scripts' => 17,
+  'docker/services/ruby/scripts' => 11,
   'docker/services/ruby/public/js' => 72,
   'docker/services/python/scripts' => 20,
   'docker/services/extractor' => 4,

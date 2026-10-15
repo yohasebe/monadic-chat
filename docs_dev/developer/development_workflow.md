@@ -19,7 +19,6 @@ npm test
 ### Test Structure :id=test-structure
 - JavaScript tests: `test/frontend/`
 - Ruby tests: `docker/services/ruby/spec/`
-- App diagnostics: `docker/services/ruby/scripts/diagnostics/apps/{app_name}/`
 - No-mock UI tests live under `test/frontend/no-mock/`; run them with `npm run test:no-mock` (see `docs_dev/frontend/no_mock/README.md` for setup details).
 
 !> **Important:** Do not place test scripts in `apps/{app_name}/test/` directories

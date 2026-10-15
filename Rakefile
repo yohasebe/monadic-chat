@@ -57,8 +57,6 @@ end
 
 # Set development environment variables if not in Docker container
 unless File.file?("/.dockerenv")
-  ENV['POSTGRES_HOST'] ||= 'localhost'
-  ENV['POSTGRES_PORT'] ||= '5433'  # Use 5433 to avoid conflict with local PostgreSQL
   ENV['OPENAI_API_KEY'] ||= ENV['OPENAI_API_KEY']
   ENV['ANTHROPIC_API_KEY'] ||= ENV['ANTHROPIC_API_KEY']
   ENV['GEMINI_API_KEY'] ||= ENV['GEMINI_API_KEY']

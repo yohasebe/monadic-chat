@@ -6,4 +6,4 @@
 require 'bundler/setup'
 require_relative '../spec/spec_helper'
 
-exec("bundle exec rspec spec/unit/model_spec_validation_spec.rb:289 --format documentation")
+exec("bundle exec rspec spec/unit/model_spec_validation_spec.rb -e \"generates a comprehensive report\" --format documentation")

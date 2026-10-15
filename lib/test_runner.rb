@@ -193,12 +193,6 @@ class TestRunner
       require 'dotenv'
       Dotenv.load(config_path)
     end
-    
-    # Set PostgreSQL connection for tests
-    ENV['POSTGRES_HOST'] ||= 'localhost'
-    ENV['POSTGRES_PORT'] ||= '5433'
-    ENV['POSTGRES_USER'] ||= 'postgres'
-    ENV['POSTGRES_PASSWORD'] ||= 'postgres'
   end
 
   def set_api_level_env(level)

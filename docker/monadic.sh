@@ -1533,7 +1533,7 @@ start_docker_compose() {
     echo "[HTML]: <p>Building all Monadic Chat containers. This may take a while...</p>"
     needs_full_rebuild=true
   elif [[ "${MONADIC_CHAT_IMAGE_TAG}" != *"${MONADIC_VERSION}"* ]]; then
-    # When we have a version update, check if Dockerfiles for Python, Selenium, PGVector have changed
+    # On a version update, check whether the Python, Selenium or embeddings Dockerfile has changed
     if check_dockerfiles_changed; then
       # Selective rebuild: only rebuild containers with changed Dockerfiles
       local changed_list=""
@@ -1816,8 +1816,8 @@ stop_docker_compose() {
   # Use docker compose with project name to properly stop all containers.
   # Docker compose v2 stops containers in parallel by default.
   #
-  # --timeout 2 (was 5, default is 10) — Monadic Chat's containers release
-  # quickly on SIGTERM (Falcon / PGVector / Jupyter all handle it cleanly in
+  # --timeout 2 (the default is 10) — Monadic Chat's containers release
+  # quickly on SIGTERM (Falcon and Jupyter handle it cleanly in
   # well under a second). A 2s SIGTERM-to-SIGKILL grace window keeps the
   # total Restart-Now-to-relaunch duration predictable and inside the UX
   # threshold for "feels responsive". The value is not zero because we

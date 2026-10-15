@@ -123,12 +123,6 @@ namespace :help do
          'Run `rake help:build` before building a release.'
   end
 
-  desc '[DEPRECATED] Use rake help:build_internal instead'
-  task :build_dev do
-    warn '[help:build_dev] deprecated; redirecting to help:build_internal.'
-    Rake::Task['help:build_internal'].invoke
-  end
-
   desc 'Rebuild help database JSON dump from scratch'
   task :rebuild do
     File.delete(HELP_DATA_DUMP) if File.exist?(HELP_DATA_DUMP)

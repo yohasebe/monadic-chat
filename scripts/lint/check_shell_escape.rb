@@ -35,12 +35,12 @@ require_relative 'scan_floor'
 ROOT = Pathname.new(__dir__).join('..', '..').realpath
 
 # Scan roots with the fewest files a scan of each may read (see scan_floor.rb).
-# Floors sit about 20% below the current counts (lib 205, scripts 18, apps 56);
+# Floors sit about 20% below the current counts (lib 205, scripts 12, apps 56);
 # lower one when files are genuinely removed.
 # app/ is not scanned: it holds no Ruby, so the root read nothing.
 SCAN_ROOTS = {
   'docker/services/ruby/lib' => 164,
-  'docker/services/ruby/scripts' => 14,
+  'docker/services/ruby/scripts' => 10,
   'docker/services/ruby/apps' => 44
 }.freeze
 SCANNED = Hash.new(0)

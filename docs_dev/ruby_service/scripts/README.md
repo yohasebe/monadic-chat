@@ -1,7 +1,6 @@
 # Ruby Service Scripts Documentation
 
 - [Overview](overview.md) — the scripts in `docker/services/ruby/scripts/`
-- [Diagnostics](diagnostics/overview.md) — standalone developer checks
 
 ## Related Documentation
 

@@ -69,7 +69,7 @@ Conduit exposes the following `monadic_*` tools. Each tool's full input schema i
 
 **Generation (output saved to the shared volume `~/monadic/data`)**
 - `monadic_speak` — text-to-speech
-- `monadic_generate_code` — code generation via a provider's code agent
+- `monadic_generate_code` — code generation via the code agent of the provider you name (`openai`, `anthropic` or `xai`)
 - `monadic_generate_image` — image generation
 - `monadic_generate_video` — video generation (text-to-video or image-to-video)
 - `monadic_generate_music` — music generation

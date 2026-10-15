@@ -1407,15 +1407,15 @@ RSpec.describe Monadic::MCP::Conduit do
 
     it "refuses a direct (non-job) call and points to monadic_submit" do
       allow(described_class).to receive(:require_background_job).and_call_original
-      result = described_class.call("monadic_generate_code", { "prompt" => "p" })
+      result = described_class.call("monadic_generate_code", { "prompt" => "p", "provider" => "openai" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/must run in the background/)
     end
 
-    it "generates code with the auto-selected provider and charges the budget" do
+    it "generates code with the named provider and charges the budget" do
       expect(chost).to receive(:call_openai_code).with(prompt: "make a fib fn")
         .and_return({ code: "def fib(n); end", success: true, model: "gpt-5-codex" })
-      result = described_class.call("monadic_generate_code", { "prompt" => "make a fib fn" })
+      result = described_class.call("monadic_generate_code", { "prompt" => "make a fib fn", "provider" => "openai" })
       expect(result[:success]).to be true
       expect(result[:provider]).to eq("openai")
       expect(result[:code]).to include("def fib")
@@ -1435,7 +1435,7 @@ RSpec.describe Monadic::MCP::Conduit do
     it "maps an agent failure to a structured error" do
       allow(chost).to receive(:call_openai_code)
         .and_return({ error: "OpenAIHelper not available", success: false })
-      result = described_class.call("monadic_generate_code", { "prompt" => "p" })
+      result = described_class.call("monadic_generate_code", { "prompt" => "p", "provider" => "openai" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/OpenAIHelper not available/)
     end
@@ -1443,7 +1443,7 @@ RSpec.describe Monadic::MCP::Conduit do
     it "treats a provider error string leaked into the code field as a failure" do
       allow(chost).to receive(:call_openai_code)
         .and_return({ code: "[OpenAI] API Error: boom", success: true })
-      result = described_class.call("monadic_generate_code", { "prompt" => "p" })
+      result = described_class.call("monadic_generate_code", { "prompt" => "p", "provider" => "openai" })
       expect(result[:success]).to be false
       expect(result[:code]).to be_nil
       expect(result[:error]).to match(/API Error: boom/)
@@ -1454,22 +1454,42 @@ RSpec.describe Monadic::MCP::Conduit do
         .to raise_error(ArgumentError, /prompt is required/)
     end
 
+    it "refuses a direct call without a provider before the background check" do
+      allow(described_class).to receive(:require_background_job).and_call_original
+      expect { described_class.call("monadic_generate_code", { "prompt" => "p" }) }
+        .to raise_error(ArgumentError, /provider is required/)
+    end
+
+    it "requires a provider and does not pick one" do
+      expect(chost).not_to receive(:call_openai_code)
+      expect { described_class.call("monadic_generate_code", { "prompt" => "p" }) }
+        .to raise_error(ArgumentError, /provider is required/)
+    end
+
+    it "says the named provider is not configured instead of using another" do
+      allow(described_class).to receive(:code_provider_configured?) { |p| p == "openai" }
+      expect(chost).not_to receive(:call_openai_code)
+      result = described_class.call("monadic_generate_code", { "prompt" => "p", "provider" => "xai" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/xai is not configured/)
+    end
+
     it "rejects a provider that has no code agent" do
       expect { described_class.call("monadic_generate_code", { "prompt" => "p", "provider" => "gemini" }) }
         .to raise_error(ArgumentError, /has no code agent/)
     end
 
-    it "reports when no code provider is configured" do
+    it "reports when the named provider is not configured" do
       allow(described_class).to receive(:code_provider_configured?).and_return(false)
-      result = described_class.call("monadic_generate_code", { "prompt" => "p" })
+      result = described_class.call("monadic_generate_code", { "prompt" => "p", "provider" => "openai" })
       expect(result[:success]).to be false
-      expect(result[:error]).to match(/No code-capable provider/)
+      expect(result[:error]).to match(/openai is not configured/)
     end
 
     it "refuses when the budget is exhausted (no agent call)" do
       stub_const("CONFIG", CONFIG.merge("CONDUIT_TOKEN_BUDGET" => "1"))
       expect(chost).not_to receive(:call_openai_code)
-      result = described_class.call("monadic_generate_code", { "prompt" => "make something big" })
+      result = described_class.call("monadic_generate_code", { "prompt" => "make something big", "provider" => "openai" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/Budget exceeded/)
     end
@@ -1770,10 +1790,20 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(polled[:result]).to include(:backend)
     end
 
+    it "refuses a job whose required arguments are missing" do
+      expect do
+        described_class.call("monadic_submit", { "tool" => "monadic_second_opinion", "arguments" => {} })
+      end.to raise_error(ArgumentError, /user_query, agent_response is required/)
+      expect do
+        described_class.call("monadic_submit", { "tool" => "monadic_generate_code", "arguments" => { "prompt" => "p" } })
+      end.to raise_error(ArgumentError, /provider is required/)
+    end
+
     it "captures a tool error as a failed job" do
-      # second_opinion raises ArgumentError without a query.
+      allow(described_class).to receive(:handle_second_opinion).and_raise(ArgumentError, "bad input")
       result = described_class.call("monadic_submit",
-                                    { "tool" => "monadic_second_opinion", "arguments" => {} })
+                                    { "tool" => "monadic_second_opinion",
+                                      "arguments" => { "user_query" => "q", "agent_response" => "a" } })
       Monadic::MCP::JobStore.fetch(result[:job_id]).thread.join
       polled = described_class.call("monadic_poll", { "job_id" => result[:job_id] })
       expect(polled[:status]).to eq("error")

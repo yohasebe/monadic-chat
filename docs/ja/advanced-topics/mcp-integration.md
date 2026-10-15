@@ -69,7 +69,7 @@ Conduit は以下の `monadic_*` ツールを公開します。各ツールの�
 
 **生成（出力は共有ボリューム `~/monadic/data` に保存）**
 - `monadic_speak` — テキスト読み上げ（TTS）
-- `monadic_generate_code` — プロバイダーのコードエージェントによるコード生成
+- `monadic_generate_code` — 指定したプロバイダー（`openai`、`anthropic`、`xai`）のコードエージェントによるコード生成
 - `monadic_generate_image` — 画像生成
 - `monadic_generate_video` — 動画生成（text-to-video / image-to-video）
 - `monadic_generate_music` — 音楽生成

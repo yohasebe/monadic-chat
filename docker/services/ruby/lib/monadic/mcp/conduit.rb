@@ -683,8 +683,7 @@ module Monadic
                          "returns the generated code. Uses your own API keys; spends provider " \
                          "tokens (budget-gated). LONG-RUNNING (up to ~20 min for complex tasks) " \
                          "— run this via monadic_submit and poll, so it doesn't block the " \
-                         "platform. A configured provider is chosen automatically unless you " \
-                         "pass one.",
+                         "platform. Name the provider whose coding agent to use.",
             input_schema: {
               type: "object",
               properties: {
@@ -694,11 +693,11 @@ module Monadic
                 },
                 provider: {
                   type: "string",
-                  description: "Optional preferred provider: openai, anthropic/claude, xai/grok. " \
-                               "Falls back to the first configured one."
+                  description: "The provider whose coding agent writes the code: openai, " \
+                               "anthropic/claude or xai/grok. Its API key must be set."
                 }
               },
-              required: ["prompt"],
+              required: ["prompt", "provider"],
               additionalProperties: false
             },
             handler: :handle_generate_code
@@ -1743,9 +1742,6 @@ module Monadic
         "xai"       => { module: "Monadic::Agents::GrokCodeAgent",   call: :call_grok_code }
       }.freeze
 
-      # Auto-selection order when no provider is requested.
-      CODE_PROVIDER_ORDER = %w[openai anthropic xai].freeze
-
       # Code output can be large; reserve a generous backstop on top of the
       # prompt and reconcile with the actual length afterward.
       CODE_OUTPUT_ESTIMATE = 8000
@@ -1754,14 +1750,16 @@ module Monadic
         prompt = (arguments["prompt"] || arguments[:prompt]).to_s
         raise ArgumentError, "prompt is required" if prompt.strip.empty?
 
+        requested = (arguments["provider"] || arguments[:provider]).to_s.strip
+        raise ArgumentError, "provider is required (openai, anthropic or xai)" if requested.empty?
+
         guard = require_background_job("monadic_generate_code")
         return guard if guard
 
-        provider = resolve_code_provider(arguments["provider"] || arguments[:provider])
+        provider = resolve_code_provider(requested)
         unless provider
           return { success: false,
-                   error: "❌ No code-capable provider is configured (need an API key for " \
-                          "openai, anthropic, or xai)." }
+                   error: "❌ #{requested} is not configured: set its API key to use its coding agent." }
         end
 
         input_tokens = CostGuard.estimate_tokens(prompt)
@@ -1795,18 +1793,15 @@ module Monadic
         { success: false, error: "❌ Budget exceeded: #{e.message}", budget: CostGuard.status }
       end
 
-      # Resolve a requested provider to a configured code provider, or pick the
-      # first configured one when none is requested. Returns nil if nothing is
-      # available; raises for a named provider that has no code agent.
+      # Resolve the requested provider to its canonical key when it has a code
+      # agent and is configured, nil when its key is not set; raises for a
+      # provider without a code agent. No provider is picked for the caller.
       def resolve_code_provider(requested)
         req = requested.to_s.strip
-        unless req.empty?
-          canonical = MonadicDSL::ProviderConfig.new(req).standard_key
-          raise ArgumentError, "#{req} has no code agent" unless CODE_AGENTS.key?(canonical)
+        canonical = MonadicDSL::ProviderConfig.new(req).standard_key
+        raise ArgumentError, "#{req} has no code agent" unless CODE_AGENTS.key?(canonical)
 
-          return code_provider_configured?(canonical) ? canonical : nil
-        end
-        CODE_PROVIDER_ORDER.find { |p| code_provider_configured?(p) }
+        code_provider_configured?(canonical) ? canonical : nil
       end
 
       def code_provider_configured?(provider)
@@ -2168,6 +2163,18 @@ module Monadic
 
         job_args = arguments["arguments"] || arguments[:arguments] || {}
         raise ArgumentError, "arguments must be an object" unless job_args.is_a?(Hash)
+
+        # Required arguments of the tool are checked here, so a job that could
+        # not run is refused as Invalid params rather than failing later.
+        schema = registry.find { |t| t[:name] == tool }[:input_schema] || {}
+        missing = Array(schema[:required]).reject do |key|
+          name = job_args.key?(key.to_s) ? key.to_s : key.to_sym
+          next false unless job_args.key?(name)
+
+          value = job_args[name]
+          !value.nil? && !(value.is_a?(String) && value.strip.empty?)
+        end
+        raise ArgumentError, "#{missing.join(', ')} is required for #{tool}" unless missing.empty?
 
         begin
           # The block runs on the job's own thread (off the Falcon reactor),

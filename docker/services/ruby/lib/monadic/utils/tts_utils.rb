@@ -182,16 +182,14 @@ module InteractionUtils
       # SSOT: providerDefaults.gemini.tts (first entry is the default).
       model_name = resolve_tts_model(provider)
 
-      # Apply speed control using natural language instructions for the 2.5
-      # TTS models. The 3.1 dedicated TTS model (gemini-3.1-flash-tts-preview)
-      # routes through a content classifier that treats pace prefixes as
-      # anomalous prompts — it can respond with text tokens or a
-      # PROHIBITED_CONTENT rejection. For 3.1 we omit the prefix and rely on
-      # player-side playback rate instead. Skipping the prefix at speed 1.0
-      # also reduces latency for the common path on older models.
-      uses_pace_prefix = !model_name.to_s.start_with?("gemini-3")
+      # Speed is a natural-language instruction at the start of the text for
+      # the models whose SSOT entry sets tts_pace_prefix. Other models can
+      # answer such a prefix with text tokens or a PROHIBITED_CONTENT
+      # rejection, so they get none and the player's playback rate sets the
+      # speed. Speed 1.0 adds no prefix.
+      uses_pace_prefix = Monadic::Utils::ModelSpec.tts_pace_prefix?(model_name)
       speed_instruction = if !uses_pace_prefix
-        ""  # 3.x TTS models: never prepend pace instruction
+        ""
       elsif val_speed >= 1.8
         "[extremely fast] "
       elsif val_speed >= 1.4

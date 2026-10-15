@@ -457,6 +457,12 @@ module Monadic
           get_model_property(model_name, "tts_family")
         end
 
+        # True when a Gemini TTS model takes a spoken-pace instruction at the
+        # start of the text; the others get none.
+        def tts_pace_prefix?(model_name)
+          get_model_property(model_name, "tts_pace_prefix") == true
+        end
+
         # In-band style directive syntax; nil keeps the legacy prefix.
         def tts_style_directive(model_name)
           get_model_property(model_name, "tts_style_directive")

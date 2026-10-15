@@ -239,6 +239,32 @@ RSpec.describe "Gemini TTS audio decoding" do
       end
     end
 
+    it "adds a pace instruction only for models whose SSOT entry allows it" do
+      %w[gemini-2.5-flash-preview-tts gemini-2.5-pro-preview-tts].each do |m|
+        expect(Monadic::Utils::ModelSpec.tts_pace_prefix?(m)).to be(true)
+      end
+      %w[gemini-3.8-flash-tts gemini-3.8-flash-lite-tts gemini-3.1-flash-tts-preview].each do |m|
+        expect(Monadic::Utils::ModelSpec.tts_pace_prefix?(m)).to be(false)
+      end
+
+      respond_with(wav, "audio/wav")
+      host.tts_api_request("Hello", provider: "gemini", voice: "kore", response_format: "wav", speed: 1.5)
+      expected = Monadic::Utils::ModelSpec.tts_pace_prefix?(model) ? "Speak quickly. Hello" : "Hello"
+      expect(client).to have_received(:post) do |_, json:|
+        expect(json.dig("contents", 0, "parts", 0, "text")).to eq(expected)
+      end
+    end
+
+    it "uses the SSOT flag rather than the model name for the pace instruction" do
+      allow(Monadic::Utils::ModelSpec).to receive(:tts_pace_prefix?).and_call_original
+      allow(Monadic::Utils::ModelSpec).to receive(:tts_pace_prefix?).with(model).and_return(true)
+      respond_with(wav, "audio/wav")
+      host.tts_api_request("Hello", provider: "gemini", voice: "kore", response_format: "wav", speed: 0.5)
+      expect(client).to have_received(:post) do |_, json:|
+        expect(json.dig("contents", 0, "parts", 0, "text")).to eq("Speak very slowly. Hello")
+      end
+    end
+
     it "omits an empty bracket cue after stripping delimiters and whitespace" do
       respond_with(wav, "audio/wav")
       host.tts_api_request("Hello", provider: "gemini", voice: "kore",

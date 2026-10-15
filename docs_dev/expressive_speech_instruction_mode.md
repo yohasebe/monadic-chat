@@ -52,6 +52,8 @@ In `streaming_handler.rb`:
 | `bracket_cue` | `[<directive on one line>] ` |
 | `omit` | none |
 
+  A model whose entry sets `tts_pace_prefix: true` also gets a spoken-pace instruction (such as `Speak quickly. `) before the text when the speed is not 1.0; the other Gemini models get none.
+
 ## Display
 
 - Sentinel: `DISPLAY_SANITIZE["openai-instruction"]` and `["gemini"]` (Ruby and JS) remove a leading `<<TTS:...>>` block; `sanitize_for_display` removes it for every other family as well.

@@ -1460,11 +1460,13 @@ const modelSpec = {
   },
   "gemini-2.5-flash-preview-tts": {
     "tts_capability": true,
-    "tts_family": "gemini"
+    "tts_family": "gemini",
+    "tts_pace_prefix": true
   },
   "gemini-2.5-pro-preview-tts": {
     "tts_capability": true,
-    "tts_family": "gemini"
+    "tts_family": "gemini",
+    "tts_pace_prefix": true
   },
   "voxtral-mini-tts-2603": {
     "tts_capability": true,

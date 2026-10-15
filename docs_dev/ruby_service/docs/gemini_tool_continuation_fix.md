@@ -14,7 +14,7 @@ This page describes how the Gemini adapter (`lib/monadic/adapters/vendors/gemini
 
 ## Tool-Result Requests
 
-- `build_gemini_request_body` sets `tools` from `obj["tools"]` with `mode: AUTO`, so the model can call further tools.
+- `build_gemini_request_body` sets `tools` from `obj["tools"]` with `mode: AUTO`, so the model can call further tools. For apps other than Jupyter, `apply_tool_round_tools!` then rebuilds them as a user turn does: the filtered declarations (locked conditional tools stay out; tools unlocked in this turn are in), plus `gemini_web_search` when web search is on. Without declarations, native entries already in the request (such as `google_search`) are kept; when nothing is left, `tools` and `toolConfig` are removed.
 - The assistant turn holding the `functionCall` parts (with their thought signatures) is rebuilt in front of the results, and the results are sent under role `user`.
 - Screenshot images left by tools (`session[:pending_tool_images]`) are added as a user message, each image once per turn.
 - When `session[:call_depth_per_turn]` reaches `MAX_FUNC_CALLS` (20), `tools` and `toolConfig` are removed so the model answers in text.

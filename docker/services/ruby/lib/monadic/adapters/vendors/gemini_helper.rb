@@ -1576,7 +1576,9 @@ module GeminiHelper
           end
         end
       else
-        # For non-Jupyter apps, keep AUTO to allow follow-up tool calls
+        # Follow-up rounds offer the same filtered tools as the user turn (only
+        # the unlocked ones), not the full list the browser sent.
+        apply_tool_round_tools!(body, app_tools, use_native_websearch)
       end
 
       # Force text-only response when call depth indicates forced termination
@@ -1985,6 +1987,58 @@ module GeminiHelper
 
   # Configure tools: app tools collection, PTD filtering, web search tool, URL context
   # Returns the resolved app_tools for use in tool result processing
+  # Function-based web search, used when the request also has function
+  # declarations (google_search grounding cannot be combined with them).
+  GEMINI_WEB_SEARCH_DECLARATION = {
+    "name" => "gemini_web_search",
+    "description" => "Search the web for current information using Google Search. Use this tool when you need to find up-to-date information, verify facts, or research topics. Returns search results with sources.",
+    "parameters" => {
+      "type" => "object",
+      "properties" => {
+        "query" => {
+          "type" => "string",
+          "description" => "The search query to find information on the web"
+        }
+      },
+      "required" => ["query"]
+    }
+  }.freeze
+
+  # Native tool entries that search or fetch the web.
+  GEMINI_SEARCH_TOOL_KEYS = %w[google_search googleSearch google_search_retrieval googleSearchRetrieval url_context urlContext].freeze
+
+  # On a tool-result request, rebuild the tools the way a user turn does:
+  # the filtered app declarations (ProgressiveToolManager + key requirements),
+  # plus gemini_web_search when web search is on. Without declarations, native
+  # entries already in the request (google_search, url_context) are kept.
+  # Leaves a request that had no tools alone.
+  def apply_tool_round_tools!(body, app_tools, use_native_websearch = false)
+    return unless body["tools"]
+
+    declarations = if app_tools.is_a?(Hash)
+                     Array(app_tools["function_declarations"]).dup
+                   else
+                     Array(app_tools).dup
+                   end
+    native = Array(body["tools"]).reject { |t| t.is_a?(Hash) && t.key?("function_declarations") }
+    # Search entries follow the web search setting, as on a user turn.
+    unless use_native_websearch
+      native = native.reject { |t| t.is_a?(Hash) && (t.keys.map(&:to_s) & GEMINI_SEARCH_TOOL_KEYS).any? }
+    end
+
+    if declarations.any?
+      if use_native_websearch && declarations.none? { |t| t["name"] == "gemini_web_search" }
+        declarations << JSON.parse(JSON.generate(GEMINI_WEB_SEARCH_DECLARATION))
+      end
+      body["tools"] = [{ "function_declarations" => declarations }]
+    elsif native.any?
+      body["tools"] = native
+    else
+      body.delete("tools")
+      body.delete("toolConfig")
+    end
+  end
+
   def configure_gemini_tools(app:, role:, body:, obj:, session:, tool_capable:, use_native_websearch:, message: nil)
     app_settings = APPS[app]&.settings
     app_tools = app_settings && (app_settings[:tools] || app_settings["tools"]) ? (app_settings[:tools] || app_settings["tools"]) : []
@@ -2069,20 +2123,7 @@ module GeminiHelper
         # Solution: Use gemini_web_search as a function declaration instead
         DebugHelper.debug("Gemini: Adding gemini_web_search tool to function declarations (google_search grounding incompatible)", category: :api, level: :debug)
 
-        gemini_web_search_tool = {
-          "name" => "gemini_web_search",
-          "description" => "Search the web for current information using Google Search. Use this tool when you need to find up-to-date information, verify facts, or research topics. Returns search results with sources.",
-          "parameters" => {
-            "type" => "object",
-            "properties" => {
-              "query" => {
-                "type" => "string",
-                "description" => "The search query to find information on the web"
-              }
-            },
-            "required" => ["query"]
-          }
-        }
+        gemini_web_search_tool = JSON.parse(JSON.generate(GEMINI_WEB_SEARCH_DECLARATION))
 
         tools_array = app_tools.is_a?(Array) ? app_tools.dup : (app_tools["function_declarations"] || []).dup
 

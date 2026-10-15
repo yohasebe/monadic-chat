@@ -2,6 +2,7 @@
 
 require "json"
 require "uri"
+require_relative "secret_references"
 
 module Monadic
   module Utils
@@ -25,7 +26,7 @@ module Monadic
       module_function
 
       REDACTION = "[redacted]"
-      SENSITIVE_NAME = /(API_KEY|TOKEN|SECRET|PASSWORD)\z/i
+      SENSITIVE_NAME = Monadic::Utils::SecretReferences::CREDENTIAL_NAME
       # Shorter values are not matched: they would replace ordinary words.
       MIN_SECRET_LENGTH = 8
 
@@ -141,6 +142,7 @@ module Monadic
         end
         collect.call(CONFIG) if defined?(CONFIG) && CONFIG.respond_to?(:each)
         collect.call(ENV)
+        collect.call(Monadic::Utils::SecretReferences.removed_credentials)
         values.uniq.sort_by { |v| -v.length }
       end
     end

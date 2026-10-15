@@ -63,14 +63,14 @@ module Monadic
         # @param criteria [String] Brief description of what's being evaluated
         # @param context [Hash] Optional additional context (tool_name, etc.)
         # @param model [String] OpenAI model to use for evaluation
-        # @param api_key [String] OpenAI API key (defaults to ENV)
+        # @param api_key [String] OpenAI API key (defaults to CONFIG, then ENV)
         #
         # @return [EvaluationResult] Result with match, confidence, and reasoning
         #
         # @note Including the original prompt significantly improves evaluation accuracy
         #
         def evaluate(response:, expectation:, prompt: nil, criteria: nil, context: {}, model: DEFAULT_MODEL, api_key: nil)
-          api_key ||= ENV['OPENAI_API_KEY']
+          api_key ||= (defined?(CONFIG) && CONFIG['OPENAI_API_KEY']) || ENV['OPENAI_API_KEY']
 
           unless api_key && !api_key.empty?
             return EvaluationResult.new(

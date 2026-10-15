@@ -67,16 +67,20 @@ RSpec.describe Monadic::Utils::SecretReferences do
   end
 
   describe ".read_with_op (server running on the host)" do
-    # A stand-in op: `inject` turns `KEY={{ op://V/ITEM/f }}` into
-    # `KEY=fake-ITEM`, fails on an item named "missing", and counts its calls.
+    # A stand-in op: `inject` replaces each `{{ op://V/ITEM/f }}` in the
+    # template with `fake-ITEM` (two lines for "multiline", a trailing CR for "trailingcr"),
+    # as op does, fails on an item named "missing", and counts its calls.
     let(:op) do
-      write("op", <<~SH).tap { |path| File.chmod(0o755, path) }
-        #!/bin/sh
-        echo "$1" >> "#{@dir}/calls.log"
-        input=$(cat)
-        case "$input" in *"/missing/"*) echo "[ERROR] isn't an item" >&2; exit 1 ;; esac
-        printf '%s\\n' "$input" | sed -E 's#^([A-Z_]+)=\\{\\{ op://[^/]+/([^/]+)/[^ ]+ \\}\\}$#\\1=fake-\\2#'
-      SH
+      write("op", <<~RUBY).tap { |path| File.chmod(0o755, path) }
+        #!/usr/bin/env ruby
+        File.write("#{@dir}/calls.log", "\#{ARGV[0]}\n", mode: "a")
+        input = $stdin.read
+        if input.include?("/missing/")
+          warn "[ERROR] isn't an item"
+          exit 1
+        end
+        print input.gsub(%r{\{\{ op://[^/]+/([^/]+)/[^ ]+ \}\}}) { { "multiline" => "first\nsecond", "trailingcr" => "end\r" }.fetch($1) { "fake-\#{$1}" } }
+      RUBY
     end
 
     it "reads every reference with one op inject call" do
@@ -84,6 +88,16 @@ RSpec.describe Monadic::Utils::SecretReferences do
                                    "XAI_API_KEY" => "op://Test/XAI/credential" }, op: op)
       expect(values).to eq("OPENAI_API_KEY" => "fake-OPENAI", "XAI_API_KEY" => "fake-XAI")
       expect(File.read(File.join(@dir, "calls.log")).split).to eq(["inject"])
+    end
+
+    it "keeps a value that spans lines whole" do
+      values = refs.read_with_op({ "SERVICE_PASSWORD" => "op://Test/multiline/password",
+                                   "XAI_API_KEY" => "op://Test/XAI/credential" }, op: op)
+      expect(values).to eq("SERVICE_PASSWORD" => "first\nsecond", "XAI_API_KEY" => "fake-XAI")
+    end
+
+    it "keeps a carriage return that belongs to the value" do
+      expect(refs.read_with_op({ "A_PASSWORD" => "op://Test/trailingcr/password" }, op: op)).to eq("A_PASSWORD" => "end\r")
     end
 
     it "leaves every key unset when op fails" do
@@ -127,11 +141,71 @@ RSpec.describe Monadic::Utils::SecretReferences do
     end
   end
 
+  describe ".setting_value" do
+    it "turns plain settings into booleans and numbers" do
+      expect(refs.setting_value("EXTRA_LOGGING", "true")).to be(true)
+      expect(refs.setting_value("AUTO_TTS_MAX_BYTES", "400")).to eq(400)
+      expect(refs.setting_value("SOME_RATE", "1.5")).to eq(1.5)
+      expect(refs.setting_value("SOME_NAME", "a\n12")).to eq("a\n12")
+    end
+
+    it "keeps credentials as strings, also when they look like numbers or span lines" do
+      expect(refs.setting_value("SERVICE_PASSWORD", "0012345678")).to eq("0012345678")
+      expect(refs.setting_value("OPENAI_API_KEY", "true")).to eq("true")
+      expect(refs.setting_value("SERVICE_PASSWORD", "first\n12345678\nlast")).to eq("first\n12345678\nlast")
+    end
+
+    # A setting given as an op:// reference arrives here as the resolved string.
+    it "gives a typed setting read from 1Password the type its readers compare against" do
+      expect(refs.setting_value("AUTO_TTS_MAX_BYTES", "400")).to eq(400)
+      expect(refs.setting_value("WEBSOCKET_PROGRESS_ENABLED", "false")).to be(false)
+    end
+
+    it "turns progress off when that setting is read from 1Password as false" do
+      require_relative "../../../lib/monadic/utils/websocket"
+      stub_const("CONFIG", CONFIG.merge("WEBSOCKET_PROGRESS_ENABLED" => refs.setting_value("WEBSOCKET_PROGRESS_ENABLED", "false")))
+      expect(WebSocketHelper.progress_broadcast_enabled?).to be(false)
+    end
+  end
+
   describe ".scrub_env!" do
     it "removes references that Dotenv copied into ENV and keeps everything else" do
       env = { "OPENAI_API_KEY" => "op://Test/OPENAI/credential", "XAI_API_KEY" => "xai-plain", "HOME" => "/root" }
       refs.scrub_env!(env)
       expect(env).to eq("XAI_API_KEY" => "xai-plain", "HOME" => "/root")
+    end
+
+    it "removes credentials Dotenv set from the file, so child processes do not inherit them" do
+      env = { "XAI_API_KEY" => "xai-from-file", "HF_TOKEN" => "hf-from-file", "EXTRA_LOGGING" => "true",
+              "GEMINI_API_KEY" => "from-shell", "HOME" => "/root" }
+      loaded = { "XAI_API_KEY" => "xai-from-file", "HF_TOKEN" => "hf-from-file", "EXTRA_LOGGING" => "true",
+                 "GEMINI_API_KEY" => "from-file" }
+      refs.scrub_env!(env, loaded: loaded)
+      expect(env).to eq("EXTRA_LOGGING" => "true", "GEMINI_API_KEY" => "from-shell", "HOME" => "/root")
+    end
+
+    it "keeps a removed credential known to the redactor, also when Dotenv expanded it" do
+      require "dotenv"
+      require_relative "../../../lib/monadic/utils/secret_redactor"
+      Dir.mktmpdir("scrub") do |dir|
+        file = File.join(dir, "env")
+        File.write(file, "PLAIN_PART=synthetic-value\nSERVICE_PASSWORD=${PLAIN_PART}-suffix\n")
+        parsed = Dotenv.parse(file)
+        env = parsed.dup
+        refs.scrub_env!(env, loaded: parsed)
+        expect(env).not_to have_key("SERVICE_PASSWORD")
+        expect(Monadic::Utils::SecretRedactor.redact_values("got synthetic-value-suffix"))
+          .to eq("got #{Monadic::Utils::SecretRedactor::REDACTION}")
+      end
+    ensure
+      refs.reset!
+    end
+
+    it "uses one credential name rule for child environments and redaction" do
+      require_relative "../../../lib/monadic/app"
+      expect(MonadicApp::CREDENTIAL_ENV).to equal(refs::CREDENTIAL_NAME)
+      require_relative "../../../lib/monadic/utils/secret_redactor"
+      expect(Monadic::Utils::SecretRedactor::SENSITIVE_NAME).to equal(refs::CREDENTIAL_NAME)
     end
   end
 

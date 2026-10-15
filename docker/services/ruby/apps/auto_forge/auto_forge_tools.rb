@@ -90,10 +90,10 @@ module AutoForgeTools
 
     # Create app instance with context
     # Note: Using local variable only to avoid race conditions with shared @context
-    # Ensure context includes API key from environment if not already present
+    # Ensure context includes the API key from the configuration
     context = {}
-    if ENV['OPENAI_API_KEY'] && !context[:openai_api_key] && !context[:api_key]
-      context = context.merge(openai_api_key: ENV['OPENAI_API_KEY'])
+    if CONFIG['OPENAI_API_KEY'] && !context[:openai_api_key] && !context[:api_key]
+      context = context.merge(openai_api_key: CONFIG['OPENAI_API_KEY'])
     end
 
     # Get session ID for progress broadcasting (multiple fallbacks)

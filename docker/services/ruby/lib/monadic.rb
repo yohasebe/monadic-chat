@@ -99,7 +99,7 @@ require_relative "monadic/adapters/vendors/ollama_helper"
 
 envpath = File.expand_path Paths::ENV_PATH
 Dotenv.load(envpath)
-Monadic::Utils::SecretReferences.scrub_env!
+Monadic::Utils::SecretReferences.scrub_env!(loaded: File.file?(envpath) ? Dotenv.parse(envpath) : {})
 
 # Include TavilyHelper for tavily_fetch method
 include TavilyHelper
@@ -221,23 +221,12 @@ begin
       next
     end
     
-    converted_value = case value
-                      when "true"
-                        true
-                      when "false"
-                        false
-                      when /^\d+$/ # integer
-                        value.to_i
-                      when /^\d+\.\d+$/ # float
-                        value.to_f
-                      when nil
-                        # Handle nil value
-                        puts "Warning: Empty value for key '#{key}'"
-                        next # Skip empty values instead of storing them as empty strings
-                      else
-                        value
-                      end
-    CONFIG[key] = converted_value
+    if value.nil?
+      puts "Warning: Empty value for key '#{key}'"
+      next # Skip empty values instead of storing them as empty strings
+    end
+
+    CONFIG[key] = Monadic::Utils::SecretReferences.setting_value(key, value)
   end
   
   Monadic::Utils::SecretReferences.record_unresolved(unresolved_references)

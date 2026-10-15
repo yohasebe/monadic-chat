@@ -5,6 +5,7 @@ require 'ostruct'
 require 'timeout'
 require_relative "./utils/string_utils"
 require_relative "./utils/environment"
+require_relative "./utils/secret_references"
 require_relative "./utils/shared_path_guard"
 require_relative "./utils/extra_logger"
 require_relative "./utils/tokenizer"
@@ -660,7 +661,7 @@ class MonadicApp
   # The scripts that come with Monadic Chat and run on the Ruby side.
   RUBY_SIDE_SCRIPT_DIRS = %w[. cli_tools utilities generators].freeze
   # Names of environment variables that hold credentials.
-  CREDENTIAL_ENV = /(?:API_KEY|ACCESS_KEY|ACCESS_KEY_ID|_KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIALS?)\z/
+  CREDENTIAL_ENV = Monadic::Utils::SecretReferences::CREDENTIAL_NAME
 
   # A Ruby-side command runs only a Ruby script that comes with Monadic Chat
   # (`tts_query.rb ARGS...`), as `<this ruby> <its absolute path> ARGS...`,

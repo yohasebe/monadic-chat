@@ -32,7 +32,6 @@ module OpenAIHelper
   # 20 round-trips is generous for most workflows; Auto Forge complex builds may use 15+.
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.openai.com/v1"
-  REASONING_CONTEXT_MAX = 3
 
   # Output-token param name for OpenAI's Chat Completions and Responses
   # APIs. GPT-5.x rejected the legacy `max_tokens` form in 2026-Q1; the
@@ -2905,7 +2904,6 @@ module OpenAIHelper
         Array(entry["content"]).select { |c| c.is_a?(Hash) && c["type"] == "output_text" }.map { |c| c["text"] }
       end.flatten.join("\n\n").strip
       message["reasoning_content"] = reasoning_text_combined unless reasoning_text_combined.empty?
-      obj["reasoning_context"] = JSON.parse(JSON.generate(reasoning_entries.last(REASONING_CONTEXT_MAX)))
       # Carry this round's reasoning across the tool-call recursion (which
       # re-enters with a fresh local `state`) so the final answer's Thinking
       # panel reflects the whole trace. Read the raw segment text (the same
@@ -2971,23 +2969,7 @@ module OpenAIHelper
       merged_reasoning = [session[:openai_reasoning].to_s, reasoning_texts.join("\n\n")]
                          .reject { |s| s.strip.empty? }.join("\n\n")
       response["choices"][0]["message"]["reasoning_content"] = merged_reasoning unless merged_reasoning.strip.empty?
-      if reasoning_texts.any?
-        obj["reasoning_context"] = JSON.parse(JSON.generate(state[:reasoning_segments].filter_map do |segment|
-          text = segment[:text].to_s.strip
-          next if text.empty?
-          {
-            "type" => "reasoning",
-            "content" => [
-              {
-                "type" => "output_text",
-                "text" => text
-              }
-            ]
-          }
-        end.last(REASONING_CONTEXT_MAX)))
-      else
-        obj.delete("reasoning_context") if obj.key?("reasoning_context")
-      end
+      obj.delete("reasoning_context")
 
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => state[:finish_reason] || "stop" })
       [response]

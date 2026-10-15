@@ -457,12 +457,6 @@ module Monadic
           get_model_property(model_name, "tts_family")
         end
 
-        # True when the model accepts the out-of-band `instructions`
-        # parameter (OpenAI gpt-4o-mini-tts).
-        def tts_instructions?(model_name)
-          get_model_property(model_name, "tts_instructions_capability") == true
-        end
-
         # In-band style directive syntax; nil keeps the legacy prefix.
         def tts_style_directive(model_name)
           get_model_property(model_name, "tts_style_directive")

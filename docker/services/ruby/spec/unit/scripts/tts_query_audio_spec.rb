@@ -198,7 +198,6 @@ RSpec.describe "Gemini TTS audio decoding" do
     expect(Monadic::Utils::ModelSpec.get_provider_models("gemini", "tts")).to eq(models)
     models.each do |model_name|
       expect(Monadic::Utils::ModelSpec.tts_family(model_name)).to eq("gemini")
-      expect(Monadic::Utils::ModelSpec.tts_instructions?(model_name)).to be(true)
       expect(Monadic::Utils::ModelSpec.get_model_property(model_name, "tts_capability")).to be(true)
     end
   end

@@ -253,7 +253,6 @@ Performance/TimesMap:
     - 'spec/unit/shared_tools/jupyter_image_extraction_spec.rb'
     - 'spec/unit/shared_tools/parallel_dispatch_spec.rb'
     - 'spec/unit/shared_tools/parallel_python_execution_spec.rb'
-    - 'spec/unit/utils/network_error_handler_spec.rb'
 
 # Offense count: 31
 # This cop supports unsafe autocorrection (--autocorrect-all).

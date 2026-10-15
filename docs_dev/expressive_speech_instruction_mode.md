@@ -9,7 +9,7 @@ In instruction mode the model writes a short voice directive (voice, tone, pacin
 | `instruction_mode?(provider)` | `openai-instruction` |
 | `instruction_capable?(provider)` | `openai-instruction`, `gemini` |
 
-In `model_spec.js`, TTS models carry `tts_family` and `tts_instructions_capability`; `ModelSpec.tts_instructions?(model)` reads the latter.
+In `model_spec.js`, TTS models carry `tts_family` (`ModelSpec.tts_family(model)`); which addendum and encoding apply is decided from the provider value by `TtsMarkerVocabulary`.
 
 ## What the Model Is Asked For
 

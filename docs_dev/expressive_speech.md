@@ -28,7 +28,7 @@ Two rules in `SystemPromptInjector` (`lib/monadic/utils/system_prompt_injector.r
 
 `TtsMarkerVocabulary` (`lib/monadic/utils/tts_marker_vocabulary.rb`) holds the marker lists in `VOCABULARIES` (`xai`, `elevenlabs-v3`, `gemini`). `prompt_addendum_for` returns:
 
-- `hybrid_addendum_for` for `gemini` (markers plus an optional `<<TTS:...>>` block);
+- `hybrid_addendum_for` for `gemini` (markers plus an optional directive: a `tts_instructions` field in Monadic apps, a leading `<<TTS:...>>` block otherwise);
 - `marker_addendum_for` for `xai` and `elevenlabs-v3`;
 - `instruction_addendum` for `openai-instruction`;
 - nil otherwise.

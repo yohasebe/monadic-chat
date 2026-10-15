@@ -2,6 +2,7 @@
 
 require 'spec_helper'
 require_relative '../../../lib/monadic/utils/tts_marker_vocabulary'
+require_relative '../../../lib/monadic/utils/tts_instruction_extractor'
 
 RSpec.describe Monadic::Utils::TtsMarkerVocabulary do
   describe '.family_for' do
@@ -190,6 +191,29 @@ RSpec.describe Monadic::Utils::TtsMarkerVocabulary do
 
       it 'permits the LLM to use markers, directive, both, or neither per turn' do
         expect(addendum).to match(/markers only.{0,80}both.{0,40}neither/im)
+      end
+
+      context 'in a Monadic app (JSON replies)' do
+        let(:monadic) { described_class.prompt_addendum_for('gemini-flash', app_is_monadic: true) }
+
+        it 'asks for the directive in the tts_instructions field, not a <<TTS: block' do
+          expect(monadic).to include('`tts_instructions`')
+          expect(monadic).not_to match(/^<<TTS:/)
+          expect(monadic).not_to include('at the very start of the response')
+          expect(monadic).to include('"tts_instructions":')
+        end
+
+        it 'keeps the inline markers and the attribute template' do
+          expect(monadic).to include('[whispers]')
+          expect(monadic).to include('Voice:')
+        end
+
+        it 'gives an example the extractor reads' do
+          example = monadic[/^\{\n.*?^\}/m].sub('{ ... your app\'s usual context fields ... }', '{}')
+          message, instructions = Monadic::Utils::TtsInstructionExtractor.extract(example, app_is_monadic: true)
+          expect(instructions).to start_with('Voice: breathless')
+          expect(message).not_to include('<<TTS:')
+        end
       end
 
       it 'applies to all Gemini TTS provider dropdown values' do

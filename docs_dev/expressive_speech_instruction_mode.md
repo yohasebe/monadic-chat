@@ -19,7 +19,8 @@ The `:expressive_speech` rule (priority 30) adds the addendum when Auto Speech i
 |---|---|---|---|
 | `openai-instruction` | Monadic app | `instruction_addendum_json` | a top-level `tts_instructions` field beside `message` and `context` |
 | `openai-instruction` | other app | `instruction_addendum_sentinel` | `<<TTS:directive>>` at the start, then the reply |
-| `gemini` | any | `hybrid_addendum_for` | optional `<<TTS:directive>>` at the start, plus inline markers |
+| `gemini` | Monadic app | `hybrid_addendum_for` | an optional top-level `tts_instructions` field, plus inline markers in `message` |
+| `gemini` | other app | `hybrid_addendum_for` | optional `<<TTS:directive>>` at the start, plus inline markers |
 
 `SystemPromptInjector.__app_is_monadic?` decides the app type from the session's `monadic` parameter, then the MDSL `monadic` setting. `:plain_voice_enforcement` is not added for `openai-instruction`.
 

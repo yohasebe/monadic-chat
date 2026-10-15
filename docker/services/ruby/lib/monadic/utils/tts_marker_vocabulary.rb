@@ -264,26 +264,46 @@ module Monadic
         sections << "   #{inline_line}"
         sections << "   Use sparingly at genuine emotional moments — at most one or two per response."
         sections << ""
-        sections << "2) A leading directive block for higher-level voice shaping. When present, it appears at the very start of the response between the literal delimiters `<<TTS:` and `>>`, with a 3-6 line attribute set (one per line):"
+        if app_is_monadic
+          # Monadic apps answer in JSON: the directive is a sibling field,
+          # read by TtsInstructionExtractor.extract_json.
+          sections << "2) A directive for higher-level voice shaping, in an additional top-level JSON field `tts_instructions` alongside `message` and `context`, with a 3-6 line attribute set (one per line):"
+        else
+          sections << "2) A leading directive block for higher-level voice shaping. When present, it appears at the very start of the response between the literal delimiters `<<TTS:` and `>>`, with a 3-6 line attribute set (one per line):"
+        end
         sections << ""
         sections << attribute_template
         sections << ""
-        sections << "   You may also add extra free-form lines inside the same block for scene, audio-profile, or accent descriptions (e.g., \"Scene: late-night radio studio, warm ambient room tone.\"). Keep the entire block under 600 characters."
+        sections << "   You may also add extra free-form lines #{app_is_monadic ? 'in the same field' : 'inside the same block'} for scene, audio-profile, or accent descriptions (e.g., \"Scene: late-night radio studio, warm ambient room tone.\"). Keep #{app_is_monadic ? 'the field' : 'the entire block'} under 600 characters."
         sections << ""
         sections << INSTRUCTION_INTENSITY_GUIDANCE
         sections << ""
         sections << "Rules (hard constraints):"
-        sections << "- Never name, quote, describe, or list the markers or the directive block's delimiters in your reply. They are silent stage directions, not conversation topics."
-        sections << "- The `<<TTS:...>>` block is stripped before the message is shown to the user; the engine reads it as a director's note, not as speech."
-        sections << "- Never open a conversation with a marker or directive block — the first-turn utterance should read cleanly."
-        sections << "- Per-turn you may use markers only, the directive block only, both, or neither. Match the tool to the moment."
-        sections << ""
-        sections << "Example (hybrid, strong amusement):"
-        sections << "<<TTS:Voice: breathless, barely containing laughter."
-        sections << "Tone: uncontrollably amused."
-        sections << "Pacing: broken by gasps and mid-word chuckles.>>"
-        sections << ""
-        sections << "[laughs] Oh my goodness, stop — [sighs] you completely caught me off guard with that one."
+        if app_is_monadic
+          sections << "- Never name, quote, describe, or list the markers or the `tts_instructions` field in `message`. They are silent stage directions, not conversation topics."
+          sections << "- `tts_instructions` is not shown to the user; the engine reads it as a director's note, not as speech. Never write `<<TTS:` delimiters anywhere in the JSON."
+          sections << "- Never open a conversation with a marker or a directive — the first-turn utterance should read cleanly."
+          sections << "- Per-turn you may use markers only, the directive only, both, or neither. Match the tool to the moment."
+          sections << ""
+          sections << "Example (hybrid, strong amusement):"
+          sections << "{"
+          sections << "  \"message\": \"[laughs] Oh my goodness, stop — [sighs] you completely caught me off guard with that one.\","
+          sections << "  \"context\": { ... your app's usual context fields ... },"
+          sections << "  \"tts_instructions\": \"Voice: breathless, barely containing laughter.\\nTone: uncontrollably amused.\\nPacing: broken by gasps and mid-word chuckles.\""
+          sections << "}"
+        else
+          sections << "- Never name, quote, describe, or list the markers or the directive block's delimiters in your reply. They are silent stage directions, not conversation topics."
+          sections << "- The `<<TTS:...>>` block is stripped before the message is shown to the user; the engine reads it as a director's note, not as speech."
+          sections << "- Never open a conversation with a marker or directive block — the first-turn utterance should read cleanly."
+          sections << "- Per-turn you may use markers only, the directive block only, both, or neither. Match the tool to the moment."
+          sections << ""
+          sections << "Example (hybrid, strong amusement):"
+          sections << "<<TTS:Voice: breathless, barely containing laughter."
+          sections << "Tone: uncontrollably amused."
+          sections << "Pacing: broken by gasps and mid-word chuckles.>>"
+          sections << ""
+          sections << "[laughs] Oh my goodness, stop — [sighs] you completely caught me off guard with that one."
+        end
 
         sections.join("\n")
       end

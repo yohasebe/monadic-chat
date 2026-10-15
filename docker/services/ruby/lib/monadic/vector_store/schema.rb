@@ -77,7 +77,7 @@ module Monadic
           vectors: { 'content' => { size: EMBEDDING_DIMENSION, distance: DISTANCE } },
           payload_indexes: [
             { field: 'conversation_id', schema: 'keyword' },
-            { field: 'visibility', schema: 'keyword' },
+            { field: 'scope_app', schema: 'keyword' },
             { field: 'source', schema: 'keyword' },
             { field: 'language', schema: 'keyword' }
           ]
@@ -86,7 +86,7 @@ module Monadic
           vectors: { 'content' => { size: EMBEDDING_DIMENSION, distance: DISTANCE } },
           payload_indexes: [
             { field: 'conversation_id', schema: 'keyword' },
-            { field: 'visibility', schema: 'keyword' },
+            { field: 'scope_app', schema: 'keyword' },
             { field: 'turn_idx', schema: 'integer' }
           ]
         },
@@ -94,7 +94,7 @@ module Monadic
           vectors: { 'content' => { size: EMBEDDING_DIMENSION, distance: DISTANCE } },
           payload_indexes: [
             { field: 'conversation_id', schema: 'keyword' },
-            { field: 'visibility', schema: 'keyword' },
+            { field: 'scope_app', schema: 'keyword' },
             { field: 'message_id', schema: 'keyword' }
           ]
         }

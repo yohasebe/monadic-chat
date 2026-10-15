@@ -27,11 +27,13 @@ module Monadic
         body = { vectors: normalize_vectors_config(vectors) }
         put("/collections/#{name}", body)
         payload_indexes.each do |idx|
-          put("/collections/#{name}/index", {
-            field_name: idx[:field],
-            field_schema: idx[:schema]
-          })
+          create_payload_index(name: name, field: idx[:field], schema: idx[:schema])
         end
+        true
+      end
+
+      def create_payload_index(name:, field:, schema:)
+        put("/collections/#{name}/index", { field_name: field, field_schema: schema })
         true
       end
 

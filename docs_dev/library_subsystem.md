@@ -20,7 +20,7 @@ Defined in `Monadic::VectorStore::Schema` (`lib/monadic/vector_store/schema.rb`)
 | `library_turns` | One point per turn |
 | `library_messages` | Created with the others; nothing writes to it |
 
-Point ids are random UUIDs. `conversation_id` in the payload links an entry's summary and turns. `Store#upsert_points` rejects a point without `conversation_id` or `scope_app`.
+Point ids are random UUIDs. `conversation_id` in the payload links an entry's summary and turns. `Store#upsert_points` rejects a point without `conversation_id` or `scope_app`. Payload indexes are listed in `Monadic::VectorStore::Schema::DEFINITIONS` (`conversation_id` and `scope_app` on every Library collection). `Store#bootstrap_collections!` creates a missing collection with them and, once per process, adds them to a collection that already exists.
 
 ### Summary Payload
 

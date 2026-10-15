@@ -37,16 +37,41 @@ module Monadic
 
       # ─── Bootstrap ─────────────────────────────────────────────────────
 
+      # Collections made earlier get the indexes of the current schema; this
+      # is tried once per process, whether it works or not (creating an index
+      # that exists is not an error, and search works without one).
+      @indexed = {}
+      @indexed_mutex = Mutex.new
+      class << self
+        attr_reader :indexed, :indexed_mutex
+      end
+
       def bootstrap_collections!
         COLLECTIONS.each do |name|
-          next if @store.collection_exists?(name: name)
           defn = Schema::DEFINITIONS[name]
-          @store.create_collection(
-            name: name,
-            vectors: defn[:vectors],
-            payload_indexes: defn[:payload_indexes]
-          )
+          if @store.collection_exists?(name: name)
+            ensure_indexes(name, defn)
+          else
+            @store.create_collection(
+              name: name,
+              vectors: defn[:vectors],
+              payload_indexes: defn[:payload_indexes]
+            )
+            self.class.indexed_mutex.synchronize { self.class.indexed[name] = true }
+          end
         end
+      end
+
+      def ensure_indexes(name, defn)
+        return if self.class.indexed_mutex.synchronize { self.class.indexed[name] }
+        return unless @store.respond_to?(:create_payload_index)
+
+        self.class.indexed_mutex.synchronize { self.class.indexed[name] = true }
+        Array(defn[:payload_indexes]).each do |idx|
+          @store.create_payload_index(name: name, field: idx[:field], schema: idx[:schema])
+        end
+      rescue Monadic::VectorStore::BackendError, NotImplementedError => e
+        Monadic::Utils::ExtraLogger.log { "[Library] payload index for #{name} not created: #{e.message}" } if defined?(Monadic::Utils::ExtraLogger)
       end
 
       # ─── Generic plumbing ──────────────────────────────────────────────

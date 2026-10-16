@@ -83,12 +83,12 @@ RSpec.describe "Grok Tool Calling Integration", :integration do
     
     before do
       # Clean up any running Jupyter processes
-      system("pkill -f jupyter-lab", out: File::NULL, err: File::NULL)
+      system("docker", "exec", "monadic-chat-python-container", "run_jupyter.sh", "stop", out: File::NULL, err: File::NULL)
       sleep 1
     end
     
     after do
-      system("pkill -f jupyter-lab", out: File::NULL, err: File::NULL)
+      system("docker", "exec", "monadic-chat-python-container", "run_jupyter.sh", "stop", out: File::NULL, err: File::NULL)
     end
     
     it "executes tools and returns results" do

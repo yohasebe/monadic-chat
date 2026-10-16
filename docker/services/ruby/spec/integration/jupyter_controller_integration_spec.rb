@@ -7,7 +7,7 @@ require "fileutils"
 
 RSpec.describe "Jupyter Controller Integration", type: :integration do
   let(:data_dir) { File.expand_path("~/monadic/data") }
-  let(:test_notebook_name) { "test_notebook_#{Time.now.to_i}" }
+  let(:test_notebook_name) { SharedFolderTestFiles.name("notebook_#{Time.now.to_i}") }
   let(:docker_exec_prefix) { "docker exec monadic-chat-python-container python /monadic/scripts/services/jupyter_controller.py" }
   
   before(:all) do
@@ -20,15 +20,9 @@ RSpec.describe "Jupyter Controller Integration", type: :integration do
     end
   end
   
-  after(:each) do
-    # Clean up test notebooks
-    Dir.glob(File.join(data_dir, "#{test_notebook_name}*.ipynb")).each do |file|
-      FileUtils.rm_f(file)
-    end
-    Dir.glob(File.join(data_dir, "test_*.json")).each do |file|
-      FileUtils.rm_f(file)
-    end
-  end
+  # Only what an example adds to the shared folder is removed afterwards.
+  before(:each) { @shared_before = SharedFolderTestFiles.snapshot(data_dir) }
+  after(:each) { SharedFolderTestFiles.remove_new(data_dir, @shared_before) }
   
   describe "Basic Operations" do
     it "creates a new notebook" do
@@ -61,7 +55,7 @@ RSpec.describe "Jupyter Controller Integration", type: :integration do
       
       # Write cells to temp file to avoid shell escaping issues
       timestamp = Time.now.to_i
-      json_filename = "temp_cells_#{timestamp}.json"
+      json_filename = SharedFolderTestFiles.name("temp_cells_#{timestamp}.json")
       json_file = File.join(data_dir, json_filename)
       File.write(json_file, cells.to_json)
       
@@ -111,7 +105,7 @@ RSpec.describe "Jupyter Controller Integration", type: :integration do
       
       # Save to JSON file to avoid shell escaping issues
       timestamp = Time.now.to_i
-      json_filename = "temp_cells_#{timestamp}.json"
+      json_filename = SharedFolderTestFiles.name("temp_cells_#{timestamp}.json")
       json_file = File.join(data_dir, json_filename)
       File.write(json_file, cells.to_json)
       
@@ -177,7 +171,7 @@ RSpec.describe "Jupyter Controller Integration", type: :integration do
       notebook_filename = match[1].gsub(".ipynb", "")
       
       # Create JSON file with cells
-      json_filename = "test_cells_#{Time.now.to_i}.json"
+      json_filename = SharedFolderTestFiles.name("test_cells_#{Time.now.to_i}.json")
       json_path = File.join(data_dir, json_filename)
       
       cells = [

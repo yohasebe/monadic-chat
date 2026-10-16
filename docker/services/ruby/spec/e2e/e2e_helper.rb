@@ -417,21 +417,6 @@ module E2EHelper
     end
   end
 
-  # Create test file
-  def create_test_file(filename, content)
-    path = File.join(Monadic::Utils::Environment.data_path, filename)
-    File.write(path, content)
-    path
-  end
-
-  # Clean up test files
-  def cleanup_test_files(*filenames)
-    filenames.each do |filename|
-      path = File.join(Monadic::Utils::Environment.data_path, filename)
-      File.delete(path) if File.exist?(path)
-    end
-  end
-  
   # Simple helper to send a message and receive a response
   def send_and_receive_message(app_name, message)
     ws_connection = create_websocket_connection

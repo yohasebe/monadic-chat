@@ -45,13 +45,17 @@ RSpec.describe "Selenium Integration", :integration do
   end
 
   describe "webpage_fetcher.py functionality" do
+    # The fetcher writes into a folder of this run's own, removed afterwards.
+    before(:each) { @shared_before = SharedFolderTestFiles.snapshot(File.join(Dir.home, "monadic", "data")) }
+    after(:each) { SharedFolderTestFiles.remove_new(File.join(Dir.home, "monadic", "data"), @shared_before) }
+
     it "captures screenshots of webpages" do
       # Test with example.com which should be accessible
       command = [
         "python", "/monadic/scripts/cli_tools/webpage_fetcher.py",
         "--url", "https://example.com",
         "--mode", "png",
-        "--filepath", "/monadic/data/",
+        "--filepath", "/monadic/data/#{SharedFolderTestFiles::FETCH_DIR}/",
         "--timeout-sec", "60"  # Increase timeout to 60 seconds
       ].join(" ")
       
@@ -101,7 +105,7 @@ RSpec.describe "Selenium Integration", :integration do
         "python", "/monadic/scripts/cli_tools/webpage_fetcher.py",
         "--url", "https://httpbin.org/html",
         "--mode", "md",
-        "--filepath", "/monadic/data/"
+        "--filepath", "/monadic/data/#{SharedFolderTestFiles::FETCH_DIR}/"
       ].join(" ")
       
       output = `docker exec monadic-chat-python-container #{command} 2>&1`
@@ -124,7 +128,7 @@ RSpec.describe "Selenium Integration", :integration do
         "python", "/monadic/scripts/cli_tools/webpage_fetcher.py",
         "--url", "https://this-does-not-exist-12345.com",
         "--mode", "md",
-        "--filepath", "/monadic/data/"
+        "--filepath", "/monadic/data/#{SharedFolderTestFiles::FETCH_DIR}/"
       ].join(" ")
       
       output = `docker exec monadic-chat-python-container #{command} 2>&1`
@@ -201,7 +205,7 @@ RSpec.describe "Selenium Integration", :integration do
   describe "File sharing between containers" do
     it "can save files to shared volume from Python container" do
       timestamp = Time.now.to_i
-      test_file = "test_selenium_#{timestamp}.txt"
+      test_file = SharedFolderTestFiles.name("selenium_#{timestamp}.txt")
       test_content = "Selenium test #{timestamp}"
       
       # Create file using Python to avoid shell issues

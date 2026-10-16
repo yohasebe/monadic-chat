@@ -11,7 +11,7 @@ require_relative '../../../apps/auto_forge/agents/error_explainer'
 require_relative '../../../apps/auto_forge/utils/codex_response_analyzer'
 
 RSpec.describe 'AutoForge Diagnosis Integration', type: :integration do
-  let(:test_project_name) { "TestApp_#{Time.now.to_i}" }
+  let(:test_project_name) { SharedFolderTestFiles.name("TestApp_#{Time.now.to_i}") }
   let(:auto_forge_dir) { File.expand_path('~/monadic/data/auto_forge') }
   let(:project_dir) { File.join(auto_forge_dir, test_project_name) }
 

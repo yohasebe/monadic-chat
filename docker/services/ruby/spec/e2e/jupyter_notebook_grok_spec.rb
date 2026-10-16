@@ -20,18 +20,20 @@ RSpec.describe "Jupyter Notebook Grok Integration", :e2e, :no_api do
   end
   
   before(:each) do
-    # Clean up data directory before each test
-    FileUtils.rm_rf(Dir.glob(File.join(data_dir, "*.ipynb")))
-    
-    # Kill any running Jupyter processes
-    system("pkill -f jupyter-lab", out: File::NULL, err: File::NULL)
+    # What the shared folder held before the example: only what the example
+    # adds is removed afterwards (the user's own notebooks stay).
+    @shared_before = SharedFolderTestFiles.snapshot(data_dir)
+
+    # Stop JupyterLab in the Python container (as the app does; a pkill on
+    # the host would stop the user's own JupyterLab instead)
+    system("docker", "exec", "monadic-chat-python-container", "run_jupyter.sh", "stop", out: File::NULL, err: File::NULL)
     sleep 1
   end
   
   after(:each) do
     # Clean up after tests
-    system("pkill -f jupyter-lab", out: File::NULL, err: File::NULL)
-    FileUtils.rm_rf(Dir.glob(File.join(data_dir, "*.ipynb")))
+    system("docker", "exec", "monadic-chat-python-container", "run_jupyter.sh", "stop", out: File::NULL, err: File::NULL)
+    SharedFolderTestFiles.remove_new(data_dir, @shared_before)
   end
   
   describe "Tool Execution" do
@@ -67,21 +69,21 @@ RSpec.describe "Jupyter Notebook Grok Integration", :e2e, :no_api do
       
       it "creates a new Jupyter notebook" do
         timestamp = Time.now.strftime("%Y%m%d_%H%M%S")
-        result = app.create_jupyter_notebook(filename: "test_notebook")
+        result = app.create_jupyter_notebook(filename: SharedFolderTestFiles.name("test_notebook"))
         
         expect(result).to include("http://")
         expect(result).to include(".ipynb")
         
-        # Verify file was created
-        notebooks = Dir.glob(File.join(data_dir, "*.ipynb"))
+        # Verify file was created (among the notebooks this example added)
+        notebooks = Dir.glob(File.join(data_dir, "*.ipynb")).map { |f| File.basename(f) }.reject { |n| @shared_before.include?(n) }
         expect(notebooks).not_to be_empty
         expect(notebooks.first).to match(/test_notebook.*\.ipynb/)
       end
       
       it "creates notebooks with unique timestamps" do
-        result1 = app.create_jupyter_notebook(filename: "notebook1")
+        result1 = app.create_jupyter_notebook(filename: SharedFolderTestFiles.name("notebook1"))
         sleep 1
-        result2 = app.create_jupyter_notebook(filename: "notebook2")
+        result2 = app.create_jupyter_notebook(filename: SharedFolderTestFiles.name("notebook2"))
         
         # Extract filenames from results
         filename1 = result1.match(/Notebook\s+(\S+\.ipynb)/)[1]
@@ -101,7 +103,7 @@ RSpec.describe "Jupyter Notebook Grok Integration", :e2e, :no_api do
       before do
         app.run_jupyter(command: "start")
         sleep 2
-        @notebook_path = app.create_jupyter_notebook(filename: "test")
+        @notebook_path = app.create_jupyter_notebook(filename: SharedFolderTestFiles.name("test"))
         @actual_filename = @notebook_path.match(/Notebook\s+(\S+\.ipynb)/)[1]
       end
       
@@ -179,7 +181,7 @@ RSpec.describe "Jupyter Notebook Grok Integration", :e2e, :no_api do
       before do
         app.run_jupyter(command: "start")
         sleep 2
-        @notebook_path = app.create_jupyter_notebook(filename: "test")
+        @notebook_path = app.create_jupyter_notebook(filename: SharedFolderTestFiles.name("test"))
         @actual_filename = @notebook_path.match(/Notebook\s+(\S+\.ipynb)/)[1]
         
         # Add some cells first
@@ -212,7 +214,7 @@ RSpec.describe "Jupyter Notebook Grok Integration", :e2e, :no_api do
       before do
         app.run_jupyter(command: "start")
         sleep 2
-        @notebook_path = app.create_jupyter_notebook(filename: "test")
+        @notebook_path = app.create_jupyter_notebook(filename: SharedFolderTestFiles.name("test"))
         @actual_filename = @notebook_path.match(/Notebook\s+(\S+\.ipynb)/)[1]
         
         # Add a cell to update
@@ -246,17 +248,20 @@ RSpec.describe "Jupyter Notebook Grok Integration", :e2e, :no_api do
       
       it "lists all notebooks in data directory" do
         # Create a few notebooks
-        app.create_jupyter_notebook(filename: "notebook1")
-        app.create_jupyter_notebook(filename: "notebook2")
+        app.create_jupyter_notebook(filename: SharedFolderTestFiles.name("notebook1"))
+        app.create_jupyter_notebook(filename: SharedFolderTestFiles.name("notebook2"))
         
         result = app.list_jupyter_notebooks
         
-        expect(result).to include("notebook1")
-        expect(result).to include("notebook2")
+        expect(result).to include(SharedFolderTestFiles.name("notebook1"))
+        expect(result).to include(SharedFolderTestFiles.name("notebook2"))
         expect(result).to include(".ipynb")
       end
       
       it "returns appropriate message when no notebooks exist" do
+        # The user's own notebooks are never removed for this check.
+        skip "the shared folder holds notebooks" if Dir.glob(File.join(data_dir, "*.ipynb")).any?
+
         result = app.list_jupyter_notebooks
         
         expect(result).to match(/no.*notebooks?|empty/i)
@@ -288,7 +293,7 @@ RSpec.describe "Jupyter Notebook Grok Integration", :e2e, :no_api do
     it "handles invalid cell index" do
       app.run_jupyter(command: "start")
       sleep 2
-      @notebook_path = app.create_jupyter_notebook(filename: "test")
+      @notebook_path = app.create_jupyter_notebook(filename: SharedFolderTestFiles.name("test"))
       @actual_filename = @notebook_path.match(/Notebook\s+(\S+\.ipynb)/)[1]
 
       result = app.delete_jupyter_cell(filename: @actual_filename, index: 999)
@@ -298,33 +303,29 @@ RSpec.describe "Jupyter Notebook Grok Integration", :e2e, :no_api do
   end
   
   describe "File Operations" do
+    let(:text_file) { SharedFolderTestFiles.name("test.txt") }
+    let(:python_file) { SharedFolderTestFiles.name("test.py") }
+    let(:output_file) { SharedFolderTestFiles.name("output.txt") }
+
     before do
       # Create a test file to read
-      File.write(File.join(data_dir, "test.txt"), "Test content")
-      File.write(File.join(data_dir, "test.py"), "print('Hello')")
+      File.write(File.join(data_dir, text_file), "Test content")
+      File.write(File.join(data_dir, python_file), "print('Hello')")
     end
-    
-    after do
-      FileUtils.rm_f(File.join(data_dir, "test.txt"))
-      FileUtils.rm_f(File.join(data_dir, "test.py"))
-    end
-    
+
     it "fetches text from files" do
-      result = app.fetch_text_from_file(file: "test.txt")
+      result = app.fetch_text_from_file(file: text_file)
       expect(result).to eq("Test content")
-      
-      result = app.fetch_text_from_file(file: "test.py")
+
+      result = app.fetch_text_from_file(file: python_file)
       expect(result).to eq("print('Hello')")
     end
-    
+
     it "writes content to files" do
-      app.send(:write_to_file, filename: "output.txt", content: "New content")
-      
-      expect(File.exist?(File.join(data_dir, "output.txt"))).to be true
-      expect(File.read(File.join(data_dir, "output.txt"))).to eq("New content")
-      
-      # Clean up
-      FileUtils.rm_f(File.join(data_dir, "output.txt"))
+      app.send(:write_to_file, filename: output_file, content: "New content")
+
+      expect(File.exist?(File.join(data_dir, output_file))).to be true
+      expect(File.read(File.join(data_dir, output_file))).to eq("New content")
     end
   end
   

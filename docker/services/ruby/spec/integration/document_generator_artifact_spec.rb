@@ -123,7 +123,7 @@ RSpec.describe 'Document Generator Integration', :api, :artifacts do
 
       # Test with dummy data
       test_data = 'test content'
-      test_filename = "test_#{Time.now.to_i}.txt"
+      test_filename = SharedFolderTestFiles.name("#{Time.now.to_i}.txt")
 
       documents_dir = if Monadic::Utils::Environment.in_container?
                         '/monadic/data/documents'

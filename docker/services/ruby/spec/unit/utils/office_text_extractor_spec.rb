@@ -407,14 +407,13 @@ RSpec.describe "Office Text Extraction Integration", :integration do
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(data_dir)
 
     # Copy fixture files to data_dir for Docker container access. The
-    # container reads the user's shared folder, so they go there, and only
-    # the ones copied here are removed afterwards (a file of the user's with
-    # the same name is left alone).
+    # container reads the user's shared folder, so they go there under the
+    # test prefix, and only the ones copied here are removed afterwards.
     FileUtils.mkdir_p(data_dir)
     @copied_fixtures = []
     %w[test_document.docx test_spreadsheet.xlsx test_presentation.pptx].each do |file|
       src = File.join(fixtures_dir, file)
-      dst = File.join(data_dir, file)
+      dst = File.join(data_dir, SharedFolderTestFiles.name(file))
       next unless File.exist?(src) && !File.exist?(dst)
 
       FileUtils.cp(src, dst)
@@ -428,7 +427,7 @@ RSpec.describe "Office Text Extraction Integration", :integration do
 
   describe "real file extraction" do
     it "extracts text from real DOCX file" do
-      file_path = File.join(data_dir, 'test_document.docx')
+      file_path = File.join(data_dir, SharedFolderTestFiles.name('test_document.docx'))
       skip "Test file not found: #{file_path}" unless File.exist?(file_path)
 
       result = helper.fetch_text_from_office(file: file_path)
@@ -448,7 +447,7 @@ RSpec.describe "Office Text Extraction Integration", :integration do
     end
 
     it "extracts text from real XLSX file" do
-      file_path = File.join(data_dir, 'test_spreadsheet.xlsx')
+      file_path = File.join(data_dir, SharedFolderTestFiles.name('test_spreadsheet.xlsx'))
       skip "Test file not found: #{file_path}" unless File.exist?(file_path)
 
       result = helper.fetch_text_from_office(file: file_path)
@@ -466,7 +465,7 @@ RSpec.describe "Office Text Extraction Integration", :integration do
     end
 
     it "extracts text from real PPTX file" do
-      file_path = File.join(data_dir, 'test_presentation.pptx')
+      file_path = File.join(data_dir, SharedFolderTestFiles.name('test_presentation.pptx'))
       skip "Test file not found: #{file_path}" unless File.exist?(file_path)
 
       result = helper.fetch_text_from_office(file: file_path)

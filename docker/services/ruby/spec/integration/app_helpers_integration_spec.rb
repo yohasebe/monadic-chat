@@ -150,6 +150,18 @@ RSpec.describe "App Helpers Integration", type: :integration do
     skip "Docker tests require Docker environment" unless docker_available?
   end
 
+  # Files an example makes in the shared folder carry the test prefix, and
+  # only what an example adds there is removed afterwards.
+  def t(base)
+    SharedFolderTestFiles.name(base)
+  end
+
+  before(:each) { @shared_before = SharedFolderTestFiles.snapshot(File.join(Dir.home, "monadic", "data")) }
+  after(:each) do
+    data = File.join(Dir.home, "monadic", "data")
+    SharedFolderTestFiles.remove_new(data, @shared_before)
+  end
+
   let(:test_class) do
     Class.new do
       include TestMonadicAppBehavior
@@ -172,18 +184,16 @@ RSpec.describe "App Helpers Integration", type: :integration do
       
       it "captures and reports generated files" do
         code = <<~PYTHON
-          with open('helper_test.txt', 'w') as f:
+          with open('#{t("helper_test.txt")}', 'w') as f:
               f.write('Test content')
           print('File created')
         PYTHON
         
         result = test_instance.run_code(code: code)
         
-        expect(result).to include("File(s) generated: helper_test.txt")
+        expect(result).to include("File(s) generated: #{t("helper_test.txt")}")
         expect(result).to include("File created")
         
-        # Cleanup
-        test_instance.run_bash_command(command: "rm -f helper_test.txt")
       end
       
       it "handles Python errors properly" do
@@ -196,10 +206,10 @@ RSpec.describe "App Helpers Integration", type: :integration do
     describe "#run_script" do
       it "executes Python scripts from file system" do
         # Create a test script
-        script_path = File.join(Dir.home, "monadic", "data", "test_script.py")
+        script_path = File.join(Dir.home, "monadic", "data", t("test_script.py"))
         File.write(script_path, "print('Script executed')")
         
-        result = test_instance.run_script(script: "test_script.py")
+        result = test_instance.run_script(script: t("test_script.py"))
         
         expect(result).to include("Script executed")
         
@@ -225,12 +235,10 @@ RSpec.describe "App Helpers Integration", type: :integration do
       end
       
       it "can manipulate files" do
-        result = test_instance.run_bash_command(command: "touch bash_test.txt && ls bash_test.txt")
+        result = test_instance.run_bash_command(command: "touch #{t("bash_test.txt")} && ls #{t("bash_test.txt")}")
         
-        expect(result).to include("bash_test.txt")
+        expect(result).to include(t("bash_test.txt"))
         
-        # Cleanup
-        test_instance.run_bash_command(command: "rm -f bash_test.txt")
       end
     end
   end
@@ -239,10 +247,10 @@ RSpec.describe "App Helpers Integration", type: :integration do
     describe "#fetch_text_from_file" do
       it "reads file content from the data directory" do
         # Create test file
-        file_path = File.join(Dir.home, "monadic", "data", "read_test.txt")
+        file_path = File.join(Dir.home, "monadic", "data", t("read_test.txt"))
         File.write(file_path, "Test content for reading")
         
-        result = test_instance.fetch_text_from_file(file: "read_test.txt")
+        result = test_instance.fetch_text_from_file(file: t("read_test.txt"))
         
         expect(result).to include("Test content for reading")
         
@@ -263,21 +271,21 @@ RSpec.describe "App Helpers Integration", type: :integration do
       # Python creates file
       python_code = <<~PYTHON
         data = "Integration test content"
-        with open('integration_test.txt', 'w') as f:
+        with open('#{t("integration_test.txt")}', 'w') as f:
             f.write(data)
         print("File written")
       PYTHON
       
       create_result = test_instance.run_code(code: python_code)
       expect(create_result).to include("File written")
-      expect(create_result).to include("integration_test.txt")
+      expect(create_result).to include(t("integration_test.txt"))
       
       # ReadWriteHelper reads file
-      read_result = test_instance.fetch_text_from_file(file: "integration_test.txt")
+      read_result = test_instance.fetch_text_from_file(file: t("integration_test.txt"))
       expect(read_result).to include("Integration test content")
       
-      # BashCommandHelper cleans up
-      cleanup_result = test_instance.run_bash_command(command: "rm -f integration_test.txt")
+      # BashCommandHelper cleans up (only the file this example made)
+      cleanup_result = test_instance.run_bash_command(command: "rm -f #{t("integration_test.txt")}")
       expect(cleanup_result).to include("Command has been executed")
     end
     
@@ -286,7 +294,7 @@ RSpec.describe "App Helpers Integration", type: :integration do
       step1 = test_instance.run_code(code: <<~PYTHON)
         import json
         data = {"numbers": [1, 2, 3, 4, 5]}
-        with open('data.json', 'w') as f:
+        with open('#{t("data.json")}', 'w') as f:
             json.dump(data, f)
         print("Data created")
       PYTHON
@@ -296,10 +304,10 @@ RSpec.describe "App Helpers Integration", type: :integration do
       # Step 2: Process with another Python script
       step2 = test_instance.run_code(code: <<~PYTHON)
         import json
-        with open('data.json', 'r') as f:
+        with open('#{t("data.json")}', 'r') as f:
             data = json.load(f)
         total = sum(data['numbers'])
-        with open('result.txt', 'w') as f:
+        with open('#{t("result.txt")}', 'w') as f:
             f.write(f"Total: {total}")
         print(f"Processed: sum = {total}")
       PYTHON
@@ -307,11 +315,9 @@ RSpec.describe "App Helpers Integration", type: :integration do
       expect(step2).to include("Processed: sum = 15")
       
       # Step 3: Read result
-      result = test_instance.fetch_text_from_file(file: "result.txt")
+      result = test_instance.fetch_text_from_file(file: t("result.txt"))
       expect(result).to include("Total: 15")
       
-      # Cleanup
-      test_instance.run_bash_command(command: "rm -f data.json result.txt")
     end
   end
 
@@ -341,7 +347,7 @@ RSpec.describe "App Helpers Integration", type: :integration do
         plt.figure(figsize=(8, 6))
         plt.plot(x, y)
         plt.title('Sine Wave')
-        plt.savefig('sine_wave.png')
+        plt.savefig('#{t("sine_wave.png")}')
         plt.close()
         print("Plot saved")
       PYTHON
@@ -349,14 +355,12 @@ RSpec.describe "App Helpers Integration", type: :integration do
       result = test_instance.run_code(code: plot_code)
       
       expect(result).to include("Plot saved")
-      expect(result).to include("sine_wave.png")
+      expect(result).to include(t("sine_wave.png"))
       
       # Verify file exists
-      file_exists = test_instance.run_bash_command(command: "ls sine_wave.png")
-      expect(file_exists).to include("sine_wave.png")
+      file_exists = test_instance.run_bash_command(command: "ls #{t("sine_wave.png")}")
+      expect(file_exists).to include(t("sine_wave.png"))
       
-      # Cleanup
-      test_instance.run_bash_command(command: "rm -f sine_wave.png")
     end
     
     it "processes pandas dataframes" do
@@ -375,7 +379,7 @@ RSpec.describe "App Helpers Integration", type: :integration do
         print(f"\\nAverage age: {df['age'].mean()}")
         print(f"Total score: {df['score'].sum()}")
         
-        df.to_csv('test_data.csv', index=False)
+        df.to_csv('#{t("test_data.csv")}', index=False)
         print("\\nData saved to CSV")
       PYTHON
       
@@ -387,12 +391,10 @@ RSpec.describe "App Helpers Integration", type: :integration do
       expect(result).to include("Data saved to CSV")
       
       # Verify CSV content
-      csv_content = test_instance.fetch_text_from_file(file: "test_data.csv")
+      csv_content = test_instance.fetch_text_from_file(file: t("test_data.csv"))
       expect(csv_content).to include("name,age,score")
       expect(csv_content).to include("Alice,25,85")
       
-      # Cleanup
-      test_instance.run_bash_command(command: "rm -f test_data.csv")
     end
   end
 
@@ -429,7 +431,7 @@ RSpec.describe "App Helpers Integration", type: :integration do
         "python /monadic/scripts/cli_tools/webpage_fetcher.py",
         "--url", "https://httpbin.org/html",
         "--mode", "md",
-        "--filepath", "/monadic/data/"
+        "--filepath", "/monadic/data/#{SharedFolderTestFiles::FETCH_DIR}/"
       ].join(" ")
 
       # Use 300s timeout: Selenium Grid (maxSessions:1) queues requests,
@@ -443,8 +445,6 @@ RSpec.describe "App Helpers Integration", type: :integration do
       # Check that it processed the page
       expect(result).to match(/Successfully saved|saved|\.md/)
       
-      # Clean up any generated files
-      test_instance.run_bash_command(command: "rm -f /monadic/data/*httpbin*.md")
     end
     
     it "captures web screenshots using Selenium" do
@@ -453,7 +453,7 @@ RSpec.describe "App Helpers Integration", type: :integration do
         "python /monadic/scripts/cli_tools/webpage_fetcher.py",
         "--url", "https://httpbin.org/html",  # Use a more reliable test URL
         "--mode", "png",
-        "--filepath", "/monadic/data/",
+        "--filepath", "/monadic/data/#{SharedFolderTestFiles::FETCH_DIR}/",
         "--timeout-sec", "30"  # Increase timeout for more reliability
       ].join(" ")
       
@@ -467,8 +467,6 @@ RSpec.describe "App Helpers Integration", type: :integration do
       # Check for successful screenshot or timeout message
       expect(result).to match(/saved|\.png|timed out/)
       
-      # Clean up any generated files
-      test_instance.run_bash_command(command: "rm -f /monadic/data/*httpbin*.png")
     end
   end
 

@@ -63,7 +63,7 @@ RSpec.describe "LaTeX Processing Integration Tests", :integration do
       LATEX
       
       timestamp = Time.now.to_i
-      filename = "test_tikz_#{timestamp}"
+      filename = SharedFolderTestFiles.name("tikz_#{timestamp}")
       
       begin
         # Write test file
@@ -81,7 +81,7 @@ RSpec.describe "LaTeX Processing Integration Tests", :integration do
         expect(status.success?).to be true
         expect(File.exist?(File.join(data_dir, "#{filename}.svg"))).to be true
       ensure
-        cleanup_generated_files("test_tikz_#{timestamp}*")
+        cleanup_generated_files("#{SharedFolderTestFiles.name("tikz_#{timestamp}")}*")
       end
     end
     
@@ -98,7 +98,7 @@ RSpec.describe "LaTeX Processing Integration Tests", :integration do
       LATEX
       
       timestamp = Time.now.to_i
-      filename = "test_qtree_#{timestamp}"
+      filename = SharedFolderTestFiles.name("qtree_#{timestamp}")
       
       begin
         File.write(File.join(data_dir, "#{filename}.tex"), test_tex)
@@ -119,7 +119,7 @@ RSpec.describe "LaTeX Processing Integration Tests", :integration do
         expect(svg_content).to include("John")
         expect(svg_content).to include("runs")
       ensure
-        cleanup_generated_files("test_qtree_#{timestamp}*")
+        cleanup_generated_files("#{SharedFolderTestFiles.name("qtree_#{timestamp}")}*")
       end
     end
     
@@ -138,7 +138,7 @@ RSpec.describe "LaTeX Processing Integration Tests", :integration do
       LATEX
       
       timestamp = Time.now.to_i
-      filename = "test_cjk_#{timestamp}"
+      filename = SharedFolderTestFiles.name("cjk_#{timestamp}")
       
       begin
         File.write(File.join(data_dir, "#{filename}.tex"), test_tex)
@@ -154,7 +154,7 @@ RSpec.describe "LaTeX Processing Integration Tests", :integration do
         # CJK compilation might have warnings but should produce output
         expect(File.exist?(File.join(data_dir, "#{filename}.svg"))).to be true
       ensure
-        cleanup_generated_files("test_cjk_#{timestamp}*")
+        cleanup_generated_files("#{SharedFolderTestFiles.name("cjk_#{timestamp}")}*")
       end
     end
   end
@@ -177,7 +177,7 @@ RSpec.describe "LaTeX Processing Integration Tests", :integration do
       LATEX
       
       timestamp = Time.now.to_i
-      filename = "test_error_#{timestamp}"
+      filename = SharedFolderTestFiles.name("error_#{timestamp}")
       
       begin
         File.write(File.join(data_dir, "#{filename}.tex"), test_tex)
@@ -188,7 +188,7 @@ RSpec.describe "LaTeX Processing Integration Tests", :integration do
         expect(status.success?).to be false
         expect(stdout).to include("error") # LaTeX will report an error
       ensure
-        cleanup_generated_files("test_error_#{timestamp}*")
+        cleanup_generated_files("#{SharedFolderTestFiles.name("error_#{timestamp}")}*")
       end
     end
   end

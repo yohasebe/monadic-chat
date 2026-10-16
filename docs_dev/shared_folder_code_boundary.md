@@ -14,7 +14,7 @@ The shared folder (`~/monadic/data`, `/monadic/data` in the containers) is writt
 
 - **Mounts:** `apps/`, `helpers/` and `services/` are mounted read-only in every container that mounts the shared folder (Python, Selenium, Extractor and Ruby). `monadic.sh` (`ensure_code_dirs`) creates them as the user before any container starts, and does not start when one cannot be created or is a link (taking containers down still works). `test/electron/code-dirs-mount.test.js` checks the mounts in a real container on Linux in CI.
 - **Writes by the server:** a write whose file name a model or a page chooses (file tools, uploads, web search saves, files a provider sends, app templates, AutoForge's project files) goes through `SharedPathGuard.write_file!`, which refuses the `apps`, `helpers`, `scripts` and `services` folders and a link in the file's place.
-- **Tests:** a spec that makes a tool write into the shared folder points `Monadic::Utils::Environment.shared_volume` and `data_path` at a temporary folder; a spec that needs the user's shared folder (a running container reads it) removes what it put there.
+- **Tests:** a spec that makes a tool write into the shared folder points `Monadic::Utils::Environment.shared_volume` and `data_path` at a temporary folder. A spec that needs the user's shared folder (a running container reads it) uses `spec/support/shared_folder_test_files.rb`: its files are named `SharedFolderTestFiles.name(...)` (`monadic-test-<run>-<name>`, which the Shared Folder panel shows as test files), and it removes only what the example added (`snapshot` before, `remove_new` after), never by a name pattern that a user's file could match.
 
 ## Development mode
 

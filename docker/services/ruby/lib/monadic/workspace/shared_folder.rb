@@ -65,10 +65,31 @@ module Monadic
         /\A\d{10}_[0-9a-f]{8}\.md\z/,   # text given to speech
         /\A\d{10}\.json\z/,             # notebook cells sent in one go
         /\A\d{10}\.pdf\z/,              # a PDF copied for text extraction
+        /\Apdf2text_[0-9a-f]{16}\.pdf\z/, # the same, as it is named now
         /\.md\.json\z/,                 # text extraction output
         /\Asyntree_\d+\./,              # syntax tree drawing steps
         /\.part-\d+\z/                  # a copy that was not finished
       ].freeze
+
+      # Specs that need the user's shared folder name what they make there
+      # with this prefix (spec/support/shared_folder_test_files.rb), and keep
+      # scratch files in TEST_SCRATCH: both are test files for certain.
+      TEST_PREFIX = 'monadic-test-'
+      TEST_SCRATCH = '.test_tmp'
+
+      # Names that specs used before they took TEST_PREFIX. A candidate only:
+      # a user can name a file this way too.
+      TEST_CANDIDATE_PATTERNS = [
+        /\Atest_\d{10}_\d{1,4}\z/,                                  # a scratch folder
+        /\Atest_(?:selenium|tikz|qtree|cjk|error)_\d{10}/,
+        /\A(?:temp|test)_cells_\d{10}\.json\z/,
+        /\Atest_text_\d{10}\.(?:md|mp3|wav|webm)\z/,
+        /\Atest_(?:not_pdf|formats|json|all_pages|invalid_format)_\d{10}\./,
+        /\Atest_(?:notebook|advanced)_\d{10}/,
+        /\Atest_operations_/,
+        /\Aintegration_test_\d{10}\.txt\z/
+      ].freeze
+      TEST_CANDIDATE_PROJECT = /\ATestApp_\d{10}\z/ # under auto_forge/
 
       PER_PAGE = 200
 
@@ -113,12 +134,21 @@ module Monadic
 
       MAX_NAMES = 20_000 # names read from one folder for one listing
 
+      SORTS = %w[name size modified].freeze
+
       # One page of the folder at relative ("" for the shared folder itself).
       # live_chat_ids are the chats open in some tab; their folders are
       # reported as in use. sizes gives what the background count knows of
       # each folder's size. A folder with more than MAX_NAMES entries is
       # listed from the first MAX_NAMES read (truncated).
-      def list(relative = '', page: 1, per_page: PER_PAGE, live_chat_ids: [], ledger: Ledger.default, sizes: nil)
+      #
+      # query keeps the entries whose name holds it (any case), classes the
+      # entries of those classifications; sort is name, size (largest first;
+      # a folder not counted yet goes last) or modified (newest first), and
+      # descending turns the order around. Without them the folder is listed
+      # by name and only the page shown is looked at.
+      def list(relative = '', page: 1, per_page: PER_PAGE, live_chat_ids: [], ledger: Ledger.default, sizes: nil,
+               query: nil, classes: nil, sort: 'name', descending: false)
         root = data_root
         id, id_problem = root_id_or_reason(root) # made before the listing, so it is listed too
         parts = parts_of(relative)
@@ -135,13 +165,33 @@ module Monadic
         names.sort!
         page = [page.to_i, 1].max
         per_page = per_page.to_i.clamp(1, 1000)
-        shown = names.slice((page - 1) * per_page, per_page) || []
-
         index = ledger_index(ledger, live_chat_ids)
-        items = shown.map { |name| describe(dir, parts, name, index, sizes, reveal: !id.nil?) }.compact
+        sort = SORTS.include?(sort.to_s) ? sort.to_s : 'name'
+        query = query.to_s.strip.downcase
+        classes = Array(classes).map(&:to_s).reject(&:empty?)
+        describe_one = ->(name) { describe(dir, parts, name, index, sizes, reveal: !id.nil?) }
+        total = names.size
+        # The name filter needs no look at the entries.
+        names = names.select { |n| n.downcase.include?(query) } unless query.empty?
 
-        { root_id: id, root_id_problem: id_problem, path: parts.join('/'), total: names.size, truncated: truncated,
-          page: page, per_page: per_page, items: items, ledger_readable: !index[:unreadable],
+        if classes.empty? && sort == 'name'
+          names.reverse! if descending
+          matched = names.size
+          items = (names.slice((page - 1) * per_page, per_page) || []).map(&describe_one).compact
+        else
+          # Sizes are looked up (and folders queued for counting) only when
+          # the order needs them; the page shown gets them in any case.
+          looked = names.map { |n| describe(dir, parts, n, index, sort == 'size' ? sizes : nil, reveal: !id.nil?) }.compact
+          looked = looked.select { |i| classes.include?(i[:classification]) } unless classes.empty?
+          looked = sort_items(looked, sort)
+          looked.reverse! if descending
+          matched = looked.size
+          shown = looked.slice((page - 1) * per_page, per_page) || []
+          items = sort == 'size' ? shown : shown.map { |i| describe_one.call(i[:name]) }.compact
+        end
+
+        { root_id: id, root_id_problem: id_problem, path: parts.join('/'), total: total, matched: matched,
+          truncated: truncated, page: page, per_page: per_page, items: items, ledger_readable: !index[:unreadable],
           listed_at: Time.now.utc.iso8601 }
       end
 
@@ -189,6 +239,19 @@ module Monadic
         raise Invalid, 'the folder is not there'
       end
 
+      # size: largest first, entries without a known size last; modified:
+      # newest first. Ties keep name order.
+      def sort_items(items, sort)
+        case sort
+        when 'size'
+          items.sort_by { |i| [i[:bytes] ? 0 : 1, -(i[:bytes] || 0), i[:name]] }
+        when 'modified'
+          items.sort_by { |i| [-Time.iso8601(i[:modified_at]).to_i, i[:name]] }
+        else
+          items
+        end
+      end
+
       def ledger_index(ledger, live_chat_ids)
         snapshot = ledger.snapshot
         by_dir = {}
@@ -214,10 +277,63 @@ module Monadic
         item.merge!(what_it_is(parts, name, kind, index))
         protected_reason = PROTECTED[parts.first || name]
         item[:protected_reason] = protected_reason if protected_reason
-        item[:capabilities] = { reveal: reveal && %w[file folder].include?(kind) }
+        item[:busy_reason] ||= 'open_in_tab' if in_open_chat?(parts, item, index)
+        item[:capabilities] = { reveal: reveal && %w[file folder].include?(kind),
+                                trash: reveal && trashable?(kind, item, parts, index) }
         item
       rescue Errno::ENOENT
         nil # gone between the listing and the look
+      end
+
+      # Inside the folder of a chat open in a tab, or a playback copy of
+      # that chat's attachment: removing it would break the chat.
+      def in_open_chat?(parts, item, index)
+        return true if item[:owner_chat_id] && index[:live].include?(item[:owner_chat_id])
+        return false unless parts.first == Folders::ROOT_DIRNAME && parts.size >= 2
+
+        record = index[:workspaces]["#{Folders::ROOT_DIRNAME}/#{parts[1]}"]
+        !!(record && index[:live].include?(record['chat_id']))
+      end
+
+      # What may be moved to the system's trash: a file or folder that is not
+      # protected (nor inside a protected entry), not in use, not one of the
+      # folders kept for a purpose at the top (FOLDERS), and not a folder
+      # that holds the folder of a chat open in a tab. Nothing may go while
+      # the record cannot be read: what is in use cannot be told then. The
+      # desktop app asks again (entry) just before it moves it.
+      def trashable?(kind, item, parts, index)
+        return false if index[:unreadable]
+        return false unless %w[file folder].include?(kind)
+        return false if item[:protected_reason] || item[:busy_reason]
+        return false if parts.empty? && FOLDERS.key?(item[:name])
+
+        relative = item[:path]
+        index[:workspaces].none? do |dir, record|
+          dir.start_with?("#{relative}/") && index[:live].include?(record['chat_id'])
+        end
+      end
+
+      # One entry, described as in a listing, for the desktop app's check
+      # before it moves the entry to the trash. Invalid when the path is not
+      # an entry of the shared folder reached without a link.
+      def entry(relative, live_chat_ids: [], ledger: Ledger.default)
+        parts = parts_of(relative)
+        raise Invalid, 'the shared folder itself is not an entry' if parts.empty?
+
+        root = data_root
+        # Each part as the folder spells it: on a file system that ignores
+        # case, "Apps" would reach "apps" and miss its protection.
+        dir = root
+        parts.each do |part|
+          raise Invalid, 'the entry is not there' unless Dir.children(dir).include?(part)
+
+          dir = File.join(dir, part)
+        end
+        dir = folder_at(root, parts[0..-2])
+        item = describe(dir, parts[0..-2], parts.last, ledger_index(ledger, live_chat_ids), nil)
+        raise Invalid, 'the entry is not there' unless item
+
+        item
       end
 
       def size_of(kind, stat, relative, sizes)
@@ -233,6 +349,8 @@ module Monadic
       def what_it_is(parts, name, kind, index)
         top = parts.first || name
         return { classification: 'protected', classification_source: 'name' } if PROTECTED.key?(top)
+        return { classification: 'test_file', classification_source: 'name' } if test_file?(parts, name)
+        return { classification: 'test_candidate', classification_source: 'name' } if test_candidate?(parts, name)
 
         if parts.empty?
           return { classification: FOLDERS[name], classification_source: 'name' } if FOLDERS.key?(name) && kind == 'folder'
@@ -255,6 +373,16 @@ module Monadic
         end
 
         { classification: FOLDERS[top] || 'other', classification_source: FOLDERS.key?(top) ? 'name' : 'none' }
+      end
+
+      def test_file?(parts, name)
+        ([name] + parts).any? { |n| n.start_with?(TEST_PREFIX) } || (parts.first || name) == TEST_SCRATCH
+      end
+
+      def test_candidate?(parts, name)
+        return TEST_CANDIDATE_PATTERNS.any? { |re| re.match?(name) } if parts.empty?
+
+        parts == ['auto_forge'] && TEST_CANDIDATE_PROJECT.match?(name)
       end
 
       # pub_<attachment id>.<ext> is tied to its chat when the ledger has the

@@ -15,7 +15,7 @@ const i18n = require('./i18n');
 // with `app/settings.html`'s build-state badges.
 const installOptions = require('./install_options.config');
 const opReferences = require('./op_references');
-const { createRevealHandler, showSharedPath } = require('./shared_folder_reveal');
+const { createRevealHandler, createTrashHandler, showSharedPath } = require('./shared_folder_reveal');
 const { writeStreamNoFollow, readStreamNoFollow, openReadNoFollow } = require('./no_follow_files');
 const { monadicShEnv, monadicInvocation } = require('./monadic_env');
 const { keepWarnings, createLineBuffer } = require('./build_output');
@@ -4067,6 +4067,50 @@ ipcMain.handle('shared-folder-reveal', createRevealHandler({
   // The app's own window, its top frame (not a page shown in a frame of it).
   isAppSender: (event) => !!(webviewWindow && !webviewWindow.isDestroyed() && event.sender === webviewWindow.webContents &&
     event.senderFrame === event.sender.mainFrame),
+  shell,
+  fs,
+  platform: os.platform()
+}));
+
+// The server's description of one entry of the shared folder, asked just
+// before the entry is moved to the trash: whether it may go is the server's
+// rule (protected entries, chats open in a tab). null when the answer cannot
+// be had, so nothing is removed then.
+function askSharedEntry(relativePath) {
+  return new Promise((resolve) => {
+    const http = require('http');
+    const req = http.get({
+      host: '127.0.0.1',
+      port: 4567,
+      path: `/api/shared_folder/entry?path=${encodeURIComponent(relativePath)}`,
+      headers: { Host: '127.0.0.1:4567', Accept: 'application/json' },
+      timeout: 10000
+    }, (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          resolve(res.statusCode === 200 && data && data.success ? data.item : null);
+        } catch (_) {
+          resolve(null);
+        }
+      });
+    });
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+    req.on('error', () => resolve(null));
+  });
+}
+
+// The shared folder page moves entries to the system's trash (see
+// shared_folder_reveal.js for what is checked).
+ipcMain.handle('shared-folder-trash', createTrashHandler({
+  resolveRoot: resolveHostSharedRoot,
+  isAppUrl,
+  isAppSender: (event) => !!(webviewWindow && !webviewWindow.isDestroyed() && event.sender === webviewWindow.webContents &&
+    event.senderFrame === event.sender.mainFrame),
+  askEntry: askSharedEntry,
   shell,
   fs,
   platform: os.platform()

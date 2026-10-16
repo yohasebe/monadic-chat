@@ -56,7 +56,7 @@ RSpec.describe Monadic::Workspace::SharedFolder do
       listing = described_class.list('', ledger: ledger)
       expect(listing[:root_id]).to be_nil
       expect(listing[:root_id_problem]).to be_a(String)
-      expect(item(listing, 'notes.txt')[:capabilities]).to eq(reveal: false)
+      expect(item(listing, 'notes.txt')[:capabilities]).to eq(reveal: false, trash: false)
     ensure
       File.chmod(0o755, @data)
     end
@@ -86,6 +86,108 @@ RSpec.describe Monadic::Workspace::SharedFolder do
       expect(described_class.sizes_of(['a', 'missing', '../x'], sizes: counter))
         .to include('a' => include(bytes: 3, size_status: 'complete'), 'missing' => { size_status: 'vanished' },
                     '../x' => { size_status: 'vanished' })
+    end
+  end
+
+  describe 'what may be moved to the trash' do
+    let(:chat) { ids.generate(:chat) }
+    let(:workspace) { ids.generate(:workspace) }
+    let(:chat_dir) { "20261011-100000_chat_#{workspace}" }
+
+    before do
+      ledger.register_workspace(chat_id: chat, workspace_id: workspace, app_name: 'ChatOpenAI',
+                                relative_dir: "conversations/#{chat_dir}")
+      write("conversations/#{chat_dir}/inputs/a.txt")
+      write('scripts/mine.py')
+      write('notes.txt')
+    end
+
+    it 'offers a plain file, but not what is protected or in a chat open in a tab' do
+      expect(described_class.entry('notes.txt', ledger: ledger)[:capabilities][:trash]).to be true
+      expect(described_class.entry('scripts', ledger: ledger)[:capabilities][:trash]).to be false
+      expect(described_class.entry('scripts/mine.py', ledger: ledger)[:capabilities][:trash]).to be false
+      expect(described_class.entry("conversations/#{chat_dir}", ledger: ledger, live_chat_ids: [chat])[:capabilities][:trash]).to be false
+      expect(described_class.entry("conversations/#{chat_dir}/inputs/a.txt", ledger: ledger, live_chat_ids: [chat])[:capabilities][:trash]).to be false
+      expect(described_class.entry("conversations/#{chat_dir}/inputs/a.txt", ledger: ledger)[:capabilities][:trash]).to be true
+    end
+
+    it 'keeps a folder that holds the folder of a chat open in a tab, and the folders kept for a purpose' do
+      write('auto_forge/p/index.html')
+      expect(described_class.entry('conversations', ledger: ledger, live_chat_ids: [chat])[:capabilities][:trash]).to be false
+      expect(described_class.entry('conversations', ledger: ledger)[:capabilities][:trash]).to be false
+      expect(described_class.entry('auto_forge', ledger: ledger)[:capabilities][:trash]).to be false
+      expect(described_class.entry('auto_forge/p', ledger: ledger)[:capabilities][:trash]).to be true
+    end
+
+    it 'offers nothing while the record cannot be read' do
+      unreadable = double('Ledger')
+      allow(unreadable).to receive(:snapshot).and_raise(Monadic::Workspace::Ledger::Unreadable)
+      expect(described_class.entry('notes.txt', ledger: unreadable)[:capabilities][:trash]).to be false
+    end
+
+    it 'takes a path only as the folder spells it' do
+      expect { described_class.entry('Scripts', ledger: ledger) }.to raise_error(described_class::Invalid)
+      expect { described_class.entry('NOTES.txt', ledger: ledger) }.to raise_error(described_class::Invalid)
+    end
+
+    it 'refuses the shared folder itself, a missing entry and a path through a link' do
+      File.symlink('/etc', File.join(@data, 'elsewhere'))
+      expect { described_class.entry('', ledger: ledger) }.to raise_error(described_class::Invalid)
+      expect { described_class.entry('missing.txt', ledger: ledger) }.to raise_error(described_class::Invalid)
+      expect { described_class.entry('elsewhere/hosts', ledger: ledger) }.to raise_error(described_class::Invalid)
+      expect(described_class.entry('elsewhere', ledger: ledger)[:capabilities][:trash]).to be false
+    end
+  end
+
+  describe 'sorting, filtering and searching a folder' do
+    before do
+      write('small.txt', 'x')
+      write('big.bin', 'x' * 500)
+      write('middle.md', 'x' * 50)
+      write("#{SharedFolderTestFiles.name('a')}.txt", 'x' * 10)
+      File.utime(Time.at(1_700_000_000), Time.at(1_700_000_000), File.join(@data, 'big.bin'))
+      File.utime(Time.at(1_800_000_000), Time.at(1_800_000_000), File.join(@data, 'small.txt'))
+    end
+
+    def names(listing)
+      listing[:items].map { |i| i[:name] }.reject { |n| n.start_with?('.') }
+    end
+
+    it 'puts the largest first when sorted by size, and turns it around on request' do
+      expect(names(described_class.list('', ledger: ledger, sort: 'size')).first).to eq('big.bin')
+      expect(names(described_class.list('', ledger: ledger, sort: 'size', descending: true)).last).to eq('big.bin')
+    end
+
+    it 'puts the newest first when sorted by modification time' do
+      listed = names(described_class.list('', ledger: ledger, sort: 'modified'))
+      expect(listed.index('small.txt')).to be < listed.index('big.bin')
+      expect(listed.last).to eq('big.bin')
+    end
+
+    it 'keeps the names holding the query, in any case' do
+      listing = described_class.list('', ledger: ledger, query: 'MIDDLE')
+      expect(names(listing)).to eq(['middle.md'])
+      expect(listing[:matched]).to eq(1)
+      expect(listing[:total]).to be > 1
+    end
+
+    it 'keeps the entries of the chosen kinds' do
+      listing = described_class.list('', ledger: ledger, classes: ['test_file'])
+      expect(names(listing)).to eq(["#{SharedFolderTestFiles.name('a')}.txt"])
+    end
+
+    it 'counts folder sizes only for the page shown when searching names or filtering by kind' do
+      5.times { |n| FileUtils.mkdir_p(File.join(@data, "dir#{n}")) }
+      sizes = double('Sizes')
+      allow(sizes).to receive(:lookup).and_return(nil)
+      described_class.list('', ledger: ledger, sizes: sizes, query: 'zzz-no-match')
+      expect(sizes).not_to have_received(:lookup)
+      described_class.list('', ledger: ledger, sizes: sizes, query: 'dir', classes: ['other'], per_page: 2)
+      expect(sizes).to have_received(:lookup).at_most(2).times
+    end
+
+    it 'falls back to name order for an unknown sort' do
+      expect(names(described_class.list('', ledger: ledger, sort: 'nonsense'))).to eq(names(described_class.list('', ledger: ledger)))
     end
   end
 
@@ -132,10 +234,31 @@ RSpec.describe Monadic::Workspace::SharedFolder do
       expect(item(listing, 'auto_forge')).to include(classification: 'projects', kind: 'folder')
     end
 
+    it 'marks what tests made for certain, and what only looks like an old test leftover' do
+      write("#{SharedFolderTestFiles.name('notebook')}.ipynb")
+      write('.test_tmp/x.md')
+      write('test_selenium_1760000000.txt')
+      write('test_image.png', 'png')
+      write("auto_forge/#{SharedFolderTestFiles.name('TestApp_1')}/index.html")
+      write('auto_forge/TestApp_1760000000/index.html')
+      write('auto_forge/MyProject_1760000000/index.html')
+      write('pdf2text_0123456789abcdef.pdf')
+      top = described_class.list('', ledger: ledger)
+      expect(item(top, "#{SharedFolderTestFiles.name('notebook')}.ipynb")).to include(classification: 'test_file')
+      expect(item(top, '.test_tmp')).to include(classification: 'test_file')
+      expect(item(top, 'test_selenium_1760000000.txt')).to include(classification: 'test_candidate', classification_source: 'name')
+      expect(item(top, 'test_image.png')).to include(classification: 'generated')
+      expect(item(top, 'pdf2text_0123456789abcdef.pdf')).to include(classification: 'intermediate_candidate')
+      projects = described_class.list('auto_forge', ledger: ledger)
+      expect(item(projects, SharedFolderTestFiles.name('TestApp_1'))).to include(classification: 'test_file')
+      expect(item(projects, 'TestApp_1760000000')).to include(classification: 'test_candidate')
+      expect(item(projects, 'MyProject_1760000000')).to include(classification: 'projects')
+    end
+
     it 'lists a link as a link, without following it or offering to open it' do
       link = item(listing, 'elsewhere')
       expect(link).to include(kind: 'link', size_status: 'none')
-      expect(link[:capabilities]).to eq(reveal: false)
+      expect(link[:capabilities]).to eq(reveal: false, trash: false)
     end
 
     it 'gives files their size and leaves folders to the count' do

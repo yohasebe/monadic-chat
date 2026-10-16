@@ -12,6 +12,7 @@
     - While the server runs, a closed tab's chat is kept for reopening; one unused for 7 days, or beyond the 50 most recently used, may be cleared
   - New
     - Shared Folder panel: what each entry in the shared folder is, its size, which chat uses it and why it is needed (**do not remove the hidden `.monadic-shared-root` file Monadic Chat keeps there**)
+    - The Shared Folder panel searches, sorts and filters the list, marks files made by test runs, and in the desktop app moves entries to the system's Trash
     - Mark words for the Privacy Filter to mask: select them and click `Mask` (Ctrl/Cmd+Shift+K), or type `⟦words⟧` (`⟦words|type⟧` with a type) **(rebuild the Privacy container)**
     - Marked words are masked throughout the conversation, also in second opinions, Verify, AI User and the Session Context; a request that still holds one (for example in the system prompt) is not sent
     - In Japanese, a name followed by an honorific (さん, 様, 氏, 先生, くん, 君, ちゃん, 殿) is masked whole

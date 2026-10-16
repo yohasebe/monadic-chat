@@ -163,12 +163,15 @@ Each entry shows its name, what it is, its size and when it was last modified:
 - **What it is** comes from Monadic Chat's own record where it has one (the folders of chats, the copies made for playing an attached video) and otherwise only from the entry's name, marked "(by its name)". A name does not tell whether a file is still needed.
 - Entries Monadic Chat or your own setup reads (your scripts, apps and helpers, your Docker services, the backup of the document database) are marked with a lock and the reason.
 - The folder of a chat open in a tab is marked "in use".
+- Files made by Monadic Chat's own test runs (named `monadic-test-…`) are marked "Made by a test run"; names that test runs used before are marked "Possibly left by a test run".
 - Links are listed as links and not followed.
 - Sizes of folders are counted in the background and appear as they finish. A size shown as "≥" was counted only in part (a very large folder, or one partly unreadable).
 
-In the desktop app, the button on the right of an entry shows it in your file manager, selected in the folder that holds it; neither a folder nor a file is opened. The panel lists the shared folder only; it does not change or remove anything.
+The list can be searched by name, sorted by name, size (`Largest first`) or modification time (`Newest first`), and narrowed to one kind of entry.
 
-?> Monadic Chat keeps a small hidden file, `.monadic-shared-root`, in the shared folder. Do not remove it: without it, entries cannot be shown in the file manager (the list is still shown).
+In the desktop app, the button on the right of an entry shows it in your file manager, selected in the folder that holds it; neither a folder nor a file is opened. Entries with a check box can be moved to the system's Trash: tick them (or click `Select test files`), click `Move to Trash` and confirm. Entries that are kept for a reason, and the folder of a chat open in a tab and what is in it, cannot be selected. Moved entries can be put back from the Trash.
+
+?> Monadic Chat keeps a small hidden file, `.monadic-shared-root`, in the shared folder. Do not remove it: without it, entries cannot be shown in the file manager or moved to the Trash (the list is still shown).
 
 ## AI User Feature :id=ai-user-feature
 

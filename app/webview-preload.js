@@ -30,6 +30,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     if (!isTrustedOrigin()) return Promise.resolve({ ok: false, error: 'not from the app' });
     return ipcRenderer.invoke('shared-folder-reveal', { rootId: String(rootId), path: String(relativePath) });
   },
+  // Move entries of the shared folder to the system's trash (the shared
+  // folder page): relative paths and the id the server gave for the folder.
+  trashSharedEntries: (rootId, relativePaths) => {
+    if (!isTrustedOrigin()) return Promise.resolve({ ok: false, error: 'not from the app' });
+    return ipcRenderer.invoke('shared-folder-trash', {
+      rootId: String(rootId),
+      paths: Array.isArray(relativePaths) ? relativePaths.map(String) : []
+    });
+  },
   // Notify page of zoom changes so overlay can adjust
   onZoomChanged: (callback) => ipcRenderer.on('zoom-changed', callback),
   // Clipboard access. Electron 44 removed the `clipboard` module from

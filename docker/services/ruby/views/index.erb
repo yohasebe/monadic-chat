@@ -1305,10 +1305,36 @@
               <button type="button" class="btn btn-sm btn-outline-secondary" id="shared-folder-refresh" title="Refresh" data-i18n-title="ui.sharedFolderPanel.refresh"><i class="fa-solid fa-rotate"></i></button>
             </div>
             <p class="small text-secondary mb-2" data-i18n="ui.sharedFolderPanel.note">What an entry is comes from Monadic Chat's record where it has one, and otherwise only from its name. Sizes of folders are counted in the background.</p>
+            <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
+              <input type="search" class="form-control form-control-sm" style="max-width: 14rem" id="shared-folder-search" placeholder="Search names" data-i18n-placeholder="ui.sharedFolderPanel.searchPlaceholder">
+              <select class="form-select form-select-sm" style="max-width: 12rem" id="shared-folder-sort" aria-label="Sort">
+                <option value="name" data-i18n="ui.sharedFolderPanel.sortName">By name</option>
+                <option value="size" data-i18n="ui.sharedFolderPanel.sortSize">Largest first</option>
+                <option value="modified" data-i18n="ui.sharedFolderPanel.sortModified">Newest first</option>
+              </select>
+              <select class="form-select form-select-sm" style="max-width: 16rem" id="shared-folder-filter" aria-label="Show">
+                <option value="" data-i18n="ui.sharedFolderPanel.filterAll">All entries</option>
+                <option value="test_file" data-i18n="ui.sharedFolderPanel.testFile">Made by a test run</option>
+                <option value="test_candidate" data-i18n="ui.sharedFolderPanel.testCandidate">Possibly left by a test run</option>
+                <option value="intermediate_candidate" data-i18n="ui.sharedFolderPanel.intermediate">Possibly a working file</option>
+                <option value="generated" data-i18n="ui.sharedFolderPanel.generated">Generated file</option>
+                <option value="public_copy" data-i18n="ui.sharedFolderPanel.publicCopy">Copy for playback</option>
+                <option value="other" data-i18n="ui.sharedFolderPanel.other">Other</option>
+              </select>
+              <span class="me-auto"></span>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="shared-folder-select-tests" style="display:none" data-i18n="ui.sharedFolderPanel.selectTests">Select test files</button>
+              <button type="button" class="btn btn-sm btn-outline-danger" id="shared-folder-trash" style="display:none" disabled><i class="fa-regular fa-trash-can"></i> <span id="shared-folder-trash-label" data-i18n="ui.sharedFolderPanel.trashSelected">Move to Trash</span></button>
+            </div>
+            <div id="shared-folder-confirm" class="alert alert-secondary py-2 small d-flex flex-wrap gap-2 align-items-center d-none">
+              <span id="shared-folder-confirm-text" class="me-auto"></span>
+              <button type="button" class="btn btn-sm btn-danger" id="shared-folder-confirm-yes" data-i18n="ui.sharedFolderPanel.trashConfirm">Move to Trash</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="shared-folder-confirm-no" data-i18n="ui.sharedFolderPanel.trashCancel">Cancel</button>
+            </div>
             <div id="shared-folder-error" class="alert alert-warning py-1 small" style="display:none"></div>
             <table class="table table-sm align-middle">
               <thead>
                 <tr>
+                  <th style="width: 2rem"><span class="visually-hidden" data-i18n="ui.sharedFolderPanel.colSelect">Select</span></th>
                   <th data-i18n="ui.sharedFolderPanel.colName">Name</th>
                   <th data-i18n="ui.sharedFolderPanel.colWhat">What it is</th>
                   <th class="text-end" data-i18n="ui.sharedFolderPanel.colSize">Size</th>

@@ -25,44 +25,127 @@ function sharedPathParts(relative, platform) {
   return parts;
 }
 
-// deps: { resolveRoot, isAppUrl, isAppSender, shell, fs, platform }
+// The checks shared by every request about an entry: from the app's own
+// window, a relative path the platform reads as written, this computer's
+// shared folder being the one listed (rootId), and no link at any level.
+// Returns { root, target, stat } or { error }.
+// deps: { resolveRoot, isAppUrl, isAppSender, fs, platform }
 // isAppSender: the request comes from the window the app opened for its
 // pages (not only from a page at the app's address).
+function checkSender(event, deps) {
+  const sender = event && event.senderFrame && event.senderFrame.url;
+  if (!sender || !deps.isAppUrl(sender)) return false;
+  if (deps.isAppSender && !deps.isAppSender(event)) return false;
+  return true;
+}
+
+function sharedRoot(rootId, deps) {
+  if (typeof rootId !== 'string' || !/^[0-9a-f]{32}$/.test(rootId)) return { error: 'invalid request' };
+  const root = deps.resolveRoot();
+  const rootStat = deps.fs.statSync(root);
+  if (!rootStat.isDirectory()) return { error: 'the shared folder is not a folder' };
+  const idPath = path.join(root, ROOT_ID_FILE);
+  if (!deps.fs.lstatSync(idPath).isFile() || deps.fs.readFileSync(idPath, 'utf8').trim() !== rootId) {
+    return { error: "this computer's shared folder is not the one listed" };
+  }
+  return { root, rootStat };
+}
+
+function sameEntry(a, b) {
+  return a.dev === b.dev && a.ino === b.ino;
+}
+
+function entryAt(root, relative, deps) {
+  const parts = sharedPathParts(relative, deps.platform);
+  if (!parts) return { error: 'invalid request' };
+  let target = root;
+  let stat = null;
+  for (const part of parts) {
+    // Spelled as the folder spells it: a system that ignores case would
+    // otherwise find "Apps" for "apps", which the server keeps.
+    if (!deps.fs.readdirSync(target).includes(part)) return { error: 'the entry is not there' };
+    target = path.join(target, part);
+    stat = deps.fs.lstatSync(target);
+    if (stat.isSymbolicLink()) return { error: 'the path goes through a link' };
+  }
+  if (!stat.isDirectory() && !stat.isFile()) return { error: 'not a file or folder' };
+  return { target, stat, kind: stat.isDirectory() ? 'folder' : 'file' };
+}
+
+// deps: { resolveRoot, isAppUrl, isAppSender, shell, fs, platform }
 function createRevealHandler(deps) {
   return async function reveal(event, request) {
     try {
-      const sender = event && event.senderFrame && event.senderFrame.url;
-      if (!sender || !deps.isAppUrl(sender)) return { ok: false, error: 'not from the app' };
-      if (deps.isAppSender && !deps.isAppSender(event)) return { ok: false, error: 'not from the app' };
-
-      const rootId = request && request.rootId;
-      const parts = sharedPathParts(request && request.path, deps.platform);
-      if (typeof rootId !== 'string' || !/^[0-9a-f]{32}$/.test(rootId) || !parts) {
-        return { ok: false, error: 'invalid request' };
-      }
-
-      const root = deps.resolveRoot();
-      const idPath = path.join(root, ROOT_ID_FILE);
-      if (!deps.fs.lstatSync(idPath).isFile() || deps.fs.readFileSync(idPath, 'utf8').trim() !== rootId) {
-        return { ok: false, error: "this computer's shared folder is not the one listed" };
-      }
-
-      let target = root;
-      let stat = null;
-      for (const part of parts) {
-        target = path.join(target, part);
-        stat = deps.fs.lstatSync(target);
-        if (stat.isSymbolicLink()) return { ok: false, error: 'the path goes through a link' };
-      }
-      if (stat.isDirectory() || stat.isFile()) {
-        deps.shell.showItemInFolder(target);
-        return { ok: true };
-      }
-      return { ok: false, error: 'not a file or folder' };
+      if (!checkSender(event, deps)) return { ok: false, error: 'not from the app' };
+      if (!sharedPathParts(request && request.path, deps.platform)) return { ok: false, error: 'invalid request' };
+      const { root, error } = sharedRoot(request && request.rootId, deps);
+      if (error) return { ok: false, error };
+      const found = entryAt(root, request.path, deps);
+      if (found.error) return { ok: false, error: found.error };
+      deps.shell.showItemInFolder(found.target);
+      return { ok: true };
     } catch (err) {
       return { ok: false, error: (err && err.code) || 'failed' };
     }
   };
+}
+
+const MAX_TRASH = 500; // entries in one request
+
+// Moves entries of the shared folder to the system's trash. Each one must
+// pass the checks above, and the server must say it may go (not protected,
+// not in a chat open in a tab) for the same kind of entry this computer
+// sees. While the server is asked the folder could change, so just before
+// the move the shared folder must still be the same folder with the same id
+// file, and the entry the same entry, with no link on the way.
+// deps: as for reveal, plus askEntry(relativePath) -> Promise<item|null>
+// (the server's description of the entry) and shell.trashItem.
+function createTrashHandler(deps) {
+  return async function trash(event, request) {
+    try {
+      if (!checkSender(event, deps)) return { ok: false, error: 'not from the app' };
+      const paths = request && request.paths;
+      if (!Array.isArray(paths) || paths.length === 0 || paths.length > MAX_TRASH ||
+          paths.some((p) => !sharedPathParts(p, deps.platform))) {
+        return { ok: false, error: 'invalid request' };
+      }
+      const first = sharedRoot(request.rootId, deps);
+      if (first.error) return { ok: false, error: first.error };
+
+      const results = [];
+      for (const relative of paths) {
+        results.push(await trashOne(first, request.rootId, relative, deps));
+      }
+      return { ok: results.every((r) => r.ok), results };
+    } catch (err) {
+      return { ok: false, error: (err && err.code) || 'failed' };
+    }
+  };
+}
+
+async function trashOne(first, rootId, relative, deps) {
+  const { root } = first;
+  try {
+    const found = entryAt(root, relative, deps);
+    if (found.error) return { path: relative, ok: false, error: found.error };
+    const item = await deps.askEntry(relative);
+    if (!item || !item.capabilities || item.capabilities.trash !== true) {
+      return { path: relative, ok: false, error: 'not to be removed' };
+    }
+    if (item.kind !== found.kind) return { path: relative, ok: false, error: 'the entry changed' };
+    const now = sharedRoot(rootId, deps);
+    if (now.error || !sameEntry(now.rootStat, first.rootStat)) {
+      return { path: relative, ok: false, error: 'the shared folder changed' };
+    }
+    const again = entryAt(root, relative, deps);
+    if (again.error || again.kind !== found.kind || !sameEntry(again.stat, found.stat)) {
+      return { path: relative, ok: false, error: 'the entry changed' };
+    }
+    await deps.shell.trashItem(again.target);
+    return { path: relative, ok: true };
+  } catch (err) {
+    return { path: relative, ok: false, error: (err && err.code) || 'failed' };
+  }
 }
 
 // Shows an absolute path from the app's pages (the ${SHARED} token and the
@@ -89,4 +172,4 @@ function showSharedPath(target, deps) {
   }
 }
 
-module.exports = { ROOT_ID_FILE, sharedPathParts, createRevealHandler, showSharedPath };
+module.exports = { ROOT_ID_FILE, MAX_TRASH, sharedPathParts, createRevealHandler, createTrashHandler, showSharedPath };

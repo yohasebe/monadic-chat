@@ -3,8 +3,7 @@
     - Tool calls are limited to the tools given to the model
     - Secrets are kept out of logs, tool results and error messages, and the configuration file is readable by your user account only
     - Only the Settings window can read the stored keys, and the OpenAI key is no longer sent to the web page
-    - The Shared Folder panel shows a folder selected in the file manager instead of opening it
-    - Exporting and importing the Document DB with a passphrase no longer follows links, and building your own containers no longer writes into the shared folder
+    - A folder of the shared folder shown in the file manager is selected, not opened
   - Changes you may notice
     - Your own scripts in `scripts/` run in the Python container only, after the system's commands on the search path: **give them names of their own** **(rebuild the Python container)**
     - Monadic Chat does not start when `apps`, `helpers` or `services` in the shared folder is a link: **replace it with a real folder and move the files into it**

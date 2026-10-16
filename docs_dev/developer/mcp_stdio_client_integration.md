@@ -38,7 +38,7 @@ ruby /path/to/monadic-chat/docker/services/ruby/scripts/mcp_stdio_bridge.rb
 - Errors: unparsable input → `-32700`; connection or HTTP errors → `-32603`, with the request's `id`.
 - Timeouts: open 5 seconds, read 600 seconds.
 
-Clients that speak streamable HTTP can use `http://127.0.0.1:3100/mcp` directly. How a client registers a server is client-specific.
+Clients that speak streamable HTTP can use `http://127.0.0.1:3100/mcp` directly. The endpoint answers a notification, or a batch of notifications only, with 202 and no body; `ping` with an empty result; a batch with an array of the replies; an empty batch, or an element that is not a request, with `-32600`; `params` or `arguments` that are present and not objects with `-32602`; a JSON-RPC response from the client with 202; and `GET` with 405 (there is no server-to-client stream). How a client registers a server is client-specific.
 
 ## Configuration
 

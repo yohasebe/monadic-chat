@@ -5,6 +5,8 @@ require_relative '../utils/shared_path_guard'
 require_relative '../utils/privacy/outbound'
 require_relative 'cost_guard'
 require_relative 'job_store'
+require_relative '../embeddings/errors'
+require_relative '../vector_store/errors'
 require_relative 'conduit_agent'
 require_relative '../agents/second_opinion_agent'
 require_relative '../agents/image_analysis_agent'
@@ -2320,7 +2322,7 @@ module Monadic
                               : store.find_closest_text(query, top_n: top_n)
 
         { knowledge_base: kb, level: level, count: hits.size, results: hits }
-      rescue Monadic::VectorStore::BackendError => e
+      rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
         { knowledge_base: kb, success: false,
           error: "❌ Knowledge Base unavailable: #{e.message} (is qdrant/embeddings running?)" }
       end
@@ -2330,7 +2332,7 @@ module Monadic
         store = kb_store(kb)
         documents = store.list_titles
         { knowledge_base: kb, count: documents.size, documents: documents }
-      rescue Monadic::VectorStore::BackendError => e
+      rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
         { knowledge_base: kb, success: false,
           error: "❌ Knowledge Base unavailable: #{e.message} (is qdrant/embeddings running?)" }
       end
@@ -2363,7 +2365,7 @@ module Monadic
         doc_id = store.store_embeddings(doc_data, items_data)
 
         { knowledge_base: kb, doc_id: doc_id, title: title, chunks: chunks.size, source: source }
-      rescue Monadic::VectorStore::BackendError => e
+      rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
         { knowledge_base: kb, success: false,
           error: "❌ Knowledge Base unavailable: #{e.message} (is qdrant/embeddings running?)" }
       end
@@ -2486,7 +2488,7 @@ module Monadic
         unless kb.empty?
           begin
             kb_context, grounded = retrieve_kb_context(messages, kb)
-          rescue Monadic::VectorStore::BackendError => e
+          rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
             return { provider: provider, model: model, success: false,
                      error: "❌ Knowledge Base unavailable: #{e.message} (grounding requested)" }
           end

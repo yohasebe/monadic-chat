@@ -903,6 +903,14 @@ RSpec.describe Monadic::MCP::Conduit do
         expect(result[:success]).to be false
         expect(result[:error]).to match(/Knowledge Base unavailable/)
       end
+
+      it "returns the same structured error when the embeddings service is down" do
+        allow(store).to receive(:find_closest_text)
+          .and_raise(Monadic::Embeddings::ClientError.new("embeddings unreachable"))
+        result = described_class.call("monadic_search_kb", { "query" => "q" })
+        expect(result[:success]).to be false
+        expect(result[:error]).to match(/Knowledge Base unavailable/)
+      end
     end
 
     describe "monadic_list_kb" do

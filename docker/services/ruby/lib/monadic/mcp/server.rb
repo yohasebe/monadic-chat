@@ -13,7 +13,6 @@ require_relative '../utils/debug_helper'
 require_relative '../utils/error_formatter'
 require_relative '../utils/extra_logger'
 require_relative '../utils/environment'
-require_relative 'cache_invalidator'
 require_relative 'conduit'
 
 module Monadic
@@ -63,6 +62,11 @@ module Monadic
         }.to_json
       end
 
+      # There is no server-to-client stream, so GET is not allowed.
+      get '/mcp' do
+        halt 405, { 'Allow' => 'POST' }, ''
+      end
+
       # Main MCP endpoint
       post '/mcp' do
         begin
@@ -75,12 +79,18 @@ module Monadic
             return json_rpc_error(nil, "Parse error", PARSE_ERROR, e.message)
           end
 
-          # Handle batch requests
+          # A batch is answered with an array of the replies; notifications
+          # (requests without an id) get none, and a request of only
+          # notifications is answered with 202 and no body.
           if request_data.is_a?(Array)
-            results = request_data.map { |req| handle_single_request(req) }
-            return results.to_json
+            return json_rpc_error(nil, "Invalid Request", INVALID_REQUEST) if request_data.empty?
+
+            replies = request_data.filter_map { |req| handle_single_request(req) }
+            return accepted_without_reply if replies.empty?
+
+            "[#{replies.join(',')}]"
           else
-            handle_single_request(request_data)
+            handle_single_request(request_data) || accepted_without_reply
           end
         rescue => e
           puts "[MCP] Server error: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"
@@ -91,11 +101,29 @@ module Monadic
 
       private
 
+      def accepted_without_reply
+        status 202
+        ""
+      end
+
+      # The JSON text of the reply, or nil for a notification.
       def handle_single_request(request)
-        # Validate request according to JSON-RPC 2.0
-        unless request.is_a?(Hash) && request['jsonrpc'] == JSONRPC_VERSION
-          return json_rpc_error(request['id'], "Invalid Request", INVALID_REQUEST)
+        # A JSON-RPC response from the client (this server sends it no
+        # requests) is taken without a reply.
+        if request.is_a?(Hash) && request['jsonrpc'] == JSONRPC_VERSION && !request.key?('method') &&
+           (request.key?('result') || request.key?('error'))
+          return nil
         end
+
+        # Validate request according to JSON-RPC 2.0
+        unless request.is_a?(Hash) && request['jsonrpc'] == JSONRPC_VERSION && request['method'].is_a?(String)
+          id = request.is_a?(Hash) ? request['id'] : nil
+          return json_rpc_error(id.is_a?(String) || id.is_a?(Integer) ? id : nil, "Invalid Request", INVALID_REQUEST)
+        end
+
+        # A notification has no id and gets no reply (notifications/initialized
+        # and the like need no action here).
+        return nil unless request.key?('id')
 
         # ID must be string or integer, not null
         id = request['id']
@@ -104,12 +132,15 @@ module Monadic
         end
 
         method = request['method']
-        params = request['params'] || {}
+        params = request.key?('params') ? request['params'] : {}
+        return json_rpc_error(id, "Invalid params", INVALID_PARAMS, "params must be an object") unless params.is_a?(Hash)
 
         # Route to appropriate handler
         case method
         when 'initialize'
           handle_initialize(id, params)
+        when 'ping'
+          json_rpc_response(id, {})
         when 'tools/list'
           handle_tools_list(id, params)
         when 'tools/call'
@@ -149,11 +180,12 @@ module Monadic
 
       def handle_tool_call(id, params)
         tool_name = params['name']
-        arguments = params['arguments'] || {}
+        arguments = params.key?('arguments') ? params['arguments'] : {}
 
         unless tool_name
           return json_rpc_error(id, "Missing tool name", INVALID_PARAMS)
         end
+        return json_rpc_error(id, "Invalid params", INVALID_PARAMS, "arguments must be an object") unless arguments.is_a?(Hash)
 
         unless Monadic::MCP::Conduit.tool?(tool_name)
           return json_rpc_error(id, "Unknown tool: #{tool_name}", INVALID_PARAMS)
@@ -201,13 +233,6 @@ module Monadic
         }
         error[:error][:data] = Monadic::Utils::ErrorFormatter.scrub_identifiers(data.to_s) if data
         error.to_json
-      end
-
-      # Retained for CacheInvalidator, which clears the MCP tool cache on app
-      # reloads. The Conduit surface is static (not derived from apps), so there
-      # is nothing to invalidate — this is intentionally a no-op.
-      def self.clear_cache
-        nil
       end
 
       # What the HTTP server runs: the JSON-RPC app behind the guard that

@@ -51,7 +51,7 @@ rake check_version
 Add the new release's entry to `CHANGELOG.md` in the established
 `- [Month, Year] <version>` heading shape (the release task extracts the
 section by this exact heading — a bare version mention elsewhere will not be
-picked up).
+picked up). Groups and wording follow [CHANGELOG Style](changelog_style.md).
 
 ## 3. Confirm CI passed on the commit being released
 

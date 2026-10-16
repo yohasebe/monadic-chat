@@ -1,976 +1,1146 @@
 - [October, 2026] 1.0.0-beta.44
-  - **Security fix for the shared folder's `apps`, `helpers`, `scripts` and `services`** (all earlier versions, 1.0.0-beta.43 and before). **After updating, look in these four folders in the shared folder (`~/monadic/data`) for files you did not put there. If you find any, delete them and replace your API keys**
-  - **What changes for you with the security fix**:
-    - Your own scripts in `scripts/` run in the Python container only. A Ruby script of your own no longer runs on the Ruby side (`container: "ruby"`)
-    - In the Python container, `scripts/` now comes after the system's commands on the search path, so a script named like a system command (`python3`, `bash`) no longer replaces it; give your scripts names of their own. This needs the Python container of this version: rebuild it with Actions > Build Python Container
-    - Monadic Chat does not start when `apps`, `helpers` or `services` in the shared folder is a link; replace it with a real folder and move the files into it
-    - The scripts that come with Monadic Chat read their keys from the configuration file (`~/monadic/config/env`): a key set only as an environment variable no longer reaches them
-    - A custom app's `<app>_tools.rb` and `<app>_constants.rb`, and files in `apps` and `helpers`, are not loaded when they are links, or hard links with another name elsewhere
-  - **The OpenAI key is no longer sent to the web page**
-  - **The Shared Folder panel shows a folder selected in the file manager instead of opening it**
-  - **Exporting and importing the Document DB with a passphrase no longer follows links**
-  - **Building your own containers no longer writes its build file into the shared folder**
-  - **Shared Folder panel**: the sidebar lists what the shared folder holds: what each entry is, its size, which chat is using it, and which entries Monadic Chat or your setup needs and why. In the desktop app, entries can be shown in the file manager. Monadic Chat keeps a small hidden file, `.monadic-shared-root`, in the shared folder for this; do not remove it
-  - **Mark words for the Privacy Filter to mask**: select words in the message box and click **Mask** (or press Ctrl/Cmd+Shift+K), or type `⟦words⟧` (`⟦Acme Inc.|organization⟧` with a type). Marked words are masked in that conversation wherever they occur, also in what is sent on its behalf (second opinions, Verify, AI User, the Session Context). Every request the server sends out for the conversation is checked as it is sent, and is not sent while it holds a marked word (for example, when the word is also in the system prompt). In Japanese, a name followed by an honorific (さん, 様, 氏, 先生, くん, 君, ちゃん, 殿) is masked whole. This needs the Privacy container of this version: rebuild it with Actions > Build Privacy Container
-  - **Overlapping Privacy Filter detections are masked as one**: when two detections overlapped, the part that only one of them covered could be sent as written. This needs the Privacy container of this version
-  - **The Privacy Filter says when it is still starting**: turning it on while its container was starting reported that it was not running and asked for a restart; it now asks you to turn it on again in a moment
-  - **A new chat starts clean**: after Reset, switching apps or importing a conversation, results of the previous chat's tools (such as the last generated image or notebook), its Session Context and its Privacy Filter table could stay and be used. Switching apps now also stops a reply still being written
-  - **An imported conversation reaches the model**: an imported conversation was shown, but not given to the model for the replies that followed. Export now includes the app's state and the Session Context again
-  - **No "responding" status left after a stopped reply**: when Reset, switching apps or an import stopped a reply, the status and the Cancel button stayed
-  - **Detailed analysis of long videos in Video Describer**: when you ask for a detailed analysis, a video over 10 minutes is described in parts (up to 5, each up to 10 minutes with up to 16 frames), two at a time. Otherwise a video is described as before. This needs the Python container of this version
-  - **Long recordings are transcribed over several connections at once**, waiting together when the provider asks to slow down. When a transcription host cannot be reached over IPv6, IPv4 is tried. An empty reply from an image-analysis model is reported as an error
-  - **The MCP server reserves its token budget before each call**: calls running at the same time could each use what was left and together go over the limit. `monadic_status` shows `tokens_reserved`
-  - **Rebuilt containers are used at once**: after Build Python Container (and the builds and pulls of the other containers), the running container kept the old image while the build was reported as done, and a failed pull or build was reported as a success. The running container now moves to the new image, and a failure is reported
-  - **Keys 1Password could not provide are named**: when a 1Password reference in the configuration file could not be read, the key was just missing. The names of those keys are now shown, with what to do. The warning about the OpenAI key fits in the status line
-  - **For developers**: `rake server:debug` loads custom apps and helpers from the shared folder only when it is started with `MONADIC_LOAD_USER_CODE=true` in the shell (the setting in `~/monadic/config/env` is ignored). `rake db:export` and `rake db:import`, which handled the old PGVector database, are removed
+  - Security
+    - **After updating, check `apps`, `helpers`, `scripts` and `services` in the shared folder (`~/monadic/data`) for files you did not put there. If you find any, delete them and replace your API keys**
+    - Code in the shared folder's `apps`, `helpers`, `scripts` and `services` is handled more strictly
+    - Tool calls are limited to the tools given to the model
+    - Secrets are kept out of logs, tool results and error messages, and the configuration file is readable by your user account only
+    - Only the Settings window can read the stored keys, and the OpenAI key is no longer sent to the web page
+    - The Shared Folder panel shows a folder selected in the file manager instead of opening it
+    - Exporting and importing the Document DB with a passphrase no longer follows links, and building your own containers no longer writes into the shared folder
+  - Changes you may notice
+    - Your own scripts in `scripts/` run in the Python container only, after the system's commands on the search path: give them names of their own (rebuild the Python container)
+    - Monadic Chat does not start when `apps`, `helpers` or `services` in the shared folder is a link
+    - Custom app files and files in `apps` and `helpers` are not loaded when they are links or hard links
+    - The scripts that come with Monadic Chat read their keys from `~/monadic/config/env` only
+    - A closed tab's chat is kept for 7 days
+  - New
+    - Shared Folder panel: what each entry in the shared folder is, its size, which chat uses it and why it is needed (Monadic Chat keeps a hidden `.monadic-shared-root` file there)
+    - Mark words for the Privacy Filter to mask in the whole conversation: select them and click `Mask` (Ctrl/Cmd+Shift+K), or type `⟦words⟧` (rebuild the Privacy container)
+    - Video Describer describes a long video in parts when you ask for a detailed analysis (rebuild the Python container)
+    - Long recordings are transcribed over several connections at once
+  - Fixed
+    - The Privacy Filter masks overlapping detections as one, and says when it is still starting (rebuild the Privacy container)
+    - A new chat starts clean after Reset, an app switch or an import, and switching apps stops a reply still being written
+    - An imported conversation reaches the model, and an export includes the app's state and the Session Context
+    - No "responding" status is left after a stopped reply, and Cancel also stops the speech for the reply
+    - A provider that cannot be reached is reported after a few tries instead of leaving the reply waiting
+    - Rebuilt containers are used at once, and a failed build or pull is reported
+    - Keys that 1Password could not provide are named, and 1Password values that span lines are read whole
+    - Older messages are no longer shortened in exports and after a reload
+    - Knowledge Base: an imported file is not kept in the shared folder, saving again keeps the saved version if the new one cannot be written, and the list shows the newest entries
+    - PDF uploads leave no copy in the shared folder
+    - A transcription host that cannot be reached over IPv6 is tried over IPv4, and an empty reply from an image-analysis model is reported as an error
+    - DeepSeek ends a long chain of tool calls with an answer, and xAI Grok keeps showing that tools are running between rounds
+  - For developers
+    - `rake server:debug` loads custom apps and helpers from the shared folder only with `MONADIC_LOAD_USER_CODE=true` in the shell
+    - `rake db:export` and `rake db:import` are removed
+    - MCP: `monadic_generate_code` needs a `provider`, `monadic_submit` refuses a job without its required arguments, and notifications, `ping` and batches follow JSON-RPC
+    - MCP: the server reserves its token budget before each call, and `monadic_status` shows `tokens_reserved`
 
 - [October, 2026] 1.0.0-beta.43
-  - **The Privacy Filter now masks text everywhere it is sent, not only in the chat itself**: since the Privacy Filter was added (beta.16), and in every release since (the published beta.38 to beta.42 included), the masked text was not used in four places when the filter was on: a **second opinion** sent the question and answer unmasked to the provider giving it; the **context extraction** for the Session Context panel sent the conversation unmasked to its model; **Verify** sent the conversation unmasked to the panel of models checking the answer; and **AI User** sent the conversation unmasked to the provider writing the suggestion. The text was sent only to providers the user had chosen, with the user's own keys, but without the masking the user had turned on. All four now mask as the chat does (AI User's suggestion is shown with the original values restored), and send nothing when the masking is not available. Speech and the Knowledge Base title suggestion are held to the same rule, and the check that refuses to save a conversation to the Knowledge Base while the filter is on now works (the Save button was already hidden then)
-  - **Attach a video in Video Describer**: the `Image` button below the message box now also takes a video in the apps that analyze video. The video is uploaded to the chat's folder and shown below the message box until you send the message, with or without text. The answer plays it from a copy placed in the shared folder (`pub_<id>.<ext>`). Placing the video in the shared folder and giving its name still works
-  - **Video Describer transcripts carry video times**: the stretches of a video's audio that contain speech are found first and transcribed one at a time, so each line of the transcript starts with the video times of its stretch, in whole seconds (for example `[01:02–01:06]`). Only stretches detected as speech are sent for transcription, and short exclamations are sent together with the speech around them so that they are not lost. The transcript is also saved as `transcript.json` in the chat's folder under `conversations/` in the shared folder. This needs the Python container of this version: rebuild it with Actions > Build Python Container (Video Describer asks you to until you do)
-  - **Subtitles from Video Describer**: the timed transcript is also written as WebVTT and SRT subtitle files. The video in the answer plays with the subtitles, timed to the player's clock, and the answer links to both files (copies in the shared folder, `pub_<id>.vtt` and `.srt`)
-  - **Video Describer relates what is said to what is shown**: the frames and the audio are analyzed at the same time, and the description puts what was said next to what the frames show at those times. Frame times are given in whole seconds. When one of the two fails, the other is still shown: a failed transcription is reported next to the description, and a failed frame analysis keeps the transcript
-  - **Video Describer for Google Gemini and xAI Grok**: each uses its own provider's image analysis and speech-to-text. With Grok, speech that mixes languages within a stretch, such as English words in Japanese speech, may come back written in another script or translated
-  - **Videos are checked before they are decoded**: the format must match the file extension, and the file must have a video track, last at most 50 minutes and be at most 4096 pixels on each side. A file that does not pass is not processed, and the reason is shown. The audio is extracted as mono at 64 kbps, so the audio file of a 50-minute video stays within the 25 MB that file transcription accepts; long videos used to produce audio too large to transcribe
-  - **Uploads are limited in size before they are read**: a PDF or document over 200 MB, an audio file or saved conversation over 500 MB, or a Library import over its limit is refused with a message giving the limit, instead of being written to disk in full first. Audio uploads are no longer read into memory whole
-  - **No false reasoning-setting errors at startup**: the check of each app's reasoning setting reported errors for Claude, Gemini, Mistral and Cohere apps, which use the setting correctly. It now flags only a value the model does not take, which would not be sent
-  - **Importing a conversation changes only the tab you import it in**: the import did not say which tab it came from, so with several Monadic Chat tabs open, every tab switched to the imported conversation and app
-  - **Nothing carries over into a chat you have just reset**: when you pressed Reset or switched apps while a reply was being written, the rest of it could appear in, and be saved to, the new chat. Reset now stops a reply still being written, as Cancel does, so its tools can no longer leave their results (such as the last generated image) for the new chat. Speech still being made, an AI User suggestion, and a video still uploading no longer reach the new chat either
-  - **A message that cannot be sent stays in the input box**: when the connection was down, the message box was emptied although nothing was sent; the text, images and attached videos now stay for the retry
-  - **Cancel stops a video analysis completely**: the transcription went on in the background after Cancel, still sending audio to the provider; it now stops with the rest, along with the frame extraction and audio processing running in the Python container
-  - **The MCP server transcribes audio with xAI**: `monadic_transcribe_audio` accepts `xai` (or `grok`) as the provider
-  - **Timed transcripts of audio files**: Speech Draft Helper's `analyze_audio` transcribes a recording the same way Video Describer transcribes a video's audio: the speech is found first and transcribed segment by segment with the app's own provider (OpenAI, Google Gemini or xAI Grok), so each line starts with the time in the recording. Recordings up to 50 minutes are taken without the 25 MB limit of the whole-file way (attachments up to 2 GB). The transcript is saved as `transcript.json` in the chat's folder with WebVTT and SRT subtitles. The chat's conversation language is passed to the speech-to-text. Timed transcripts need the Python container of this version: rebuild it with Actions > Build Python Container (until then, recordings up to 25 MB are transcribed without times)
-  - **Attach audio files**: in apps that transcribe audio, the `Image` button below the message box also takes an audio file (MP3, M4A, WAV, OGG, Opus, FLAC, WebM, AAC), uploaded to the chat's folder like an attached video
-  - **The MCP server transcribes with times**: `monadic_transcribe_audio` takes `timestamps: true` (run via `monadic_submit`): each line carries its time in the recording, recordings up to 50 minutes are taken without the 25 MB limit (AAC and Opus files too), and the transcript and subtitles are saved under `transcriptions/` in the shared volume. Without it, the tool works as before
-  - **A transcription stopped part-way keeps what was done**: when Reset or Cancel stops a timed transcription, the segments already transcribed are saved in `transcript.json`, marked as stopped
+  - Security
+    - The Privacy Filter masks text sent by second opinion, Session Context extraction, Verify and AI User, as it does in the chat
+    - AI User's suggestion is shown with the original values restored; these features send nothing when masking is not available
+    - Speech and the Knowledge Base title suggestion follow the same masking rule
+    - Saving a conversation to the Knowledge Base is refused while the Privacy Filter is on
+  - Changes you may notice
+    - Videos are checked before decoding: the format must match the extension, with a video track, at most 50 minutes and 4096 pixels per side
+    - A video that fails the check is not processed, and the reason is shown
+    - A PDF or document over 200 MB, an audio file or saved conversation over 500 MB, or an oversized Library import is refused with its limit
+  - New
+    - In apps that analyze video, such as Video Describer, the `Image` button also attaches a video, shown below the message box until you send
+    - The answer plays an attached video from a copy in the shared folder (`pub_<id>.<ext>`); naming a video already in the shared folder still works
+    - Video Describer transcripts start each line with the video times in whole seconds, for example `[01:02–01:06]` (rebuild the Python container)
+    - Only stretches detected as speech are transcribed, and short exclamations are sent with the speech around them
+    - The transcript is saved as `transcript.json` in the chat's folder under `conversations/` in the shared folder
+    - Video Describer writes WebVTT and SRT subtitles, plays the video with them, and links to both files (`pub_<id>.vtt`, `pub_<id>.srt`)
+    - Video Describer analyzes frames and audio together and puts what was said next to what the frames show, with frame times in whole seconds
+    - When transcription or frame analysis fails in Video Describer, the other result is still shown, with the failure reported
+    - Video Describer is available for Google Gemini and xAI Grok, each using its own provider's image analysis and speech-to-text
+    - With Grok, speech mixing languages, such as English words in Japanese, may come back in another script or translated
+    - Speech Draft Helper transcribes recordings with times using the app's own provider (OpenAI, Google Gemini or xAI Grok) (rebuild the Python container)
+    - Speech Draft Helper takes recordings up to 50 minutes without the 25 MB limit (attachments up to 2 GB), using the conversation language
+    - Speech Draft Helper saves the transcript as `transcript.json` in the chat's folder, with WebVTT and SRT subtitles
+    - Until the Python container is rebuilt, Speech Draft Helper transcribes recordings up to 25 MB without times, and Video Describer asks you to rebuild
+    - In apps that transcribe audio, the `Image` button also attaches an audio file (MP3, M4A, WAV, OGG, Opus, FLAC, WebM, AAC)
+    - When Reset or Cancel stops a timed transcription, the segments already done are saved in `transcript.json`, marked as stopped
+  - Fixed
+    - The startup check of reasoning settings flags only a value the model does not take, with no false errors for Claude, Gemini, Mistral or Cohere apps
+    - Importing a conversation changes only the tab you import it in
+    - Reset and switching apps stop a reply still being written, as Cancel does, so nothing from it reaches the new chat
+    - Speech still being made, an AI User suggestion, and a video still uploading stay out of a chat you have just reset
+    - A message that cannot be sent stays in the input box, with its images and videos, for the retry
+    - Cancel stops a video analysis completely, including transcription, frame extraction and audio processing
+    - Audio from videos up to 50 minutes fits within the 25 MB that file transcription accepts
+    - Audio uploads are no longer read into memory whole
+  - For developers
+    - `monadic_transcribe_audio` accepts `xai` (or `grok`) as the provider
+    - `monadic_transcribe_audio` takes `timestamps: true` (run via `monadic_submit`) to give each line its time in the recording
+    - With `timestamps: true`, recordings up to 50 minutes (AAC and Opus too) skip the 25 MB limit; results are saved under `transcriptions/` in the shared folder
 
 - [October, 2026] 1.0.0-beta.42
-  - **Web pages can no longer use Monadic Chat's servers**: while Monadic Chat was running, a page open in a browser on the same computer could connect to its web server and to the MCP server, start conversations that used your API keys and tools, and save files to the shared folder. Requests from other sites, and requests addressed to any host other than this computer, are now refused. Update before browsing the web with Monadic Chat running
-  - **Pages in the shared folder open in a sandbox**: an HTML or SVG file in the shared folder, such as an interactive plot from Code Interpreter, opened from Monadic Chat ran with the same rights as the app's own page, so a page written by a model could drive the app. These files now open as a separate site: scripts in them still run, but they cannot use the app, and browser storage such as `localStorage` is not available to them
-  - **The MCP server accepts JSON requests from MCP clients only**: it no longer sends headers that let web pages read its answers, and refuses requests that are not `application/json` or that come from a web page. MCP clients such as Claude Code are not affected
-  - **OpenAI image generation and Gemini video generation work with 1Password references**: these two tools read the configuration file themselves and sent the reference text in place of the key, so they failed with an authentication error when the key was written as `op://…`
-  - **Image Generator edits the photo you upload**: with OpenAI, asking to edit an uploaded photo failed with an error, and with Grok the last generated image was edited instead of the photo uploaded in the same message. Editing the last generated image without uploading one works again with OpenAI
+  - Security
+    - Monadic Chat's web server and MCP server refuse requests from other sites and requests addressed to any host but this computer
+    - HTML and SVG files from the shared folder, such as Code Interpreter's interactive plots, open in a sandbox as a separate site
+    - The MCP server accepts only `application/json` requests from MCP clients and refuses requests from web pages; MCP clients are not affected
+  - Changes you may notice
+    - Pages from the shared folder still run their scripts, but cannot use the app or browser storage such as `localStorage`
+  - Fixed
+    - OpenAI image generation and Gemini video generation work when the key is written as a 1Password reference (`op://…`)
+    - Image Generator edits the photo uploaded with the message, with OpenAI and with Grok
+    - Image Generator with OpenAI edits the last generated image when no photo is uploaded
 
 - [October, 2026] 1.0.0-beta.41
-  - **Tool arguments no longer reach a shell, and tools stay inside the shared folder**: a file name or option that the model passed to a tool could run commands on your computer, and some tools read or wrote files outside the shared folder. A document or web page the model reads can influence those arguments, so update before using apps with tools on documents or pages you do not trust. Tools now hand their arguments over without a shell, and accept only files inside the shared folder
-  - **File names in the attachment list are shown as text**: a file name containing HTML was inserted into the page as markup
-  - **Server Mode is no longer available**: Monadic Chat runs on this computer only and is reached at http://localhost:4567. `DISTRIBUTED_MODE` and `HOST_BINDING` in the env file are ignored, and the Application Mode setting is gone
-  - **AutoForge checks that project paths are inside the shared folder**: the check was in place but never rejected a path
+  - Security
+    - Tools hand their arguments over without a shell and accept only files inside the shared folder
+    - File names in the attachment list are shown as text
+    - AutoForge rejects project paths outside the shared folder
+  - Changes you may notice
+    - Server Mode is removed: Monadic Chat runs on this computer only, at http://localhost:4567
+    - `DISTRIBUTED_MODE` and `HOST_BINDING` in the env file are ignored, and the Application Mode setting is gone
 
 - [October, 2026] 1.0.0-beta.40
-  - **Server Mode no longer accepts a forwarding header in place of the access token**: a request could be treated as coming from the host machine because of a header the client sends, and skip the token check. Access is now decided by the connection's own address. If you run Server Mode on a network, update. Server Mode serves plain HTTP, so use it only on a network you trust
-  - **Server Mode starts from the desktop app again**: Start stopped at "could not verify that the server is running", and the console's browser opened a page that refused it, because the desktop app did not send the access token to its own server and the server's reply to an accepted token was malformed. The console now shows the network address and a link that includes the token
-  - **Image, audio and video analysis use the app's own provider only**: when the app's provider had no key or no such feature, the file was sent to another provider that had a key. It is now analyzed by the app's provider or not at all, and apps do not offer an analysis tool their provider cannot run. Image analysis now also works with Mistral, Cohere and DeepSeek. The MCP analysis tools require a `provider` argument
-  - **Video Describer tells the model when each frame was taken**: frames are selected to keep the video's scenes covered instead of being sampled at even intervals, and each one is sent with its time in the video, so descriptions can say when things happen. The model is also told that it sees still frames only, so it no longer reports missing audio next to the transcript
-  - **1Password values reach the Ruby container more reliably**: handing the values over now gives up after 30 seconds instead of waiting for ever when WSL or Docker stops answering, and a non-executable `op` found first on the search path no longer hides a working one. The documentation now names the 1Password setting the CLI integration needs
-  - **Music Generator uses Lyria 3.5**: the default full-song model moves to Google's Lyria 3.5; the 30-second clip model stays. Asking for WAV no longer fails; the service still returns MP3 for now, and the file is saved in the format actually returned
-  - **ElevenLabs Music in Music Generator**: with `ELEVENLABS_API_KEY` set, ask for a track "with ElevenLabs" to have ElevenLabs make it instead of Lyria. It is used only when you name it, never in place of Lyria when Lyria fails, and every result says which service made it
-  - **Mistral Large 4 is the default Mistral model**, and Z.ai GLM 5.3 (served by Mistral) joins the list. Choosing no reasoning on GLM 5.3 uses its lowest level; leaving the setting out made it reason at its maximum. Models such as Mistral Medium 3.5 and Small 4, which were missing from the selector because their names end in a version number, appear again
+  - Security
+    - Server Mode decides access by the connection's own address
+  - Changes you may notice
+    - Image, audio and video analysis use only the app's own provider; without its key or feature, the file is not analyzed
+    - Apps no longer offer an analysis tool their provider cannot run
+    - Music Generator uses Google's Lyria 3.5 as the default full-song model; the 30-second clip model stays
+    - Mistral Large 4 is the default Mistral model
+  - New
+    - Image analysis works with Mistral, Cohere and DeepSeek
+    - Video Describer selects frames to cover the video's scenes and sends each with its time, so descriptions say when things happen
+    - Music Generator makes a track with ElevenLabs when `ELEVENLABS_API_KEY` is set and you ask for it "with ElevenLabs"
+    - ElevenLabs Music is used only when you name it, never in place of a failed Lyria, and every result names the service that made it
+    - Z.ai GLM 5.3 (served by Mistral) joins the model list
+  - Fixed
+    - Server Mode starts from the desktop app, and the console shows the network address and a link that includes the access token
+    - Video Describer no longer reports missing audio next to the transcript
+    - Handing 1Password values to the Ruby container gives up after 30 seconds when WSL or Docker stops answering
+    - A non-executable `op` found first on the search path no longer hides a working one
+    - The documentation names the 1Password setting the CLI integration needs
+    - Asking Music Generator for WAV works; the service returns MP3 for now, and the file is saved in the format returned
+    - Choosing no reasoning on GLM 5.3 uses its lowest level
+    - Mistral Medium 3.5, Small 4 and other models whose names end in a version number appear in the selector
+  - For developers
+    - The MCP analysis tools require a `provider` argument
 
 - [October, 2026] 1.0.0-beta.39
-  - **API keys can be read from 1Password**: a value in `~/monadic/config/env` written as a 1Password secret reference (`op://…`) is read with the 1Password CLI when you press Start, once per app run, and handed to the containers without being written to disk. Values written as before are used as they are. A Ruby container built by an earlier version does not receive these values; the console asks you to rebuild it instead
-  - **API keys are no longer passed to the Docker helper script**: the app used to hand every setting in the configuration file, API keys included, to the script that starts the containers, where other programs running as your user could read them. It now passes only the settings the script uses
-  - **Sending works again after Stop and a page reload**: after the server was stopped from the console, a reloaded web interface kept a "stopped" marker and silently dropped every message, which stayed in the input box with "Thinking" shown
-  - **When Docker is not installed, the console says so**: the Docker status reads "Not installed" instead of blinking "Checking", and the console explains how to install Docker for your system. Start checks again, so installing Docker needs no restart
-  - **Formulas stay readable with Math Rendering off**: the model writes them in plain text or Unicode instead of LaTeX that the page cannot display, and puts LaTeX source in a code block when you ask for it
-  - **The Docker disk usage table at Start lines up**: the "Local Volumes" and "Build Cache" rows no longer spill into the next column
-  - **The macOS disk image is signed**: the app inside was already signed, and the DMG that contains it now carries a Developer ID signature as well, so macOS can check the download itself before it is opened
+  - Security
+    - API keys are not passed to the Docker helper script; it receives only the settings it uses
+  - Changes you may notice
+    - A Ruby container built by an earlier version does not receive 1Password values, and the console asks you to rebuild it (rebuild the Ruby container)
+  - New
+    - Values in `~/monadic/config/env` written as 1Password secret references (`op://…`) are read with the 1Password CLI when you press Start
+    - 1Password values are read once per app run and handed to the containers without being written to disk; plain values work as before
+    - The macOS disk image carries a Developer ID signature, so macOS can check the download before it is opened
+  - Fixed
+    - Sending works after Stop and a page reload
+    - When Docker is not installed, the console shows "Not installed" and explains how to install it for your system
+    - Start checks for Docker again, so installing Docker needs no restart
+    - With Math Rendering off, formulas come in plain text or Unicode, and LaTeX source comes in a code block when you ask
+    - The Docker disk usage table at Start lines up
 
 - [September, 2026] 1.0.0-beta.38
-  - **GPT-6.1 Sol is the default OpenAI chat model**: it costs the same as GPT-6 Sol, which stays in the list. It has no "none" reasoning level, so apps that ask for no reasoning run at its lowest level, low. The second-opinion check, which asks for no reasoning, would otherwise have been refused by this model
-  - **The web interface now has the Claude Sonnet 5.5 settings that 1.0.0-beta.37 announced**: that release was packaged with the web interface code from the commit before its last one, so the model list in the browser still made Claude Sonnet 5 the default and did not know Claude Sonnet 5.5's reasoning levels, while the server already used Claude Sonnet 5.5. The build now prepares the interface code before packaging, and checks that the packaged copy matches the source
-  - **Turning reasoning off on Claude models that always reason**: on Claude Opus 5.5, Sonnet 5.5, Fable 5.1 and the other models that reason whenever reasoning is not configured, an app that turned reasoning off ran at the model's default level, medium or high, which is more than the lowest setting. These models now run at their lowest level instead, and the web interface selects that level when an app asks for none
-  - **First start on a new computer**: the start dialog now says that some containers are set up the first time, instead of asking to rebuild images that were never built, and that skipping them only delays the first use of the feature that needs them. A successful Python setup is no longer reported as "Container failed to build"
-  - **Small screens**: the web interface window opens maximized when the screen is smaller than its default size, and the Start Session button stays at the bottom of the settings column instead of falling below the edge of the window
-  - **Docker notices on Linux no longer cover the window at startup**: when Docker is running but your user may not use it, or is not running, the explanation now appears at the top of the main window instead of in a separate dialog that had to be closed first
-  - **A failed update check no longer shows a network error code**: the message showed an error code and a server address when the update server could not be reached. It now says the server could not be reached and asks you to check the connection; when the app already knows it started offline, it skips the check instead of repeating the offline warning
-  - **The Linux AppImage describes itself to software catalogs**: it now carries AppStream metadata, so catalogs and software centres show a description and screenshots of the web interface and the console
-  - **The Linux AppImage includes the licenses of its bundled libraries**: the AppImage carries six shared libraries from Ubuntu, two of them under the GPL and two under the LGPL. Their copyright notices and license texts are now included in the AppImage, and each release carries their source as `monadic-chat_<version>_linux-library-sources.tar`
+  - Changes you may notice
+    - GPT-6.1 Sol is the default OpenAI chat model, at the same price as GPT-6 Sol, which stays in the list
+    - GPT-6.1 Sol has no "none" reasoning level, so apps that ask for no reasoning run it at low
+    - Claude Opus 5.5, Sonnet 5.5, Fable 5.1 and other always-reasoning models run at their lowest level when an app turns reasoning off
+    - The web interface selects that lowest level when an app asks for no reasoning on these Claude models
+  - New
+    - The Linux AppImage carries AppStream metadata, so software catalogs show a description and screenshots of the web interface and console
+    - The Linux AppImage includes the copyright notices and license texts of its six bundled Ubuntu libraries (two GPL, two LGPL)
+    - Each release carries the bundled libraries' source as `monadic-chat_<version>_linux-library-sources.tar`
+  - Fixed
+    - The web interface makes Claude Sonnet 5.5 the default and offers its reasoning levels, as 1.0.0-beta.37 announced
+    - On first start on a new computer, the start dialog says some containers are set up the first time
+    - The start dialog explains that skipping setup only delays the first use of the feature that needs it
+    - A successful Python setup is no longer reported as "Container failed to build"
+    - The web interface window opens maximized on screens smaller than its default size
+    - The `Start Session` button stays at the bottom of the settings column on small screens
+    - Docker notices on Linux appear at the top of the main window instead of in a dialog that must be closed first
+    - A failed update check says the server could not be reached and asks you to check the connection, without an error code
+    - When the app knows it started offline, it skips the update check instead of repeating the offline warning
+  - For developers
+    - The build prepares the web interface code before packaging and checks that the packaged copy matches the source
 
 - [September, 2026] 1.0.0-beta.37
-  - **Gemini's newest speech models are now the default**: Gemini TTS moves to the 3.8 Flash model, with 3.8 Flash-Lite as a lower-cost option, and the earlier models stay in the list. The new models return a finished audio file instead of raw samples and read the app's earlier tone lead-in aloud as text, so the app now detects the audio format from the file itself and gives the Flash model a short bracketed cue for tone. Such cues can add a word or a laugh that is not in the text; leave them off where the text must be read exactly as written. Flash-Lite, selectable as its own option, receives no tone direction, because it sometimes reads the direction aloud as part of the text; inline markers still work. Audio from the new models also carries Google's content credentials, recording when it was generated and that generative AI made it, and saved files keep them
-  - **Audio files saved with Gemini through Speech Draft Helper play again**: since the 3.1 model became the default, saved files held raw samples with no header, because the check for that format did not match how the API spells it
-  - **The newest OpenAI models are now the defaults**: chat moves to `gpt-6-sol` and vision to `gpt-6-luna`. Both cost less than the models they replace, and the GPT-5.6 models stay in the list
-  - **Apps that use Claude Opus now use Claude Opus 5.5**: this covers the apps that run on Opus, the Opus choice in the model lists, and the advisor that the coding and notebook apps consult. Opus 5.5 always reasons before answering; turning reasoning off in the settings hides it but does not stop it
-  - **The default Claude model is now Claude Sonnet 5.5**: chat and code move to `claude-sonnet-5-5`, which costs the same as Claude Sonnet 5, and the apps that named Claude Sonnet 5 now use it; Claude Sonnet 5 stays in the list. As with Claude Sonnet 5, apps that turn reasoning off still reason at the model's default level
-  - **Choosing no reasoning for OpenAI models now takes effect**: the setting was dropped before the request was sent, so the model reasoned at its own default level instead. The same applied to the second-opinion check and the simulated user, which were meant to run without reasoning. Replies with reasoning off are now faster and use fewer tokens; raise the reasoning level in the settings where deeper reasoning is wanted
-  - **The Gemini API key is no longer part of request URLs**: it is sent in a request header instead, so it cannot be recorded in the logs of proxies or servers that keep URLs. API keys that appear in error messages are now masked as well
-  - **The Linux AppImage no longer needs FUSE 2**: it now uses a self-contained runtime that mounts through FUSE 3, which current distributions such as Ubuntu 24.04 ship by default, so `libfuse2` no longer has to be installed. On a system without it, the previous runtime stopped with an error about a missing library before it could say what was wrong
-  - **The services start on ARM Linux systems with 16K memory pages**: the vector database moves to Qdrant 1.19.1. The previous version stopped at startup on systems that use 16K pages, such as Asahi Linux and Omarchy on Apple Silicon Macs, so the app could not start its services there. Existing knowledge bases carry over
-  - **Clearer messages when Docker cannot be used on Linux**: when Docker is running but your user is not allowed to use it, the app now says so and explains how to join the `docker` group (on Omarchy, `omarchy-setup-security-sudoless-docker`), instead of trying to start Docker Desktop. When Docker is not running, it points to the Docker service as well as to Docker Desktop, and the start-up tip no longer assumes Docker Desktop
-  - **The Linux app window is matched to its launcher entry**: on Wayland desktops the window now carries the same identifier as the application entry, so docks, task bars and window rules recognise it
-  - **The app starts without an internet connection**: it used to show a connection error and quit. It now starts, and the main window explains which features need a connection; local models, settings and files keep working. A GitHub rate limit is no longer mistaken for being offline
-  - **Icons and text in the app window no longer depend on an internet connection**: the icon font and the typeface are bundled with the app instead of being loaded from external servers, so they also appear offline
-  - **A failed update check says why**: when every address of the update server was unreachable, the message ended without giving a reason
-  - **Settings added to the configuration file by hand are read correctly**: the app wrote the file without a final line break, so a line appended to it ran into the last existing setting
+  - Security
+    - The Gemini API key is sent in a request header, not in request URLs
+    - API keys that appear in error messages are masked
+  - Changes you may notice
+    - Gemini TTS defaults to Gemini 3.8 Flash, with 3.8 Flash-Lite as a lower-cost option; earlier models stay in the list
+    - Gemini 3.8 Flash receives a short bracketed tone cue, which can add a word or laugh; leave cues off where text must be exact
+    - Gemini 3.8 Flash-Lite receives no tone direction; inline markers still work
+    - Audio from the Gemini 3.8 models carries Google's content credentials, recording its generation by generative AI, and saved files keep them
+    - OpenAI defaults move to GPT-6 Sol for chat and GPT-6 Luna for vision, both cheaper; the GPT-5.6 models stay in the list
+    - Apps using Claude Opus, the Opus model-list choice, and the advisor in the coding and notebook apps use Claude Opus 5.5
+    - Claude Opus 5.5 always reasons; turning reasoning off hides the reasoning but does not stop it
+    - Claude Sonnet 5.5 is the default Claude model for chat and code, at Claude Sonnet 5's price; Claude Sonnet 5 stays in the list
+    - Apps that turn reasoning off on Claude Sonnet 5.5 still reason at the model's default level
+    - Choosing no reasoning for OpenAI models, including in second opinion and AI User, takes effect: replies are faster and use fewer tokens
+    - Raise the reasoning level in the settings where deeper reasoning is wanted with OpenAI models
+    - The Linux AppImage runs on FUSE 3, so `libfuse2` no longer has to be installed
+    - The vector database moves to Qdrant 1.19.1; existing knowledge bases carry over
+  - Fixed
+    - Audio files saved with Gemini through Speech Draft Helper play
+    - The services start on ARM Linux systems with 16K memory pages, such as Asahi Linux and Omarchy on Apple Silicon Macs
+    - When your Linux user may not use Docker, the app says so and explains joining the `docker` group
+    - On Omarchy, the app points to `omarchy-setup-security-sudoless-docker` to allow using Docker
+    - When Docker is not running on Linux, the app points to the Docker service as well as Docker Desktop, and the start-up tip does too
+    - On Wayland desktops the app window matches its launcher entry, so docks, task bars and window rules recognise it
+    - The app starts without an internet connection, and the main window explains which features need one
+    - Local models, settings and files keep working offline, and a GitHub rate limit is not mistaken for being offline
+    - Icons and text in the app window appear offline, because the icon font and typeface are bundled
+    - A failed update check says why when no address of the update server can be reached
+    - Settings added to the configuration file by hand are read correctly
 
 - [September, 2026] 1.0.0-beta.36
-  - **The help data is installed when you ask for it**: it used to load the first time the app started, which cost every user that wait whether or not they ever used help search, and it was never refreshed afterwards. An installation made months earlier kept answering from that version's documentation even after the app was updated. **Monadic Chat Info → Help Data** now shows what is installed and installs or updates it on request. Replacing it leaves the Knowledge Base and the conversation library untouched, and help stays searchable until the replacement begins
-  - **Help answers only from the published documentation**: 1.0.0-beta.35 removed the internal developer notes from the file shipped with the app, but a database installed by an earlier version still held them, and not every way of reading it filtered them out. All of them do now, so help installed before this release no longer answers from notes that were never meant to be published
+  - Security
+    - Help answers only from the published documentation, including help data installed by earlier versions
+  - Changes you may notice
+    - The help data is installed when you ask for it: `Monadic Chat Info` → `Help Data` shows what is installed and installs or updates it
+    - Replacing the help data leaves the Knowledge Base and the conversation library untouched, and help stays searchable until replacement begins
 
 - [September, 2026] 1.0.0-beta.35
-  - **The bundled help database carries only the published documentation**: it also held the project's internal developer notes. Search hid them, but they were in the file, so anyone who opened it could read them. The database is now built from the published documentation alone, and packaging stops if the database holds internal notes or names a file that is not part of the repository
-  - **The newest xAI and Google models are now the defaults**: chat and vision move to `grok-4.7`, and chat, vision and audio move to `gemini-3.8-flash`. Both are priced the same as the models they replace, and the previous models stay in the dropdown
-  - **The reasoning effort choices match what each model accepts**: the Grok models accept a deeper level than the list offered, and Gemini Flash accepts a middle level that was missing. Both are now selectable
-  - **Reasoning can actually be turned off on Gemini Flash**: choosing no reasoning still sent a small thinking allowance, because the model was recorded as unable to turn it off and the choice was discarded before it took effect. It now sends zero
-  - **Image settings follow the chosen model rather than the provider**: a request the selected model cannot accept is refused before it is sent, and the message names the values that model does accept. Previously it was sent and came back as a provider error
-  - **Two more OpenAI image models**: `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst` join the image generator alongside `gpt-image-2`, and they accept higher quality levels than it does
-  - **xAI image generation gains a quality choice and eleven more aspect ratios**: the list offered five ratios where the API accepts sixteen, and quality could not be chosen at all. Editing now accepts up to five source images instead of three. The separate high-quality model is removed from the list, because from 2 November the provider serves it as the standard model at its lowest quality
-  - **Progress messages name this app's own code generators**: the messages shown while an application is being built said "OpenAI Code", "Claude Code" and "Grok Code", which read like the names of separate products. They now describe the coding agent each provider uses
-  - **Documentation corrections**: the public documentation carried settings, defaults and file names that no longer matched the application, and several links and in-page anchors pointed at pages or headings that no longer exist
+  - Security
+    - The bundled help database holds only the published documentation
+  - Changes you may notice
+    - Grok 4.7 is the default xAI model for chat and vision, at the same price; previous models stay in the dropdown
+    - Gemini 3.8 Flash is the default Gemini model for chat, vision and audio, at the same price; previous models stay in the dropdown
+    - Image settings follow the chosen model: a request it cannot accept is refused before sending, naming the values it accepts
+    - The separate xAI high-quality image model is removed from the list
+  - New
+    - Grok models offer a deeper reasoning effort level, and Gemini Flash offers a middle level
+    - The image generator adds OpenAI's `gpt-image-2.5-flare` and `gpt-image-2.5-sunburst`, which accept higher quality levels than `gpt-image-2`
+    - xAI image generation offers a quality choice and sixteen aspect ratios, and editing accepts up to five source images
+  - Fixed
+    - Choosing no reasoning on Gemini Flash turns reasoning off
+    - Progress messages while an application is being built describe the coding agent each provider uses
+    - The public documentation's settings, defaults, file names, links and in-page anchors match the application
+  - For developers
+    - Packaging stops if the help database holds internal notes or names a file that is not part of the repository
 
 - [September, 2026] 1.0.0-beta.34
-  - **The app starts again after updating to 1.0.0-beta.33**: building the Ruby container failed with an unmet dependency between two Docker packages, so the app could not start wherever that container had to be rebuilt. The container now installs only the Docker command-line client it actually uses to reach the host's Docker, which removes the conflicting packages and makes the image smaller
+  - Fixed
+    - The app starts after updating to 1.0.0-beta.33: the Ruby container builds, and its image is smaller
 
 - [September, 2026] 1.0.0-beta.33
-  - **The desktop app runs on a newer Electron**: the shell moves from Electron 39 to Electron 44, which brings a newer Chromium and drops a dependency with an unfixed advisory. **This raises the requirement to macOS 13 (Ventura) or later.** Automatic updating to this release is blocked on macOS 12, which keeps running 1.0.0-beta.31. Copy and paste inside the chat window is unaffected; it now goes through the main process, which is where Electron 44 keeps clipboard access
-  - **A shared conversation carries only what it was meant to**: exporting a conversation with the detected values masked still left several copies behind, because only the message body was masked. The table used to highlight restored placeholders, the model's reasoning, the rendered HTML and the prompt you wrote all went out unmasked, and a vocabulary map could carry file paths from your machine. The export now states which fields it may carry at all, and masks every one of them that holds text
-  - **A conversation with a Context Panel can be loaded again**: the panel was written into the field the import reads as application state, so loading such a file failed with a type error and lost the whole session. The panel now has its own field, and files saved before this fix are recovered rather than rejected
-  - **GPT-6 Astra (opt-in)**: OpenAI's frontier model joins the model list. It is priced well above the GPT-5.6 family, so it stays off the defaults and is chosen from the model dropdown
-  - **The reasoning effort choices now match what each OpenAI model accepts**: three models offered a level the API rejects, so picking it returned an error, and one model hid a level the API does accept
-  - **A saved Speech-to-Text choice keeps working after the model retires**: the selection is stored for 30 days, and when the provider drops that model the request now goes out under its replacement instead of the name that no longer exists
-  - **The download links in the documentation point at the current release**: they used a URL that GitHub resolves to the newest non-prerelease, and every beta is published as a prerelease, so the documented download had been serving 1.0.0-beta.17 since June. Each link now names the release and the file for its platform
-  - **Linux install instructions match what is published**: the documentation asked for a `.deb` package, which this project has never shipped. It now describes the AppImage that the release actually contains
-  - **The application package no longer carries development leftovers**: benchmark logs, Python bytecode caches, test audio and test-run state from the build machine were being copied into the packaged app. The package is now assembled from a list of files rather than by copying the working directory and excluding a few names
-  - **The build no longer fails when the app is already running**: regenerating the help database checked that the container existed rather than that it could be reached, and stopped with a connection error when the installed app had started it
+  - Security
+    - The desktop app runs on Electron 44 with a newer Chromium, without a dependency that had an unfixed advisory
+    - Exporting a conversation with masking masks every text field, including highlights, reasoning, rendered HTML and your prompt
+    - A vocabulary map in a masked export no longer carries file paths from your machine
+  - Changes you may notice
+    - **Monadic Chat requires macOS 13 (Ventura) or later.**
+    - Automatic updating to this release is blocked on macOS 12, which keeps running 1.0.0-beta.31
+  - New
+    - GPT-6 Astra (opt-in) joins the model list; it is priced well above the GPT-5.6 family, so choose it from the model dropdown
+  - Fixed
+    - A conversation with a Context Panel loads, and files saved with one earlier are recovered
+    - The reasoning effort choices match what each OpenAI model accepts
+    - A saved Speech-to-Text choice, kept for 30 days, uses its replacement model when the provider retires it
+    - The download links in the documentation name the current release and the file for each platform
+    - The Linux install instructions describe the AppImage that the release contains
+    - The application package contains only the app's files, without build-machine logs, caches, test audio or test-run state
+  - For developers
+    - The package is assembled from a list of files
+    - The build works when the installed app is already running
 
 - [September, 2026] 1.0.0-beta.31
-  - **Claude Fable 5.1 (opt-in)**: `claude-fable-5-1` joins the model list alongside Fable 5, at the same price with prompt-cache reads at a quarter of the rate. Two of its API changes are handled for you: the model declines a forced tool selection, so the request lets it choose; and its reasoning is tied to the exact conversation that produced it, so when an app adds a skill mid-conversation the turn continues instead of failing
-  - **Speech-to-Text moves to OpenAI's current transcription model**: OpenAI retires four transcription models in February 2027, and three of them were offered here, including the default. The list now offers `GPT Transcribe` in their place, a saved selection of a retired model moves to it on its own, and Live Conversation transcribes what you say with it too. Speaker diarization keeps its own entry, because the replacement does not offer it yet
-  - **The Speech-to-Text list no longer disagrees with what runs**: the Gemini entry named a model that had been replaced, and file transcription ignored your choice for Gemini and used the provider default instead. Both now match what the list shows
-  - **Gemini image generation drops the models Google retired**: the Imagen 4.0 entries stopped existing on Google's side in August, and one path could still reach for a name that was no longer defined
-  - **Security**: the development and build dependencies with reported advisories were updated. None of them ship inside the application
+  - Changes you may notice
+    - Speech-to-Text offers `GPT Transcribe` in place of OpenAI's transcription models retiring in February 2027, including the old default
+    - A saved selection of a retired transcription model moves to `GPT Transcribe`, and Live Conversation transcribes your speech with it
+    - Speaker diarization keeps its own entry, because `GPT Transcribe` does not offer it yet
+    - Gemini image generation drops the Imagen 4.0 models that Google retired
+  - New
+    - Claude Fable 5.1 (opt-in) joins the model list beside Fable 5, at the same price with prompt-cache reads at a quarter of the rate
+    - Claude Fable 5.1 works with apps that force a tool or add a skill mid-conversation
+  - Fixed
+    - The Gemini Speech-to-Text entry names the current model, and file transcription uses your Gemini choice
+  - For developers
+    - Development and build dependencies with reported advisories are updated; none of them ship inside the application
 
 - [August, 2026] 1.0.0-beta.30
-  - **Live Conversation: a new app for hands-free voice conversation**: talk with the AI in real time over a provider's speech-to-speech API, with three variants (OpenAI, xAI Grok, Google Gemini) selectable when the matching API key is configured. Press Start and speak — the end of each utterance is detected automatically and the reply comes back as voice, with no button presses. Unlike Voice Chat, which runs speech recognition, the language model and speech synthesis as three separate steps, the audio goes straight to the provider, so replies start sooner. There is no text input in this app, and the Privacy Filter does not apply because the audio reaches the provider directly.
-  - **Live Conversation display**: during a conversation the live view shows two zones — the previous utterance and the one in progress — and the sentence the assistant is currently speaking is highlighted, so the voice can be followed in the text (the transcript arrives well ahead of the audio, which makes long replies hard to follow otherwise). The highlight tracks the audio itself, pauses while a tool is running, and stops where the speech stopped if you interrupt. `Cards while talking` switches to the conventional card display during the session; once the session ends the display always returns to the card list, where the conversation can be edited, saved and loaded like any other.
-  - **Live Conversation tools** (off by default): the `Tools` toggle lets the assistant call tools mid-conversation — current time, Python code execution, Knowledge Base search, and web search (requires `TAVILY_API_KEY`) — on all three providers. A turn that used tools stays on a single card, with a badge naming the tool at the point where it was called; the badge spins while the call runs and turns red if the call fails, and calls made at the same point share one badge.
-  - **Live Conversation voice, turn and session controls**: pick the assistant's voice in the app's own control row — 10 voices for OpenAI, 26 for xAI, 30 for Gemini — and the choice is remembered per provider. A playback speed slider is available for OpenAI, which can also decide the end of your turn by meaning rather than by silence (patient / balanced / quick). While connected the app shows a running cost estimate, since this kind of session bills for connection time including silence; it stops automatically after a few minutes of silence, and on Gemini reconnects by itself when the provider's 15-minute session cap is reached. Replies the assistant began forming but never spoke are no longer kept in the transcript.
-  - **DeepSeek can now read images**: attach an image in a DeepSeek app and it is answered by DeepSeek's vision model, which the app selects automatically for that request.
-  - **Newest xAI model and a choice of image quality**: chat, vision and code now default to grok-4.6, with the previous model still selectable, and the image generator can be asked for a higher-quality render — falling back to the standard model when your account cannot use the requested one.
-  - **DeepSeek V4-Flash is now the default across DeepSeek apps**, and the retired `deepseek-chat` / `deepseek-reasoner` models were removed after their API shutdown was confirmed against the live model list.
-  - **The OpenAI image generator no longer offers settings that fail**: it had kept offering the old DALL-E sizes and quality levels, which the current model rejects, while hiding the larger sizes it does support. The available settings now match what the API accepts.
-  - **Error messages no longer expose account identifiers**: when a provider's error text named your team, organization or project, that identifier appeared in the chat and was saved with the conversation. Errors are scrubbed before they are shown.
-  - **Claude keeps its prompt cache when tools change mid-conversation**: when an app adds skills or tools during a conversation, the cached prefix used to be rebuilt from scratch for that request, which cost noticeably more. Anthropic's mid-conversation-tool-changes support is now enabled for every Claude model, so the cache is read instead of rewritten. Behavior is unchanged; only cost improves.
-  - **The workflow viewer recovers instead of showing an empty frame**: it now picks up the app list however late it arrives, and when its graph library fails to load it shows an error with a retry button rather than a blank panel.
-  - **Music Generator: image-to-music is documented** — generating music from an image was already supported and is now described in the documentation (EN/JA).
+  - Security
+    - Provider error messages are scrubbed of team, organization and project identifiers before they are shown or saved
+  - Changes you may notice
+    - Grok 4.6 is the default xAI model for chat, vision and code; the previous model stays selectable
+    - DeepSeek V4-Flash is the default across DeepSeek apps, and the retired `deepseek-chat` and `deepseek-reasoner` are removed
+  - New
+    - Live Conversation: hands-free voice conversation over a provider's speech-to-speech API, with OpenAI, xAI Grok and Google Gemini variants
+    - Each Live Conversation variant is selectable when its API key is configured
+    - In Live Conversation, press Start and speak: each utterance's end is detected and the reply comes back as voice, sooner than Voice Chat
+    - Live Conversation has no text input, and the Privacy Filter does not apply because the audio goes directly to the provider
+    - The live view shows the previous and the current utterance, and highlights the sentence being spoken
+    - The highlight follows the audio, pauses while a tool runs, and stops where speech stopped if you interrupt
+    - `Cards while talking` shows the card display during a session; afterwards the card list can be edited, saved and loaded
+    - The `Tools` toggle (off by default) offers current time, Python execution, Knowledge Base search, and web search (needs `TAVILY_API_KEY`)
+    - A tool badge marks where a tool was called; it spins while running, turns red on failure, and calls at one point share it
+    - Pick the assistant's voice in the app's control row (10 OpenAI, 26 xAI, 30 Gemini), remembered per provider
+    - With OpenAI, a playback speed slider and end-of-turn detection by meaning (patient / balanced / quick) are available
+    - A running cost estimate is shown while connected, since connection time is billed, silence included
+    - Live Conversation stops after a few minutes of silence, and on Gemini reconnects at the provider's 15-minute session cap
+    - Replies the assistant began but never spoke are not kept in the transcript
+    - DeepSeek apps read attached images with DeepSeek's vision model, chosen automatically for that request
+    - The xAI image generator offers a higher-quality render, using the standard model when your account cannot use it
+  - Fixed
+    - The OpenAI image generator offers only the sizes and quality levels the current model accepts
+    - Claude reads its prompt cache when an app adds skills or tools mid-conversation, which costs less
+    - The workflow viewer picks up the app list whenever it arrives, and shows an error with a retry button if its graph library fails
+    - Music Generator's image-to-music is described in the documentation (EN/JA)
 
 - [July, 2026] 1.0.0-beta.29
-  - **Claude Opus 5 support**: Anthropic's new model for complex agentic coding is available across the app (1M-token context, 128K output, vision, web search, PDF, adaptive thinking with low/medium/high/xhigh/max effort). Claude apps that previously used Opus 4.8 for their advisor and code-generation roles — Code Interpreter, Coding Assistant, Jupyter Notebook, AutoForge, Math Tutor, Concept Visualizer, DrawIO Grapher, Chat Plus, Language Practice Plus — now use Opus 5 at the same price. Claude Sonnet 5 remains the default chat model, and Opus 4.8 stays selectable.
-  - **Gemini 3.6 Flash and 3.5 Flash-Lite support**: Google's latest Gemini models are available across the app. `gemini-3.6-flash` (1M-token context, 64K output, vision, web search, PDF) is now the default Gemini chat, vision, and audio model — a reasoning Flash that always thinks, with a low/high reasoning-effort selector. `gemini-3.5-flash-lite` is available as the fast, low-cost option. Sessions and apps pinned to the previous `gemini-3.5-flash` or `gemini-3.1-flash-lite` migrate automatically to their successors.
+  - Changes you may notice
+    - Claude variants of Code Interpreter, Coding Assistant, Jupyter Notebook, AutoForge, Math Tutor, Concept Visualizer, DrawIO Grapher, Chat Plus and Language Practice Plus use Claude Opus 5 for advisor and code generation
+    - Claude Sonnet 5 stays the default Claude chat model, and Claude Opus 4.8 stays selectable
+    - Gemini 3.6 Flash is the default Gemini chat, vision and audio model; it always reasons, with a low/high reasoning-effort selector
+    - Sessions and apps set to Gemini 3.5 Flash or Gemini 3.1 Flash-Lite move to their successors automatically
+  - New
+    - Claude Opus 5 is available (1M-token context, 128K output, vision, web search, PDF, adaptive thinking with low to max effort)
+    - Gemini 3.6 Flash (1M-token context, 64K output, vision, web search, PDF) and Gemini 3.5 Flash-Lite, a fast low-cost option, are available
 
 - [July, 2026] 1.0.0-beta.28
-  - **Settings are confirmed saved before the check mark appears**: the Save button in the Settings window now shows its success state only after the settings file has actually been written. If the write fails, the button shows a warning state and the form stays marked as unsaved so you can retry, and "Save and Close" / action shortcuts keep the window open on a failed save instead of closing as if it had succeeded.
-  - **Clearer empty state for speech-to-text**: when no provider with a speech-to-text model has an API key configured, the Speech-to-Text Model selector now shows "No STT models available (API key required)" instead of displaying a model name that cannot actually be used.
-  - **PDF export shows progress**: the PDF Export button now shows a spinner and is disabled while the printable view is being prepared, so a large conversation no longer looks unresponsive between the click and the print dialog.
-  - **Consistent default syntax-highlighting theme**: the default code theme is now `github:light` everywhere, including when running the server outside the desktop app (it previously fell back to a different theme in that mode).
-  - **Documentation refresh**: the in-app Help database and the online documentation have been substantially revised for accuracy and reorganized — the app catalog is now split into per-category pages, a new Providers & Models reference page was added, and numerous outdated or duplicated descriptions were corrected.
+  - New
+    - The documentation and in-app Help database are revised: the app catalog has per-category pages, and a new Providers & Models reference page is added
+  - Fixed
+    - The Settings `Save` button shows success only after the settings file is written; a failed save shows a warning and keeps the form unsaved
+    - `Save and Close` and action shortcuts keep the Settings window open when a save fails
+    - The Speech-to-Text Model selector shows "No STT models available (API key required)" when no speech-to-text provider has an API key
+    - The `PDF Export` button shows a spinner and is disabled while the printable view is prepared
+    - The default code theme is `github:light` everywhere, including when the server runs outside the desktop app
 
 - [July, 2026] 1.0.0-beta.27
-  - **Image fidelity control for analyze_image**: the image-analysis skill accepts an optional detail level (`original`, `auto`, `high`, `low`) — ask the AI to examine a shared-folder image at original fidelity when fine text or diagram details matter. Chat-attached images are downscaled in the browser before sending, so full-resolution analysis goes through the shared folder (now documented).
-  - **Knowledge Base access badge**: the conversation header now shows a "Knowledge Base" badge whenever the session actually reads from the Library — retrieval toggled on, or the Knowledge Base app itself (which always has full access).
-  - **Workflow Viewer reflects dynamically unlocked skills**: when a conversation acquires extra tools on demand (progressive tool disclosure), the viewer now re-fetches automatically and marks the unlocked skill groups and tools, so the chart always shows the session's actual capability set.
-  - **OpenAI model selector cleanup**: the GPT-5.6 tiers are grouped under GPT-5 (instead of "Other Models") and speech models such as the realtime transcriber no longer appear in the chat-model list.
-  - **GPT-5.6 family support (Sol / Terra / Luna)**: OpenAI's new frontier generation is available across the app — `gpt-5.6-terra` (the balanced default tier) is now the default OpenAI chat model, with the flagship `gpt-5.6-sol` and the cost-optimized `gpt-5.6-luna` selectable everywhere (1M-token context, 128K output, vision, web search, structured output). The reasoning-effort selector for these models includes the new `max` mode, and `gpt-5.6-luna` becomes the default OpenAI vision model. Previous GPT-5.x models remain available.
-  - **Grok 4.5 support**: xAI's new frontier model `grok-4.5` (500K context, vision, selectable reasoning effort, web search, structured output) is now the default xAI chat and vision model, and the Grok variants of Coding Assistant, Code Interpreter, Jupyter Notebook, and Research Assistant use it as their code generator. The previous models remain available.
-  - **The Thinking Process panel survives tool use on every provider**: when a reasoning model (Grok, OpenAI gpt-5.x, Mistral Magistral, Ollama thinking models) thought before calling a tool, the collapsed Thinking Process panel disappeared from the completed message — only the final round's (often empty) trace survived. The reasoning is now carried across tool rounds and merged into the final answer, so the panel reflects the whole trace. DeepSeek, Cohere, and Claude already behaved correctly.
-  - **Mistral Magistral reasoning now works in Monadic Chat**: Magistral's thinking never appeared because its trace arrives inside the streamed content array and was silently discarded; it is now extracted and displayed. Multi-turn conversations also kept Magistral from reasoning at all (the model stops thinking once the history contains an assistant turn without a thinking block, verified against the live API) — each turn's stored trace is now replayed in the request so reasoning stays alive across turns. A request-parameter issue that could reject Magistral calls outright is also fixed.
-  - **Show Thinking and Reasoning Effort stay coherent**: the Show Thinking toggle now appears for all reasoning models (including OpenAI gpt-5.x), turning it on while the reasoning effort is "None" raises the effort to the model's lowest thinking level, setting the effort back to "None" turns the toggle off, and the toggle starts out matching the effective effort — the UI can no longer promise thinking the model is configured not to produce.
-  - **Smoother Thinking Process panel**: the collapsed panel opens and closes in a single smooth motion (previously a jerky two-stage expand) and collapses fully, and the trace inside is rendered as Markdown (bold, lists, code) instead of showing raw markers as plain text.
-  - **Update button hardening**: the "Download & Install" button in the update notification is disabled while a download is in flight (an accidental double-click is ignored) and re-enabled if the download fails so it can be retried.
-  - **Knowledge Base app works again**: listing, searching, and inspecting conversations inside the Knowledge Base app had been failing with an internal error (masked as a "temporary search error") ever since the feature shipped; the stale request parameter responsible is removed and all three operations work.
-  - **Workflow Viewer no longer shows an empty diagram**: opening or switching the viewer at an unlucky moment (while the settings panel was collapsed or animating) could leave — and even memorise — a blank canvas; the viewer now validates that its content is actually visible and re-fits itself automatically.
-  - **The settings-panel chevron now follows the panel**: the collapse indicator in the conversation header bar rotates with the panel's open/closed state instead of staying frozen.
-  - **Removed the deprecated ElevenLabs `scribe_v1` speech-to-text model** (sunset July 9, 2026); `scribe_v2` remains the default and `scribe_v1_experimental` is still available.
+  - Changes you may notice
+    - GPT-5.6 Terra is the default OpenAI chat model and GPT-5.6 Luna the default OpenAI vision model; earlier GPT-5 models stay available
+    - Grok 4.5 is the default xAI chat and vision model and the code generator for Grok Coding Assistant, Code Interpreter, Jupyter Notebook and Research Assistant
+    - The OpenAI model selector lists GPT-5.6 under GPT-5 and no longer shows speech models among chat models
+    - The `Show Thinking` toggle appears for all reasoning models, including OpenAI GPT-5 models, and starts out matching the reasoning effort
+    - Turning `Show Thinking` on while the effort is `None` raises the effort to the lowest thinking level; setting the effort to `None` turns it off
+    - The ElevenLabs `scribe_v1` speech-to-text model is removed; `scribe_v2` stays the default and `scribe_v1_experimental` stays available
+  - New
+    - GPT-5.6 Sol, Terra and Luna are available (1M-token context, 128K output, vision, web search, structured output), with a `max` reasoning effort
+    - Grok 4.5 is available (500K context, vision, selectable reasoning effort, web search, structured output)
+    - Image analysis accepts a detail level (`original`, `auto`, `high`, `low`); for full resolution use a shared-folder image, since chat attachments are downscaled
+    - The conversation header shows a "Knowledge Base" badge when the session reads from the Library (retrieval on, or the Knowledge Base app)
+    - The Workflow Viewer refreshes and marks the skill groups and tools a conversation unlocks on demand
+  - Fixed
+    - The Thinking Process panel keeps the whole reasoning trace across tool calls for Grok, OpenAI GPT-5, Mistral Magistral and Ollama thinking models
+    - Mistral Magistral's reasoning is displayed and continues across turns, and Magistral requests are no longer rejected
+    - The Thinking Process panel opens and closes in one smooth motion, collapses fully, and renders its trace as Markdown
+    - The `Download & Install` button is disabled while a download runs and is enabled again if the download fails
+    - The Knowledge Base app lists, searches and inspects conversations
+    - The Workflow Viewer no longer shows an empty diagram when opened while the settings panel is collapsed or animating
+    - The settings-panel chevron in the conversation header rotates with the panel's open or closed state
 
 - [July, 2026] 1.0.0-beta.26
-  - **Cohere `command-a-plus` works reliably with tools and web search**: the flagship Cohere reasoning model previously failed whenever tools or web search were involved — a request could come back as "invalid tool generation" (422) or "`tool plan` cannot be used with this model" (400), and after making a tool call it could not use the skill it had just unlocked. Four Cohere v2 request-shape issues are fixed, each verified against the live API: the model's reasoning is no longer sent as a disabled-thinking flag alongside tools; the replayed assistant turn no longer carries a `tool_plan` the model rejects; tool-round requests now include the current tool set (so a just-unlocked skill is usable and the tool-call turn validates); and the Tavily web-search tools are attached when the toggle is on even for progressive-tool apps. The persistent Thinking Process panel now also appears for `command-a-plus` and `command-a-reasoning`.
-  - **The Web Search toggle is now honored by the dynamic tool system**: turning Web Search off in the sidebar reliably prevents any web search — the web-search tools are hidden from the model, cannot be unlocked on demand, and are refused if the model tries to reach one anyway through a content-embedded fallback. Previously a search could still run against a disabled toggle. The rule is enforced both where tools are offered to the model and where they would execute.
-  - **Knowledge Base retrieval now matches the toggle you see**: on a fresh, reset, or imported session the "Use Knowledge Base for retrieval" toggle could show on while the backend still treated it as off, so Knowledge Base search reported itself disabled. The toggle's state now rides every message, so retrieval works whenever the toggle shows on.
-  - **Dynamic-skill unlocks survive export/import**: skills a session acquired on demand through the skill menu are now saved with a JSON export and restored on import, so a saved conversation resumes with the same tools available instead of re-requesting them. App developers can declare which skill groups an app may reach for with the new `reachable_skills` directive (`reachable_skills :web_search_tools, :image_analysis`, or `reachable_skills :safe` for the curated read-only pool); see the Tool Groups documentation.
-  - **The Thinking Process panel persists across tool use (DeepSeek)**: reasoning DeepSeek emits before a tool call is now carried into the final answer, so the collapsible Thinking Process panel stays after the response completes instead of disappearing once tools are involved (still governed by the Show Thinking setting).
-  - **Mistral relays fresh tool results faithfully**: after searching the web, Mistral could prepend a stale pre-search guess to its answer; the final answer now stands on the tool result rather than gluing a training-data guess in front of it.
-  - **`search_web` returns real results via Tavily**: the shared `search_web` tool now performs a real Tavily search when a `TAVILY_API_KEY` is configured (for every provider) instead of returning a placeholder, and no longer mislabels the provider in its status message. An absent `tool_capability` flag is now treated as tool-capable consistently across all providers.
-  - **Any speech-to-text model works with any voice combination**: selecting a non-OpenAI transcription model (ElevenLabs Scribe, Gemini, Cohere, Mistral Voxtral, xAI) no longer fails with a "Realtime STT: Invalid value" error. Real-time streaming transcription is an OpenAI-only path, so every other provider's transcription now correctly uses its own batch endpoint — each speech-to-text and text-to-speech pairing works as long as the relevant API key is present.
-  - **All 26 Grok voices are now selectable**: the Grok (xAI) text-to-speech voice list now offers the full flagship roster — the five original voices plus 21 new natively-multilingual voices (Luna, Carina, Orion, and more), grouped by gender. Previously only the original five could be chosen.
+  - New
+    - All 26 Grok voices are selectable, including 21 multilingual voices (Luna, Carina, Orion and more), grouped by gender
+    - Skills a session unlocks on demand are saved in JSON exports and restored on import
+    - The Thinking Process panel appears for Cohere Command A+ and Command A Reasoning
+  - Fixed
+    - Cohere Command A+ works with tools and web search, including skills it has just unlocked
+    - Turning `Web Search` off prevents any web search: the tools are hidden, cannot be unlocked, and are refused if called
+    - The "Use Knowledge Base for retrieval" toggle matches actual retrieval on new, reset and imported sessions
+    - The Thinking Process panel stays after tool use with DeepSeek (still governed by `Show Thinking`)
+    - Mistral answers after a web search follow the search result, without a stale guess in front
+    - `search_web` runs a real Tavily search for every provider when `TAVILY_API_KEY` is set, and its status message names the right provider
+    - Any speech-to-text model (ElevenLabs Scribe, Gemini, Cohere, Mistral Voxtral, xAI) works with any text-to-speech choice when its API key is set
+  - For developers
+    - The MDSL `reachable_skills` directive declares which skill groups an app may unlock (`reachable_skills :web_search_tools, :image_analysis`, or `:safe`); see the Tool Groups documentation
+    - Models without a `tool_capability` flag are treated as tool-capable on every provider
 
 - [June, 2026] 1.0.0-beta.25
-  - **Monadic Conduit improvements (for external MCP clients)**: query results now report real provider token usage — input, output, reasoning, and cached tokens — normalized across all providers (OpenAI, Claude, Gemini, Cohere, Mistral, DeepSeek, Grok, Ollama), and the token-budget guard is charged against that real usage instead of a tiktoken estimate (accurate for reasoning models, whose hidden thinking tokens an estimate cannot see). Query tools also accept a `reasoning_effort` option (honored by providers that support it), and a query that returns no visible text is flagged with an `empty_output` marker and an actionable warning (usually the model spent the whole `max_tokens` budget on reasoning — raise it).
-  - **Claude Sonnet 5 support**: Anthropic's new `claude-sonnet-5` is now the default Anthropic chat and coding model (1M-token context, up to 128k output, adaptive thinking with selectable effort, vision and PDF input). The Claude variants of Chat Plus, Coding Assistant, Code Interpreter, Jupyter Notebook, Language Practice Plus, and AutoForge now use it. Claude Sonnet 4.6 remains available for anyone who has selected it explicitly.
-  - **Smoother in-app update experience**: when a new version is available, the notification now includes a "Download & Install" button so you can start the update right there instead of opening the menu; the download shows a single progress line with a bar that advances in place rather than adding a new line per step; the update dialogs are more concise; and the "Stopping Docker containers" notice no longer appears twice during the restart.
+  - Changes you may notice
+    - Claude Sonnet 5 is the default Claude chat and coding model, used by Claude Chat Plus, Coding Assistant, Code Interpreter, Jupyter Notebook, Language Practice Plus and AutoForge
+    - Claude Sonnet 4.6 stays selectable
+  - New
+    - Claude Sonnet 5 is available (1M-token context, up to 128K output, adaptive thinking with selectable effort, vision and PDF input)
+    - The update notification has a `Download & Install` button, and the update dialogs are shorter
+    - Monadic Conduit query results report real token usage (input, output, reasoning, cached) for every provider, and the token-budget guard counts that usage
+    - Monadic Conduit query tools accept a `reasoning_effort` option where the provider supports it
+    - A Monadic Conduit query with no visible text is flagged `empty_output`, with a warning that usually means raising `max_tokens`
+  - Fixed
+    - The update download shows one progress bar that advances in place, and the "Stopping Docker containers" notice appears once
 
 - [June, 2026] 1.0.0-beta.24
-  - **Monadic Conduit — an MCP capability layer for external agents**: Monadic Chat now exposes its core abilities to external agentic CLI tools and other MCP (Model Context Protocol) clients through a local capability server, so those tools can use your configured providers, models, and data without leaving their own environment. The surface includes querying a single provider, fanning a question out to several providers in parallel, asking for a second opinion, and measuring cross-provider confidence; searching, listing, and importing the Knowledge Base; analyzing images, audio, and video; speech synthesis and transcription; generating code, images, video, and music; and a bounded autonomous tool-using agent. Long-running operations run as background jobs you submit, poll, and cancel, every billable call is bounded by a token-budget guard, and queries can optionally be grounded in the Knowledge Base or routed through the Privacy Filter. The server is opt-in (`MCP_SERVER_ENABLED`) and bound to localhost only; a stdio bridge is included for clients that speak stdio rather than HTTP.
-  - **Response verification by cross-provider agreement**: a new "Verify this response" action under each AI answer cross-checks it by asking a diverse panel of your other configured providers the same question — with the same conversation context the answer was written in — and judging how much they independently agree. The result shows a calibrated confidence level (high / medium / low) with a recommendation (trust / verify / escalate), what the panel agrees on, the points of disagreement, each panel member's own answer (expandable), the moderating model, and whether the original answer is corroborated or disputed. Agreement across independent providers is a trust signal against an overconfident single-model error. The verdict persists across page reloads and JSON export/import, and is excluded from Knowledge Base saves (it is commentary about an answer, not knowledge). A meaningful (cross-provider) check needs at least two configured providers; with one provider it degrades to a clearly-labeled weak self-consistency signal, and a single deterministic model reports that agreement cannot be measured rather than faking one. The same capability is exposed to external agents as the `monadic_confidence` MCP tool.
+  - New
+    - Monadic Conduit: a local MCP server lets external agent tools and MCP clients use your configured providers, models and data
+    - Monadic Conduit can query one or several providers, ask for a second opinion, measure cross-provider confidence, and search, list or import the Knowledge Base
+    - Monadic Conduit can analyze images, audio and video, synthesize and transcribe speech, generate code, images, video and music, and run a bounded tool-using agent
+    - Long-running Monadic Conduit operations run as background jobs you submit, poll and cancel; every billable call is bounded by a token budget
+    - Monadic Conduit queries can draw on the Knowledge Base or go through the Privacy Filter
+    - Monadic Conduit is off unless `MCP_SERVER_ENABLED` is set, listens on localhost only, and includes a stdio bridge for stdio clients
+    - `Verify this response` under each answer asks your other configured providers the same question, with the same context, and judges how far they agree
+    - The verdict shows confidence (high/medium/low), a recommendation (trust/verify/escalate), agreements, disagreements, each panel answer, the moderating model, and corroborated or disputed
+    - The verdict survives page reloads and JSON export/import and is not saved to the Knowledge Base
+    - Verification needs two configured providers; with one it shows a labeled weak self-consistency check, and a single deterministic model reports agreement cannot be measured
+    - The same check is available to external agents as the `monadic_confidence` MCP tool
 
 - [June, 2026] 1.0.0-beta.23
-  - **Image-to-video with native audio in Video Generator (Grok)**: attaching an image to the Grok Video Generator now produces an image-to-video clip — the uploaded image becomes the first frame and the prompt directs the motion — with native audio, while a prompt with no image still does text-to-video as before. The mode is chosen automatically from whether an image is present. Image handling for image-to-video is now shared between the Grok and Gemini (Veo) generators through a single materializer, and an upload that cannot be processed surfaces a clear error instead of silently falling back to text-to-video.
-  - **Content-filter block reasons are now shown for Gemini image, video, and music generation**: when Lyria music, Gemini image, Imagen, or Veo video generation is blocked by a content filter (for example a prompt naming a specific artist or public figure), the chat now displays the actual reason and guidance instead of a generic "generation failed" message.
-  - **Workflow Viewer no longer mislabels image-upload apps as image generators**: apps that only accept an uploaded image (such as Music Generator) were incorrectly drawn with "Image Generation" / "Image Output" in the Workflow diagram. Upload-only apps are now distinguished from image-generating apps, and video-generating apps show "Video Output".
+  - New
+    - Grok Video Generator makes an image-to-video clip with native audio from an attached image (the first frame); without an image it makes text-to-video
+  - Fixed
+    - Grok and Gemini (Veo) Video Generator show a clear error when an uploaded image cannot be processed
+    - Blocked Lyria, Gemini image, Imagen and Veo generations show the content-filter reason and guidance
+    - The Workflow Viewer no longer shows "Image Generation" or "Image Output" for upload-only apps such as Music Generator, and video apps show "Video Output"
 
 - [June, 2026] 1.0.0-beta.22
-  - **Music Generator (new app)**: A new Music Generator app generates music from text descriptions using Google's Lyria 3. The default model (Lyria 3 Pro) produces full songs up to ~2-3 minutes with vocals and lyrics when requested; a fast 30-second instrumental clip model is also available. Generated tracks play inline in the chat and are saved to the Shared Folder (44.1 kHz, with an inaudible SynthID watermark); generated lyrics are shown alongside the player. Runs on the existing Gemini integration — no new API key.
-  - **Cohere coding apps run on North Mini Code**: Coding Assistant and Code Interpreter's Cohere variants now use North Mini Code (`north-mini-code-1-0`), Cohere's agentic-coding model, with reasoning enabled — previously they ran a general-purpose Command model with reasoning off. North Mini Code handles the native Cohere multi-turn tool flow with reasoning on (verified against the live API), so it skips the single-text flattening that `command-a-reasoning` requires; that workaround is now gated on a `native_multiturn_reasoning` model-spec flag. North Mini Code is also selectable from the model dropdown (and from the curated list for these two apps, alongside the Command flagship).
-  - **Claude Fable 5 falls back transparently while its access is paused**: Anthropic has paused public access to Claude Fable 5 — the Messages API returns a 404 directing callers to Opus 4.8 — but the model still appears in the model list. Selecting Fable 5 now detects that 404 and transparently continues on Claude Opus 4.8 (their API contracts are identical, so the request is reused unchanged), with a one-time notice in the chat. The fallback target is declared in `model_spec.js` (`unavailable_fallback`). When Fable 5 returns, the 404 stops and the real model is used again automatically, with no configuration change.
-  - **Context Compaction for Grok apps**: The four agentic Grok variants (Code Interpreter, Coding Assistant, Jupyter Notebook, AutoForge) now use xAI's Context Compaction API to fold older conversation history into an opaque summary instead of dropping it with a sliding window. Long sessions keep their early context as a summary rather than losing the oldest turns, while the per-request payload stays small. The summary is a cache derived from the full message history, so editing or deleting a message, resetting the session, or switching models discards it and the next turn rebuilds from the complete history — a stale summary can never corrupt the conversation, and any compaction failure falls back to sending the full history. When the Privacy Filter applies, the same masking runs before the compaction request so the provider only ever sees masked content. Threshold is tunable per app via the MDSL `compaction` block, mirroring the OpenAI server-side compaction vocabulary.
+  - Changes you may notice
+    - Cohere Coding Assistant and Code Interpreter use North Mini Code with reasoning on
+    - Selecting Claude Fable 5 while its access is paused continues on Claude Opus 4.8 with a one-time notice; Fable 5 is used again when it returns
+  - New
+    - Music Generator app makes music from text with Google's Lyria 3; Lyria 3 Pro (default) makes songs up to about 2-3 minutes, with vocals and lyrics on request
+    - Music Generator also offers a fast model for 30-second instrumental clips
+    - Generated tracks play in the chat and are saved to the shared folder (44.1 kHz, inaudible SynthID watermark), with lyrics beside the player; the Gemini API key suffices
+    - North Mini Code is selectable in the model dropdown, and in the curated list of Cohere Coding Assistant and Code Interpreter
+    - Grok Code Interpreter, Coding Assistant, Jupyter Notebook and AutoForge keep older conversation history as a summary instead of dropping it
+    - Editing or deleting a message, resetting, or switching models rebuilds that summary from the full history; if summarizing fails, the full history is sent
+    - With the Privacy Filter on, the history is masked before it is summarized
+  - For developers
+    - `unavailable_fallback` in `model_spec.js` declares the model to use when a model is unavailable
+    - The `native_multiturn_reasoning` model-spec flag marks Cohere models that reason in native multi-turn tool flows
+    - The MDSL `compaction` block sets the summarizing threshold per app
 
 - [June, 2026] 1.0.0-beta.21
-  - **Knowledge Base Quality Pack now actually engages after a restart**: the opt-in extractor container was never started automatically (an omission present since its introduction in beta.16), so Library imports silently fell back to the basic pdfplumber path even with the pack installed. The extractor now starts and stops with the standard container lifecycle, and its one-time image download is announced in the console.
-  - **Disabling Privacy Filter or the Quality Pack no longer orphans their containers**: stop/uninstall previously computed the set of containers to stop from the current feature flags, so a container started while a feature was on kept running forever once the feature was turned off. Teardown now always covers every service regardless of flags (flags gate startup only), and a spec pins the profile list against the compose files so a future service can't repeat the omission.
-  - **Container and service degradation is now visible instead of silent**: failures that previously left no trace without `EXTRA_LOGGING` — a dependency container (Python/Selenium/Privacy) failing to start when an app needs it, the Quality Pack being enabled but unreachable during a PDF import, the PDF store failing to initialize — are now always logged (console and `~/monadic/log/degradation.log`) and surfaced once as a System notice in the chat. The on-demand startup path also verifies the container actually came up instead of trusting the start script's unconditional success message, and its broken silent fallback path was removed.
-  - **Knowledge Base search fails closed when privacy masking is unavailable**: with the Privacy Filter on, a masking failure during Knowledge Base retrieval previously sent the unmasked snippets to the provider — exactly when the privacy backend was broken. The results are now withheld with a clear notice instead, matching the filter's fail-closed contract.
-  - **Start-button rebuild prompts derive from actual Docker images**: "not yet built" was previously inferred from marker files that full builds never wrote, so fresh installs were prompted to rebuild (and built Python twice), while manually removed images went undetected. The state now comes from the Docker image store itself, and full builds record the same option snapshots as per-container builds.
-  - **Uninstall now removes all service images**: Remove Images/Containers/Data previously left the prebuilt ghcr.io images and the Python/Selenium/Qdrant images behind (over ten GB), contrary to the uninstallation guide. The deep clean applies to uninstall only — rebuilds keep the images to avoid re-downloading.
-  - **Quality Pack first import is faster and fully offline**: the extractor image now caches every model artifact at build time (the previous pre-download missed pieces that Docling fetched on the user's first import) and disables Hugging Face Hub access at runtime — first extraction drops from ~15s to ~2s, with no network dependency. Takes effect with the next published image.
-  - **Quality Pack build results are now reported in the console** in the UI language, like the Privacy Filter's, instead of passing through untranslated.
-  - **Prebuilt image hardening**: the default image tag (`latest`) is published only through the release path; development pushes publish a separate `dev` tag, and `MONADIC_IMAGE_TAG` in `~/monadic/config/env` can pin a specific released version. Legacy locally built service images (about 5 GB) are removed automatically on startup after migrating to the ghcr.io images. A hand-edited typo in `PRIVACY_LANGS` is now warned about and skipped instead of preventing the privacy container from starting.
-  - **Python container: prebuilt default image and cached option rebuilds**: when no install options are selected, the Python container is downloaded as a CI-built image instead of being built locally (minutes instead of 15–30 min), and enabling options now rebuilds with the published image as a layer-cache source, paying only for the selected options instead of a full from-scratch rebuild. The menu's Build Python Container action still performs a clean `--no-cache` rebuild as an escape hatch. This also fixes a regression where the documented option-change smart caching was bypassed (the UI always forced `--no-cache`).
-  - **Prebuilt service images from ghcr.io**: the embeddings, privacy, and extractor containers are now distributed as prebuilt multi-arch images (Apple Silicon and x64) published by CI, instead of being built on every user's machine. First-time installs and the Knowledge Base Quality Pack install download the image (with layer-diff updates afterwards) rather than running a long local build, and every user runs the same CI-built artifact. Local builds remain available for development via per-service `compose.build.yml` overlays.
-  - **All runtime images unified on ghcr.io — no more Docker Hub at install time**: the Selenium container is now a prebuilt ghcr.io image (it was user-independent all along, so nothing is built on user machines anymore), and Qdrant moved from the mutable upstream `qdrant/qdrant:latest` to a version-pinned ghcr.io mirror — an upstream-breaking change can no longer reach users outside a Monadic Chat release, and installs no longer depend on Docker Hub anonymous-pull rate limits. All service images now follow the same tag policy (`MONADIC_IMAGE_TAG` pinning, immutable version tags at release). Images from the old names are cleaned up automatically on startup.
-  - **Privacy Filter / Quality Pack language changes no longer require a rebuild**: all supported spaCy NER models are now baked into the privacy image, and `PRIVACY_LANGS` / `EXTRACTOR_LANGS` / `EXTRACTOR_OCR` became runtime settings injected by Docker Compose. Changing languages in Settings → Install Options applies on save — a running privacy/extractor container is restarted automatically (seconds) instead of prompting a container rebuild (minutes). This also makes the privacy and extractor images user-independent, a prerequisite for prebuilt image distribution.
-  - **Video Generator (OpenAI) removed**: the OpenAI variant depended on the Sora-2 API, which OpenAI has shut down, and `model_spec.js` lists no current OpenAI video model — selecting the app could no longer generate videos. The Gemini (Veo) and xAI (Grok Imagine) variants are unchanged.
+  - Security
+    - With the Privacy Filter on, Knowledge Base search withholds results with a notice when masking is unavailable
+  - Changes you may notice
+    - The Python container is downloaded as a prebuilt image when no install options are selected; with options it rebuilds using that image as cache
+    - `Build Python Container` in the menu still does a clean rebuild
+    - The Embeddings, Privacy, Extractor, Selenium and Qdrant containers are prebuilt images from ghcr.io (Apple Silicon and x64); installs no longer pull from Docker Hub
+    - Qdrant is pinned to a version that changes only with Monadic Chat releases
+    - Old locally built service images (about 5 GB) and images under old names are removed automatically on startup
+    - Changing Privacy Filter or Quality Pack languages in Settings → Install Options applies on save by restarting the container, without a rebuild
+    - The Quality Pack's first import takes about 2 seconds instead of 15 and needs no network (with the next published image)
+    - Video Generator (OpenAI) is removed; the Gemini (Veo) and Grok Imagine variants are unchanged
+  - New
+    - `MONADIC_IMAGE_TAG` in `~/monadic/config/env` pins a released image version; the default `latest` tag changes only with releases
+    - A dependency container that fails to start, an unreachable Quality Pack, or a failed PDF store is logged to `~/monadic/log/degradation.log` and shown once in the chat
+  - Fixed
+    - The Knowledge Base Quality Pack's container starts and stops with the others, so Library imports use it; its first download is announced in the console
+    - Turning off the Privacy Filter or the Quality Pack also stops their containers
+    - `Start` asks for a rebuild only when a Docker image is actually missing, and detects images removed by hand
+    - `Remove Images/Containers/Data` removes all service images, including the ghcr.io, Python, Selenium and Qdrant images; rebuilds keep them
+    - Quality Pack build results appear in the console in the UI language
+    - A typo in `PRIVACY_LANGS` is warned about and skipped instead of stopping the Privacy container
+  - For developers
+    - Development pushes publish images under the `dev` tag; releases publish immutable version tags
+    - Per-service `compose.build.yml` overlays build the service images locally
 
 - [June, 2026] 1.0.0-beta.20
-  - **Claude Fable 5 (opt-in)**: `claude-fable-5` — Anthropic's new top tier above Opus — is added to `model_spec.js`. It shares the Opus 4.7/4.8 API contract (adaptive thinking only, sampling parameters and `budget_tokens` removed, effort `[low..max]`, 1M context / 128K output, vision + tool use + structured outputs), so the flag-driven `claude_helper.rb` needs no code change. Fable 5's one new breaking change — an explicit `thinking: {type: "disabled"}` returns 400 — is already satisfied: the helper omits the `thinking` parameter entirely when reasoning is off rather than sending `"disabled"`. `providerDefaults.anthropic` is **not** changed — at $10/$50 per MTok (2× Opus 4.8) Fable 5 is a premium opt-in choice in the model dropdown, not a silent default. Mythos 5 (the safeguard-lifted Project Glasswing variant for cyberdefense) is intentionally not integrated — it is not a general Messages API model.
-  - **DeepSeek variants for Translate and Novel Writer (reasoning off by default)**: Translate and Novel Writer gain DeepSeek-backed variants (DeepSeek V4 Pro by default, V4 Flash selectable). Both default the per-session reasoning toggle to Off — DeepSeek's multi-step monadic JSON + session-state tool flow degrades over multiple turns with thinking on — and users can still turn it on from the On/Off control. A new `reasoning_content` MDSL directive carries this per-app default through to the Web UI's reasoning toggle, and the MDSL validator now checks DeepSeek's `reasoning_effort` / `reasoning_content` against the model spec instead of rejecting them outright.
-  - **Gemini temperature SSOT gate**: The Gemini 3 Developer Guide strongly recommends keeping temperature at its default (1.0) for all Gemini 3 models — lower values risk looping or degraded output — and advises removing explicitly set values. The Gemini helper now sends a temperature only when the model's `model_spec.js` entry advertises one (the same key that drives the Web UI temperature slider); no Gemini entry does. Previously EVERY Gemini app was sending one — 14 variants set it explicitly in their MDSL, and all others inherited the DSL-level 0.7 default — plus two internal hardcoded values (web-search 0.0 and a 0.7 secondary-path fallback). All of these are now dropped before the API call, and the dead MDSL `temperature` lines are removed. Legacy (pre-Gemini-3) image-generation sampling is unchanged. `ModelSpec.supports_temperature?` is added as the canonical accessor and the vocabulary doc records the `temperature` key as the sampling SSOT.
-  - **Music Analyst critique calibration**: The interpretive critique is calibrated to stay within what ~16 kHz mono audio can defend. Genre/style is hedged (e.g. "leans toward X or Y") instead of asserted as a single label; only instruments clearly audible are named, rather than a conventional lineup being inferred; effects/signal processing (wah, filters, delay) are not asserted, since playing technique alone — fluid legato runs, bends, vibrato — can resemble a filter sweep; and the critique must include BOTH concrete strengths and weaknesses, naming real timing or pitch instability plainly instead of softening it into praise. The orchestrator now relays the critique faithfully — no upgraded labels, interpretive claims attributed to the listening pass, the objective section kept to measured numbers only — and re-invokes `critique_audio` (with a `focus`) for new questions about how the recording sounds, instead of answering from impression, since the orchestrator itself cannot hear the audio.
-  - **Faithful relay of tool and subagent results across apps**: A cross-app audit found that orchestrator LLMs could embellish or reinterpret authoritative tool output when synthesizing the final answer. Second Opinion now relays the evaluator's comments and validity score unaltered, separates its own view under an explicit "My take:" label, and shows the evaluator's exact model identity — which the agent now embeds inside the comments themselves, after a test run caught the orchestrator re-typing an outdated model name from memory. The evaluation prompt also fences the response being evaluated between explicit markers so the evaluator no longer mistakes formatting instructions for a flaw in the response. Music Lab presents measured audio analysis exactly as the tool returned it before adding theory commentary; Research Assistant gains source-fidelity rules (no upgrading a source's speculation into fact, attribution kept intact, conflicts stated); Video Describer relays the video analysis and transcription without invented detail. A consolidated spec pins these guardrails across all provider variants.
-  - **Gemini empty-response recovery no longer shows raw JSON**: the safety net that surfaces tool results when Gemini returns an empty final turn now filters machine-form JSON payloads (such as file listings) and shows only prose results, instead of rendering log-like JSON in the chat.
-  - **AI User sidebar badge fix**: the AI User provider/model badge could stick at "Not configured" forever when its one-time initialization lost a startup race; it now refreshes on every model change and self-heals.
-  - **macOS auto-update packaging fix**: the mac zip consumed by the auto-updater is re-packaged with framework symlinks preserved (electron-builder's zip flattened them, breaking codesign validation with "bundle format is ambiguous"). Auto-update from this release onward no longer needs manual repair.
-  - **Start/Restart guarded during updates**: the Electron menu disables Start/Restart while an app update is downloading or staged, preventing a half-updated relaunch.
-  - **`gemini-3-flash-preview` marked deprecated** with successor `gemini-3.5-flash` (Google sunset 2026-06-25); the standard deprecation warning flows through the existing UI path.
+  - Changes you may notice
+    - Gemini apps no longer send a temperature; the model's default is used
+    - Music Analyst hedges genre, names only clearly audible instruments, does not assert effects, and states both strengths and weaknesses
+    - Music Analyst relays the critique as given and runs a new listening pass for new questions about the sound
+    - Second Opinion shows the evaluator's comments and score unchanged, its own view under "My take:", and the evaluator's exact model
+    - Music Lab, Video Describer and Research Assistant relay tool results without embellishment; Research Assistant keeps attribution, uncertainty and conflicts between sources
+    - Gemini 3 Flash is marked deprecated, with Gemini 3.5 Flash as successor
+  - New
+    - Claude Fable 5 is selectable as a premium option (1M context, 128K output, vision, tools, structured outputs, effort low to max); the default is unchanged
+    - Translate and Novel Writer have DeepSeek variants (DeepSeek V4 Pro by default, V4 Flash selectable), with reasoning off by default and switchable
+  - Fixed
+    - Second Opinion no longer treats formatting instructions as flaws in the response it evaluates
+    - When Gemini returns an empty final turn, only prose tool results are shown, not raw JSON
+    - The AI User provider/model badge refreshes on every model change instead of staying at "Not configured"
+    - macOS auto-update works without manual repair
+    - `Start` and `Restart` are disabled while an update is downloading or staged
+  - For developers
+    - The MDSL `reasoning_content` directive sets an app's default reasoning toggle; the MDSL validator checks DeepSeek `reasoning_effort` and `reasoning_content` against the model spec
+    - Gemini sends a temperature only when its `model_spec.js` entry has a `temperature` key
 
 - [June, 2026] 1.0.0-beta.19
-  - **Music Analyst (new app)**: A Gemini app that analyzes an uploaded audio recording through two complementary lenses. `analyze_audio_features` extracts objective, measured features via signal processing — tempo, key, time signature, chord progression, and sections (plus per-track instruments for MIDI). `critique_audio` sends the audio to Gemini's multimodal `generateContent` for an interpretive, qualitative critique of the music and performance (mood, genre, instrumentation, dynamics, phrasing, strengths/weaknesses, overall evaluation). The two results are shown as clearly separated sections, and the analyzed file is embedded as an inline audio player. The critique is explicit about its limits — it does not judge audio fidelity, mix/mastering, or stereo imaging (audio is analyzed in mono at reduced bandwidth), and exact BPM/key come from the objective tool. Large files are pre-compressed to 16 kHz mono via ffmpeg before upload; anything still over the inline limit returns a clear "too large" message. Objective analysis reuses the same `music_analyzer.py` (librosa) as Music Lab and needs the optional Audio Analysis package.
-  - **PDF export now renders markdown and avoids wasted pages**: Exported conversation PDFs reuse the on-screen rendered HTML — markdown, code, tables, math, and images render as in the app instead of as raw text — and long messages flow across pages instead of pushing each turn to a new page. Inline audio/video players become a filename note.
-  - **Clearer guidance when the Audio Analysis package is missing**: Music Analyst and Music Lab now point to Actions → Install Options when audio feature analysis is requested without the optional librosa/madmom package, instead of failing with a cryptic error. MIDI analysis and the Gemini critique are unaffected.
-  - **Chat Plus advertises web search to the model**: The Chat Plus system prompts now mention the available web search tool (as the Chat app does), so the model actually uses it for current or factual questions instead of leaving the enabled tool untouched.
-  - **Gemini 3.5 Flash GA migration**: Ten Gemini app variants move from the preview `gemini-3-flash-preview` to the GA `gemini-3.5-flash`, and the deprecation `successor` for `gemini-2.5-flash` is corrected to the GA model.
-  - **OpenAI image generation consolidated on gpt-image-2**: The deprecated `gpt-image-1.5` and `chatgpt-image-latest` (OpenAI shutdown 2026-12-01) are removed from the OpenAI Image Generator's options, leaving `gpt-image-2` as the sole model with lower `quality` settings covering the economical tier. `chatgpt-image-latest` was a flagship alias at the same price, so no cheaper tier is lost.
-  - **Non-ASCII filenames preserved**: Uploaded filenames in OpenAI File Inputs and generated-image filenames now keep non-ASCII (e.g. Japanese) characters instead of replacing them with underscores, using Unicode-aware sanitization; the `/data/` static route resolves the resulting Unicode filenames.
-  - **Mermaid mindmap rendering fix (CJK)**: Mermaid source sanitization no longer folds Japanese long-vowel marks (ー) or corner brackets (「」) to ASCII, which previously broke mindmaps containing katakana terms. The preview path now also gates on the actual browser render, so a corrupted diagram no longer reports "verified successfully".
-  - **Knowledge Base RAG toggle consistency**: The per-session "Use Knowledge Base" toggle now takes effect only in apps that actually expose `library_search`. A persisted "on" state no longer leaks the RAG instruction into apps without a Knowledge Base tool (e.g. Music Analyst, image/video generators), keeping the toggle and the actual behavior consistent. The Knowledge Base and Privacy Filter controls are also shown disabled (with a tooltip) on apps that don't support them, instead of disappearing.
-  - **Response text no longer shrinks after a horizontal rule**: A leftover PDF-metadata style was wrapping everything after the first `<hr>` (`---`) in small grey text on every reply; removed, so `---`-separated sections render at full size across all apps.
-  - **Gemini replies no longer vanish after successful tool calls**: when the model returns an empty final turn after its tools produced output, the tool results are surfaced instead of a "No response received" error.
+  - Changes you may notice
+    - PDF export renders Markdown, code, tables, math and images as in the app, and long messages flow across pages; media players become a filename note
+    - Ten Gemini app variants use Gemini 3.5 Flash
+    - OpenAI Image Generator offers only GPT Image 2; GPT Image 1.5 and `chatgpt-image-latest` are removed, and lower `quality` settings cover the cheaper tier
+    - The "Use Knowledge Base" toggle takes effect only in apps with Knowledge Base search
+    - Knowledge Base and Privacy Filter controls appear disabled with a tooltip on apps that do not support them
+  - New
+    - Music Analyst app (Gemini) measures tempo, key, time signature, chords and sections (and MIDI instruments) and gives an interpretive critique, with an inline player
+    - The critique does not judge audio fidelity, mixing or stereo imaging; exact tempo and key come from the measured analysis
+    - Large files are compressed to 16 kHz mono before upload; files still too large get a clear message
+    - The measured analysis needs the optional Audio Analysis package
+  - Fixed
+    - Music Analyst and Music Lab point to Actions → Install Options when the Audio Analysis package is missing; MIDI analysis and the critique still work
+    - Chat Plus uses web search for current or factual questions
+    - Uploaded files (OpenAI File Inputs) and generated images keep non-ASCII names, such as Japanese
+    - Mermaid mindmaps with Japanese long-vowel marks (ー) or corner brackets (「」) render, and the preview reports success only after rendering
+    - Text after a horizontal rule (`---`) renders at full size
+    - When Gemini returns an empty final turn after tool calls, the tool results are shown instead of "No response received"
+    - Gemini 2.5 Flash's deprecation notice names Gemini 3.5 Flash as successor
 
 - [May, 2026] 1.0.0-beta.18
-  - **Interface variables in messages (`${SHARED}`, `${TODAY}`, `${MODEL}`, `${APP}`, `${LANG}`, plus app-specific `${LAST_GENERATED_IMAGE}` / `${LAST_UPLOADED_IMAGE}` / `${NOTEBOOK}`)**: A new substitution layer lets you and the assistant share `${TOKEN}` variables in messages, so you can reference runtime state without typing it verbatim — for example *"Save the summary to `${SHARED}/notes.md`"* or *"Edit `${LAST_GENERATED_IMAGE}`"*. Five variables are available in every app by default: `${SHARED}` (the synced data folder, resolving to `/monadic/data` in containers or `~/monadic/data` on the host), `${TODAY}` (ISO-8601 date), `${MODEL}` (the answering model), `${APP}` (the current app's display name), and `${LANG}` (the reply language). Image Generator apps additionally opt into `${LAST_GENERATED_IMAGE}` (the assistant's most recent generated image) and `${LAST_UPLOADED_IMAGE}` (the user's most recent uploaded image), and Jupyter Notebook apps into `${NOTEBOOK}` (the current notebook filename). In rendered responses, path-like variables (`${SHARED}`) stay visible as a hover-to-reveal / click-to-open token while value-like variables (`${TODAY}`, `${MODEL}`, etc.) are expanded inline; in tool calls every variable expands to its real value. A collapsible **Available Variables** panel in the right-side Monadic Chat Info sidebar lists the variables enabled for the current app with their live resolved values, updating immediately when you switch app, model, or language. An app can opt out entirely with `vocabulary false`, and a literal `${SHARED}` can be written by wrapping it in backticks. The token namespace is collision-checked against the Privacy Filter's `<<TYPE_N>>` placeholders at load time. See `docs/docker-integration/shared-folder.md` for the full reference.
-  - **Grok Build 0.1 for agentic coding**: `grok-build-0.1` (xAI's fast agentic-coding model, public beta) is added to `model_spec.js` and becomes the first candidate of `providerDefaults.xai.code` (with `grok-4.3` retained as fallback). xAI lists `grok-code-fast-1` / `grok-code-fast` / `grok-code-fast-1-0825` as aliases of `grok-build-0.1`, i.e. it is the rebrand/successor of the now-retired `grok-code-fast-1`. The model carries a 256k context window, text+image input / text output, tool calling, structured output, and 3-tier `reasoning_effort` (`low`/`medium`/`high`), at the same pricing as `grok-4.3` ($1/$2 per 1M, $0.20 cached); `presence_penalty` / `frequency_penalty` are intentionally omitted to match grok-4.3's sampling-restriction posture. Because the Grok code path resolves its model through `ModelSpec.default_code_model("xai")` rather than a hardcoded name, every Grok coding surface — AutoForge (Grok variant), Coding Assistant, Code Interpreter, Jupyter Notebook, and Research Assistant — automatically routes to `grok-build-0.1` with no per-app edit. `providerDefaults.xai.chat` is **not** changed: conversational Grok stays on `grok-4.3`. The Jest `provider_defaults.test.js` expectation is updated from `grok-4.3` to `grok-build-0.1` for the `xai.code` slot.
-  - **Gemini Image GA + Flash-Lite shut-down regression fix**: Google's 2026-05-28 release promoted Nano Banana 2 and Nano Banana Pro out of preview as `gemini-3.1-flash-image` and `gemini-3-pro-image`; the previous `*-preview` IDs are scheduled for shut-down on 2026-06-25. The three deprecated preview entries (`gemini-3.1-flash-image-preview`, `gemini-3-pro-image-preview`, `gemini-3.1-flash-lite-preview`) are removed from `model_spec.js` and replaced with their GA counterparts (`gemini-3.1-flash-image`, `gemini-3-pro-image`, `gemini-3.1-flash-lite`). `gemini-3.1-flash-lite-preview` was in fact already silently broken — Google shut it down on 2026-05-25 — so the model_spec entry and the `second_opinion_agent_spec.rb` fixture had been pointing at a 404 endpoint; both now resolve to the `gemini-3.1-flash-lite` GA id, and the stale `successor` pointer on `gemini-2.5-flash-lite` is fixed at the same time. `providerDefaults.gemini.image` is repointed from the preview to `gemini-3.1-flash-image`. `gemini_helper.rb`'s `IMAGE_GENERATION_MODELS` dispatch table now lists the two GA IDs as the canonical entries with the preview IDs retained as backward-compat aliases that resolve to the GA endpoint, so user-side configurations carrying the old name keep working through the sunset window. The image-generator app is renamed from `image_generator_gemini3_preview.mdsl` (class `ImageGeneratorGemini3Preview`, tool `generate_image_with_gemini3_preview`) to the general `image_generator_gemini.mdsl` (class `ImageGeneratorGemini`, tool `generate_image_with_gemini`) to match the `_<provider>` convention shared by the OpenAI and Grok image-generator variants, with internal session-state keys (`session[:gemini3_last_image]`) preserved as legacy identifiers so existing sessions keep loading. Three frontend JS sites (`select_image.js`, `shims.js`, `ui-utilities.js`), the app class in `image_generator_tools.rb`, and five test specs (`file_naming_conventions_spec.rb`, `app_loading_real_spec.rb`, `image_generator_tools_spec.rb`, `capability_consistency_spec.rb`, `monadic_session_state_spec.rb`) are updated for the new identifiers. The orchestrator LLM in the renamed MDSL is also bumped from `gemini-3-flash-preview` to `gemini-3.5-flash` to match the current Gemini chat default.
-  - **Video-to-image capability declared (backend wiring deferred)**: The Gemini 3.1 Flash Image (Nano Banana 2) model accepts a video file alongside the text prompt to generate thumbnails / posters / summary infographics. `supports_video_to_image: true` is added to the `gemini-3.1-flash-image` `model_spec.js` entry as the SSOT capability flag, and the renamed Image Generator MDSL's system prompt and tool description advertise the feature. The full backend wiring (frontend video upload UI for the image-generator app + multimodal video attachment in `gemini_helper.rb#generate_image_with_gemini`) is intentionally deferred to beta.19 so it can be designed and tested as a focused increment rather than rushed into a model-migration release. Until then, video upload through the image generator is best-effort and may surface as "no video found in session" if the user attempts it.
-  - **Claude Opus 4.8 migration**: `claude-opus-4-8` (released 2026-05-28) is added to `model_spec.js` and promoted to the primary Anthropic candidate across the nine Claude-variant apps that previously pinned Opus 4.7 — `drawio_grapher`, `chat_plus`, `concept_visualizer`, `math_tutor`, `language_practice_plus`, plus the four advisor-tool apps (`auto_forge`, `coding_assistant`, `jupyter_notebook`, `code_interpreter`). Opus 4.8 inherits the full Opus-4.7 capability flag set (`rejects_sampling_params`, `thinking_display_default_omitted`, `supports_adaptive_thinking`, `reasoning_effort: [low, medium, high, xhigh, max]`, 1M context, 128k output, `supports_context_management`) since both models share the same API contract — no helper or streaming-handler changes are required. Anthropic's public materials highlight three improvements consumers benefit from transparently: tool-calling efficiency (fewer round-trips on multi-step tool flows), a roughly 4× lower rate of code flaws slipping through review, and stronger computer-use / browser-agent behaviour (84% on Online-Mind2Web). The new "system entries inside the messages array" API capability is not adopted in this release — the existing system-prompt path through `claude_helper.rb` already produces the same effective behaviour. `Monadic::DSL::ClaudeAdvisor::DEFAULT_MODEL` (`configurations.rb`) and the hardcoded fallback at `claude_helper.rb:660` both shift from `claude-opus-4-7` to `claude-opus-4-8`. The four advisor-default expectation specs (`auto_forge_claude_advisor_integration_spec.rb`, `code_interpreter_claude_advisor_integration_spec.rb`, `claude_helper_advisor_spec.rb`, `claude_advisor_rollout_spec.rb`) are realigned accordingly. `providerDefaults.anthropic` is **not** changed — Opus has never been part of the default candidate list (the chat / code / vision slots stay on Sonnet 4.6 + Haiku 4.5 for cost containment), so Opus 4.8 is available as an opt-in choice in the UI dropdown rather than the silent default. The `claude-opus-4-20250514` deprecation `successor` field is updated from `claude-opus-4-7` to `claude-opus-4-8` to match Anthropic's official migration guide ("Migrate to Claude Sonnet 4.6 and Claude Opus 4.8 respectively before the 2026-06-15 retirement").
-  - **Legacy Anthropic models removed**: `claude-opus-4-6`, `claude-opus-4-5-20251101`, and `claude-opus-4-1-20250805` are deleted from `model_spec.js` per the project's [model architecture baseline policy](docs_dev/model_architecture_policy.md). The architectural divergence reason: Opus 4.6 / 4.5 / 4.1 use the **extended thinking** path (`thinking: {type: "enabled", budget_tokens}`), whereas Opus 4.7 / 4.8 use **adaptive thinking** (`thinking: {type: "adaptive"}` + `output_config: {effort}`) and reject all sampling parameters. Keeping both regimes in the catalog forces the streaming handler, reasoning-effort routing, and parameter-allowlist code to branch on model-name heuristics indefinitely; removing the pre-4.7 Opus generation lets the helper code consistently assume the 4.7+ contract. `claude-opus-4-7` itself is retained as the prior-generation architecturally-consistent peer of 4.8 (same pricing, same contract, no sunset announced by Anthropic) — users with workflows pinned to 4.7 keep working without intervention. The `claude-sonnet-4-20250514` deprecation row (sunset 2026-06-15) is left in place; users on the Sonnet 4 generation still need its successor pointer until the retirement date. Two affected test specs (`model_spec_normalization_spec.rb`, `dsl_class_def_emit_spec.rb`) are updated to reference `claude-opus-4-8` instead of the removed `claude-opus-4-6`. Internal documentation in `docs_dev/model_architecture_policy.md`, `docs_dev/ssot_normalization_and_accessors.md`, `docs_dev/ruby_service/vendors/anthropic_architecture.md`, and `docker/services/ruby/docs/context_management_configuration.md` is updated to either point at the current baseline or reference the SSOT capability flag (`supports_context_management: true`) instead of an explicit model list — closing a documentation drift surface flagged in the prior beta.17 concerns review.
+  - Changes you may notice
+    - Grok AutoForge, Coding Assistant, Code Interpreter, Jupyter Notebook and Research Assistant use Grok Build 0.1 for code; Grok chat stays on Grok 4.3
+    - Nano Banana 2 (Gemini 3.1 Flash Image), Nano Banana Pro and Gemini 3.1 Flash-Lite replace their preview versions; old preview names keep working until shutdown
+    - Nano Banana 2 is the default Gemini image model
+    - Image Generator (Gemini 3 Preview) is now Image Generator (Gemini) and uses Gemini 3.5 Flash; existing sessions keep loading
+    - Image Generator (Gemini) mentions video-to-image, but video upload is best-effort and may report "no video found in session"
+    - Claude DrawIO Grapher, Chat Plus, Concept Visualizer, Math Tutor, Language Practice Plus, AutoForge, Coding Assistant, Jupyter Notebook and Code Interpreter use Claude Opus 4.8
+    - Claude Opus 4.6, 4.5 and 4.1 are removed; Claude Opus 4.7 stays available
+    - Claude Opus 4's deprecation notice names Claude Opus 4.8 as successor
+  - New
+    - Messages can use `${TOKEN}` variables for runtime state, e.g. "Save the summary to `${SHARED}/notes.md`" or "Edit `${LAST_GENERATED_IMAGE}`"
+    - Every app has `${SHARED}` (the data folder), `${TODAY}`, `${MODEL}`, `${APP}` and `${LANG}`
+    - Image Generator apps add `${LAST_GENERATED_IMAGE}` and `${LAST_UPLOADED_IMAGE}`; Jupyter Notebook apps add `${NOTEBOOK}`
+    - In responses, `${SHARED}` shows as a token you hover to reveal or click to open; other variables expand inline, and tool calls get real values
+    - The `Available Variables` panel in the Monadic Chat Info sidebar lists the app's variables with their live values
+    - Write a literal `${SHARED}` by wrapping it in backticks (see the Shared Folder page of the documentation)
+    - Grok Build 0.1 is available (256K context, image input, tools, structured output, low/medium/high reasoning effort)
+    - Claude Opus 4.8 is available as an opt-in choice; the Claude defaults are unchanged
+  - Fixed
+    - Gemini 3.1 Flash-Lite works
+  - For developers
+    - The MDSL `vocabulary false` setting turns variables off for an app
+    - The Gemini image generator is `image_generator_gemini.mdsl` with the tool `generate_image_with_gemini`
+    - The `supports_video_to_image` flag in `model_spec.js` marks Nano Banana 2
 
 - [May, 2026] 1.0.0-beta.17
-  - **Provider model spec sync (Gemini 3.5 Flash, Mistral Medium 3.5 / Small 4)**: `gemini-3.5-flash` (GA on 2026-05-19, "sustained frontier performance on agentic and coding tasks") is added as the new flagship for `providerDefaults.gemini.chat`, `vision`, and `audio_transcription` — a single model now covers Text/Image/Video/Audio/PDF input on the Gemini side. The previous default `gemini-3-flash-preview` remains available as the preview alias. `gemini-3.1-flash-lite-preview` is marked deprecated with `sunset_date: 2026-05-25` and `successor: gemini-3.5-flash`; the deprecation flag flows through the existing UI warning path. On the Mistral side, `mistral-medium-3-5` (frontier-class multimodal, 256k context, adjustable reasoning effort) joins as the new chat default, and `mistral-small-2603` (Mistral Small 4 — 119B params with 6.5B active, hybrid instruct+reasoning+coding, 256k context) is added as the cost-efficient option, becoming `providerDefaults.mistral.code` second candidate and the newly-introduced `mistral.vision` default. Both new Mistral entries set `supports_thinking: true` so `mistral_helper.rb`'s reasoning-effort routing (line 134 — "Check if this is a reasoning model via SSOT") activates correctly. Three follow-on fixes were required to make Mistral reasoning models actually usable end-to-end: (1) the Mistral API only accepts `none` and `high` for `reasoning_effort` on these models — `low`/`medium` return 400 — so `reasoning_effort: [["none", "high"], "none"]` is pinned in `model_spec.js` to constrain the UI dropdown; (2) every Mistral app MDSL (`chat`, `chat_plus`, `code_interpreter`, `coding_assistant`, `math_tutor`, `novel_writer`, `research_assistant`, `second_opinion`) had `reasoning_effort "low"` hardcoded as the app-level default, all switched to `"none"` (per-app default — users can still pick `high` from the UI); (3) `mistral_helper.rb`'s "buffer until end-of-stream" path — originally added to reassemble Magistral's `<think>`/`</think>` blocks that may be split across SSE chunks — was triggering for every reasoning-capable model even when `reasoning_effort` was `none`, causing the whole response to appear in one chunk. The buffering is now gated on `reasoning_effort != "none"` so reasoning-disabled requests stream token-by-token as expected. Cohere Command A+'s thinking-mode detection is migrated from the legacy name-substring heuristic to a SSOT lookup via `ModelSpec.supports_thinking?` (with the name heuristic preserved as fallback) — required because `command-a-plus-05-2026` contains neither `thinking` nor `reasoning` in its identifier and the legacy detector silently returned false, causing the API's default thinking-enabled behaviour to leak through even when the user selected `reasoning_effort: "disabled"`.
-  - **Cohere Command A+ flagship**: `command-a-plus-05-2026` is added and promoted to `providerDefaults.cohere.chat` first candidate plus the newly-introduced `cohere.vision` default. Command A+ is Cohere's first Mixture-of-Experts model (25B active / 218B total parameters), unifying vision input + reasoning + tool use + structured outputs in a single endpoint that previously required juggling `command-a-03-2025` (256k chat-only), `command-a-vision-07-2025` (vision but no reasoning), and `command-a-reasoning-08-2025` (reasoning but no vision). The three older entries remain as fallback candidates for the long-context (256k) and cost-tuned scenarios where Command A+'s 128k window is the wrong tradeoff. Reasoning is gated by `reasoning_effort: ["disabled", "enabled"]`, matching the existing Cohere reasoning-effort enum shape.
-  - **OpenAI Image Generator: click-to-enlarge lightbox**: Images produced by the OpenAI Image Generator are now clickable for in-tab modal enlargement, matching the behaviour already present for the Grok and Gemini 3 Preview image generators, Concept Visualizer, Code Interpreter graphs, Research Assistant figures, Syntax Tree SVGs, and Web Insight screenshots. Three root causes were addressed in one commit: (a) the OpenAI variant's MDSL system prompt was instructing the model to emit a Markdown short-form `![alt](/data/filename.png)`, which renders to a bare `<img>` outside the `.generated_image` wrapper the frontend's MutationObserver-driven click handler binds to — the prompt template now matches the HTML form (`<div class="generated_image"><img src="/data/filename.png"></div>`) used by the other variants; (b) defence-in-depth — `image_generator_tools.rb` now also pushes the same wrapper into `session[:tool_html_fragments]` so the lightbox-compatible HTML is guaranteed regardless of LLM phrasing, with `html_handler.rb`'s `dedupe_tool_html_fragments` collapsing the LLM's own copy when it does follow the template; (c) CSS cleanup — `.generated_image img` had `cursor: default` set explicitly (a historical leftover from before the lightbox handler existed), so even when the click listener was attached the page was visually signalling "not clickable"; flipped to `cursor: pointer` and removed the duplicate rule. The CSS change propagates to every app that uses the `.generated_image` wrapper, so syntax trees, code-interpreter plots, and screenshot galleries all gain matching hover affordance for free.
-  - **Security: Escape filenames in generated media HTML to prevent XSS**: Twelve interpolation sites across `apps/{image_generator,concept_visualizer,drawio_grapher,auto_forge}/*_tools.rb`, `lib/monadic/shared_tools/{python_execution,parallel_python_execution,jupyter_operations,web_automation}.rb`, and `lib/monadic/adapters/vendors/{grok,openai,gemini,cohere}_helper.rb` were embedding LLM-/API-/python-execution-derived filenames into HTML attributes (`<img src="/data/#{filename}">`, `<source src="/data/#{filename}">`, etc.) via string interpolation. `File.basename` was preventing path traversal but HTML attribute escaping was not happening anywhere — a filename like `'evil.png" onerror="alert(1)"'` would break out of the `src` attribute and execute arbitrary JavaScript in the user's tab. All twelve sites are now wrapped in `CGI.escapeHTML(value.to_s)`; nine files gained a new `require 'cgi'`. Three video `<source src>` interpolations were caught in the same pass. No exploit was observed in the wild — the fix is preventive, following the CLAUDE.md "if you notice insecure code, immediately fix it" rule.
-  - **Unblocks Gemini Veo image-to-video, clarifies Grok video scope**: The Gemini Veo and xAI Grok Imagine video-generator MDSLs both carried an `INITIAL GREETING (IMPORTANT - First message only)` block ending with `CRITICAL: The first message must be a plain text greeting. Do NOT output JSON, do NOT call tools` that the model was applying to **every** turn — when a user uploaded an image plus a video description, the model would silently re-emit the greeting template (in the wrong language, ignoring tool calls and the Workflow section) instead of calling `generate_video_with_veo` / `generate_video_with_grok_imagine`. The greeting block is now a conditional one-liner ("only if this is the very first turn AND the user has not yet submitted a request"), letting the model call the appropriate tool on actual user input. Confirmed end-to-end with Gemini Veo: uploaded image is now correctly used as the source frame. For Grok Imagine, the same greeting fix lets the tool be invoked, but the xAI video API itself returns HTTP 400 (`Image upload/edit is not supported for Grok image generation`) on image-bearing requests — so the Grok MDSL has been updated to declare the app as **text-to-video only** and instructs the model to describe any user-attached image in the prompt instead of passing `image_path`. Users who need real image-to-video on the Grok provider should switch to Gemini Veo. OpenAI Sora's MDSL never had the strict CRITICAL clause and is unchanged.
-  - **Image upload modal UX cleanup**: The Select Image or PDF File modal had two issues: (1) the secondary button was labelled "Done" but `data-bs-dismiss="modal"` shows it actually cancels the upload — renamed to "Cancel" so the label matches the action (matches the project's button color policy: `btn-secondary` = Cancel/Close); (2) the size-error `<div>` was placed inside `modal-footer`, where Bootstrap's `display: flex; justify-content: flex-end` treated it as a flex item and shoved the Cancel and Import buttons apart with awkward spacing. Moved the error div into `modal-body` directly under the file picker (where it semantically belongs), restoring the standard right-aligned button cluster.
+  - Security
+    - Filenames in generated image, video and media HTML are escaped
+  - Changes you may notice
+    - Gemini 3.5 Flash is the default Gemini chat, vision and audio transcription model (text, image, video, audio and PDF input); Gemini 3 Flash stays available
+    - Gemini 3.1 Flash-Lite is marked deprecated, with Gemini 3.5 Flash as successor
+    - Mistral Medium 3.5 is the default Mistral chat model; Mistral Small 4 is the default vision model and a code option
+    - Mistral reasoning effort offers only `none` and `high`, and Mistral apps default to `none`
+    - Cohere Command A+ is the default Cohere chat and vision model; Command A, Command A Vision and Command A Reasoning stay available
+    - Grok Imagine Video Generator makes text-to-video only and describes attached images in the prompt; use Gemini Veo for image-to-video
+    - The image upload modal's `Done` button is now `Cancel`, and the size error appears under the file picker
+  - New
+    - Mistral Medium 3.5 (256K context, adjustable reasoning) and Mistral Small 4 (256K context) are available
+    - Cohere Command A+ is available, with vision, reasoning (`disabled` or `enabled`), tools and structured outputs
+    - OpenAI Image Generator images enlarge on click, and generated images across apps show a pointer cursor
+  - Fixed
+    - Mistral responses stream token by token when reasoning effort is `none`
+    - Cohere Command A+ does not reason when reasoning is `disabled`
+    - Gemini Veo Video Generator uses an uploaded image as the source frame instead of repeating its greeting
 
 - [April, 2026] 1.0.0-beta.16 (skip release — tag and source archive only; superseded by beta.17 before a GitHub Release page was published)
-  - **Realtime speech-to-text streaming (NEW)**: When the Speech-to-Text Model dropdown's `GPT Realtime Whisper ⚡` entry is selected, Speech Input switches from the legacy "record → batch transcribe on stop" path to OpenAI's `wss://api.openai.com/v1/realtime?intent=transcription` endpoint. As the user speaks, the textarea shows a live grey-italic ghost-text preview that updates ~every 200 ms with the accumulated partial transcript; on Stop, the final transcript is appended to whatever text the user had typed in the textarea (so typing during recording is preserved). The ⚡ glyph in the dropdown is the user-visible signal that streaming is engaged; non-⚡ STT models continue to use the existing batch path with no behavioural change. Architecturally: a JS `AudioWorklet` (`audio-pcm-encoder-worklet.js`) captures PCM16 mono 24 kHz directly from the microphone and posts ~100 ms chunks over the Monadic WebSocket as `AUDIO_CHUNK` frames; a per-session `Async` bridge on the Ruby side (`lib/monadic/utils/websocket/audio_stream_handler.rb`) maintains the upstream WS to OpenAI, forwards delta events as `stt_partial` frames, and replays the existing `stt` final-transcript message on `.completed`. Two non-obvious traps surfaced and were captured in feedback notes: (1) `async-http` negotiates HTTP/2 via ALPN by default and WebSocket upgrade is HTTP/1.1-only, so `alpn_protocols: ["http/1.1"]` is mandatory at `Async::HTTP::Endpoint.parse` — a new invariant spec (`spec/unit/dsl/websocket_alpn_consistency_spec.rb`) walks `lib/**/*.rb` and pins every `wss://` parse call to that ALPN list; (2) sending `input_audio_buffer.append` frames before `session.updated` arrives associates them with the not-yet-configured session and commits fail with `input_audio_buffer_commit_empty`, so the bridge buffers chunks until the ack lands and only then flushes. Single-model SSOT: `gpt-realtime-whisper` carries `supports_realtime_streaming: true` in `model_spec.js`; the client-side gate (`isRealtimeSttEnabled`) and the Ruby accessor (`ModelSpec.supports_realtime_streaming?`) both read that flag, so adding a future streaming-capable STT model is a one-line capability change.
-  - **Library file import is now asynchronous (concurrency hardening)**: `POST /library/import` previously ran the entire pipeline — write file → extract (pdfplumber or extractor service) → embed → Qdrant insert — inside the Falcon worker that picked up the request. Image-only PDFs that took the heavy extractor + RapidOCR path could occupy a worker for several minutes, queueing every other HTTP/WS request behind one upload. The route now writes the upload to disk + validates size + registers an `ImportTracker` entry, then returns **202 Accepted** with `{ import_id, status_url }` and hands the heavy work off to a background `Thread.new`. A new endpoint, `GET /library/import/status/:id`, surfaces the worker's current stage (`queued` → `extracting` → `embedding_storing` → `done` / `error`). The Browse modal's "Import file" button now polls that endpoint with exponential backoff (800ms → 5s, 30 min hard cap) and renders per-stage progress text in the same alert. The size-check is now also fail-CLOSED — uploads whose byte count cannot be determined are rejected outright, closing a DoS bypass via Rack edge cases (StringIO substitutes, version-drifted tempfile semantics). New specs: `spec/unit/library/import_tracker_spec.rb` (12 examples — UUID shape, snapshot isolation, TTL purging, concurrent writes); `spec/integration/library_import_contract_spec.rb` (8 examples — 202 envelope, worker dispatch, status endpoint shape, oversized rejection, error path).
-  - **Install Options SSOT (single source of truth)**: The list of optional Python packages (`PYOPT_*` / `INSTALL_*` / `IMGOPT_*`) was previously duplicated across 6+ files (`app/main.js` × 2 arrays, `app/settings.html` × 5 sites, `docker/monadic.sh` × 5 sites, `docker/services/python/compose.yml`, `docker/services/python/Dockerfile`, the 7 translation JSONs). Adding or removing one option meant touching ~22 sites in lockstep. The list now lives in **one** place: `app/install_options.config.js`. `app/main.js` reads `installOptions.ENV_KEYS_PYTHON` for the rebuild-detection arrays; `docker/monadic.sh` drives reading / comparing / build-arg / save from a single `PY_OPTIONS=( … )` bash array; `app/settings.html`'s build-state badges remain hand-authored to keep `data-i18n` declarative. The `2026-05-09` removal of `PYOPT_SCIKIT` (after promoting `scikit-learn` to default-installed) was the worked example — the same change before the SSOT refactor would have required edits in all 22 sites. The new `docs_dev/install_options_ssot.md` is the canonical checklist for adding / renaming / removing an option.
-  - **Python container build retuned**: `scikit-learn~=1.5` is now in the default install set (the most-frequently-needed library in Code Interpreter / Jupyter Notebook scenarios — earlier OSS users hit `ModuleNotFoundError: No module named 'sklearn'` on basic clustering / regression flows because it was tucked behind the opt-in `PYOPT_SCIKIT` flag). `midiutil` and `pretty_midi` moved out of the default block and into the `PYOPT_LIBROSA` block where they belong (they are only consumed by the Music Lab pipeline). The default Python image is therefore ~10 MB smaller for the typical user who never opens Music Lab, and ~60 MB heavier for everyone (the cost of `scikit-learn` becoming default), with a substantial UX win in the common path.
-  - **Vendored `moviepy` removed in favour of system `ffmpeg`**: `extract_frames.py` (the only file in the codebase that imported moviepy) used moviepy-2.0 for one operation: extracting an MP3 audio track from an uploaded video for downstream STT. moviepy bundles `imageio-ffmpeg` (~50 MB of static ffmpeg) and pulls in `proglog` + a duplicate Pillow install — and the python container's apt layer already contains ffmpeg for pandoc. The audio-extraction code now invokes `ffmpeg -y -loglevel error -i <video> -vn -acodec libmp3lame -q:a 2 <audio>.mp3` directly via `subprocess.run`. Net: -50 MB on every Python container rebuild, no functional change for Video Describer.
-  - **Extractor English locked as the foundational OCR layer**: The Knowledge Base Quality Pack's `extractor-lang-en` checkbox in Settings → Install Options is now `checked disabled` and labelled "English (en) — always installed" — matching the existing Privacy Filter pattern. Previously the checkbox was interactive and looked optional, but `app/main.js`'s `saveSettings` silently re-injected `en` into `EXTRACTOR_LANGS` regardless. The displayed state now matches the saved state. RapidOCR's other-language models depend on the Latin OCR layer for filenames, URLs, English-in-Japanese citations, and PDF metadata, so an English-less build was never functional anyway. The defense-in-depth re-injection in `saveSettings` is preserved as a safety net for hand-edited env files.
-  - **`max_completion_tokens` centralised as a single SSOT constant**: GPT-5.x renamed the Chat Completions / Responses API's output-token parameter from `max_tokens` to `max_completion_tokens` in 2026-Q1. The value was previously a bare literal across five OpenAI-targeting agents (`video_analyze_agent`, `image_analysis_agent`, `openai_code_agent`, `second_opinion_agent`, `context_extractor_agent`). All five now reference `OpenAIHelper::OUTPUT_TOKEN_KEY` (symbol form) or `OUTPUT_TOKEN_KEY_STR` (string form for `string`-keyed parameter hashes); the next OpenAI rename is a one-line edit. Pairs with `spec/unit/dsl/openai_api_param_consistency_spec.rb` which fails CI on any new bare `max_tokens:` literal in an OpenAI URI window.
-  - **Path-resolution invariant spec extended to `apps/`**: `spec/unit/dsl/path_resolution_consistency_spec.rb`, which originally only walked `lib/`, now also scans `apps/` for the bare `defined?(SHARED_VOL)` / `defined?(LOCAL_SHARED_VOL)` anti-pattern that masked the Video Describer bug for ~8 months. The fully-qualified form `defined?(MonadicApp::SHARED_VOL)` (used in `apps/auto_forge/utils/path_config.rb`) is intentionally left alone — it works correctly across module boundaries, only the bare unqualified form was the lexical-scope trap. Also fixed an `ANTI_PATTERN` constant collision with `openai_api_param_consistency_spec.rb`: both specs declared a top-level `ANTI_PATTERN = …` and the second-loaded one silently overwrote the first when both ran in one rspec invocation; renamed to `ANTI_PATTERN_PATH` and `ANTI_PATTERN_OAI` respectively.
-  - **`auto_forge_debugger` shared-volume resolution unified**: `AutoForge::Debugger#execute_debug_script` resolved `~/monadic/data` via `ENV['SHARED_VOLUME'] || File.expand_path('~/monadic/data')`, a legacy pattern that depended on env-var setup at every entry path. Replaced with `Monadic::Utils::Environment.shared_volume` (the canonical SSOT accessor) so the resolution mode (container vs. dev) is decided by `in_container?`, not by whether some upstream remembered to export `SHARED_VOLUME`.
-  - **Sidebar UX consistency + Knowledge Base hardening**: A round of follow-up work after the MDSL-declarative capability gate landed surfaced a runtime bug, several confusing UI behaviors, and a backend defense gap. Each was fixed with a regression-blocking spec in place. (1) **Runtime capability propagation**: `MonadicDSL.finalize_capabilities!` writes resolved `library_save` / `library_search` flags to `state.settings`, but the class-generation template only iterated `state.features.each`, so those keys never reached the runtime app instance. The WebSocket app-data layer therefore omitted the keys, the frontend defaulted to "permissive", and Privacy-Filter-only apps (Chat Plus, Mail Composer, Translate, Second Opinion) shipped a working-looking "Save to KB" button on apps that legally cannot save. The class-generation template now injects these flags explicitly, mirroring the `privacy_enabled` injection that has always been there. A new spec (`spec/unit/dsl/runtime_capability_propagation_spec.rb`) walks every MDSL on disk, generates the class via `convert_to_class`, and asserts that any non-nil `state.settings[:flag]` reaches the runtime instance — pinning the bug class out at CI time. (2) **Save button visible-but-disabled (parity with Privacy Filter session toggle)**: The Save button no longer flickers between visible and hidden as Privacy state and app capability change. It is always present in the DOM and JS owns the `disabled` attribute and tooltip across three reasons: app does not support save / Privacy Filter is active in this session / no messages yet. Each reason has its own translated tooltip in all 7 languages. The Knowledge Base panel itself stays visible for Privacy-Filter apps so the disabled Save button continues to communicate "this app intentionally cannot write to the KB"; artifact-only apps that have neither save nor search nor PF still hide the panel entirely. (3) **Sidebar reorganization**: Knowledge Base and Session Controls are now always adjacent (Session Context — when present in monadic-mode apps — slides to the bottom). Four runtime feature toggles that were crammed into one row in the model-config area moved to their semantic homes: `Web Search` and `Math Rendering` joined the Monadic Chat Info panel as session-level toggles; `Start from assistant` joined the Interaction panel alongside Auto speech / Easy submit / Auto scroll; `Show Thinking` slotted next to its couple, the Reasoning Effort selector. (4) **Toggle-all button removed from Interaction**: The "check all / uncheck all / toggle all" button was redundant with MDSL's per-app sensible defaults (Voice Chat already ships with auto_speech=true, Language Practice with initiate_from_assistant=true, etc.) and the four interaction toggles are independent concerns where mass-flipping rarely has a coherent meaning; the label-changing-with-state ("Check All" / "Uncheck All" / "Toggle All") added cognitive churn for an operation almost no one needed. (5) **Sidebar legibility + library_search visibility category**: An inline `font-size: 0.85em` on the collapsed-config summary made the model name and feature badges noticeably smaller than the surrounding header — removed in favour of the `text-secondary` class providing the same visual hierarchy without shrinking. The `library_search` shared tool was previously imported with `visibility: "always"`, which categorised it under "Tools (Always)" in the badge area despite being gated by the per-session "Use Knowledge Base for retrieval" toggle (the same as `web_search_tools`, which is already `conditional`). Both are now correctly under "Tools (Conditional)". (6) **Backend defense-in-depth for KB save**: `handle_ws_library_save` already rejected when the session-level Privacy Filter pipeline was active. It now also rejects when the active app declares `library_save: false` (artifact apps like AutoForge / Drawio Grapher / Image Generator), so a stale tab or programmatic client cannot bypass the frontend gate. (7) **Badge tooltip identification**: When `library_search` and `web_search_tools` both render under "Tools (Conditional)", their tooltips now append a "Controlled by ..." hint pointing at the exact session toggle (Knowledge Base panel for the former, Monadic Chat Info panel for the latter) so users can find where to flip them.
-  - **Video Describer regression fix (path resolution + Vision API params)**: `Video Describer` (and any tool path that hands a relative `./<file>` to the vision/audio agents) was failing with `Frames JSON file not found` and `OpenAI Vision API error (400 Bad Request) — Unsupported parameter: 'max_tokens'`. Two distinct bugs were stacked: (1) the agents resolved shared-volume paths through `defined?(SHARED_VOL)` lookups inside their module bodies, but `SHARED_VOL` is a `MonadicApp` class-level constant and could not be reached from those modules' lexical scope, so the conditional always fell through to the `nil` branch — meaning `./frames_*.json` (a relative path written by `extract_frames.py`) was never resolved against the active shared volume in either dev (`~/monadic/data`) or container (`/monadic/data`) mode; (2) `video_vision_openai` and `vision_query_openai` posted `max_tokens` directly to `/v1/chat/completions`, which GPT-5.x rejects in favour of `max_completion_tokens`, and also sent `temperature: 0.0` which GPT-5.x rejects entirely. Both `read_frames_json`, `resolve_audio_path`, and `prepare_image_for_analysis` now route through `Monadic::Utils::Environment.shared_volume` (the canonical SSOT accessor); the OpenAI vision calls now use `max_completion_tokens` and omit `temperature`. Specs were tightened to no longer rely on a top-level `stub_const("SHARED_VOL", ...)`, which had been masking the production behaviour because `defined?(SHARED_VOL)` resolved a top-level constant under stubbing but never resolved `MonadicApp::SHARED_VOL` in production. Two new cross-cutting invariant specs (`spec/unit/dsl/path_resolution_consistency_spec.rb`, `spec/unit/dsl/openai_api_param_consistency_spec.rb`) walk the codebase to lock both bug classes out at CI time.
-  - **Architecture diagram refreshed for beta.16**: `docs/assets/images/basic-architecture.{svg,png}` and the JA counterparts have been regenerated to reflect the current default container set (Ruby / Python / JupyterLab / Selenium / Embeddings / Qdrant / Privacy) and the current chat / ASR & TTS provider rosters (Perplexity removed; ASR & TTS now lists OpenAI, Gemini, Cohere, xAI, Mistral, ElevenLabs in the same provider order as Chat API). Source SVG is included so future updates do not have to start from a binary diff.
-  - **Perplexity provider removed (BREAKING)**: All Perplexity / Sonar models, MDSL apps, and the `PerplexityHelper` vendor adapter have been deleted. Perplexity's chat API does not support function calling, which made it the only entry in the legacy `RAG_EXCLUDED_PROVIDERS` denylist and forced ad-hoc workarounds across the codebase (`library_search` exclusion, separate websearch routing strategy `:native`, special AI-User non-reasoning override, alternating-role error handling). Removing it allowed the new MDSL-driven `library_save` / `library_search` / `privacy` capability axis (Phase 1 of this release) to drop the provider-exclusion mechanism entirely. Removed: `lib/monadic/adapters/vendors/perplexity_helper.rb`, five MDSL files (`chat_perplexity.mdsl`, `coding_assistant_perplexity.mdsl`, `language_practice_perplexity.mdsl`, `mail_composer_perplexity.mdsl`, `voice_chat_perplexity.mdsl`), the `Perplexity` entries in `ProviderConfig::PROVIDER_INFO` / `FORMATTERS` / `mdsl_schema.rb` provider enum / `system_defaults.rb` env map / `network_error_handler.rb` per-provider timeout / `model_spec.js` Perplexity model block + `providerDefaults["perplexity"]`, plus all Perplexity-routing branches in `ai_user_agent.rb`, `second_opinion_agent.rb`, `parallel_dispatch.rb`, `web_search_tools.rb`, `library/title_suggester.rb`, `library/importers/monadic_chat_export.rb`, and `routes/api_routes.rb`. **Upgrade impact**: existing chats using a Perplexity-bound app variant (e.g. ChatPerplexity) will fail to load that variant after upgrading; switch to any other provider variant of the same app. The `PERPLEXITY_API_KEY` and `PERPLEXITY_DEFAULT_MODEL` env vars in `~/monadic/config/env` are now unused and can be deleted.
-  - **MDSL-declarative KB / Privacy capability gate (refactor)**: Per-app `library_save`, `library_search`, and `privacy` are now declared in MDSL (single source of truth) instead of two parallel denylists in `dsl.rb` (`RAG_EXCLUDED_APP_BASE_NAMES`, `KB_SAVE_EXCLUDED_APP_BASE_NAMES`) plus event-driven JS visibility logic. `MonadicDSL#finalize_capabilities!` reads MDSL declarations, layers global defaults (`library_save: true`, `library_search: true`), derives Privacy-on apps to `library_save: false` / `library_search: false` automatically, and validates the `library_search ⇒ library_save` invariant at load time. Frontend Knowledge Base panel and Privacy toggle visibility are now driven by `body` classes (`app-cap-pf` / `app-cap-kb-save` / `app-cap-kb-search`) and CSS, eliminating race conditions from the previous `style.display` mutation path. A new spec (`spec/unit/dsl/capability_consistency_spec.rb`) walks every MDSL on disk and pins each to one of four allocation buckets (PF only / KB search / KB save only / Neither), failing if a new app is added without classification.
-  - **Grok model migration (xAI 2026-05-15 retirement)**: xAI is retiring eight models on 2026-05-15 (`grok-4-fast-reasoning`, `grok-4-fast-non-reasoning`, `grok-4-1-fast-reasoning`, `grok-4-1-fast-non-reasoning`, `grok-4-0709`, `grok-code-fast-1`, `grok-3`, `grok-imagine-image-pro`). Per Monadic Chat's "remove sunsetting models pre-emptively" policy, these entries have been removed from `model_spec.js` ahead of the cutoff. The xAI `providerDefaults` now use `grok-4.20-0309-non-reasoning` for chat, `grok-4.3` for code/vision, and `grok-imagine-image` for image generation. The four MDSL files that hardcoded `grok-code-fast-1` for `code_generator` (Code Interpreter / Coding Assistant / Jupyter Notebook / Research Assistant — Grok variants) now route to `grok-4.3`. **`grok-4.3` reasoning_effort update**: the same xAI announcement confirms `grok-4.3` now supports the standard 3-tier reasoning_effort (`low` / `medium` / `high`); the model spec and downstream UI surface this. The previous "always-on reasoning, parameter rejected" record reflected an earlier API state that has since been updated by xAI.
-  - **Privacy Filter security fix (silent masking failure since beta.14)**: The `privacy_enabled_for?` gate rejected production Rack sessions (`Rack::Session::Abstract::PersistedSecure::SecureSessionHash`, which is not a `Hash` subclass), silently disabling masking for every privacy-opted-in app since the Privacy Filter shipped. Unit tests passed because they used plain `Hash` fixtures. The gate now duck-types on `respond_to?(:[])` and accepts any session-like object. **What this means for users:** if you previously had Privacy Filter toggle ON, your messages were not actually being masked before reaching the LLM provider. Starting from this release, Privacy Filter operates as documented. A regression test using a non-Hash session-like fixture has been added so this cannot recur.
-  - **Privacy Filter — backend-authoritative session toggle**: The Privacy Filter session toggle is now negotiated through a dedicated `PRIVACY_TOGGLE` WebSocket message with a container health probe (~2s); the frontend trusts the backend's `privacy_toggle_ack` reply as the source of truth. If the privacy container is not running, the toggle reverts visually and a clear error is shown. The previous params-piggyback path (where `params["privacy_session_enabled"]` could shadow the health-checked authoritative state at submit time) has been removed end-to-end (frontend `setParams()`, broadcast clones, backend gate, all updated). A frontend lint test (`test/frontend/setparams-privacy.test.js`) locks in the contract that no privacy field travels through params.
-  - **Privacy Filter — derived LLM paths now pre-mask**: Title suggestion (`Monadic::Library::TitleSuggester`), context extraction (`ContextExtractorAgent`), and Second Opinion fan-out (`SecondOpinionAgent`) now route their inputs through the same session-level privacy pipeline as the chat path. Without this, those auxiliary LLM calls would echo raw PII back into proposed titles, extracted `people`/`places`/`notes` fields, or other-provider second-opinion requests, defeating the chat-path masking. Title-suggestion output is sanitized through the same humanization the TTS path uses (`<<PERSON_1>>` → `PERSON 1`); context and second-opinion outputs keep raw placeholders so the masked state is visually obvious. All three paths fail-closed: a privacy backend outage causes the auxiliary feature to be skipped rather than to fall back to unmasked text.
-  - **Privacy Filter — default-installed with multi-language support**: The Privacy Filter container is part of the default build set; any Privacy-aware app (Chat Plus, Mail Composer, Translate, Second Opinion) can be toggled on without a separate install step. English is mandatory and always installed. Eight additional languages — German (de), Spanish (es), French (fr), Italian (it), Japanese (ja), Dutch (nl), Portuguese (pt), Chinese (zh) — are available via Settings → Install Options → "Privacy Filter — Additional Languages" (each adds ~50 MB to the container; the Privacy container must be rebuilt after changes via Settings → Actions → "Build Privacy"). The session toggle's enabled state follows the sidebar `conversation_language`: "Automatic" / "English" → English masking; an installed non-English language → masking in that language (Presidio loads the corresponding spaCy NER model and applies language-specific rules such as Japanese honorific trimming); an uninstalled language → toggle disabled with the tooltip "Privacy Filter is not installed for this language. Install via Settings → Install Options." When using non-English content with Privacy Filter active, set the conversation language explicitly in the sidebar — "Automatic" only ever masks as English, regardless of the actual content. Runtime opt-out via `PRIVACY_FILTER=false` in `~/monadic/config/env` remains available.
-  - **Reset confirmation — Save to Knowledge Base opens the full save modal**: When the current chat has user/assistant turns, the Reset dialog still offers a "Save to Knowledge Base" action, but the action now closes the Reset modal and opens the standard Save Conversation modal instead of issuing a save with default values. This restores the title-editing field, the per-app / Global scope selector, and the LLM-suggested-title fast path, all of which were silently bypassed in the prior implementation.
-  - **Image / video generation progress broadcasts**: When an image or video generator is running (`gpt-image-2` / `gpt-image-1.5` / `chatgpt-image-latest` / Imagen / Gemini 3 image / Sora / Veo / Grok-Imagine), Monadic Chat now broadcasts a "generating…" heartbeat to the temp card every 30 seconds. Previously the UI sent a single `tool_executing` event and then went silent for the 1–4 minute wait, which read as "frozen". Implemented via `Monadic::Utils::ProgressBroadcaster` and applied to all eight generator paths in `media_generation_helper.rb` and `gemini_helper.rb`.
-  - **PDF extraction backend swap (license cleanup)**: PyMuPDF / pymupdf4llm (AGPL-3.0) have been removed from the Python container in favour of pdfplumber (MIT) and pypdfium2 (Apache-2.0 + BSD-3). All in-tree PDF tooling now runs under permissive licenses; no AGPL dependencies remain. The CLI/JSON contract of `pdf2txt.py` and `library_pdf_extractor.py` is preserved so Ruby callers needed no changes. Heading detection and table fidelity in the lightweight path are slightly weaker than pymupdf4llm's heuristics; the Knowledge Base Quality Pack (below) restores layout-aware extraction with OCR for documents that need it.
-  - **Knowledge Base Quality Pack (NEW, opt-in)**: A new dedicated container, `monadic-chat-extractor-container` (`yohasebe/monadic-extractor`), runs Docling 2.x with the RapidOCR ONNX backend behind a small FastAPI surface (`/v1/health`, `/v1/info`, `/v1/extract`). When installed (Settings → Install Options → "Knowledge Base Quality Pack") and `EXTRACTOR_SERVICE=true`, Library PDF imports are routed through this service instead of the lightweight `pdfplumber` path, yielding layout-aware Markdown with OCR for scanned PDFs, multi-column papers, complex tables, and CJK + RTL scripts. The Ruby side detects availability through a cheap health probe and falls back transparently to pdfplumber when the pack is not installed. Languages exposed in the UI: English, Japanese, Chinese, Korean (RapidOCR can be extended to ~80 via `EXTRACTOR_LANGS`).
-  - **Office extraction extended (PPTX speaker notes, alt text)**: Both the Library importer (`library_office_extractor.py`) and the LLM tool path (`office2txt.py`) now surface PPTX speaker notes and image alt text from PPTX/DOCX in the extracted Markdown, so figure captions and presenter rationale are searchable in the Knowledge Base instead of being silently dropped.
-  - **Token-aware chunking via Chonkie**: When the extractor service is in use, the response now includes a `chunks` array produced by Chonkie's `RecursiveChunker` (MIT, character-aware, 1500-char window with 200-char overlap). The PDF importer consumes those chunks directly when present, bypassing the heuristic heading/paragraph splitter so adjacent passages share context across boundaries — a non-trivial win for retrieval recall, especially in CJK where character-count heuristics can split mid-token.
-  - **New Ruby modules**: `Monadic::Extractor::Endpoint` and `Monadic::Extractor::Client` (MIT-licensed `http` gem; same dev/in-container resolution pattern as `Monadic::Embeddings::Endpoint`). Existing modules `Monadic::Library::FileImporter` gained `extractor_service_available?` + `extract_via_service` for the dual-path routing; `Monadic::Library::Importers::Pdf#import` now accepts a `:pre_segmented_chunks` option so any future extractor that produces pre-chunked text can plug in without re-implementing the splitter.
-  - **Tests**: 4 unit specs for the extractor client, 4 new specs for the file_importer HTTP/fallback routing, 2 new specs for the importer's pre-chunked-array path. The pre-existing `pdf2txt_docker_spec.rb` was retuned to expect Unix-conventional error reporting (errors → stderr), reflecting that pdfplumber no longer leaks informational notices to stdout the way pymupdf did.
-  - **Library / Knowledge Base subsystem (NEW)**: A unified, project-wide knowledge base that supersedes the previous PDF Navigator and Content Reader apps. Conversation transcripts, PDFs, Office documents (Word/Excel/PowerPoint), Markdown, and source code are all ingested through the same pipeline (`Monadic::Library::Importers` → `Monadic::Library::TurnSegmenter` → `Monadic::Library::Hierarchical`) and stored in two Qdrant collections (`library_summaries` for conversation-level vectors, `library_turns` for turn-level vectors). Schema is `monadic-conversation` v1, validated by `Monadic::Library::Schema`.
-    - **Per-app + Global scoping**: each entry carries a `scope_app` payload field set to either the saving app's class name (e.g. `ChatOpenAI`) or the literal sentinel `Global`. The `Monadic::Library::Retriever#cascade_search` adds `scope_app IN [current_app, "Global"]` to every Qdrant filter, so app-only entries are invisible across provider variants (`ChatOpenAI` cannot see `ChatClaude` entries) and `Global` entries are retrievable from every app.
-    - **Knowledge Base app** (8 provider variants): browse / save / rename / scope-toggle / delete UI, plus file import (Markdown / Code / PDF / Office). Frontend modal in `library-panel.js` + `views/index.erb`; backend WS handlers in `library_handler.rb`.
-    - **`library_search` shared tool** (`lib/monadic/shared_tools/library_search.rb`): apps that import `:library_search` can call `library_search(query:, top_n:, content_type:, source:)` to retrieve passages. Gated by a per-session UI toggle in the Knowledge Base sidebar (default OFF, locks on first message). The toggle preference is now persisted via `localStorage` so it survives page reloads.
-    - **Save replaces in place**: a saved chat session retains its `conversation_id` for the current session. Subsequent Saves of the same session perform delete-then-ingest with the same id rather than creating duplicates. The Save modal reflects this with a dynamic title ("Update Conversation in Knowledge Base"), an "Update" button, and a warning banner on re-save. The binding clears on Reset, app switch, or external delete.
-    - **LLM-suggested titles**: on first save the modal asks the active provider's LLM (`Monadic::Library::TitleSuggester`) for a concise title (≤60 chars) using the first user/assistant turns. The suggestion is cached against the conversation length so canceling and re-opening the modal does not fire another LLM call. Falls back silently when the provider's API key is missing or the LLM errors. New WS message `LIBRARY_SUGGEST_TITLE` → `library_title_suggested`.
-    - **Privacy Filter integration**: when Privacy Filter is active, `library_search` results are masked through the same session-level Privacy Pipeline used for user-role messages, so PII stored unmasked in the Knowledge Base never leaks to the LLM via retrieval. The masking happens before the tool result returns; placeholders are restored on the response side via the existing streaming-handler pass.
-    - **Reset dialog enhancement**: the Reset confirmation modal now offers a "Save to Knowledge Base" action when the current session has user/assistant turns to save. Clicking it closes the Reset modal and opens the standard Save Conversation modal so the user can edit the title, choose scope, and let the LLM-title-suggestion path run before saving. Reset stays a separate explicit step — the combined "save & reset" choice was rejected as too much cognitive load.
-    - **UI polish**: modal close (`btn-close`) buttons sit flush against the right edge again (the `btn btn-sm btn-close` pattern that overrode Bootstrap's negative margin has been replaced with the canonical `btn-close` across all 15 modals); Font Awesome `.fa-spin` correctly animates under `prefers-reduced-motion: reduce` (previously stalled because the blanket override was not exempted); the Knowledge Base Browser and Conversation Viewer modals lift 5rem above the chat-surface floating action bar; the Conversation Viewer's inline rename row no longer overlaps the close button and ignores Enter while a Japanese/Chinese/Korean IME is composing; the Save modal radio label and Knowledge Base stats line use `App-only: Chat (OpenAI)` and a single em-dash separator respectively to avoid nested parentheses.
-    - **Tests**: ~30 RSpec examples across `Monadic::Library::Schema`, `Store`, `Hierarchical`, `Retriever`, `Manager`, `Inventory`, `TitleSuggester`, `LibrarySearch`, plus the WebSocket library handler. Frontend coverage in `test/frontend/library-panel.test.js` (90 specs).
-    - **Documentation**: `docs/basic-usage/basic-apps.md` (and JA counterpart) describes the Knowledge Base app, scope model, supported import formats, and per-session RAG opt-in. `docs/advanced-topics/privacy-filter.md` documents the `library_search` masking interaction. New internal doc `docs_dev/library_subsystem.md` covers the schema, ingestion pipeline, retriever, and provider-routing for title suggestions.
-  - **Cloud PDF mode (OpenAI Vector Store) removed (BREAKING)**: PDF storage is now Local-only (Qdrant + multilingual-e5-base). The `/openai/pdf` upload/list/delete routes, the `cloud-pdf-section` UI, the OpenAI File Search tool injection in the OpenAI vendor adapter, and the related env vars (`PDF_STORAGE_MODE`, `PDF_DEFAULT_STORAGE`, `OPENAI_VECTOR_STORE_ID`, `OPENAI_VECTOR_STORE_ID__<APP>`) have all been deleted. The `pdf_storage_mode` session variable, the `document_store_registry.json` file, the `pdf_navigator_openai.json` fallback, and the `vector_db:migrate_to_registry` rake task are also removed.
-  - **Removed Ruby modules**: `Monadic::Utils::DocumentStoreRegistry`, `Monadic::Utils::PdfStorageConfig`, `Monadic::DocumentStore::OpenAIVectorStore`. Helper methods `get_pdf_storage_mode`, `resolve_vector_store_id`, `vs_meta_path`, `resolve_openai_app_key`, `openai_pdf_headers`, `bump_pdf_cache_version`, `resolve_openai_vs_id`, `resolve_pdf_storage_mode`, and `get_current_app_key` are deleted from `lib/monadic.rb` and `openai_helper.rb`.
-  - **Removed API endpoints**: `POST/GET/DELETE /openai/pdf` (with all `action=upload|list|clear|delete` variants) and `GET /api/pdf_storage_defaults`. `GET /api/pdf_storage_status` is preserved but simplified to report only local presence.
-  - **Removed UI**: Cloud PDF section, refresh/clear/delete buttons, vector-store id meta footer, storage-mode radios in the import modal, cloud-related i18n keys (`noPdfsCloud`, `pdfRefreshCloud`, `pdfClearCloud`, `clearAllCloudPdfs`) across all 7 locales.
-  - **Upgrade impact for Cloud mode users**: PDFs previously uploaded to OpenAI Files / Vector Store are no longer accessible from Monadic Chat. The data still exists in your OpenAI account and can be removed manually from the OpenAI dashboard. Re-import any PDFs you want to keep using into the local store after upgrading. Local-mode users are not affected.
-  - **Documentation**: `docs/basic-usage/pdf_storage.md` and its Japanese counterpart have been rewritten as "PDF Knowledge Base" (local-only). `docs/advanced-topics/advanced-configuration.md` no longer lists `PDF_STORAGE_MODE` / `PDF_DEFAULT_STORAGE`. The internal docs `docs_dev/pdf_registry_and_hybrid.md` and `docs_dev/developer/pdf_storage_integration.md` (and their JA counterparts) are deleted because their content was wholly Cloud-mode.
-  - **Help DB**: `docker/services/ruby/help_data/help_db.json` must be regenerated with `rake help:build` before tagging the release so the help search index reflects the cleaned documentation set.
+  - Security
+    - The Privacy Filter masks messages before they reach the provider
+    - With the Privacy Filter on, title suggestions, context extraction and Second Opinion are masked too, and are skipped when the privacy backend is down
+    - With the Privacy Filter on, Knowledge Base search results are masked before they reach the model
+    - Library uploads whose size cannot be determined are rejected
+    - Saving to the Knowledge Base is refused on apps that do not allow it, even from a stale tab or a script
+  - Changes you may notice
+    - The Perplexity provider and its apps are removed; switch Perplexity app variants to another provider
+    - `PERPLEXITY_API_KEY` and `PERPLEXITY_DEFAULT_MODEL` in `~/monadic/config/env` are unused and can be deleted
+    - Cloud PDF mode is removed: PDFs are stored locally only, and `PDF_STORAGE_MODE`, `PDF_DEFAULT_STORAGE`, `OPENAI_VECTOR_STORE_ID` and `OPENAI_VECTOR_STORE_ID__<APP>` are ignored
+    - **Re-import PDFs you used in Cloud mode; the copies in your OpenAI account remain and can be removed from the OpenAI dashboard.**
+    - The Knowledge Base replaces the PDF Navigator and Content Reader apps
+    - Grok 4 Fast, Grok 4.1 Fast, Grok 4, Grok Code Fast 1, Grok 3 and Grok Imagine Image Pro are removed
+    - xAI defaults are Grok 4.20 (non-reasoning) for chat, Grok 4.3 for code and vision, and Grok Imagine for images
+    - Grok 4.3 offers low, medium and high reasoning effort
+    - The Privacy Filter is installed by default with English; German, Spanish, French, Italian, Japanese, Dutch, Portuguese and Chinese are added in Settings → Install Options (rebuild the Privacy container)
+    - The Privacy Filter masks in the sidebar's conversation language; "Automatic" masks as English, so set the language for non-English content
+    - The Privacy Filter toggle is disabled for uninstalled languages, and turns back off with an error when the Privacy container is not running
+    - `PRIVACY_FILTER=false` in `~/monadic/config/env` turns the Privacy Filter off
+    - PDF extraction uses pdfplumber and pypdfium2, so no AGPL dependencies remain; headings and tables are slightly weaker without the Quality Pack
+    - scikit-learn is installed by default in the Python container; midiutil and pretty_midi come with the `PYOPT_LIBROSA` option
+    - The Python container no longer includes moviepy and is about 50 MB smaller
+    - The Quality Pack's English option is always installed and cannot be unchecked
+    - `Web Search` and `Math Rendering` are in the Monadic Chat Info panel, `Start from assistant` in Interaction, and `Show Thinking` next to Reasoning Effort
+    - Knowledge Base and Session Controls sit next to each other in the sidebar, and the Interaction panel's toggle-all button is removed
+    - The `Save` button for the Knowledge Base is always shown, disabled with a tooltip giving the reason when saving is not possible
+    - Knowledge Base search is listed under "Tools (Conditional)"
+    - The Reset dialog offers `Save to Knowledge Base`, which opens the full Save Conversation modal
+    - The `document_store_registry.json` and `pdf_navigator_openai.json` files are no longer used
+  - New
+    - With `GPT Realtime Whisper ⚡` selected, speech input shows a live transcript preview; the final text is added to what you typed
+    - The Knowledge Base app (8 provider variants) stores conversations, PDFs, Office documents, Markdown and code, with browse, save, rename, scope, delete and import
+    - Knowledge Base entries belong to one app or to `Global`, which every app can read
+    - Knowledge Base search in apps is turned on per session in the Knowledge Base sidebar (off by default, fixed after the first message, remembered across reloads)
+    - Saving a conversation again updates its Knowledge Base entry ("Update Conversation in Knowledge Base") instead of making a copy
+    - The Save modal suggests a title written by the current provider's model on first save
+    - Library imports run in the background, and the Browse modal shows each stage's progress
+    - The Knowledge Base Quality Pack (opt-in, Settings → Install Options, `EXTRACTOR_SERVICE=true`) imports PDFs as layout-aware Markdown with OCR
+    - The Quality Pack handles scanned, multi-column, complex-table, CJK and RTL documents; without it imports use the lightweight path
+    - The Quality Pack offers English, Japanese, Chinese and Korean, more through `EXTRACTOR_LANGS`, and splits text into overlapping chunks for better search
+    - Imports include PPTX speaker notes and image alt text from PPTX and DOCX
+    - Image and video generators show a "generating…" update every 30 seconds
+    - Tooltips of the Knowledge Base search and web search badges name the toggle that controls them
+  - Fixed
+    - Video Describer finds its frames and its OpenAI vision requests are accepted
+    - Modal close buttons sit at the right edge, and spinners animate with reduced motion on
+    - The Knowledge Base Browser and Conversation Viewer sit above the floating action bar; the rename row no longer overlaps the close button
+    - Renaming in the Conversation Viewer ignores Enter while an IME is composing
+    - The collapsed model summary in the sidebar uses the normal font size
+  - For developers
+    - MDSL declares `library_save`, `library_search` and `privacy` per app; `library_search` requires `library_save`
+    - `POST /library/import` returns 202 with an import id, and `GET /library/import/status/:id` reports the stage
+    - `POST/GET/DELETE /openai/pdf` and `GET /api/pdf_storage_defaults` are removed; `GET /api/pdf_storage_status` reports local presence only
+    - The `vector_db:migrate_to_registry` rake task is removed
+    - Install options are listed in `app/install_options.config.js`
+    - The `supports_realtime_streaming` flag in `model_spec.js` marks streaming speech-to-text models
+    - Regenerate the Help database with `rake help:build` before tagging a release
+
 - [April, 2026] 1.0.0-beta.15
-  - **Local Embeddings + Qdrant migration (BREAKING)**: The PGVector + OpenAI `text-embedding-3-large` stack used for the help system and PDF knowledge base has been replaced with a fully local pipeline. Embeddings are now computed by a new `embeddings_service` container (FastAPI + sentence-transformers + `intfloat/multilingual-e5-base`, 768-dim, L2-normalised) and stored in a new `qdrant_service` container (Qdrant vector database, HNSW index, named vectors, payload filtering). This removes the OpenAI key requirement for help search and local PDF storage entirely.
-    - **New containers** (always start with Monadic Chat): `monadic-chat-qdrant-container`, `monadic-chat-embeddings-container`. Image sizes: ~80 MB (qdrant) + ~2.5 GB (embeddings + e5 model baked in).
-    - **Removed**: `monadic-chat-pgvector-container`, `yohasebe/pgvector` image, `pg` and `pgvector` Ruby gems, `Monadic::Utils::Environment#postgres_params`/`postgres_host`/`postgres_port`, `lib/monadic/utils/text_embeddings.rb`, `lib/monadic/document_store/local_pg_vector_store.rb`, the `pdf_vector_storage` MDSL flag (always-on now).
-    - **New Ruby modules**: `Monadic::VectorStore` (abstract `Base` + `QdrantBackend`), `Monadic::Embeddings::Client`, `Monadic::Pdf::Store`, `Monadic::Help::DumpLoader`. The runtime `HelpEmbeddings` facade preserves the read-side API used by `monadic_help_tools.rb` and the MCP adapter; only the backing store changed.
-    - **Per-app PDF isolation** preserved via the `app_key` payload field on `pdf_docs` / `pdf_items` collections (replaces per-database isolation from the previous PGVector design).
-    - **Help DB shipping model**: `rake help:build` writes a JSON dump (`docker/services/ruby/help_data/help_db.json`) at packaging time. The Ruby image bakes the dump in; the app loads it into Qdrant once on first start via `Monadic::Help::DumpLoader`. No live network calls during help search.
-    - **Document DB export/import**: `monadic.sh export-db` / `import-db` now snapshot the Qdrant data volume as `monadic-qdrant.tar.gz` (replacing `monadic.gz` from `pg_dump`).
-    - **Upgrade impact**: existing local PDF uploads are NOT migrated automatically. Re-upload them after upgrading. The legacy `monadic-chat-pgvector-data` Docker volume can be removed once you have re-imported.
-    - **Dependency cleanup**: 256-line `pgvector` orchestration block in `Rakefile`'s help namespace is replaced with a 90-line implementation that boots only the embeddings container at build time. `monadic.sh` `ensure-service` adds `qdrant` and `embeddings` handlers; `container_dependencies.rb` introduces `BASE_SERVICES = %i[qdrant embeddings]`.
-    - **Tests**: 101 unit specs across `Monadic::VectorStore`, `Monadic::Embeddings::Client`, `HelpEmbeddings`, `Monadic::Pdf::Store`, and `Monadic::Help::DumpLoader`. Integration smoke specs (`spec/integration/qdrant`, `spec/integration/embeddings`) verify behaviour against running containers and skip cleanly when they are not available.
-    - **Documentation**: `docs/docker-integration/vector-database.md`, `docs/advanced-topics/help-system.md`, `docs/basic-usage/pdf_storage.md`, `docs/getting-started/uninstallation.md` and their Japanese counterparts have been rewritten.
+  - Changes you may notice
+    - Help search and the PDF knowledge base run fully locally and no longer need an OpenAI API key
+    - Two new containers, Qdrant (about 80 MB) and embeddings with the multilingual-e5-base model (about 2.5 GB), always start with Monadic Chat
+    - The PGVector container is removed
+    - **Existing local PDF uploads are not migrated: re-upload them after upgrading.**
+    - After re-uploading, you can remove the old `monadic-chat-pgvector-data` Docker volume
+    - Uploaded PDFs stay separate for each app
+    - Help search makes no network calls
+    - Document DB export and import save the data as `monadic-qdrant.tar.gz` instead of `monadic.gz`
+  - For developers
+    - The `pdf_vector_storage` MDSL flag is removed; PDF storage is always on
+    - `rake help:build` writes a JSON dump of the help database, which the app loads on first start
+    - `monadic.sh ensure-service` accepts `qdrant` and `embeddings`
+    - Qdrant and embeddings integration specs skip when those containers are not running
+
 - [April, 2026] 1.0.0-beta.14
-  - **Privacy Filter (PII Masking)**: New opt-in feature that masks personally identifiable information in user messages before sending to AI providers, then restores the original values in the response. Detection runs locally in a separate Docker container (Microsoft Presidio + spaCy) so PII never leaves the host on its way to or from the LLM.
-    - Per-session toggle in Session Controls; locks on first message, remembered per app via localStorage.
-    - Privacy indicator with Registry viewer modal showing each placeholder, original value, and entity type.
-    - Encrypted export (AES-256-GCM + Argon2id) with two orthogonal axes: encryption on/off, content restored/masked. Passphrase-protected import restores the registry alongside the conversation.
-    - Default mask types: PERSON, EMAIL_ADDRESS, PHONE_NUMBER, CREDIT_CARD, IP_ADDRESS, IBAN_CODE, US_SSN, MEDICAL_LICENSE, URL. LOCATION and DATE_TIME are excluded by default to avoid noisy masking.
-    - Custom recognizer added for US local phone formats (7-digit and 10-digit variations).
-    - Supported apps: Mail Composer, Chat Plus, Translate, Second Opinion, Chat. Available across all 9 vendor adapters (OpenAI, Claude, Gemini, Cohere, Mistral, Grok, DeepSeek, Perplexity, Ollama).
-    - Output restoration is vendor-agnostic via the streaming handler; vendor-side code only handles input masking.
-    - Privacy container is built on demand via Settings → Install Options → Build Privacy. Master gate `PRIVACY_FILTER=true` plus per-language opt-ins (`PRIVACY_LANGS=en,ja,...`) control image size (~1 GB baseline + 150-300 MB per additional language).
-    - Session Controls toggle is gated on both the app's MDSL declaration and container availability; a context-aware tooltip explains why the toggle is disabled in each case.
-    - Documentation: see `docs/advanced-topics/privacy-filter.md` (English) and `docs/ja/advanced-topics/privacy-filter.md` (Japanese).
-    - Known limitation: assistant-side history is not re-masked. The pipeline applies to the user role on each turn; if the assistant repeats a name in a later turn, that occurrence passes through unchanged.
+  - Changes you may notice
+    - Privacy Filter masks only your messages; a name the assistant repeats in a later reply is sent unmasked
+  - New
+    - Privacy Filter masks personal information in your messages before they reach the AI provider and restores it in replies; detection runs locally
+    - Turn Privacy Filter on per session in Session Controls; it locks at the first message and is remembered for each app
+    - A privacy indicator opens a registry showing each placeholder, its original value and its type
+    - Export conversations encrypted with a passphrase or not, with content restored or masked; importing restores the registry
+    - Masked by default: names, email addresses, phone numbers, credit cards, IP addresses, IBANs, US SSNs, medical licenses and URLs; locations and dates are not
+    - US local phone numbers in 7-digit and 10-digit formats are recognized
+    - Privacy Filter works in Mail Composer, Chat Plus, Translate, Second Opinion and Chat with OpenAI, Claude, Gemini, Cohere, Mistral, Grok, DeepSeek, Perplexity and Ollama
+    - Build the Privacy container from `Settings` → `Install Options` → `Build Privacy`, and enable it with `PRIVACY_FILTER=true`
+    - Add languages with `PRIVACY_LANGS=en,ja,...`; the container is about 1 GB plus 150-300 MB per extra language
+    - When the Session Controls toggle is disabled, its tooltip explains whether the app or the container is the reason
+
 - [April, 2026] 1.0.0-beta.13
-  - **Security**: Pinned `@xmldom/xmldom` to 0.8.13 via `package.json` overrides to address 4 HIGH severity advisories (PI injection, comment/DocumentType handling, DoS). Affects devDependency only via electron-builder; runtime impact is none.
-  - **DeepSeek V4 Support**: Added two new models (`deepseek-v4-flash`, `deepseek-v4-pro`) with 1M context window, 384K output, and unified thinking + reasoning_effort control via the `thinking: { type, reasoning_effort }` request format.
-    - `providerDefaults` reorganized to prefer V4 models
-    - Legacy `deepseek-chat` / `deepseek-reasoner` marked with sunset 2026-07-24
-    - `dispatch_deepseek_tool_results` extended to handle V4 thinking-mode `reasoning_content` streaming
-  - **Claude 4.0 Sunset Tracking**: Marked `claude-opus-4-20250514` and `claude-sonnet-4-20250514` with sunset 2026-06-15 (per Anthropic's announcement); successor models `claude-opus-4-7` / `claude-sonnet-4-6` already supported.
-  - **OpenAI Reasoning Effort Fixes**: Corrected `reasoning_effort` value lists for 6 OpenAI models after API matrix verification, eliminating silent 400 errors (the affected models in o3 / o3-mini / o4-mini / gpt-5.4-mini / gpt-5.4-nano / gpt-5.3-chat-latest were later pruned — see Model Architecture Policy below).
-  - **Model Architecture Policy**: Introduced `docs_dev/model_architecture_policy.md` defining a baseline-architecture rule for the model catalog. The OpenAI rule: models that declare sampling params (`temperature`/`top_p`/`presence_penalty`/`frequency_penalty`) without explicitly disabling them, or that force bespoke UX paths, are removed from the catalog even before their official sunset.
-  - **Model Catalog Cleanup**: Removed 17 OpenAI models to conform to the new policy.
-    - Non-streaming / incomplete spec: `o1-pro`, `o3-pro`, `gpt-5-pro`, `o3-deep-research`, `o4-mini-deep-research`
-    - Sampling params declared (o-series): `o3`, `o3-mini`, `o4-mini`
-    - Sampling params declared (gpt-4.1): `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`
-    - Sampling params declared (chat-latest): `gpt-5-chat-latest`, `gpt-5.1-chat-latest`, `gpt-5.2-chat-latest`, `gpt-5.3-chat-latest`
-    - Long-thinking Pro tier (product-level exclusion): `gpt-5.4-pro`, `gpt-5.2-pro` — priced 4-10x base, drop standard chat capabilities, target async reasoning workflows incompatible with interactive chat UX.
-    - `providerDefaults`, gpt-4o successor pointers, and four OpenAI MDSL apps updated to reference the remaining baseline-compatible models.
-  - **GPT-5.5 Integration**: Added `gpt-5.5` (1M context, 128K output, Responses API, shares gpt-5.4 architecture). Policy baseline shifted from `gpt-5.4` to `gpt-5.5`; the gpt-5.4 family remains as a clean architectural subset. `providerDefaults.chat` keeps `gpt-5.4` at position 0 for cost-conscious defaults (gpt-5.5 is $5/$30 per 1M vs gpt-5.4 at $1.25/$10); gpt-5.5 is inserted after the 5.4 family.
-  - **Chat Model Dropdown Filter**: `filterModelsForAllMode` now excludes non-chat modalities (`tts_capability === true` and models with `embedding_dimensions`), preventing TTS / embedding entries from leaking into chat model selection dropdowns.
-  - **Build Process**: `npm run build:mac-arm64` / `build:win` / `build:linux-*` now rebuild the JS bundle (`build:js`) automatically before invoking electron-builder, preventing stale-bundle regressions in packaged builds.
+  - Security
+    - The build-time dependency `@xmldom/xmldom` is updated to 0.8.13 to fix high-severity advisories; the running app is unaffected
+  - Changes you may notice
+    - DeepSeek uses the V4 models by default; `deepseek-chat` and `deepseek-reasoner` are marked for retirement on 2026-07-24
+    - Claude Opus 4 and Claude Sonnet 4 are marked for retirement on 2026-06-15; Claude Opus 4.7 and Claude Sonnet 4.6 replace them
+    - 17 OpenAI models are removed: o1-pro, o3-pro, GPT-5 Pro, o3 Deep Research, o4-mini Deep Research, o3, o3-mini and o4-mini
+    - Also removed: GPT-4.1, GPT-4.1 mini, GPT-4.1 nano, GPT-5, GPT-5.1, GPT-5.2 and GPT-5.3 Chat Latest, GPT-5.4 Pro and GPT-5.2 Pro
+    - OpenAI apps that used a removed model now use one of the remaining models
+    - GPT-5.4 stays the default OpenAI chat model; GPT-5.5 is listed after the GPT-5.4 family
+  - New
+    - DeepSeek V4 Flash and DeepSeek V4 Pro, with 1M context, 384K output, and thinking with reasoning effort control
+    - GPT-5.5, with 1M context and 128K output
+  - Fixed
+    - OpenAI models offer only the reasoning effort values they accept, so requests no longer fail silently
+    - Chat model dropdowns no longer list TTS or embedding models
+  - For developers
+    - `npm run build:mac-arm64`, `build:win` and `build:linux-*` rebuild the JS bundle before packaging
+
 - [April, 2026] 1.0.0-beta.12
-  - **Expressive Speech — Instruction Mode (OpenAI `gpt-4o-mini-tts`)**: The assistant emits a separate voice directive (tone, pacing, emotion, pronunciation, pauses) that the engine reads but does not speak aloud. Two encodings coexist: JSON sibling key for Monadic apps, sentinel-prefix (`<<TTS:…>>`) for non-Monadic apps. The directive never appears in the chat transcript.
-    - New family `openai-instruction` in TTS dispatch (Ruby + JS mirror)
-    - System-prompt addendum generator selects JSON vs sentinel variant based on app Monadic state
-    - Streaming hold-back state machine suppresses the sentinel block from the UI during typewriter rendering
-    - History strip removes per-turn ephemeral TTS metadata from stored assistant messages (both encodings)
-    - UI indicator + localized tooltips distinguish markers vs instructions modes (7 locales)
-    - Voice dropdown gates `ballad` / `verse` / `marin` / `cedar` to `gpt-4o-mini-tts` only
-    - Monadic display renderer suppresses `tts_instructions` from the JSON section list
-    - SSOT: per-TTS-model metadata (`tts_family`, `tts_instructions_capability`, `tts_voices`) added to `model_spec.js` with Ruby accessors
-  - **AutoForge (Grok / OpenAI)**: Added explicit `finish_task` completion signal (already present in Claude variant) to match core tool parity. Reduces over-iteration on complex generation tasks.
+  - Changes you may notice
+    - The `ballad`, `verse`, `marin` and `cedar` voices are offered only with GPT-4o mini TTS
+  - New
+    - With GPT-4o mini TTS, the assistant adds voice directions (tone, pacing, emotion, pronunciation, pauses) that are neither spoken nor shown in the chat
+    - An indicator with tooltips in 7 languages shows whether voice markers or voice instructions are in use
+  - Fixed
+    - AutoForge (Grok and OpenAI) signals when a task is finished and stops iterating
+  - For developers
+    - In Monadic apps the voice direction goes in a `tts_instructions` JSON key; other apps use a `<<TTS:…>>` prefix
+    - `model_spec.js` lists each TTS model's family, instruction support and voices
+
 - [April, 2026] 1.0.0-beta.9
-  - **Ollama Integration Overhaul**: Dynamic model capability detection via `/api/show`, thinking/vision/tool calling/structured output support
-    - New apps: Voice Chat, Mail Composer for Ollama
-    - New endpoint: `/api/ollama/models` for dynamic model capability metadata
-    - Dynamic model list refresh (no server restart needed after `ollama pull`)
-  - **Bug Fix**: Ollama tool calling was completely non-functional (JSON string parsing missing in `format_tools_for_ollama`)
-  - **Bug Fix**: "Show Thinking" toggle ignored by 7 of 9 providers — fixed in shared `html_handler.rb`
-  - **Bug Fix**: Jupyter Notebook tool call loop — made `run_jupyter` idempotent, fixed ambiguous "already exists" responses
-  - **Improvement**: Disabled thinking/reasoning in code execution apps (Jupyter, Code Interpreter) to prevent excessive tool calls
-  - **Improvement**: Tool call cycle detection in ErrorPatternDetector (alternating pattern A→B→A→B detection across all providers)
-  - **Improvement**: Clarified UI button labels ("Text from file" / "Text from URL" / "Attach file") in 7 languages
-  - **Improvement**: Auto-rebuild JS bundle in `rake server:debug` when sources change
-  - **Improvement**: Translation duplicate key linter (`npm run test:translations-duplicates`)
-  - **Improvement**: API test retry with exponential backoff to prevent rate limiting failures
-  - **Bug Fix**: Gemini Jupyter empty response after notebook creation — added nudge retry mechanism
-  - **Bug Fix**: Gemini Jupyter false success message when only notebook created (no cells added)
-  - **Bug Fix**: Gemini Jupyter premature tool removal due to duplicate tool call counting
-  - **Bug Fix**: Claude text lost after tool calls — pre-tool text now preserved in final response
-  - **Bug Fix**: Grok Image Generator showed stale images after session reset — removed auto-attach
-  - **Bug Fix**: ContextExtractor Ollama endpoint hardcoded to `host.docker.internal` — now uses dynamic endpoint
-  - **Bug Fix**: `modelSpec` const reference not updated by dynamic Ollama merge — fixed with `Object.assign` into existing object
-  - **Improvement**: Default Show Thinking toggle to OFF for all providers
-  - **Improvement**: Default `reasoning_effort` to `"none"` in DSL; apps opt in with `"low"` or higher
-  - **Improvement**: Cache-Control no-cache headers in dev mode to prevent stale JS bundle
-  - **Improvement**: Translate app prompts improved with follow-up language handling
-  - **Improvement**: Softer sidebar badge colors, fixed image hover cursor
-  - **Cleanup**: Disabled OpenAI Video Generator (Sora API shutdown), removed 28 duplicate translation keys
+  - Changes you may notice
+    - `Show Thinking` is off by default for all providers
+    - Jupyter Notebook and Code Interpreter run without thinking, to avoid excessive tool calls
+    - Buttons read `Text from file`, `Text from URL` and `Attach file` in all 7 languages
+    - Sidebar badges use softer colors
+    - The OpenAI Video Generator is disabled because the Sora API has shut down
+  - New
+    - Ollama models are checked for thinking, vision, tool calling and structured output support
+    - Voice Chat and Mail Composer apps for Ollama
+    - The Ollama model list refreshes after `ollama pull` without a server restart
+  - Fixed
+    - Ollama tool calling works
+    - `Show Thinking` works with every provider
+    - Jupyter Notebook no longer loops on tool calls and gives clear answers when a notebook already exists
+    - Repeating tool call cycles (A→B→A→B) are detected and stopped with every provider
+    - Gemini Jupyter Notebook responds after creating a notebook, reports success only when cells are added, and keeps its tools
+    - Claude keeps text written before tool calls in the final response
+    - Grok Image Generator shows no old images after a session reset
+    - Context extraction with Ollama uses the configured Ollama endpoint
+    - Ollama model details take effect after the model list refreshes
+    - Translate handles a follow-up in another language better
+    - The cursor over images shows correctly
+  - For developers
+    - MDSL `reasoning_effort` defaults to `"none"`; set `"low"` or higher to opt in
+    - The `/api/ollama/models` endpoint returns Ollama model capability metadata
+    - `rake server:debug` rebuilds the JS bundle when sources change, and dev mode sends no-cache headers
+    - `npm run test:translations-duplicates` checks for duplicate translation keys
+    - API tests retry with exponential backoff on rate limits
+
 - [March, 2026] 1.0.0-beta.9
-  - Version updated from 1.0.0-beta.8
-  - **Major Backend Refactoring**: Eliminated all monolithic files (2,000+ lines)
-    - `websocket.rb` (3,400 lines) split into 9 sub-modules (connection_manager, streaming_handler, tts_handler, etc.)
-    - `monadic.rb` (1,700 lines) split into 5 route files (api, upload, session, static, pdf)
-    - `dsl.rb` (1,270 lines) split into 5 modules (configurations, loader, provider_config, tool_definitions, tool_formatters)
-    - `interaction_utils.rb` split into tts_utils, stt_utils, and tavily_utils
-    - `string_utils.rb` — markdown_utils extracted
-  - **Major Frontend Refactoring**: Modularized JavaScript codebase
-    - `websocket.js` (4,900 lines) split into 16 handler modules (ws-*-handler.js)
-    - `utilities.js` — 7 modules extracted (alert-manager, badge-renderer, card-renderer, cookie-utils, json-tree-toggle, model-capabilities, text-utils)
-  - **JS Bundle Build Pipeline**: 69 script files concatenated and minified into single bundle (46.7% size reduction)
-  - **Lazy Loading**: Mermaid, ABCjs, and maxgraph (~3.6 MB) deferred from initial page load
-  - **tiktoken_ruby Migration**: Replaced Python Flask tokenizer with native tiktoken_ruby gem (Rust binding)
-    - Eliminates Python container dependency for tokenization
-    - Port 5070 removed, Flask server deleted
-  - **providerDefaults SSOT**: Centralized model defaults in model_spec.js (8 categories: chat, code, vision, audio, image, video, tts, embedding)
-    - Removed all hardcoded model name fallbacks from agents and scripts
-  - **jQuery Complete Removal**: Eliminated jQuery 3.7.0 dependency entirely (45 files, ~4,600 call sites converted to vanilla JS)
-    - Bootstrap 5 modal/tooltip migrated to native JavaScript API
-    - 87KB library removed from page load
-    - DOM helper utilities (`$id`, `$show`, `$hide`, `$toggle`, `$on`, `$dispatch`) for concise null-safe DOM operations
-  - **jQuery UI Removal**: Removed jQuery UI dependency (248KB), replaced draggable with PointerEvents
-  - **MathJax → KaTeX**: Migrated math rendering from MathJax to KaTeX (75% JS size reduction: 1.1MB → 272KB)
-  - **Mistral Voxtral TTS**: Text-to-speech via Mistral API with 30 preset voices (9 languages: EN/FR/ES/DE/IT/PT/NL/HI/AR)
-  - **Mistral Voxtral STT**: Speech-to-text via Mistral API (13 languages including Japanese, Chinese, Korean)
-  - **Cohere Transcribe STT**: Speech-to-text via Cohere API (14 languages including Japanese) with automatic WebM-to-MP3 conversion
-  - **Docker Optimization**: On-demand container startup via Compose Profiles (Python/Selenium start only when needed, reducing idle resource usage)
-  - **Docker Optimization**: Python container no longer blocks Ruby container startup (parallel startup)
-  - **RuboCop**: Added linting with conservative config, detected and fixed 4 bugs
-  - **ExtraLogger**: Unified logging across 16 files
-  - **Mermaid Grapher**: User-language labels, _image vision verification, PNG cleanup
-  - **Model Lifecycle**: Removed 6 sunset models (5 Cohere + grok-3), deprecated model UI filtering
-  - **Tool Error Handling**: Standardized error format (❌ prefix) across all tool methods, enhanced error detection for Hash/JSON returns, prevents infinite tool call loops
-  - **AutoForge**: Fixed infinite loop when debug_application called without project name (auto-resolves to most recent project)
-  - **UI Improvements**: Tooltip hover-out behavior, status message visibility, scrollIntoView null crash fixes
-  - **Recording**: AudioContext.resume() async handling, native MediaRecorder preference over polyfill
-  - **Test Suite**: ~4,500 tests (Ruby 2,554 unit + 565 integration + 30 system, Frontend 1,203)
-  - **Session Stability**:
-    - Output truncation (50KB limit) for send_command/send_code to prevent LLM context bloat
-    - Automatic stripping of base64 image data from inactive session messages to prevent unbounded session growth
-    - Orchestration history expanded from 1 to 3 rounds for iterative Image/Video editing workflows
-  - **Docker Optimization**: pgvector restart policy changed to default (no), enabling Docker Resource Saver
-  - **Selenium Health Check**: Mermaid/DrawIO Grapher now verifies Selenium container health before session reuse
-  - **Build All Fix**: Includes all Compose profiles (python/selenium) in build/up/down/stop operations; emits SERVER STARTED signal so Electron transitions to Ready state after full build
-  - **UI Visibility Fix**: Reset → Start Session no longer leaves message area hidden (main-panel now synchronizes both d-none class and inline display style symmetrically)
+  - Changes you may notice
+    - Math renders with KaTeX, which replaces MathJax
+    - Pages load faster: one smaller JS bundle, no jQuery, and Mermaid, ABCjs and maxGraph load only when needed
+    - Python and Selenium containers start only when an app needs them
+    - The Ruby container starts without waiting for the Python container
+    - Token counting no longer uses the Python container, and port 5070 is no longer used
+    - The pgvector container no longer restarts on its own, so Docker Resource Saver can work
+    - Five Cohere models and Grok 3 are removed; deprecated models are hidden in the UI
+    - Command and code output sent to the model is cut at 50 KB
+    - Image data is removed from inactive session messages to keep sessions small
+    - Image and video editing keep the last 3 rounds of history
+  - New
+    - Mistral Voxtral text-to-speech with 30 voices in 9 languages (EN/FR/ES/DE/IT/PT/NL/HI/AR)
+    - Mistral Voxtral speech-to-text in 13 languages, including Japanese, Chinese and Korean
+    - Cohere Transcribe speech-to-text in 14 languages, including Japanese, with WebM recordings converted to MP3
+    - Mermaid Grapher writes labels in the user's language and checks the rendered image
+  - Fixed
+    - Tool errors show a consistent ❌ message, and repeated failing tool calls stop
+    - AutoForge debugging without a project name uses the most recent project instead of looping
+    - Tooltips hide on hover-out, status messages stay visible, and scrolling no longer crashes
+    - Voice recording starts reliably and uses the browser's native recorder
+    - Mermaid Grapher cleans up its PNG files
+    - Mermaid Grapher and DrawIO Grapher check that Selenium is healthy before reusing it
+    - `Build All` covers the Python and Selenium containers, and the app becomes ready afterward
+    - `Reset` then `Start Session` shows the message area
+  - For developers
+    - Frontend code uses the DOM helpers `$id`, `$show`, `$hide`, `$toggle`, `$on` and `$dispatch` instead of jQuery
+    - Frontend scripts are concatenated and minified into one bundle
+    - `providerDefaults` in `model_spec.js` sets default models for chat, code, vision, audio, image, video, TTS and embedding
+    - RuboCop linting is added
 
 - [March, 2026] 1.0.0-beta.8
-  - Version updated from 1.0.0-beta.7
-  - **Web Insight** (renamed from Visual Web Explorer): Screenshot-based web capture with browser automation
-    - Annotate elements tool for interactive web analysis
-    - Lightbox/zoom for screenshot gallery
-    - Automatic whitespace trimming for screenshots
-    - Perceptual hash deduplication for viewport screenshots
-  - **noVNC Live Preview**: Added to DrawIO Grapher and Mermaid Grapher for real-time diagram viewing
-  - **OpenAI File Inputs API**: Integration with file_id caching and extended format support
-  - **Mask Editor**: Added undo support and stroke-based drawing
-  - **Provider-Independent Agents**: ImageAnalysisAgent, VideoAnalyzeAgent, AudioTranscriptionAgent for multi-provider vision/audio support
-  - **MDSL Autonomy Levels**: Added autonomy configuration for app definitions
-  - **Electron noVNC Viewer**: Dedicated viewer window for container GUI applications
-  - **Install Options UI**: Consolidated into Settings panel tab (removed standalone window)
-  - **Model Lifecycle**: Added deprecated model metadata, UI filtering, and session auto-migration
-  - **Gallery HTML Pipeline**: Enhanced image display and vendor helper integration
-  - **Security**: Path traversal guard for agents with precise regex matching
-  - **Documentation**: EN/JA parity check script, updated diagram self-verification docs
+  - Security
+    - Agent file paths are checked to stay within allowed folders
+  - Changes you may notice
+    - Visual Web Explorer is renamed Web Insight
+    - Install Options is a tab in the Settings panel; the separate window is removed
+    - Deprecated models are hidden, and sessions using them switch models automatically
+  - New
+    - Web Insight captures web pages as screenshots with browser automation and can annotate page elements
+    - Web Insight screenshots open in a zoomable lightbox, with whitespace trimmed and duplicates removed
+    - DrawIO Grapher and Mermaid Grapher show a live noVNC preview of the diagram
+    - A viewer window shows GUI applications running in containers
+    - OpenAI file inputs accept more formats and reuse uploaded files
+    - Mask Editor supports undo and stroke drawing
+    - Image, video and audio analysis work with multiple providers
+    - Gallery image display is improved
+  - For developers
+    - MDSL supports autonomy levels for apps
+    - A script checks heading parity between English and Japanese docs
 
 - [February, 2026] 1.0.0-beta.7
-  - Version updated from 1.0.0-beta.6
-  - **Parallel Python Execution**: Added `parallel_run_code` shared tool for Code Interpreter
-    - Execute 2-5 independent Python code snippets simultaneously
-    - Real-time progress display via step_progress parallel mode
-    - Available across all 7 Code Interpreter provider variants
-  - **Music Lab** (renamed from Music Advisor):
-    - Audio file analysis using librosa + madmom (tempo, key, time signature, chord progressions, sections)
-    - MIDI file analysis using pretty_midi (tracks, instruments, note statistics, chord progressions)
-    - Audio/MIDI upload button with drag-and-drop modal UI
-    - HPSS (Harmonic-Percussive Source Separation) for improved chord detection accuracy
-    - Audio analysis libraries (librosa + madmom) available as optional install via Install Options
-    - Added Gemini and Grok provider support (now available for OpenAI, Claude, Gemini, Grok)
-    - Bar-aligned chord chart display for analysis results (4 bars per line, lead-sheet style)
-    - Key-aware ABC notation with proper key signatures (eliminates per-note accidentals)
-    - Default instrument changed from piano quarter notes to synth pad whole notes for progression playback
-    - Analysis no longer auto-plays — playback on user request only
-  - **ElevenLabs TTS Fix**: Fixed intermittent silent failures in text-to-speech playback
-    - Error responses now forwarded to frontend (previously swallowed silently)
-    - Added unique sequence IDs to prevent false duplicate audio detection
-  - **ABCJS Player Fix**: Fixed oversized playback controls via inline style enforcement and CSS layer correction
-  - **Security**: Added path traversal protection and server-side file extension validation for file upload routes
+  - Security
+    - File uploads check paths and validate file extensions on the server
+  - Changes you may notice
+    - Music Advisor is now called Music Lab
+    - Music Lab plays chord progressions with a synth pad in whole notes instead of piano quarter notes
+    - Music Lab analysis does not auto-play; playback starts only when you ask
+  - New
+    - Code Interpreter can run 2 to 5 independent Python snippets at once (`parallel_run_code`), with live progress, for every provider
+    - Music Lab analyzes audio files: tempo, key, time signature, chord progressions and sections, with more accurate chord detection
+    - Music Lab analyzes MIDI files: tracks, instruments, note statistics and chord progressions
+    - Music Lab has an audio/MIDI upload button with drag and drop
+    - The audio analysis libraries are an optional install in `Install Options` (rebuild the Python container)
+    - Music Lab is available for Gemini and Grok as well as OpenAI and Claude
+    - Music Lab shows analysis results as a lead-sheet chord chart, four bars per line
+    - Music Lab writes ABC notation with proper key signatures instead of per-note accidentals
+  - Fixed
+    - ElevenLabs text-to-speech plays reliably and shows an error when playback fails
+    - Audio segments are no longer skipped as false duplicates
+    - ABC notation playback controls display at normal size
 
 - [November 15, 2024] Recent Updates
-  - **Claude Structured Outputs Support**: Added monadic mechanism for Claude models
-    - Implemented structured outputs using beta header `structured-outputs-2025-11-13`
-    - Added support for Claude Sonnet 4.5 and Claude Opus 4.1 models
-    - Created monadic versions of Chat Plus and Language Practice Plus apps for Claude
-    - Model capability detection via `ModelSpec.supports_structured_outputs?`
-    - Automatic `output_format` configuration with JSON schema validation
-    - Incompatible with thinking mode - automatic fallback to regular JSON mode
-    - Beta header management supports multiple beta features in single request
-    - Comprehensive test coverage for structured output configuration and response processing
+  - Changes you may notice
+    - With thinking enabled, the Claude versions of these apps use regular JSON mode instead of structured outputs
+  - New
+    - Chat Plus and Language Practice Plus are available for Claude, using structured outputs with Claude Sonnet 4.5 and Claude Opus 4.1
 
 - [November 14, 2024] Recent Updates
-  - **Monadic Response Processing Fix**: Resolved double JSON encoding issue
-    - Fixed `process_monadic_response` to return Hash instead of JSON string
-    - Fixed `ensure_valid_monadic_json` to return Hash instead of JSON string
-    - Fixed `validate_monadic_response` to return Hash for consistency
-    - Removed String branch in OpenAI helper that caused double encoding
-    - Fixed JavaScript `_looksLikeMonadicJson` to return proper boolean
-    - Resolves Chat Plus structured output display issues
-    - Ensures consistent data flow: single JSON serialization at output stage
-    - Updated tests to reflect implementation changes
+  - Fixed
+    - Chat Plus displays structured output correctly
 
 - [October 22, 2024] 1.0.0 - First Stable Release
-  - **Production Ready**: Comprehensive testing with 317 passing tests
-  - **Electron 38.3.0**: Updated to latest stable Electron for improved performance and security
-  - **Enhanced Stability**: Fixed all test suite issues for reliable operation
-  - **Comprehensive Documentation**: Complete English and Japanese documentation with verified links
-  - **Multi-Platform Support**: Verified builds for macOS (Apple Silicon), Windows, and Linux (Intel Mac not supported)
-  - **20+ Built-in Apps**: Production-ready applications including Code Interpreter, PDF Chat, AutoForge, Video Analysis
-  - **9 AI Providers**: OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, xAI, DeepSeek, Ollama
-  - **Advanced Features**:
-    - Web UI STT model selection with speaker diarization
-    - Multimodal interactions (text, image, video, audio)
-    - JupyterLab integration for data science workflows
-    - PDF knowledge base (local PGVector + cloud OpenAI Vector Store)
-    - Voice interaction with TTS/STT support
+  - Changes you may notice
+    - The app runs on Electron 38.3.0
+    - Builds are available for macOS (Apple Silicon), Windows and Linux; Intel Macs are not supported
+  - New
+    - First stable release, with complete documentation in English and Japanese
+    - Over 20 built-in apps, including Code Interpreter, PDF Chat, AutoForge and Video Analysis
+    - Nine AI providers: OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, xAI, DeepSeek and Ollama
+    - Speech-to-text model selection in the Web UI, with speaker diarization
+    - Multimodal interaction with text, images, video and audio
+    - JupyterLab integration for data science work
+    - PDF knowledge base, stored locally (PGVector) or in the cloud (OpenAI Vector Store)
+    - Voice interaction with text-to-speech and speech-to-text
     - MCP (Model Context Protocol) server integration
-  - **Developer Experience**: Comprehensive testing infrastructure, debugging tools, and extensible architecture
-  - **Acknowledgments**: Thanks to all contributors and beta testers who helped shape this release
 
 - [October 10, 2024] Recent Updates
-  - **Gemini STT Support**: Added Google Gemini as speech-to-text provider
-    - New option: gemini-2.5-flash in STT_MODEL settings
-    - Supports all major audio formats (WAV, MP3, AAC, OGG, FLAC, AIFF)
-    - Automatic routing based on selected model
-    - Flexible language recognition: Language setting acts as hint, not constraint
-    - Handles multilingual input and code-switching naturally
-    - Matches OpenAI STT behavior for consistent user experience
-    - Focused transcription: Excludes audio descriptions (sound effects, audio characteristics)
-    - Japanese spacing normalization: Removes morpheme-level spaces for natural Japanese text
-    - Requires GEMINI_API_KEY configuration
-  - **Realtime TTS Improvements**: Enhanced buffer management for smoother playback
-    - Reduced buffer threshold from 60 to 50 characters for faster response
-    - Reduces initial audio delay while maintaining API efficiency
-    - Improved handling of sentence boundaries in streaming responses
-  - **TTS UI Enhancement**: Visual feedback for audio playback control
-    - Stop button now highlights with pulsing animation during TTS playback
-    - Works with both manual Play button and Auto TTS modes
-    - Automatically clears when playback completes or Stop button clicked
-    - Improves user awareness of active audio and available controls
-  - **PDF Export Improvements**: Enhanced document-oriented output
-    - Replaced Bootstrap card layout with simple message structure for better pagination
-    - Added i18n support for header labels (7 languages: en, ja, zh, ko, de, fr, es)
-    - Added provider information to PDF header (App, Provider, Model, Exported)
-    - Removed page-break restrictions on message containers for better space utilization
-    - Text paragraphs can now break naturally across pages
-    - Images, code blocks, tables, and formulas still protected from page breaks
-  - **Video Generator Parameter Fix**: Corrected Sora 2 API specifications
-    - Fixed size parameter: removed unsupported 1920x1080, 1080x1920
-    - Added correct sizes: 1280x720, 720x1280, 1792x1024, 1024x1792
-    - Fixed duration parameter: replaced 16 with 12 seconds
-    - Resolves "Invalid value" errors from OpenAI Video API
-  - **OpenAI Chat Default Model**: Changed to gpt-5-chat-latest
-    - Updated from gpt-5-mini for better out-of-box experience
-    - gpt-5-chat-latest specs: 128K context, structured outputs, web search, image generation
-  - **GPT-5 Model Categorization**: Improved model dropdown organization
-    - Moved gpt-5-chat-latest and gpt-5-pro to "GPT-5 (Latest)" category
-    - Removed special case exclusion for gpt-5-chat-latest
-  - **OpenAI Web Search Fix**: Updated tool name for new API
-    - Changed web_search_preview to web_search
-    - Fixes "Web search preview tool is not supported" error
-    - Applies to all GPT-5, GPT-4.1, O3, and O4 models with web search support
+  - Changes you may notice
+    - The OpenAI Chat app defaults to GPT-5 Chat (128K context, structured outputs, web search, image generation) instead of GPT-5 mini
+    - GPT-5 Chat and GPT-5 Pro appear under "GPT-5 (Latest)" in the model list
+    - Video Generator offers Sora 2 sizes 1280x720, 720x1280, 1792x1024 and 1024x1792; 1920x1080 and 1080x1920 are gone
+    - Video Generator offers 12 seconds instead of 16 as a Sora 2 duration
+    - PDF export uses a simple message layout: text breaks across pages, while images, code blocks, tables and formulas stay whole
+  - New
+    - Gemini 2.5 Flash is available as a speech-to-text model in `STT_MODEL`; it requires `GEMINI_API_KEY`
+    - Gemini speech-to-text accepts WAV, MP3, AAC, OGG, FLAC and AIFF, and treats the language setting as a hint
+    - Gemini speech-to-text handles multilingual speech and code-switching, omits sound descriptions, and removes extra spaces in Japanese
+    - Realtime text-to-speech starts speaking sooner and handles sentence boundaries better
+    - The Stop button pulses while text-to-speech plays, with both the Play button and Auto TTS
+    - PDF export headers show App, Provider, Model and Exported, labeled in seven languages
+  - Fixed
+    - Video Generator no longer returns "Invalid value" errors with Sora 2
+    - OpenAI web search works with GPT-5, GPT-4.1, o3 and o4 models
 
 - [October 5, 2024] Recent Updates
-  - **MDSL Validator Fix**: Fixed method name error in Visual Web Explorer
-    - Changed `ModelSpec.get_spec()` to `ModelSpec.get_model_spec()`
-    - Resolved "undefined method 'get_spec'" errors preventing app initialization
-  - **Container Build Improvements**: Fixed incorrect image tagging
-    - Removed monadic-chat tagging from Python container builds
-    - Removed monadic-chat operations from User container builds
-    - Prevents unnecessary Ruby rebuilds after Python/User container updates
-    - Added FORCE_REBUILD support for explicit no-cache rebuilds from menu
-  - **Selenium Container Management**: Enhanced usability and configuration
-    - Selenium now always enabled (config flag removed)
-    - Added start-selenium and stop-selenium commands for immediate control
-    - Removed automatic container deletion when disabled
-    - Removed profiles requirement - Selenium always available
-    - Auto-build Selenium image if missing when starting
-    - Updated menu translations across all 7 languages
-  - **OpenAI Responses API Fix**: Fixed reasoning content persistence
-    - Changed store parameter from false to true
-    - Resolves "Item not found" errors in multi-turn conversations with reasoning models
-  - **Install Options UI**: Simplified Selenium management
-    - Removed Selenium from Install Options panel
-    - Selenium now controlled exclusively via menu commands
-    - Added install option build args to Python compose.yml
-  - **UI Button Logic**: Simplified URL/document handling
-    - Always show #url and #doc buttons in monadic.js
-    - Backend handles Selenium/Tavily routing automatically
-  - **Chord Accompanist Enhancement**: Improved user experience
-    - Enabled initiate_from_assistant for greeting message
-    - Assistant now proactively guides users through requirements
+  - Changes you may notice
+    - Selenium is always enabled; its configuration flag is ignored
+    - Selenium is no longer in `Install Options`; start and stop it from the menu, in all seven languages
+    - Starting Selenium builds its image when it is missing
+    - The URL and document buttons are always shown; Selenium or Tavily is chosen automatically
+    - Chord Accompanist greets you and guides you through what it needs
+  - Fixed
+    - Visual Web Explorer starts without errors
+    - Updating the Python or User container no longer triggers a Ruby container rebuild
+    - Multi-turn conversations with OpenAI reasoning models no longer fail with "Item not found"
+  - For developers
+    - `FORCE_REBUILD` forces a no-cache rebuild when building from the menu
+    - The Python compose file passes the install options as build arguments
 
 - [September 9, 2024] Install Options Rebuild, Atomic Update, Caching
-  - Install Options: Added progress stream and build summary (logs/health) in the window after Save → Rebuild
-  - Atomic Python image update: Build to temp tag → verify → retag only on success; failures keep current image
-  - Per-run logs: `~/monadic/log/build/python/<timestamp>/` with `docker_build.log`, `post_install.log`, `health.json`, `meta.json`
-  - Health checks: Verify LaTeX (`pdflatex`), ImageMagick (`convert`), and selected Python libs (nltk, spacy, scikit-learn, gensim, librosa, mediapipe, transformers)
-  - Error handling: Safer saving of Install Options with clear dialogs on failure
-  - Dockerfile caching: Split base pip layer and optional libs per RUN; removed `--no-cache` from Python build to leverage cache
+  - Changes you may notice
+    - A failed Python container build keeps the current image in place
+    - Python container builds use the Docker cache and finish faster
+  - New
+    - After Save → Rebuild, `Install Options` shows build progress and a summary with logs and health results
+    - Each build writes `docker_build.log`, `post_install.log`, `health.json` and `meta.json` to `~/monadic/log/build/python/<timestamp>/`
+    - Health checks verify LaTeX (`pdflatex`), ImageMagick (`convert`) and the selected Python libraries
+  - Fixed
+    - Saving `Install Options` shows a clear dialog when it fails
 
 - [August 27, 2024] Latest Updates
-  - **Thinking/Reasoning Process Display**: Comprehensive implementation across all providers
-    - Fixed Cohere thinking fragment concatenation (word-level fragments)
-    - Implemented Perplexity dual-format support (JSON + XML tags)
-    - Added fragment suppression for tag-based formats to prevent duplicate display
-    - Fixed temp-reasoning-card header text color for visual consistency
-    - Created comprehensive test coverage (57 examples across 8 providers)
-    - Test files: openai_reasoning, claude_thinking, deepseek_reasoning, gemini_thinking
-    - Updated documentation: docs_dev/ruby_service/thinking_reasoning_display.md
-  - **UI/UX Improvements and Bug Fixes**
-    - Second Opinion App: Fixed Japanese text display issue in temp-card
-    - Cancel Query Button: Fixed spinner visibility and adjusted height to 28px
-    - OpenAI GPT-5 Responses API: Added full support for images and PDFs
-    - Scroll Buttons: Complete redesign with dark theme, smooth animations, and better positioning
-    - Image Generator Mask Editing: Enhanced recognition with mask__ prefix and input_fidelity parameter
+  - Changes you may notice
+    - Scroll buttons have a new dark design, smoother animation and a better position
+  - New
+    - The reasoning process is shown separately for every provider that exposes it
+    - GPT-5 accepts images and PDFs
+    - Image Generator recognizes mask images whose names start with `mask__` for editing
+  - Fixed
+    - Cohere reasoning appears as continuous text instead of word fragments
+    - Perplexity reasoning appears in the reasoning display
+    - Reasoning text appears once, not twice
+    - The reasoning card header text color matches the rest of the card
+    - Second Opinion shows Japanese text correctly in its progress card
+    - The cancel button shows its spinner and is 28px high
 
 - [August 24, 2024] Recent Updates
-  - **GPT-5 Streaming Duplicate Fix**: Resolved duplicate character issue during streaming
-    - Fixed duplicate characters appearing during GPT-5, GPT-4.1, and chatgpt-4o streaming
-    - Server-side: Skip redundant response.in_progress events for these models
-    - Client-side: Enhanced duplicate detection with index-based and timestamp fallback
-    - Prevents false positives with legitimate repeated characters
-    - Debug mode available: `window.debugFragments = true` in browser console
-    - Added 9 comprehensive test cases for streaming scenarios
-  - **Comprehensive AI User Translation**: Fixed all UI elements for non-English languages
-    - Translated all AI User tooltips, spinners, and alert messages
-    - Fixed Claude API error: "messages: at least one message is required"
-    - Translated role selector options dynamically
-    - Unified terminology: "AI Assistant" and "AI User" across all languages
-  - **Provider Capability Clarifications**: Updated provider compatibility matrix
-    - Removed Code Interpreter app for Perplexity (no tool calling support)
-    - Confirmed Perplexity cannot execute code, only provide suggestions
-    - Updated documentation to reflect accurate provider capabilities
+  - Changes you may notice
+    - Code Interpreter is no longer offered for Perplexity, which cannot run code
+    - The labels "AI Assistant" and "AI User" are used consistently in every language
+  - Fixed
+    - Streaming with GPT-5, GPT-4.1 and ChatGPT-4o shows no duplicated characters; genuinely repeated characters stay
+    - AI User tooltips, spinners, alerts and role selector options appear in the selected language
+    - AI User with Claude no longer fails with "messages: at least one message is required"
+  - For developers
+    - Set `window.debugFragments = true` in the browser console to debug streaming fragments
 
 - [August 23, 2024] Recent Updates
-  - **Comprehensive Language Selector**: Unified language control for UI and AI
-    - Moved language selector from settings panel to info panel for better visibility
-    - Single selector controls STT, TTS, and AI response language
-    - 57 languages supported with native names display (e.g., "日本語 (Japanese)")
-    - Language preference automatically injected into system prompts
-    - Proper "auto" handling to prevent API errors
-    - Works seamlessly with initiate_from_assistant mode
-    - All WebSocket messages now carry interface_language parameter
+  - Changes you may notice
+    - The language selector is in the info panel instead of the settings panel
+  - New
+    - One language selector sets the speech-to-text, text-to-speech and AI response language, including for apps that start from the assistant
+    - 57 languages are listed with their native names, e.g. "日本語 (Japanese)"
+  - Fixed
+    - Choosing "auto" as the language no longer causes API errors
 
 - [August 22, 2024] Recent Updates
-  - **Unified Error Formatting System**: Consistent error messages across all providers
-    - Implemented centralized error formatter for all 8 AI providers
-    - Standardized format: `[Provider] Category: Message (Code: XXX) Suggestion: Action`
-    - User-friendly suggestions for common issues (e.g., API key setup instructions)
-    - Categories: API Key Error, API Error, Network Error, Parsing Error, Tool Execution Error
-    - Clear provider identification in all error messages
-  - **DeepSeek Strict Function Calling**: Beta API integration for improved reliability
-    - Automatic schema conversion with ALL properties in required arrays
-    - Special marker filtering (`<｜tool▁call▁end｜>`) from streaming responses
-    - Enabled by default for deepseek-chat model
-    - Significantly improves Code Interpreter parameter parsing
-    - 12 comprehensive tests for schema conversion logic
-  - **Cohere Reasoning Model**: Added command-a-reasoning-08-2025
-    - 256K context window, 32K output capacity
-    - Known limitation: Error 422 with thinking + assistant messages
-    - Enhanced debugging for API request/response analysis
-    - 9 tests for conversation formatting workarounds
+  - Changes you may notice
+    - Errors from every provider use one format: `[Provider] Category: Message (Code: XXX) Suggestion: Action`
+    - Error messages suggest what to do, such as how to set up an API key
+    - Command A Reasoning can return error 422 when thinking is on and the conversation has assistant messages
+  - New
+    - DeepSeek Chat uses strict function calling by default, so Code Interpreter passes tool arguments more reliably
+    - Cohere Command A Reasoning is available, with a 256K context window and 32K output
+  - Fixed
+    - DeepSeek responses no longer show tool-call markers
 
 - [August 16, 2024] Previous Updates
-  - **Monadic Mode Investigation**: Comprehensive testing of Claude's compatibility
-    - Confirmed fundamental incompatibility between Claude's thinking mode and JSON structure
-    - Claude, Gemini, and Grok require `monadic: false` for tool-heavy applications
-    - Only OpenAI successfully combines monadic mode with extensive tool usage
-    - Documented technical limitations and future considerations
-  - **Jupyter Notebook Configuration**: Optimized provider-specific settings
-    - Reverted Claude to `monadic: false` for stable tool execution
-    - Fixed context formatting issues from workload management changes
-    - Corrected font configurations to use pre-installed Noto Sans CJK JP
-  - **Documentation Enhancements**: Updated technical and user documentation
-    - Added provider compatibility matrix for monadic mode + tools
-    - Documented Claude's specific limitations with thinking blocks
-    - Enhanced both English and Japanese docsify documentation
+  - Changes you may notice
+    - Jupyter Notebook with Claude runs without monadic mode, so tools execute reliably
+  - Fixed
+    - Jupyter Notebook keeps its context formatted correctly
+    - Jupyter Notebook uses the preinstalled Noto Sans CJK JP font
+  - For developers
+    - Documentation (English and Japanese) lists which providers combine monadic mode with tools; Claude, Gemini and Grok need `monadic: false` for tool-heavy apps
+    - Documentation describes Claude's limitations with thinking blocks
 
 - [August 14-15, 2024] Recent Updates
-  - **Claude Performance Optimizations**: Improved tool calling efficiency
-    - Implemented batch processing for multiple tool calls in single API request
-    - Set `reasoning_effort: minimal` for all Claude Sonnet 4 function-calling apps
-    - Fixed minimum thinking_budget_tokens (1024) requirement for minimal mode
-    - Significantly improved Jupyter Notebook cell addition performance
-  - **Workload Management Feature**: Improved user control over batch vs step-by-step execution
-    - Initial greeting now mentions batch processing option for efficiency
-    - Users can request step-by-step execution at any time
-    - Default is batch processing for efficiency
-    - Automatically notifies for very large tasks (>20 cells for Jupyter, >5 executions for Code Interpreter)
-  - **Matplotlib Best Practices**: Added guidance to prevent common plotting errors
-    - Japanese fonts (Noto Sans CJK JP) pre-configured in containers
-    - Fixed incorrect font specifications in Jupyter Notebook prompts
-    - LaTeX annotation syntax corrections
-    - Deprecated function updates (get_cmap, seaborn styles)
-    - Prevents mixing LaTeX with non-ASCII text in annotations
-  - **Math Tutor Consolidation**: Unified implementation across all providers
-    - Created shared `math_tutor_constants.rb` module with common prompts and settings
-    - All Math Tutor MDSL files now reference shared constants
-    - Reduces duplication from 4 x 144 lines to 1 x 150 lines of shared code
-    - DSL loader enhanced to auto-load `*_constants.rb` files alongside tools
-  - **Unified Error Handling System**: Consistent error messages across all providers
-    - Standardized format: `Error: [Category] - Message. Suggestion (Code: XXX)`
-    - Smart error categorization with actionable suggestions
-    - Progressive migration starting with Jupyter and Grok helpers
-  - **MathJax Enhancement**: Fixed math rendering in header tags
-    - Modified configuration to process h1-h6 tags
-    - Added best practices to Math Tutor prompts
-  - **Grok Jupyter Notebook**: Resolved filename timestamp issues
-    - Implemented post-processing workaround for Grok's API limitations
-    - Ensures users always see correct notebook filenames
-  - **Math Tutor Expansion**: Added support for Claude, Gemini, and Grok
-    - Previously OpenAI-only, now available for all major providers
-  - **Testing Infrastructure**: Expanded to 1253 comprehensive tests
-    - Enhanced test reliability with real implementation tests
-    - Improved coverage across all components
-  - **Gemini 2.5 Function Calling**: Fixed function calling with reasoning_effort parameter
-    - Discovered fundamental trade-off: Cannot have both function calling and structured JSON output
-    - Function calling requires `reasoning_effort: minimal` for Gemini 2.5 models
-    - Structured output (monadic mode) requires NO reasoning_effort parameter
-    - Migrated most apps to gemini-2.5-flash for better cost/performance ratio
-    - Separated info-gathering tools from action tools to prevent exhausting tool call limits
-  - **Jupyter Notebook**: Added Gemini and Grok support
-    - Full function calling support for Jupyter operations
-    - Natural language responses with embedded notebook links
-    - Optimized for each provider's capabilities
-  - **GPT-5 Models**: Full implementation for OpenAI GPT-5 series
-    - gpt-5, gpt-5-mini, gpt-5-nano with 400K context window
-    - 128K max output tokens and reasoning token support
-    - Uses Responses API for enhanced tool handling and structured outputs
-    - Supports "minimal" reasoning effort for optimal performance
-    - Model fallback mechanism: Primary GPT-5, fallback to GPT-4.1
-    - Proper structured output via text.format with JSON Schema (not response_format)
-    - Fixed tool continuation and function_call format requirements
-    - Documentation updated in English and Japanese for GPT-5 specifics
-  - **GPT-5 Verbosity Support**: Added configurable output length control
-    - New `verbosity` parameter in MDSL files: "high", "medium", or "low"
-    - Works with both Chat Completions and Responses API
-    - Optimizes latency by controlling output token generation
-  - **Performance Improvements**:
-    - Fixed "This may take a while" message to only show for truly slow models (o3, o3-pro)
-    - Added timeout handling with user-friendly error messages
-    - Default 120 seconds timeout for commands, configurable per operation
-  - **Syntax Tree App Enhancements**:
-    - Improved binary branching enforcement with stronger prompts
-    - Better error handling for LaTeX/SVG generation
-    - Removed language-specific examples for universal applicability
-  - **Testing Infrastructure**:
-    - Replaced mock-based tests with actual implementation tests
-    - More reliable test coverage catching real integration issues
-    - Test suite: 1253 examples, 0 failures
-  - **Monadic Apps Fix**: Fixed context display for all monadic apps using GPT-5
-    - Language Practice Plus, Chat Plus, and others now properly show context in UI
-    - Fixed both Chat Completions and Responses API handlers
-    - Added type safety for Hash, String, and other response types
-  - **GPT-5 Token Limits**: Set appropriate defaults based on official specs
-    - All GPT-5 variants: 128K max output tokens (400K context window)
-    - Automatic fallback to model defaults when not specified in MDSL
+  - Changes you may notice
+    - Claude Sonnet 4 apps with function calling use minimal reasoning effort
+    - Jupyter Notebook and Code Interpreter run tasks in batches by default; ask for step-by-step execution at any time
+    - The greeting mentions batch execution, and very large tasks (over 20 cells or 5 executions) trigger a notice
+    - Most Gemini apps use Gemini 2.5 Flash by default
+    - Gemini 2.5 apps cannot combine function calling with monadic mode
+    - GPT-5 falls back to GPT-4.1 when needed
+    - Jupyter Notebook and Grok apps show errors as `Error: [Category] - Message. Suggestion (Code: XXX)`
+    - The "This may take a while" message appears only for o3 and o3-pro
+    - Commands time out after 120 seconds by default, with a clear error message
+    - Syntax Tree enforces binary branching more strictly and uses language-neutral examples
+  - New
+    - GPT-5, GPT-5 mini and GPT-5 nano are supported, with a 400K context window, 128K output and minimal reasoning effort
+    - Math Tutor is available for Claude, Gemini and Grok
+    - Jupyter Notebook is available for Gemini and Grok, with notebook links in replies
+    - Claude makes several tool calls in one request, so Jupyter Notebook adds cells faster
+  - Fixed
+    - Claude apps with minimal reasoning effort run without thinking budget errors
+    - Jupyter Notebook plots use the preinstalled Noto Sans CJK JP font and avoid common Matplotlib errors with LaTeX and deprecated functions
+    - Grok Jupyter Notebook shows correct notebook filenames
+    - Math in headings renders
+    - Gemini 2.5 function calling works
+    - Gemini apps no longer run out of tool calls while gathering information
+    - GPT-5 continues correctly after tool calls and returns structured output
+    - Monadic apps with GPT-5, such as Language Practice Plus and Chat Plus, show their context
+  - For developers
+    - MDSL accepts `verbosity` ("high", "medium" or "low") to control GPT-5 output length
+    - GPT-5 max output tokens default to 128K when the MDSL file does not set them
+    - `*_constants.rb` files in an app folder load automatically with its tools; Math Tutor variants share one
 
 - [June, 2024] Recent Updates
-  - **Security**: Path traversal protection for file operations
-    - Validates file paths are within allowed directories
-    - Prevents symlink-based attacks with `File.realpath`
-    - Proper shell escaping for command execution
-  - **Bug Fixes**: Provider-specific issues resolved
-    - OpenAI Responses API: Fixed hash initialization for tool calls
-    - Gemini: Fixed tool response role (user vs model)
-    - DeepSeek: Added support for text-based function calls
-  - **Gemini Native Search**: Google Gemini now uses native search API
-    - No additional API key required for web search with Gemini
-  - **Gemini Model Updates**: Standardized default models across all Gemini apps
-    - Code execution apps: `gemini-2.5-pro` (Code Interpreter, Coding Assistant, Research Assistant)
-    - Other apps: `gemini-2.5-flash`
-  - **Test Infrastructure**: Major improvements to test stability and organization
-    - Consolidated duplicate tests and improved naming consistency
-    - Relaxed timeouts and expectations for better reliability
-    - Fixed parameter passing issues for Claude and other providers
-  - **Documentation**: Updated provider documentation to reflect native search capabilities
+  - Security
+    - File operations stay within allowed directories, including through symlinks
+    - Shell commands escape their arguments
+  - Changes you may notice
+    - Code Interpreter, Coding Assistant and Research Assistant use Gemini 2.5 Pro by default; other Gemini apps use Gemini 2.5 Flash
+  - New
+    - Gemini uses Google's native web search, with no extra API key
+  - Fixed
+    - OpenAI tool calls work
+    - Gemini tool responses work
+    - DeepSeek tool calls written as text are executed
 
 - [June, 2024] Recent Updates
-  - **Beta Release**: First beta release for version 1.0.0
-  - **New Apps**: Concept Visualizer (LaTeX/TikZ diagrams), Syntax Tree (linguistic analysis)
-  - **Ollama Support**: Local LLM integration with automatic model management
-  - **O3 Series Support**: OpenAI o3 and o3-pro models (o3-pro uses responses API)
-  - **AI-Driven Web Search**: Replaced heuristic detection with AI-driven approach
-    - AI models now decide when to use web search based on context
-    - Chat apps: Web search disabled by default
-    - Research Assistant apps: Web search enabled by default
-    - OpenAI: Uses responses API with native web_search_preview tool for gpt-4.1/gpt-4.1-mini
-    - Configuration option to force Tavily: `USE_TAVILY_FOR_OPENAI=true`
-    - Fixed Responses API content type issue (tool messages excluded from input)
-  - **Performance**: Faster command execution, improved audio processing
-  - **UI Improvements**: Provider colors, API key warnings, model switch notifications
+  - Changes you may notice
+    - The AI decides when to search the web; search is off by default in Chat apps and on in Research Assistant
+    - OpenAI GPT-4.1 and GPT-4.1 mini use native web search; set `USE_TAVILY_FOR_OPENAI=true` to use Tavily instead
+  - New
+    - First beta release of version 1.0.0
+    - New apps: Concept Visualizer (LaTeX/TikZ diagrams) and Syntax Tree (linguistic analysis)
+    - Ollama runs local models, with automatic model management
+    - OpenAI o3 and o3-pro are supported
+    - Provider colors, API key warnings and model switch notifications appear in the UI
+  - Fixed
+    - OpenAI requests that include tool results work
+    - Commands run faster and audio processing is improved
 
 - [May, 2024] 0.9.982
-  - Improved text-to-speech with OpenAI, Elevenlabs, and Google Gemini models
-  - OpenAI and Anthropic models support native web search
-  - xAI Grok models now support native web search via Live Search API
-  - Update mechanism changed to manual download only (no automatic updates)
+  - Changes you may notice
+    - Updates are by manual download only; there are no automatic updates
+  - New
+    - Text-to-speech is improved with OpenAI, ElevenLabs and Google Gemini models
+    - OpenAI, Anthropic and xAI Grok models use native web search
+
 - [May, 2024] 0.9.93
-  - Web Speech API (macOS and Windows) support for text-to-speech
-  - Image generation app updated to support gpt-image-1 with image editing
-  - Issues with copy-to-clipboard built-in browser for macOS fixed
-  - Issues with text-to-speech and speech-to-text in built-in browser fixed
-  - Code Interpreter app support for xAI Grok models added 
+  - New
+    - Web Speech API text-to-speech on macOS and Windows
+    - Image Generator supports GPT Image 1, including image editing
+    - Code Interpreter is available for xAI Grok
+  - Fixed
+    - Copy to clipboard works in the built-in browser on macOS
+    - Text-to-speech and speech-to-text work in the built-in browser
+
 - [April, 2024] 0.9.85
-  - Built-in browser introduced for web UI
-  - Server mode (distributed mode) support added: Allows multiple clients
-  - Better MathJax rendering
-  - Asset inclusion issue fixed
-  - Small UI modifications
+  - Changes you may notice
+    - Small UI adjustments
+  - New
+    - A built-in browser shows the web UI
+    - Server mode (distributed mode) lets multiple clients connect
+  - Fixed
+    - MathJax renders math better
+    - Assets are included correctly
+
 - [April, 2024] 0.9.83
-  - Better Markdown rendering with CommonMark support
-  - Improved new version notification and update process
-  - Added environment variables for configuring default models for each provider (OPENAI_DEFAULT_MODEL, ANTHROPIC_DEFAULT_MODEL, etc.)
-  - Enhanced Monadic DSL to support default model configuration from environment variables
-  - AI User feature significantly improved
-  - Optimized container rebuilding process: Only rebuilds affected containers during version updates
-  - Added container version tracking to avoid unnecessary full rebuilds
-  - Reset button behavior change to preserve current app selection
-  - Improved card UI and visual styling for message display, code blocks, and syntax highlighting
-  - Many UI improvements and bug fixes (role selection, message editing, etc.)
-  - TTS replacement dictionary feature availability and stability improvements 
+  - Changes you may notice
+    - Reset keeps the current app selected
+    - Version updates rebuild only the containers that changed
+    - New version notifications and the update process are improved
+  - New
+    - Markdown renders with CommonMark support
+    - Set the default model per provider with `OPENAI_DEFAULT_MODEL`, `ANTHROPIC_DEFAULT_MODEL` and similar settings
+    - AI User is much improved
+    - Message cards, code blocks and syntax highlighting have improved styling
+  - Fixed
+    - Role selection, message editing and other UI issues are fixed
+    - The TTS replacement dictionary is available and stable
+  - For developers
+    - MDSL default models can come from the default model settings
+
 - [March, 2024] 0.9.76
-  - Added testing infrastructure for both Ruby (RSpec) and JavaScript (Jest) code with initial test suites
-  - Changed project license from MIT to Apache License 2.0
-  - Default syntax highlighting theme changed to pastie for better readability
-  - Fixed display issues with code blocks in dark themes
-  - Improved message editing: last message now moves to input area with role selected
-  - Simplified message deletion with clearer options ("Delete this message and below")
-  - Fixed copy functionality to avoid CSS artifacts
-  - TTS related bug fixes
-  - Two ways to delete a message: "Delete this message and below" and "Delete this message only"
-  - Perplexity apps support "initiate_from_assistant"
-  - Voice Chat/Mail Composer/Language Practice apps support multiple model providers
-  - Mistral model handling issue fixed
-  - Add support for new OpenAI speech-to-text models (gpt-4o-mini-transcribe, gpt-4o-transcribe)
-  - Update audio format handling for optimal compatibility with different STT models
-  - Add STT_MODEL selection in settings
-  - OpenAI models and Google Gemini models support PDF input
-  - DrawIO Grapher app added
-  - Image generation app added for Google Gemini (Imagen)
-  - OpenAI's web search feature supported
-  - gpt-4o-(mini-)search-preview models supported
-  - Cohere Command A models supported
-  - CommandRHelper module renamed to CohereHelper (vendor-neutral naming)
-  - User defined containers building process changed
-  - Fix ElevenLabs TTS provider cookie persistence and auto-selection
-  - Many small app improvements
-  - Segmented tts playback feature restored
-  - Basic architecture documentation updated
-  - Add image support for Mistral models
-  - Monadic DSL system introduced
-  - App selection behavior made consistent for startup and reset
-  - Setup script management improved
-  - Fixed hardcoded local paths in help system scripts
-  - Fixed undefined COMPOSE_FILES variable in build command
-  - Fixed Docker Compose execution in packaged Electron apps with paths containing spaces
-  - Added proper quoting for Docker commands to handle installation paths with spaces
-  - Improved path handling in monadic.sh for production environments
+  - Changes you may notice
+    - The license is Apache License 2.0 instead of MIT
+    - The default syntax highlighting theme is pastie
+    - Editing the last message moves it to the input area with its role selected
+    - Delete a message with "Delete this message and below" or "Delete this message only"
+    - App selection behaves the same at startup and after reset
+    - User-defined containers build differently
+  - New
+    - OpenAI speech-to-text models GPT-4o Transcribe and GPT-4o mini Transcribe, selectable with `STT_MODEL` in settings
+    - OpenAI and Google Gemini models accept PDF input
+    - Mistral models accept images
+    - DrawIO Grapher app
+    - Image generation with Google Gemini (Imagen)
+    - OpenAI web search, including GPT-4o Search and GPT-4o mini Search
+    - Cohere Command A models
+    - Perplexity apps can start from the assistant
+    - Voice Chat, Mail Composer and Language Practice work with multiple providers
+    - Many small app improvements
+  - Fixed
+    - Code blocks display correctly in dark themes
+    - Copying no longer includes CSS artifacts
+    - Text-to-speech issues are fixed, and segmented playback works again
+    - Audio works with each speech-to-text model
+    - Mistral models are handled correctly
+    - ElevenLabs stays selected as the TTS provider
+    - The packaged app runs Docker Compose when installed in a path with spaces
+  - For developers
+    - Ruby (RSpec) and JavaScript (Jest) test suites
+    - The Monadic DSL for defining apps
+    - Setup script management is improved, and the build command and help system scripts work without local paths
+    - Architecture documentation is updated
+
 - [February, 2024] 0.9.58
-  - Declarative DSL for app authoring with documentation
-  - IconHelper utility for simplified app icon management
-  - `sysinfo` command added to Python container
-  - Performance improvement and bug fixes
-  - Extra logging feature added
-  - Fixed Linux packaged app startup issues with missing setup script files
-  - OpenAI `gpt-4.5-preview` model supported
-  - Research Assistant app improved
-  - Tavily web search and webpage extraction supported
-  - ElevenLabs TTS voices supported
-  - OpenAI o3-mini model supported with the `reasoning-effort` parameter
-  - Jupyter Notebook apps improved with `jupyter.log` generated for each session
-  - Perplexity `sonar-reasoning-pro` (DeepSeek R1) model supported
-  - Math rendering option added to the web UI
-  - Initial system prompt duplication issue fixed
-  - TTS/STT support for Safari
-  - Selenium image supported for both arm64 and amd64
+  - Changes you may notice
+    - Research Assistant is improved
+    - Performance is improved
+  - New
+    - `EXTRA_LOGGING` turns on extra logging
+    - `sysinfo` command in the Python container
+    - OpenAI GPT-4.5 and o3-mini, with the `reasoning-effort` parameter
+    - Perplexity Sonar Reasoning Pro (DeepSeek R1)
+    - Tavily web search and webpage extraction
+    - ElevenLabs TTS voices
+    - Jupyter Notebook apps write `jupyter.log` for each session
+    - A math rendering option in the web UI
+    - Text-to-speech and speech-to-text in Safari
+    - The Selenium image runs on arm64 and amd64
+  - Fixed
+    - The Linux packaged app starts
+    - The initial system prompt is no longer duplicated
+    - Other bugs are fixed
+  - For developers
+    - A declarative DSL for app authoring, with documentation
+    - Simpler app icon management
+
 - [January, 2024] 0.9.37
-  - Perplexity `sonar-reasoning` (DeepSeek) model supported
-  - OpenAI o1 models supported
-  - DeepSeek models supported
-  - Better logging for tool use (function calling)
-  - New folder structure for config/data/logs introduced
-  - Perplexity models supported
-  - Start-up time (after build) improved
+  - Changes you may notice
+    - Config, data, and log files use a new folder structure
+  - New
+    - Perplexity models are supported, including Sonar Reasoning (DeepSeek)
+    - OpenAI o1 models are supported
+    - DeepSeek models are supported
+    - Tool use (function calling) is logged in more detail
+  - Fixed
+    - The app starts faster after a build
+
 - [December, 2023] 0.9.30
-  - "From URL" feature added
-  - "From file" feature added (pdf, docx, pptx, xlsx, etc.)
-  - xAI Grok models supported
-  - Cohere API update to v2
-  - Markdown rendering improved
-  - Math Tutor app supports visualizations
-  - Not require OpenAI's API token when using other APIs
-  - Image generation feature improved
-  - Many UI and under-the-hood improvements
-  - User container rebuild feature fixed
-  - Role selection issue fixed
+  - Changes you may notice
+    - An OpenAI API key is no longer required when you use other providers
+  - New
+    - `From URL` imports content from a web page
+    - `From file` imports content from files (PDF, DOCX, PPTX, XLSX, and more)
+    - xAI Grok models are supported
+    - Cohere models use the Cohere API v2
+    - Math Tutor creates visualizations
+    - Markdown rendering and image generation are improved
+    - Many UI improvements
+  - Fixed
+    - Rebuilding the user container works
+    - Role selection works
+
 - [November, 2023] 0.9.22
-  - Rebuilding specific containers feature added
-  - `pysetup.sh` extra installation script supported
-  - Jupyter Notebook apps (for GPT and Claude) improved
-  - Streaming supported for OpenAI's o1 models
-  - CJK font issue on code apps addressed
-  - Syntax highlighting theme option added
-  - App settings convention enhanced with "group" attribute
-  - Check for updates when starting the app
-  - [Predicted output](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs) feature added for OpenAI's models
-  - [PDF recognition](https://docs.anthropic.com/en/docs/build-with-claude/pdf-support) feature added for Claude Sonnet models
-  - AI user feature improved
+  - New
+    - You can rebuild specific containers
+    - `pysetup.sh` runs extra installation steps for the Python container
+    - Jupyter Notebook apps (for GPT and Claude) are improved
+    - Streaming works with OpenAI o1 models
+    - A syntax highlighting theme can be chosen
+    - The app checks for updates at startup
+    - [Predicted output](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs) is available for OpenAI models
+    - [PDF recognition](https://docs.anthropic.com/en/docs/build-with-claude/pdf-support) is available for Claude Sonnet models
+    - The AI User feature is improved
+  - Fixed
+    - CJK text displays correctly in code apps
+  - For developers
+    - App settings accept a `group` attribute
+
 - [October, 2023] 0.9.6
-  - PyMuPDF4LLM integration
-  - Anthropic's new sonnet model supported
-  - Stability of code running and chart generation improved
+  - New
+    - PDF text extraction uses PyMuPDF4LLM
+    - Anthropic's new Claude Sonnet model is supported
+  - Fixed
+    - Code running and chart generation are more stable
+
 - [September, 2023] 0.9.2
-  - Beta models (`o1-preview`, `o1-mini`) supported
-  - Documentation renewed
-  - Stability improvement
-  - Better app development support
-  - Many under-the-hood improvements
-  - Documentation using Docsify released
+  - New
+    - OpenAI o1 beta models (o1-preview, o1-mini) are supported
+    - Documentation is renewed and published with Docsify
+  - Fixed
+    - General stability is improved
+  - For developers
+    - App development is better supported
+
 - [August, 2023] 0.8.11
-  - App authoring format changed
-  - Claude Jupyter Notebook app added
-  - Math rendering improved
-  - Second Opinion app added
-  - PDF Document import/export feature
+  - Changes you may notice
+    - Apps are written in a new authoring format
+  - New
+    - Claude Jupyter Notebook app
+    - Second Opinion app
+    - PDF document import and export
+    - Math rendering is improved
+
 - [July, 2023]
-  - Mistral AI (Chat and Code Interpreter) app added
-  - Multiple images can be uploaded for image recognition
-  - Continue button introduced
-  - Jupyter Notebook app added
-  - Browser auto open
+  - New
+    - Mistral AI apps (Chat and Code Interpreter)
+    - Jupyter Notebook app
+    - Multiple images can be uploaded for image recognition
+    - `Continue` button
+    - The browser opens automatically
+
 - [June, 2023]
-  - Linux (Ubuntu/Debian) installer released
-  - App file name changed from monadic-chat to Monadic Chat
-  - Settings menu added
-  - Speech Draft Helper app added (with TTS audio file generation)
-  - Menu bar items added; Shared Folder accessible on Windows
-  - Better uninstallation of containers
-  - Monadic Chat Console UI improved
-  - AI-User feature introduced
-  - Automatic Docker image rebuild feature
-  - Source code block copy button added
-  - Video Describer app added
+  - Changes you may notice
+    - The app file is named Monadic Chat instead of monadic-chat
+  - New
+    - Linux (Ubuntu/Debian) installer
+    - Settings menu
+    - Menu bar items; the Shared Folder is accessible on Windows
+    - Speech Draft Helper app, with TTS audio file generation
+    - Video Describer app
+    - AI User feature
+    - Docker images rebuild automatically
+    - Source code blocks have a copy button
+    - Monadic Chat Console UI is improved
+  - Fixed
+    - Uninstalling containers works more cleanly
+
 - [May, 2023] Talk to Claude/Cohere/Gemini apps added
-  - Ruby/Python/PGVector/Selenium containers structure introduced
+  - Changes you may notice
+    - The app runs on Ruby, Python, PGVector, and Selenium containers
+
 - [February, 2023] Mermaid diagram support
-  - File reading feature
-  - Stability improvement with several apps modified
+  - New
+    - Files can be read into the conversation
+  - Fixed
+    - Several apps are more stable
+
 - [January, 2023] Default model set to `gpt-3.5-turbo-1106`
-  - OpenAI's January 2024 models supported
-  - Mac/Win Monadic Chat Console UI improved
-  - Image understanding feature
-  - Voice Interpreter app added
-  - More responsive text-to-speech in auto-speech mode
-  - Language Practice Plus app updated
+  - New
+    - OpenAI's January 2024 models are supported
+    - Image understanding
+    - Voice Interpreter app
+    - Language Practice Plus app is updated
+    - Mac/Win Monadic Chat Console UI is improved
+    - Text-to-speech responds faster in auto-speech mode
+
 - [November, 2023] Image generator app updated to support dall-e-3.
-  - Speech-to-Text voice input is supported for Chrome/Edge/Safari.
-  - Natural voice stream playback using OpenAI's text-to-speech API supported.
-  - OpenAI's new models supported (0.3.0)
+  - New
+    - Speech-to-text voice input works in Chrome, Edge, and Safari
+    - Voice playback streams naturally using OpenAI's text-to-speech API
+    - OpenAI's new models are supported (0.3.0)
+
 - [September, 2023] Stability improvement with several apps modified
+
 - [July, 2023] Installers for Mac and Windows released for Monadic Chat (0.2.0).
-  - Image generation feature added.
-  - The initial version of Monadic Chat (1.0.0) has been released.
-  - The original command-line program renamed to [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli) and moved to another repository.
+  - Changes you may notice
+    - The original command-line program is renamed [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli) and moved to another repository
+  - New
+    - Image generation
+    - The initial version of Monadic Chat (1.0.0) is released

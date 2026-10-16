@@ -5,6 +5,7 @@
 * 🚀 Getting Started
   * [Debug Mode & Local Docs](server-debug-mode.md)
   * [Docs Link Checker](docs-link-checker.md)
+  * [CHANGELOG Style](changelog_style.md)
   * [Common Issues](common-issues.md)
 
 * 🏗️ Architecture

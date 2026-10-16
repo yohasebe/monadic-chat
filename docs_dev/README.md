@@ -12,6 +12,7 @@ This is the internal developer documentation for Monadic Chat. It contains techn
 New to the codebase? Start here:
 - **[Debug Mode & Local Docs](server-debug-mode.md)** - How to run the development server and access local documentation
 - **[Docs Link Checker](docs-link-checker.md)** - Validate all documentation links to prevent 404 errors
+- **[CHANGELOG Style](changelog_style.md)** - How release entries are written
 - **[Common Issues](common-issues.md)** - Troubleshooting guide for common development problems
 
 ### Architecture

@@ -520,31 +520,6 @@ namespace :release do
       sh upload_cmd
       puts "\nAssets updated successfully!"
       puts "URL: https://github.com/yohasebe/monadic-chat/releases/tag/v#{version}"
-      
-      # Add a note about the update to the changelog if possible
-      if ENV['UPDATE_CHANGELOG'] == 'true'
-        changelog_file = "./CHANGELOG.md"
-        if File.exist?(changelog_file)
-          content = File.read(changelog_file)
-          lines = content.lines
-          
-          # Find the line containing the target version
-          version_line_index = lines.find_index { |line| line.include?(version) }
-          
-          if version_line_index
-            # Add a note about the silent update
-            update_time = Time.now.strftime('%Y-%m-%d %H:%M')
-            update_note = "  - [#{update_time}] Silent update: replaced release assets\n"
-            
-            # Insert the note after the version line
-            lines.insert(version_line_index + 1, update_note)
-            
-            # Write back to the changelog
-            File.write(changelog_file, lines.join)
-            puts "Added update note to CHANGELOG.md"
-          end
-        end
-      end
     rescue => e
       puts "Error updating release assets: #{e.message}"
     end
@@ -579,11 +554,18 @@ namespace :release do
     processed_entry = "## Monadic Chat #{version}\n\n"
     
     # Remove the version header and format as bullet points
-    cleaned_entry = changelog_entry.sub(/^\s*-\s*\[[\w\s,]+\]\s*#{Regexp.escape(version)}/, "").strip
+    cleaned_entry = changelog_entry.sub(/^\s*-\s*\[[\w\s,]+\]\s*#{Regexp.escape(version)}/, "")
     
-    # Format each line item
-    cleaned_entry.lines.each do |line|
-      line = line.strip
+    # Format each line item. The groups of docs_dev/changelog_style.md
+    # (second-level bullets) become headings and their items a flat list.
+    group_re = /\A {2}- (Security|Changes you may notice|New|Fixed|For developers)\s*\z/
+    cleaned_entry.lines.each do |raw|
+      if (group = raw.chomp[group_re, 1])
+        processed_entry += "\n### #{group}\n\n"
+        next
+      end
+
+      line = raw.strip
       if line.start_with?('-')
         processed_entry += line + "\n"
       elsif !line.empty?
@@ -591,6 +573,8 @@ namespace :release do
       end
     end
     
+    processed_entry = processed_entry.gsub(/\n{3,}/, "\n\n").rstrip + "\n"
+
     # Add a footer
     processed_entry += "\n\n---\nGenerated on #{Time.now.strftime('%Y-%m-%d')}"
     

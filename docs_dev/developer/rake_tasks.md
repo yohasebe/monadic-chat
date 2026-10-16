@@ -108,7 +108,6 @@ rake release:delete[version]
 
 # Update assets in existing release
 rake release:update_assets[version,file_patterns]
-UPDATE_CHANGELOG=true rake release:update_assets[version,file_patterns]
 ```
 
 ## Notes
@@ -118,7 +117,6 @@ UPDATE_CHANGELOG=true rake release:update_assets[version,file_patterns]
 - `EXTRA_LOGGING=true` - Enable detailed logging (automatically set in debug mode)
 - `DRYRUN=true` - Run version update in dry-run mode
 - `DRAFT=true` - Create GitHub release as draft
-- `UPDATE_CHANGELOG=true` - Update changelog when updating release assets
 
 ### Version Update
 

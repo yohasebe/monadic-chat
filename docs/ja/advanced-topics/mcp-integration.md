@@ -136,7 +136,7 @@ Conduit は以下の `monadic_*` ツールを公開します。各ツールの�
 
 ## バックグラウンドジョブ
 
-時間のかかるツールは、バックグラウンドのジョブとしてだけ実行できます：`monadic_generate_code`、`monadic_generate_image`、`monadic_generate_video`、`monadic_generate_music`、`monadic_analyze_video`、`monadic_agent`。直接呼び出すと、`monadic_submit` を使うよう伝えるメッセージとともに `success: false` を返します。`monadic_submit` でツールを投入し、返されたジョブ ID を `monadic_poll` に渡して、状態・定期的な進捗・最終結果を読み取ります。実行中のジョブは `monadic_cancel` で停止できます。同時に実行できるジョブは 3 つまでです。
+時間のかかるツールは、バックグラウンドのジョブとしてだけ実行できます：`monadic_generate_code`、`monadic_generate_image`、`monadic_generate_video`、`monadic_generate_music`、`monadic_analyze_video`、`monadic_agent`。直接呼び出すと、`monadic_submit` を使うよう伝えるメッセージとともに `success: false` を返します。`monadic_submit` でツールを投入し、返されたジョブ ID を `monadic_poll` に渡して、状態・定期的な進捗・最終結果を読み取ります。実行中のジョブは `monadic_cancel` で停止できます。同時に実行できるジョブは 3 つまでです。必須の引数が無いか空のジョブは、`monadic_submit` が実行の前に Invalid params のエラーで受け付けません。
 
 ```json
 {
@@ -225,5 +225,5 @@ puts client.call_method("tools/list")
 - ナレッジベース系ツールは Qdrant と embeddings コンテナを必要とします。
 - `monadic_analyze_video` はフレーム抽出のため Python コンテナを必要とします。
 - 生成・解析系ツールは、該当プロバイダーの API キーを必要とします。
-- `monadic_analyze_image`、`monadic_transcribe_audio`、`monadic_analyze_video` には `provider` の指定が必要です。ファイルは指定したプロバイダーにだけ送られ、キーのある別のプロバイダーが自動で選ばれることはありません。
+- `monadic_analyze_image`、`monadic_transcribe_audio`、`monadic_analyze_video`、`monadic_generate_code` には `provider` の指定が必要です。リクエスト（ファイルがあればそれも）は指定したプロバイダーにだけ送られ、キーのある別のプロバイダーが自動で選ばれることはありません。
 - `monadic_transcribe_audio` は、ファイル全体を一度に文字起こしします（25 MB まで）。`timestamps: true` を指定すると（OpenAI、Google Gemini、xAI Grok）、各行の先頭に録音の中での時刻が付き、50 分までの録音を 25 MB の上限なしで受け付けます（AAC と Opus も）。文字起こし（`transcript.json`）と字幕（`.vtt`、`.srt`）は共有ボリュームの `transcriptions/` の下に保存され、結果にはそこでのパスが示されます。この方法はバックグラウンドで実行する必要があり（`monadic_submit`）、返すテキストは 32 KB までです（切った場合は `truncated` で示します。保存した文字起こしは全文です）。最新の Python コンテナが必要です。

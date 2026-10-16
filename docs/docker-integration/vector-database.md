@@ -19,7 +19,7 @@ Embedding and search run locally; no API key is needed for them.
 Two containers work together:
 
 - **`monadic-chat-qdrant-container`** runs the [Qdrant](https://qdrant.tech) vector database. It stores the text, the vectors, and the information used to filter and group the results.
-- **`monadic-chat-embeddings-container`** converts text into vectors with the [`intfloat/multilingual-e5-base`](https://huggingface.co/intfloat/multilingual-e5-base) model, on the CPU. The model handles English, Japanese, and many other languages.
+- **`monadic-chat-embeddings-container`** converts text into vectors with a multilingual embedding model, on the CPU. The model handles English, Japanese, and many other languages.
 
 Both containers start with Monadic Chat and need no configuration.
 

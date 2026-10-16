@@ -3,7 +3,7 @@
 In OpenAI Responses API requests:
 
 - `context_size` (MDSL, `llm` or `features`) is the number of earlier messages sent with a request (the first message plus the last `context_size`).
-- What is shown in the Thinking panel comes from `reasoning_content` on the message, which merges the reasoning of all tool rounds of the turn (`session[:openai_reasoning]`). Reasoning is not carried into later requests by the helper.
+- What is shown in the Thinking panel comes from `reasoning_content` on the message, which merges the reasoning of all tool rounds of the turn (`session[:openai_reasoning]`). Within a turn, an assistant tool-call message carries the reasoning of its round (`reasoning_items`, or else `reasoning_content`) into the next request as `reasoning` input items (`openai_helper.rb`, the Responses API input conversion). Nothing else carries reasoning from one turn into a later one.
 
 ## For App Authors
 

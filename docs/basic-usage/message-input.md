@@ -102,7 +102,7 @@ A streaming mode is available for the `GPT Realtime Whisper ⚡` entry in the Sp
 ## Text-to-Speech Playback
 
 **Playback controls**<br />
-Click the `Start TTS` icon on any AI response to listen to synthesized speech, and `Stop TTS` to halt playback (hover over the icons to see their names).
+Click the `Start TTS` icon on any AI response to listen to synthesized speech, and `Stop TTS` to halt playback (hover over the icons to see their names). `Cancel Query` stops the response being written and its speech, including speech still being generated.
 
 **Auto speech**<br />
 When `Auto speech` is on in the Interaction panel, AI responses are read aloud automatically. Useful for voice conversations when combined with `Easy submit`.

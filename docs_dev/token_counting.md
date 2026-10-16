@@ -9,9 +9,10 @@ Token counts come from the `Tokenizer` class (`lib/monadic/utils/tokenizer.rb`),
 
 ## Active Messages and Statistics
 
-`check_past_messages` marks messages `active`, starting from the newest:
+The `active` flag says whether a message is in the history sent to the provider. The vendor helper sets it when it chooses the history for a request (by message count, see below). `check_past_messages` counts tokens and works on the flag as follows:
 
-- Older messages are marked inactive while the total exceeds `max_input_tokens`, but not below `context_size` active messages when `context_size` is set. The browser sends `max_input_tokens` as the model's `context_window` maximum from `model_spec.js`, or `DEFAULT_MAX_INPUT_TOKENS` (4000) when the model has none.
+- A message counted for the first time starts active. A message counted before keeps the flag the helper set; this method does not make an inactive message active again.
+- Going from the newest, older active messages are marked inactive while the total exceeds `max_input_tokens`, but not below `context_size` active messages when `context_size` is set. The browser sends `max_input_tokens` as the model's `context_window` maximum from `model_spec.js`, or `DEFAULT_MAX_INPUT_TOKENS` (4000) when the model has none.
 - Inactive messages keep their whole text. A message that carries its full text in `original_text` gets it back in `text`.
 - It returns the totals shown in the UI: system, input, output, active and all tokens, the message counts and the encoding name.
 

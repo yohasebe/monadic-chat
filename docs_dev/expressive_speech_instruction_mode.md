@@ -13,7 +13,7 @@ In `model_spec.js`, TTS models carry `tts_family` (`ModelSpec.tts_family(model)`
 
 ## What the Model Is Asked For
 
-The `:expressive_speech` rule (priority 30) adds the addendum when Auto Speech is on and the app has not set `expressive_speech false`. The directive has six lines from `INSTRUCTION_ATTRIBUTE_TEMPLATE` (Voice, Tone, Pacing, Emotion, Pronunciation, Pauses), stays under 600 characters, and follows `INSTRUCTION_INTENSITY_GUIDANCE` (neutral wording for neutral content, vivid physical wording for strong emotion). The reply itself must be plain prose.
+The `:expressive_speech` rule (priority 30) adds the addendum when Auto Speech is on and the app has not set `expressive_speech false`. The directive is a set of 3 to 6 lines taken from `INSTRUCTION_ATTRIBUTE_TEMPLATE` (Voice, Tone, Pacing, Emotion, Pronunciation, Pauses; the Gemini addendum also allows free-form lines), stays under 600 characters, and follows `INSTRUCTION_INTENSITY_GUIDANCE` (neutral wording for neutral content, vivid physical wording for strong emotion). The reply itself must be plain prose.
 
 | Family | App | Addendum | Encoding |
 |---|---|---|---|
@@ -50,7 +50,7 @@ In `streaming_handler.rb`:
 |---|---|
 | not set | `"Say with this voice and style:\n<directive>\n\n"` |
 | `bracket_cue` | `[<directive on one line>] ` |
-| `omit` | none |
+| `omit` | none: the model is still asked for a directive (the addendum is chosen by the `gemini` family), and it is not sent |
 
   A model whose entry sets `tts_pace_prefix: true` also gets a spoken-pace instruction (such as `Speak quickly. `) before the text when the speed is not 1.0; the other Gemini models get none.
 

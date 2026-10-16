@@ -136,7 +136,7 @@ The `monadic_agent` tool is additionally bounded by a tool-call cap and a wall-c
 
 ## Background Jobs
 
-Long-running tools run only as background jobs: `monadic_generate_code`, `monadic_generate_image`, `monadic_generate_video`, `monadic_generate_music`, `monadic_analyze_video` and `monadic_agent`. Called directly, they return `success: false` with a message to use `monadic_submit`. Submit the tool with `monadic_submit`, then call `monadic_poll` with the returned job id to read its status, periodic progress, and final result. A running job can be stopped with `monadic_cancel`. Up to 3 jobs run at the same time.
+Long-running tools run only as background jobs: `monadic_generate_code`, `monadic_generate_image`, `monadic_generate_video`, `monadic_generate_music`, `monadic_analyze_video` and `monadic_agent`. Called directly, they return `success: false` with a message to use `monadic_submit`. Submit the tool with `monadic_submit`, then call `monadic_poll` with the returned job id to read its status, periodic progress, and final result. A running job can be stopped with `monadic_cancel`. Up to 3 jobs run at the same time. `monadic_submit` refuses a job whose required arguments are missing or empty, with an Invalid params error, before it starts.
 
 ```json
 {
@@ -225,5 +225,5 @@ A tool that fails in a way it handles (a missing file, a refused budget, a provi
 - Knowledge-base tools require the Qdrant and embeddings containers.
 - `monadic_analyze_video` requires the Python container for frame extraction.
 - Generation and analysis tools require an API key for the relevant provider.
-- `monadic_analyze_image`, `monadic_transcribe_audio`, and `monadic_analyze_video` require a `provider` argument. The file is sent only to that provider; there is no automatic choice of another provider that has a key.
+- `monadic_analyze_image`, `monadic_transcribe_audio`, `monadic_analyze_video`, and `monadic_generate_code` require a `provider` argument. The request, and the file if there is one, is sent only to that provider; there is no automatic choice of another provider that has a key.
 - `monadic_transcribe_audio` transcribes the whole file at once (up to 25 MB). With `timestamps: true` (OpenAI, Google Gemini or xAI Grok), each line starts with the time in the recording, recordings up to 50 minutes are taken without the 25 MB limit, AAC and Opus files included, and the transcript (`transcript.json`) and subtitles (`.vtt`, `.srt`) are saved under `transcriptions/` in the shared volume; the result names them by their paths there. This way must run in the background (`monadic_submit`), returns at most 32 KB of text (`truncated` says when it was cut; the saved transcript is complete), and needs the current Python container.

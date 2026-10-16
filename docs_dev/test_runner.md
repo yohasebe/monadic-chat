@@ -15,7 +15,7 @@ Quick Start
   - `rake test:all[standard,true]`
 - Full test suite including media tests (image/video/audio generation):
   - `rake test:all[full]`
-- Fast local run without API calls:
+- Local run without API calls (Docker must be running: `test:all` stops when it is not):
   - `rake test:all[none]`
 
 Artifacts
@@ -76,7 +76,7 @@ Rake Tasks
 Implementation Notes
 - Runner loads env defaults from `~/monadic/config/env` when available.
 - JSON analysis extracts failures/pending and writes compact text reports for CLI tools.
-- Index HTML aggregates per‑suite reports when available; JS/Python currently show pass/fail only.
+- Index HTML aggregates per‑suite reports when available; JS/Python show pass/fail only.
 
 Troubleshooting
 - RSpec rake task load error when listing tasks: `cannot load such file -- rspec/core/rake_task`
@@ -88,8 +88,8 @@ Troubleshooting
 - API keys not configured
   - For offline runs, prefer `api_level=none`.
   - For API runs, set keys in `~/monadic/config/env` (e.g., `OPENAI_API_KEY=...`).
-- Docker not running (integration/system)
-  - Start Docker Desktop and ensure the `qdrant` and `embeddings` containers are available.
+- Docker not running
+  - `test:all` stops with an error before any suite runs, whatever the API level. Start Docker Desktop and ensure the `qdrant` and `embeddings` containers are available. Unit specs alone run without Docker: `bundle exec rspec spec/unit` in `docker/services/ruby`.
 - Long execution time
   - Limit API usage: `api_level=none` for quick turnaround.
 - Memory pressure in large suites

@@ -19,7 +19,7 @@ Monadic Chat には、Knowledge Base、PDF Database、ヘルプの文書を意�
 2 つのコンテナが一緒に働きます。
 
 - **`monadic-chat-qdrant-container`** は、ベクトルデータベース [Qdrant](https://qdrant.tech) を動かします。テキスト、ベクトル、結果の絞り込みやまとめに使う情報を保存します。
-- **`monadic-chat-embeddings-container`** は、[`intfloat/multilingual-e5-base`](https://huggingface.co/intfloat/multilingual-e5-base) モデルで、テキストを CPU でベクトルに変換します。このモデルは、英語、日本語をはじめ多くの言語を扱えます。
+- **`monadic-chat-embeddings-container`** は、多言語の埋め込みモデルで、テキストを CPU でベクトルに変換します。このモデルは、英語、日本語をはじめ多くの言語を扱えます。
 
 どちらのコンテナも Monadic Chat と一緒に起動し、設定は要りません。
 

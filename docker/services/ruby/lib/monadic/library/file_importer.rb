@@ -6,6 +6,7 @@ require_relative 'importers'
 require_relative '../utils/environment'
 require_relative '../utils/degradation_notifier'
 require_relative '../extractor/client'
+require_relative '../shell'
 
 module Monadic
   module Library
@@ -37,6 +38,8 @@ module Monadic
       module_function
 
       PYTHON_CONTAINER = 'monadic-chat-python-container'
+      # As long as the extractor service is given (OCR over many pages).
+      EXTRACT_TIMEOUT = 600 # seconds
       PDF_EXTRACTOR = '/monadic/scripts/utilities/library_pdf_extractor.py'
       OFFICE_EXTRACTOR = '/monadic/scripts/utilities/library_office_extractor.py'
 
@@ -124,16 +127,19 @@ module Monadic
       # path. Translates the host path into the container's view of the
       # shared volume (`/monadic/data`) before invoking docker exec.
       # Returns stdout (a single JSON line). Raises ExtractionError on
-      # non-zero exit.
+      # non-zero exit, or when it runs past EXTRACT_TIMEOUT (it is stopped,
+      # with what it started in the container).
       def run_python_extractor(script_path, file_path)
         container_path = host_path_to_container(file_path)
-        cmd = ['docker', 'exec', PYTHON_CONTAINER,
-               'python', script_path, container_path]
-        stdout, stderr, status = Open3.capture3(*cmd)
+        stdout, stderr, status = Monadic::Shell.exec(
+          container: :python, argv: ['python', script_path, container_path], timeout: EXTRACT_TIMEOUT
+        )
         unless status.success?
           raise ExtractionError, "extractor failed: #{stderr.strip}"
         end
         stdout
+      rescue Monadic::Shell::TimedOut => e
+        raise ExtractionError, "extractor failed: #{e.message}"
       end
 
       def host_path_to_container(path)

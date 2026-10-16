@@ -62,13 +62,6 @@ RSpec.describe Monadic::Library::ImportTracker do
     end
   end
 
-  describe ".delete" do
-    it "removes the entry" do
-      id = described_class.create
-      described_class.delete(id)
-      expect(described_class.get(id)).to be_nil
-    end
-  end
 
   describe "TTL purging" do
     it "purges entries with :finished_at older than TTL on next create" do

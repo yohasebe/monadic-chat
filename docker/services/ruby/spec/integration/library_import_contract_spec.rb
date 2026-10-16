@@ -159,6 +159,16 @@ RSpec.describe '/library/import contract', :integration do
       expect(imports).to be_empty
     end
 
+    it 'is deleted when the request fails before the import starts' do
+      allow(Monadic::Library::ImportTracker).to receive(:create).and_raise(RuntimeError, 'tracker broken')
+
+      post '/library/import', { 'libraryFile' => Rack::Test::UploadedFile.new(
+        StringIO.new('x'), 'text/plain', original_filename: 'early.md'
+      ) }
+
+      expect(imports).to be_empty
+    end
+
     it 'is deleted when the import fails' do
       allow(Monadic::Library::FileImporter).to receive(:build_conversation)
         .and_raise(Monadic::Library::FileImporter::ExtractionError, 'extractor died')

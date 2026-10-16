@@ -627,12 +627,7 @@ def init_apps
           }
         end
 
-        common_tools = []
-        common_tools << defn.call("find_closest_text", "Find the closest text snippets in local PDF database", { "text" => "string", "top_n" => "integer" })
-        common_tools << defn.call("get_text_snippet", "Retrieve one text snippet from a document by position", { "doc_id" => "integer", "position" => "integer" })
-        common_tools << defn.call("list_titles", "List all document titles in local PDF database", {})
-        common_tools << defn.call("find_closest_doc", "Find the closest documents in local PDF database", { "text" => "string", "top_n" => "integer" })
-        common_tools << defn.call("get_text_snippets", "Retrieve all snippets of a document", { "doc_id" => "integer" })
+        common_tools = Monadic::Pdf::Store::TOOLS.map { |name, (desc, params)| defn.call(name, desc, params) }
 
         common_tools.each do |tool|
           name = tool.dig("function", "name")

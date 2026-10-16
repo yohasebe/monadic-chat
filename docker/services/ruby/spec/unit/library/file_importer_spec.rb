@@ -181,9 +181,18 @@ RSpec.describe Monadic::Library::FileImporter do
   describe '.run_python_extractor (error path)' do
     it 'wraps non-zero exit in ExtractionError' do
       fake_status = instance_double(Process::Status, success?: false)
-      allow(Open3).to receive(:capture3).and_return(['', 'boom', fake_status])
+      allow(Monadic::Shell).to receive(:exec).and_return(['', 'boom', fake_status])
       expect { described_class.run_python_extractor('/dev/null', '/tmp/missing.pdf') }
         .to raise_error(Monadic::Library::FileImporter::ExtractionError, /boom/)
+    end
+
+    it 'stops an extraction that runs past the time limit and reports it as failed' do
+      allow(Monadic::Shell).to receive(:exec).and_raise(Monadic::Shell::TimedOut, 'python did not finish within 600 seconds')
+      expect { described_class.run_python_extractor('/dev/null', '/tmp/missing.pdf') }
+        .to raise_error(Monadic::Library::FileImporter::ExtractionError, /did not finish/)
+      expect(Monadic::Shell).to have_received(:exec)
+        .with(container: :python, argv: ['python', '/dev/null', '/tmp/missing.pdf'],
+              timeout: Monadic::Library::FileImporter::EXTRACT_TIMEOUT)
     end
   end
 

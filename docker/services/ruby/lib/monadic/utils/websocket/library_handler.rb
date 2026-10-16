@@ -208,6 +208,19 @@ module WebSocketHelper
     })
   end
 
+  # After the new version of a conversation is written, deletes the prior
+  # version's points. The new version is kept whatever happens here: a
+  # delete that failed may still have been applied, so taking the new
+  # version out could leave nothing. Returns true when some prior points
+  # may remain (the reply then carries a warning).
+  private def prior_version_left?(store, prior_ids)
+    store.delete_point_ids(prior_ids)
+    false
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[Library] prior version not fully removed: #{e.class}: #{e.message}" }
+    true
+  end
+
   private def handle_ws_library_save(connection, obj, session)
     # Defense in depth: Privacy Filter and Knowledge Base save are
     # mutually exclusive at the app level. Apps that declare
@@ -302,16 +315,16 @@ module WebSocketHelper
 
     store = library_store_for_ws
 
-    # Drop the prior version's points first so the upsert below is the
-    # only data Qdrant carries for this conversation_id. delete is a
-    # no-op for an unknown id, so this is safe even when the UI is racing
-    # against an external delete. Failure raises and surfaces as a Save
-    # error instead of silently leaving the KB in a doubled state.
-    store.delete_conversation(existing_id) if existing_id
+    # The new version is written first and the prior version's points are
+    # deleted after it, by id, so a failed save leaves the entry as it was.
+    # An unknown id has no points, so this is safe even when the UI is
+    # racing against an external delete.
+    prior_ids = existing_id ? store.point_ids(existing_id) : nil
 
     result = Monadic::Library::Manager.import_from_text(
       store: store, input: importer_input, options: options, scope_app: scope_app
     )
+    leftover = prior_ids ? prior_version_left?(store, prior_ids) : false
     send_to_client(connection, {
       'type' => 'library_saved', 'res' => 'success',
       'content' => existing_id ? 'Updated conversation in Knowledge Base.' : 'Conversation saved to Knowledge Base.',
@@ -319,7 +332,7 @@ module WebSocketHelper
       'updated' => !existing_id.nil?,
       'scope_app' => scope_app,
       'counts' => result[:counts].each_with_object({}) { |(k, v), h| h[k.to_s] = v }
-    })
+    }.tap { |reply| reply['warning'] = 'prior_version_left' if leftover })
   rescue ArgumentError => e
     Monadic::Utils::ExtraLogger.log { "[Library] LIBRARY_SAVE bad input: #{e.class}: #{e.message}" }
     send_to_client(connection, {

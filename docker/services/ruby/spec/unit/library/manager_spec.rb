@@ -62,6 +62,16 @@ RSpec.describe Monadic::Library::Manager do
       expect(rows.size).to eq(2)
     end
 
+    it 'finds the newest entries on a later page when the first page fills the limit' do
+      old = summary_point('old', 'created_at' => '2026-01-01T00:00:00Z')
+      older = summary_point('older', 'created_at' => '2025-01-01T00:00:00Z')
+      newest = summary_point('newest', 'created_at' => '2026-10-01T00:00:00Z')
+      allow(store).to receive(:scroll).with(hash_including(offset: nil)).and_return({ points: [old, older], next: 'cur' })
+      allow(store).to receive(:scroll).with(hash_including(offset: 'cur')).and_return({ points: [newest], next: nil })
+      rows = described_class.list_conversations(store: store, limit: 2)
+      expect(rows.map { |r| r[:conversation_id] }).to eq(%w[newest old])
+    end
+
     it 'follows the scroll cursor across pages' do
       page1 = { points: [summary_point('a')], next: 'cur-1' }
       page2 = { points: [summary_point('b')], next: nil }

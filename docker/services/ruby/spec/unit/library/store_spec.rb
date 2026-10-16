@@ -202,6 +202,38 @@ RSpec.describe Monadic::Library::Store do
     end
   end
 
+  describe '#point_ids and #delete_point_ids' do
+    it 'collects every point of a conversation across pages and deletes those ids only' do
+      allow(vector_store).to receive(:scroll) do |collection:, offset:, **|
+        if collection == 'library_turns' && offset.nil?
+          { points: [{ 'id' => 't1' }], next: 'cursor' }
+        elsif collection == 'library_turns'
+          { points: [{ 'id' => 't2' }], next: nil }
+        elsif collection == 'library_summaries'
+          { points: [{ 'id' => 's1' }], next: nil }
+        else
+          { points: [], next: nil }
+        end
+      end
+      ids = store.point_ids('conv-1')
+      expect(ids).to eq('library_summaries' => ['s1'], 'library_turns' => %w[t1 t2], 'library_messages' => [])
+
+      store.delete_point_ids(ids)
+      expect(vector_store).to have_received(:delete_points).with(collection: 'library_summaries', ids: ['s1'])
+      expect(vector_store).to have_received(:delete_points).with(collection: 'library_turns', ids: %w[t1 t2])
+      expect(vector_store).not_to have_received(:delete_points).with(hash_including(collection: 'library_messages'))
+    end
+  end
+
+  describe '#delete_point_ids order and failure' do
+    it 'deletes the summary last' do
+      order = []
+      allow(vector_store).to receive(:delete_points) { |collection:, **| order << collection }
+      store.delete_point_ids('library_summaries' => ['s'], 'library_turns' => ['t'])
+      expect(order).to eq(%w[library_turns library_summaries])
+    end
+  end
+
   describe '#scroll' do
     let(:page) { { points: [{ 'id' => 'x' }], next: 'cursor-1' } }
 

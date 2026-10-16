@@ -911,7 +911,13 @@
       var defaultLabel = data.updated
         ? t('ui.libUpdateSuccess', 'Updated existing Knowledge Base entry.')
         : t('ui.libSaveSuccess', 'Saved to Knowledge Base.');
-      flashAlert("<i class='fa-solid fa-circle-check'></i> " + escapeHtml(defaultLabel), 'success');
+      if (data.warning === 'prior_version_left') {
+        // Saved, but some points of the earlier version are still stored.
+        flashAlert("<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(t('ui.libUpdatePartial',
+          'Updated the Knowledge Base entry, but part of the earlier version could not be removed and may still appear.')), 'warning');
+      } else {
+        flashAlert("<i class='fa-solid fa-circle-check'></i> " + escapeHtml(defaultLabel), 'success');
+      }
     } else {
       var msg = (data && data.content) ? data.content : 'Save failed';
       var prefix = t('ui.libSaveFailure', 'Failed to save');

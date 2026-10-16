@@ -63,14 +63,16 @@ module Monadic
         PDF_DOCS => {
           vectors: { 'content' => { size: EMBEDDING_DIMENSION, distance: DISTANCE } },
           payload_indexes: [
-            { field: 'title', schema: 'text' }
+            { field: 'title', schema: 'text' },
+            { field: 'app_key', schema: 'keyword' }
           ]
         },
         PDF_ITEMS => {
           vectors: { 'content' => { size: EMBEDDING_DIMENSION, distance: DISTANCE } },
           payload_indexes: [
-            { field: 'doc_id', schema: 'integer' },
-            { field: 'position', schema: 'integer' }
+            { field: 'doc_id', schema: 'keyword' },
+            { field: 'position', schema: 'integer' },
+            { field: 'app_key', schema: 'keyword' }
           ]
         },
         LIBRARY_SUMMARIES => {

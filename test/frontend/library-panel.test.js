@@ -557,6 +557,21 @@ describe('library-panel module', () => {
       expect(sentMessages.some(m => m.message === 'LIBRARY_STATS')).toBe(true);
     });
 
+    it('shows a warning, not the plain success, when part of the earlier version remains', () => {
+      const alerts = [];
+      const orig = global.window.setAlert;
+      global.window.setAlert = (html, severity) => alerts.push({ html, severity });
+      try {
+        lib.handleSavedMessage({ res: 'success', conversation_id: 'X', updated: true, warning: 'prior_version_left' });
+        lib.handleSavedMessage({ res: 'success', conversation_id: 'X', updated: true });
+      } finally {
+        global.window.setAlert = orig;
+      }
+      expect(alerts[0].severity).toBe('warning');
+      expect(alerts[0].html).toMatch(/earlier version could not be removed/);
+      expect(alerts[1].severity).toBe('success');
+    });
+
     it('does not refresh the list when save fails', () => {
       const before = sentMessages.length;
       const origAlert = global.window.alert;

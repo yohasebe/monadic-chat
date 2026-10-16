@@ -37,9 +37,8 @@ module Monadic
 
       # ─── Bootstrap ─────────────────────────────────────────────────────
 
-      # Collections made earlier get the indexes of the current schema; this
-      # is tried once per process, whether it works or not (creating an index
-      # that exists is not an error, and search works without one).
+      # Collections made earlier get the indexes of the current schema, once
+      # per process (see VectorStore::Bootstrap).
       @indexed = {}
       @indexed_mutex = Mutex.new
       class << self
@@ -47,31 +46,10 @@ module Monadic
       end
 
       def bootstrap_collections!
-        COLLECTIONS.each do |name|
-          defn = Schema::DEFINITIONS[name]
-          if @store.collection_exists?(name: name)
-            ensure_indexes(name, defn)
-          else
-            @store.create_collection(
-              name: name,
-              vectors: defn[:vectors],
-              payload_indexes: defn[:payload_indexes]
-            )
-            self.class.indexed_mutex.synchronize { self.class.indexed[name] = true }
-          end
-        end
-      end
-
-      def ensure_indexes(name, defn)
-        return if self.class.indexed_mutex.synchronize { self.class.indexed[name] }
-        return unless @store.respond_to?(:create_payload_index)
-
-        self.class.indexed_mutex.synchronize { self.class.indexed[name] = true }
-        Array(defn[:payload_indexes]).each do |idx|
-          @store.create_payload_index(name: name, field: idx[:field], schema: idx[:schema])
-        end
-      rescue Monadic::VectorStore::BackendError, NotImplementedError => e
-        Monadic::Utils::ExtraLogger.log { "[Library] payload index for #{name} not created: #{e.message}" } if defined?(Monadic::Utils::ExtraLogger)
+        Monadic::VectorStore::Bootstrap.ensure_collections!(
+          @store, COLLECTIONS,
+          indexed: self.class.indexed, mutex: self.class.indexed_mutex, tag: 'Library'
+        )
       end
 
       # ─── Generic plumbing ──────────────────────────────────────────────
@@ -107,6 +85,34 @@ module Monadic
             collection: name,
             filter: conversation_filter(conversation_id)
           )
+        end
+        true
+      end
+
+      # The ids of a conversation's points, by Library collection.
+      def point_ids(conversation_id)
+        COLLECTIONS.to_h do |name|
+          ids = []
+          offset = nil
+          loop do
+            page = scroll(collection: name, filter: conversation_filter(conversation_id), limit: 256, offset: offset)
+            ids.concat(page[:points].map { |p| p['id'] })
+            offset = page[:next]
+            break if offset.nil?
+          end
+          [name, ids]
+        end
+      end
+
+      # Deletes the points named in ids_by_collection ({ collection => ids }).
+      # The summary goes last, so an entry whose turns are being deleted is
+      # still listed until the end.
+      def delete_point_ids(ids_by_collection)
+        bootstrap_collections!
+        order = ids_by_collection.keys.sort_by { |name| name == Schema::LIBRARY_SUMMARIES ? 1 : 0 }
+        order.each do |name|
+          ids = ids_by_collection[name]
+          @store.delete_points(collection: name, ids: ids) unless ids.empty?
         end
         true
       end

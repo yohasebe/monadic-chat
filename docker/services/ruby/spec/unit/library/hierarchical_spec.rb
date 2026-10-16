@@ -69,6 +69,29 @@ RSpec.describe Monadic::Library::Hierarchical do
     end
   end
 
+  describe 'a failure part way' do
+    it 'removes the summary it wrote when the turns cannot be embedded, and raises' do
+      calls = 0
+      allow(embeddings).to receive(:embed_passages) do |texts|
+        calls += 1
+        raise Monadic::Embeddings::ClientError, 'embeddings down' if calls == 2
+
+        texts.map { Array.new(768, 0.1) }
+      end
+      summary_ids = []
+      allow(vector_store).to receive(:upsert_points) do |collection:, points:|
+        summary_ids.concat(points.map { |p| p[:id] }) if collection == 'library_summaries'
+      end
+      allow(vector_store).to receive(:delete_points)
+
+      expect { described_class.ingest(two_party_chat, store: store) }
+        .to raise_error(Monadic::Embeddings::ClientError, /embeddings down/)
+      expect(summary_ids.size).to eq(1)
+      expect(vector_store).to have_received(:delete_points).with(collection: 'library_summaries', ids: summary_ids)
+      expect(vector_store).not_to have_received(:delete_points).with(hash_including(collection: 'library_turns'))
+    end
+  end
+
   describe 'summary payload' do
     it 'embeds the verbatim messages array for the Conversation Viewer' do
       captured = nil

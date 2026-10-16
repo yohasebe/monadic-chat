@@ -208,13 +208,15 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       expect(replies.first['res']).to eq('success')
     end
 
-    it 'updates in place when conversation_id is provided (delete-then-ingest)' do
+    it 'updates in place when conversation_id is provided (ingest, then delete the prior points)' do
       payload = valid_payload.merge('conversation_id' => 'conv-9')
-      expect(store).to receive(:delete_conversation).with('conv-9').ordered
+      prior = { 'library_summaries' => ['old-s'], 'library_turns' => ['old-t1'] }
+      expect(store).to receive(:point_ids).with('conv-9').ordered.and_return(prior)
       expect(Monadic::Library::Manager).to receive(:import_from_text).ordered do |args|
         expect(args[:options][:conversation_id]).to eq('conv-9')
         { conversation_id: 'conv-9', counts: { summary: 1, turns: 2 } }
       end
+      expect(store).to receive(:delete_point_ids).with(prior).ordered
 
       host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
       msg = replies.first
@@ -225,7 +227,7 @@ RSpec.describe 'WebSocketHelper Library handlers' do
     end
 
     it 'creates a new entry (no delete) when conversation_id is absent' do
-      expect(store).not_to receive(:delete_conversation)
+      expect(store).not_to receive(:delete_point_ids)
       expect(Monadic::Library::Manager).to receive(:import_from_text)
         .and_return(conversation_id: 'fresh', counts: { summary: 1, turns: 0 })
 
@@ -286,15 +288,47 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       expect(replies.first['res']).to eq('failure')
     end
 
-    it 'surfaces a failure when delete_conversation raises and skips ingest' do
+    it 'keeps the new version and flags a warning when the prior one could not be deleted' do
       payload = valid_payload.merge('conversation_id' => 'conv-9')
-      allow(store).to receive(:delete_conversation).and_raise('qdrant down')
-      expect(Monadic::Library::Manager).not_to receive(:import_from_text)
+      allow(store).to receive(:point_ids).and_return('library_summaries' => ['old-s'], 'library_turns' => ['old-t'])
+      allow(Monadic::Library::Manager).to receive(:import_from_text)
+        .and_return(conversation_id: 'conv-9', counts: { summary: 1, turns: 1 })
+      deletes = []
+      allow(store).to receive(:delete_point_ids) do |ids|
+        deletes << ids
+        raise Monadic::VectorStore::BackendError, 'timeout'
+      end
+
+      host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
+      msg = replies.first
+      expect(msg['res']).to eq('success')
+      expect(msg['warning']).to eq('prior_version_left')
+      # Only the prior version's ids were ever deleted: the new version stays.
+      expect(deletes).to eq([{ 'library_summaries' => ['old-s'], 'library_turns' => ['old-t'] }])
+    end
+
+    it 'has no warning when the prior version is deleted' do
+      payload = valid_payload.merge('conversation_id' => 'conv-9')
+      allow(store).to receive(:point_ids).and_return('library_summaries' => ['old-s'])
+      allow(Monadic::Library::Manager).to receive(:import_from_text)
+        .and_return(conversation_id: 'conv-9', counts: { summary: 1, turns: 1 })
+      allow(store).to receive(:delete_point_ids)
+
+      host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
+      expect(replies.first).not_to have_key('warning')
+    end
+
+    it 'keeps the prior version when writing the new one fails' do
+      payload = valid_payload.merge('conversation_id' => 'conv-9')
+      allow(store).to receive(:point_ids).and_return('library_summaries' => ['old-s'])
+      allow(Monadic::Library::Manager).to receive(:import_from_text).and_raise('embeddings down')
+      expect(store).not_to receive(:delete_point_ids)
+      expect(store).not_to receive(:delete_conversation)
 
       host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
       msg = replies.first
       expect(msg['res']).to eq('failure')
-      expect(msg['content']).to eq('qdrant down')
+      expect(msg['content']).to eq('embeddings down')
     end
 
     it 'reports failure when contents is not a Hash' do

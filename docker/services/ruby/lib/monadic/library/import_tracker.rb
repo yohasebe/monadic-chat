@@ -70,10 +70,6 @@ module Monadic
         end
       end
 
-      def delete(id)
-        @mutex.synchronize { @entries.delete(id) }
-      end
-
       # Test helper. Production code should never call this.
       def reset!
         @mutex.synchronize { @entries.clear }

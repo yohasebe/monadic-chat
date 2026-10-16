@@ -28,6 +28,7 @@ post "/pdf" do
 
   return error_json("No file selected. Please choose a PDF file to upload.") unless params["pdfFile"]
 
+  temp_file = nil
   begin
     # `appName` from the form takes priority because the session may not be
     # hydrated yet if UPDATE_PARAMS has not fired before the upload.
@@ -48,14 +49,13 @@ post "/pdf" do
 
     pdf = PDF2Text.new(path: temp_file.path, max_tokens: 800, separator: "\n", overwrap_lines: 2)
     pdf.extract
-    temp_file.close
-    temp_file.unlink
+    chunks = pdf.split_text
 
-    return error_json("No text could be extracted from the PDF file") if pdf.split_text.empty?
+    return error_json("No text could be extracted from the PDF file") if chunks.empty?
 
     doc_data = { items: 0, metadata: {} }
     items_data = []
-    pdf.split_text.each do |i|
+    chunks.each do |i|
       title = if params["pdfTitle"].to_s != ""
                 params["pdfTitle"]
               else
@@ -71,10 +71,13 @@ post "/pdf" do
     store.store_embeddings(doc_data, items_data)
     { success: true, filename: params["pdfFile"]["filename"] }.to_json
   rescue Monadic::VectorStore::BackendError => e
-    error_json("Vector store error: #{e.message}")
+    error_json(Monadic::Utils::ErrorFormatter.scrub_identifiers("Vector store error: #{e.message}"))
   rescue Monadic::Embeddings::ClientError => e
-    error_json("Embeddings service error: #{e.message}")
+    error_json(Monadic::Utils::ErrorFormatter.scrub_identifiers("Embeddings service error: #{e.message}"))
   rescue => e
-    error_json("Error processing PDF: #{e.class.name} - #{e.message}")
+    error_json(Monadic::Utils::ErrorFormatter.scrub_identifiers("Error processing PDF: #{e.class.name} - #{e.message}"))
+  ensure
+    # Removed however the request ends.
+    temp_file&.close!
   end
 end

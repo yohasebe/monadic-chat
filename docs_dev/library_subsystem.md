@@ -20,7 +20,7 @@ Defined in `Monadic::VectorStore::Schema` (`lib/monadic/vector_store/schema.rb`)
 | `library_turns` | One point per turn |
 | `library_messages` | Created with the others; nothing writes to it |
 
-Point ids are random UUIDs. `conversation_id` in the payload links an entry's summary and turns. `Store#upsert_points` rejects a point without `conversation_id` or `scope_app`. Payload indexes are listed in `Monadic::VectorStore::Schema::DEFINITIONS` (`conversation_id` and `scope_app` on every Library collection). `Store#bootstrap_collections!` creates a missing collection with them and, once per process, adds them to a collection that already exists.
+Point ids are random UUIDs. `conversation_id` in the payload links an entry's summary and turns. `Store#upsert_points` rejects a point without `conversation_id` or `scope_app`. Payload indexes are listed in `Monadic::VectorStore::Schema::DEFINITIONS` (`conversation_id` and `scope_app` on every Library collection). `Store#bootstrap_collections!` (through `VectorStore::Bootstrap`) creates a missing collection with them and, once per process, adds them to a collection that already exists. `QdrantBackend#collection_exists?` reports a collection missing only on 404; any other failure raises `BackendError`.
 
 ### Summary Payload
 
@@ -84,9 +84,11 @@ PDFs go to the extractor service (`/v1/extract`, layout analysis and OCR) when `
 `POST /library/import` (`lib/monadic/routes/library_import_routes.rb`), form fields `libraryFile`, `libraryTitle`, `libraryLicense`, `libraryScopeApp`:
 
 1. Rejects the upload when its size cannot be read or exceeds `LIBRARY_IMPORT_MAX_BYTES` (default 100 MiB).
-2. Writes it to `<data>/library/imports/<epoch>_<hex>_<filename>`. The worker thread deletes the file when the import ends, whether it succeeds or fails (`ensure`).
+2. Writes it to `<data>/library/imports/<epoch>_<hex>_<filename>`. The worker thread deletes the file when the import ends, whether it succeeds or fails (`ensure`); a failure before the worker starts deletes it in the route.
 3. Registers an `ImportTracker` entry and returns `202` with `import_id` and `status_url`.
-4. A background thread runs `FileImporter.build_conversation` and `Manager.import_conversation`.
+4. A background thread runs `FileImporter.build_conversation` and `Manager.import_conversation`. A Python extractor that runs past `FileImporter::EXTRACT_TIMEOUT` (600 s, as long as the extractor service is given) is stopped and the import ends in `error`.
+
+`Hierarchical.ingest` writes the summary, then the turns. When a step fails after some points were written, it deletes those points by id and raises; if that deletion fails too, it is logged and the points stay. A summary is readable before its turns are written.
 
 `GET /library/import/status/:id` returns the stage: `queued` → `extracting` → `embedding_storing` → `done` or `error`. `ImportTracker` is in memory; finished entries are removed one hour after they finish. The panel polls from 800 ms up to 5 s between requests and gives up after 30 minutes.
 
@@ -99,9 +101,11 @@ PDFs go to the extractor service (`/v1/extract`, layout analysis and OCR) when `
 - the app in `parameters['app_name']` has `library_save: false`;
 - `parameters` is missing.
 
-`verify` fields are removed from the messages. When `conversation_id` is given, the existing points with that id are deleted and the conversation is ingested again under the same id, so `mc:conv:<id>` links keep working. The panel keeps the id until Reset, a new session, an app change, or deletion of that entry in Browse.
+`verify` fields are removed from the messages. When `conversation_id` is given, the conversation is ingested again under the same id, so `mc:conv:<id>` links keep working, and then the points of the prior version are deleted by id (`Store#point_ids` before the ingest, `Store#delete_point_ids` after it, the summary last). A failed ingest leaves the prior version in place (the ingest removes what it wrote, as above). Once the ingest has succeeded, the new version is kept: when deleting the prior points fails (a failed delete may still have been applied), the reply is a success with `warning: "prior_version_left"`, which the panel shows as a warning, and both versions' points may be listed. Two saves of one conversation at the same time are not serialized. The panel keeps the id until Reset, a new session, an app change, or deletion of that entry in Browse.
 
 `LIBRARY_SUGGEST_TITLE` asks the current provider for a title (`Monadic::Library::TitleSuggester`): up to 4 user/assistant messages, 240 characters each, title at most 60 characters, sent through the session's Privacy pipeline when there is one. Any failure returns `res: failure` and the title field stays empty. The panel reuses a suggestion until the conversation grows.
+
+`Manager.list_conversations` (behind `LIBRARY_LIST` and the Knowledge Base app) reads every page of `library_summaries` before it sorts by `created_at`, newest first, and applies the limit.
 
 Other messages: `LIBRARY_LIST`, `LIBRARY_STATS`, `LIBRARY_GET_CONVERSATION`, `LIBRARY_RENAME` (title, at most 200 characters), `LIBRARY_SET_SCOPE`, `LIBRARY_DELETE`, `LIBRARY_RAG_TOGGLE`, `LIBRARY_RAG_QUERY`.
 
@@ -133,7 +137,7 @@ The `library_rag` rule in `SystemPromptInjector` (priority 70) applies when the 
 
 `library_search(query:, top_n: 3, content_type: nil, source: nil, session:)`:
 
-1. Reads `app_name` from the session for the scope filter.
+1. Reads `app_name` from the session for the scope filter; a session without one searches the `Global` entries only.
 2. Runs `Retriever.cascade_search` with `top_n` clamped to 1–10 and a filter on `content_type` / `source` when given.
 3. Checks each hit for words the user marked (`Privacy::Outbound`); a hit with a marked word withholds the whole result.
 4. Formats the hits: title link `[Title](mc:conv:<id>)`, source, speaker role, turn, score, and up to 480 characters of text.
@@ -157,8 +161,9 @@ The frontend opens the Conversation Viewer when an `mc:conv:` link is clicked.
 `Monadic::Pdf::Store` (`lib/monadic/pdf/store.rb`) keeps PDFs uploaded through `POST /pdf` in `pdf_docs` (one point per document) and `pdf_items` (one point per chunk). Every query filters on the store's `app_key`:
 
 - `POST /pdf` uses `pdf_app_key_for(appName or session)`: the app class's `APP_KEY` constant if defined, otherwise its class name in lower case; `global` without an app.
-- PDF text is split by `PDF2Text` into 800-token chunks with 2 overlapping lines.
-- Apps with `pdf_vector_storage true` get the tools `find_closest_text`, `find_closest_doc`, `list_titles`, `get_text_snippet` and `get_text_snippets`, which read the store for the app's class name.
+- PDF text is split by `PDF2Text` into 800-token chunks with 2 overlapping lines. `PDF2Text#pdf2text` copies the file into the shared folder as `pdf2text_<random hex>.pdf` for the Python container, deletes the copy when the extraction ends, and stops the extraction after `PDF2Text::EXTRACT_TIMEOUT` (600 s). Pages are joined in page order.
+- `Pdf::Store` creates its collections before any read and, once per process, adds the schema's payload indexes (`doc_id` as keyword, `app_key`) to collections made earlier, through `VectorStore::Bootstrap` as the Library store does.
+- Apps with `pdf_vector_storage true` get the tools in `Pdf::Store::TOOLS` (`find_closest_text`, `find_closest_doc`, `list_titles`, `get_text_snippet`, `get_text_snippets`; `doc_id` is a UUID string), which read the store for the app's class name.
 - The MCP server's Knowledge Base tools read the store named by their `knowledge_base` argument (default `global`).
 
 ## Files

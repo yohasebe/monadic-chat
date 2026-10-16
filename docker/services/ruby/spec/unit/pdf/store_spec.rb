@@ -34,6 +34,44 @@ RSpec.describe Monadic::Pdf::Store do
     end
   end
 
+  describe 'collections made earlier' do
+    before { described_class.indexed_mutex.synchronize { described_class.indexed.clear } }
+    after { described_class.indexed_mutex.synchronize { described_class.indexed.clear } }
+
+    it 'get the app_key and string doc_id indexes once per process' do
+      calls = []
+      allow(store).to receive(:create_payload_index) { |**kw| calls << kw }
+      pdf.bootstrap_collections!
+      pdf.bootstrap_collections!
+      expect(calls).to include({ name: 'pdf_items', field: 'doc_id', schema: 'keyword' },
+                               { name: 'pdf_items', field: 'app_key', schema: 'keyword' },
+                               { name: 'pdf_docs', field: 'app_key', schema: 'keyword' })
+      expect(calls.count { |c| c[:name] == 'pdf_items' && c[:field] == 'doc_id' }).to eq(1)
+    end
+
+    it 'are created on a fresh install before listing or reading snippets' do
+      allow(store).to receive(:collection_exists?).and_return(false)
+      allow(store).to receive(:scroll).and_return({ points: [], next: nil })
+      pdf.list_titles
+      pdf.get_text_snippets('doc-1')
+      pdf.get_text_snippet('doc-1', 0)
+      expect(store).to have_received(:create_collection).with(hash_including(name: 'pdf_docs')).at_least(:once)
+      expect(store).to have_received(:create_collection).with(hash_including(name: 'pdf_items')).at_least(:once)
+    end
+  end
+
+  describe 'TOOLS' do
+    it 'declare doc_id with the type of the ids the store gives' do
+      allow(store).to receive(:scroll).and_return({ points: [{ 'id' => SecureRandom.uuid, 'payload' => { 'title' => 'T' } }], next: nil })
+      id = pdf.list_titles.first[:doc_id]
+      json_type = { String => 'string', Integer => 'integer' }.fetch(id.class)
+      described_class::TOOLS.each_value do |(_desc, params)|
+        expect(params['doc_id']).to eq(json_type) if params.key?('doc_id')
+      end
+      expect(described_class::TOOLS.values.count { |(_d, p)| p.key?('doc_id') }).to eq(2)
+    end
+  end
+
   describe '#any_docs?' do
     it 'returns true when the count for this app_key is positive' do
       allow(store).to receive(:count).with(

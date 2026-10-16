@@ -40,7 +40,10 @@ module Monadic
             payload = p['payload'] || {}
             rows << summary_row(payload)
           }
-          break if page[:next].nil? || rows.size >= limit
+          # Qdrant pages in id order, not by date: the newest entries can be on
+          # any page, so every page is read before sorting.
+          break if page[:next].nil?
+
           cursor = page[:next]
         end
         rows.sort_by { |r| r[:created_at].to_s }.reverse.first(limit)

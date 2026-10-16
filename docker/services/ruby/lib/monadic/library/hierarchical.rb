@@ -44,13 +44,27 @@ module Monadic
         conv_id = conversation['conversation_id']
         turns = TurnSegmenter.segment(conversation)
         counts = { summary: 0, turns: 0 }
+        # The points this call wrote. An entry is written whole or not at
+        # all: when a later step fails, they are deleted again.
+        written = Hash.new { |h, k| h[k] = [] }
 
-        if levels.include?(:summary)
-          counts[:summary] = upsert_summary(conversation, turns, conv_id, scope_app, store, embeddings)
-        end
+        begin
+          if levels.include?(:summary)
+            counts[:summary] = upsert_summary(conversation, turns, conv_id, scope_app, store, embeddings, written)
+          end
 
-        if levels.include?(:turns) && !turns.empty?
-          counts[:turns] = upsert_turns(turns, conv_id, scope_app, store, embeddings)
+          if levels.include?(:turns) && !turns.empty?
+            counts[:turns] = upsert_turns(turns, conv_id, scope_app, store, embeddings, written)
+          end
+        rescue StandardError
+          begin
+            store.delete_point_ids(written) unless written.empty?
+          rescue StandardError => e
+            if defined?(Monadic::Utils::ExtraLogger)
+              Monadic::Utils::ExtraLogger.log { "[Library] could not remove a partial entry: #{e.class}: #{e.message}" }
+            end
+          end
+          raise
         end
 
         counts
@@ -136,14 +150,16 @@ module Monadic
         [messages, nil]
       end
 
-      def upsert_summary(conversation, turns, conv_id, scope_app, store, embeddings)
+      def upsert_summary(conversation, turns, conv_id, scope_app, store, embeddings, written)
         text = build_placeholder_summary_text(conversation, turns)
         return 0 if text.strip.empty?
         vector = embeddings.embed_passages([text]).first
+        id = SecureRandom.uuid
+        written[VectorStore::Schema::LIBRARY_SUMMARIES] << id
         store.upsert_points(
           collection: VectorStore::Schema::LIBRARY_SUMMARIES,
           points: [{
-            id: SecureRandom.uuid,
+            id: id,
             vector: { 'content' => vector },
             payload: summary_payload(conversation, turns, scope_app)
           }]
@@ -167,7 +183,7 @@ module Monadic
         }.compact
       end
 
-      def upsert_turns(turns, conv_id, scope_app, store, embeddings)
+      def upsert_turns(turns, conv_id, scope_app, store, embeddings, written)
         vectors = embeddings.embed_passages(turns.map { |t| t[:text] })
         points = turns.each_with_index.map do |turn, idx|
           {
@@ -176,6 +192,7 @@ module Monadic
             payload: turn_payload(turn, conv_id, scope_app)
           }
         end
+        written[VectorStore::Schema::LIBRARY_TURNS].concat(points.map { |p| p[:id] })
         store.upsert_points(
           collection: VectorStore::Schema::LIBRARY_TURNS,
           points: points

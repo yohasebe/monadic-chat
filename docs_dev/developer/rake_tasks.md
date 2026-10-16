@@ -106,7 +106,7 @@ rake release:list
 # Delete a release and its tag
 rake release:delete[version]
 
-# Update assets in existing release
+# Update assets in existing release (adds a dated line to its release notes)
 rake release:update_assets[version,file_patterns]
 ```
 

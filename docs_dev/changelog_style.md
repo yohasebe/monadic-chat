@@ -4,7 +4,7 @@
 
 ## Version Line
 
-Each entry starts with `- [Month, Year] <version>`. `rake release:github` finds a release's section by this exact line, and `rake version:*` renames the top entry while its version is unreleased. Entries are separated by one blank line, newest first.
+Each entry starts with `- [Month, Year] <version>`. `rake release:github` finds a release's section by this exact line, and `rake version:*` renames the top entry while its version is unreleased. Entries are separated by one blank line, newest first. A version appears in one heading only: the release task takes the first heading with that version, and an entry ends at the next top-level `- [` line.
 
 ## Groups
 
@@ -42,3 +42,5 @@ Under the version line, up to five groups in this order, each only when it has i
 - A container to rebuild goes at the end in parentheses: `(rebuild the Python container)`.
 - Products by their marketed names, not API model IDs.
 - Changes that concern only the project's internals are not listed.
+
+Under For developers, the names a contributor writes are fine: entries and flags in `model_spec.js`, MDSL settings, rake tasks, files an app folder holds. MCP tools that clients call (Monadic Conduit) are a feature and go under New; changes to how the MCP server answers go under For developers.

@@ -365,6 +365,10 @@ PY
   releases, so no separate publish is needed unless a service Dockerfile
   changed.
 
+## 11. Replacing assets of a published release
+
+`rake "release:update_assets[<version>,'<files>']"` replaces assets of a published release (`gh release upload --clobber`) and then adds a line to that release's notes, `- Release assets replaced on <date>: <files>`, and reads the notes back to check they are as written. File names must start with a letter or digit and hold only letters, digits and `._+-`; `gh` is called without a shell, with the files after `--`. Replacements of one release run one at a time on the machine, from any checkout (a lock under `~/.cache/monadic-chat-release/`); notes edited elsewhere at the same time are not covered. `--clobber` deletes an asset before uploading its replacement, so a failed upload can leave it missing; the task then fails. If the upload fails the task stops before the notes; if the notes cannot be read, updated or checked, it stops with the line to add by hand. A replacement goes through the same checks before and after publishing as a release (sections 3, 9 and 10).
+
 ## Related references
 
 - `docs_dev/electron-build.md` — build environment, Windows signing on Parallels

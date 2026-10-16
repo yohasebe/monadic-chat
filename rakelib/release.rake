@@ -101,6 +101,17 @@ end
 
 # Resolves to the commit a ref points at, so the rest of the release works
 # with one fixed SHA instead of a name that can move under it.
+# A release version goes into gh commands and tag names; anything else stops
+# the task.
+RELEASE_VERSION = /\A\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?\z/
+
+def require_release_version!(version)
+  return if version.to_s.match?(RELEASE_VERSION)
+
+  puts "Error: '#{version}' is not a version (such as 1.0.0-beta.44)."
+  exit 1
+end
+
 def git_commit_of(commitish)
   out, status = Open3.capture2e('git', 'rev-parse', '--verify', '--quiet', "#{commitish}^{commit}")
   sha = out.strip
@@ -120,6 +131,7 @@ namespace :release do
     # with NOTARY_PROFILE, and the notarize hooks stop without it.
     ENV['MONADIC_RELEASE_BUILD'] = '1'
     version = args[:version] || get_current_version
+    require_release_version!(version)
     prerelease = args[:prerelease] == 'true'
     # Required: the commit the release is cut from. Without it there is no
     # commit whose CI can be checked, and `gh release create` would place the
@@ -366,6 +378,7 @@ namespace :release do
       puts "Error: Version required. Use rake release:delete[version]"
       exit 1
     end
+    require_release_version!(version)
     
     # Confirm deletion
     print "Are you sure you want to delete release v#{version} AND its tag? This cannot be undone! (y/N): "
@@ -396,6 +409,8 @@ namespace :release do
       puts "To update all standard release files: rake \"release:update_assets[0.9.79]\""
       exit 1
     end
+
+    require_release_version!(version)
     
     # Check if GitHub CLI is installed
     unless system("which gh > /dev/null 2>&1")
@@ -413,7 +428,7 @@ namespace :release do
     end
     
     # Check if the release exists
-    release_exists = system("gh release view v#{version} >/dev/null 2>&1")
+    release_exists = system('gh', 'release', 'view', "v#{version}", out: File::NULL, err: File::NULL)
     unless release_exists
       puts "Error: Release v#{version} does not exist."
       exit 1
@@ -474,57 +489,86 @@ namespace :release do
       exit 1
     end
     
-    # First, delete the assets we're going to replace
-    assets_to_delete = []
-    files_to_update.each do |file|
-      asset_name = File.basename(file)
-      assets_to_delete << asset_name
+    # Asset names are what the release notes record and what GitHub shows,
+    # so only plain names are taken (no shell or Markdown meaning).
+    unsafe = files_to_update.map { |f| File.basename(f) }.reject { |n| n.match?(/\A[0-9A-Za-z][0-9A-Za-z._+-]*\z/) }
+    unless unsafe.empty?
+      puts "Error: these file names do not start with a letter or digit, or have characters other than letters, digits and ._+-: #{unsafe.join(', ')}"
+      exit 1
     end
-    
+    # Absolute paths after "--", so no operand is read as an option of gh.
+    files_to_update = files_to_update.map { |f| File.expand_path(f) }
+    assets_to_update = files_to_update.map { |file| File.basename(file) }
+
+    require 'open3'
+    require 'tempfile'
+    require 'fileutils'
+
     # Get list of current assets for reference
     puts "Checking current assets in release v#{version}..."
-    current_assets_output = `gh release view v#{version} --json assets`
+    current_assets_output, = Open3.capture3('gh', 'release', 'view', "v#{version}", '--json', 'assets')
     current_assets = JSON.parse(current_assets_output)['assets'].map { |a| a['name'] } rescue []
-    
+
     # Print summary of what will be updated
     puts "\nUpdate Summary:"
     puts "- Release: v#{version}"
     puts "- Current assets: #{current_assets.join(', ')}"
-    puts "- Assets to be updated: #{assets_to_delete.join(', ')}"
-    puts "\nThis will silently replace the specified files in the GitHub release."
+    puts "- Assets to be updated: #{assets_to_update.join(', ')}"
+    puts "\nThis replaces these files in the GitHub release and adds a line saying so to its release notes."
     print "Are you sure you want to continue? (y/N): "
     response = STDIN.gets.chomp.downcase
     exit 1 unless response == 'y'
-    
-    # Delete each asset individually
-    puts "\nRemoving old assets from release..."
-    assets_to_delete.each do |asset|
-      if current_assets.include?(asset)
-        puts "  Deleting asset '#{asset}' from release v#{version}..."
-        system("gh release delete-asset v#{version} \"#{asset}\" -y")
+
+    note = asset_replacement_note(files_to_update, Time.now)
+
+    # One replacement of a release at a time on this machine, from any
+    # checkout: the notes are read, extended and written back, so two at once
+    # would lose a line.
+    lock_dir = File.join(Dir.home, '.cache', 'monadic-chat-release')
+    FileUtils.mkdir_p(lock_dir)
+    File.open(File.join(lock_dir, "update-assets-v#{version}.lock"), File::RDWR | File::CREAT, 0o644) do |lock|
+      lock.flock(File::LOCK_EX)
+
+      # --clobber deletes an asset of the same name before uploading the new
+      # one; a failed upload can leave it missing, and the task then fails.
+      puts "\nUploading #{files_to_update.length} assets to release v#{version}..."
+      unless system('gh', 'release', 'upload', "v#{version}", '--clobber', '--', *files_to_update)
+        puts "Error updating release assets: gh release upload failed"
+        exit 1
+      end
+
+      # A published release whose assets change says so in its notes, with
+      # the date and the files (docs_dev/release_procedure.md).
+      body, err, status = Open3.capture3('gh', 'release', 'view', "v#{version}", '--json', 'body', '-q', '.body')
+      unless status.success?
+        abort "Error: the assets were replaced, but the release notes could not be read to record it: #{err.strip}. Add the line by hand: #{note}"
+      end
+      notes = body.strip.empty? ? "#{note}\n" : "#{body.rstrip}\n\n#{note}\n"
+      Tempfile.create(['release-notes', '.md']) do |f|
+        f.write(notes)
+        f.flush
+        _out, err, status = Open3.capture3('gh', 'release', 'edit', "v#{version}", '--notes-file', f.path)
+        unless status.success?
+          abort "Error: the assets were replaced, but the release notes could not be updated: #{err.strip}. Add the line by hand: #{note}"
+        end
+      end
+
+      written, err, status = Open3.capture3('gh', 'release', 'view', "v#{version}", '--json', 'body', '-q', '.body')
+      unless status.success? && written.rstrip == notes.rstrip
+        abort "Error: the assets were replaced, but the release notes do not read back as written#{status.success? ? '' : " (#{err.strip})"}. Check that this line is there: #{note}"
       end
     end
-    
-    # Prepare files list with proper escaping for files with spaces
-    escaped_files = files_to_update.map do |file|
-      # Escape spaces in file paths for shell
-      "\"#{file.gsub('"', '\\"')}\""
-    end.join(' ')
-    
-    # Upload the new assets with clobber to overwrite any existing assets
-    puts "\nUploading #{files_to_update.length} assets to release v#{version}..."
-    upload_cmd = "gh release upload v#{version} #{escaped_files} --clobber"
-    
-    begin
-      # Execute the command
-      sh upload_cmd
-      puts "\nAssets updated successfully!"
-      puts "URL: https://github.com/yohasebe/monadic-chat/releases/tag/v#{version}"
-    rescue => e
-      puts "Error updating release assets: #{e.message}"
-    end
+
+    puts "\nAssets updated, and the replacement recorded in the release notes."
+    puts "URL: https://github.com/yohasebe/monadic-chat/releases/tag/v#{version}"
   end
   
+  # The line added to a release's notes when its assets are replaced.
+  def asset_replacement_note(files, time)
+    names = files.map { |f| File.basename(f) }.sort.join(', ')
+    "- Release assets replaced on #{time.strftime('%Y-%m-%d')}: #{names}"
+  end
+
   # Helper method to extract changelog entry for specific version
   def extract_changelog_entry(version)
     changelog_file = "./CHANGELOG.md"
@@ -537,14 +581,16 @@ namespace :release do
     # heading shape (not a bare substring match) so a body line that merely
     # mentions the version string — e.g. a prior release noting it was
     # "superseded by 1.0.0-beta.18" — cannot be picked up as the section start.
-    # The trailing (?![\w.]) boundary stops "beta.18" from also matching a
-    # future "beta.18.1" heading.
-    header_re = /^\s*-\s*\[[\w\s,]+\]\s*#{Regexp.escape(version)}(?![\w.])/
+    # The trailing (?![\w.-]) boundary stops "beta.18" from also matching a
+    # future "beta.18.1" heading, and "1.0.0" from matching "1.0.0-beta.44".
+    header_re = /^\s*-\s*\[[\w\s,]+\]\s*#{Regexp.escape(version)}(?![\w.-])/
     version_line_index = lines.find_index { |line| line.match(header_re) }
     return "" unless version_line_index
 
     # Find the next version entry or the end of the file
-    next_version_line_index = lines[version_line_index+1..-1].find_index { |line| line.match(/^\s*-\s*\[\w+,\s*\d+\]/) }
+    # Every top-level "- [" line starts an entry (some older ones carry a
+    # day, or no version).
+    next_version_line_index = lines[version_line_index+1..-1].find_index { |line| line.start_with?("- [") }
     next_version_line_index = next_version_line_index ? version_line_index + 1 + next_version_line_index : lines.length
     
     # Extract the changelog entry
@@ -576,7 +622,7 @@ namespace :release do
     processed_entry = processed_entry.gsub(/\n{3,}/, "\n\n").rstrip + "\n"
 
     # Add a footer
-    processed_entry += "\n\n---\nGenerated on #{Time.now.strftime('%Y-%m-%d')}"
+    processed_entry += "\n---\nGenerated on #{Time.now.strftime('%Y-%m-%d')}"
     
     processed_entry
   end

@@ -4488,7 +4488,9 @@ ipcMain.on('reset-web-ui', async () => {
 });
 
 // Add IPC handler for selecting TTS dictionary file
-ipcMain.handle('select-tts-dict', async () => {
+ipcMain.handle('select-tts-dict', async (event) => {
+    // It writes the env file, so it answers the Settings window only.
+    if (!isSettingsSender(event)) return '';
     const result = await dialog.showOpenDialog({
         properties: ['openFile'],
         filters: [{ name: 'CSV Files', extensions: ['csv'] }]

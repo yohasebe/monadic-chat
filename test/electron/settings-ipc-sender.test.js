@@ -37,9 +37,9 @@ describe('settings IPC', () => {
     expect(check({ sender: destroyed.webContents, senderFrame: destroyed.webContents.mainFrame })).toBe(false);
   });
 
-  test.each(['request-settings', 'save-settings'])('%s checks the sender before anything else', (channel) => {
-    const m = source.match(new RegExp(`ipcMain\\.(?:on|handle)\\('${channel}', \\(event[^)]*\\) => \\{\\n\\s*(.*)`));
+  test.each(['request-settings', 'save-settings', 'select-tts-dict'])('%s checks the sender before anything else', (channel) => {
+    const m = source.match(new RegExp(`ipcMain\\.(?:on|handle)\\('${channel}', (?:async )?\\(event[^)]*\\) => \\{\\n((?:\\s*//.*\\n)*)\\s*(.*)`));
     expect(m).not.toBeNull();
-    expect(m[1]).toMatch(/^if \(!isSettingsSender\(event\)\) return/);
+    expect(m[2]).toMatch(/^if \(!isSettingsSender\(event\)\) return/);
   });
 });

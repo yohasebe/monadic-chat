@@ -3,6 +3,7 @@
 
 require "uri"
 require "cgi"
+require_relative "../../utils/request_retry"
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/usage_normalizer"
 require_relative "../../utils/error_formatter"
@@ -548,13 +549,6 @@ module GeminiHelper
   # Supports up to 20 URLs per request
   MAX_URL_CONTEXT = 20
   
-  # Supported content types for URL context
-  URL_CONTEXT_TYPES = {
-    text: ["html", "json", "txt", "xml", "css", "js"],
-    image: ["png", "jpeg", "jpg", "bmp", "webp"],
-    pdf: ["pdf"]
-  }.freeze
-  
   # URL Context prompt for better search integration
   URL_CONTEXT_PROMPT = <<~TEXT
     When web search is requested, I will analyze web content directly from URLs.
@@ -911,7 +905,7 @@ module GeminiHelper
     target_uri = "#{endpoint}/models/#{model}:generateContent"
     
     # Debug logging for SecondOpinion
-    Monadic::Utils::ExtraLogger.log { "GeminiHelper send_query: Model=#{model}, Endpoint=#{endpoint}\nGeminiHelper send_query: Full URI=#{target_uri.gsub(/key=.*/, 'key=***')}" }
+    Monadic::Utils::ExtraLogger.log { "GeminiHelper send_query: Model=#{model}, Endpoint=#{endpoint}\nGeminiHelper send_query: Full URI=#{target_uri}" }
     
     http = HTTP.headers(headers)
     
@@ -1188,20 +1182,6 @@ module GeminiHelper
     RESPONSE
   end
   
-  # Helper method to process URL context for web search
-  def process_url_context(urls)
-    return nil unless urls.is_a?(Array) && !urls.empty?
-    
-    # Limit to maximum allowed URLs
-    urls = urls.first(MAX_URL_CONTEXT)
-    
-    # According to Gemini docs, URLs should be included in the text, not as separate parts
-    # The URL context tool will automatically extract and process them
-    
-    DebugHelper.debug("Gemini URL Context: Processing #{urls.length} URLs", category: :api, level: :debug)
-    urls
-  end
-  
   # Helper method to search for URLs based on query (placeholder for actual search logic)
   def search_urls_for_query(query)
     # This is a simplified version - in production, you might want to:
@@ -1224,24 +1204,6 @@ module GeminiHelper
     search_urls
   end
   
-  # Helper method to determine which tools should be available next for thinking models
-  def get_next_allowed_tools(completed_tools)
-    # Define the expected sequence for Jupyter operations
-    if completed_tools.empty?
-      # First, we need to start Jupyter or create a notebook
-      ["run_jupyter", "create_jupyter_notebook", "list_jupyter_notebooks"]
-    elsif completed_tools.include?("run_jupyter") && !completed_tools.include?("create_jupyter_notebook")
-      # After starting Jupyter, create a notebook
-      ["create_jupyter_notebook", "list_jupyter_notebooks"]
-    elsif completed_tools.include?("create_jupyter_notebook") && !completed_tools.include?("add_jupyter_cells")
-      # After creating notebook, add cells
-      ["add_jupyter_cells", "get_jupyter_cells_with_results"]
-    else
-      # Allow all tools if we're past the initial sequence
-      nil  # This will allow all tools
-    end
-  end
-
   def api_request(role, session, call_depth: 0, &block)
     # Reset call_depth counter and tool_results for each new user turn
     # This allows unlimited user iterations while preventing infinite loops within a single response
@@ -1664,20 +1626,31 @@ module GeminiHelper
     
     # Execute API call (endpoint selection, HTTP request, retry, error handling)
     Monadic::Utils::ExtraLogger.log { "[api_request] role=#{role}, calling execute_gemini_api_call with model=#{obj["model"]}, contents_count=#{body["contents"]&.length}, tools_count=#{body["tools"]&.length}" }
-    execute_gemini_api_call(
-      headers: headers, body: body, obj: obj, api_key: api_key,
-      is_thinking_model: is_thinking_model, has_pdf_part: has_pdf_part,
-      app: app, session: session, call_depth: call_depth, &block
-    )
-  rescue HTTP::Error, HTTP::TimeoutError, OpenSSL::SSL::SSLError => e
-    Monadic::Utils::ExtraLogger.log { "[api_request] HTTP/SSL error caught: #{e.class}: #{e.message}" }
-    if num_retrial < MAX_RETRIES
+    # Only the request is retried, so nothing before it (such as the
+    # user card) is sent again, and only until part of the reply has reached
+    # the browser. Each attempt sends a copy of the request body, which the
+    # call adds fields of its own to. After MAX_RETRIES the error goes on to
+    # the rescue below.
+    request_body = body
+    sent = { replied: false }
+    relay = Monadic::Utils::RequestRetry.relay(block, sent)
+    begin
+      body = Monadic::Utils::RequestRetry.copy(request_body)
+      execute_gemini_api_call(
+        headers: headers, body: body, obj: obj, api_key: api_key,
+        is_thinking_model: is_thinking_model, has_pdf_part: has_pdf_part,
+        app: app, session: session, call_depth: call_depth, &relay
+      )
+    rescue HTTP::Error, HTTP::TimeoutError, OpenSSL::SSL::SSLError
+      raise if num_retrial >= MAX_RETRIES || sent[:replied]
+
       num_retrial += 1
       sleep RETRY_DELAY * num_retrial
       retry
-    else
-      handle_gemini_api_error(e, &block)
     end
+  rescue HTTP::Error, HTTP::TimeoutError, OpenSSL::SSL::SSLError => e
+    Monadic::Utils::ExtraLogger.log { "[api_request] HTTP/SSL error caught: #{e.class}: #{e.message}" }
+    handle_gemini_api_error(e, &block)
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[api_request] StandardError caught: #{e.class}: #{e.message}\n  #{e.backtrace&.first(5)&.join("\n  ")}" }
     handle_gemini_api_error(e, &block)
@@ -2331,13 +2304,16 @@ module GeminiHelper
         return [error_res]
       end
 
-      error_report = JSON.parse(res.body)
+      # A proxy or gateway can answer with a body that is not JSON.
+      error_report = (JSON.parse(res.body) rescue nil)
 
       # Handle both hash and array error formats
       error_message = if error_report.is_a?(Hash)
         error_report.dig("error", "message") || error_report["message"] || "Unknown API error"
       elsif error_report.is_a?(Array)
         error_report.first&.dig("error", "message") || error_report.first&.[]("message") || "Unknown API error (array format)"
+      elsif error_report.nil?
+        "HTTP #{res.status}"
       else
         "Unknown API error (unexpected format)"
       end
@@ -2619,7 +2595,7 @@ module GeminiHelper
       
     rescue StandardError => e
       # Log error but continue processing
-      STDERR.puts "Error processing JSON data chunk: #{e.message}"
+      Monadic::Utils::ExtraLogger.log { "[Gemini] Error processing JSON data chunk: #{e.message}" }
     end
 
 
@@ -3810,7 +3786,7 @@ module GeminiHelper
       tool_name: function_name,
       message: e.message
     )
-    STDERR.puts error_message
+    Monadic::Utils::ExtraLogger.log { "[Gemini] #{error_message}" }
 
     if function_name == "generate_video_with_veo"
       video_success = false
@@ -3824,7 +3800,7 @@ module GeminiHelper
       end
 
       if video_filename && video_success
-        STDERR.puts "Found video filename in error: #{video_filename}"
+        Monadic::Utils::ExtraLogger.log { "[Gemini] Found video filename in error: #{video_filename}" }
 
         original_prompt = ""
         begin
@@ -4026,7 +4002,7 @@ module GeminiHelper
       
       return result_json
     rescue => e
-      STDERR.puts "Error executing command: #{e.message}"
+      Monadic::Utils::ExtraLogger.log { "[Gemini] Error executing command: #{e.message}" }
       
       # Clean up temporary files even if there was an error
       File.unlink(temp_file_path) if temp_file_path && File.exist?(temp_file_path)

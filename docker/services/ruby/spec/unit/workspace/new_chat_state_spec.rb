@@ -43,7 +43,7 @@ RSpec.describe 'What a new chat keeps from the session' do
       monadic_state: { privacy: { registry: { 'Alice' => '<<PERSON_1>>' } } },
       progressive_tools: { 'ChatOpenAI' => { unlocked: ['x'] } },
       _privacy_pipeline: Object.new, _privacy_session_enabled: true, _substitution_pipeline: Object.new,
-      grok_compaction: { 'blob' => 'x' }, _model_fallback_notified: true, error_patterns: { similar_count: 2 },
+      grok_compaction: { 'blob' => 'x' }, _model_fallback_notified: true, _unavailable_models: { "a" => "b" }, error_patterns: { similar_count: 2 },
       tool_call_sequence: [{ name: 'run' }], call_depth_per_turn: 3, obj: { 'message' => 'x' }, error: 'boom'
     }
   end

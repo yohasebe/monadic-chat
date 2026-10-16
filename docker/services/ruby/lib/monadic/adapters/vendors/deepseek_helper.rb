@@ -1,5 +1,6 @@
 # frozen_string_literal: false
 
+require_relative "../../utils/request_retry"
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/usage_normalizer"
 require_relative "../../utils/extra_logger"
@@ -148,19 +149,22 @@ module DeepSeekHelper
         end
         return content
       rescue => e
-        return "Error: #{e.message}"
+        return "Error: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"
       end
     else
-      begin
-        error_data = response && response.body ? JSON.parse(response.body) : {}
-        error_message = error_data["error"] || "Unknown error"
-        return "Error: #{error_message}"
-      rescue => e
-        return "Error: Failed to parse error response"
-      end
+      # DeepSeek errors are shaped like OpenAI's: {"error": {"message": ...}}.
+      raw = response&.body.to_s
+      error_data = begin JSON.parse(raw) rescue raw end
+      error_message = if error_data.is_a?(Hash)
+                        err = error_data["error"]
+                        (err.is_a?(Hash) ? err["message"] : err) || error_data["message"] || "Unknown error"
+                      else
+                        error_data.to_s.strip.empty? ? "HTTP #{response&.status&.code}" : error_data.to_s
+                      end
+      return "Error: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(error_message.to_s)}"
     end
   rescue => e
-    return "Error: #{e.message}"
+    return "Error: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"
   end
 
   def api_request(role, session, call_depth: 0, &block)
@@ -339,24 +343,35 @@ module DeepSeekHelper
 
     configure_deepseek_reasoning(body, obj, is_json, role)
 
-    execute_deepseek_api_call(headers, body, app, session, call_depth, &block)
-  rescue HTTP::Error, HTTP::TimeoutError
-    if num_retrial < MAX_RETRIES
+    # Only the request is retried, so nothing before it (such as the
+    # user card) is sent again, and only until part of the reply has reached
+    # the browser. Each attempt sends a copy of the request body, which the
+    # call adds fields of its own to. After MAX_RETRIES the error goes on to
+    # the rescue below.
+    request_body = body
+    sent = { replied: false }
+    relay = Monadic::Utils::RequestRetry.relay(block, sent)
+    begin
+      body = Monadic::Utils::RequestRetry.copy(request_body)
+      execute_deepseek_api_call(headers, body, app, session, call_depth, &relay)
+    rescue HTTP::Error, HTTP::TimeoutError
+      raise if num_retrial >= MAX_RETRIES || sent[:replied]
+
       num_retrial += 1
       sleep RETRY_DELAY
       retry
-    else
-      error_message = "The request has timed out."
-      Monadic::Utils::ExtraLogger.log { "[DeepSeek] #{error_message}" }
-      formatted_error = Monadic::Utils::ErrorFormatter.network_error(
-        provider: "DeepSeek",
-        message: error_message,
-        timeout: true
-      )
-      res = { "type" => "error", "content" => formatted_error }
-      block&.call res
-      [res]
     end
+  rescue HTTP::Error, HTTP::TimeoutError
+    error_message = "The request has timed out."
+    Monadic::Utils::ExtraLogger.log { "[DeepSeek] #{error_message}" }
+    formatted_error = Monadic::Utils::ErrorFormatter.network_error(
+      provider: "DeepSeek",
+      message: error_message,
+      timeout: true
+    )
+    res = { "type" => "error", "content" => formatted_error }
+    block&.call res
+    [res]
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[DeepSeek] Unknown error: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}" }
     formatted_error = Monadic::Utils::ErrorFormatter.api_error(
@@ -1115,8 +1130,14 @@ module DeepSeekHelper
       context << assistant_msg
 
       call_depth += 1
-      if call_depth > MAX_FUNC_CALLS
-        return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
+      # The turn's tool rounds are counted in the session, as in the other
+      # helpers: at MAX_FUNC_CALLS the next request goes without tools, so
+      # the model answers in text.
+      session[:call_depth_per_turn] = session[:call_depth_per_turn].to_i + 1
+      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
+        return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
+          provider: "DeepSeek", message: "Maximum function call depth exceeded"
+        ) }]
       end
 
       new_results = process_functions(app, session, tools_data, context, call_depth, &block)
@@ -1180,7 +1201,8 @@ module DeepSeekHelper
                                  max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
 
     unless res.status.success?
-      error_report = JSON.parse(res.body)
+      # A proxy or gateway can answer with a body that is not JSON.
+      error_report = (JSON.parse(res.body) rescue nil) || { "error" => { "message" => "HTTP #{res.status}" } }
       Monadic::Utils::ExtraLogger.log { "[DeepSeek] API error: #{error_report}" }
       formatted_error = format_api_error(error_report, "deepseek")
       res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }

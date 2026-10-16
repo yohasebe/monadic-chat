@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "../../utils/request_retry"
 require_relative "../../utils/http_client"
 require_relative "../../utils/privacy/outbound"
 require 'cgi'
@@ -1262,12 +1263,14 @@ module OpenAIHelper
     end
 
     unless res&.status&.success?
-      error_body = JSON.parse(res.body)
-      error_report = error_body["error"]
-      Monadic::Utils::ExtraLogger.log { "[OpenAI API Error] #{error_report}" }
+      # A proxy or gateway can answer with a body that is not JSON.
+      error_body = (JSON.parse(res.body) rescue nil)
+      error_report = error_body.is_a?(Hash) ? error_body["error"] : nil
+      Monadic::Utils::ExtraLogger.log { "[OpenAI API Error] #{error_report || "HTTP #{res.status}"}" }
+      message = error_report.is_a?(Hash) ? error_report["message"] : error_report
       formatted_error = Monadic::Utils::ErrorFormatter.api_error(
         provider: "OpenAI",
-        message: error_report["message"] || "Unknown API error",
+        message: message || "HTTP #{res.status}",
         code: res.status.code
       )
       res = { "type" => "error", "content" => formatted_error }
@@ -1563,28 +1566,39 @@ module OpenAIHelper
       end
     end
 
-    execute_openai_api_call(
-      headers, body, target_uri, app, session, obj,
-      use_responses_api, reasoning_model, reasoning_effort,
-      original_user_model, current_call_depth, num_retrial, &block
-    )
-  rescue HTTP::Error, HTTP::TimeoutError
-    if num_retrial < MAX_RETRIES
+    # Only the request is retried, so nothing before it (such as the
+    # user card) is sent again, and only until part of the reply has reached
+    # the browser. Each attempt sends a copy of the request body, which the
+    # call adds fields of its own to. After MAX_RETRIES the error goes on to
+    # the rescue below.
+    request_body = body
+    sent = { replied: false }
+    relay = Monadic::Utils::RequestRetry.relay(block, sent)
+    begin
+      body = Monadic::Utils::RequestRetry.copy(request_body)
+      execute_openai_api_call(
+        headers, body, target_uri, app, session, obj,
+        use_responses_api, reasoning_model, reasoning_effort,
+        original_user_model, current_call_depth, num_retrial, &relay
+      )
+    rescue HTTP::Error, HTTP::TimeoutError
+      raise if num_retrial >= MAX_RETRIES || sent[:replied]
+
       num_retrial += 1
       sleep RETRY_DELAY
       retry
-    else
-      error_message = "The request has timed out."
-      Monadic::Utils::ExtraLogger.log { "[OpenAI] #{error_message}" }
-      formatted_error = Monadic::Utils::ErrorFormatter.network_error(
-        provider: "OpenAI",
-        message: error_message,
-        timeout: true
-      )
-      res = { "type" => "error", "content" => formatted_error }
-      block&.call res
-      [res]
     end
+  rescue HTTP::Error, HTTP::TimeoutError
+    error_message = "The request has timed out."
+    Monadic::Utils::ExtraLogger.log { "[OpenAI] #{error_message}" }
+    formatted_error = Monadic::Utils::ErrorFormatter.network_error(
+      provider: "OpenAI",
+      message: error_message,
+      timeout: true
+    )
+    res = { "type" => "error", "content" => formatted_error }
+    block&.call res
+    [res]
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[OpenAI] Unexpected error: #{e.message}\n[OpenAI] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     formatted_error = Monadic::Utils::ErrorFormatter.api_error(
@@ -3026,108 +3040,6 @@ module OpenAIHelper
   public
 
   # Helper methods for Responses API
-
-  # Check if a model should use the Responses API
-  def use_responses_api?(model)
-    Monadic::Utils::ModelSpec.responses_api?(model)
-  end
-  
-  # Get a response by ID (for stateful conversations)
-  def get_response(response_id)
-    api_key = CONFIG["OPENAI_API_KEY"]
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
-    
-    target_uri = "#{API_ENDPOINT}/responses/#{response_id}"
-    http = Monadic::Utils::HttpClient.rest.headers(headers)
-    
-    begin
-      res = http.get(target_uri)
-      if res.status.success?
-        JSON.parse(res.body)
-      else
-        nil
-      end
-    rescue HTTP::Error, HTTP::TimeoutError
-      nil
-    end
-  end
-  
-  # Delete a response by ID
-  def delete_response(response_id)
-    api_key = CONFIG["OPENAI_API_KEY"]
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
-    
-    target_uri = "#{API_ENDPOINT}/responses/#{response_id}"
-    http = Monadic::Utils::HttpClient.rest.headers(headers)
-    
-    begin
-      res = http.delete(target_uri)
-      res.status.success?
-    rescue HTTP::Error, HTTP::TimeoutError
-      false
-    end
-  end
-  
-  # Cancel a background response
-  def cancel_response(response_id)
-    api_key = CONFIG["OPENAI_API_KEY"]
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
-    
-    target_uri = "#{API_ENDPOINT}/responses/#{response_id}/cancel"
-    http = Monadic::Utils::HttpClient.rest.headers(headers)
-    
-    begin
-      res = http.post(target_uri)
-      if res.status.success?
-        JSON.parse(res.body)
-      else
-        nil
-      end
-    rescue HTTP::Error, HTTP::TimeoutError
-      nil
-    end
-  end
-  
-  # Get input items for a response
-  def get_response_input_items(response_id, options = {})
-    api_key = CONFIG["OPENAI_API_KEY"]
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
-    
-    params = {}
-    params[:limit] = options[:limit] if options[:limit]
-    params[:after] = options[:after] if options[:after]
-    params[:before] = options[:before] if options[:before]
-    params[:include] = options[:include] if options[:include]
-    
-    query_string = params.map { |k, v| "#{k}=#{v}" }.join("&")
-    target_uri = "#{API_ENDPOINT}/responses/#{response_id}/input_items"
-    target_uri += "?#{query_string}" unless query_string.empty?
-    
-    http = Monadic::Utils::HttpClient.rest.headers(headers)
-    
-    begin
-      res = http.get(target_uri)
-      if res.status.success?
-        JSON.parse(res.body)
-      else
-        nil
-      end
-    rescue HTTP::Error, HTTP::TimeoutError
-      nil
-    end
-  end
 
   # Document MIME types supported by OpenAI File Inputs API
   DOCUMENT_MIME_TYPES = %w[

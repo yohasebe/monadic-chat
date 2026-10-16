@@ -2,6 +2,7 @@
 
 require 'cgi'
 
+require_relative "../../utils/request_retry"
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/usage_normalizer"
 require_relative "../../utils/error_formatter"
@@ -521,11 +522,13 @@ module GrokHelper
                    .map { |c| c["text"] }
                    .join
       frag = "" if frag.nil?
-      block&.call({ "type" => "fragment", "content" => frag, "finish_reason" => "stop" })
-      block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-
-      # Check for function calls in output
+      # A reply that calls tools is not the end of the turn: the browser keeps
+      # its "processing tools" state when DONE comes with "tool_calls".
       function_calls = output.select { |item| item["type"] == "function_call" }
+      finish_reason = function_calls.any? ? "tool_calls" : "stop"
+      block&.call({ "type" => "fragment", "content" => frag, "finish_reason" => finish_reason })
+      block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => finish_reason })
+
       if function_calls.any?
         tool_calls = function_calls.map do |fc|
           { "id" => fc["call_id"] || fc["id"], "function" => { "name" => fc["name"], "arguments" => fc["arguments"] || "{}" } }
@@ -1235,24 +1238,35 @@ module GrokHelper
       )
     end
 
-    execute_grok_api_call(headers, body, app, session, call_depth, disable_streaming, original_user_model, &block)
-  rescue HTTP::Error, HTTP::TimeoutError
-    if num_retrial < MAX_RETRIES
+    # Only the request is retried, so nothing before it (such as the
+    # user card) is sent again, and only until part of the reply has reached
+    # the browser. Each attempt sends a copy of the request body, which the
+    # call adds fields of its own to. After MAX_RETRIES the error goes on to
+    # the rescue below.
+    request_body = body
+    sent = { replied: false }
+    relay = Monadic::Utils::RequestRetry.relay(block, sent)
+    begin
+      body = Monadic::Utils::RequestRetry.copy(request_body)
+      execute_grok_api_call(headers, body, app, session, call_depth, disable_streaming, original_user_model, &relay)
+    rescue HTTP::Error, HTTP::TimeoutError
+      raise if num_retrial >= MAX_RETRIES || sent[:replied]
+
       num_retrial += 1
       sleep RETRY_DELAY
       retry
-    else
-      error_message = "The request has timed out."
-      DebugHelper.debug(error_message, category: :api, level: :error)
-      formatted_error = Monadic::Utils::ErrorFormatter.network_error(
-          provider: "xAI",
-          message: error_message,
-          timeout: true
-        )
-      res = { "type" => "error", "content" => formatted_error }
-      block&.call res
-      [res]
     end
+  rescue HTTP::Error, HTTP::TimeoutError
+    error_message = "The request has timed out."
+    DebugHelper.debug(error_message, category: :api, level: :error)
+    formatted_error = Monadic::Utils::ErrorFormatter.network_error(
+        provider: "xAI",
+        message: error_message,
+        timeout: true
+      )
+    res = { "type" => "error", "content" => formatted_error }
+    block&.call res
+    [res]
   rescue StandardError => e
     DebugHelper.debug("API request error: #{e.message}", category: :api, level: :error)
     DebugHelper.debug("Backtrace: #{e.backtrace.join("\n")}", category: :api, level: :debug)

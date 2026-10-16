@@ -1,3 +1,4 @@
+require_relative "../../utils/request_retry"
 require_relative '../../utils/shared_path_guard'
 require_relative "../../utils/http_client"
 require 'fileutils'
@@ -1024,6 +1025,11 @@ module ClaudeHelper
 
   # Execute the HTTP API call, handle retries, and route to streaming processing.
   private def execute_claude_api_call(headers, body, app, session, call_depth, websearch_enabled, use_native_websearch, &block)
+    # A model found unavailable earlier in this session goes straight to its
+    # fallback (a retried request does not ask for it again first).
+    known_fallback = session[:_unavailable_models]&.[](body["model"])
+    body["model"] = known_fallback if known_fallback
+
     target_uri = "#{API_ENDPOINT}/messages"
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
@@ -1081,6 +1087,7 @@ module ClaudeHelper
                         "content" => "#{body["model"]} is currently unavailable; continuing with #{fallback_model}." })
         end
         Monadic::Utils::ExtraLogger.log { "[Claude] #{body["model"]} unavailable (404 not_found); falling back to #{fallback_model}" }
+        (session[:_unavailable_models] ||= {})[body["model"]] = fallback_model
         body["model"] = fallback_model
         return execute_claude_api_call(headers, body, app, session, call_depth, websearch_enabled, use_native_websearch, &block)
       end
@@ -1251,22 +1258,33 @@ module ClaudeHelper
 
     # Execute API call
     websearch_enabled = obj["websearch"] == "true" || obj["websearch"] == true
-    execute_claude_api_call(headers, body, app, session, call_depth, websearch_enabled, use_native_websearch, &block)
-  rescue HTTP::Error, HTTP::TimeoutError
-    if num_retrial < MAX_RETRIES
+    # Only the request is retried, so nothing before it (such as the
+    # user card) is sent again, and only until part of the reply has reached
+    # the browser. Each attempt sends a copy of the request body, which the
+    # call adds fields of its own to. After MAX_RETRIES the error goes on to
+    # the rescue below.
+    request_body = body
+    sent = { replied: false }
+    relay = Monadic::Utils::RequestRetry.relay(block, sent)
+    begin
+      body = Monadic::Utils::RequestRetry.copy(request_body)
+      execute_claude_api_call(headers, body, app, session, call_depth, websearch_enabled, use_native_websearch, &relay)
+    rescue HTTP::Error, HTTP::TimeoutError
+      raise if num_retrial >= MAX_RETRIES || sent[:replied]
+
       num_retrial += 1
       sleep RETRY_DELAY
       retry
-    else
-      error_message = Monadic::Utils::ErrorFormatter.network_error(
-        provider: "Claude",
-        message: "Request timed out",
-        timeout: true
-      )
-      res = { "type" => "error", "content" => error_message }
-      block&.call res
-      [res]
     end
+  rescue HTTP::Error, HTTP::TimeoutError
+    error_message = Monadic::Utils::ErrorFormatter.network_error(
+      provider: "Claude",
+      message: "Request timed out",
+      timeout: true
+    )
+    res = { "type" => "error", "content" => error_message }
+    block&.call res
+    [res]
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[Claude] Unexpected error: #{e.message}\n[Claude] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     error_message = Monadic::Utils::ErrorFormatter.api_error(

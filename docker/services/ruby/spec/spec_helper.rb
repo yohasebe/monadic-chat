@@ -31,6 +31,9 @@ if config_path
     # host; the specs do not, so leave it out rather than send the reference to
     # a provider as a key. Specs that need the key then skip as if it were unset.
     next if value.start_with?('op://')
+    # The user's extra logging is for the app, not for a test run: on, it
+    # stays on for the whole run (the logger remembers its first answer).
+    next if key == 'EXTRA_LOGGING'
     CONFIG[key] = value
     ENV[key] = value  # Also set in ENV for compatibility
   end
@@ -45,6 +48,18 @@ $MODELS = {} unless defined?($MODELS)
 APPS = {} unless defined?(APPS)
 
 # Load core application files AFTER CONFIG is set
+# Specs never write to the user's ~/monadic/log: extra.log, command.log and
+# the other logs go to this run's results folder. Set before the app is
+# loaded, which fixes MonadicApp::EXTRA_LOG_FILE from it.
+require 'fileutils'
+require_relative 'support/test_run_dir'
+require_relative '../lib/monadic/utils/environment'
+Monadic::Utils::Environment.singleton_class.prepend(Module.new do
+  def log_path
+    File.join(Monadic::TestRunDir.current_run_dir, 'monadic_log').tap { |dir| FileUtils.mkdir_p(dir) }
+  end
+end)
+
 require_relative '../lib/monadic/app'
 require_relative '../lib/monadic/core'
 require_relative '../lib/monadic/utils/selenium_helper'

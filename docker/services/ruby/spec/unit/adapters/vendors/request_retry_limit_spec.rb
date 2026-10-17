@@ -5,6 +5,12 @@ require "spec_helper"
   require_relative "../../../../lib/monadic/adapters/vendors/#{p}_helper"
 end
 
+# Ends a spec whose helper would otherwise retry for ever. Not a
+# StandardError, which the helpers rescue as one more failed attempt (and
+# retry): run against a helper without the retry limit, a plain raise here
+# kept one spec looping for 20 hours.
+class RunawayRetry < Exception; end # rubocop:disable Lint/InheritException
+
 # A request that keeps failing on the network is tried MAX_RETRIES more times
 # and then reported as an error, instead of being retried for ever.
 RSpec.describe "Retrying a chat request that keeps failing" do
@@ -23,7 +29,7 @@ RSpec.describe "Retrying a chat request that keeps failing" do
       attempts = 0
       fail_request = lambda do |*|
         attempts += 1
-        raise "runaway retry" if attempts > 50
+        raise RunawayRetry, "runaway retry" if attempts > 50
 
         raise HTTP::ConnectionError, "offline"
       end
@@ -101,6 +107,8 @@ RSpec.describe "Retrying a chat request that keeps failing" do
       attempts = 0
       allow(h).to receive(call) do |*_args, **_kw, &blk|
         attempts += 1
+        raise RunawayRetry, "runaway retry" if attempts > 50
+
         blk&.call({ "type" => "wait", "content" => "THINKING" })
         blk&.call({ "type" => "fragment", "content" => "Hel" })
         raise HTTP::ConnectionError, "dropped"
@@ -115,6 +123,8 @@ RSpec.describe "Retrying a chat request that keeps failing" do
       bodies = []
       allow(h).to receive(call) do |*args, **kw, &blk|
         body = kw[:body] || args[1]
+        raise RunawayRetry, "runaway retry" if bodies.size > 50
+
         bodies << Marshal.load(Marshal.dump(body))
         body["__added_by_the_call"] = true
         blk&.call({ "type" => "wait", "content" => "THINKING" })
@@ -140,7 +150,7 @@ RSpec.describe "Retrying a chat request that keeps failing" do
                               body: JSON.generate("error" => { "type" => "not_found_error", "message" => "unavailable" }))
     allow(h).to receive(:post_json_with_retries) do |_http, _uri, body, **|
       models << body["model"]
-      raise "runaway" if models.size > 50
+      raise RunawayRetry, "runaway" if models.size > 50
       next not_found if body["model"] == model
 
       raise HTTP::ConnectionError, "offline"

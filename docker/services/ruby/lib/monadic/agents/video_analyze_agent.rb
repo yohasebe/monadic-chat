@@ -7,6 +7,7 @@ require_relative '../utils/shared_path_guard'
 require_relative '../shared_tools/child_threads'
 require_relative '../utils/video_probe'
 require_relative '../utils/model_spec'
+require_relative '../utils/provider_response'
 require_relative '../utils/timed_transcription'
 require_relative '../utils/public_copy'
 require_relative '../shell'
@@ -699,8 +700,7 @@ module VideoAnalyzeAgent
 
     res = video_vision_http_post(uri, headers, body)
     unless res.status.success?
-      error = JSON.parse(res.body.to_s) rescue {}
-      return "ERROR: OpenAI Vision API error (#{res.status}): #{error.dig("error", "message") || res.body.to_s}"
+      return "ERROR: OpenAI Vision API error (#{res.status}): #{Monadic::Utils::ProviderResponse.error_message(res.body.to_s)}"
     end
 
     choice = JSON.parse(res.body.to_s).dig("choices", 0) || {}
@@ -734,23 +734,18 @@ module VideoAnalyzeAgent
 
     body = {
       model: model,
-      max_tokens: 1000,
       messages: [{ role: "user", content: content }]
-    }
+    }.merge(Monadic::Utils::ProviderResponse.claude_light_request(model, 1000))
 
     res = video_vision_http_post(uri, headers, body)
     unless res.status.success?
-      error = JSON.parse(res.body.to_s) rescue {}
-      return "ERROR: Claude Vision API error (#{res.status}): #{error.dig("error", "message") || res.body.to_s}"
+      return "ERROR: Claude Vision API error (#{res.status}): #{Monadic::Utils::ProviderResponse.error_message(res.body.to_s)}"
     end
 
-    parsed = JSON.parse(res.body.to_s)
-    content_blocks = parsed["content"]
-    if content_blocks.is_a?(Array) && content_blocks.first
-      content_blocks.first["text"] || "ERROR: Empty response from Claude"
-    else
-      "ERROR: Unexpected response format from Claude"
-    end
+    content_blocks = JSON.parse(res.body.to_s)["content"]
+    return "ERROR: Unexpected response format from Claude" unless content_blocks.is_a?(Array)
+
+    Monadic::Utils::ProviderResponse.claude_text(content_blocks) || "ERROR: Empty response from Claude"
   end
 
   def video_vision_gemini(query, frames, model, api_key)
@@ -777,8 +772,7 @@ module VideoAnalyzeAgent
 
     res = video_vision_http_post(uri, headers, body)
     unless res.status.success?
-      error = JSON.parse(res.body.to_s) rescue {}
-      return "ERROR: Gemini Vision API error (#{res.status}): #{error.dig("error", "message") || res.body.to_s}"
+      return "ERROR: Gemini Vision API error (#{res.status}): #{Monadic::Utils::ProviderResponse.error_message(res.body.to_s)}"
     end
 
     JSON.parse(res.body.to_s).dig("candidates", 0, "content", "parts", 0, "text") || "ERROR: Empty response from Gemini"
@@ -811,8 +805,7 @@ module VideoAnalyzeAgent
 
     res = video_vision_http_post(uri, headers, body)
     unless res.status.success?
-      error = JSON.parse(res.body.to_s) rescue {}
-      return "ERROR: Grok Vision API error (#{res.status}): #{error.dig("error", "message") || res.body.to_s}"
+      return "ERROR: Grok Vision API error (#{res.status}): #{Monadic::Utils::ProviderResponse.error_message(res.body.to_s)}"
     end
 
     JSON.parse(res.body.to_s).dig("choices", 0, "message", "content") || "ERROR: Empty response from Grok"

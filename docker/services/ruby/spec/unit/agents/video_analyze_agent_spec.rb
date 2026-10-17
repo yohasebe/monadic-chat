@@ -364,7 +364,7 @@ RSpec.describe VideoAnalyzeAgent do
         OpenAIHelper.const_set(:OUTPUT_TOKEN_KEY, :max_completion_tokens)
       end
       response = double(status: double(success?: true), body: JSON.generate({
-        choices: [{ message: { content: "Description" } }], content: [{ text: "Description" }],
+        choices: [{ message: { content: "Description" } }], content: [{ type: "text", text: "Description" }],
         candidates: [{ content: { parts: [{ text: "Description" }] } }]
       }))
       expect(agent).to receive(:video_vision_http_post) do |uri, _headers, body|

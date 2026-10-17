@@ -334,6 +334,18 @@ module Monadic
           { options: options, default: default }
         end
         
+        # The least reasoning a model can be asked for: "none" where the model
+        # accepts it, otherwise its lowest level. nil when the catalog gives
+        # the model no [options, default] effort pair. For short helper calls
+        # (context extraction, image description) that must not spend their
+        # token budget on reasoning, whatever the model does by default.
+        def lowest_reasoning_effort(model_name)
+          options = get_reasoning_effort_options(model_name)&.dig(:options)
+          return nil unless options.is_a?(Array) && !options.empty?
+
+          options.include?("none") ? "none" : options.first
+        end
+
         def supports_reasoning_effort_minimal?(model_name)
           effort_config = get_reasoning_effort_options(model_name)
           return false unless effort_config

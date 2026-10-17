@@ -5,6 +5,7 @@ require "http"
 require_relative "../utils/environment"
 require_relative "../utils/shared_path_guard"
 require_relative "../utils/provider_capabilities"
+require_relative "../utils/provider_response"
 
 # ImageAnalysisAgent analyzes an image with the app's own provider's Vision
 # API. Which providers it can call is Monadic::Utils::ProviderCapabilities
@@ -174,6 +175,10 @@ module ImageAnalysisAgent
         }
       ]
     }
+    # Unasked, a reasoning model reasons at its own default level and can
+    # spend the output budget on it, leaving the description empty.
+    lowest = Monadic::Utils::ModelSpec.lowest_reasoning_effort(model)
+    body[:reasoning_effort] = lowest if lowest
     # Optional fidelity control (verified live 2026-07-10: the platform accepts
     # low/high/auto/original across GPT-5.x; "original" preserves full
     # resolution). Omitted by default so existing behavior is unchanged.
@@ -183,8 +188,7 @@ module ImageAnalysisAgent
 
     res = vision_http_post(uri, headers, body)
     unless res.status.success?
-      error = JSON.parse(res.body.to_s) rescue {}
-      return "ERROR: OpenAI Vision API error (#{res.status}): #{error.dig("error", "message") || res.body.to_s}"
+      return "ERROR: OpenAI Vision API error (#{res.status}): #{Monadic::Utils::ProviderResponse.error_message(res.body.to_s)}"
     end
 
     JSON.parse(res.body.to_s).dig("choices", 0, "message", "content") || "ERROR: Empty response from OpenAI"
@@ -199,7 +203,6 @@ module ImageAnalysisAgent
     }
     body = {
       model: model,
-      max_tokens: 1000,
       messages: [
         {
           role: "user",
@@ -216,21 +219,17 @@ module ImageAnalysisAgent
           ]
         }
       ]
-    }
+    }.merge(Monadic::Utils::ProviderResponse.claude_light_request(model, 1000))
 
     res = vision_http_post(uri, headers, body)
     unless res.status.success?
-      error = JSON.parse(res.body.to_s) rescue {}
-      return "ERROR: Claude Vision API error (#{res.status}): #{error.dig("error", "message") || res.body.to_s}"
+      return "ERROR: Claude Vision API error (#{res.status}): #{Monadic::Utils::ProviderResponse.error_message(res.body.to_s)}"
     end
 
-    parsed = JSON.parse(res.body.to_s)
-    content = parsed["content"]
-    if content.is_a?(Array) && content.first
-      content.first["text"] || "ERROR: Empty response from Claude"
-    else
-      "ERROR: Unexpected response format from Claude"
-    end
+    content = JSON.parse(res.body.to_s)["content"]
+    return "ERROR: Unexpected response format from Claude" unless content.is_a?(Array)
+
+    Monadic::Utils::ProviderResponse.claude_text(content) || "ERROR: Empty response from Claude"
   end
 
   def vision_query_gemini(message, image_data, model, api_key)
@@ -256,8 +255,7 @@ module ImageAnalysisAgent
 
     res = vision_http_post(uri, headers, body)
     unless res.status.success?
-      error = JSON.parse(res.body.to_s) rescue {}
-      return "ERROR: Gemini Vision API error (#{res.status}): #{error.dig("error", "message") || res.body.to_s}"
+      return "ERROR: Gemini Vision API error (#{res.status}): #{Monadic::Utils::ProviderResponse.error_message(res.body.to_s)}"
     end
 
     parsed = JSON.parse(res.body.to_s)
@@ -288,8 +286,7 @@ module ImageAnalysisAgent
 
     res = vision_http_post(uri, headers, body)
     unless res.status.success?
-      error = JSON.parse(res.body.to_s) rescue {}
-      return "ERROR: Grok Vision API error (#{res.status}): #{error.dig("error", "message") || res.body.to_s}"
+      return "ERROR: Grok Vision API error (#{res.status}): #{Monadic::Utils::ProviderResponse.error_message(res.body.to_s)}"
     end
 
     JSON.parse(res.body.to_s).dig("choices", 0, "message", "content") || "ERROR: Empty response from Grok"
@@ -331,12 +328,18 @@ module ImageAnalysisAgent
         }
       ]
     }
+    # Keep a model that thinks by default from spending the budget on it:
+    # DeepSeek V4 thinks unless told not to; Mistral Large 4 reasons unless
+    # the effort says none.
+    if label == "DeepSeek"
+      body[:thinking] = { type: "disabled" }
+    elsif (lowest = Monadic::Utils::ModelSpec.lowest_reasoning_effort(model))
+      body[:reasoning_effort] = lowest
+    end
 
     res = vision_http_post(uri, headers, body)
     unless res.status.success?
-      error = JSON.parse(res.body.to_s) rescue {}
-      detail = error.dig("error", "message") || error["message"] || res.body.to_s
-      return "ERROR: #{label} Vision API error (#{res.status}): #{detail}"
+      return "ERROR: #{label} Vision API error (#{res.status}): #{Monadic::Utils::ProviderResponse.error_message(res.body.to_s)}"
     end
 
     content = JSON.parse(res.body.to_s).dig("choices", 0, "message", "content")
@@ -370,8 +373,7 @@ module ImageAnalysisAgent
 
     res = vision_http_post(uri, headers, body)
     unless res.status.success?
-      error = JSON.parse(res.body.to_s) rescue {}
-      return "ERROR: Cohere Vision API error (#{res.status}): #{error["message"] || res.body.to_s}"
+      return "ERROR: Cohere Vision API error (#{res.status}): #{Monadic::Utils::ProviderResponse.error_message(res.body.to_s)}"
     end
 
     parts = JSON.parse(res.body.to_s).dig("message", "content")

@@ -17,10 +17,12 @@ RSpec.describe MistralHelper do
   let(:helper) { Class.new { include MistralHelper }.new }
 
   describe "#mistral_effort_for" do
-    it "sends nothing for no reasoning where the model accepts none" do
-      expect(helper.mistral_effort_for("mistral-large-4", "none")).to be_nil
-      expect(helper.mistral_effort_for("mistral-large-4", nil)).to be_nil
-      expect(helper.mistral_effort_for("mistral-medium-3-5", "none")).to be_nil
+    # Said explicitly: Mistral Large 4 reasons when the field is missing
+    # (probed 2026-10-17).
+    it "sends none for no reasoning where the model accepts none" do
+      expect(helper.mistral_effort_for("mistral-large-4", "none")).to eq("none")
+      expect(helper.mistral_effort_for("mistral-large-4", nil)).to eq("none")
+      expect(helper.mistral_effort_for("mistral-medium-3-5", "none")).to eq("none")
     end
 
     it "sends the lowest level where the model rejects none, so no reasoning is not max" do
@@ -45,7 +47,7 @@ RSpec.describe MistralHelper do
     end
 
     it "never raises the effort for a value it does not know" do
-      expect(helper.mistral_effort_for("mistral-large-4", "off")).to be_nil
+      expect(helper.mistral_effort_for("mistral-large-4", "off")).to eq("none")
       expect(helper.mistral_effort_for("zai-glm-5-3", "off")).to eq("low")
       expect(helper.mistral_effort_for("zai-glm-5-3", "  ")).to eq("low")
       expect(helper.mistral_effort_for("zai-glm-5-3", "HIGH")).to eq("high")
@@ -83,11 +85,11 @@ RSpec.describe MistralHelper do
     let(:app_helper) { Class.new(MonadicApp) { include MistralHelper }.new }
     let(:cases) do
       [
-        ["mistral-large-4", nil, nil],
-        ["mistral-large-4", "none", nil],
+        ["mistral-large-4", nil, "none"],
+        ["mistral-large-4", "none", "none"],
         ["mistral-large-4", "high", "high"],
         ["mistral-large-4", "low", "high"],
-        ["mistral-medium-3-5", "none", nil],
+        ["mistral-medium-3-5", "none", "none"],
         ["mistral-small-2603", "high", "high"],
         ["zai-glm-5-3", nil, "low"],
         ["zai-glm-5-3", "none", "low"],
@@ -103,7 +105,11 @@ RSpec.describe MistralHelper do
     end
 
     def expect_body(body, model, sent)
-      if sent
+      if sent == "none"
+        # Not reasoning: the effort says so, and the temperature still applies.
+        expect(body["reasoning_effort"]).to eq("none"), "#{model}: effort"
+        expect(body).to have_key("temperature"), "#{model}: temperature"
+      elsif sent
         expect(body["reasoning_effort"]).to eq(sent), "#{model}: effort"
         expect(body).not_to have_key("temperature"), "#{model}: temperature"
       else

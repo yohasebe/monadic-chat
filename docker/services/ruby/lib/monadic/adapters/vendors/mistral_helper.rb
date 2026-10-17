@@ -9,6 +9,7 @@ require_relative "../../utils/system_prompt_injector"
 require_relative "../../monadic_performance"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
+require_relative "../../utils/provider_response"
 require_relative "../base_vendor_helper"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/extra_logger"
@@ -90,8 +91,9 @@ module MistralHelper
   # - a model whose spec declares no reasoning_effort gets nothing (Magistral
   #   rejects the parameter: "reasoning_effort is not enabled for this model");
   # - "none", no request, or a value this method does not know goes out as
-  #   nothing where the model accepts none, and as its lowest level where it
-  #   does not — an unknown value never raises the effort;
+  #   "none" where the model accepts it (said explicitly: Large 4 reasons
+  #   when the field is missing), and as its lowest level where it does not —
+  #   an unknown value never raises the effort;
   # - a known level the model does not accept becomes the nearest accepted
   #   level at or above it (else the highest), instead of a 400.
   # The model's levels are ordered by MISTRAL_EFFORT_RANK, not by how the spec
@@ -109,8 +111,11 @@ module MistralHelper
     requested = requested.to_s.strip.downcase
     rank = MISTRAL_EFFORT_RANK.index(requested)
 
+    # "none" is sent, not left out: Mistral Large 4 reasons when the field is
+    # missing (probed 2026-10-17: 412 completion tokens with no field, 5
+    # with "none").
     if requested.empty? || requested == "none" || rank.nil?
-      return accepts_none ? nil : above_none.first
+      return accepts_none ? "none" : above_none.first
     end
     return requested if levels.include?(requested)
 
@@ -212,14 +217,14 @@ module MistralHelper
       "safe_prompt" => false
     }
     
-    # Reasoning models get reasoning_effort instead of temperature, as
-    # mistral_effort_for decides (nil = send none and use temperature).
+    # Reasoning models get the effort mistral_effort_for decides; temperature
+    # goes with it when the model is not reasoning ("none", or no effort).
     mistral_effort = mistral_effort_for(model, options["reasoning_effort"])
-    if is_reasoning_model && mistral_effort
-      body["reasoning_effort"] = mistral_effort
-    else
-      # For non-reasoning models or when reasoning disabled, use temperature
+    body["reasoning_effort"] = mistral_effort if is_reasoning_model && mistral_effort
+    if !is_reasoning_model || mistral_effort.nil? || mistral_effort == "none"
       body["temperature"] = options["temperature"] || 0.7
+      # Mistral Large 4 refuses temperature 0 (greedy sampling) unless top_p is 1.
+      body["top_p"] = 1.0 if body["temperature"].to_f.zero?
     end
 
     # Add tool definitions if provided (for testing tool-calling apps)
@@ -282,11 +287,12 @@ module MistralHelper
                 end
               }
             end
-            text_content = message["content"] || ""
+            # Reasoning models answer with thinking and text parts.
+            text_content = Monadic::Utils::ProviderResponse.message_text(message["content"]) || ""
             return { text: text_content, tool_calls: tool_calls }
           end
 
-          return message["content"].to_s
+          return Monadic::Utils::ProviderResponse.message_text(message["content"]).to_s
         end
         
         return Monadic::Utils::ErrorFormatter.parsing_error(
@@ -457,16 +463,17 @@ module MistralHelper
       "messages" => []
     }
     
-    # Reasoning models get reasoning_effort instead of temperature, as
-    # mistral_effort_for decides (nil = send none and use temperature).
+    # Reasoning models get the effort mistral_effort_for decides; temperature
+    # goes with it when the model is not reasoning ("none", or no effort).
     mistral_effort = mistral_effort_for(obj["model"], obj["reasoning_effort"])
     if is_reasoning_model && mistral_effort
       body["reasoning_effort"] = mistral_effort
-      # Log if extra logging is enabled
       DebugHelper.debug("Mistral: Using reasoning_effort '#{mistral_effort}' for model #{obj["model"]}", category: :api, level: :info)
-    else
-      # For non-reasoning models, use temperature
+    end
+    if !is_reasoning_model || mistral_effort.nil? || mistral_effort == "none"
       body["temperature"] = temperature || 0.7
+      # Mistral Large 4 refuses temperature 0 (greedy sampling) unless top_p is 1.
+      body["top_p"] = 1.0 if body["temperature"].to_f.zero?
     end
 
     # SSOT: supports_streaming gate (default true)

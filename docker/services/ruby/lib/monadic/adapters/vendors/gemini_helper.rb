@@ -3250,7 +3250,7 @@ module GeminiHelper
       end
 
       # Don't add generic content if tool_result_content is empty for video/image generation
-      if tool_result_content.empty? && !tool_calls.any? { |tc| tc["name"] == "generate_video_with_veo" || tc["name"] == "generate_image_with_gemini" }
+      if tool_result_content.empty? && !tool_calls.any? { |tc| GeminiHelper.gemini_video_tool?(tc["name"]) || tc["name"] == "generate_image_with_gemini" }
         tool_result_content = "[No additional content received from function call]"
       end
 
@@ -3328,11 +3328,8 @@ module GeminiHelper
       final_result = result.join("").strip
 
       # Special handling for video generation
-      if tool_calls.any? { |tc| tc["name"] == "generate_video_with_veo" }
-        video_success = !tool_result_content.include?("Video generation failed") && tool_result_content.include?("saved video")
-        if video_success || tool_result_content.include?("Video generation failed") || !tool_result_content.empty?
-          final_result = tool_result_content
-        end
+      if tool_calls.any? { |tc| GeminiHelper.gemini_video_tool?(tc["name"]) }
+        final_result = tool_result_content unless tool_result_content.empty?
       # Special handling for image generation
       elsif tool_calls.any? { |tc| tc["name"] == "generate_image_with_gemini" }
         if !tool_result_content.empty?
@@ -3370,16 +3367,9 @@ module GeminiHelper
       result_text = result.join("").strip
       result_text = "" if result_text.include?("No response was received")
 
-      if tool_calls.any? { |tc| tc["name"] == "generate_video_with_veo" }
-        error_details = e.message.to_s
-        if error_details =~ /Successfully saved video to: .*?\/(\d+_\d+_\d+x\d+\.mp4)/ ||
-           error_details =~ /(\d{10}_\d+_\d+x\d+\.mp4)/ ||
-           error_details =~ /Created placeholder video file at: .*?\/(\d+_\d+_\d+x\d+\.mp4)/
-          final_result = error_details
-        else
-          error_message = "[Error processing video generation results: #{e.message}]"
-          final_result = result_text.empty? ? error_message : result_text + "\n\n" + error_message
-        end
+      if tool_calls.any? { |tc| GeminiHelper.gemini_video_tool?(tc["name"]) }
+        error_message = "[Error processing video generation results: #{e.message}]"
+        final_result = result_text.empty? ? error_message : result_text + "\n\n" + error_message
       else
         error_message = "[Error processing function results: #{e.message}]"
         final_result = result_text.empty? ? error_message : result_text + "\n\n" + error_message
@@ -3505,14 +3495,14 @@ module GeminiHelper
             parsed = JSON.parse(response_content)
             if parsed["success"] && parsed["filename"]
               filename = parsed["filename"]
-              prompt = parsed["prompt"] || "Media generation"
+              prompt = parsed["prompt"] || parsed["original_prompt"] || "Media generation"
 
               # Check if this is a video file
               if filename.to_s.end_with?(".mp4")
                 # Send the video HTML directly to the client
                 video_html = <<~HTML
                   <div class="prompt" style="margin-bottom: 15px;">
-                    <b>Prompt</b>: #{prompt}
+                    <b>Prompt</b>: #{CGI.escapeHTML(prompt.to_s)}
                   </div>
                   <div class="generated_video">
                     <video controls width="600">
@@ -3536,7 +3526,7 @@ module GeminiHelper
                 # Send the image HTML directly to the client
                 image_html = <<~HTML
                   <div class="prompt" style="margin-bottom: 15px;">
-                    <b>generate</b>: #{prompt}
+                    <b>generate</b>: #{CGI.escapeHTML(prompt.to_s)}
                   </div>
                   <div class="generated_image">
                     <img src="/data/#{CGI.escapeHTML(filename.to_s)}" style="max-width: 100%; border-radius: 8px; border: 1px solid #eee;">
@@ -3695,34 +3685,15 @@ module GeminiHelper
 
   # 3c: Process tool return value for media generators and standard functions
   def handle_media_generation_result(function_name, function_return, session)
-    if function_name == "generate_video_with_veo"
-      video_filename = nil
-      video_success = false
-      error_message = nil
-
-      begin
-        if function_return.is_a?(String)
-          parsed_json = JSON.parse(function_return)
-
-          if parsed_json["videos"] && !parsed_json["videos"].empty?
-            video_success = true
-          elsif !parsed_json["success"]
-            error_message = parsed_json["message"]
-            video_success = false
-          end
-        end
-      rescue JSON::ParserError => e
-        if function_return.to_s.include?("saved video") ||
-           function_return.to_s.include?("Successfully") ||
-           function_return.to_s =~ /\d{10}_\d+_\d+x\d+\.mp4/
-          video_success = true
-        end
+    if GeminiHelper.gemini_video_tool?(function_name)
+      # The generator's JSON: success with the saved videos, or a message.
+      parsed_json = begin
+        function_return.is_a?(String) ? JSON.parse(function_return) : function_return
+      rescue JSON::ParserError
+        nil
       end
-
-      if video_success
-        function_return.is_a?(String) ? function_return : function_return.to_json
-      elsif error_message
-        "Video generation failed: #{error_message}"
+      if parsed_json.is_a?(Hash) && parsed_json["success"] == false
+        "Video generation failed: #{parsed_json["message"]}"
       else
         function_return.is_a?(String) ? function_return : function_return.to_json
       end
@@ -3780,7 +3751,7 @@ module GeminiHelper
     end
   end
 
-  # 3d: Handle errors during tool function execution (video filename extraction, content policy)
+  # 3d: Handle errors during tool function execution
   def handle_gemini_tool_execution_error(e, function_name, argument_hash, session_params, &block)
     error_message = Monadic::Utils::ErrorFormatter.tool_error(
       provider: "Gemini",
@@ -3789,74 +3760,15 @@ module GeminiHelper
     )
     Monadic::Utils::ExtraLogger.log { "[Gemini] #{error_message}" }
 
-    if function_name == "generate_video_with_veo"
-      video_success = false
-      video_filename = nil
-
-      if e.message =~ /Successfully saved video to: .*?\/(\d+_\d+_\d+x\d+\.mp4)/ ||
-         e.message =~ /(\d{10}_\d+_\d+x\d+\.mp4)/ ||
-         e.message =~ /Created placeholder video file at: .*?\/(\d+_\d+_\d+x\d+\.mp4)/
-        video_filename = $1
-        video_success = true
-      end
-
-      if video_filename && video_success
-        Monadic::Utils::ExtraLogger.log { "[Gemini] Found video filename in error: #{video_filename}" }
-
-        original_prompt = ""
-        begin
-          original_prompt = argument_hash[:prompt].to_s if argument_hash && argument_hash[:prompt]
-        rescue StandardError
-          original_prompt = "Video generation"
-        end
-
-        success_content = "Successfully saved video to: /data/#{video_filename}\nOriginal prompt: #{original_prompt}"
-
-        session_params["tool_results"] << {
-          "functionResponse" => {
-            "name" => function_name,
-            "response" => {
-              "name" => function_name,
-              "content" => success_content
-            }
-          }
-        }
-      else
-        error_details = e.message.to_s
-        if error_details =~ /content\s+policy\s+violation/i || error_details =~ /responsible\s+AI/i || error_details =~ /safety/i
-          custom_error_message = "Video generation failed: The prompt appears to violate content policy guidelines. Please try a different prompt with less sensitive content."
-          session_params["tool_results"] << {
-            "functionResponse" => {
-              "name" => function_name,
-              "response" => {
-                "name" => function_name,
-                "content" => custom_error_message
-              }
-            }
-          }
-        else
-          session_params["tool_results"] << {
-            "functionResponse" => {
-              "name" => function_name,
-              "response" => {
-                "name" => function_name,
-                "content" => error_message
-              }
-            }
-          }
-        end
-      end
-    else
-      session_params["tool_results"] << {
-        "functionResponse" => {
+    session_params["tool_results"] << {
+      "functionResponse" => {
+        "name" => function_name,
+        "response" => {
           "name" => function_name,
-          "response" => {
-            "name" => function_name,
-            "content" => error_message
-          }
+          "content" => error_message
         }
       }
-    end
+    }
 
     res = { "type" => "fragment", "content" => "<span class='text-danger'>#{error_message}</span>", "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
     block&.call res
@@ -3901,12 +3813,22 @@ module GeminiHelper
   public
 
   # Helper function to generate video with Veo model
-  def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: "16:9", number_of_videos: nil, person_generation: nil, negative_prompt: nil, duration_seconds: nil, veo_model: nil, session: nil)
+  # The tool names the Gemini video generator answers to. The current one is
+  # generate_video_with_gemini; generate_video_with_veo is the name it had
+  # with Veo, kept so conversations saved then are read and shown the same.
+  GEMINI_VIDEO_TOOL_NAMES = %w[generate_video_with_gemini generate_video_with_veo].freeze
 
-    # Resolve the source image for image-to-video: an uploaded image lives in
-    # the session as a data URL and must be materialized to a file on the shared
-    # volume for the CLI generator. Shared with the Grok path via ToolImageUtils.
-    # Surface a materialization failure instead of silently downgrading to t2v.
+  def self.gemini_video_tool?(name)
+    GEMINI_VIDEO_TOOL_NAMES.include?(name.to_s)
+  end
+
+  # Generates a video with Gemini Omni (scripts/generators/video_generator_gemini.rb):
+  # text-to-video, or image-to-video from an image in the shared folder or one
+  # uploaded with the message. One video, 720p, 3 to 10 seconds.
+  def generate_video_with_gemini(prompt:, image_path: nil, aspect_ratio: nil, duration: nil, negative_prompt: nil, session: nil)
+    # An uploaded image lives in the session as a data URL and is written to
+    # the shared folder for the generator; a failure is reported instead of
+    # silently making a text-to-video.
     begin
       final_image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(
         session, image_path: image_path, last_image_key: :gemini_last_video_image
@@ -3915,106 +3837,62 @@ module GeminiHelper
       return { "success" => false, "message" => e.message, "original_prompt" => prompt }.to_json
     end
 
-    Monadic::Utils::ExtraLogger.log { "Final image path decision (veo):\n  image_path (from LLM param): #{image_path.inspect}\n  final_image_path (used): #{final_image_path.inspect}" }
-
-    # If we materialized an uploaded image into a temp file, remember its full
-    # path so we can delete it after generation (only our own temp files).
     temp_file_path = nil
     if final_image_path.to_s.start_with?("video_gen_temp_")
       temp_file_path = File.join(Monadic::Utils::Environment.data_path, final_image_path)
     end
 
-    # Construct the command
-    # Use shellwords to properly escape all parameters
-    require 'shellwords'
-    
-    # Veo 3 specifications (fixed values)
-    # - Resolution: 720p
-    # - Frame Rate: 24 fps
-    # - Duration: 8 seconds
-    # - Aspect Ratio: 16:9 only
-    # - Videos per request: 1
-    
-    parts = []
-    parts << "video_generator_gemini.rb"
-    parts << "-p"
-    parts << prompt.to_s
-    parts << "-a"
-    parts << "16:9"  # Always use 16:9 for Veo 3
-    parts << "-n"
-    parts << "1"  # Always force number_of_videos to 1
-    
-    # Add negative prompt if provided
-    if negative_prompt && !negative_prompt.to_s.empty?
-      parts << "--negative-prompt"
-      parts << negative_prompt.to_s
-    end
-    
-    # Person generation is auto-selected based on image presence
-    # Don't specify it manually - let the script handle it
-    
-    # Add image path if available (should be filename only from ~/monadic/data/)
+    parts = ["video_generator_gemini.rb", "-p", prompt.to_s]
+    parts += ["-a", aspect_ratio.to_s] unless aspect_ratio.to_s.strip.empty?
+    parts += ["-d", duration.to_s] unless duration.to_s.strip.empty?
+    parts += ["--negative-prompt", negative_prompt.to_s] unless negative_prompt.to_s.strip.empty?
     if final_image_path && !final_image_path.empty?
-      parts << "-i"
-      parts << final_image_path
-      
-      # Persist for follow-up runs (only store filename portion)
+      parts += ["-i", final_image_path]
       session[:gemini_last_video_image] = File.basename(final_image_path) if session
-    else
-    end
-    
-    # Select model speed (default fast). veo_model: 'fast'|'quality' or full model id
-    if veo_model && !veo_model.to_s.empty?
-      vm = veo_model.to_s.strip.downcase
-      if vm == 'quality' || vm.include?('veo-3.1-generate-preview') || vm.include?('veo-3.0-generate-001')
-        parts << "--quality"
-      elsif vm == 'fast' || vm.include?('veo-3.1-fast-generate-preview') || vm.include?('veo-3.0-fast-generate-001')
-        parts << "--fast"
-      end
     end
 
-    # The script name first, so that send_command runs the bundled script
-    # with this Ruby by absolute path; each argument escaped
-    cmd = Shellwords.join(parts)
-    
     begin
-      # Send command and get raw output
-      result_json = Monadic::Utils::ProgressBroadcaster.with_progress(
-        source: "VideoGeneratorVeo",
-        label: "Generating video with #{veo_model || 'Veo'}"
+      # The generator prints one JSON line on stdout, whatever the outcome;
+      # its exit status says whether a video was saved.
+      result = Monadic::Utils::ProgressBroadcaster.with_progress(
+        source: "VideoGeneratorGemini",
+        label: "Generating video with Gemini Omni"
       ) do
-        send_command(command: cmd, container: "ruby")
-      end
-
-      # Store video filename in session if successful
-      if session && result_json.is_a?(String)
-        begin
-          parsed_result = JSON.parse(result_json)
-          if parsed_result["success"] && parsed_result["filename"]
-            session[:gemini_last_video_filename] = parsed_result["filename"]
-          end
-        rescue JSON::ParserError
-          # Ignore parsing error
+        send_command(command: Shellwords.join(parts), container: "ruby") do |stdout, stderr, _status|
+          line = stdout.to_s.lines.reverse.find { |l| l.strip.start_with?("{") }
+          parsed = line && (JSON.parse(line) rescue nil)
+          parsed || { "success" => false, "message" => "The video generator gave no result: #{stderr.to_s.lines.last.to_s.strip}" }
         end
       end
-
-      # Clean up temporary files if we created them
-      File.unlink(temp_file_path) if temp_file_path && File.exist?(temp_file_path)
-      
-      return result_json
-    rescue => e
+      result = { "success" => false, "message" => result.to_s } unless result.is_a?(Hash)
+      result["original_prompt"] ||= prompt
+      session[:gemini_last_video_filename] = result["filename"] if session && result["success"] && result["filename"]
+      result.to_json
+    rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[Gemini] Error executing command: #{e.message}" }
-      
-      # Clean up temporary files even if there was an error
+      { "success" => false, "message" => "Error executing video generation command: #{e.message}", "original_prompt" => prompt }.to_json
+    ensure
       File.unlink(temp_file_path) if temp_file_path && File.exist?(temp_file_path)
-      return { 
-        "success" => false, 
-        "message" => "Error executing video generation command: #{e.message}", 
-        "original_prompt" => prompt 
-      }.to_json
     end
   end
-  
+
+  # The name this tool had with Veo. Its Veo-only settings have no Omni
+  # counterpart and are said to be ignored rather than dropped silently.
+  def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: nil, number_of_videos: nil, person_generation: nil,
+                              negative_prompt: nil, duration_seconds: nil, veo_model: nil, session: nil)
+    result_json = generate_video_with_gemini(prompt: prompt, image_path: image_path, aspect_ratio: aspect_ratio,
+                                             duration: duration_seconds, negative_prompt: negative_prompt, session: session)
+    ignored = { "veo_model" => veo_model, "person_generation" => person_generation }.reject { |_, v| v.to_s.strip.empty? }.keys
+    ignored << "number_of_videos (one video is made)" if number_of_videos.to_i > 1
+    return result_json if ignored.empty?
+
+    result = JSON.parse(result_json)
+    result["note"] = "Not supported by Gemini Omni and ignored: #{ignored.join(', ')}"
+    result.to_json
+  rescue JSON::ParserError
+    result_json
+  end
+
   # Helper method to get standard function handling instructions for Gemini models
   # Particularly important for "thinking" models but beneficial for all Gemini integrations
   def self.function_usage_instructions

@@ -9,6 +9,7 @@ require_relative '../../../lib/monadic/agents/audio_analysis_agent'
 require_relative '../../../lib/monadic/agents/audio_transcription_agent'
 require_relative '../../../lib/monadic/agents/image_analysis_agent'
 require_relative '../../../lib/monadic/agents/video_analyze_agent'
+require_relative '../../../lib/monadic/utils/gemini_omni_video'
 require_relative '../../../lib/monadic/agents/context_extractor_agent'
 require_relative '../../../lib/monadic/shared_tools/parallel_dispatch'
 require_relative '../../../lib/monadic/utils/websocket'
@@ -26,7 +27,6 @@ RSpec.describe 'Gemini credential transport invariant' do
   let(:response) { double('HTTP response', body: body, status: double(success?: true, code: 200, :>= => false), headers: {}) }
   let(:helper) { Class.new { include GeminiHelper }.new }
   let(:tts) { Class.new { include InteractionUtils }.new }
-  let(:video_script) { GeneratorScriptLoader.load('video_generator_gemini.rb') }
 
   def record_request(url, headers)
     requests << [url.to_s, headers.transform_keys { |name| name.to_s.downcase }]
@@ -238,39 +238,33 @@ RSpec.describe 'Gemini credential transport invariant' do
     end
   end
 
-  it 'authenticates video generation in headers' do
-    video_script.request_video_generation('Hello', nil, 1, '16:9', nil, nil, 4, key)
-    expect_header_auth
-  end
+  # Video generation is Gemini Omni over the Interactions API
+  # (Monadic::Utils::GeminiOmniVideo, used by video_generator_gemini.rb).
+  let(:omni) { Monadic::Utils::GeminiOmniVideo.new(api_key: key, model: 'gemini-omni-1.1-flash', save_dir: Dir.tmpdir) }
 
-  it 'authenticates video polling in headers' do
-    video_script.check_operation_status('operations/fake', key, 1, 0)
+  it 'authenticates video generation in headers' do
+    omni.generate(prompt: 'Hello')
     expect_header_auth
   end
 
   it 'authenticates video download in headers' do
-    allow(video_script).to receive(:get_save_path).and_return('/fake/')
-    allow(File).to receive(:open).and_yield(StringIO.new)
-    video_script.save_video('https://generativelanguage.googleapis.com/v1beta/files/fake:download?alt=media', '16:9', 0, key)
+    omni.send(:download, 'https://generativelanguage.googleapis.com/v1beta/files/fake:download?alt=media')
     expect_header_auth
   end
+
   it 'does not send download credentials to external storage URLs or redirect targets' do
-    allow(video_script).to receive(:get_save_path).and_return('/fake/')
-    allow(File).to receive(:open).and_yield(StringIO.new)
-    callback = nil
-    allow(client).to receive(:follow) { |**options| callback = options[:on_redirect]; client }
-    video_script.save_video('https://storage.example.invalid/fake.mp4', '16:9', 0, key)
-    expect(requests.first.last).not_to have_key('x-goog-api-key')
-    expect(callback).to respond_to(:call)
-    ['https://storage.example.invalid/fake.mp4', 'http://generativelanguage.googleapis.com/fake'].each do |url|
-      redirected = HTTP::Request.new(verb: :get, uri: url, headers: { 'x-goog-api-key' => key })
-      callback.call(response, redirected)
-      expect(redirected.headers['x-goog-api-key']).to be_nil
-    end
-    same_origin = HTTP::Request.new(verb: :get, uri: 'https://generativelanguage.googleapis.com/fake',
-                                   headers: { 'x-goog-api-key' => key })
-    callback.call(response, same_origin)
-    expect(same_origin.headers['x-goog-api-key']).to eq(key)
+    omni.send(:download, 'https://storage.example.invalid/fake.mp4')
+    expect(requests).to be_empty
+
+    redirect = double('redirect', body: '', headers: { 'Location' => 'https://storage.example.invalid/signed.mp4' },
+                                  status: double(success?: false, code: 302))
+    replies = [response, redirect, response]
+    allow(client).to receive(:get) { |url, **_| record_request(url, @headers); replies.shift }
+    omni.send(:download, 'https://generativelanguage.googleapis.com/v1beta/files/fake:download?alt=media')
+    urls = requests.map(&:first)
+    expect(urls.last).to eq('https://storage.example.invalid/signed.mp4')
+    expect(requests.last.last).not_to have_key('x-goog-api-key')
+    requests[0..-2].each { |_url, headers| expect(headers['x-goog-api-key']).to eq(key) }
   end
 
 end

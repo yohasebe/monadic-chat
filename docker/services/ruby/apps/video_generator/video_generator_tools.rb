@@ -14,7 +14,7 @@ class VideoGeneratorGemini < MonadicApp
   end
 
   # Override to add monadic state saving for uploaded images
-  def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: nil, person_generation: nil, negative_prompt: nil, veo_model: nil, session: nil)
+  def generate_video_with_gemini(prompt:, image_path: nil, aspect_ratio: nil, duration: nil, negative_prompt: nil, session: nil)
     validate_video_prompt(prompt)
 
     # Call the parent implementation

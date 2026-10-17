@@ -38,6 +38,11 @@ module Monadic
     #                  here it measures the **gap between chunks**, not the
     #                  total duration; a healthy stream keeps resetting it.
     # - `download`   — pulling a large artifact back.
+    # - `deadline`     — one request that must be over by a fixed time, all of
+    #                  it (connecting, sending, every read), e.g. a paid
+    #                  generation whose caller has to answer before its own
+    #                  limit. The only place a bare number is passed: it
+    #                  selects `HTTP::Timeout::Global` on purpose.
     #
     # Pass explicit keywords to override for a specific call site.
     module HttpClient
@@ -73,6 +78,10 @@ module Monadic
 
       def download(connect: CONNECT_TIMEOUT, read: DOWNLOAD_READ, write: DOWNLOAD_WRITE)
         HTTP.timeout(connect: connect, read: read, write: write)
+      end
+
+      def deadline(seconds)
+        HTTP.timeout(seconds.to_f)
       end
     end
   end

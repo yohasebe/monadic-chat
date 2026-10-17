@@ -12,6 +12,7 @@
     - While the server runs, a closed tab's chat is kept for reopening; one unused for 7 days, or beyond the 50 most recently used, may be cleared
     - Image and video descriptions with Claude use Claude Haiku 5.5, Gemini image generation uses Nano Banana 2.1, and code generation with OpenAI uses GPT-6 Sol
     - Live Conversation uses Grok Voice 3.0 with xAI and Gemini 3.8 Live with Gemini
+    - Video Generator with Gemini makes videos with Gemini Omni: 720p in 16:9 or 9:16, 3 to 10 seconds, with no choice between a fast and a quality model
   - New
     - Shared Folder panel: what each entry in the shared folder is, its size, which chat uses it and why it is needed (**do not remove the hidden `.monadic-shared-root` file Monadic Chat keeps there**)
     - The Shared Folder panel searches, sorts and filters the list, marks files made by test runs, and in the desktop app moves entries to the system's Trash

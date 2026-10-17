@@ -196,7 +196,7 @@ const providerDefaults = {
 | `vision` | Image analysis agent |
 | `audio_transcription` | Audio transcription agent |
 | `image` | Image generation (OpenAI, Gemini, xAI) |
-| `video` | Video generation (Veo, Grok Imagine) |
+| `video` | Video generation (Gemini Omni, Grok Imagine) |
 | `tts` | Text-to-speech; the first entry is the default |
 | `music` | Music generation (Gemini; ElevenLabs, used by Music Generator only when ELEVENLABS_API_KEY is set and the user names ElevenLabs). Resolved inside the generation tool, not a chat dropdown |
 

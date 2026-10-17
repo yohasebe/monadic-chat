@@ -1869,7 +1869,9 @@ const providerDefaults = {
     // model list (verified 2026-08-22), so only the conversational image
     // models remain.
     "image": ["gemini-nano-banana-2.1", "gemini-3-pro-image"],
-    "video": ["veo-3.1-fast-generate-preview", "veo-3.1-generate-preview"],
+    // Gemini Omni over the Interactions API (scripts/generators/video_generator_gemini.rb);
+    // Veo 3.1, its predecessor, is listed by Google to stop 2026-10-22.
+    "video": ["gemini-omni-1.1-flash"],
     "music": ["lyria-3.5", "lyria-3-clip-preview"],
     // The three previews stop 2026-11-17; the Pro TTS choice resolves to the
     // last of them by name, so they stay listed until that choice is retired.

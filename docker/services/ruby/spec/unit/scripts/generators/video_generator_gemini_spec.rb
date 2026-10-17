@@ -18,7 +18,6 @@ RSpec.describe "VideoGeneratorGemini" do
   let(:mock_api_key) { "test-api-key-12345" }
   let(:test_prompt) { "A beautiful sunset over the ocean" }
   let(:test_image_path) { File.join(@data_dir, "test_image.jpg") }
-  let(:mock_operation_name) { "operations/abc123xyz789" }
   
   around do |example|
     Dir.mktmpdir('video-shared-') do |directory|
@@ -130,9 +129,8 @@ RSpec.describe "VideoGeneratorGemini" do
         expect(script.encode_image_to_data_url("/non/existent/file.jpg")).to be_nil
       end
       
-      it "returns nil for oversized file" do
-        # Create a file larger than 20MB
-        large_data = "x" * (21 * 1024 * 1024)
+      it "returns nil for a file over the 10 MB the generator sends" do
+        large_data = "x" * (11 * 1024 * 1024)
         large_file = File.join(@data_dir, "large_image.jpg")
         File.write(large_file, large_data)
         
@@ -163,426 +161,73 @@ RSpec.describe "VideoGeneratorGemini" do
     end
   end
   
-  describe "#request_video_generation" do
-    let(:api_endpoint) { "https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning" }
-    let(:mock_response) do
-      double("HTTP::Response",
-        status: double("status", code: 200, success?: true),
-        body: { name: mock_operation_name }.to_json,
-        headers: double("headers", to_h: { 'Content-Type' => 'application/json' })
-      )
-    end
-    
-    before do
-      # Mock the HTTP client chain: timeout -> follow -> headers -> post
-      http_with_timeout = double("HTTP with timeout")
-      http_with_follow = double("HTTP with follow")
-      http_with_headers = double("HTTP with headers")
-      
-      allow(HTTP).to receive(:timeout).and_return(http_with_timeout)
-      allow(http_with_timeout).to receive(:follow).and_return(http_with_follow)
-      allow(http_with_follow).to receive(:headers).and_return(http_with_headers)
-      allow(http_with_headers).to receive(:post).and_return(mock_response)
-    end
-    
-    it "sends correct request for text-to-video" do
-      response = script.request_video_generation(
-        test_prompt,
-        nil,
-        1,
-        "16:9",
-        "allow_adult",
-        nil,  # negative_prompt
-        5,
-        mock_api_key
-      )
-      
-      expect(response.status.code).to eq(200)
-      expect(JSON.parse(response.body)["name"]).to eq(mock_operation_name)
-    end
-    
-    it "includes image data for image-to-video" do
-      # Mock image encoding
-      allow(script).to receive(:resolve_image_path).and_return(test_image_path)
-      allow(script).to receive(:encode_image_to_data_url)
-        .and_return("data:image/jpeg;base64,dGVzdGRhdGE=")
-      
-      response = script.request_video_generation(
-        test_prompt,
-        test_image_path,
-        1,
-        "16:9",
-        "allow_adult",
-        nil,  # negative_prompt
-        5,
-        mock_api_key
-      )
-      
-      expect(response.status.code).to eq(200)
-    end
-  end
-  
-  describe "#check_operation_status" do
-    before do
-      allow(HTTP).to receive(:headers).with("x-goog-api-key" => mock_api_key).and_return(HTTP)
-    end
-
-    let(:operation_url) { "https://generativelanguage.googleapis.com/v1beta/#{mock_operation_name}" }
-    
-    context "when operation is complete" do
-      it "returns completed operation data" do
-        mock_response = double("HTTP::Response",
-          status: double("status", code: 200, success?: true),
-          body: {
-            name: mock_operation_name,
-            done: true,
-            response: {
-              generateVideoResponse: {
-                generatedSamples: [
-                  {
-                    video: {
-                      uri: "https://example.com/video.mp4"
-                    }
-                  }
-                ]
-              }
-            }
-          }.to_json
-        )
-        
-        # Mock HTTP with timeout
-        http_with_timeout = double("HTTP with timeout")
-        allow(HTTP).to receive(:timeout).and_return(http_with_timeout)
-        allow(http_with_timeout).to receive(:get).and_return(mock_response)
-        
-        result = script.check_operation_status(mock_operation_name, mock_api_key, 1, 0.1)
-        expect(result["done"]).to be true
-        expect(result["response"]).to be_a(Hash)
-      end
-    end
-    
-    context "when operation is pending" do
-      it "retries until complete" do
-        # Mock responses for multiple calls
-        pending_response = double("HTTP::Response",
-          status: double("status", code: 200, success?: true),
-          body: { name: mock_operation_name, done: false }.to_json
-        )
-        
-        complete_response = double("HTTP::Response",
-          status: double("status", code: 200, success?: true),
-          body: { name: mock_operation_name, done: true }.to_json
-        )
-        
-        call_count = 0
-        # Mock HTTP with timeout for multiple calls
-        http_with_timeout = double("HTTP with timeout")
-        allow(HTTP).to receive(:timeout).and_return(http_with_timeout)
-        allow(http_with_timeout).to receive(:get) do
-          call_count += 1
-          call_count == 1 ? pending_response : complete_response
-        end
-        
-        result = script.check_operation_status(mock_operation_name, mock_api_key, 2, 0.1)
-        expect(result["done"]).to be true
-      end
-    end
-    
-    context "when operation times out" do
-      it "returns timeout error" do
-        mock_response = double("HTTP::Response",
-          status: double("status", code: 200, success?: true),
-          body: { name: mock_operation_name, done: false }.to_json
-        )
-        
-        # Mock HTTP with timeout
-        http_with_timeout = double("HTTP with timeout")
-        allow(HTTP).to receive(:timeout).and_return(http_with_timeout)
-        allow(http_with_timeout).to receive(:get).and_return(mock_response)
-        
-        result = script.check_operation_status(mock_operation_name, mock_api_key, 1, 0.1)
-        expect(result["error"]["message"]).to include("timed out")
-      end
-    end
-  end
-  
-  describe "#save_video" do
-    let(:video_url) { "https://example.com/video.mp4" }
-    let(:save_path) { "/tmp/test_videos_#{Time.now.to_i}/" }
-    
-    before do
-      allow(script).to receive(:get_save_path).and_return(save_path)
-      FileUtils.mkdir_p(save_path)
-    end
-    
-    after do
-      FileUtils.rm_rf(save_path) if Dir.exist?(save_path)
-    end
-    
-    it "downloads and saves video successfully" do
-      mock_response = double("HTTP::Response",
-        status: double("status", code: 200, success?: true),
-        body: "fake video data"
-      )
-      
-      allow(HTTP).to receive_message_chain(:headers, :timeout, :follow, :get).and_return(mock_response)
-      
-      # Mock file operations to avoid actual file I/O
-      allow(File).to receive(:open).and_call_original
-      test_file = StringIO.new
-      allow(File).to receive(:open).with(anything, "wb").and_yield(test_file)
-      
-      filename = script.save_video(video_url, "16:9", 0, mock_api_key)
-      expect(filename).to match(/\d+_0_16x9\.mp4/)
-    end
-    
-    it "creates placeholder on download failure" do
-      mock_response = double("HTTP::Response",
-        status: double("status", code: 403, success?: false),
-        body: "Forbidden"
-      )
-      
-      allow(HTTP).to receive_message_chain(:headers, :timeout, :follow, :get).and_return(mock_response)
-      
-      # Mock file operations to avoid actual file I/O
-      allow(File).to receive(:open).and_call_original
-      test_file = StringIO.new
-      allow(File).to receive(:open).with(anything, "wb").and_yield(test_file)
-      
-      filename = script.save_video(video_url, "16:9", 0, mock_api_key)
-      expect(filename).to match(/\d+_0_16x9\.mp4/)
-    end
-  end
-
-  describe "#script.process_operation_result content filtering" do
-    let(:params) { { "aspect_ratio" => "16:9" } }
-
-    it "surfaces raiMediaFilteredReasons when the request is content-filtered" do
-      operation_data = {
-        "response" => {
-          "generateVideoResponse" => {
-            "raiMediaFilteredCount" => 1,
-            "raiMediaFilteredReasons" => ["Filtered: depiction of a public figure."]
-          }
-        }
-      }
-
-      result = script.process_operation_result(operation_data, test_prompt, "16:9", params, mock_api_key)
-
-      expect(result["success"]).to be false
-      expect(result["message"]).to include("Filtered: depiction of a public figure.")
-      expect(result["message"]).to match(/content filtering|restricted content/i)
-    end
-
-    it "falls back to the generic message when no samples and no filter reason" do
-      operation_data = { "response" => { "generateVideoResponse" => {} } }
-
-      result = script.process_operation_result(operation_data, test_prompt, "16:9", params, mock_api_key)
-
-      expect(result["success"]).to be false
-      expect(result["message"]).to match(/No generated samples/i)
-    end
-  end
-
-  describe "#generate_video retries" do
-    it "keeps every argument and stops after the given number of attempts" do
-      calls = []
-      allow(script).to receive(:sleep)
-      allow(script).to receive(:request_video_generation) do |*args|
-        calls << args
-        raise StandardError, "request failed"
-      end
-
-      result = script.generate_video(test_prompt, nil, 1, "16:9", nil, "cars", true, 6, 2)
-
-      expect(result["success"]).to be false
-      expect(calls.size).to eq(2)
-      calls.each do |args|
-        expect(args[5]).to eq("cars")
-        expect(args[6]).to eq(6)
-      end
-    end
-  end
-
   describe "#generate_video" do
-    let(:operation_url) { "https://generativelanguage.googleapis.com/v1beta/#{mock_operation_name}" }
-    
-    before do
-      # Mock initial request
-      initial_response = double("HTTP::Response",
-        status: double("status", code: 200, success?: true),
-        body: { name: mock_operation_name }.to_json,
-        headers: double("headers", to_h: { 'Content-Type' => 'application/json' })
-      )
-      
-      allow(HTTP).to receive_message_chain(:headers, :post).and_return(initial_response)
-      
-      # Mock operation check
-      operation_response = double("HTTP::Response",
-        status: double("status", code: 200, success?: true),
-        body: {
-          name: mock_operation_name,
-          done: true,
-          response: {
-            generateVideoResponse: {
-              generatedSamples: [
-                {
-                  video: {
-                    uri: "https://example.com/video.mp4"
-                  }
-                }
-              ]
-            }
-          }
-        }.to_json
-      )
-      
-      allow(HTTP).to receive(:get).and_return(operation_response)
-      
-      # Mock video download
-      video_response = double("HTTP::Response",
-        status: double("status", code: 200, success?: true),
-        body: "fake video data"
-      )
-      
-      allow(HTTP).to receive_message_chain(:headers, :timeout, :follow, :get).and_return(video_response)
+    let(:generator) { instance_double(Monadic::Utils::GeminiOmniVideo) }
+
+    before { allow(Monadic::Utils::GeminiOmniVideo).to receive(:new).and_return(generator) }
+
+    it "passes the request to Gemini Omni and lists the saved video" do
+      expect(generator).to receive(:generate)
+        .with(prompt: test_prompt, image: nil, aspect_ratio: "9:16", duration: 5, negative_prompt: "cars")
+        .and_return({ success: true, filename: "gemini_omni_x.mp4", duration: 5 })
+      result = script.generate_video(test_prompt, nil, aspect_ratio: "9:16", duration: 5, negative_prompt: "cars")
+      expect(result[:success]).to be true
+      expect(result[:videos]).to eq([{ filename: "gemini_omni_x.mp4", aspect_ratio: "9:16", duration: 5 }])
+      expect(result[:original_prompt]).to eq(test_prompt)
     end
-    
-    it "generates video successfully" do
-      # Mock the HTTP client chain for success case
-      http_with_timeout = double("HTTP with timeout")
-      http_with_follow = double("HTTP with follow")
-      http_with_headers = double("HTTP with headers")
-      
-      # Define mock_response
-      initial_response = double("HTTP::Response",
-        status: double("status", code: 200, success?: true),
-        body: { name: mock_operation_name }.to_json,
-        headers: double("headers", to_h: { 'Content-Type' => 'application/json' })
-      )
-      
-      allow(HTTP).to receive(:timeout).and_return(http_with_timeout)
-      allow(http_with_timeout).to receive(:follow).and_return(http_with_follow)
-      allow(http_with_follow).to receive(:headers).and_return(http_with_headers)
-      allow(http_with_headers).to receive(:post).and_return(initial_response)
-      
-      # Mock script.check_operation_status
-      allow(script).to receive(:check_operation_status).and_return({
-        "done" => true,
-        "response" => {
-          "generateVideoResponse" => {
-            "generatedSamples" => [
-              {
-                "video" => {
-                  "uri" => "https://example.com/video.mp4"
-                }
-              }
-            ]
-          }
-        }
-      })
-      
-      # Mock script.save_video to return a filename
-      allow(script).to receive(:save_video).and_return("1234567890_0_16x9.mp4")
-      
-      result = script.generate_video(test_prompt, nil, 1, "16:9", "allow_adult", 5)
-      
-      expect(result["success"]).to be true
-      expect(result["original_prompt"]).to eq(test_prompt)
-      expect(result["videos"]).to be_an(Array)
-      expect(result["videos"].first[:filename]).to match(/\.mp4$/)
+
+    it "sends the image of the shared folder as the first frame" do
+      jpeg = [0xFF, 0xD8].pack("C*") + "jpeg"
+      File.binwrite(test_image_path, jpeg)
+      expect(generator).to receive(:generate)
+        .with(hash_including(image: { data: jpeg, mime_type: "image/jpeg" }))
+        .and_return({ success: true, filename: "gemini_omni_y.mp4", duration: 8 })
+      expect(script.generate_video(test_prompt, "test_image.jpg")[:success]).to be true
     end
-    
-    it "handles API errors gracefully" do
-      error_response = double("HTTP::Response",
-        status: double("status", code: 400, success?: false),
-        body: { error: { message: "Invalid request" } }.to_json,
-        headers: double("headers", to_h: { 'Content-Type' => 'application/json' })
-      )
-      
-      # Mock the HTTP client chain for error case
-      http_with_timeout = double("HTTP with timeout")
-      http_with_follow = double("HTTP with follow")
-      http_with_headers = double("HTTP with headers")
-      
-      allow(HTTP).to receive(:timeout).and_return(http_with_timeout)
-      allow(http_with_timeout).to receive(:follow).and_return(http_with_follow)
-      allow(http_with_follow).to receive(:headers).and_return(http_with_headers)
-      allow(http_with_headers).to receive(:post).and_return(error_response)
-      
+
+    it "refuses an image it cannot read before any key or request" do
+      expect(script).not_to receive(:get_api_key)
+      expect(Monadic::Utils::GeminiOmniVideo).not_to receive(:new)
+      result = script.generate_video(test_prompt, "/non/existent/image.jpg")
+      expect(result).to include(success: false, error: "invalid_input")
+      expect(result[:message]).to include("Invalid shared image path")
+    end
+
+    it "passes a failure on as it is" do
+      allow(generator).to receive(:generate).and_return({ success: false, error: "rejected", message: "Gemini refused the request" })
       result = script.generate_video(test_prompt)
-      
-      expect(result[:success]).to be false
-      expect(result[:message]).to include("Invalid request")
+      expect(result).to include(success: false, error: "rejected")
+      expect(result).not_to have_key(:videos)
     end
-    
-    it "enforces single video generation" do
-      # Mock the HTTP client chain for success case
-      http_with_timeout = double("HTTP with timeout")
-      http_with_follow = double("HTTP with follow")
-      http_with_headers = double("HTTP with headers")
-      
-      # Define mock_response
-      initial_response = double("HTTP::Response",
-        status: double("status", code: 200, success?: true),
-        body: { name: mock_operation_name }.to_json,
-        headers: double("headers", to_h: { 'Content-Type' => 'application/json' })
-      )
-      
-      allow(HTTP).to receive(:timeout).and_return(http_with_timeout)
-      allow(http_with_timeout).to receive(:follow).and_return(http_with_follow)
-      allow(http_with_follow).to receive(:headers).and_return(http_with_headers)
-      allow(http_with_headers).to receive(:post).and_return(initial_response)
-      
-      # Mock script.check_operation_status
-      allow(script).to receive(:check_operation_status).and_return({
-        "done" => true,
-        "response" => {
-          "generateVideoResponse" => {
-            "generatedSamples" => [
-              {
-                "video" => {
-                  "uri" => "https://example.com/video.mp4"
-                }
-              }
-            ]
-          }
-        }
-      })
-      
-      # Mock script.save_video to return a filename
-      allow(script).to receive(:save_video).and_return("1234567890_0_16x9.mp4")
-      
-      # Even if we request multiple videos, it should only generate one
-      result = script.generate_video(test_prompt, nil, 2, "16:9", "allow_adult", 5)
-      
-      expect(result["success"]).to be true
-      expect(result["generated_video_count"]).to eq(1)
+
+    it "reports a missing key instead of raising" do
+      allow(script).to receive(:get_api_key).and_raise("ERROR: GEMINI_API_KEY is not set")
+      result = script.generate_video(test_prompt)
+      expect(result).to include(success: false, error: "configuration")
+      expect(result[:message]).to start_with("GEMINI_API_KEY is not set")
     end
   end
-  
-  describe "#parse_options" do
-    it "parses valid command line options" do
-      ARGV.replace(["-p", "Test prompt", "-a", "16:9", "-d", "8"])
-      options = script.parse_options
 
-      expect(options[:prompt]).to eq("Test prompt")
-      expect(options[:aspect_ratio]).to eq("16:9")
-      expect(options[:duration_seconds]).to eq(8)
-      
-      ARGV.clear
+  describe "#parse_options" do
+    it "reads the prompt, image, aspect ratio, duration and what to avoid" do
+      options = script.parse_options(["-p", "a boat", "-i", "boat.jpg", "-a", "9:16", "-d", "6", "--negative-prompt", "people"])
+      expect(options).to include(prompt: "a boat", image_path: "boat.jpg", aspect_ratio: "9:16",
+                                 duration_seconds: "6", negative_prompt: "people")
     end
-    
-    it "validates aspect ratio" do
-      ARGV.replace(["-p", "Test", "-a", "invalid"])
-      expect { script.parse_options }.to raise_error(SystemExit)
-      ARGV.clear
+
+    it "accepts the options callers wrote for Veo and ignores them" do
+      options = script.parse_options(["-p", "a boat", "-n", "2", "--fast", "--quality"])
+      expect(options).to include(prompt: "a boat", aspect_ratio: "16:9", duration_seconds: 8)
     end
-    
-    it "validates duration" do
-      ARGV.replace(["-p", "Test", "-d", "10"])
-      expect { script.parse_options }.to raise_error(SystemExit)
-      ARGV.clear
+  end
+
+  describe "the command line" do
+    it "prints one JSON line with the outcome and exits non-zero on failure" do
+      allow(STDERR).to receive(:puts)
+      _script, output = GeneratorScriptLoader.run_cli("video_generator_gemini.rb", ["-p", "x", "-i", "/outside/a.png"])
+      lines = output.lines.map(&:strip).reject(&:empty?)
+      expect(lines.size).to eq(1)
+      expect(JSON.parse(lines.first)).to include("success" => false, "error" => "invalid_input")
     end
   end
 end

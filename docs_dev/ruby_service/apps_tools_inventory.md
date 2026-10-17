@@ -69,7 +69,7 @@ Groups without a note are always visible. A provider list after a group or tool 
 | Syntax Tree | OpenAI, Claude | `file_operations`, `planning` | `render_syntax_tree` |
 | Translate | OpenAI, Cohere, DeepSeek | — | `load_translation_context`, `save_translation_context`, `add_vocabulary_entry`, `clear_vocabulary` |
 | Video Describer | OpenAI, Gemini, Grok | `video_analysis`, `planning` | — |
-| Video Generator | Gemini, Grok | `planning` | `generate_video_with_veo` (Gemini), `monadic_load_state`, `generate_video_with_grok_imagine` (Grok) |
+| Video Generator | Gemini, Grok | `planning` | `generate_video_with_gemini` (Gemini; `generate_video_with_veo` is accepted as its earlier name), `monadic_load_state`, `generate_video_with_grok_imagine` (Grok) |
 | Voice Chat | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | — | — |
 | Voice Interpreter | OpenAI, Cohere | — | `load_context`, `save_translation`, `set_target_language` |
 | Web Insight | OpenAI, Claude, Gemini, Grok | `web_automation`, `planning` | — |

@@ -121,8 +121,8 @@ describe('providerDefaults', () => {
       expect(providerDefaults.gemini.image[0]).toBe('gemini-nano-banana-2.1');
     });
 
-    it('gemini video default is veo-3.1-fast-generate-preview', () => {
-      expect(providerDefaults.gemini.video[0]).toBe('veo-3.1-fast-generate-preview');
+    it('gemini video default is gemini-omni-1.1-flash', () => {
+      expect(providerDefaults.gemini.video[0]).toBe('gemini-omni-1.1-flash');
     });
 
     it('xai image default is grok-imagine-image', () => {

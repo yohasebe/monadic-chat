@@ -64,6 +64,7 @@ module Monadic
       INTERMEDIATE_PATTERNS = [
         /\A\d{10}_[0-9a-f]{8}\.md\z/,   # text given to speech
         /\A\d{10}\.json\z/,             # notebook cells sent in one go
+        /\Ajupyter_cells_\d{8}_\d{6}_[0-9a-f]{8}\.json\z/, # the same, as it is named now
         /\A\d{10}\.pdf\z/,              # a PDF copied for text extraction
         /\Apdf2text_[0-9a-f]{16}\.pdf\z/, # the same, as it is named now
         /\.md\.json\z/,                 # text extraction output

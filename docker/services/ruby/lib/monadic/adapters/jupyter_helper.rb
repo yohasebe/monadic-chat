@@ -1,4 +1,5 @@
 require 'shellwords'
+require 'securerandom'
 require_relative '../utils/shared_path_guard'
 require 'cgi'
 require 'digest'
@@ -355,7 +356,10 @@ module MonadicHelper
       end
     end
 
-    tempfile = Time.now.to_i.to_s
+    # The cells reach the Python container through a file in the shared
+    # folder; its name is the call's own (two chats can add cells in the same
+    # second), and it is removed once the container has read it.
+    tempfile = "jupyter_cells_#{Time.now.strftime('%Y%m%d_%H%M%S')}_#{SecureRandom.hex(4)}"
     Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] Writing to temp file: #{tempfile}.json" }
     write_to_file(filename: tempfile, extension: "json", text: cells_in_json)
 
@@ -406,6 +410,11 @@ module MonadicHelper
                  Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] JSON file not created in time" }
                  false
                end
+    begin
+      File.delete(filepath) if File.file?(filepath) && !File.symlink?(filepath)
+    rescue SystemCallError
+      nil
+    end
 
     if results1
       # Generate access URL

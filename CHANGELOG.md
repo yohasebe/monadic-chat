@@ -28,7 +28,7 @@
     - Keys that 1Password could not provide are named, with what to do, and 1Password values that span lines are read whole
     - Older messages are no longer shortened in exports and after a reload
     - Knowledge Base: an imported file is not kept in the shared folder, saving again keeps the saved version if the new one cannot be written, and the list shows the newest entries
-    - PDF uploads leave no copy in the shared folder
+    - PDF uploads, and cells added to a Jupyter notebook, leave no copy in the shared folder
     - A transcription host that cannot be reached over IPv6 is tried over IPv4, and an empty reply from an image-analysis model is reported as an error
     - DeepSeek ends a long chain of tool calls with an answer, and xAI Grok keeps showing that tools are running between rounds
   - For developers

@@ -198,6 +198,11 @@
     "versionInfoContainer": "Container"
   },
   "dialogs": {
+    "sharedFolderTrash": {
+      "message": "{{count}} Einträge des freigegebenen Ordners in den Papierkorb legen?",
+      "move": "In den Papierkorb legen",
+      "more": "und {{count}} weitere"
+    },
     "unsavedChangesTitle": "Nicht gespeicherte Änderungen",
     "unsavedChangesMessage": "Sie haben nicht gespeicherte Änderungen. Vor dem Schließen speichern?",
     "saveAndClose": "Speichern und schließen",

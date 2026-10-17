@@ -9,12 +9,14 @@ const { ROOT_ID_FILE, MAX_TRASH, createTrashHandler } = require('../../app/share
 const ROOT_ID = 'b'.repeat(32);
 const appContents = {};
 const fromApp = { sender: appContents, senderFrame: { url: 'http://localhost:4567/' } };
+const fromSharedFile = { sender: appContents, senderFrame: { url: 'http://localhost:4567/data/page.html' } };
 
 describe('shared folder trash', () => {
   let root;
   let shell;
   let answers;
   let trash;
+  let confirm;
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'shared-trash-'));
@@ -29,11 +31,13 @@ describe('shared folder trash', () => {
       scripts: { kind: 'folder', capabilities: { trash: false } }
     };
     shell = { trashItem: jest.fn(async () => undefined) };
+    confirm = jest.fn(async () => true);
     trash = createTrashHandler({
       resolveRoot: () => root,
       isAppUrl: (url) => url.startsWith('http://localhost:4567/'),
       isAppSender: (event) => event.sender === appContents,
       askEntry: async (relative) => answers[relative] || null,
+      confirm,
       shell,
       fs,
       platform: 'darwin'
@@ -96,6 +100,7 @@ describe('shared folder trash', () => {
         fs.symlinkSync(outside, root);
         return answers[relative];
       },
+      confirm,
       shell,
       fs,
       platform: 'darwin'
@@ -121,12 +126,42 @@ describe('shared folder trash', () => {
         fs.writeFileSync(path.join(root, 'old.png'), 'z');
         return answers[relative];
       },
+      confirm,
       shell,
       fs,
       platform: 'darwin'
     });
     const result = await replacing(fromApp, { rootId: ROOT_ID, paths: ['old.png'] });
     expect(result.results[0]).toEqual({ path: 'old.png', ok: false, error: 'the entry changed' });
+    expect(shell.trashItem).not.toHaveBeenCalled();
+  });
+
+  it('moves nothing unless the dialog of the desktop app is agreed to, and names what it asks about', async () => {
+    confirm.mockResolvedValueOnce(false);
+    const result = await trash(fromApp, { rootId: ROOT_ID, paths: ['old.png', 'monadic-test-1-dir'] });
+    expect(result).toEqual({ ok: false, cancelled: true, error: 'cancelled' });
+    expect(confirm).toHaveBeenCalledWith(['old.png', 'monadic-test-1-dir']);
+    expect(shell.trashItem).not.toHaveBeenCalled();
+  });
+
+  it('moves nothing without a dialog to ask', async () => {
+    const asking = createTrashHandler({
+      resolveRoot: () => root,
+      isAppUrl: (url) => url.startsWith('http://localhost:4567/'),
+      isAppSender: (event) => event.sender === appContents,
+      askEntry: async (relative) => answers[relative] || null,
+      shell,
+      fs,
+      platform: 'darwin'
+    });
+    expect((await asking(fromApp, { rootId: ROOT_ID, paths: ['old.png'] })).ok).toBe(false);
+    expect(shell.trashItem).not.toHaveBeenCalled();
+  });
+
+  it('refuses a file of the shared folder shown at the app\'s address', async () => {
+    const result = await trash(fromSharedFile, { rootId: ROOT_ID, paths: ['old.png'] });
+    expect(result).toEqual({ ok: false, error: 'not from the app' });
+    expect(confirm).not.toHaveBeenCalled();
     expect(shell.trashItem).not.toHaveBeenCalled();
   });
 

@@ -169,7 +169,7 @@ Each entry shows its name, what it is, its size and when it was last modified:
 
 The list can be searched by name, sorted by name, size (`Largest first`) or modification time (`Newest first`), and narrowed to one kind of entry.
 
-In the desktop app, the button on the right of an entry shows it in your file manager, selected in the folder that holds it; neither a folder nor a file is opened. Entries with a check box can be moved to the system's Trash: tick them (or click `Select test files`), click `Move to Trash` and confirm. Entries that are kept for a reason, and the folder of a chat open in a tab and what is in it, cannot be selected. Moved entries can be put back from the Trash.
+In the desktop app, the button on the right of an entry shows it in your file manager, selected in the folder that holds it; neither a folder nor a file is opened. Entries with a check box can be moved to the system's Trash: tick them (or click `Select test files`), click `Move to Trash` and confirm in the dialog that names the count and the first entries. Entries that are kept for a reason, and the folder of a chat open in a tab and what is in it, cannot be selected. Moved entries can be put back from the Trash.
 
 ?> Monadic Chat keeps a small hidden file, `.monadic-shared-root`, in the shared folder. Do not remove it: without it, entries cannot be shown in the file manager or moved to the Trash (the list is still shown).
 

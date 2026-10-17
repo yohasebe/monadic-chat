@@ -4103,6 +4103,23 @@ function askSharedEntry(relativePath) {
   });
 }
 
+// Asks, in a dialog of the desktop app, before entries of the shared folder
+// are moved to the trash; the page cannot answer it. Cancel is the default.
+async function confirmSharedTrash(paths) {
+  if (!webviewWindow || webviewWindow.isDestroyed()) return false;
+  const shown = paths.slice(0, 5).join('\n') + (paths.length > 5 ? '\n' + i18n.t('dialogs.sharedFolderTrash.more', { count: paths.length - 5 }) : '');
+  const result = await dialog.showMessageBox(webviewWindow, {
+    type: 'warning',
+    buttons: [i18n.t('dialogs.sharedFolderTrash.move'), i18n.t('dialogs.cancel')],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+    message: i18n.t('dialogs.sharedFolderTrash.message', { count: paths.length }),
+    detail: shown
+  });
+  return result.response === 0;
+}
+
 // The shared folder page moves entries to the system's trash (see
 // shared_folder_reveal.js for what is checked).
 ipcMain.handle('shared-folder-trash', createTrashHandler({
@@ -4111,6 +4128,7 @@ ipcMain.handle('shared-folder-trash', createTrashHandler({
   isAppSender: (event) => !!(webviewWindow && !webviewWindow.isDestroyed() && event.sender === webviewWindow.webContents &&
     event.senderFrame === event.sender.mainFrame),
   askEntry: askSharedEntry,
+  confirm: confirmSharedTrash,
   shell,
   fs,
   platform: os.platform()

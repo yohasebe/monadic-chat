@@ -7,8 +7,13 @@
 // runs can make a folder that the system opens as an app (Name.app on
 // macOS), and opening that would run it.
 const path = require('path');
+const { URL } = require('url');
 
 const ROOT_ID_FILE = '.monadic-shared-root';
+// The app's page that holds the Shared Folder panel. The same address also
+// serves files of the shared folder (/data/...), which a model's code can
+// write, so the origin alone does not tell the app's page from such a file.
+const APP_PAGE_PATH = '/';
 const WINDOWS_RESERVED_NAME = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
 
 // The parts of a relative path, or null when it could name something
@@ -35,6 +40,11 @@ function sharedPathParts(relative, platform) {
 function checkSender(event, deps) {
   const sender = event && event.senderFrame && event.senderFrame.url;
   if (!sender || !deps.isAppUrl(sender)) return false;
+  try {
+    if (new URL(sender).pathname !== APP_PAGE_PATH) return false;
+  } catch (_) {
+    return false;
+  }
   if (deps.isAppSender && !deps.isAppSender(event)) return false;
   return true;
 }
@@ -95,11 +105,14 @@ const MAX_TRASH = 500; // entries in one request
 // Moves entries of the shared folder to the system's trash. Each one must
 // pass the checks above, and the server must say it may go (not protected,
 // not in a chat open in a tab) for the same kind of entry this computer
-// sees. While the server is asked the folder could change, so just before
+// sees, and the person must agree in a dialog of the desktop app itself (not
+// of the page), which names the count and the first entries. While the
+// server is asked the folder could change, so just before
 // the move the shared folder must still be the same folder with the same id
 // file, and the entry the same entry, with no link on the way.
 // deps: as for reveal, plus askEntry(relativePath) -> Promise<item|null>
-// (the server's description of the entry) and shell.trashItem.
+// (the server's description of the entry), confirm(paths) -> Promise<bool>
+// (the desktop app's dialog; nothing is moved without it) and shell.trashItem.
 function createTrashHandler(deps) {
   return async function trash(event, request) {
     try {
@@ -111,6 +124,9 @@ function createTrashHandler(deps) {
       }
       const first = sharedRoot(request.rootId, deps);
       if (first.error) return { ok: false, error: first.error };
+      if (typeof deps.confirm !== 'function' || (await deps.confirm(paths.slice())) !== true) {
+        return { ok: false, cancelled: true, error: 'cancelled' };
+      }
 
       const results = [];
       for (const relative of paths) {
@@ -172,4 +188,4 @@ function showSharedPath(target, deps) {
   }
 }
 
-module.exports = { ROOT_ID_FILE, MAX_TRASH, sharedPathParts, createRevealHandler, createTrashHandler, showSharedPath };
+module.exports = { ROOT_ID_FILE, APP_PAGE_PATH, MAX_TRASH, sharedPathParts, createRevealHandler, createTrashHandler, showSharedPath };

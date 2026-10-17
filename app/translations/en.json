@@ -223,6 +223,11 @@
     "versionInfoContainer": "Container"
   },
   "dialogs": {
+    "sharedFolderTrash": {
+      "message": "Move {{count}} entries of the shared folder to the Trash?",
+      "move": "Move to Trash",
+      "more": "and {{count}} more"
+    },
     "error": "Error",
     "warning": "Warning",
     "info": "Information",

@@ -124,6 +124,11 @@
     "quit": "退出"
   },
   "dialogs": {
+    "sharedFolderTrash": {
+      "message": "要将共享文件夹中的 {{count}} 个条目移到废纸篓吗？",
+      "move": "移到废纸篓",
+      "more": "另有 {{count}} 个"
+    },
     "unsavedChangesTitle": "未保存的更改",
     "unsavedChangesMessage": "您有未保存的更改。是否在关闭前保存？",
     "saveAndClose": "保存并关闭",

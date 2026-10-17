@@ -198,6 +198,11 @@
     "versionInfoContainer": "Conteneur"
   },
   "dialogs": {
+    "sharedFolderTrash": {
+      "message": "Placer {{count}} éléments du dossier partagé dans la corbeille ?",
+      "move": "Placer dans la corbeille",
+      "more": "et {{count}} de plus"
+    },
     "unsavedChangesTitle": "Modifications non enregistrées",
     "unsavedChangesMessage": "Vous avez des modifications non enregistrées. Enregistrer avant de fermer ?",
     "saveAndClose": "Enregistrer et fermer",

@@ -415,29 +415,20 @@
     render();
   }
 
-  function showConfirm(show) {
-    const box = $id('shared-folder-confirm');
-    if (!box) return;
-    box.classList.toggle('d-none', !show);
-    const text = $id('shared-folder-confirm-text');
-    if (text && show) {
-      text.textContent = t('trashQuestion', 'Move {count} entries to the Trash? They can be put back from the Trash.')
-        .replace('{count}', String(selected.size));
-    }
-  }
-
   // Moves the chosen entries to the system's trash, through the desktop app,
-  // which asks the server again for each one. Then the folder is listed anew.
+  // which asks first in a dialog of its own and then asks the server again
+  // for each one. Then the folder is listed anew.
   async function trashSelected() {
-    showConfirm(false);
     const paths = Array.from(selected);
     if (paths.length === 0 || !trashAvailable()) return;
     let moved = 0;
     const failed = [];
+    let cancelled = false;
     for (let i = 0; i < paths.length; i += TRASH_PER_REQUEST) {
       const chunk = paths.slice(i, i + TRASH_PER_REQUEST);
       try {
         const result = await window.electronAPI.trashSharedEntries(state.rootId, chunk);
+        if (result && result.cancelled) { cancelled = true; break; } // the person said no in the dialog
         if (result && Array.isArray(result.results)) {
           result.results.forEach(function (r) { if (r.ok) moved += 1; else failed.push(r.path + ' (' + (r.error || '') + ')'); });
         } else {
@@ -447,6 +438,8 @@
         chunk.forEach(function (p) { failed.push(p + ' (' + e.message + ')'); });
       }
     }
+    // Said no before anything was moved: the list and the choice stay as they are.
+    if (cancelled && moved === 0 && failed.length === 0) return;
     selected = new Set();
     await load(state.path);
     if (failed.length) {
@@ -485,9 +478,7 @@
     $on($id('shared-folder-sort'), 'change', function (e) { view.sort = e.target.value; load(state.path); });
     $on($id('shared-folder-filter'), 'change', function (e) { view.cls = e.target.value; load(state.path); });
     $on($id('shared-folder-select-tests'), 'click', selectTests);
-    $on($id('shared-folder-trash'), 'click', function () { if (selected.size) showConfirm(true); });
-    $on($id('shared-folder-confirm-yes'), 'click', trashSelected);
-    $on($id('shared-folder-confirm-no'), 'click', function () { showConfirm(false); });
+    $on($id('shared-folder-trash'), 'click', function () { if (selected.size) trashSelected(); });
     $on($id('shared-folder-refresh'), 'click', function () { load(state.path); });
     $on($id('shared-folder-more'), 'click', loadMore);
     $on($id('sharedFolderModal'), 'hidden.bs.modal', function () {

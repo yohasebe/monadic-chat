@@ -124,6 +124,11 @@
     "quit": "Salir"
   },
   "dialogs": {
+    "sharedFolderTrash": {
+      "message": "¿Mover {{count}} elementos de la carpeta compartida a la Papelera?",
+      "move": "Mover a la Papelera",
+      "more": "y {{count}} más"
+    },
     "unsavedChangesTitle": "Cambios sin guardar",
     "unsavedChangesMessage": "Tienes cambios sin guardar. ¿Guardar antes de cerrar?",
     "saveAndClose": "Guardar y cerrar",

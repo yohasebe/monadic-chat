@@ -124,6 +124,11 @@
     "quit": "종료"
   },
   "dialogs": {
+    "sharedFolderTrash": {
+      "message": "공유 폴더의 항목 {{count}}개를 휴지통으로 옮길까요?",
+      "move": "휴지통으로 이동",
+      "more": "외 {{count}}개"
+    },
     "unsavedChangesTitle": "저장되지 않은 변경 사항",
     "unsavedChangesMessage": "저장하지 않은 변경 사항이 있습니다. 닫기 전에 저장하시겠습니까?",
     "saveAndClose": "저장하고 닫기",

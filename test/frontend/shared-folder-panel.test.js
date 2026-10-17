@@ -228,8 +228,6 @@ describe('shared folder page: search, selection and trash', () => {
       <select id="shared-folder-filter"><option value=""></option><option value="test_file"></option></select>
       <button id="shared-folder-select-tests"></button>
       <button id="shared-folder-trash"><span id="shared-folder-trash-label"></span></button>
-      <div id="shared-folder-confirm" class="d-none"><span id="shared-folder-confirm-text"></span>
-        <button id="shared-folder-confirm-yes"></button><button id="shared-folder-confirm-no"></button></div>
       <div id="shared-folder-error" style="display:none"></div>
       <table><tbody id="shared-folder-tbody"></tbody></table>
       <button id="shared-folder-more"></button>`;
@@ -266,21 +264,31 @@ describe('shared folder page: search, selection and trash', () => {
     expect(document.getElementById('shared-folder-trash').disabled).toBe(false);
   });
 
-  it('moves the chosen entries only after the confirmation, then lists the folder again', async () => {
+  it('asks the desktop app to move the chosen entries, then lists the folder again', async () => {
     panel.load('');
     respond(0, listing([testFile, plain]));
     await flush();
     panel.selectTests();
     document.getElementById('shared-folder-trash').click();
-    expect(document.getElementById('shared-folder-confirm').classList.contains('d-none')).toBe(false);
-    expect(window.electronAPI.trashSharedEntries).not.toHaveBeenCalled();
-    document.getElementById('shared-folder-confirm-yes').click();
     await flush();
     expect(window.electronAPI.trashSharedEntries).toHaveBeenCalledWith(ROOT, ['monadic-test-1-a.txt']);
     expect(pending).toHaveLength(2);
     respond(1, listing([plain]));
     await flush();
     expect(Array.from(panel._selected())).toEqual([]);
+  });
+
+  it('keeps the list and the choice when the dialog of the desktop app is cancelled', async () => {
+    window.electronAPI.trashSharedEntries = jest.fn(async () => ({ ok: false, cancelled: true, error: 'cancelled' }));
+    panel.load('');
+    respond(0, listing([testFile, plain]));
+    await flush();
+    panel.selectTests();
+    document.getElementById('shared-folder-trash').click();
+    await flush();
+    expect(pending).toHaveLength(1);
+    expect(Array.from(panel._selected())).toEqual(['monadic-test-1-a.txt']);
+    expect(document.getElementById('shared-folder-error').textContent).toBe('');
   });
 
   it('says which entries could not be moved', async () => {
@@ -290,7 +298,6 @@ describe('shared folder page: search, selection and trash', () => {
     await flush();
     document.querySelector('#shared-folder-tbody input[type=checkbox]').click();
     document.getElementById('shared-folder-trash').click();
-    document.getElementById('shared-folder-confirm-yes').click();
     await flush();
     respond(1, listing([plain]));
     await flush();

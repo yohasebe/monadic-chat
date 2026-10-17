@@ -223,6 +223,11 @@
     "versionInfoContainer": "コンテナ"
   },
   "dialogs": {
+    "sharedFolderTrash": {
+      "message": "共有フォルダの {{count}} 件をゴミ箱に移しますか？",
+      "move": "ゴミ箱に移す",
+      "more": "ほか {{count}} 件"
+    },
     "error": "エラー",
     "warning": "警告",
     "info": "情報",

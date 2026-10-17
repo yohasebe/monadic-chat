@@ -59,6 +59,14 @@ describe('shared folder reveal', () => {
     expect(shell.showItemInFolder).not.toHaveBeenCalled();
   });
 
+  it("refuses a file of the shared folder shown at the app's address", async () => {
+    for (const url of ['http://localhost:4567/data/page.html', 'http://localhost:4567/monadic/data/page.html']) {
+      const sharedFile = { sender: appContents, senderFrame: { url } };
+      expect((await reveal(sharedFile, { rootId: ROOT_ID, path: 'image.png' })).ok).toBe(false);
+    }
+    expect(shell.showItemInFolder).not.toHaveBeenCalled();
+  });
+
   it("refuses a page at the app's address in another window", async () => {
     const otherWindow = { sender: {}, senderFrame: { url: 'http://localhost:4567/' } };
     expect((await reveal(otherWindow, { rootId: ROOT_ID, path: 'image.png' })).ok).toBe(false);

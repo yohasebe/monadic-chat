@@ -1283,17 +1283,29 @@ RSpec.describe 'WebSocketHelper STS continuous mode' do
     # fallback) mic chunks still in flight must not respawn the bridge into
     # the same fatal — each respawn opens a billed upstream session.
     it 'refuses to respawn a bridge for the model that just failed fatally' do
-      harness.session[:_sts_fatal] = 'grok-voice-think-fast-2.0'
+      harness.session[:_sts_fatal] = 'grok-voice-3.0'
       allow(harness).to receive(:run_sts_bridge!)
 
-      state = harness.ensure_sts_state!({ 'chat_model' => 'grok-voice-think-fast-2.0' })
+      state = harness.ensure_sts_state!({ 'chat_model' => 'grok-voice-3.0' })
 
       expect(state).to be_nil
       expect(harness.session[:_sts]).to be_nil
     end
 
+    # xAI renamed grok-voice-think-fast-2.0 (it now reports grok-voice-2.0,
+    # which the exact-match check refuses); a saved session still naming it
+    # must reach the successor rather than stop every time.
+    it 'starts the successor of a model the catalog marks as retired' do
+      allow(harness).to receive(:run_sts_bridge!)
+
+      state = harness.ensure_sts_state!({ 'chat_model' => 'grok-voice-think-fast-2.0' })
+
+      expect(state[:model]).to eq('grok-voice-3.0')
+      harness.session[:_sts] && harness.session[:_sts][:bridge_task]&.stop
+    end
+
     it 'clears the fatal memory when a different model is requested' do
-      harness.session[:_sts_fatal] = 'grok-voice-think-fast-2.0'
+      harness.session[:_sts_fatal] = 'grok-voice-3.0'
       # The bridge itself is not under test — spawning it would open a real
       # upstream connection from a unit spec.
       allow(harness).to receive(:run_sts_bridge!)
@@ -1782,7 +1794,7 @@ end
 # xAI dialect (all shapes live-probed 2026-08-01). The turn machinery is
 # shared; what the profile encapsulates is connection facts, the session
 # payload shape, the cumulative transcription event, the fatal
-# model-mismatch guard (silent fallback to think-fast-1.0) and per-minute
+# model-mismatch guard (silent fallback to another model) and per-minute
 # accounting.
 RSpec.describe 'xAI realtime provider profile' do
   let(:harness) do
@@ -1797,7 +1809,7 @@ RSpec.describe 'xAI realtime provider profile' do
   end
 
   it 'routes grok-* models to the xai profile, everything else to openai' do
-    expect(harness.sts_provider_for('grok-voice-think-fast-2.0')).to eq('xai')
+    expect(harness.sts_provider_for('grok-voice-3.0')).to eq('xai')
     expect(harness.sts_provider_for('grok-voice-latest')).to eq('xai')
     expect(harness.sts_provider_for('gpt-realtime-2.1')).to eq('openai')
   end
@@ -1817,7 +1829,7 @@ RSpec.describe 'xAI realtime provider profile' do
     let(:payload) do
       stub_const('APPS', {})
       harness.build_sts_session_update_payload(
-        { provider: 'xai', model: 'grok-voice-think-fast-2.0', voice: 'eve',
+        { provider: 'xai', model: 'grok-voice-3.0', voice: 'eve',
           instructions: 'Be brief.', language: 'ja' }
       )
     end
@@ -1852,7 +1864,7 @@ RSpec.describe 'xAI realtime provider profile' do
 
     it 'never injects the removed native search entries (2026-08-03, user decision)' do
       on = harness.build_sts_session_update_payload(
-        { provider: 'xai', model: 'grok-voice-think-fast-2.0', voice: 'eve',
+        { provider: 'xai', model: 'grok-voice-3.0', voice: 'eve',
           instructions: '', websearch: true } # legacy state key is ignored
       )
       tools = on.dig(:session, :tools)
@@ -1944,7 +1956,7 @@ RSpec.describe 'xAI dialect in the reader' do
 
   let(:base_state) do
     { session_ready: true, ready: Async::Condition.new, turn: nil,
-      cmd_queue: Async::Queue.new, provider: 'xai', model: 'grok-voice-think-fast-2.0' }
+      cmd_queue: Async::Queue.new, provider: 'xai', model: 'grok-voice-3.0' }
   end
 
   # xAI sends CUMULATIVE transcripts (.updated), not deltas — appending
@@ -1961,11 +1973,11 @@ RSpec.describe 'xAI dialect in the reader' do
     expect(base_state[:turn][:user_partial]).to eq('こんにちは、今日は')
   end
 
-  # Live-probed: unknown models silently become think-fast-1.0. Running the
+  # Live-probed: unknown models silently become another one. Running the
   # conversation on a model the user did not pick is a misrepresentation.
   it 'stops fatally when the session reports a different model' do
     run_reader([{ type: 'session.created',
-                  session: { model: 'grok-voice-think-fast-1.0' } }], base_state)
+                  session: { model: 'grok-voice-2.0' } }], base_state)
 
     err = sent.find { |m| m['type'] == 'error' }
     expect(err['content']).to include('silent fallback')
@@ -1981,10 +1993,10 @@ RSpec.describe 'xAI dialect in the reader' do
     allow(ready).to receive(:signal) { signalled = true }
 
     run_reader([{ type: 'session.created',
-                  session: { model: 'grok-voice-think-fast-1.0' } }], base_state)
+                  session: { model: 'grok-voice-2.0' } }], base_state)
 
     expect(signalled).to be true
-    expect(harness.session[:_sts_fatal]).to eq('grok-voice-think-fast-2.0')
+    expect(harness.session[:_sts_fatal]).to eq('grok-voice-3.0')
   end
 
   # Review round 5, P3-1: a straggler cumulative update for utterance A must
@@ -2085,7 +2097,7 @@ RSpec.describe 'xAI dialect in the reader' do
 
   it 'accepts the session when the model echo matches' do
     run_reader([{ type: 'session.created',
-                  session: { model: 'grok-voice-think-fast-2.0' } }], base_state)
+                  session: { model: 'grok-voice-3.0' } }], base_state)
 
     expect(sent.select { |m| m['type'] == 'error' }).to be_empty
     expect(base_state[:fatal]).to be_nil
@@ -2119,7 +2131,7 @@ RSpec.describe 'Gemini Live provider' do
 
   it 'resolves the provider from the model_spec sts_provider field' do
     expect(harness.sts_provider_for('gemini-3.1-flash-live-preview')).to eq('gemini')
-    expect(harness.sts_provider_for('grok-voice-think-fast-2.0')).to eq('xai')
+    expect(harness.sts_provider_for('grok-voice-3.0')).to eq('xai')
     expect(harness.sts_provider_for('gpt-realtime-2.1')).to eq('openai')
   end
 
@@ -2488,9 +2500,9 @@ RSpec.describe 'STS voice SSOT resolution (model_spec → profile fallback)' do
   end
 
   it 'accepts the expanded xAI voice registry (26) and defaults to eve' do
-    st = state_for({ 'model' => 'grok-voice-think-fast-2.0', 'sts_voice' => 'luna' })
+    st = state_for({ 'model' => 'grok-voice-3.0', 'sts_voice' => 'luna' })
     expect(st[:voice]).to eq('luna')
-    st = state_for({ 'model' => 'grok-voice-think-fast-2.0', 'sts_voice' => 'bogus' })
+    st = state_for({ 'model' => 'grok-voice-3.0', 'sts_voice' => 'bogus' })
     expect(st[:voice]).to eq('eve')
   end
 
@@ -2537,7 +2549,7 @@ RSpec.describe 'STS speed (OpenAI only)' do
   end
 
   it 'omits speed entirely for xAI and Gemini (never sent)' do
-    st = state_for({ 'model' => 'grok-voice-think-fast-2.0', 'sts_speed' => '1.25' })
+    st = state_for({ 'model' => 'grok-voice-3.0', 'sts_speed' => '1.25' })
     expect(st[:speed]).to be_nil
     st = state_for({ 'model' => 'gemini-3.1-flash-live-preview', 'sts_speed' => '1.25' })
     expect(st[:speed]).to be_nil
@@ -2554,7 +2566,7 @@ end
 RSpec.describe 'STS voice data consistency (model_spec ↔ profile fallback)' do
   {
     'gpt-realtime-2.1' => 'openai',
-    'grok-voice-think-fast-2.0' => 'xai',
+    'grok-voice-3.0' => 'xai',
     'gemini-3.1-flash-live-preview' => 'gemini'
   }.each do |model, provider|
     it "#{provider}: model_spec sts_voices matches the profile fallback, default is a member" do
@@ -2645,7 +2657,7 @@ RSpec.describe 'xAI payload has no continuity fields (symmetric with the OpenAI 
     end.new
     stub_const('APPS', {})
     payload = harness.build_sts_session_update_payload(
-      { provider: 'xai', model: 'grok-voice-think-fast-2.0', voice: 'eve',
+      { provider: 'xai', model: 'grok-voice-3.0', voice: 'eve',
         instructions: '', language: 'auto', resumption_handle: 'H-123' }
     )
     expect(payload[:session]).not_to have_key(:contextWindowCompression)
@@ -2676,7 +2688,7 @@ RSpec.describe 'STS function calling (wave 1)' do
   def state_for(provider:, tools_enabled: false, model: nil)
     {
       provider: provider,
-      model: model || { 'openai' => 'gpt-realtime-2.1', 'xai' => 'grok-voice-think-fast-2.0',
+      model: model || { 'openai' => 'gpt-realtime-2.1', 'xai' => 'grok-voice-3.0',
                         'gemini' => 'gemini-3.1-flash-live-preview' }[provider],
       voice: 'alloy', instructions: 'Be brief.', language: 'auto',
       tools_enabled: tools_enabled

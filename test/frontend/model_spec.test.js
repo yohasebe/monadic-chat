@@ -40,7 +40,8 @@ describe('Model Specification', () => {
   it('flags the Claude models that think when thinking is omitted', () => {
     const flagged = Object.keys(modelSpec).filter(m => m.startsWith('claude-') && modelSpec[m].thinking_on_by_default);
     expect(flagged.sort()).toEqual([
-      'claude-fable-5', 'claude-fable-5-1', 'claude-opus-5', 'claude-opus-5-5', 'claude-sonnet-5', 'claude-sonnet-5-5'
+      'claude-fable-5', 'claude-fable-5-1', 'claude-haiku-5-5', 'claude-opus-5', 'claude-opus-5-5', 'claude-sonnet-5',
+      'claude-sonnet-5-5'
     ]);
     flagged.forEach(m => {
       expect(modelSpec[m].supports_adaptive_thinking).toBe(true);
@@ -111,7 +112,7 @@ describe('Model Specification', () => {
       // keys because the Imagen path uses a different endpoint shape and may
       // diverge again if a future Imagen ships.
       const conversational = modelSpec.imageGenerationOptions.gemini.model;
-      expect(conversational).toEqual(['gemini-3.1-flash-image', 'gemini-3-pro-image']);
+      expect(conversational).toEqual(['gemini-nano-banana-2.1', 'gemini-3-pro-image']);
       modelSpec.providerDefaults.gemini.image.forEach((id) => {
         expect(id).not.toMatch(/^imagen-/);
       });
@@ -128,9 +129,11 @@ describe('Model Specification', () => {
       expect(m.reasoning_content).toContain('disabled');
     });
 
-    it('offers vision without making the experimental model a chat default', () => {
+    it('offers vision through the chat default, which sees images itself', () => {
       const d = modelSpec.providerDefaults.deepseek;
-      expect(d.vision).toEqual(['deepseek-v4-flash-vision-exp']);
+      expect(d.vision).toEqual(['deepseek-flash']);
+      expect(d.chat[0]).toBe('deepseek-flash');
+      expect(modelSpec['deepseek-flash'].vision_capability).toBe(true);
       expect(d.chat).not.toContain('deepseek-v4-flash-vision-exp');
     });
   });
@@ -161,9 +164,11 @@ describe('Model Specification', () => {
       });
       // grok-build-0.1 is the dedicated code model and stays the code default.
       expect(d.xai.code.slice(0, 2)).toEqual(['grok-build-0.1', 'grok-4.7']);
-      ['chat', 'vision', 'audio_transcription'].forEach((kind) => {
+      ['vision', 'audio_transcription'].forEach((kind) => {
         expect(d.gemini[kind].slice(0, 2)).toEqual(['gemini-3.8-flash', 'gemini-3.6-flash']);
       });
+      // Gemini 4 Argon is offered next to the default, which stays 3.8 Flash.
+      expect(d.gemini.chat.slice(0, 3)).toEqual(['gemini-3.8-flash', 'gemini-4-argon', 'gemini-3.6-flash']);
       expect(modelSpec['gemini-3.7-flash']).toBeUndefined();
     });
   });

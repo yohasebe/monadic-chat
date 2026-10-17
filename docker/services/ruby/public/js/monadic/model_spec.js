@@ -46,6 +46,9 @@ const modelSpec = {
   },
   // gpt-5.1 models
   "gpt-5.1": {
+    "deprecated": true,
+    "sunset_date": "2027-04-01",
+    "successor": "gpt-6-sol",
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
     "reasoning_effort": [["none", "low", "medium", "high"], "none"],
@@ -60,6 +63,9 @@ const modelSpec = {
     "skip_in_progress_events": true
   },
   "gpt-5.3-codex": {
+    "deprecated": true,
+    "sunset_date": "2027-04-01",
+    "successor": "gpt-6-sol",
     "context_window": [1, 400000],
     "max_output_tokens": [1, 128000],
     "reasoning_effort": [["none", "low", "medium", "high", "xhigh"], "low"],
@@ -342,6 +348,9 @@ const modelSpec = {
   },
   // GPT-5.4 Nano (high-volume simple tasks, 400K context, compaction)
   "gpt-5.4-nano": {
+    "deprecated": true,
+    "sunset_date": "2027-04-01",
+    "successor": "gpt-6-luna",
     "context_window": [1, 400000],
     "max_output_tokens": [1, 128000],
     "reasoning_effort": [["none", "low", "medium", "high", "xhigh"], "low"],
@@ -661,6 +670,37 @@ const modelSpec = {
     "structured_output_mode": "json_schema",
     "beta_flags": []
   },
+  // Claude Haiku 5.5 (2026-10-07). Probed 2026-10-17: thinks when `thinking`
+  // is omitted and returns its thinking only with display "summarized";
+  // temperature other than the default and `between_tools` are 400;
+  // thinking.type "disabled" and forced tool_choice are accepted; thinking
+  // blocks are bound to their prefix (drop_block reports the dropped block).
+  "claude-haiku-5-5": {
+    "context_window" : [1, 1000000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 128000], 128000],
+    "reasoning_effort": [["low", "medium", "high", "xhigh", "max"], "medium"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "supports_adaptive_thinking": true,
+    "thinking_on_by_default": true,
+    "thinking_budget": {
+      "min": 1024,
+      "default": 10000,
+      "max": null
+    },
+    "rejects_sampling_params": true,
+    "thinking_block_binding": true,
+    "thinking_display_default_omitted": true,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "supports_context_management": true,
+    "structured_output": true,
+    "structured_output_mode": "json_schema",
+    "beta_flags": []
+  },
   "claude-haiku-4-5-20251001": {
     "context_window" : [1, 200000],
     "api_version": "2023-06-01",
@@ -674,6 +714,9 @@ const modelSpec = {
     "beta_flags": []
   },
   "claude-sonnet-4-5-20250929": {
+    "deprecated": true,
+    "sunset_date": "2026-11-30",
+    "successor": "claude-sonnet-5-5",
     "context_window" : [1, 200000],
     "api_version": "2023-06-01",
     "max_output_tokens" : [[1, 64000], 64000],
@@ -863,6 +906,21 @@ const modelSpec = {
     "sunset_date": "2026-06-25",
     "successor": "gemini-3.6-flash"
   },
+  // Gemini 4 Argon (2026-10-13). Probed 2026-10-17: thinking levels low,
+  // medium and high (minimal is 400); thinkingBudget 0 and temperature are
+  // accepted; function calls, images and Google Search work.
+  "gemini-4-argon": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "reasoning_effort": [["low", "medium", "high"], "medium"],
+    "supports_thinking": true,
+    "supports_thinking_level": true,
+    "thinking_level": [["low", "medium", "high"], "medium"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_web_search": true,
+    "supports_pdf": true
+  },
   "gemini-3.1-pro-preview": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
@@ -953,8 +1011,22 @@ const modelSpec = {
     "deprecated": true,
     "successor": "gemini-3.5-flash-lite"
   },
+  // Nano Banana 2.1 (2026-10-06), the successor of 3.1 Flash Image. Probed
+  // 2026-10-17: same generateContent reply (inline JPEG), from a prompt and
+  // from an inline video.
+  "gemini-nano-banana-2.1": {
+    "context_window": [131072],
+    "max_output_tokens": [1, 32768],
+    "vision_capability": true,
+    "image_generation": true,
+    "supports_video_to_image": true,
+    "supports_web_search": true,
+    "skip_in_progress_events": true
+  },
   // Gemini 3.1 Flash Image (Nano Banana 2) — image generation + video-to-image, GA 2026-05-28
   "gemini-3.1-flash-image": {
+    "deprecated": true,
+    "successor": "gemini-nano-banana-2.1",
     "context_window": [131072],
     "max_output_tokens": [1, 32768],
     "vision_capability": true,
@@ -1036,8 +1108,12 @@ const modelSpec = {
     "successor": "gemini-3.1-pro-preview"
   },
   // Mistral models
-  // devstral models (agentic code — replaces codestral for tool-use workflows)
+  // devstral models (agentic code). Devstral 2 was retired 2026-07-31; the
+  // alias now answers as mistral-medium-3-5 (probed 2026-10-17), so the
+  // catalog points saved selections there.
   "devstral-latest": {
+    "deprecated": true,
+    "successor": "mistral-medium-3-5",
     "max_output_tokens" : [1, 262000],
     "temperature": [[0.0, 1.0], 0.3],
     "top_p": [[0.0, 1.0], 1.0],
@@ -1169,8 +1245,11 @@ const modelSpec = {
     "vision_capability": true,
     "supports_thinking": true
   },
-  // Mistral Labs experimental models
+  // Mistral Labs experimental models (retired 2026-04-30; gone from the model
+  // list, kept so saved sessions reach the successor Mistral names)
   "labs-mistral-small-creative": {
+    "deprecated": true,
+    "successor": "ministral-8b-latest",
     "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 2.0], 0.8],
     "top_p": [[0.0, 1.0], 1.0],
@@ -1207,8 +1286,11 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true
   },
-  // open models
+  // open models (retired 2026-07-31; kept so saved sessions reach the
+  // successor Mistral names)
   "open-mistral-nemo": {
+    "deprecated": true,
+    "successor": "ministral-8b-latest",
     "max_output_tokens" : [1, 131000],
     "temperature": [[0.0, 1.0], 0.3],
     "top_p": [[0.0, 1.0], 1.0],
@@ -1339,8 +1421,24 @@ const modelSpec = {
     "structured_output": true
   },
   // DeepSeek models
+  // V4.1 Flash (2026-09-10, updated 2026-10-17): sees images natively. The
+  // V4 Flash names below are retired and answer as this model for now.
+  "deepseek-flash": {
+    "context_window" : [1, 1000000],
+    "max_output_tokens" : [1, 384000],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "reasoning_content": ["disabled", "enabled"],
+    "reasoning_effort": ["high", "max"]
+  },
   // V4 series: unified models with thinking/non-thinking mode toggle
   "deepseek-v4-flash": {
+    "deprecated": true,
+    "successor": "deepseek-flash",
     "context_window" : [1, 1000000],
     "max_output_tokens" : [1, 384000],
     "temperature": [[0.0, 2.0], 1.0],
@@ -1371,6 +1469,8 @@ const modelSpec = {
   // model; the vision guide documents only the image limits (JPEG/PNG/GIF/WebP,
   // user messages only).
   "deepseek-v4-flash-vision-exp": {
+    "deprecated": true,
+    "successor": "deepseek-flash",
     "context_window" : [1, 1000000],
     "max_output_tokens" : [1, 384000],
     "temperature": [[0.0, 2.0], 1.0],
@@ -1454,16 +1554,25 @@ const modelSpec = {
     // not on every call, so none is sent. Inline tags in the text still work.
     "tts_style_directive": "omit"
   },
+  // Stops 2026-11-17 (successor gemini-3.8-flash-tts). Not marked deprecated
+  // yet: the Pro TTS choice resolves to these by name until it is retired.
   "gemini-3.1-flash-tts-preview": {
+    "sunset_date": "2026-11-17",
     "tts_capability": true,
     "tts_family": "gemini"
   },
+  // Stops 2026-11-17 (successor gemini-3.8-flash-tts). Not marked deprecated
+  // yet: the Pro TTS choice resolves to these by name until it is retired.
   "gemini-2.5-flash-preview-tts": {
+    "sunset_date": "2026-11-17",
     "tts_capability": true,
     "tts_family": "gemini",
     "tts_pace_prefix": true
   },
+  // Stops 2026-11-17 (successor gemini-3.8-flash-tts). Not marked deprecated
+  // yet: the Pro TTS choice resolves to these by name until it is retired.
   "gemini-2.5-pro-preview-tts": {
+    "sunset_date": "2026-11-17",
     "tts_capability": true,
     "tts_family": "gemini",
     "tts_pace_prefix": true
@@ -1471,6 +1580,12 @@ const modelSpec = {
   "voxtral-mini-tts-2603": {
     "tts_capability": true,
     "tts_family": "mistral"
+  },
+  // Eleven v4 (2026-09-28): plays the same inline audio tags as v3 (probed
+  // 2026-10-17: "[laughs]" is performed, not read).
+  "eleven_v4": {
+    "tts_capability": true,
+    "tts_family": "elevenlabs-v3"
   },
   "eleven_v3": {
     "tts_capability": true,
@@ -1561,6 +1676,8 @@ const modelSpec = {
     "stt_provider": "elevenlabs"
   },
   "scribe_v1_experimental": {
+    "deprecated": true,
+    "successor": "scribe_v2",
     "stt_capability": true,
     "stt_provider": "elevenlabs"
   },
@@ -1568,7 +1685,15 @@ const modelSpec = {
     "stt_capability": true,
     "stt_provider": "cohere"
   },
+  // Voxtral Mini Transcribe 2 (26.02). The 25.07 name was retired
+  // 2026-05-31 and now answers as voxtral-mini-latest (probed 2026-10-17).
+  "voxtral-mini-2602": {
+    "stt_capability": true,
+    "stt_provider": "mistral"
+  },
   "voxtral-mini-transcribe-2507": {
+    "deprecated": true,
+    "successor": "voxtral-mini-2602",
     "stt_capability": true,
     "stt_provider": "mistral"
   },
@@ -1608,12 +1733,31 @@ const modelSpec = {
   },
 
   // xAI realtime speech-to-speech (wss://api.x.ai/v1/realtime). Note: the
-  // server silently substitutes think-fast-1.0 for unknown model names, so
-  // the STS bridge validates the session's model echo and stops on mismatch.
+  // server silently substitutes another model for names it does not know
+  // (grok-voice-3.0 as of 2026-10-17) and reports the one it chose in
+  // session.created, so the STS bridge validates that echo and stops on
+  // mismatch. Probed 2026-10-17: same session shape, events and function
+  // calls as 2.0; the user transcript arrives as .completed only.
   // Voices: 26 IDs validated against the TTS REST API 2026-08-01 (the
   // realtime endpoint itself accepts any string silently, so names come
   // from the shared TTS voice registry).
+  "grok-voice-3.0": {
+    "supports_speech_to_speech": true,
+    "sts_provider": "xai",
+    "sts_tools_capability": true,
+    "sts_voice": "eve",
+    "sts_voices": ["ara", "rex", "sal", "eve", "leo",
+                   "carina", "zagan", "helix", "orion", "luna", "iris", "altair",
+                   "zenith", "perseus", "helios", "lux", "kepler", "rigel", "cosmo",
+                   "celeste", "ursa", "sirius", "lumen", "castor", "naksh", "atlas"]
+  },
+
+  // Renamed by xAI to grok-voice-2.0 (the server now reports that name, so
+  // the exact-match check above stopped every session) and deprecated in
+  // favour of grok-voice-3.0. Kept so saved sessions resolve to the successor.
   "grok-voice-think-fast-2.0": {
+    "deprecated": true,
+    "successor": "grok-voice-3.0",
     "supports_speech_to_speech": true,
     "sts_provider": "xai",
     "sts_tools_capability": true,
@@ -1628,7 +1772,25 @@ const modelSpec = {
   // transcription is incremental both ways; 15-minute session cap
   // (reconnect re-seeds from the canon).
   // Voices: all 30 prebuilt names accepted via Live setup 2026-08-01.
+  // Gemini 3.8 Live (2026-09-15), the successor of 3.1 Flash Live Preview.
+  // Probed 2026-10-17 with the app's setup: spoken input transcribed, audio
+  // reply with its transcript, function calls.
+  "gemini-3.8-live": {
+    "supports_speech_to_speech": true,
+    "sts_provider": "gemini",
+    "sts_tools_capability": true,
+    "sts_voice": "Kore",
+    "sts_voices": ["Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus",
+                   "Aoede", "Callirrhoe", "Autonoe", "Enceladus", "Iapetus",
+                   "Umbriel", "Algieba", "Despina", "Erinome", "Algenib",
+                   "Rasalgethi", "Laomedeia", "Achernar", "Alnilam", "Schedar",
+                   "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
+                   "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat"]
+  },
   "gemini-3.1-flash-live-preview": {
+    "deprecated": true,
+    "sunset_date": "2026-11-17",
+    "successor": "gemini-3.8-live",
     "supports_speech_to_speech": true,
     "sts_provider": "gemini",
     "sts_tools_capability": true,
@@ -1684,8 +1846,8 @@ const modelSpec = {
  */
 const providerDefaults = {
   "openai": {
-    "chat": ["gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna", "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.5", "gpt-5.2", "gpt-5.1"],
-    "code": ["gpt-5.3-codex", "gpt-5.6-sol", "gpt-5.2-codex", "gpt-5.4-mini"],
+    "chat": ["gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna", "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.5", "gpt-5.2"],
+    "code": ["gpt-6-sol", "gpt-5.6-sol", "gpt-5.2-codex", "gpt-5.4-mini"],
     "vision": ["gpt-6-luna", "gpt-5.6-luna", "gpt-5.4-mini"],
     "audio_transcription": ["gpt-transcribe"],
     // First entry is the default. The 2.5 models are offered as choices; moving
@@ -1695,20 +1857,22 @@ const providerDefaults = {
     "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"]
   },
   "anthropic": {
-    "chat": ["claude-sonnet-5-5", "claude-haiku-4-5-20251001"],
+    "chat": ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-haiku-4-5-20251001"],
     "code": ["claude-sonnet-5-5"],
-    "vision": ["claude-haiku-4-5-20251001"]
+    "vision": ["claude-haiku-5-5"]
   },
   "gemini": {
-    "chat": ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.1-pro-preview"],
+    "chat": ["gemini-3.8-flash", "gemini-4-argon", "gemini-3.6-flash", "gemini-3.1-pro-preview"],
     "vision": ["gemini-3.8-flash", "gemini-3.6-flash"],
     "audio_transcription": ["gemini-3.8-flash", "gemini-3.6-flash"],
     // Imagen 4.0 reached its sunset on 2026-08-17 and is gone from the live
     // model list (verified 2026-08-22), so only the conversational image
     // models remain.
-    "image": ["gemini-3.1-flash-image", "gemini-3-pro-image"],
+    "image": ["gemini-nano-banana-2.1", "gemini-3-pro-image"],
     "video": ["veo-3.1-fast-generate-preview", "veo-3.1-generate-preview"],
     "music": ["lyria-3.5", "lyria-3-clip-preview"],
+    // The three previews stop 2026-11-17; the Pro TTS choice resolves to the
+    // last of them by name, so they stay listed until that choice is retired.
     "tts": ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts", "gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]
   },
   "cohere": {
@@ -1718,10 +1882,10 @@ const providerDefaults = {
   },
   "mistral": {
     "chat": ["mistral-large-4", "mistral-medium-3-5", "zai-glm-5-3"],
-    "code": ["devstral-latest", "mistral-small-2603"],
+    "code": ["mistral-medium-3-5", "mistral-small-2603"],
     "vision": ["mistral-small-2603"],
     "tts": ["voxtral-mini-tts-2603"],
-    "audio_transcription": ["voxtral-mini-transcribe-2507"]
+    "audio_transcription": ["voxtral-mini-2602"]
   },
   "xai": {
     "chat": ["grok-4.7", "grok-4.6", "grok-4.5", "grok-4.20-0309-non-reasoning", "grok-4.3", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309"],
@@ -1739,10 +1903,10 @@ const providerDefaults = {
     "audio_transcription": ["xai-stt"]
   },
   "deepseek": {
-    "chat": ["deepseek-v4-flash", "deepseek-v4-pro"],
-    // Vision only: the model is experimental, so it is reached by attaching an
-    // image (the helper swaps to it) rather than by being a chat default.
-    "vision": ["deepseek-v4-flash-vision-exp"]
+    "chat": ["deepseek-flash", "deepseek-v4-pro"],
+    // deepseek-flash sees images itself; the helper swaps to this only from a
+    // model that cannot (deepseek-v4-pro).
+    "vision": ["deepseek-flash"]
   },
   "ollama": {
     "chat": ["gemma4:e4b", "qwen3-vl:8b-thinking"]
@@ -1805,8 +1969,9 @@ const imageGenerationOptions = {
   "gemini": {
     // The conversational image models, which are a different set from
     // providerDefaults.gemini.image (that list drives the Imagen path).
-    // Both verified present in the live model list on 2026-08-21.
-    "model": ["gemini-3.1-flash-image", "gemini-3-pro-image"]
+    // Both verified present in the live model list on 2026-10-17
+    // (gemini-3.1-flash-image is deprecated in favour of Nano Banana 2.1).
+    "model": ["gemini-nano-banana-2.1", "gemini-3-pro-image"]
     // aspect_ratio is deliberately absent: the accepted set has not been
     // verified against the API, and turning free-form prose into an enum
     // would remove ratios the model may well accept.

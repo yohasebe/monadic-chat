@@ -33,7 +33,7 @@ app "LiveConversationGrok" do
 
   llm do
     provider "xai"
-    model ["grok-voice-think-fast-2.0"]
+    model ["grok-voice-3.0"]
   end
 
   features do

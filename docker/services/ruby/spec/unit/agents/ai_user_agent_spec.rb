@@ -352,7 +352,7 @@ RSpec.describe AIUserAgent do
         "gemini" => "gemini-3.8-flash",
         "mistral" => "mistral-large-4",
         "grok" => "grok-4.7",
-        "deepseek" => "deepseek-v4-flash",
+        "deepseek" => "deepseek-flash",
         "cohere" => "command-a-plus-05-2026"
       }
 

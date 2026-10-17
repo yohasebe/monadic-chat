@@ -73,7 +73,6 @@ describe('ws-app-data-handlers', () => {
       // STT options
       createDOMOption('elevenlabs-stt-scribe-v2');
       createDOMOption('elevenlabs-stt-scribe');
-      createDOMOption('elevenlabs-stt-scribe-experimental');
     });
 
     it('populates voice selector with voices', () => {

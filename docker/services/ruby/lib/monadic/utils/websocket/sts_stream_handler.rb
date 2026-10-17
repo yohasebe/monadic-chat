@@ -119,12 +119,13 @@ module WebSocketHelper
   #   * server_vad needs create_response / interrupt_response EXPLICITLY
   #     (defaults are off, unlike OpenAI)
   #   * user transcription arrives as .updated (CUMULATIVE) + .completed
-  #   * invalid model silently falls back to think-fast-1.0 → model echo
+  #   * an unknown model silently becomes another one (grok-voice-3.0
+  #     as of 2026-10-17), named in session.created → model echo
   #     validation must be fatal
   #   * invalid voice is silently dropped → client-side whitelist
   #   * usage is {} — billing is per session minute, estimated by duration
   XAI_REALTIME_STS_URL = "wss://api.x.ai/v1/realtime"
-  XAI_REALTIME_STS_DEFAULT_MODEL = "grok-voice-think-fast-2.0"
+  XAI_REALTIME_STS_DEFAULT_MODEL = "grok-voice-3.0"
   XAI_REALTIME_STS_VOICES = %w[ara rex sal eve leo
                                carina zagan helix orion luna iris altair
                                zenith perseus helios lux kepler rigel cosmo
@@ -356,7 +357,7 @@ module WebSocketHelper
       default_model: XAI_REALTIME_STS_DEFAULT_MODEL,
       voices: XAI_REALTIME_STS_VOICES,
       default_voice: XAI_REALTIME_STS_DEFAULT_VOICE,
-      # Live-probed: a bad model name silently becomes think-fast-1.0.
+      # Live-probed: a bad model name silently becomes another model.
       # Continuing on the wrong model would misrepresent the app.
       model_mismatch_fatal: true
     },
@@ -370,7 +371,7 @@ module WebSocketHelper
       url: "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent",
       api_key_env: "GEMINI_API_KEY",
       auth: :google_api_key,
-      default_model: "gemini-3.1-flash-live-preview",
+      default_model: "gemini-3.8-live",
       voices: %w[Zephyr Puck Charon Kore Fenrir Leda Orus
                  Aoede Callirrhoe Autonoe Enceladus Iapetus
                  Umbriel Algieba Despina Erinome Algenib
@@ -710,6 +711,9 @@ module WebSocketHelper
     hint = obj.respond_to?(:[]) ? (obj["chat_model"] || obj[:chat_model]).to_s : ""
     model = hint.strip.empty? ? (params["model"] || params[:model]).to_s : hint
     model = REALTIME_STS_DEFAULT_MODEL if model.strip.empty?
+    # A model saved before the provider retired or renamed it (a restored
+    # session, a stale parameter) goes to the successor the catalog names.
+    model = Monadic::Utils::ModelSpec.resolve_deprecated_model(model)
 
     # A model that just failed fatally (e.g. xAI silent fallback) must not
     # be respawned by mic chunks still in flight after the stop — each
@@ -1101,7 +1105,7 @@ module WebSocketHelper
       when "session.created"
         unless sts_validate_session_model(payload, state, ws_session_id)
           if sts_profile(state)[:model_mismatch_fatal]
-            # Live-probed: xAI silently substitutes think-fast-1.0 for any
+            # Live-probed: xAI silently substitutes another model for any
             # unknown model. Running the conversation on a model the user
             # did not pick is a misrepresentation — stop instead.
             reported = payload.dig("session", "model")

@@ -71,7 +71,7 @@ RSpec.describe SecondOpinionAgent do
         expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4.7")
         expect(agent.send(:determine_provider_and_model, "mistral", nil)[1]).to eq("mistral-large-4")
         expect(agent.send(:determine_provider_and_model, "cohere", nil)[1]).to eq("command-a-plus-05-2026")
-        expect(agent.send(:determine_provider_and_model, "deepseek", nil)[1]).to eq("deepseek-v4-flash")
+        expect(agent.send(:determine_provider_and_model, "deepseek", nil)[1]).to eq("deepseek-flash")
       end
     end
     

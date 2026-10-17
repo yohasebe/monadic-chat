@@ -175,7 +175,7 @@ module InteractionUtils
   # @param blob [String] The audio data
   # @param format [String] The audio format (e.g., "webm", "mp3", "wav")
   # @param lang_code [String] The language code (e.g., "en", "ja")
-  # @param model [String] The model to use (e.g., "voxtral-mini-transcribe-26-02")
+  # @param model [String] The model to use (e.g., "voxtral-mini-2602")
   # @return [Hash] The transcription result or error
   def mistral_stt_api_request(blob, format, lang_code, model)
     api_key = CONFIG["MISTRAL_API_KEY"]
@@ -301,7 +301,7 @@ module InteractionUtils
   # @param blob [String] The audio data
   # @param format [String] The audio format (e.g., "webm", "mp3", "wav")
   # @param lang_code [String] The language code (e.g., "en", "ja", "auto")
-  # @param model [String] The model to use (e.g., "scribe_v2", "scribe_v1_experimental")
+  # @param model [String] The model to use (e.g., "scribe_v2")
   # @return [Hash] The transcription result or error
   def elevenlabs_stt_api_request(blob, format, lang_code, model)
     api_key = CONFIG["ELEVENLABS_API_KEY"]

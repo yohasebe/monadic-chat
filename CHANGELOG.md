@@ -10,6 +10,8 @@
     - A custom app's `<app>_tools.rb` and `<app>_constants.rb`, and files in `apps` and `helpers`, are not loaded when they are links, or hard links with another name elsewhere
     - The scripts that come with Monadic Chat read their keys from `~/monadic/config/env` only
     - While the server runs, a closed tab's chat is kept for reopening; one unused for 7 days, or beyond the 50 most recently used, may be cleared
+    - Image and video descriptions with Claude use Claude Haiku 5.5, Gemini image generation uses Nano Banana 2.1, and code generation with OpenAI uses GPT-6 Sol
+    - Live Conversation uses Grok Voice 3.0 with xAI and Gemini 3.8 Live with Gemini
   - New
     - Shared Folder panel: what each entry in the shared folder is, its size, which chat uses it and why it is needed (**do not remove the hidden `.monadic-shared-root` file Monadic Chat keeps there**)
     - The Shared Folder panel searches, sorts and filters the list, marks files made by test runs, and in the desktop app moves entries to the system's Trash
@@ -18,6 +20,7 @@
     - In Japanese, a name followed by an honorific (さん, 様, 氏, 先生, くん, 君, ちゃん, 殿) is masked whole
     - When you ask for a detailed analysis, Video Describer describes a video over 10 minutes in up to 5 parts (each up to 10 minutes with up to 16 frames), two at a time **(rebuild the Python container)**
     - Long recordings are transcribed over several connections at once, waiting together when the provider asks to slow down
+    - New models: Claude Haiku 5.5, Gemini 4 Argon and DeepSeek V4.1 Flash
   - Fixed
     - The Privacy Filter masks overlapping detections as one, and says when it is still starting **(rebuild the Privacy container)**
     - A new chat starts clean after Reset, an app switch or an import, and switching apps stops a reply still being written
@@ -31,6 +34,10 @@
     - PDF uploads, and cells added to a Jupyter notebook, leave no copy in the shared folder
     - A transcription host that cannot be reached over IPv6 is tried over IPv4, and an empty reply from an image-analysis model is reported as an error
     - DeepSeek ends a long chain of tool calls with an answer, and xAI Grok keeps showing that tools are running between rounds
+    - Live Conversation with xAI Grok starts and keeps talking
+    - The Session Context is extracted with the default OpenAI, Claude and Mistral models, and Research Assistant runs its parallel tasks with Claude, OpenAI and Mistral
+    - Image and video descriptions work with the Claude models that read images
+    - `Reasoning Effort` `none` with Mistral Large 4 turns its reasoning off
   - For developers
     - `rake server:debug` loads custom apps and helpers from the shared folder only with `MONADIC_LOAD_USER_CODE=true` in the shell (the setting in `~/monadic/config/env` is ignored)
     - `rake db:export` and `rake db:import` are removed

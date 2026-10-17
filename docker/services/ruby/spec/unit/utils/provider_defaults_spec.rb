@@ -65,7 +65,8 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
 
     it 'returns the full model list for openai code' do
       models = described_class.get_provider_models("openai", "code")
-      expect(models).to include("gpt-5.3-codex")
+      expect(models).to include("gpt-6-sol")
+      expect(models).not_to include("gpt-5.3-codex") # deprecated 2026-10-01
     end
 
     it 'returns nil for non-existent provider' do
@@ -113,7 +114,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
     end
 
     it '.default_code_model returns the code default' do
-      expect(described_class.default_code_model("openai")).to eq("gpt-5.3-codex")
+      expect(described_class.default_code_model("openai")).to eq("gpt-6-sol")
     end
 
     it '.default_vision_model returns the vision default' do

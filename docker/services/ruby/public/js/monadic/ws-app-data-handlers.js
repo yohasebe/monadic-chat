@@ -36,8 +36,7 @@ function handleElevenLabsVoices(data) {
   ];
   const sttOptionIds = [
     "elevenlabs-stt-scribe-v2",
-    "elevenlabs-stt-scribe",
-    "elevenlabs-stt-scribe-experimental"
+    "elevenlabs-stt-scribe"
   ];
 
   const disabledState = !(voices.length > 0);

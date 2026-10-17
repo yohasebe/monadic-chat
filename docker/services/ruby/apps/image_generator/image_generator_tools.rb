@@ -583,7 +583,7 @@ class ImageGeneratorGemini < MonadicApp
 
   # Generate or edit images using Gemini 3 Image (Nano Banana Flash / Pro)
   # @param prompt [String] Text description of the desired image or editing instructions
-  # @param model [String] Image model id: "gemini-3.1-flash-image" or "gemini-3-pro-image"
+  # @param model [String] Image model id: "gemini-nano-banana-2.1" or "gemini-3-pro-image"
   # @param aspect_ratio [String] Optional aspect ratio (e.g., 16:9, 1:1, 4:5)
   # @param image_size [String] Optional resolution (1K, 2K, 4K)
   # @param session [Object] Session object (automatically provided, contains uploaded images)

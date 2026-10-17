@@ -51,40 +51,43 @@ RSpec.describe "DeepSeek vision support" do
 
   describe "#switch_to_deepseek_vision_model" do
     it "swaps a text model for the vision model and says so" do
-      body = { "model" => "deepseek-v4-flash" }
+      body = { "model" => "deepseek-v4-pro" }
       notices = []
       helper.switch_to_deepseek_vision_model(body) { |msg| notices << msg }
 
-      expect(body["model"]).to eq("deepseek-v4-flash-vision-exp")
+      expect(body["model"]).to eq("deepseek-flash")
       expect(notices.first["type"]).to eq("system_info")
-      expect(notices.first["content"]).to include("deepseek-v4-flash-vision-exp")
+      expect(notices.first["content"]).to include("deepseek-flash")
     end
 
     it "leaves a model that can already see" do
-      body = { "model" => "deepseek-v4-flash-vision-exp" }
-      notices = []
-      helper.switch_to_deepseek_vision_model(body) { |msg| notices << msg }
+      %w[deepseek-flash deepseek-v4-flash-vision-exp].each do |model|
+        body = { "model" => model }
+        notices = []
+        helper.switch_to_deepseek_vision_model(body) { |msg| notices << msg }
 
-      expect(body["model"]).to eq("deepseek-v4-flash-vision-exp")
-      expect(notices).to be_empty
+        expect(body["model"]).to eq(model)
+        expect(notices).to be_empty
+      end
     end
 
     it "leaves the model alone when the spec cannot be read" do
       allow(Monadic::Utils::ModelSpec).to receive(:get_model_property).and_raise(StandardError)
       allow(Monadic::Utils::ModelSpec).to receive(:get_provider_models).and_raise(StandardError)
 
-      body = { "model" => "deepseek-v4-flash" }
+      body = { "model" => "deepseek-v4-pro" }
       expect { helper.switch_to_deepseek_vision_model(body) }.not_to raise_error
-      expect(body["model"]).to eq("deepseek-v4-flash")
+      expect(body["model"]).to eq("deepseek-v4-pro")
     end
   end
 
   describe "SSOT" do
-    it "lists the vision model for the provider without making it a chat default" do
+    it "lists the chat default, which sees images itself, as the vision model" do
       vision = Monadic::Utils::ModelSpec.get_provider_models("deepseek", "vision")
       chat = Monadic::Utils::ModelSpec.get_provider_models("deepseek", "chat")
 
-      expect(vision).to eq(["deepseek-v4-flash-vision-exp"])
+      expect(vision).to eq(["deepseek-flash"])
+      expect(chat.first).to eq("deepseek-flash")
       expect(chat).not_to include("deepseek-v4-flash-vision-exp")
     end
 

@@ -652,7 +652,7 @@ describe('voice and speed controls', () => {
       sts_voices: ['alloy', 'marin', 'cedar'],
       sts_speed_capability: true
     },
-    'grok-voice-think-fast-2.0': {
+    'grok-voice-3.0': {
       supports_speech_to_speech: true,
       sts_provider: 'xai',
       sts_voice: 'eve',
@@ -702,7 +702,7 @@ describe('voice and speed controls', () => {
     expect(wrap.style.display).toBe('inline-flex');
 
     const modelEl = document.getElementById('model');
-    modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+    modelEl.replaceChildren(new Option('grok-voice-3.0', 'grok-voice-3.0', true, true));
     LC.setAppMode(normalApp);
     LC.setAppMode(lcApp);
     expect(document.getElementById('lc-speed-wrap').style.display).toBe('none');
@@ -747,7 +747,7 @@ describe('voice and speed controls', () => {
     it('uses a different key per provider (no cross-provider bleed)', () => {
       store['lc-voice-xai'] = 'luna';
       const modelEl = document.getElementById('model');
-      modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+      modelEl.replaceChildren(new Option('grok-voice-3.0', 'grok-voice-3.0', true, true));
       LC.setAppMode(normalApp);
       LC.setAppMode(lcApp);
       expect(select().value).toBe('luna');
@@ -760,7 +760,7 @@ describe('voice and speed controls', () => {
       window.params['sts_voice'] = 'sage';      // an OpenAI voice
       store['lc-voice-xai'] = 'luna';           // what the user picked on xAI
       const modelEl = document.getElementById('model');
-      modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+      modelEl.replaceChildren(new Option('grok-voice-3.0', 'grok-voice-3.0', true, true));
       LC.setAppMode(normalApp);
       LC.setAppMode(lcApp);
       expect(select().value).toBe('luna');
@@ -902,7 +902,7 @@ describe('panel layout and model-ready re-render', () => {
     window.modelSpec = {
       'gpt-realtime-2.1': { supports_speech_to_speech: true, sts_provider: 'openai',
                             sts_voice: 'alloy', sts_voices: ['alloy'] },
-      'grok-voice-think-fast-2.0': { supports_speech_to_speech: true, sts_provider: 'xai',
+      'grok-voice-3.0': { supports_speech_to_speech: true, sts_provider: 'xai',
                             sts_voice: 'eve', sts_voices: ['eve', 'luna'] }
     };
     window.params = {};
@@ -942,7 +942,7 @@ describe('panel layout and model-ready re-render', () => {
     expect(document.getElementById('lc-voice-select').options.length).toBe(0);
 
     // Dropdown is built later → change event re-renders
-    modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+    modelEl.replaceChildren(new Option('grok-voice-3.0', 'grok-voice-3.0', true, true));
     modelEl.dispatchEvent(new Event('change', { bubbles: true }));
     const sel = document.getElementById('lc-voice-select');
     expect([...sel.options].map(o => o.value)).toEqual(['eve', 'luna']);
@@ -1768,7 +1768,7 @@ describe('turn detection selector (§37-16)', () => {
       sts_voices: ['alloy'],
       sts_semantic_vad_capability: true
     },
-    'grok-voice-think-fast-2.0': {
+    'grok-voice-3.0': {
       supports_speech_to_speech: true,
       sts_provider: 'xai',
       sts_voice: 'eve',
@@ -1802,7 +1802,7 @@ describe('turn detection selector (§37-16)', () => {
     expect(wrap().style.display).toBe('inline-flex');
 
     const modelEl = document.getElementById('model');
-    modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+    modelEl.replaceChildren(new Option('grok-voice-3.0', 'grok-voice-3.0', true, true));
     LC.setAppMode(normalApp);
     LC.setAppMode(lcApp);
     expect(wrap().style.display).toBe('none');
@@ -1850,7 +1850,7 @@ describe('turn detection selector (§37-16)', () => {
     window.params['sts_vad_type'] = 'semantic_vad';
     window.params['sts_vad_eagerness'] = 'low';
     const modelEl = document.getElementById('model');
-    modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+    modelEl.replaceChildren(new Option('grok-voice-3.0', 'grok-voice-3.0', true, true));
     LC.setAppMode(normalApp);
     LC.setAppMode(lcApp);
     expect(wrap().style.display).toBe('none');

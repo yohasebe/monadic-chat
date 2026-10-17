@@ -111,7 +111,7 @@ RSpec.describe 'MDSL apps computing model lists from providerDefaults' do
 
     it 'offers exactly the provider default chat models — no STS model' do
       expect(settings[:models]).to eq(xai_chat_models)
-      expect(settings[:models]).not_to include('grok-voice-think-fast-2.0')
+      expect(settings[:models]).not_to include('grok-voice-3.0')
     end
 
     it 'does not declare the speech_to_speech app flag' do

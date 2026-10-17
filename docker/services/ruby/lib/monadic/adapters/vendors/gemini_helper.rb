@@ -535,7 +535,8 @@ module GeminiHelper
   # here kept a route that could only ever fail. generate_image_with_imagen_direct
   # stays for the /predict shape in case a future Imagen returns.
   IMAGE_GENERATION_MODELS = {
-    # Gemini 3 Image (GA, v1beta generateContent) — Nano Banana 2 / Pro
+    # Gemini image models (GA, v1beta generateContent) — Nano Banana 2.1 / 2 / Pro
+    "gemini-nano-banana-2.1" => "gemini-nano-banana-2.1",
     "gemini-3.1-flash-image" => "gemini-3.1-flash-image",
     "gemini-3-pro-image" => "gemini-3-pro-image",
     # Backward-compat aliases (preview models sunset 2026-06-25)
@@ -4073,7 +4074,8 @@ module GeminiHelper
       # Gemini 3 Image (Nano Banana 2 / Pro) uses generateContent on v1beta endpoint.
       # Route to native handler BEFORE the Imagen check below, because these model IDs
       # are also present in IMAGE_GENERATION_MODELS as backward-compat aliases.
-      if ["gemini-3.1-flash-image", "gemini-3-pro-image", "gemini-3.1-flash-image-preview", "gemini-3-pro-image-preview"].include?(model)
+      if Monadic::Utils::ModelSpec.get_model_property(model, "image_generation") == true ||
+         ["gemini-3.1-flash-image-preview", "gemini-3-pro-image-preview"].include?(model)
         # Pass session to support image editing
         return generate_image_with_gemini_native(prompt: prompt, model: model, aspect_ratio: aspect_ratio, image_size: image_size, session: session)
       end
@@ -4187,8 +4189,8 @@ module GeminiHelper
         }
       end
       
-      # Make API request — Nano Banana 2 (GA 2026-05-28)
-      model_name = "gemini-3.1-flash-image"
+      # Make API request with the catalog's default image model
+      model_name = Monadic::Utils::ModelSpec.default_image_model("gemini") || "gemini-nano-banana-2.1"
       uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent")
 
       request = Net::HTTP::Post.new(uri)

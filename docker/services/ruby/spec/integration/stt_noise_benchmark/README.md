@@ -143,7 +143,7 @@ does not require rediscovering them:
 - **Gemini Live** — `wss://generativelanguage.googleapis.com/ws/...BidiGenerateContent?key=`,
   setup frame then `setupComplete`. Rejects `responseModalities: ["TEXT"]`; use
   AUDIO output and read `inputTranscription` only.
-- **xAI STS** (`grok-voice-think-fast-2.0`) — `wss://api.x.ai/v1/realtime?model=`.
+- **xAI STS** (`grok-voice-3.0`) — `wss://api.x.ai/v1/realtime?model=`.
   **Requires HTTP/1.1**; the upgrade returns 400 over HTTP/2. Note that an
   invalid model name does not error — it silently falls back to 1.0, so
   validate the `model` field in `session.created`.

@@ -93,15 +93,16 @@ RSpec.describe "FileAnalysisHelper Integration", type: :integration do
         png_data = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A].pack("C*")
         File.binwrite(special_path, png_data)
         
-        result = app_instance.analyze_image(
-          message: "Test special path",
-          image_path: special_path
-        )
-        
-        expect(result).to be_a(String)
-        
-        # Cleanup
-        File.delete(special_path) if File.exist?(special_path)
+        begin
+          result = app_instance.analyze_image(
+            message: "Test special path",
+            image_path: special_path
+          )
+
+          expect(result).to be_a(String)
+        ensure
+          File.delete(special_path) if File.exist?(special_path)
+        end
       end
     end
     
@@ -165,14 +166,15 @@ RSpec.describe "FileAnalysisHelper Integration", type: :integration do
         # Copy test audio to special path
         FileUtils.cp(@test_audio_path, special_audio_path)
         
-        result = app_instance.analyze_audio(
-          audio: special_audio_path
-        )
-        
-        expect(result).to be_a(String)
-        
-        # Cleanup
-        File.delete(special_audio_path) if File.exist?(special_audio_path)
+        begin
+          result = app_instance.analyze_audio(
+            audio: special_audio_path
+          )
+
+          expect(result).to be_a(String)
+        ensure
+          File.delete(special_audio_path) if File.exist?(special_audio_path)
+        end
       end
     end
     

@@ -29,13 +29,28 @@ RSpec.describe 'AutoForge Diagnosis Integration', type: :integration do
   end
 
   before(:all) do
-    # Ensure AutoForge directory exists
+    # Ensure AutoForge directory exists (and remove it afterwards only if it was made here)
+    @made_auto_forge = !Dir.exist?(File.expand_path('~/monadic/data/auto_forge'))
     FileUtils.mkdir_p(File.expand_path('~/monadic/data/auto_forge'))
+  end
+
+  after(:all) do
+    dir = File.expand_path('~/monadic/data/auto_forge')
+    Dir.rmdir(dir) if @made_auto_forge && Dir.exist?(dir) && Dir.empty?(dir)
   end
 
   before(:each) do
     # Initialize context
     tool.instance_variable_set(:@context, {})
+
+    # The debugger saves a screenshot at the top of the shared folder and
+    # reports its name; only the screenshots reported here are removed.
+    @screenshots = []
+    allow(tool).to receive(:debug_application_raw).and_wrap_original do |original, *args|
+      result = original.call(*args)
+      @screenshots << result[:screenshot] if result.is_a?(Hash) && result[:screenshot]
+      result
+    end
 
     # Create test project directory
     FileUtils.mkdir_p(project_dir)
@@ -44,6 +59,10 @@ RSpec.describe 'AutoForge Diagnosis Integration', type: :integration do
   after(:each) do
     # Clean up test project
     FileUtils.rm_rf(project_dir) if Dir.exist?(project_dir)
+    @screenshots.each do |name|
+      path = File.join(File.expand_path('~/monadic/data'), File.basename(name.to_s))
+      File.delete(path) if File.file?(path)
+    end
 
     # Clear diagnosis state
     tool.clear_diagnosis_state
@@ -270,7 +289,7 @@ RSpec.describe 'AutoForge Diagnosis Integration', type: :integration do
 
       it 'handles missing index.html in valid directory' do
         # Create directory but no index.html
-        empty_dir = File.join(auto_forge_dir, "EmptyProject_#{Time.now.to_i}")
+        empty_dir = File.join(auto_forge_dir, SharedFolderTestFiles.name("EmptyProject_#{Time.now.to_i}"))
         FileUtils.mkdir_p(empty_dir)
 
         begin

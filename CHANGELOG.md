@@ -25,6 +25,7 @@
     - New models: Claude Haiku 5.5, Gemini 4 Argon and DeepSeek V4.1 Flash
     - ElevenLabs v4 and v4 Turbo for text-to-speech, with Expressive Speech
   - Fixed
+    - Keys stored in 1Password are read with the 1Password CLI 2.41 and later
     - The Privacy Filter masks overlapping detections as one, and says when it is still starting **(rebuild the Privacy container)**
     - A new chat starts clean after Reset, an app switch or an import, and switching apps stops a reply still being written
     - An imported conversation reaches the model, and an export includes the app's state and the Session Context

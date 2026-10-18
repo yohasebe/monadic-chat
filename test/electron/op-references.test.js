@@ -8,14 +8,15 @@ const os = require('os');
 const path = require('path');
 
 const {
-  isReference, referencesIn, opCandidates, isRunnable, locateOp, run, classify, startedAtFrom,
+  isReference, injectCall, referencesIn, opCandidates, isRunnable, locateOp, run, classify, startedAtFrom,
   resolveReferences, SecretCache
 } = require('../../app/op_references');
 
 // A fake op: `inject` replaces each `{{ op://V/ITEM/f }}` in the template on
 // stdin with `value-ITEM`, as op does, and fails when an item is "missing",
 // with the reference in the message. A file named "locked" beside it makes
-// every call fail as not signed in. Each call's command is appended to
+// every call fail as not signed in. Like op 2.41, it takes stdin only from
+// a pipe (a child of Node gets a socket). Each call's command is appended to
 // calls.log beside it, and its whole argv to argv.log. (Files, not
 // environment variables: changes to process.env in a test do not reach
 // spawned children.)
@@ -26,6 +27,10 @@ const here = path.dirname(process.argv[1]);
 const [cmd] = process.argv.slice(2);
 fs.appendFileSync(path.join(here, 'calls.log'), cmd + '\\n');
 fs.appendFileSync(path.join(here, 'argv.log'), process.argv.slice(2).join(' ') + '\\n');
+if (process.platform !== 'win32' && !fs.fstatSync(0).isFIFO()) {
+  process.stderr.write('[ERROR] expected data on stdin but none found');
+  process.exit(1);
+}
 const input = fs.readFileSync(0, 'utf8');
 const item = ref => ref.split('/')[3];
 if (fs.existsSync(path.join(here, 'locked'))) {
@@ -118,6 +123,33 @@ describe('talking to monadic.sh', () => {
     expect(startedAtFrom({ code: -1, stdout: '' })).toBeNull();
     expect(startedAtFrom({ code: 0, stdout: 'Error: No such object\n' })).toBeNull();
     expect(startedAtFrom({ code: 0, stdout: `${at}\nsomething after\n` })).toBeNull();
+  });
+});
+
+describe('the op inject command', () => {
+  test('hands the template to op through a pipe, with op\'s path as an argument', () => {
+    const [cmd, args] = injectCall('/opt/op dir/op', 'darwin');
+    expect(cmd).toBe('/bin/sh');
+    expect(args[0]).toBe('-c');
+    expect(args[2]).toBe('/opt/op dir/op');
+    expect(args[1]).not.toContain('/opt/op dir/op');
+    expect(injectCall('/opt/op', 'linux')[0]).toBe('/bin/sh');
+  });
+
+  test('runs op directly on Windows', () => {
+    expect(injectCall('C:\\op.exe', 'win32')).toEqual(['C:\\op.exe', ['inject']]);
+  });
+
+  test('stops op itself, not only the shell, at the timeout', async () => {
+    if (process.platform === 'win32') return;
+    const stuck = path.join(dir, 'stuck-op');
+    fs.writeFileSync(stuck, '#!/bin/sh\necho $$ > "$(dirname "$0")/stuck.pid"\nexec sleep 30\n', { mode: 0o755 });
+    const [cmd, args] = injectCall(stuck);
+    const result = await run(cmd, args, 'payload', 500);
+    expect(classify(result.stderr)).toBe('timeout');
+    const pid = Number(fs.readFileSync(path.join(dir, 'stuck.pid'), 'utf8'));
+    await new Promise(resolve => setTimeout(resolve, 300));
+    expect(() => process.kill(pid, 0)).toThrow();
   });
 });
 

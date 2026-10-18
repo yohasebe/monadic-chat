@@ -106,12 +106,25 @@ function classify(stderr) {
   return 'failed';
 }
 
+// The command for `op inject` with its template on stdin. op (2.41 and
+// later) takes stdin only from a pipe, and a child of Node gets a socket on
+// macOS and Linux, so there the template goes through `cat` into a pipe.
+// The script is fixed and op's path is its $0, so nothing is interpreted;
+// the reference stays on stdin. A TERM from the timeout reaches op too.
+const INJECT_THROUGH_PIPE =
+  'exec 3<&0 0</dev/null; trap \'kill "$p" 2>/dev/null\' TERM; ' +
+  'cat <&3 | "$0" inject & p=$!; wait "$p"; s=$?; wait "$p" 2>/dev/null; exit "$s"';
+function injectCall(op, platform = process.platform) {
+  if (platform === 'win32') return [op, ['inject']];
+  return ['/bin/sh', ['-c', INJECT_THROUGH_PIPE, op]];
+}
+
 // Reads every reference with one `op inject`, so 1Password asks at most once.
 // op inject fails as a whole when any reference fails; only then is each one
 // read on its own, to tell which keys failed and why. Each of those reads is
 // an `op inject` of that reference alone, so the reference goes on stdin and
 // never in argv, where other processes can list it.
-async function resolveReferences(refs, { op = locateOp(), runner = run } = {}) {
+async function resolveReferences(refs, { op = locateOp(), runner = run, platform = process.platform } = {}) {
   const keys = Object.keys(refs);
   const values = {};
   const failures = {};
@@ -125,7 +138,8 @@ async function resolveReferences(refs, { op = locateOp(), runner = run } = {}) {
   // that spans lines is kept whole.
   const boundary = `--monadic-${crypto.randomBytes(16).toString('hex')}--`;
   const template = keys.map(key => `${boundary}${key}\n{{ ${refs[key]} }}\n`).join('') + boundary;
-  const all = await runner(op, ['inject'], template);
+  const [cmd, args] = injectCall(op, platform);
+  const all = await runner(cmd, args, template);
   if (all.code === 0) {
     for (const part of all.stdout.split(boundary)) {
       const nl = part.indexOf('\n');
@@ -140,7 +154,7 @@ async function resolveReferences(refs, { op = locateOp(), runner = run } = {}) {
   }
 
   for (const key of keys) {
-    const one = await runner(op, ['inject'], `{{ ${refs[key]} }}`);
+    const one = await runner(cmd, args, `{{ ${refs[key]} }}`);
     if (one.code === 0 && one.stdout) values[key] = one.stdout;
     else failures[key] = classify(one.stderr);
   }
@@ -213,6 +227,7 @@ class SecretCache {
 
 module.exports = {
   isReference,
+  injectCall,
   referencesIn,
   opCandidates,
   isRunnable,

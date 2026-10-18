@@ -20,7 +20,7 @@
 
 ##### Q: Can I adjust the speed of the AI agent's voice? :id=voice-speed-adjustment
 
-**A**: Yes, you can adjust the playback speed of the synthesized speech using the `TTS Speed` slider in the **Speech** panel. The speed can be adjusted from 0.7 (slower) to 1.2 (faster). The Web Speech API also supports speed adjustment, though quality may vary. With Gemini, the Flash and Flash-Lite options change the speed at playback, so audio files saved with them through the Speech Draft Helper app are at the standard pace; the Pro TTS option is asked for the pace in the request.
+**A**: Yes, you can adjust the playback speed of the synthesized speech using the `TTS Speed` slider in the **Speech** panel. The speed can be adjusted from 0.7 (slower) to 1.2 (faster). The Web Speech API also supports speed adjustment, though quality may vary. With Gemini, the Flash and Flash-Lite options change the speed at playback, so audio files saved with them through the Speech Draft Helper app are at the standard pace.
 
 ---
 

@@ -40,6 +40,12 @@ module Monadic
 
         # What is known of relative's size, or nil (then a count is asked
         # for). A count older than FRESH_FOR is returned and redone.
+        # What is known now, without queueing a count ("choose all" needs only
+        # what is known; it does not start counts for every folder matched).
+        def peek(relative)
+          @mutex.synchronize { @known[relative]&.slice(:bytes, :files, :status, :at) }
+        end
+
         def lookup(relative)
           @mutex.synchronize do
             known = @known[relative]

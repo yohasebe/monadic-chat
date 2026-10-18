@@ -5,6 +5,7 @@ require 'time'
 require_relative 'ids'
 require_relative 'ledger'
 require_relative 'folders'
+require_relative 'shared_folder_preview'
 require_relative '../utils/environment'
 
 module Monadic
@@ -136,6 +137,7 @@ module Monadic
       MAX_NAMES = 20_000 # names read from one folder for one listing
 
       SORTS = %w[name size modified].freeze
+      AGES = [30, 90, 365].freeze # days, for "modified before"
 
       # One page of the folder at relative ("" for the shared folder itself).
       # live_chat_ids are the chats open in some tab; their folders are
@@ -146,10 +148,13 @@ module Monadic
       # query keeps the entries whose name holds it (any case), classes the
       # entries of those classifications; sort is name, size (largest first;
       # a folder not counted yet goes last) or modified (newest first), and
-      # descending turns the order around. Without them the folder is listed
-      # by name and only the page shown is looked at.
+      # descending turns the order around. older_than_days (one of AGES)
+      # keeps the entries last modified more than that many days (of 86,400
+      # seconds) before the request. Without them the folder is listed by
+      # name and only the page shown is looked at.
       def list(relative = '', page: 1, per_page: PER_PAGE, live_chat_ids: [], ledger: Ledger.default, sizes: nil,
-               query: nil, classes: nil, sort: 'name', descending: false)
+               query: nil, classes: nil, sort: 'name', descending: false, older_than_days: nil, now: Time.now,
+               all: false)
         root = data_root
         id, id_problem = root_id_or_reason(root) # made before the listing, so it is listed too
         parts = parts_of(relative)
@@ -175,25 +180,53 @@ module Monadic
         # The name filter needs no look at the entries.
         names = names.select { |n| n.downcase.include?(query) } unless query.empty?
 
-        if classes.empty? && sort == 'name'
+        days = older_than_days.to_s.empty? ? nil : AGES.find { |a| a.to_s == older_than_days.to_s }
+        raise Invalid, "older_than_days must be one of #{AGES.join(', ')}" if days.nil? && !older_than_days.to_s.empty?
+
+        before = days && (now.utc - (days * 86_400))
+        if classes.empty? && sort == 'name' && before.nil? && !all
           names.reverse! if descending
           matched = names.size
           items = (names.slice((page - 1) * per_page, per_page) || []).map(&describe_one).compact
         else
           # Sizes are looked up (and folders queued for counting) only when
           # the order needs them; the page shown gets them in any case.
-          looked = names.map { |n| describe(dir, parts, n, index, sort == 'size' ? sizes : nil, reveal: !id.nil?) }.compact
+          looked = names.map { |n| describe(dir, parts, n, index, sort == 'size' || all ? sizes : nil, reveal: !id.nil?) }.compact
           looked = looked.select { |i| classes.include?(i[:classification]) } unless classes.empty?
+          looked = looked.select { |i| Time.iso8601(i[:modified_at]) < before } if before
           looked = sort_items(looked, sort)
           looked.reverse! if descending
           matched = looked.size
-          shown = looked.slice((page - 1) * per_page, per_page) || []
-          items = sort == 'size' ? shown : shown.map { |i| describe_one.call(i[:name]) }.compact
+          shown = all ? looked : (looked.slice((page - 1) * per_page, per_page) || [])
+          items = sort == 'size' || all ? shown : shown.map { |i| describe_one.call(i[:name]) }.compact
         end
 
         { root_id: id, root_id_problem: id_problem, path: parts.join('/'), total: total, matched: matched,
+          chat_root: Monadic::Utils::Environment::CONTAINER_DATA_PATH,
           truncated: truncated, page: page, per_page: per_page, items: items, ledger_readable: !index[:unreadable],
           listed_at: Time.now.utc.iso8601 }
+      end
+
+      # Every entry of the folder at relative that matches the search, the
+      # kinds and the age (as in list) and may be moved to the trash, for
+      # "choose all" across pages: path, kind and what is known of its size.
+      # From the first MAX_NAMES names read (truncated tells).
+      def matching(relative = '', live_chat_ids: [], ledger: Ledger.default, sizes: nil,
+                   query: nil, classes: nil, older_than_days: nil, now: Time.now)
+        known_only = sizes && KnownSizes.new(sizes)
+        listing = list(relative, page: 1, per_page: 1, live_chat_ids: live_chat_ids, ledger: ledger, sizes: known_only,
+                                 query: query, classes: classes, older_than_days: older_than_days, now: now,
+                                 sort: 'modified', all: true)
+        items = listing[:items].select { |i| i.dig(:capabilities, :trash) }
+                               .map { |i| i.slice(:path, :kind, :bytes, :size_status) }
+        { path: listing[:path], matched: listing[:matched], items: items, truncated: listing[:truncated] }
+      end
+
+      # Sizes as far as they are known, with no count queued.
+      KnownSizes = Struct.new(:sizes) do
+        def lookup(relative)
+          sizes.respond_to?(:peek) ? sizes.peek(relative) : nil
+        end
       end
 
       # What the background count knows of the given folders, without
@@ -274,6 +307,7 @@ module Monadic
                else 'other'
                end
         item = { name: name, path: relative, kind: kind, modified_at: stat.mtime.utc.iso8601 }
+        item[:preview] = SharedFolderPreview.kind_for(name) if kind == 'file'
         item.merge!(size_of(kind, stat, relative, sizes))
         item.merge!(what_it_is(parts, name, kind, index))
         protected_reason = PROTECTED[parts.first || name]

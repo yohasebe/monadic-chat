@@ -167,9 +167,17 @@ Each entry shows its name, what it is, its size and when it was last modified:
 - Links are listed as links and not followed.
 - Sizes of folders are counted in the background and appear as they finish. A size shown as "≥" was counted only in part (a very large folder, or one partly unreadable).
 
-The list can be searched by name, sorted by name, size (`Largest first`) or modification time (`Newest first`), and narrowed to one kind of entry.
+The upper band sets what is listed: search by name, sort by name, size (`Largest first`) or modification time (`Newest first`), narrow to one kind of item, and narrow to items not modified in the last 30, 90 or 365 days. Long lists are shown in pages of 100, 200 or 500 items. A line below the bands says when the list is loading, when the folder is empty or nothing matches, and what went wrong or what moving to the Trash did.
 
-In the desktop app, the button on the right of an entry shows it in your file manager, selected in the folder that holds it; neither a folder nor a file is opened. Entries with a check box can be moved to the system's Trash: tick them (or click `Select test files`), click `Move to Trash` and confirm in the dialog that names the count and the first entries. Entries that are kept for a reason, and the folder of a chat open in a tab and what is in it, cannot be selected. Moved entries can be put back from the Trash.
+Click a folder's name, double-click its row, or press Enter (or Cmd/Ctrl+↓) to open it; use the up-arrow button next to the path (or Cmd/Ctrl+↑) to go back up.
+
+Click a row to select it, Cmd/Ctrl+click to add or remove one, Shift+click to add a range, or press on a row and move over others. The arrow keys move the selection (Shift extends it), Cmd/Ctrl+A selects all shown, and Esc in the list clears the selection. What is selected stays selected across pages and orders, and is cleared when the search, a filter or the folder changes.
+
+Double-click an image, audio, video, PDF or text file, or select it and press Space, to preview it over the panel. In the preview, ← and → go to the files before and after it on the page, and Esc or the close button closes it (the controls of a player keep their own keys). Text files, including HTML, SVG and Markdown, are shown as plain text, up to their first 256 KB. Audio and video do not start on their own. The copy button on the right of an item copies the path a chat uses for it (`/monadic/data/…`), to name the file in a message.
+
+In the desktop app, the button on the right of an item shows it in your file manager, selected in the folder that holds it; neither a folder nor a file is opened.
+
+In the desktop app, items can also be moved to the system's Trash. The lower band holds `Skip folders when selecting all`, `Select all shown`, `Select on all pages` (every item matching the search and filters), `Select test files` and the trash button; the count and total size of what is selected, with a button to clear the selection, are shown beside them. With `Skip folders when selecting all` checked, `Select all shown`, `Select on all pages` and Cmd/Ctrl+A select files only; a folder can still be selected by itself. Click the trash button and confirm in the dialog that names the count and the first items. While items are being moved, a spinner is shown over the panel and nothing else can be done in it. Items that are kept for a reason, and the folder of a chat open in a tab and what is in it, cannot be selected. Moved items can be put back from the Trash.
 
 ?> Monadic Chat keeps a small hidden file, `.monadic-shared-root`, in the shared folder. Do not remove it: without it, entries cannot be shown in the file manager or moved to the Trash (the list is still shown).
 

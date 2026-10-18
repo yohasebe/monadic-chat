@@ -4260,12 +4260,181 @@ img.base64-image,
   color: #f59e0b;
 }
 
+/* Shared Folder panel: the toolbar and the preview sit on the panel
+   colour, the table head stays in view, rows show hover and choice. */
+#sharedFolderModal {
+  --sf-selected-bg: #dbe7f7;
+  --sf-selected-border: #8fb0dd;
+}
+#sharedFolderModal .sf-band {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--border-radius-large);
+  padding: 0.5rem 0.75rem;
+}
+#sharedFolderModal .sf-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  font-weight: 600;
+  font-size: 0.85em;
+}
+#shared-folder-tbody tr > td {
+  transition: background-color 0.1s ease;
+}
+#shared-folder-tbody tr:hover > td {
+  background-color: var(--bg-hover);
+}
+#shared-folder-tbody tr.sf-selected > td {
+  background-color: var(--sf-selected-bg);
+}
+#shared-folder-tbody tr.sf-selected > td:first-child {
+  box-shadow: inset 3px 0 0 var(--sf-selected-border);
+}
+#shared-folder-tbody:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-blue) 60%, transparent);
+  outline-offset: 2px;
+}
+/* The keyboard's row, while the list has the focus. */
+#shared-folder-tbody:focus tr.sf-cursor > td {
+  border-top: 1px dashed var(--sf-selected-border);
+  border-bottom: 1px dashed var(--sf-selected-border);
+}
+#sharedFolderModal .sf-kind-folder { color: var(--accent-amber); }
+#sharedFolderModal .sf-kind-media { color: var(--accent-blue); }
+#sharedFolderModal .sf-kind-pdf { color: var(--accent-red); }
+#sharedFolderModal .sf-kind-other { color: var(--text-secondary); }
+#sharedFolderModal .modal-content { position: relative; }
+#sharedFolderModal .sf-folder-link {
+  color: inherit;
+  text-decoration: none;
+}
+#sharedFolderModal .sf-folder-link:hover {
+  color: var(--accent-blue);
+  text-decoration: underline;
+}
+/* Not d-flex: its !important would keep a hidden pager in view. */
+#sharedFolderModal .sf-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+/* Buttons take the Web UI's categories (grey moves around and acts on a
+   row, blue chooses, red moves to the Trash); next to each other they are
+   one height, whether they hold an icon, a count or words. */
+#sharedFolderModal .btn-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-height: calc(1.5em + 0.5rem + 2px);
+}
+#sharedFolderModal .sf-preview-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background-color: rgba(0, 0, 0, 0.45);
+  border-radius: inherit;
+}
+/* The cards laid over the panel: the preview and the spinner while moving. */
+#sharedFolderModal .sf-preview-card,
+#sharedFolderModal .sf-busy-card {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--border-radius-large);
+  box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.3);
+}
+#sharedFolderModal .sf-preview-card {
+  width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  padding: 0.75rem 1rem;
+}
+/* Long names wrap. On a narrow window only the table scrolls sideways
+   (there the head of the table no longer stays in view, as the box that
+   scrolls is then the table's own). */
+@media (max-width: 767.98px) {
+  #sharedFolderModal .sf-table-wrap {
+    overflow-x: auto;
+  }
+}
+#shared-folder-tbody td:first-child {
+  overflow-wrap: anywhere;
+  min-width: 12rem;
+}
+#sharedFolderModal .sf-preview-card pre { text-align: left; }
+/* Two bands: what is listed (search and filters), then what to do with it.
+   Each wraps as a whole group on a narrow panel; the width kept for what is
+   selected never shrinks, so the buttons beside it do not move. */
+#sharedFolderModal .sf-conditions,
+#sharedFolderModal .sf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+#sharedFolderModal .sf-conditions .form-control,
+#sharedFolderModal .sf-conditions .form-select {
+  flex: 0 1 auto;
+}
+#sharedFolderModal .sf-choice-info {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 0 0 15rem;
+  min-width: 0;
+}
+#sharedFolderModal .sf-choice-info #shared-folder-selection {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#sharedFolderModal .sf-actions .btn-sm {
+  white-space: nowrap;
+}
+#sharedFolderModal .sf-status {
+  color: var(--text-secondary);
+  padding: 0.25rem 0.5rem;
+}
+#sharedFolderModal .sf-status.sf-status-warn {
+  color: var(--text-primary);
+  background-color: color-mix(in srgb, var(--btn-warning) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--btn-warning) 45%, transparent);
+  border-radius: var(--border-radius);
+}
+#sharedFolderModal .sf-busy-card {
+  padding: 0.75rem 1.25rem;
+}
+
 } /* end @layer components */
 
 /* ============================================ */
 /* Dark Theme Layer: All dark mode overrides */
 /* ============================================ */
 @layer dark-theme {
+
+/* Shared Folder panel: hover and choice survive the dark table rule
+   (which clears cell backgrounds), with colours of the dark palette. */
+.dark-theme #sharedFolderModal {
+  --sf-selected-bg: #243a5a;
+  --sf-selected-border: #4a7bbf;
+}
+.dark-theme #shared-folder-tbody tr:hover > td {
+  background-color: var(--bg-hover);
+}
+.dark-theme #shared-folder-tbody tr.sf-selected > td {
+  background-color: var(--sf-selected-bg);
+}
+.dark-theme #sharedFolderModal .sf-table thead th {
+  background-color: var(--bg-secondary);
+}
+
 
 /* ============================================== */
 
@@ -5998,6 +6167,68 @@ i.fas.fa-bolt,
   #cancel_query i {
     margin-right: 0 !important;
   }
+}
+
+
+/* Shared Folder panel: the same categories as elsewhere (grey, blue,
+   red) in quieter tones. Kept here, after the hover rules above, since a
+   later layer wins over any selector in an earlier one. */
+#sharedFolderModal .btn-secondary {
+  background-color: #8a939e;
+  border-color: #8a939e;
+  color: #ffffff;
+}
+#sharedFolderModal .btn-primary {
+  background-color: #4a72b0;
+  border-color: #4a72b0;
+  color: #ffffff;
+}
+#sharedFolderModal .btn-danger {
+  background-color: #bf625e;
+  border-color: #bf625e;
+  color: #ffffff;
+}
+#sharedFolderModal .btn-secondary:hover:not(:disabled),
+#sharedFolderModal .btn-secondary:active {
+  background-color: #77818c;
+  border-color: #77818c;
+}
+#sharedFolderModal .btn-primary:hover:not(:disabled),
+#sharedFolderModal .btn-primary:active {
+  background-color: #43699f;
+  border-color: #43699f;
+}
+#sharedFolderModal .btn-danger:hover:not(:disabled),
+#sharedFolderModal .btn-danger:active {
+  background-color: #a9524e;
+  border-color: #a9524e;
+}
+.dark-theme #sharedFolderModal .btn-secondary {
+  background-color: #525c69;
+  border-color: #525c69;
+  color: #e5e7eb;
+}
+.dark-theme #sharedFolderModal .btn-primary {
+  background-color: #3f669f;
+  border-color: #3f669f;
+  color: #eef2f8;
+}
+.dark-theme #sharedFolderModal .btn-danger {
+  background-color: #9c4f4b;
+  border-color: #9c4f4b;
+  color: #f6eceb;
+}
+.dark-theme #sharedFolderModal .btn-secondary:hover:not(:disabled) {
+  background-color: #5f6a78;
+  border-color: #5f6a78;
+}
+.dark-theme #sharedFolderModal .btn-primary:hover:not(:disabled) {
+  background-color: #446ca6;
+  border-color: #446ca6;
+}
+.dark-theme #sharedFolderModal .btn-danger:hover:not(:disabled) {
+  background-color: #ab5955;
+  border-color: #ab5955;
 }
 
 } /* end @layer responsive */

@@ -16,7 +16,8 @@
     - Gemini Pro TTS is no longer offered: a saved choice moves to Gemini Flash TTS, and the page says so once
   - New
     - Shared Folder panel: what each entry in the shared folder is, its size, which chat uses it and why it is needed (**do not remove the hidden `.monadic-shared-root` file Monadic Chat keeps there**)
-    - The Shared Folder panel searches, sorts and filters the list, marks files made by test runs, and in the desktop app moves entries to the system's Trash
+    - The Shared Folder panel searches, sorts and filters the list, marks files made by test runs, and in the desktop app moves items to the system's Trash (rows are selected as in a file manager: click, Cmd/Ctrl+click, Shift+click or a drag)
+    - The Shared Folder panel previews images, audio, video, PDFs and text files, shows how much is selected, narrows the list to items not modified for 30, 90 or 365 days, and copies the path a chat uses for an item; long lists are shown in pages, and every matching item on every page can be selected at once
     - Mark words for the Privacy Filter to mask: select them and click `Mask` (Ctrl/Cmd+Shift+K), or type `⟦words⟧` (`⟦words|type⟧` with a type) **(rebuild the Privacy container)**
     - Marked words are masked throughout the conversation, also in second opinions, Verify, AI User and the Session Context; a request that still holds one (for example in the system prompt) is not sent
     - In Japanese, a name followed by an honorific (さん, 様, 氏, 先生, くん, 君, ちゃん, 殿) is masked whole

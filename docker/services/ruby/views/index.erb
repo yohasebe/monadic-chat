@@ -1290,7 +1290,7 @@
       </div>
     </div>
 
-    <!-- Modal: Browse all conversations in the Knowledge Base -->
+    <!-- Modal: the Shared Folder panel -->
     <div class="modal fade" id="sharedFolderModal" tabindex="-1" aria-labelledby="sharedFolderModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -1300,20 +1300,22 @@
           </div>
           <div class="modal-body">
             <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
+              <button type="button" class="btn btn-sm btn-secondary" id="shared-folder-up" style="display:none" title="Up one folder" data-i18n-title="ui.sharedFolderPanel.up"><i class="fa-solid fa-arrow-up"></i></button>
               <div id="shared-folder-path" class="me-auto"></div>
               <span id="shared-folder-info" class="small text-secondary"></span>
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="shared-folder-refresh" title="Refresh" data-i18n-title="ui.sharedFolderPanel.refresh"><i class="fa-solid fa-rotate"></i></button>
+              <button type="button" class="btn btn-sm btn-secondary" id="shared-folder-refresh" title="Refresh" data-i18n-title="ui.sharedFolderPanel.refresh"><i class="fa-solid fa-rotate"></i></button>
             </div>
             <p class="small text-secondary mb-2" data-i18n="ui.sharedFolderPanel.note">What an entry is comes from Monadic Chat's record where it has one, and otherwise only from its name. Sizes of folders are counted in the background.</p>
-            <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
-              <input type="search" class="form-control form-control-sm" style="max-width: 14rem" id="shared-folder-search" placeholder="Search names" data-i18n-placeholder="ui.sharedFolderPanel.searchPlaceholder">
-              <select class="form-select form-select-sm" style="max-width: 12rem" id="shared-folder-sort" aria-label="Sort">
+            <!-- What is listed: search and filters. -->
+            <div class="sf-band sf-conditions mb-2">
+              <input type="search" class="form-control form-control-sm" style="max-width: 14rem" id="shared-folder-search" placeholder="Search names" data-i18n-placeholder="ui.sharedFolderPanel.searchPlaceholder" aria-label="Search names" data-i18n-aria-label="ui.sharedFolderPanel.searchPlaceholder">
+              <select class="form-select form-select-sm" style="max-width: 12rem" id="shared-folder-sort" aria-label="Order" data-i18n-aria-label="ui.sharedFolderPanel.orderLabel">
                 <option value="name" data-i18n="ui.sharedFolderPanel.sortName">By name</option>
                 <option value="size" data-i18n="ui.sharedFolderPanel.sortSize">Largest first</option>
                 <option value="modified" data-i18n="ui.sharedFolderPanel.sortModified">Newest first</option>
               </select>
-              <select class="form-select form-select-sm" style="max-width: 16rem" id="shared-folder-filter" aria-label="Show">
-                <option value="" data-i18n="ui.sharedFolderPanel.filterAll">All entries</option>
+              <select class="form-select form-select-sm" style="max-width: 16rem" id="shared-folder-filter" aria-label="Kind" data-i18n-aria-label="ui.sharedFolderPanel.kindLabel">
+                <option value="" data-i18n="ui.sharedFolderPanel.filterAll">All items</option>
                 <option value="test_file" data-i18n="ui.sharedFolderPanel.testFile">Made by a test run</option>
                 <option value="test_candidate" data-i18n="ui.sharedFolderPanel.testCandidate">Possibly left by a test run</option>
                 <option value="intermediate_candidate" data-i18n="ui.sharedFolderPanel.intermediate">Possibly a working file</option>
@@ -1321,25 +1323,80 @@
                 <option value="public_copy" data-i18n="ui.sharedFolderPanel.publicCopy">Copy for playback</option>
                 <option value="other" data-i18n="ui.sharedFolderPanel.other">Other</option>
               </select>
-              <span class="me-auto"></span>
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="shared-folder-select-tests" style="display:none" data-i18n="ui.sharedFolderPanel.selectTests">Select test files</button>
-              <button type="button" class="btn btn-sm btn-outline-danger" id="shared-folder-trash" style="display:none" disabled><i class="fa-regular fa-trash-can"></i> <span id="shared-folder-trash-label" data-i18n="ui.sharedFolderPanel.trashSelected">Move to Trash</span></button>
+              <select class="form-select form-select-sm" style="max-width: 13rem" id="shared-folder-age" aria-label="Last modified" data-i18n-aria-label="ui.sharedFolderPanel.ageLabel">
+                <option value="" data-i18n="ui.sharedFolderPanel.ageAll">Modified any time</option>
+                <option value="30" data-i18n="ui.sharedFolderPanel.age30">Not modified in 30 days</option>
+                <option value="90" data-i18n="ui.sharedFolderPanel.age90">Not modified in 90 days</option>
+                <option value="365" data-i18n="ui.sharedFolderPanel.age365">Not modified in 365 days</option>
+              </select>
             </div>
-            <div id="shared-folder-error" class="alert alert-warning py-1 small" style="display:none"></div>
-            <table class="table table-sm align-middle">
+            <!-- What to do with the list: selecting and moving to the Trash. The buttons are disabled, never hidden,
+                 when they have nothing to act on, and what is selected is shown in a width of its own, so nothing moves. -->
+            <div class="sf-band sf-actions mb-2" id="shared-folder-actions" style="display:none">
+              <div class="form-check mb-0 text-nowrap" title="Selecting all (shown or on all pages, or Cmd/Ctrl+A) leaves out folders; a folder can still be selected by itself" data-i18n-title="ui.sharedFolderPanel.filesOnlyTitle">
+                <input class="form-check-input" type="checkbox" id="shared-folder-files-only">
+                <label class="form-check-label small" for="shared-folder-files-only" data-i18n="ui.sharedFolderPanel.filesOnly">Skip folders when selecting all</label>
+              </div>
+              <button type="button" class="btn btn-sm btn-primary" id="shared-folder-select-all" aria-pressed="false" data-i18n="ui.sharedFolderPanel.selectAll">Select all shown</button>
+              <button type="button" class="btn btn-sm btn-primary" id="shared-folder-select-matching" data-i18n="ui.sharedFolderPanel.selectMatching">Select on all pages</button>
+              <button type="button" class="btn btn-sm btn-primary" id="shared-folder-select-tests" data-i18n="ui.sharedFolderPanel.selectTests">Select test files</button>
+              <button type="button" class="btn btn-sm btn-danger" id="shared-folder-trash" disabled title="Move to Trash" aria-label="Move to Trash" data-i18n-title="ui.sharedFolderPanel.trashSelected" data-i18n-aria-label="ui.sharedFolderPanel.trashSelected"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
+              <div class="sf-choice-info">
+                <span id="shared-folder-selection" class="small text-secondary text-nowrap" style="visibility:hidden"></span>
+                <button type="button" class="btn btn-sm btn-secondary" id="shared-folder-clear-selection" style="visibility:hidden" title="Clear selection" aria-label="Clear selection" data-i18n-title="ui.sharedFolderPanel.clearSelection" data-i18n-aria-label="ui.sharedFolderPanel.clearSelection"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+              </div>
+            </div>
+            <!-- One place for what is going on: loading, nothing to show, errors, and what moving to the Trash did. -->
+            <div id="shared-folder-status" class="sf-status small mb-2" role="status" aria-live="polite" style="display:none"></div>
+            <div id="shared-folder-pager-top" class="sf-pager mb-2" style="display:none">
+              <button type="button" class="btn btn-sm btn-secondary sf-prev" title="Previous page" data-i18n-title="ui.sharedFolderPanel.prevPage"><i class="fa-solid fa-chevron-left"></i></button>
+              <span class="small text-secondary sf-page-label"></span>
+              <button type="button" class="btn btn-sm btn-secondary sf-next" title="Next page" data-i18n-title="ui.sharedFolderPanel.nextPage"><i class="fa-solid fa-chevron-right"></i></button>
+              <select class="form-select form-select-sm ms-auto sf-per-page" style="max-width: 9rem" aria-label="Items per page" data-i18n-aria-label="ui.sharedFolderPanel.perPage" data-i18n-title="ui.sharedFolderPanel.perPage" title="Items per page">
+                <option value="100">100</option>
+                <option value="200">200</option>
+                <option value="500">500</option>
+              </select>
+            </div>
+            <div class="sf-table-wrap">
+            <table class="table table-sm align-middle sf-table">
               <thead>
                 <tr>
-                  <th style="width: 2rem"><span class="visually-hidden" data-i18n="ui.sharedFolderPanel.colSelect">Select</span></th>
                   <th data-i18n="ui.sharedFolderPanel.colName">Name</th>
                   <th data-i18n="ui.sharedFolderPanel.colWhat">What it is</th>
                   <th class="text-end" data-i18n="ui.sharedFolderPanel.colSize">Size</th>
                   <th data-i18n="ui.sharedFolderPanel.colModified">Modified</th>
-                  <th></th>
+                  <th><span class="visually-hidden" data-i18n="ui.sharedFolderPanel.colActions">Actions</span></th>
                 </tr>
               </thead>
-              <tbody id="shared-folder-tbody"></tbody>
+              <tbody id="shared-folder-tbody" tabindex="0"></tbody>
             </table>
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="shared-folder-more" style="display:none" data-i18n="ui.sharedFolderPanel.more">Show more</button>
+            </div>
+            <div id="shared-folder-pager" class="sf-pager mt-2" style="display:none">
+              <button type="button" class="btn btn-sm btn-secondary sf-prev" title="Previous page" data-i18n-title="ui.sharedFolderPanel.prevPage"><i class="fa-solid fa-chevron-left"></i></button>
+              <span class="small text-secondary sf-page-label"></span>
+              <button type="button" class="btn btn-sm btn-secondary sf-next" title="Next page" data-i18n-title="ui.sharedFolderPanel.nextPage"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+          </div>
+          <div id="shared-folder-preview" class="sf-preview-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="shared-folder-preview-name">
+            <div class="sf-preview-card">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <span id="shared-folder-preview-name" class="small fw-semibold text-break me-auto"></span>
+                <span id="shared-folder-preview-count" class="small text-secondary"></span>
+                <button type="button" class="btn-close" id="shared-folder-preview-close" aria-label="Close the preview" data-i18n-aria-label="ui.sharedFolderPanel.previewClose" data-i18n-title="ui.sharedFolderPanel.previewClose" title="Close the preview"></button>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-secondary" id="shared-folder-preview-prev" title="Previous file" data-i18n-title="ui.sharedFolderPanel.previewPrev"><i class="fa-solid fa-chevron-left"></i></button>
+                <div id="shared-folder-preview-body" class="flex-grow-1 text-center" style="min-width: 0"></div>
+                <button type="button" class="btn btn-sm btn-secondary" id="shared-folder-preview-next" title="Next file" data-i18n-title="ui.sharedFolderPanel.previewNext"><i class="fa-solid fa-chevron-right"></i></button>
+              </div>
+              <div class="small text-secondary mt-2 text-center" data-i18n="ui.sharedFolderPanel.previewKeys">← → to move, Esc to close</div>
+            </div>
+          </div>
+          <div id="shared-folder-busy" class="sf-preview-overlay" style="display:none" role="status" aria-live="polite">
+            <div class="sf-busy-card">
+              <i class="fa-solid fa-spinner fa-spin me-2"></i><span data-i18n="ui.sharedFolderPanel.trashing">Moving to the Trash…</span>
+            </div>
           </div>
         </div>
       </div>

@@ -331,6 +331,23 @@ RSpec.describe Monadic::Workspace::SharedFolder do
       expect(counter.lookup('auto_forge')).to include(bytes: 8, files: 2, status: 'complete')
     end
 
+    it 'tells what is known without queueing a count (for choosing all)' do
+      write('auto_forge/p/index.html', '12345')
+      counter = sizes
+      expect(counter.peek('auto_forge')).to be_nil
+      counter.drain!
+      expect(counter.peek('auto_forge')).to be_nil # nothing was queued
+      counter.lookup('auto_forge')
+      counter.drain!
+      expect(counter.peek('auto_forge')).to include(bytes: 5, files: 1, status: 'complete')
+    end
+
+    it 'gives every entry for all, in name order too' do
+      3.times { |i| write("f#{i}.txt") }
+      listing = Monadic::Workspace::SharedFolder.list('', page: 1, per_page: 1, all: true, ledger: Monadic::Workspace::Ledger.new(File.join(@data, '..', 'l.json')))
+      expect(listing[:items].map { |i| i[:name] }.grep(/\Af/)).to eq(%w[f0.txt f1.txt f2.txt]) # past the page size of 1
+    end
+
     it 'says a count was cut short, with what it counted' do
       10.times { |i| write("big/f#{i}.txt", 'x') }
       counter = sizes(max_entries: 3)

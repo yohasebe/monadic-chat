@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const root = path.resolve(__dirname, '../..');
+require('../../docker/services/ruby/public/js/monadic/model_spec');
 const TtsProvider = require('../../docker/services/ruby/public/js/monadic/tts-provider');
 const handlers = require('../../docker/services/ruby/public/js/monadic/ws-app-data-handlers');
 const audio = require('../../docker/services/ruby/public/js/monadic/ws-audio-handler');
@@ -20,9 +21,9 @@ test.each([null, undefined, '', 'openai-tts', 'elevenlabs', 'mistral', 'grok', '
   expect(TtsProvider.isGemini(value)).toBe(false);
 });
 
-test('the real selector exposes three initially disabled variants', () => {
+test('the real selector exposes two initially disabled variants', () => {
   const options = [...document.querySelectorAll('#tts-provider option')].filter(option => TtsProvider.isGemini(option.value));
-  expect(options.map(option => option.value)).toEqual(['gemini-flash', 'gemini-flash-lite', 'gemini-pro']);
+  expect(options.map(option => option.value)).toEqual(['gemini-flash', 'gemini-flash-lite']);
   expect(options.every(option => option.disabled)).toBe(true);
   expect(options[1].textContent).toBe('Gemini (Flash-Lite TTS)');
 });
@@ -65,7 +66,7 @@ test('the bundle loads the shared predicate before every consumer', () => {
 
 // Execute the production change handler in an isolated context, with unrelated
 // page initialization omitted. The provider table and handler are read together.
-test.each(['gemini-flash', 'gemini-flash-lite', 'gemini-pro', 'gemini'])('%s selects the compatible voice panel', provider => {
+test.each(['gemini-flash', 'gemini-flash-lite', 'gemini'])('%s selects the compatible voice panel', provider => {
   const vm = require('vm');
   const source = fs.readFileSync(path.join(root, 'docker/services/ruby/public/js/monadic.js'), 'utf8');
   const start = source.indexOf('  const TTS_VOICE_PANELS =');
@@ -92,7 +93,7 @@ test.each(['gemini-flash', 'gemini-flash-lite', 'gemini-pro', 'gemini'])('%s sel
   expect(context.params.tts_provider).toBe(provider);
 });
 
-test.each(['gemini-flash', 'gemini-flash-lite', 'gemini-pro', 'gemini'])('the card play button sends the compatible voice for %s', provider => {
+test.each(['gemini-flash', 'gemini-flash-lite', 'gemini'])('the card play button sends the compatible voice for %s', provider => {
   const vm = require('vm');
   const source = fs.readFileSync(path.join(root, 'docker/services/ruby/public/js/monadic/cards.js'), 'utf8');
   document.body.innerHTML += '<select id="tts-voice"><option value="alloy">Alloy</option></select><div class="card" id="card1"><div class="card-text">Hello</div><button class="func-play">Play</button></div>';
@@ -115,4 +116,20 @@ test.each(['gemini-flash', 'gemini-flash-lite', 'gemini-pro', 'gemini'])('the ca
     message: 'PLAY_TTS', tts_provider: provider,
     tts_voice: provider === 'gemini' ? 'alloy' : 'kore', gemini_tts_voice: 'kore'
   }));
+});
+
+test('a saved Pro TTS value moves to Flash TTS with a notice', () => {
+  const select = document.getElementById('tts-provider');
+  const flash = [...select.options].find(option => option.value === 'gemini-flash');
+  flash.disabled = false;
+  window.setAlert = jest.fn();
+  window.$dispatch = jest.fn();
+  expect(TtsProvider.restoreSaved(select, 'gemini-pro', 'gemini')).toBe(true);
+  expect(select.value).toBe('gemini-flash');
+  expect(window.setAlert).toHaveBeenCalledWith(expect.stringContaining(flash.textContent), 'info');
+  window.setAlert.mockClear();
+  expect(TtsProvider.restoreSaved(select, 'gemini', 'gemini')).toBe(true);
+  expect(window.setAlert).not.toHaveBeenCalled();
+  delete window.setAlert;
+  delete window.$dispatch;
 });

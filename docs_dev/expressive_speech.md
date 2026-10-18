@@ -4,14 +4,14 @@ When Auto Speech is on, the system prompt tells the model how to shape its reply
 
 ## Families
 
-`TtsTextProcessors.family_for(provider)` (`lib/monadic/utils/tts_text_processors.rb`) maps the `#tts-provider` value to a family. `tts-tag-sanitizer.js` has the same function.
+`TtsTextProcessors.family_for(provider)` (`lib/monadic/utils/tts_text_processors.rb`) maps the `#tts-provider` value to a family: the value names a model in `ttsChoices` (`model_spec.js`), and the family is that model's `tts_family`. `tts-tag-sanitizer.js` has the same function; both are checked against `spec/fixtures/tts/families_expected.json`.
 
 | Provider value | Family | Mode |
 |---|---|---|
 | `grok` | `xai` | inline and wrap markers |
-| `elevenlabs-v3` | `elevenlabs-v3` | inline markers |
+| `elevenlabs-v3`, `elevenlabs-v4`, `elevenlabs-v4-turbo` | `elevenlabs-v3` | inline markers |
 | `elevenlabs-flash`, `elevenlabs-multilingual` | `elevenlabs` | plain prose |
-| `gemini-flash`, `gemini-flash-lite`, `gemini-pro` | `gemini` | hybrid: inline markers and a directive |
+| `gemini-flash`, `gemini-flash-lite` | `gemini` | hybrid: inline markers and a directive |
 | `openai-tts-4o` | `openai-instruction` | directive (instruction mode) |
 | `openai-tts`, `openai-tts-hd` | `openai` | plain prose |
 | `mistral` | `mistral` | plain prose |

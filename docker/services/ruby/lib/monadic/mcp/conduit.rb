@@ -1708,9 +1708,12 @@ module Monadic
       def normalize_tts_provider(value)
         v = value.to_s.strip.downcase
         return "openai" if v.empty?
-        return "gemini" if %w[gemini google].include?(v)
-        return "elevenlabs" if v.start_with?("elevenlabs")
-        TTS_PROVIDERS.include?(v) ? v : "openai"
+        # "google" is kept as another name for Gemini, for earlier callers.
+        return "gemini" if v == "google"
+        return v if TTS_PROVIDERS.include?(v)
+
+        # Never sent to another provider in its place.
+        raise ArgumentError, "Unsupported provider: #{value} (use #{TTS_PROVIDERS.join(', ')})"
       end
 
       # The TTS helper reports success as "... saved to <name>.<ext>".

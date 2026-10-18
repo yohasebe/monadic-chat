@@ -33,41 +33,10 @@ rescue LoadError
   # ModelSpec not available in this environment
 end
 
-# Resolve TTS provider label to actual model name via providerDefaults SSOT.
-# OpenAI TTS list: [0]=4o-mini, [1]=tts-1-hd, [2]=tts-1
-# Gemini TTS list: unsuffixed default follows order; explicit variants resolve by name.
-# ElevenLabs TTS list: [0]=eleven_v3, [1]=eleven_multilingual_v2, [2]=eleven_flash_v2_5
+# The model a TTS provider selector value sends (ttsChoices in model_spec.js,
+# read through Monadic::Utils::TtsProvider, as the app does).
 def resolve_tts_model(provider_label)
-  if Monadic::Utils::TtsProvider.gemini?(provider_label)
-    tts_models = if defined?(Monadic::Utils::ModelSpec)
-                   Monadic::Utils::ModelSpec.get_provider_models("gemini", "tts")
-                 end
-    Monadic::Utils::TtsProvider.resolve_gemini_model(provider_label, tts_models)
-  elsif provider_label.start_with?("elevenlabs")
-    tts_models = if defined?(Monadic::Utils::ModelSpec)
-                   Monadic::Utils::ModelSpec.get_provider_models("elevenlabs", "tts")
-                 end
-    case provider_label
-    when "elevenlabs-v3"
-      tts_models&.[](0)
-    when "elevenlabs-multilingual"
-      tts_models&.[](1)
-    else
-      tts_models&.[](2)
-    end
-  else
-    tts_models = if defined?(Monadic::Utils::ModelSpec)
-                   Monadic::Utils::ModelSpec.get_provider_models("openai", "tts")
-                 end
-    case provider_label
-    when "openai-tts-hd"
-      tts_models&.[](1)
-    when "openai-tts"
-      tts_models&.[](2)
-    else
-      tts_models&.[](0)
-    end
-  end
+  Monadic::Utils::TtsProvider.model_for(provider_label)
 end
 
 # Helper to configure SSL for Net::HTTP
@@ -212,8 +181,8 @@ def tts_api_request(text,
   num_retrial = 0
   response = nil
 
-  case provider
-  when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3"
+  case Monadic::Utils::TtsProvider.provider_of(provider)
+  when "elevenlabs"
     # Try config file first (primary source of truth)
     api_key = Monadic::Utils::SecretReferences.config_value("ELEVENLABS_API_KEY")
 
@@ -262,9 +231,11 @@ def tts_api_request(text,
       body["instructions"] = instructions
     end
 
+    # The CLI writes a whole file, so every model goes to the convert
+    # endpoint (no /stream, no latency option, no previous_text).
     output_format = "mp3_44100_128"
     target_uri = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
-  when Monadic::Utils::TtsProvider.method(:gemini?)
+  when "gemini"
     # Try config file first (primary source of truth)
     api_key = Monadic::Utils::SecretReferences.config_value("GEMINI_API_KEY")
 
@@ -326,10 +297,10 @@ def tts_api_request(text,
       }
     }
 
-    # Use the appropriate Gemini model with TTS capability (SSOT: providerDefaults.gemini.tts)
+    # The model comes from ttsChoices (model_spec.js)
     model_name = resolve_tts_model(provider)
     target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent"
-  else # openai
+  when "openai"
     # Try config file first (primary source of truth)
     api_key = Monadic::Utils::SecretReferences.config_value("OPENAI_API_KEY")
 
@@ -345,7 +316,7 @@ def tts_api_request(text,
       Authorization: "Bearer #{api_key}"
     }
 
-    model = resolve_tts_model("openai-tts-4o")
+    model = resolve_tts_model(provider)
 
     body = {
       input: text,
@@ -364,6 +335,9 @@ def tts_api_request(text,
     end
 
     target_uri = "#{API_ENDPOINT}/audio/speech"
+  else
+    # Never sent to another provider in its place.
+    return { type: "error", content: "ERROR: Unsupported TTS provider: #{provider}" }
   end
 
   http = HTTP.headers(headers)

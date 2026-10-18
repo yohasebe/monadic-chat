@@ -74,6 +74,8 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
+require('../../docker/services/ruby/public/js/monadic/model_spec');
+require('../../docker/services/ruby/public/js/monadic/tts-provider');
 const handlers = require('../../docker/services/ruby/public/js/monadic/ws-connection-handler');
 
 describe('ws-connection-handler', () => {

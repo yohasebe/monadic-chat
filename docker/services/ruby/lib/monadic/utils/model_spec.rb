@@ -585,6 +585,18 @@ module Monadic
           allowed.include?(value.to_s)
         end
 
+        # The TTS provider selector's values (ttsChoices in model_spec.js);
+        # resolved through Monadic::Utils::TtsProvider.
+        def load_tts_choices
+          return @tts_choices if @tts_choices
+
+          js_content = read_model_spec_js
+          @tts_choices = js_content ? extract_js_object(js_content, "ttsChoices") : {}
+        rescue StandardError => e
+          puts "Warning: Failed to load ttsChoices: #{e.message}"
+          @tts_choices = {}
+        end
+
         def load_image_generation_options
           return @image_generation_options if @image_generation_options
 
@@ -660,6 +672,7 @@ module Monadic
           @spec = nil
           @provider_defaults = nil
           @image_generation_options = nil
+          @tts_choices = nil
           remove_instance_variable(:@js_content) if defined?(@js_content)
           nil
         end

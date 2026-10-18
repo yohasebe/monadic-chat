@@ -134,7 +134,7 @@ System、Light、Dark。
 音声合成のプロバイダを選びます（OpenAI、ElevenLabs、Gemini、Mistral、Grok TTS、Web Speech API）。
 
 **Expressive Speech**<br />
-Auto speech がオンで、選んだ音声合成のプロバイダが Expressive Speech に対応しているとき（指示に対応した OpenAI の音声合成モデル、xAI Grok、ElevenLabs v3、Gemini TTS）、プロバイダの選択の下に **Expressive Speech** のバッジが出ます。このとき音声には、返答に合った口調・間・笑いなどが加わります。チャットには、書かれたとおりの返答が表示されます。バッジにポインタを重ねると説明が出ます。
+Auto speech がオンで、選んだ音声合成のプロバイダが Expressive Speech に対応しているとき（指示に対応した OpenAI の音声合成モデル、xAI Grok、ElevenLabs v3 と v4、Gemini TTS）、プロバイダの選択の下に **Expressive Speech** のバッジが出ます。このとき音声には、返答に合った口調・間・笑いなどが加わります。チャットには、書かれたとおりの返答が表示されます。バッジにポインタを重ねると説明が出ます。
 
 Gemini TTS では、文にない「Oh,」のような言葉や笑いが音声に入ることがあります。語学の教材など、文のとおりに読む必要があるときは、Auto speech をオフにするか、Expressive Speech に対応していないプロバイダを選んでください。
 

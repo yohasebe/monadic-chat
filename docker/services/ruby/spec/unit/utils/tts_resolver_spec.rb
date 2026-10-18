@@ -25,12 +25,12 @@ RSpec.describe "InteractionUtils#resolve_tts_model dispatch" do
       expect(host.resolve_tts_model("grok")).to eq("grok-tts")
     end
 
-    it "returns nil when xai has no TTS models configured" do
+    it "names grok-tts from ttsChoices whatever the xai TTS list holds" do
       allow(Monadic::Utils::ModelSpec).to receive(:get_provider_models)
         .with("xai", "tts")
         .and_return([])
 
-      expect(host.resolve_tts_model("grok")).to be_nil
+      expect(host.resolve_tts_model("grok")).to eq("grok-tts")
     end
 
     it "does not fall through to OpenAI when label starts with 'grok'" do
@@ -62,7 +62,7 @@ RSpec.describe "InteractionUtils#resolve_tts_model dispatch" do
       expect(host.resolve_tts_model("gemini-flash")).to eq("gemini-3.8-flash-tts")
     end
 
-    it "resolves 'gemini-pro' by name despite reordered defaults" do
+    it "resolves the retired 'gemini-pro' to its successor" do
       allow(Monadic::Utils::ModelSpec).to receive(:get_provider_models)
         .with("gemini", "tts")
         .and_return([
@@ -73,7 +73,7 @@ RSpec.describe "InteractionUtils#resolve_tts_model dispatch" do
           "gemini-2.5-pro-preview-tts"
         ])
 
-      expect(host.resolve_tts_model("gemini-pro")).to eq("gemini-2.5-pro-preview-tts")
+      expect(host.resolve_tts_model("gemini-pro")).to eq("gemini-3.8-flash-tts")
     end
   end
 end

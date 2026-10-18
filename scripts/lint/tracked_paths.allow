@@ -89,6 +89,7 @@ docker/services/ruby/views/*.erb
 docker/services/ruby/spec/**/*.{rb,sh,yml}
 docker/services/ruby/spec/fixtures/office/*.{docx,pptx,xlsx}
 docker/services/ruby/spec/fixtures/*.png
+docker/services/ruby/spec/fixtures/tts/*_expected.json
 docker/services/ruby/spec/integration/stt_noise_benchmark/data/truth.txt
 docker/services/ruby/spec/unit/scripts/generators/*.rb.disabled
 

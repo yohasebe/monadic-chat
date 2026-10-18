@@ -13,6 +13,7 @@
     - Image and video descriptions with Claude use Claude Haiku 5.5, Gemini image generation uses Nano Banana 2.1, and code generation with OpenAI uses GPT-6 Sol
     - Live Conversation uses Grok Voice 3.0 with xAI and Gemini 3.8 Live with Gemini
     - Video Generator with Gemini makes videos with Gemini Omni: 720p in 16:9 or 9:16, 3 to 10 seconds, with no choice between a fast and a quality model
+    - Gemini Pro TTS is no longer offered: a saved choice moves to Gemini Flash TTS, and the page says so once
   - New
     - Shared Folder panel: what each entry in the shared folder is, its size, which chat uses it and why it is needed (**do not remove the hidden `.monadic-shared-root` file Monadic Chat keeps there**)
     - The Shared Folder panel searches, sorts and filters the list, marks files made by test runs, and in the desktop app moves entries to the system's Trash
@@ -22,6 +23,7 @@
     - When you ask for a detailed analysis, Video Describer describes a video over 10 minutes in up to 5 parts (each up to 10 minutes with up to 16 frames), two at a time **(rebuild the Python container)**
     - Long recordings are transcribed over several connections at once, waiting together when the provider asks to slow down
     - New models: Claude Haiku 5.5, Gemini 4 Argon and DeepSeek V4.1 Flash
+    - ElevenLabs v4 and v4 Turbo for text-to-speech, with Expressive Speech
   - Fixed
     - The Privacy Filter masks overlapping detections as one, and says when it is still starting **(rebuild the Privacy container)**
     - A new chat starts clean after Reset, an app switch or an import, and switching apps stops a reply still being written

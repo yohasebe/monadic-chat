@@ -184,19 +184,24 @@ RSpec.describe "Gemini TTS audio decoding" do
     expect(output.string).to eq(wav)
   end
 
-  it "resolves the new default and legacy Pro in both request implementations" do
+  it "resolves the new default and the retired Pro choice in both request implementations" do
     allow(host).to receive(:resolve_tts_model).and_call_original
     [host, script].each do |receiver|
       expect(receiver.send(:resolve_tts_model, "gemini-flash")).to eq("gemini-3.8-flash-tts")
       expect(receiver.send(:resolve_tts_model, "gemini")).to eq("gemini-3.8-flash-tts")
-      expect(receiver.send(:resolve_tts_model, "gemini-pro")).to eq("gemini-2.5-pro-preview-tts")
+      expect(receiver.send(:resolve_tts_model, "gemini-pro")).to eq("gemini-3.8-flash-tts")
     end
   end
 
-  it "exposes both new models and all existing models through the Ruby SSOT accessor" do
-    models = %w[gemini-3.8-flash-tts gemini-3.8-flash-lite-tts gemini-3.1-flash-tts-preview gemini-2.5-flash-preview-tts gemini-2.5-pro-preview-tts]
-    expect(Monadic::Utils::ModelSpec.get_provider_models("gemini", "tts")).to eq(models)
-    models.each do |model_name|
+  it "offers the GA models and keeps the retiring previews registered as deprecated" do
+    offered = %w[gemini-3.8-flash-tts gemini-3.8-flash-lite-tts]
+    retiring = %w[gemini-3.1-flash-tts-preview gemini-2.5-flash-preview-tts gemini-2.5-pro-preview-tts]
+    expect(Monadic::Utils::ModelSpec.get_provider_models("gemini", "tts")).to eq(offered)
+    retiring.each do |model_name|
+      expect(Monadic::Utils::ModelSpec.deprecated?(model_name)).to be(true)
+      expect(Monadic::Utils::ModelSpec.get_model_property(model_name, "successor")).to eq("gemini-3.8-flash-tts")
+    end
+    (offered + retiring).each do |model_name|
       expect(Monadic::Utils::ModelSpec.tts_family(model_name)).to eq("gemini")
       expect(Monadic::Utils::ModelSpec.get_model_property(model_name, "tts_capability")).to be(true)
     end

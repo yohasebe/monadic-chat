@@ -80,8 +80,28 @@
   // Multilingual v2 read bracket content as literal text. The v3 variant
   // therefore gets its own family key so Expressive Speech does not activate
   // for the legacy ElevenLabs models.
+  // A selector value (not an alias of one) or a registered model: the
+  // model's tts_family, as on the Ruby side. Aliases and provider names
+  // keep the rules below.
+  function declaredFamily(key) {
+    var spec = (typeof window !== "undefined" && window.modelSpec) || null;
+    if (!spec) return null;
+    var choices = (typeof window !== "undefined" && window.ttsChoices) || {};
+    var model = key;
+    if (Object.prototype.hasOwnProperty.call(choices, key)) {
+      var entry = choices[key];
+      if (!entry || entry.alias) return null;
+      model = entry.model;
+    }
+    if (!model || !Object.prototype.hasOwnProperty.call(spec, model)) return null;
+    var family = spec[model] && spec[model].tts_family;
+    return typeof family === "string" && family ? family : null;
+  }
+
   function familyFor(provider) {
     var key = String(provider == null ? "" : provider).toLowerCase();
+    var declared = declaredFamily(key);
+    if (declared) return declared;
     if (key === "grok" || key.indexOf("xai") === 0)                    return "xai";
     if (key === "elevenlabs-v3" || key === "eleven_v3")                return "elevenlabs-v3";
     if (key.indexOf("elevenlabs") === 0 || key.indexOf("eleven_") === 0) return "elevenlabs";

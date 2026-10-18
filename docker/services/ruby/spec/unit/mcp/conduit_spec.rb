@@ -1385,6 +1385,20 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(result[:error]).to match(/ELEVENLABS_API_KEY is not set/)
     end
 
+    it "refuses a provider it does not offer instead of speaking with OpenAI" do
+      expect(thost).not_to receive(:text_to_speech)
+      expect { described_class.call("monadic_speak", { "text" => "hi", "provider" => "mistral" }) }
+        .to raise_error(ArgumentError, /Unsupported provider: mistral/)
+    end
+
+    it "refuses an ElevenLabs model it does not offer instead of speaking with another one" do
+      expect(thost).not_to receive(:text_to_speech)
+      %w[elevenlabs-v4 elevenlabs-no-such-model].each do |provider|
+        expect { described_class.call("monadic_speak", { "text" => "hi", "provider" => provider }) }
+          .to raise_error(ArgumentError, /Unsupported provider: #{provider}/)
+      end
+    end
+
     it "requires text" do
       expect { described_class.call("monadic_speak", {}) }
         .to raise_error(ArgumentError, /text is required/)

@@ -4216,16 +4216,15 @@ document.addEventListener("DOMContentLoaded", function () {
   // adding a new provider a single-row edit instead of another `else if`
   // branch in the change handler below. OpenAI-family providers fall through
   // to the default (#openai-voices) so they don't need explicit entries.
+  // Keyed by the provider of the selected choice (TtsProvider.providerOf).
   const TTS_VOICE_PANELS = {
     "elevenlabs":              { panelId: "elevenlabs-voices" },
-    "elevenlabs-flash":        { panelId: "elevenlabs-voices" },
-    "elevenlabs-multilingual": { panelId: "elevenlabs-voices" },
-    "elevenlabs-v3":           { panelId: "elevenlabs-voices" },
+    "gemini":                  { panelId: "gemini-voices" },
     // Mistral Voxtral exposes no speed parameter server-side.
     "mistral":                 { panelId: "mistral-voices", supportsSpeed: false },
     // Grok TTS: playback rate is handled client-side (AVAudioPlayer in native
     // clients); the server API has no speed field, so the slider is hidden.
-    "grok":                    { panelId: "grok-voices",    supportsSpeed: false },
+    "xai":                     { panelId: "grok-voices",    supportsSpeed: false },
     "webspeech":               { panelId: "webspeech-voices", onShow: () => {
       if (typeof initWebSpeech === "function") initWebSpeech();
     } }
@@ -4303,8 +4302,9 @@ document.addEventListener("DOMContentLoaded", function () {
     TTS_VOICE_PANEL_IDS.forEach(id => $hide($id(id)));
     $show($id("tts-speed-container"));
 
-    const entry = window.TtsProvider.isGemini(params["tts_provider"]) && params["tts_provider"] !== "gemini"
-      ? { panelId: "gemini-voices" } : TTS_VOICE_PANELS[params["tts_provider"]];
+    const panelProvider = params["tts_provider"] === "gemini"
+      ? null : window.TtsProvider.providerOf(params["tts_provider"]);
+    const entry = panelProvider ? TTS_VOICE_PANELS[panelProvider] : null;
     const panelId = entry ? entry.panelId : TTS_DEFAULT_PANEL_ID;
     $show($id(panelId));
     if (entry && entry.supportsSpeed === false) {

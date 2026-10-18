@@ -197,7 +197,7 @@ const providerDefaults = {
 | `audio_transcription` | Audio transcription agent |
 | `image` | Image generation (OpenAI, Gemini, xAI) |
 | `video` | Video generation (Gemini Omni, Grok Imagine) |
-| `tts` | Text-to-speech; the first entry is the default |
+| `tts` | Text-to-speech models offered for the provider; the first entry is what `default_tts_model` returns. The chat's speech selector sends the model its `ttsChoices` entry names (below), not by position here |
 | `music` | Music generation (Gemini; ElevenLabs, used by Music Generator only when ELEVENLABS_API_KEY is set and the user names ElevenLabs). Resolved inside the generation tool, not a chat dropdown |
 
 > Note: there is no `embedding` category. Help search and the Knowledge Base
@@ -222,6 +222,16 @@ const providerDefaults = {
 3. nil
 
 **MDSL behavior**: When a `.mdsl` file omits `model`, the DSL engine automatically populates from `providerDefaults.chat`. Apps that need specific models keep explicit `model` overrides.
+
+## ttsChoices (Speech Selector Values)
+
+`ttsChoices` in `model_spec.js` maps each `#tts-provider` value to `{ provider, model }` (Web Speech: `model: null`, `execution: "browser"`). A value saved by an earlier version names its successor with `alias`; a retired choice also sets `retired`, and the page shows a notice when it moves the value.
+
+- Ruby: `Monadic::Utils::TtsProvider.choice` / `provider_of` / `model_for`; `ModelSpec.load_tts_choices` reads the table (cleared by `reload!`)
+- JS: `TtsProvider.choice` / `providerOf` / `modelFor` / `idsOf` / `restoreSaved` (`tts-provider.js`)
+- How a model is sent and how its text is prepared come from the model's entry: `tts_family`, and for ElevenLabs `tts_endpoint: "convert"` (the whole file instead of `/stream`), `tts_previous_text: false`, `tts_latency_option: false`. The CLI (`scripts/cli_tools/tts_query.rb`) writes a whole file and sends every ElevenLabs model to the convert endpoint
+- An alias value (`openai`, `elevenlabs`, `gemini`, `web-speech`) keeps the text family the value had before (`TtsTextProcessors.family_for`), which can differ from its successor's
+- `spec/unit/utils/tts_choices_spec.rb` checks that every option in `views/index.erb` is a non-alias value, that each value resolves to a registered, non-deprecated TTS model, and that both stacks give the results in `spec/fixtures/tts/`
 
 ## "All Models" Toggle Filtering Policy
 

@@ -72,9 +72,18 @@ function setCookieValues() {
   properties.forEach(function(property) {
     var value = getCookie(property);
     var el = $id(property);
+    var savedValue = value;
+    if (value && property === "tts-provider" && window.TtsProvider) {
+      // A value saved by an earlier version stands for its successor
+      var saved = window.TtsProvider.choice(value);
+      if (saved) value = saved.id;
+    }
     if (value) {
       if (el && el.querySelector('option[value="' + value + '"]')) {
         el.value = value;
+        if (property === "tts-provider" && savedValue !== value && window.TtsProvider) {
+          window.TtsProvider.noteRetired(savedValue, el);
+        }
         $dispatch(el, "change");
       } else if (property === "elevenlabs-tts-voice") {
         // Handle when voices load later

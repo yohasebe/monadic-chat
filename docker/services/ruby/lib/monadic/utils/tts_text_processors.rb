@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require_relative "tts_provider"
+require_relative "model_spec"
+
 module Monadic
   module Utils
     # Provider-keyed registry for TTS text transformations.
@@ -27,6 +30,11 @@ module Monadic
       # collapses them into a single key that the registries look up against.
       def family_for(provider)
         key = provider.to_s.downcase
+        # A selector value (not an alias of one) or a registered model: the
+        # model's tts_family. Aliases and provider names keep the rules below.
+        declared = declared_family(key)
+        return declared if declared
+
         return "xai" if key == "grok" || key.start_with?("xai")
         # ONLY ElevenLabs v3 interprets inline audio tags. Flash v2.5 and
         # Multilingual v2 read bracket content as literal text, so they must
@@ -47,7 +55,18 @@ module Monadic
         key
       end
 
-      XAI_INLINE_MARKERS = %w[pause long-pause laugh sigh cry click smack inhale exhale].freeze
+      def declared_family(key)
+        choice = Monadic::Utils::TtsProvider.choice(key)
+        model = choice && choice[:requested_id] == choice[:id] ? choice[:model] : key
+        return nil if model.to_s.empty?
+
+        family = Monadic::Utils::ModelSpec.get_model_property(model.to_s, "tts_family")
+        family.is_a?(String) && !family.empty? ? family : nil
+      rescue StandardError
+        nil
+      end
+
+            XAI_INLINE_MARKERS = %w[pause long-pause laugh sigh cry click smack inhale exhale].freeze
       XAI_WRAP_TAGS      = %w[loud soft high low fast slow whisper sing].freeze
 
       XAI_INLINE_RE = /\[(?:#{XAI_INLINE_MARKERS.join('|')})\]/i

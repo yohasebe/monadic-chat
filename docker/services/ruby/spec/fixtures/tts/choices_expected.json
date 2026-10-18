@@ -1,0 +1,20 @@
+{
+  "openai-tts-4o": { "id": "openai-tts-4o", "provider": "openai", "model": "gpt-4o-mini-tts-2025-12-15" },
+  "openai-tts-hd": { "id": "openai-tts-hd", "provider": "openai", "model": "tts-1-hd" },
+  "openai-tts": { "id": "openai-tts", "provider": "openai", "model": "tts-1" },
+  "elevenlabs-v4": { "id": "elevenlabs-v4", "provider": "elevenlabs", "model": "eleven_v4" },
+  "elevenlabs-v4-turbo": { "id": "elevenlabs-v4-turbo", "provider": "elevenlabs", "model": "eleven_v4_turbo" },
+  "elevenlabs-v3": { "id": "elevenlabs-v3", "provider": "elevenlabs", "model": "eleven_v3" },
+  "elevenlabs-multilingual": { "id": "elevenlabs-multilingual", "provider": "elevenlabs", "model": "eleven_multilingual_v2" },
+  "elevenlabs-flash": { "id": "elevenlabs-flash", "provider": "elevenlabs", "model": "eleven_flash_v2_5" },
+  "gemini-flash": { "id": "gemini-flash", "provider": "gemini", "model": "gemini-3.8-flash-tts" },
+  "gemini-flash-lite": { "id": "gemini-flash-lite", "provider": "gemini", "model": "gemini-3.8-flash-lite-tts" },
+  "mistral": { "id": "mistral", "provider": "mistral", "model": "voxtral-mini-tts-2603" },
+  "grok": { "id": "grok", "provider": "xai", "model": "grok-tts" },
+  "webspeech": { "id": "webspeech", "provider": "webspeech", "model": null, "execution": "browser" },
+  "openai": { "id": "openai-tts-4o", "provider": "openai", "model": "gpt-4o-mini-tts-2025-12-15" },
+  "elevenlabs": { "id": "elevenlabs-flash", "provider": "elevenlabs", "model": "eleven_flash_v2_5" },
+  "gemini": { "id": "gemini-flash", "provider": "gemini", "model": "gemini-3.8-flash-tts" },
+  "web-speech": { "id": "webspeech", "provider": "webspeech", "model": null, "execution": "browser" },
+  "gemini-pro": { "id": "gemini-flash", "provider": "gemini", "model": "gemini-3.8-flash-tts" }
+}

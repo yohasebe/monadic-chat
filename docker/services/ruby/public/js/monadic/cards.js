@@ -180,13 +180,15 @@ function attachEventListeners(card) {
       const ttsProvider = ttsProviderEl ? ttsProviderEl.value : '';
       let ttsVoice;
 
-      if (ttsProvider === "elevenlabs" || ttsProvider === "elevenlabs-flash" || ttsProvider === "elevenlabs-multilingual" || ttsProvider === "elevenlabs-v3") {
+      const ttsFamily = window.TtsProvider.providerOf(ttsProvider);
+
+      if (ttsFamily === "elevenlabs") {
         const el = $id("elevenlabs-tts-voice");
         ttsVoice = el ? el.value : '';
-      } else if (ttsProvider === "webspeech") {
+      } else if (ttsFamily === "webspeech") {
         const el = $id("webspeech-voice");
         ttsVoice = el ? el.value : '';
-      } else if (window.TtsProvider.isGemini(ttsProvider) && ttsProvider !== "gemini") {
+      } else if (ttsFamily === "gemini" && ttsProvider !== "gemini") {
         const el = $id("gemini-tts-voice");
         ttsVoice = el ? el.value : '';
       } else {

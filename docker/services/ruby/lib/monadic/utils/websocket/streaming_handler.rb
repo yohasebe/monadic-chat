@@ -251,17 +251,13 @@ module WebSocketHelper
 
     if obj["auto_speech"]
       provider = obj["tts_provider"]
-      if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
-        voice = obj["elevenlabs_tts_voice"]
-      elsif Monadic::Utils::TtsProvider.gemini?(provider)
-        voice = provider == "gemini" ? obj["tts_voice"] : obj["gemini_tts_voice"]
-      elsif provider == "mistral"
-        voice = obj["mistral_tts_voice"]
-      elsif provider == "grok"
-        voice = obj["grok_tts_voice"]
-      else
-        voice = obj["tts_voice"]
-      end
+      voice = case Monadic::Utils::TtsProvider.provider_of(provider)
+              when "elevenlabs" then obj["elevenlabs_tts_voice"]
+              when "gemini" then provider == "gemini" ? obj["tts_voice"] : obj["gemini_tts_voice"]
+              when "mistral" then obj["mistral_tts_voice"]
+              when "xai" then obj["grok_tts_voice"]
+              else obj["tts_voice"]
+              end
       speed = obj["tts_speed"]
       response_format = "aac"
       model = if defined?(Monadic::Utils::ModelSpec)

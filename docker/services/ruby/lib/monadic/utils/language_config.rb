@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "tts_provider"
+
 module Monadic
   module Utils
     class LanguageConfig
@@ -132,8 +134,8 @@ module Monadic
         def tts_language_code(language_code, provider)
           return "auto" if language_code.nil? || language_code == "auto"
           
-          case provider
-          when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3"
+          case Monadic::Utils::TtsProvider.provider_of(provider)
+          when "elevenlabs"
             # ElevenLabs uses full language codes
             language_code
           when "openai"
@@ -149,8 +151,8 @@ module Monadic
 
         # Check if provider supports explicit language specification for TTS
         def tts_supports_language?(provider)
-          case provider
-          when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3", "openai"
+          case Monadic::Utils::TtsProvider.provider_of(provider)
+          when "elevenlabs", "openai"
             true
           when "gemini"
             false

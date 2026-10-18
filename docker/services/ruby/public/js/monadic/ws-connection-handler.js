@@ -37,7 +37,7 @@ function handleTokenVerified(data) {
     window.verified = "full";
 
     // Enable OpenAI TTS options when token is verified
-    ["openai-tts-4o", "openai-tts", "openai-tts-hd"].forEach(function(id) {
+    window.TtsProvider.idsOf("openai").forEach(function(id) {
       const el = $id(id);
       if (el) el.disabled = false;
     });
@@ -102,7 +102,7 @@ function handleOpenAIAPIError(_data) {
   });
 
   // Disable OpenAI TTS options
-  ["openai-tts-4o", "openai-tts", "openai-tts-hd"].forEach(function(id) {
+  window.TtsProvider.idsOf("openai").forEach(function(id) {
     const el = $id(id);
     if (el) el.disabled = true;
   });
@@ -131,7 +131,7 @@ function handleTokenNotVerified(_data) {
   });
 
   // Disable OpenAI TTS options
-  ["openai-tts-4o", "openai-tts", "openai-tts-hd"].forEach(function(id) {
+  window.TtsProvider.idsOf("openai").forEach(function(id) {
     const el = $id(id);
     if (el) el.disabled = true;
   });

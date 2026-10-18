@@ -41,7 +41,7 @@
 
 ##### Q: Gemini TTSとは何ですか？他のプロバイダーとの違いは？ :id=gemini-tts-overview
 
-**A**: Gemini TTSはGoogleのテキスト読み上げサービスで、**Speech** パネルのプロバイダードロップダウンからFlash、Flash-Lite、ProのTTSを選択できます。Gemini APIキーが必要で、チャット応答の音声再生とSpeech Draft Helperアプリでのオーディオファイル生成の両方に対応しています。利用できる音声と言語はGoogle側の提供内容であり、Monadic Chatとは独立して変わります。利用できるものは **Speech** パネルの音声ドロップダウンで確認できます。
+**A**: Gemini TTSはGoogleのテキスト読み上げサービスで、**Speech** パネルのプロバイダードロップダウンからFlashとFlash-LiteのTTSを選択できます。Gemini APIキーが必要で、チャット応答の音声再生とSpeech Draft Helperアプリでのオーディオファイル生成の両方に対応しています。利用できる音声と言語はGoogle側の提供内容であり、Monadic Chatとは独立して変わります。利用できるものは **Speech** パネルの音声ドロップダウンで確認できます。
 
 ---
 

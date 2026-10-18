@@ -1,3 +1,4 @@
+require('../../docker/services/ruby/public/js/monadic/model_spec');
 require('../../docker/services/ruby/public/js/monadic/tts-provider');
 /**
  * @jest-environment jsdom
@@ -66,10 +67,12 @@ describe('ws-app-data-handlers', () => {
     beforeEach(() => {
       voiceSelect = createDOMSelect('elevenlabs-tts-voice');
       createDOMSelect('tts-provider');
-      // TTS provider options
-      createDOMOption('elevenlabs-flash-provider-option');
-      createDOMOption('elevenlabs-multilingual-provider-option');
-      createDOMOption('elevenlabs-v3-provider-option');
+      // TTS provider options, found by the provider of their value
+      ['elevenlabs-flash', 'elevenlabs-multilingual', 'elevenlabs-v3', 'elevenlabs-v4', 'elevenlabs-v4-turbo'].forEach(value => {
+        const option = createDOMOption(`${value}-provider-option`);
+        option.value = value;
+        document.getElementById('tts-provider').appendChild(option);
+      });
       // STT options
       createDOMOption('elevenlabs-stt-scribe-v2');
       createDOMOption('elevenlabs-stt-scribe');
@@ -102,6 +105,7 @@ describe('ws-app-data-handlers', () => {
       expect(document.getElementById('elevenlabs-flash-provider-option').disabled).toBe(false);
       expect(document.getElementById('elevenlabs-multilingual-provider-option').disabled).toBe(false);
       expect(document.getElementById('elevenlabs-v3-provider-option').disabled).toBe(false);
+      expect(document.getElementById('elevenlabs-v4-turbo-provider-option').disabled).toBe(false);
       expect(document.getElementById('elevenlabs-stt-scribe-v2').disabled).toBe(false);
       expect(document.getElementById('elevenlabs-stt-scribe').disabled).toBe(false);
     });
@@ -114,6 +118,7 @@ describe('ws-app-data-handlers', () => {
       expect(document.getElementById('elevenlabs-flash-provider-option').disabled).toBe(true);
       expect(document.getElementById('elevenlabs-multilingual-provider-option').disabled).toBe(true);
       expect(document.getElementById('elevenlabs-v3-provider-option').disabled).toBe(true);
+      expect(document.getElementById('elevenlabs-v4-provider-option').disabled).toBe(true);
       expect(document.getElementById('elevenlabs-stt-scribe-v2').disabled).toBe(true);
     });
 
@@ -186,7 +191,7 @@ describe('ws-app-data-handlers', () => {
     beforeEach(() => {
       voiceSelect = createDOMSelect('gemini-tts-voice');
       createDOMSelect('tts-provider');
-      ['gemini-flash', 'gemini-flash-lite', 'gemini-pro'].forEach(value => {
+      ['gemini-flash', 'gemini-flash-lite'].forEach(value => {
         const option = createDOMOption(`${value}-provider-option`);
         option.value = value;
         document.getElementById('tts-provider').appendChild(option);
@@ -217,7 +222,7 @@ describe('ws-app-data-handlers', () => {
       handlers.handleGeminiVoices(data);
 
       expect(document.getElementById('gemini-flash-provider-option').disabled).toBe(false);
-      expect(document.getElementById('gemini-pro-provider-option').disabled).toBe(false);
+      expect(document.getElementById('gemini-flash-lite-provider-option').disabled).toBe(false);
       expect(document.getElementById('gemini-stt-flash').disabled).toBe(false);
     });
 
@@ -227,7 +232,7 @@ describe('ws-app-data-handlers', () => {
       handlers.handleGeminiVoices(data);
 
       expect(document.getElementById('gemini-flash-provider-option').disabled).toBe(true);
-      expect(document.getElementById('gemini-pro-provider-option').disabled).toBe(true);
+      expect(document.getElementById('gemini-flash-lite-provider-option').disabled).toBe(true);
       expect(document.getElementById('gemini-stt-flash').disabled).toBe(true);
     });
 

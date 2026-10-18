@@ -29,18 +29,16 @@ function handleElevenLabsVoices(data) {
   const cookieValue = getCookie("elevenlabs-tts-voice");
   const voices = data["content"];
 
-  const ttsOptionIds = [
-    "elevenlabs-flash-provider-option",
-    "elevenlabs-multilingual-provider-option",
-    "elevenlabs-v3-provider-option"
-  ];
   const sttOptionIds = [
     "elevenlabs-stt-scribe-v2",
     "elevenlabs-stt-scribe"
   ];
 
   const disabledState = !(voices.length > 0);
-  ttsOptionIds.concat(sttOptionIds).forEach(id => {
+  Array.from(($id("tts-provider") || {}).options || []).filter(option =>
+    window.TtsProvider.providerOf(option.value) === "elevenlabs"
+  ).forEach(option => { option.disabled = disabledState; });
+  sttOptionIds.forEach(id => {
     const el = $id(id);
     if (el) el.disabled = disabledState;
   });
@@ -67,13 +65,7 @@ function handleElevenLabsVoices(data) {
 
   // Restore saved cookie value for provider if it was elevenlabs
   const savedProvider = getCookie("tts-provider");
-  if (["elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3"].includes(savedProvider)) {
-    const providerSelect = $id("tts-provider");
-    if (providerSelect) {
-      providerSelect.value = savedProvider;
-      $dispatch(providerSelect, "change");
-    }
-  }
+  window.TtsProvider.restoreSaved($id("tts-provider"), savedProvider, "elevenlabs");
 }
 
 /**
@@ -123,13 +115,7 @@ function handleGeminiVoices(data) {
 
   // Restore saved cookie value for provider if it was gemini
   const savedProvider = getCookie("tts-provider");
-  if (window.TtsProvider.isGemini(savedProvider) && savedProvider !== "gemini") {
-    const providerSelect = $id("tts-provider");
-    if (providerSelect) {
-      providerSelect.value = savedProvider;
-      $dispatch(providerSelect, "change");
-    }
-  }
+  window.TtsProvider.restoreSaved($id("tts-provider"), savedProvider, "gemini");
 }
 
 /**
@@ -174,13 +160,7 @@ function handleMistralVoices(data) {
 
   // Restore saved cookie value for provider if it was mistral
   const savedProvider = getCookie("tts-provider");
-  if (savedProvider === "mistral") {
-    const providerSelect = $id("tts-provider");
-    if (providerSelect) {
-      providerSelect.value = savedProvider;
-      $dispatch(providerSelect, "change");
-    }
-  }
+  window.TtsProvider.restoreSaved($id("tts-provider"), savedProvider, "mistral");
 }
 
 /**

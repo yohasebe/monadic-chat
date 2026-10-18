@@ -26,7 +26,7 @@
 
 ##### Q: What is Gemini TTS and how does it differ from other providers? :id=gemini-tts-overview
 
-**A**: Gemini TTS is Google's text-to-speech service, offering Flash, Flash-Lite, and Pro TTS options in the provider dropdown of the **Speech** panel. It requires a Gemini API key, and covers both spoken chat responses and audio file generation through the Speech Draft Helper app. The voices and languages on offer are Google's, and change independently of Monadic Chat; the voice dropdown in the **Speech** panel shows what is available.
+**A**: Gemini TTS is Google's text-to-speech service, offering Flash and Flash-Lite TTS options in the provider dropdown of the **Speech** panel. It requires a Gemini API key, and covers both spoken chat responses and audio file generation through the Speech Draft Helper app. The voices and languages on offer are Google's, and change independently of Monadic Chat; the voice dropdown in the **Speech** panel shows what is available.
 
 ---
 

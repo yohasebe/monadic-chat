@@ -134,7 +134,7 @@ Select your preferred speech-to-text model. Available options include OpenAI, Ge
 Select the provider for speech synthesis (OpenAI, ElevenLabs, Gemini, Mistral, Grok TTS, or Web Speech API).
 
 **Expressive Speech**<br />
-When Auto speech is on and the selected TTS provider supports Expressive Speech (OpenAI's TTS model with instructions, xAI Grok, ElevenLabs v3, Gemini TTS), an **Expressive Speech** badge appears beneath the provider dropdown. The speech then carries tone, pauses, laughter and the like that suit the reply; the chat shows the reply as written. Hover the badge for a description.
+When Auto speech is on and the selected TTS provider supports Expressive Speech (OpenAI's TTS model with instructions, xAI Grok, ElevenLabs v3 and v4, Gemini TTS), an **Expressive Speech** badge appears beneath the provider dropdown. The speech then carries tone, pauses, laughter and the like that suit the reply; the chat shows the reply as written. Hover the badge for a description.
 
 With Gemini TTS, the speech can include words such as "Oh," or laughter that are not in the text. For language-learning material or other uses that need the text read as written, turn Auto speech off or choose a provider without Expressive Speech.
 

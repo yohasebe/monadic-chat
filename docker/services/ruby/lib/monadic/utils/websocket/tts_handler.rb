@@ -374,17 +374,13 @@ module WebSocketHelper
     ws_session_id = Thread.current[:websocket_session_id]
 
     provider = obj["provider"]
-    if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
-      voice = obj["elevenlabs_voice"]
-    elsif Monadic::Utils::TtsProvider.gemini?(provider)
-      voice = provider == "gemini" ? obj["voice"] : obj["gemini_voice"]
-    elsif provider == "mistral"
-      voice = obj["mistral_voice"]
-    elsif provider == "grok"
-      voice = obj["grok_voice"]
-    else
-      voice = obj["voice"]
-    end
+    voice = case Monadic::Utils::TtsProvider.provider_of(provider)
+            when "elevenlabs" then obj["elevenlabs_voice"]
+            when "gemini" then provider == "gemini" ? obj["voice"] : obj["gemini_voice"]
+            when "mistral" then obj["mistral_voice"]
+            when "xai" then obj["grok_voice"]
+            else obj["voice"]
+            end
     text = obj["text"]
     # Privacy Filter: card text comes back from the frontend with original
     # PII restored (display form). Replace those values with the short
@@ -490,17 +486,13 @@ module WebSocketHelper
 
     # Extract TTS parameters
     provider = obj["tts_provider"]
-    if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
-      voice = obj["elevenlabs_tts_voice"]
-    elsif Monadic::Utils::TtsProvider.gemini?(provider)
-      voice = provider == "gemini" ? obj["tts_voice"] : obj["gemini_tts_voice"]
-    elsif provider == "mistral"
-      voice = obj["mistral_tts_voice"]
-    elsif provider == "grok"
-      voice = obj["grok_tts_voice"]
-    else
-      voice = obj["tts_voice"]
-    end
+    voice = case Monadic::Utils::TtsProvider.provider_of(provider)
+            when "elevenlabs" then obj["elevenlabs_tts_voice"]
+            when "gemini" then provider == "gemini" ? obj["tts_voice"] : obj["gemini_tts_voice"]
+            when "mistral" then obj["mistral_tts_voice"]
+            when "xai" then obj["grok_tts_voice"]
+            else obj["tts_voice"]
+            end
     text = obj["text"]
     # Privacy Filter: see handle_ws_tts for the rationale. Apply the same
     # sanitize so the Play button does not leak restored PII to the cloud

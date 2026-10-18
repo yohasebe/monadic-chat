@@ -1554,25 +1554,28 @@ const modelSpec = {
     // not on every call, so none is sent. Inline tags in the text still work.
     "tts_style_directive": "omit"
   },
-  // Stops 2026-11-17 (successor gemini-3.8-flash-tts). Not marked deprecated
-  // yet: the Pro TTS choice resolves to these by name until it is retired.
+  // Stops 2026-11-17.
   "gemini-3.1-flash-tts-preview": {
+    "deprecated": true,
     "sunset_date": "2026-11-17",
+    "successor": "gemini-3.8-flash-tts",
     "tts_capability": true,
     "tts_family": "gemini"
   },
-  // Stops 2026-11-17 (successor gemini-3.8-flash-tts). Not marked deprecated
-  // yet: the Pro TTS choice resolves to these by name until it is retired.
+  // Stops 2026-11-17.
   "gemini-2.5-flash-preview-tts": {
+    "deprecated": true,
     "sunset_date": "2026-11-17",
+    "successor": "gemini-3.8-flash-tts",
     "tts_capability": true,
     "tts_family": "gemini",
     "tts_pace_prefix": true
   },
-  // Stops 2026-11-17 (successor gemini-3.8-flash-tts). Not marked deprecated
-  // yet: the Pro TTS choice resolves to these by name until it is retired.
+  // Stops 2026-11-17.
   "gemini-2.5-pro-preview-tts": {
+    "deprecated": true,
     "sunset_date": "2026-11-17",
+    "successor": "gemini-3.8-flash-tts",
     "tts_capability": true,
     "tts_family": "gemini",
     "tts_pace_prefix": true
@@ -1581,15 +1584,26 @@ const modelSpec = {
     "tts_capability": true,
     "tts_family": "mistral"
   },
-  // Eleven v4 (2026-09-28): plays the same inline audio tags as v3 (probed
-  // 2026-10-17: "[laughs]" is performed, not read).
+  // Eleven v4 and v4 Turbo (2026-09-28): play the same inline audio tags as
+  // v3 (probed 2026-10-17: "[laughs]" is performed, not read); /stream
+  // refuses optimize_streaming_latency (400, checked 2026-10-18).
   "eleven_v4": {
     "tts_capability": true,
-    "tts_family": "elevenlabs-v3"
+    "tts_family": "elevenlabs-v3",
+    "tts_latency_option": false
   },
+  "eleven_v4_turbo": {
+    "tts_capability": true,
+    "tts_family": "elevenlabs-v3",
+    "tts_latency_option": false
+  },
+  // Sent to the convert endpoint (the whole file), the app's choice for v3;
+  // refuses previous_text (400, checked 2026-10-18).
   "eleven_v3": {
     "tts_capability": true,
-    "tts_family": "elevenlabs-v3"
+    "tts_family": "elevenlabs-v3",
+    "tts_endpoint": "convert",
+    "tts_previous_text": false
   },
   "eleven_multilingual_v2": {
     "tts_capability": true,
@@ -1873,9 +1887,8 @@ const providerDefaults = {
     // Veo 3.1, its predecessor, is listed by Google to stop 2026-10-22.
     "video": ["gemini-omni-1.1-flash"],
     "music": ["lyria-3.5", "lyria-3-clip-preview"],
-    // The three previews stop 2026-11-17; the Pro TTS choice resolves to the
-    // last of them by name, so they stay listed until that choice is retired.
-    "tts": ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts", "gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]
+    // The preview TTS models (deprecated, stop 2026-11-17) are not offered.
+    "tts": ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts"]
   },
   "cohere": {
     "chat": ["command-a-plus-05-2026", "command-a-03-2025", "command-a-vision-07-2025", "command-a-reasoning-08-2025"],
@@ -1914,7 +1927,7 @@ const providerDefaults = {
     "chat": ["gemma4:e4b", "qwen3-vl:8b-thinking"]
   },
   "elevenlabs": {
-    "tts": ["eleven_v3", "eleven_multilingual_v2", "eleven_flash_v2_5"],
+    "tts": ["eleven_v3", "eleven_multilingual_v2", "eleven_flash_v2_5", "eleven_v4", "eleven_v4_turbo"],
     "audio_transcription": ["scribe_v2"],
     "music": ["music_v2_5"]
   }
@@ -1980,11 +1993,45 @@ const imageGenerationOptions = {
   }
 };
 
+// -------------------------------------------------------------------------
+// TTS choices: the values of the TTS provider selector (#tts-provider), each
+// naming the provider that speaks it and the registered model it sends. How a
+// model is sent and how its text is prepared come from the model's entry
+// (tts_family and the like), not from the choice. A value saved before a
+// choice was renamed or retired names its successor with `alias`; a retired
+// one also sets `retired`, and the page says so when it moves the value. Web Speech
+// runs in the browser and sends no model.
+// Read by Monadic::Utils::TtsProvider (Ruby) and tts-provider.js (browser).
+// -------------------------------------------------------------------------
+const ttsChoices = {
+  "openai-tts-4o": { "provider": "openai", "model": "gpt-4o-mini-tts-2025-12-15" },
+  "openai-tts-hd": { "provider": "openai", "model": "tts-1-hd" },
+  "openai-tts": { "provider": "openai", "model": "tts-1" },
+  "elevenlabs-v4": { "provider": "elevenlabs", "model": "eleven_v4" },
+  "elevenlabs-v4-turbo": { "provider": "elevenlabs", "model": "eleven_v4_turbo" },
+  "elevenlabs-v3": { "provider": "elevenlabs", "model": "eleven_v3" },
+  "elevenlabs-multilingual": { "provider": "elevenlabs", "model": "eleven_multilingual_v2" },
+  "elevenlabs-flash": { "provider": "elevenlabs", "model": "eleven_flash_v2_5" },
+  "gemini-flash": { "provider": "gemini", "model": "gemini-3.8-flash-tts" },
+  "gemini-flash-lite": { "provider": "gemini", "model": "gemini-3.8-flash-lite-tts" },
+  "mistral": { "provider": "mistral", "model": "voxtral-mini-tts-2603" },
+  "grok": { "provider": "xai", "model": "grok-tts" },
+  "webspeech": { "provider": "webspeech", "model": null, "execution": "browser" },
+  // Values saved by earlier versions
+  "openai": { "alias": "openai-tts-4o" },
+  "elevenlabs": { "alias": "elevenlabs-flash" },
+  "gemini": { "alias": "gemini-flash" },
+  "web-speech": { "alias": "webspeech" },
+  // Retired choices: a saved value moves to the successor with a notice
+  "gemini-pro": { "alias": "gemini-flash", "retired": true }
+};
+
 // Expose modelSpec globally for browser environment
 if (typeof window !== 'undefined') {
   window.modelSpec = modelSpec;
   window.providerDefaults = providerDefaults;
   window.imageGenerationOptions = imageGenerationOptions;
+  window.ttsChoices = ttsChoices;
 }
 
 // Support for Jest testing environment (CommonJS)
@@ -1998,6 +2045,11 @@ if (typeof module !== 'undefined' && module.exports) {
   });
   Object.defineProperty(module.exports, 'imageGenerationOptions', {
     value: imageGenerationOptions,
+    enumerable: false,
+    configurable: true
+  });
+  Object.defineProperty(module.exports, 'ttsChoices', {
+    value: ttsChoices,
     enumerable: false,
     configurable: true
   });

@@ -15,7 +15,7 @@ const i18n = require('./i18n');
 // with `app/settings.html`'s build-state badges.
 const installOptions = require('./install_options.config');
 const opReferences = require('./op_references');
-const { createRevealHandler, createTrashHandler, showSharedPath } = require('./shared_folder_reveal');
+const { createRevealHandler, createTrashHandler, showSharedPath, NO_ANSWER } = require('./shared_folder_reveal');
 const { writeStreamNoFollow, readStreamNoFollow, openReadNoFollow } = require('./no_follow_files');
 const { monadicShEnv, monadicInvocation } = require('./monadic_env');
 const { keepWarnings, createLineBuffer } = require('./build_output');
@@ -4075,7 +4075,8 @@ ipcMain.handle('shared-folder-reveal', createRevealHandler({
 // The server's description of one entry of the shared folder, asked just
 // before the entry is moved to the trash: whether it may go is the server's
 // rule (protected entries, chats open in a tab). null when the answer cannot
-// be had, so nothing is removed then.
+// be read, NO_ANSWER when the server cannot be reached; nothing is removed
+// then.
 function askSharedEntry(relativePath) {
   return new Promise((resolve) => {
     const http = require('http');
@@ -4098,8 +4099,8 @@ function askSharedEntry(relativePath) {
         }
       });
     });
-    req.on('timeout', () => { req.destroy(); resolve(null); });
-    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(NO_ANSWER); });
+    req.on('error', () => resolve(NO_ANSWER));
   });
 }
 

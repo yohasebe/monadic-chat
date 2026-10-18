@@ -65,18 +65,51 @@ function sameEntry(a, b) {
   return a.dev === b.dev && a.ino === b.ino;
 }
 
+// Each part must be spelled as the folder spells it: a folder that ignores
+// case would otherwise find "Apps" for "apps", which the server keeps (the
+// server checks the spelling again). On macOS the real path the system
+// gives (fs.realpathSync.native) is spelled as the folders spell every part,
+// so when it is the shared folder's real path with the parts as asked, no
+// folder needs listing. When it is not, or cannot be had, and on other
+// systems, each folder on the way is listed and must hold the part as it
+// is written.
+const REALPATH_SPELLS = new Set(['darwin']);
+
+function spelledByRealpath(root, target, parts, deps) {
+  if (!REALPATH_SPELLS.has(deps.platform) || !deps.fs.realpathSync || typeof deps.fs.realpathSync.native !== 'function') return false;
+  try {
+    return deps.fs.realpathSync.native(target) === path.join(deps.fs.realpathSync.native(root), ...parts);
+  } catch (_) {
+    return false;
+  }
+}
+
+function spelledByListing(root, parts, deps) {
+  let dir = root;
+  for (const part of parts) {
+    if (!deps.fs.readdirSync(dir).includes(part)) return false;
+    dir = path.join(dir, part);
+  }
+  return true;
+}
+
 function entryAt(root, relative, deps) {
   const parts = sharedPathParts(relative, deps.platform);
   if (!parts) return { error: 'invalid request' };
   let target = root;
   let stat = null;
   for (const part of parts) {
-    // Spelled as the folder spells it: a system that ignores case would
-    // otherwise find "Apps" for "apps", which the server keeps.
-    if (!deps.fs.readdirSync(target).includes(part)) return { error: 'the entry is not there' };
     target = path.join(target, part);
-    stat = deps.fs.lstatSync(target);
+    try {
+      stat = deps.fs.lstatSync(target);
+    } catch (err) {
+      if (err && (err.code === 'ENOENT' || err.code === 'ENOTDIR')) return { error: 'the entry is not there' };
+      throw err;
+    }
     if (stat.isSymbolicLink()) return { error: 'the path goes through a link' };
+  }
+  if (!spelledByRealpath(root, target, parts, deps) && !spelledByListing(root, parts, deps)) {
+    return { error: 'the entry is not there' };
   }
   if (!stat.isDirectory() && !stat.isFile()) return { error: 'not a file or folder' };
   return { target, stat, kind: stat.isDirectory() ? 'folder' : 'file' };
@@ -100,7 +133,14 @@ function createRevealHandler(deps) {
   };
 }
 
-const MAX_TRASH = 500; // entries in one request
+// Entries in one request: as many as the server lists from one folder
+// (SharedFolder::MAX_NAMES), so choosing every entry of a folder is moved
+// after one dialog. Each one is still asked about on its own.
+const MAX_TRASH = 20000;
+
+// askEntry's answer when the server could not be reached at all (no reply
+// in time, connection refused): the rest of the run is not tried.
+const NO_ANSWER = Symbol('no answer');
 
 // Moves entries of the shared folder to the system's trash. Each one must
 // pass the checks above, and the server must say it may go (not protected,
@@ -119,6 +159,7 @@ function createTrashHandler(deps) {
       if (!checkSender(event, deps)) return { ok: false, error: 'not from the app' };
       const paths = request && request.paths;
       if (!Array.isArray(paths) || paths.length === 0 || paths.length > MAX_TRASH ||
+          new Set(paths).size !== paths.length ||
           paths.some((p) => !sharedPathParts(p, deps.platform))) {
         return { ok: false, error: 'invalid request' };
       }
@@ -129,8 +170,15 @@ function createTrashHandler(deps) {
       }
 
       const results = [];
+      let silent = false;
       for (const relative of paths) {
-        results.push(await trashOne(first, request.rootId, relative, deps));
+        if (silent) {
+          results.push({ path: relative, ok: false, not_tried: true, error: 'not tried' });
+          continue;
+        }
+        const result = await trashOne(first, request.rootId, relative, deps);
+        if (result.no_answer) silent = true;
+        results.push(result);
       }
       return { ok: results.every((r) => r.ok), results };
     } catch (err) {
@@ -145,6 +193,7 @@ async function trashOne(first, rootId, relative, deps) {
     const found = entryAt(root, relative, deps);
     if (found.error) return { path: relative, ok: false, error: found.error };
     const item = await deps.askEntry(relative);
+    if (item === NO_ANSWER) return { path: relative, ok: false, no_answer: true, error: 'the server did not answer' };
     if (!item || !item.capabilities || item.capabilities.trash !== true) {
       return { path: relative, ok: false, error: 'not to be removed' };
     }
@@ -188,4 +237,4 @@ function showSharedPath(target, deps) {
   }
 }
 
-module.exports = { ROOT_ID_FILE, APP_PAGE_PATH, MAX_TRASH, sharedPathParts, createRevealHandler, createTrashHandler, showSharedPath };
+module.exports = { ROOT_ID_FILE, APP_PAGE_PATH, MAX_TRASH, NO_ANSWER, sharedPathParts, createRevealHandler, createTrashHandler, showSharedPath };

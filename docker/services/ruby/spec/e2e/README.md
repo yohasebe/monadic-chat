@@ -79,7 +79,7 @@ skip "System error or tool failure" if system_error?(response)
 
 ## Prerequisites
 
-- Docker containers for local services as needed (auto-started)
+- Docker containers for local services as needed (`run_e2e_tests.sh` starts them; a direct `rspec` run needs `MONADIC_TEST_START_CONTAINERS=1`)
 - Server on `localhost:4567` (auto-started if needed)
 - No provider API keys required for E2E
 

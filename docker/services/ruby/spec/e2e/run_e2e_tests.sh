@@ -63,6 +63,9 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # From docker/services/ruby/spec/e2e/ we need to go up 5 levels to reach project root
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/../../../../.." && pwd )"
 
+# spec_helper starts the Docker services only when this is set.
+export MONADIC_TEST_START_CONTAINERS=1
+
 # Debug info
 if [ ! -f "$PROJECT_ROOT/docker/monadic.sh" ]; then
   echo "ERROR: monadic.sh not found at: $PROJECT_ROOT/docker/monadic.sh"

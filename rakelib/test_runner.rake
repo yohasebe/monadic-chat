@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+# spec_helper starts the Docker services only when this is set.
+START_CONTAINERS_ENV = { "MONADIC_TEST_START_CONTAINERS" => "1" }.freeze
+
 # -----------------------------------------------------------------------------
 # Unified Test Runner tasks (developer UX)
 # -----------------------------------------------------------------------------
@@ -177,7 +180,7 @@ namespace :test do
     puts "\n🧪 [#{step}/#{total_steps}] Running Ruby integration tests..."
     integration_json = File.join(output_dir, 'integration.json')
     Dir.chdir("docker/services/ruby") do
-      results[:ruby_integration] = system("bundle exec rspec spec/integration --format documentation --format json --out #{integration_json}")
+      results[:ruby_integration] = system(START_CONTAINERS_ENV, "bundle exec rspec spec/integration --format documentation --format json --out #{integration_json}")
     end
 
     # Ruby system tests
@@ -185,7 +188,7 @@ namespace :test do
     puts "\n🧪 [#{step}/#{total_steps}] Running Ruby system tests..."
     system_json = File.join(output_dir, 'system.json')
     Dir.chdir("docker/services/ruby") do
-      results[:ruby_system] = system("bundle exec rspec spec/system --format documentation --format json --out #{system_json}")
+      results[:ruby_system] = system(START_CONTAINERS_ENV, "bundle exec rspec spec/system --format documentation --format json --out #{system_json}")
     end
 
     # API tests (optional by level)
@@ -194,7 +197,7 @@ namespace :test do
       puts "\n🧪 [#{step}/#{total_steps}] Running API tests..."
       api_json = File.join(output_dir, 'api.json')
       Dir.chdir("docker/services/ruby") do
-        results[:api] = system("bundle exec rspec spec/integration --tag api --format documentation --format json --out #{api_json}")
+        results[:api] = system(START_CONTAINERS_ENV, "bundle exec rspec spec/integration --tag api --format documentation --format json --out #{api_json}")
       end
     else
       results[:api] = true
@@ -206,7 +209,7 @@ namespace :test do
       puts "\n🧪 [#{step}/#{total_steps}] Running Media tests (image/video/audio generation)..."
       media_json = File.join(output_dir, 'media.json')
       Dir.chdir("docker/services/ruby") do
-        results[:media] = system("bundle exec rspec spec/integration/api_media --format documentation --format json --out #{media_json}")
+        results[:media] = system(START_CONTAINERS_ENV, "bundle exec rspec spec/integration/api_media --format documentation --format json --out #{media_json}")
       end
     else
       results[:media] = true
@@ -219,7 +222,7 @@ namespace :test do
       websearch_json = File.join(output_dir, 'websearch.json')
       Dir.chdir("docker/services/ruby") do
         # Run websearch-tagged integration tests
-        results[:websearch] = system("bundle exec rspec spec/integration --tag websearch --format documentation --format json --out #{websearch_json}")
+        results[:websearch] = system(START_CONTAINERS_ENV, "bundle exec rspec spec/integration --tag websearch --format documentation --format json --out #{websearch_json}")
       end
     else
       results[:websearch] = true

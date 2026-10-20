@@ -202,13 +202,18 @@ RSpec.configure do |config|
   # Include custom retry helper for E2E tests
   config.include E2ERetryHelper, type: :e2e
   
-  # Automatically start containers for integration and E2E tests
+  # Start the Docker services for integration and E2E tests, only when the
+  # run asks for it: a plain run of spec/unit also selects a few tagged
+  # examples, and must not start the user's containers.
   config.before(:suite) do
-    # Only start containers if running integration or E2E tests
     if RSpec.world.filtered_examples.values.flatten.any? { |ex|
          ex.metadata[:integration] || ex.metadata[:e2e]
        }
-      DockerContainerManager.ensure_containers_running
+      if ENV["MONADIC_TEST_START_CONTAINERS"] == "1"
+        DockerContainerManager.ensure_containers_running
+      else
+        puts "\nContainers are not started: set MONADIC_TEST_START_CONTAINERS=1 to start them for integration and E2E examples.\n\n"
+      end
     end
 
     # Load all apps for matrix tests and artifact tests

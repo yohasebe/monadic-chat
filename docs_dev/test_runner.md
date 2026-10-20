@@ -90,6 +90,8 @@ Troubleshooting
   - For API runs, set keys in `~/monadic/config/env` (e.g., `OPENAI_API_KEY=...`).
 - Docker not running
   - `test:all` stops with an error before any suite runs, whatever the API level. Start Docker Desktop and ensure the `qdrant` and `embeddings` containers are available. Unit specs alone run without Docker: `bundle exec rspec spec/unit` in `docker/services/ruby`.
+- Containers for integration and E2E examples
+  - `spec_helper` starts the Docker services only when `MONADIC_TEST_START_CONTAINERS=1` is set. The rake tasks, `test:all`, `run_e2e_tests.sh` and CI set it for their integration, system and E2E runs. A plain `bundle exec rspec spec/unit` also selects a few examples tagged `integration` or `e2e`; without the variable it prints a note and leaves the containers alone.
 - Long execution time
   - Limit API usage: `api_level=none` for quick turnaround.
 - Memory pressure in large suites

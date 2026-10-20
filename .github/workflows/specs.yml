@@ -42,6 +42,8 @@ jobs:
       # released :latest. Without this, dev CI would pull :latest and test
       # new code against released service images.
       MONADIC_IMAGE_TAG: ${{ github.ref_name == 'dev' && 'dev' || 'latest' }}
+      # spec_helper starts the Docker services only when this is set.
+      MONADIC_TEST_START_CONTAINERS: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v6

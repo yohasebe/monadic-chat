@@ -313,6 +313,24 @@ module WebSocketHelper
       # Generate a unique message ID
       message_id = SecureRandom.hex(4)
 
+      # Attachments go only with a user message, checked as for a sent
+      # one; the answers to later messages of this chat may then use them.
+      attachment_refs = nil
+      if obj.key?("attachments") && !Array(obj["attachments"]).empty?
+        unless obj["role"] == "user"
+          send_error("Files can be attached only to a user message.", ws_session_id, { "not_accepted" => true })
+          return
+        end
+        begin
+          attachment_refs = Monadic::Workspace::Attachments.refs_for_message!(
+            chat_id: session[Monadic::Workspace::Chats::SESSION_KEY], refs: obj["attachments"]
+          )
+        rescue Monadic::Workspace::Attachments::Unusable => e
+          send_error(e.message, ws_session_id, { "not_accepted" => true })
+          return
+        end
+      end
+
       params = get_session_params
       # Create message data
       new_data = {
@@ -325,6 +343,7 @@ module WebSocketHelper
 
       # Add images if present
       new_data["images"] = images if images
+      new_data["attachments"] = attachment_refs if attachment_refs && !attachment_refs.empty?
 
       # First add to session
       session[:messages] << new_data

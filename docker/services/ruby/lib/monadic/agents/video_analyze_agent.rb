@@ -233,10 +233,17 @@ module VideoAnalyzeAgent
   end
 
   # The attached video, run in a folder of its own inside the chat's folder.
-  # The chat is the session's; an id from another chat is refused.
+  # Only an attachment the message being answered allows (sent with it or
+  # an earlier message of the same chat) is taken, and only while the
+  # session is still that chat.
   def extract_from_attachment(attachment_id, session, fps, frame_limit, detailed = false)
     chat_id = session && session[Monadic::Workspace::Chats::SESSION_KEY]
-    record = Monadic::Workspace::Attachments.resolve!(chat_id: chat_id, attachment_id: attachment_id)
+    context = Monadic::Workspace::RequestContext.current
+    if context && context.chat_id != chat_id
+      raise Monadic::Workspace::Attachments::Unusable.new(:chat_moved_on, "This chat has ended.")
+    end
+
+    record = Monadic::Workspace::Attachments.resolve_for_request!(attachment_id: attachment_id, context: context)
     return "Error: attachment #{record[:original_name]} is not a video." unless record[:purpose] == "video"
 
     workspace = Monadic::Workspace::Ledger.default.workspace(record[:workspace_id])

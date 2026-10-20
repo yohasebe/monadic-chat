@@ -3326,6 +3326,17 @@ document.addEventListener("DOMContentLoaded", function () {
     const attachmentLines = typeof window.videoAttachmentLines === 'function' ? window.videoAttachmentLines() : '';
     const userMessageText = [typedText, attachmentLines].filter(function (part) { return part; }).join("\n\n");
     params["message"] = userMessageText;
+    // The same attachments as structure: the server checks them and lets the
+    // answer's tools take only these (and those of earlier messages).
+    const attachmentRefs = typeof window.videoAttachmentRefs === 'function' ? window.videoAttachmentRefs() : [];
+    if (attachmentRefs.length) params["attachments"] = attachmentRefs;
+    // What to give back for another try if the message is not accepted or
+    // fails: the typed text (not the lines added for the model) and the
+    // attachment cards.
+    window.pendingSend = {
+      text: typedText || '',
+      attachments: typeof window.snapshotVideoAttachments === 'function' ? window.snapshotVideoAttachments() : []
+    };
 
     // Mark that user has interacted with this tab (for app change confirmation)
     window.userHasInteractedInTab = true;
@@ -3368,6 +3379,8 @@ document.addEventListener("DOMContentLoaded", function () {
       reconnect_websocket(ws, function (_ws) {
         const role = ($id("select-role") || {}).value.split("-")[1];
         const msg_object = { message: "SAMPLE", content: userMessageText, role: role }
+        // Attached files go with a user sample too, so later messages can use them.
+        if (attachmentRefs.length) msg_object.attachments = attachmentRefs;
         // SAMPLE appends a fresh-mid turn to session[:messages] so a
         // queued replay would create a duplicate sample message.
         // Non-idempotent → default fail-fast.

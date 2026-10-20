@@ -70,10 +70,18 @@ describe('video attachments', () => {
     await window.uploadVideoAttachment(new File(['x'], 'clip.mp4'));
 
     expect(window.videoAttachmentLines()).toBe('Attached video: clip.mp4 (attachment_id: a_123)');
+    // Sent as structure too: only the id and the role (the server reads the rest).
+    expect(window.videoAttachmentRefs()).toEqual([{ attachment_id: 'a_123', role: 'input' }]);
     // Building the message does not clear the list: a failed send keeps it.
     expect(window.hasVideoAttachments()).toBe(true);
     window.clearVideoAttachments();
     expect(window.videoAttachmentLines()).toBe('');
+    expect(window.videoAttachmentRefs()).toEqual([]);
+    // Given back after a send that failed: the same cards again.
+    window.restoreVideoAttachments([{ attachment_id: 'a_123', name: 'clip.mp4', size: 1, purpose: 'video' }]);
+    expect(window.videoAttachmentRefs()).toEqual([{ attachment_id: 'a_123', role: 'input' }]);
+    expect(window.snapshotVideoAttachments()[0].name).toBe('clip.mp4');
+    window.clearVideoAttachments();
     expect(document.getElementById('image-used').textContent).not.toContain('clip.mp4');
   });
 

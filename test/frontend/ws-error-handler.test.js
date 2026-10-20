@@ -144,6 +144,27 @@ describe('ws-error-handler', () => {
       expect(global.setInputFocus).toHaveBeenCalled();
     });
 
+    it('gives back the typed text and the attachments of the message, not the lines added for the model', () => {
+      window.params = { message: 'look\n\nAttached video: a.mp4 (attachment_id: a_1)' };
+      window.pendingSend = { text: 'look', attachments: [{ attachment_id: 'a_1', name: 'a.mp4' }] };
+      window.restoreVideoAttachments = jest.fn();
+      handlers.handleError({ content: 'error' });
+      expect(document.getElementById('message').value).toBe('look');
+      expect(window.restoreVideoAttachments).toHaveBeenCalledWith([{ attachment_id: 'a_1', name: 'a.mp4' }]);
+      expect(window.pendingSend).toBeNull();
+      delete window.restoreVideoAttachments;
+    });
+
+    it('keeps the last card when the server did not accept the message (it was never shown)', () => {
+      const discourse = document.getElementById('discourse');
+      discourse.innerHTML = '<div class="card" id="m-earlier"><span class="user-color">User</span></div>';
+      handlers.handleError({ content: 'An attached file is not known to this chat.', not_accepted: true });
+      expect(global.deleteMessage).not.toHaveBeenCalled();
+      handlers.handleError({ content: 'error' });
+      expect(global.deleteMessage).toHaveBeenCalledWith('m-earlier');
+      discourse.innerHTML = '';
+    });
+
     it('restores message value from params for non-AI-User errors', () => {
       window.params = { message: 'my original message' };
       handlers.handleError({ content: 'error' });

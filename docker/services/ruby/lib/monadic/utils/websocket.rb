@@ -338,7 +338,11 @@ module WebSocketHelper
         when "VERIFY_CONFIDENCE"
           handle_ws_verify_confidence(connection, obj, session)
         else # fragment
-          thread = handle_ws_streaming(connection, obj, session, queue)
+          # A message that is not accepted (attachments that do not check
+          # out, a privacy or voice-only refusal) starts no thread; the
+          # answer already running stays the one Cancel and Reset stop.
+          started = handle_ws_streaming(connection, obj, session, queue)
+          thread = started if started
         end
       end # end case
     end # end while

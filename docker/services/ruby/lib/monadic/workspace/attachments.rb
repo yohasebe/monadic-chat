@@ -5,6 +5,7 @@ require_relative 'ids'
 require_relative 'ledger'
 require_relative 'folders'
 require_relative 'file_types'
+require_relative 'request_context'
 require_relative '../utils/environment'
 require_relative '../utils/shared_path_guard'
 
@@ -83,6 +84,51 @@ module Monadic
         raise Unusable.new(:changed, "The attached file #{record[:original_name]} was changed after it was attached.") unless unchanged?(path, record)
 
         record.merge(path: path)
+      end
+
+      MAX_PER_MESSAGE = 10
+      ROLES = %w[input].freeze
+
+      # The attachments sent with one message, checked against the ledger:
+      # each must be a ready attachment of this chat, listed once, with a
+      # known role. What the client sent besides the id and the role is not
+      # taken; purpose, name and size come from the ledger. Raises Unusable
+      # (nothing is sent to a provider then).
+      def refs_for_message!(chat_id:, refs:, ledger: Ledger.default)
+        list = refs.nil? ? [] : refs
+        raise Unusable.new(:invalid, 'The attachments of the message could not be read.') unless list.is_a?(Array)
+        raise Unusable.new(:too_many, "At most #{MAX_PER_MESSAGE} files can be attached to one message.") if list.size > MAX_PER_MESSAGE
+
+        seen = {}
+        list.map do |ref|
+          raise Unusable.new(:invalid, 'The attachments of the message could not be read.') unless ref.is_a?(Hash)
+
+          id = (ref['attachment_id'] || ref[:attachment_id]).to_s
+          role = (ref['role'] || ref[:role] || 'input').to_s
+          raise Unusable.new(:invalid, 'The attachments of the message could not be read.') unless ROLES.include?(role)
+          raise Unusable.new(:duplicate, 'The same file is attached twice.') if seen[id]
+
+          seen[id] = true
+          record = Ids.valid?(:attachment, id) && ledger.attachment(id)
+          raise Unusable.new(:unknown, 'An attached file is not known to this chat.') unless record && record[:chat_id] == chat_id
+          raise Unusable.new(:not_ready, 'An attached file is not ready.') unless record[:status] == 'ready'
+
+          { 'attachment_id' => id, 'role' => role, 'purpose' => record[:purpose],
+            'display_name' => record[:original_name], 'size' => record[:size] }
+        end
+      end
+
+      # Like resolve!, for a tool answering a message: the attachment must be
+      # one the request allows (sent with this message or an earlier one of
+      # the same chat). Without a request (a call from outside a chat
+      # message) no attachment can be taken by id. The message says nothing
+      # about which other attachments exist.
+      def resolve_for_request!(attachment_id:, context: RequestContext.current, ledger: Ledger.default)
+        unless context && context.allows?(attachment_id)
+          raise Unusable.new(:not_in_request, 'This file was not attached to a message of this chat.')
+        end
+
+        resolve!(chat_id: context.chat_id, attachment_id: attachment_id.to_s, ledger: ledger)
       end
 
       def unchanged?(path, record)

@@ -3,6 +3,7 @@
 require "spec_helper"
 require "json"
 require "open3"
+require "timeout"
 require "tmpdir"
 require "rbconfig"
 
@@ -98,7 +99,11 @@ RSpec.describe "Attaching a video and analyzing it" do
       describer = APPS["VideoDescriberApp"]
       describer.define_singleton_method(:video_vision_query) { |*_args, **_kw| "A deer crosses the road." }
       describer.define_singleton_method(:audio_transcription_agent) { |**_kw| "Hello." }
-      result = describer.analyze_video(file: id, fps: 1, session: { chat_id: chat_a, parameters: {} })
+      # As when the attachment was sent with a message of this chat.
+      sent = Monadic::Workspace::RequestContext.new(chat_id: chat_a, attachment_ids: [id])
+      result = Monadic::Workspace::RequestContext.with(sent) do
+        describer.analyze_video(file: id, fps: 1, session: { chat_id: chat_a, parameters: {} })
+      end
       out["analysis_head"] = result.lines.first.to_s.strip
       out["analysis_has_description"] = result.include?("A deer crosses the road.")
       pub = File.join(data, "pub_#{id}.mp4")
@@ -142,7 +147,24 @@ RSpec.describe "Attaching a video and analyzing it" do
       # this shell reaches the app.
       kept = ENV.to_h.select { |k, _| k == "PATH" || k == "LANG" || k.start_with?("BUNDLE", "GEM_", "RUBY", "RBENV") }
       env = kept.merge("HOME" => home, "IN_CONTAINER" => "false", "TMPDIR" => tmp)
-      out, status = Open3.capture2e(env, RbConfig.ruby, "-e", probe_script, chdir: app_root, unsetenv_others: true)
+      # In a process group of its own, with a time limit: a probe that hangs
+      # is stopped with everything it started.
+      out = +""
+      status = nil
+      Open3.popen2e(env, RbConfig.ruby, "-e", probe_script, chdir: app_root, unsetenv_others: true, pgroup: true) do |stdin, io, wait|
+        stdin.close
+        pgid = Process.getpgid(wait.pid)
+        begin
+          Timeout.timeout(180) { out << io.read }
+        rescue Timeout::Error
+          Process.kill("TERM", -pgid) rescue nil
+          sleep 1
+          Process.kill("KILL", -pgid) rescue nil
+          raise "probe timed out:\n#{out.lines.last(25).join}"
+        ensure
+          status = wait.value
+        end
+      end
       line = out.lines.find { |l| l.start_with?("PROBE ") }
       raise "probe failed (#{status.exitstatus}):\n#{out.lines.last(25).join}" unless line
 

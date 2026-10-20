@@ -513,6 +513,10 @@ RSpec.describe VideoAnalyzeAgent do
       allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data)
       allow(Monadic::Utils::Environment).to receive(:state_path).and_return(@state)
       allow(Monadic::Workspace::Ledger).to receive(:default).and_return(ledger)
+      # As when the attachments were sent with a message of this chat (the
+      # request's own checks are in request_attachments_spec.rb).
+      allow(Monadic::Workspace::RequestContext).to receive(:current)
+        .and_return(instance_double(Monadic::Workspace::RequestContext, chat_id: chat_id, allows?: true))
       allow(Monadic::Utils::SharedPathGuard).to receive(:command_path).and_call_original
       allow(Monadic::Utils::VideoProbe).to receive(:check!).and_call_original
       allow(agent).to receive(:video_vision_openai).and_return('A deer crosses the road.')
@@ -609,7 +613,7 @@ RSpec.describe VideoAnalyzeAgent do
 
     it 'refuses without a session to say which chat it is' do
       record = attach
-      expect(agent.analyze_video(attachment_id: record[:attachment_id])).to start_with('Error: No such attachment')
+      expect(agent.analyze_video(attachment_id: record[:attachment_id])).to start_with('Error:')
       expect(calls).to be_empty
     end
 
@@ -738,7 +742,13 @@ RSpec.describe VideoAnalyzeAgent do
         end
         allow(agent).to receive(:video_vision_query) { sleep 30 }
         runner = Thread.new { analyze }
-        audio_started.pop
+        # Bounded: if the analysis returns before the audio work starts, say
+        # what it returned instead of waiting for ever.
+        unless audio_started.pop(timeout: 10)
+          outcome = runner.join(1) ? runner.value.to_s[0, 300] : 'still running'
+          runner.kill
+          raise "the audio work did not start (analysis: #{outcome})"
+        end
         runner.kill
         runner.join(5)
         sleep 0.2

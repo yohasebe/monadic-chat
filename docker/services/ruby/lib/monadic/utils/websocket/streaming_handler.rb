@@ -203,6 +203,30 @@ module WebSocketHelper
       obj["message"] = clean
     end
 
+    # The attachments sent with this message, checked against the ledger,
+    # and the request the answer runs under: which attachments its tools
+    # may take by id (these, and those of earlier messages of this chat).
+    # They belong to this message only, so they are kept out of the
+    # session's parameters.
+    attachment_refs = nil
+    if obj.key?("attachments")
+      begin
+        attachment_refs = Monadic::Workspace::Attachments.refs_for_message!(chat_id: chat_at_start, refs: obj.delete("attachments"))
+      rescue Monadic::Workspace::Attachments::Unusable => e
+        # not_accepted: the page keeps the earlier messages and gives the
+        # text and the attachments back for another try.
+        send_error(e.message, ws_session_id, { "not_accepted" => true })
+        return nil
+      end
+    end
+    earlier_ids = Array(session[:messages]).flat_map do |m|
+      m["role"] == "user" ? Array(m["attachments"]).map { |a| a["attachment_id"] } : []
+    end
+    request_context = Monadic::Workspace::RequestContext.new(
+      chat_id: chat_at_start,
+      attachment_ids: earlier_ids + Array(attachment_refs).map { |a| a["attachment_id"] }
+    )
+
     session[:parameters].merge! obj
 
     # Guard: STS realtime models are voice-only — they have no chat
@@ -230,10 +254,22 @@ module WebSocketHelper
       params = get_session_params
       user_message_data = {
         "mid" => SecureRandom.hex(4),
+        "request_id" => request_context.request_id,
         "role" => "user",
         "text" => message_text,
         "app_name" => params["app_name"],
         "active" => true
+      }
+      user_message_data["attachments"] = attachment_refs if attachment_refs && !attachment_refs.empty?
+      # What this message was sent with, fixed when it was accepted (the
+      # values of input controls come with them later).
+      user_message_data["request_snapshot"] = {
+        "request_id" => request_context.request_id,
+        "chat_id" => chat_at_start,
+        "app_name" => params["app_name"],
+        "sent_at" => Time.now.utc.iso8601,
+        "input_values" => {},
+        "attachments" => Array(attachment_refs)
       }
       session[:messages] << user_message_data
       sync_session_state!
@@ -269,6 +305,8 @@ module WebSocketHelper
     thread = Thread.new do
       # Set thread type for identification
       Thread.current[:type] = :tts
+      # The request this answer runs under, fixed for all of it.
+      Monadic::Workspace::RequestContext.enter(request_context)
 
       # If we have a token counting thread, wait for it to complete and save result
       if defined?(token_count_thread) && token_count_thread

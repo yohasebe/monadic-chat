@@ -122,17 +122,25 @@ function handleError(data) {
       if (aiUserBtn) aiUserBtn.disabled = false;
       updateAIUserButtonState(window.messages);
     } else {
-      // For non-AI User errors, remove user message that caused error
-      const discourseCards = document.querySelectorAll("#discourse .card");
-      const lastCard = discourseCards.length > 0 ? discourseCards[discourseCards.length - 1] : null;
-      if (lastCard && lastCard.querySelector(".user-color")) {
-        deleteMessage(lastCard.id);
+      // For non-AI User errors, remove user message that caused error. A
+      // message the server did not accept was never shown, so the last
+      // card is an earlier one and stays.
+      if (!data.not_accepted) {
+        const discourseCards = document.querySelectorAll("#discourse .card");
+        const lastCard = discourseCards.length > 0 ? discourseCards[discourseCards.length - 1] : null;
+        if (lastCard && lastCard.querySelector(".user-color")) {
+          deleteMessage(lastCard.id);
+        }
       }
 
-      // Restore the message content so user can edit and retry
+      // Restore the message content so user can edit and retry: the typed
+      // text and the attachments it was sent with, when they are known.
       const params = window.params || {};
+      const pending = window.pendingSend;
       const errMsgEl = $id("message");
-      if (errMsgEl) errMsgEl.value = params["message"] || '';
+      if (errMsgEl) errMsgEl.value = pending ? pending.text : (params["message"] || '');
+      if (pending && typeof window.restoreVideoAttachments === 'function') window.restoreVideoAttachments(pending.attachments);
+      window.pendingSend = null;
     }
 
     // Notify Workflow Viewer of error state

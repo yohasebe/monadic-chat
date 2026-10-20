@@ -95,6 +95,25 @@ function videoAttachmentLines() {
   }).join('\n');
 }
 
+// The attachments sent with the message, as the server takes them: the id
+// and its role only (the server reads the rest from its own record).
+function videoAttachmentRefs() {
+  return videoAttachments.map(function (v) { return { attachment_id: v.attachment_id, role: 'input' }; });
+}
+
+// The attachments as they are now, to give back if the message they were
+// sent with is not accepted or fails; and putting such a list back.
+function snapshotVideoAttachments() {
+  return videoAttachments.map(function (v) { return Object.assign({}, v); });
+}
+
+function restoreVideoAttachments(list) {
+  if (!Array.isArray(list) || list.length === 0) return;
+  attachmentGeneration += 1;
+  videoAttachments = list.map(function (v) { return Object.assign({}, v); });
+  updateFileDisplay(images);
+}
+
 function clearVideoAttachments() {
   attachmentGeneration += 1;
   videoAttachments = [];
@@ -791,6 +810,9 @@ window.isAudioFile = isAudioFile;
 window.uploadVideoAttachment = uploadVideoAttachment;
 window.hasVideoAttachments = hasVideoAttachments;
 window.videoAttachmentLines = videoAttachmentLines;
+window.videoAttachmentRefs = videoAttachmentRefs;
+window.snapshotVideoAttachments = snapshotVideoAttachments;
+window.restoreVideoAttachments = restoreVideoAttachments;
 window.clearVideoAttachments = clearVideoAttachments;
 window.getDocumentIcon = getDocumentIcon;
 window.isDocumentType = isDocumentType;

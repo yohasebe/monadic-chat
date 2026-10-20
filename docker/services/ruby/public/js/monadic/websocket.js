@@ -1136,6 +1136,8 @@ window.loadedApp = "Chat";
       }
 
       case "html": {
+        // The answer arrived: nothing of the message is to be given back now.
+        window.pendingSend = null;
         const wsh = window.WsHtmlHandler;
         if (wsh && typeof wsh.handleHtml === 'function') {
           wsh.handleHtml(data);

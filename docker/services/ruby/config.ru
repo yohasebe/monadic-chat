@@ -10,6 +10,27 @@ require_relative "lib/monadic/utils/unlimited_session_store"
 require_relative "lib/monadic/utils/auth_middleware"
 require_relative "lib/monadic/utils/local_origin_guard"
 
+# What only the server does (a program that loads lib/monadic, such as a rake
+# task, leaves the state folder alone). One server writes the state folder:
+# this one takes its mark before anything there is read or changed, and does
+# not start without it (another server, in the container or run from the
+# host, may be using the folder).
+begin
+  Monadic::Workspace::ServerOwner.acquire!
+rescue Monadic::Workspace::ServerOwner::Refused => e
+  warn "[Workspace] Not starting: #{e.message}"
+  Monadic::Workspace::ServerOwner.stop_server!
+  raise
+end
+
+# Attachments a stopped server left half-saved are marked failed, so no chat
+# treats them as usable. Reads only; writes when there is something to mark.
+begin
+  Monadic::Workspace::Ledger.default.reconcile_interrupted! if File.exist?(Monadic::Workspace::Ledger.default_path)
+rescue StandardError => e
+  puts "[Workspace] Ledger check skipped: #{e.class}"
+end
+
 set :logging, true
 set :bind, "0.0.0.0"
 

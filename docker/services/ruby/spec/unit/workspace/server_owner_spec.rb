@@ -184,6 +184,16 @@ RSpec.describe Monadic::Workspace::ServerOwner do
     expect(Process).to have_received(:kill).with('TERM', Process.ppid)
   end
 
+  it 'is taken by the server only (config.ru), before the ledger is touched or requests are served' do
+    root = File.expand_path('../../..', __dir__)
+    config = File.read(File.join(root, 'config.ru'))
+    take = config.index('ServerOwner.acquire!')
+    expect(take).not_to be_nil
+    expect(take).to be < config.index('reconcile_interrupted!')
+    expect(take).to be < config.index('use MCPServerStarter')
+    expect(File.read(File.join(root, 'lib/monadic.rb'))).not_to include('ServerOwner.acquire!')
+  end
+
   describe 'the ledger' do
     let(:ledger) { Monadic::Workspace::Ledger.new(File.join(@state, 'ledger.json')) }
     let(:chat) { Monadic::Workspace::Ids.generate(:chat) }

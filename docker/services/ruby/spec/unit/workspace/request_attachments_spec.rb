@@ -7,6 +7,7 @@ require "fileutils"
 require "stringio"
 require_relative "../../../lib/monadic/utils/websocket"
 require_relative "../../../lib/monadic/workspace"
+require_relative "../../../lib/monadic/utils/privacy/language_detector"
 
 # The attachments a message carries, and what the tools answering it may
 # take by id: only those sent with this message or an earlier message of the

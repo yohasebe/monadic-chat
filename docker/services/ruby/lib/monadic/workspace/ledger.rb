@@ -6,6 +6,7 @@ require 'securerandom'
 require 'time'
 require_relative 'ids'
 require_relative 'server_owner'
+require_relative 'ledger_schema'
 require_relative '../utils/environment'
 
 module Monadic
@@ -19,11 +20,18 @@ module Monadic
     # an exclusive lock and replaces it by renaming a fully written copy, so
     # a crash mid-write leaves the previous ledger whole.
     class Ledger
-      SCHEMA_VERSION = 1
+      SCHEMA_VERSION = LedgerSchema::VERSION
       FILE_NAME = 'ledger.json'
 
       class Conflict < StandardError; end
+      # The ledger cannot be used: nothing is registered or removed then.
       class Unreadable < StandardError; end
+      # Not JSON.
+      class Syntax < Unreadable; end
+      # JSON, but not of the ledger's form (LedgerSchema).
+      class Shape < Unreadable; end
+      # Written by a newer version.
+      class Newer < Unreadable; end
 
       def self.default_path
         File.join(Monadic::Utils::Environment.state_path, FILE_NAME)
@@ -79,7 +87,7 @@ module Monadic
         workspace(workspace_id)
       end
 
-      ATTACHMENT_STATES = %w[validating ready failed].freeze
+      ATTACHMENT_STATES = LedgerSchema::ATTACHMENT_STATES
 
       # An attachment is recorded before its file is written, as validating,
       # so a crash between the two leaves a record that reconcile! can fail
@@ -176,6 +184,8 @@ module Monadic
           ServerOwner.writing do
             data = load
             result = yield data
+            # A change that would leave the ledger out of form is not saved.
+            checked(data)
             save(data)
             result
           end
@@ -196,18 +206,17 @@ module Monadic
 
       def load
         data = File.exist?(@path) ? JSON.parse(File.read(@path)) : {}
-        raise Unreadable, 'ledger is not a JSON object' unless data.is_a?(Hash)
-
-        version = data['schema_version'] || SCHEMA_VERSION
-        raise Unreadable, "ledger schema #{version} is newer than this version understands" if version > SCHEMA_VERSION
-
-        data['schema_version'] = version
-        data['chats'] ||= {}
-        data['workspaces'] ||= {}
-        data['attachments'] ||= {}
-        data
+        checked(data)
       rescue JSON::ParserError
-        raise Unreadable, 'ledger is not valid JSON'
+        raise Syntax, 'ledger is not valid JSON'
+      end
+
+      def checked(data)
+        LedgerSchema.check!(data)
+      rescue LedgerSchema::Newer => e
+        raise Newer, e.message
+      rescue LedgerSchema::Shape => e
+        raise Shape, "ledger is not of the expected form: #{e.message}"
       end
 
       def save(data)

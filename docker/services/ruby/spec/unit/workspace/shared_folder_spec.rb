@@ -208,11 +208,11 @@ RSpec.describe Monadic::Workspace::SharedFolder do
 
     let(:attachment) do
       workspace = ids.generate(:workspace)
-      ledger.register_workspace(chat_id: chat, workspace_id: workspace, app_name: 'VideoDescriberOpenAI',
-                                relative_dir: "conversations/20261011-100000_video_#{workspace}")
+      dir = "conversations/20261011-100000_video_#{workspace}"
+      ledger.register_workspace(chat_id: chat, workspace_id: workspace, app_name: 'VideoDescriberOpenAI', relative_dir: dir)
       id = ids.generate(:attachment)
       ledger.register_attachment(attachment_id: id, chat_id: chat, workspace_id: workspace, purpose: 'video',
-                                 original_name: 'v.mp4', relative_path: "conversations/x/inputs/#{id}__v.mp4")
+                                 original_name: 'v.mp4', relative_path: "#{dir}/inputs/#{id}__v.mp4")
       id
     end
 

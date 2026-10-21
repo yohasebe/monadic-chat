@@ -230,7 +230,7 @@ RSpec.describe Monadic::Workspace::ServerOwner do
         ledger.send(:write) do |data|
           inside << true
           go_on.pop
-          data['chats']['written'] = true
+          data['written_by_the_test'] = true
         end
       end
       Timeout.timeout(5) { inside.pop }
@@ -243,7 +243,7 @@ RSpec.describe Monadic::Workspace::ServerOwner do
       go_on << true
       expect(writer.join(2)).to be_truthy
       expect(releasing.join(2)).to be_truthy
-      expect(JSON.parse(File.read(File.join(@state, 'ledger.json')))['chats']['written']).to be(true)
+      expect(JSON.parse(File.read(File.join(@state, 'ledger.json')))['written_by_the_test']).to be(true)
       expect { Timeout.timeout(2) { register } }.to raise_error(described_class::Refused, /stopping/)
       expect(refused?(owner(mode: 'host', host_id: 'mac', pid: 200, alive: [100]))).to be(false)
     end

@@ -413,6 +413,15 @@ function attachEventListeners(card) {
       }
 
       const mid = card.id;
+
+      // One edit of a message at a time: the server's answer names only the
+      // message, so a second one would take the first one's way back.
+      if (window.pendingEdits && window.pendingEdits[mid]) {
+        const fallback = 'The previous edit of this message is still being saved. Edit it again when it has been saved.';
+        setAlert(typeof getTranslation === 'function' ? getTranslation('ui.messages.editStillSaving', fallback) : fallback, 'warning');
+        return;
+      }
+
       const messageIndex = messages.findIndex((m) => m.mid === mid);
       const currentMessage = messages[messageIndex];
 
@@ -610,6 +619,11 @@ function attachEventListeners(card) {
 
           const newText = editArea.value;
 
+          // Kept until the server takes the edit, so a refused edit puts the
+          // card and the message back as they were.
+          window.pendingEdits = window.pendingEdits || {};
+          window.pendingEdits[mid] = { html: cardTextEl._originalContent, text: currentMessage.text };
+
           // Update message in the messages array
           currentMessage.text = newText;
 
@@ -694,6 +708,53 @@ function attachEventListeners(card) {
 
   card.addEventListener("click", cardClickHandler);
   card._cardClickHandler = cardClickHandler;
+
+  // Tooltip handlers via mouseenter/mouseleave delegation
+  function tooltipEnterHandler(event) {
+    const target = event.target.closest(".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .func-verify, .status, .card-turn-badge");
+    if (target && card.contains(target)) {
+      const tip = bootstrap.Tooltip.getInstance(target);
+      if (tip) tip.show();
+      const icon = target.querySelector("i");
+      if (icon) icon.classList.add("icon-active");
+    }
+  }
+
+  function tooltipLeaveHandler(event) {
+    const target = event.target.closest(".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .func-verify, .status, .card-turn-badge");
+    if (target && card.contains(target)) {
+      const tip = bootstrap.Tooltip.getInstance(target);
+      if (tip) tip.hide();
+
+      if (event.type === "mouseleave") {
+        const icon = target.querySelector("i");
+        if (icon) icon.classList.remove("icon-active");
+      }
+
+      // For iOS devices
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+      if (isIOS && (event.type === "click" || event.type === "touchend")) {
+        const isPlayButton = target.classList.contains("func-play");
+        const isStopButton = target.classList.contains("func-stop");
+
+        if (isPlayButton || isStopButton) {
+          const icon = target.querySelector("i");
+          setTimeout(() => {
+            if (icon) icon.classList.remove("icon-active");
+          }, 500);
+        }
+      }
+    }
+  }
+
+  card.addEventListener("mouseenter", tooltipEnterHandler, true);
+  card.addEventListener("mouseleave", tooltipLeaveHandler, true);
+  card.addEventListener("touchend", tooltipLeaveHandler, true);
+  card._tooltipEnterHandler = tooltipEnterHandler;
+  card._tooltipLeaveHandler = tooltipLeaveHandler;
+}
 
   // No duplicate click handler for .func-delete needed
 
@@ -798,21 +859,6 @@ window.cancelEditMode = cancelEditMode;
 window.cleanupCardTextListeners = cleanupCardTextListeners;
 window.updateCardTurnNumbers = updateCardTurnNumbers;
 window.getCardTurnNumber = getCardTurnNumber;
-
-// Support for Jest testing environment (CommonJS)
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    attachEventListeners,
-    detachEventListeners,
-    cancelEditMode,
-    cleanupCardTextListeners,
-    deleteSystemMessage,
-    deleteMessageAndSubsequent,
-    deleteMessageOnly,
-    updateCardTurnNumbers,
-    getCardTurnNumber
-  };
-}
 window.deleteMessageAndSubsequent = function(mid, messageIndex) {
   // HTML dataset attributes arrive as strings. `messageIndex + 1` would then
   // perform string concatenation ("2" + 1 === "21") and `slice("21")` would
@@ -943,52 +989,6 @@ window.deleteMessageOnly = function(mid, messageIndex) {
   }
 };
 
-  // Tooltip handlers via mouseenter/mouseleave delegation
-  function tooltipEnterHandler(event) {
-    const target = event.target.closest(".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .func-verify, .status, .card-turn-badge");
-    if (target && card.contains(target)) {
-      const tip = bootstrap.Tooltip.getInstance(target);
-      if (tip) tip.show();
-      const icon = target.querySelector("i");
-      if (icon) icon.classList.add("icon-active");
-    }
-  }
-
-  function tooltipLeaveHandler(event) {
-    const target = event.target.closest(".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .func-verify, .status, .card-turn-badge");
-    if (target && card.contains(target)) {
-      const tip = bootstrap.Tooltip.getInstance(target);
-      if (tip) tip.hide();
-
-      if (event.type === "mouseleave") {
-        const icon = target.querySelector("i");
-        if (icon) icon.classList.remove("icon-active");
-      }
-
-      // For iOS devices
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-      if (isIOS && (event.type === "click" || event.type === "touchend")) {
-        const isPlayButton = target.classList.contains("func-play");
-        const isStopButton = target.classList.contains("func-stop");
-
-        if (isPlayButton || isStopButton) {
-          const icon = target.querySelector("i");
-          setTimeout(() => {
-            if (icon) icon.classList.remove("icon-active");
-          }, 500);
-        }
-      }
-    }
-  }
-
-  card.addEventListener("mouseenter", tooltipEnterHandler, true);
-  card.addEventListener("mouseleave", tooltipLeaveHandler, true);
-  card.addEventListener("touchend", tooltipLeaveHandler, true);
-  card._tooltipEnterHandler = tooltipEnterHandler;
-  card._tooltipLeaveHandler = tooltipLeaveHandler;
-}
 
 // Global variable to track active edit state
 let activeEditSession = null;
@@ -1127,4 +1127,19 @@ function detachEventListeners(card) {
       document.querySelectorAll('.tooltip').forEach(el => el.remove());
     }
   }
+}
+
+// Support for Jest testing environment (CommonJS)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    attachEventListeners,
+    detachEventListeners,
+    cancelEditMode,
+    cleanupCardTextListeners,
+    deleteSystemMessage: window.deleteSystemMessage,
+    deleteMessageAndSubsequent: window.deleteMessageAndSubsequent,
+    deleteMessageOnly: window.deleteMessageOnly,
+    updateCardTurnNumbers,
+    getCardTurnNumber
+  };
 }

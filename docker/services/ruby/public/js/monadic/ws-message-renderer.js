@@ -19,6 +19,9 @@
  */
 function handlePastMessages(data) {
   const serverMessages = Array.isArray(data["content"]) ? data["content"] : [];
+  // The conversation is replaced: edits waiting for an answer have nothing
+  // left to put back.
+  window.pendingEdits = {};
   if (window.debugWebSocket) console.log(`[Session] Rendering past_messages (count=${serverMessages.length})`);
 
   if (data["from_import"]) {
@@ -266,6 +269,9 @@ function handlePastMessages(data) {
  * @param {Object} data - Message data with mid, html, content, images
  */
 function handleEditSuccess(data) {
+  // The server took the edit: nothing is to be put back.
+  if (window.pendingEdits) delete window.pendingEdits[data.mid];
+
   // Handle successful message edit
   setAlert(`<i class='fa-solid fa-circle-check'></i> ${data.content}`, "success");
 

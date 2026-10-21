@@ -201,6 +201,30 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
       expect(errors.join).not_to include('Bob')
     end
 
+    it 'says a refusal was not accepted, so the page keeps the cards it shows' do
+      extras = []
+      allow(host).to receive(:send_error) { |_msg, _id, extra = {}| extras << extra }
+      off = real_session(parameters: { 'app_name' => 'MailComposerOpenAI' })
+      host.take_privacy_marks('⟦Bob⟧', off, 'tab')
+      on = real_session(parameters: { 'app_name' => 'MailComposerOpenAI' }, _privacy_session_enabled: true)
+      host.take_privacy_marks('⟦Bob', on, 'tab')
+      expect(extras.size).to eq(2)
+      expect(extras).to all(eq('not_accepted' => true))
+    end
+
+    it 'takes the marks of a sample message too, and adds nothing when they are refused' do
+      allow(host).to receive(:send_error)
+      allow(host).to receive(:get_session_params).and_return({ 'app_name' => 'MailComposerOpenAI' })
+      on = real_session(parameters: { 'app_name' => 'MailComposerOpenAI' }, _privacy_session_enabled: true, messages: [])
+      host.send(:handle_ws_sample, nil, { 'content' => 'I am ⟦Bob⟧', 'role' => 'assistant' }, on)
+      expect(on[:messages].map { |m| m['text'] }).to eq(['I am Bob'])
+      expect(Monadic::Utils::Privacy::Registry.new(on).terms).to eq([{ text: 'Bob', type: 'PERSON' }])
+
+      off = real_session(parameters: { 'app_name' => 'MailComposerOpenAI' }, messages: [])
+      host.send(:handle_ws_sample, nil, { 'content' => 'I am ⟦Bob⟧', 'role' => 'user' }, off)
+      expect(off[:messages]).to be_empty
+    end
+
     it 'does not record or send a message whose marks are refused' do
       allow(host).to receive(:send_error)
       session = real_session(parameters: { 'app_name' => 'MailComposerOpenAI' }, messages: [])
@@ -209,13 +233,43 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
       expect(session[:parameters]).not_to have_key('message')
     end
 
+    it 'refuses words to mask in a system sample or a system edit, which are sent unmasked' do
+      errors = []
+      allow(host).to receive(:send_error) { |msg, _id, extra = {}| errors << extra.merge('message' => msg) }
+      allow(host).to receive(:get_session_params).and_return({ 'app_name' => 'MailComposerOpenAI' })
+      session = real_session(parameters: { 'app_name' => 'MailComposerOpenAI' }, _privacy_session_enabled: true,
+                             messages: [{ 'mid' => 's1', 'role' => 'system', 'text' => 'Be brief.' }])
+      host.send(:handle_ws_sample, nil, { 'content' => 'Call me ⟦Bob⟧', 'role' => 'system' }, session)
+      expect(Monadic::Utils::Privacy::Registry.new(session).terms).to be_empty
+
+      Monadic::Utils::Privacy::Registry.new(session).add_terms!([{ text: 'Alice', type: 'PERSON' }])
+      host.send(:handle_ws_sample, nil, { 'content' => 'Call me Alice', 'role' => 'system' }, session)
+      Thread.current[:rack_session] = session
+      host.handle_edit_message(nil, { 'mid' => 's1', 'content' => 'Call me Alice' })
+      host.handle_edit_message(nil, { 'mid' => 's1', 'content' => 'Call me ⟦Bob⟧' })
+
+      expect(session[:messages].map { |m| m['text'] }).to eq(['Be brief.'])
+      expect(Monadic::Utils::Privacy::Registry.new(session).terms.map { |t| t[:text] }).to eq(['Alice'])
+      expect(errors.size).to eq(4)
+      expect(errors).to all(include('not_accepted' => true, 'message' => a_string_including('system message')))
+      expect(errors.last).to include('edit_refused' => true, 'mid' => 's1')
+
+      host.send(:handle_ws_sample, nil, { 'content' => 'I am ⟦Bob⟧', 'role' => 'user' }, session)
+      expect(session[:messages].last['text']).to eq('I am Bob')
+    ensure
+      Thread.current[:rack_session] = nil
+    end
+
     it 'keeps an edited message as it was when its marks are refused' do
       allow(host).to receive(:send_error)
       session = real_session(parameters: { 'app_name' => 'MailComposerOpenAI' },
                              messages: [{ 'mid' => 'm1', 'role' => 'user', 'text' => 'old' }])
       Thread.current[:rack_session] = session
+      extras = []
+      allow(host).to receive(:send_error) { |_msg, _id, extra = {}| extras << extra }
       host.handle_edit_message(nil, { 'mid' => 'm1', 'content' => '⟦Bob⟧' })
       expect(session[:messages].first['text']).to eq('old')
+      expect(extras).to eq([{ 'not_accepted' => true, 'edit_refused' => true, 'mid' => 'm1' }])
     ensure
       Thread.current[:rack_session] = nil
     end

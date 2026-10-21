@@ -158,6 +158,23 @@ describe('ws-error-handler', () => {
       delete window.restoreVideoAttachments;
     });
 
+    it('gives a refused sample back with its role, and stops its time limit', () => {
+      const role = document.getElementById('select-role');
+      role.innerHTML = '<option value="user">user</option><option value="sample-assistant">assistant</option>';
+      role.value = 'user';
+      const changed = jest.fn();
+      role.addEventListener('change', changed);
+      window.pendingSend = { text: 'I am Bob', role: 'sample-assistant', attachments: [], images: [] };
+      const timedOut = jest.fn();
+      window.currentSampleTimeout = setTimeout(timedOut, 10);
+      handlers.handleError({ content: 'Nothing was sent.', not_accepted: true });
+      expect(role.value).toBe('sample-assistant');
+      expect(changed).toHaveBeenCalledTimes(1);
+      expect(document.getElementById('message').value).toBe('I am Bob');
+      expect(window.currentSampleTimeout).toBeNull();
+      return new Promise(resolve => setTimeout(resolve, 30)).then(() => expect(timedOut).not.toHaveBeenCalled());
+    });
+
     it('keeps the last card when the server did not accept the message (it was never shown)', () => {
       const discourse = document.getElementById('discourse');
       discourse.innerHTML = '<div class="card" id="m-earlier"><span class="user-color">User</span></div>';

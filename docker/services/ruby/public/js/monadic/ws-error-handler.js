@@ -29,6 +29,30 @@ function handleError(data) {
     return;
   }
 
+  // A refused edit: put that card and its message back as the server keeps
+  // them. The message box and any answer running are not touched.
+  if (data.edit_refused) {
+    const undo = window.pendingEdits && window.pendingEdits[data.mid];
+    if (undo) {
+      delete window.pendingEdits[data.mid];
+      const editedCard = $id(data.mid);
+      const editedText = editedCard && editedCard.querySelector('.card-text');
+      if (editedText && typeof undo.html === 'string') editedText.innerHTML = undo.html;
+      // The message as the page holds it now (a reload may have replaced it).
+      const list = Array.isArray(window.messages) ? window.messages : [];
+      const editedMessage = list.find(function (m) { return m && m.mid === data.mid; });
+      if (editedMessage) editedMessage.text = undo.text;
+    }
+    setAlert(data.content, 'error');
+    return;
+  }
+
+  // A refused sample has answered; its time limit no longer applies.
+  if (window.currentSampleTimeout) {
+    clearTimeout(window.currentSampleTimeout);
+    window.currentSampleTimeout = null;
+  }
+
   // Clear any pending spinner check interval on error
   if (window.spinnerCheckInterval) {
     clearInterval(window.spinnerCheckInterval);
@@ -154,6 +178,12 @@ function handleError(data) {
       if (errMsgEl) errMsgEl.value = pending ? pending.text : (params["message"] || '');
       if (pending && typeof window.restoreImages === 'function') window.restoreImages(pending.images);
       if (pending && typeof window.restoreVideoAttachments === 'function') window.restoreVideoAttachments(pending.attachments);
+      // A sample keeps its role, so the retry is not sent as a user message.
+      const errRoleEl = $id("select-role");
+      if (pending && pending.role && errRoleEl && errRoleEl.value !== pending.role) {
+        errRoleEl.value = pending.role;
+        $dispatch(errRoleEl, "change");
+      }
       window.pendingSend = null;
     }
 

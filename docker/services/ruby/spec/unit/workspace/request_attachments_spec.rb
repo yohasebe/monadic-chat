@@ -380,6 +380,20 @@ RSpec.describe "Attachments with a sample message" do
     expect(session[:messages].last["attachments"].map { |a| a["attachment_id"] }).to eq([id])
   end
 
+  it "records a user sample like a sent message: a request of its own and the snapshot, not for other roles" do
+    id = upload
+    allow(Monadic::Utils::Privacy::LanguageDetector).to receive(:detect_and_lock!)
+    sample("user", [{ "attachment_id" => id }])
+    host.send(:handle_ws_sample, nil, { "content" => "an answer", "role" => "assistant" }, session)
+    user, assistant = session[:messages]
+    expect(user["request_id"]).to match(/\Aq_[a-z0-9]{16}\z/)
+    expect(user["request_snapshot"]).to include("request_id" => user["request_id"], "chat_id" => chat,
+                                               "app_name" => "VideoDescriberOpenAI", "input_values" => {})
+    expect(user["request_snapshot"]["attachments"]).to eq(user["attachments"])
+    expect(assistant.keys).not_to include("request_id", "request_snapshot", "attachments")
+    expect(Monadic::Utils::Privacy::LanguageDetector).to have_received(:detect_and_lock!).with("about the clip", session).once
+  end
+
   it "refuses them on an assistant or system sample, and ones that do not check out, recording nothing" do
     id = upload
     sample("assistant", [{ "attachment_id" => id }])

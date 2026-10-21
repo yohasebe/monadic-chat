@@ -183,6 +183,25 @@ module WebSocketHelper
   # Main streaming handler — processes LLM API responses with realtime TTS,
   # fragment buffering, post-completion TTS, and context extraction.
   # @return [Thread] The streaming thread (returned for orchestrator control)
+  # The fields a user message gets when it is accepted: its request, the
+  # attachments it was sent with, and a snapshot of what it was sent with,
+  # fixed then (the values of input controls come with them later). A sent
+  # message and a user sample are recorded alike.
+  private def user_turn_fields(request_id:, chat_id:, app_name:, attachment_refs:)
+    refs = Array(attachment_refs)
+    fields = { "request_id" => request_id }
+    fields["attachments"] = refs unless refs.empty?
+    fields["request_snapshot"] = {
+      "request_id" => request_id,
+      "chat_id" => chat_id,
+      "app_name" => app_name,
+      "sent_at" => Time.now.utc.iso8601,
+      "input_values" => {},
+      "attachments" => refs
+    }
+    fields
+  end
+
   private def handle_ws_streaming(connection, obj, session, queue)
     # Get session ID for targeted broadcasting throughout streaming
     ws_session_id = Thread.current[:websocket_session_id]
@@ -257,23 +276,12 @@ module WebSocketHelper
       params = get_session_params
       user_message_data = {
         "mid" => SecureRandom.hex(4),
-        "request_id" => request_context.request_id,
         "role" => "user",
         "text" => message_text,
         "app_name" => params["app_name"],
         "active" => true
-      }
-      user_message_data["attachments"] = attachment_refs if attachment_refs && !attachment_refs.empty?
-      # What this message was sent with, fixed when it was accepted (the
-      # values of input controls come with them later).
-      user_message_data["request_snapshot"] = {
-        "request_id" => request_context.request_id,
-        "chat_id" => chat_at_start,
-        "app_name" => params["app_name"],
-        "sent_at" => Time.now.utc.iso8601,
-        "input_values" => {},
-        "attachments" => Array(attachment_refs)
-      }
+      }.merge(user_turn_fields(request_id: request_context.request_id, chat_id: chat_at_start,
+                               app_name: params["app_name"], attachment_refs: attachment_refs))
       session[:messages] << user_message_data
       sync_session_state!
 

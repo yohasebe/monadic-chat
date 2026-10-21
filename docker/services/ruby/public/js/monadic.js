@@ -3332,6 +3332,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // fails: the typed text, the attachment cards, and the images and PDFs.
     window.pendingSend = {
       text: typedText || '',
+      role: ($id("select-role") || {}).value || 'user',
       attachments: typeof window.snapshotVideoAttachments === 'function' ? window.snapshotVideoAttachments() : [],
       images: typeof window.snapshotImages === 'function' ? window.snapshotImages() : []
     };

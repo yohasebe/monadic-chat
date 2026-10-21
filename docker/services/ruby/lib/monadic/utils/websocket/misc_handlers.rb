@@ -313,6 +313,17 @@ module WebSocketHelper
       # Generate a unique message ID
       message_id = SecureRandom.hex(4)
 
+      # Words marked for the Privacy Filter are taken out and kept for the
+      # chat, as for a sent message; nothing is added if that fails.
+      if text.is_a?(String)
+        if obj["role"] == "system" && marked_words_in_system_text?(text, session)
+          send_error(SYSTEM_TEXT_MARKED, ws_session_id, { "not_accepted" => true })
+          return
+        end
+        text = take_privacy_marks(text, session, ws_session_id)
+        return if text.nil?
+      end
+
       # Attachments go only with a user message, checked as for a sent
       # one; the answers to later messages of this chat may then use them.
       attachment_refs = nil
@@ -343,11 +354,22 @@ module WebSocketHelper
 
       # Add images if present
       new_data["images"] = images if images
-      new_data["attachments"] = attachment_refs if attachment_refs && !attachment_refs.empty?
+      # A user sample is recorded like a sent message: with a request of its
+      # own and the snapshot of what it was sent with.
+      if obj["role"] == "user"
+        new_data.merge!(user_turn_fields(request_id: Monadic::Workspace::Ids.generate(:request),
+                                         chat_id: session[Monadic::Workspace::Chats::SESSION_KEY],
+                                         app_name: params["app_name"], attachment_refs: attachment_refs))
+      end
 
       # First add to session
       session[:messages] << new_data
       sync_session_state!
+
+      if obj["role"] == "user" && text.is_a?(String) && !text.empty?
+        require_relative '../privacy/language_detector'
+        Monadic::Utils::Privacy::LanguageDetector.detect_and_lock!(text, session)
+      end
 
       # Send text content; the client handles rendering. The display_sample
       # message carries both text and role info.

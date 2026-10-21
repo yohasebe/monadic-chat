@@ -586,8 +586,10 @@ module WebSocketHelper
   # (a message sent, a message edited), and kept for the chat. Returns the
   # text without the marks, or nil when it must not go on: a mark that is
   # not well formed, or marks (or words marked before) while the Privacy
-  # Filter is not on for this chat. The error is sent to the page.
-  def take_privacy_marks(text, session, ws_session_id)
+  # Filter is not on for this chat. The error is sent to the page as not
+  # accepted: nothing was recorded, so the page keeps the cards it shows.
+  # `refusal` adds what the page needs to undo the action (an edit).
+  def take_privacy_marks(text, session, ws_session_id, refusal = {})
     require_relative '../privacy/marks'
     require_relative '../privacy/registry'
     require_relative '../privacy/outbound'
@@ -595,24 +597,46 @@ module WebSocketHelper
     begin
       clean, terms = marks.extract(text.to_s)
     rescue marks::Invalid => e
-      send_error("The words marked with \u27E6 \u27E7 could not be read: #{e.message}. Nothing was sent.", ws_session_id)
+      send_error("The words marked with \u27E6 \u27E7 could not be read: #{e.message}. Nothing was sent.", ws_session_id, { "not_accepted" => true }.merge(refusal))
       return nil
     end
 
     if (terms.any? || Monadic::Utils::Privacy::Outbound.marked_terms?(session)) && !privacy_on_for_chat?(session)
       send_error("Words are marked to be masked in this chat, but the Privacy Filter is off. " \
-                 "Turn it on (or reset the chat) to send. Nothing was sent.", ws_session_id)
+                 "Turn it on (or reset the chat) to send. Nothing was sent.", ws_session_id, { "not_accepted" => true }.merge(refusal))
       return nil
     end
 
     begin
       Monadic::Utils::Privacy::Registry.new(session).add_terms!(terms) if terms.any?
     rescue Monadic::Utils::Privacy::Registry::TooManyTerms => e
-      send_error("#{e.message}. Nothing was sent.", ws_session_id)
+      send_error("#{e.message}. Nothing was sent.", ws_session_id, { "not_accepted" => true }.merge(refusal))
       return nil
     end
     clean
   end
+
+  # Whether a system message the user writes (a sample or an edit) holds
+  # words to mask: new marks, or words marked before. System messages are
+  # sent without masking, so the last check before a request leaves would
+  # refuse every later request of the chat; such text is refused when it is
+  # written instead. A mark that is not well formed is left to
+  # take_privacy_marks to report.
+  def marked_words_in_system_text?(text, session)
+    require_relative '../privacy/marks'
+    require_relative '../privacy/outbound'
+    marks = Monadic::Utils::Privacy::Marks
+    outbound = Monadic::Utils::Privacy::Outbound
+    begin
+      clean, terms = marks.extract(text.to_s)
+    rescue marks::Invalid
+      return false
+    end
+    terms.any? || outbound.holds_word?(clean, outbound.terms_of(session))
+  end
+
+  SYSTEM_TEXT_MARKED = 'A system message is sent without masking, so it cannot hold words marked to be masked. ' \
+                       'Nothing was changed.'
 
   # The Privacy Filter masks this chat: the user turned it on, and the app
   # uses it.

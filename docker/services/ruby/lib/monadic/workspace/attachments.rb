@@ -6,6 +6,7 @@ require_relative 'ledger'
 require_relative 'folders'
 require_relative 'file_types'
 require_relative 'request_context'
+require_relative 'chats'
 require_relative '../utils/environment'
 require_relative '../utils/shared_path_guard'
 
@@ -124,9 +125,13 @@ module Monadic
       # message) no attachment can be taken by id. The message says nothing
       # about which other attachments exist. With the session of the
       # request's chat, an id the model copied with Privacy placeholders in
-      # it is restored first (unmask_id). This method does not compare the
-      # session's chat with the request's: the caller must have done so.
+      # it is restored first (unmask_id); a session of another chat is
+      # refused before its mapping is used.
       def resolve_for_request!(attachment_id:, context: RequestContext.current, ledger: Ledger.default, session: nil)
+        if session && context && session[Chats::SESSION_KEY] != context.chat_id
+          raise Unusable.new(:chat_moved_on, 'This chat has ended.')
+        end
+
         id = attachment_id.to_s
         id = unmask_id(id, session) unless context&.allows?(id)
         unless context && Ids.valid?(:attachment, id) && context.allows?(id)

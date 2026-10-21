@@ -142,6 +142,17 @@ RSpec.describe "Attachments of a request" do
         expect(reason_for(masked(id, part, "<<PERSON_1>>"), context, { chat_id: chat })).to eq(:not_in_request)
       end
 
+      it "refuses, before using its mapping, a session that is no longer the request's chat" do
+        id = upload(chat)
+        part = id[2, 6]
+        moved = privacy_session({ "<<PERSON_1>>" => part }).merge(chat_id: other_chat)
+        context = context_class.new(chat_id: chat, attachment_ids: [id])
+        expect(attachments).not_to receive(:unmask_id)
+        expect(reason_for(masked(id, part, "<<PERSON_1>>"), context, moved)).to eq(:chat_moved_on)
+        expect(reason_for(id, context, moved)).to eq(:chat_moved_on)
+        expect(reason_for(id, context, { chat_id: chat })).to eq(:accepted)
+      end
+
       it "restores a whole id or several placeholders in one pass, and nothing when one is unknown" do
         id = upload(chat)
         context = context_class.new(chat_id: chat, attachment_ids: [id])

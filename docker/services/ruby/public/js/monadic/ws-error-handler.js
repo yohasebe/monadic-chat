@@ -16,6 +16,19 @@
  * @param {Object} data - Message data with content (string or object with key/details)
  */
 function handleError(data) {
+  // A send refused because an answer is still running: give the text and
+  // the attachments back, and leave that answer's display as it is.
+  if (data.busy) {
+    const pending = window.pendingSend;
+    const busyMsgEl = $id("message");
+    if (busyMsgEl && pending) busyMsgEl.value = pending.text;
+    if (pending && typeof window.restoreImages === 'function') window.restoreImages(pending.images);
+    if (pending && typeof window.restoreVideoAttachments === 'function') window.restoreVideoAttachments(pending.attachments);
+    window.pendingSend = null;
+    setAlert(getTranslation('ui.messages.answerStillRunning', 'The previous answer is still running. Send again when it has finished, or stop it first.'), 'warning');
+    return;
+  }
+
   // Clear any pending spinner check interval on error
   if (window.spinnerCheckInterval) {
     clearInterval(window.spinnerCheckInterval);
@@ -139,6 +152,7 @@ function handleError(data) {
       const pending = window.pendingSend;
       const errMsgEl = $id("message");
       if (errMsgEl) errMsgEl.value = pending ? pending.text : (params["message"] || '');
+      if (pending && typeof window.restoreImages === 'function') window.restoreImages(pending.images);
       if (pending && typeof window.restoreVideoAttachments === 'function') window.restoreVideoAttachments(pending.attachments);
       window.pendingSend = null;
     }

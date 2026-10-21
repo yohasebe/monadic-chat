@@ -108,6 +108,25 @@ describe('video attachments', () => {
     expect(window.hasVideoAttachments()).toBe(false);
   });
 
+  it('come back with the images and PDFs of a send that was not accepted', () => {
+    load({ toolGroups: [{ name: 'video_analysis', available: true }] });
+    const sent = [
+      { title: 'shot.png', type: 'image/png', data: 'data:image/png;base64,AAAA' },
+      { title: 'notes.pdf', type: 'application/pdf', data: 'data:application/pdf;base64,BBBB' }
+    ];
+    window.restoreImages(sent);
+    const pending = window.snapshotImages();
+    window.clearAllImages(); // as the send does once the socket write succeeds
+    expect(window.snapshotImages()).toEqual([]);
+
+    window.restoreImages(pending);
+    expect(window.snapshotImages()).toEqual(sent);
+    expect(document.querySelector('#image-used img.base64-image').getAttribute('alt')).toBe('shot.png');
+    expect(document.getElementById('image-used').textContent).toContain('notes.pdf');
+    pending[0].title = 'changed';
+    expect(window.snapshotImages()[0].title).toBe('shot.png');
+  });
+
   it('leave nothing behind when the server refuses the file', async () => {
     load({ toolGroups: [{ name: 'video_analysis', available: true }] });
     window.monadicFetch.postJson.mockRejectedValue(new Error('The file is larger than the 2000 MB limit.'));

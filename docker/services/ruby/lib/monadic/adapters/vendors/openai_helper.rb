@@ -1471,20 +1471,7 @@ module OpenAIHelper
                   "app_name" => obj["app_name"]
                 } }
         res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
-        block&.call res
-
-        # Check if this user message was already added by websocket.rb (for context extraction)
-        # to avoid duplicate consecutive user messages that cause API errors
-        existing_msg = session[:messages].find do |m|
-          m["role"] == "user" && m["text"] == obj["message"]
-        end
-
-        if existing_msg
-          # Update existing message with additional fields instead of adding new one
-          existing_msg.merge!(res["content"])
-        else
-          session[:messages] << res["content"]
-        end
+        record_user_turn!(session, res, &block)
       end
     end
 

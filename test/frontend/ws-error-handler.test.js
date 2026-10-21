@@ -146,10 +146,13 @@ describe('ws-error-handler', () => {
 
     it('gives back the typed text and the attachments of the message, not the lines added for the model', () => {
       window.params = { message: 'look\n\nAttached video: a.mp4 (attachment_id: a_1)' };
-      window.pendingSend = { text: 'look', attachments: [{ attachment_id: 'a_1', name: 'a.mp4' }] };
+      window.pendingSend = { text: 'look', attachments: [{ attachment_id: 'a_1', name: 'a.mp4' }], images: [{ title: 'shot.png' }] };
       window.restoreVideoAttachments = jest.fn();
+      window.restoreImages = jest.fn();
       handlers.handleError({ content: 'error' });
       expect(document.getElementById('message').value).toBe('look');
+      expect(window.restoreImages).toHaveBeenCalledWith([{ title: 'shot.png' }]);
+      delete window.restoreImages;
       expect(window.restoreVideoAttachments).toHaveBeenCalledWith([{ attachment_id: 'a_1', name: 'a.mp4' }]);
       expect(window.pendingSend).toBeNull();
       delete window.restoreVideoAttachments;
@@ -162,6 +165,29 @@ describe('ws-error-handler', () => {
       expect(global.deleteMessage).not.toHaveBeenCalled();
       handlers.handleError({ content: 'error' });
       expect(global.deleteMessage).toHaveBeenCalledWith('m-earlier');
+      discourse.innerHTML = '';
+    });
+
+    it('when an answer is still running (busy), gives the send back and leaves that answer on screen', () => {
+      const discourse = document.getElementById('discourse');
+      discourse.innerHTML = '<div class="card" id="m-running"><span class="user-color">User</span></div>';
+      document.getElementById('temp-card').style.display = '';
+      window.streamingResponse = true;
+      window.pendingSend = { text: 'and this', attachments: [{ attachment_id: 'a_2', name: 'b.mp4' }], images: [{ title: 'shot.png' }] };
+      window.restoreVideoAttachments = jest.fn();
+      window.restoreImages = jest.fn();
+      handlers.handleError({ content: 'answer_still_running', not_accepted: true, busy: true });
+      expect(document.getElementById('message').value).toBe('and this');
+      expect(window.restoreImages).toHaveBeenCalledWith([{ title: 'shot.png' }]);
+      expect(window.restoreVideoAttachments).toHaveBeenCalledWith([{ attachment_id: 'a_2', name: 'b.mp4' }]);
+      expect(window.pendingSend).toBeNull();
+      expect(global.setAlert).toHaveBeenCalledWith(expect.stringContaining('still running'), 'warning');
+      expect(window.streamingResponse).toBe(true);
+      expect(document.getElementById('temp-card').style.display).toBe('');
+      expect(global.deleteMessage).not.toHaveBeenCalled();
+      expect(global.WorkflowViewer.setStage).not.toHaveBeenCalled();
+      delete window.restoreVideoAttachments;
+      delete window.restoreImages;
       discourse.innerHTML = '';
     });
 

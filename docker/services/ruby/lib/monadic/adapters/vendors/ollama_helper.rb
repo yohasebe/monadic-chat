@@ -378,26 +378,15 @@ module OllamaHelper
       res = { "type" => "user",
               "content" => {
                 "mid" => request_id,
+                "role" => role,
                 "text" => obj["message"],
                 "html" => html,
-                "lang" => detect_language(obj["message"])
+                "lang" => detect_language(obj["message"]),
+                "app_name" => obj["app_name"],
+                "active" => true
               } }
       res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
-      block&.call res
-    end
-
-    if message != "" && role == "user"
-      res = { "mid" => request_id,
-              "role" => role,
-              "text" => obj["message"],
-              "html" => html,
-              "lang" => detect_language(obj["message"]),
-              "app_name" => obj["app_name"],
-              "active" => true }
-      if obj["images"] && obj["images"].is_a?(Array)
-        res["images"] = obj["images"]
-      end
-      session[:messages] << res
+      record_user_turn!(session, res, &block)
     end
 
     session[:messages].each { |msg| msg["active"] = false }

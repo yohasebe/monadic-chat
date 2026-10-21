@@ -4,6 +4,7 @@ require 'json'
 
 require_relative "../utils/http_client"
 require_relative "../utils/tool_dispatch_guard"
+require_relative "../workspace/request_context"
 
 # BaseVendorHelper
 # Shared utilities for vendor helpers. Provides macros for common patterns
@@ -183,6 +184,34 @@ module BaseVendorHelper
         end
       end
     end
+  end
+
+  # Shows the user message of this turn on the page and adds what the
+  # provider knows of it (html, language, images) to the message the server
+  # recorded when it accepted the send. That message is found by the
+  # request the answer runs under, not by its text: the same text may have
+  # been sent before. The page gets the message's attachments with it, and
+  # only once the message holds what it is shown with (an edit or delete of
+  # the shown card finds it). A message added here under a request carries
+  # that request, so the next call for it finds this one. Without a request
+  # the last message stands in when it has the same text.
+  def record_user_turn!(session, res, &block)
+    content = res["content"]
+    request_id = Monadic::Workspace::RequestContext.current&.request_id
+    existing = if request_id
+                 session[:messages].reverse_each.find { |m| m["role"] == "user" && m["request_id"] == request_id }
+               else
+                 last = session[:messages].last
+                 last if last && last["role"] == "user" && last["text"] == content["text"]
+               end
+    if existing
+      content["attachments"] = existing["attachments"] if existing["attachments"]
+      existing.merge!(content)
+    else
+      content["request_id"] = request_id if request_id
+      session[:messages] << content
+    end
+    block&.call res
   end
 
   # Privacy Filter integration helpers.

@@ -1267,20 +1267,7 @@ module GeminiHelper
                 } }
         res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
 
-        # Check if this user message was already added by websocket.rb (for context extraction)
-        # to avoid duplicate consecutive user messages that cause API errors
-        existing_msg = session[:messages].find do |m|
-          m["role"] == "user" && m["text"] == message
-        end
-
-        if existing_msg
-          # Update existing message with additional fields instead of adding new one
-          existing_msg.merge!(res["content"])
-        else
-          session[:messages] << res["content"]
-        end
-
-        block&.call res
+        record_user_turn!(session, res, &block)
       end
     end
 

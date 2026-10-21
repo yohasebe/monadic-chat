@@ -114,6 +114,18 @@ function restoreVideoAttachments(list) {
   updateFileDisplay(images);
 }
 
+// The images and PDFs of the input in the same way: the send clears them
+// once it is written to the socket, before the server has accepted it.
+function snapshotImages() {
+  return images.map(function (img) { return Object.assign({}, img); });
+}
+
+function restoreImages(list) {
+  if (!Array.isArray(list) || list.length === 0) return;
+  images = list.map(function (img) { return Object.assign({}, img); });
+  updateFileDisplay(images);
+}
+
 function clearVideoAttachments() {
   attachmentGeneration += 1;
   videoAttachments = [];
@@ -813,6 +825,8 @@ window.videoAttachmentLines = videoAttachmentLines;
 window.videoAttachmentRefs = videoAttachmentRefs;
 window.snapshotVideoAttachments = snapshotVideoAttachments;
 window.restoreVideoAttachments = restoreVideoAttachments;
+window.snapshotImages = snapshotImages;
+window.restoreImages = restoreImages;
 window.clearVideoAttachments = clearVideoAttachments;
 window.getDocumentIcon = getDocumentIcon;
 window.isDocumentType = isDocumentType;

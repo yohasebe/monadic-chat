@@ -3331,11 +3331,12 @@ document.addEventListener("DOMContentLoaded", function () {
     const attachmentRefs = typeof window.videoAttachmentRefs === 'function' ? window.videoAttachmentRefs() : [];
     if (attachmentRefs.length) params["attachments"] = attachmentRefs;
     // What to give back for another try if the message is not accepted or
-    // fails: the typed text (not the lines added for the model) and the
-    // attachment cards.
+    // fails: the typed text (not the lines added for the model), the
+    // attachment cards, and the images and PDFs.
     window.pendingSend = {
       text: typedText || '',
-      attachments: typeof window.snapshotVideoAttachments === 'function' ? window.snapshotVideoAttachments() : []
+      attachments: typeof window.snapshotVideoAttachments === 'function' ? window.snapshotVideoAttachments() : [],
+      images: typeof window.snapshotImages === 'function' ? window.snapshotImages() : []
     };
 
     // Mark that user has interacted with this tab (for app change confirmation)

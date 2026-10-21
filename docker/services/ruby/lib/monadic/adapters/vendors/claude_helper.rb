@@ -1187,17 +1187,7 @@ module ClaudeHelper
               } }
 
       res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
-      block&.call res
-
-      existing_msg = session[:messages].find do |m|
-        m["role"] == "user" && m["text"] == obj["message"]
-      end
-
-      if existing_msg
-        existing_msg.merge!(res["content"])
-      else
-        session[:messages] << res["content"]
-      end
+      record_user_turn!(session, res, &block)
 
       Monadic::Utils::ExtraLogger.log { "Claude: user message pushed early (mid=#{request_id})" }
     end

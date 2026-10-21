@@ -338,6 +338,14 @@ module WebSocketHelper
         when "VERIFY_CONFIDENCE"
           handle_ws_verify_confidence(connection, obj, session)
         else # fragment
+          # One answer at a time: a send that arrives while one is running
+          # is not accepted (busy: the page gives the text and attachments
+          # back and leaves the running answer as it is).
+          if thread&.alive?
+            send_error("answer_still_running", ws_session_id, { "not_accepted" => true, "busy" => true })
+            next
+          end
+
           # A message that is not accepted (attachments that do not check
           # out, a privacy or voice-only refusal) starts no thread; the
           # answer already running stays the one Cancel and Reset stop.

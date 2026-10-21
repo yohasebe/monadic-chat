@@ -162,6 +162,10 @@ end
 
 **Note:** Grok's extra `disable_streaming` parameter is non-standard but backward-compatible (keyword arg with default).
 
+**The user message of the turn:** `handle_ws_streaming` records it when it accepts the send, under the turn's `request_id`. `api_request` adds its own fields (`html`, `lang`, `images`, and its own `mid`) and shows it on the page through `BaseVendorHelper#record_user_turn!`, which finds that message by the request of the current `Workspace::RequestContext` (not by its text, which may repeat), updates it before the page is told, and sends the page its `attachments`. A new helper calls it once, in place of adding the message itself.
+
+**One answer at a time on a connection:** the WebSocket loop does not accept a send while the connection's answer thread is alive; it answers with an error carrying `not_accepted` and `busy`, and the page gives back the text, the attachments and the images without touching the running answer. Cancel, Reset and a closed connection stop that thread. A tab that reconnects gets a new connection, which does not see the old one's thread.
+
 ---
 
 ### 6. `process_functions(app, session, tools, context, call_depth, &block)` (instance method)

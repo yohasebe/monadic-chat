@@ -122,13 +122,41 @@ module Monadic
       # one the request allows (sent with this message or an earlier one of
       # the same chat). Without a request (a call from outside a chat
       # message) no attachment can be taken by id. The message says nothing
-      # about which other attachments exist.
-      def resolve_for_request!(attachment_id:, context: RequestContext.current, ledger: Ledger.default)
-        unless context && context.allows?(attachment_id)
+      # about which other attachments exist. With the session of the
+      # request's chat, an id the model copied with Privacy placeholders in
+      # it is restored first (unmask_id). This method does not compare the
+      # session's chat with the request's: the caller must have done so.
+      def resolve_for_request!(attachment_id:, context: RequestContext.current, ledger: Ledger.default, session: nil)
+        id = attachment_id.to_s
+        id = unmask_id(id, session) unless context&.allows?(id)
+        unless context && Ids.valid?(:attachment, id) && context.allows?(id)
           raise Unusable.new(:not_in_request, 'This file was not attached to a message of this chat.')
         end
 
-        resolve!(chat_id: context.chat_id, attachment_id: attachment_id.to_s, ledger: ledger)
+        resolve!(chat_id: context.chat_id, attachment_id: id, ledger: ledger)
+      end
+
+      # The Privacy Filter masks the messages sent to the model, and a part
+      # of an id that looks like a marked word or PII is masked with them, so
+      # the model may call a tool with "a_<<PERSON_1>>...". Only this value
+      # is restored, from the session's own Privacy mapping (the callers have
+      # checked that the session is still the request's chat); the result is
+      # then checked like any other id. What is sent to providers is not
+      # changed.
+      def unmask_id(value, session)
+        return value unless value.include?('<<') && session.respond_to?(:[])
+
+        state = session[:monadic_state]
+        privacy = state.is_a?(Hash) ? state[:privacy] : nil
+        registry = privacy.is_a?(Hash) ? privacy[:registry] : nil
+        return value unless registry.is_a?(Hash) && !registry.empty?
+
+        require_relative '../substitution/providers/privacy_filter'
+        filter = Monadic::Substitution::Providers::PrivacyFilter
+        value.gsub(filter::RESTORE_RE) do |token|
+          original = registry[filter.placeholder_key(Regexp.last_match)]
+          original.is_a?(String) ? original : token
+        end
       end
 
       def unchanged?(path, record)

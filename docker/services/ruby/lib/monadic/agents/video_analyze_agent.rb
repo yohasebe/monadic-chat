@@ -243,7 +243,7 @@ module VideoAnalyzeAgent
       raise Monadic::Workspace::Attachments::Unusable.new(:chat_moved_on, "This chat has ended.")
     end
 
-    record = Monadic::Workspace::Attachments.resolve_for_request!(attachment_id: attachment_id, context: context)
+    record = Monadic::Workspace::Attachments.resolve_for_request!(attachment_id: attachment_id, context: context, session: session)
     return "Error: attachment #{record[:original_name]} is not a video." unless record[:purpose] == "video"
 
     workspace = Monadic::Workspace::Ledger.default.workspace(record[:workspace_id])

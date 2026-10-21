@@ -93,6 +93,80 @@ RSpec.describe "Attachments of a request" do
       expect(refused.call(sent, nil).first).to eq(:not_in_request)
     end
 
+    describe "with Privacy placeholders in the id" do
+      def privacy_session(registry)
+        { chat_id: chat, monadic_state: { privacy: { registry: registry, audit: [] } } }
+      end
+
+      def masked(id, part, placeholder)
+        id.sub(part, placeholder)
+      end
+
+      def reason_for(id, context, session)
+        attachments.resolve_for_request!(attachment_id: id, context: context, session: session)
+        :accepted
+      rescue Monadic::Workspace::Attachments::Unusable => e
+        e.reason
+      end
+
+      it "restores the id from the session's mapping and takes it when the request allows it" do
+        id = upload(chat)
+        part = id[2, 6]
+        session = privacy_session({ "<<PERSON_1>>" => part })
+        context = context_class.new(chat_id: chat, attachment_ids: [id])
+        record = attachments.resolve_for_request!(attachment_id: masked(id, part, "<<PERSON_1>>"),
+                                                  context: context, session: session)
+        expect(record[:attachment_id]).to eq(id)
+        lightly_mangled = masked(id, part, "<< PERSON_1 >>")
+        expect(reason_for(lightly_mangled, context, session)).to eq(:accepted)
+      end
+
+      it "refuses a restored id the request does not allow" do
+        sent = upload(chat)
+        unsent = upload(chat, "other.mp4")
+        part = unsent[2, 6]
+        session = privacy_session({ "<<PHONE_NUMBER_1>>" => part })
+        context = context_class.new(chat_id: chat, attachment_ids: [sent])
+        expect(reason_for(masked(unsent, part, "<<PHONE_NUMBER_1>>"), context, session)).to eq(:not_in_request)
+      end
+
+      it "refuses what does not restore to an id, even if the request lists it" do
+        id = upload(chat)
+        part = id[2, 6]
+        odd = "a_../../#{id[8..]}"
+        session = privacy_session({ "<<PERSON_1>>" => "../../" })
+        context = context_class.new(chat_id: chat, attachment_ids: [id, odd])
+        expect(reason_for("a_<<PERSON_1>>#{id[8..]}", context, session)).to eq(:not_in_request)
+        expect(reason_for(masked(id, part, "<<PERSON_2>>"), context, session)).to eq(:not_in_request)
+        expect(reason_for(masked(id, part, "<<PERSON_1>>"), context, nil)).to eq(:not_in_request)
+        expect(reason_for(masked(id, part, "<<PERSON_1>>"), context, { chat_id: chat })).to eq(:not_in_request)
+      end
+
+      it "restores a whole id or several placeholders in one pass, and nothing when one is unknown" do
+        id = upload(chat)
+        context = context_class.new(chat_id: chat, attachment_ids: [id])
+        session = privacy_session({ "<<PERSON_1>>" => id, "<<PERSON_2>>" => id[2, 4], "<<PERSON_3>>" => id[10, 4],
+                                    "<<PERSON_4>>" => "<<PERSON_1>>", "<<PERSON_5>>" => 7 })
+        two = "#{id[0, 2]}<<PERSON_2>>#{id[6, 4]}<<PERSON_3>>#{id[14..]}"
+        expect(reason_for("<<PERSON_1>>", context, session)).to eq(:accepted)
+        expect(reason_for(two, context, session)).to eq(:accepted)
+        expect(reason_for(two.sub("<<PERSON_3>>", "<<PERSON_9>>"), context, session)).to eq(:not_in_request)
+        expect(reason_for("<<PERSON_4>>", context, session)).to eq(:not_in_request)
+        expect(reason_for("<<PERSON_5>>", context, session)).to eq(:not_in_request)
+        expect(reason_for("<<PERSON_1>>", nil, session)).to eq(:not_in_request)
+      end
+
+      it "creates no Privacy state, and still checks the ledger's chat for a restored id" do
+        session = { chat_id: chat }
+        expect(reason_for("a_<<PERSON_1>>", context_class.new(chat_id: chat, attachment_ids: []), session)).to eq(:not_in_request)
+        expect(session).to eq({ chat_id: chat })
+
+        theirs = upload(other_chat)
+        listed = context_class.new(chat_id: chat, attachment_ids: [theirs])
+        expect(reason_for("<<PERSON_1>>", listed, privacy_session({ "<<PERSON_1>>" => theirs }))).to eq(:unknown)
+      end
+    end
+
     it "is fixed for the thread that answers, and does not leak into another thread or fiber" do
       id = upload(chat)
       context = context_class.new(chat_id: chat, attachment_ids: [id])
@@ -128,6 +202,32 @@ RSpec.describe "Attachments of a request" do
       by_file = context_class.with(context) { agent.analyze_video(file: id, session: session) }
       expect(by_id).to start_with("Error").and include("not attached to a message")
       expect(by_file).to start_with("Error").and include("not attached to a message")
+    end
+
+    it "take an id with Privacy placeholders by restoring it from the chat's session" do
+      id = upload(chat)
+      part = id[2, 6]
+      session = { chat_id: chat, parameters: {}, monadic_state: { privacy: { registry: { "<<PERSON_1>>" => part } } } }
+      context = context_class.new(chat_id: chat, attachment_ids: [id])
+      masked_id = id.sub(part, "<<PERSON_1>>")
+      # The video passes the gate and is then refused as audio by its purpose.
+      expect { context_class.with(context) { agent.resolve_audio_attachment(masked_id, session) } }
+        .to raise_error(Monadic::Workspace::Attachments::Unusable) { |e| expect(e.reason).to eq(:purpose) }
+      expect(attachments).to receive(:resolve_for_request!).with(hash_including(session: session)).and_return({ purpose: "audio" })
+      result = context_class.with(context) { agent.analyze_video(attachment_id: masked_id, session: session) }
+      expect(result).to include("not a video")
+    end
+
+    it "refuse a masked id once the session has moved on, before its mapping is used" do
+      id = upload(chat)
+      part = id[2, 6]
+      moved = { chat_id: other_chat, parameters: {}, monadic_state: { privacy: { registry: { "<<PERSON_1>>" => part } } } }
+      context = context_class.new(chat_id: chat, attachment_ids: [id])
+      expect(attachments).not_to receive(:unmask_id)
+      video = context_class.with(context) { agent.analyze_video(attachment_id: id.sub(part, "<<PERSON_1>>"), session: moved) }
+      expect(video).to start_with("Error").and include("ended")
+      expect { context_class.with(context) { agent.resolve_audio_attachment(id.sub(part, "<<PERSON_1>>"), moved) } }
+        .to raise_error(Monadic::Workspace::Attachments::Unusable) { |e| expect(e.reason).to eq(:chat_moved_on) }
     end
 
     it "refuse a video of the request's chat once the session has moved on to another chat" do

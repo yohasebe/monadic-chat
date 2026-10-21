@@ -49,7 +49,8 @@ module AudioTranscriptionAgent
       raise Monadic::Workspace::Attachments::Unusable.new(:chat_moved_on, "this chat has ended.")
     end
 
-    record = Monadic::Workspace::Attachments.resolve_for_request!(attachment_id: attachment_id.to_s, context: context)
+    record = Monadic::Workspace::Attachments.resolve_for_request!(attachment_id: attachment_id.to_s, context: context,
+                                                                   session: session)
     raise Monadic::Workspace::Attachments::Unusable.new(:purpose, "attachment #{record[:original_name]} is not an audio file.") unless record[:purpose] == "audio"
 
     record

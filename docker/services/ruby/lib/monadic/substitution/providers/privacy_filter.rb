@@ -50,6 +50,12 @@ module Monadic
         # key, so the corruption never reaches the UI.
         RESTORE_RE = /<<[\s?]*([A-Z_]+)_(\d+)[\s?]*>>/
 
+        # The registry key a RESTORE_RE match stands for: the clean
+        # "<<TYPE_N>>", however the model mangled the token around it.
+        def self.placeholder_key(match)
+          "<<#{match[1]}_#{match[2]}>>"
+        end
+
         # Languages for which the Privacy container can build a spaCy NER model.
         # Mirrors docker/services/privacy/language_map.json keys.
         PRESIDIO_LANGS = %w[en de es fr it ja nl pt zh].freeze
@@ -238,7 +244,7 @@ module Monadic
             # corrupted token ("<<?EMAIL_ADDRESS_2?>>") maps to the clean
             # registry key "<<EMAIL_ADDRESS_2>>" — both on restore and in the
             # span/missing metadata, so the corruption never surfaces.
-            placeholder = "<<#{type_str}_#{match[2]}>>"
+            placeholder = self.class.placeholder_key(match)
 
             if reg.key?(placeholder)
               original = reg[placeholder]

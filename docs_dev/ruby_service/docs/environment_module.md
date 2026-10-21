@@ -21,7 +21,7 @@
 | `command_log_file`, `extra_log_file`, `jupyter_log_file` | `command.log`, `extra.log`, `jupyter.log` in `log_path` | same |
 | `system_script_dir` | `/monadic/scripts` | `docker/services/ruby/scripts` in the source tree |
 
-`state_path` holds server-owned records outside the shared folder.
+`state_path` holds server-owned records outside the shared folder. It is mounted into the Ruby container only. One server writes it: at start the server takes a numbered mark in `server.owner/` (`Workspace::ServerOwner`) before reading the ledger, and does not start when another server holds it. A mark left by a server that stopped is followed only when that server is known to have stopped (another start of the container, or its process gone; from the host, Docker answering that the Ruby container has stopped). Ledger changes run inside `ServerOwner.writing`, and a stopping server lets them finish before it notes in its mark that it has stopped.
 
 ## Log Rotation
 

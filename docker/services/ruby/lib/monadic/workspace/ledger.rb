@@ -5,6 +5,7 @@ require 'json'
 require 'securerandom'
 require 'time'
 require_relative 'ids'
+require_relative 'server_owner'
 require_relative '../utils/environment'
 
 module Monadic
@@ -168,17 +169,22 @@ module Monadic
         locked(File::LOCK_SH) { yield load }
       end
 
+      # Changes are made only by the server that holds the state folder
+      # (ServerOwner), each one whole before that server stops.
       def write
         locked(File::LOCK_EX) do
-          data = load
-          result = yield data
-          save(data)
-          result
+          ServerOwner.writing do
+            data = load
+            result = yield data
+            save(data)
+            result
+          end
         end
       end
 
       # The mutex covers threads of this process; the lock file covers a
-      # second process (the server run from the host while a container runs).
+      # second process on the same machine. Between the container and the
+      # host it is not relied on: one server holds the folder (ServerOwner).
       def locked(mode)
         @mutex.synchronize do
           File.open(@lock_path, File::RDWR | File::CREAT, 0o600) do |lock|

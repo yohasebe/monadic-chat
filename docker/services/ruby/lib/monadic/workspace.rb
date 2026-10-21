@@ -2,6 +2,7 @@
 
 # Per-chat files: ids, the ledger, the folders it records, and attachments.
 require_relative 'workspace/ids'
+require_relative 'workspace/server_owner'
 require_relative 'workspace/ledger'
 require_relative 'workspace/chats'
 require_relative 'workspace/folders'

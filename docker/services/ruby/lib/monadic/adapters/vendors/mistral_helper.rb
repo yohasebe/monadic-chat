@@ -392,24 +392,20 @@ module MistralHelper
     if role != "tool"
       message = obj["message"].to_s
 
-      if message != ""
-        html = markdown_to_html(message)
+      if user_turn_to_record?(role, message, session)
+        res = { "type" => "user",
+                "content" => {
+                  "mid" => request_id,
+                  "role" => role,
+                  "text" => message,
+                  "html" => markdown_to_html(message),
+                  "lang" => detect_language(message),
+                  "app_name" => obj["app_name"]
+                } }
+        res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
 
-        if message != "" && role == "user"
-          res = { "type" => "user",
-                  "content" => {
-                    "mid" => request_id,
-                    "role" => role,
-                    "text" => message,
-                    "html" => html,
-                    "lang" => detect_language(message),
-                    "app_name" => obj["app_name"]
-                  } }
-          res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
-
-          record_user_turn!(session, res, &block)
-        end
-    end
+        record_user_turn!(session, res, &block)
+      end
     end
 
     # After sending user card, check API key. If not set, return error card and exit
@@ -478,6 +474,7 @@ module MistralHelper
     # Set the max tokens
     body["max_tokens"] = max_tokens || 4096
 
+    context = model_facing_context(context)
     configure_mistral_tools(body, obj, app, session, websearch, context)
 
     msg_result = build_mistral_messages(body, context, obj, session, role, &block)

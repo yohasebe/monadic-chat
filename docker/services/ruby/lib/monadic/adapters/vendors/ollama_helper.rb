@@ -374,7 +374,7 @@ module OllamaHelper
       html = markdown_to_html(message)
     end
 
-    if message != "" && role == "user"
+    if user_turn_to_record?(role, message, session)
       res = { "type" => "user",
               "content" => {
                 "mid" => request_id,
@@ -396,6 +396,7 @@ module OllamaHelper
     end
     context.each { |msg| msg["active"] = true }
     strip_inactive_image_data(session)
+    context = model_facing_context(context)
 
     ollama_endpoint = OllamaHelper.find_endpoint
 

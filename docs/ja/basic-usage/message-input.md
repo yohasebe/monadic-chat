@@ -50,7 +50,7 @@ Responses APIを使用するモデルでは、ローカルファイルのアッ�
 
 ## 動画と音声のファイルの添付 :id=attaching-video-audio
 
-動画を分析するアプリや音声を文字起こしするアプリでは、`Image` ボタンで動画（MP4、M4V、MOV、WebM、MKV、AVI）や音声（MP3、M4A、WAV、OGG、Opus、FLAC、AAC、WebM）のファイルも添付できます。ファイルはチャットのフォルダにアップロードされ、メッセージを送るまでメッセージ欄の下に表示されます。Video Describer は動画を、Speech Draft Helper は音声のファイルを受け付けます。
+動画を分析するアプリや音声を文字起こしするアプリでは、`Image` ボタンで動画（MP4、M4V、MOV、WebM、MKV、AVI）や音声（MP3、M4A、WAV、OGG、Opus、FLAC、AAC、WebM）のファイルも添付できます。ファイルはチャットのフォルダにアップロードされ、メッセージを送るまでメッセージ欄の下に表示されます。本文を書かずに、添付したファイルだけを送ることもできます。添付したファイルはメッセージのカードに表示されます。Video Describer は動画を、Speech Draft Helper は音声のファイルを受け付けます。
 
 ## 文書ファイルからのテキスト読み込み :id=reading-text-from-document-files
 

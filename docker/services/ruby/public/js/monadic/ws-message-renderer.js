@@ -115,6 +115,9 @@ function handlePastMessages(data) {
           false,  // monadic parameter
           userTurnNumber  // turnNumber
         );
+        if (userCard && typeof window.addAttachmentsToCard === 'function') {
+          window.addAttachmentsToCard(userCard, msg.attachments);
+        }
         if (discourseEl && userCard) {
           discourseEl.appendChild(userCard);
         }
@@ -415,7 +418,10 @@ function handleEditSuccess(data) {
 function handleDisplaySample(data) {
   // Immediately display the sample message
   const content = data.content;
-  if (!content || !content.mid || !content.role || !content.text || !content.badge) {
+  // A user sample may be attached files with no text.
+  const attachments = content && content.role === "user" && Array.isArray(content.attachments) ? content.attachments : [];
+  if (!content || !content.mid || !content.role || !content.badge || typeof content.text !== "string" ||
+      (!content.text && attachments.length === 0)) {
     if (content) console.error("Invalid display_sample message format:", data);
     return;
   }
@@ -445,6 +451,10 @@ function handleDisplaySample(data) {
     true  // Always active
   );
 
+  if (attachments.length && typeof window.addAttachmentsToCard === 'function') {
+    window.addAttachmentsToCard(cardElement[0] || cardElement, attachments);
+  }
+
   // Append to discourse
   var discourseEl = $id("discourse");
   if (discourseEl && cardElement) {
@@ -457,12 +467,13 @@ function handleDisplaySample(data) {
   }
 
   // Add message to messages array to ensure edit functionality works correctly
-  if (content.text) {
+  if (content.text || attachments.length) {
     const messageObj = {
       "role": content.role,
       "text": content.text,
       "mid": content.mid
     };
+    if (attachments.length) messageObj.attachments = attachments;
 
     // Add to messages array - this ensures last message detection works correctly
     window.SessionState.addMessage(messageObj);

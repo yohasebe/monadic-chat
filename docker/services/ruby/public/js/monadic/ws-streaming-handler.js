@@ -219,6 +219,9 @@ function handleUser(data) {
   if (data["content"]["images"] !== undefined) {
     message_obj.images = data["content"]["images"];
   }
+  if (Array.isArray(data["content"]["attachments"])) {
+    message_obj.attachments = data["content"]["attachments"];
+  }
   window.SessionState.addMessage(message_obj);
 
   // Format content for display
@@ -233,6 +236,9 @@ function handleUser(data) {
   const userTurnNumber = userDiscourse ? userDiscourse.querySelectorAll('.card:not(#temp-card) .role-assistant').length + 1 : 1;
   if (typeof window.appendCard === 'function') {
     window.appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images, userTurnNumber);
+  }
+  if (typeof window.addAttachmentsToCard === 'function') {
+    window.addAttachmentsToCard($id(data["content"]["mid"]), data["content"]["attachments"]);
   }
 
   // Scroll down immediately after showing user message

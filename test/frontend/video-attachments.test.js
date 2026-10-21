@@ -64,18 +64,18 @@ describe('video attachments', () => {
     expect(document.getElementById('image-used').textContent).toContain('clip.mp4 (3.0 MB)');
   });
 
-  it('are named in the message, and stay listed until cleared', async () => {
+  it('go with the message as structure, and stay listed until cleared', async () => {
     load({ toolGroups: [{ name: 'video_analysis', available: true }] });
     window.monadicFetch.postJson.mockResolvedValue({ attachment_id: 'a_123', name: 'clip.mp4', size: 1 });
     await window.uploadVideoAttachment(new File(['x'], 'clip.mp4'));
 
-    expect(window.videoAttachmentLines()).toBe('Attached video: clip.mp4 (attachment_id: a_123)');
-    // Sent as structure too: only the id and the role (the server reads the rest).
+    // The page adds no lines to the text; the server describes the files.
+    expect(window.videoAttachmentLines).toBeUndefined();
+    // Sent as structure: only the id and the role (the server reads the rest).
     expect(window.videoAttachmentRefs()).toEqual([{ attachment_id: 'a_123', role: 'input' }]);
     // Building the message does not clear the list: a failed send keeps it.
     expect(window.hasVideoAttachments()).toBe(true);
     window.clearVideoAttachments();
-    expect(window.videoAttachmentLines()).toBe('');
     expect(window.videoAttachmentRefs()).toEqual([]);
     // Given back after a send that failed: the same cards again.
     window.restoreVideoAttachments([{ attachment_id: 'a_123', name: 'clip.mp4', size: 1, purpose: 'video' }]);
@@ -157,12 +157,12 @@ describe('audio attachments', () => {
     expect(window.attachmentPurposeFor({ name: 'clip.webm' }, 'VideoDescriberApp')).toBe('video');
   });
 
-  it('upload as audio and are named as audio in the message', async () => {
+  it('upload as audio and are kept as audio', async () => {
     load({ toolGroups: [{ name: 'audio_transcription', available: true }] });
     window.monadicFetch.postJson.mockResolvedValue({ attachment_id: 'a_9', name: 'talk.mp3', size: 1, purpose: 'audio' });
     await window.uploadVideoAttachment(new File(['x'], 'talk.mp3'), 'audio');
     expect(window.monadicFetch.postJson.mock.calls[0][1].get('purpose')).toBe('audio');
-    expect(window.videoAttachmentLines()).toBe('Attached audio: talk.mp3 (attachment_id: a_9)');
+    expect(window.snapshotVideoAttachments()[0].purpose).toBe('audio');
     expect(document.querySelector('#image-used .fa-file-audio')).not.toBeNull();
   });
 });

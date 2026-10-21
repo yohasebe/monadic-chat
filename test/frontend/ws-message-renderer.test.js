@@ -83,6 +83,17 @@ const handlers = require('../../docker/services/ruby/public/js/monadic/ws-messag
 
 describe('ws-message-renderer', () => {
   describe('handlePastMessages', () => {
+    it('shows the files attached to a user message from history on its card', () => {
+      const attachments = [{ attachment_id: 'a_1', purpose: 'video', display_name: 'clip.mp4' }];
+      window.addAttachmentsToCard = jest.fn();
+      handlers.handlePastMessages({ content: [
+        { role: 'system', text: 'S', mid: 'sys-1' },
+        { role: 'user', text: '', mid: 'u-1', active: true, attachments }
+      ] });
+      expect(window.addAttachmentsToCard).toHaveBeenCalledWith(expect.any(HTMLElement), attachments);
+      delete window.addAttachmentsToCard;
+    });
+
     it('renders user and assistant messages from history', () => {
       const data = {
         content: [
@@ -261,6 +272,32 @@ describe('ws-message-renderer', () => {
   });
 
   describe('handleDisplaySample', () => {
+    it('shows the files attached to a user sample on its card', () => {
+      const attachments = [{ attachment_id: 'a_1', purpose: 'video', display_name: 'clip.mp4' }];
+      window.addAttachmentsToCard = jest.fn();
+      handlers.handleDisplaySample({ content: { mid: 'sample-u', role: 'user', text: 'See this', badge: '<span>User</span>', attachments } });
+      expect(window.addAttachmentsToCard).toHaveBeenCalledWith(expect.any(HTMLElement), attachments);
+      expect(window.SessionState.addMessage).toHaveBeenCalledWith(expect.objectContaining({ mid: 'sample-u', attachments }));
+      delete window.addAttachmentsToCard;
+    });
+
+    it('shows a user sample of attached files with no text, and keeps it', () => {
+      const attachments = [{ attachment_id: 'a_1', purpose: 'video', display_name: 'clip.mp4' }];
+      window.addAttachmentsToCard = jest.fn();
+      handlers.handleDisplaySample({ content: { mid: 'sample-e', role: 'user', text: '', badge: '<span>User</span>', attachments } });
+      expect(global.createCard).toHaveBeenCalled();
+      expect(window.addAttachmentsToCard).toHaveBeenCalledWith(expect.any(HTMLElement), attachments);
+      expect(window.SessionState.addMessage).toHaveBeenCalledWith(expect.objectContaining({ mid: 'sample-e', text: '', attachments }));
+      delete window.addAttachmentsToCard;
+    });
+
+    it('does not show a sample with no text and no attachments', () => {
+      handlers.handleDisplaySample({ content: { mid: 'sample-n', role: 'user', text: '', badge: '<span>User</span>' } });
+      handlers.handleDisplaySample({ content: { mid: 'sample-a', role: 'assistant', text: '', badge: '<span>A</span>',
+                                                attachments: [{ attachment_id: 'a_1' }] } });
+      expect(global.createCard).not.toHaveBeenCalled();
+    });
+
     it('creates and appends a card for the sample message', () => {
       const data = {
         content: {

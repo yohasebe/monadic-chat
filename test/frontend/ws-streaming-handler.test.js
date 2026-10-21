@@ -262,6 +262,19 @@ describe('ws-streaming-handler', () => {
       }
     };
 
+    it('shows the files attached to the message on its card', () => {
+      const attachments = [{ attachment_id: 'a_1', purpose: 'video', display_name: 'clip.mp4' }];
+      const card = document.createElement('div');
+      card.id = 'msg-a';
+      document.body.appendChild(card);
+      window.addAttachmentsToCard = jest.fn();
+      handlers.handleUser({ content: { text: '', html: '', mid: 'msg-a', lang: 'en', attachments } });
+      expect(window.addAttachmentsToCard).toHaveBeenCalledWith(card, attachments);
+      expect(window.SessionState.addMessage).toHaveBeenCalledWith(expect.objectContaining({ mid: 'msg-a', attachments }));
+      delete window.addAttachmentsToCard;
+      card.remove();
+    });
+
     it('adds message to SessionState', () => {
       handlers.handleUser(userData);
       expect(window.SessionState.addMessage).toHaveBeenCalledWith(

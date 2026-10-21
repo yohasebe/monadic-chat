@@ -89,6 +89,24 @@ RSpec.describe BaseVendorHelper, '#record_user_turn!' do
     expect(session[:messages].size).to eq(4)
   end
 
+  it 'keeps what the server fixed when it accepted the send' do
+    snapshot = { 'request_id' => 'q_current', 'attachments' => refs }
+    current = accepted('Describe it', 'q_current', attachments: refs).merge('request_snapshot' => snapshot)
+    session = { messages: [current] }
+    context = Monadic::Workspace::RequestContext.new(chat_id: 'c_x', request_id: 'q_current')
+    res = turn('Describe it')
+    res['content'].merge!('request_id' => 'q_other', 'attachments' => [], 'request_snapshot' => {})
+    shown = []
+
+    Monadic::Workspace::RequestContext.with(context) { helper.record_user_turn!(session, res) { |r| shown << r } }
+
+    expect(current['request_id']).to eq('q_current')
+    expect(current['attachments']).to eq(refs)
+    expect(current['request_snapshot']).to eq(snapshot)
+    expect(current['html']).to eq('<p>Describe it</p>')
+    expect(shown.first['content']['attachments']).to eq(refs)
+  end
+
   # Every provider helper goes through record_user_turn!; none looks a user
   # message up by its text, and none adds the turn's message by itself.
   describe 'provider helpers' do
@@ -104,6 +122,13 @@ RSpec.describe BaseVendorHelper, '#record_user_turn!' do
         source = File.read(File.expand_path("../../../lib/monadic/adapters/vendors/#{vendor}_helper.rb", __dir__))
         expect(source.scan('record_user_turn!(session, res, &block)').size).to eq(1)
         expect(source).not_to match(/m\["text"\]\s*==/)
+      end
+
+      it "#{vendor} records a turn of attached files only, and shows the model its context with the attachments" do
+        source = File.read(File.expand_path("../../../lib/monadic/adapters/vendors/#{vendor}_helper.rb", __dir__))
+        expect(source.scan('user_turn_to_record?(role, ').size).to eq(1)
+        expect(source).not_to match(/message != "" && role == "user"/)
+        expect(source.scan('context = model_facing_context(context)').size).to eq(1)
       end
     end
   end

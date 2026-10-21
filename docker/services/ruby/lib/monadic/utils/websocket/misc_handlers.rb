@@ -366,8 +366,9 @@ module WebSocketHelper
           "mid" => message_id,
           "role" => obj["role"],
           "text" => text,
-          "badge" => badge
-        }
+          "badge" => badge,
+          "attachments" => new_data["attachments"]
+        }.compact
       }.to_json
       send_or_broadcast(display_message, ws_session_id)
 

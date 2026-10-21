@@ -1459,7 +1459,7 @@ module OpenAIHelper
 
       html = markdown_to_html(message, math: obj["math"])
 
-      if message != "" && role == "user"
+      if user_turn_to_record?(role, message, session)
 
         res = { "type" => "user",
                 "content" => {
@@ -1525,6 +1525,7 @@ module OpenAIHelper
     configure_openai_tools(body, obj, app, session, role, caps, use_responses_api)
 
     # Process images and build messages
+    context = model_facing_context(context)
     image_file_references = prepare_openai_image_generation_refs(context, image_generation, role, shared_folder)
     messages_containing_img = build_openai_messages(
       body, context, session, obj, role, image_generation, image_file_references,

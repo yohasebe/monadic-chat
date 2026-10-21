@@ -838,7 +838,7 @@ module CohereHelper
              end
 
       # Skip user card for initiate_from_assistant (obj["message"] is nil/empty)
-      if role == "user" && obj["message"].to_s.strip != ""
+      if user_turn_to_record?(role, obj["message"].to_s.strip, session)
         res = { "type" => "user",
                 "content" => {
                   "mid" => request_id,
@@ -873,6 +873,12 @@ module CohereHelper
     strip_inactive_image_data(session)
 
     # Build messages
+    context = model_facing_context(context)
+    # The current message is sent apart from the context.
+    current_turn = session[:messages].last
+    if role == "user" && current_turn && current_turn["role"] == "user" && !Array(current_turn["attachments"]).empty?
+      message = model_facing_message(current_turn)["text"]
+    end
     messages_result = build_cohere_messages(context, session, obj, role, message, initial_prompt, websearch, &block)
     return messages_result if messages_result.is_a?(Array) && messages_result.first.is_a?(Hash) && messages_result.first["type"] == "error"
     messages, messages_containing_img = messages_result

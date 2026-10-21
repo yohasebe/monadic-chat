@@ -201,6 +201,23 @@ RSpec.describe "Attachments of a request" do
       expect(Time.iso8601(snapshot["sent_at"])).to be_within(60).of(Time.now)
     end
 
+    it "records a message of attached files with no text, under its request, with its snapshot" do
+      id = upload(chat)
+      seen = []
+      send_message({ "message" => "", "attachments" => [{ "attachment_id" => id }] }, seen)
+      user = session[:messages].find { |m| m["role"] == "user" }
+      expect(user).to include("text" => "", "request_id" => seen.last.request_id)
+      expect(user["attachments"].map { |a| a["attachment_id"] }).to eq([id])
+      expect(user["request_snapshot"]["attachments"].map { |a| a["attachment_id"] }).to eq([id])
+      expect(seen.last.allows?(id)).to be(true)
+    end
+
+    it "records no user message for a send with no text and no attachments" do
+      seen = []
+      send_message({ "message" => "" }, seen)
+      expect(session[:messages].select { |m| m["role"] == "user" }).to be_empty
+    end
+
     it "lets an answer use no attachment that was only uploaded or named in the text" do
       unsent = upload(chat)
       seen = []

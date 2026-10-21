@@ -1255,7 +1255,7 @@ module GeminiHelper
                message
              end
 
-      if message != "" && role == "user"
+      if user_turn_to_record?(role, message, session)
         res = { "type" => "user",
                 "content" => {
                   "mid" => request_id,
@@ -1328,6 +1328,8 @@ module GeminiHelper
       "content-type" => "application/json",
       "x-goog-api-key" => api_key
     }
+
+    context = model_facing_context(context)
 
     # Build request body (safety settings, generationConfig, thinkingConfig, systemInstruction)
     system_message = context.find { |msg| msg["role"] == "system" }

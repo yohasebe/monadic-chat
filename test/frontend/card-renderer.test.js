@@ -18,7 +18,7 @@ const realDateNow = Date.now;
 global.Date.now = jest.fn().mockReturnValue(99999);
 
 // Load module under test
-const { escapeHtml, createCard, insertInlineToolBadge } = require('../../docker/services/ruby/public/js/monadic/card-renderer');
+const { escapeHtml, createCard, insertInlineToolBadge, addAttachmentsToCard } = require('../../docker/services/ruby/public/js/monadic/card-renderer');
 
 afterAll(() => {
   global.Date.now = realDateNow;
@@ -297,6 +297,50 @@ describe('card-renderer', () => {
       insertInlineToolBadge(card, []);
       insertInlineToolBadge(card, null);
       expect(card.querySelector('.lc-tools-badge')).toBeNull();
+    });
+  });
+
+  describe('addAttachmentsToCard', () => {
+    const userCard = () => createCard('user', '<span>User</span>', '<p>Hi</p>', 'en', 'u-1', true, []);
+
+    it('lists the files under the text, the name as text and never as markup', () => {
+      const card = userCard();
+      addAttachmentsToCard(card, [
+        { attachment_id: 'a_1', purpose: 'audio', display_name: '<img src=x onerror=alert(1)>.mp3', size: 1048576 },
+        { attachment_id: 'a_2', purpose: 'video', display_name: 'clip.mp4' }
+      ]);
+      const box = card.querySelector('.message-attachments');
+      expect(box).not.toBeNull();
+      expect(box.querySelector('img')).toBeNull();
+      const items = box.querySelectorAll('.file-container');
+      expect(items.length).toBe(2);
+      expect(items[0].textContent).toContain('<img src=x onerror=alert(1)>.mp3 (1.0 MB)');
+      expect(items[0].querySelector('.fa-file-audio')).not.toBeNull();
+      expect(items[1].querySelector('.fa-film')).not.toBeNull();
+    });
+
+    it('keeps the list beside the text, so editing the text leaves it in place', () => {
+      const card = userCard();
+      addAttachmentsToCard(card, [{ attachment_id: 'a_1', display_name: 'clip.mp4' }]);
+      const text = card.querySelector('.card-text');
+      expect(text.querySelector('.message-attachments')).toBeNull();
+      text.innerHTML = '<p>Edited</p>';
+      expect(card.querySelectorAll('.message-attachments').length).toBe(1);
+      expect(card.querySelector('.message-attachments').textContent).toContain('clip.mp4');
+    });
+
+    it('adds the list once, and nothing for no attachments', () => {
+      const card = userCard();
+      const list = [{ attachment_id: 'a_1', display_name: 'clip.mp4' }];
+      addAttachmentsToCard(card, list);
+      addAttachmentsToCard(card, list);
+      expect(card.querySelectorAll('.message-attachments').length).toBe(1);
+
+      const plain = userCard();
+      addAttachmentsToCard(plain, undefined);
+      addAttachmentsToCard(plain, [{ display_name: 'no id' }, null]);
+      addAttachmentsToCard(null, list);
+      expect(plain.querySelector('.message-attachments')).toBeNull();
     });
   });
 });

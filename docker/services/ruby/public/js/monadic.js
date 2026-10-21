@@ -3320,19 +3320,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
     setAlert(`<i class='fas fa-robot'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.thinking') : 'THINKING'}`, "warning");
     params = setParams();
-    // Attached videos are named in the message by attachment_id, which the
-    // video tools take; the files themselves are on the server already.
+    // The text as typed. Attached files go as structure: the server checks
+    // them, tells the model about them, and lets the answer's tools take
+    // only these (and those of earlier messages).
     const typedText = ($id("message") || {}).value;
-    const attachmentLines = typeof window.videoAttachmentLines === 'function' ? window.videoAttachmentLines() : '';
-    const userMessageText = [typedText, attachmentLines].filter(function (part) { return part; }).join("\n\n");
+    const userMessageText = typedText || '';
     params["message"] = userMessageText;
-    // The same attachments as structure: the server checks them and lets the
-    // answer's tools take only these (and those of earlier messages).
     const attachmentRefs = typeof window.videoAttachmentRefs === 'function' ? window.videoAttachmentRefs() : [];
     if (attachmentRefs.length) params["attachments"] = attachmentRefs;
     // What to give back for another try if the message is not accepted or
-    // fails: the typed text (not the lines added for the model), the
-    // attachment cards, and the images and PDFs.
+    // fails: the typed text, the attachment cards, and the images and PDFs.
     window.pendingSend = {
       text: typedText || '',
       attachments: typeof window.snapshotVideoAttachments === 'function' ? window.snapshotVideoAttachments() : [],

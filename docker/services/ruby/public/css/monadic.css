@@ -1859,6 +1859,13 @@ legend {
   margin-left: auto;
 }
 
+/* The files attached to a user message, on its card. */
+.message-attachments .file-container {
+  width: fit-content;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
 .pdf-preview {
   display: flex;
   align-items: center;

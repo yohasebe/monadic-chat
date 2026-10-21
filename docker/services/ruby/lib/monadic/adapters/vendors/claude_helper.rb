@@ -1172,7 +1172,7 @@ module ClaudeHelper
     message = obj["message"].to_s
 
     # Push the user message to the client as early as possible
-    if message != "" && role == "user"
+    if user_turn_to_record?(role, message, session)
       @thinking = nil
       @signature = nil
       res = { "type" => "user",
@@ -1229,6 +1229,7 @@ module ClaudeHelper
     configure_claude_tools(body, obj, app, session, role, thinking_config[:thinking_enabled], use_native_websearch)
 
     # Build messages
+    context = model_facing_context(context)
     messages_result = build_claude_messages(body, context, obj, model, role, session, &block)
     return messages_result if messages_result # nil on success, Array on error
 

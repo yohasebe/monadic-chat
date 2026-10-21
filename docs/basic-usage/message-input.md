@@ -48,7 +48,7 @@ For models using the Responses API, you can also enter a file URL directly in th
 
 ## Attaching Video and Audio Files :id=attaching-video-audio
 
-In apps that analyze video or transcribe audio, the `Image` button also takes video files (MP4, M4V, MOV, WebM, MKV, AVI) or audio files (MP3, M4A, WAV, OGG, Opus, FLAC, AAC, WebM). The file is uploaded to the chat's folder and shown below the message box until you send the message. Video Describer takes videos, and Speech Draft Helper takes audio files.
+In apps that analyze video or transcribe audio, the `Image` button also takes video files (MP4, M4V, MOV, WebM, MKV, AVI) or audio files (MP3, M4A, WAV, OGG, Opus, FLAC, AAC, WebM). The file is uploaded to the chat's folder and shown below the message box until you send the message. A message can be sent with attached files and no text. The files are listed on the message's card. Video Describer takes videos, and Speech Draft Helper takes audio files.
 
 ## Reading Text from Document Files :id=reading-text-from-document-files
 

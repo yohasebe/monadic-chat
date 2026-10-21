@@ -389,6 +389,30 @@ function insertInlineToolBadge(cardEl, toolsUsed) {
   });
 }
 
+// The files attached to a user message, under its text. The name and size
+// come from the server's record and are put in as text, never as markup.
+// The list is kept beside the text, not in it: editing replaces the text
+// and does not take files off the message.
+function addAttachmentsToCard(card, attachments) {
+  const body = card && card.querySelector('.card-text');
+  const list = Array.isArray(attachments) ? attachments.filter(function (a) { return a && a.attachment_id; }) : [];
+  if (!body || list.length === 0 || card.querySelector('.message-attachments')) return;
+  const box = document.createElement('div');
+  box.className = 'message-attachments';
+  list.forEach(function (a) {
+    const item = document.createElement('div');
+    item.className = 'file-container video-attachment';
+    const icon = document.createElement('i');
+    icon.className = 'fas ' + (a.purpose === 'audio' ? 'fa-file-audio' : 'fa-film');
+    item.appendChild(icon);
+    const size = Number(a.size);
+    const label = String(a.display_name || 'file') + (size > 0 ? ' (' + (size / (1024 * 1024)).toFixed(1) + ' MB)' : '');
+    item.appendChild(document.createTextNode(' ' + label));
+    box.appendChild(item);
+  });
+  body.insertAdjacentElement('afterend', box);
+}
+
 // Export for browser environment.
 // NOTE: window.escapeHtml is owned by text-utils.js (loaded earlier); this
 // module only delegates to it and must not re-export its local delegate
@@ -396,9 +420,10 @@ function insertInlineToolBadge(cardEl, toolsUsed) {
 window.createCard = createCard;
 window.assistantBadge = assistantBadge;
 window.insertInlineToolBadge = insertInlineToolBadge;
+window.addAttachmentsToCard = addAttachmentsToCard;
 
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { escapeHtml, createCard, assistantBadge, insertInlineToolBadge };
+  module.exports = { escapeHtml, createCard, assistantBadge, insertInlineToolBadge, addAttachmentsToCard };
 }
 })();

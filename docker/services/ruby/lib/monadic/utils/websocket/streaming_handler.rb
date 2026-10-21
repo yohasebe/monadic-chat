@@ -245,10 +245,13 @@ module WebSocketHelper
 
     # Start background token counting for the user message immediately
     message_text = obj["message"].to_s
-    if !message_text.empty?
-      # Use o200k_base encoding for most LLMs
-      token_count_thread = initialize_token_counting(message_text, "o200k_base")
-      Thread.current[:token_count_thread] = token_count_thread
+    # A message of attached files only is recorded too.
+    if !message_text.empty? || !Array(attachment_refs).empty?
+      unless message_text.empty?
+        # Use o200k_base encoding for most LLMs
+        token_count_thread = initialize_token_counting(message_text, "o200k_base")
+        Thread.current[:token_count_thread] = token_count_thread
+      end
 
       # Add user message to session for context extraction
       params = get_session_params

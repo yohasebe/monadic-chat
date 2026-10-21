@@ -1104,7 +1104,7 @@ module GrokHelper
 
       html = markdown_to_html(obj["message"], math: obj["math"])
 
-      if message != "" && role == "user"
+      if user_turn_to_record?(role, message, session)
 
         res = { "type" => "user",
                 "content" => {
@@ -1209,6 +1209,7 @@ module GrokHelper
 
     configure_grok_tools(body, model, obj, app, session, role, websearch_native)
 
+    context = model_facing_context(context)
     context_messages, _messages_containing_img = build_grok_messages(
       context, role, obj, session, body, message_with_snippet, prompt_suffix, data, &block
     )

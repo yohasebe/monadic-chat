@@ -211,7 +211,7 @@ module DeepSeekHelper
     if role != "tool"
       message = obj["message"].to_s
 
-      if message != "" && role == "user"
+      if user_turn_to_record?(role, message, session)
         res = { "type" => "user",
                 "content" => {
                   "mid" => request_id,
@@ -238,6 +238,7 @@ module DeepSeekHelper
     end
     context.each { |msg| msg["active"] = true if msg }
     strip_inactive_image_data(session)
+    context = model_facing_context(context)
 
     headers = {
       "Content-Type" => "application/json",

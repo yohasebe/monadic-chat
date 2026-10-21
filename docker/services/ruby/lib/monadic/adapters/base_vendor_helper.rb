@@ -205,13 +205,64 @@ module BaseVendorHelper
                  last if last && last["role"] == "user" && last["text"] == content["text"]
                end
     if existing
+      # What the server fixed when it accepted the send stays as it was.
+      existing.merge!(content.except(*USER_TURN_SERVER_FIELDS))
       content["attachments"] = existing["attachments"] if existing["attachments"]
-      existing.merge!(content)
     else
       content["request_id"] = request_id if request_id
       session[:messages] << content
     end
     block&.call res
+  end
+
+  USER_TURN_SERVER_FIELDS = %w[request_id attachments request_snapshot].freeze
+
+  # Whether this send has a user turn to record and show: typed text, or
+  # files attached to the message of the current request with no text.
+  def user_turn_to_record?(role, message, session)
+    return false unless role == "user"
+    return true if message.to_s != ""
+
+    request_id = Monadic::Workspace::RequestContext.current&.request_id
+    return false unless request_id
+
+    Array(session[:messages]).reverse_each.any? do |m|
+      m["role"] == "user" && m["request_id"] == request_id && !Array(m["attachments"]).empty?
+    end
+  end
+
+  # The messages as the model reads them: a user message's attachments are
+  # described after its text. The described messages are copies; the
+  # session keeps what the user typed. Helpers call it on the finished
+  # context before converting it, so the Privacy Filter sees the names.
+  def model_facing_context(context)
+    context.map { |msg| model_facing_message(msg) }
+  end
+
+  def model_facing_message(msg)
+    return msg unless msg.is_a?(Hash) && msg["role"] == "user"
+
+    text = msg["text"].to_s
+    lines = Array(msg["attachments"]).filter_map do |ref|
+      next unless ref.is_a?(Hash)
+
+      id = model_facing_value(ref["attachment_id"], 64)
+      # A message recorded with the line in its text already (sent while the
+      # page still added the lines).
+      next if id.empty? || text.match?(/^Attached (?:video|audio): .+ \(attachment_id: #{Regexp.escape(id)}\)$/)
+
+      kind = ref["purpose"] == "audio" ? "audio" : "video"
+      name = model_facing_value(ref["display_name"], 200)
+      "Attached #{kind}: #{name.empty? ? "file" : name} (attachment_id: #{id})"
+    end
+    return msg if lines.empty?
+
+    msg.merge("text" => [text, lines.join("\n")].reject(&:empty?).join("\n\n"))
+  end
+
+  # One line of plain text: no control or format characters, no line breaks.
+  def model_facing_value(value, limit)
+    value.to_s.scrub("?").gsub(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/, " ").squeeze(" ").strip[0, limit]
   end
 
   # Privacy Filter integration helpers.

@@ -92,7 +92,7 @@ RSpec.describe 'Per-chat workspaces' do
       record = reopened.workspace_for_chat(chat_id)
       expect(record).to include(workspace_id: workspace_id, chat_id: chat_id, app_name: 'ChatOpenAI')
       expect(record[:relative_dir]).to eq("conversations/x_#{workspace_id}")
-      expect(reopened.schema_version).to eq(1)
+      expect(reopened.schema_version).to eq(Monadic::Workspace::Ledger::SCHEMA_VERSION)
     end
 
     it 'keeps the ledger out of the shared folder' do

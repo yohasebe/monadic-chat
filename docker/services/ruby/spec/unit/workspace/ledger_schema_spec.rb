@@ -59,12 +59,19 @@ RSpec.describe Monadic::Workspace::LedgerSchema do
     expect(ledger.attachment(made[:attachments]['ready'])[:status]).to eq('ready')
   end
 
-  it 'reads a ledger written before artifacts and publications, and adds them on the next change' do
-    made = filled
-    edit { |data| data.delete('artifacts'); data.delete('publications') }
+  it 'takes a version 1 ledger (without artifacts and publications) in the current form, and a version 2 one only with them' do
+    filled
+    edit { |data| data.delete('artifacts'); data.delete('publications'); data['schema_version'] = 1 }
     expect(error_of).to be_nil
-    ledger.update_attachment(made[:attachments]['validating'], status: 'failed', 'failure' => 'Interrupted')
-    expect(JSON.parse(File.read(path))).to include('artifacts' => {}, 'publications' => {})
+    edit { |data| data['schema_version'] = 2 }
+    expect(error_of).to be_a(ledger_class::Shape)
+  end
+
+  it 'keeps artifacts and publications empty in this version (records there are refused)' do
+    filled
+    edit { |data| data['artifacts'][ids.generate(:artifact)] = {} }
+    expect(error_of).to be_a(ledger_class::Shape)
+    expect(error_of.message).to include('does not know')
   end
 
   it 'keeps fields and collections it does not know (a later version may add them), through a change too' do
@@ -83,7 +90,7 @@ RSpec.describe Monadic::Workspace::LedgerSchema do
   it 'tells JSON that cannot be read from a ledger out of form and from a newer one' do
     File.write(path, '{')
     expect(error_of).to be_a(ledger_class::Syntax)
-    File.write(path, JSON.generate('schema_version' => 2))
+    File.write(path, JSON.generate('schema_version' => 3))
     expect(error_of).to be_a(ledger_class::Newer)
     File.write(path, JSON.generate('schema_version' => '1'))
     expect(error_of).to be_a(ledger_class::Shape)
@@ -134,6 +141,7 @@ RSpec.describe Monadic::Workspace::LedgerSchema do
       'a time that is not a time' => ->(d) { d['attachments'][ready]['created_at'] = 'yesterday' },
       'a name that is not text' => ->(d) { d['attachments'][ready]['original_name'] = 1 },
       'a publication key of the wrong kind' => ->(d) { d['publications']['pub_x'] = {} },
+      'a version 2 ledger without a collection' => ->(d) { d.delete('chats') },
       'a chat whose workspace is gone' => lambda do |d|
         d['workspaces'].delete(made[:workspace])
         d['attachments'].clear

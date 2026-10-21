@@ -63,6 +63,10 @@ module Monadic
           raise Folders::Unavailable, 'the chat folder changed while saving' unless Folders.real_path(relative_path)
 
           ledger.update_attachment(attachment_id, status: 'ready', 'size' => size, 'sha256' => digest)
+        rescue Ledger::Unsettled
+          # The ready record was put in place but may not be on disk: the
+          # finished file stays, and nothing more is written to the ledger.
+          raise Unusable.new(:unsettled, 'The file was saved, but its record could not be confirmed. Restart Monadic Chat.')
         rescue StandardError => e
           # Remove only a partial file this call created, never one it found.
           File.unlink(dest) if created && File.exist?(dest)

@@ -19,6 +19,12 @@ module Monadic
     # A JSON file guarded by a lock file: every change rereads the file under
     # an exclusive lock and replaces it by renaming a fully written copy, so
     # a crash mid-write leaves the previous ledger whole.
+    #
+    # A ledger of an earlier version is read in the current form without
+    # being changed; the first change keeps its bytes as they were in
+    # ledger.json.v1.bak (made and settled on disk before anything else) and
+    # then saves the current version. Nothing is put back automatically:
+    # going back to the backup loses what was recorded since.
     class Ledger
       SCHEMA_VERSION = LedgerSchema::VERSION
       FILE_NAME = 'ledger.json'
@@ -32,6 +38,81 @@ module Monadic
       class Shape < Unreadable; end
       # Written by a newer version.
       class Newer < Unreadable; end
+      # The earlier version could not be kept before the upgrade; nothing
+      # was changed.
+      class NotUpgraded < Unreadable; end
+      # A change was saved but may not be settled on disk: nothing more is
+      # written to this ledger by this process (it is looked at again when
+      # the server starts again).
+      class Unsettled < Unreadable; end
+
+      # Ledgers this process stopped writing (Unsettled), by path, for every
+      # Ledger object of that path.
+      @unsettled = {}
+      @unsettled_mutex = Mutex.new
+
+      def self.unsettled?(path)
+        @unsettled_mutex.synchronize { @unsettled.key?(identity(path)) }
+      end
+
+      def self.unsettle!(path)
+        @unsettled_mutex.synchronize { @unsettled[identity(path)] = true }
+      end
+
+      # The same ledger whatever path names it (a link to its folder, a
+      # relative path, another spelling of its name where case does not
+      # count): the real path of its folder and the name the folder holds it
+      # under (the name as given while there is no file yet).
+      def self.identity(path)
+        full = File.expand_path(path)
+        dir = File.realpath(File.dirname(full))
+        name = File.basename(full)
+        if File.exist?(full)
+          held = Dir.children(dir).find { |entry| File.identical?(File.join(dir, entry), full) }
+          name = held if held
+        end
+        File.join(dir, name)
+      end
+
+      def self.clear_unsettled!
+        @unsettled_mutex.synchronize { @unsettled.clear }
+      end
+
+      # What the ledger does to the disk, in one place. Every failure is
+      # passed on (a folder that cannot be synced is not taken as synced).
+      module Disk
+        module_function
+
+        # Makes a new file with these bytes, settled. A file of that name
+        # already there is left as it is (Errno::EEXIST); a file this call
+        # made and could not finish is removed.
+        def create_exclusive(path, bytes)
+          file = File.open(path, File::WRONLY | File::CREAT | File::EXCL, 0o600)
+          begin
+            file.write(bytes)
+            file.flush
+            file.fsync
+          rescue StandardError
+            file.close
+            File.unlink(path) rescue nil
+            raise
+          ensure
+            file.close unless file.closed?
+          end
+        end
+
+        def sync_file(path)
+          File.open(path, File::RDONLY) { |f| f.fsync }
+        end
+
+        def sync_dir(dir)
+          File.open(dir, File::RDONLY) { |d| d.fsync }
+        end
+
+        def replace(from, to)
+          File.rename(from, to)
+        end
+      end
 
       def self.default_path
         File.join(Monadic::Utils::Environment.state_path, FILE_NAME)
@@ -174,7 +255,7 @@ module Monadic
       end
 
       def read
-        locked(File::LOCK_SH) { yield load }
+        locked(File::LOCK_SH) { yield load.first }
       end
 
       # Changes are made only by the server that holds the state folder
@@ -182,10 +263,13 @@ module Monadic
       def write
         locked(File::LOCK_EX) do
           ServerOwner.writing do
-            data = load
+            raise Unsettled, 'the last change to the ledger may not be on disk; restart Monadic Chat' if self.class.unsettled?(@path)
+
+            data, version, raw = load
             result = yield data
             # A change that would leave the ledger out of form is not saved.
-            checked(data)
+            checked_current(data)
+            keep_earlier(raw) if raw && version < SCHEMA_VERSION
             save(data)
             result
           end
@@ -204,31 +288,60 @@ module Monadic
         end
       end
 
+      # [data in the current form, the version on disk, the bytes on disk
+      # (nil when there is no file yet)].
       def load
-        data = File.exist?(@path) ? JSON.parse(File.read(@path)) : {}
-        checked(data)
+        raw = File.exist?(@path) ? File.binread(@path) : nil
+        data, version = schema { LedgerSchema.check!(raw ? JSON.parse(raw) : {}) }
+        [data, version, raw]
       rescue JSON::ParserError
         raise Syntax, 'ledger is not valid JSON'
       end
 
-      def checked(data)
-        LedgerSchema.check!(data)
+      def checked_current(data)
+        schema { LedgerSchema.check_current!(data) }
+      end
+
+      def schema
+        yield
       rescue LedgerSchema::Newer => e
         raise Newer, e.message
       rescue LedgerSchema::Shape => e
         raise Shape, "ledger is not of the expected form: #{e.message}"
       end
 
+      # Keeps the bytes of the earlier version before the first change, and
+      # settles them on disk; an existing backup with other bytes is left as
+      # it is and these go under another name.
+      def keep_earlier(raw)
+        backup = "#{@path}.v1.bak"
+        if File.exist?(backup) && File.binread(backup) == raw
+          Disk.sync_file(backup)
+        else
+          backup = "#{@path}.v1.#{SecureRandom.hex(6)}.bak" if File.exist?(backup)
+          Disk.create_exclusive(backup, raw)
+        end
+        Disk.sync_dir(File.dirname(@path))
+      rescue SystemCallError, IOError
+        raise NotUpgraded, 'the ledger could not be kept before its upgrade; nothing was changed'
+      end
+
       def save(data)
         tmp = "#{@path}.#{SecureRandom.hex(6)}.tmp"
-        File.open(tmp, File::WRONLY | File::CREAT | File::EXCL, 0o600) do |f|
-          f.write(JSON.pretty_generate(data))
-          f.flush
-          f.fsync
+        # On failure it removes what it made, and only that.
+        Disk.create_exclusive(tmp, JSON.pretty_generate(data))
+        begin
+          Disk.replace(tmp, @path)
+        rescue StandardError
+          File.unlink(tmp) rescue nil
+          raise
         end
-        File.rename(tmp, @path)
-      ensure
-        File.unlink(tmp) if tmp && File.exist?(tmp)
+        begin
+          Disk.sync_dir(File.dirname(@path))
+        rescue SystemCallError, IOError
+          self.class.unsettle!(@path)
+          raise Unsettled, 'the last change to the ledger may not be on disk; restart Monadic Chat'
+        end
       end
     end
   end

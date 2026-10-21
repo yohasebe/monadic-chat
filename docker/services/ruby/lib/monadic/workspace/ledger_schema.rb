@@ -12,8 +12,14 @@ module Monadic
     # add some); a known field must have its form. Messages name the field,
     # never an id or a name from the ledger.
     module LedgerSchema
-      VERSION = 1
+      VERSION = 2
+      # Collections a version 1 ledger had; version 2 adds the rest.
+      V1_COLLECTIONS = %w[chats workspaces attachments].freeze
       COLLECTIONS = %w[chats workspaces attachments artifacts publications].freeze
+      # Collections version 2 sets aside for records this version does not
+      # make yet: only empty ones are taken (a later version that makes them
+      # defines their form, and an earlier one never writes over them).
+      RESERVED = %w[artifacts publications].freeze
       ATTACHMENT_STATES = %w[validating ready failed].freeze
       SHA256 = /\A[0-9a-f]{64}\z/
 
@@ -24,38 +30,69 @@ module Monadic
 
       module_function
 
-      # Fills in empty collections for a ledger that has none yet and checks
-      # the whole of it. Returns data.
+      # Checks a ledger as read from disk and returns it in the form of the
+      # current version, with the version it was written in: [data, version].
+      # A version 1 ledger is checked as version 1 and then given what
+      # version 2 adds; nothing is written here. A file with nothing in it
+      # yet ({}) counts as version 1.
       def check!(data)
         raise Shape, 'the ledger is not an object' unless data.is_a?(Hash)
 
-        version!(data)
-        # A collection that is not there yet is added empty; one that is
-        # there must be an object (null is not taken for empty).
-        COLLECTIONS.each do |name|
-          data[name] = {} unless data.key?(name)
-          raise Shape, "#{name} is not an object" unless data[name].is_a?(Hash)
-        end
-        chats!(data)
-        workspaces!(data)
-        attachments!(data)
-        ids!(data['artifacts'], :artifact, 'artifacts')
-        ids!(data['publications'], :publication, 'publications')
+        version = version_of(data)
+        version == 1 ? from_v1(data) : present!(data, COLLECTIONS)
+        current!(data)
+        [data, version]
+      end
+
+      # Checks a ledger in the form of the current version (before it is
+      # saved).
+      def check_current!(data)
+        raise Shape, 'the ledger is not an object' unless data.is_a?(Hash)
+        raise Shape, 'schema_version is not the current one' unless data['schema_version'] == VERSION
+
+        present!(data, COLLECTIONS)
+        current!(data)
         data
       end
 
-      def version!(data)
+      def version_of(data)
         unless data.key?('schema_version')
           has_records = COLLECTIONS.any? { |name| data[name].is_a?(Hash) && !data[name].empty? }
           raise Shape, 'schema_version is missing' if has_records
 
-          data['schema_version'] = VERSION
-          return
+          return 1
         end
         version = data['schema_version']
         raise Shape, 'schema_version is not a whole number' unless version.is_a?(Integer)
         raise Newer, "ledger schema #{version} is newer than this version understands" if version > VERSION
         raise Shape, 'schema_version is out of range' if version < 1
+
+        version
+      end
+
+      # A version 1 ledger: its collections may be missing (an empty ledger)
+      # but not null; artifacts and publications, which a version 1 ledger
+      # may carry empty, must be empty.
+      def from_v1(data)
+        COLLECTIONS.each do |name|
+          data[name] = {} unless data.key?(name)
+          raise Shape, "#{name} is not an object" unless data[name].is_a?(Hash)
+        end
+        data['schema_version'] = VERSION
+      end
+
+      def present!(data, names)
+        names.each do |name|
+          raise Shape, "#{name} is missing" unless data.key?(name)
+          raise Shape, "#{name} is not an object" unless data[name].is_a?(Hash)
+        end
+      end
+
+      def current!(data)
+        chats!(data)
+        workspaces!(data)
+        attachments!(data)
+        RESERVED.each { |name| raise Shape, "#{name} holds records this version does not know" unless data[name].empty? }
       end
 
       def chats!(data)

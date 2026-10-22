@@ -164,8 +164,9 @@ module Monadic
             'created_at' => stamp
           }
           chats[chat_id] = { 'workspace_id' => workspace_id, 'created_at' => stamp }
+          # Returned as saved, with no second read (see register_artifact)
+          export(workspace_id, workspaces[workspace_id])
         end
-        workspace(workspace_id)
       end
 
       ATTACHMENT_STATES = LedgerSchema::ATTACHMENT_STATES
@@ -193,8 +194,9 @@ module Monadic
             'status' => 'validating',
             'created_at' => created_at.utc.iso8601
           }
+          # Returned as saved, with no second read (see register_artifact)
+          data['attachments'][attachment_id].transform_keys(&:to_sym).merge(attachment_id: attachment_id)
         end
-        attachment(attachment_id)
       end
 
       def update_attachment(attachment_id, status:, **fields)
@@ -204,14 +206,63 @@ module Monadic
           record = data['attachments'][attachment_id] or raise Conflict, 'unknown attachment'
           record['status'] = status
           fields.each { |key, value| record[key.to_s] = value }
+          # Returned as saved, with no second read (see register_artifact)
+          record.transform_keys(&:to_sym).merge(attachment_id: attachment_id)
         end
-        attachment(attachment_id)
       end
 
       def attachment(attachment_id)
         read do |data|
           record = data['attachments'][attachment_id]
           record && record.transform_keys(&:to_sym).merge(attachment_id: attachment_id)
+        end
+      end
+
+      # Records what the server made and has kept in the state folder
+      # (Artifacts.store!), with the size and sha256 of the bytes it wrote.
+      # The owner is a chat (its workspace is looked up here, not taken from
+      # the caller) or a folder for runs outside any chat; copy_path is built
+      # from that owner, never given.
+      def register_artifact(artifact_id:, owner:, job_id:, kind:, size:, sha256:, created_at: Time.now)
+        raise ArgumentError, 'invalid artifact id' unless Ids.valid?(:artifact, artifact_id)
+        raise ArgumentError, 'invalid job id' unless Ids.valid?(:job, job_id)
+        name = LedgerSchema::ARTIFACT_KINDS.fetch(kind) { raise ArgumentError, "unknown kind #{kind}" }
+
+        write do |data|
+          raise Conflict, 'artifact id already registered' if data['artifacts'].key?(artifact_id)
+
+          record = case owner[:kind]
+                   when :chat
+                     workspace = data['workspaces'][owner[:workspace_id]]
+                     raise Conflict, 'the run belongs to no chat in the ledger' unless workspace.is_a?(Hash)
+
+                     base = workspace['relative_dir']
+                     { 'owner' => 'chat', 'chat_id' => workspace['chat_id'], 'workspace_id' => owner[:workspace_id] }
+                   when :outside
+                     base = owner[:root]
+                     { 'owner' => 'outside', 'root' => base }
+                   else
+                     raise ArgumentError, 'unknown owner'
+                   end
+          data['artifacts'][artifact_id] = record.merge(
+            'job_id' => job_id,
+            'kind' => kind,
+            'copy_path' => "#{base}/artifacts/#{job_id}/#{name}",
+            'size' => size,
+            'sha256' => sha256,
+            'status' => 'ready',
+            'created_at' => created_at.utc.iso8601
+          )
+          # Returned as saved, with no second read: a read that failed after
+          # the save would be taken for a record that was never made.
+          data['artifacts'][artifact_id].transform_keys(&:to_sym).merge(artifact_id: artifact_id)
+        end
+      end
+
+      def artifact(artifact_id)
+        read do |data|
+          record = data['artifacts'][artifact_id]
+          record && record.transform_keys(&:to_sym).merge(artifact_id: artifact_id)
         end
       end
 

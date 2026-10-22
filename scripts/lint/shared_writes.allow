@@ -10,6 +10,9 @@ docker/services/ruby/lib/monadic.rb | FileUtils.mkdir_p(File.dirname(legacy_volu
 docker/services/ruby/lib/monadic.rb | File.write(legacy_volume_marker | log | notice marker in the log folder
 docker/services/ruby/lib/monadic/app.rb | File.open(COMMAND_LOG_FILE | log | command log
 docker/services/ruby/lib/monadic/shell.rb | File.open(log_path | log | command log
+docker/services/ruby/lib/monadic/workspace/artifacts.rb | Dir.mkdir(root, 0o700) | state | folder of kept artifacts (state folder)
+docker/services/ruby/lib/monadic/workspace/artifacts.rb | Dir.mkdir(dir, 0o700) | state | one kept artifact's folder, made new (state folder)
+docker/services/ruby/lib/monadic/workspace/artifacts.rb | FileUtils.rm_rf(dir) | state | removes the artifact folder this call made when its record cannot be made (state folder)
 docker/services/ruby/lib/monadic/workspace/ledger.rb | File.open(path, File::WRONLY | state | ledger (state folder)
 docker/services/ruby/lib/monadic/workspace/ledger.rb | File.unlink(path) | state | ledger (state folder)
 docker/services/ruby/lib/monadic/workspace/ledger.rb | File.rename(from, to) | state | ledger (state folder)

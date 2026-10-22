@@ -1148,6 +1148,7 @@ RSpec.describe Monadic::MCP::Conduit do
         expect(result[:artifacts].keys).to eq(%w[json vtt])
         expect(result[:artifacts]["json"]).to match(%r{\Atranscriptions/artifacts/j_[a-z0-9]{16}/transcript\.json\z})
         expect(given).to include(provider: "xai", language: "ja", input: "/monadic/data/speech.mp3")
+        expect(given[:job][:owner]).to eq(kind: :outside, root: "transcriptions")
         expect(result[:budget][:tokens_spent]).to be >= 100 # ten seconds of audio sent
       end
 

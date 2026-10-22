@@ -201,17 +201,33 @@ module Monadic
         nil
       end
 
-      # Subtitle files for the transcript, in the run folder and as public
-      # copies (WebVTT for the player, SRT for other programs). Returns
-      # { vtt:, srt: } addresses, or nil when there is nothing to show.
+      # Subtitle files for the transcript (WebVTT for the player, SRT for
+      # other programs): kept as artifacts of the run (Workspace::Artifacts),
+      # with a copy in the run folder, and given public copies made from the
+      # kept bytes, never from the run folder's copy. Returns { vtt:, srt: }
+      # addresses, or nil when there is nothing to show.
       def write_subtitles(result)
         return nil if Subtitles.cues(result).empty?
 
         { vtt: Subtitles.vtt(result), srt: Subtitles.srt(result) }.to_h do |kind, body|
-          path = SharedPathGuard.write_file!(File.join(@job[:path], "transcript.#{kind}"), body)
-          [kind, PublicCopy.publish(path, "pub_#{@job[:job_id]}.#{kind}")]
+          # Kept first: when it cannot be kept, no copy is left in the run
+          # folder and nothing is published.
+          next [kind, nil] unless keep_subtitles(kind, body)
+
+          SharedPathGuard.write_file!(File.join(@job[:path], "transcript.#{kind}"), body)
+          [kind, PublicCopy.publish_bytes(body, "pub_#{@job[:job_id]}.#{kind}")]
         end.compact.then { |links| links.empty? ? nil : links }
       rescue SharedPathGuard::InvalidPath, SystemCallError, IOError
+        nil
+      end
+
+      # The artifact, or nil when it could not be kept (then it is not
+      # published).
+      def keep_subtitles(kind, body)
+        Monadic::Workspace::Artifacts.store!(job: @job, kind: "subtitle_#{kind}", body: body)
+      rescue Monadic::Workspace::Ledger::Unreadable, Monadic::Workspace::Ledger::Conflict,
+             Monadic::Workspace::ServerOwner::Refused, SystemCallError, IOError, KeyError, ArgumentError => e
+        warn "[Workspace] Subtitles not kept: #{e.class.name.split('::').last}"
         nil
       end
     end

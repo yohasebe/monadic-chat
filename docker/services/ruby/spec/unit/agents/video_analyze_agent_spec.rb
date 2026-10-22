@@ -704,6 +704,17 @@ RSpec.describe VideoAnalyzeAgent do
         expect(result).to include("A deer crosses the road.\n\n---\n\nAudio Transcript:\n[00:01–00:03] Hello there.")
       end
 
+      it "keeps the subtitles as artifacts of the attachment's chat, in the attachment's run" do
+        allow(agent).to receive(:video_vision_query).and_return('A deer crosses the road.')
+        record = attach
+        analyze
+        artifacts = JSON.parse(File.read(ledger.path))['artifacts'].values
+        expect(artifacts.map { |a| a['kind'] }).to contain_exactly('subtitle_vtt', 'subtitle_srt')
+        expect(artifacts).to all(include('owner' => 'chat', 'chat_id' => chat_id, 'workspace_id' => record[:workspace_id]))
+        workspace_dir = ledger.workspace(record[:workspace_id])[:relative_dir]
+        expect(artifacts.map { |a| a['copy_path'] }).to all(start_with("#{workspace_dir}/artifacts/#{artifacts.first['job_id']}/"))
+      end
+
       it 'keeps the transcript when the frame analysis fails' do
         allow(agent).to receive(:video_vision_query).and_return('ERROR: vision refused')
         result = analyze
@@ -911,7 +922,11 @@ RSpec.describe VideoAnalyzeAgent do
         call = segment_calls.first
         expect(call[:argv][2]).to eq('/monadic/data/clip.mp4')
         expect(call[:argv][3]).to match(%r{\A/monadic/data/conversations/[^/]+/artifacts/j_[a-z0-9]{16}\z})
-        expect(ledger.workspace_for_chat(chat_id)).not_to be_nil
+        workspace = ledger.workspace_for_chat(chat_id)
+        expect(workspace).not_to be_nil
+        artifacts = JSON.parse(File.read(ledger.path))['artifacts'].values
+        expect(artifacts).to all(include('owner' => 'chat', 'chat_id' => chat_id, 'workspace_id' => workspace[:workspace_id]))
+        expect(artifacts.size).to eq(2)
 
         expect(agent.send(:timed_transcript, { input: '/monadic/data/clip.mp4' }, 'openai', nil)).to be_nil
         expect(segment_calls.size).to eq(1)

@@ -90,7 +90,7 @@ RSpec.describe "Writes into the shared folder" do
     it "keep a run's subtitles out of a file a link points at" do
       chat = Monadic::Workspace::Ids.generate(:chat)
       workspace = Monadic::Workspace::Folders.ensure_for_chat!(chat, app_name: "Chat", ledger: ledger)
-      job = Monadic::Workspace::Jobs.create!(workspace[:relative_dir])
+      job = Monadic::Workspace::Jobs.create!(workspace[:workspace_id], ledger: ledger)
       File.symlink(@secret, File.join(job[:path], "transcript.vtt"))
       expect { Monadic::Utils::SharedPathGuard.write_file!(File.join(job[:path], "transcript.vtt"), "WEBVTT") }
         .to raise_error(Monadic::Utils::SharedPathGuard::InvalidPath)

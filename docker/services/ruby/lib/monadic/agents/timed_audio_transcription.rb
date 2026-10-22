@@ -82,7 +82,7 @@ module AudioTranscriptionAgent
                 else
                   Monadic::Workspace::Folders.ensure_for_chat!(chat_id, app_name: self.class.name)
                 end
-    job = Monadic::Workspace::Jobs.create!(workspace[:relative_dir])
+    job = Monadic::Workspace::Jobs.create!(workspace[:workspace_id])
     output = Monadic::Utils::SharedPathGuard.command_path(job[:path], container: "python", must_exist: false)
     return { answer: "Error: the run folder is outside the shared folder." } unless output
 

@@ -86,6 +86,25 @@ RSpec.describe 'Per-chat workspaces' do
                                 relative_dir: "conversations/x_#{workspace_id}", **overrides)
     end
 
+    it 'returns each change as saved, with no read after the save that could fail' do
+      saved = false
+      allow(ledger).to(receive(:save).and_wrap_original { |m, *args| m.call(*args).tap { saved = true } })
+      allow(ledger).to receive(:read).and_wrap_original do |m, *args, &blk|
+        raise Errno::EIO if saved
+
+        m.call(*args, &blk)
+      end
+      expect(register).to include(workspace_id: workspace_id, chat_id: chat_id)
+      saved = false
+      attachment_id = ids.generate(:attachment)
+      record = ledger.register_attachment(attachment_id: attachment_id, chat_id: chat_id, workspace_id: workspace_id,
+                                          purpose: 'chat', original_name: 'a.txt',
+                                          relative_path: "conversations/x_#{workspace_id}/inputs/a.txt")
+      expect(record).to include(attachment_id: attachment_id, status: 'validating')
+      saved = false
+      expect(ledger.update_attachment(attachment_id, status: 'failed')).to include(attachment_id: attachment_id, status: 'failed')
+    end
+
     it 'records a workspace under its chat and reads it back from a new instance' do
       register
       reopened = Monadic::Workspace::Ledger.new(ledger.path)

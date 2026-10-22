@@ -19,8 +19,15 @@ module Monadic
       # Collections version 2 sets aside for records this version does not
       # make yet: only empty ones are taken (a later version that makes them
       # defines their form, and an earlier one never writes over them).
-      RESERVED = %w[artifacts publications].freeze
+      RESERVED = %w[publications].freeze
       ATTACHMENT_STATES = %w[validating ready failed].freeze
+      # What the server makes, by kind, and the name it has (the same in the
+      # state folder and in the run folder's copy).
+      ARTIFACT_KINDS = { 'subtitle_vtt' => 'transcript.vtt', 'subtitle_srt' => 'transcript.srt' }.freeze
+      ARTIFACT_STATES = %w[ready].freeze
+      # Folders of the shared folder that hold runs asked for from outside
+      # any chat (the MCP server).
+      OUTSIDE_ROOTS = %w[transcriptions].freeze
       SHA256 = /\A[0-9a-f]{64}\z/
 
       # Wrong form (as opposed to JSON that cannot be read at all).
@@ -92,6 +99,7 @@ module Monadic
         chats!(data)
         workspaces!(data)
         attachments!(data)
+        artifacts!(data)
         RESERVED.each { |name| raise Shape, "#{name} holds records this version does not know" unless data[name].empty? }
       end
 
@@ -144,23 +152,67 @@ module Monadic
           %w[purpose original_name].each { |key| raise Shape, "attachments.#{key} is not text" unless record[key].is_a?(String) }
           raise Shape, 'attachments.status is unknown' unless ATTACHMENT_STATES.include?(record['status'])
 
-          contents!(record, required: record['status'] == 'ready')
+          contents!(record, 'attachments', required: record['status'] == 'ready')
           raise Shape, 'attachments.failure is not text' if record.key?('failure') && !record['failure'].is_a?(String)
 
           time!(record['created_at'], 'attachments.created_at')
         end
       end
 
-      # size and sha256: required on a ready attachment, of their form
-      # wherever they are.
-      def contents!(record, required:)
-        raise Shape, 'a ready attachment has no size' if required && !record.key?('size')
-        raise Shape, 'a ready attachment has no sha256' if required && !record.key?('sha256')
+      # An artifact belongs to a chat (its workspace's run folder) or to a
+      # folder for runs outside any chat; its copy_path is exactly where the
+      # run folder's copy is, built from that owner, the job and the kind.
+      def artifacts!(data)
+        ids!(data['artifacts'], :artifact, 'artifacts')
+        data['artifacts'].each_value do |record|
+          base = artifact_base(data, record)
+          raise Shape, 'artifacts.job_id is not a job id' unless Ids.valid?(:job, record['job_id'])
+
+          name = ARTIFACT_KINDS[record['kind']]
+          raise Shape, 'artifacts.kind is unknown' unless name
+          unless record['copy_path'] == "#{base}/artifacts/#{record['job_id']}/#{name}"
+            raise Shape, 'artifacts.copy_path is not the run folder of its owner'
+          end
+
+          contents!(record, 'artifacts', required: true)
+          raise Shape, 'artifacts.status is unknown' unless ARTIFACT_STATES.include?(record['status'])
+
+          time!(record['created_at'], 'artifacts.created_at')
+        end
+      end
+
+      def artifact_base(data, record)
+        case record['owner']
+        when 'chat'
+          workspace = data['workspaces'][record['workspace_id']]
+          unless workspace.is_a?(Hash) && Ids.valid?(:chat, record['chat_id']) && workspace['chat_id'] == record['chat_id']
+            raise Shape, 'an artifact does not belong to a workspace of its chat'
+          end
+          raise Shape, 'an artifact of a chat has a root' if record.key?('root')
+
+          workspace['relative_dir']
+        when 'outside'
+          if record.key?('chat_id') || record.key?('workspace_id')
+            raise Shape, 'an artifact outside any chat names a chat or a workspace'
+          end
+          raise Shape, 'artifacts.root is not a folder for runs outside any chat' unless OUTSIDE_ROOTS.include?(record['root'])
+
+          record['root']
+        else
+          raise Shape, 'artifacts.owner is unknown'
+        end
+      end
+
+      # size and sha256: required on a ready record, of their form wherever
+      # they are.
+      def contents!(record, name, required:)
+        raise Shape, "#{name}: a ready record has no size" if required && !record.key?('size')
+        raise Shape, "#{name}: a ready record has no sha256" if required && !record.key?('sha256')
         if record.key?('size') && !(record['size'].is_a?(Integer) && record['size'] >= 0)
-          raise Shape, 'attachments.size is not a count of bytes'
+          raise Shape, "#{name}.size is not a count of bytes"
         end
         if record.key?('sha256') && !(record['sha256'].is_a?(String) && SHA256.match?(record['sha256']))
-          raise Shape, 'attachments.sha256 is not a sha256'
+          raise Shape, "#{name}.sha256 is not a sha256"
         end
       end
 

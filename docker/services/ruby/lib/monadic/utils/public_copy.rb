@@ -26,6 +26,17 @@ module Monadic
       rescue SharedPathGuard::InvalidPath, SystemCallError, IOError
         nil
       end
+
+      # The same from bytes in hand (what was kept as an artifact), so the
+      # copy is made from them and not from a file another program can change.
+      def publish_bytes(bytes, name)
+        dest = File.join(Environment.data_path, name)
+        existing = SharedPathGuard.file_stat(dest)
+        SharedPathGuard.write_file!(dest, bytes) unless existing&.size == bytes.bytesize
+        "/data/#{name}"
+      rescue SharedPathGuard::InvalidPath, SystemCallError, IOError
+        nil
+      end
     end
   end
 end

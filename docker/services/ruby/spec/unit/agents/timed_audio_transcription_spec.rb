@@ -101,6 +101,10 @@ RSpec.describe "Transcribing an audio file with times" do
     expect(segmenter_calls.first.last(2)).to eq(%w[--timeline audio])
     expect(segmenter_calls.first[2]).to eq("/monadic/data/lecture.mp3")
     expect(transcriber_args[:language]).to eq("en")
+    workspace = ledger.workspace_for_chat(chat_id)
+    artifacts = JSON.parse(File.read(ledger.path))["artifacts"].values
+    expect(artifacts.map { |a| a["kind"] }).to contain_exactly("subtitle_vtt", "subtitle_srt")
+    expect(artifacts).to all(include("owner" => "chat", "chat_id" => chat_id, "workspace_id" => workspace[:workspace_id]))
   end
 
   it "says why an Opus or AAC file cannot go the whole-file way" do
@@ -173,6 +177,9 @@ RSpec.describe "Transcribing an audio file with times" do
       expect(segmenter_calls.first[2]).to eq("/monadic/data/#{record[:relative_path]}")
       expect(segmenter_calls.first[3]).to include("/artifacts/j_")
       expect(File.dirname(segmenter_calls.first[3])).to eq(File.join(File.dirname(File.dirname(segmenter_calls.first[2])), "artifacts"))
+      artifacts = JSON.parse(File.read(ledger.path))["artifacts"].values
+      expect(artifacts.size).to eq(2)
+      expect(artifacts).to all(include("owner" => "chat", "chat_id" => chat_id, "workspace_id" => record[:workspace_id]))
     end
 
     it "is found from a real Rack session too (the session of an actual chat)" do

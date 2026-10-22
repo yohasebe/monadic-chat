@@ -247,7 +247,7 @@ module VideoAnalyzeAgent
     return "Error: attachment #{record[:original_name]} is not a video." unless record[:purpose] == "video"
 
     workspace = Monadic::Workspace::Ledger.default.workspace(record[:workspace_id])
-    job = Monadic::Workspace::Jobs.create!(workspace[:relative_dir])
+    job = Monadic::Workspace::Jobs.create!(workspace[:workspace_id])
     input = Monadic::Utils::SharedPathGuard.command_path(record[:path], container: "python")
     output = Monadic::Utils::SharedPathGuard.command_path(job[:path], container: "python", must_exist: false)
     return "Error: the attachment or its run folder is outside the shared folder." unless input && output
@@ -374,7 +374,7 @@ module VideoAnalyzeAgent
     return nil unless Monadic::Workspace::Ids.valid?(:chat, chat_id) && extracted[:input]
 
     workspace = Monadic::Workspace::Folders.ensure_for_chat!(chat_id, app_name: self.class.name)
-    job = Monadic::Workspace::Jobs.create!(workspace[:relative_dir])
+    job = Monadic::Workspace::Jobs.create!(workspace[:workspace_id])
     output = Monadic::Utils::SharedPathGuard.command_path(job[:path], container: "python", must_exist: false)
     output ? [job, output] : nil
   rescue Monadic::Workspace::Jobs::Unavailable, Monadic::Workspace::Ledger::Unreadable

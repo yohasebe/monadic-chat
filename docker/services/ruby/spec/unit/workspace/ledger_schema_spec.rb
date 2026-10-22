@@ -67,11 +67,91 @@ RSpec.describe Monadic::Workspace::LedgerSchema do
     expect(error_of).to be_a(ledger_class::Shape)
   end
 
-  it 'keeps artifacts and publications empty in this version (records there are refused)' do
+  it 'keeps publications empty in this version (records there are refused)' do
     filled
-    edit { |data| data['artifacts'][ids.generate(:artifact)] = {} }
+    edit { |data| data['publications'][ids.generate(:publication)] = {} }
     expect(error_of).to be_a(ledger_class::Shape)
     expect(error_of.message).to include('does not know')
+  end
+
+  describe 'artifacts' do
+    let(:job) { ids.generate(:job) }
+
+    def chat_artifact(made)
+      ledger.register_artifact(artifact_id: ids.generate(:artifact), owner: { kind: :chat, workspace_id: made[:workspace] },
+                               job_id: job, kind: 'subtitle_vtt', size: 5, sha256: 'b' * 64)
+    end
+
+    def outside_artifact
+      ledger.register_artifact(artifact_id: ids.generate(:artifact), owner: { kind: :outside, root: 'transcriptions' },
+                               job_id: job, kind: 'subtitle_srt', size: 0, sha256: 'c' * 64)
+    end
+
+    it 'records one of a chat in its run folder, taking the chat from the ledger, and one outside any chat' do
+      made = filled
+      record = chat_artifact(made)
+      expect(record).to include(owner: 'chat', chat_id: made[:chat], workspace_id: made[:workspace], status: 'ready',
+                                copy_path: "#{made[:dir]}/artifacts/#{job}/transcript.vtt")
+      outside = outside_artifact
+      expect(outside).to include(owner: 'outside', root: 'transcriptions', copy_path: "transcriptions/artifacts/#{job}/transcript.srt")
+      expect(outside).not_to include(:chat_id, :workspace_id)
+    end
+
+    it 'refuses an owner that is not in the ledger or not known, and a root not set aside for runs outside chats' do
+      filled
+      before = File.read(path)
+      expect { chat_artifact(workspace: ids.generate(:workspace)) }.to raise_error(ledger_class::Conflict)
+      expect do
+        ledger.register_artifact(artifact_id: ids.generate(:artifact), owner: { kind: :outside, root: 'conversations' },
+                                 job_id: job, kind: 'subtitle_vtt', size: 1, sha256: 'b' * 64)
+      end.to raise_error(ledger_class::Shape)
+      expect do
+        ledger.register_artifact(artifact_id: ids.generate(:artifact), owner: { kind: :someone },
+                                 job_id: job, kind: 'subtitle_vtt', size: 1, sha256: 'b' * 64)
+      end.to raise_error(ArgumentError)
+      expect do
+        ledger.register_artifact(artifact_id: 'r_x', owner: { kind: :outside, root: 'transcriptions' },
+                                 job_id: job, kind: 'subtitle_vtt', size: 1, sha256: 'b' * 64)
+      end.to raise_error(ArgumentError)
+      expect(File.read(path)).to eq(before)
+    end
+
+    it 'refuses an artifact out of form, naming the field and no id' do
+      made = filled
+      record = chat_artifact(made)
+      id = record[:artifact_id]
+      outside = outside_artifact[:artifact_id]
+      breaks = {
+        'an unknown owner' => ->(d) { d['artifacts'][id]['owner'] = 'user' },
+        'a chat that is not its workspace\'s' => ->(d) { d['artifacts'][id]['chat_id'] = ids.generate(:chat) },
+        'a workspace that is not in the ledger' => ->(d) { d['artifacts'][id]['workspace_id'] = ids.generate(:workspace) },
+        'a chat artifact with a root' => ->(d) { d['artifacts'][id]['root'] = 'transcriptions' },
+        'an outside artifact with a chat' => ->(d) { d['artifacts'][outside]['chat_id'] = made[:chat] },
+        'an outside artifact with a null workspace' => ->(d) { d['artifacts'][outside]['workspace_id'] = nil },
+        'a root not set aside' => ->(d) { d['artifacts'][outside]['root'] = 'conversations' },
+        'a job id of the wrong kind' => ->(d) { d['artifacts'][id]['job_id'] = made[:workspace] },
+        'an unknown kind' => ->(d) { d['artifacts'][id]['kind'] = 'image' },
+        'a copy in another job' => ->(d) { d['artifacts'][id]['copy_path'] = "#{made[:dir]}/artifacts/#{ids.generate(:job)}/transcript.vtt" },
+        'a copy one level down' => ->(d) { d['artifacts'][id]['copy_path'] = "#{made[:dir]}/artifacts/#{job}/x/transcript.vtt" },
+        'a copy spelled another way' => ->(d) { d['artifacts'][id]['copy_path'] = "#{made[:dir]}/artifacts/./#{job}/transcript.vtt" },
+        'a copy of the other kind\'s name' => ->(d) { d['artifacts'][id]['copy_path'] = "#{made[:dir]}/artifacts/#{job}/transcript.srt" },
+        'a copy in another chat\'s folder' => ->(d) { d['artifacts'][id]['copy_path'] = "conversations/other/artifacts/#{job}/transcript.vtt" },
+        'no size' => ->(d) { d['artifacts'][id].delete('size') },
+        'no sha256' => ->(d) { d['artifacts'][id].delete('sha256') },
+        'a sha256 of the wrong form' => ->(d) { d['artifacts'][id]['sha256'] = 'B' * 64 },
+        'a state other than ready' => ->(d) { d['artifacts'][id]['status'] = 'pending' },
+        'a time that is not a time' => ->(d) { d['artifacts'][id]['created_at'] = nil },
+        'a key of the wrong kind' => ->(d) { d['artifacts']["p_#{'a' * 16}"] = d['artifacts'].delete(id) }
+      }
+      original = File.read(path)
+      breaks.each do |label, change|
+        File.write(path, original)
+        edit { |data| change.call(data) }
+        error = error_of
+        expect(error).to be_a(ledger_class::Shape), label
+        [made[:chat], made[:workspace], id, job].each { |secret| expect(error.message).not_to include(secret) }
+      end
+    end
   end
 
   it 'keeps fields and collections it does not know (a later version may add them), through a change too' do

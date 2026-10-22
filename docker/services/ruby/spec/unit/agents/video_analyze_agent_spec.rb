@@ -85,10 +85,10 @@ RSpec.describe VideoAnalyzeAgent do
     context 'when video processing is successful' do
       before do
         # Stub file reading for frames JSON
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with("./frames_20250629_154801.json").and_return(false)
-        allow(File).to receive(:exist?).with("/monadic/data/frames_20250629_154801.json").and_return(true)
-        allow(File).to receive(:read).with("/monadic/data/frames_20250629_154801.json").and_return(sample_frames_json)
+        # The frames JSON is read through the guard
+        allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).and_call_original
+        allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!)
+          .with(File.join(Monadic::Utils::Environment.shared_volume, "frames_20250629_154801.json")).and_return(sample_frames_json)
 
         # Stub Vision API call
         allow(agent).to receive(:video_vision_openai).and_return("This is a video showing a deer crossing the road.")
@@ -157,10 +157,9 @@ RSpec.describe VideoAnalyzeAgent do
     context 'output without audio file' do
       before do
         agent.extractor_output = "15 frames extracted\nBase64-encoded frames saved to ./frames_only.json"
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with("./frames_only.json").and_return(false)
-        allow(File).to receive(:exist?).with("/monadic/data/frames_only.json").and_return(true)
-        allow(File).to receive(:read).with("/monadic/data/frames_only.json").and_return(sample_frames_json)
+        allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).and_call_original
+        allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!)
+          .with(File.join(Monadic::Utils::Environment.shared_volume, "frames_only.json")).and_return(sample_frames_json)
         allow(agent).to receive(:video_vision_openai).and_return("Video description only")
       end
 
@@ -174,10 +173,10 @@ RSpec.describe VideoAnalyzeAgent do
 
     context 'error handling' do
       before do
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with("./frames_20250629_154801.json").and_return(false)
-        allow(File).to receive(:exist?).with("/monadic/data/frames_20250629_154801.json").and_return(true)
-        allow(File).to receive(:read).with("/monadic/data/frames_20250629_154801.json").and_return(sample_frames_json)
+        # The frames JSON is read through the guard
+        allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).and_call_original
+        allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!)
+          .with(File.join(Monadic::Utils::Environment.shared_volume, "frames_20250629_154801.json")).and_return(sample_frames_json)
       end
 
       it 'returns video analysis error when Vision API fails' do
@@ -229,9 +228,7 @@ RSpec.describe VideoAnalyzeAgent do
         "data:image/png;base64,iVBORw0KGgo=",
         "iVBORw0KGgo="
       ]
-      allow(File).to receive(:exist?).and_call_original
-      allow(File).to receive(:exist?).with("/test/frames.json").and_return(true)
-      allow(File).to receive(:read).with("/test/frames.json").and_return(JSON.generate(frames_with_prefix))
+      allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).with("/test/frames.json").and_return(JSON.generate(frames_with_prefix))
 
       result = agent.send(:read_frames_json, "/test/frames.json")
 
@@ -239,9 +236,7 @@ RSpec.describe VideoAnalyzeAgent do
     end
 
     it 'returns error for invalid JSON' do
-      allow(File).to receive(:exist?).and_call_original
-      allow(File).to receive(:exist?).with("/test/frames.json").and_return(true)
-      allow(File).to receive(:read).with("/test/frames.json").and_return("not json")
+      allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).with("/test/frames.json").and_return("not json")
 
       result = agent.send(:read_frames_json, "/test/frames.json")
 
@@ -298,8 +293,7 @@ RSpec.describe VideoAnalyzeAgent do
   end
 
   def read_document(document)
-    allow(File).to receive(:exist?).with("/test/frames.json").and_return(true)
-    allow(File).to receive(:read).with("/test/frames.json").and_return(JSON.generate(document))
+    allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).with("/test/frames.json").and_return(JSON.generate(document))
     agent.send(:read_frames_json, "/test/frames.json")
   end
 

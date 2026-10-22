@@ -72,11 +72,13 @@ module AutoForgeUtils
       project_name = File.basename(dir)
       metadata_file = File.join(dir, ".autoforge.json")
 
-      metadata = if File.exist?(metadata_file)
-        JSON.parse(File.read(metadata_file), symbolize_names: true)
-      else
-        {}
+      # Read as a plain file of the shared folder, never through a link.
+      metadata_text = begin
+        Monadic::Utils::SharedPathGuard.read_text(metadata_file)
+      rescue SystemCallError
+        nil # listed without its details
       end
+      metadata = metadata_text ? JSON.parse(metadata_text, symbolize_names: true) : {}
 
       # Check if index.html exists
       has_index = File.exist?(File.join(dir, "index.html"))

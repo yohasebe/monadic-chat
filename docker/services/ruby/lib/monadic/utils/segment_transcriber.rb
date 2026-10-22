@@ -5,6 +5,7 @@ require 'async/semaphore'
 require 'base64'
 require 'json'
 require_relative 'error_formatter'
+require_relative 'shared_path_guard'
 
 module Monadic
   module Utils
@@ -128,7 +129,12 @@ module Monadic
           length = Integer(seg['end_sample']) - start
           raise ProtocolError, 'segment out of order' if start.negative? || length <= 0
 
-          data = File.binread(@pcm_path, length * BYTES_PER_SAMPLE, start * BYTES_PER_SAMPLE)
+          # Read from the decoded audio as a plain file of the run folder (never
+          # through a link swapped in while the segments are sent).
+          data = SharedPathGuard.read_file!(@pcm_path) do |file|
+            file.seek(start * BYTES_PER_SAMPLE)
+            file.read(length * BYTES_PER_SAMPLE)
+          end
           raise ProtocolError, 'audio shorter than the segment' if data.nil? || data.bytesize != length * BYTES_PER_SAMPLE
 
           data

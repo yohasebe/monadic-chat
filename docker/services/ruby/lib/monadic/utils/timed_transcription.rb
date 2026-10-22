@@ -75,7 +75,7 @@ module Monadic
           return { text: "Audio transcription failed: could not find speech in the audio.#{" #{detail}" unless detail.empty?}" }
         end
 
-        doc = JSON.parse(File.read(segments_path))
+        doc = JSON.parse(SharedPathGuard.read_bytes!(segments_path))
         return { text: "(The video has no audio track.)" } if doc["status"] == "absent"
         return { text: "(No speech was detected in the audio.)" } if doc["status"] == "no_speech_detected"
         return { text: "Audio transcription failed: #{@api_key_name} is not set." } if @api_key.empty?

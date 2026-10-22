@@ -26,10 +26,26 @@ RSpec.describe Monadic::Library::FileImporter do
     end
   end
 
+  # The import copy lives in the shared folder; the temp folder stands in for it.
+  before { allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@tmp) }
+
   def write_temp(name, content)
     path = File.join(@tmp, name)
     File.write(path, content)
     path
+  end
+
+  describe 'reading the import copy' do
+    it 'refuses a link in place of the copy' do
+      outside = Dir.mktmpdir
+      secret = File.join(outside, 'env')
+      File.write(secret, "OPENAI_API_KEY=secret\n")
+      path = File.join(@tmp, 'notes.md')
+      File.symlink(secret, path)
+      expect { described_class.build_conversation(path: path) }.to raise_error(StandardError)
+    ensure
+      FileUtils.rm_rf(outside) if outside
+    end
   end
 
   describe '.build_conversation (Markdown)' do

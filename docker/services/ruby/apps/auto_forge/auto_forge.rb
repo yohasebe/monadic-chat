@@ -247,7 +247,8 @@ module AutoForge
       file_name = "index.html"
       file_path = File.join(@project_path, file_name)
 
-      existing_content = File.exist?(file_path) ? File.read(file_path) : nil
+      # Read as a plain file of the shared folder, never through a link.
+      existing_content = Monadic::Utils::SharedPathGuard.read_text(file_path)
       if existing_content
         puts "[AutoForge] Found existing file at #{file_path}, size: #{existing_content.length} bytes" if CONFIG && CONFIG["EXTRA_LOGGING"]
         puts "[AutoForge] Will modify existing content instead of creating new" if CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -329,9 +330,8 @@ module AutoForge
                           .reject { |f| f.end_with?('.json', '.md', '.txt') }
       existing_file = existing_files.first
 
-      existing_content = nil
-      if existing_file && File.exist?(existing_file)
-        existing_content = File.read(existing_file)
+      existing_content = existing_file && Monadic::Utils::SharedPathGuard.read_text(existing_file)
+      if existing_content
         file_name = File.basename(existing_file)
         puts "[AutoForge] Found existing CLI script: #{file_name}" if CONFIG && CONFIG["EXTRA_LOGGING"]
       else

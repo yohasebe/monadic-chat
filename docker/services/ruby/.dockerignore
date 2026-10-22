@@ -21,3 +21,6 @@ tmp/
 
 # OS artifacts
 .DS_Store
+
+# Backups left by editors and tools
+*.bak

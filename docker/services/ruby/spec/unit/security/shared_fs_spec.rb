@@ -4,6 +4,7 @@ require "spec_helper"
 require "tmpdir"
 require "fileutils"
 require "stringio"
+require "timeout"
 require_relative "../../../lib/monadic/utils/shared_path_guard"
 
 # Writes into the shared folder never reach a file outside it, even when a
@@ -327,9 +328,81 @@ RSpec.describe Monadic::Utils::SharedFs do
       expect(File.read(File.join(@root, "work", "new.txt"))).to eq("done")
     end
 
+    it "leaves no descriptor open after many operations, including ones that fail" do
+      fds = -> { Dir.children("/dev/fd").size }
+      File.symlink(@secret, File.join(@root, "work", "link.txt"))
+      before = fds.call
+      20.times do |i|
+        path = File.join(@root, "work", "f#{i}.txt")
+        guard.write_file!(path, "x")
+        guard.write_file!(path, "y", mode: "a")
+        guard.read_file!(path, &:read)
+        guard.file_stat(path)
+        guard.copy_file!(path, "#{path}.copy")
+        guard.rename_file!("#{path}.copy", "#{path}.moved")
+        guard.delete_file!("#{path}.moved")
+        guard.mkdir_p!(File.join(@root, "work", "d#{i}", "e"))
+        guard.remove_tree!(File.join(@root, "work", "d#{i}"))
+        (guard.write_file!(File.join(@root, "work", "link.txt"), "z") rescue guard::InvalidPath)
+        (guard.read_file!(File.join(@root, "work", "link.txt"), &:read) rescue guard::InvalidPath)
+        guard.open_file!(path).close
+      end
+      expect(fds.call).to be <= before
+      outside_unchanged
+    end
+
     it "takes only the modes it knows" do
       expect { guard.write_file!(File.join(@root, "work", "x"), "x", mode: "r+") }.to raise_error(ArgumentError)
       expect { guard.write_file!(File.join(@root, "work", "x"), "x", mode: "a", replace: false) }.to raise_error(ArgumentError)
+    end
+  end
+
+  describe "the real path of a shared folder that may not exist yet" do
+    it "stops at the root when nothing on the way is found" do
+      allow(File).to receive(:exist?).and_return(false)
+      allow(File).to receive(:symlink?).and_return(false)
+      result = Timeout.timeout(5) { guard.send(:canonical_path, "/no/such/place") }
+      expect(result).to eq(File.join(File.realpath("/"), "no", "such", "place"))
+    end
+  end
+
+  describe "read_bytes! with a limit" do
+    it "refuses a file that grows past the limit after its size was checked" do
+      path = File.join(@root, "grows.bin")
+      File.binwrite(path, "x")
+      real_stat = File::Stat.instance_method(:size)
+      allow_any_instance_of(File::Stat).to receive(:size) do |stat|
+        real_stat.bind_call(stat).tap { File.binwrite(path, "y" * 100, mode: "ab") }
+      end
+      expect(guard.read_bytes!(path, limit: 1)).to be_nil
+    end
+
+    it "reads a file within the limit, an empty one too" do
+      File.binwrite(File.join(@root, "ok.bin"), "abc")
+      File.binwrite(File.join(@root, "empty.bin"), "")
+      expect(guard.read_bytes!(File.join(@root, "ok.bin"), limit: 3)).to eq("abc")
+      expect(guard.read_bytes!(File.join(@root, "empty.bin"), limit: 3)).to eq("")
+    end
+  end
+
+  describe "read_text" do
+    it "is nil when nothing is there, or a folder, or a link" do
+      FileUtils.mkdir_p(File.join(@root, "dir"))
+      File.write(File.join(@root, "target.txt"), "t")
+      File.symlink(File.join(@root, "target.txt"), File.join(@root, "link.txt"))
+      expect(guard.read_text(File.join(@root, "none.txt"))).to be_nil
+      expect(guard.read_text(File.join(@root, "dir"))).to be_nil
+      expect(guard.read_text(File.join(@root, "link.txt"))).to be_nil
+      expect(guard.read_text(File.join(@root, "target.txt"))).to eq("t")
+    end
+
+    it "raises for a file that is there but cannot be read" do
+      path = File.join(@root, "locked.txt")
+      File.write(path, "x")
+      File.chmod(0o000, path)
+      expect { guard.read_text(path) }.to raise_error(Errno::EACCES)
+    ensure
+      File.chmod(0o600, path) if path && File.exist?(path)
     end
   end
 end

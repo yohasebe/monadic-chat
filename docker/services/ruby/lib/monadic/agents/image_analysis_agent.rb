@@ -100,11 +100,6 @@ module ImageAnalysisAgent
       image_path, extensions: Monadic::Utils::SharedPathGuard::IMAGE_EXTENSIONS, kind: "image"
     )
 
-    # Check file size
-    file_size = File.size(path)
-    if file_size > IMAGE_MAX_FILE_SIZE
-      return "ERROR: Image file too large (#{file_size / 1024 / 1024}MB). Maximum: 10MB"
-    end
 
     # Detect MIME type
     ext = File.extname(path).delete_prefix(".").downcase
@@ -117,8 +112,11 @@ module ImageAnalysisAgent
                   return "ERROR: Unsupported image format: #{ext}. Supported: jpg, jpeg, png, gif, webp"
                 end
 
-    # Read and encode
-    raw = File.binread(path)
+    # Read once, as a plain file of the shared folder (never through a link
+    # swapped in after the check above), with the size checked on what is read.
+    raw = Monadic::Utils::SharedPathGuard.read_bytes!(path, limit: IMAGE_MAX_FILE_SIZE)
+    return "ERROR: Image file too large. Maximum: 10MB" unless raw
+
     base64 = Base64.strict_encode64(raw)
 
     { base64: base64, mime_type: mime_type }

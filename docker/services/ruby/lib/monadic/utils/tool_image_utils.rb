@@ -13,25 +13,46 @@ module Monadic
       # @param max_base64_size [Integer] maximum allowed size of base64 string in bytes (default 5 MB)
       # @return [Hash, nil] { media_type: "image/png", base64_data: "..." } or nil
       def self.encode_image_for_api(filename, max_base64_size: 5 * 1024 * 1024)
-        return nil unless filename.is_a?(String) && !filename.empty?
+        # The name comes from a tool's output: one name directly in the shared
+        # folder, nothing above it or below it.
+        return nil unless single_name?(filename)
 
         image_path = File.join(Environment.data_path, filename)
-        return nil unless File.exist?(image_path)
 
-        ext = File.extname(filename).downcase.delete(".")
-        media_type = case ext
-                     when "png" then "image/png"
-                     when "jpg", "jpeg" then "image/jpeg"
-                     when "gif" then "image/gif"
-                     when "webp" then "image/webp"
-                     else "image/png"
-                     end
+        # A plain file of the shared folder, never through a link.
+        raw_data = SharedPathGuard.read_bytes!(image_path, limit: max_base64_size * 3 / 4)
+        return nil unless raw_data
 
-        raw_data = File.binread(image_path)
+        # Sent only when the bytes start with an image signature, typed by it
+        # and not by the name: text such as the config env file is not sent.
+        # The image itself is not decoded or checked.
+        media_type = image_media_type(raw_data)
+        return nil unless media_type
+
         base64_data = Base64.strict_encode64(raw_data)
         return nil if base64_data.bytesize > max_base64_size
 
         { media_type: media_type, base64_data: base64_data }
+      rescue SharedPathGuard::InvalidPath, SystemCallError
+        nil
+      end
+
+      def self.single_name?(filename)
+        filename.is_a?(String) && !filename.empty? &&
+          !filename.include?("\0") && !filename.match?(%r{[/\\]}) &&
+          filename != "." && filename != ".."
+      end
+
+      # The media type the leading bytes' signature shows, or nil when they do
+      # not start like one of the image formats the providers take. A
+      # signature is not proof that the rest is an image.
+      def self.image_media_type(bytes)
+        head = bytes.byteslice(0, 12).to_s.b
+        if head.start_with?("\x89PNG\r\n\x1A\n".b) then "image/png"
+        elsif head.start_with?("\xFF\xD8\xFF".b) then "image/jpeg"
+        elsif head.start_with?("GIF87a".b, "GIF89a".b) then "image/gif"
+        elsif head.start_with?("RIFF".b) && head.byteslice(8, 4) == "WEBP".b then "image/webp"
+        end
       end
 
       # Raised when an image was uploaded but could not be materialized to a

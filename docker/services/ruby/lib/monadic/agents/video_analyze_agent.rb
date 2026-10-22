@@ -409,19 +409,19 @@ module VideoAnalyzeAgent
   def read_frames_json(json_path)
     return "ERROR: Invalid file path (path traversal not allowed)" if json_path.to_s.match?(%r{(?:\A|/)\.\.(?:/|\z)})
 
-    # Strip leading ./ and resolve to the active shared volume.
+    # Strip leading ./ and resolve to the active shared volume; an absolute
+    # path (a run folder's file) is taken as it is. Read as a plain file of
+    # the shared folder, never through a link and never outside it.
     clean_path = json_path.sub(%r{\A\./}, "")
-    shared_path = File.join(Monadic::Utils::Environment.shared_volume, clean_path)
+    path = clean_path.start_with?("/") ? clean_path : File.join(Monadic::Utils::Environment.shared_volume, clean_path)
+    text = begin
+      Monadic::Utils::SharedPathGuard.read_bytes!(path)
+    rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+      nil
+    end
+    return "ERROR: Frames JSON file not found: #{json_path}" unless text
 
-    path = if File.exist?(json_path)
-             json_path
-           elsif File.exist?(shared_path)
-             shared_path
-           end
-
-    return "ERROR: Frames JSON file not found: #{json_path}" unless path && File.exist?(path)
-
-    json_data = JSON.parse(File.read(path))
+    json_data = JSON.parse(text)
 
     if json_data.is_a?(Array) && !json_data.empty? && json_data.all? { |item| item.is_a?(String) }
       # Legacy input: never invent timestamps from array positions.

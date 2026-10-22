@@ -156,6 +156,50 @@ module Monadic
         end
       end
 
+      # The bytes of a plain file of the shared folder (read_file!), or nil
+      # when it is larger than limit. With a limit no more than limit + 1
+      # bytes are read, so a file that grows after the size check is refused
+      # too.
+      def read_bytes!(path, limit: nil)
+        read_file!(path) do |file|
+          next file.read unless limit
+          next nil if file.stat.size > limit
+
+          bytes = file.read(limit + 1) || ''.b
+          bytes.bytesize > limit ? nil : bytes
+        end
+      end
+
+      # The text of a plain file of the shared folder (read_file!), or nil
+      # when there is none there: nothing, a folder or a link. A file that is
+      # there but cannot be read (permission, I/O) raises, so a caller never
+      # takes it for one that is not there.
+      def read_text(path, limit: nil)
+        read_bytes!(path, limit: limit)&.force_encoding(Encoding::UTF_8)
+      rescue InvalidPath, Errno::ENOENT, Errno::ENOTDIR
+        nil
+      end
+
+      # Yields the path of a copy of a plain file of the shared folder, made
+      # in a folder of its own in the system's temporary folder, for a
+      # program or library that opens files by path (ffmpeg, an HTTP form):
+      # it never opens a path in the shared folder. The copy is removed after.
+      def with_local_copy!(path)
+        require "tmpdir"
+        Dir.mktmpdir("shared-copy") do |dir|
+          copy = File.join(dir, "copy#{File.extname(path.to_s)[0, 16]}")
+          read_file!(path) { |source| File.open(copy, "wb", 0o600) { |out| IO.copy_stream(source, out) } }
+          yield copy
+        end
+      end
+
+      # A plain file of the shared folder, open for reading bytes and never
+      # through a link, for a caller that keeps it open past a block (a
+      # response body); the caller closes it.
+      def open_file!(path)
+        in_parent!(path) { |dir, name, _full| SharedFs.open_read(dir, name) }
+      end
+
       # Removes a file (or a link, itself) of the shared folder, never a
       # folder and never through a link on the way. Returns whether it was
       # there.
@@ -412,8 +456,11 @@ module Monadic
         path = File.expand_path(path)
         missing = []
         until File.exist?(path) || File.symlink?(path)
+          parent = File.dirname(path)
+          break if parent == path # the root
+
           missing.unshift(File.basename(path))
-          path = File.dirname(path)
+          path = parent
         end
         File.join(File.realpath(path), *missing)
       end

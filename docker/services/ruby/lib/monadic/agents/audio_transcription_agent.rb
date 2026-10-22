@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "base64"
+require "stringio"
 require "http"
 require_relative "../utils/environment"
 require_relative "../utils/shared_path_guard"
@@ -86,8 +87,12 @@ module AudioTranscriptionAgent
     path = resolve_audio_path(audio_path)
     return path if path.is_a?(String) && path.start_with?("ERROR:")
 
-    # 2. Check file size
-    file_size = File.size(path)
+    # 2. Check file size (a plain file of the shared folder; every read below
+    # goes through the guard too, never through a link)
+    stat = Monadic::Utils::SharedPathGuard.file_stat(path)
+    return "ERROR: Audio file not found in the shared folder" unless stat
+
+    file_size = stat.size
     if file_size > AUDIO_MAX_FILE_SIZE
       return "ERROR: Audio file too large (#{file_size / 1024 / 1024}MB). Maximum: 25MB"
     end
@@ -115,11 +120,21 @@ module AudioTranscriptionAgent
       transcribe_gemini(path, stt_model, api_key, lang_code)
     when "xai"
       stt_model = AudioTranscriptionAgent.model_for("xai", model)
-      transcribe_xai(File.binread(path), File.extname(path).delete_prefix(".").downcase, stt_model, api_key, lang_code)
+      transcribe_xai(audio_bytes(path), File.extname(path).delete_prefix(".").downcase, stt_model, api_key, lang_code)
     end
   rescue => e
     "ERROR: Audio transcription failed: #{e.message}"
   end
+
+  # The bytes of the audio file, read through the guard and never more than
+  # the size limit, even when the file grows after it was checked.
+  def audio_bytes(path)
+    bytes = Monadic::Utils::SharedPathGuard.read_bytes!(path, limit: AUDIO_MAX_FILE_SIZE)
+    raise ArgumentError, "Audio file too large. Maximum: 25MB" unless bytes
+
+    bytes
+  end
+  private :audio_bytes
 
   # Audio already in memory (a speech segment of a video, as WAV), through
   # the same requests as a file. Gemini and xAI only; OpenAI segments go
@@ -166,7 +181,7 @@ module AudioTranscriptionAgent
     uri = "https://api.openai.com/v1/audio/transcriptions"
 
     options = {
-      file: HTTP::FormData::File.new(path),
+      file: HTTP::FormData::File.new(StringIO.new(audio_bytes(path)), filename: File.basename(path)),
       model: model,
       response_format: response_format
     }
@@ -210,7 +225,7 @@ module AudioTranscriptionAgent
 
   def transcribe_gemini(path, model, api_key, lang_code)
     ext = File.extname(path).delete_prefix(".").downcase
-    gemini_transcription_request(File.binread(path), AUDIO_MIME_TYPES[ext] || "audio/mpeg", model, api_key, lang_code)
+    gemini_transcription_request(audio_bytes(path), AUDIO_MIME_TYPES[ext] || "audio/mpeg", model, api_key, lang_code)
   end
 
   def gemini_transcription_request(raw, mime_type, model, api_key, lang_code, retries: AUDIO_MAX_RETRIES)

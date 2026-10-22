@@ -105,9 +105,11 @@ module MonadicHelper
                       end
       notebook_path = File.join(shared_volume, filename_with_ext)
       
-      return { success: false, error: "Notebook file not found at #{notebook_path}" } unless File.exist?(notebook_path)
-      
-      notebook = JSON.parse(File.read(notebook_path))
+      # Read as a plain file of the shared folder, never through a link.
+      text = (Monadic::Utils::SharedPathGuard.read_bytes!(notebook_path) rescue nil)
+      return { success: false, error: "Notebook file not found at #{notebook_path}" } unless text
+
+      notebook = JSON.parse(text)
       actual_cell_count = notebook['cells'].length
       expected_cell_count = expected_cells.is_a?(Array) ? expected_cells.length : 0
       
@@ -680,10 +682,12 @@ module MonadicHelper
     data_path = Monadic::Utils::Environment.data_path
     notebook_path = File.join(data_path, filename_with_ext)
 
-    return [] unless File.exist?(notebook_path)
+    # Read as a plain file of the shared folder, never through a link.
+    text = (Monadic::Utils::SharedPathGuard.read_bytes!(notebook_path) rescue nil)
+    return [] unless text
 
     begin
-      notebook = JSON.parse(File.read(notebook_path))
+      notebook = JSON.parse(text)
     rescue JSON::ParserError
       return []
     end
@@ -786,10 +790,12 @@ module MonadicHelper
     filename_with_ext = filename.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
     notebook_path = File.join(Monadic::Utils::Environment.data_path, filename_with_ext)
     
-    return "Error: Notebook not found." unless File.exist?(notebook_path)
-    
+    # Read as a plain file of the shared folder, never through a link.
+    text = (Monadic::Utils::SharedPathGuard.read_bytes!(notebook_path) rescue nil)
+    return "Error: Notebook not found." unless text
+
     begin
-      notebook = JSON.parse(File.read(notebook_path))
+      notebook = JSON.parse(text)
       cells_with_results = []
       
       notebook['cells'].each_with_index do |cell, index|

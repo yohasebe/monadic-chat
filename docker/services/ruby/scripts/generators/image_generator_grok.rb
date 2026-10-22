@@ -2,6 +2,7 @@
 
 require "base64"
 require_relative "../../lib/monadic/utils/shared_path_guard"
+require_relative "../../lib/monadic/utils/tool_image_utils"
 require "http"
 require "json"
 require "optparse"
@@ -48,22 +49,14 @@ def scrub_account_ids(text)
   Monadic::Utils::ErrorFormatter.scrub_identifiers(text)
 end
 
-# Determine MIME type from file extension
-def get_mime_type(file_path)
-  case File.extname(file_path).downcase
-  when ".png" then "image/png"
-  when ".jpg", ".jpeg" then "image/jpeg"
-  when ".gif" then "image/gif"
-  when ".webp" then "image/webp"
-  else "image/png"
-  end
-end
-
-# Encode an image file as a data URI string
+# Encode an image file as a data URI string, typed by its signature: a file
+# that does not start like an image is refused before anything is sent.
 def encode_image_as_data_uri(file_path)
-  mime = get_mime_type(file_path)
-  data = Base64.strict_encode64(Monadic::Utils::SharedPathGuard.read_file!(file_path, &:read))
-  "data:#{mime};base64,#{data}"
+  bytes = Monadic::Utils::SharedPathGuard.read_file!(file_path, &:read)
+  mime = Monadic::Utils::ToolImageUtils.image_media_type(bytes)
+  raise ArgumentError, "#{File.basename(file_path)} is not a PNG, JPEG, GIF or WebP image" unless mime
+
+  "data:#{mime};base64,#{Base64.strict_encode64(bytes)}"
 end
 
 # Resolve image file path from shared folders

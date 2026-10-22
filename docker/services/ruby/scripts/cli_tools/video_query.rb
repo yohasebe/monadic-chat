@@ -3,6 +3,7 @@
 require "json"
 require "http"
 require_relative "../../lib/monadic/utils/secret_references"
+require_relative "../../lib/monadic/utils/shared_path_guard"
 
 begin
   require_relative "../../lib/monadic/utils/model_spec"
@@ -24,15 +25,16 @@ def video_query(json_path, query, model = nil)
   model ||= (defined?(Monadic::Utils::ModelSpec) && Monadic::Utils::ModelSpec.default_vision_model("openai"))
   num_retrial = 0
 
-  api_key = Monadic::Utils::SecretReferences.config_value("OPENAI_API_KEY")
-
-  # Read the JSON file
-  json_data = JSON.parse(File.read(json_path))
+  # The frames file is a plain file of the shared folder, read never through
+  # a link; it is checked before the configuration is read.
+  json_data = JSON.parse(Monadic::Utils::SharedPathGuard.read_file!(json_path, &:read))
 
   # Validate JSON data
   unless json_data.is_a?(Array) && json_data.all? { |item| item.is_a?(String) }
     return "ERROR: The JSON file is not valid."
   end
+
+  api_key = Monadic::Utils::SecretReferences.config_value("OPENAI_API_KEY")
 
   # Limit the number of images to MAX_FRAMES
   if json_data.size > MAX_FRAMES

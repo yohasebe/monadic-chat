@@ -50,12 +50,13 @@ RSpec.describe "tool arguments never reach a shell" do
       allow(Dir).to receive(:home).and_return(@dir)
       FileUtils.mkdir_p(File.join(@dir, "monadic", "data"))
       allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(false)
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@dir)
       recorded = calls
+      data = @dir
       allow(app).to receive(:capture_command) do |command, **|
-        recorded << command
-        # Let the copy succeed so the run is reached, then stop
-        ok = command.is_a?(Array) && command[1] == "cp"
-        ["", ok ? "" : "stop here", OpenStruct.new(success?: ok)]
+        # The code file is in the shared folder while it runs
+        recorded << [command, File.exist?(File.join(data, command.last.to_s))]
+        ["", "stop here", OpenStruct.new(success?: false)]
       end
     end
 
@@ -77,14 +78,31 @@ RSpec.describe "tool arguments never reach a shell" do
 
     it "runs docker with an argv array, the command split into its own arguments" do
       result = app.send(:send_code, code: "print(1)", command: "python3 -u", extension: "py", max_retries: 0)
-      expect(calls.size).to eq(2), "send_code returned #{result.inspect} before running docker"
-      copy, exec = calls
-      expect(copy).to be_an(Array)
-      expect(copy.first(2)).to eq(%w[docker cp])
+      expect(calls.size).to eq(1), "send_code returned #{result.inspect} before running docker"
+      exec, present = calls.first
       expect(exec).to be_an(Array)
       expect(exec[0..4]).to eq(["docker", "exec", "-w", "/monadic/data", "monadic-chat-python-container"])
       expect(exec[5..6]).to eq(%w[python3 -u])
       expect(exec.last).to match(/\Acode_\d{8}_\d{6}_[0-9a-f]{8}\.py\z/)
+      expect(present).to be(true)
+      expect(Dir.glob(File.join(@dir, "code_*"))).to be_empty
+    end
+
+    it "leaves a file already at the code file's name alone" do
+      allow(SecureRandom).to receive(:hex).and_return("deadbeef")
+      allow(Time).to receive(:now).and_return(Time.at(0))
+      taken = File.join(@dir, "code_#{Time.at(0).strftime('%Y%m%d_%H%M%S')}_deadbeef.py")
+      File.write(taken, "existing user data")
+      result = app.send(:send_code, code: "print(1)", command: "python", extension: "py", max_retries: 0)
+      expect(result).to start_with("Error executing code")
+      expect(calls).to be_empty
+      expect(File.read(taken)).to eq("existing user data")
+    end
+
+    it "keeps each attempt's code file when asked to" do
+      app.send(:send_code, code: "print(1)", command: "python", extension: "py", max_retries: 1, retry_delay: 0, keep_file: true)
+      expect(calls.size).to eq(2)
+      expect(Dir.glob(File.join(@dir, "code_*.py")).size).to eq(2)
     end
   end
 

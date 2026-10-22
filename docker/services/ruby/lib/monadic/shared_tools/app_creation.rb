@@ -143,9 +143,11 @@ module MonadicSharedTools
                      File.expand_path('../../apps', __dir__)
                    end
 
-        app_path = File.join(apps_dir, app_name)
-
-        unless Dir.exist?(app_path)
+        # A bundled app's folder name only: no path, and nothing reached
+        # through a link out of the bundled apps.
+        app_path = File.join(apps_dir, app_name.to_s)
+        unless app_name.to_s.match?(/\A[A-Za-z0-9_]+\z/) && Dir.exist?(app_path) &&
+               File.realpath(app_path).start_with?("#{File.realpath(apps_dir)}/")
           return {
             success: false,
             error: "App not found: #{app_name}"
@@ -176,7 +178,11 @@ module MonadicSharedTools
           }
         end
 
-        # Read MDSL content
+        # Read MDSL content (a file of the bundled app, not a link out of it)
+        unless File.realpath(mdsl_file).start_with?("#{File.realpath(app_path)}/")
+          return { success: false, error: "No MDSL files found for app: #{app_name}" }
+        end
+
         mdsl_content = File.read(mdsl_file)
 
         # Extract app name from MDSL

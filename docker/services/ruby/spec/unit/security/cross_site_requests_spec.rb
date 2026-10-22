@@ -25,6 +25,13 @@ RSpec.describe "Web app and requests from other sites" do
     require "json"
     app, = Rack::Builder.parse_file("config.ru")
     req = Rack::MockRequest.new(app)
+    # No command runs in a container from this probe: the uploads it sends
+    # would otherwise reach the Python container (PDF and document text).
+    Monadic::Shell.singleton_class.prepend(Module.new do
+      define_method(:capture) do |_argv, **|
+        ["", "not run in this probe", Struct.new(:success?, :exitstatus).new(false, 1)]
+      end
+    end)
     data = File.join(Dir.home, "monadic", "data")
     form = lambda do |field, name, body|
       "--B\r\nContent-Disposition: form-data; name=\"#{field}\"; filename=\"#{name}\"\r\n" \

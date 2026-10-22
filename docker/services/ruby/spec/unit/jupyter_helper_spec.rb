@@ -124,8 +124,8 @@ RSpec.describe MonadicHelper do
           ]
         }
         
-        allow(File).to receive(:exist?).and_return(true)
-        allow(File).to receive(:read).and_return(notebook_content.to_json)
+        # Notebooks are read through the guard
+        allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).and_return(notebook_content.to_json)
         
         result = helper.verify_cells_added(test_filename, test_cells)
         expect(result[:success]).to be true
@@ -134,7 +134,7 @@ RSpec.describe MonadicHelper do
     
     context 'when notebook does not exist' do
       it 'returns error' do
-        allow(File).to receive(:exist?).and_return(false)
+        allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).and_raise(Errno::ENOENT)
         
         result = helper.verify_cells_added(test_filename, test_cells)
         expect(result[:success]).to be false
@@ -146,8 +146,8 @@ RSpec.describe MonadicHelper do
       it 'returns error' do
         notebook_content = { "cells" => [] }
         
-        allow(File).to receive(:exist?).and_return(true)
-        allow(File).to receive(:read).and_return(notebook_content.to_json)
+        # Notebooks are read through the guard
+        allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).and_return(notebook_content.to_json)
         
         result = helper.verify_cells_added(test_filename, test_cells)
         expect(result[:success]).to be false
@@ -157,8 +157,8 @@ RSpec.describe MonadicHelper do
     
     context 'when JSON parsing fails' do
       it 'returns error with message' do
-        allow(File).to receive(:exist?).and_return(true)
-        allow(File).to receive(:read).and_return("invalid json")
+        # Notebooks are read through the guard
+        allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).and_return("invalid json")
         
         result = helper.verify_cells_added(test_filename, test_cells)
         expect(result[:success]).to be false

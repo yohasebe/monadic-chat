@@ -864,11 +864,13 @@ module AutoForgeTools
     # Project state is now tracked through the filesystem only
 
     # Try to find the main CLI script by looking for shebang
-    fallback = Dir.glob(File.join(project_path, '*')).find do |f|
-      File.file?(f) && !f.end_with?('.json', '.md', '.txt') && File.read(f, 100).include?('#!')
-    end
+    # Read as plain files of the shared folder, never through a link.
+    Dir.glob(File.join(project_path, '*')).sort.each do |f|
+      next if f.end_with?('.json', '.md', '.txt')
 
-    return [fallback, File.read(fallback)] if fallback
+      content = Monadic::Utils::SharedPathGuard.read_text(f)
+      return [f, content] if content&.byteslice(0, 100)&.include?('#!')
+    end
 
     [nil, nil]
   rescue StandardError => e
@@ -1109,7 +1111,7 @@ module AutoForgeTools
     end
 
     html_path = File.join(project_info[:path], 'index.html')
-    existing_content = File.exist?(html_path) ? File.read(html_path) : nil
+    existing_content = Monadic::Utils::SharedPathGuard.read_text(html_path)
 
     mode, fix_content = AutoForge::Utils::CodexResponseAnalyzer.analyze_response(
       code_content,

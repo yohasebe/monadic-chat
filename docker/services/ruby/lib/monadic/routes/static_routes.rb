@@ -186,23 +186,16 @@ SHARED_ACTIVE_TYPES = %w[text/html application/xhtml+xml image/svg+xml text/xml 
 SHARED_SANDBOX_POLICY = "sandbox allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads"
 
 def fetch_file(file_name)
-  # Path checks (top of the shared folder only, containment) live in
-  # Monadic::Utils::SharedFilePath so the specs exercise the same code.
-  file_path = Monadic::Utils::SharedFilePath.resolve(file_name, Monadic::Utils::Environment.data_path)
-  if file_path
-    headers "X-Content-Type-Options" => "nosniff"
-    if SHARED_ACTIVE_TYPES.include?(Rack::Mime.mime_type(File.extname(file_path), "application/octet-stream"))
-      headers "Content-Security-Policy" => SHARED_SANDBOX_POLICY
-    end
-    send_file file_path
-  else
-    status 404
-    "Sorry, the file you are looking for is unavailable."
-  end
-rescue StandardError => e
-  puts "File fetch error: #{e.message}" if ENV["DEBUG"]
-  status 404
-  "Sorry, the file you are looking for is unavailable."
+  # Everything (name checks, opening once and never through a link, ranges,
+  # 304) is in Monadic::Utils::SharedFilePath.response, so the specs exercise
+  # the same code; what is served is the file it opened.
+  status_code, response_headers, response_body = Monadic::Utils::SharedFilePath.response(
+    file_name, Monadic::Utils::Environment.data_path, request.env,
+    extra_headers: ->(type) { SHARED_ACTIVE_TYPES.include?(type) ? { "content-security-policy" => SHARED_SANDBOX_POLICY } : {} }
+  )
+  status status_code
+  headers response_headers
+  body response_body
 end
 
 get "/monadic/data/:file_name" do

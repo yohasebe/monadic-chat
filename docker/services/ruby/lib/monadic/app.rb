@@ -453,6 +453,31 @@ class MonadicApp
     "#{head}\n... (#{omitted} lines omitted — output truncated to #{MAX_OUTPUT_BYTES / 1000} KB) ...\n\n#{tail}"
   end
 
+  # The MD5 digest of each plain file directly in a folder of the shared
+  # folder, read never through a link; links, folders and unreadable files
+  # are left out.
+  def shared_file_digests(dir)
+    Dir[File.join(dir, "*")].each_with_object({}) do |path, digests|
+      next unless Monadic::Utils::SharedPathGuard.file_stat(path)
+
+      digests[path] = Monadic::Utils::SharedPathGuard.read_file!(path) do |io|
+        digest = Digest::MD5.new
+        while (chunk = io.read(1 << 16))
+          digest << chunk
+        end
+        digest.hexdigest
+      end
+    rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError, IOError => e
+      DebugHelper.debug("Could not read file for its digest: #{File.basename(path)} - #{e.class}", category: :app, level: :warning)
+    end
+  end
+
+  def remove_code_file(path)
+    Monadic::Utils::SharedPathGuard.delete_file!(path)
+  rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+    nil
+  end
+
   def send_code(code:, command:, extension:, success: "The code has been executed successfully", max_retries: 3, retry_delay: 1.5, keep_file: false)
 
     retries = 0
@@ -495,49 +520,17 @@ class MonadicApp
       unique_id = SecureRandom.hex(4)
       filename = "code_#{timestamp}_#{unique_id}.#{extension}"
 
-      if keep_file
-        # Create a permanent file with timestamp-based name
-        file_path = File.join(data_dir, filename)
-        Monadic::Utils::SharedPathGuard.write_file!(file_path, code)
-      else
-        # Create a temporary file with timestamp-based name
-        temp_file = Tempfile.new(["code_#{timestamp}", ".#{extension}"], data_dir)
-        temp_file.write(code)
-        temp_file.close
-        file_path = temp_file.path
-      end
+      # The code file is a new plain file of the shared folder, which the
+      # Python container sees at SHARED_VOL: no copy into the container.
+      # Only a file this attempt made is removed afterwards: a name already
+      # taken (or refused) is left as it is.
+      created = nil
+      file_path = File.join(data_dir, filename)
+      Monadic::Utils::SharedPathGuard.write_file!(file_path, code, replace: false)
+      created = file_path
 
-      # Get the list of files with their content digest before execution
-      local_files1 = {}
-      Dir[File.join(files_dir, "*")].each do |f|
-        begin
-          # Skip directories
-          next if File.directory?(f)
-          local_files1[f] = File.exist?(f) ? Digest::MD5.file(f).hexdigest : nil
-        rescue Errno::EACCES => e
-          # Permission denied - skip this file
-          DebugHelper.debug("Permission denied accessing file: #{f}", category: :app, level: :warning)
-          next
-        rescue Errno::ENOENT => e
-          # File was deleted between Dir[] and File.exist? - skip
-          next
-        rescue Errno::EISDIR => e
-          # Is a directory - skip
-          next
-        rescue IOError => e
-          # General I/O error - skip this file
-          DebugHelper.debug("IO error accessing file: #{f} - #{e.message}", category: :app, level: :warning)
-          next
-        end
-      end
-
-      # Copy the file to the container
-      docker_command = ["docker", "cp", file_path, "#{container}:#{SHARED_VOL}/#{filename}"]
-
-      stdout, stderr, status = self.capture_command(docker_command, timeout: 30)  # 30 seconds for file copy
-      unless status.success?
-        raise "Error occurred during file copy: #{stderr}"
-      end
+      # The content digest of each file before execution
+      local_files1 = shared_file_digests(files_dir)
 
       # Execute the code in the container with longer timeout for complex operations
       docker_command = ["docker", "exec", "-w", SHARED_VOL, container, *command_argv, filename]
@@ -548,29 +541,8 @@ class MonadicApp
       sleep COMMAND_DELAY
 
       if status.success?
-        # Get the list of files with their content digest after execution
-        local_files2 = {}
-        Dir[File.join(files_dir, "*")].each do |f|
-          begin
-            # Skip directories
-            next if File.directory?(f)
-            local_files2[f] = File.exist?(f) ? Digest::MD5.file(f).hexdigest : nil
-          rescue Errno::EACCES => e
-            # Permission denied - skip this file
-            DebugHelper.debug("Permission denied accessing file after execution: #{f}", category: :app, level: :warning)
-            next
-          rescue Errno::ENOENT => e
-            # File was deleted - skip
-            next
-          rescue Errno::EISDIR => e
-            # Is a directory - skip
-            next
-          rescue IOError => e
-            # General I/O error - skip this file
-            DebugHelper.debug("IO error accessing file after execution: #{f} - #{e.message}", category: :app, level: :warning)
-            next
-          end
-        end
+        # The content digest of each file after execution
+        local_files2 = shared_file_digests(files_dir)
 
         # Detect new or modified files
         changed_files = []
@@ -613,8 +585,8 @@ class MonadicApp
           output += "\n\nOutput: #{truncate_output(stdout)}" if stdout.strip.length.positive?
         end
 
-        # Clean up temporary file if keep_file is false
-        temp_file.unlink if !keep_file && temp_file
+        # Remove the code file unless it is to be kept
+        remove_code_file(created) unless keep_file
 
         output
       else
@@ -632,6 +604,9 @@ class MonadicApp
         raise StandardError, error_details
       end
     rescue StandardError => e
+      # Each attempt writes its own code file
+      remove_code_file(created) if created && !keep_file
+      created = nil
       if retries < max_retries
         retries += 1
         sleep(retry_delay)

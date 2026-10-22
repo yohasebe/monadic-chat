@@ -2,7 +2,7 @@
 
 This page lists the settings in `~/monadic/config/env`. Most of them are also in the **Settings** window (**Open → Settings**), which writes the same file. Whenever the app writes the file, it makes it readable and writable by your user account only (on Windows, inside WSL); a file edited by hand keeps its permissions until then.
 
-Values are taken as written: `$VAR`, `${VAR}` and `$(...)` in a value are not expanded. Settings that change where requests go are not read from this file: proxy settings (`https_proxy` and the like), and the service addresses `QDRANT_URL`, `EXTRACTOR_URL` and `EMBEDDINGS_URL`. Set them in the environment of the shell that starts the app. A setting that names a file (`SSL_CERT_FILE`, `SSL_CERT_DIR`, `TTS_DICT_PATH`, `HELP_DATA_DUMP`) is ignored when the file is in the shared folder.
+Values are taken as written: `$VAR`, `${VAR}` and `$(...)` in a value are not expanded. Settings that change where requests go are not read from this file: proxy settings (`https_proxy` and the like), the service addresses `QDRANT_URL`, `EXTRACTOR_URL` and `EMBEDDINGS_URL`, and any setting whose name ends in `_URL`, `_HOST`, `_ENDPOINT`, `_PROXY`, `_CMD` or `_COMMAND` (or a similar address or program suffix). Set them in the environment of the shell that starts the app. A setting that names a file (`SSL_CERT_FILE`, `SSL_CERT_DIR`, `TTS_DICT_PATH`, `HELP_DATA_DUMP`) is ignored when the file is in the shared folder.
 
 ## Configuration Categories
 

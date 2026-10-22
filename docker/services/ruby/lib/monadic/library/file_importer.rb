@@ -4,6 +4,7 @@ require 'json'
 require 'open3'
 require_relative 'importers'
 require_relative '../utils/environment'
+require_relative '../utils/shared_path_guard'
 require_relative '../utils/degradation_notifier'
 require_relative '../extractor/client'
 require_relative '../shell'
@@ -88,13 +89,15 @@ module Monadic
         Importers::Code.detect_language(filename) ? true : false
       end
 
+      # The import copy is in the shared folder: read as a plain file there,
+      # never through a link.
       def import_markdown(path, filename, options)
-        content = File.read(path, mode: 'rb').force_encoding('UTF-8')
+        content = Monadic::Utils::SharedPathGuard.read_bytes!(path).force_encoding('UTF-8')
         Importers::Markdown.import(content, options.merge(filename: filename))
       end
 
       def import_code(path, filename, options)
-        content = File.read(path, mode: 'rb').force_encoding('UTF-8')
+        content = Monadic::Utils::SharedPathGuard.read_bytes!(path).force_encoding('UTF-8')
         Importers::Code.import(content, options.merge(filename: filename))
       end
 

@@ -101,9 +101,10 @@ module GeminiHelper
     # ONLY if user hasn't uploaded new images (check both images param and session)
     if session && session[:gemini3_last_image] && (images.nil? || images.empty?) && !has_uploaded_images
       image_path = File.join(shared_folder, session[:gemini3_last_image])
-      if File.exist?(image_path)
-        # Load and encode the last generated image
-        image_data = File.binread(image_path)
+      # Read as a plain file of the shared folder, never through a link.
+      image_data = (Monadic::Utils::SharedPathGuard.read_bytes!(image_path) rescue nil)
+      if image_data
+        # Encode the last generated image
         image_b64 = Base64.strict_encode64(image_data)
 
         # Add to images parameter for processing
@@ -3982,9 +3983,9 @@ module GeminiHelper
           if session[:gemini3_last_image]
              filename = session[:gemini3_last_image]
              filepath = File.join(shared_folder, filename)
-             
-             if File.exist?(filepath)
-               image_data_binary = File.binread(filepath)
+             # Read as a plain file of the shared folder, never through a link.
+             image_data_binary = (Monadic::Utils::SharedPathGuard.read_bytes!(filepath) rescue nil)
+             if image_data_binary
                base64_data = Base64.strict_encode64(image_data_binary)
                
                # Determine mime type from extension

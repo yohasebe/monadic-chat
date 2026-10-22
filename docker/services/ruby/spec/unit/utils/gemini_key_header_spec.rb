@@ -2,6 +2,7 @@
 
 require 'spec_helper'
 require 'base64'
+require 'tmpdir'
 require 'stringio'
 require_relative '../../../lib/monadic/utils/tts_utils'
 require_relative '../../../lib/monadic/utils/stt_utils'
@@ -135,16 +136,18 @@ RSpec.describe 'Gemini credential transport invariant' do
   end
 
   it 'authenticates audio analysis in headers' do
-    path = '/fake/header-test.mp3'
-    allow(File).to receive(:exist?).with(path).and_return(true)
-    allow(File).to receive(:size).with(path).and_return(10)
-    allow(File).to receive(:binread).with(path).and_return('fake audio')
-    AudioAnalysisAgent.analyze(audio_path: path, prompt: 'Hello', model: 'gemini-test')
+    # The audio is read from the shared folder; a temp folder stands in for it.
+    Dir.mktmpdir do |dir|
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(dir)
+      path = File.join(dir, 'header-test.mp3')
+      File.binwrite(path, 'fake audio')
+      AudioAnalysisAgent.analyze(audio_path: path, prompt: 'Hello', model: 'gemini-test')
+    end
     expect_header_auth
   end
 
   it 'authenticates audio transcription in headers' do
-    allow(File).to receive(:binread).with('/fake/header-test.mp3').and_return('fake audio')
+    allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).with('/fake/header-test.mp3', limit: anything).and_return('fake audio')
     host = Class.new { include AudioTranscriptionAgent }.new
     host.send(:transcribe_gemini, '/fake/header-test.mp3', 'gemini-test', key, 'en')
     expect_header_auth

@@ -2,12 +2,29 @@
 
 require 'spec_helper'
 require 'base64'
+require 'tmpdir'
+require 'fileutils'
 require_relative '../../../lib/monadic/agents/audio_analysis_agent'
 
 RSpec.describe AudioAnalysisAgent do
-  before { stub_const("CONFIG", { "GEMINI_API_KEY" => "test-gemini-key" }) }
+  # The audio is a file of a temporary shared folder; the agent reads it
+  # through SharedPathGuard.
+  around do |example|
+    Dir.mktmpdir("audio-analysis") do |dir|
+      @root = File.join(dir, "data")
+      @outside = File.join(dir, "outside")
+      FileUtils.mkdir_p([@root, @outside])
+      File.binwrite(File.join(@root, "perf.mp3"), "RAWBYTES")
+      example.run
+    end
+  end
 
-  let(:audio_path) { "/test/perf.mp3" }
+  before do
+    stub_const("CONFIG", { "GEMINI_API_KEY" => "test-gemini-key" })
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@root)
+  end
+
+  let(:audio_path) { File.join(@root, "perf.mp3") }
 
   describe '.analyze' do
     context 'guards' do
@@ -18,20 +35,20 @@ RSpec.describe AudioAnalysisAgent do
       end
 
       it 'errors when the file does not exist' do
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with(audio_path).and_return(false)
-        result = described_class.analyze(audio_path: audio_path, prompt: "x", model: "gemini-3.6-flash")
+        result = described_class.analyze(audio_path: File.join(@root, "missing.mp3"), prompt: "x", model: "gemini-3.6-flash")
+        expect(result).to match(/Audio file not found/)
+      end
+
+      it 'sends nothing from outside the shared folder when the file is a link' do
+        File.write(File.join(@outside, "env"), "OPENAI_API_KEY=secret")
+        File.symlink(File.join(@outside, "env"), File.join(@root, "link.mp3"))
+        expect(described_class).not_to receive(:post_and_parse)
+        result = described_class.analyze(audio_path: File.join(@root, "link.mp3"), prompt: "x", model: "gemini-3.6-flash")
         expect(result).to match(/Audio file not found/)
       end
     end
 
     context 'building the Gemini generateContent request' do
-      before do
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with(audio_path).and_return(true)
-        allow(File).to receive(:size).with(audio_path).and_return(1024) # small -> no compression
-        allow(File).to receive(:binread).with(audio_path).and_return("RAWBYTES")
-      end
 
       it 'sends audio inline_data + the prompt and returns the model text' do
         captured = {}
@@ -70,11 +87,8 @@ RSpec.describe AudioAnalysisAgent do
 
     context 'when the file exceeds the inline size limit' do
       it 'returns a clear error instead of sending an oversized request' do
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with(audio_path).and_return(true)
         # Simulate a file that could not be compressed below the limit.
-        allow(described_class).to receive(:prepare_audio).with(audio_path).and_return([audio_path, "audio/mpeg", nil])
-        allow(File).to receive(:size).with(audio_path).and_return(described_class::MAX_INLINE_BYTES + 1)
+        stub_const("#{described_class}::MAX_INLINE_BYTES", 3)
 
         result = described_class.analyze(audio_path: audio_path, prompt: "x", model: "gemini-3.6-flash")
         expect(result).to match(/too large to analyze/i)

@@ -351,6 +351,15 @@ writes_body = <<~'RUBY'
     def variable_mode(path, mode)
       File.open(File.join(path, "x"), mode, 0o600)
     end
+
+    def nested_and_flags(path)
+      File.open(File.join(path, "x"), "wb") { |f| f.write("x") }
+      File.open(
+        File.join(path, "y"),
+        File::WRONLY | File::CREAT
+      )
+      File.open(File.join(path, "z"), File::RDONLY | File::NOFOLLOW) { |f| f.read(1) }
+    end
   end
 RUBY
 with_temp_file(writes_fixture, writes_body) do
@@ -358,10 +367,34 @@ with_temp_file(writes_fixture, writes_body) do
   rel = writes_fixture.relative_path_from(ROOT).to_s
   flagged = stdout.lines.grep(/#{Regexp.escape(rel)}:/)
   assert(
-    'detects raw writes outside the guard, and only those',
-    !status.success? && flagged.size == 3 && flagged.none? { |l| l.include?('FormData') || l.include?('SharedPathGuard') || l.include?('"rb"') },
+    'detects raw writes outside the guard (a path in parentheses, a call over lines, write flags), and only those',
+    !status.success? && flagged.size == 5 && flagged.none? { |l| l.include?('FormData') || l.include?('SharedPathGuard') || l.include?('"rb"') || l.include?('NOFOLLOW') },
     "exit=#{status.exitstatus}\nstdout:\n#{stdout}"
   )
+end
+# Each form of File.open on its own: flagged when it may write, left alone
+# when it only reads.
+{
+  'File.open(path, "r", flags: File::TRUNC) { |f| f }' => true,
+  'File.open(path, 1)' => true,
+  'File.open(path, **options)' => true,
+  'File.open(*args)' => true,
+  'File.open(path, mode: "r+")' => true,
+  '::File.open(path, "w")' => true,
+  'File.open(path, File::RDONLY | 1) { |f| f }' => true,
+  'File.open(path, "r", flags: File::RDONLY | 1024) { |f| f }' => true,
+  'File.open(path, 0)' => false,
+  'File.open(path, File::RDONLY | 0)' => false,
+  'File.open(path, File::RDONLY | File::NOFOLLOW)' => false
+}.each do |code, writes|
+  body = "module LintSharedWritesFormFixture\n  def form(path, options, args)\n    #{code}\n  end\nend\n"
+  with_temp_file(writes_fixture, body) do
+    stdout, _stderr, status = run_lint('check_shared_writes.rb')
+    flagged = stdout.lines.grep(/#{Regexp.escape(writes_fixture.relative_path_from(ROOT).to_s)}:/)
+    assert("#{writes ? 'flags' : 'leaves'} #{code}",
+           writes ? (!status.success? && flagged.size == 1) : flagged.empty?,
+           "exit=#{status.exitstatus}\nstdout:\n#{stdout}")
+  end
 end
 Dir.mktmpdir do |dir|
   lint_dir = File.join(dir, 'scripts', 'lint')

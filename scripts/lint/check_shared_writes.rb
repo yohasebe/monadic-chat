@@ -20,6 +20,7 @@
 # this keeps new raw writes from slipping in unnoticed.
 
 require 'pathname'
+require 'prism'
 require_relative 'scan_floor'
 
 ROOT = Pathname.new(__dir__).join('..', '..').realpath
@@ -41,7 +42,6 @@ RAW_WRITE = /
   (?:^|[^A-Za-z_:.])
   (?:
     File\.(?:write|binwrite|chmod|chown|lchmod|delete|unlink|rename|link|symlink|new|truncate|mkfifo)\(
-  | File\.open\([^)]*(?:['"](?:w|a|r\+)b?\+?['"]|WRONLY|RDWR|CREAT|TRUNC|APPEND)
   | IO\.(?:write|binwrite|sysopen)\(
   | FileUtils\.(?:cp|cp_r|mv|mkdir_p|mkdir|makedirs|touch|rm|rm_f|rm_r|rm_rf|rmtree|ln|ln_s|ln_sf|install|copy_file|copy_entry|remove|remove_entry|remove_entry_secure|remove_dir|remove_file|chmod|chmod_R|chown)(?![A-Za-z_])
   | Dir\.(?:mkdir|rmdir|unlink|delete)(?![A-Za-z_])
@@ -50,31 +50,93 @@ RAW_WRITE = /
   )
 /x.freeze
 
-# File.open whose mode is a variable: the text cannot say whether it writes,
-# so it is flagged for review like a write.
-def variable_mode_open?(line)
-  start = line.index(/(?:^|[^A-Za-z_:.])File\.open\(/)
-  return false unless start
+# File.open calls that may write, found by parsing the file as Ruby does, so
+# a path with its own parentheses (File.join(...)) or a call over several
+# lines is read whole. A call may write when its mode or flags: is a string
+# that writes, a write flag, a number other than 0, or something the text
+# cannot say (a variable, an expression, arguments spread in), which is
+# flagged for review like a write. Returns their lines.
+class WritingOpens < Prism::Visitor
+  WRITE_MODE = /\A(?:w|a|r\+)|\+/
+  WRITE_FLAGS = %i[WRONLY RDWR CREAT TRUNC APPEND].freeze
 
-  text = line[line.index('File.open(', start) + 'File.open('.length..]
-  depth = 0
-  args = [+'']
-  text.each_char do |ch|
-    case ch
-    when '(', '[', '{' then depth += 1
-    when ')', ']', '}'
-      break if depth.zero?
-
-      depth -= 1
-    when ','
-      if depth.zero?
-        args << +''
-        next
-      end
-    end
-    args.last << ch
+  def self.lines(source)
+    finder = new
+    Prism.parse(source).value.accept(finder)
+    finder.lines
   end
-  args.size >= 2 && args[1].strip.match?(/\A[a-z_][a-z0-9_]*\z/)
+
+  attr_reader :lines
+
+  def initialize
+    super
+    @lines = []
+  end
+
+  def visit_call_node(node)
+    @lines << node.location.start_line if node.name == :open && file?(node.receiver) && may_write?(node)
+    super
+  end
+
+  private
+
+  def file?(receiver)
+    case receiver
+    when Prism::ConstantReadNode then receiver.name == :File
+    when Prism::ConstantPathNode then receiver.parent.nil? && receiver.name == :File
+    else false
+    end
+  end
+
+  def may_write?(node)
+    args = node.arguments&.arguments || []
+    options = args.find { |arg| arg.is_a?(Prism::KeywordHashNode) }
+    # Arguments spread in (*args, **options) can say anything
+    return true if args.any? { |arg| arg.is_a?(Prism::SplatNode) }
+    return true if options&.elements&.any? { |el| el.is_a?(Prism::AssocSplatNode) }
+
+    mode = args[1] unless args[1].is_a?(Prism::KeywordHashNode)
+    mode ||= keyword(options, 'mode')
+    flags = keyword(options, 'flags')
+    [mode, flags].compact.any? { |value| writes?(value) }
+  end
+
+  def keyword(options, name)
+    options&.elements&.find { |el| el.is_a?(Prism::AssocNode) && el.key.is_a?(Prism::SymbolNode) && el.key.unescaped == name }&.value
+  end
+
+  def writes?(mode)
+    case mode
+    when Prism::StringNode then mode.unescaped.match?(WRITE_MODE)
+    when Prism::IntegerNode then !mode.value.zero? # 0 is RDONLY; other numbers may set write bits
+    else
+      # File::WRONLY | File::CREAT and the like: writes when a flag does. A
+      # mode the text cannot say (a variable, another constant) may write.
+      flags = file_flags(mode)
+      flags.nil? || flags.intersect?(WRITE_FLAGS)
+    end
+  end
+
+  def mode_zero?(node)
+    node.value.zero?
+  end
+
+  # The names of the File:: flags an expression ORs together, or nil when it
+  # is anything else (a number other than 0 included).
+  def file_flags(node)
+    case node
+    when Prism::ConstantPathNode
+      node.parent.is_a?(Prism::ConstantReadNode) && node.parent.name == :File ? [node.name] : nil
+    when Prism::IntegerNode then mode_zero?(node) ? [] : nil # a number may set write bits
+    when Prism::ParenthesesNode then file_flags(node.body&.body&.first)
+    when Prism::CallNode
+      return nil unless node.name == :| && node.arguments&.arguments&.size == 1
+
+      left = file_flags(node.receiver)
+      right = file_flags(node.arguments.arguments.first)
+      left && right && left + right
+    end
+  end
 end
 
 def load_allow
@@ -105,9 +167,11 @@ allow = load_allow
 violations = []
 each_target_file do |path|
   rel = path.relative_path_from(ROOT).to_s
-  File.readlines(path, encoding: 'UTF-8', invalid: :replace, undef: :replace, replace: '?').each_with_index do |line, idx|
+  source = File.read(path, encoding: 'UTF-8', invalid: :replace, undef: :replace, replace: '?')
+  opens = WritingOpens.lines(source)
+  source.lines.each_with_index do |line, idx|
     next if line.lstrip.start_with?('#')
-    next unless line =~ RAW_WRITE || variable_mode_open?(line)
+    next unless line =~ RAW_WRITE || opens.include?(idx + 1)
 
     entry = allow.find { |e| e[:path] == rel && line.include?(e[:text]) }
     if entry

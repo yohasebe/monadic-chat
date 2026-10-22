@@ -107,6 +107,32 @@ RSpec.describe Monadic::Utils::EnvFile do
     expect(out.string).not_to include("elsewhere")
   end
 
+  it "takes no setting named like an address, a program or an unchecked file" do
+    path = env_file(<<~ENV)
+      OLLAMA_HOST=http://elsewhere:11434
+      SEARCH_ENDPOINT=https://elsewhere/
+      CUSTOM_BASE_URL=https://elsewhere/
+      MY_TOOL_CMD=/tmp/run-me
+      NOTES_PATH=/etc/passwd
+      UI_LANGUAGE=ja
+      GEMINI_API_KEY=k
+    ENV
+    expect(described_class.accepted(path).keys).to eq(%w[UI_LANGUAGE GEMINI_API_KEY])
+  end
+
+  it "loses no setting the code reads from CONFIG by name to those forms" do
+    files = Dir.glob(File.join(ruby_root, "{lib,apps,scripts}", "**", "*.rb"))
+    names = files.flat_map do |file|
+      File.read(file).scan(/CONFIG(?:\[|\.fetch\(|\.dig\(|\.key\?\()["']([A-Za-z0-9_]+)["']/).flatten
+    end.uniq
+    expect(names.size).to be > 30
+    lost = names.select do |name|
+      !described_class::REFUSED.include?(name) && !described_class::PORT_KEYS.include?(name) &&
+        !described_class::PATH_KEYS.key?(name) && described_class.usable(name, "x").nil?
+    end
+    expect(lost).to be_empty, "read from CONFIG but refused by name: #{lost.sort.join(', ')}"
+  end
+
   it "takes a port only as a number from 1 to 65535" do
     path = env_file(<<~ENV)
       EMBEDDINGS_DEV_PORT=80@example.invalid

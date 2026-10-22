@@ -173,8 +173,19 @@ module Monadic
         end
       end
 
+      # Compared as a plain file of the shared folder, never through a link.
       def unchanged?(path, record)
-        File.size(path) == record[:size] && Digest::SHA256.file(path).hexdigest == record[:sha256]
+        Monadic::Utils::SharedPathGuard.read_file!(path) do |io|
+          next false unless io.stat.size == record[:size]
+
+          digest = Digest::SHA256.new
+          while (chunk = io.read(1 << 16))
+            digest << chunk
+          end
+          digest.hexdigest == record[:sha256]
+        end
+      rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+        false
       end
 
       # The name kept for display: the base name the browser sent, as valid

@@ -77,7 +77,12 @@ RSpec.describe Monadic::Utils::SegmentTranscriber do
   let(:pcm) { File.join(dir, 'audio_24k.pcm') }
   let(:rate) { 24_000 }
 
-  before { File.binwrite(pcm, ([1] * (rate * 40)).pack('s<*')) }
+  # The decoded audio is in the run folder, read through SharedPathGuard:
+  # the temporary folder stands for the shared folder.
+  before do
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(dir)
+    File.binwrite(pcm, ([1] * (rate * 40)).pack('s<*'))
+  end
   after { FileUtils.rm_rf(dir) }
 
   def seg(id, from, to)

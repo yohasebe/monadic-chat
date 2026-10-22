@@ -18,9 +18,9 @@ module Monadic
     # Only the settings the code reads from ENV are put in ENV (ENV_KEYS and
     # ENV_PATTERNS); the rest stay in the parsed file, for CONFIG. Settings
     # that decide where requests go or what program runs are never taken
-    # from the file, for ENV or CONFIG (REFUSED): a proxy or a service
-    # address written there would send requests, API keys among them,
-    # elsewhere. A port (PORT_KEYS) must be a number from 1 to 65535: it is
+    # from the file, for ENV or CONFIG (REFUSED, and names of that form,
+    # REFUSED_PATTERNS): a proxy or a service address written there would
+    # send requests, API keys among them, elsewhere. A port (PORT_KEYS) must be a number from 1 to 65535: it is
     # put into addresses. A setting that names a file the server reads
     # (PATH_KEYS) must be an absolute path to an existing file or folder
     # outside the shared folder, which code in another container can write;
@@ -37,6 +37,14 @@ module Monadic
         MONADIC_OP_CLI MONADIC_AUTH_TOKEN MONADIC_LOAD_USER_CODE
         PATH HOME RUBYOPT RUBYLIB GEM_HOME GEM_PATH BUNDLE_GEMFILE
         LD_PRELOAD LD_LIBRARY_PATH DYLD_INSERT_LIBRARIES DYLD_LIBRARY_PATH NODE_OPTIONS
+      ].freeze
+      # Names of the form that decides where requests go or what runs are
+      # refused too, so a setting added later is not taken from the file
+      # until it is given a check here (PATH_KEYS for files).
+      REFUSED_PATTERNS = [
+        /_(?:URL|URI|HOST|HOSTNAME|ENDPOINT|PROXY|ADDR|ADDRESS|SOCKET|SOCK)\z/i,
+        /_(?:CMD|COMMAND|BIN|EXEC|EXECUTABLE)\z/i,
+        /_(?:PATH|DIR|FILE)\z/i
       ].freeze
       PATH_KEYS = { 'SSL_CERT_FILE' => :file, 'SSL_CERT_DIR' => :directory,
                     'TTS_DICT_PATH' => :file, 'HELP_DATA_DUMP' => :file }.freeze
@@ -158,6 +166,7 @@ module Monadic
         return nil if REFUSED.include?(key)
         return port(value) if PORT_KEYS.include?(key)
         return outside_path(value, PATH_KEYS[key]) if PATH_KEYS.key?(key)
+        return nil if REFUSED_PATTERNS.any? { |pattern| pattern.match?(key) }
 
         value
       end

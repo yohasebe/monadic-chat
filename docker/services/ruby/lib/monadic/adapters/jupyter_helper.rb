@@ -411,8 +411,8 @@ module MonadicHelper
                  false
                end
     begin
-      File.delete(filepath) if File.file?(filepath) && !File.symlink?(filepath)
-    rescue SystemCallError
+      Monadic::Utils::SharedPathGuard.delete_file!(filepath)
+    rescue SystemCallError, Monadic::Utils::SharedPathGuard::InvalidPath
       nil
     end
 
@@ -723,13 +723,11 @@ module MonadicHelper
           unique_id = saved_images.size + 1
           image_filename = "jupyter_output_#{timestamp}_#{unique_id}.png"
           image_path = File.join(data_path, image_filename)
-          File.binwrite(image_path, Base64.decode64(png_data))
-
+          decoded = Base64.decode64(png_data)
           # Skip files that are too large (> 5 MB)
-          if File.size(image_path) > 5 * 1024 * 1024
-            File.delete(image_path)
-            next
-          end
+          next if decoded.bytesize > 5 * 1024 * 1024
+
+          Monadic::Utils::SharedPathGuard.write_file!(image_path, decoded)
 
           saved_images << image_filename
           seen_hashes << content_hash if seen_hashes && content_hash

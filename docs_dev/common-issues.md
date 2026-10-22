@@ -85,7 +85,7 @@ while passing in CI.
 **Mechanism**
 - `docker/services/ruby/lib/monadic/utils/ssl_configuration.rb` removes `V_FLAG_CRL_CHECK` and `V_FLAG_CRL_CHECK_ALL` from `OpenSSL::SSL::SSLContext::DEFAULT_PARAMS` at startup
 - The same `SSLContext` is set on the `HTTP` gem's `default_options`, so every `http` gem request uses it
-- Custom CAs can be prioritized by setting `SSL_CERT_FILE` / `SSL_CERT_DIR` in `~/monadic/config/env`
+- Custom CAs can be prioritized by setting `SSL_CERT_FILE` / `SSL_CERT_DIR` in `~/monadic/config/env` (a path in the shared folder is ignored; `Monadic::Utils::EnvFile`)
 - `HTTP.headers` and `Net::HTTP.start` calls use this configuration
 
 **Operational notes**

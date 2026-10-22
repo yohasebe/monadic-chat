@@ -327,6 +327,61 @@ with_temp_file(http_fixture, http_body) do
 end
 
 # ---------------------------------------------------------------------------
+# 7b. check_shared_writes.rb — must flag a raw write (one that would follow a
+#     link in the shared folder) that is not in shared_writes.allow, leave the
+#     guard's own calls and HTTP::FormData::File.new alone, and fail when an
+#     allow entry matches nothing.
+# ---------------------------------------------------------------------------
+section 'check_shared_writes.rb'
+writes_fixture = FIXTURES[:ruby]
+writes_body = <<~'RUBY'
+  # Lint fixture: raw writes into the shared folder.
+  module LintSharedWritesFixture
+    def raw(path)
+      File.write(path, "x")
+      FileUtils.mkdir_p(File.dirname(path))
+    end
+
+    def guarded(path)
+      Monadic::Utils::SharedPathGuard.write_file!(path, "x")
+      HTTP::FormData::File.new(path)
+      File.open(path, "rb") { |source| source.read(10) }
+    end
+
+    def variable_mode(path, mode)
+      File.open(File.join(path, "x"), mode, 0o600)
+    end
+  end
+RUBY
+with_temp_file(writes_fixture, writes_body) do
+  stdout, _stderr, status = run_lint('check_shared_writes.rb')
+  rel = writes_fixture.relative_path_from(ROOT).to_s
+  flagged = stdout.lines.grep(/#{Regexp.escape(rel)}:/)
+  assert(
+    'detects raw writes outside the guard, and only those',
+    !status.success? && flagged.size == 3 && flagged.none? { |l| l.include?('FormData') || l.include?('SharedPathGuard') || l.include?('"rb"') },
+    "exit=#{status.exitstatus}\nstdout:\n#{stdout}"
+  )
+end
+Dir.mktmpdir do |dir|
+  lint_dir = File.join(dir, 'scripts', 'lint')
+  FileUtils.mkdir_p(lint_dir)
+  %w[check_shared_writes.rb scan_floor.rb].each { |f| FileUtils.cp(LINT_DIR.join(f), lint_dir) }
+  File.write(File.join(lint_dir, 'shared_writes.allow'),
+             "docker/services/ruby/lib/gone.rb | File.write(gone | log | code that is gone\n")
+  stdout, stderr, status = Open3.capture3('ruby', File.join(lint_dir, 'check_shared_writes.rb'), chdir: dir)
+  assert('check_shared_writes.rb fails when the scan reads no files', !status.success? && stdout.include?('expected at least'), stdout + stderr)
+  root = File.join(dir, 'docker', 'services', 'ruby')
+  { 'lib' => 200, 'scripts' => 10, 'apps' => 44 }.each do |sub, count|
+    FileUtils.mkdir_p(File.join(root, sub))
+    count.times { |i| File.write(File.join(root, sub, "f#{i}.rb"), "x = #{i}\n") }
+  end
+  stdout, stderr, status = Open3.capture3('ruby', File.join(lint_dir, 'check_shared_writes.rb'), chdir: dir)
+  assert('check_shared_writes.rb fails on an allow entry that matches nothing',
+         !status.success? && stdout.include?('match nothing'), stdout + stderr)
+end
+
+# ---------------------------------------------------------------------------
 section 'check_docs_links.rb'
 docs_fixture = FIXTURES[:docs]
 

@@ -5,6 +5,7 @@ $LOAD_PATH.unshift('/monadic/lib') if File.directory?('/monadic/lib')
 $LOAD_PATH.unshift(File.expand_path('../../lib', __dir__)) if File.directory?(File.expand_path('../../lib', __dir__))
 
 require "http"
+require_relative "../../lib/monadic/utils/shared_path_guard"
 require "json"
 require_relative "../../lib/monadic/utils/secret_references"
 require "net/http"
@@ -436,7 +437,8 @@ end
 
 # Read the text content
 
-text = File.read(textpath)
+# Read as a plain file of the shared folder, never through a link.
+text = Monadic::Utils::SharedPathGuard.read_file!(textpath, &:read).force_encoding("UTF-8")
 
 # Parse command line options with default values
 
@@ -507,9 +509,7 @@ begin
     response
   end
 
-  File.open(file_path, "wb") do |f|
-    f.write(audio_content)
-  end
+  Monadic::Utils::SharedPathGuard.write_file!(file_path, audio_content)
 
   # Display appropriate message based on file format
   if (Monadic::Utils::TtsProvider.gemini?(provider)) && file_extension != "mp3"

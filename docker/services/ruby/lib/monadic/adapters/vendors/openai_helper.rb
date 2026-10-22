@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../utils/request_retry"
+require_relative "../../utils/shared_path_guard"
 require_relative "../../utils/http_client"
 require_relative "../../utils/privacy/outbound"
 require 'cgi'
@@ -544,13 +545,13 @@ module OpenAIHelper
         source = File.realpath(img["data"].to_s) rescue nil
         root = File.realpath(shared_folder) rescue nil
         if source && root && source.start_with?(root + File::SEPARATOR) && File.file?(source)
-          FileUtils.cp(source, target_path)
+          Monadic::Utils::SharedPathGuard.copy_file!(source, target_path)
           true
         elsif img["data"].to_s.start_with?("data:")
           data_uri = img["data"].to_s
           _content_type, encoded_data = data_uri.match(/^data:([^;]+);base64,(.+)$/)[1..2]
           decoded_data = Base64.decode64(encoded_data)
-          File.open(target_path, 'wb') { |f| f.write(decoded_data) }
+          Monadic::Utils::SharedPathGuard.write_file!(target_path, decoded_data)
           true
         else
           false

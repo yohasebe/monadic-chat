@@ -27,8 +27,11 @@ module Monadic
         end
       end
 
+      # In the state folder, where only the server writes: in the shared
+      # folder, code run in another container could remove and remake a lock
+      # or the journal.
       def self.default_coordination_dir
-        File.join(Monadic::Utils::Environment.data_path, '.help-installation')
+        File.join(Monadic::Utils::Environment.state_path, 'help-installation')
       end
 
       def initialize(store: VectorStore.default_backend,

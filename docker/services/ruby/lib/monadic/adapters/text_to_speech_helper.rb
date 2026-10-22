@@ -1,5 +1,6 @@
 require 'securerandom'
 require 'shellwords'
+require_relative '../utils/shared_path_guard'
 
 module MonadicHelper
   def list_providers_and_voices
@@ -31,9 +32,7 @@ module MonadicHelper
     textfile = "#{Time.now.to_i}_#{SecureRandom.hex(4)}.md"
     textpath = File.join(save_path, textfile)
 
-    File.open(textpath, "w") do |f|
-      f.write(text)
-    end
+    Monadic::Utils::SharedPathGuard.write_file!(textpath, text.to_s, replace: false)
 
     # Every value can come from a model's tool call; each is escaped into a
     # single argument so none of them is read by the shell.

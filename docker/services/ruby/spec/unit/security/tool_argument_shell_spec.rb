@@ -101,6 +101,7 @@ RSpec.describe "tool arguments never reach a shell" do
 
     before do
       allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(@dir)
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@dir)
       stub_const("CONFIG", {})
     end
 

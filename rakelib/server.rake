@@ -52,7 +52,10 @@ namespace :server do
     # config file brings in is not passed on to the server.
     user_code_from_shell = ENV.key?("MONADIC_LOAD_USER_CODE")
     if File.exist?(config_path)
-      Dotenv.load(config_path)
+      # Only the settings the server reads from ENV, never a proxy, a service
+      # address or a program path (EnvFile).
+      require_relative '../docker/services/ruby/lib/monadic/utils/env_file'
+      Monadic::Utils::EnvFile.load!(config_path)
     end
     ENV.delete("MONADIC_LOAD_USER_CODE") unless user_code_from_shell
     

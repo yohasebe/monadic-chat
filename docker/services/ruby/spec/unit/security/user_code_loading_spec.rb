@@ -147,13 +147,17 @@ RSpec.describe "rake server:debug and the user code flag" do
   end
 
   def passed_on(shell_value)
-    rake = File.read(File.expand_path("../../../../../../rakelib/server.rake", __dir__))
+    rakelib = File.expand_path("../../../../../../rakelib", __dir__)
+    rake = File.read(File.join(rakelib, "server.rake"))
     block = rake[/^\s*require 'dotenv'\n.*?^\s*ENV\.delete\("MONADIC_LOAD_USER_CODE"\)[^\n]*\n/m]
     expect(block).not_to be_nil
+    # Run outside the file: its relative requires are made absolute.
+    block = block.gsub(/require_relative '([^']+)'/) { "require '#{File.expand_path(Regexp.last_match(1), rakelib)}'" }
     script = "#{block}\nputs ENV.fetch('MONADIC_LOAD_USER_CODE', 'unset')"
     env = { "HOME" => @home, "MONADIC_LOAD_USER_CODE" => shell_value }
     out, = Open3.capture2(env, RbConfig.ruby, "-e", script)
-    out.strip
+    # The last line: the config reader may first name settings it left out.
+    out.lines.last.to_s.strip
   end
 
   it "does not pass on a value from the config file" do

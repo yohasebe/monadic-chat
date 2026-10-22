@@ -108,7 +108,7 @@ rake help:build_internal
 Help アプリが使うもの：
 
 - `HELP_CHUNKS_PER_RESULT`：検索の結果 1 件ごとに返す断片の数（既定：3）
-- `HELP_DATA_DUMP`：インストールで使う JSON のダンプ（既定：Ruby コンテナの中の `/monadic/help_data/help_db.json`）。パスを変えても、データはインストールされません
+- `HELP_DATA_DUMP`：インストールで使う JSON のダンプ（既定：Ruby コンテナの中の `/monadic/help_data/help_db.json`）。パスを変えても、データはインストールされません。共有フォルダの中のパスは使いません
 
 `rake help:build` でヘルプデータを作るときだけ使うもの：
 

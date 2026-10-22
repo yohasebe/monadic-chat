@@ -206,9 +206,14 @@ RSpec.describe 'Tool input boundaries' do
       expect(File.exist?(File.join(@outside, 'missing'))).to be(false)
     end
 
-    it 'rechecks the path after mkdir_p before writing' do
+    it 'writes nothing outside when a folder it made is swapped for a link before the write' do
       target = File.join(@root, 'new')
-      allow(FileUtils).to receive(:mkdir_p).with(target) { File.symlink(@outside, target) }
+      allow(Monadic::Utils::SharedPathGuard).to receive(:mkdir_p!).and_wrap_original do |original, path|
+        original.call(path).tap do
+          FileUtils.rm_rf(target)
+          File.symlink(@outside, target)
+        end
+      end
       result = helper.write_file_to_shared_folder(filepath: 'new/escape.txt', content: 'overwrite')
       expect(result[:success]).to be(false)
       expect(File.exist?(File.join(@outside, 'escape.txt'))).to be(false)

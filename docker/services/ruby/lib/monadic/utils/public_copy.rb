@@ -1,32 +1,30 @@
 # frozen_string_literal: true
 
 require_relative 'environment'
+require_relative 'shared_path_guard'
 
 module Monadic
   module Utils
     # A copy of a file directly in the shared folder, where the page can load
     # it (/data/<name>), while the file itself stays in a chat's folder. A real
     # copy, not a link: code that writes to the public file must not change the
-    # original. Made once (an existing copy of the same size is kept), written
-    # under a temporary name and then renamed, so a half-written file is never
-    # served.
+    # original. Made once (an existing plain file of the same size is kept);
+    # both the original and the copy are reached only through
+    # SharedPathGuard, never through a link, and the copy is written new and
+    # then put in place, so a half-written file is never served.
     module PublicCopy
       module_function
 
       # Returns the /data address, or nil when the copy cannot be made.
       def publish(source, name)
         dest = File.join(Environment.data_path, name)
-        unless File.file?(dest) && File.size(dest) == File.size(source)
-          partial = "#{dest}.part-#{Process.pid}"
-          File.open(source, "rb") { |src| File.open(partial, "wb") { |out| IO.copy_stream(src, out) } }
-          File.rename(partial, dest)
+        existing = SharedPathGuard.file_stat(dest)
+        SharedPathGuard.read_file!(source) do |original|
+          SharedPathGuard.write_file!(dest, original) unless existing&.size == original.stat.size
         end
         "/data/#{name}"
-      rescue SystemCallError, IOError
+      rescue SharedPathGuard::InvalidPath, SystemCallError, IOError
         nil
-      ensure
-        # A copy left half-written (failed, or stopped by Reset or Cancel).
-        File.delete(partial) if partial && File.exist?(partial) rescue nil
       end
     end
   end

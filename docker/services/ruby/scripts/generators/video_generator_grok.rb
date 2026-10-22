@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require_relative "../../lib/monadic/utils/http_client"
+require_relative "../../lib/monadic/utils/shared_path_guard"
 require "http"
 require "json"
 require "optparse"
@@ -150,7 +151,7 @@ if __FILE__ == $PROGRAM_NAME
 
     # Read and encode image as base64
     require "base64"
-    image_data = File.binread(image_full_path)
+    image_data = Monadic::Utils::SharedPathGuard.read_file!(image_full_path, &:read)
     image_ext = File.extname(image_full_path).downcase
     mime_type = case image_ext
                 when ".jpg", ".jpeg" then "image/jpeg"
@@ -232,7 +233,7 @@ if __FILE__ == $PROGRAM_NAME
         filename = "grok_video_#{timestamp}.mp4"
         output_path = File.join(shared_folder, filename)
 
-        File.binwrite(output_path, video_response.body.to_s)
+        Monadic::Utils::SharedPathGuard.write_file!(output_path, video_response.body.to_s)
 
         puts JSON.generate({
           success: true,

@@ -170,9 +170,12 @@ RSpec.describe "Gemini TTS audio decoding" do
     input = "/tmp/gemini-tts-draft.txt"
     allow(File).to receive(:exist?).and_call_original
     allow(File).to receive(:exist?).with(input).and_return(true)
-    allow(File).to receive(:read).with(input).and_return("Hello")
+    allow(Monadic::Utils::SharedPathGuard).to receive(:read_file!).and_call_original
+    allow(Monadic::Utils::SharedPathGuard).to receive(:read_file!).with(input).and_return("Hello".b)
     output = StringIO.new("".b)
-    expect(File).to receive(:open).with(a_string_ending_with("/gemini-tts-draft.wav"), "wb").and_yield(output)
+    # Saved through the guard (never through a link); played here.
+    expect(Monadic::Utils::SharedPathGuard).to receive(:write_file!)
+      .with(a_string_ending_with("/gemini-tts-draft.wav"), anything) { |_path, bytes| output.write(bytes) }
     previous_argv = ARGV.dup
     begin
       ARGV.replace([input, "--provider=gemini-flash-lite", "--voice=kore"])

@@ -4,6 +4,7 @@
 require "uri"
 require "cgi"
 require_relative "../../utils/request_retry"
+require_relative "../../utils/shared_path_guard"
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/usage_normalizer"
 require_relative "../../utils/error_formatter"
@@ -276,7 +277,7 @@ module GeminiHelper
               end
         filename = "gemini3_image_#{Time.now.to_i}.#{ext}"
         filepath = File.join(shared_folder, filename)
-        File.open(filepath, 'wb') { |f| f.write(Base64.decode64(b64)) }
+        Monadic::Utils::SharedPathGuard.write_file!(filepath, Base64.decode64(b64))
 
         # Add generated image to session for iterative editing
         if session && session[:messages]
@@ -393,7 +394,7 @@ module GeminiHelper
 
     filename = "lyria_music_#{Time.now.to_i}_#{SecureRandom.hex(3)}.#{ext}"
     filepath = File.join(shared_folder, filename)
-    File.open(filepath, 'wb') { |f| f.write(Base64.decode64(inline["data"])) }
+    Monadic::Utils::SharedPathGuard.write_file!(filepath, Base64.decode64(inline["data"]))
 
     { success: true, service: "Google Lyria", filename: filename, mime_type: mime, lyrics: lyrics,
       model: model_id, prompt: prompt }.to_json
@@ -3826,10 +3827,6 @@ module GeminiHelper
       return { "success" => false, "message" => e.message, "original_prompt" => prompt }.to_json
     end
 
-    temp_file_path = nil
-    if final_image_path.to_s.start_with?("video_gen_temp_")
-      temp_file_path = File.join(Monadic::Utils::Environment.data_path, final_image_path)
-    end
 
     parts = ["video_generator_gemini.rb", "-p", prompt.to_s]
     parts += ["-a", aspect_ratio.to_s] unless aspect_ratio.to_s.strip.empty?
@@ -3861,7 +3858,8 @@ module GeminiHelper
       Monadic::Utils::ExtraLogger.log { "[Gemini] Error executing command: #{e.message}" }
       { "success" => false, "message" => "Error executing video generation command: #{e.message}", "original_prompt" => prompt }.to_json
     ensure
-      File.unlink(temp_file_path) if temp_file_path && File.exist?(temp_file_path)
+      # Only the file this process wrote from an upload is removed.
+      Monadic::Utils::ToolImageUtils.discard_materialized(final_image_path) if final_image_path
     end
   end
 
@@ -4103,12 +4101,10 @@ module GeminiHelper
                            else "png"
                            end
                 
-                filename = "gemini_#{operation}_#{timestamp}.#{extension}"
+                filename = "gemini_#{operation.to_s.gsub(/[^A-Za-z0-9_-]/, "")}_#{timestamp}.#{extension}"
                 filepath = File.join(shared_folder, filename)
                 
-                File.open(filepath, 'wb') do |f|
-                  f.write(image_data)
-                end
+                Monadic::Utils::SharedPathGuard.write_file!(filepath, image_data)
                 
                 
                 return { 
@@ -4131,12 +4127,10 @@ module GeminiHelper
                            else "png"
                            end
                 
-                filename = "gemini_#{operation}_#{timestamp}.#{extension}"
+                filename = "gemini_#{operation.to_s.gsub(/[^A-Za-z0-9_-]/, "")}_#{timestamp}.#{extension}"
                 filepath = File.join(shared_folder, filename)
                 
-                File.open(filepath, 'wb') do |f|
-                  f.write(image_data)
-                end
+                Monadic::Utils::SharedPathGuard.write_file!(filepath, image_data)
                 
                 
                 return { 
@@ -4242,9 +4236,7 @@ module GeminiHelper
             filename = "#{model_prefix}_#{timestamp}_0_#{aspect_ratio.gsub(':', 'x')}.png"
             filepath = File.join(shared_folder, filename)
 
-            File.open(filepath, 'wb') do |f|
-              f.write(image_data)
-            end
+            Monadic::Utils::SharedPathGuard.write_file!(filepath, image_data)
 
             result = {
               success: true,

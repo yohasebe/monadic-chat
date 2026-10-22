@@ -3,6 +3,7 @@
 require_relative 'ids'
 require_relative 'folders'
 require_relative '../utils/environment'
+require_relative '../utils/shared_path_guard'
 
 module Monadic
   module Workspace
@@ -27,10 +28,9 @@ module Monadic
         raise Unavailable, "the chat's artifacts folder is missing or is not a plain folder" unless artifacts
 
         job_id = Ids.generate(:job)
-        path = File.join(artifacts, job_id)
-        Dir.mkdir(path)
+        path = Monadic::Utils::SharedPathGuard.make_dir!(File.join(artifacts, job_id), strict: true)
         { job_id: job_id, path: path, relative: File.join(relative, job_id) }
-      rescue SystemCallError => e
+      rescue SystemCallError, Monadic::Utils::SharedPathGuard::InvalidPath => e
         raise Unavailable, "could not create a folder for this run (#{e.class.name.split('::').last})"
       end
 
@@ -41,16 +41,10 @@ module Monadic
         raise ArgumentError, "root must be a single folder name" unless root.to_s.match?(/\A[a-z][a-z0-9_-]*\z/)
 
         data_root = File.realpath(Monadic::Utils::Environment.data_path)
-        [root, File.join(root, 'artifacts')].each do |relative|
-          path = File.join(data_root, relative)
-          begin
-            Dir.mkdir(path)
-          rescue Errno::EEXIST
-            nil
-          end
-          if File.symlink?(path) || !File.directory?(path) || File.realpath(path) != path
-            raise Unavailable, "#{relative}/ in the shared folder is not a plain folder"
-          end
+        begin
+          Monadic::Utils::SharedPathGuard.mkdir_p!(File.join(data_root, root, 'artifacts'), strict: true)
+        rescue Monadic::Utils::SharedPathGuard::InvalidPath
+          raise Unavailable, "#{root}/artifacts/ in the shared folder is not a plain folder"
         end
         create!(root)
       rescue SystemCallError => e

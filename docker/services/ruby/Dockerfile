@@ -7,6 +7,9 @@ LABEL project=$PROJECT_TAG
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential wget curl git pandoc \
+    # fiddle (shared-folder writes through openat) is built against libffi;
+    # the runtime stage already has libffi8 from the base image
+    libffi-dev \
     ca-certificates gnupg lsb-release \
     postgresql postgresql-contrib libpq-dev \
     # libglib2.0-dev libgirepository1.0-dev \

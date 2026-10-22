@@ -15,6 +15,7 @@ Run a rule locally with `ruby scripts/lint/<script>.rb`, or through the rake tas
 | `check_bare_ws_send.rb` | `lint:bare_ws_send` | `ws.send(...)` is called outside `monadic-ws.js` |
 | `check_global_shadow_delegation.rb` | `lint:global_shadow_delegation` | A top-level function or variable in a classic script wraps the `window` global of the same name (the wrapper replaces the global and calls itself) |
 | `check_http_timeout.rb` | `lint:http_timeout` | An outbound `http` gem call has no timeout (the gem has no default) |
+| `check_shared_writes.rb` | `lint:shared_writes` | A raw file write (one that would follow a link in the shared folder) is not in `shared_writes.allow`, or an entry there matches nothing; writes in the shared folder go through `SharedPathGuard` |
 
 The workflow also runs the documentation, translation, model and tracked-path checks in the same folder (`check_docs_parity.rb`, `check_docs_links.rb`, `check_duplicate_translation_keys.rb`, `check_app_docs_sync.rb`, `check_deprecated_models.rb`, `check_model_consistency.rb`, `check_api_key_urls.rb`, `check_tracked_paths.rb`) and the self-test of the lints (`scripts/lint/spec/check_self_test.rb`). The code lints (the rules above, the docs checks and `check_api_key_urls.rb`) report how many files they scanned and fail when the count is below a floor (most through `scripts/lint/scan_floor.rb`), so a lint that silently scans nothing does not pass.
 

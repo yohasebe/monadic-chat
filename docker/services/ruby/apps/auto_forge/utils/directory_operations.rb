@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'fileutils'
+require_relative '../../../lib/monadic/utils/shared_path_guard'
 require 'pathname'
 require_relative 'file_operations'
 
@@ -98,7 +99,7 @@ module AutoForge
             # Create directory if needed
             if create_dirs
               dir = File.dirname(full_path)
-              FileUtils.mkdir_p(dir) unless File.directory?(dir)
+              Monadic::Utils::SharedPathGuard.mkdir_p!(dir)
             end
 
             # Write file with verification
@@ -133,7 +134,7 @@ module AutoForge
         rescue => e
           # Rollback if atomic operation failed
           if atomic
-            created_files.each { |f| File.delete(f) rescue nil }
+            created_files.each { |f| Monadic::Utils::SharedPathGuard.delete_file!(f) rescue nil }
             raise DirectoryOperationError, "Batch generation failed (rolled back): #{e.message}"
           end
 
@@ -166,7 +167,7 @@ module AutoForge
           if value.is_a?(Hash)
             # It's a directory with possible subdirectories/files
             unless File.directory?(full_path)
-              FileUtils.mkdir_p(full_path)
+              Monadic::Utils::SharedPathGuard.mkdir_p!(full_path)
               created_dirs << full_path
             end
 
@@ -176,7 +177,7 @@ module AutoForge
             # It's a file with content
             dir = File.dirname(full_path)
             unless File.directory?(dir)
-              FileUtils.mkdir_p(dir)
+              Monadic::Utils::SharedPathGuard.mkdir_p!(dir)
               created_dirs << dir unless created_dirs.include?(dir)
             end
 

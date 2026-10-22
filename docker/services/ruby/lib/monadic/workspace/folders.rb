@@ -4,6 +4,7 @@ require_relative 'ids'
 require_relative 'chats'
 require_relative 'ledger'
 require_relative '../utils/environment'
+require_relative '../utils/shared_path_guard'
 
 module Monadic
   module Workspace
@@ -94,24 +95,16 @@ module Monadic
         nil
       end
 
-      # Each level is created exclusively and checked to be a real folder,
-      # so a link planted at conversations/ cannot send files elsewhere.
+      # Made new, with its subfolders, through folders opened without
+      # following a link (SharedPathGuard), so a link planted at
+      # conversations/ or swapped in meanwhile cannot send it elsewhere.
       def create_folder(relative_dir)
         data_root = File.realpath(Monadic::Utils::Environment.data_path)
-        root = File.join(data_root, ROOT_DIRNAME)
-        begin
-          Dir.mkdir(root)
-        rescue Errno::EEXIST
-          nil
-        end
-        if File.symlink?(root) || !File.directory?(root) || File.realpath(root) != root
-          raise Unavailable, "#{ROOT_DIRNAME}/ in the shared folder is not a plain folder"
-        end
-
-        folder = File.join(data_root, relative_dir)
-        Dir.mkdir(folder)
-        SUBDIRS.each { |name| Dir.mkdir(File.join(folder, name)) }
-        folder
+        guard = Monadic::Utils::SharedPathGuard
+        guard.mkdir_p!(File.join(data_root, ROOT_DIRNAME), strict: true)
+        guard.make_dir!(File.join(data_root, relative_dir), children: SUBDIRS, strict: true)
+      rescue Monadic::Utils::SharedPathGuard::InvalidPath
+        raise Unavailable, "#{ROOT_DIRNAME}/ in the shared folder is not a plain folder"
       rescue Errno::ENOENT, Errno::EACCES, Errno::EEXIST, Errno::ENOTDIR => e
         raise Unavailable, "could not create the chat folder (#{e.class.name.split('::').last})"
       end

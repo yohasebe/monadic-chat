@@ -75,6 +75,14 @@ namespace :lint do
     end
   end
 
+  desc 'Check that writes into the shared folder go through SharedPathGuard'
+  task :shared_writes do
+    Dir.chdir(PROJECT_ROOT) do
+      system('ruby scripts/lint/check_shared_writes.rb') ||
+        abort('Shared write lint failed: a raw write follows links in the shared folder. Write through Monadic::Utils::SharedPathGuard, or add an entry to scripts/lint/shared_writes.allow saying where it writes and why.')
+    end
+  end
+
   desc "Check that every tracked file matches scripts/lint/tracked_paths.allow"
   task :tracked_paths do
     Dir.chdir(PROJECT_ROOT) do
@@ -98,5 +106,5 @@ namespace :lint do
   end
 
   desc "Run every anti-pattern lint rule plus the self-check meta-test"
-  task :anti_patterns => [:tracked_paths, :personal_paths, :shell_escape, :xhr_pair, :data_path_literals, :bare_ws_send, :global_shadow_delegation, :http_timeout, :api_key_urls, :self_check]
+  task :anti_patterns => [:tracked_paths, :personal_paths, :shell_escape, :xhr_pair, :data_path_literals, :bare_ws_send, :global_shadow_delegation, :http_timeout, :shared_writes, :api_key_urls, :self_check]
 end

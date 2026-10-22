@@ -43,10 +43,6 @@ RSpec.describe AutoForge::Orchestrator do
         { success: true, size: content.length }
       end
 
-    allow_any_instance_of(described_class)
-      .to receive(:apply_patch_safely)
-      .and_return({ success: true, affected_files: ["index.html"] })
-
     # Projects are taken only under AutoForge's own folder: here, temp_root
     allow(AutoForge::Utils::PathConfig).to receive(:project_base_path).and_return(temp_root)
   end

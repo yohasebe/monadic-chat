@@ -3,6 +3,7 @@
 require 'base64'
 require 'fileutils'
 require_relative 'environment'
+require_relative 'shared_path_guard'
 
 module Monadic
   module Utils
@@ -102,6 +103,21 @@ module Monadic
         materialized
       end
 
+      # Names this process wrote with write_data_url_to_shared and has not
+      # removed: the only files discard_materialized removes.
+      @materialized = {}
+      @materialized_mutex = Mutex.new
+
+      # Removes a file write_data_url_to_shared made, once its run is done.
+      # Any other name (one a model or a session gave) is left alone.
+      def self.discard_materialized(filename)
+        return false unless @materialized_mutex.synchronize { @materialized.delete(filename) }
+
+        SharedPathGuard.delete_file!(File.join(Environment.data_path, filename))
+      rescue SharedPathGuard::InvalidPath, SystemCallError
+        false
+      end
+
       # Decode a "data:image/...;base64,..." URL and write it to the shared data
       # directory. Returns the bare filename.
       # @raise [ImageMaterializationError] on oversize payload or write failure
@@ -134,7 +150,8 @@ module Monadic
 
         FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
         filename = "video_gen_temp_#{Time.now.to_i}_#{SecureRandom.hex(4)}#{ext}"
-        File.binwrite(File.join(dir, filename), binary)
+        SharedPathGuard.write_file!(File.join(dir, filename), binary, replace: false)
+        @materialized_mutex.synchronize { @materialized[filename] = true }
         filename
       rescue ImageMaterializationError
         raise

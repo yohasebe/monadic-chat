@@ -4,6 +4,7 @@ require 'json'
 require_relative 'segment_transcriber'
 require_relative 'subtitles'
 require_relative 'public_copy'
+require_relative 'shared_path_guard'
 require_relative '../shell'
 require_relative '../workspace'
 
@@ -181,26 +182,22 @@ module Monadic
         end
       end
 
-      # Written under a temporary name and renamed, so a reader never finds a
-      # half-written transcript. Returns whether it was saved.
+      # Written new under a temporary name and put in place (SharedPathGuard,
+      # never through a link), so a reader never finds a half-written
+      # transcript. Returns whether it was saved.
       def save(result)
-        path = File.join(@job[:path], "transcript.json")
-        partial = "#{path}.part-#{Process.pid}"
-        File.write(partial, JSON.pretty_generate(result))
-        File.rename(partial, path)
+        SharedPathGuard.write_file!(File.join(@job[:path], "transcript.json"), JSON.pretty_generate(result))
         @saved = true
-      rescue SystemCallError, IOError => e
+      rescue SharedPathGuard::InvalidPath, SystemCallError, IOError => e
         @save_error = e.class.name.split("::").last
         false
-      ensure
-        File.delete(partial) if partial && File.exist?(partial) rescue nil
       end
 
       # The decoded audio (about 144 MB for 50 minutes) is only needed while
       # the segments are sent.
       def remove_decoded_audio
-        Monadic::Workspace::Jobs.outputs(@job, PCM).each { |path| File.delete(path) }
-      rescue SystemCallError, Monadic::Workspace::Jobs::Unavailable
+        Monadic::Workspace::Jobs.outputs(@job, PCM).each { |path| SharedPathGuard.delete_file!(path) }
+      rescue SystemCallError, SharedPathGuard::InvalidPath, Monadic::Workspace::Jobs::Unavailable
         nil
       end
 
@@ -211,11 +208,10 @@ module Monadic
         return nil if Subtitles.cues(result).empty?
 
         { vtt: Subtitles.vtt(result), srt: Subtitles.srt(result) }.to_h do |kind, body|
-          path = File.join(@job[:path], "transcript.#{kind}")
-          File.write(path, body)
+          path = SharedPathGuard.write_file!(File.join(@job[:path], "transcript.#{kind}"), body)
           [kind, PublicCopy.publish(path, "pub_#{@job[:job_id]}.#{kind}")]
         end.compact.then { |links| links.empty? ? nil : links }
-      rescue SystemCallError, IOError
+      rescue SharedPathGuard::InvalidPath, SystemCallError, IOError
         nil
       end
     end

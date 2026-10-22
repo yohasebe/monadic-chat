@@ -3,6 +3,8 @@
 require 'digest'
 require 'securerandom'
 require 'tempfile'
+require 'tmpdir'
+require 'open3'
 require 'time'
 
 require_relative 'auto_forge_utils'
@@ -383,13 +385,11 @@ module AutoForge
 
       file_path = File.join(@project_path, file_name)
 
-      # Write the script (in the project folder, never through a link)
-      Monadic::Utils::SharedPathGuard.write_file!(file_path, code)
-
-      # Make executable on Unix-like systems
-      if RUBY_PLATFORM !~ /mswin|mingw|cygwin/
-        File.chmod(0755, file_path)
-      end
+      # Write the script (in the project folder, never through a link),
+      # executable on Unix-like systems: the mode is set on the file written,
+      # never on a path that may have become a link since.
+      executable = RUBY_PLATFORM !~ /mswin|mingw|cygwin/
+      Monadic::Utils::SharedPathGuard.write_file!(file_path, code, perm: executable ? 0o755 : nil)
 
       # Store CLI-specific info in context
       store = @context[:auto_forge] || {}
@@ -432,21 +432,25 @@ module AutoForge
       { language: 'shell', extension: '.sh' }
     end
 
+    # The patch is applied to a copy in the system's temporary folder, to
+    # that one file only (the names in the diff are not used), and the
+    # result is written back through SharedPathGuard: the patch program
+    # never opens a path in the shared folder, where a link could send its
+    # writes elsewhere.
     def apply_patch_to_file(file_path, patch_text)
+      Dir.mktmpdir('autoforge_patch') do |work|
+        local = File.join(work, 'target')
+        Monadic::Utils::SharedPathGuard.read_file!(file_path) do |source|
+          File.open(local, 'wb') { |out| IO.copy_stream(source, out) }
+        end
+        diff = File.join(work, 'fix.diff')
+        File.write(diff, patch_text)
+        _stdout, stderr, status = Open3.capture3('patch', '--batch', '--forward', '--silent', local, diff)
+        raise "patch failed: #{stderr.to_s.lines.last.to_s.strip}" unless status.success?
 
-      Tempfile.create(['autoforge_patch', '.diff']) do |tmp|
-        tmp.write(patch_text)
-        tmp.flush
+        Monadic::Utils::SharedPathGuard.write_file!(file_path, File.binread(local))
 
-        strip_level = patch_text.include?('a/') || patch_text.include?('b/') ? 1 : 0
-
-        apply_patch_safely(
-          tmp.path,
-          File.dirname(file_path),
-          strip: strip_level
-        )
-
-        size = File.size(file_path)
+        size = File.size(local)
 
         record_artifact(@project_id, File.basename(file_path), {
           size: size,

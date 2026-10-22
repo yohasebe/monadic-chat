@@ -1130,7 +1130,9 @@ module AutoForgeTools
     project_name = diagnosis[:project_name]
 
     begin
-      Monadic::Utils::SharedPathGuard.write_file!(backup_path, File.binread(html_path), mode: "wb")
+      # The page is read as a plain file of the shared folder: a link in its
+      # place is never followed (its target would be copied in).
+      Monadic::Utils::SharedPathGuard.copy_file!(html_path, backup_path, replace: false)
 
       apply_result = case fix_mode
                      when :patch
@@ -1142,7 +1144,7 @@ module AutoForgeTools
                      end
 
       unless apply_result[:success]
-        FileUtils.mv(backup_path, html_path, force: true)
+        Monadic::Utils::SharedPathGuard.rename_file!(backup_path, html_path)
         return {
           success: false,
           message: "Failed to apply fixes: #{apply_result[:error]}. Original file restored."
@@ -1152,7 +1154,7 @@ module AutoForgeTools
       verification = debug_application_raw('spec' => { 'name' => project_name })
 
       if !verification[:success] && (fetch_from_hash(verification, :error) || '').include?('Selenium')
-        File.delete(backup_path) if File.exist?(backup_path)
+        (Monadic::Utils::SharedPathGuard.delete_file!(backup_path) rescue nil)
         return {
           success: true,
           message: <<~MSG
@@ -1168,7 +1170,7 @@ module AutoForgeTools
           MSG
         }
       elsif verification[:success]
-        File.delete(backup_path) if File.exist?(backup_path)
+        (Monadic::Utils::SharedPathGuard.delete_file!(backup_path) rescue nil)
         remaining_errors = fetch_array(verification, :javascript_errors).length
 
         if remaining_errors.zero?
@@ -1196,14 +1198,14 @@ module AutoForgeTools
           }
         end
       else
-        FileUtils.mv(backup_path, html_path, force: true)
+        Monadic::Utils::SharedPathGuard.rename_file!(backup_path, html_path)
         {
           success: false,
           message: "Verification failed: #{fetch_from_hash(verification, :error)}. Original file restored."
         }
       end
     rescue => e
-      FileUtils.mv(backup_path, html_path, force: true) if File.exist?(backup_path)
+      (Monadic::Utils::SharedPathGuard.rename_file!(backup_path, html_path) rescue nil)
       {
         success: false,
         message: "Unexpected error during fix: #{e.message}. Original file restored."

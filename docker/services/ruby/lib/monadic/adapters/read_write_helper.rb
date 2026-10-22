@@ -86,24 +86,10 @@ module MonadicHelper
       end
     end
 
+    # The Python container mounts the same shared folder, so the file is
+    # already there; nothing is copied by path.
     if success
-      if Monadic::Utils::Environment.in_container?
-        # Routed through Monadic::Shell so the container name and the
-        # cp invocation share the same source of truth as every other
-        # docker call (docs_dev/developer/anti_pattern_lints.md).
-        require_relative '../shell'
-        _stdout, stderr, status = Monadic::Shell.cp_to_container(
-          container: :python, host_path: filepath, container_path: data_dir
-        )
-
-        if status.exitstatus.zero?
-          "The file #{filename}.#{extension} has been written successfully."
-        else
-          "Error: #{stderr}"
-        end
-      else
-        "The file #{filename}.#{extension} has been written successfully."
-      end
+      "The file #{filename}.#{extension} has been written successfully."
     else
       "Error: The file could not be written."
     end

@@ -18,11 +18,12 @@ require 'set'
 require 'digest'
 require 'time'
 
-require 'dotenv'
+require_relative '../../lib/monadic/utils/env_file'
 
-# Load env so EMBEDDINGS_URL / EMBEDDINGS_DEV_PORT can be picked up.
+# The config env file through EnvFile, as the server reads it: a valid
+# EMBEDDINGS_DEV_PORT is taken from it; EMBEDDINGS_URL is read from the shell.
 config_path = File.expand_path('~/monadic/config/env')
-Dotenv.load(config_path) if File.exist?(config_path)
+Monadic::Utils::EnvFile.load!(config_path) if File.exist?(config_path)
 
 require_relative '../../lib/monadic/embeddings'
 require_relative '../../lib/monadic/vector_store/schema'

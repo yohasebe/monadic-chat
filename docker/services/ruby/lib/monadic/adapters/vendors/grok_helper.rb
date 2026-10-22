@@ -3,6 +3,7 @@
 require 'cgi'
 
 require_relative "../../utils/request_retry"
+require_relative "../../utils/shared_path_guard"
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/usage_normalizer"
 require_relative "../../utils/error_formatter"
@@ -709,11 +710,11 @@ module GrokHelper
                     File.join(File.expand_path("~/monadic/data"), actual_path)
 
       begin
-        if File.exist?(full_path)
-          content = File.read(full_path)
-          if content.include?("&lt;svg") || content.include?("&gt;")
-            File.write(full_path, content.gsub("&lt;", "<").gsub("&gt;", ">").gsub("&quot;", '"').gsub("&amp;", "&"))
-          end
+        # The name comes from what the run printed: read and written only as
+        # a plain file of the shared folder, never through a link.
+        content = Monadic::Utils::SharedPathGuard.read_file!(full_path) { |f| f.read.force_encoding("UTF-8") }
+        if content.include?("&lt;svg") || content.include?("&gt;")
+          Monadic::Utils::SharedPathGuard.write_file!(full_path, content.gsub("&lt;", "<").gsub("&gt;", ">").gsub("&quot;", '"').gsub("&amp;", "&"))
         end
       rescue StandardError
         # ignore

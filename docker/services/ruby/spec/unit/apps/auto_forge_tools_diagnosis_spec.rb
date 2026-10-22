@@ -151,13 +151,13 @@ RSpec.describe AutoForgeTools do
         success: false,
         error: 'File not found'
       )
-      allow(FileUtils).to receive(:mv).and_call_original
+      allow(Monadic::Utils::SharedPathGuard).to receive(:rename_file!).and_call_original
 
       result = tool.send(:apply_fix_with_backup, html_path, :full, '<!DOCTYPE html><html></html>', diagnosis)
 
       expect(result[:success]).to be(false)
       expect(result[:message]).to include('Original file restored')
-      expect(FileUtils).to have_received(:mv).at_least(:once)
+      expect(Monadic::Utils::SharedPathGuard).to have_received(:rename_file!).at_least(:once)
     end
   end
 end

@@ -58,6 +58,7 @@ IN_CONTAINER = Monadic::Utils::Environment.in_container?
 
 require_relative "monadic/utils/setup"
 require_relative "monadic/utils/secret_references"
+require_relative "monadic/utils/env_file"
 require_relative "monadic/utils/tokenizer"
 require_relative "monadic/help"
 
@@ -98,8 +99,9 @@ require_relative "monadic/adapters/vendors/grok_helper"
 require_relative "monadic/adapters/vendors/ollama_helper"
 
 envpath = File.expand_path Paths::ENV_PATH
-Dotenv.load(envpath)
-Monadic::Utils::SecretReferences.scrub_env!(loaded: File.file?(envpath) ? Dotenv.parse(envpath) : {})
+# Only the settings the code reads from ENV go there, and never one that
+# decides where requests go or what program runs (EnvFile).
+Monadic::Utils::SecretReferences.scrub_env!(loaded: Monadic::Utils::EnvFile.load!(envpath))
 
 # Include TavilyHelper for tavily_fetch method
 include TavilyHelper
@@ -189,23 +191,13 @@ CONFIG = {
 
 unresolved_references = []
 begin
-  # Only process environment variables from the .env file, not dictionary data
-  File.read(Paths::ENV_PATH).split("\n").each do |line|
-    next if line.strip.empty? || line.strip.start_with?("#")
-    
-    # Check for valid line format (key=value)
-    if !line.include?("=")
-      # Skip non-environment variable lines without warning since they might be TTS dictionary entries
-      # that should be in a separate file
-      next
-    end
-    
-    key, value = line.split("=", 2) # Split only on first '=' to handle values containing '='
-    next if key.nil? || key.empty?
-    
-    # Trim any whitespace and quotes from values
-    value = value.strip.gsub(/^['"]|['"]$/, '') if value
+  # The file's settings through EnvFile, the same parse that gave ENV its
+  # values: nothing in a value is expanded or run, and a proxy, a service
+  # address, a program path, a port that is not a number or a file in the
+  # shared folder is not taken.
+  raise Errno::ENOENT, Paths::ENV_PATH unless File.exist?(Paths::ENV_PATH)
 
+  Monadic::Utils::EnvFile.accepted(Paths::ENV_PATH).each do |key, value|
     # A 1Password reference (op://...) stands for the value; an unresolved
     # one leaves the key unset rather than passing the reference on.
     if Monadic::Utils::SecretReferences.reference?(value)

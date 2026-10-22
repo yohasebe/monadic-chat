@@ -42,6 +42,7 @@ require 'fileutils'
 require 'securerandom'
 require 'tempfile'
 require 'monadic/library'
+require_relative '../utils/shared_path_guard'
 
 # Cap each upload at 100 MiB. Larger files would queue extractor work
 # for an extended time and risk filling the imports/ directory. Override
@@ -94,13 +95,16 @@ post "/library/import" do
   # while this import runs and is deleted when it ends, however it ends.
   data_root = Monadic::Utils::Environment.data_path
   imports_dir = File.join(data_root, 'library', 'imports')
-  FileUtils.mkdir_p(imports_dir)
+  Monadic::Utils::SharedPathGuard.mkdir_p!(imports_dir)
   dest_path = File.join(imports_dir, "#{Time.now.to_i}_#{SecureRandom.hex(4)}_#{filename}")
 
-  # Until the worker owns the copy, a failure here removes it.
+  # Until the worker owns the copy, a failure here removes it: only a copy
+  # this request put in place, never a file that already had the name.
+  written = false
   begin
     begin
-      File.open(dest_path, 'wb') { |f| f.write(file["tempfile"].read) }
+      Monadic::Utils::SharedPathGuard.write_file!(dest_path, file["tempfile"], replace: false)
+      written = true
     ensure
       file["tempfile"].close rescue nil
     end
@@ -162,11 +166,11 @@ post "/library/import" do
           error: "Library import failed: #{e.class.name} - #{e.message}"
         )
       ensure
-        FileUtils.rm_f(dest_path)
+        (Monadic::Utils::SharedPathGuard.delete_file!(dest_path) rescue nil)
       end
     end
   rescue StandardError
-    FileUtils.rm_f(dest_path)
+    (Monadic::Utils::SharedPathGuard.delete_file!(dest_path) rescue nil) if written
     raise
   end
 

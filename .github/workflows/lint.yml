@@ -69,6 +69,9 @@ jobs:
       - name: Outbound HTTP calls have timeouts
         run: ruby scripts/lint/check_http_timeout.rb
 
+      - name: Shared-folder writes go through SharedPathGuard
+        run: ruby scripts/lint/check_shared_writes.rb
+
       - name: API keys stay out of URLs
         run: ruby scripts/lint/check_api_key_urls.rb
 

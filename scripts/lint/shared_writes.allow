@@ -1,0 +1,60 @@
+# Raw file writes the shared-folder lint lets through. Everything the Ruby
+# server (lib/, apps/) and its scripts (scripts/) write in the shared folder
+# goes through Monadic::Utils::SharedPathGuard; a raw write is allowed only
+# where it cannot be in the shared folder, or is at its root (which the other
+# program cannot replace).
+#
+# One entry per line: path | text the line contains | where it writes | why
+# where: state, log, config, system-temp, shared-root, build-time, test-only
+docker/services/ruby/lib/monadic.rb | FileUtils.mkdir_p(File.dirname(legacy_volume_marker)) | log | notice marker in the log folder
+docker/services/ruby/lib/monadic.rb | File.write(legacy_volume_marker | log | notice marker in the log folder
+docker/services/ruby/lib/monadic/app.rb | Tempfile.new(["code_#{timestamp}" | shared-root | made new (O_EXCL, random name) at the root
+docker/services/ruby/lib/monadic/app.rb | File.open(COMMAND_LOG_FILE | log | command log
+docker/services/ruby/lib/monadic/shell.rb | File.open(log_path | log | command log
+docker/services/ruby/lib/monadic/workspace/ledger.rb | File.open(path, File::WRONLY | state | ledger (state folder)
+docker/services/ruby/lib/monadic/workspace/ledger.rb | File.unlink(path) | state | ledger (state folder)
+docker/services/ruby/lib/monadic/workspace/ledger.rb | File.rename(from, to) | state | ledger (state folder)
+docker/services/ruby/lib/monadic/workspace/ledger.rb | FileUtils.mkdir_p(File.dirname(path), mode: 0o700) | state | ledger (state folder)
+docker/services/ruby/lib/monadic/workspace/ledger.rb | File.open(@lock_path | state | ledger lock (state folder)
+docker/services/ruby/lib/monadic/workspace/ledger.rb | File.unlink(tmp) | state | ledger (state folder)
+docker/services/ruby/lib/monadic/workspace/server_owner.rb | FileUtils.mkdir_p(@dir | state | server mark (state folder)
+docker/services/ruby/lib/monadic/workspace/server_owner.rb | FileUtils.rm_rf(path_of(target)) | state | server mark (state folder)
+docker/services/ruby/lib/monadic/workspace/server_owner.rb | Dir.mkdir(draft | state | server mark (state folder)
+docker/services/ruby/lib/monadic/workspace/server_owner.rb | File.rename(draft | state | server mark (state folder)
+docker/services/ruby/lib/monadic/workspace/server_owner.rb | FileUtils.rm_rf(draft) | state | server mark (state folder)
+docker/services/ruby/lib/monadic/workspace/server_owner.rb | FileUtils.rm_rf(path_of(n)) | state | server mark (state folder)
+docker/services/ruby/lib/monadic/workspace/shared_folder.rb | File.open(temp, File::WRONLY | shared-root | id file: made new (O_EXCL) at the root
+docker/services/ruby/lib/monadic/workspace/shared_folder.rb | File.link(temp, path) | shared-root | id file: a hard link fails rather than replace
+docker/services/ruby/lib/monadic/workspace/shared_folder.rb | File.unlink(temp) | shared-root | id file: its own temporary name at the root
+docker/services/ruby/lib/monadic/agents/ai_user_agent.rb | FileUtils.mkdir_p(log_dir) | log | log folder
+docker/services/ruby/lib/monadic/agents/audio_analysis_agent.rb | Tempfile.new(["music_analyst" | system-temp | the system's temporary folder
+docker/services/ruby/lib/monadic/utils/tool_image_utils.rb | FileUtils.mkdir_p(dir) unless Dir.exist?(dir) | shared-root | the shared folder itself
+docker/services/ruby/lib/monadic/utils/extra_logger.rb | File.open(log_file | log | extra log
+docker/services/ruby/lib/monadic/utils/setup.rb | FileUtils.mkdir_p(File.dirname(ENV_PATH)) | config | config folder
+docker/services/ruby/lib/monadic/utils/setup.rb | FileUtils.touch(ENV_PATH) | config | config env file
+docker/services/ruby/lib/monadic/utils/setup.rb | FileUtils.mkdir_p(SCRIPTS_PATH) | shared-root | a folder at the root, skipped when anything (a link too) is there
+docker/services/ruby/lib/monadic/utils/setup.rb | FileUtils.mkdir_p(APPS_PATH) | shared-root | a folder at the root, skipped when anything (a link too) is there
+docker/services/ruby/lib/monadic/utils/setup.rb | FileUtils.mkdir_p(HELPERS_PATH) | shared-root | a folder at the root, skipped when anything (a link too) is there
+docker/services/ruby/lib/monadic/utils/stt_utils.rb | Tempfile.new([TEMP_AUDIO_FILE | system-temp | the system's temporary folder
+docker/services/ruby/lib/monadic/utils/stt_utils.rb | Tempfile.new([file_name | system-temp | the system's temporary folder
+docker/services/ruby/lib/monadic/utils/environment.rb | File.rename(older, newer) | log | log rotation
+docker/services/ruby/lib/monadic/utils/environment.rb | File.rename(file, "#{file}.1") | log | log rotation
+docker/services/ruby/lib/monadic/utils/environment.rb | File.open(file, 'w') | log | log rotation
+docker/services/ruby/lib/monadic/utils/degradation_notifier.rb | File.open(path, 'a') | log | degradation log
+docker/services/ruby/lib/monadic/adapters/jupyter_helper.rb | File.open(JUPYTER_LOG_FILE | log | Jupyter log
+docker/services/ruby/lib/monadic/help/installation.rb | FileUtils.mkdir_p(@directory) | state | help install coordination (state folder)
+docker/services/ruby/lib/monadic/help/installation.rb | File.open(File.join(@directory, "#{name}.lock"), mode | state | help install locks (state folder)
+docker/services/ruby/lib/monadic/help/installation.rb | Tempfile.create(['progress-' | state | help install journal (state folder)
+docker/services/ruby/lib/monadic/help/installation.rb | File.rename(file.path | state | help install journal (state folder)
+docker/services/ruby/lib/monadic/routes/pdf_routes.rb | Tempfile.new("temp_pdf") | system-temp | the system's temporary folder
+docker/services/ruby/apps/drawio_grapher/drawio_grapher_tools.rb | FileUtils.mkdir_p(data_dir) | shared-root | the shared folder itself
+docker/services/ruby/apps/auto_forge/auto_forge.rb | File.open(local, 'wb') | system-temp | patch work folder (Dir.mktmpdir)
+docker/services/ruby/apps/auto_forge/auto_forge.rb | File.write(diff, patch_text) | system-temp | patch work folder (Dir.mktmpdir)
+docker/services/ruby/apps/auto_forge/utils/directory_operations.rb | FileUtils.rm_rf(@test_dir) | test-only | the file's own self-test (Dir.mktmpdir)
+docker/services/ruby/apps/auto_forge/utils/directory_operations.rb | FileUtils.mkdir_p(File.join(@test_dir | test-only | the file's own self-test (Dir.mktmpdir)
+docker/services/ruby/apps/auto_forge/utils/directory_operations.rb | File.write(File.join(@test_dir | test-only | the file's own self-test (Dir.mktmpdir)
+docker/services/ruby/scripts/utilities/process_documentation.rb | FileUtils.mkdir_p(HELP_DATA_DIR) | build-time | builds the help dump in the source tree
+docker/services/ruby/scripts/utilities/process_documentation.rb | File.write(DUMP_PATH | build-time | builds the help dump in the source tree
+docker/services/ruby/scripts/generators/video_generator_grok.rb | FileUtils.mkdir_p(path) | shared-root | the shared folder itself
+docker/services/ruby/scripts/generators/video_generator_gemini.rb | FileUtils.mkdir_p(path) | shared-root | the shared folder itself
+docker/services/ruby/scripts/cli_tools/image_query.rb | File.binwrite(source, original) | system-temp | resize work folder (Dir.mktmpdir)

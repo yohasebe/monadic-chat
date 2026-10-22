@@ -2,6 +2,8 @@
 
 このページでは、`~/monadic/config/env` の設定を一覧にします。多くは **Settings** ウィンドウ（**Open → Settings**）にもあり、同じファイルに書かれます。アプリはこのファイルを書くたびに、自分のユーザーアカウントだけが読み書きできる権限にします（Windows では WSL の中で）。手で編集したファイルは、アプリが書くまで元の権限のままです。
 
+値は書いたとおりに使います。値の中の `$VAR`・`${VAR}`・`$(...)` は展開しません。要求の送り先を変える設定は、このファイルからは読みません。プロキシの設定（`https_proxy` など）と、サービスの送り先の `QDRANT_URL`・`EXTRACTOR_URL`・`EMBEDDINGS_URL` です。アプリを起動するシェルの環境変数で設定してください。ファイルを指す設定（`SSL_CERT_FILE`・`SSL_CERT_DIR`・`TTS_DICT_PATH`・`HELP_DATA_DUMP`）は、そのファイルが共有フォルダの中にあるときは使いません。
+
 ## 設定カテゴリー
 
 - [設定優先度](#configuration-priority)
@@ -63,7 +65,7 @@ OPENAI_API_KEY=op://Dev/OpenAI/credential
 - **値の置き場所**: `~/monadic/config/env` には参照のまま残ります。値はアプリのメモリに置き、メモリ上のマウント（tmpfs）を通して Ruby のコンテナに渡します。ファイル、コンテナの設定、コンテナの環境変数には書かず、ログにも出しません。メモリ上のマウントは Docker の仮想マシンのメモリにあり、そのメモリがディスクにスワップされるかどうかは Docker Desktop の動作によります。
 - **読み込めなかったとき**: コンソールに、キーの名前と理由（`op` が見つからない、1Password がロックされているか CLI がサインインしていない、確認が取り消されたか 2 分以内に応答がなかった、項目またはフィールドが見つからない）を表示します。そのキーは次の Start まで未設定として扱い、ほかのキーと機能はそのまま使えます。参照の文字列をキーとしてプロバイダに送ることはありません。
 - **アプリより古い Ruby のコンテナ**: 値を使えないため、アプリは値を渡さず、作り直しを促します（**Actions → Build Ruby Container**）。
-- **開発モード**（`rake server:debug`）: サーバがホストで動くため、サーバ自身がすべての参照を 1 回の `op` の呼び出しで読み込みます。`op` は `PATH` から、または `MONADIC_OP_CLI` に書いたパスから探します。この呼び出しが失敗すると、参照のあるキーはすべて未設定になり、コンソールにはキーの名前だけを表示します（理由は表示しません）。
+- **開発モード**（`rake server:debug`）: サーバがホストで動くため、サーバ自身がすべての参照を 1 回の `op` の呼び出しで読み込みます。`op` は `PATH` から、または `MONADIC_OP_CLI` に書いたパス（このファイルではなくシェルで設定）から探します。この呼び出しが失敗すると、参照のあるキーはすべて未設定になり、コンソールにはキーの名前だけを表示します（理由は表示しません）。
 
 ## モデル設定 :id=model-settings
 
@@ -141,8 +143,8 @@ OPENAI_API_KEY=op://Dev/OpenAI/credential
 | `START_HEALTH_INTERVAL` | 起動時の確認の間隔（秒） | `2` | [高度な設定](/ja/advanced-topics/advanced-configuration.md#startup-health-tuning)を参照 |
 | `AUTO_REFRESH_RUBY_ON_HEALTH_FAIL` | Start のときに Ruby のコンテナが unhealthy なら 1 回再ビルドする | `true` | [高度な設定](/ja/advanced-topics/advanced-configuration.md#startup-health-tuning)を参照 |
 | `FORCE_RUBY_REBUILD_NO_CACHE` | Ruby のコンテナの再ビルドで Docker のキャッシュを使わない | `false` | [高度な設定](/ja/advanced-topics/advanced-configuration.md#ruby-rebuild)を参照 |
-| `QDRANT_URL` | Qdrant のサービスの URL | `http://qdrant_service:6333`（コンテナの中）/ `http://localhost:6333`（開発モード） | サービスが別の場所にあるときだけ変えます |
-| `EMBEDDINGS_URL` | embeddings のサービスの URL | `http://embeddings_service:8000`（コンテナの中）/ `http://localhost:8002`（開発モード） | サービスが別の場所にあるときだけ変えます |
+| `QDRANT_URL` | Qdrant のサービスの URL | `http://qdrant_service:6333`（コンテナの中）/ `http://localhost:6333`（開発モード） | サービスが別の場所にあるときだけ変えます。このファイルではなくシェルで設定します |
+| `EMBEDDINGS_URL` | embeddings のサービスの URL | `http://embeddings_service:8000`（コンテナの中）/ `http://localhost:8002`（開発モード） | サービスが別の場所にあるときだけ変えます。このファイルではなくシェルで設定します |
 
 ## インストールオプション :id=install-options
 

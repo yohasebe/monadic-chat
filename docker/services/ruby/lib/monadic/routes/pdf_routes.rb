@@ -47,7 +47,8 @@ post "/pdf" do
     temp_file.rewind
     pdf_file_handler.close
 
-    pdf = PDF2Text.new(path: temp_file.path, max_tokens: 800, separator: "\n", overwrap_lines: 2)
+    # The upload's own temporary file, outside the shared folder.
+    pdf = PDF2Text.new(path: temp_file.path, max_tokens: 800, separator: "\n", overwrap_lines: 2, in_shared: false)
     pdf.extract
     chunks = pdf.split_text
 

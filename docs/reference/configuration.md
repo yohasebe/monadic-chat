@@ -2,6 +2,8 @@
 
 This page lists the settings in `~/monadic/config/env`. Most of them are also in the **Settings** window (**Open → Settings**), which writes the same file. Whenever the app writes the file, it makes it readable and writable by your user account only (on Windows, inside WSL); a file edited by hand keeps its permissions until then.
 
+Values are taken as written: `$VAR`, `${VAR}` and `$(...)` in a value are not expanded. Settings that change where requests go are not read from this file: proxy settings (`https_proxy` and the like), and the service addresses `QDRANT_URL`, `EXTRACTOR_URL` and `EMBEDDINGS_URL`. Set them in the environment of the shell that starts the app. A setting that names a file (`SSL_CERT_FILE`, `SSL_CERT_DIR`, `TTS_DICT_PATH`, `HELP_DATA_DUMP`) is ignored when the file is in the shared folder.
+
 ## Configuration Categories
 
 - [Configuration Priority](#configuration-priority)
@@ -63,7 +65,7 @@ Values that do not start with `op://` are used as written.
 - **Where the values go**: `~/monadic/config/env` keeps the references. The values are held in the app's memory and handed to the Ruby container through a memory-only mount (tmpfs); they are not written to a file, the container's settings or its environment, and they are not logged. A memory-only mount lives in the memory of the Docker virtual machine; whether that memory can be swapped to its disk depends on Docker Desktop.
 - **When a reference cannot be read**: the console names the key and the reason (`op` not found, 1Password locked or the CLI not signed in, the confirmation declined or not answered within two minutes, the item or field not found). That key stays unset until the next Start; other keys and features keep working. The reference itself is never sent to a provider as a key.
 - **A Ruby container that is older than the app**: it cannot use the values, so the app does not hand them over and asks you to rebuild it (**Actions → Build Ruby Container**).
-- **Development mode** (`rake server:debug`): the server runs on the host and reads all the references itself in one `op` call. It finds `op` on `PATH`, or at the path in `MONADIC_OP_CLI`. If that call fails, every referenced key stays unset, and the console names the keys without a reason.
+- **Development mode** (`rake server:debug`): the server runs on the host and reads all the references itself in one `op` call. It finds `op` on `PATH`, or at the path in `MONADIC_OP_CLI` (set in the shell, not in this file). If that call fails, every referenced key stays unset, and the console names the keys without a reason.
 
 ## Model Settings
 
@@ -141,8 +143,8 @@ To see all available models from the provider, toggle the **All** switch next to
 | `START_HEALTH_INTERVAL` | Seconds between startup health probe attempts | `2` | See [Advanced Configuration](/advanced-topics/advanced-configuration.md#startup-health-tuning) |
 | `AUTO_REFRESH_RUBY_ON_HEALTH_FAIL` | Rebuild the Ruby container once when it is unhealthy at Start | `true` | See [Advanced Configuration](/advanced-topics/advanced-configuration.md#startup-health-tuning) |
 | `FORCE_RUBY_REBUILD_NO_CACHE` | Force Ruby container rebuilds to run without Docker cache | `false` | See [Advanced Configuration](/advanced-topics/advanced-configuration.md#ruby-rebuild) |
-| `QDRANT_URL` | Full URL of the Qdrant service | `http://qdrant_service:6333` (in-container) / `http://localhost:6333` (development mode) | Change only when the service is elsewhere |
-| `EMBEDDINGS_URL` | Full URL of the embeddings service | `http://embeddings_service:8000` (in-container) / `http://localhost:8002` (development mode) | Change only when the service is elsewhere |
+| `QDRANT_URL` | Full URL of the Qdrant service | `http://qdrant_service:6333` (in-container) / `http://localhost:6333` (development mode) | Change only when the service is elsewhere; set in the shell, not in this file |
+| `EMBEDDINGS_URL` | Full URL of the embeddings service | `http://embeddings_service:8000` (in-container) / `http://localhost:8002` (development mode) | Change only when the service is elsewhere; set in the shell, not in this file |
 
 ## Install Options
 

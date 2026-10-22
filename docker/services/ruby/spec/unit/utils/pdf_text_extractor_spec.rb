@@ -6,10 +6,23 @@ require 'fileutils'
 require 'open3'
 require_relative '../../../lib/monadic/utils/pdf_text_extractor'
 
+require 'stringio'
+require 'tmpdir'
+
 RSpec.describe PDF2Text do
   let(:test_pdf_path) { '/tmp/test.pdf' }
-  let(:extractor) { described_class.new(path: test_pdf_path) }
+  # The upload route's form: the server's own temporary file.
+  let(:extractor) { described_class.new(path: test_pdf_path, in_shared: false) }
   
+  # The copy into the shared folder and its removal go through the guard;
+  # they are played here, so nothing is written to a real folder.
+  def stub_copy
+    allow(File).to receive(:open).and_call_original
+    allow(File).to receive(:open).with(test_pdf_path, "rb").and_yield(StringIO.new("%PDF"))
+    allow(Monadic::Utils::SharedPathGuard).to receive(:write_file!)
+    allow(Monadic::Utils::SharedPathGuard).to receive(:delete_file!)
+  end
+
   # Mock constants and environment
   before do
     allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(false)
@@ -51,8 +64,7 @@ RSpec.describe PDF2Text do
     context 'when file exists' do
       before do
         allow(File).to receive(:exist?).and_return(true)
-        allow(FileUtils).to receive(:cp)
-        allow(FileUtils).to receive(:rm_f)
+        stub_copy
         allow(SecureRandom).to receive(:hex).with(8).and_return('0123456789abcdef')
       end
 
@@ -60,12 +72,9 @@ RSpec.describe PDF2Text do
         mock_stdout = '{"pages": []}'
         allow(Monadic::Shell).to receive(:bash).and_return([mock_stdout, '', double(success?: true)])
 
-        expect(FileUtils).to receive(:cp).with(
-          test_pdf_path,
-          File.expand_path('~/monadic/data/pdf2text_0123456789abcdef.pdf')
-        )
-
         extractor.pdf2text(test_pdf_path)
+        expect(Monadic::Utils::SharedPathGuard).to have_received(:write_file!)
+          .with(File.expand_path('~/monadic/data/pdf2text_0123456789abcdef.pdf'), an_instance_of(StringIO), replace: false)
       end
 
       it 'gives the extraction a time limit' do
@@ -78,11 +87,11 @@ RSpec.describe PDF2Text do
         copy = File.expand_path('~/monadic/data/pdf2text_0123456789abcdef.pdf')
         allow(Monadic::Shell).to receive(:bash).and_return(['{"pages": []}', '', double(success?: true)])
         extractor.pdf2text(test_pdf_path)
-        expect(FileUtils).to have_received(:rm_f).with(copy).once
+        expect(Monadic::Utils::SharedPathGuard).to have_received(:delete_file!).with(copy).once
 
         allow(Monadic::Shell).to receive(:bash).and_return(['', 'boom', double(success?: false)])
         expect { extractor.pdf2text(test_pdf_path) }.to raise_error(/Error extracting text/)
-        expect(FileUtils).to have_received(:rm_f).with(copy).twice
+        expect(Monadic::Utils::SharedPathGuard).to have_received(:delete_file!).with(copy).twice
       end
       
       context 'with successful extraction' do
@@ -122,12 +131,9 @@ RSpec.describe PDF2Text do
           mock_stdout = '{"pages": []}'
           allow(Monadic::Shell).to receive(:bash).and_return([mock_stdout, '', double(success?: true)])
           
-          expect(FileUtils).to receive(:cp).with(
-            test_pdf_path,
-            '/monadic/data/pdf2text_0123456789abcdef.pdf'
-          )
-          
           extractor.pdf2text(test_pdf_path)
+          expect(Monadic::Utils::SharedPathGuard).to have_received(:write_file!)
+            .with('/monadic/data/pdf2text_0123456789abcdef.pdf', anything, replace: false)
         end
       end
     end
@@ -356,7 +362,7 @@ RSpec.describe PDF2Text do
   describe 'Error handling' do
     it 'provides helpful error messages' do
       allow(File).to receive(:exist?).and_return(true)
-      allow(FileUtils).to receive(:cp)
+      stub_copy
       allow(Monadic::Shell).to receive(:bash).and_return(['', 'Docker daemon not running', double(success?: false)])
       
       expect { extractor.pdf2text(test_pdf_path) }.to raise_error(/Error extracting text:.*Docker daemon/)
@@ -364,7 +370,7 @@ RSpec.describe PDF2Text do
     
     it 'logs debug information for JSON parse errors' do
       allow(File).to receive(:exist?).and_return(true)
-      allow(FileUtils).to receive(:cp)
+      stub_copy
       allow(Monadic::Shell).to receive(:bash).and_return(['<html>Not JSON</html>', '', double(success?: true)])
       allow(DebugHelper).to receive(:debug)
 
@@ -375,6 +381,46 @@ RSpec.describe PDF2Text do
       )
 
       expect { extractor.pdf2text(test_pdf_path) }.to raise_error('PDF extraction returned invalid JSON format')
+    end
+  end
+  describe "a PDF of the shared folder (the MCP tool's form)" do
+    around do |example|
+      Dir.mktmpdir("pdf2text") do |dir|
+        @root = File.join(dir, "data")
+        @outside = File.join(dir, "outside")
+        FileUtils.mkdir_p([@root, @outside])
+        example.run
+      end
+    end
+
+    before do
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@root)
+      allow(Monadic::Shell).to receive(:bash).and_return(['{"pages": []}', '', double(success?: true)])
+    end
+
+    it "copies nothing from outside the shared folder when the PDF is a link" do
+      File.write(File.join(@outside, "secret.txt"), "SECRET")
+      File.symlink(File.join(@outside, "secret.txt"), File.join(@root, "doc.pdf"))
+      expect { described_class.new(path: File.join(@root, "doc.pdf")).pdf2text(File.join(@root, "doc.pdf")) }
+        .to raise_error(Monadic::Utils::SharedPathGuard::InvalidPath)
+      expect(Dir.children(@root)).to eq(["doc.pdf"])
+    end
+
+    it "leaves a file it did not make when the copy's name is taken" do
+      File.write(File.join(@root, "doc.pdf"), "%PDF")
+      allow(SecureRandom).to receive(:hex).and_call_original
+      allow(SecureRandom).to receive(:hex).with(8).and_return("0" * 16)
+      taken = File.join(@root, "pdf2text_#{'0' * 16}.pdf")
+      File.write(taken, "someone else's")
+      expect { described_class.new(path: File.join(@root, "doc.pdf")).pdf2text(File.join(@root, "doc.pdf")) }
+        .to raise_error(Errno::EEXIST)
+      expect(File.read(taken)).to eq("someone else's")
+    end
+
+    it "copies a plain PDF of the shared folder and removes its copy after" do
+      File.write(File.join(@root, "doc.pdf"), "%PDF")
+      described_class.new(path: File.join(@root, "doc.pdf")).pdf2text(File.join(@root, "doc.pdf"))
+      expect(Dir.children(@root)).to eq(["doc.pdf"])
     end
   end
 end

@@ -1,6 +1,7 @@
 require "net/http"
 require "uri"
 require_relative "../../lib/monadic/adapters/wikipedia_helper"
+require_relative "../../lib/monadic/utils/shared_path_guard"
 
 class WikipediaOpenAI < MonadicApp
   include OpenAIHelper
@@ -26,7 +27,7 @@ class WikipediaOpenAI < MonadicApp
                      File.join(LOCAL_SHARED_VOL, filename)
                    end
         
-        File.write(filepath, response.body)
+        Monadic::Utils::SharedPathGuard.write_file!(filepath, response.body.to_s)
         
         "Content saved to file: #{filename}"
       else

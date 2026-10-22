@@ -160,7 +160,7 @@ module MonadicSharedTools
       begin
         # Automatically create parent directories
         dir = File.dirname(full_path)
-        FileUtils.mkdir_p(dir) unless File.directory?(dir)
+        Monadic::Utils::SharedPathGuard.mkdir_p!(dir)
         unless validate_file_path(full_path) == full_path && Monadic::Utils::SharedPathGuard.tool_writable?(full_path)
           return { success: false, error: "File path is outside the shared folder or invalid", filepath: filepath }
         end

@@ -143,9 +143,10 @@ task :debug do
   # Enable DEBUG_MODE for local documentation
   ENV['DEBUG_MODE'] = 'true'
 
-  # Load configuration
+  # Load configuration: only the settings the server reads from ENV
+  # (Monadic::Utils::EnvFile)
   config_path = File.expand_path("~/monadic/config/env")
-  Dotenv.load(config_path) if File.exist?(config_path)
+  Monadic::Utils::EnvFile.load!(config_path) if File.exist?(config_path)
 
   # Start server
   sh "./bin/monadic_server.sh debug"

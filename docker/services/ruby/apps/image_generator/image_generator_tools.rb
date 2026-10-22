@@ -2,6 +2,7 @@
 # Provides clear interfaces for image generation functionality
 
 require 'base64'
+require_relative '../../lib/monadic/utils/shared_path_guard'
 require 'cgi'
 require 'fileutils'
 require_relative "../../lib/monadic/utils/extra_logger"
@@ -112,10 +113,8 @@ class ImageGeneratorOpenAI < MonadicApp
         # Determine path
         file_path = File.join(shared_folder, File.basename(filename))
         
-        # Write to file
-        File.open(file_path, 'wb') do |f|
-          f.write(Base64.decode64(base64_data))
-        end
+        # Written as a plain file of the shared folder, never through a link
+        Monadic::Utils::SharedPathGuard.write_file!(file_path, Base64.decode64(base64_data))
         
         return filename
       }
@@ -362,9 +361,10 @@ class ImageGeneratorOpenAI < MonadicApp
               fname,
               File.join(shared_folder, File.basename(fname))
             ]
-            unless File.exist?(dest)
-              src = src_candidates.find { |p| File.exist?(p) }
-              FileUtils.cp(src, dest) if src && src != dest
+            # Only a file of the shared folder is copied, never through a link.
+            unless File.exist?(dest) || File.symlink?(dest)
+              src = src_candidates.find { |p| Monadic::Utils::SharedPathGuard.file_stat(p) }
+              (Monadic::Utils::SharedPathGuard.copy_file!(src, dest, replace: false) rescue nil) if src && src != dest
             end
           end
 
@@ -478,7 +478,7 @@ class ImageGeneratorGrok < MonadicApp
             if valid_upload["data"] && valid_upload["data"].start_with?("data:image/")
               base64_data = valid_upload["data"].split(',').last
               file_path = File.join(shared_folder, File.basename(found_name))
-              File.open(file_path, 'wb') { |f| f.write(Base64.decode64(base64_data)) }
+              Monadic::Utils::SharedPathGuard.write_file!(file_path, Base64.decode64(base64_data))
               images = [File.basename(found_name)]
             elsif File.exist?(File.join(shared_folder, File.basename(found_name)))
               images = [File.basename(found_name)]

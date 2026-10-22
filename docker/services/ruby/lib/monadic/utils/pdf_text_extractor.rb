@@ -3,6 +3,7 @@
 require "fileutils"
 require "securerandom"
 require_relative "debug_helper"
+require_relative "shared_path_guard"
 
 RAG_TOKENS = ENV.fetch("PDF_RAG_TOKENS", "4000").to_i
 RAG_OVERLAP_LINES = ENV.fetch("PDF_RAG_OVERLAP_LINES", "4").to_i
@@ -13,8 +14,12 @@ class PDF2Text
 
   attr_reader :file_path, :text_data
 
-  # Initializes the PDF2Text class
-  def initialize(path:, max_tokens: RAG_TOKENS, separator: "\n", overwrap_lines: RAG_OVERLAP_LINES)
+  # Initializes the PDF2Text class. in_shared: whether path is a file of the
+  # shared folder (read through SharedPathGuard, never through a link) or
+  # the server's own file elsewhere (an upload's temporary file), which the
+  # caller says, not where the path points.
+  def initialize(path:, max_tokens: RAG_TOKENS, separator: "\n", overwrap_lines: RAG_OVERLAP_LINES, in_shared: true)
+    @in_shared = in_shared
     @file_path = path
     @file_name = File.basename(path)
     @max_tokens = max_tokens
@@ -36,7 +41,14 @@ class PDF2Text
     new_file_name = "pdf2text_#{SecureRandom.hex(8)}.pdf"
     new_file_path = File.expand_path(File.join(data_path, new_file_name))
 
-    FileUtils.cp(file_path, new_file_path)
+    guard = Monadic::Utils::SharedPathGuard
+    if @in_shared
+      guard.copy_file!(file_path, new_file_path, replace: false)
+    else
+      File.open(file_path, "rb") { |source| guard.write_file!(new_file_path, source, replace: false) }
+    end
+    # Only a copy this call put in place is removed afterwards.
+    copied = new_file_path
 
     # Route through Monadic::Shell so the container name and the
     # shared-volume workdir share the same source of truth as every
@@ -63,7 +75,11 @@ class PDF2Text
       raise "Error extracting text: #{stderr}"
     end
   ensure
-    FileUtils.rm_f(new_file_path) if new_file_path
+    begin
+      Monadic::Utils::SharedPathGuard.delete_file!(copied) if copied
+    rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+      nil
+    end
   end
 
   # Extracts the text from the PDF file
@@ -127,7 +143,7 @@ if $PROGRAM_NAME == __FILE__
   file_path = ARGV[0]
 
   if File.exist?(file_path)
-    pdf = PDF2Text.new(path: file_path, max_tokens: RAG_TOKENS, separator: "\n", overwrap_lines: RAG_OVERLAP_LINES)
+    pdf = PDF2Text.new(path: file_path, max_tokens: RAG_TOKENS, separator: "\n", overwrap_lines: RAG_OVERLAP_LINES, in_shared: false)
     pdf.extract
     split_texts = pdf.split_text
     split_texts.each_with_index do |split_text, index|

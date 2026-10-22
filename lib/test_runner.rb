@@ -198,8 +198,8 @@ class TestRunner
     # Load API keys from config if available
     config_path = File.expand_path('~/monadic/config/env')
     if File.exist?(config_path)
-      require 'dotenv'
-      Dotenv.load(config_path)
+      require_relative '../docker/services/ruby/lib/monadic/utils/env_file'
+      Monadic::Utils::EnvFile.load!(config_path)
     end
   end
 

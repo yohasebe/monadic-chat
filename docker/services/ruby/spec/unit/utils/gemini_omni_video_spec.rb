@@ -21,6 +21,9 @@ RSpec.describe Monadic::Utils::GeminiOmniVideo, :no_api do
     end
   end
 
+  # Videos are saved in the shared folder, as in the app.
+  before { allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@dir) }
+
   def generator(deadline: 600)
     described_class.new(api_key: "k", model: "gemini-omni-1.1-flash", save_dir: @dir, deadline_seconds: deadline)
   end
@@ -127,8 +130,14 @@ RSpec.describe Monadic::Utils::GeminiOmniVideo, :no_api do
   describe "saving" do
     before { stub_transport(post_reply: reply(200, completed({ "type" => "video", "data" => Base64.strict_encode64(mp4) }))) }
 
+    # Only the file name's random part is fixed; the temporary name keeps its own.
+    def draw_names(*names)
+      allow(SecureRandom).to receive(:hex).and_call_original
+      allow(SecureRandom).to receive(:hex).with(4).and_return(*names)
+    end
+
     it "never replaces a file already published under the name it drew" do
-      allow(SecureRandom).to receive(:hex).and_return("aaaaaaaa", "bbbbbbbb")
+      draw_names("aaaaaaaa", "bbbbbbbb")
       allow(Time).to receive(:now).and_return(Time.new(2026, 10, 17, 12, 0, 0))
       taken = File.join(@dir, "gemini_omni_20261017_120000_aaaaaaaa.mp4")
       File.write(taken, "someone else's video")
@@ -138,7 +147,9 @@ RSpec.describe Monadic::Utils::GeminiOmniVideo, :no_api do
     end
 
     it "does not save where hard links are not available, rather than risk replacing a file" do
-      allow(File).to receive(:link).and_raise(Errno::ENOTSUP)
+      allow(Monadic::Utils::SharedFs).to receive(:call!).and_wrap_original do |original, func, *args|
+        func == :linkat ? raise(Errno::ENOTSUP) : original.call(func, *args)
+      end
       result = generator.generate(prompt: "a boat")
       expect(result).to include(success: false, error: "save_failed")
       expect(result[:message]).to include("does not support hard links")
@@ -146,14 +157,10 @@ RSpec.describe Monadic::Utils::GeminiOmniVideo, :no_api do
     end
 
     it "removes its own partial file when writing it fails" do
-      real_open = File.method(:open)
-      allow(File).to receive(:open) do |path, *args, &block|
-        next real_open.call(path, *args, &block) unless path.to_s.end_with?(".part")
-
-        real_open.call(path, *args) do |f|
+      allow(Monadic::Utils::SharedFs).to receive(:write_new).and_wrap_original do |original, dir, name, **options|
+        original.call(dir, name, **options) do |f|
           f.write("half")
-          allow(f).to receive(:write).and_raise(Errno::ENOSPC)
-          block.call(f)
+          raise Errno::ENOSPC
         end
       end
       result = generator.generate(prompt: "a boat")
@@ -162,11 +169,9 @@ RSpec.describe Monadic::Utils::GeminiOmniVideo, :no_api do
     end
 
     it "leaves another call's partial file alone" do
-      allow(SecureRandom).to receive(:hex).and_return("cccccccc", "dddddddd")
-      allow(Time).to receive(:now).and_return(Time.new(2026, 10, 17, 12, 0, 0))
-      theirs = File.join(@dir, ".gemini_omni_20261017_120000_cccccccc.mp4.part")
+      theirs = File.join(@dir, ".gemini_omni_20261017_120000_cccccccc.mp4.0123456789abcdef.tmp")
       File.write(theirs, "in progress")
-      expect(generator.generate(prompt: "a boat")[:filename]).to end_with("dddddddd.mp4")
+      expect(generator.generate(prompt: "a boat")[:filename]).to start_with("gemini_omni_")
       expect(File.read(theirs)).to eq("in progress")
     end
   end

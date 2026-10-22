@@ -40,6 +40,7 @@ RSpec.describe "MermaidGrapherTools#preview_mermaid preview image retention" do
 
   before do
     allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(shared)
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared)
   end
 
   after { FileUtils.rm_rf(shared) }

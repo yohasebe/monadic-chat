@@ -56,6 +56,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "commonmarker", "~> 2.3"
   spec.add_dependency "csv"
   spec.add_dependency "dotenv", "~> 3.1"
+  spec.add_dependency "fiddle"
   spec.add_dependency "async", "~> 2.0"
   spec.add_dependency "async-websocket", "~> 0.30"
   spec.add_dependency "http", "~> 5.2"

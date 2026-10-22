@@ -498,7 +498,7 @@ class MonadicApp
       if keep_file
         # Create a permanent file with timestamp-based name
         file_path = File.join(data_dir, filename)
-        File.write(file_path, code)
+        Monadic::Utils::SharedPathGuard.write_file!(file_path, code)
       else
         # Create a temporary file with timestamp-based name
         temp_file = Tempfile.new(["code_#{timestamp}", ".#{extension}"], data_dir)

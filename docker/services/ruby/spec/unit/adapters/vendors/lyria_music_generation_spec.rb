@@ -41,6 +41,7 @@ RSpec.describe 'GeminiHelper#generate_music_with_lyria' do
   before do
     stub_const('CONFIG', { 'GEMINI_API_KEY' => 'test-key' })
     allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(tmpdir)
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(tmpdir)
     # with_progress just runs the block (no websocket in unit context)
     allow(Monadic::Utils::ProgressBroadcaster).to receive(:with_progress) { |*_, &blk| blk.call }
   end

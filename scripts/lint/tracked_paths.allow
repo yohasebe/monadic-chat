@@ -42,7 +42,7 @@ config/jest/jest.config.js
 lib/**/*.rb
 rakelib/*.rake
 scripts/**/*.{rb,js,mjs,sh}
-scripts/lint/tracked_paths.allow
+scripts/lint/{tracked_paths,shared_writes}.allow
 
 # --- Electron app -----------------------------------------------------------
 app/**/*.{js,html}

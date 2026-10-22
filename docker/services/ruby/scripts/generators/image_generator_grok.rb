@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require "base64"
+require_relative "../../lib/monadic/utils/shared_path_guard"
 require "http"
 require "json"
 require "optparse"
@@ -61,7 +62,7 @@ end
 # Encode an image file as a data URI string
 def encode_image_as_data_uri(file_path)
   mime = get_mime_type(file_path)
-  data = Base64.strict_encode64(File.binread(file_path))
+  data = Base64.strict_encode64(Monadic::Utils::SharedPathGuard.read_file!(file_path, &:read))
   "data:#{mime};base64,#{data}"
 end
 
@@ -216,9 +217,7 @@ def generate_image(prompt, operation: "generate", aspect_ratio: nil, quality: ni
     filename = "#{Time.now.to_i}_#{SecureRandom.hex(4)}.png"
     file_path = File.join(save_path, filename)
 
-    File.open(file_path, "wb") do |f|
-      f.write(image_data)
-    end
+    Monadic::Utils::SharedPathGuard.write_file!(file_path, image_data)
 
     { original_prompt: prompt, revised_prompt: revised_prompt, success: true, filename: filename }
   else

@@ -80,10 +80,12 @@ def read_image(image_path)
 
   mime_type = Monadic::Utils::GeminiOmniVideo::IMAGE_TYPES[File.extname(path).downcase]
   return nil unless mime_type
-  return nil if File.size(path) > Monadic::Utils::GeminiOmniVideo::MAX_IMAGE_BYTES
-
-  { data: File.binread(path), mime_type: mime_type }
-rescue SystemCallError
+  # Read as a plain file of the shared folder, never through a link.
+  data = Monadic::Utils::SharedPathGuard.read_file!(path) do |f|
+    f.stat.size > Monadic::Utils::GeminiOmniVideo::MAX_IMAGE_BYTES ? nil : f.read
+  end
+  data && { data: data, mime_type: mime_type }
+rescue SystemCallError, Monadic::Utils::SharedPathGuard::InvalidPath
   nil
 end
 

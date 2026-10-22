@@ -110,9 +110,9 @@ RSpec.describe "Transcribing an audio file with times" do
   end
 
   it "does not name a saved transcript when it could not be saved" do
-    allow(File).to receive(:rename).and_call_original
-    allow(File).to receive(:rename).with(a_string_ending_with("transcript.json.part-#{Process.pid}"), anything)
-                                   .and_raise(Errno::ENOSPC)
+    allow(Monadic::Utils::SharedFs).to receive(:write_new).and_call_original
+    allow(Monadic::Utils::SharedFs).to receive(:write_new).with(anything, "transcript.json", any_args)
+                                                          .and_raise(Errno::ENOSPC)
     answer = host.analyze_audio(audio: "lecture.mp3", session: session)
     expect(answer).to include("could not be saved")
     expect(answer).not_to include("Saved in the chat's folder")

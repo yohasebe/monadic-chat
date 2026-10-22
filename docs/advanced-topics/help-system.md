@@ -108,7 +108,7 @@ These variables are read from `~/monadic/config/env`.
 Used by the Help app:
 
 - `HELP_CHUNKS_PER_RESULT`: Chunks returned per search result (default: 3)
-- `HELP_DATA_DUMP`: The JSON dump used by the installation (default: `/monadic/help_data/help_db.json` inside the Ruby container). Changing the path does not install the data
+- `HELP_DATA_DUMP`: The JSON dump used by the installation (default: `/monadic/help_data/help_db.json` inside the Ruby container). Changing the path does not install the data, and a path in the shared folder is ignored
 
 Used only when building the help data with `rake help:build`:
 

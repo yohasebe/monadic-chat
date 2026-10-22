@@ -57,7 +57,8 @@ module Monadic
         dest = File.join(Monadic::Utils::Environment.data_path, relative_path)
         created = false
         begin
-          size, digest = copy_exclusive(source, dest) { created = true }
+          size, digest = copy_exclusive(source, dest)
+          created = true
           # Checked again after writing: a folder swapped for a link while the
           # file was being written means it may have gone elsewhere.
           raise Folders::Unavailable, 'the chat folder changed while saving' unless Folders.real_path(relative_path)
@@ -69,7 +70,11 @@ module Monadic
           raise Unusable.new(:unsettled, 'The file was saved, but its record could not be confirmed. Restart Monadic Chat.')
         rescue StandardError => e
           # Remove only a partial file this call created, never one it found.
-          File.unlink(dest) if created && File.exist?(dest)
+          begin
+            Monadic::Utils::SharedPathGuard.delete_file!(dest) if created
+          rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+            nil
+          end
           ledger.update_attachment(attachment_id, status: 'failed', 'failure' => e.class.name.split('::').last)
           raise Unusable.new(:write_failed, 'The file could not be saved to the shared folder.')
         end
@@ -195,18 +200,18 @@ module Monadic
         "#{stem}#{ext}"
       end
 
+      # Written whole under a temporary name and put in place only if nothing
+      # has the name yet (SharedPathGuard: never through a link, never over a
+      # file that is there).
       def copy_exclusive(source, dest)
         digest = Digest::SHA256.new
         size = 0
-        File.open(dest, File::WRONLY | File::CREAT | File::EXCL, 0o644) do |out|
-          yield if block_given?
+        Monadic::Utils::SharedPathGuard.write_file!(dest, replace: false) do |out|
           while (chunk = source.read(COPY_CHUNK))
             out.write(chunk)
             digest.update(chunk)
             size += chunk.bytesize
           end
-          out.flush
-          out.fsync
         end
         [size, digest.hexdigest]
       end

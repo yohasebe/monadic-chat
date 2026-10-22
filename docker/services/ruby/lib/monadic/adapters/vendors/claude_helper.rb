@@ -2170,7 +2170,7 @@ module ClaudeHelper
                 end
 
     docs_dir = File.join(base_path, "documents")
-    FileUtils.mkdir_p(docs_dir) unless File.directory?(docs_dir)
+    Monadic::Utils::SharedPathGuard.mkdir_p!(docs_dir)
 
     # The name comes from the provider's response: only its last part is
     # used, and the file is written never through a link.

@@ -8,6 +8,7 @@ require "uri"
 require "http"
 require_relative "http_client"
 require_relative "error_formatter"
+require_relative "shared_path_guard"
 
 module Monadic
   module Utils
@@ -265,33 +266,25 @@ module Monadic
 
       # Written to a file of its own, then published under a new name with a
       # hard link, which fails rather than replace a file that is already
-      # there. Only the file this call created is removed.
+      # there (SharedPathGuard, never through a link; its temporary file is
+      # removed however it ends).
       # Not bounded by the deadline: the video is already paid for, so it is
       # saved rather than dropped; the deadline is set below the caller's limit
       # to leave room for this.
       def save(bytes)
-        FileUtils.mkdir_p(@save_dir)
+        SharedPathGuard.mkdir_p!(@save_dir)
         3.times do
           filename = "gemini_omni_#{Time.now.strftime('%Y%m%d_%H%M%S')}_#{SecureRandom.hex(4)}.mp4"
-          final = File.join(@save_dir, filename)
-          partial = File.join(@save_dir, ".#{filename}.part")
-          created = false
           begin
-            File.open(partial, File::WRONLY | File::CREAT | File::EXCL, 0o644) do |f|
-              created = true
-              f.write(bytes)
-            end
-            File.link(partial, final)
+            SharedPathGuard.write_file!(File.join(@save_dir, filename), bytes, replace: false)
             return filename
           rescue Errno::EEXIST
-            next # this name is taken (the partial or the final one); draw another
+            next # this name is taken; draw another
           rescue Errno::EPERM, Errno::ENOTSUP, Errno::EXDEV, Errno::ENOSYS, Errno::EOPNOTSUPP => e
             # A file system without hard links cannot publish without the
             # risk of replacing a file, so the video is not saved there
             # (hard links work on the Docker Desktop virtiofs mount).
             raise IOError, "the shared folder does not support hard links (#{e.class.name.split('::').last})"
-          ensure
-            File.delete(partial) if created && File.exist?(partial)
           end
         end
         raise Errno::EEXIST, "no free file name in #{@save_dir}"

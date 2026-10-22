@@ -35,8 +35,8 @@ module AutoForgeUtils
     base_path = AutoForge::Utils::PathConfig.project_base_path
     project_path = File.join(base_path, project_name)
 
-    # Create directory
-    FileUtils.mkdir_p(project_path)
+    # Create directory (never through a link)
+    Monadic::Utils::SharedPathGuard.mkdir_p!(project_path)
 
     # Store metadata if provided
     if metadata.any?
@@ -115,7 +115,9 @@ module AutoForgeUtils
     list_projects.each do |project|
       created_at = Time.parse(project[:created_at])
       if created_at < cutoff_time
-        FileUtils.rm_rf(project[:path])
+        # Removed through folders held open: a link in the project is removed
+        # itself, never followed.
+        Monadic::Utils::SharedPathGuard.remove_tree!(project[:path])
         removed << project[:name]
       end
     end

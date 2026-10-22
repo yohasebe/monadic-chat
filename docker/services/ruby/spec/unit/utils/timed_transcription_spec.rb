@@ -120,14 +120,14 @@ RSpec.describe Monadic::Utils::TimedTranscription do
   end
 
   it "says when the transcript could not be saved, and does not leave a stopped one in its place" do
-    allow(File).to receive(:rename).and_call_original
-    allow(File).to receive(:rename).with(a_string_ending_with("transcript.json.part-#{Process.pid}"), anything)
-                                   .and_raise(Errno::ENOSPC)
+    allow(Monadic::Utils::SharedFs).to receive(:write_new).and_call_original
+    allow(Monadic::Utils::SharedFs).to receive(:write_new).with(anything, "transcript.json", any_args)
+                                                          .and_raise(Errno::ENOSPC)
     texts = ["Hello there.", "Goodbye."]
     result = transcription(transcribe: ->(_wav) { texts.shift }).run
     expect(result[:text]).to eq("Audio transcription failed: the transcript could not be saved in the run folder (ENOSPC).")
     expect(File.exist?(File.join(job[:path], "transcript.json"))).to be(false)
-    expect(Dir.children(job[:path]).grep(/\.part-/)).to be_empty
+    expect(Dir.children(job[:path]).grep(/\.tmp\z/)).to be_empty
     expect(pcm_left?).to be(false)
   end
 
@@ -162,7 +162,7 @@ RSpec.describe Monadic::Utils::TimedTranscription do
     run.join(10)
     expect(saved["status"]).to eq("complete")
     expect(saved["segments"].map { |s| s["text"] }).to eq(["Hello there.", "Goodbye."])
-    expect(Dir.children(job[:path]).grep(/\.part-/)).to be_empty
+    expect(Dir.children(job[:path]).grep(/\.tmp\z/)).to be_empty
     expect(pcm_left?).to be(false)
   end
 

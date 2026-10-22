@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require_relative "../../lib/monadic/utils/http_client"
+require "stringio"
 require "base64"
 require_relative "../../lib/monadic/utils/shared_path_guard"
 require "http"
@@ -319,7 +320,7 @@ def generate_image(options, num_retrials = 3)
         # Also include any local files as base64 data URIs
         (options[:images] || []).each do |img_path|
           mime_type = get_mime_type(img_path)
-          data = Base64.strict_encode64(File.binread(img_path))
+          data = Base64.strict_encode64(Monadic::Utils::SharedPathGuard.read_file!(img_path, &:read))
           img_refs << { image_url: "data:#{mime_type};base64,#{data}" }
         end
         body[:images] = img_refs
@@ -362,7 +363,7 @@ def generate_image(options, num_retrials = 3)
           form[:"image[]"] ||= []
 
           image_file = HTTP::FormData::File.new(
-            img_path,
+            StringIO.new(Monadic::Utils::SharedPathGuard.read_file!(img_path, &:read)),
             content_type: mime_type,
             filename: File.basename(img_path)
           )
@@ -378,7 +379,7 @@ def generate_image(options, num_retrials = 3)
         if options[:mask]
           mime_type = get_mime_type(options[:mask])
           form[:mask] = HTTP::FormData::File.new(
-            options[:mask],
+            StringIO.new(Monadic::Utils::SharedPathGuard.read_file!(options[:mask], &:read)),
             content_type: mime_type,
             filename: File.basename(options[:mask])
           )
@@ -420,7 +421,6 @@ def generate_image(options, num_retrials = 3)
       # Create output directory
 
       output_dir = "./"
-      FileUtils.mkdir_p(output_dir) unless Dir.exist?(output_dir)
       
       json["data"].each_with_index do |data, idx|
         base64_data = data["b64_json"]
@@ -446,9 +446,8 @@ def generate_image(options, num_retrials = 3)
           end
           file_path = File.join(output_dir, filename)
           
-          File.open(file_path, "wb") do |f|
-            f.write(image_data)
-          end
+          # The working folder is the shared folder; written never through a link.
+          Monadic::Utils::SharedPathGuard.write_file!(File.join(Monadic::Utils::Environment.data_path, filename), image_data)
           
           result[:images] << {
             path: file_path,

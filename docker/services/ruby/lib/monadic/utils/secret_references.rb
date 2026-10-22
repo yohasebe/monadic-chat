@@ -4,6 +4,7 @@ require "json"
 require "open3"
 require "securerandom"
 require_relative "environment"
+require_relative 'env_file'
 
 module Monadic
   module Utils
@@ -70,11 +71,9 @@ module Monadic
       # One key from config/env, resolved, for scripts that read the file
       # themselves instead of loading CONFIG. nil when absent or unresolved.
       def config_value(key, path = Environment.env_path)
-        # Read directly; a missing file is a SystemCallError like any other.
-        line = File.read(path).each_line.map(&:strip).reverse.find { |l| l.start_with?("#{key}=") }
-        return nil unless line
-
-        value = line.split("=", 2).last.to_s.strip.gsub(/\A['"]|['"]\z/, "")
+        # The same parse as the server's (EnvFile); a missing file reads as
+        # nothing.
+        value = EnvFile.parse(path)[key].to_s
         return nil if value.empty?
 
         resolve(key, value)
@@ -136,13 +135,7 @@ module Monadic
       def references_in_env(path = Environment.env_path)
         return {} unless File.file?(path)
 
-        File.read(path).each_line.each_with_object({}) do |line, refs|
-          key, value = line.strip.split("=", 2)
-          next if key.nil? || value.nil? || key.start_with?("#")
-
-          value = value.strip.gsub(/\A['"]|['"]\z/, "")
-          refs[key] = value if reference?(value)
-        end
+        EnvFile.parse(path).select { |_key, value| reference?(value) }
       rescue SystemCallError
         {}
       end

@@ -203,6 +203,57 @@
       font-size: 14px;
       font-weight: 500;
     }
+
+    /* Messages from the main process: colors as classes, so dark can change them */
+    .msg-version-app { background: #e8f4fc; border: 1px solid #b8d4e8; }
+    .msg-version-container { background: #f0e8fc; border: 1px solid #d4b8e8; }
+    .msg-update-done { background-color: #e8f5e9; }
+    .msg-checking { color: #666; }
+    .msg-stopped { color: #999; }
+    i.icon-ollama { color: #333333; }
+
+    /* Dark: colors from tokens.css (shared with the Web UI). The second value
+       of each var() is the dark value, used if the shared file could not be
+       loaded. The yellow buttons and the status label stay as they are. */
+    .dark-theme body {
+      color: var(--text-primary, #f5f5f5);
+      background-color: var(--bg-body, #1a1a1a);
+    }
+    .dark-theme #messages {
+      background-color: var(--bg-panel, #2a2a2a);
+      color: var(--text-primary, #f5f5f5);
+    }
+    .dark-theme #output {
+      background-color: var(--bg-secondary, #333333);
+      color: var(--text-primary, #f5f5f5);
+    }
+    .dark-theme .startup-spinner {
+      border-color: var(--border-secondary, #3a3a3a);
+      border-top-color: #ffc107;
+    }
+    .dark-theme .startup-progress { background-color: var(--border-secondary, #3a3a3a); }
+    .dark-theme hr { background: var(--border-primary, #4a4a4a); }
+    .dark-theme a { color: var(--text-link, #6b9bd8); }
+    .dark-theme a:hover { color: var(--text-link-hover, #8fb3e8); }
+    .dark-theme div#messages i.fa-copy { color: var(--text-secondary, #d0d0d0); }
+    .dark-theme button:disabled,
+    .dark-theme button:disabled:hover,
+    .dark-theme button#start:disabled,
+    .dark-theme button#browser:disabled {
+      background-color: #444;
+      color: #b8b8b8;
+    }
+    .dark-theme .msg-version-app,
+    .dark-theme .msg-version-container,
+    .dark-theme .msg-update-done {
+      background: var(--bg-secondary, #333333);
+      color: var(--text-primary, #f5f5f5);
+    }
+    .dark-theme .msg-version-app,
+    .dark-theme .msg-version-container { border-color: var(--border-primary, #4a4a4a); }
+    .dark-theme .msg-checking { color: var(--text-secondary, #d0d0d0); }
+    .dark-theme .msg-stopped { color: var(--text-muted, #999); }
+    .dark-theme i.icon-ollama { color: var(--text-secondary, #d0d0d0); }
   </style>
 </head>
 <body>

@@ -360,7 +360,7 @@ function writeToScreen(text) {
         stopMessage = `System stopped at ${timestamp}`;
       }
       
-      htmlOutputElement.innerHTML += `<p style="color: #999;"><i class="fa-solid fa-circle-stop"></i> ${stopMessage}</p>\n`;
+      htmlOutputElement.innerHTML += `<p class="msg-stopped"><i class="fa-solid fa-circle-stop"></i> ${stopMessage}</p>\n`;
       htmlMessageCount++;
       
       // Limit HTML messages to prevent memory issues

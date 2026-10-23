@@ -846,7 +846,7 @@ class DockerManager {
                   // Styled version info with visual separation
                   const appLabel = i18n.t('messages.versionInfoApp');
                   const containerLabel = i18n.t('messages.versionInfoContainer');
-                  translatedOutput = `[HTML]: <p style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"><span style="background: #e8f4fc; border: 1px solid #b8d4e8; border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-desktop" style="color: #4CACDC; margin-right: 4px;"></i>${appLabel} <strong>v${appVersionMatch[1]}</strong></span><span style="background: #f0e8fc; border: 1px solid #d4b8e8; border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-brands fa-docker" style="color: #2496ED; margin-right: 4px;"></i>${containerLabel} <strong>v${containerVersionMatch[1]}</strong></span></p>`;
+                  translatedOutput = `[HTML]: <p style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"><span class="msg-version-app" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-desktop" style="color: #4CACDC; margin-right: 4px;"></i>${appLabel} <strong>v${appVersionMatch[1]}</strong></span><span class="msg-version-container" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-brands fa-docker" style="color: #2496ED; margin-right: 4px;"></i>${containerLabel} <strong>v${containerVersionMatch[1]}</strong></span></p>`;
                 }
               }
 
@@ -1470,7 +1470,7 @@ function initializeApp() {
     setTimeout(() => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('command-output', `
-          [HTML]: <div style="margin: 10px 0; padding: 10px; background-color: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 4px;">
+          [HTML]: <div class="msg-update-done" style="margin: 10px 0; padding: 10px; border-left: 4px solid #4caf50; border-radius: 4px;">
             <p style="margin: 0; font-weight: bold;">
               <i class="fa-solid fa-check-circle" style="color:#4caf50;"></i> 
               Update Successful: Version ${pendingUpdateState.version || app.getVersion()}
@@ -2857,7 +2857,7 @@ function formatMessage(type, messageKey, params = {}) {
     laptop: '<i class="fa-solid fa-laptop" style="color:#4CACDC;"></i>',
     ruby: '<i class="fa-solid fa-gem" style="color:#CC342D;"></i>',
     python: '<i class="fa-brands fa-python" style="color:#3776AB;"></i>',
-    ollama: '<i class="fa-solid fa-horse" style="color:#333333;"></i>'
+    ollama: '<i class="fa-solid fa-horse icon-ollama"></i>'
   };
   
   let message = i18n.t(messageKey, params);
@@ -2943,6 +2943,13 @@ ipcMain.handle('get-translations', async (_e, lang) => {
   }
 });
 
+// The console window's own background, seen before its page paints: the
+// light value is unchanged; dark is the page's dark body (tokens.css
+// --bg-body).
+function consoleBackground() {
+  return nativeTheme.shouldUseDarkColors ? '#1a1a1a' : '#f0f0f0';
+}
+
 function createMainWindow() {
   if (mainWindow) return;
   // A new window has not loaded yet; notices wait for its did-finish-load.
@@ -2967,7 +2974,7 @@ function createMainWindow() {
     show: false,
     // Show menu bar to enable standard shortcuts
     autoHideMenuBar: false,
-    backgroundColor: '#f0f0f0'
+    backgroundColor: consoleBackground()
   });
 
   // Check if port 4567 is already in use on initial launch
@@ -3030,7 +3037,7 @@ function createMainWindow() {
       // "checking" line spinning with nothing to replace it.
       if (!startupOffline) {
         // Show update checking message
-        writeToScreen(`[HTML]: <p style="color: #666; font-size: 12px;"><i class="fa-solid fa-sync fa-spin"></i> ${i18n.t('messages.checkingForUpdates')}</p>`);
+        writeToScreen(`[HTML]: <p class="msg-checking" style="font-size: 12px;"><i class="fa-solid fa-sync fa-spin"></i> ${i18n.t('messages.checkingForUpdates')}</p>`);
 
         // Check for updates after main window is loaded (no dialog)
         setTimeout(() => {
@@ -4429,6 +4436,9 @@ app.whenReady().then(async () => {
   const themeSync = createThemeSync({ cookies: require('electron').session.fromPartition('persist:monadicchat').cookies, nativeTheme });
   await themeSync.start();
   powerMonitor.on('resume', () => { themeSync.refresh(); });
+  nativeTheme.on('updated', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setBackgroundColor(consoleBackground());
+  });
 
   // Check for pending updates before initializing the app
   const pendingUpdateState = readUpdateState();

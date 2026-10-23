@@ -7,9 +7,13 @@
 const path = require('path');
 
 const ROOT = path.join(__dirname, '../..');
+const BOOTSTRAP = path.join(ROOT, 'docker/services/ruby/public/vendor/js/bootstrap.bundle.min.js');
+// The vendor folder is not tracked; CI fetches the pinned bundle and skips
+// this suite when that fails, like the renderer tests.
+const describeFn = require('fs').existsSync(BOOTSTRAP) ? describe : describe.skip;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-describe('Easy Submit and a fading Bootstrap modal', () => {
+describeFn('Easy Submit and a fading Bootstrap modal', () => {
   let bootstrap; let sent;
 
   beforeAll(() => {
@@ -25,7 +29,7 @@ describe('Easy Submit and a fading Bootstrap modal', () => {
     global.$id = (id) => document.getElementById(id);
     sent = jest.fn();
     document.getElementById('send').addEventListener('click', sent);
-    bootstrap = require(path.join(ROOT, 'docker/services/ruby/public/vendor/js/bootstrap.bundle.min.js'));
+    bootstrap = require(BOOTSTRAP);
     require(path.join(ROOT, 'docker/services/ruby/public/js/monadic/ws-input-handler.js'));
   });
 

@@ -13,7 +13,7 @@ function openMaskEditor(imageData) {
           <div class="modal-header">
             <h5 class="modal-title">
               <i class="fas fa-brush"></i> Create Mask
-              <small class="text-muted ml-2">Draw on areas you want AI to edit</small>
+              <small class="text-muted ms-2">Draw on areas you want AI to edit</small>
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
@@ -21,39 +21,39 @@ function openMaskEditor(imageData) {
             <div class="row">
               <div class="col-md-8">
                 <div class="canvas-container" style="position: relative;">
-                  <canvas id="maskCanvas" style="border: 1px solid #ddd;"></canvas>
+                  <canvas id="maskCanvas" style="border: 1px solid var(--border-tertiary);"></canvas>
                 </div>
               </div>
               <div class="col-md-4">
                 <div class="form-group mb-3">
                   <label for="brushSize">Brush Size: <span id="brushSizeValue">20px</span></label>
-                  <input type="range" id="brushSize" min="1" max="50" value="20" class="form-control">
+                  <input type="range" id="brushSize" min="1" max="50" value="20" class="form-range">
                 </div>
                 <div class="btn-group mb-3 w-100" role="group">
-                  <button id="brushTool" class="btn btn-primary active">
+                  <button type="button" id="brushTool" class="btn btn-outline-secondary active" aria-pressed="true">
                     <i class="fas fa-paint-brush"></i> Brush
                   </button>
-                  <button id="eraserTool" class="btn btn-secondary">
+                  <button type="button" id="eraserTool" class="btn btn-outline-secondary" aria-pressed="false">
                     <i class="fas fa-eraser"></i> Eraser
                   </button>
                 </div>
                 <div class="btn-group mb-3 w-100" role="group">
-                  <button id="undoMask" class="btn btn-outline-secondary w-50">
+                  <button type="button" id="undoMask" class="btn btn-outline-secondary w-50">
                     <i class="fas fa-undo"></i> Undo
                   </button>
-                  <button id="clearMask" class="btn btn-danger w-50">
+                  <button type="button" id="clearMask" class="btn btn-outline-danger w-50">
                     <i class="fas fa-trash"></i> Clear
                   </button>
                 </div>
                 <div class="alert alert-info">
-                  <p><i class="fas fa-info-circle"></i> Draw on areas you want AI to edit. White areas will be replaced by AI. Black areas will be preserved.
+                  <p><i class="fas fa-info-circle"></i> Draw on areas you want AI to edit. White areas will be replaced by AI. Black areas will be preserved.</p>
                 </div>
               </div>
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-primary" id="saveMask">
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-sm btn-primary" id="saveMask">
               <i class="fas fa-save"></i> Save Mask
             </button>
           </div>
@@ -208,7 +208,8 @@ function openMaskEditor(imageData) {
     brushToolBtn.addEventListener('click', function() {
       tool = "brush";
       this.classList.add("active");
-      if (eraserToolBtn) eraserToolBtn.classList.remove("active");
+      this.setAttribute("aria-pressed", "true");
+      if (eraserToolBtn) { eraserToolBtn.classList.remove("active"); eraserToolBtn.setAttribute("aria-pressed", "false"); }
     });
   }
 
@@ -216,7 +217,8 @@ function openMaskEditor(imageData) {
     eraserToolBtn.addEventListener('click', function() {
       tool = "eraser";
       this.classList.add("active");
-      if (brushToolBtn) brushToolBtn.classList.remove("active");
+      this.setAttribute("aria-pressed", "true");
+      if (brushToolBtn) { brushToolBtn.classList.remove("active"); brushToolBtn.setAttribute("aria-pressed", "false"); }
     });
   }
 

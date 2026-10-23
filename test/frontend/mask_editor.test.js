@@ -121,5 +121,26 @@ describe('Mask Editor', () => {
       // getElementById('maskCanvas') should have been called
       expect(document.getElementById).toHaveBeenCalledWith('maskCanvas');
     });
+
+    it('follows the Web UI modal rules: small footer buttons and a red-outline Clear', () => {
+      maskEditor.openMaskEditor(mockImageData);
+      const footer = document.querySelectorAll('#maskEditorModal .modal-footer .btn');
+      expect([...footer].map((b) => b.className)).toEqual(['btn btn-sm btn-secondary', 'btn btn-sm btn-primary']);
+      expect(document.getElementById('clearMask').className).toBe('btn btn-outline-danger w-50');
+    });
+
+    it('shows which drawing tool is selected', () => {
+      maskEditor.openMaskEditor(mockImageData);
+      const brush = document.getElementById('brushTool');
+      const eraser = document.getElementById('eraserTool');
+      const state = () => [brush, eraser].map((b) => [b.classList.contains('active'), b.getAttribute('aria-pressed')]);
+      // Both share one style, so only the selected one is filled.
+      expect(brush.className.replace(' active', '')).toBe(eraser.className);
+      expect(state()).toEqual([[true, 'true'], [false, 'false']]);
+      eraser.click();
+      expect(state()).toEqual([[false, 'false'], [true, 'true']]);
+      brush.click();
+      expect(state()).toEqual([[true, 'true'], [false, 'false']]);
+    });
   });
 });

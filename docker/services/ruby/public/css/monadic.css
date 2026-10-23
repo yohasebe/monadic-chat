@@ -4227,6 +4227,13 @@ img.base64-image,
   border-color: var(--border-medium);
 }
 
+/* A range slider draws its own track; the box above would sit behind it */
+
+.dark-theme .form-range {
+  background-color: transparent;
+  border-color: transparent;
+}
+
 /* Dark mode: Ensure textarea specifically has white text */
 
 .dark-theme textarea,

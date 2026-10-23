@@ -3018,9 +3018,9 @@ img.base64-image,
 /* Secondary button style - balanced gray for white text contrast */
 
 .btn-secondary {
-  background-color: #78828c; /* Slightly lighter gray (between gray-500 and gray-400) */
-  border-color: #78828c;
-  color: #ffffff;
+  background-color: var(--btn-secondary-bg); /* Slightly lighter gray (between gray-500 and gray-400) */
+  border-color: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
 }
 
 .btn-secondary:hover {
@@ -3744,18 +3744,18 @@ img.base64-image,
 
 /* Primary button colors */
 .btn-primary {
-  background-color: #007bff;
-  border-color: #007bff;
+  background-color: var(--btn-primary-bg);
+  border-color: var(--btn-primary-bg);
 }
 
 .btn-primary:focus {
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  box-shadow: 0 0 0 0.2rem var(--btn-primary-focus-shadow-color);
 }
 
 .btn-primary:active,
 .btn-primary.active {
-  background-color: #0056b3;
-  border-color: #004085;
+  background-color: var(--btn-primary-active-bg);
+  border-color: var(--btn-primary-active-border);
 }
 
 .btn-primary:hover {
@@ -3764,13 +3764,13 @@ img.base64-image,
 }
 
 .btn-primary:disabled {
-  background-color: #6c9bd1;
-  border-color: #6c9bd1;
+  background-color: var(--btn-primary-disabled-bg);
+  border-color: var(--btn-primary-disabled-bg);
 }
 
 /* Secondary button focus */
 .btn-secondary:focus {
-  box-shadow: 0 0 0 0.2rem rgba(113, 128, 150, 0.25);
+  box-shadow: 0 0 0 0.2rem var(--btn-secondary-focus-shadow-color);
 }
 
 /* Cancel button focus */
@@ -4553,9 +4553,9 @@ img.base64-image,
 }
 
 .dark-theme .btn-secondary {
-  background-color: #5a6470;
-  border-color: #5a6470;
-  color: #e5e7eb;
+  background-color: var(--btn-secondary-bg);
+  border-color: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
 }
 
 .dark-theme .btn-secondary:hover {
@@ -4862,29 +4862,29 @@ i.fas.fa-bolt,
 /* Dark mode: Modal dialogs (high specificity) */
 
 .dark-theme .modal-content {
-  background-color: #2b2b2b;
-  color: #e5e5e5;
-  border: 1px solid #444;
+  background-color: var(--modal-bg);
+  color: var(--modal-text);
+  border: 1px solid var(--modal-border-color);
 }
 
 .dark-theme .modal-header {
-  background-color: #333;
-  color: #e5e5e5;
-  border-bottom: 1px solid #444;
+  background-color: var(--modal-header-bg);
+  color: var(--modal-text);
+  border-bottom: 1px solid var(--modal-divider-color);
 }
 
 .dark-theme .modal-header .modal-title {
-  color: #e5e5e5;
+  color: var(--modal-title-color);
 }
 
 .dark-theme .modal-body {
-  background-color: #2b2b2b;
-  color: #e5e5e5;
+  background-color: var(--modal-bg);
+  color: var(--modal-text);
 }
 
 .dark-theme .modal-footer {
-  background-color: #2b2b2b;
-  border-top: 1px solid #444;
+  background-color: var(--modal-bg);
+  border-top: 1px solid var(--modal-divider-color);
 }
 
 /* Dark mode: Modal form inputs (high specificity with attribute selectors) */
@@ -4893,18 +4893,18 @@ i.fas.fa-bolt,
 .dark-theme .modal-body input[type="file"],
 .dark-theme .modal-body textarea,
 .dark-theme .modal-body select {
-  background-color: #3a3a3a;
-  color: #e5e5e5;
-  border: 1px solid #555;
+  background-color: var(--modal-input-bg);
+  color: var(--modal-input-text);
+  border: 1px solid var(--modal-input-border);
 }
 
 .dark-theme .modal-body input[type="text"]::placeholder,
 .dark-theme .modal-body textarea::placeholder {
-  color: #999;
+  color: var(--modal-placeholder);
 }
 
 .dark-theme .modal-body label {
-  color: #e5e5e5;
+  color: var(--modal-text);
 }
 
 /* Dark mode: Modal close button */
@@ -5739,15 +5739,15 @@ i.fas.fa-bolt,
   #theme-system:hover:not(:disabled),
   #theme-light:hover:not(:disabled),
   #theme-dark:hover:not(:disabled) {
-    background-color: #5a6268;
-    border-color: #545b62;
+    background-color: var(--btn-secondary-hover-bg);
+    border-color: var(--btn-secondary-hover-border);
   }
 
   /* Primary buttons - add background color change */
   .btn-primary:hover:not(:disabled),
   #start-button:hover:not(:disabled) {
-    background-color: #0069d9;
-    border-color: #0062cc;
+    background-color: var(--btn-primary-hover-bg);
+    border-color: var(--btn-primary-hover-border);
   }
 
   .dark-theme .btn-warning:hover:not(:disabled),

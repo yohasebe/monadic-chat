@@ -106,11 +106,41 @@
   --status-success: #198754;
 
   /* Button Colors - Unified for consistency */
-  --btn-primary: #007bff;
-  --btn-secondary: #718096;
   --btn-warning: #ffa726;
   --btn-danger: #ef5350;
   --btn-info: #29b6f6;
+
+  /* Primary and secondary buttons (.btn-primary, .btn-secondary). Hover is
+     the @media (hover: hover) rule. Active is what the :active/.active rule
+     sets; a pressed button is also hovered, and the hover rule can win.
+     The focus values are colors for the focus ring, not whole shadows. */
+  --btn-primary-bg: #007bff;
+  --btn-primary-hover-bg: #0069d9;
+  --btn-primary-hover-border: #0062cc;
+  --btn-primary-active-bg: #0056b3;
+  --btn-primary-active-border: #004085;
+  --btn-primary-disabled-bg: #6c9bd1;
+  --btn-primary-focus-shadow-color: rgba(0, 123, 255, 0.25);
+  --btn-secondary-bg: #78828c;
+  --btn-secondary-text: #ffffff;
+  --btn-secondary-hover-bg: #5a6268;
+  --btn-secondary-hover-border: #545b62;
+  --btn-secondary-hover-text: #ffffff;
+  --btn-secondary-focus-shadow-color: rgba(113, 128, 150, 0.25);
+
+  /* Modal dialogs. In light mode the Web UI's modals take these from
+     Bootstrap and the h5 rule; the values here are for the app's own windows,
+     which do not load Bootstrap. */
+  --modal-bg: #ffffff;
+  --modal-text: #212529;
+  --modal-title-color: #777;
+  --modal-header-bg: transparent;
+  --modal-border-color: rgba(0, 0, 0, 0.176);
+  --modal-divider-color: #dee2e6;
+  --modal-input-bg: #ffffff;
+  --modal-input-text: #212529;
+  --modal-input-border: #dee2e6;
+  --modal-placeholder: rgba(33, 37, 41, 0.75);
 
   /* Panel Borders - Lightened for softer appearance */
   --panel-border: #9e9e9e;
@@ -230,11 +260,25 @@
   --status-success: #5bc47f;
 
   /* Button Colors - Adjusted for dark mode visibility */
-  --btn-primary: #4a9eff;
-  --btn-secondary: #8b96a8;
   --btn-warning: #ffb84d;
   --btn-danger: #ff6b6b;
   --btn-info: #52c9ff;
+
+  /* Primary and secondary buttons */
+  --btn-secondary-bg: #5a6470;
+  --btn-secondary-text: #e5e7eb;
+
+  /* Modal dialogs */
+  --modal-bg: #2b2b2b;
+  --modal-text: #e5e5e5;
+  --modal-title-color: #e5e5e5;
+  --modal-header-bg: #333;
+  --modal-border-color: #444;
+  --modal-divider-color: #444;
+  --modal-input-bg: #3a3a3a;
+  --modal-input-text: #e5e5e5;
+  --modal-input-border: #555;
+  --modal-placeholder: #999;
 
   /* Panel Borders - Darker for dark mode */
   --panel-border: #555;

@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { tokensPath, createTokenLoader, applyTokens, shareTokens } = require('../../app/design_tokens');
+const { tokensPath, createTokenLoader, applyTokens, shareTokens, prepareWindow, showWindow } = require('../../app/design_tokens');
 
 const ROOT = path.join(__dirname, '..', '..');
 const TOKENS = 'docker/services/ruby/public/css/tokens.css';
@@ -96,6 +96,78 @@ describe('putting them into a window', () => {
     expect(log).toHaveBeenCalledTimes(1);
   });
 
+  test('the first page is ready once its sheet is in, and at the latest after the wait', async () => {
+    jest.useFakeTimers();
+    try {
+      let finish;
+      const slow = fakeContents({ insert: jest.fn(() => new Promise((r) => { finish = r; })) });
+      let done = false;
+      shareTokens(slow, () => ':root{}', { timeoutMs: 1000 }).then(() => { done = true; });
+      slow.emit('dom-ready');
+      await Promise.resolve();
+      expect(done).toBe(false);
+      finish();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(done).toBe(true);
+
+      const never = fakeContents();
+      let timedOut = false;
+      shareTokens(never, () => ':root{}', { timeoutMs: 1000 }).then(() => { timedOut = true; });
+      await jest.advanceTimersByTimeAsync(999);
+      expect(timedOut).toBe(false);
+      await jest.advanceTimersByTimeAsync(1);
+      expect(timedOut).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('a window is shown only after its first page is ready, and never once it is closed', async () => {
+    let finish;
+    const contents = fakeContents({ insert: jest.fn(() => new Promise((r) => { finish = r; })) });
+    let destroyed = false;
+    const win = { webContents: contents, isDestroyed: () => destroyed, show: jest.fn(), focus: jest.fn(), on: jest.fn() };
+    prepareWindow(win, () => ':root{}');
+    contents.emit('dom-ready');
+    const shown = showWindow(win, { focus: true });
+    await Promise.resolve();
+    expect(win.show).not.toHaveBeenCalled();
+    finish();
+    expect(await shown).toBe(true);
+    expect(win.show).toHaveBeenCalledTimes(1);
+    expect(win.focus).toHaveBeenCalledTimes(1);
+
+    destroyed = true;
+    expect(await showWindow(win)).toBe(false);
+    expect(win.show).toHaveBeenCalledTimes(1);
+  });
+
+  test('a show asked for before the window was closed (only hidden) is dropped; a later one is not', async () => {
+    let finish;
+    const contents = fakeContents({ insert: jest.fn(() => new Promise((r) => { finish = r; })) });
+    const handlers = {};
+    const events = [];
+    const win = {
+      webContents: contents,
+      isDestroyed: () => false,
+      show: jest.fn(() => events.push('show')),
+      focus: jest.fn(),
+      hide: jest.fn(() => { events.push('hide'); (handlers.hide || []).forEach((fn) => fn()); }),
+      on: (event, fn) => { (handlers[event] = handlers[event] || []).push(fn); }
+    };
+    prepareWindow(win, () => ':root{}');
+    contents.emit('dom-ready');
+    const first = showWindow(win);
+    (handlers.close || []).forEach((fn) => fn());
+    win.hide();
+    finish();
+    expect(await first).toBe(false);
+    expect(events).toEqual(['hide']);
+
+    expect(await showWindow(win)).toBe(true);
+    expect(events).toEqual(['hide', 'show']);
+  });
+
   test('every page the window loads gets them again', () => {
     const contents = fakeContents();
     shareTokens(contents, () => ':root{}');
@@ -113,7 +185,7 @@ describe("the app's windows", () => {
     ['settings', 'settingsWindow', "settingsWindow.loadFile(path.join(__dirname, 'settings.html'))"],
     ['the passphrase prompt', 'win', "win.loadFile(path.join(__dirname, 'passphrase-prompt.html'))"]
   ])('%s gets the variables before its page loads', (_name, variable, load) => {
-    const share = main.indexOf(`designTokens.shareTokens(${variable}.webContents, loadDesignTokens)`);
+    const share = main.indexOf(`designTokens.prepareWindow(${variable}, loadDesignTokens)`);
     const loads = main.indexOf(load);
     expect(share).toBeGreaterThan(-1);
     expect(loads).toBeGreaterThan(share);

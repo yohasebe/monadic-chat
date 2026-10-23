@@ -20,6 +20,7 @@ const { writeStreamNoFollow, readStreamNoFollow, openReadNoFollow } = require('.
 const { monadicShEnv, monadicInvocation } = require('./monadic_env');
 const { keepWarnings, createLineBuffer } = require('./build_output');
 const designTokens = require('./design_tokens');
+const { createThemeSync } = require('./theme_sync');
 
 // Splash window for updates
 let updateSplashWindow = null;
@@ -1348,8 +1349,7 @@ app.on('before-quit', (event) => {
 function openMainWindow() {
   createMainWindow();
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.show();
-    mainWindow.focus();
+    designTokens.showWindow(mainWindow, { focus: true });
   }
 }
 
@@ -1750,8 +1750,7 @@ function initializeApp() {
         createMainWindow();
       } else {
         // If mainWindow exists, just show it
-        mainWindow.show();
-        mainWindow.focus();
+        designTokens.showWindow(mainWindow, { focus: true });
       }
     });
 
@@ -1826,7 +1825,7 @@ function initializeApp() {
 
     // Show main window if it exists
     if (mainWindow) {
-      mainWindow.show();
+      designTokens.showWindow(mainWindow);
     }
 
     // Set up window close handlers
@@ -2078,10 +2077,10 @@ function promptPassphrase(parent, opts) {
     ipcMain.on('passphrase-prompt:result', onResult);
 
     win.on('closed', () => settle(null));
-    designTokens.shareTokens(win.webContents, loadDesignTokens);
+    designTokens.prepareWindow(win, loadDesignTokens);
     win.webContents.once('did-finish-load', () => {
       win.webContents.send('passphrase-prompt:init', options);
-      win.show();
+      designTokens.showWindow(win);
     });
     win.loadFile(path.join(__dirname, 'passphrase-prompt.html'));
   });
@@ -2946,6 +2945,8 @@ function createMainWindow() {
     },
     title: "Monadic Chat",
     useContentSize: true,
+    // Shown once its page has the design variables (designTokens.showWindow)
+    show: false,
     // Show menu bar to enable standard shortcuts
     autoHideMenuBar: false,
     backgroundColor: '#f0f0f0'
@@ -2969,8 +2970,9 @@ function createMainWindow() {
     return { action: 'deny' }
   })
 
-  designTokens.shareTokens(mainWindow.webContents, loadDesignTokens);
+  designTokens.prepareWindow(mainWindow, loadDesignTokens);
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
+  designTokens.showWindow(mainWindow);
   
   // Ensure initial messages are sent after the window loads
   mainWindow.webContents.once('did-finish-load', () => {
@@ -3329,7 +3331,7 @@ function openSettingsWindow(category = null) {
       }
     });
 
-    designTokens.shareTokens(settingsWindow.webContents, loadDesignTokens);
+    designTokens.prepareWindow(settingsWindow, loadDesignTokens);
     settingsWindow.loadFile(path.join(__dirname, 'settings.html'));
     
     // Send the current interface language to the settings window after it loads
@@ -3393,7 +3395,7 @@ function openSettingsWindow(category = null) {
       );
     }
   }
-  settingsWindow.show();
+  designTokens.showWindow(settingsWindow);
 }
 
 // Send fresh settings from disk to a renderer window
@@ -4404,6 +4406,12 @@ app.whenReady().then(async () => {
     // Log but don't crash - let the app continue if possible
   });
   
+  // The theme setting is read before the first window is made (at most a
+  // second), and read again on changes and after the computer wakes.
+  const themeSync = createThemeSync({ cookies: require('electron').session.fromPartition('persist:monadicchat').cookies, nativeTheme });
+  await themeSync.start();
+  powerMonitor.on('resume', () => { themeSync.refresh(); });
+
   // Check for pending updates before initializing the app
   const pendingUpdateState = readUpdateState();
   if (pendingUpdateState && pendingUpdateState.updateReady) {
@@ -4612,8 +4620,7 @@ ipcMain.handle('select-tts-dict', async (event) => {
 ipcMain.on('focus-main-window', () => {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.show();
-    mainWindow.focus();
+    designTokens.showWindow(mainWindow, { focus: true });
   }
 });
 // Open external URLs in the default browser when requested by the renderer
@@ -4629,9 +4636,9 @@ ipcMain.on('open-novnc', () => {
 // Theme Management (Dark Mode Support)
 // ============================================
 
-// Electron native theme always follows system preference
-// This affects window frame, dialogs, and native UI elements
-// Web UI content theme is managed independently via cookies
+// Until the Web UI's theme setting is read (theme_sync.js, in app.whenReady)
+// the native theme follows the system. It applies to window frames, dialogs
+// and prefers-color-scheme in every window.
 nativeTheme.themeSource = 'system';
 
 // Keep track of last check time to reduce frequency

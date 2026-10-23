@@ -28,4 +28,14 @@ describe('design tokens', () => {
     const again = [...defined(monadic)].filter((v) => inTokens.has(v));
     expect(again).toEqual([]);
   });
+
+  // Bootstrap's .text-muted, .form-text and .text-body-secondary take
+  // --bs-secondary-color with !important, so a dark .text-muted rule in
+  // monadic.css never wins; the variable itself has to change in dark.
+  it("gives Bootstrap's secondary text a dark value in dark mode", () => {
+    const dark = tokens.slice(tokens.indexOf('.dark-theme {'));
+    expect(dark).toMatch(/--bs-secondary-color:\s*var\(--text-muted\);/);
+    expect(tokens.slice(0, tokens.indexOf('.dark-theme {'))).not.toContain('--bs-secondary-color');
+    expect(monadic).not.toMatch(/\.dark-theme [^{,]*\.text-muted\s*[,{]/);
+  });
 });

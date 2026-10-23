@@ -232,6 +232,9 @@
   --text-tertiary: #b8b8b8;
   --text-quaternary: #e0e0e0;
   --text-muted: #999;
+  /* Bootstrap's secondary text (.text-muted, .form-text, ...) follows its
+     own dark switch (data-bs-theme), which the Web UI does not use. */
+  --bs-secondary-color: var(--text-muted);
   --text-link: #6b9bd8;
   --text-link-hover: #8fb3e8;
 

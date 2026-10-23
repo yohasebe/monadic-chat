@@ -4301,7 +4301,6 @@ img.base64-image,
 /* Dark mode: Override any Bootstrap or system colors that might be dark */
 
 .dark-theme .text-dark,
-.dark-theme .text-muted,
 .dark-theme .text-black-50 {
   color: var(--text-primary);
 }
@@ -4934,10 +4933,6 @@ i.fas.fa-bolt,
 .dark-theme #tts-toast .toast-body {
   background-color: #2b2b2b;
   color: #e5e5e5;
-}
-
-.dark-theme #tts-toast .toast-body .text-muted {
-  color: #aaa;
 }
 
 /* Dark mode: Navbar improvements (ID selectors have high specificity) */

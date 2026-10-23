@@ -4836,6 +4836,22 @@ i.fas.fa-bolt,
   filter: drop-shadow(0 0 6px rgba(255, 193, 7, 0.25));
 }
 
+/* Dark mode: Delete buttons (red outline). Bootstrap's #dc3545 is dim on the
+   dark surfaces; the dark error color reads, with dark text when filled. */
+
+.dark-theme .btn-outline-danger {
+  --bs-btn-color: var(--status-error);
+  --bs-btn-border-color: var(--status-error);
+  --bs-btn-hover-color: var(--bg-body);
+  --bs-btn-hover-bg: var(--status-error);
+  --bs-btn-hover-border-color: var(--status-error);
+  --bs-btn-active-color: var(--bg-body);
+  --bs-btn-active-bg: var(--status-error);
+  --bs-btn-active-border-color: var(--status-error);
+  --bs-btn-disabled-color: var(--status-error);
+  --bs-btn-disabled-border-color: var(--status-error);
+}
+
 /* Dark mode: Outline secondary buttons (needs to override Bootstrap) */
 
 .dark-theme .btn-outline-secondary {

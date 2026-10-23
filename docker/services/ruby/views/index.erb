@@ -1521,8 +1521,8 @@
             <span data-i18n="ui.modals.pdfDeleteConfirmation">Are you sure you want to delete</span> <span class="fw-bold text-secondary-styled" id="pdfToDelete"></span>?
           </div>
           <div class="modal-footer">
-            <div></div>
-            <button type="button" id="pdfDeleteConfirmed" class="btn btn-sm btn-primary" data-i18n="ui.modals.confirm">Confirm</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" id="pdfDeleteConfirmed" class="btn btn-sm btn-outline-danger" data-i18n="ui.modals.confirm">Confirm</button>
           </div>
         </div>
       </div>
@@ -1541,8 +1541,8 @@
             <p id="messageToDelete" class="text-secondary-styled"></p>
           </div>
           <div class="modal-footer flex-column align-items-stretch">
-            <button type="button" id="deleteMessageOnly" class="btn btn-sm btn-warning mb-2" data-i18n="ui.deleteMessageOnly"><i class="fa-regular fa-circle-right"></i> Delete this message only</button>
-            <button type="button" id="deleteMessageAndSubsequent" class="btn btn-sm btn-warning mb-2" data-i18n="ui.deleteMessageAndBelow"><i class="fa-regular fa-circle-down"></i> Delete this message and below</button>
+            <button type="button" id="deleteMessageOnly" class="btn btn-sm btn-outline-danger mb-2" data-i18n="ui.deleteMessageOnly"><i class="fa-regular fa-circle-right"></i> Delete this message only</button>
+            <button type="button" id="deleteMessageAndSubsequent" class="btn btn-sm btn-outline-danger mb-2" data-i18n="ui.deleteMessageAndBelow"><i class="fa-regular fa-circle-down"></i> Delete this message and below</button>
             <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
           </div>
         </div>
@@ -1583,7 +1583,7 @@
               <input id="file-load" class="form-control form-control-sm" type="file" name="file" accept=".json">
             </div>
             <div class="modal-footer">
-              <div></div>
+              <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
               <div class="spinner-border" role="status" id="load-spinner" style="display: none;">
                 <span class="visually-hidden">Loading . . .</span>
               </div>
@@ -1611,7 +1611,7 @@
             <input class="form-control form-control-sm" id="fileFile" type="file" name="fileFile">
           </div>
           <div class="modal-footer">
-            <div></div>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
             <div class="spinner-border" role="status" id="file-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
@@ -1637,7 +1637,7 @@
             <input class="form-control form-control-sm" id="docFile" type="file" name="docFile">
           </div>
           <div class="modal-footer">
-            <div></div>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
             <div class="spinner-border" role="status" id="doc-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
@@ -1659,7 +1659,7 @@
             <input class="form-control form-control-sm" id="audioFile" type="file" name="audioFile" accept=".mp3,.wav,.m4a,.ogg,.flac,.mid,.midi">
           </div>
           <div class="modal-footer">
-            <div></div>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
             <div class="spinner-border" role="status" id="audio-upload-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
@@ -1687,7 +1687,7 @@
             </div>
           </div>
           <div class="modal-footer">
-            <div></div>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
             <div class="spinner-border" role="status" id="url-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>

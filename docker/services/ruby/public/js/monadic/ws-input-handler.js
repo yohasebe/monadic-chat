@@ -31,6 +31,12 @@
       var easySubmitChecked = easySubmitEl && easySubmitEl.checked;
       var messageHasFocus = document.activeElement === messageEl;
 
+      // An open dialog owns the keyboard: Enter and the arrows there belong
+      // to its fields and buttons, not to the chat. Bootstrap keeps
+      // body.modal-open from the start of showing until the dialog is hidden,
+      // so a dialog still fading in or out counts as open.
+      if (document.body.classList.contains('modal-open') || document.querySelector('.modal.show')) return;
+
       // Right Arrow — activate voice input while the session is running
       if (easySubmitChecked && !messageHasFocus && event.key === 'ArrowRight') {
         event.preventDefault();

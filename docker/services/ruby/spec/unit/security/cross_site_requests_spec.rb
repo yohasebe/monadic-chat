@@ -125,6 +125,19 @@ RSpec.describe "Web app and requests from other sites" do
     out["serve_pdf"] = served.call("/data/doc.pdf")
     out["serve_root_redirect"] = req.get("http://localhost:4567/page.html", "HTTP_HOST" => "localhost:4567").headers["location"].to_s
 
+    # Every pub_ name, in any case, is answered from the ledger alone: files
+    # of those names in the shared folder (an old copy, one of the new form
+    # that is not recorded) are not served, by GET, HEAD or a range.
+    pub_names = ["pub_a_#{'a' * 16}.mp4", "pub_#{'b' * 16}.mp4", "PUB_#{'b' * 16}.mp4", "Pub_j_#{'c' * 16}.vtt"]
+    pub_names.each { |name| File.write(File.join(data, name), "SHARED") }
+    out["serve_pub"] = pub_names.flat_map do |name|
+      %w[/data/ /monadic/data/].flat_map do |prefix|
+        url = "http://localhost:4567#{prefix}#{name}"
+        [req.get(url, "HTTP_HOST" => "localhost:4567"), req.head(url, "HTTP_HOST" => "localhost:4567"),
+         req.get(url, "HTTP_HOST" => "localhost:4567", "HTTP_RANGE" => "bytes=0-1")].map { |r| [r.status, r.body.include?("SHARED")] }
+      end
+    end.uniq
+
     # WebSockets over a real socket: the own page must actually connect and
     # receive the first message, not merely avoid a 403.
     require "async"
@@ -236,6 +249,10 @@ RSpec.describe "Web app and requests from other sites" do
     end
     %w[serve_html serve_png serve_pdf].each { |key| expect(@result[key]["nosniff"]).to eq("nosniff"), key }
     expect(@result["serve_root_redirect"]).to end_with("/data/page.html")
+  end
+
+  it "answers every pub_ name from the ledger, never with a file of that name in the shared folder" do
+    expect(@result["serve_pub"]).to eq([[404, false]])
   end
 
   it "answers only requests naming this computer" do

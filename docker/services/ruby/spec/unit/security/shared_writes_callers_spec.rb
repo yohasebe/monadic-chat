@@ -3,13 +3,12 @@
 require "spec_helper"
 require "tmpdir"
 require "fileutils"
-require_relative "../../../lib/monadic/utils/public_copy"
 require_relative "../../../lib/monadic/utils/tool_image_utils"
 require_relative "../../../lib/monadic/workspace"
 
 # The places that write into the shared folder for the server leave a file
-# outside it unchanged when a link is put where they write: the public
-# copies, the run folders, the image a video is made from, the chat folders.
+# outside it unchanged when a link is put where they write: the run
+# folders, the image a video is made from, the chat folders.
 RSpec.describe "Writes into the shared folder" do
   around do |example|
     Dir.mktmpdir("shared-writes") do |dir|
@@ -32,24 +31,6 @@ RSpec.describe "Writes into the shared folder" do
   def outside_unchanged
     expect(File.read(@secret)).to eq("SECRET")
     expect(Dir.children(@outside)).to eq(["report.txt"])
-  end
-
-  describe Monadic::Utils::PublicCopy do
-    it "makes no copy through a link at the public name, and copies nothing from behind a link" do
-      File.write(File.join(@root, "clip.vtt"), "WEBVTT")
-      File.symlink(@secret, File.join(@root, "pub_x.vtt"))
-      expect(described_class.publish(File.join(@root, "clip.vtt"), "pub_x.vtt")).to be_nil
-      File.symlink(@secret, File.join(@root, "linked.vtt"))
-      expect(described_class.publish(File.join(@root, "linked.vtt"), "pub_y.vtt")).to be_nil
-      expect(File.exist?(File.join(@root, "pub_y.vtt"))).to be(false)
-      outside_unchanged
-    end
-
-    it "copies a plain file" do
-      File.write(File.join(@root, "clip.vtt"), "WEBVTT")
-      expect(described_class.publish(File.join(@root, "clip.vtt"), "pub_z.vtt")).to eq("/data/pub_z.vtt")
-      expect(File.read(File.join(@root, "pub_z.vtt"))).to eq("WEBVTT")
-    end
   end
 
   describe "the image a video is made from" do

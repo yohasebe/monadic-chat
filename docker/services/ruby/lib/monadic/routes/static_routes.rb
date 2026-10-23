@@ -182,17 +182,23 @@ end
 # (scripts still run, e.g. interactive plots; the app's server refuses their
 # requests as coming from another origin). Not applied to every file: Chrome
 # does not open PDFs in a sandboxed document.
-SHARED_ACTIVE_TYPES = %w[text/html application/xhtml+xml image/svg+xml text/xml application/xml].freeze
+SHARED_ACTIVE_TYPES = %w[text/html application/xhtml+xml image/svg+xml text/xml application/xml text/vtt application/x-subrip].freeze
 SHARED_SANDBOX_POLICY = "sandbox allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads"
 
 def fetch_file(file_name)
   # Everything (name checks, opening once and never through a link, ranges,
   # 304) is in Monadic::Utils::SharedFilePath.response, so the specs exercise
-  # the same code; what is served is the file it opened.
-  status_code, response_headers, response_body = Monadic::Utils::SharedFilePath.response(
-    file_name, Monadic::Utils::Environment.data_path, request.env,
-    extra_headers: ->(type) { SHARED_ACTIVE_TYPES.include?(type) ? { "content-security-policy" => SHARED_SANDBOX_POLICY } : {} }
-  )
+  # the same code; what is served is the file it opened. A name starting with
+  # pub_ (in any case) is a publication: answered from the ledger alone
+  # (Monadic::Workspace::Publications.response), never from the shared folder.
+  sandbox = ->(type) { SHARED_ACTIVE_TYPES.include?(type) ? { "content-security-policy" => SHARED_SANDBOX_POLICY } : {} }
+  status_code, response_headers, response_body =
+    if Monadic::Workspace::Publications.public_name?(file_name)
+      Monadic::Workspace::Publications.response(file_name, request.env, extra_headers: sandbox)
+    else
+      Monadic::Utils::SharedFilePath.response(file_name, Monadic::Utils::Environment.data_path, request.env,
+                                              extra_headers: sandbox)
+    end
   status status_code
   headers response_headers
   body response_body

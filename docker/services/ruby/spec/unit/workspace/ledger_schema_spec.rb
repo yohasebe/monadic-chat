@@ -67,11 +67,84 @@ RSpec.describe Monadic::Workspace::LedgerSchema do
     expect(error_of).to be_a(ledger_class::Shape)
   end
 
-  it 'keeps publications empty in this version (records there are refused)' do
-    filled
-    edit { |data| data['publications'][ids.generate(:publication)] = {} }
-    expect(error_of).to be_a(ledger_class::Shape)
-    expect(error_of.message).to include('does not know')
+  describe 'publications' do
+    def published(made, status: 'ready')
+      id = ids.generate(:publication)
+      record = ledger.reserve_publication(publication_id: id, name: "pub_#{id.delete_prefix('p_')}.mp4", token: 'c' * 16,
+                                          kind: 'attachment', id: made[:attachments]['ready'], cap_bytes: 1000)
+      ledger.settle_publication(id, 'c' * 16) if status == 'ready'
+      record
+    end
+
+    it 'takes a publication of a ready attachment, pending with its token or ready without one' do
+      made = filled
+      record = published(made, status: 'pending')
+      expect(record).to include(status: 'pending', size: 10, sha256: 'a' * 64, content_type: 'video/mp4', chat_id: made[:chat])
+      expect(error_of).to be_nil
+      expect(ledger.settle_publication(record[:publication_id], 'c' * 16)).to include(status: 'ready')
+      expect(error_of).to be_nil
+    end
+
+    {
+      'a name not of the public form' => ->(r) { r['name'] = 'video.mp4' },
+      'a name not made from its id' => ->(r) { r['name'] = "pub_#{'b' * 16}.mp4" },
+      'an extension not published' => ->(r) { r['name'] = r['name'].sub('.mp4', '.exe') },
+      'a type that does not go with the name' => ->(r) { r['content_type'] = 'text/html' },
+      'a source sha256 that is not its source\'s' => ->(r) { r['source']['sha256'] = 'd' * 64 },
+      'a size that is not its source\'s' => ->(r) { r['size'] = 11 },
+      'an unknown status' => ->(r) { r['status'] = 'served' },
+      'a token on a ready record' => ->(r) { r['token'] = 'c' * 16 },
+      'an unknown source kind' => ->(r) { r['source']['kind'] = 'file' },
+      'another chat' => ->(r) { r['chat_id'] = Monadic::Workspace::Ids.generate(:chat) }
+    }.each do |what, change|
+      it "refuses #{what}" do
+        made = filled
+        record = published(made)
+        edit { |data| change.call(data['publications'][record[:publication_id]]) }
+        expect(error_of).to be_a(ledger_class::Shape)
+      end
+    end
+
+    it 'refuses a pending record without its token, a source that is not ready, and two live ones of one source' do
+      made = filled
+      record = published(made)
+      edit { |data| data['publications'][record[:publication_id]].merge!('status' => 'pending') }
+      expect(error_of).to be_a(ledger_class::Shape)
+      edit { |data| data['publications'][record[:publication_id]].merge!('status' => 'ready', 'source' => { 'kind' => 'attachment', 'id' => made[:attachments]['failed'], 'sha256' => 'a' * 64 }) }
+      expect(error_of).to be_a(ledger_class::Shape)
+      edit do |data|
+        first = data['publications'][record[:publication_id]]
+        first['source']['id'] = made[:attachments]['ready']
+        other = ids.generate(:publication)
+        data['publications'][other] = first.merge('name' => "pub_#{other.delete_prefix('p_')}.mp4")
+      end
+      expect(error_of).to be_a(ledger_class::Shape)
+    end
+
+    it 'records a source once while it is pending or ready, and within the room allowed' do
+      made = filled
+      record = published(made, status: 'pending')
+      expect do
+        other = ids.generate(:publication)
+        ledger.reserve_publication(publication_id: other, name: "pub_#{other.delete_prefix('p_')}.mp4", token: 'd' * 16,
+                                   kind: 'attachment', id: made[:attachments]['ready'], cap_bytes: 1000)
+      end.to raise_error(ledger_class::Conflict)
+      ledger.drop_publication(record[:publication_id], 'c' * 16)
+      expect do
+        other = ids.generate(:publication)
+        ledger.reserve_publication(publication_id: other, name: "pub_#{other.delete_prefix('p_')}.mp4", token: 'd' * 16,
+                                   kind: 'attachment', id: made[:attachments]['ready'], cap_bytes: 9)
+      end.to raise_error(ledger_class::Full)
+    end
+
+    it 'makes ready only the pending record of the operation that holds its token, never a revoked one' do
+      made = filled
+      record = published(made, status: 'pending')
+      expect { ledger.settle_publication(record[:publication_id], 'x' * 16) }.to raise_error(ledger_class::Conflict)
+      expect(ledger.mark_publication(record[:publication_id], status: 'revoked', from: %w[pending ready])).to be(true)
+      expect { ledger.settle_publication(record[:publication_id], 'c' * 16) }.to raise_error(ledger_class::Conflict)
+      expect(ledger.publication_named(record[:name])[:status]).to eq('revoked')
+    end
   end
 
   describe 'artifacts' do

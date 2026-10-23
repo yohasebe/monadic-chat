@@ -31,6 +31,15 @@ rescue StandardError => e
   puts "[Workspace] Ledger check skipped: #{e.class}"
 end
 
+# Publications a stopped server left pending are removed, and those whose
+# chat's folder is gone are revoked with their copies (before any request).
+begin
+  revoked = Monadic::Workspace::Publications.reconcile!
+  puts "[Workspace] Publications revoked: #{revoked.size}" unless revoked.empty?
+rescue StandardError => e
+  puts "[Workspace] Publications check skipped: #{e.class}"
+end
+
 set :logging, true
 set :bind, "0.0.0.0"
 

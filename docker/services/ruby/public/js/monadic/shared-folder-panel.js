@@ -114,7 +114,7 @@
   const CLASS_LABELS = {
     chat_folders: ['chatFolders', 'Chat folders'],
     chat_folder: ['chatFolder', 'Chat folder'],
-    public_copy: ['publicCopy', 'Copy for playback'],
+    public_copy: ['publicCopy', 'Old copy for playback'],
     generated: ['generated', 'Generated file'],
     intermediate_candidate: ['intermediate', 'Possibly a working file'],
     test_file: ['testFile', 'Made by a test run'],

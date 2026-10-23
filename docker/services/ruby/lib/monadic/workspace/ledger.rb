@@ -30,6 +30,8 @@ module Monadic
       FILE_NAME = 'ledger.json'
 
       class Conflict < StandardError; end
+      # A change that would take more room than is allowed (publications).
+      class Full < StandardError; end
       # The ledger cannot be used: nothing is registered or removed then.
       class Unreadable < StandardError; end
       # Not JSON.
@@ -266,6 +268,128 @@ module Monadic
         end
       end
 
+      # Publications. Each change is checked again inside the ledger's lock:
+      # a pending record is made only when its source has none pending or
+      # ready, becomes ready only for the operation holding its token (and
+      # never after it was revoked or dropped), and a status changes only
+      # from the states named.
+
+      # The publication of a source that is pending or ready, or nil.
+      def live_publication(kind, id)
+        read do |data|
+          found = data['publications'].find do |_, record|
+            LedgerSchema::PUBLICATION_LIVE.include?(record['status']) && record['source'].values_at('kind', 'id') == [kind, id]
+          end
+          found && publication_record(*found)
+        end
+      end
+
+      def publication_named(name)
+        read do |data|
+          found = data['publications'].find { |_, record| record['name'] == name }
+          found && publication_record(*found)
+        end
+      end
+
+      def publications
+        read { |data| data['publications'].map { |id, record| publication_record(id, record) } }
+      end
+
+      # The ready publications by name, each with the folder of its chat
+      # (:relative_dir), from one read of the ledger (for serving).
+      def ready_publications
+        read do |data|
+          data['publications'].each_with_object({}) do |(id, record), index|
+            next unless record['status'] == 'ready'
+
+            workspace_id = data['chats'].dig(record['chat_id'], 'workspace_id')
+            relative_dir = workspace_id && data['workspaces'].dig(workspace_id, 'relative_dir')
+            index[record['name']] = publication_record(id, record).merge(relative_dir: relative_dir)
+          end
+        end
+      end
+
+      # Records a pending publication of a ready source of a chat, with the
+      # source's size and sha256. Refused (Conflict) when the source has a
+      # publication pending or ready, and (Full) when the pending and ready
+      # publications would hold more than cap_bytes.
+      def reserve_publication(publication_id:, name:, token:, kind:, id:, cap_bytes:, created_at: Time.now)
+        raise ArgumentError, 'invalid publication id' unless Ids.valid?(:publication, publication_id)
+
+        write do |data|
+          raise Conflict, 'publication id already registered' if data['publications'].key?(publication_id)
+          raise Conflict, 'publication name already registered' if data['publications'].any? { |_, r| r['name'] == name }
+
+          source = case kind
+                   when 'attachment' then data['attachments'][id]
+                   when 'artifact' then data['artifacts'][id]
+                   end
+          raise Conflict, 'the source is not a ready record of a chat' unless source.is_a?(Hash) && source['status'] == 'ready' && source['chat_id']
+
+          live = data['publications'].values.select { |r| LedgerSchema::PUBLICATION_LIVE.include?(r['status']) }
+          raise Conflict, 'the source is already published or being published' if live.any? { |r| r['source'].values_at('kind', 'id') == [kind, id] }
+
+          held = live.sum { |r| r['size'] }
+          raise Full, 'the copies for the page would take more room than is allowed' if held + source['size'] > cap_bytes
+
+          ext = name[LedgerSchema::PUBLICATION_NAME, 2]
+          data['publications'][publication_id] = {
+            'name' => name,
+            'source' => { 'kind' => kind, 'id' => id, 'sha256' => source['sha256'] },
+            'chat_id' => source['chat_id'],
+            'size' => source['size'],
+            'sha256' => source['sha256'],
+            'content_type' => LedgerSchema::PUBLICATION_TYPES[ext],
+            'status' => 'pending',
+            'token' => token,
+            'created_at' => created_at.utc.iso8601
+          }
+          publication_record(publication_id, data['publications'][publication_id])
+        end
+      end
+
+      # Makes the operation's pending publication ready. Refused (Conflict)
+      # when it is no longer that operation's pending record.
+      def settle_publication(publication_id, token)
+        write do |data|
+          record = data['publications'][publication_id]
+          unless record && record['status'] == 'pending' && record['token'] == token
+            raise Conflict, 'the publication is no longer pending for this operation'
+          end
+
+          record['status'] = 'ready'
+          record.delete('token')
+          publication_record(publication_id, record)
+        end
+      end
+
+      # Removes a pending publication: the operation's own (with its token),
+      # or any left by a server that stopped (token nil, at start only).
+      # True when it was there.
+      def drop_publication(publication_id, token = nil)
+        write do |data|
+          record = data['publications'][publication_id]
+          next false unless record && record['status'] == 'pending' && (token.nil? || record['token'] == token)
+
+          data['publications'].delete(publication_id)
+          true
+        end
+      end
+
+      # Sets a publication's status when it is one of from. True when changed.
+      def mark_publication(publication_id, status:, from:)
+        raise ArgumentError, "unknown state #{status}" unless LedgerSchema::PUBLICATION_STATES.include?(status)
+
+        write do |data|
+          record = data['publications'][publication_id]
+          next false unless record && from.include?(record['status'])
+
+          record['status'] = status
+          record.delete('token')
+          true
+        end
+      end
+
       # Attachments left validating by a stopped server never finished; they
       # are marked failed so nothing treats them as usable. Returns them.
       def reconcile_interrupted!
@@ -298,6 +422,10 @@ module Monadic
       end
 
       private
+
+      def publication_record(publication_id, record)
+        record.transform_keys(&:to_sym).merge(publication_id: publication_id)
+      end
 
       def export(workspace_id, record)
         return nil unless record

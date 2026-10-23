@@ -3,7 +3,6 @@
 require 'json'
 require_relative 'segment_transcriber'
 require_relative 'subtitles'
-require_relative 'public_copy'
 require_relative 'shared_path_guard'
 require_relative '../shell'
 require_relative '../workspace'
@@ -203,21 +202,37 @@ module Monadic
 
       # Subtitle files for the transcript (WebVTT for the player, SRT for
       # other programs): kept as artifacts of the run (Workspace::Artifacts),
-      # with a copy in the run folder, and given public copies made from the
-      # kept bytes, never from the run folder's copy. Returns { vtt:, srt: }
-      # addresses, or nil when there is nothing to show.
+      # with a copy in the run folder, and published from the kept artifact
+      # (Workspace::Publications) when the run is a chat's, never from the run
+      # folder's copy. Returns { vtt:, srt: } addresses, or nil when there is
+      # nothing to show.
       def write_subtitles(result)
         return nil if Subtitles.cues(result).empty?
 
         { vtt: Subtitles.vtt(result), srt: Subtitles.srt(result) }.to_h do |kind, body|
           # Kept first: when it cannot be kept, no copy is left in the run
           # folder and nothing is published.
-          next [kind, nil] unless keep_subtitles(kind, body)
+          kept = keep_subtitles(kind, body)
+          next [kind, nil] unless kept
 
           SharedPathGuard.write_file!(File.join(@job[:path], "transcript.#{kind}"), body)
-          [kind, PublicCopy.publish_bytes(body, "pub_#{@job[:job_id]}.#{kind}")]
+          [kind, publish_subtitles(kept)]
         end.compact.then { |links| links.empty? ? nil : links }
       rescue SharedPathGuard::InvalidPath, SystemCallError, IOError
+        nil
+      end
+
+      # The address of the artifact's publication, or nil: a run outside any
+      # chat (the MCP server) is not published, and one that cannot be is
+      # left without an address (the run folder still has its copy).
+      def publish_subtitles(kept)
+        return nil unless @job.dig(:owner, :kind) == :chat
+
+        "/data/#{Monadic::Workspace::Publications.create!(kind: 'artifact', id: kept[:artifact_id])[:name]}"
+      rescue Monadic::Workspace::Publications::Unavailable, Monadic::Workspace::Publications::Changed,
+             Monadic::Workspace::Ledger::Unreadable, Monadic::Workspace::Ledger::Conflict,
+             Monadic::Workspace::ServerOwner::Refused, SystemCallError, IOError => e
+        warn "[Workspace] Subtitles not published: #{e.class.name.split('::').last}"
         nil
       end
 

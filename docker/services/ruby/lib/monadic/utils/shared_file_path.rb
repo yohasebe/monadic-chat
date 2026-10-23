@@ -60,10 +60,16 @@ module Monadic
         file = SharedFilePath.open(requested, datadir)
         return NOT_FOUND.dup unless file
 
+        respond(file, Rack::Mime.mime_type(File.extname(requested.to_s), 'application/octet-stream'), env,
+                extra_headers: extra_headers)
+      end
+
+      # The response from a file already open (the one checked), served as
+      # type; it is closed here unless the body takes it.
+      def respond(file, type, env, extra_headers: ->(_type) { {} })
         handed_over = false
         begin
           stat = file.stat
-          type = Rack::Mime.mime_type(File.extname(requested.to_s), 'application/octet-stream')
           headers = { 'content-type' => type, 'last-modified' => stat.mtime.httpdate, 'accept-ranges' => 'bytes',
                       'x-content-type-options' => 'nosniff' }.merge(extra_headers.call(type))
           return [304, headers.slice('last-modified', 'x-content-type-options'), []] if not_modified?(env, stat.mtime)

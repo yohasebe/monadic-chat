@@ -5,6 +5,7 @@ require 'json'
 require 'stringio'
 require 'fileutils'
 require 'tmpdir'
+require 'digest'
 require 'http'
 require_relative '../../../lib/monadic/agents/image_analysis_agent'
 require_relative '../../../lib/monadic/agents/audio_transcription_agent'
@@ -557,32 +558,43 @@ RSpec.describe VideoAnalyzeAgent do
       expect(transcribed.first).to start_with(File.join(File.realpath(@data), call[:argv][3].delete_prefix('/monadic/data/')))
     end
 
-    it 'puts a copy of the attached video in the shared folder for the page to play' do
-      record = attach
-      result = agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id })
-      name = "pub_#{record[:attachment_id]}.mp4"
-      expect(result).to start_with("Video for display: /data/#{name}\n\n")
-      copy = File.join(File.realpath(@data), name)
-      expect(File.binread(copy)).to eq(mp4)
-      expect(Dir[File.join(File.realpath(@data), '*.part-*')]).to be_empty
-
-      # The copy is a copy: writing to it leaves the attachment as it was.
-      File.binwrite(copy, 'changed')
-      original = File.join(File.realpath(@data), record[:relative_path])
-      expect(File.binread(original)).to eq(mp4)
+    def published_name(result)
+      result[%r{\AVideo for display: /data/(pub_[a-z0-9]{16}\.mp4)\n\n}, 1]
     end
 
-    it 'makes the copy once, and goes on without it when it cannot be made' do
+    it 'publishes a checked copy of the attached video, kept where only the server writes, for the page to play' do
       record = attach
-      2.times { agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id }) }
-      expect(Dir[File.join(File.realpath(@data), 'pub_*')].size).to eq(1)
+      result = agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id })
+      name = published_name(result)
+      expect(name).not_to be_nil
+      publication = ledger.publication_named(name)
+      expect(publication).to include(status: 'ready', chat_id: chat_id, sha256: Digest::SHA256.hexdigest(mp4))
+      copy = File.join(@state, 'publications', publication[:publication_id], name)
+      expect(File.binread(copy)).to eq(mp4)
+      expect(Dir[File.join(File.realpath(@data), 'pub_*')]).to be_empty
 
-      allow(IO).to receive(:copy_stream).and_raise(Errno::ENOSPC)
+      # The copy is a copy: changing the attachment leaves it as it was.
+      File.binwrite(File.join(File.realpath(@data), record[:relative_path]), 'changed')
+      expect(File.binread(copy)).to eq(mp4)
+    end
+
+    it 'publishes once, and goes on without it when it cannot be published' do
+      record = attach
+      names = Array.new(2) { published_name(agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id })) }
+      expect(names.uniq.size).to eq(1)
+      expect(ledger.publications.size).to eq(1)
+
+      allow(Monadic::Workspace::Ledger::Disk).to receive(:sync_dir).and_wrap_original do |m, dir|
+        raise Errno::ENOSPC if dir.include?('/publications/p_')
+
+        m.call(dir)
+      end
       other = attach
       result = agent.analyze_video(attachment_id: other[:attachment_id], session: { chat_id: chat_id })
       expect(result).not_to include('Video for display')
       expect(result).to include('A deer crosses the road.')
-      expect(Dir[File.join(File.realpath(@data), '*.part-*')]).to be_empty
+      expect(ledger.publications.size).to eq(1)
+      expect(Dir.children(File.join(@state, 'publications')).size).to eq(1)
     end
 
     it 'takes an attachment id passed as the file name as the attachment' do
@@ -718,7 +730,7 @@ RSpec.describe VideoAnalyzeAgent do
       it 'keeps the transcript when the frame analysis fails' do
         allow(agent).to receive(:video_vision_query).and_return('ERROR: vision refused')
         result = analyze
-        expect(result).to match(%r{\AVideo for display: /data/pub_a_[a-z0-9]{16}\.mp4\n\nVideo analysis failed: ERROR: vision refused})
+        expect(result).to match(%r{\AVideo for display: /data/pub_[a-z0-9]{16}\.mp4\n\nVideo analysis failed: ERROR: vision refused})
         expect(result).to include("Audio Transcript:\n[00:01–00:03] Hello there.")
       end
 
@@ -830,12 +842,17 @@ RSpec.describe VideoAnalyzeAgent do
       it 'writes subtitle files for the transcript and links copies the page can load' do
         result = analyze
         job = File.join(File.realpath(@data), segment_calls.first[:argv][3].delete_prefix('/monadic/data/'))
-        job_id = File.basename(job)
-        expect(result).to include("Subtitles: /data/pub_#{job_id}.vtt (WebVTT), /data/pub_#{job_id}.srt (SRT)")
+        links = result[%r{Subtitles: /data/(pub_[a-z0-9]{16}\.vtt) \(WebVTT\), /data/(pub_[a-z0-9]{16}\.srt) \(SRT\)}]
+        expect(links).not_to be_nil
         vtt = File.read(File.join(job, 'transcript.vtt'))
         expect(vtt).to start_with("WEBVTT\n\n00:00:01.000 --> 00:00:03.000\nHello there.\n")
-        expect(File.read(File.join(File.realpath(@data), "pub_#{job_id}.vtt"))).to eq(vtt)
-        expect(File.read(File.join(File.realpath(@data), "pub_#{job_id}.srt"))).to include("2\n00:01:01,000 --> 00:01:02,500\nGoodbye.")
+        copies = %w[vtt srt].to_h do |kind|
+          record = ledger.publication_named(result[%r{/data/(pub_[a-z0-9]{16}\.#{kind})}, 1])
+          [kind, File.read(File.join(@state, 'publications', record[:publication_id], record[:name]))]
+        end
+        expect(copies['vtt']).to eq(vtt)
+        expect(copies['srt']).to include("2\n00:01:01,000 --> 00:01:02,500\nGoodbye.")
+        expect(Dir[File.join(File.realpath(@data), 'pub_*')]).to be_empty
       end
 
       it 'links no subtitles when no segment has words' do

@@ -19,7 +19,7 @@ module Monadic
       # Collections version 2 sets aside for records this version does not
       # make yet: only empty ones are taken (a later version that makes them
       # defines their form, and an earlier one never writes over them).
-      RESERVED = %w[publications].freeze
+      RESERVED = [].freeze
       ATTACHMENT_STATES = %w[validating ready failed].freeze
       # What the server makes, by kind, and the name it has (the same in the
       # state folder and in the run folder's copy).
@@ -29,6 +29,22 @@ module Monadic
       # any chat (the MCP server).
       OUTSIDE_ROOTS = %w[transcriptions].freeze
       SHA256 = /\A[0-9a-f]{64}\z/
+      # A publication is a checked copy of an attachment or an artifact that
+      # the page loads by its own name (/data/<name>). Pending while it is
+      # being made (by the operation holding the token), ready while it may
+      # be served; missing when its copy was found gone, revoked when its
+      # chat's folder was.
+      PUBLICATION_STATES = %w[pending ready missing revoked].freeze
+      PUBLICATION_LIVE = %w[pending ready].freeze
+      # What may be published, by extension, and the type it is served with.
+      PUBLICATION_TYPES = {
+        'mp4' => 'video/mp4', 'm4v' => 'video/x-m4v', 'mov' => 'video/quicktime', 'webm' => 'video/webm',
+        'mp3' => 'audio/mpeg', 'm4a' => 'audio/mp4', 'wav' => 'audio/wav',
+        'vtt' => 'text/vtt', 'srt' => 'application/x-subrip'
+      }.freeze
+      # pub_<the random part of the publication id>.<ext>
+      PUBLICATION_NAME = /\Apub_([a-z0-9]{16})\.([a-z0-9]{1,5})\z/
+      TOKEN = /\A[0-9a-f]{16}\z/
 
       # Wrong form (as opposed to JSON that cannot be read at all).
       class Shape < StandardError; end
@@ -100,6 +116,7 @@ module Monadic
         workspaces!(data)
         attachments!(data)
         artifacts!(data)
+        publications!(data)
         RESERVED.each { |name| raise Shape, "#{name} holds records this version does not know" unless data[name].empty? }
       end
 
@@ -178,6 +195,68 @@ module Monadic
           raise Shape, 'artifacts.status is unknown' unless ARTIFACT_STATES.include?(record['status'])
 
           time!(record['created_at'], 'artifacts.created_at')
+        end
+      end
+
+      # A publication names its source (a ready attachment or artifact of its
+      # chat) with the source's sha256, carries the source's size and sha256,
+      # and has a name of its own that no other publication has. One source
+      # has at most one publication pending or ready.
+      def publications!(data)
+        ids!(data['publications'], :publication, 'publications')
+        names = {}
+        live = {}
+        data['publications'].each do |publication_id, record|
+          name = record['name']
+          random, ext = name.is_a?(String) && name.match(PUBLICATION_NAME)&.captures
+          raise Shape, 'publications.name is not a public name' unless ext && PUBLICATION_TYPES.key?(ext)
+          raise Shape, 'publications.name is not made from its id' unless "p_#{random}" == publication_id
+          raise Shape, 'two publications share a name' if names.key?(name)
+
+          names[name] = true
+          raise Shape, 'publications.content_type does not go with its name' unless record['content_type'] == PUBLICATION_TYPES[ext]
+
+          source = publication_source!(data, record)
+          contents!(record, 'publications', required: true)
+          unless record['size'] == source['size'] && record['sha256'] == source['sha256']
+            raise Shape, 'a publication does not carry the size and sha256 of its source'
+          end
+          raise Shape, 'publications.status is unknown' unless PUBLICATION_STATES.include?(record['status'])
+
+          token!(record)
+          if PUBLICATION_LIVE.include?(record['status'])
+            key = record['source'].values_at('kind', 'id')
+            raise Shape, 'one source has two publications pending or ready' if live.key?(key)
+
+            live[key] = true
+          end
+          time!(record['created_at'], 'publications.created_at')
+        end
+      end
+
+      def publication_source!(data, record)
+        source = record['source']
+        raise Shape, 'publications.source is not an object' unless source.is_a?(Hash)
+
+        target = case source['kind']
+                 when 'attachment' then Ids.valid?(:attachment, source['id']) && data['attachments'][source['id']]
+                 when 'artifact' then Ids.valid?(:artifact, source['id']) && data['artifacts'][source['id']]
+                 else raise Shape, 'publications.source.kind is unknown'
+                 end
+        raise Shape, 'a publication names no ready record as its source' unless target.is_a?(Hash) && target['status'] == 'ready'
+        unless Ids.valid?(:chat, record['chat_id']) && target['chat_id'] == record['chat_id']
+          raise Shape, 'a publication is not of the chat of its source'
+        end
+        raise Shape, 'publications.source.sha256 is not the sha256 of its source' unless source['sha256'] == target['sha256']
+
+        target
+      end
+
+      def token!(record)
+        if record['status'] == 'pending'
+          raise Shape, 'a pending publication has no token' unless record['token'].is_a?(String) && TOKEN.match?(record['token'])
+        elsif record.key?('token')
+          raise Shape, 'a publication that is not pending has a token'
         end
       end
 

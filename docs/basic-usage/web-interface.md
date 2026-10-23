@@ -160,7 +160,7 @@ The Shared Folder panel shows what the shared folder (`~/monadic/data`) holds. C
 
 Each entry shows its name, what it is, its size and when it was last modified:
 
-- **What it is** comes from Monadic Chat's own record where it has one (the folders of chats, the copies made for playing an attached video) and otherwise only from the entry's name, marked "(by its name)". A name does not tell whether a file is still needed.
+- **What it is** comes from Monadic Chat's own record where it has one (the folders of chats, the copies earlier versions made for playing an attached video) and otherwise only from the entry's name, marked "(by its name)". A name does not tell whether a file is still needed. The videos and subtitles the page plays are kept by Monadic Chat outside the shared folder; the `pub_` files earlier versions left in the shared folder are no longer used and can be moved to the trash.
 - Entries Monadic Chat or your own setup reads (your scripts, apps and helpers, your Docker services, the backup of the document database) are marked with a lock and the reason.
 - The folder of a chat open in a tab is marked "in use".
 - Files made by Monadic Chat's own test runs (named `monadic-test-…`) are marked "Made by a test run"; names that test runs used before are marked "Possibly left by a test run".

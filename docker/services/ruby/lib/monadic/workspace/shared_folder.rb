@@ -420,8 +420,11 @@ module Monadic
         parts == ['auto_forge'] && TEST_CANDIDATE_PROJECT.match?(name)
       end
 
-      # pub_<attachment id>.<ext> is tied to its chat when the ledger has the
-      # attachment; any other pub_ file is a copy whose chat is not known.
+      # A pub_ file in the shared folder is an old copy for playback: what the
+      # page plays now is a publication in the state folder, and no pub_ name
+      # is served from the shared folder. pub_<attachment id>.<ext> is tied to
+      # its chat when the ledger has the attachment; any other pub_ file is a
+      # copy whose chat is not known.
       def public_copy(name, index)
         id = name[/\Apub_(a_[a-z0-9]{16})\./, 1]
         record = id && Ids.valid?(:attachment, id) ? index[:attachments][id] : nil

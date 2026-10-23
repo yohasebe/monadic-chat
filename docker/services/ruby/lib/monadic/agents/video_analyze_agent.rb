@@ -9,7 +9,6 @@ require_relative '../utils/video_probe'
 require_relative '../utils/model_spec'
 require_relative '../utils/provider_response'
 require_relative '../utils/timed_transcription'
-require_relative '../utils/public_copy'
 require_relative '../shell'
 require_relative '../workspace'
 
@@ -272,21 +271,17 @@ module VideoAnalyzeAgent
     "Error: extracting frames took longer than #{VIDEO_EXTRACT_TIMEOUT / 60} minutes. Try a shorter video."
   end
 
-  # A copy of the attached video directly in the shared folder, where the page
-  # can play it (/data/<name>); the attachment itself stays in the chat's
-  # folder. A real copy, not a link: code that writes to the public file must
-  # not change the attachment. Made once per attachment, written under a
-  # temporary name and then renamed so that a half-written file is never
-  # served. Returns the address, or nil when the copy cannot be made.
+  # The address where the page plays the attached video (/data/pub_...): a
+  # publication of the attachment (Workspace::Publications), a checked copy
+  # kept where only the server can change it, made once and used again while
+  # it is there. Returns nil when it cannot be published.
   def publish_attachment(record)
-    ext = File.extname(record[:original_name].to_s).downcase
-    return nil unless ext.match?(/\A\.[a-z0-9]{1,5}\z/)
-
-    publish_copy(record[:path], "pub_#{record[:attachment_id]}#{ext}")
-  end
-
-  def publish_copy(source, name)
-    Monadic::Utils::PublicCopy.publish(source, name)
+    "/data/#{Monadic::Workspace::Publications.create!(kind: 'attachment', id: record[:attachment_id])[:name]}"
+  rescue Monadic::Workspace::Publications::Unavailable, Monadic::Workspace::Publications::Changed,
+         Monadic::Workspace::Ledger::Unreadable, Monadic::Workspace::Ledger::Conflict,
+         Monadic::Workspace::ServerOwner::Refused, SystemCallError, IOError => e
+    warn "[Workspace] Video not published: #{e.class.name.split('::').last}"
+    nil
   end
 
   # A video placed in the shared folder by name (the way before attachments).

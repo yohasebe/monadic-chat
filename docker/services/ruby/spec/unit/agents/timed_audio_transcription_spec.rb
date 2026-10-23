@@ -96,7 +96,7 @@ RSpec.describe "Transcribing an audio file with times" do
   it "gives each line the time in the recording, with no 25 MB limit, and keeps the run in the chat's folder" do
     answer = host.analyze_audio(audio: "lecture.mp3", session: session)
     expect(answer).to include("[00:03–00:05] Good morning.")
-    expect(answer).to match(%r{Subtitles: /data/pub_j_[a-z0-9]{16}\.vtt \(WebVTT\), /data/pub_j_[a-z0-9]{16}\.srt \(SRT\)})
+    expect(answer).to match(%r{Subtitles: /data/pub_[a-z0-9]{16}\.vtt \(WebVTT\), /data/pub_[a-z0-9]{16}\.srt \(SRT\)})
     expect(answer).to match(%r{Saved in the chat's folder: conversations/[^/]+/artifacts/j_[a-z0-9]{16}/transcript\.json})
     expect(segmenter_calls.first.last(2)).to eq(%w[--timeline audio])
     expect(segmenter_calls.first[2]).to eq("/monadic/data/lecture.mp3")

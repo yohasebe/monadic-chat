@@ -99,9 +99,13 @@ RSpec.describe Monadic::Utils::TimedTranscription do
       vtt = artifacts.find { |a| a["kind"] == "subtitle_vtt" }
       expect(vtt["copy_path"]).to eq("#{job[:relative]}/transcript.vtt")
 
-      public_vtt = File.join(@data, result[:subtitles][:vtt].delete_prefix("/data/"))
+      name = result[:subtitles][:vtt].delete_prefix("/data/")
+      publication = ledger_data["publications"].find { |_, r| r["name"] == name }
+      expect(publication.last).to include("status" => "ready", "source" => include("kind" => "artifact"))
+      public_vtt = File.join(@state, "publications", publication.first, name)
       expect(File.read(public_vtt)).to start_with("WEBVTT")
       expect(Digest::SHA256.hexdigest(File.binread(public_vtt))).to eq(vtt["sha256"])
+      expect(Dir.glob(File.join(@data, "pub_*"))).to be_empty
       expect(File.read(File.join(job[:path], "transcript.vtt"))).to eq("CHANGED")
     end
 

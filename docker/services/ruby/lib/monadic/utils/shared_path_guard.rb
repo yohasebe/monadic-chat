@@ -136,6 +136,18 @@ module Monadic
         nil
       end
 
+      # The File::Stat of a folder of the shared folder reached with no link
+      # on the way or at its name, or nil (nothing there, a link, a file, or
+      # a path that cannot be checked).
+      def directory_stat(path)
+        in_parent!(path, strict: true) do |dir, name, _full|
+          stat = SharedFs.entry(dir, name)
+          stat.is_a?(File::Stat) && stat.directory? ? stat : nil
+        end
+      rescue InvalidPath, SystemCallError
+        nil
+      end
+
       # Copies a file of the shared folder (read as write_file! writes: never
       # through a link) to another path there.
       def copy_file!(source, dest, perm: nil, replace: true)

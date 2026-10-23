@@ -11,6 +11,10 @@ docker/services/ruby/lib/monadic.rb | File.write(legacy_volume_marker | log | no
 docker/services/ruby/lib/monadic/app.rb | File.open(COMMAND_LOG_FILE | log | command log
 docker/services/ruby/lib/monadic/shell.rb | File.open(log_path | log | command log
 docker/services/ruby/lib/monadic/workspace/artifacts.rb | Dir.mkdir(root, 0o700) | state | folder of kept artifacts (state folder)
+docker/services/ruby/lib/monadic/workspace/publications.rb | Dir.mkdir(root, 0o700) | state | folder of publications (state folder)
+docker/services/ruby/lib/monadic/workspace/publications.rb | Dir.mkdir(dir, 0o700) | state | one publication's folder, made new (state folder)
+docker/services/ruby/lib/monadic/workspace/publications.rb | File.open(File.join(dir, record[:name]), File::WRONLY | File::CREAT | File::EXCL | File::NOFOLLOW | state | a publication's copy, made new (state folder)
+docker/services/ruby/lib/monadic/workspace/publications.rb | FileUtils.rm_r(dir, secure: true) | state | removes a publication's folder (made by the call that failed, or pending, missing or revoked) and reports whether it is gone (state folder)
 docker/services/ruby/lib/monadic/workspace/artifacts.rb | Dir.mkdir(dir, 0o700) | state | one kept artifact's folder, made new (state folder)
 docker/services/ruby/lib/monadic/workspace/artifacts.rb | FileUtils.rm_rf(dir) | state | removes the artifact folder this call made when its record cannot be made (state folder)
 docker/services/ruby/lib/monadic/workspace/ledger.rb | File.open(path, File::WRONLY | state | ledger (state folder)

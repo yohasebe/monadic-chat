@@ -106,8 +106,11 @@ RSpec.describe "Attaching a video and analyzing it" do
       end
       out["analysis_head"] = result.lines.first.to_s.strip
       out["analysis_has_description"] = result.include?("A deer crosses the road.")
-      pub = File.join(data, "pub_#{id}.mp4")
-      out["public_copy_matches"] = File.file?(pub) && File.binread(pub) == mp4
+      # The copy the page plays is a publication in the state folder; nothing
+      # of that name is in the shared folder.
+      name = result.lines.first.to_s[%r{/data/(pub_[a-z0-9]{16}\.mp4)}, 1]
+      copy = name && Dir.glob(File.join(Monadic::Utils::Environment.state_path, "publications", "*", name)).first
+      out["public_copy_matches"] = !copy.nil? && File.binread(copy) == mp4 && !File.exist?(File.join(data, name))
 
       tab_b = open_tab.call("tab-b")
       out["other_tab"] = usable.call(chat_of.call("tab-b"), id)
@@ -181,7 +184,7 @@ RSpec.describe "Attaching a video and analyzing it" do
   end
 
   it "analyzes the attachment even when the model passes its id as the file name, and publishes a copy to play" do
-    expect(@result["analysis_head"]).to match(%r{\AVideo for display: /data/pub_a_[a-z0-9]{16}\.mp4\z})
+    expect(@result["analysis_head"]).to match(%r{\AVideo for display: /data/pub_[a-z0-9]{16}\.mp4\z})
     expect(@result["analysis_has_description"]).to be(true)
     expect(@result["public_copy_matches"]).to be(true)
   end

@@ -196,8 +196,26 @@
     "removingContainers": "Eliminando contenedores e imágenes.",
     "stoppingAllProcesses": "Deteniendo todos los procesos.",
     "systemStopped": "Sistema detenido a las {{time}}",
+    "serverNotRunning": "El servidor no está en ejecución. Inicie primero el servidor.",
+    "serverStoppedAfterSleep": "El servidor se detuvo tras la suspensión/reanudación del sistema. Reinicie el servidor.",
     "quittingMonadicChat": "Saliendo de Monadic Chat...",
     "monadicChatPreparing": "Preparando Monadic Chat...",
+    "dockerNotInstalled": {
+      "darwin": "No se encontró Docker. Instale Docker Desktop for Mac, inícielo y pulse <b>Start</b>.",
+      "win32": "No se encontró Docker. Instale Docker Desktop for Windows (funciona sobre WSL 2), inícielo y pulse <b>Start</b>.",
+      "linux": "No se encontró Docker. Instale Docker Engine para su distribución y pulse <b>Start</b>."
+    },
+    "opReferencesReading": "Leyendo {{count}} clave(s) de 1Password...",
+    "opReferencesStaleContainer": "El contenedor de Ruby se creó con una versión anterior y no puede usar las claves leídas de 1Password; los proveedores recibirían las referencias op:// en lugar de las claves. Reconstrúyalo con <b>Actions → Build Ruby Container</b> y pulse <b>Start</b>.",
+    "opReferenceFailed": "No se pudo leer {{key}} de 1Password: {{reason}}. Las funciones que la necesitan no estarán disponibles hasta el próximo Start.",
+    "opReferenceReasons": {
+      "opMissing": "no se encontró la CLI de 1Password (op)",
+      "notSignedIn": "1Password está bloqueado o la CLI no ha iniciado sesión",
+      "cancelled": "se rechazó la solicitud",
+      "notFound": "la referencia no apunta a un elemento y campo existentes",
+      "timeout": "1Password no respondió a tiempo",
+      "failed": "la CLI de 1Password informó de un error"
+    },
     "monadicChatStopping": "Deteniendo Monadic Chat...",
     "monadicChatRestarting": "Reiniciando Monadic Chat...",
     "buildingMonadicChat": "Construyendo Monadic Chat...",

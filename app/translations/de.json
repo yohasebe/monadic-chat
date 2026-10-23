@@ -145,8 +145,26 @@
     "removingContainers": "Container und Images werden entfernt.",
     "stoppingAllProcesses": "Alle Prozesse werden gestoppt.",
     "systemStopped": "System gestoppt um {{time}}",
+    "serverNotRunning": "Der Server läuft nicht. Bitte starten Sie zuerst den Server.",
+    "serverStoppedAfterSleep": "Der Server wurde nach dem Ruhezustand/Aufwachen des Systems gestoppt. Bitte starten Sie den Server neu.",
     "quittingMonadicChat": "Monadic Chat wird beendet . . .",
     "monadicChatPreparing": "Monadic Chat wird vorbereitet . . .",
+    "dockerNotInstalled": {
+      "darwin": "Docker wurde nicht gefunden. Installieren Sie Docker Desktop for Mac, starten Sie es und drücken Sie dann <b>Start</b>.",
+      "win32": "Docker wurde nicht gefunden. Installieren Sie Docker Desktop for Windows (läuft auf WSL 2), starten Sie es und drücken Sie dann <b>Start</b>.",
+      "linux": "Docker wurde nicht gefunden. Installieren Sie Docker Engine für Ihre Distribution und drücken Sie dann <b>Start</b>."
+    },
+    "opReferencesReading": "{{count}} Schlüssel werden aus 1Password gelesen . . .",
+    "opReferencesStaleContainer": "Der Ruby-Container wurde mit einer früheren Version erstellt und kann keine aus 1Password gelesenen Schlüssel verwenden; die Anbieter würden statt der Schlüssel die op://-Verweise erhalten. Erstellen Sie ihn mit <b>Actions → Build Ruby Container</b> neu und drücken Sie dann <b>Start</b>.",
+    "opReferenceFailed": "{{key}} konnte nicht aus 1Password gelesen werden: {{reason}}. Funktionen, die diesen Schlüssel benötigen, sind bis zum nächsten Start nicht verfügbar.",
+    "opReferenceReasons": {
+      "opMissing": "die 1Password-CLI (op) wurde nicht gefunden",
+      "notSignedIn": "1Password ist gesperrt oder die CLI ist nicht angemeldet",
+      "cancelled": "die Anfrage wurde abgelehnt",
+      "notFound": "der Verweis zeigt auf kein vorhandenes Element und Feld",
+      "timeout": "1Password hat nicht rechtzeitig geantwortet",
+      "failed": "die 1Password-CLI hat einen Fehler gemeldet"
+    },
     "monadicChatStopping": "Monadic Chat wird gestoppt . . .",
     "monadicChatRestarting": "Monadic Chat wird neu gestartet . . .",
     "buildingMonadicChat": "Monadic Chat wird erstellt . . .",

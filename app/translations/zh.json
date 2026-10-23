@@ -196,8 +196,26 @@
     "removingContainers": "正在删除容器和镜像。",
     "stoppingAllProcesses": "正在停止所有进程。",
     "systemStopped": "系统已于{{time}}停止",
+    "serverNotRunning": "服务器未运行。请先启动服务器。",
+    "serverStoppedAfterSleep": "系统睡眠/唤醒后服务器已停止。请重新启动服务器。",
     "quittingMonadicChat": "正在退出Monadic Chat...",
     "monadicChatPreparing": "Monadic Chat正在准备...",
+    "dockerNotInstalled": {
+      "darwin": "未找到 Docker。请安装并启动 Docker Desktop for Mac，然后按 <b>Start</b>。",
+      "win32": "未找到 Docker。请安装并启动 Docker Desktop for Windows（运行在 WSL 2 上），然后按 <b>Start</b>。",
+      "linux": "未找到 Docker。请为您的发行版安装 Docker Engine，然后按 <b>Start</b>。"
+    },
+    "opReferencesReading": "正在从 1Password 读取 {{count}} 个密钥...",
+    "opReferencesStaleContainer": "Ruby 容器由旧版本构建，无法使用从 1Password 读取的密钥；提供商将收到 op:// 引用而不是密钥。请通过 <b>Actions → Build Ruby Container</b> 重新构建，然后按 <b>Start</b>。",
+    "opReferenceFailed": "无法从 1Password 读取 {{key}}：{{reason}}。在下次 Start 之前，需要它的功能不可用。",
+    "opReferenceReasons": {
+      "opMissing": "未找到 1Password CLI（op）",
+      "notSignedIn": "1Password 已锁定或 CLI 未登录",
+      "cancelled": "请求已被拒绝",
+      "notFound": "该引用未指向现有的项目和字段",
+      "timeout": "1Password 未在规定时间内响应",
+      "failed": "1Password CLI 报告了错误"
+    },
     "monadicChatStopping": "Monadic Chat正在停止...",
     "monadicChatRestarting": "Monadic Chat正在重启...",
     "buildingMonadicChat": "正在构建Monadic Chat...",

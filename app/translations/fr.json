@@ -145,8 +145,26 @@
     "removingContainers": "Suppression des conteneurs et images.",
     "stoppingAllProcesses": "Arrêt de tous les processus.",
     "systemStopped": "Système arrêté à {{time}}",
+    "serverNotRunning": "Le serveur n'est pas en cours d'exécution. Veuillez d'abord démarrer le serveur.",
+    "serverStoppedAfterSleep": "Le serveur s'est arrêté après la mise en veille/reprise du système. Veuillez redémarrer le serveur.",
     "quittingMonadicChat": "Fermeture de Monadic Chat . . .",
     "monadicChatPreparing": "Préparation de Monadic Chat . . .",
+    "dockerNotInstalled": {
+      "darwin": "Docker est introuvable. Installez Docker Desktop for Mac, lancez-le, puis appuyez sur <b>Start</b>.",
+      "win32": "Docker est introuvable. Installez Docker Desktop for Windows (il fonctionne sur WSL 2), lancez-le, puis appuyez sur <b>Start</b>.",
+      "linux": "Docker est introuvable. Installez Docker Engine pour votre distribution, puis appuyez sur <b>Start</b>."
+    },
+    "opReferencesReading": "Lecture de {{count}} clé(s) depuis 1Password . . .",
+    "opReferencesStaleContainer": "Le conteneur Ruby a été construit par une version antérieure et ne peut pas utiliser les clés lues depuis 1Password ; les fournisseurs recevraient les références op:// au lieu des clés. Reconstruisez-le avec <b>Actions → Build Ruby Container</b>, puis appuyez sur <b>Start</b>.",
+    "opReferenceFailed": "Impossible de lire {{key}} depuis 1Password : {{reason}}. Les fonctions qui en ont besoin restent indisponibles jusqu'au prochain Start.",
+    "opReferenceReasons": {
+      "opMissing": "la CLI 1Password (op) est introuvable",
+      "notSignedIn": "1Password est verrouillé ou la CLI n'est pas connectée",
+      "cancelled": "la demande a été refusée",
+      "notFound": "la référence ne pointe pas vers un élément et un champ existants",
+      "timeout": "1Password n'a pas répondu à temps",
+      "failed": "la CLI 1Password a signalé une erreur"
+    },
     "monadicChatStopping": "Arrêt de Monadic Chat . . .",
     "monadicChatRestarting": "Redémarrage de Monadic Chat . . .",
     "buildingMonadicChat": "Construction de Monadic Chat . . .",

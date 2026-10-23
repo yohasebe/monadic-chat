@@ -21,6 +21,7 @@ const { monadicShEnv, monadicInvocation } = require('./monadic_env');
 const { keepWarnings, createLineBuffer } = require('./build_output');
 const designTokens = require('./design_tokens');
 const { createThemeSync } = require('./theme_sync');
+const { createFitHandler } = require('./fit_window');
 
 // Splash window for updates
 let updateSplashWindow = null;
@@ -2043,7 +2044,8 @@ function promptPassphrase(parent, opts) {
       parent: parent || undefined,
       modal: !!parent,
       width: 400,
-      height: options.confirmRequired ? 280 : 220,
+      height: options.confirmRequired ? 276 : 214,
+      useContentSize: true,
       resizable: false,
       minimizable: false,
       maximizable: false,
@@ -2059,15 +2061,19 @@ function promptPassphrase(parent, opts) {
     });
 
     let resolved = false;
+    let showTimer = null;
     function settle(value) {
       if (resolved) return;
       resolved = true;
+      clearTimeout(showTimer);
       ipcMain.removeListener('passphrase-prompt:result', onResult);
+      ipcMain.removeListener('passphrase-prompt:fit', onFit);
       if (!win.isDestroyed()) win.close();
       resolve(value);
     }
 
-    function onResult(_event, payload) {
+    function onResult(event, payload) {
+      if (win.isDestroyed() || event.sender !== win.webContents) return;
       if (payload && payload.ok && typeof payload.passphrase === 'string') {
         settle(payload.passphrase);
       } else {
@@ -2076,11 +2082,23 @@ function promptPassphrase(parent, opts) {
     }
     ipcMain.on('passphrase-prompt:result', onResult);
 
+    // The page reports the height its content needs (titles and hints are
+    // translated and wrap); the window takes it before it is shown. If no
+    // report comes, the window is shown at its first size.
+    let shown = false;
+    function show() {
+      if (shown) return;
+      shown = true;
+      designTokens.showWindow(win);
+    }
+    const onFit = createFitHandler(win, { width: 400, onFitted: show });
+    ipcMain.on('passphrase-prompt:fit', onFit);
+
     win.on('closed', () => settle(null));
     designTokens.prepareWindow(win, loadDesignTokens);
     win.webContents.once('did-finish-load', () => {
       win.webContents.send('passphrase-prompt:init', options);
-      designTokens.showWindow(win);
+      showTimer = setTimeout(show, 1000);
     });
     win.loadFile(path.join(__dirname, 'passphrase-prompt.html'));
   });

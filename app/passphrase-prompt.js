@@ -72,5 +72,9 @@
       confirmRow.style.display = 'none';
     }
     pp.focus();
+    // Long titles and hints (translations) wrap; measure once the font is in.
+    document.fonts.ready.then(() => {
+      window.passphraseAPI.fit(Math.ceil(document.body.getBoundingClientRect().height));
+    });
   });
 })();

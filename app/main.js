@@ -19,6 +19,7 @@ const { createRevealHandler, createTrashHandler, showSharedPath, NO_ANSWER } = r
 const { writeStreamNoFollow, readStreamNoFollow, openReadNoFollow } = require('./no_follow_files');
 const { monadicShEnv, monadicInvocation } = require('./monadic_env');
 const { keepWarnings, createLineBuffer } = require('./build_output');
+const designTokens = require('./design_tokens');
 
 // Splash window for updates
 let updateSplashWindow = null;
@@ -479,6 +480,10 @@ const iconDir = app.isPackaged
 let monadicScriptPath = app.isPackaged
   ? path.join(process.resourcesPath, 'app', 'docker', 'monadic.sh')
   : path.join(__dirname, '..', 'docker', 'monadic.sh');
+
+const loadDesignTokens = designTokens.createTokenLoader(designTokens.tokensPath({
+  packaged: app.isPackaged, resourcesPath: process.resourcesPath, appDir: __dirname
+}));
 
 const isWindows = os.platform() === 'win32';
 function monadicCmd(args) {
@@ -2073,6 +2078,7 @@ function promptPassphrase(parent, opts) {
     ipcMain.on('passphrase-prompt:result', onResult);
 
     win.on('closed', () => settle(null));
+    designTokens.shareTokens(win.webContents, loadDesignTokens);
     win.webContents.once('did-finish-load', () => {
       win.webContents.send('passphrase-prompt:init', options);
       win.show();
@@ -2963,6 +2969,7 @@ function createMainWindow() {
     return { action: 'deny' }
   })
 
+  designTokens.shareTokens(mainWindow.webContents, loadDesignTokens);
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
   
   // Ensure initial messages are sent after the window loads
@@ -3322,6 +3329,7 @@ function openSettingsWindow(category = null) {
       }
     });
 
+    designTokens.shareTokens(settingsWindow.webContents, loadDesignTokens);
     settingsWindow.loadFile(path.join(__dirname, 'settings.html'));
     
     // Send the current interface language to the settings window after it loads

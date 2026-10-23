@@ -90,7 +90,7 @@
     }
 
     #sidebar-footer button {
-      background-color: #0d6efd;
+      background-color: var(--btn-primary-bg, #007bff);
       color: #fff;
       border: none;
       border-radius: 6px;
@@ -105,18 +105,29 @@
     }
 
     #sidebar-footer button:hover {
-      background-color: #0b5ed7;
+      background-color: var(--btn-primary-hover-bg, #0069d9);
+    }
+
+    #sidebar-footer button:focus-visible,
+    .action-btn:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2.8px var(--btn-primary-focus-shadow-color, rgba(0, 123, 255, 0.25));
     }
 
     /* Close uses a neutral grey; specificity bumped via descendant
        selector so it wins over the default #sidebar-footer button rule. */
     #sidebar-footer #close-settings-btn {
-      background-color: #e5e5ea;
-      color: #1d1d1f;
+      background-color: var(--btn-secondary-bg, #78828c);
+      color: var(--btn-secondary-text, #ffffff);
     }
 
     #sidebar-footer #close-settings-btn:hover {
-      background-color: #d1d1d6;
+      background-color: var(--btn-secondary-hover-bg, #5a6268);
+      color: var(--btn-secondary-hover-text, #ffffff);
+    }
+
+    #sidebar-footer #close-settings-btn:focus-visible {
+      box-shadow: 0 0 0 2.8px var(--btn-secondary-focus-shadow-color, rgba(113, 128, 150, 0.25));
     }
 
     /* Brief acknowledgement after a successful save — stays in the
@@ -124,7 +135,8 @@
        consistent with the policy (blue = confirm/save). Desaturated
        relative to the Bootstrap default so the transient flash sits
        comfortably in the app's muted grey palette. */
-    #save-settings-btn.saved {
+    #sidebar-footer #save-settings-btn.saved,
+    #sidebar-footer #save-settings-btn.saved:hover {
       background-color: #3b639b;
       color: #fff;
     }
@@ -133,7 +145,8 @@
        the form stays dirty so the user can retry. Muted brick red
        (not Bootstrap's vivid #dc3545) for the same palette reason;
        the triangle icon carries the error semantics. */
-    #save-settings-btn.save-failed {
+    #sidebar-footer #save-settings-btn.save-failed,
+    #sidebar-footer #save-settings-btn.save-failed:hover {
       background-color: #a94442;
       color: #fff;
     }
@@ -145,11 +158,17 @@
       padding: 24px 32px;
     }
 
+    /* Like a Web UI modal title (14.63px there: 1.1em of its 13.3px text) */
     #content-title {
-      font-size: 17px;
-      font-weight: 700;
+      font-size: 14.63px;
+      font-weight: 600;
       margin: 0 0 20px 0;
-      color: #1d1d1f;
+      color: var(--modal-title-color, #777);
+    }
+
+    #content-title i {
+      color: var(--color-icon-primary, #ffc107);
+      margin-right: 0.4em;
     }
 
     .settings-panel { display: none; }
@@ -188,8 +207,8 @@
 
     .setting-group > label[data-state="in-sync"]::after {
       content: attr(data-container);
-      color: #0071e3;
-      background-color: rgba(0, 113, 227, 0.10);
+      color: var(--text-link, #2268cf);
+      background-color: color-mix(in srgb, var(--text-link, #2268cf) 10%, transparent);
     }
 
     .setting-group > label[data-state="rebuild-needed"]::after {
@@ -221,11 +240,12 @@
       color: #333;
     }
 
+    /* Focus as in the Web UI's form controls */
     .setting-group input:focus,
     .setting-group select:focus {
       outline: none;
-      border-color: #0071e3;
-      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+      border-color: #86b7fe;
+      box-shadow: 0 0 0 3.5px rgba(13, 110, 253, 0.25);
     }
 
     .setting-group .text-muted {
@@ -268,7 +288,7 @@
     }
 
     .action-btn {
-      background-color: #0071e3;
+      background-color: var(--btn-primary-bg, #007bff);
       color: #fff;
       border: none;
       border-radius: 6px;
@@ -283,7 +303,7 @@
     }
 
     .action-btn:hover:not(:disabled) {
-      background-color: #0062cc;
+      background-color: var(--btn-primary-hover-bg, #0069d9);
     }
 
     .action-btn:disabled {
@@ -338,8 +358,8 @@
     .file-picker-row input { flex: 1; }
 
     .file-picker-row button {
-      background-color: #86868b;
-      color: white;
+      background-color: var(--btn-secondary-bg, #78828c);
+      color: var(--btn-secondary-text, #ffffff);
       border: none;
       border-radius: 6px;
       padding: 7px 12px;
@@ -350,7 +370,8 @@
     }
 
     .file-picker-row button:hover {
-      background-color: #6e6e73;
+      background-color: var(--btn-secondary-hover-bg, #5a6268);
+      color: var(--btn-secondary-hover-text, #ffffff);
     }
 
     /* Loading overlay */
@@ -375,132 +396,112 @@
       font-size: 14px;
       color: #86868b;
     }
-    /* ─── Dark Mode ─── */
-    @media (prefers-color-scheme: dark) {
-      body {
-        color: #e5e5e7;
-        background-color: #2c2c2e;
-      }
-
-      #settings-sidebar {
-        background-color: #2c2c2e;
-        border-right-color: #38383a;
-      }
-
-      #category-list li {
-        color: #e5e5e7;
-      }
-
-      #category-list li:hover {
-        background-color: rgba(255, 255, 255, 0.06);
-      }
-
-      #category-list li.active {
-        background-color: rgba(255, 255, 255, 0.1);
-      }
-
-      #category-list li i {
-        color: #a1a1a6;
-      }
-
-      #category-list li.active i {
-        color: #e5e5e7;
-      }
-
-      #sidebar-footer {
-        border-top-color: #38383a;
-      }
-
-      #sidebar-footer #close-settings-btn {
-        background-color: #3a3a3c;
-        color: #e5e5e7;
-      }
-
-      #sidebar-footer #close-settings-btn:hover {
-        background-color: #48484a;
-      }
-
-      #settings-content {
-        background-color: #1c1c1e;
-      }
-
-      #content-title {
-        color: #f5f5f7;
-      }
-
-      .setting-group label {
-        color: #f5f5f7;
-      }
-
-      .setting-group > label[data-state="in-sync"]::after {
-        color: #0a84ff;
-        background-color: rgba(10, 132, 255, 0.18);
-      }
-
-      .setting-group > label[data-state="rebuild-needed"]::after,
-      .setting-group > label[data-state="not-built"]::after {
-        color: #ffc107;
-      }
-
-      .setting-group > label[data-state="disabled"]::after {
-        color: #8e8e93;
-        background-color: rgba(134, 134, 139, 0.20);
-      }
-
-      .setting-group input,
-      .setting-group select {
-        background-color: #3a3a3c;
-        border-color: #545458;
-        color: #e5e5e7;
-      }
-
-      .setting-group input:focus,
-      .setting-group select:focus {
-        border-color: #0a84ff;
-        box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.25);
-      }
-
-      .setting-group .text-muted {
-        color: #8e8e93;
-      }
-
-      .api-key-field .toggle-api-key-visibility {
-        color: #8e8e93;
-      }
-
-      .api-key-field .toggle-api-key-visibility:hover {
-        color: #e5e5e7;
-      }
-
-      .file-picker-row button {
-        background-color: #636366;
-      }
-
-      .file-picker-row button:hover {
-        background-color: #545458;
-      }
-
-      .action-btn {
-        background-color: #0a84ff;
-      }
-
-      .action-btn:hover:not(:disabled) {
-        background-color: #0077e6;
-      }
-
-      .action-status-badge {
-        background-color: #3a3a3c;
-        color: #e5e5e7;
-      }
-
-      #loading-overlay {
-        background: rgba(28, 28, 30, 0.9);
-      }
-
-      #loading-overlay p {
-        color: #8e8e93;
-      }
+    /* ─── Confirm dialogs and About ─── */
+    .confirm-dialog-box { background-color: #f8f9fa; }
+    .confirm-dialog-text,
+    .about-text { color: #1d1d1f; }
+    .confirm-dialog-cancel {
+      background-color: var(--btn-secondary-bg, #78828c);
+      color: var(--btn-secondary-text, #ffffff);
     }
+    .confirm-dialog-cancel:hover {
+      background-color: var(--btn-secondary-hover-bg, #5a6268);
+      color: var(--btn-secondary-hover-text, #ffffff);
+    }
+    .confirm-dialog-ok,
+    .about-update-btn {
+      background-color: var(--btn-primary-bg, #007bff);
+      color: #fff;
+    }
+    .confirm-dialog-ok:hover,
+    .about-update-btn:hover:not(:disabled) {
+      background-color: var(--btn-primary-hover-bg, #0069d9);
+    }
+    .confirm-dialog-cancel:focus-visible { outline: none; box-shadow: 0 0 0 2.8px var(--btn-secondary-focus-shadow-color, rgba(113, 128, 150, 0.25)); }
+    .confirm-dialog-ok:focus-visible,
+    .about-update-btn:focus-visible { outline: none; box-shadow: 0 0 0 2.8px var(--btn-primary-focus-shadow-color, rgba(0, 123, 255, 0.25)); }
+    .about-link { color: var(--text-link, #2268cf); }
+    .about-divider { border: none; border-top: 1px solid #e5e5ea; }
+    .about-link:hover { color: var(--text-link-hover, #174890); }
+
+    /* ─── Dark Mode ───
+       The theme class comes from window-theme.js (the Web UI's setting).
+       Buttons already take their colors from the shared variables; these
+       rules give the grey surfaces, text and fields their dark values. The
+       second value of each var() is the dark value, used if tokens.css
+       could not be loaded. */
+    .dark-theme { color-scheme: dark; }
+
+    .dark-theme body {
+      color: var(--text-primary, #f5f5f5);
+      background-color: var(--bg-panel, #2a2a2a);
+    }
+
+    .dark-theme #settings-sidebar {
+      background-color: var(--bg-panel, #2a2a2a);
+      border-right-color: var(--border-secondary, #3a3a3a);
+    }
+
+    .dark-theme #category-list li { color: var(--text-primary, #f5f5f5); }
+    .dark-theme #category-list li:hover { background-color: rgba(255, 255, 255, 0.06); }
+    .dark-theme #category-list li.active { background-color: rgba(255, 255, 255, 0.1); }
+    .dark-theme #category-list li i { color: var(--text-secondary, #d0d0d0); }
+    .dark-theme #category-list li.active i { color: var(--text-primary, #f5f5f5); }
+
+    .dark-theme #sidebar-footer { border-top-color: var(--border-secondary, #3a3a3a); }
+
+    .dark-theme #settings-content { background-color: var(--bg-body, #1a1a1a); }
+    .dark-theme #content-title { color: var(--modal-title-color, #e5e5e5); }
+
+    .dark-theme .setting-group label { color: var(--text-primary, #f5f5f5); }
+
+    .dark-theme .setting-group > label[data-state="in-sync"]::after {
+      color: var(--text-link, #6b9bd8);
+      background-color: color-mix(in srgb, var(--text-link, #6b9bd8) 18%, transparent);
+    }
+
+    .dark-theme .setting-group > label[data-state="rebuild-needed"]::after,
+    .dark-theme .setting-group > label[data-state="not-built"]::after {
+      color: #ffc107;
+    }
+
+    .dark-theme .setting-group > label[data-state="disabled"]::after {
+      color: #8e8e93;
+      background-color: rgba(134, 134, 139, 0.20);
+    }
+
+    .dark-theme .setting-group input,
+    .dark-theme .setting-group select {
+      background-color: var(--modal-input-bg, #3a3a3a);
+      border-color: var(--modal-input-border, #555);
+      color: var(--modal-input-text, #e5e5e5);
+    }
+
+    /* The rule above is more specific than the light focus rule. */
+    .dark-theme .setting-group input:focus,
+    .dark-theme .setting-group select:focus {
+      border-color: #86b7fe;
+    }
+
+    .dark-theme .setting-group .text-muted { color: var(--text-muted, #999); }
+
+    .dark-theme .api-key-field .toggle-api-key-visibility { color: var(--text-muted, #999); }
+    .dark-theme .api-key-field .toggle-api-key-visibility:hover { color: var(--text-primary, #f5f5f5); }
+
+    .dark-theme .action-status-badge {
+      background-color: var(--bg-hover, #3a3a3a);
+      color: var(--text-primary, #f5f5f5);
+    }
+
+    .dark-theme .confirm-dialog-box { background-color: var(--modal-bg, #2b2b2b); }
+    .dark-theme .confirm-dialog-text { color: var(--modal-text, #e5e5e5); }
+    .dark-theme .about-text { color: var(--text-primary, #f5f5f5); }
+    .dark-theme .about-link { color: var(--text-link, #6b9bd8); }
+    .dark-theme .about-divider { border-top-color: var(--border-secondary, #3a3a3a); }
+    .dark-theme .about-link:hover { color: var(--text-link-hover, #8fb3e8); }
+
+    .dark-theme #loading-overlay { background: rgba(28, 28, 30, 0.9); }
+    .dark-theme #loading-overlay p { color: var(--text-muted, #999); }
     </style>
     <script src="./settingsTranslations.js"></script>
   </head>
@@ -563,7 +564,7 @@
 
       <!-- Content Area -->
       <main id="settings-content">
-        <h1 id="content-title">General</h1>
+        <h1 id="content-title"><i id="content-title-icon" class="fas fa-sliders-h" aria-hidden="true"></i><span id="content-title-text">General</span></h1>
         <form id="settings-form">
 
           <!-- Panel: General -->
@@ -913,23 +914,23 @@
           <div class="settings-panel" id="panel-about">
             <div class="setting-group">
               <label data-i18n="settings.labels.version">Version</label>
-              <p id="app-version" style="font-size: 14px; color: #1d1d1f; margin: 4px 0 0 0;">—</p>
+              <p id="app-version" class="about-text" style="font-size: 14px; margin: 4px 0 0 0;">—</p>
             </div>
             <div class="setting-group">
-              <button type="button" id="check-for-updates-btn" style="background-color: #0071e3; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px;">
+              <button type="button" id="check-for-updates-btn" class="about-update-btn" style="border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px;">
                 <i class="fas fa-sync-alt"></i>
                 <span data-i18n="settings.labels.checkForUpdates">Check for Updates</span>
               </button>
             </div>
-            <hr style="border: none; border-top: 1px solid #e5e5ea; margin: 24px 0;">
+            <hr class="about-divider" style="margin: 24px 0;">
             <div class="setting-group">
               <label data-i18n="settings.labels.developer">Developer</label>
-              <p style="font-size: 13px; color: #1d1d1f; margin: 4px 0 0 0;">Yoichiro Hasebe</p>
+              <p class="about-text" style="font-size: 13px; margin: 4px 0 0 0;">Yoichiro Hasebe</p>
             </div>
             <div class="setting-group">
               <label data-i18n="settings.labels.homepage">Homepage</label>
               <p style="margin: 4px 0 0 0;">
-                <a href="#" id="link-homepage" style="font-size: 13px; color: #0071e3; text-decoration: none;">
+                <a href="#" id="link-homepage" class="about-link" style="font-size: 13px; text-decoration: none;">
                   <i class="fas fa-house" style="margin-right: 4px;"></i>yohasebe.github.io/monadic-chat
                 </a>
               </p>
@@ -937,7 +938,7 @@
             <div class="setting-group">
               <label data-i18n="settings.labels.sourceCode">Source Code</label>
               <p style="margin: 4px 0 0 0;">
-                <a href="#" id="link-github" style="font-size: 13px; color: #0071e3; text-decoration: none;">
+                <a href="#" id="link-github" class="about-link" style="font-size: 13px; text-decoration: none;">
                   <i class="fab fa-github" style="margin-right: 4px;"></i>github.com/yohasebe/monadic-chat
                 </a>
               </p>
@@ -955,6 +956,13 @@
       let dirtyListenersAttached = false;
       let initialLanguage = 'en';
       let closingAfterSave = false;
+
+      // The heading shows the chosen category's icon and name.
+      function setContentTitle(item) {
+        document.getElementById('content-title-text').textContent = item.querySelector('span').textContent;
+        const icon = item.querySelector('i');
+        if (icon) document.getElementById('content-title-icon').className = icon.className;
+      }
 
       // Actions tab state
       let actionDockerStatus = 'Stopped';
@@ -1228,17 +1236,17 @@
           <div id="actionConfirmDialog" role="dialog" aria-modal="true" aria-labelledby="actionConfirmDialogTitle" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;
               background-color: rgba(0,0,0,0.5); z-index: 3000; display: flex; align-items: center;
               justify-content: center;">
-            <div style="background-color: #f8f9fa; border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            <div class="confirm-dialog-box" style="border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
                 padding: 24px; max-width: 420px; font-family: 'Montserrat', sans-serif;">
-              <h3 id="actionConfirmDialogTitle" style="margin-top: 0; color: #1d1d1f; font-size: 16px; font-weight: 600;">${settingsI18n.t('settings.messages.unsavedTitle')}</h3>
-              <p style="margin-bottom: 20px; color: #1d1d1f; font-weight: normal; font-size: 14px;">
+              <h3 id="actionConfirmDialogTitle" class="confirm-dialog-text" style="margin-top: 0; font-size: 16px; font-weight: 600;">${settingsI18n.t('settings.messages.unsavedTitle')}</h3>
+              <p class="confirm-dialog-text" style="margin-bottom: 20px; font-weight: normal; font-size: 14px;">
                 ${settingsI18n.t('settings.messages.actionConfirmMessage') || 'Save settings and execute?'}
               </p>
               <div style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
-                <button id="actionConfirmCancel" style="background-color: #e5e5ea; border: none; padding: 8px 16px;
-                    border-radius: 6px; color: #1d1d1f; cursor: pointer; font-weight: 500; font-size: 13px;">${settingsI18n.t('settings.buttons.close') || 'Cancel'}</button>
-                <button id="actionConfirmOk" style="background-color: #0d6efd; border: none; padding: 8px 16px;
-                    border-radius: 6px; color: #fff; cursor: pointer; font-weight: 600; font-size: 13px;">${settingsI18n.t('settings.messages.actionSaveAndExecute') || 'Save & Execute'}</button>
+                <button id="actionConfirmCancel" class="confirm-dialog-cancel" style="border: none; padding: 8px 16px;
+                    border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 13px;">${settingsI18n.t('settings.buttons.close') || 'Cancel'}</button>
+                <button id="actionConfirmOk" class="confirm-dialog-ok" style="border: none; padding: 8px 16px;
+                    border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px;">${settingsI18n.t('settings.messages.actionSaveAndExecute') || 'Save & Execute'}</button>
               </div>
             </div>
           </div>`;
@@ -1262,7 +1270,7 @@
           item.classList.add('active');
           document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
           document.getElementById(`panel-${item.dataset.category}`).classList.add('active');
-          document.getElementById('content-title').textContent = item.querySelector('span').textContent;
+          setContentTitle(item);
         });
       });
 
@@ -1365,17 +1373,17 @@
           <div id="unsavedDialog" role="dialog" aria-modal="true" aria-labelledby="unsavedDialogTitle" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;
               background-color: rgba(0,0,0,0.5); z-index: 3000; display: flex; align-items: center;
               justify-content: center;">
-            <div style="background-color: #f8f9fa; border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            <div class="confirm-dialog-box" style="border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
                 padding: 24px; max-width: 420px; font-family: 'Montserrat', sans-serif;">
-              <h3 id="unsavedDialogTitle" style="margin-top: 0; color: #1d1d1f; font-size: 16px; font-weight: 600;">${settingsI18n.t('settings.messages.unsavedTitle') || 'Unsaved Changes'}</h3>
-              <p style="margin-bottom: 20px; color: #1d1d1f; font-weight: normal; font-size: 14px;">
+              <h3 id="unsavedDialogTitle" class="confirm-dialog-text" style="margin-top: 0; font-size: 16px; font-weight: 600;">${settingsI18n.t('settings.messages.unsavedTitle') || 'Unsaved Changes'}</h3>
+              <p class="confirm-dialog-text" style="margin-bottom: 20px; font-weight: normal; font-size: 14px;">
                 ${settingsI18n.t('settings.messages.unsavedMessage') || 'You have unsaved changes. Save before closing?'}
               </p>
               <div style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
-                <button id="unsavedDiscard" style="background-color: #e5e5ea; border: none; padding: 8px 16px;
-                    border-radius: 6px; color: #1d1d1f; cursor: pointer; font-weight: 500; font-size: 13px;">${settingsI18n.t('settings.buttons.close') || 'Close'}</button>
-                <button id="unsavedSave" style="background-color: #0d6efd; border: none; padding: 8px 16px;
-                    border-radius: 6px; color: #fff; cursor: pointer; font-weight: 600; font-size: 13px;">${settingsI18n.t('settings.messages.saveAndClose') || 'Save and Close'}</button>
+                <button id="unsavedDiscard" class="confirm-dialog-cancel" style="border: none; padding: 8px 16px;
+                    border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 13px;">${settingsI18n.t('settings.buttons.close') || 'Close'}</button>
+                <button id="unsavedSave" class="confirm-dialog-ok" style="border: none; padding: 8px 16px;
+                    border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px;">${settingsI18n.t('settings.messages.saveAndClose') || 'Save and Close'}</button>
               </div>
             </div>
           </div>`;
@@ -1460,9 +1468,7 @@
         initialLanguage = data.UI_LANGUAGE || 'en';
         settingsI18n.setLanguage(initialLanguage);
         const activeItem = document.querySelector('#category-list li.active');
-        if (activeItem) {
-          document.getElementById('content-title').textContent = activeItem.querySelector('span').textContent;
-        }
+        if (activeItem) setContentTitle(activeItem);
 
 
         // Browser mode
@@ -1545,9 +1551,7 @@
         window.electronAPI.changeUILanguage(language);
         // Update content title to match new language
         const activeItem = document.querySelector('#category-list li.active');
-        if (activeItem) {
-          document.getElementById('content-title').textContent = activeItem.querySelector('span').textContent;
-        }
+        if (activeItem) setContentTitle(activeItem);
       });
 
       // ─── TTS Dict File Picker ───

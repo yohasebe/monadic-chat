@@ -2950,6 +2950,12 @@ function consoleBackground() {
   return nativeTheme.shouldUseDarkColors ? '#1a1a1a' : '#f0f0f0';
 }
 
+// The settings window's own background: its page's body color in light and
+// in dark (tokens.css --bg-panel).
+function settingsBackground() {
+  return nativeTheme.shouldUseDarkColors ? '#2a2a2a' : '#f5f5f7';
+}
+
 function createMainWindow() {
   if (mainWindow) return;
   // A new window has not loaded yet; notices wait for its did-finish-load.
@@ -3346,6 +3352,7 @@ function openSettingsWindow(category = null) {
       parent: mainWindow,
       modal: false,
       show: false,
+      backgroundColor: settingsBackground(),
       frame: true,
       title: 'Monadic Chat Settings',
       webPreferences: {
@@ -4438,6 +4445,7 @@ app.whenReady().then(async () => {
   powerMonitor.on('resume', () => { themeSync.refresh(); });
   nativeTheme.on('updated', () => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setBackgroundColor(consoleBackground());
+    if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.setBackgroundColor(settingsBackground());
   });
 
   // Check for pending updates before initializing the app

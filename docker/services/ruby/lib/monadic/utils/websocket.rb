@@ -59,6 +59,8 @@ module WebSocketHelper
     session_id = Thread.current[:websocket_session_id]
     return unless session_id
 
+    Monadic::History::Policy.note_begun!(session)
+
     params = get_session_params || {}
     Monadic::Utils::ExtraLogger.log { "[sync_session_state!] Session synced: #{session_id}" }
 

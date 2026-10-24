@@ -42,17 +42,22 @@ module WebSocketHelper
   private def handle_ws_privacy_toggle(connection, session, obj)
     requested_enabled = obj["enabled"] == true || obj["enabled"] == "true"
 
+    # The filter is chosen before the chat begins: once it has begun (Start
+    # Session adds the system prompt), neither the filter nor whether the
+    # chat is Private changes, so nothing of a chat was written to disk
+    # before it became Private, and a Private chat keeps its filter. The
+    # page locks the toggle at Start Session; this answers any other sender
+    # with the chat's state as it is. The app is not checked here (the page
+    # asks before it tells the server about a new app): Private only takes
+    # things away.
+    if chat_begun?(session)
+      enabled = session[:_privacy_session_enabled] == true
+      return send_to_client(connection, { "type" => "privacy_toggle_ack", "enabled" => enabled,
+                                          "error" => requested_enabled == enabled ? nil : "privacy_chat_started",
+                                          "private" => Monadic::History::Policy.private?(session) })
+    end
+
     if requested_enabled
-      # Whether a chat is Private is decided before it begins: once it has
-      # any message (Start Session adds the system prompt), it stays as it
-      # is, so nothing of it was written to disk before it became Private.
-      # The page locks the toggle at Start Session; a Private chat is a new
-      # chat. The app is not checked here (the page asks before it tells
-      # the server about a new app): Private only takes things away.
-      if !Monadic::History::Policy.private?(session) && chat_begun?(session)
-        return send_to_client(connection, { "type" => "privacy_toggle_ack", "enabled" => false,
-                                            "error" => "privacy_chat_started", "private" => false })
-      end
 
       # Asking for the filter makes the chat Private, whether or not the
       # filter turns out to be up: nothing of it is kept in the history.
@@ -90,8 +95,8 @@ module WebSocketHelper
       session[:_privacy_session_enabled] = false
       session.delete(:_privacy_pipeline)
       # Turned off before the chat begins, the chat is a normal one again
-      # (nothing of it was written); once it has begun, it stays Private.
-      Monadic::History::Policy.clear!(session) unless chat_begun?(session)
+      # (nothing of it was written).
+      Monadic::History::Policy.clear!(session)
       send_to_client(connection, {
         "type" => "privacy_toggle_ack",
         "enabled" => false,
@@ -106,7 +111,7 @@ module WebSocketHelper
   end
 
   private def chat_begun?(session)
-    !Array(session[:messages]).empty?
+    Monadic::History::Policy.begun?(session)
   end
 
   private def user_words_in_chat?(session)

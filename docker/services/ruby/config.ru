@@ -60,6 +60,10 @@ use Monadic::History::PrivateRequestGuard,
 # response is sent; left alone they stay until garbage collection.
 use Rack::TempfileReaper
 
+# A conversation to import is read in memory: no temporary file is made of
+# it (it may be one exported from a Private chat).
+use Monadic::Workspace::UploadInMemory, paths: ["/load"]
+
 # Attachments: the chat fixed from the tab, then the size cap, both before
 # anything reads the request body.
 use Monadic::Workspace::UploadContext,

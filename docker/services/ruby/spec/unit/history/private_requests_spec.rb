@@ -33,6 +33,7 @@ RSpec.describe 'What would make files of a Private chat' do
 
   describe 'the requests' do
     let(:tabs) { {} }
+    let(:states) { {} }
     let(:reached) { [] }
     let(:guard) do
       downstream = lambda do |env|
@@ -42,7 +43,7 @@ RSpec.describe 'What would make files of a Private chat' do
       end
       Monadic::History::PrivateRequestGuard.new(downstream, paths: ['/attachments', '/document'],
                                                             session_lookup: ->(id) { tabs[id] },
-                                                            state_lookup: ->(_id) { nil })
+                                                            state_lookup: ->(id) { states[id] })
     end
 
     def post(path, tab_id:, input: UnreadBody.new)
@@ -61,6 +62,43 @@ RSpec.describe 'What would make files of a Private chat' do
     it "lets through a request that names no tab (a program's, not a chat's)" do
       expect(post('/document', tab_id: nil, input: StringIO.new('file')).first).to eq(200)
       expect(reached).to eq(['/document'])
+    end
+
+    it 'refuses a request naming a tab it does not know, before its body is read' do
+      status, _headers, body = post('/document', tab_id: 'tab-gone')
+      expect(status).to eq(409)
+      expect(JSON.parse(body.first)).to include('reason' => 'tab_unknown')
+      expect(reached).to be_empty
+    end
+
+    # The tab is away (no connection), and its saved state says Private.
+    it 'refuses the upload of a Private chat whose tab is away' do
+      states['tab-away'] = { chat_id: chat[:chat_id], chat_state: { policy::SESSION_KEY => policy::PRIVATE } }
+      expect(post('/document', tab_id: 'tab-away').first).to eq(403)
+      states['tab-normal-away'] = { chat_id: chat[:chat_id], chat_state: {} }
+      expect(post('/document', tab_id: 'tab-normal-away', input: StringIO.new('file')).first).to eq(200)
+      expect(reached).to eq(['/document'])
+    end
+
+    # An import from the tab of a Private chat is not logged either: what
+    # runs for it is the Private chat's work.
+    it "runs another request from a Private chat's tab as that chat's work" do
+      seen = []
+      worker = Monadic::History::PrivateRequestGuard.new(
+        lambda do |_env|
+          seen << policy.current_work_private?
+          [200, {}, ['ok']]
+        end,
+        paths: ['/document'], session_lookup: ->(id) { tabs[id] }, state_lookup: ->(_id) { nil }
+      )
+      tabs['tab-p'] = chat(private: true)
+      tabs['tab-n'] = chat
+      %w[tab-p tab-n].each do |tab|
+        worker.call('REQUEST_METHOD' => 'POST', 'PATH_INFO' => '/load', 'QUERY_STRING' => "tab_id=#{tab}",
+                    'rack.input' => StringIO.new('x'))
+      end
+      expect(seen).to eq([true, false])
+      expect(Fiber[Monadic::Utils::Privacy::EgressGuard::CHAT_KEY]).to be_nil
     end
 
     it "takes a normal chat's upload, and other requests" do

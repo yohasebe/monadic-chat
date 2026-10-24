@@ -390,6 +390,16 @@ describe('WsPrivacyHandler: whether the chat is Private', () => {
     expect(document.body.classList.contains('chat-private')).toBe(false);
   });
 
+  it('takes whether the chat is Private from the restored words', () => {
+    const h = window.WsPrivacyHandler;
+    h.notePrivate({ private: true, content: [] });
+    expect(h.isChatPrivate()).toBe(true);
+    h.notePrivate({ content: [] });
+    expect(h.isChatPrivate()).toBe(true);
+    h.notePrivate({ private: false, content: [] });
+    expect(h.isChatPrivate()).toBe(false);
+  });
+
   it('keeps what it knows when a reply does not say', () => {
     const h = window.WsPrivacyHandler;
     h.noteRequested(true);

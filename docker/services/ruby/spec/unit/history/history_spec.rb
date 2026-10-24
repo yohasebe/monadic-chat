@@ -259,15 +259,13 @@ RSpec.describe Monadic::History do
       expect(Dir.glob(File.join(dir, '*'))).to be_empty
     end
 
-    it 'removes what was kept of a chat that becomes Private' do
-      marker = "MARK#{SecureRandom.hex(16)}"
-      session = session_with("before #{marker}")
-      expect(described_class.record(session, store: store)).to eq(1)
-      session[:_privacy_session_enabled] = true
+    # The history is there (a normal chat was kept), and nothing is asked of
+    # it for a Private chat: no row of one was ever kept to remove.
+    it 'asks nothing of the history for a Private chat' do
+      described_class.record(session_with('normal'), store: store)
+      session = session_with("private #{SecureRandom.hex(8)}", _privacy_session_enabled: true)
+      %i[save clear delete claim].each { |op| expect(store).not_to receive(op) }
       expect(described_class.record(session, store: store)).to be_nil
-      expect(store.get(session[chat_key])).to be_nil
-      store.close
-      expect(stored_bytes).not_to include(marker)
     end
 
     it 'keeps a Private chat out even when a copy of it without the mark is written later' do

@@ -19,9 +19,17 @@ module Monadic
       module_function
 
       def install!(streams = [STDOUT, STDERR])
-        streams.each do |io|
-          io.singleton_class.prepend(PrivateOutput) unless io.singleton_class.include?(PrivateOutput)
-        end
+        streams.each { |io| guard(io) }
+        # While $stderr is STDERR itself, Ruby writes warnings and the report
+        # of a thread that died of an exception (its message can hold the
+        # chat) straight to the file, past the write method. Through a copy
+        # of STDERR they go by write.
+        $stderr = guard(STDERR.dup.tap { |io| io.sync = true }) if streams.include?(STDERR) && $stderr.equal?(STDERR)
+      end
+
+      def guard(io)
+        io.singleton_class.prepend(PrivateOutput) unless io.singleton_class.include?(PrivateOutput)
+        io
       end
     end
   end

@@ -15,12 +15,12 @@ module Monadic
       ENV['MONADIC_HISTORY'] != 'false'
     end
 
-    # Writes the chat in `session` to the history. A Private chat is never
-    # written, and the history file is not even made for it: the chat is
-    # Private before it begins, and this process remembers its id (in
-    # memory), which keeps out a later copy of it that lacks the mark. If a
-    # row of it is there anyway, it is removed. A chat with no user words
-    # left has its row removed. Returns the revision written, or nil.
+    # Writes the chat in `session` to the history. Nothing of a Private chat
+    # reaches the history, which is not even opened for it: the chat is
+    # Private before it begins (so no row of it was ever kept), and this
+    # process remembers its id (in memory), which keeps out a later copy of
+    # it that lacks the mark. A chat with no user words left has its row
+    # removed. Returns the revision written, or nil.
     #
     # Called only for a session the tab's state accepted (not one from a
     # connection that a newer one replaced); the connection's generation is
@@ -32,10 +32,7 @@ module Monadic
       return nil unless chat_id
 
       generation = session[:_ws_generation] || session['_ws_generation']
-      if Policy.private?(session) || Policy.known_private?(chat_id)
-        store.clear(chat_id, tab: tab, generation: generation)
-        return nil
-      end
+      return nil if Policy.private?(session) || Policy.known_private?(chat_id)
 
       payload = Serializer.payload(session)
       unless payload

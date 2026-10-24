@@ -10,6 +10,7 @@ require 'twitter_cldr'
 require_relative 'error_formatter'
 require_relative 'privacy/egress_guard'
 require_relative '../workspace'
+require_relative '../history'
 require_relative '../agents/ai_user_agent'
 require_relative '../agents/context_extractor_agent'
 require_relative 'boolean_parser'
@@ -68,6 +69,16 @@ module WebSocketHelper
       chat_state: Monadic::Workspace::Chats.chat_state(session),
       generation: session[:_ws_generation]
     )
+    record_history
+  end
+
+  # Keeps the chat in the conversation history (when that is on). A failure
+  # is logged by its kind only, never with the conversation, and does not
+  # stop the chat.
+  def record_history
+    Monadic::History.record(session)
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[History] not saved: #{e.class}" }
   end
 
   # Sentence segmentation using TwitterCLDR (faster and better RTL support than PragmaticSegmenter)

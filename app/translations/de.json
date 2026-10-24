@@ -13,7 +13,11 @@
     "exporting": "Exportiert",
     "quitting": "Beendet",
     "checking": "Prüft",
-    "updating": "Aktualisiert"
+    "updating": "Aktualisiert",
+    "started": "Gestartet",
+    "finalizing": "Wird abgeschlossen",
+    "notinstalled": "Nicht installiert",
+    "portinuse": "Port belegt"
   },
   "menu": {
     "file": "Datei",

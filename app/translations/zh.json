@@ -13,7 +13,11 @@
     "exporting": "导出中",
     "quitting": "退出中",
     "checking": "检查中",
-    "updating": "更新中"
+    "updating": "更新中",
+    "started": "已启动",
+    "finalizing": "即将完成",
+    "notinstalled": "未安装",
+    "portinuse": "端口被占用"
   },
   "menu": {
     "file": "文件",

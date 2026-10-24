@@ -13,7 +13,11 @@
     "exporting": "Exportando",
     "quitting": "Saliendo",
     "checking": "Verificando",
-    "updating": "Actualizando"
+    "updating": "Actualizando",
+    "started": "Iniciado",
+    "finalizing": "Finalizando",
+    "notinstalled": "No instalado",
+    "portinuse": "Puerto en uso"
   },
   "menu": {
     "file": "Archivo",

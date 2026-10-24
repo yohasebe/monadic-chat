@@ -13,7 +13,11 @@
     "exporting": "Exporting",
     "quitting": "Quitting",
     "checking": "Checking",
-    "updating": "Updating"
+    "updating": "Updating",
+    "started": "Started",
+    "finalizing": "Finalizing",
+    "notinstalled": "Not installed",
+    "portinuse": "Port in use"
   },
   "menu": {
     "file": "File",

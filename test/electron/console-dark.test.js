@@ -24,7 +24,7 @@ describe('the console in dark', () => {
   });
 
   test('the stop line is a class, not a color', () => {
-    expect(screen).toContain('<p class="msg-stopped">');
+    expect(screen).toContain('<p class="msg-stopped"');
     expect(screen).not.toMatch(/<p style="color: #999;"><i class="fa-solid fa-circle-stop">/);
   });
 

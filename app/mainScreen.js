@@ -12,6 +12,47 @@ let networkUrlDisplayed = false;
 let serverStarted = false; // Flag to track if server has fully started
 let updateInProgress = false; // True while an app update is downloading or staged for install
 
+// The desktop app's own translations (app/translations/*.json), the ones
+// main writes its messages with; the page's window.i18n only has the Web UI
+// words. English fills a key the language lacks, as in main.
+const desktopStrings = { current: {}, en: {} };
+
+async function loadDesktopStrings(language) {
+  if (!window.electronAPI || !window.electronAPI.getTranslations) return;
+  try {
+    desktopStrings.en = await window.electronAPI.getTranslations('en');
+    desktopStrings.current = language && language !== 'en'
+      ? await window.electronAPI.getTranslations(language)
+      : desktopStrings.en;
+  } catch (e) {
+    console.warn('Could not load the desktop app translations:', e && e.message);
+  }
+}
+
+// Returns null for a key with no translation, so the caller keeps its own text.
+function desktopText(key, params = {}) {
+  const find = (table) => key.split('.').reduce((v, k) => (v && typeof v === 'object' ? v[k] : undefined), table);
+  let text = find(desktopStrings.current);
+  if (typeof text !== 'string') text = find(desktopStrings.en);
+  if (typeof text !== 'string') return null;
+  Object.keys(params).forEach((name) => { text = text.split(`{{${name}}}`).join(params[name]); });
+  return text;
+}
+
+// A status is kept in English in data-status, which the checks read; the
+// label shows its translation (status.<lowercase, no spaces>).
+function setStatusLabel(element, status) {
+  element.dataset.status = status;
+  element.textContent = desktopText(`status.${status.toLowerCase().replace(/\s+/g, '')}`) || status;
+}
+
+function relabelStatuses() {
+  ['status', 'dockerStatus'].forEach((id) => {
+    const element = document.getElementById(id);
+    if (element && element.dataset.status) setStatusLabel(element, element.dataset.status);
+  });
+}
+
 // Function to add copy functionality to code blocks
 function addCopyToClipboardListener() {
   document.addEventListener('click', (event) => {
@@ -121,17 +162,17 @@ function updateDockerStatusUI(isRunning) {
   if (dockerStatusElement) {
     dockerStatusElement.style.display = '';
     if (isRunning === 'not-installed') {
-      dockerStatusElement.textContent = 'Not installed';
+      setStatusLabel(dockerStatusElement, 'Not installed');
       dockerStatusElement.classList.remove('active');
       dockerStatusElement.classList.remove('blinking');
       dockerStatusElement.classList.add('inactive');
     } else if (isRunning) {
-      dockerStatusElement.textContent = 'Running';
+      setStatusLabel(dockerStatusElement, 'Running');
       dockerStatusElement.classList.remove('inactive');
       dockerStatusElement.classList.remove('blinking'); // Stop blinking when status is determined
       dockerStatusElement.classList.add('active');
     } else {
-      dockerStatusElement.textContent = 'Stopped';
+      setStatusLabel(dockerStatusElement, 'Stopped');
       dockerStatusElement.classList.remove('active');
       dockerStatusElement.classList.remove('blinking'); // Stop blinking when status is determined
       dockerStatusElement.classList.add('inactive');
@@ -153,13 +194,13 @@ function updateMonadicChatStatusUI(status) {
   if (status === 'Ready') {
     if (serverStarted) {
       console.log("Server ready and serverStarted=true, showing Started");
-      statusElement.textContent = "Started";
+      setStatusLabel(statusElement, "Started");
       statusElement.classList.remove('inactive');
       statusElement.classList.add('active');
       document.getElementById('browser').disabled = false;
     } else {
       console.log("Ready status but waiting for server verification, showing Finalizing");
-      statusElement.textContent = "Finalizing";
+      setStatusLabel(statusElement, "Finalizing");
       statusElement.classList.remove('active');
       statusElement.classList.add('inactive');
     }
@@ -213,18 +254,18 @@ function updateMonadicChatStatusUI(status) {
     
     buttons.sharedfolder.disabled = false;
     buttons.settings.disabled = false;
-    statusElement.textContent = status;
+    setStatusLabel(statusElement, status);
   } else if (status === 'Running') {
     // For Running state, show "Starting" until server verification completes
     if (serverStarted) {
       // Only if serverStarted is true (should not happen normally with Running status)
-      statusElement.textContent = "Started";
+      setStatusLabel(statusElement, "Started");
       statusElement.classList.remove('inactive');
       statusElement.classList.remove('blinking');
       statusElement.classList.add('active');
     } else {
       // Show "Starting" until server is verified
-      statusElement.textContent = "Starting";
+      setStatusLabel(statusElement, "Starting");
       statusElement.classList.remove('active');
       statusElement.classList.add('inactive');
       statusElement.classList.add('blinking'); // Keep blinking while starting
@@ -249,7 +290,7 @@ function updateMonadicChatStatusUI(status) {
     buttons.sharedfolder.disabled = false;
     buttons.settings.disabled = false;
   } else if (status === 'Stopped') {
-    statusElement.textContent = status;
+    setStatusLabel(statusElement, status);
     statusElement.classList.remove('active');
     statusElement.classList.remove('blinking');
     statusElement.classList.add('inactive');
@@ -261,7 +302,7 @@ function updateMonadicChatStatusUI(status) {
     buttons.sharedfolder.disabled = false;
     buttons.settings.disabled = false;
   } else {
-    statusElement.textContent = status;
+    setStatusLabel(statusElement, status);
     statusElement.classList.remove('blinking');
     Object.values(buttons).forEach(button => button.disabled = true);
     buttons.sharedfolder.disabled = false;
@@ -349,18 +390,9 @@ function writeToScreen(text) {
       logLines = 0;
       // Add stop message to messages area with timestamp
       const timestamp = new Date().toLocaleTimeString();
-      const stopMessageKey = 'messages.systemStopped';
-      
-      // Get translated stop message
-      let stopMessage = stopMessageKey;
-      if (window.i18n && window.i18n.t) {
-        stopMessage = window.i18n.t(stopMessageKey, { time: timestamp });
-      } else {
-        // Fallback to English if i18n not available
-        stopMessage = `System stopped at ${timestamp}`;
-      }
-      
-      htmlOutputElement.innerHTML += `<p class="msg-stopped"><i class="fa-solid fa-circle-stop"></i> ${stopMessage}</p>\n`;
+      const stopMessage = desktopText('messages.systemStopped', { time: timestamp }) || `System stopped at ${timestamp}`;
+      // data-i18n-* lets a language change translate it again, like main's messages.
+      htmlOutputElement.innerHTML += `<p class="msg-stopped" data-i18n-key="messages.systemStopped" data-i18n-params='${JSON.stringify({ time: timestamp })}'><i class="fa-solid fa-circle-stop"></i> ${stopMessage}</p>\n`;
       htmlMessageCount++;
       
       // Limit HTML messages to prevent memory issues
@@ -498,7 +530,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const dockerStatusElement = document.getElementById('dockerStatus');
   dockerStatusElement.classList.add('inactive');
   dockerStatusElement.classList.add('blinking'); // Add blinking for initial checking
-  dockerStatusElement.textContent = 'Checking';
+  setStatusLabel(dockerStatusElement, 'Checking');
   
   // Update version
   window.electronAPI.onUpdateVersion((_event, ver) => {
@@ -514,9 +546,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Update Monadic Chat status 
-  window.electronAPI.onUpdateStatusIndicator((_event, status, translatedStatus) => {
-    // Use translated status if available, otherwise use original
-    updateMonadicChatStatusUI(translatedStatus || status);
+  // The checks need the English status; the label is translated here.
+  window.electronAPI.onUpdateStatusIndicator((_event, status) => {
+    updateMonadicChatStatusUI(status);
   });
 
   // Disable Start/Restart while an app update download/staging is in flight,
@@ -586,9 +618,9 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // Update status indicator if status is Ready or Finalizing
       const statusElement = document.getElementById('status');
-      if (statusElement && (statusElement.textContent === "Finalizing" || currentStatus === 'Ready' || statusElement.textContent === "Starting" || statusElement.textContent === "Started")) {
+      if (statusElement && (statusElement.dataset.status === "Finalizing" || currentStatus === 'Ready' || statusElement.dataset.status === "Starting" || statusElement.dataset.status === "Started")) {
         console.log("Network URL displayed - updating status to Started");
-        statusElement.textContent = "Started";
+        setStatusLabel(statusElement, "Started");
         statusElement.classList.remove('inactive');
         statusElement.classList.remove('blinking'); // Stop blinking when started
         statusElement.classList.add('active');
@@ -649,13 +681,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Engine service, not Docker Desktop.
     const isLinux = window.electronAPI && window.electronAPI.platform === 'linux';
     const tipKey = isLinux ? 'messages.standaloneModeTipLinux' : 'messages.standaloneModeTip';
-    const dockerTip = (window.i18n && window.i18n.t)
-      ? window.i18n.t(tipKey)
-      : (isLinux ? 'Please make sure Docker is running while using Monadic Chat.'
-                 : 'Please make sure Docker Desktop is running while using Monadic Chat.');
-    const pressStart = (window.i18n && window.i18n.t)
-      ? window.i18n.t('messages.pressStartButton')
-      : 'Press <b>start</b> button to initialize the server.';
+    const dockerTip = desktopText(tipKey)
+      || (isLinux ? 'Please make sure Docker is running while using Monadic Chat.'
+                  : 'Please make sure Docker Desktop is running while using Monadic Chat.');
+    const pressStart = desktopText('messages.pressStartButton')
+      || 'Press <b>start</b> button to initialize the server.';
     const initialMessage = `
         <p><b>Monadic Chat</b></p>
         <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${dockerTip}</p>
@@ -691,9 +721,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   
+  // main sends the language once the page has loaded; until then use the
+  // saved one, or English.
+  const savedLanguage = (document.cookie.match(/ui-language=([^;]+)/) || [])[1] || 'en';
+  loadDesktopStrings(savedLanguage).then(relabelStatuses);
+
   // Listen for UI language changes
-  window.electronAPI.onUILanguageChanged((_event, data) => {
+  window.electronAPI.onUILanguageChanged(async (_event, data) => {
     if (data.language) {
+      await loadDesktopStrings(data.language);
+      relabelStatuses();
+
       // Save to cookie for persistence
       document.cookie = `ui-language=${data.language}; path=/; max-age=31536000`;
       
@@ -708,50 +746,47 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       // Re-translate all messages in #messages
-      const messagesElement = document.getElementById('messages');
-      if (messagesElement) {
-        const htmlOutput = messagesElement.querySelector('.html-output');
-        if (htmlOutput) {
-          // Find all translatable messages
-          const translatableMessages = htmlOutput.querySelectorAll('[data-i18n-key]');
-          translatableMessages.forEach(msg => {
-            const key = msg.getAttribute('data-i18n-key');
-            const _type = msg.getAttribute('data-i18n-type');
-            const paramsStr = msg.getAttribute('data-i18n-params');
-            let params = {};
-            try {
-              params = JSON.parse(paramsStr || '{}');
-            } catch {
-              // Ignore parse errors
-            }
-            
-            // Get translation using the renderer's i18n instance
-            if (window.i18n && window.i18n.t) {
-              const translatedText = window.i18n.t(key, params);
-              
-              // Preserve nested interactive children that carry their own
-              // data-i18n-key (e.g. the inline "Download & Install" button in
-              // the update-available message) — rebuilding innerHTML from the
-              // translated text alone would wipe them. The same forEach visits
-              // those children later and re-translates their own labels.
-              const preserved = Array.from(msg.children).filter(function (c) {
-                return c.nodeType === 1 && c.hasAttribute('data-i18n-key');
-              });
+      const htmlOutput = document.getElementById('messages');
+      if (htmlOutput) {
+        // Find all translatable messages
+        const translatableMessages = htmlOutput.querySelectorAll('[data-i18n-key]');
+        translatableMessages.forEach(msg => {
+          const key = msg.getAttribute('data-i18n-key');
+          const _type = msg.getAttribute('data-i18n-type');
+          const paramsStr = msg.getAttribute('data-i18n-params');
+          let params = {};
+          try {
+            params = JSON.parse(paramsStr || '{}');
+          } catch {
+            // Ignore parse errors
+          }
 
-              // Find the icon if exists
-              const icon = msg.querySelector('i.fa-solid');
-              if (icon) {
-                // Update text while preserving icon
-                const iconHTML = icon.outerHTML;
-                msg.innerHTML = iconHTML + ' ' + translatedText;
-              } else {
-                msg.textContent = translatedText;
-              }
+          // main wrote these with the desktop app's translations
+          const translatedText = desktopText(key, params);
+          if (translatedText !== null) {
 
-              preserved.forEach(function (el) { msg.appendChild(el); });
+            // Preserve nested interactive children that carry their own
+            // data-i18n-key (e.g. the inline "Download & Install" button in
+            // the update-available message) — rebuilding innerHTML from the
+            // translated text alone would wipe them. The same forEach visits
+            // those children later and re-translates their own labels.
+            const preserved = Array.from(msg.children).filter(function (c) {
+              return c.nodeType === 1 && c.hasAttribute('data-i18n-key');
+            });
+
+            // Find the icon if exists
+            const icon = msg.querySelector('i.fa-solid');
+            if (icon) {
+              // Update text while preserving icon
+              const iconHTML = icon.outerHTML;
+              msg.innerHTML = iconHTML + ' ' + translatedText;
+            } else {
+              msg.textContent = translatedText;
             }
-          });
-        }
+
+            preserved.forEach(function (el) { msg.appendChild(el); });
+          }
+        });
       }
     }
   });

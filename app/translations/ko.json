@@ -13,7 +13,11 @@
     "exporting": "내보내는 중",
     "quitting": "종료 중",
     "checking": "확인 중",
-    "updating": "업데이트 중"
+    "updating": "업데이트 중",
+    "started": "시작됨",
+    "finalizing": "마무리 중",
+    "notinstalled": "설치되지 않음",
+    "portinuse": "포트 사용 중"
   },
   "menu": {
     "file": "파일",

@@ -13,7 +13,10 @@ function loadMainScreen() {
   const source = fs.readFileSync(path.join(__dirname, '../../app/mainScreen.js'), 'utf8');
   const fn = source.match(/function updateDockerStatusUI\(isRunning\) \{[\s\S]*?\n\}\n/);
   if (!fn) throw new Error('updateDockerStatusUI not found in mainScreen.js');
-  window.eval(fn[0]);
+  // The label goes through the translation helpers defined before it.
+  const helpers = source.match(/const desktopStrings = [\s\S]*?\nfunction relabelStatuses\(\) \{[\s\S]*?\n\}\n/);
+  if (!helpers) throw new Error('status label helpers not found in mainScreen.js');
+  window.eval(helpers[0].replace('const desktopStrings', 'var desktopStrings') + fn[0]);
   return document.getElementById('dockerStatus');
 }
 

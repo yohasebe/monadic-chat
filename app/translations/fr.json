@@ -13,7 +13,11 @@
     "exporting": "Exportation",
     "quitting": "Fermeture",
     "checking": "Vérification",
-    "updating": "Mise à jour"
+    "updating": "Mise à jour",
+    "started": "Démarré",
+    "finalizing": "Finalisation",
+    "notinstalled": "Non installé",
+    "portinuse": "Port utilisé"
   },
   "menu": {
     "file": "Fichier",

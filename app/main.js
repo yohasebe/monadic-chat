@@ -2852,8 +2852,10 @@ function updateTrayMenu() {
 // Helper function to translate status values
 function translateStatus(status) {
   if (!status) return '';
-  const statusKey = status.toLowerCase().replace(/\s+/g, '');
-  return i18n.t(`status.${statusKey}`) || status;
+  // i18n.t returns the key itself when there is no translation.
+  const key = `status.${status.toLowerCase().replace(/\s+/g, '')}`;
+  const label = i18n.t(key);
+  return label === key ? status : label;
 }
 
 // Helper function to format HTML messages with translations

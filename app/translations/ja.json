@@ -13,7 +13,11 @@
     "exporting": "エクスポート中",
     "quitting": "終了中",
     "checking": "確認中",
-    "updating": "更新中"
+    "updating": "更新中",
+    "started": "起動済み",
+    "finalizing": "最終処理中",
+    "notinstalled": "未インストール",
+    "portinuse": "ポート使用中"
   },
   "menu": {
     "file": "ファイル",

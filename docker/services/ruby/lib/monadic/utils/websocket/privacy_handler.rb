@@ -43,6 +43,12 @@ module WebSocketHelper
     requested_enabled = obj["enabled"] == true || obj["enabled"] == "true"
 
     if requested_enabled
+      # Asking for the filter makes the chat Private, whether or not the
+      # filter turns out to be up: nothing of it is kept in the history,
+      # and what was kept before is removed now, before the reply.
+      Monadic::History::Policy.mark_private!(session)
+      sync_session_state!
+
       require_relative '../privacy/presidio_backend'
       backend = Monadic::Utils::Privacy::PresidioBackend.new
       if !backend.health

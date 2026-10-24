@@ -69,6 +69,86 @@ RSpec.describe Monadic::History do
       expect(store.save('chat_a', { 'messages' => [] })).to be_nil
     end
 
+    it 'keeps the owner-only mode when the process allows everyone' do
+      previous = File.umask(0o000)
+      store.save('chat_a', { 'messages' => [] })
+      store.save('chat_a', { 'messages' => [{}] })
+      expect(Dir.glob(File.join(dir, 'history.sqlite3*')).map { |f| File.stat(f).mode & 0o777 }.uniq).to eq([0o600])
+    ensure
+      File.umask(previous)
+    end
+
+    it 'does not create the file to read from it, or to clear a chat' do
+      expect(store.get('chat_a')).to be_nil
+      expect(store.list).to eq([])
+      expect(store.clear('chat_a')).to be(false)
+      expect(Dir.glob(File.join(dir, '*'))).to be_empty
+    end
+
+    it 'refuses a write from a connection older than the one that wrote last' do
+      expect(store.save('chat_a', { 'messages' => [{ 'text' => 'new' }] }, generation: 5)).to eq(1)
+      expect(store.save('chat_a', { 'messages' => [{ 'text' => 'old' }] }, generation: 4)).to be_nil
+      expect(store.get('chat_a')['payload']['messages']).to eq([{ 'text' => 'new' }])
+      expect(store.save('chat_a', { 'messages' => [] }, generation: 5)).to eq(2)
+    end
+
+    it 'clears a chat without keeping it out for good' do
+      marker = "MARK#{SecureRandom.hex(16)}"
+      store.save('chat_a', { 'messages' => [{ 'text' => marker }] })
+      expect(store.clear('chat_a')).to be(true)
+      expect(stored_bytes).not_to include(marker)
+      expect(store.save('chat_a', { 'messages' => [{ 'text' => 'again' }] })).to eq(1)
+    end
+
+    # The lock is released by another task of the same reactor; a wait that
+    # held the interpreter (busy_timeout) would never let it run.
+    it 'lets the server run other tasks while it waits for a lock' do
+      require 'async'
+      store.save('chat_a', { 'messages' => [] })
+      other = SQLite3::Database.new(store.path)
+      other.execute('BEGIN IMMEDIATE')
+      revision = nil
+      Async do |task|
+        task.async do
+          sleep 0.2
+          other.execute('COMMIT')
+        end
+        revision = store.save('chat_a', { 'messages' => [{}] })
+      end.wait
+      other.close
+      expect(revision).to eq(2)
+    end
+
+    it 'checkpoints a removal again once a reader that held it up is gone' do
+      quick = described_class::Store.new(File.join(dir, 'history.sqlite3'), busy_timeout_ms: 100)
+      marker = "MARK#{SecureRandom.hex(16)}"
+      quick.save('chat_b', { 'messages' => [{ 'text' => 'kept' }] })
+      quick.save('chat_a', { 'messages' => [{ 'text' => marker }] })
+      reader = SQLite3::Database.new(quick.path)
+      reader.execute('BEGIN')
+      reader.execute('SELECT count(*) FROM history_chats')
+      quick.delete('chat_a')
+      expect(quick.checkpoint_pending?).to be(true)
+
+      reader.execute('COMMIT')
+      reader.close
+      quick.list # still open: the next use tries again
+      expect(quick.checkpoint_pending?).to be(false)
+      expect(stored_bytes).not_to include(marker)
+    ensure
+      quick&.close
+    end
+
+    it 'refuses a state folder inside the shared folder' do
+      data = File.join(dir, 'data')
+      FileUtils.mkdir_p(File.join(data, 'state'))
+      allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(data)
+      expect { described_class::Store.refuse_inside_shared_folder!(File.join(data, 'state')) }
+        .to raise_error(described_class::Store::Exposed)
+      FileUtils.mkdir_p(File.join(dir, 'state'))
+      expect { described_class::Store.refuse_inside_shared_folder!(File.join(dir, 'state')) }.not_to raise_error
+    end
+
     it 'refuses a history written by a newer version' do
       store.save('chat_a', { 'messages' => [] })
       store.close
@@ -88,6 +168,21 @@ RSpec.describe Monadic::History do
       expect(message['text']).not_to include(fake_key)
       expect(message['text']).not_to include('op://')
       expect(payload['parameters']).to eq('app_name' => 'ChatOpenAI', 'model' => 'gpt-x')
+    end
+
+    it 'keeps of the Session Context only its fields, items and turns' do
+      context = { '_turn_count' => 3, 'topics' => [{ 'text' => 'trip', 'turn' => 1, 'edited' => true,
+                                                      'raw_tool' => { 'data' => 'data:image/png;base64,AAAA' } }, 'plain'],
+                  'notes' => [{ 'text' => 'n', 'path' => '/private/source' }], 'internal' => { 'x' => 1 },
+                  'unlisted' => [{ 'text' => 'not in the schema' }] }
+      schema = { fields: [{ name: 'topics' }, { name: 'notes' }] }
+      payload = described_class::Serializer.payload(session_with('hi', monadic_state: { conversation_context: context,
+                                                                                         context_schema: schema }))
+      expect(payload['session_context']).to eq(
+        '_turn_count' => 3,
+        'topics' => [{ 'text' => 'trip', 'turn' => 1, 'edited' => true }, { 'text' => 'plain' }],
+        'notes' => [{ 'text' => 'n' }]
+      )
     end
 
     it 'keeps nothing for a chat with no user words yet' do
@@ -113,6 +208,10 @@ RSpec.describe Monadic::History do
       expect(described_class::Policy.private?(session_with('hi', monadic_state: { privacy: { terms: ['Taro'] } }))).to be(true)
       expect(described_class::Policy.private?(session_with('hi', monadic_state: { privacy: { registry: { 'a' => 'b' } } }))).to be(true)
       expect(described_class::Policy.private?(session_with('hi'))).to be(false)
+    end
+
+    it 'treats a chat with a privacy pipeline as Private' do
+      expect(described_class::Policy.private?(session_with('hi', _privacy_pipeline: Object.new))).to be(true)
     end
   end
 
@@ -144,6 +243,27 @@ RSpec.describe Monadic::History do
       expect(described_class.record(session, store: store)).to be_nil
       expect(store.get(session[chat_key])).to be_nil
       store.close
+      expect(stored_bytes).not_to include(marker)
+    end
+
+    it 'keeps a Private chat out even when a copy of it without the mark is written later' do
+      marker = "MARK#{SecureRandom.hex(16)}"
+      session = session_with("private #{marker}")
+      copy = session.dup
+      session[:_privacy_session_enabled] = true
+      described_class.record(session, store: store)
+      expect(described_class.record(copy, store: store)).to be_nil
+      store.close
+      expect(stored_bytes).not_to include(marker)
+    end
+
+    it 'removes the kept chat when its last user message is removed' do
+      marker = "MARK#{SecureRandom.hex(16)}"
+      session = session_with("before #{marker}")
+      described_class.record(session, store: store)
+      session[:messages] = session[:messages].reject { |m| m['role'] == 'user' }
+      expect(described_class.record(session, store: store)).to be_nil
+      expect(store.get(session[chat_key])).to be_nil
       expect(stored_bytes).not_to include(marker)
     end
   end

@@ -36,6 +36,7 @@ RSpec.describe 'What the handlers write to the history' do
     store.close
     FileUtils.rm_rf(dir)
     saved ? ENV['MONADIC_HISTORY'] = saved : ENV.delete('MONADIC_HISTORY')
+    opened.each { |id, generation| WebSocketHelper.unregister_live_session(id, generation) }
     Thread.current[:websocket_session_id] = nil
     Thread.current[:rack_session] = nil
   end
@@ -45,6 +46,16 @@ RSpec.describe 'What the handlers write to the history' do
     allow(WebSocketHelper).to receive(:send_to_session)
     allow(Monadic::Utils::ContainerDependencies).to receive(:ensure_services_async)
     Thread.current[:websocket_session_id] = tab
+  end
+
+  let(:opened) { [] }
+
+  # The chat open in a tab of its own, as a connection registers it.
+  def open_in_tab(session)
+    id = "tab-#{SecureRandom.hex(4)}"
+    WebSocketHelper.register_live_session(id, session, 1)
+    opened << [id, 1]
+    id
   end
 
   def chat_session(text, generation:)
@@ -167,11 +178,11 @@ RSpec.describe 'What the handlers write to the history' do
       host.send(:handle_ws_history_rename, nil, { 'chat_id' => session[:chat_id], 'title' => "  My\ntrip  " })
       expect(store.list.first['title_user']).to eq('My trip')
 
-      allow(WebSocketHelper).to receive(:live_chat_ids).and_return([session[:chat_id]])
+      open_tab = open_in_tab(session)
       host.send(:handle_ws_history_delete, nil, { 'chat_id' => session[:chat_id] })
       expect(host.sent.last).to include('success' => false, 'error' => 'history_chat_open')
 
-      allow(WebSocketHelper).to receive(:live_chat_ids).and_return([])
+      WebSocketHelper.unregister_live_session(open_tab, 1)
       host.send(:handle_ws_history_delete, nil, { 'chat_id' => session[:chat_id] })
       expect(host.sent.last).to include('success' => true)
       store.close
@@ -203,8 +214,13 @@ RSpec.describe 'What the handlers write to the history' do
       Thread.current[:websocket_session_id] = other_tab
       Thread.current[:rack_session] = session
       obj = { 'chat_id' => chat_id }
-      host.send(:handle_ws_history_resume, nil, obj, session, host.send(:history_resumable?, obj, session))
+      host.send(:handle_ws_history_resume, nil, obj, session, host.send(:history_resume_refusal, obj, session))
       host.sent.last
+    end
+
+    def empty_tab_session(other_tab)
+      { chat_id: Monadic::Workspace::Ids.generate(:chat), _ws_generation: WebSocketHelper.claim_session_state(other_tab),
+        messages: [], parameters: {} }
     end
 
     it 'continues the chat under its id in another tab, which then is the only one to write it' do
@@ -243,7 +259,7 @@ RSpec.describe 'What the handlers write to the history' do
 
       Thread.current[:websocket_session_id] = other_tab
       obj = { 'chat_id' => kept[:chat_id], 'confirm' => true }
-      host.send(:handle_ws_history_resume, nil, obj, here, host.send(:history_resumable?, obj, here))
+      host.send(:handle_ws_history_resume, nil, obj, here, host.send(:history_resume_refusal, obj, here))
       expect(host.sent.last).to include('success' => true)
       expect(host.sent).to include(include('type' => 'privacy_state', 'enabled' => false, 'restored' => true))
     end
@@ -251,11 +267,67 @@ RSpec.describe 'What the handlers write to the history' do
     it 'does not resume a chat open in another tab, or touch the chat here' do
       kept = chat_session(marker, generation: 1)
       sync(kept)
-      allow(WebSocketHelper).to receive(:live_chat_ids).and_return([kept[:chat_id]])
+      open_in_tab(kept)
       here = { chat_id: Monadic::Workspace::Ids.generate(:chat), messages: [{ 'role' => 'user', 'text' => 'mine' }],
                parameters: { 'app_name' => 'ChatClaude' } }
       expect(resume_in("tab-#{SecureRandom.hex(4)}", here, kept[:chat_id])).to include('success' => false, 'error' => 'history_chat_open')
       expect(here[:messages].map { |m| m['text'] }).to eq(['mine'])
+    end
+
+    # Between the check and taking the chat, the tab stops what runs for its
+    # current chat; another tab cannot take the chat meanwhile, nor remove it.
+    it 'lets only one tab take a chat, and removes none while it is being taken' do
+      kept = chat_session(marker, generation: 1)
+      sync(kept)
+      tab_a = "tab-#{SecureRandom.hex(4)}"
+      tab_b = "tab-#{SecureRandom.hex(4)}"
+      a = empty_tab_session(tab_a)
+      b = empty_tab_session(tab_b)
+      obj = { 'chat_id' => kept[:chat_id] }
+
+      refusal_a = host.send(:history_resume_refusal, obj, a)
+      expect(refusal_a).to be_nil
+      expect(host.send(:history_resume_refusal, obj, b)).to eq('history_chat_open')
+      host.send(:handle_ws_history_delete, nil, obj)
+      expect(host.sent.last).to include('success' => false, 'error' => 'history_chat_open')
+
+      Thread.current[:websocket_session_id] = tab_a
+      host.send(:handle_ws_history_resume, nil, obj, a, refusal_a)
+      expect(host.sent.last).to include('success' => true)
+      expect(store.get(kept[:chat_id])['owner_tab']).to eq(tab_a)
+    end
+
+    it 'does not take a chat that is not kept, so what runs here goes on' do
+      here = empty_tab_session(tab)
+      missing = { 'chat_id' => Monadic::Workspace::Ids.generate(:chat) }
+      expect(host.send(:history_resume_refusal, missing, here)).to eq('history_not_found')
+      expect(WebSocketHelper.reserve_chat(missing['chat_id'])).to be(true)
+      WebSocketHelper.release_chat(missing['chat_id'])
+    end
+
+    # The tab a chat was taken from neither brings it back on reconnecting
+    # nor removes what the new tab keeps of it.
+    it 'leaves a chat with the tab that took it' do
+      kept = chat_session(marker, generation: 1)
+      sync(kept)
+      expect(host.send(:history_taken_elsewhere?, kept[:chat_id], tab)).to be(false)
+      other_tab = "tab-#{SecureRandom.hex(4)}"
+      expect(resume_in(other_tab, empty_tab_session(other_tab), kept[:chat_id])).to include('success' => true)
+      expect(host.send(:history_taken_elsewhere?, kept[:chat_id], tab)).to be(true)
+      expect(host.send(:history_taken_elsewhere?, kept[:chat_id], other_tab)).to be(false)
+
+      Thread.current[:websocket_session_id] = tab
+      kept[:messages] = []
+      sync(kept)
+      kept[:_privacy_session_enabled] = true
+      sync(kept)
+      expect(store.get(kept[:chat_id])).to include('owner_tab' => other_tab)
+      kept.delete(:_privacy_session_enabled)
+      kept.delete(Monadic::History::Policy::SESSION_KEY)
+      kept[:messages] = [{ 'mid' => 'm9', 'role' => 'user', 'text' => 'from the old tab' }]
+      sync(kept)
+      expect(store.get(kept[:chat_id])).to include('owner_tab' => other_tab)
+      expect(store.get(kept[:chat_id])['payload']['messages'].map { |m| m['text'] }).to eq([marker])
     end
   end
 end

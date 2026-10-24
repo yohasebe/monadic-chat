@@ -4,6 +4,7 @@ require 'json'
 require 'time'
 require 'fileutils'
 require 'sqlite3'
+require_relative '../utils/secret_redactor'
 
 module Monadic
   module History
@@ -119,8 +120,11 @@ module Monadic
       end
 
       # The user's own name for the chat; nil or blank gives the headings back.
+      # Known keys and 1Password references are removed as from the rest of
+      # what is kept, before the name is cut to its length.
       def rename(chat_id, title)
-        title = title.to_s.gsub(/[[:cntrl:]]/, ' ').strip[0, TITLE_LIMIT]
+        title = Monadic::Utils::SecretRedactor.redact_values(title.to_s.gsub(/[[:cntrl:]]/, ' '))
+        title = title.strip[0, TITLE_LIMIT]
         synchronize(create: false) do |db|
           db.execute('UPDATE history_chats SET title_user = ? WHERE chat_id = ?', [title.empty? ? nil : title, chat_id])
           db.changes.positive?
@@ -155,9 +159,11 @@ module Monadic
       end
 
       # Removes the chat and keeps a tombstone, so nothing of it is written
-      # again. Returns whether a row was removed.
-      def delete(chat_id, now: Time.now)
-        remove_row(chat_id) do |db|
+      # again. Returns whether a row was removed. With `tab` (a change in a
+      # tab's chat, not the user removing it), only a writer of the chat, as
+      # for save, removes it: a tab the chat was taken from removes nothing.
+      def delete(chat_id, tab: nil, generation: nil, now: Time.now)
+        remove_row(chat_id, tab: tab, generation: generation) do |db|
           db.execute('INSERT OR IGNORE INTO deleted_chats (chat_id, deleted_at) VALUES (?, ?)', [chat_id, now.utc.iso8601])
         end
       end
@@ -165,11 +171,26 @@ module Monadic
       # Removes the chat's row without a tombstone: the chat has nothing left
       # to keep for now (its user messages were removed), and what it says
       # next is kept again. Does not create the file. Returns whether a row
-      # was removed.
-      def clear(chat_id)
+      # was removed. `tab` and `generation` are checked as for delete.
+      def clear(chat_id, tab: nil, generation: nil)
         return false unless File.exist?(@path)
 
-        remove_row(chat_id)
+        remove_row(chat_id, tab: tab, generation: generation)
+      end
+
+      # Whether there is a kept chat to resume (not removed).
+      def resumable?(chat_id)
+        synchronize(create: false) do |db|
+          !db.get_first_value('SELECT 1 FROM history_chats WHERE chat_id = ?', [chat_id]).nil? &&
+            db.get_first_value('SELECT 1 FROM deleted_chats WHERE chat_id = ?', [chat_id]).nil?
+        end || false
+      end
+
+      # The tab that writes the chat now, or nil when it is not kept.
+      def owner(chat_id)
+        synchronize(create: false) do |db|
+          db.get_first_value('SELECT owner_tab FROM history_chats WHERE chat_id = ?', [chat_id])
+        end
       end
 
       # Whether a checkpoint after a removal is still waiting for a reader.
@@ -203,9 +224,13 @@ module Monadic
         tab && row['owner_tab'].nil? ? generation : [generation, row['generation']].compact.max
       end
 
-      def remove_row(chat_id)
+      def remove_row(chat_id, tab: nil, generation: nil)
         synchronize do |db|
           removed = db.transaction(:immediate) do
+            if tab
+              row = db.get_first_row('SELECT generation, owner_tab FROM history_chats WHERE chat_id = ?', [chat_id])
+              next false if row && !writer?(row, tab, generation)
+            end
             db.execute('DELETE FROM history_chats WHERE chat_id = ?', [chat_id])
             changed = db.changes.positive?
             yield(db) if block_given?

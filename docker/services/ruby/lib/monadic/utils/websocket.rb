@@ -75,6 +75,16 @@ module WebSocketHelper
     record_history if accepted
   end
 
+  # Whether the history gives the chat to another tab (it was resumed there).
+  def history_taken_elsewhere?(chat_id, tab)
+    return false unless chat_id && Monadic::History.enabled?
+
+    owner = Monadic::History::Store.default.owner(chat_id)
+    !owner.nil? && owner != tab
+  rescue StandardError
+    false
+  end
+
   # Keeps the chat in the conversation history (when that is on). A failure
   # is logged by its kind only, never with the conversation, and does not
   # stop the chat.
@@ -156,8 +166,11 @@ module WebSocketHelper
       session[:messages] = []
       session[:parameters] = {}
 
-      # Then restore saved state if it exists (for page refresh/reconnection)
+      # Then restore saved state if it exists (for page refresh/reconnection).
+      # A chat another tab took from the history while this one was away
+      # goes on there: this tab starts a new chat instead of a stale copy.
       saved_state = WebSocketHelper.fetch_session_state(ws_session_id)
+      saved_state = nil if saved_state && history_taken_elsewhere?(saved_state[:chat_id], ws_session_id)
       if saved_state
         session[:messages] = saved_state[:messages] if saved_state[:messages]
         if saved_state[:parameters]
@@ -317,14 +330,18 @@ module WebSocketHelper
           # A chat from the history replaces this tab's chat: what runs for
           # the current one is stopped first, as for an import, but only
           # when that chat can be resumed here.
-          resumable = history_resumable?(obj, session)
-          if resumable
-            stop_running_reply(thread, queue)
-            thread = nil
-            stop_running_reply(suggestion, nil)
-            suggestion = nil
+          refusal = history_resume_refusal(obj, session)
+          begin
+            if refusal.nil?
+              stop_running_reply(thread, queue)
+              thread = nil
+              stop_running_reply(suggestion, nil)
+              suggestion = nil
+            end
+            handle_ws_history_resume(connection, obj, session, refusal)
+          ensure
+            WebSocketHelper.release_chat(obj['chat_id'].to_s) if refusal.nil?
           end
-          handle_ws_history_resume(connection, obj, session, resumable)
         when "SYSTEM_PROMPT"
           handle_ws_system_prompt(connection, obj, session)
         when "SAMPLE"

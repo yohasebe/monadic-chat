@@ -29,19 +29,20 @@ module Monadic
       chat_id = session[Monadic::Workspace::Chats::SESSION_KEY] || session[Monadic::Workspace::Chats::SESSION_KEY.to_s]
       return nil unless chat_id
 
+      generation = session[:_ws_generation] || session['_ws_generation']
       if Policy.private?(session)
-        store.delete(chat_id)
+        store.delete(chat_id, tab: tab, generation: generation)
         return nil
       end
 
       payload = Serializer.payload(session)
       unless payload
-        store.clear(chat_id)
+        store.clear(chat_id, tab: tab, generation: generation)
         return nil
       end
 
       params = payload['parameters'] || {}
-      store.save(chat_id, payload, tab: tab, generation: session[:_ws_generation] || session['_ws_generation'],
+      store.save(chat_id, payload, tab: tab, generation: generation,
                                    app_name: params['app_name'], model: params['model'],
                                    headings: Serializer.headings(payload), search_text: Serializer.search_text(payload))
     end

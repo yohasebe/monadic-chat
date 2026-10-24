@@ -188,12 +188,32 @@ module WebSocketHelper
     end
   end
 
-  # The chats open in some tab now.
+  # The chats open in some tab now, and those a tab is taking from the
+  # history (reserved until the tab has it open).
   def self.live_chat_ids
+    @@session_state_mutex.synchronize { open_chat_ids_locked + @@reserved_chats.keys }
+  end
+
+  @@reserved_chats = {}
+
+  # Reserves a chat for the tab that resumes it: true only when no tab has
+  # it open and no other tab is taking it, checked and reserved at once.
+  def self.reserve_chat(chat_id)
     @@session_state_mutex.synchronize do
-      @@live_sessions.values.map { |entry| entry[:session][Monadic::Workspace::Chats::SESSION_KEY] }.compact
+      next false if @@reserved_chats.key?(chat_id) || open_chat_ids_locked.include?(chat_id)
+
+      @@reserved_chats[chat_id] = true
     end
   end
+
+  def self.release_chat(chat_id)
+    @@session_state_mutex.synchronize { @@reserved_chats.delete(chat_id) }
+  end
+
+  def self.open_chat_ids_locked
+    @@live_sessions.values.map { |entry| entry[:session][Monadic::Workspace::Chats::SESSION_KEY] }.compact
+  end
+  private_class_method :open_chat_ids_locked
 
   def self.live_session(session_id)
     return nil if session_id.nil? || session_id.to_s.empty?

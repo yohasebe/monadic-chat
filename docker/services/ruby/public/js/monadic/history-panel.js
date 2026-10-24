@@ -17,6 +17,9 @@
   // The row being named or asked about, by chat id (one at a time).
   let editing = null;
   let confirmingRemove = null;
+  // The chat to continue once the user confirms that the Private chat here
+  // ends; the question stays while lists arrive.
+  let confirmingResume = null;
   let refreshTimer = null;
   let searchTimer = null;
 
@@ -274,6 +277,16 @@
     view.hasMore = !!data.has_more;
     setStatus('');
     renderTable();
+    if (confirmingResume) askResume(confirmingResume);
+  }
+
+  function askResume(chatId) {
+    confirmingResume = chatId;
+    const done = function () { confirmingResume = null; setStatus(''); };
+    setStatus(t('privateHere', 'This chat is Private and is not kept in the history. Continuing another chat ends it for good.'), 'warn', [
+      button('btn-warning', t('continueAnyway', 'Continue the other chat'), null, function () { done(); resume(chatId, true); }),
+      button('btn-secondary', t('cancel', 'Cancel'), null, done)
+    ]);
   }
 
   function onResumed(data) {
@@ -286,10 +299,7 @@
     if (data.error === 'history_private_here') {
       // The chat here is not kept, so continuing another one ends it.
       if (!chatsShown()) openPanel();
-      setStatus(t('privateHere', 'This chat is Private and is not kept in the history. Continuing another chat ends it for good.'), 'warn', [
-        button('btn-warning', t('continueAnyway', 'Continue the other chat'), null, function () { setStatus(''); resume(data.chat_id, true); }),
-        button('btn-secondary', t('cancel', 'Cancel'), null, function () { setStatus(''); })
-      ]);
+      askResume(data.chat_id);
       return;
     }
     if (chatsShown()) setStatus(errorText(data.error), 'warn');
@@ -342,6 +352,7 @@
       windowOpen = false;
       editing = null;
       confirmingRemove = null;
+      confirmingResume = null;
       setStatus('');
       showPane('files');
     });

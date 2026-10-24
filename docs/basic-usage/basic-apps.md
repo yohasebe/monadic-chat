@@ -37,7 +37,6 @@ The table below shows which apps are available for which AI model providers.
 | Speech Draft Helper | ✅ | | | | | | | |
 | Web Insight | ✅ | ✅ | | | ✅ | ✅ | | |
 | Video Describer | ✅ | | | | ✅ | ✅ | | |
-| Knowledge Base | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | |
@@ -79,7 +78,6 @@ To keep a conversation that used the Privacy Filter, click the Privacy indicator
 | Speech Draft Helper | | ✅ |
 | Web Insight | | ✅ |
 | Video Describer | | ✅ |
-| Knowledge Base | | ✅ |
 | Code Interpreter | | ✅ |
 | Coding Assistant | | ✅ |
 | Jupyter Notebook | | ✅ |

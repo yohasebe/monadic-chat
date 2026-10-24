@@ -94,7 +94,7 @@ RSpec.describe 'Library subsystem integration smoke', :integration do
     claude_id = ingest(scope_app: 'ChatClaude', body: body)
     global_id = ingest(scope_app: 'Global',     body: body)
 
-    # The Knowledge Base app passes app_name: nil so it can show the
+    # The Knowledge Base browser passes app_name: nil so it can show the
     # full library regardless of scope. We replicate that contract here
     # — without it, the user could not browse entries saved while a
     # different app was active.

@@ -69,7 +69,7 @@ Show a live diagram of the selected app (Hidden, In Panel or Floating) — how i
 Start a new chat or continue your current conversation.
 
 **Session Indicator Badges**<br />
-The summary bar shows badges for the features in effect: **Web Search**, **Math**, **Knowledge Base**, and the current reasoning effort (when it is not off). The Knowledge Base badge appears when the session reads from the Knowledge Base: when **Use Knowledge Base for retrieval (this session)** is on, or when the Knowledge Base app itself is selected. In [Live Conversation](../apps/chat-apps.md#live-conversation), some of these settings have no UI, so the corresponding badges do not appear.
+The summary bar shows badges for the features in effect: **Web Search**, **Math**, **Knowledge Base**, and the current reasoning effort (when it is not off). The Knowledge Base badge appears while **Use Knowledge Base for retrieval (this session)** is on. In [Live Conversation](../apps/chat-apps.md#live-conversation), some of these settings have no UI, so the corresponding badges do not appear.
 
 The top bar of the page shows the conversation status and, while it is on, the Privacy Filter indicator.
 

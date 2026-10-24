@@ -29,6 +29,14 @@ module WebSocketHelper
     end
     format = obj["format"] || "webm"
 
+    # A Private chat makes no files: only a transcription that keeps the
+    # audio in memory (Gemini's) is used for it; the others write it to a
+    # temporary file first.
+    if Monadic::History::Policy.private?(session) && stt_provider_for(model) != "gemini"
+      send_error("voice_input_private", ws_session_id)
+      return
+    end
+
     # Store stt_model in session for use by other components (e.g., Video Describer)
     session[:parameters] ||= {}
     session[:parameters]["stt_model"] = model

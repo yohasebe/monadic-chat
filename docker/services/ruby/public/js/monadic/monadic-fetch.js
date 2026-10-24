@@ -87,14 +87,23 @@
     return data;
   }
 
+  // The tab the request is made from, so the server can tell which chat it
+  // is for before it reads the body (a Private chat makes no files).
+  function withTabId(url) {
+    if (typeof url !== 'string' || url.charAt(0) !== '/' || /[?&]tab_id=/.test(url)) return url;
+    const id = typeof window.getMonadicTabId === 'function' ? window.getMonadicTabId() : '';
+    if (!id) return url;
+    return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'tab_id=' + encodeURIComponent(id);
+  }
+
   /**
    * POST to a route that returns JSON. Body may be FormData (uploads),
    * a string (raw), a plain object (JSON-encoded), or undefined.
-   * Always includes the X-Requested-With contract header.
+   * Always includes the X-Requested-With contract header, and the tab id.
    */
   function postJson(url, body, options = {}) {
     const built = buildBody(body);
-    return request(url, {
+    return request(withTabId(url), {
       method: 'POST',
       body: built.body,
       headers: Object.assign({}, built.headers, options.headers || {}),

@@ -347,7 +347,7 @@ describe('Form Handlers', () => {
 
       // Verify fetch was called with correct parameters
       expect(global.fetch).toHaveBeenCalled();
-      expect(global.fetch.mock.calls[0][0]).toBe('/load');
+      expect(global.fetch.mock.calls[0][0]).toBe('/load?tab_id=test-tab-id-12345');
       expect(global.fetch.mock.calls[0][1].method).toBe('POST');
 
       // Restore originals

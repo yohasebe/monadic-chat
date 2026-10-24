@@ -116,7 +116,9 @@ def _analyze_per_language(text: str, languages: list[str], score_threshold: floa
         try:
             results = analyzer.analyze(text=text, language=lang, score_threshold=score_threshold)
         except Exception as exc:  # noqa: BLE001
-            LOG.warning("analyze(lang=%s) failed: %s", lang, exc)
+            # The kind only: the message can hold part of the text, which is
+            # a Private chat's (the filter is on only in Private chats).
+            LOG.warning("analyze(lang=%s) failed: %s", lang, type(exc).__name__)
             continue
         for r in results:
             spans.append({

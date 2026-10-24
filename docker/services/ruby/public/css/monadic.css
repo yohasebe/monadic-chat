@@ -4212,6 +4212,14 @@ img.base64-image,
   font-weight: normal;
 }
 
+  /* A Private chat makes no files: what would make them is hidden (the
+     server refuses it too). Set by WsPrivacyHandler. */
+  body.chat-private #doc,
+  body.chat-private #url,
+  body.chat-private #pdf-import,
+  body.chat-private #audio-upload {
+    display: none !important;
+  }
 } /* end @layer components */
 
 /* ============================================ */

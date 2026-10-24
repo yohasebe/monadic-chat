@@ -47,6 +47,15 @@ set :bind, "0.0.0.0"
 # server. See lib/monadic/utils/local_origin_guard.rb.
 use Monadic::Utils::LocalOriginGuard
 
+# A Private chat makes no files: the requests that would make them are
+# refused before anything reads their body (Rack writes file parts to disk
+# while parsing). See lib/monadic/history/private_request_guard.rb.
+require_relative "lib/monadic/history/private_request_guard"
+use Monadic::History::PrivateRequestGuard,
+    paths: [Monadic::Routes::AttachmentRoutes::PATH, "/pdf", "/document", "/upload_audio", "/fetch_webpage"],
+    session_lookup: ->(tab_id) { WebSocketHelper.live_session(tab_id) },
+    state_lookup: ->(tab_id) { WebSocketHelper.fetch_session_state(tab_id) }
+
 # Remove the temporary files Rack writes for multipart uploads once the
 # response is sent; left alone they stay until garbage collection.
 use Rack::TempfileReaper

@@ -130,6 +130,12 @@ module MonadicSharedTools
     #        metadata: { size: 15, bytes_added: 15 }
     #      }
     def write_file_to_shared_folder(filepath:, content:, mode: "write")
+      # A Private chat makes no files.
+      if defined?(Monadic::History::Policy) && Monadic::History::Policy.current_work_private?
+        return { success: false, error: "This chat is Private: no file is written. Give the content in the reply instead.",
+                 filepath: filepath }
+      end
+
       # Validate mode parameter
       unless ["write", "append"].include?(mode)
         return {

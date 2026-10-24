@@ -161,7 +161,9 @@ PDFs are stored on your computer. Back them up with **Export Document DB** and r
 
 Monadic Chat keeps your chats on this computer, in `~/monadic/state`, outside the shared folder. A chat is kept from the first message you write, and each new message updates it. Private chats (chats in which you turned the [Privacy Filter](../advanced-topics/privacy-filter.md) on) are not kept.
 
-What is kept of a chat: the text of its messages, the app, the model and the system prompt, the main settings (such as reasoning effort, context size, web search and the conversation language), and the [Session Context](../advanced-topics/session-context.md). Images, the contents of attached files, thinking and the records of tool calls are not kept. Known API keys and 1Password references are removed from what is kept, chat names included.
+What is kept of a chat: the text of its messages, the app, the model and the system prompt, the main settings (such as reasoning effort, context size, web search and the conversation language), and the [Session Context](../advanced-topics/session-context.md). Images, the contents of attached files, thinking and the records of tool calls are not kept. The API keys set in Monadic Chat and 1Password references are removed from what is kept, chat names included. Other secrets written in a chat, such as a password or a key that Monadic Chat does not have, are kept as written: do not paste them into a chat.
+
+Backups of your computer (such as Time Machine) and sync services that hold `~/monadic` copy the history too.
 
 The Chat History panel lists the five chats with the latest activity; click one to continue it in this tab. `See all` opens the Chats tab of the window the shared folder uses.
 
@@ -171,7 +173,7 @@ In the Chats tab:
 - Each chat shows its name (or its first and latest topics), the app, the number of messages and when it last had a new message. The list is ordered by that time, newest first; `Show more` adds older chats.
 - `Continue` opens the chat in this tab with its messages, app, model and settings. The app's tools are set up anew, and Auto speech and Start from assistant are off for the continued chat. The chat that was in this tab stays in the history. If it is Private and has messages, you are asked first, since it is not kept.
 - `Name` gives the chat a name (up to 120 characters). Press Enter to save it or Esc to cancel.
-- `Remove from the history` removes the chat after a second click to confirm. Files the chat made in the shared folder, exported files and backups of your computer are not removed.
+- `Remove from the history` removes the chat after a second click to confirm. The chat can no longer be read from Monadic Chat; this is not a promise that no copy of it is left on the disk. Files the chat made in the shared folder, exported files and backups of your computer are not removed.
 - A chat open in a tab is marked "Open in a tab" and can be neither continued nor removed from another tab. To continue or remove it, start a new chat in the tab that has it open.
 
 ## Shared Folder Panel :id=shared-folder-panel

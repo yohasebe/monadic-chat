@@ -678,7 +678,9 @@ module OpenAIHelper
 
     body["messages"] = context.compact.map do |msg|
       message = { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
-      if msg["images"] && role == "user" && !image_generation
+      # A user message keeps its images when the request returns tool
+      # results too: the answer is written by that later request.
+      if msg["images"] && (role == "user" || msg["role"] == "user") && !image_generation
         msg["images"].each do |img|
           messages_containing_img = true
           if img["type"] == "application/pdf" || document_type?(img["type"])

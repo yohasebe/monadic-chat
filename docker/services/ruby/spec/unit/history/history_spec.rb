@@ -215,6 +215,15 @@ RSpec.describe Monadic::History do
     end
   end
 
+  describe '.enabled?' do
+    it 'is on unless the shell that starts the server turns it off' do
+      ENV.delete('MONADIC_HISTORY')
+      expect(described_class.enabled?).to be(true)
+      ENV['MONADIC_HISTORY'] = 'false'
+      expect(described_class.enabled?).to be(false)
+    end
+  end
+
   describe '.record' do
     it 'writes nothing while the history is off' do
       ENV['MONADIC_HISTORY'] = 'false'

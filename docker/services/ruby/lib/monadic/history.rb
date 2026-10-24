@@ -5,14 +5,14 @@ require_relative 'history/serializer'
 require_relative 'history/store'
 
 module Monadic
-  # The conversation history, kept in the state folder. Off until it can be
-  # seen and removed in the app: MONADIC_HISTORY=true in the shell that
-  # starts the server turns it on (the config env file does not).
+  # The conversation history, kept in the state folder. MONADIC_HISTORY=false
+  # in the shell that starts the server turns it off (the config env file
+  # does not).
   module History
     module_function
 
     def enabled?
-      ENV['MONADIC_HISTORY'] == 'true'
+      ENV['MONADIC_HISTORY'] != 'false'
     end
 
     # Writes the chat in `session` to the history. A Private chat is never

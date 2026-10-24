@@ -43,9 +43,16 @@ module WebSocketHelper
     requested_enabled = obj["enabled"] == true || obj["enabled"] == "true"
 
     if requested_enabled
+      # Whether a chat is Private is decided when it begins: a chat the user
+      # has already written in stays as it is (the page locks the toggle
+      # once a message is sent; a Private chat is a new chat).
+      if !Monadic::History::Policy.private?(session) && user_words_in_chat?(session)
+        return send_to_client(connection, { "type" => "privacy_toggle_ack", "enabled" => false,
+                                            "error" => "privacy_chat_started" })
+      end
+
       # Asking for the filter makes the chat Private, whether or not the
-      # filter turns out to be up: nothing of it is kept in the history,
-      # and what was kept before is removed now, before the reply.
+      # filter turns out to be up: nothing of it is kept in the history.
       Monadic::History::Policy.mark_private!(session)
       sync_session_state!
 
@@ -88,6 +95,10 @@ module WebSocketHelper
       # until the next message turn.
       send_privacy_state(connection, session, enabled: false, registry_count: 0)
     end
+  end
+
+  private def user_words_in_chat?(session)
+    Array(session[:messages]).any? { |m| m['role'] == 'user' && !m['text'].to_s.strip.empty? }
   end
 
   private def privacy_container_coming_up?

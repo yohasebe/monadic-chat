@@ -3426,13 +3426,14 @@ document.addEventListener("DOMContentLoaded", function () {
         // Lock the Privacy Filter toggle once the first message of the
         // session has been sent. The locked state is also enforced by the
         // backend (Pipeline is cached in session[:_privacy_pipeline]).
-        // Reset / app change / new conversation re-enables editing.
+        // Reset / app change / new conversation re-enables editing. The lock
+        // is set even when the toggle is disabled for another reason (an
+        // unsupported language), so a later language change cannot unlock
+        // it mid-chat: whether a chat is Private is decided when it begins.
         {
           const privacyEl = $id("check-privacy-session");
-          if (privacyEl && !privacyEl.disabled) {
-            privacyEl.disabled = true;
-            window.privacyToggleLocked = true;
-          }
+          if (privacyEl) privacyEl.disabled = true;
+          window.privacyToggleLocked = true;
         }
         if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
           WorkflowViewer.setStage('input');

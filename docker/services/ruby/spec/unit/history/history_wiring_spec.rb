@@ -92,21 +92,44 @@ RSpec.describe 'What the handlers write to the history' do
   end
 
   [true, false].each do |healthy|
-    it "removes the chat and keeps it out once the filter is asked for (filter up: #{healthy})" do
+    it "keeps out a chat that asked for the filter before its first words (filter up: #{healthy})" do
       allow_any_instance_of(Monadic::Utils::Privacy::PresidioBackend).to receive(:health).and_return(healthy)
       allow(host).to receive(:send_privacy_state)
-      session = chat_session(marker, generation: 1)
-      sync(session)
-      expect(store.get(session[:chat_id])).not_to be_nil
+      session = chat_session(marker, generation: 1).merge(messages: [])
 
       host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => true })
-      expect(store.get(session[:chat_id])).to be_nil
+      session[:messages] << { 'mid' => 'm1', 'role' => 'user', 'text' => marker }
+      sync(session)
       host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => false })
       sync(session)
       expect(store.get(session[:chat_id])).to be_nil
       store.close
       expect(stored_bytes).not_to include(marker)
     end
+  end
+
+  # Whether a chat is Private is decided when it begins: the filter asked
+  # for in a chat with words in it is refused, and what was kept stays.
+  it 'refuses the filter in a chat the user has written in, and keeps the chat' do
+    probe = class_double(Monadic::Utils::Privacy::PresidioBackend)
+    allow(Monadic::Utils::Privacy::PresidioBackend).to receive(:new).and_return(probe)
+    session = chat_session('kept words', generation: 1)
+    sync(session)
+
+    host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => true })
+    expect(host.sent.last).to include('type' => 'privacy_toggle_ack', 'enabled' => false, 'error' => 'privacy_chat_started')
+    expect(session[:_privacy_session_enabled]).not_to be(true)
+    expect(Monadic::History::Policy.private?(session)).to be(false)
+    sync(session)
+    expect(store.get(session[:chat_id])['payload']['messages'].map { |m| m['text'] }).to eq(['kept words'])
+  end
+
+  it 'lets a Private chat ask for the filter again' do
+    allow_any_instance_of(Monadic::Utils::Privacy::PresidioBackend).to receive(:health).and_return(true)
+    allow(host).to receive(:send_privacy_state)
+    session = chat_session(marker, generation: 1).merge(_privacy_session_enabled: true)
+    host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => true })
+    expect(host.sent.last).to include('type' => 'privacy_toggle_ack', 'enabled' => true, 'error' => nil)
   end
 
   it 'does not carry a chat into the next app when the app changes without Reset' do

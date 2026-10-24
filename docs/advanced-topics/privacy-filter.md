@@ -33,7 +33,7 @@ Apps that support privacy filtering show a **Privacy Filter** toggle in the Sess
 
 - Turn it on before sending the first message to enable masking for the session.
 - After the first message is sent the toggle locks. Pressing **Reset** or switching to a different app re-enables editing. To use the filter in a chat you have begun, start a new chat.
-- A chat in which you turn the toggle on is Private: it is not kept in the [chat history](../basic-usage/web-interface.md#chat-history-panel), even when the filter could not be started or is turned off again.
+- A chat in which you turn the toggle on is Private: it is not kept in the [chat history](../basic-usage/web-interface.md#chat-history-panel), even when the filter could not be started or is turned off again. The messages of a Private chat are still sent to the model; they are masked only while the filter is on.
 - Your last choice is remembered per app: the toggle starts in that state (off until you first turn it on).
 
 When the toggle is disabled, hovering over it shows the reason:

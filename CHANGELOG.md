@@ -25,6 +25,7 @@
     - Mistral text-to-speech and speech-to-text use Voxtral 3, and a saved Mistral choice moves to it
     - The desktop app's windows follow the Web UI's theme setting and use its buttons and colors
     - Web UI dialogs have a `Cancel` button and buttons that delete are outlined in red; desktop app dialogs list `Cancel` last, Esc cancels them, and removing all Docker data is not the default
+    - `Verify` does not check answers about images or attached files
   - New
     - Shared Folder panel: what each entry in the shared folder is, its size, which chat uses it and why it is needed (**do not remove the hidden `.monadic-shared-root` file Monadic Chat keeps there**)
     - The Shared Folder panel searches, sorts and filters the list, marks files made by test runs, and in the desktop app moves items to the system's Trash (rows are selected as in a file manager: click, Cmd/Ctrl+click, Shift+click or a drag)

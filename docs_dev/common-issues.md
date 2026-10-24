@@ -110,48 +110,6 @@ while passing in CI.
 - Make sure the block is a fenced code block whose opening fence is followed directly by `abc` or `mermaid` and a line break; that is the only form the renderer matches.
 - To add a block type that must stay untouched, add a placeholder step to `render` in the same way.
 
-### Passing multiline data to Node.js validation scripts
-
-**Problem**: Multiline code (ABC notation, Mermaid diagrams, etc.) fails validation when passed as command-line arguments to Node.js scripts.
-
-**Symptoms**:
-- `process.argv[2]` is `undefined`
-- Error: `Cannot read properties of undefined (reading 'split')`
-- Validation fails randomly with complex input
-- Multiple function calls triggered due to validation failures
-
-**Root Cause**: Shell escaping of multiline strings with special characters is unreliable, causing arguments to be split or lost.
-
-**Solution - Use stdin instead of command-line arguments**:
-
-❌ **WRONG** (command-line args):
-```ruby
-# Unreliable with multiline/special chars
-command = "node -e '#{validator_js}' #{Shellwords.escape(code)}"
-stdout, stderr, status = Open3.capture3(command)
-```
-
-✅ **CORRECT** (stdin):
-```ruby
-# Reliable for any content
-validator_js = self.class.abc_validator_js(abcjs_path)
-stdout, stderr, status = Open3.capture3('node', '-e', validator_js, stdin_data: code)
-```
-
-**JavaScript side**:
-```javascript
-// Read from stdin instead of process.argv
-const code = require('fs').readFileSync(0, 'utf-8');
-```
-
-**Benefits**:
-- Works with any content length
-- No escaping issues
-- Handles special characters correctly
-- Works across both container and host environments
-
-**Related Issues**: Mermaid Grapher validation
-
 ## Development Tips
 
 ### Fast iteration on Ruby code

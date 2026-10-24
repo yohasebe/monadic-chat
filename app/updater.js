@@ -71,6 +71,7 @@ function init(injected) {
       buttons: [i18n.t('dialogs.updateReady.restartNow'), i18n.t('dialogs.updateReady.later')],
       defaultId: 0,
       cancelId: 1,
+      noLink: true,
       title: i18n.t('dialogs.updateReady.title'),
       message: i18n.t('dialogs.updateReady.message', { version: info.version }),
       detail: i18n.t('dialogs.updateReady.detail')
@@ -102,6 +103,8 @@ function init(injected) {
       type: 'error',
       buttons: [i18n.t('dialogs.updateError.openReleases'), i18n.t('dialogs.updateError.close')],
       defaultId: 0,
+      cancelId: 1,
+      noLink: true,
       title: i18n.t('dialogs.updateError.title'),
       message: i18n.t('dialogs.updateError.message'),
       detail: `${message}\n\n${i18n.t('dialogs.updateError.detail')}`

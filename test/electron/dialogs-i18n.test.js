@@ -41,6 +41,32 @@ describe('desktop app dialogs', () => {
     expect(found).toEqual([]);
   });
 
+  // Electron gives Esc to a button named "cancel" or "no", or else the first
+  // one; a translated name is neither. So each dialog names its Esc button,
+  // and keeps it last, after the action (macOS puts the first on the right).
+  test.each(SOURCES)('every choice dialog in %s keeps Cancel last and on Esc', (file, src) => {
+    const dialogs = [...src.matchAll(/dialog\.showMessageBox\(/g)].map((m) => {
+      let depth = 0; let i = src.indexOf('(', m.index);
+      do { depth += { '(': 1, ')': -1 }[src[i]] || 0; i += 1; } while (depth > 0);
+      let call = src.slice(m.index, i);
+      // Options built just before the call: `options = {` or a spread object.
+      const named = call.match(/showMessageBox\(\w+, (\w+)\)|\.\.\.(\w+)/);
+      if (named) {
+        const name = named[1] || named[2];
+        const start = src.lastIndexOf(`${name} = `, m.index);
+        call += src.slice(start, src.indexOf(';', start));
+      }
+      const buttons = (call.match(/buttons:\s*\[([^\]]*)\]/) || [])[1] || '';
+      return { line: src.slice(0, m.index).split('\n').length, call, count: (buttons.match(/i18n\.t\(/g) || []).length };
+    }).filter((d) => d.count > 1);
+    expect(dialogs.length).toBeGreaterThan(0);
+    const wrong = dialogs.filter((d) => {
+      const cancel = d.call.match(/cancelId:\s*(\d+)/);
+      return !cancel || Number(cancel[1]) !== d.count - 1 || !/noLink:\s*true/.test(d.call);
+    });
+    expect(wrong.map((d) => `${file}:${d.line}`)).toEqual([]);
+  });
+
   test.each(SOURCES)('no message %s writes to the main window is in English', (file, src) => {
     const calls = [...src.matchAll(/(?:writeToScreen|noticeInMainWindow|send\('command-output',|runCommand)\(?/g)].map((m) => {
       let depth = 0; let i = src.indexOf('(', m.index);

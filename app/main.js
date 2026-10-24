@@ -1118,6 +1118,7 @@ function checkForUpdatesManual(showDialog = false) {
               buttons: [i18n.t('messages.downloadAndInstall'), i18n.t('dialogs.updateAvailable.viewReleases'), i18n.t('dialogs.cancel')],
               defaultId: 0,
               cancelId: 2,
+              noLink: true,
               message: i18n.t('dialogs.updateAvailable.message'),
               detail: i18n.t('dialogs.updateAvailable.detail', { latest: latestVersion, current: currentVersion }),
               icon: path.join(iconDir, 'app-icon.png')
@@ -1200,8 +1201,11 @@ function checkForUpdatesManual(showDialog = false) {
 function removeDockerData() {
   let options = {
     type: 'question',
-    buttons: [i18n.t('dialogs.cancel'), i18n.t('dialogs.deleteAll')],
+    // Removing everything is not the default; Esc and Enter both cancel.
+    buttons: [i18n.t('dialogs.deleteAll'), i18n.t('dialogs.cancel')],
     defaultId: 1,
+    cancelId: 1,
+    noLink: true,
     message: i18n.t('dialogs.confirmRemoveDockerData'),
     detail: i18n.t('dialogs.removeDockerDataMessage'),
     icon: path.join(iconDir, 'app-icon.png')
@@ -1209,7 +1213,7 @@ function removeDockerData() {
 
   dialog.showMessageBox(null, options).then((result) => {
     setTimeout(() => {
-      if (result.response === 1) {
+      if (result.response === 0) {
         dockerManager.runCommand('remove', formatMessage(null, 'messages.removingContainers'), 'Uninstalling', 'Uninstalled');
       } else {
         return false;
@@ -1247,8 +1251,10 @@ async function quitApp() {
 
   let options = {
     type: 'question',
-    buttons: [i18n.t('dialogs.cancel'), i18n.t('menu.quit')],
-    defaultId: 1,
+    buttons: [i18n.t('menu.quit'), i18n.t('dialogs.cancel')],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true,
     title: i18n.t('dialogs.quitConfirmTitle'),
     message: i18n.t('dialogs.quitConfirmTitle'),
     detail: i18n.t('dialogs.quitConfirmMessage'),
@@ -1257,7 +1263,7 @@ async function quitApp() {
 
   try {
     const result = await dialog.showMessageBox(mainWindow, options);
-    if (result.response === 1) {
+    if (result.response === 0) {
       try {
         const dockerStatus = await dockerManager.checkStatus();
         if (dockerStatus) {
@@ -2584,6 +2590,7 @@ function updateApplicationMenu() {
                 buttons: [i18n.t('dialogs.importDbContinue'), i18n.t('dialogs.cancel')],
                 defaultId: 1,
                 cancelId: 1,
+                noLink: true,
                 title: i18n.t('dialogs.importDbConfirmTitle'),
                 message: i18n.t('dialogs.importDbConfirmMessage'),
                 detail: i18n.t('dialogs.importDbConfirmDetail'),
@@ -2655,6 +2662,7 @@ function updateApplicationMenu() {
                 ],
                 defaultId: 0,
                 cancelId: 2,
+                noLink: true,
                 title: i18n.t('dialogs.exportDbConfirmTitle'),
                 message: i18n.t('dialogs.exportDbConfirmMessage'),
                 detail: i18n.t('dialogs.exportDbConfirmDetail'),

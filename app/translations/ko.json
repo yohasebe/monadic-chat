@@ -318,6 +318,12 @@
     "systemAvailableAt": "시스템 액세스 주소",
     "versionInfo": "Monadic Chat 앱 v{{appVersion}}  컨테이너 이미지 v{{containerVersion}}",
     "versionInfoApp": "앱",
-    "versionInfoContainer": "컨테이너"
+    "versionInfoContainer": "컨테이너",
+    "languageSettingsApplied": "업데이트된 언어 설정을 {{service}} 컨테이너에 적용했습니다.",
+    "pythonBuildSucceeded": "Python 빌드에 성공했습니다.",
+    "pythonBuildFailed": "Python 빌드에 실패했습니다.",
+    "updateSuccessfulVersion": "업데이트 완료: 버전 {{version}}",
+    "stoppingContainersBeforeRestart": "재시작 전에 Docker 컨테이너를 중지하는 중...",
+    "buildLogsLabel": "로그:"
   }
 }

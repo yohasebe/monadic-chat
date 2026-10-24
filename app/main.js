@@ -867,7 +867,8 @@ class DockerManager {
                   if (mainWindow && !mainWindow.isDestroyed()) {
                     const icon = buildTracker.status === 'success' ? '<i class="fa-solid fa-circle-check" style="color:#22ad50;"></i>' : '<i class="fa-solid fa-circle-exclamation" style="color:#DC4C64;"></i>';
                     const runDir = buildTracker.runDir ? buildTracker.runDir : '';
-                    mainWindow.webContents.send('command-output', `[HTML]: <p>${icon} Python build ${buildTracker.status}. ${runDir ? 'Logs: '+runDir : ''}</p>`);
+                    const result = i18n.t(buildTracker.status === 'success' ? 'messages.pythonBuildSucceeded' : 'messages.pythonBuildFailed');
+                    mainWindow.webContents.send('command-output', `[HTML]: <p>${icon} ${result} ${runDir ? i18n.t('messages.buildLogsLabel') + ' ' + runDir : ''}</p>`);
                   }
                 }
               }
@@ -1286,7 +1287,7 @@ async function quitApp() {
 
 function cleanupAndQuit() {
   // Send a shutdown notification to the web app
-  writeToScreen('[HTML]: <p>Quitting Monadic Chat . . .</p>');
+  writeToScreen(formatMessage(null, 'messages.quittingMonadicChat'));
   
   // No shutdown notification needed with the simplified approach
   
@@ -1473,10 +1474,10 @@ function initializeApp() {
           [HTML]: <div class="msg-update-done" style="margin: 10px 0; padding: 10px; border-left: 4px solid #4caf50; border-radius: 4px;">
             <p style="margin: 0; font-weight: bold;">
               <i class="fa-solid fa-check-circle" style="color:#4caf50;"></i> 
-              Update Successful: Version ${pendingUpdateState.version || app.getVersion()}
+              ${i18n.t('messages.updateSuccessfulVersion', { version: pendingUpdateState.version || app.getVersion() })}
             </p>
             <p style="margin: 5px 0 0 0;">
-              Monadic Chat has been successfully updated to the latest version.
+              ${i18n.t('messages.updateSuccessfulDesc')}
             </p>
           </div>
         `);
@@ -1607,7 +1608,7 @@ function initializeApp() {
             } catch (e) {
               console.warn('Failed to set silentReconnectMode in webview:', e);
             }
-            dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped')
+            dockerManager.runCommand('stop', formatMessage(null, 'messages.monadicChatStopping'), 'Stopping', 'Stopped')
               .then(() => {
                 // Send reset display command after stop is complete
                 if (mainWindow && !mainWindow.isDestroyed()) {
@@ -2819,7 +2820,7 @@ function updateTrayMenu() {
       label: i18n.t('menu.stopDockerContainers'),
       click: () => {
         openMainWindow();
-        dockerManager.runCommand('stop', '[HTML]: <p>Stopping the Docker services . . .</p>', 'Stopping', 'Stopped');
+        dockerManager.runCommand('stop', formatMessage(null, 'messages.stoppingDockerServices'), 'Stopping', 'Stopped');
       }
     },
     { type: 'separator' },
@@ -3229,7 +3230,7 @@ function openBrowser(url, outside = false, forceOpen = false) {
   // Enhanced browser opening function used in multiple places
   const launchBrowser = () => {
     console.log(`Opening browser to: ${url}`);
-    writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Opening the browser.</p>");
+    writeToScreen(formatMessage('success', 'messages.openingBrowser'));
     
     // Use shell.openExternal instead of spawn for more reliable behavior
     shell.openExternal(url).catch(err => {
@@ -3240,7 +3241,7 @@ function openBrowser(url, outside = false, forceOpen = false) {
         console.log('Browser opened with spawn fallback');
       } catch (spawnErr) {
         console.error('Error opening browser with spawn fallback:', spawnErr);
-        writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: #FF7F07;'></i>Failed to open browser automatically. Please open manually by navigating to: http://localhost:4567</p>");
+        writeToScreen(formatMessage('warning', 'messages.browserOpenFailed'));
       }
     });
   };
@@ -3261,12 +3262,12 @@ function openBrowser(url, outside = false, forceOpen = false) {
     isPortTaken(port, (taken) => {
       if (taken) {
         clearInterval(timer);
-        writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>The server is running on port 4567. Opening the browser.</p>");
+        writeToScreen(formatMessage('success', 'messages.serverRunningOnPort'));
         launchBrowser();
       } else {
         if (time == 0) {
           // Reduce UI noise: log to console output instead of user-facing messages
-          writeToScreen('Waiting for the server to start . . .');
+          writeToScreen(i18n.t('messages.waitingForServer'));
         }
         time += interval;
         if (time >= timeout) {
@@ -3608,7 +3609,7 @@ function refreshServiceContainersForLangChange(prevLangs, newEnv) {
         return;
       }
       if (String(stdout || '').includes('REFRESHED')) {
-        writeToScreen(`[HTML]: <p><i class='fa-solid fa-rotate' style='color:#61b0ff;'></i> Applied updated language settings to the ${service} container.</p>`);
+        writeToScreen(`[HTML]: <p><i class='fa-solid fa-rotate' style='color:#61b0ff;'></i> ${i18n.t('messages.languageSettingsApplied', { service })}</p>`);
       }
     });
   });
@@ -4726,11 +4727,8 @@ async function updateDockerStatus() {
         updateContextMenu(false);
         updateStatusIndicator(currentStatus);
         writeToScreen('[SERVER STOPPED]');
-        if (process.platform === 'linux') {
-          writeToScreen(formatMessage('info', dockerManager.dockerUnavailableMessageKey()) + '<hr />');
-        } else {
-          writeToScreen('[HTML]: <hr /><p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> Docker Desktop is not running. Please start Docker Desktop and press <b>start</b> button.</p><hr />');
-        }
+        const key = process.platform === 'linux' ? dockerManager.dockerUnavailableMessageKey() : 'messages.dockerNotRunningStart';
+        writeToScreen(formatMessage('info', key) + '<hr />');
       }
     }
   }

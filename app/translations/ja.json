@@ -220,7 +220,13 @@
     "systemAvailableAt": "システムへのアクセス",
     "versionInfo": "Monadic Chat アプリ v{{appVersion}}  コンテナイメージ v{{containerVersion}}",
     "versionInfoApp": "アプリ",
-    "versionInfoContainer": "コンテナ"
+    "versionInfoContainer": "コンテナ",
+    "languageSettingsApplied": "更新した言語の設定を {{service}} コンテナに反映しました。",
+    "pythonBuildSucceeded": "Python のビルドが完了しました。",
+    "pythonBuildFailed": "Python のビルドに失敗しました。",
+    "updateSuccessfulVersion": "アップデート完了：バージョン {{version}}",
+    "stoppingContainersBeforeRestart": "再起動の前に Docker コンテナを停止しています...",
+    "buildLogsLabel": "ログ："
   },
   "dialogs": {
     "sharedFolderTrash": {

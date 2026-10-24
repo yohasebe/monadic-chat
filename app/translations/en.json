@@ -220,7 +220,13 @@
     "systemAvailableAt": "System available at",
     "versionInfo": "Monadic Chat app v{{appVersion}}  Container image v{{containerVersion}}",
     "versionInfoApp": "App",
-    "versionInfoContainer": "Container"
+    "versionInfoContainer": "Container",
+    "languageSettingsApplied": "Applied updated language settings to the {{service}} container.",
+    "pythonBuildSucceeded": "Python build succeeded.",
+    "pythonBuildFailed": "Python build failed.",
+    "updateSuccessfulVersion": "Update Successful: Version {{version}}",
+    "stoppingContainersBeforeRestart": "Stopping Docker containers before restart . . .",
+    "buildLogsLabel": "Logs:"
   },
   "dialogs": {
     "sharedFolderTrash": {

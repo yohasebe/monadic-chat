@@ -41,6 +41,21 @@ describe('desktop app dialogs', () => {
     expect(found).toEqual([]);
   });
 
+  test.each(SOURCES)('no message %s writes to the main window is in English', (file, src) => {
+    const calls = [...src.matchAll(/(?:writeToScreen|noticeInMainWindow|send\('command-output',|runCommand)\(?/g)].map((m) => {
+      let depth = 0; let i = src.indexOf('(', m.index);
+      do { depth += { '(': 1, ')': -1 }[src[i]] || 0; i += 1; } while (depth > 0);
+      return src.slice(m.index, i);
+    });
+    expect(calls.length).toBeGreaterThan(0);
+    // Words left once markup, interpolations, keys and [MARKERS] are taken out.
+    const english = (call) => [...call.matchAll(/'([^'\n]*)'|"([^"\n]*)"|`([^`]*)`/g)]
+      .map((m) => m.slice(1).join(''))
+      .map((s) => s.replace(/<[^>]*>|\$\{[^}]*\}|\[[A-Z_ ]+\]:?/g, ' '))
+      .some((s) => /[A-Za-z]{2,}[,.]?\s+[A-Za-z]{2,}/.test(s));
+    expect(calls.filter(english)).toEqual([]);
+  });
+
   describe('update dialogs', () => {
     const updater = require('../../app/updater');
     const mainWindow = { isDestroyed: () => false, webContents: { send: jest.fn() } };

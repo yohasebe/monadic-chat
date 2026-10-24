@@ -318,6 +318,12 @@
     "systemAvailableAt": "系统可访问于",
     "versionInfo": "Monadic Chat 应用 v{{appVersion}}  容器镜像 v{{containerVersion}}",
     "versionInfoApp": "应用",
-    "versionInfoContainer": "容器"
+    "versionInfoContainer": "容器",
+    "languageSettingsApplied": "已将更新的语言设置应用到 {{service}} 容器。",
+    "pythonBuildSucceeded": "Python 构建成功。",
+    "pythonBuildFailed": "Python 构建失败。",
+    "updateSuccessfulVersion": "更新成功：版本 {{version}}",
+    "stoppingContainersBeforeRestart": "重启前正在停止 Docker 容器...",
+    "buildLogsLabel": "日志："
   }
 }

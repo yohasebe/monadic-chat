@@ -318,6 +318,12 @@
     "systemAvailableAt": "Sistema disponible en",
     "versionInfo": "Monadic Chat app v{{appVersion}}  Imagen de contenedor v{{containerVersion}}",
     "versionInfoApp": "App",
-    "versionInfoContainer": "Contenedor"
+    "versionInfoContainer": "Contenedor",
+    "languageSettingsApplied": "Se aplicó la configuración de idioma actualizada al contenedor {{service}}.",
+    "pythonBuildSucceeded": "La compilación de Python se completó.",
+    "pythonBuildFailed": "La compilación de Python falló.",
+    "updateSuccessfulVersion": "Actualización completada: versión {{version}}",
+    "stoppingContainersBeforeRestart": "Deteniendo los contenedores Docker antes de reiniciar...",
+    "buildLogsLabel": "Registros:"
   }
 }

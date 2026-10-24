@@ -167,7 +167,7 @@ async function gracefulStopThenInstall() {
       // once the 'Stopped' status is emitted.
       await deps.dockerManager.runCommand(
         'stop',
-        '[HTML]: <p>Stopping Docker containers before restart . . .</p>',
+        `[HTML]: <p>${i18n.t('messages.stoppingContainersBeforeRestart')}</p>`,
         'Stopping',
         'Stopped'
       );

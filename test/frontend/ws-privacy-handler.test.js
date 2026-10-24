@@ -382,6 +382,14 @@ describe('WsPrivacyHandler: whether the chat is Private', () => {
     expect(h.isChatPrivate()).toBe(false);
   });
 
+  it('marks the page while the chat is Private, so what would make files is hidden', () => {
+    const h = window.WsPrivacyHandler;
+    h.handleState({ enabled: false, private: true });
+    expect(document.body.classList.contains('chat-private')).toBe(true);
+    h.handleState({ enabled: false, private: false });
+    expect(document.body.classList.contains('chat-private')).toBe(false);
+  });
+
   it('keeps what it knows when a reply does not say', () => {
     const h = window.WsPrivacyHandler;
     h.noteRequested(true);

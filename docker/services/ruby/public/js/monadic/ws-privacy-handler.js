@@ -175,12 +175,19 @@
   // counts as Private until it answers, so a doubt errs to Private.
   let _chatPrivate = false;
 
+  // The page hides what would make files of a Private chat (see
+  // body.chat-private in monadic.css); the server refuses it as well.
+  function setPrivate(value) {
+    _chatPrivate = !!value;
+    if (document.body) document.body.classList.toggle('chat-private', _chatPrivate);
+  }
+
   function noteRequested(enabled) {
-    if (enabled) _chatPrivate = true;
+    if (enabled) setPrivate(true);
   }
 
   function notePrivate(data) {
-    if (data && typeof data.private === 'boolean') _chatPrivate = data.private;
+    if (data && typeof data.private === 'boolean') setPrivate(data.private);
   }
 
   function isChatPrivate() {

@@ -52,6 +52,20 @@ describe('monadicFetch', () => {
   }
 
   describe('postJson', () => {
+    // The server tells the chat from the tab before it reads a body.
+    it('names the tab in the query string, once', async () => {
+      fetchSpy.mockResolvedValue(jsonResponse({ ok: true }));
+      window.getMonadicTabId = () => 'tab-1';
+      try {
+        await monadicFetch.postJson('/document', new FormData());
+        await monadicFetch.postJson('/pdf?x=1', new FormData());
+        await monadicFetch.postJson('/attachments?tab_id=tab-9', new FormData());
+        expect(fetchSpy.mock.calls.map((c) => c[0])).toEqual(['/document?tab_id=tab-1', '/pdf?x=1&tab_id=tab-1', '/attachments?tab_id=tab-9']);
+      } finally {
+        delete window.getMonadicTabId;
+      }
+    });
+
     it('always sends X-Requested-With for FormData uploads', async () => {
       fetchSpy.mockResolvedValue(jsonResponse({ ok: true }));
       const fd = new FormData();

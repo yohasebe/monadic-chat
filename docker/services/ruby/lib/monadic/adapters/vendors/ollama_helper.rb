@@ -493,7 +493,9 @@ module OllamaHelper
         message = { "role" => msg["role"], "content" => msg["text"] }
       end
 
-      if msg["images"] && role == "user"
+      # A user message keeps its images when the request returns tool
+      # results too: the answer is written by that later request.
+      if msg["images"] && (role == "user" || msg["role"] == "user")
         message["images"] = msg["images"]&.map do |img|
           img["data"].split(",")[1]
         end

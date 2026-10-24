@@ -321,7 +321,9 @@ module GrokHelper
         { "role" => msg["role"], "content" => [{ "type" => "text", "text" => augmented_text }] }
       else
         message = { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
-        if msg["images"] && role == "user"
+        # A user message keeps its images when the request returns tool
+        # results too: the answer is written by that later request.
+        if msg["images"] && (role == "user" || msg["role"] == "user")
           msg["images"].each do |img|
             messages_containing_img = true
             message["content"] << {

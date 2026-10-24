@@ -260,6 +260,16 @@ function deleteMessage(mid) {
   }
 }
 
+// The status color is set inline for the theme of the moment, so a theme
+// switch colors the status shown now again, for its kind.
+window.addEventListener('theme-applied', function() {
+  var el = $id('status-message');
+  var kind = el && (el.className.match(/\btext-(\S+)/) || [])[1];
+  if (!kind) return;
+  var palette = document.documentElement.classList.contains('dark-theme') ? STATUS_COLORS_DARK : STATUS_COLORS;
+  el.style.setProperty('color', palette[kind] || palette.secondary, 'important');
+});
+
 // Export for browser environment
 window.setAlert = setAlert;
 window.setStats = setStats;

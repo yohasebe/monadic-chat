@@ -166,6 +166,19 @@
   --badge-category-label: #666;
 
   /* Tool Group Badge — blue family, aligned with Capabilities */
+  /* Turn badges and other small labels: a tinted ground, a deeper text of the
+     same hue and a thin border, like the app list's badges. User is blue and
+     assistant red, as the role icons; neutral is for labels with no role. */
+  --chip-user-bg: #e6f3fb;
+  --chip-user-border: #c2e0f1;
+  --chip-user-color: #1f6f9c;
+  --chip-assistant-bg: #fce9ed;
+  --chip-assistant-border: #f1c9d2;
+  --chip-assistant-color: #a83249;
+  --chip-neutral-bg: #f1f3f5;
+  --chip-neutral-border: #dee2e6;
+  --chip-neutral-color: #495057;
+
   --tool-group-badge-bg: #e6f3fb;
   --tool-group-badge-color: #1f78a8;
 
@@ -305,6 +318,16 @@
   --badge-category-label: #b0b0b0;
 
   /* Tool Group Badge — blue family, aligned with Capabilities */
+  --chip-user-bg: #233640;
+  --chip-user-border: #355365;
+  --chip-user-color: #93cdea;
+  --chip-assistant-bg: #3a2a2e;
+  --chip-assistant-border: #5a3a42;
+  --chip-assistant-color: #eaa8b4;
+  --chip-neutral-bg: #333333;
+  --chip-neutral-border: #4a4a4a;
+  --chip-neutral-color: #d0d0d0;
+
   --tool-group-badge-bg: #233640;
   --tool-group-badge-color: #93cdea;
 

@@ -3180,10 +3180,11 @@ img.base64-image,
   flex-shrink: 0;
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--bs-secondary-color, #6c757d);
-  background: var(--bs-tertiary-bg, #f8f9fa);
+  color: var(--chip-neutral-color);
+  background: var(--chip-neutral-bg);
+  border: 1px solid var(--chip-neutral-border);
   border-radius: 3px;
-  padding: 0.1rem 0.35rem;
+  padding: calc(0.1rem - 1px) calc(0.35rem - 1px);
   min-width: 1.5rem;
   text-align: center;
 }
@@ -3236,9 +3237,10 @@ img.base64-image,
   justify-content: center;
   font-size: 0.65rem;
   font-weight: 600;
-  background: #dc4c64;
-  color: white;
-  padding: 2px 5px;
+  background: var(--chip-assistant-bg);
+  color: var(--chip-assistant-color);
+  border: 1px solid var(--chip-assistant-border);
+  padding: 1px 4px;
   border-radius: 3px;
   margin-right: 8px;
   min-width: 22px;
@@ -3248,7 +3250,9 @@ img.base64-image,
 /* User turn badge (blue to match user icon) */
 
 .card-turn-badge-user {
-  background: #4cacdc;
+  background: var(--chip-user-bg);
+  color: var(--chip-user-color);
+  border-color: var(--chip-user-border);
 }
 
 /* Highlight effect when navigating to a card */
@@ -3869,6 +3873,37 @@ img.base64-image,
   color: #1565c0 !important;
 }
 
+/* Dark: in this layer, next to the light rules. Both are !important, and for
+   !important declarations an earlier layer wins, so in the dark-theme layer
+   these lost to the light ones. In the same layer the more specific win. */
+
+.dark-theme #status-message {
+  background-color: #2b2b2b !important;
+  border: 1px solid #444444 !important;
+}
+
+/* Dark mode: Status type colors (ID + class selectors have high specificity) */
+
+.dark-theme #status-message.text-success {
+  color: #7fd89f !important;
+}
+
+.dark-theme #status-message.text-warning {
+  color: #f59e0b !important;
+}
+
+.dark-theme #status-message.text-danger {
+  color: #ef5350 !important;
+}
+
+.dark-theme #status-message.text-info {
+  color: #60a5fa !important;
+}
+
+.dark-theme #status-message.text-secondary {
+  color: #d0d0d0 !important;
+}
+
 #status-message.text-secondary {
   color: #546e7a !important;
 }
@@ -4317,7 +4352,7 @@ img.base64-image,
 /* Exclude h5, h6, icons, and their children to preserve header icon colors */
 
 .dark-theme .shaded-panel p,
-.dark-theme .shaded-panel span:not(.assistant-color):not(.user-color):not(.system-color):not(.badge-tools):not(.badge-capabilities):not(.tool-group-badge):not(h5 span):not(h6 span):not(.like-h6 span):not(.text),
+.dark-theme .shaded-panel span:not(.assistant-color):not(.user-color):not(.system-color):not(.badge-tools):not(.badge-capabilities):not(.tool-group-badge):not(h5 span):not(h6 span):not(.like-h6 span):not(.text):not(.btn-warning span),
 .dark-theme .shaded-panel div:not(.icon-container):not(.badge-tools):not(.badge-capabilities):not(.tool-group-badge),
 .dark-theme .shaded-panel label,
 .dark-theme .shaded-panel td,
@@ -4719,11 +4754,6 @@ i.fas.fa-bolt,
 
 /* Dark mode for turn grouping */
 
-.dark-theme #context-panel .context-turn-label {
-  background: var(--json-label-secondary);
-  color: #adb5bd;
-}
-
 .dark-theme #context-panel .context-turn-items {
   color: #dee2e6;
 }
@@ -4743,14 +4773,6 @@ i.fas.fa-bolt,
 
 .dark-theme .context-turn-group.edited {
   border-left-color: #ffc107;
-}
-
-.dark-theme .card-turn-badge {
-  background: #e57373;
-}
-
-.dark-theme .card-turn-badge-user {
-  background: #64b5f6;
 }
 
 .dark-theme .card.context-highlight {
@@ -4977,34 +4999,6 @@ i.fas.fa-bolt,
   border-color: #666;
 }
 
-/* Dark mode: Unified status styling (ID selector has high specificity) */
-
-.dark-theme #status-message {
-  background-color: #2b2b2b !important;
-  border: 1px solid #444444 !important;
-}
-
-/* Dark mode: Status type colors (ID + class selectors have high specificity) */
-
-.dark-theme #status-message.text-success {
-  color: #7fd89f !important;
-}
-
-.dark-theme #status-message.text-warning {
-  color: #f59e0b !important;
-}
-
-.dark-theme #status-message.text-danger {
-  color: #ef5350 !important;
-}
-
-.dark-theme #status-message.text-info {
-  color: #60a5fa !important;
-}
-
-.dark-theme #status-message.text-secondary {
-  color: #d0d0d0 !important;
-}
 
 /* Dark mode: Toggle menu button (ID selector has high specificity) */
 
@@ -5157,6 +5151,43 @@ i.fas.fa-bolt,
 .dark-theme .generated-audio-player {
   background: #2a2a2e;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Dark mode: dropdown menus. The Web UI switches themes with a class, not
+   Bootstrap's data-bs-theme, so the menu would keep Bootstrap's white. */
+
+.dark-theme .dropdown-menu {
+  --bs-dropdown-bg: var(--modal-bg);
+  --bs-dropdown-color: var(--text-primary);
+  --bs-dropdown-border-color: var(--modal-border-color);
+  --bs-dropdown-link-color: var(--text-primary);
+  --bs-dropdown-link-hover-color: var(--text-primary);
+  --bs-dropdown-link-hover-bg: var(--bg-hover);
+}
+
+/* Dark mode: turn badges keep their chip colors inside cards, where every
+   span otherwise takes the card's text color. */
+
+.dark-theme .card .card-turn-badge {
+  color: var(--chip-assistant-color);
+}
+
+.dark-theme .card .card-turn-badge-user {
+  color: var(--chip-user-color);
+}
+
+/* Dark mode: the Cancel button beside the status line */
+
+.dark-theme #cancel_query {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.dark-theme #cancel_query span {
+  color: var(--text-primary);
+}
+
+.dark-theme #cancel_query:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 } /* end @layer dark-theme */

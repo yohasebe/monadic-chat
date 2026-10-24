@@ -31,8 +31,8 @@ Runtime opt-out: set `PRIVACY_FILTER=false` in `~/monadic/config/env` to skip th
 
 Apps that support privacy filtering show a **Privacy Filter** toggle in the Session Controls panel.
 
-- Turn it on before sending the first message to enable masking for the session.
-- After the first message is sent the toggle locks. Pressing **Reset** or switching to a different app re-enables editing. To use the filter in a chat you have begun, start a new chat.
+- Turn it on before clicking **Start Session** to enable masking for the session.
+- The toggle locks when the session starts. Pressing **Reset** or switching to a different app re-enables editing, for a new chat. To use the filter after the session has started, press **Reset**.
 - A chat in which you turn the toggle on is Private: it is not kept in the [chat history](../basic-usage/web-interface.md#chat-history-panel), even when the filter could not be started or is turned off again. The messages of a Private chat are still sent to the model; they are masked only while the filter is on.
 - Your last choice is remembered per app: the toggle starts in that state (off until you first turn it on).
 

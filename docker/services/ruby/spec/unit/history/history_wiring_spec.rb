@@ -135,6 +135,13 @@ RSpec.describe 'What the handlers write to the history' do
     expect(store.get(session[:chat_id])['payload']['messages'].map { |m| m['text'] }).to eq(['kept words'])
   end
 
+  it 'refuses the filter once the session has started, before any user words' do
+    session = chat_session('x', generation: 1).merge(messages: [{ 'mid' => 's1', 'role' => 'system', 'text' => 'You are helpful.' }])
+    host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => true })
+    expect(host.sent.last).to include('enabled' => false, 'error' => 'privacy_chat_started')
+    expect(Monadic::History::Policy.private?(session)).to be(false)
+  end
+
   it 'lets a Private chat ask for the filter again' do
     allow_any_instance_of(Monadic::Utils::Privacy::PresidioBackend).to receive(:health).and_return(true)
     allow(host).to receive(:send_privacy_state)

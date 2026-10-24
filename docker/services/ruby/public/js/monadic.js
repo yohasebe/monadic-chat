@@ -3147,6 +3147,15 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
+    // Whether the chat is Private is decided before it starts: from here
+    // on the chat can attach files and run tools, so the Privacy Filter
+    // toggle is locked (Reset or another app unlocks it, for a new chat).
+    {
+      const privacyEl = $id("check-privacy-session");
+      if (privacyEl) privacyEl.disabled = true;
+      window.privacyToggleLocked = true;
+    }
+
     const shouldSkipAssistant = (typeof window !== 'undefined') && window.skipAssistantInitiation === true;
     
 

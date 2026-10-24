@@ -43,10 +43,13 @@ module WebSocketHelper
     requested_enabled = obj["enabled"] == true || obj["enabled"] == "true"
 
     if requested_enabled
-      # Whether a chat is Private is decided when it begins: a chat the user
-      # has already written in stays as it is (the page locks the toggle
-      # once a message is sent; a Private chat is a new chat).
-      if !Monadic::History::Policy.private?(session) && user_words_in_chat?(session)
+      # Whether a chat is Private is decided before it begins: once it has
+      # any message (Start Session adds the system prompt), it stays as it
+      # is, so nothing of it was written to disk before it became Private.
+      # The page locks the toggle at Start Session; a Private chat is a new
+      # chat. The app is not checked here (the page asks before it tells
+      # the server about a new app): Private only takes things away.
+      if !Monadic::History::Policy.private?(session) && chat_begun?(session)
         return send_to_client(connection, { "type" => "privacy_toggle_ack", "enabled" => false,
                                             "error" => "privacy_chat_started" })
       end
@@ -95,6 +98,10 @@ module WebSocketHelper
       # until the next message turn.
       send_privacy_state(connection, session, enabled: false, registry_count: 0)
     end
+  end
+
+  private def chat_begun?(session)
+    !Array(session[:messages]).empty?
   end
 
   private def user_words_in_chat?(session)

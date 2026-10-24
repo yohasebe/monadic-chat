@@ -188,7 +188,7 @@
         level = 'warning';
         _startingShown = true;
       } else if (data.error === 'privacy_chat_started') {
-        msg = privacyMessage('ui.messages.privacyChatStarted', 'Privacy Filter is chosen when a chat begins. Start a new chat to use it.');
+        msg = privacyMessage('ui.messages.privacyChatStarted', 'Privacy Filter is chosen before a session starts. Press Reset to start a new chat with it.');
         level = 'warning';
       } else if (data.error === 'privacy_container_unreachable') {
         msg = privacyMessage('ui.messages.privacyNotRunning', 'The Privacy Filter could not be started. Try restarting the application.');

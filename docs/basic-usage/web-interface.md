@@ -89,6 +89,9 @@ The models in use for the assistant and for the AI User feature, and the statist
 **PDF Database**<br />
 Shown only for apps with a PDF database. See [PDF Database Panel](#pdf-database-display-panel) below.
 
+**Chat History**<br />
+The latest chats kept on this computer. See [Chat History Panel](#chat-history-panel) below.
+
 **Shared Folder**<br />
 Browse the shared folder. See [Shared Folder Panel](#shared-folder-panel) below.
 
@@ -154,9 +157,26 @@ Click **Import** to upload a PDF; you can give it a title (if you leave it empty
 
 PDFs are stored on your computer. Back them up with **Export Document DB** and restore them with **Import Document DB** (Actions menu). For more information, see [PDF Database](./pdf_storage.md).
 
+## Chat History Panel :id=chat-history-panel
+
+Monadic Chat keeps your chats on this computer, in `~/monadic/state`, outside the shared folder. A chat is kept from its first message, and each new message updates it. Private chats (chats with the [Privacy Filter](../advanced-topics/privacy-filter.md) on) are not kept.
+
+What is kept of a chat: the text of its messages, the app, the model and the system prompt, the main settings (such as reasoning effort, context size, web search and the conversation language), and the [Session Context](../advanced-topics/session-context.md). Images, the contents of attached files, thinking and the records of tool calls are not kept. Known API keys and 1Password references are removed from what is kept.
+
+The Chat History panel lists the five chats with the latest activity; click one to continue it in this tab. `See all` opens the Chats tab of the window the shared folder uses.
+
+In the Chats tab:
+
+- The search box finds chats by their names and by the words in them.
+- Each chat shows its name (or its first and latest topics), the app, the number of messages and when it last had a new message. The list is ordered by that time, newest first; `Show more` adds older chats.
+- `Continue` opens the chat in this tab with its messages, app, model and settings. The app's tools are set up anew, and Auto speech and Start from assistant are off for the continued chat. The chat that was in this tab stays in the history. If it is Private and has messages, you are asked first, since it is not kept.
+- `Name` gives the chat a name (up to 120 characters). Press Enter to save it or Esc to cancel.
+- `Remove from the history` removes the chat after a second click to confirm. Files the chat made in the shared folder, exported files and backups of your computer are not removed.
+- A chat open in a tab is marked "Open in a tab" and can be neither continued nor removed from another tab. To continue or remove it, start a new chat in the tab that has it open.
+
 ## Shared Folder Panel :id=shared-folder-panel
 
-The Shared Folder panel shows what the shared folder (`~/monadic/data`) holds. Click `Browse` to open the list. It shows one folder at a time; click a folder to open it, and use the path at the top to go back.
+The Shared Folder panel shows what the shared folder (`~/monadic/data`) holds. Click `Browse` to open the list in the Files tab of its window (the Chats tab holds the [chat history](#chat-history-panel)). It shows one folder at a time; click a folder to open it, and use the path at the top to go back.
 
 Each entry shows its name, what it is, its size and when it was last modified:
 

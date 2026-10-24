@@ -38,9 +38,11 @@ module WebSocketHelper
     chat_id = history_chat_id(obj)
     reply = { 'type' => 'history_deleted', 'chat_id' => chat_id }
     if chat_id.nil?
-      reply.merge!('success' => false, 'error' => 'history_not_found')
+      reply['success'] = false
+      reply['error'] = 'history_not_found'
     elsif WebSocketHelper.live_chat_ids.include?(chat_id)
-      reply.merge!('success' => false, 'error' => 'history_chat_open')
+      reply['success'] = false
+      reply['error'] = 'history_chat_open'
     else
       Monadic::History::Store.default.delete(chat_id)
       reply['success'] = true
@@ -72,8 +74,7 @@ module WebSocketHelper
   end
 
   private def private_words_here?(session)
-    Monadic::History::Policy.private?(session) &&
-      Array(session[:messages]).any? { |m| m['role'] == 'user' && !m['text'].to_s.strip.empty? }
+    Monadic::History::Policy.private?(session) && user_words_in_chat?(session)
   end
 
   # Continues a chat from the history in this tab, under its own chat id:

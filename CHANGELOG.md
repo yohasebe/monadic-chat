@@ -59,6 +59,8 @@
     - The desktop app's dialogs, passphrase window and console messages appear in the interface language
     - Enter in an open dialog stays in the dialog instead of sending the message
     - Secondary text is readable in the dark Web UI, and the mask editor shows which drawing tool is selected
+    - An image sent with a message reaches the model's answer also when the model first calls a tool (OpenAI, xAI Grok, Ollama)
+    - In the dark theme, the status line, the `Mask` menu, the `Cancel` button and the yellow buttons are readable, and turn badges (T1, T2, …) match the theme
   - For developers
     - `rake server:debug` loads custom apps and helpers from the shared folder only with `MONADIC_LOAD_USER_CODE=true` in the shell (the setting in `~/monadic/config/env` is ignored)
     - `rake db:export` and `rake db:import` are removed

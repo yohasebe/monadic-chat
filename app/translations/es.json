@@ -180,6 +180,53 @@
       "confirmLabel": "Confirmar contraseña",
       "tooShort": "La contraseña debe tener al menos 8 caracteres.",
       "mismatch": "Las contraseñas no coinciden."
+    },
+    "updateAvailable": {
+      "message": "Actualización disponible",
+      "detail": "Nueva: {{latest}} (actual: {{current}}).\nSe descarga en segundo plano; se le pedirá reiniciar cuando esté lista.",
+      "viewReleases": "Ver todas las versiones"
+    },
+    "upToDate": {
+      "message": "Actualizado",
+      "detail": "Ya está usando la última versión ({{version}})."
+    },
+    "updateReady": {
+      "title": "Actualización lista",
+      "message": "Monadic Chat {{version}} está listo para instalarse.",
+      "detail": "La aplicación detendrá los contenedores Docker de forma ordenada y luego se reiniciará para aplicar la actualización. Cualquier conversación en curso se perderá; termínela o guárdela antes.",
+      "restartNow": "Reiniciar ahora",
+      "later": "Más tarde"
+    },
+    "updateError": {
+      "title": "Error de actualización",
+      "message": "La actualización automática falló",
+      "detail": "Puede descargar la última versión manualmente desde la página de versiones.",
+      "openReleases": "Abrir la página de versiones",
+      "close": "Cerrar"
+    },
+    "dockerErrorTitle": "Error de Docker",
+    "dockerCommandFailed": "El comando de Docker terminó con el código {{code}}.",
+    "openFolderFailed": "No se pudo abrir la carpeta",
+    "serverStartFailed": "No se pudo iniciar el servidor. Inténtelo de nuevo.",
+    "ttsDictReadFailed": "No se pudo leer el archivo de diccionario TTS:",
+    "ttsDictFilter": "Archivos CSV",
+    "documentDbNotFound": "No se encontró el archivo de la base de datos de documentos. Coloque monadic-qdrant.tar.gz o monadic-qdrant.tar.gz.enc en ~/monadic/data/.",
+    "pendingBuilds": {
+      "setupTitle": "Preparar contenedores",
+      "setupMessage": "Algunos contenedores aún no están preparados en este equipo.",
+      "setupDetail": "Prepárelos ahora o inicie sin ellos. Cada uno se prepara la primera vez que una función lo necesita, por lo que ese primer uso tarda más.",
+      "setupButton": "Preparar e iniciar",
+      "startNow": "Iniciar ahora",
+      "rebuildTitle": "Se recomienda reconstruir contenedores",
+      "rebuildMessage": "Algunos contenedores deben reconstruirse para aplicar la configuración guardada.",
+      "rebuildDetailSomeNotBuilt": "Sin reconstruir, los contenedores ya construidos mantienen su configuración anterior. Los que aún no se han construido se preparan la primera vez que una función los necesita.",
+      "rebuildDetail": "Sin reconstruir, la aplicación se inicia con las imágenes construidas anteriormente.",
+      "rebuildButton": "Reconstruir e iniciar",
+      "startAnyway": "Iniciar de todos modos",
+      "notBuilt": "aún no construido",
+      "optionsChanged": "opciones cambiadas ({{options}})",
+      "pythonContainer": "Contenedor Python",
+      "minutes": "{{range}} min"
     }
   },
   "messages": {

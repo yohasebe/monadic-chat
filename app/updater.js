@@ -17,6 +17,8 @@
 
 const { autoUpdater } = require('electron-updater');
 const { app, dialog, shell } = require('electron');
+// The same instance main.js sets the UI language on.
+const i18n = require('./i18n');
 
 let deps = null;
 let downloadInProgress = false;
@@ -34,7 +36,7 @@ let downloadInProgress = false;
 let installInProgress = false;
 
 function init(injected) {
-  deps = injected; // { dockerManager, getMainWindow, log, i18n }
+  deps = injected; // { dockerManager, getMainWindow, log }
 
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
@@ -66,12 +68,12 @@ function init(injected) {
 
     const result = await dialog.showMessageBox(mainWindow, {
       type: 'info',
-      buttons: ['Restart Now', 'Later'],
+      buttons: [i18n.t('dialogs.updateReady.restartNow'), i18n.t('dialogs.updateReady.later')],
       defaultId: 0,
       cancelId: 1,
-      title: 'Update Ready',
-      message: `Monadic Chat ${info.version} is ready to install.`,
-      detail: 'The app will stop Docker containers gracefully, then restart to apply the update. Any in-progress conversation will be lost — please finish or save first.'
+      title: i18n.t('dialogs.updateReady.title'),
+      message: i18n.t('dialogs.updateReady.message', { version: info.version }),
+      detail: i18n.t('dialogs.updateReady.detail')
     });
 
     if (result.response !== 0) {
@@ -98,11 +100,11 @@ function init(injected) {
 
     dialog.showMessageBox(mainWindow, {
       type: 'error',
-      buttons: ['Open Releases Page', 'Close'],
+      buttons: [i18n.t('dialogs.updateError.openReleases'), i18n.t('dialogs.updateError.close')],
       defaultId: 0,
-      title: 'Update Error',
-      message: 'Automatic update failed',
-      detail: `${message}\n\nYou can download the latest version manually from the releases page.`
+      title: i18n.t('dialogs.updateError.title'),
+      message: i18n.t('dialogs.updateError.message'),
+      detail: `${message}\n\n${i18n.t('dialogs.updateError.detail')}`
     }).then((result) => {
       if (result.response === 0) {
         shell.openExternal('https://github.com/yohasebe/monadic-chat/releases');

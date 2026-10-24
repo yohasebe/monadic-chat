@@ -279,6 +279,53 @@
       "confirmLabel": "パスフレーズ（確認）",
       "tooShort": "パスフレーズは 8 文字以上にしてください。",
       "mismatch": "パスフレーズが一致しません。"
+    },
+    "updateAvailable": {
+      "message": "アップデートがあります",
+      "detail": "新しいバージョン：{{latest}}（現在：{{current}}）\nダウンロードはバックグラウンドで進みます。準備ができたら再起動を確認します。",
+      "viewReleases": "すべてのリリースを見る"
+    },
+    "upToDate": {
+      "message": "最新です",
+      "detail": "すでに最新バージョン({{version}})を使用しています。"
+    },
+    "updateReady": {
+      "title": "アップデートの準備ができました",
+      "message": "Monadic Chat {{version}} をインストールできます。",
+      "detail": "Docker コンテナを正しく停止してから、再起動してアップデートを適用します。進行中の会話は失われます。先に終えるか保存してください。",
+      "restartNow": "今すぐ再起動",
+      "later": "後で"
+    },
+    "updateError": {
+      "title": "アップデートのエラー",
+      "message": "自動アップデートに失敗しました",
+      "detail": "最新バージョンは、リリースのページから手動でダウンロードできます。",
+      "openReleases": "リリースのページを開く",
+      "close": "閉じる"
+    },
+    "dockerErrorTitle": "Docker のエラー",
+    "dockerCommandFailed": "Docker のコマンドが終了コード {{code}} で終了しました。",
+    "openFolderFailed": "フォルダを開けませんでした",
+    "serverStartFailed": "サーバーを起動できませんでした。もう一度お試しください。",
+    "ttsDictReadFailed": "読み上げ辞書のファイルを読めませんでした：",
+    "ttsDictFilter": "CSV ファイル",
+    "documentDbNotFound": "ドキュメント DB のファイルが見つかりません。monadic-qdrant.tar.gz か monadic-qdrant.tar.gz.enc を ~/monadic/data/ に置いてください。",
+    "pendingBuilds": {
+      "setupTitle": "コンテナの準備",
+      "setupMessage": "このコンピュータでは、まだ準備していないコンテナがあります。",
+      "setupDetail": "今準備するか、準備せずに起動するかを選べます。準備しなかったものは、機能が初めて必要としたときに準備するので、その最初の利用に時間がかかります。",
+      "setupButton": "準備して起動",
+      "startNow": "今すぐ起動",
+      "rebuildTitle": "コンテナの再ビルドをお勧めします",
+      "rebuildMessage": "保存した設定を反映するには、いくつかのコンテナの再ビルドが必要です。",
+      "rebuildDetailSomeNotBuilt": "再ビルドしない場合、ビルド済みのコンテナは以前の設定のままです。まだビルドしていないコンテナは、機能が初めて必要としたときに準備します。",
+      "rebuildDetail": "再ビルドしない場合、以前にビルドしたイメージで起動します。",
+      "rebuildButton": "再ビルドして起動",
+      "startAnyway": "このまま起動",
+      "notBuilt": "未ビルド",
+      "optionsChanged": "オプションの変更（{{options}}）",
+      "pythonContainer": "Python コンテナ",
+      "minutes": "{{range}} 分"
     }
   }
 }

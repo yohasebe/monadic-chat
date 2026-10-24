@@ -180,6 +180,53 @@
       "confirmLabel": "암호 확인",
       "tooShort": "암호는 8자 이상이어야 합니다.",
       "mismatch": "암호가 일치하지 않습니다."
+    },
+    "updateAvailable": {
+      "message": "업데이트가 있습니다",
+      "detail": "새 버전: {{latest}} (현재: {{current}}).\n백그라운드에서 다운로드하며, 준비되면 재시작을 요청합니다.",
+      "viewReleases": "모든 릴리스 보기"
+    },
+    "upToDate": {
+      "message": "최신 버전입니다",
+      "detail": "이미 최신 버전({{version}})을 사용 중입니다."
+    },
+    "updateReady": {
+      "title": "업데이트 준비 완료",
+      "message": "Monadic Chat {{version}}을(를) 설치할 수 있습니다.",
+      "detail": "Docker 컨테이너를 정상적으로 중지한 뒤 재시작하여 업데이트를 적용합니다. 진행 중인 대화는 사라지므로 먼저 마치거나 저장하세요.",
+      "restartNow": "지금 재시작",
+      "later": "나중에"
+    },
+    "updateError": {
+      "title": "업데이트 오류",
+      "message": "자동 업데이트에 실패했습니다",
+      "detail": "릴리스 페이지에서 최신 버전을 직접 다운로드할 수 있습니다.",
+      "openReleases": "릴리스 페이지 열기",
+      "close": "닫기"
+    },
+    "dockerErrorTitle": "Docker 오류",
+    "dockerCommandFailed": "Docker 명령이 코드 {{code}}(으)로 종료되었습니다.",
+    "openFolderFailed": "폴더를 열 수 없습니다",
+    "serverStartFailed": "서버를 시작하지 못했습니다. 다시 시도하세요.",
+    "ttsDictReadFailed": "TTS 사전 파일을 읽지 못했습니다:",
+    "ttsDictFilter": "CSV 파일",
+    "documentDbNotFound": "문서 DB 파일을 찾을 수 없습니다. monadic-qdrant.tar.gz 또는 monadic-qdrant.tar.gz.enc를 ~/monadic/data/에 두세요.",
+    "pendingBuilds": {
+      "setupTitle": "컨테이너 설정",
+      "setupMessage": "이 컴퓨터에 아직 설정되지 않은 컨테이너가 있습니다.",
+      "setupDetail": "지금 설정하거나 설정 없이 시작할 수 있습니다. 설정하지 않은 컨테이너는 기능이 처음 필요로 할 때 설정되므로 첫 사용에 시간이 더 걸립니다.",
+      "setupButton": "설정 후 시작",
+      "startNow": "지금 시작",
+      "rebuildTitle": "컨테이너 재구축 권장",
+      "rebuildMessage": "저장한 설정을 적용하려면 일부 컨테이너를 재구축해야 합니다.",
+      "rebuildDetailSomeNotBuilt": "재구축하지 않으면 이미 빌드된 컨테이너는 이전 설정을 유지합니다. 아직 빌드되지 않은 컨테이너는 기능이 처음 필요로 할 때 설정됩니다.",
+      "rebuildDetail": "재구축하지 않으면 이전에 빌드한 이미지로 시작합니다.",
+      "rebuildButton": "재구축 후 시작",
+      "startAnyway": "그대로 시작",
+      "notBuilt": "아직 빌드되지 않음",
+      "optionsChanged": "옵션 변경됨 ({{options}})",
+      "pythonContainer": "Python 컨테이너",
+      "minutes": "{{range}}분"
     }
   },
   "messages": {

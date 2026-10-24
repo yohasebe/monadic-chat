@@ -272,6 +272,53 @@
       "confirmLabel": "Passphrase bestätigen",
       "tooShort": "Die Passphrase muss mindestens 8 Zeichen lang sein.",
       "mismatch": "Die Passphrasen stimmen nicht überein."
+    },
+    "updateAvailable": {
+      "message": "Update verfügbar",
+      "detail": "Neu: {{latest}} (aktuell: {{current}}).\nDer Download läuft im Hintergrund; Sie werden zum Neustart aufgefordert, sobald er fertig ist.",
+      "viewReleases": "Alle Versionen anzeigen"
+    },
+    "upToDate": {
+      "message": "Auf dem neuesten Stand",
+      "detail": "Sie verwenden bereits die neueste Version ({{version}})."
+    },
+    "updateReady": {
+      "title": "Update bereit",
+      "message": "Monadic Chat {{version}} ist bereit zur Installation.",
+      "detail": "Die App beendet die Docker-Container ordnungsgemäß und startet dann neu, um das Update anzuwenden. Laufende Unterhaltungen gehen verloren – bitte vorher abschließen oder speichern.",
+      "restartNow": "Jetzt neu starten",
+      "later": "Später"
+    },
+    "updateError": {
+      "title": "Update-Fehler",
+      "message": "Automatisches Update fehlgeschlagen",
+      "detail": "Sie können die neueste Version manuell von der Release-Seite herunterladen.",
+      "openReleases": "Release-Seite öffnen",
+      "close": "Schließen"
+    },
+    "dockerErrorTitle": "Docker-Fehler",
+    "dockerCommandFailed": "Docker-Befehl mit Code {{code}} beendet.",
+    "openFolderFailed": "Ordner konnte nicht geöffnet werden",
+    "serverStartFailed": "Der Server konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
+    "ttsDictReadFailed": "TTS-Wörterbuchdatei konnte nicht gelesen werden:",
+    "ttsDictFilter": "CSV-Dateien",
+    "documentDbNotFound": "Dokument-DB-Datei nicht gefunden. Legen Sie monadic-qdrant.tar.gz oder monadic-qdrant.tar.gz.enc in ~/monadic/data/ ab.",
+    "pendingBuilds": {
+      "setupTitle": "Container einrichten",
+      "setupMessage": "Einige Container sind auf diesem Computer noch nicht eingerichtet.",
+      "setupDetail": "Richten Sie sie jetzt ein oder starten Sie ohne sie. Jeder wird dann eingerichtet, wenn eine Funktion ihn zum ersten Mal braucht; diese erste Nutzung dauert daher länger.",
+      "setupButton": "Einrichten und starten",
+      "startNow": "Jetzt starten",
+      "rebuildTitle": "Neuerstellung der Container empfohlen",
+      "rebuildMessage": "Einige Container müssen neu erstellt werden, um Ihre gespeicherten Einstellungen anzuwenden.",
+      "rebuildDetailSomeNotBuilt": "Ohne Neuerstellung behalten bereits erstellte Container ihre vorherigen Einstellungen. Noch nicht erstellte Container werden eingerichtet, wenn eine Funktion sie zum ersten Mal braucht.",
+      "rebuildDetail": "Ohne Neuerstellung startet die App mit den zuvor erstellten Images.",
+      "rebuildButton": "Neu erstellen und starten",
+      "startAnyway": "Trotzdem starten",
+      "notBuilt": "noch nicht erstellt",
+      "optionsChanged": "Optionen geändert ({{options}})",
+      "pythonContainer": "Python-Container",
+      "minutes": "{{range}} Min."
     }
   }
 }

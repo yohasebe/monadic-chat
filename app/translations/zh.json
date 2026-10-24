@@ -180,6 +180,53 @@
       "confirmLabel": "确认密码",
       "tooShort": "密码至少需要 8 个字符。",
       "mismatch": "两次输入的密码不一致。"
+    },
+    "updateAvailable": {
+      "message": "有可用更新",
+      "detail": "新版本：{{latest}}（当前：{{current}}）。\n将在后台下载；准备就绪后会请您重启。",
+      "viewReleases": "查看所有版本"
+    },
+    "upToDate": {
+      "message": "已是最新版本",
+      "detail": "您正在使用最新版本({{version}})。"
+    },
+    "updateReady": {
+      "title": "更新已就绪",
+      "message": "Monadic Chat {{version}} 已可安装。",
+      "detail": "应用将先正常停止 Docker 容器，然后重启以应用更新。进行中的对话将会丢失，请先完成或保存。",
+      "restartNow": "立即重启",
+      "later": "稍后"
+    },
+    "updateError": {
+      "title": "更新错误",
+      "message": "自动更新失败",
+      "detail": "您可以从发布页面手动下载最新版本。",
+      "openReleases": "打开发布页面",
+      "close": "关闭"
+    },
+    "dockerErrorTitle": "Docker 错误",
+    "dockerCommandFailed": "Docker 命令以代码 {{code}} 退出。",
+    "openFolderFailed": "无法打开文件夹",
+    "serverStartFailed": "无法启动服务器。请重试。",
+    "ttsDictReadFailed": "无法读取 TTS 词典文件：",
+    "ttsDictFilter": "CSV 文件",
+    "documentDbNotFound": "未找到文档数据库文件。请将 monadic-qdrant.tar.gz 或 monadic-qdrant.tar.gz.enc 放在 ~/monadic/data/ 中。",
+    "pendingBuilds": {
+      "setupTitle": "设置容器",
+      "setupMessage": "此计算机上有些容器尚未设置。",
+      "setupDetail": "可以现在设置，也可以不设置直接启动。未设置的容器会在功能首次需要时设置，因此首次使用会花更长时间。",
+      "setupButton": "设置并启动",
+      "startNow": "立即启动",
+      "rebuildTitle": "建议重建容器",
+      "rebuildMessage": "需要重建部分容器以应用已保存的设置。",
+      "rebuildDetailSomeNotBuilt": "如不重建，已构建的容器将保持之前的设置。尚未构建的容器会在功能首次需要时设置。",
+      "rebuildDetail": "如不重建，应用将使用之前构建的镜像启动。",
+      "rebuildButton": "重建并启动",
+      "startAnyway": "仍然启动",
+      "notBuilt": "尚未构建",
+      "optionsChanged": "选项已更改（{{options}}）",
+      "pythonContainer": "Python 容器",
+      "minutes": "{{range}} 分钟"
     }
   },
   "messages": {

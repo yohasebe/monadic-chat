@@ -279,6 +279,53 @@
       "confirmLabel": "Confirm passphrase",
       "tooShort": "Passphrase must be at least 8 characters.",
       "mismatch": "Passphrases do not match."
+    },
+    "updateAvailable": {
+      "message": "Update Available",
+      "detail": "New: {{latest}} (current: {{current}}).\nDownloads in the background; you'll be asked to restart when it's ready.",
+      "viewReleases": "View All Releases"
+    },
+    "upToDate": {
+      "message": "Up to Date",
+      "detail": "You are already using the latest version ({{version}})."
+    },
+    "updateReady": {
+      "title": "Update Ready",
+      "message": "Monadic Chat {{version}} is ready to install.",
+      "detail": "The app will stop Docker containers gracefully, then restart to apply the update. Any in-progress conversation will be lost — please finish or save first.",
+      "restartNow": "Restart Now",
+      "later": "Later"
+    },
+    "updateError": {
+      "title": "Update Error",
+      "message": "Automatic update failed",
+      "detail": "You can download the latest version manually from the releases page.",
+      "openReleases": "Open Releases Page",
+      "close": "Close"
+    },
+    "dockerErrorTitle": "Docker Error",
+    "dockerCommandFailed": "Docker command exited with code {{code}}.",
+    "openFolderFailed": "Could not open folder",
+    "serverStartFailed": "Failed to start the server. Please try again.",
+    "ttsDictReadFailed": "Failed to read TTS dictionary file:",
+    "ttsDictFilter": "CSV Files",
+    "documentDbNotFound": "Document DB file not found. Place monadic-qdrant.tar.gz or monadic-qdrant.tar.gz.enc in ~/monadic/data/.",
+    "pendingBuilds": {
+      "setupTitle": "Set up containers",
+      "setupMessage": "Some containers are not set up on this computer yet.",
+      "setupDetail": "Set them up now, or start without them. Each one is then set up the first time a feature needs it, so that first use takes longer.",
+      "setupButton": "Set Up and Start",
+      "startNow": "Start Now",
+      "rebuildTitle": "Container rebuild recommended",
+      "rebuildMessage": "Some containers need to be rebuilt to apply your saved settings.",
+      "rebuildDetailSomeNotBuilt": "Without a rebuild, containers already built keep their previous settings. Containers not built yet are set up the first time a feature needs them.",
+      "rebuildDetail": "Without a rebuild, the app starts with the previously built images.",
+      "rebuildButton": "Rebuild and Start",
+      "startAnyway": "Start Anyway",
+      "notBuilt": "not yet built",
+      "optionsChanged": "options changed ({{options}})",
+      "pythonContainer": "Python container",
+      "minutes": "{{range}} min"
     }
   }
 }

@@ -272,6 +272,53 @@
       "confirmLabel": "Confirmer la phrase de passe",
       "tooShort": "La phrase de passe doit comporter au moins 8 caractères.",
       "mismatch": "Les phrases de passe ne correspondent pas."
+    },
+    "updateAvailable": {
+      "message": "Mise à jour disponible",
+      "detail": "Nouvelle : {{latest}} (actuelle : {{current}}).\nLe téléchargement se fait en arrière-plan ; un redémarrage vous sera proposé une fois prêt.",
+      "viewReleases": "Voir toutes les versions"
+    },
+    "upToDate": {
+      "message": "À jour",
+      "detail": "Vous utilisez déjà la dernière version ({{version}})."
+    },
+    "updateReady": {
+      "title": "Mise à jour prête",
+      "message": "Monadic Chat {{version}} est prêt à être installé.",
+      "detail": "L'application arrêtera proprement les conteneurs Docker, puis redémarrera pour appliquer la mise à jour. Toute conversation en cours sera perdue ; terminez-la ou enregistrez-la d'abord.",
+      "restartNow": "Redémarrer maintenant",
+      "later": "Plus tard"
+    },
+    "updateError": {
+      "title": "Erreur de mise à jour",
+      "message": "La mise à jour automatique a échoué",
+      "detail": "Vous pouvez télécharger manuellement la dernière version depuis la page des versions.",
+      "openReleases": "Ouvrir la page des versions",
+      "close": "Fermer"
+    },
+    "dockerErrorTitle": "Erreur Docker",
+    "dockerCommandFailed": "La commande Docker s'est terminée avec le code {{code}}.",
+    "openFolderFailed": "Impossible d'ouvrir le dossier",
+    "serverStartFailed": "Impossible de démarrer le serveur. Veuillez réessayer.",
+    "ttsDictReadFailed": "Impossible de lire le fichier de dictionnaire TTS :",
+    "ttsDictFilter": "Fichiers CSV",
+    "documentDbNotFound": "Fichier de la base de documents introuvable. Placez monadic-qdrant.tar.gz ou monadic-qdrant.tar.gz.enc dans ~/monadic/data/.",
+    "pendingBuilds": {
+      "setupTitle": "Préparer les conteneurs",
+      "setupMessage": "Certains conteneurs ne sont pas encore préparés sur cet ordinateur.",
+      "setupDetail": "Préparez-les maintenant ou démarrez sans eux. Chacun est alors préparé la première fois qu'une fonction en a besoin, ce qui allonge cette première utilisation.",
+      "setupButton": "Préparer et démarrer",
+      "startNow": "Démarrer maintenant",
+      "rebuildTitle": "Reconstruction des conteneurs recommandée",
+      "rebuildMessage": "Certains conteneurs doivent être reconstruits pour appliquer vos paramètres enregistrés.",
+      "rebuildDetailSomeNotBuilt": "Sans reconstruction, les conteneurs déjà construits gardent leurs paramètres précédents. Ceux qui ne sont pas encore construits sont préparés la première fois qu'une fonction en a besoin.",
+      "rebuildDetail": "Sans reconstruction, l'application démarre avec les images construites précédemment.",
+      "rebuildButton": "Reconstruire et démarrer",
+      "startAnyway": "Démarrer quand même",
+      "notBuilt": "pas encore construit",
+      "optionsChanged": "options modifiées ({{options}})",
+      "pythonContainer": "Conteneur Python",
+      "minutes": "{{range}} min"
     }
   }
 }

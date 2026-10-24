@@ -664,7 +664,7 @@ class DockerManager {
           if (process.platform === 'linux') {
             noticeInMainWindow(formatMessage('warning', this.dockerUnavailableMessageKey()) + '<hr />');
           } else {
-            dialog.showErrorBox('Error', 'Failed to start Docker Desktop. Please start it manually and try again.');
+            dialog.showErrorBox(i18n.t('dialogs.error'), i18n.t('dialogs.dockerStartFailed'));
           }
         });
     }
@@ -948,7 +948,7 @@ class DockerManager {
             subprocess.on('close', function (code) {
               stdoutLines.flush();
               if (code !== 0) {
-                dialog.showErrorBox('Error', `Docker command exited with code ${code}.`);
+                dialog.showErrorBox(i18n.t('dialogs.error'), i18n.t('dialogs.dockerCommandFailed', { code }));
               }
 
               // Don't update status here for 'start'/'build' commands - wait for SERVER STARTED
@@ -1114,11 +1114,11 @@ function checkForUpdatesManual(showDialog = false) {
             // Show dialog only when menu is clicked
             dialog.showMessageBox(mainWindow, {
               type: 'info',
-              buttons: ['Download & Install', 'View All Releases', 'Cancel'],
+              buttons: [i18n.t('messages.downloadAndInstall'), i18n.t('dialogs.updateAvailable.viewReleases'), i18n.t('dialogs.cancel')],
               defaultId: 0,
               cancelId: 2,
-              message: 'Update Available',
-              detail: `New: ${latestVersion} (current: ${currentVersion}).\nDownloads in the background; you'll be asked to restart when it's ready.`,
+              message: i18n.t('dialogs.updateAvailable.message'),
+              detail: i18n.t('dialogs.updateAvailable.detail', { latest: latestVersion, current: currentVersion }),
               icon: path.join(iconDir, 'app-icon.png')
             }).then((result) => {
               if (result.response === 0) {
@@ -1152,9 +1152,9 @@ function checkForUpdatesManual(showDialog = false) {
             // Show dialog only when menu is clicked
             dialog.showMessageBox(mainWindow, {
               type: 'info',
-              buttons: ['OK'],
-              message: 'Up to Date',
-              detail: `You are already using the latest version (${currentVersion}).`,
+              buttons: [i18n.t('dialogs.ok')],
+              message: i18n.t('dialogs.upToDate.message'),
+              detail: i18n.t('dialogs.upToDate.detail', { version: currentVersion }),
               icon: path.join(iconDir, 'app-icon.png')
             });
           } else {
@@ -1168,7 +1168,7 @@ function checkForUpdatesManual(showDialog = false) {
       } else {
         if (showDialog) {
           // Show error dialog only when menu is clicked
-          dialog.showErrorBox('Error', 'Failed to retrieve the latest version number.');
+          dialog.showErrorBox(i18n.t('dialogs.error'), i18n.t('messages.failedToRetrieveVersion'));
         } else {
           // Display error in main window only on startup
           if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1182,7 +1182,7 @@ function checkForUpdatesManual(showDialog = false) {
     console.warn(`Update check failed: ${describeNetworkError(err)}`);
     if (showDialog) {
       // Show error dialog only when menu is clicked
-      dialog.showErrorBox('Error', i18n.t('messages.failedToCheckUpdates'));
+      dialog.showErrorBox(i18n.t('dialogs.error'), i18n.t('messages.failedToCheckUpdates'));
     } else {
       // On startup the offline warning already says updates need a
       // connection; repeating it here would only add noise.
@@ -1589,7 +1589,7 @@ function initializeApp() {
                 updateStatusIndicator(prevStatus);
                 console.log(`Docker requirements check failed: ${error}`);
                 // Show error dialog for Docker issues
-                dialog.showErrorBox('Docker Error', error);
+                dialog.showErrorBox(i18n.t('dialogs.dockerErrorTitle'), error);
               });
             break;
           }
@@ -1735,7 +1735,7 @@ function initializeApp() {
       .catch(error => {
         console.log(`Docker requirements check failed: ${error}`);
         // Show error dialog
-        dialog.showErrorBox('Error', error);
+        dialog.showErrorBox(i18n.t('dialogs.error'), error);
       })
       .finally(() => {
         updateApplicationMenu();
@@ -2256,7 +2256,7 @@ function updateContextMenu(disableControls = false) {
             })
             .catch((error) => {
               console.log(`Docker requirements check failed: ${error}`);
-              dialog.showErrorBox('Docker Error', error);
+              dialog.showErrorBox(i18n.t('dialogs.dockerErrorTitle'), error);
             });
         },
         enabled: disableControls ? false : currentStatus === 'Stopped'
@@ -2452,7 +2452,7 @@ function updateApplicationMenu() {
               })
               .catch((error) => {
                 console.log(`Docker requirements check failed: ${error}`);
-                dialog.showErrorBox('Docker Error', error);
+                dialog.showErrorBox(i18n.t('dialogs.dockerErrorTitle'), error);
               });
           },
           enabled: currentStatus === 'Stopped'
@@ -2599,8 +2599,7 @@ function updateApplicationMenu() {
               const hasEnc = fs.existsSync(encPath);
               const hasPlain = fs.existsSync(plainPath);
               if (!hasEnc && !hasPlain) {
-                dialog.showErrorBox(i18n.t('dialogs.error'),
-                  'Document DB file not found. Place monadic-qdrant.tar.gz or monadic-qdrant.tar.gz.enc in ~/monadic/data/.');
+                dialog.showErrorBox(i18n.t('dialogs.error'), i18n.t('dialogs.documentDbNotFound'));
                 return;
               }
 
@@ -3150,7 +3149,7 @@ function openSharedFolder() {
       // result is a non-empty error string when the OS could not open the
       // folder — tell the user instead of failing silently.
       console.error('Error opening path:', result);
-      dialog.showErrorBox('Could not open folder', `${folderPath}\n\n${result}`);
+      dialog.showErrorBox(i18n.t('dialogs.openFolderFailed'), `${folderPath}\n\n${result}`);
     }
   });
 }
@@ -3178,7 +3177,7 @@ function openConfigFolder() {
       // result is a non-empty error string when the OS could not open the
       // folder — tell the user instead of failing silently.
       console.error('Error opening path:', result);
-      dialog.showErrorBox('Could not open folder', `${folderPath}\n\n${result}`);
+      dialog.showErrorBox(i18n.t('dialogs.openFolderFailed'), `${folderPath}\n\n${result}`);
     }
   });
 }
@@ -3206,7 +3205,7 @@ function openLogFolder() {
       // result is a non-empty error string when the OS could not open the
       // folder — tell the user instead of failing silently.
       console.error('Error opening path:', result);
-      dialog.showErrorBox('Could not open folder', `${folderPath}\n\n${result}`);
+      dialog.showErrorBox(i18n.t('dialogs.openFolderFailed'), `${folderPath}\n\n${result}`);
     }
   });
 }
@@ -3272,7 +3271,7 @@ function openBrowser(url, outside = false, forceOpen = false) {
         time += interval;
         if (time >= timeout) {
           clearInterval(timer);
-          dialog.showErrorBox('Error', "Failed to start the server. Please try again.");
+          dialog.showErrorBox(i18n.t('dialogs.error'), i18n.t('dialogs.serverStartFailed'));
         }
       }
 
@@ -3543,20 +3542,20 @@ function computePendingContainerBuilds(imageStatus = null) {
   if (notBuilt('python', pyPrev)) {
     result.push({
       container: 'python_service',
-      label: 'Python container',
-      reason: 'not yet built',
+      label: i18n.t('dialogs.pendingBuilds.pythonContainer'),
+      changed: null,
       buildCommand: 'build_python_container_update',
-      estimate: '3–15 min'
+      minutes: '3–15'
     });
   } else if (pyPrev) {
     const changed = pyKeys.filter(k => pyPrev[k] !== undefined && String(pyPrev[k]) !== String(env[k] ?? 'false'));
     if (changed.length) {
       result.push({
         container: 'python_service',
-        label: 'Python container',
-        reason: `options changed (${changed.join(', ')})`,
+        label: i18n.t('dialogs.pendingBuilds.pythonContainer'),
+        changed,
         buildCommand: 'build_python_container_update',
-        estimate: '3–15 min'
+        minutes: '3–15'
       });
     }
   }
@@ -3568,9 +3567,9 @@ function computePendingContainerBuilds(imageStatus = null) {
     result.push({
       container: 'privacy_service',
       label: 'Privacy Filter',
-      reason: 'not yet built',
+      changed: null,
       buildCommand: 'build_privacy_container',
-      estimate: '3–5 min'
+      minutes: '3–5'
     });
   }
 
@@ -3581,9 +3580,9 @@ function computePendingContainerBuilds(imageStatus = null) {
     result.push({
       container: 'extractor_service',
       label: 'Knowledge Base Quality Pack',
-      reason: 'not yet built',
+      changed: null,
       buildCommand: 'build_extractor_container',
-      estimate: '5–10 min'
+      minutes: '5–10'
     });
   }
 
@@ -3631,27 +3630,30 @@ async function promptForPendingRebuilds() {
   // nothing has been saved or built yet. Skipping it does not leave the
   // feature broken either — ensure-service sets the container up the first
   // time an app needs it, so that first use is the one that waits.
-  const notBuiltOnly = pending.every(p => p.reason === 'not yet built');
-  const someNotBuilt = pending.some(p => p.reason === 'not yet built');
+  const notBuiltOnly = pending.every(p => !p.changed);
+  const someNotBuilt = pending.some(p => !p.changed);
   const lines = pending
-    .map(p => (notBuiltOnly ? `• ${p.label} (${p.estimate})` : `• ${p.label} — ${p.reason} (${p.estimate})`))
+    .map((p) => {
+      const minutes = i18n.t('dialogs.pendingBuilds.minutes', { range: p.minutes });
+      if (notBuiltOnly) return `• ${p.label} (${minutes})`;
+      const reason = p.changed ? i18n.t('dialogs.pendingBuilds.optionsChanged', { options: p.changed.join(', ') }) : i18n.t('dialogs.pendingBuilds.notBuilt');
+      return `• ${p.label} — ${reason} (${minutes})`;
+    })
     .join('\n');
   const dialogText = notBuiltOnly
     ? {
-        title: 'Set up containers',
-        message: 'Some containers are not set up on this computer yet.',
-        detail: `${lines}\n\nSet them up now, or start without them. Each one is then set up ` +
-          'the first time a feature needs it, so that first use takes longer.',
-        buttons: ['Set Up and Start', 'Start Now', 'Cancel']
+        title: i18n.t('dialogs.pendingBuilds.setupTitle'),
+        message: i18n.t('dialogs.pendingBuilds.setupMessage'),
+        detail: `${lines}\n\n${i18n.t('dialogs.pendingBuilds.setupDetail')}`,
+        buttons: [i18n.t('dialogs.pendingBuilds.setupButton'), i18n.t('dialogs.pendingBuilds.startNow'), i18n.t('dialogs.cancel')]
       }
     : {
-        title: 'Container rebuild recommended',
-        message: 'Some containers need to be rebuilt to apply your saved settings.',
-        detail: someNotBuilt
-          ? `${lines}\n\nWithout a rebuild, containers already built keep their previous settings. ` +
-            'Containers not built yet are set up the first time a feature needs them.'
-          : `${lines}\n\nWithout a rebuild, the app starts with the previously built images.`,
-        buttons: ['Rebuild and Start', 'Start Anyway', 'Cancel']
+        title: i18n.t('dialogs.pendingBuilds.rebuildTitle'),
+        message: i18n.t('dialogs.pendingBuilds.rebuildMessage'),
+        detail: `${lines}\n\n` + (someNotBuilt
+          ? i18n.t('dialogs.pendingBuilds.rebuildDetailSomeNotBuilt')
+          : i18n.t('dialogs.pendingBuilds.rebuildDetail')),
+        buttons: [i18n.t('dialogs.pendingBuilds.rebuildButton'), i18n.t('dialogs.pendingBuilds.startAnyway'), i18n.t('dialogs.cancel')]
       };
   const choice = await dialog.showMessageBox(mainWindow, {
     type: 'question',
@@ -4619,7 +4621,7 @@ ipcMain.handle('select-tts-dict', async (event) => {
     if (!isSettingsSender(event)) return '';
     const result = await dialog.showOpenDialog({
         properties: ['openFile'],
-        filters: [{ name: 'CSV Files', extensions: ['csv'] }]
+        filters: [{ name: i18n.t('dialogs.ttsDictFilter'), extensions: ['csv'] }]
     });
     if (!result.canceled && result.filePaths.length > 0) {
         // Save the file path
@@ -4657,7 +4659,7 @@ ipcMain.handle('select-tts-dict', async (event) => {
             return filePath;
         } catch (error) {
             console.error('Error reading TTS dictionary file:', error);
-            dialog.showErrorBox('Error', `Failed to read TTS dictionary file: ${error.message}`);
+            dialog.showErrorBox(i18n.t('dialogs.error'), `${i18n.t('dialogs.ttsDictReadFailed')} ${error.message}`);
             return '';
         }
     }

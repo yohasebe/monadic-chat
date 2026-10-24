@@ -35,44 +35,79 @@ module Monadic
         tab_id = Rack::Utils.parse_query(env['QUERY_STRING'].to_s)['tab_id']
         return @app.call(env) unless tab_id.is_a?(String) && !tab_id.empty?
 
-        kind, chat_id = tab_kind(tab_id)
+        kind, chat = tab_kind(tab_id)
         if env['REQUEST_METHOD'] == 'POST' && @paths.include?(env['PATH_INFO'])
           return refuse('private_chat', 403) if kind == :private
           return refuse('tab_unknown', 409) if kind == :unknown
         end
         return @app.call(env) unless kind == :private
 
-        as_private_work(chat_id) { @app.call(env) }
+        scope = Monadic::Utils::Privacy::EgressGuard::Scope.new(chat, chat[Monadic::Workspace::Chats::SESSION_KEY])
+        status, headers, body = PrivateWork.within(scope) { @app.call(env) }
+        [status, headers, PrivateWork.new(body, scope)]
+      end
+
+      # Runs what is done for a request from the tab of a Private chat as
+      # that chat's work (see Policy.current_work_private?), as for its
+      # connection: the route, and the body's each, call and close, which run
+      # after the route returned (the access log is written on close). The
+      # scope is the chat itself, so what is sent out is checked against the
+      # words marked in it (EgressGuard).
+      class PrivateWork
+        def self.within(scope)
+          key = Monadic::Utils::Privacy::EgressGuard::CHAT_KEY
+          before = Fiber[key]
+          Fiber[key] = scope
+          yield
+        ensure
+          Fiber[key] = before
+        end
+
+        def initialize(body, scope)
+          @body = body
+          @scope = scope
+        end
+
+        def each(&block)
+          PrivateWork.within(@scope) { @body.each(&block) }
+        end
+
+        def call(stream)
+          PrivateWork.within(@scope) { @body.call(stream) }
+        end
+
+        def close
+          PrivateWork.within(@scope) { @body.close if @body.respond_to?(:close) }
+        end
+
+        # A body that is only streamed (call) or only listed (each) stays so.
+        def respond_to?(name, include_all = false)
+          return @body.respond_to?(name, include_all) if %i[each call].include?(name)
+
+          super
+        end
       end
 
       private
 
-      # [:private, :normal or :unknown, the chat's id]. A doubt errs to
-      # Private.
+      # [:private, :normal or :unknown, the tab's chat]: its live session,
+      # or, while the tab is away, the chat as its saved state keeps it. A
+      # doubt errs to Private.
       def tab_kind(tab_id)
+        chats = Monadic::Workspace::Chats::SESSION_KEY
         session = @session_lookup.call(tab_id)
         state = @state_lookup.call(tab_id)
         return [:unknown, nil] if session.nil? && state.nil?
 
-        chat_id = (session && session[Monadic::Workspace::Chats::SESSION_KEY]) || (state && state[:chat_id])
-        private = (session && Policy.private?(session)) ||
-                  (state && state[:chat_state].is_a?(Hash) && Policy.private?(state[:chat_state])) ||
-                  Policy.known_private?(state && state[:chat_id]) || Policy.known_private?(chat_id)
-        [private ? :private : :normal, chat_id]
-      rescue StandardError
-        [:private, nil]
-      end
+        chat = session || (state[:chat_state].is_a?(Hash) ? state[:chat_state] : {}).merge(chats => state[:chat_id])
+        private = Policy.private?(chat) || Policy.known_private?(state && state[:chat_id]) ||
+                  Policy.known_private?(chat[chats])
+        return [:normal, chat] unless private
 
-      # What runs for the request is the Private chat's work (see
-      # Policy.current_work_private?), as for its connection.
-      def as_private_work(chat_id)
-        key = Monadic::Utils::Privacy::EgressGuard::CHAT_KEY
-        before = Fiber[key]
-        marked = { Policy::SESSION_KEY => Policy::PRIVATE, Monadic::Workspace::Chats::SESSION_KEY => chat_id }
-        Fiber[key] = Monadic::Utils::Privacy::EgressGuard::Scope.new(marked, chat_id)
-        yield
-      ensure
-        Fiber[key] = before
+        chat = chat.merge(Policy::SESSION_KEY => Policy::PRIVATE) unless session
+        [:private, chat]
+      rescue StandardError
+        [:private, { Policy::SESSION_KEY => Policy::PRIVATE }]
       end
 
       MESSAGES = {

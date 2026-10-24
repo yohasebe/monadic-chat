@@ -238,7 +238,8 @@ module WebSocketHelper
       Monadic::Utils::ExtraLogger.log { "[Library] LIBRARY_SAVE rejected: Privacy Filter is active in this session" }
       send_to_client(connection, {
         'type' => 'library_saved', 'res' => 'failure',
-        'content' => 'Knowledge Base save is disabled while the Privacy Filter is active. Use Privacy Export to retain this conversation.'
+        'content' => 'Knowledge Base save is disabled in a Private chat and while the Privacy Filter is active. ' \
+                     'Use Privacy Export to retain this conversation.'
       })
       return
     end

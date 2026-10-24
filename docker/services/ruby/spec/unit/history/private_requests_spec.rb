@@ -4,6 +4,7 @@ require 'spec_helper'
 require 'stringio'
 require 'securerandom'
 require 'base64'
+require 'rack'
 require_relative '../../../lib/monadic/history'
 require_relative '../../../lib/monadic/history/private_request_guard'
 require_relative '../../../lib/monadic/workspace'
@@ -98,6 +99,52 @@ RSpec.describe 'What would make files of a Private chat' do
                     'rack.input' => StringIO.new('x'))
       end
       expect(seen).to eq([true, false])
+      expect(Fiber[Monadic::Utils::Privacy::EgressGuard::CHAT_KEY]).to be_nil
+    end
+
+    # The request is checked, as the chat's connection is, against the words
+    # marked in the chat: the tab's live chat, or its saved state while the
+    # tab is away.
+    it "checks what such a request sends out against the words marked in the tab's chat" do
+      guard = Monadic::Utils::Privacy::EgressGuard
+      words = []
+      worker = Monadic::History::PrivateRequestGuard.new(
+        lambda do |_env|
+          words << guard.words
+          [200, {}, ['ok']]
+        end,
+        paths: ['/document'], session_lookup: ->(id) { tabs[id] }, state_lookup: ->(id) { states[id] }
+      )
+      marked = { privacy: { terms: [{ text: 'MARKEDWORD' }] } }
+      tabs['tab-p'] = chat(private: true).merge(monadic_state: marked)
+      states['tab-away'] = { chat_id: chat[:chat_id], chat_state: { policy::SESSION_KEY => policy::PRIVATE, monadic_state: marked } }
+      %w[tab-p tab-away].each do |tab|
+        worker.call('REQUEST_METHOD' => 'POST', 'PATH_INFO' => '/load', 'QUERY_STRING' => "tab_id=#{tab}",
+                    'rack.input' => StringIO.new('x'))
+      end
+      expect(words).to eq([['MARKEDWORD'], ['MARKEDWORD']])
+    end
+
+    # The body is listed and closed after the route returned, and the access
+    # log is written on close: both are the Private chat's work as well.
+    it "keeps a Private chat's request its work while the body is listed and closed" do
+      seen = []
+      body = Rack::BodyProxy.new(Class.new do
+        define_method(:each) do |&block|
+          seen << [:each, Monadic::History::Policy.current_work_private?]
+          block.call('ok')
+        end
+      end.new) { seen << [:log, Monadic::History::Policy.current_work_private?] }
+      worker = Monadic::History::PrivateRequestGuard.new(->(_env) { [200, {}, body] }, paths: ['/document'],
+                                                                                     session_lookup: ->(id) { tabs[id] },
+                                                                                     state_lookup: ->(_id) { nil })
+      tabs['tab-p'] = chat(private: true)
+      _status, _headers, returned = worker.call('REQUEST_METHOD' => 'GET', 'PATH_INFO' => '/x', 'QUERY_STRING' => 'tab_id=tab-p',
+                                                'rack.input' => StringIO.new(''))
+      expect(policy.current_work_private?).to be(false)
+      returned.each { |_part| nil }
+      returned.close
+      expect(seen).to eq([[:each, true], [:log, true]])
       expect(Fiber[Monadic::Utils::Privacy::EgressGuard::CHAT_KEY]).to be_nil
     end
 

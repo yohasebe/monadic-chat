@@ -277,6 +277,7 @@ RSpec.describe "Files of a Private chat" do
       line = run[:control].gets
       if line.nil?
         _, status = Process.wait2(run[:pid])
+        run[:reaped] = true
         raise "the child ended early (#{status.inspect}):\n#{File.read(File.join(run[:outside], 'stderr')).lines.last(20).join}"
       end
 
@@ -285,6 +286,7 @@ RSpec.describe "Files of a Private chat" do
     end
     Process.kill(:KILL, run[:pid]) if lines.key?("MIDWAY")
     _, status = Process.wait2(run[:pid])
+    run[:reaped] = true
     run.merge(lines: lines, status: status)
   ensure
     run[:control]&.close
@@ -317,20 +319,27 @@ RSpec.describe "Files of a Private chat" do
     File.binread(File.join(run[:outside], stream)).scan(run[:mark]).size
   end
 
+  # Each child is kept here as soon as it starts, so that a failure while
+  # the others start or finish leaves none of them behind.
   before(:all) do
-    @started = { normal: start_chat(mode: "normal", kill: false), private: start_chat(mode: "private", kill: false),
-                 normal_killed: start_chat(mode: "normal", kill: true), private_killed: start_chat(mode: "private", kill: true) }
+    @started = {}
+    { normal: ["normal", false], private: ["private", false],
+      normal_killed: ["normal", true], private_killed: ["private", true] }.each do |name, (mode, kill)|
+      @started[name] = start_chat(mode: mode, kill: kill)
+    end
     @runs = @started.transform_values { |run| finish_chat(run) }
   end
 
   # Also when a chat failed: no child is left running, no home is left.
   after(:all) do
     (@started || {}).each_value do |run|
-      begin
-        Process.kill(:KILL, run[:pid])
-        Process.wait(run[:pid])
-      rescue Errno::ESRCH, Errno::ECHILD
-        nil
+      unless run[:reaped]
+        begin
+          Process.kill(:KILL, run[:pid])
+          Process.wait(run[:pid])
+        rescue Errno::ESRCH, Errno::ECHILD
+          nil
+        end
       end
       FileUtils.rm_rf([run[:home], run[:outside]])
     end

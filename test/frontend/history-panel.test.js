@@ -147,6 +147,20 @@ describe('chat history', () => {
     expect(sent).toContainEqual({ message: 'HISTORY_RESUME', chat_id: 'c_aaaaaaaaaaaaaaaa', confirm: true });
   });
 
+  it('keeps the question about the Private chat while lists arrive', () => {
+    list([]);
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
+    jest.advanceTimersByTime(200);
+    expect(sent.some((m) => m.message === 'HISTORY_LIST')).toBe(true);
+    list([item()]);
+    const status = document.getElementById('history-status');
+    expect(status.style.display).toBe('');
+    status.querySelector('.btn-secondary').click();
+    expect(status.style.display).toBe('none');
+    list([item()]);
+    expect(status.style.display).toBe('none');
+  });
+
   it('closes the window when the chat is continued here', () => {
     list([]);
     window.HistoryPanel.open();

@@ -59,6 +59,15 @@ RSpec.describe Monadic::History do
       expect(stored_bytes).to include('kept')
     end
 
+    it 'removes 1Password references from a name' do
+      store.save('chat_a', { 'messages' => [{}] })
+      reference = "op://vault-#{SecureRandom.hex(70)}/item/field"
+      expect(store.rename('chat_a', "Trip #{reference}")).to be(true)
+      name = store.get('chat_a')['title_user']
+      expect(name).not_to include('op://')
+      expect(name).to start_with('Trip ')
+    end
+
     it 'counts revisions, lists without payloads, and keeps a deleted chat deleted' do
       expect(store.save('chat_a', { 'messages' => [{}] }, headings: %w[first recent])).to eq(1)
       expect(store.save('chat_a', { 'messages' => [{}, {}] })).to eq(2)

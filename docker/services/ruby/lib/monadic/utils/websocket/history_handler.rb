@@ -31,7 +31,8 @@ module WebSocketHelper
     send_history_error(connection, 'history_renamed', e)
   end
 
-  # A chat open in a tab is not removed: the tab would go on with it.
+  # A chat open in a tab is not removed: the tab would go on with it. The
+  # chat is reserved while it is removed, so no tab takes it meanwhile.
   private def handle_ws_history_delete(connection, obj)
     return send_history_off(connection, 'history_deleted') unless Monadic::History.enabled?
 
@@ -40,11 +41,15 @@ module WebSocketHelper
     if chat_id.nil?
       reply['success'] = false
       reply['error'] = 'history_not_found'
-    elsif WebSocketHelper.live_chat_ids.include?(chat_id)
+    elsif !WebSocketHelper.reserve_chat(chat_id)
       reply['success'] = false
       reply['error'] = 'history_chat_open'
     else
-      Monadic::History::Store.default.delete(chat_id)
+      begin
+        Monadic::History::Store.default.delete(chat_id)
+      ensure
+        WebSocketHelper.release_chat(chat_id)
+      end
       reply['success'] = true
     end
     send_to_client(connection, reply)
@@ -52,25 +57,30 @@ module WebSocketHelper
     send_history_error(connection, 'history_deleted', e)
   end
 
-  # Whether HISTORY_RESUME will replace this tab's chat (the caller stops
-  # what runs for the current one only then): an id of this server, not the
-  # chat the tab is in, not one open in another tab, and, when the chat here
-  # is Private and has words in it (it is not in the history, so it is gone
-  # once replaced), only once the user has confirmed.
-  private def history_resumable?(obj, session)
-    history_resume_refusal(obj, session).nil?
-  end
-
+  # Whether HISTORY_RESUME will replace this tab's chat, as nil (it will)
+  # or the reason it will not. It will for a kept chat of this server that
+  # is not the chat the tab is in and that no tab has open or is taking;
+  # when the chat here is Private and has words in it (it is not in the
+  # history, so it is gone once replaced), only once the user has confirmed.
+  # When it will, the chat is reserved for this tab until the resume ends
+  # (handle_ws_history_resume releases it), so the caller can stop what runs
+  # for the current chat without another tab taking the chat meanwhile.
   private def history_resume_refusal(obj, session)
     return 'history_off' unless Monadic::History.enabled?
 
     chat_id = history_chat_id(obj)
     return 'history_not_found' unless chat_id
     return 'history_chat_here' if chat_id == session[Monadic::Workspace::Chats::SESSION_KEY]
-    return 'history_chat_open' if WebSocketHelper.live_chat_ids.include?(chat_id)
     return 'history_private_here' if obj['confirm'] != true && private_words_here?(session)
+    return 'history_chat_open' unless WebSocketHelper.reserve_chat(chat_id)
 
-    nil
+    kept = false
+    begin
+      kept = Monadic::History::Store.default.resumable?(chat_id)
+    ensure
+      WebSocketHelper.release_chat(chat_id) unless kept
+    end
+    kept ? nil : 'history_not_found'
   end
 
   private def private_words_here?(session)
@@ -80,21 +90,24 @@ module WebSocketHelper
   # Continues a chat from the history in this tab, under its own chat id:
   # the tab takes it over (the history keeps only this tab's writes of it),
   # and the page is sent what it shows, as for an imported conversation.
-  private def handle_ws_history_resume(connection, obj, session, resumable)
+  # `refusal` is what history_resume_refusal gave; nil means the chat is
+  # reserved for this tab.
+  private def handle_ws_history_resume(connection, obj, session, refusal)
     chat_id = history_chat_id(obj)
     reply = { 'type' => 'history_resumed', 'chat_id' => chat_id }
-    unless resumable
-      return send_to_client(connection, reply.merge('success' => false,
-                                                    'error' => history_resume_refusal(obj, session) || 'history_not_found'))
+    return send_to_client(connection, reply.merge('success' => false, 'error' => refusal)) if refusal
+
+    begin
+      row = Monadic::History::Store.default.claim(chat_id, tab: Thread.current[:websocket_session_id],
+                                                           generation: session[:_ws_generation])
+      return send_to_client(connection, reply.merge('success' => false, 'error' => 'history_not_found')) unless row
+
+      stop_speech_for_new_chat(connection, session, 'History')
+      put_history_chat(session, chat_id, row['payload'])
+      sync_session_state!
+    ensure
+      WebSocketHelper.release_chat(chat_id)
     end
-
-    row = Monadic::History::Store.default.claim(chat_id, tab: Thread.current[:websocket_session_id],
-                                                         generation: session[:_ws_generation])
-    return send_to_client(connection, reply.merge('success' => false, 'error' => 'history_not_found')) unless row
-
-    stop_speech_for_new_chat(connection, session, 'History')
-    put_history_chat(session, chat_id, row['payload'])
-    sync_session_state!
     send_chat_to_page(connection, session, restored: true)
     send_to_client(connection, reply.merge('success' => true))
   rescue StandardError => e

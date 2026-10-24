@@ -50,13 +50,13 @@ Knowledge Base にファイルを取り込むときの流れです。
 
 ## 範囲 :id=visibility
 
-Knowledge Base の各項目は、保存したアプリ（とプロバイダー）か、`Global` のどちらかに属します。Knowledge Base アプリとその一覧の画面は、すべての項目を見て検索します。Knowledge Base の検索に対応するほかのアプリは、Knowledge Base のパネルで **Use Knowledge Base for retrieval (this session)** がオンのときだけ Knowledge Base を検索し、そのアプリで保存した項目と `Global` の項目を見つけます。Live Conversation は、専用の **Tools** の切り替えで検索します。Knowledge Base のページの[範囲の仕組み](/ja/apps/knowledge-base.md)も参照してください。
+Knowledge Base の各項目は、保存したアプリ（とプロバイダー）か、`Global` のどちらかに属します。Knowledge Base の一覧の画面は、すべての項目を表示します。Knowledge Base の検索に対応するアプリは、Knowledge Base のパネルで **Use Knowledge Base for retrieval (this session)** がオンのときだけ Knowledge Base を検索し、そのアプリで保存した項目と `Global` の項目を見つけます。Live Conversation は、専用の **Tools** の切り替えで検索します。Knowledge Base のページの[範囲の仕組み](/ja/apps/knowledge-base.md)も参照してください。
 
 ## Knowledge Base での使い方 :id=use-in-knowledge-base
 
 1. Knowledge Base のパネルの **Save** で今の会話を保存するか、Knowledge Base の一覧（**Browse**）で **Import file** をクリックします
 2. Monadic Chat が、[上記](#technical-implementation)のとおり、内容を抽出し、分け、埋め込み、保存します
-3. Knowledge Base アプリで内容について質問します。ほかのアプリでの検索は[範囲](#visibility)のとおりです
+3. Knowledge Base を検索するアプリで、内容について質問します。検索の範囲は[範囲](#visibility)のとおりです
 4. Monadic Chat が、まず文書、次に区切りの順で、いちばん関係の深い区切りを探します
 5. LLM は、受け取った区切りにもとづいて答えます
 

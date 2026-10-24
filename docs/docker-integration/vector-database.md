@@ -50,13 +50,13 @@ When a file is imported into the Knowledge Base:
 
 ## Scope :id=visibility
 
-Each Knowledge Base entry belongs either to the app (and provider) it was saved in, or to `Global`. The Knowledge Base app and its browser see and search every entry. Other apps that support Knowledge Base search use it only when **Use Knowledge Base for retrieval (this session)** is on in the Knowledge Base panel, and they find the entries saved in that app and the `Global` entries. Live Conversation searches it through its own **Tools** switch. See the [scope model](/apps/knowledge-base.md) on the Knowledge Base page.
+Each Knowledge Base entry belongs either to the app (and provider) it was saved in, or to `Global`. The Knowledge Base browser shows every entry. Apps that support Knowledge Base search use it only when **Use Knowledge Base for retrieval (this session)** is on in the Knowledge Base panel, and they find the entries saved in that app and the `Global` entries. Live Conversation searches it through its own **Tools** switch. See the [scope model](/apps/knowledge-base.md) on the Knowledge Base page.
 
 ## Use in the Knowledge Base :id=use-in-knowledge-base
 
 1. Click **Save** in the Knowledge Base panel to save the current conversation, or click **Import file** in the Knowledge Base browser (**Browse**)
 2. Monadic Chat extracts, splits, embeds, and stores the content, as described [above](#technical-implementation)
-3. Ask questions about the content in the Knowledge Base app, or in other apps as described under [Scope](#visibility)
+3. Ask questions about the content in an app that searches the Knowledge Base, as described under [Scope](#visibility)
 4. Monadic Chat finds the most relevant sections, first by document and then by section
 5. The LLM answers based on the sections it receives
 

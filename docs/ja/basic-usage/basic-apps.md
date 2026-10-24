@@ -37,7 +37,6 @@
 | Speech Draft Helper | ✅ | | | | | | | |
 | Web Insight | ✅ | ✅ | | | ✅ | ✅ | | |
 | Video Describer | ✅ | | | | ✅ | ✅ | | |
-| Knowledge Base | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | |
@@ -79,7 +78,6 @@ Privacy Filter を使った会話を残すには、上部のバーの Privacy �
 | Speech Draft Helper | | ✅ |
 | Web Insight | | ✅ |
 | Video Describer | | ✅ |
-| Knowledge Base | | ✅ |
 | Code Interpreter | | ✅ |
 | Coding Assistant | | ✅ |
 | Jupyter Notebook | | ✅ |

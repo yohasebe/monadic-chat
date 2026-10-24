@@ -30,7 +30,7 @@ require 'spec_helper'
 APPS_DIR_RT = File.expand_path('../../../apps', __dir__)
 
 # Pre-require companion .rb files so MDSL eval has the symbols it
-# needs (KnowledgeBaseConstants etc.). Mirrors the production load
+# needs (an app's constants and tools). Mirrors the production load
 # order in lib/monadic.rb#load_app_files.
 Dir["#{APPS_DIR_RT}/**/*.rb"].sort.each do |f|
   begin

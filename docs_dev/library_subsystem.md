@@ -4,7 +4,6 @@ The Library is the store behind the Knowledge Base. Saved conversations and impo
 
 Front ends:
 
-- **Knowledge Base app** (`apps/knowledge_base/`, one MDSL per provider, tools in `knowledge_base_tools.rb`): list, search, details, stats, scope change, delete and text import through `Monadic::Library::Manager`.
 - **Knowledge Base sidebar panel** (`public/js/monadic/library-panel.js`): Save, Browse, Import file, rename, scope, delete and the "Use Knowledge Base" toggle, over the WebSocket messages in `lib/monadic/utils/websocket/library_handler.rb` and the HTTP import route.
 - **`library_search` shared tool** (`lib/monadic/shared_tools/library_search.rb`): retrieval from inside a chat turn.
 
@@ -35,7 +34,7 @@ Point ids are random UUIDs. `conversation_id` in the payload links an entry's su
 Every entry has a `scope_app`: an app class name (e.g. `ChatOpenAI`) or `Global`.
 
 - Retrieval (`library_search`, the RAG inventory) filters on `scope_app` ∈ {the requesting app's `app_name`, `Global`}. Provider variants are different apps.
-- The Knowledge Base UI and the Knowledge Base app's list/details/stats see every entry.
+- The Knowledge Base UI (list, details, counts) sees every entry.
 - Defaults: Save uses the scope the UI sends, otherwise the current `app_name`, otherwise `Global`. File import uses `libraryScopeApp`, otherwise `Global`. `Manager.import_from_text` defaults to `Global`.
 - `Manager.update_scope_app` rewrites `scope_app` on every point of the entry in all Library collections (scroll + upsert with vectors).
 
@@ -105,7 +104,7 @@ PDFs go to the extractor service (`/v1/extract`, layout analysis and OCR) when `
 
 `LIBRARY_SUGGEST_TITLE` asks the current provider for a title (`Monadic::Library::TitleSuggester`): up to 4 user/assistant messages, 240 characters each, title at most 60 characters, sent through the session's Privacy pipeline when there is one. Any failure returns `res: failure` and the title field stays empty. The panel reuses a suggestion until the conversation grows.
 
-`Manager.list_conversations` (behind `LIBRARY_LIST` and the Knowledge Base app) reads every page of `library_summaries` before it sorts by `created_at`, newest first, and applies the limit.
+`Manager.list_conversations` (behind `LIBRARY_LIST`) reads every page of `library_summaries` before it sorts by `created_at`, newest first, and applies the limit.
 
 Other messages: `LIBRARY_LIST`, `LIBRARY_STATS`, `LIBRARY_GET_CONVERSATION`, `LIBRARY_RENAME` (title, at most 200 characters), `LIBRARY_SET_SCOPE`, `LIBRARY_DELETE`, `LIBRARY_RAG_TOGGLE`, `LIBRARY_RAG_QUERY`.
 
@@ -190,7 +189,6 @@ lib/monadic/routes/pdf_routes.rb
 lib/monadic/shared_tools/library_search.rb
 lib/monadic/utils/websocket/library_handler.rb
 lib/monadic/utils/system_prompt_injector.rb
-apps/knowledge_base/
 public/js/monadic/library-panel.js
 schema/monadic-conversation-v1.json
 docker/services/python/scripts/utilities/library_pdf_extractor.py

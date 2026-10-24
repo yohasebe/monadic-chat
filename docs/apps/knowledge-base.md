@@ -2,7 +2,7 @@
 
 Save chat sessions and import documents into one searchable library.
 
-The Knowledge Base holds conversations and documents: conversation transcripts, PDFs, Office files, Markdown, and source code. The Knowledge Base app searches all of it, and other apps can search it as described under the scope model below.
+The Knowledge Base holds conversations and documents: conversation transcripts, PDFs, Office files, Markdown, and source code. The Knowledge Base browser shows all of it, and apps can search it as described under the scope model below.
 
 ?> The Knowledge Base is separate from the [PDF Database](../basic-usage/pdf_storage.md), which stores PDFs for the OpenAI versions of Chat Plus and Research Assistant. Content imported into one is not visible in the other.
 
@@ -35,19 +35,7 @@ Each entry belongs either to the app and provider it was saved in (for example `
 - **Rename**: open the Conversation Viewer, click the pencil icon next to the title, edit, and save.
 - **Recent saves and counts**: the sidebar shows the most recent saves and the total counts. The Browse table can be searched, filtered by scope, and sorted.
 - **Conversation Viewer**: click a row to see every message of the entry. The system prompt is folded.
-- **Retrieval in other apps**: turn on **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel to let the model search the Knowledge Base while answering. It finds the entries of the current app and the `Global` entries. The switch is off by default, and your last choice is remembered. Live Conversation uses its own **Tools** switch instead.
-- **Knowledge Base badge**: the conversation header shows a green "Knowledge Base" badge while the session can read from the Knowledge Base: when the retrieval switch is on, and always in the Knowledge Base app.
-
-## Knowledge Base app
-
-The Knowledge Base app is a chat for working with the Knowledge Base itself. It sees every entry, whatever its scope. Ask it to:
-
-- search all entries, list the entries, or show the details of one
-- count the entries, in total and per scope
-- change the scope of an entry to `Global` or to an app with its provider, such as `Chat (OpenAI)`
-- import a conversation you paste as text or JSON (ChatML, Anthropic Messages, Gemini Contents, Monadic Chat exports, or text with speaker labels). The entry is `Global` unless you name an app
-- delete an entry (it asks for confirmation first)
-
-Availability by provider is shown in the [availability table](../basic-usage/basic-apps.md#app-availability).
+- **Retrieval in apps**: turn on **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel to let the model search the Knowledge Base while answering. It finds the entries of the current app and the `Global` entries. The switch is off by default, and your last choice is remembered. Live Conversation uses its own **Tools** switch instead.
+- **Knowledge Base badge**: the conversation header shows a green "Knowledge Base" badge while the retrieval switch is on and the session can read from the Knowledge Base.
 
 ?> The Knowledge Base converts text into vectors on your computer and stores them in Qdrant, so importing and searching need no API key. See [Vector Database](../docker-integration/vector-database.md).

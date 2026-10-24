@@ -69,7 +69,7 @@ AI ユーザー機能のシステムプロンプトを表示・編集します�
 新しいチャットを始めるか、今の会話を続けます。
 
 **セッションの表示バッジ**<br />
-要約バーには、効いている機能のバッジが表示されます：**Web Search**、**Math**、**Knowledge Base**、今の推論の段階（オフでないとき）。Knowledge Base のバッジは、セッションが Knowledge Base を読むときに表示されます。つまり、**Use Knowledge Base for retrieval (this session)** がオンのとき、または Knowledge Base アプリそのものを選んでいるときです。[Live Conversation](../apps/chat-apps.md#live-conversation) では、いくつかの設定に画面の部品がないため、それに当たるバッジは出ません。
+要約バーには、効いている機能のバッジが表示されます：**Web Search**、**Math**、**Knowledge Base**、今の推論の段階（オフでないとき）。Knowledge Base のバッジは、セッションが Knowledge Base を読むときに表示されます。つまり、**Use Knowledge Base for retrieval (this session)** がオンのときです。[Live Conversation](../apps/chat-apps.md#live-conversation) では、いくつかの設定に画面の部品がないため、それに当たるバッジは出ません。
 
 ページの上部のバーには、会話の状態と、オンのときは Privacy Filter の表示が出ます。
 

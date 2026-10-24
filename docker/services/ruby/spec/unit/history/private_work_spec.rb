@@ -154,6 +154,26 @@ RSpec.describe 'The logs and the work of a Private chat' do
       expect(policy.private?(session)).to be(true)
     end
 
+    it 'changes neither the filter nor Private once a Private chat has begun, even with its messages removed' do
+      session = chat
+      host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => true })
+      session[:messages] << { 'role' => 'system', 'text' => 'You are helpful.' }
+      policy.note_begun!(session)
+
+      host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => false })
+      expect(host.sent.last).to include('enabled' => true, 'error' => 'privacy_chat_started', 'private' => true)
+      expect(session[:_privacy_session_enabled]).to be(true)
+
+      session[:messages].clear
+      host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => false })
+      expect(host.sent.last).to include('enabled' => true, 'private' => true)
+      expect(policy.private?(session)).to be(true)
+      expect(policy.known_private?(session[chat_key])).to be(true)
+
+      host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => true })
+      expect(host.sent.last).to include('enabled' => true, 'error' => nil, 'private' => true)
+    end
+
     it 'keeps the chat Private when the filter could not be started' do
       allow_any_instance_of(Monadic::Utils::Privacy::PresidioBackend).to receive(:health).and_return(false)
       session = chat

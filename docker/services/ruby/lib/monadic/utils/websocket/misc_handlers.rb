@@ -178,7 +178,8 @@ module WebSocketHelper
     sleep(0.2)
     send_to_client(connection, { "type" => "parameters", "content" => session[:parameters], "from_import" => true }) unless session[:parameters].empty?
     sleep(0.05)
-    send_to_client(connection, { "type" => "past_messages", "content" => shown, "from_import" => true })
+    send_to_client(connection, { "type" => "past_messages", "content" => shown, "from_import" => true,
+                                 "private" => Monadic::History::Policy.private?(session) })
 
     state = session[:monadic_state]
     if state && state[:conversation_context]

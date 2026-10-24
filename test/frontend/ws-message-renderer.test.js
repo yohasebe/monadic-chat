@@ -94,6 +94,26 @@ describe('ws-message-renderer', () => {
       delete window.addAttachmentsToCard;
     });
 
+    // The page may keep what it holds on disk (sessionStorage): whether the
+    // chat is Private is noted before any of its words are taken in.
+    it('notes whether the chat is Private before it takes in the words', () => {
+      const order = [];
+      window.WsPrivacyHandler = { notePrivate: jest.fn(() => order.push('private')) };
+      global.createCard = jest.fn(() => { order.push('card'); return document.createElement('div'); });
+      try {
+        const data = { private: true, content: [
+          { role: 'system', text: 'S', mid: 'sys-1' },
+          { role: 'user', text: 'private words', mid: 'u-1', active: true }
+        ] };
+        handlers.handlePastMessages(data);
+        expect(window.WsPrivacyHandler.notePrivate).toHaveBeenCalledWith(data);
+        expect(order[0]).toBe('private');
+        expect(order).toContain('card');
+      } finally {
+        delete window.WsPrivacyHandler;
+      }
+    });
+
     it('renders user and assistant messages from history', () => {
       const data = {
         content: [

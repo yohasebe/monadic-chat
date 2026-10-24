@@ -264,7 +264,10 @@ module WebSocketHelper
 
     # Send past_messages with additional delay to ensure parameters is processed first
     sleep(0.05)  # Additional 0.05s delay (total 0.1s from start)
-    past_messages_data = { "type" => "past_messages", "content" => filtered_messages }
+    # Whether the chat is Private travels with its words, so the page knows
+    # it before it holds them (and does not store them).
+    past_messages_data = { "type" => "past_messages", "content" => filtered_messages,
+                           "private" => Monadic::History::Policy.private?(rack_session) }
     send_or_broadcast(past_messages_data.to_json, ws_session_id)
 
     # Debug logging for past_messages (only when EXTRA_LOGGING is enabled)

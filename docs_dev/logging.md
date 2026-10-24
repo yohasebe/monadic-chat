@@ -30,6 +30,7 @@ Nothing is logged for the work of a Private chat (`Monadic::History::Policy.curr
 
 - `ExtraLogger` (`log`, `log_json`, `log_raw`) writes nothing.
 - `command.log` gets no entry (`Shell.log_invocation`, `MonadicApp#send_command`).
+- HTTP requests that name the tab of a Private chat (`tab_id`) run as that chat's work (`Monadic::History::PrivateRequestGuard`), since the cookie's session is shared by every tab. An imported conversation (`/load`) is parsed in memory (`Monadic::Workspace::UploadInMemory`), so no temporary file is made of it.
 - What the process prints (`STDOUT`/`STDERR`, the server log) is dropped: `Monadic::History::PrivateOutput` is prepended to both streams at startup, so `puts`, `print`, loggers made earlier on them and other threads are covered. `$stderr` is set to a guarded copy of `STDERR`: while it is `STDERR` itself, Ruby writes warnings (`warn`) and the report of a thread that died of an exception straight to the file descriptor, past `write`.
 
 Tests: `spec/unit/history/private_work_spec.rb`, and `spec/unit/history/private_chat_files_spec.rb` (a whole chat through the app booted from `config.ru` in a child process with its own home: every file under it is scanned for a marker and every write is recorded, with a normal chat as the positive control, also after the process is killed in an answer).

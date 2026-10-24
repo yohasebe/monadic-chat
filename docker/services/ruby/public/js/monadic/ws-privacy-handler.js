@@ -671,6 +671,7 @@
     isEnabled: function () { return _lastEnabled; },
     isChatPrivate: isChatPrivate,
     noteRequested: noteRequested,
+    notePrivate: notePrivate,
     openExportDialog: openExportDialog,
     resetExportDialog: resetExportDialog,
     handleExportData: handleExportData,

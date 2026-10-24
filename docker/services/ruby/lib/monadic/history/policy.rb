@@ -18,6 +18,11 @@ module Monadic
     module Policy
       SESSION_KEY = :_history_policy
       PRIVATE = 'private'
+      # Set once the chat has a message (Start Session adds the system
+      # prompt) and kept for the rest of the chat, also when its messages
+      # are removed: what it held before (the Session Context, tool
+      # results) may still be in the session.
+      BEGUN_KEY = :_chat_begun
       KNOWN_LIMIT = 10_000
 
       @known = {}
@@ -79,6 +84,15 @@ module Monadic
           @known[chat_id] = true
           @known.shift while @known.size > KNOWN_LIMIT
         end
+      end
+
+      def note_begun!(session)
+        session[BEGUN_KEY] = true unless Array(session[:messages] || session['messages']).empty?
+      end
+
+      def begun?(session)
+        session[BEGUN_KEY] == true || session[BEGUN_KEY.to_s] == true ||
+          !Array(session[:messages] || session['messages']).empty?
       end
 
       def stored(session)

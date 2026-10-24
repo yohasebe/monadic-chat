@@ -81,6 +81,16 @@ RSpec.describe 'What the handlers write to the history' do
     Dir.glob(File.join(dir, '*')).map { |f| File.binread(f) }.join
   end
 
+  # The chat has begun once it has a message, and stays begun when its
+  # messages are removed (the Session Context and tool results may remain).
+  it 'marks the chat begun when it is synced with a message, for the rest of the chat' do
+    first, = connect_twice
+    session = chat_session('hello', generation: first)
+    sync(session)
+    session[:messages].clear
+    expect(Monadic::History::Policy.begun?(session)).to be(true)
+  end
+
   it 'does not let a connection that a newer one replaced write its older copy' do
     first, second = connect_twice
     newer = chat_session('newer text', generation: second)
@@ -243,7 +253,7 @@ RSpec.describe 'What the handlers write to the history' do
       expect(here[:messages].map { |m| m['text'] }).to eq([marker])
       expect(here[:parameters]).to include('app_name' => 'ChatOpenAI', 'ui_language' => 'ja', 'auto_speech' => false)
       expect(here).not_to have_key(:gemini3_last_image)
-      expect(host.sent.map { |m| m['type'] }).to include('past_messages')
+      expect(host.sent.find { |m| m['type'] == 'past_messages' }).to include('private' => false)
 
       Thread.current[:websocket_session_id] = tab
       kept[:messages] << { 'mid' => 'm2', 'role' => 'user', 'text' => 'from the old tab' }
@@ -253,6 +263,30 @@ RSpec.describe 'What the handlers write to the history' do
       here[:messages] << { 'mid' => 'm3', 'role' => 'user', 'text' => 'from the new tab' }
       sync(here)
       expect(store.get(kept[:chat_id])['payload']['messages'].map { |m| m['text'] }).to eq([marker, 'from the new tab'])
+    end
+
+    # The page holds the words of a chat it is sent; whether that chat is
+    # Private comes with them, so the page does not store them.
+    it 'sends whether a chat is Private with its words' do
+      session = { chat_id: Monadic::Workspace::Ids.generate(:chat), messages: [{ 'role' => 'user', 'text' => 'x', 'app_name' => 'ChatOpenAI' }],
+                  parameters: { 'app_name' => 'ChatOpenAI' } }
+      Monadic::History::Policy.mark_private!(session)
+      allow(host).to receive(:prepare_apps_data).and_return({})
+      host.send(:send_chat_to_page, nil, session)
+      expect(host.sent.find { |m| m['type'] == 'past_messages' }).to include('private' => true)
+    end
+
+    it 'sends whether a chat is Private with its words when the tab connects again' do
+      session = { chat_id: Monadic::Workspace::Ids.generate(:chat), messages: [], parameters: {} }
+      Monadic::History::Policy.mark_private!(session)
+      broadcast = []
+      allow(host).to receive(:sleep)
+      allow(host).to receive(:send_or_broadcast) { |json, _id| broadcast << JSON.parse(json) }
+      Thread.current[:rack_session] = session
+      host.push_apps_data(nil, {}, [{ 'role' => 'user', 'text' => 'x' }])
+      expect(broadcast.find { |m| m['type'] == 'past_messages' }).to include('private' => true)
+    ensure
+      Thread.current[:rack_session] = nil
     end
 
     it 'asks before it replaces a Private chat with words in it, and shows the resumed chat locked' do

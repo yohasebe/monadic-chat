@@ -18,6 +18,11 @@
  * @param {Object} data - Message data with content array of message objects
  */
 function handlePastMessages(data) {
+  // Whether the chat is Private comes with its words: noted before they
+  // are held, so they are not stored if it is.
+  if (window.WsPrivacyHandler && typeof window.WsPrivacyHandler.notePrivate === 'function') {
+    window.WsPrivacyHandler.notePrivate(data);
+  }
   const serverMessages = Array.isArray(data["content"]) ? data["content"] : [];
   // The conversation is replaced: edits waiting for an answer have nothing
   // left to put back.

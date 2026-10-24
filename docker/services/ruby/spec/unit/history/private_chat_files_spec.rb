@@ -172,11 +172,13 @@ RSpec.describe "Files of a Private chat" do
         send.call({ "message" => "UPDATE_PARAMS", "params" => { "app_name" => app_name } })
         send.call({ "message" => "PING" })
         wait_for.call("pong")
+        # Recorded from before the filter is asked for: making the chat
+        # Private writes nothing either.
+        recording = watched
         if private
           send.call({ "message" => "PRIVACY_TOGGLE", "enabled" => true })
           result["toggle"] = wait_for.call("privacy_toggle_ack").slice("enabled", "private")
         end
-        recording = watched
         send.call({ "message" => "hello #{said}", "app_name" => app_name })
         wait_for.call("streaming_complete")
         send.call({ "message" => "HTML" })
@@ -191,6 +193,16 @@ RSpec.describe "Files of a Private chat" do
                                               "HTTP_HOST" => "127.0.0.1:#{port}", "HTTP_ORIGIN" => origin,
                                               "rack.multipart.tempfile_factory" => factory)
         result["upload"] = { "status" => res.status, "body_read" => !made.empty? }
+
+        # A conversation imported from a file (Import), in this tab.
+        conversation = { "parameters" => { "app_name" => app_name },
+                         "messages" => [{ "role" => "user", "text" => "imported #{said}" }] }.to_json
+        body = "--B\r\nContent-Disposition: form-data; name=\"file\"; filename=\"chat-#{said}.json\"\r\n" \
+               "Content-Type: application/json\r\n\r\n#{conversation}\r\n--B--\r\n"
+        res = Rack::MockRequest.new(app).post("#{origin}/load?tab_id=#{tab}",
+                                              input: body, "CONTENT_TYPE" => "multipart/form-data; boundary=B",
+                                              "HTTP_HOST" => "127.0.0.1:#{port}", "HTTP_ORIGIN" => origin)
+        result["import"] = { "status" => res.status, "staged" => JSON.parse(res.body)["success"] == true }
       end
       recording = false
       result
@@ -263,7 +275,10 @@ RSpec.describe "Files of a Private chat" do
       next unless ready
 
       line = run[:control].gets
-      break if line.nil?
+      if line.nil?
+        _, status = Process.wait2(run[:pid])
+        raise "the child ended early (#{status.inspect}):\n#{File.read(File.join(run[:outside], 'stderr')).lines.last(20).join}"
+      end
 
       tag, json = line.split(" ", 2)
       lines[tag] = JSON.parse(json)
@@ -303,13 +318,22 @@ RSpec.describe "Files of a Private chat" do
   end
 
   before(:all) do
-    started = { normal: start_chat(mode: "normal", kill: false), private: start_chat(mode: "private", kill: false),
-                normal_killed: start_chat(mode: "normal", kill: true), private_killed: start_chat(mode: "private", kill: true) }
-    @runs = started.transform_values { |run| finish_chat(run) }
+    @started = { normal: start_chat(mode: "normal", kill: false), private: start_chat(mode: "private", kill: false),
+                 normal_killed: start_chat(mode: "normal", kill: true), private_killed: start_chat(mode: "private", kill: true) }
+    @runs = @started.transform_values { |run| finish_chat(run) }
   end
 
+  # Also when a chat failed: no child is left running, no home is left.
   after(:all) do
-    @runs&.each_value { |run| FileUtils.rm_rf([run[:home], run[:outside]]) }
+    (@started || {}).each_value do |run|
+      begin
+        Process.kill(:KILL, run[:pid])
+        Process.wait(run[:pid])
+      rescue Errno::ESRCH, Errno::ECHILD
+        nil
+      end
+      FileUtils.rm_rf([run[:home], run[:outside]])
+    end
   end
 
   describe "a normal chat (the positive control)" do
@@ -327,6 +351,7 @@ RSpec.describe "Files of a Private chat" do
                                                     "INSERT /monadic/state/history.sqlite3")
       expect(run[:lines].fetch("TOOL")).to eq("written" => true)
       expect(done["upload"]["body_read"]).to be(true)
+      expect(done["import"]).to eq("status" => 200, "staged" => true)
     end
 
     it "is still found where it was written when the process is killed in an answer" do
@@ -355,6 +380,7 @@ RSpec.describe "Files of a Private chat" do
       expect(done["earlier"]["shown"]).to be(true)
       expect(done["toggle"]).to eq("enabled" => true, "private" => true)
       expect(done["shown"]).to be(true)
+      expect(done["import"]).to eq("status" => 200, "staged" => true)
     end
 
     it "leaves the marker in no file and in no output, beside a kept normal chat" do

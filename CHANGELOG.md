@@ -4,6 +4,8 @@
     - Secrets are kept out of logs, tool results and error messages, and the configuration file is readable by your user account only
     - Only the Settings window can read the stored keys, and the OpenAI key is no longer sent to the web page
     - A folder of the shared folder shown in the file manager is selected, not opened
+    - Monadic Chat reads and writes files of the shared folder only inside it
+    - A message can attach only files uploaded to its own chat, and a tool's image is sent to the model only when the file is an image
   - Changes you may notice
     - Your own scripts in `scripts/` run in the Python container only, after the system's commands on the search path: **give them names of their own** **(rebuild the Python container)**
     - Monadic Chat does not start when `apps`, `helpers` or `services` in the shared folder is a link: **replace it with a real folder and move the files into it**
@@ -14,6 +16,15 @@
     - Live Conversation uses Grok Voice 3.0 with xAI and Gemini 3.8 Live with Gemini
     - Video Generator with Gemini makes videos with Gemini Omni: 720p in 16:9 or 9:16, 3 to 10 seconds, with no choice between a fast and a quality model
     - Gemini Pro TTS is no longer offered: a saved choice moves to Gemini Flash TTS, and the page says so once
+    - Settings that change where requests go are not read from `~/monadic/config/env`: proxy settings, `QDRANT_URL`, `EXTRACTOR_URL`, `EMBEDDINGS_URL` and settings ending in `_URL`, `_HOST`, `_ENDPOINT`, `_PROXY`, `_CMD` or `_COMMAND` (**set them in the shell that starts the app**)
+    - Values in `~/monadic/config/env` are taken as written (`$VAR`, `${VAR}` and `$(...)` are not expanded), and a setting that names a file in the shared folder is ignored
+    - Links inside the shared folder are not followed when files there are read or written: **put the file itself in the shared folder**
+    - The videos and subtitles a chat plays are kept outside the shared folder; the `pub_` files earlier versions left there are no longer used and can be moved to the Trash
+    - Video and subtitle links in earlier chats no longer open: **analyze the same attachment again to get new ones**
+    - After this version runs once, earlier versions cannot read the chat records in `~/monadic/state`
+    - Mistral text-to-speech and speech-to-text use Voxtral 3, and a saved Mistral choice moves to it
+    - The desktop app's windows follow the Web UI's theme setting and use its buttons and colors
+    - Web UI dialogs have a `Cancel` button and buttons that delete are outlined in red; desktop app dialogs list `Cancel` last, Esc cancels them, and removing all Docker data is not the default
   - New
     - Shared Folder panel: what each entry in the shared folder is, its size, which chat uses it and why it is needed (**do not remove the hidden `.monadic-shared-root` file Monadic Chat keeps there**)
     - The Shared Folder panel searches, sorts and filters the list, marks files made by test runs, and in the desktop app moves items to the system's Trash (rows are selected as in a file manager: click, Cmd/Ctrl+click, Shift+click or a drag)
@@ -23,7 +34,8 @@
     - In Japanese, a name followed by an honorific (さん, 様, 氏, 先生, くん, 君, ちゃん, 殿) is masked whole
     - When you ask for a detailed analysis, Video Describer describes a video over 10 minutes in up to 5 parts (each up to 10 minutes with up to 16 frames), two at a time **(rebuild the Python container)**
     - Long recordings are transcribed over several connections at once, waiting together when the provider asks to slow down
-    - New models: Claude Haiku 5.5, Gemini 4 Argon and DeepSeek V4.1 Flash
+    - New models: Claude Haiku 5.5, Gemini 4 Argon, DeepSeek V4.1 Flash and GLM 5.3 Flash (Mistral)
+    - A message can be sent with attached files and no text, and the files are listed on the message's card
     - ElevenLabs v4 and v4 Turbo for text-to-speech, with Expressive Speech
   - Fixed
     - Keys stored in 1Password are read with the 1Password CLI 2.41 and later
@@ -43,11 +55,17 @@
     - The Session Context is extracted with the default OpenAI, Claude and Mistral models, and Research Assistant runs its parallel tasks with Claude, OpenAI and Mistral
     - Image and video descriptions work with the Claude models that read images
     - `Reasoning Effort` `none` with Mistral Large 4 turns its reasoning off
+    - In every interface language, the console's `Start`, `Stop` and `Restart` buttons follow the status, and the console's status and messages are translated
+    - The desktop app's dialogs, passphrase window and console messages appear in the interface language
+    - Enter in an open dialog stays in the dialog instead of sending the message
+    - Secondary text is readable in the dark Web UI, and the mask editor shows which drawing tool is selected
   - For developers
     - `rake server:debug` loads custom apps and helpers from the shared folder only with `MONADIC_LOAD_USER_CODE=true` in the shell (the setting in `~/monadic/config/env` is ignored)
     - `rake db:export` and `rake db:import` are removed
     - MCP: `monadic_generate_code` needs a `provider`, `monadic_submit` refuses a job without its required arguments, and notifications, `ping` and batches follow JSON-RPC
     - MCP: the server reserves its token budget before each call, and `monadic_status` shows `tokens_reserved`
+    - Only one Monadic Chat server runs against `~/monadic/state` at a time; another one does not start
+    - The Ruby container image does not include Node.js; building it needs the JS bundle from `npm run build:js`
 
 - [October, 2026] 1.0.0-beta.43
   - Security

@@ -186,7 +186,10 @@ end
 
 # What electron-builder itself places beside app.asar and the payload.
 RESOURCE_ALLOWED = %w[app app.asar app-update.yml].freeze
-MAC_RESOURCE_ALLOWED = [/\A[A-Za-z0-9_]+\.lproj\z/, /\Aicon\.icns\z/].freeze
+# Electron's and Chromium's licenses from the Electron distribution, which
+# electron-builder puts in the mac resources (seen with Electron 44.9.3).
+MAC_RESOURCE_ALLOWED = [/\A[A-Za-z0-9_]+\.lproj\z/, /\Aicon\.icns\z/,
+                        /\ALICENSE\.electron\.txt\z/, /\ALICENSES\.chromium\.html\z/].freeze
 
 # Libraries the AppImage toolset adds under usr/lib (electron-builder's
 # appimage@1.0.3 runtime), and the app icon at each size it is rendered in.

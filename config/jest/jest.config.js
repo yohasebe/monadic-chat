@@ -30,7 +30,8 @@ const defaultConfig = {
     }
   },
   transform: {},
-  testPathIgnorePatterns: ['/node_modules/'],
+  // tmp/ holds working copies such as git worktrees; their tests are not ours.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/tmp/'],
   setupFilesAfterEnv: ['<rootDir>/test/setup.js'],
   moduleDirectories: ['node_modules', 'docker/services/ruby/public/js'],
   moduleNameMapper: {
@@ -52,6 +53,7 @@ const noMockConfig = {
   },
   testPathIgnorePatterns: [
     '/node_modules/',
+    '<rootDir>/tmp/',
     '/test/frontend/[^/]+\\.test\\.js$' // Ignore old mock-based tests
   ],
   coveragePathIgnorePatterns: [

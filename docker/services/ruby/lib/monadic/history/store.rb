@@ -20,6 +20,7 @@ module Monadic
       FILE_NAME = 'history.sqlite3'
       COMPANIONS = %w[-wal -shm -journal].freeze
       BUSY_TIMEOUT_MS = 5000
+      TITLE_LIMIT = 120
 
       # Written by a newer version.
       class Newer < StandardError; end
@@ -61,9 +62,13 @@ module Monadic
       end
 
       # Keeps the chat's payload as its newest revision. Returns the revision,
-      # or nil when the chat is deleted or Private, or when `generation` (the
-      # connection that wrote it) is older than the one that wrote last.
-      def save(chat_id, payload, generation: nil, app_name: nil, model: nil, headings: [nil, nil], now: Time.now)
+      # or nil when the write is not taken: the chat is deleted or Private,
+      # another tab has it (it was resumed there), or `generation` is older
+      # than that of the tab's connection that wrote last. The time of the
+      # last activity moves only when the number of messages changes, so a
+      # Session Context that arrives later does not reorder the list.
+      def save(chat_id, payload, tab: nil, generation: nil, app_name: nil, model: nil, headings: [nil, nil],
+               search_text: nil, now: Time.now)
         json = JSON.generate(payload)
         count = payload['messages'].length
         stamp = now.utc.iso8601
@@ -71,21 +76,24 @@ module Monadic
           db.transaction(:immediate) do
             next nil if db.get_first_value('SELECT 1 FROM deleted_chats WHERE chat_id = ?', [chat_id])
 
-            row = db.get_first_row('SELECT revision, generation FROM history_chats WHERE chat_id = ?', [chat_id])
+            row = db.get_first_row('SELECT revision, generation, owner_tab, message_count, last_activity_at FROM history_chats WHERE chat_id = ?', [chat_id])
             if row
-              next nil if generation && row['generation'] && generation < row['generation']
+              next nil unless writer?(row, tab, generation)
 
               revision = row['revision'] + 1
-              db.execute(<<~SQL, [app_name, model, headings[0], headings[1], stamp, revision, [generation, row['generation']].compact.max, count, json, chat_id])
+              activity = row['message_count'] == count ? row['last_activity_at'] : stamp
+              db.execute(<<~SQL, [app_name, model, headings[0], headings[1], stamp, activity, revision, tab || row['owner_tab'], newest(generation, row, tab), count, search_text, json, chat_id])
                 UPDATE history_chats SET app_name = ?, model = ?, heading_first = ?, heading_recent = ?,
-                  updated_at = ?, revision = ?, generation = ?, message_count = ?, payload = ? WHERE chat_id = ?
+                  updated_at = ?, last_activity_at = ?, revision = ?, owner_tab = ?, generation = ?,
+                  message_count = ?, search_text = ?, payload = ? WHERE chat_id = ?
               SQL
               revision
             else
-              db.execute(<<~SQL, [chat_id, app_name, model, headings[0], headings[1], stamp, stamp, 1, generation, count, json])
+              db.execute(<<~SQL, [chat_id, app_name, model, headings[0], headings[1], stamp, stamp, stamp, 1, tab, generation, count, search_text, json])
                 INSERT INTO history_chats (chat_id, app_name, model, heading_first, heading_recent,
-                  created_at, updated_at, revision, generation, message_count, payload)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  created_at, updated_at, last_activity_at, revision, owner_tab, generation, message_count,
+                  search_text, payload)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
               SQL
               1
             end
@@ -93,20 +101,55 @@ module Monadic
         end
       end
 
-      def get(chat_id)
+      # Gives the chat to `tab` (it is resumed there): from now on only that
+      # tab's connections write it, the one given and newer ones. Returns the
+      # chat as get does, or nil when there is none to resume.
+      def claim(chat_id, tab:, generation:)
         synchronize(create: false) do |db|
-          row = db.get_first_row('SELECT * FROM history_chats WHERE chat_id = ?', [chat_id])
-          row && row.merge('payload' => JSON.parse(row['payload']))
+          db.transaction(:immediate) do
+            next nil if db.get_first_value('SELECT 1 FROM deleted_chats WHERE chat_id = ?', [chat_id])
+
+            db.execute('UPDATE history_chats SET owner_tab = ?, generation = ? WHERE chat_id = ?', [tab, generation, chat_id])
+            next nil unless db.changes.positive?
+
+            row = db.get_first_row('SELECT * FROM history_chats WHERE chat_id = ?', [chat_id])
+            row.except('search_text').merge('payload' => JSON.parse(row['payload']))
+          end
         end
       end
 
-      # The list without the conversations themselves, newest first.
-      def list(limit: 100, offset: 0)
+      # The user's own name for the chat; nil or blank gives the headings back.
+      def rename(chat_id, title)
+        title = title.to_s.gsub(/[[:cntrl:]]/, ' ').strip[0, TITLE_LIMIT]
         synchronize(create: false) do |db|
-          db.execute(<<~SQL, [limit, offset])
+          db.execute('UPDATE history_chats SET title_user = ? WHERE chat_id = ?', [title.empty? ? nil : title, chat_id])
+          db.changes.positive?
+        end || false
+      end
+
+      def get(chat_id)
+        synchronize(create: false) do |db|
+          row = db.get_first_row('SELECT * FROM history_chats WHERE chat_id = ?', [chat_id])
+          row && row.except('search_text').merge('payload' => JSON.parse(row['payload']))
+        end
+      end
+
+      # The list without the conversations themselves, the latest activity
+      # first. `query` matches the name, the headings and the messages' text.
+      def list(limit: 100, offset: 0, query: nil)
+        where = ''
+        args = []
+        unless query.to_s.strip.empty?
+          like = "%#{query.to_s.strip.gsub(/[\\%_]/) { |c| "\\#{c}" }}%"
+          where = "WHERE title_user LIKE ? ESCAPE '\\' OR heading_first LIKE ? ESCAPE '\\' " \
+                  "OR heading_recent LIKE ? ESCAPE '\\' OR search_text LIKE ? ESCAPE '\\'"
+          args = [like] * 4
+        end
+        synchronize(create: false) do |db|
+          db.execute(<<~SQL, args + [limit, offset])
             SELECT chat_id, app_name, model, title_user, heading_first, heading_recent,
-              created_at, updated_at, revision, message_count
-            FROM history_chats ORDER BY updated_at DESC, chat_id LIMIT ? OFFSET ?
+              created_at, updated_at, last_activity_at, revision, message_count
+            FROM history_chats #{where} ORDER BY last_activity_at DESC, chat_id LIMIT ? OFFSET ?
           SQL
         end || []
       end
@@ -143,6 +186,22 @@ module Monadic
       end
 
       private
+
+      # A tab writes the chat it has (a row from before tabs were recorded
+      # has none); within the tab, a connection older than the one that
+      # wrote last does not.
+      def writer?(row, tab, generation)
+        owner = row['owner_tab']
+        return false if tab && owner && owner != tab
+        return true if tab && owner.nil?
+        return true unless generation && row['generation']
+
+        generation >= row['generation']
+      end
+
+      def newest(generation, row, tab)
+        tab && row['owner_tab'].nil? ? generation : [generation, row['generation']].compact.max
+      end
 
       def remove_row(chat_id)
         synchronize do |db|
@@ -220,7 +279,8 @@ module Monadic
             CREATE TABLE history_chats (
               chat_id TEXT PRIMARY KEY, app_name TEXT, model TEXT, title_user TEXT,
               heading_first TEXT, heading_recent TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
-              revision INTEGER NOT NULL, generation INTEGER, message_count INTEGER NOT NULL, payload TEXT NOT NULL)
+              last_activity_at TEXT NOT NULL, revision INTEGER NOT NULL, owner_tab TEXT, generation INTEGER,
+              message_count INTEGER NOT NULL, search_text TEXT, payload TEXT NOT NULL)
           SQL
           db.execute('CREATE TABLE deleted_chats (chat_id TEXT PRIMARY KEY, deleted_at TEXT NOT NULL)')
           db.execute("INSERT INTO meta (key, value) VALUES ('schema_version', ?)", [SCHEMA_VERSION.to_s])

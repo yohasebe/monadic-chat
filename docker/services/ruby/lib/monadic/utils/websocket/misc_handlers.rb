@@ -134,12 +134,7 @@ module WebSocketHelper
       return
     end
 
-    if session[:_sts]
-      teardown_sts_session(session)
-      send_to_client(connection, { "type" => "sts_session", "state" => "stopped" })
-    end
-    send_to_client(connection, { "type" => "cancel" }) if respond_to?(:stop_tts_threads, true) && stop_tts_threads("Import")
-    handle_audio_abort(nil, nil) if session[:_realtime_stt] && respond_to?(:handle_audio_abort, true)
+    stop_speech_for_new_chat(connection, session, "Import")
 
     # The page's language belongs to the tab, not to the file.
     ui_language = session[:parameters] && session[:parameters]["ui_language"]
@@ -150,11 +145,33 @@ module WebSocketHelper
     session[:parameters]["ui_language"] ||= ui_language if ui_language
     sync_session_state!
 
+    send_chat_to_page(connection, session)
+    send_to_client(connection, { "type" => "import_result", "token" => token, "success" => true })
+    Monadic::Utils::ExtraLogger.log { "[Import] Tab #{ws_session_id} took #{session[:messages].size} messages" }
+  rescue StandardError => e
+    send_to_client(connection, { "type" => "import_result", "token" => token, "success" => false,
+                                 "error" => "The import could not be finished: #{e.message}" })
+    Monadic::Utils::ExtraLogger.log { "[Import] Failed: #{e.class}: #{e.message}" }
+  end
+
+  # Speech of the chat being replaced (Live Conversation, reading aloud,
+  # dictation) stops before another chat is put in its place.
+  private def stop_speech_for_new_chat(connection, session, reason)
+    if session[:_sts]
+      teardown_sts_session(session)
+      send_to_client(connection, { "type" => "sts_session", "state" => "stopped" })
+    end
+    send_to_client(connection, { "type" => "cancel" }) if respond_to?(:stop_tts_threads, true) && stop_tts_threads(reason)
+    handle_audio_abort(nil, nil) if session[:_realtime_stt] && respond_to?(:handle_audio_abort, true)
+  end
+
+  # What the page shows of the chat now in the session (an imported or a
+  # resumed one), in the order it applies them; the pauses let it build the
+  # app list before the parameters select from it.
+  private def send_chat_to_page(connection, session)
     apps_data = prepare_apps_data(session[:parameters]["ui_language"], session: session)
     app_name = session[:parameters]["app_name"]
     shown = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == app_name }
-    # The page applies these in order; the pauses let it build the app list
-    # before the parameters select from it.
     send_to_client(connection, { "type" => "apps", "content" => apps_data, "version" => session[:version], "docker" => session[:docker], "from_import" => true }) unless apps_data.empty?
     sleep(0.2)
     send_to_client(connection, { "type" => "parameters", "content" => session[:parameters], "from_import" => true }) unless session[:parameters].empty?
@@ -169,12 +186,6 @@ module WebSocketHelper
     registry = state && state[:privacy] && state[:privacy][:registry]
     send_to_client(connection, { "type" => "privacy_state", "enabled" => session[:_privacy_session_enabled] == true,
                                  "registry_count" => registry.is_a?(Hash) ? registry.size : 0, "error" => nil })
-    send_to_client(connection, { "type" => "import_result", "token" => token, "success" => true })
-    Monadic::Utils::ExtraLogger.log { "[Import] Tab #{ws_session_id} took #{session[:messages].size} messages" }
-  rescue StandardError => e
-    send_to_client(connection, { "type" => "import_result", "token" => token, "success" => false,
-                                 "error" => "The import could not be finished: #{e.message}" })
-    Monadic::Utils::ExtraLogger.log { "[Import] Failed: #{e.class}: #{e.message}" }
   end
 
   private def handle_ws_update_params(connection, obj, session)

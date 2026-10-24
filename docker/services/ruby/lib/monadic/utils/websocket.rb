@@ -33,6 +33,7 @@ require_relative 'websocket/html_handler'
 require_relative 'websocket/misc_handlers'
 require_relative 'websocket/privacy_handler'
 require_relative 'websocket/verify_handler'
+require_relative 'websocket/history_handler'
 require_relative 'websocket/sts_stream_handler'
 
 Monadic::Utils::SSLConfiguration.configure! if defined?(Monadic::Utils::SSLConfiguration)
@@ -78,7 +79,7 @@ module WebSocketHelper
   # is logged by its kind only, never with the conversation, and does not
   # stop the chat.
   def record_history
-    Monadic::History.record(session)
+    Monadic::History.record(session, tab: Thread.current[:websocket_session_id])
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[History] not saved: #{e.class}" }
   end
@@ -306,6 +307,24 @@ module WebSocketHelper
             suggestion = nil
           end
           handle_ws_import_apply(connection, obj, session, imported)
+        when "HISTORY_LIST"
+          handle_ws_history_list(connection, obj)
+        when "HISTORY_RENAME"
+          handle_ws_history_rename(connection, obj)
+        when "HISTORY_DELETE"
+          handle_ws_history_delete(connection, obj)
+        when "HISTORY_RESUME"
+          # A chat from the history replaces this tab's chat: what runs for
+          # the current one is stopped first, as for an import, but only
+          # when that chat can be resumed here.
+          resumable = history_resumable?(obj, session)
+          if resumable
+            stop_running_reply(thread, queue)
+            thread = nil
+            stop_running_reply(suggestion, nil)
+            suggestion = nil
+          end
+          handle_ws_history_resume(connection, obj, session, resumable)
         when "SYSTEM_PROMPT"
           handle_ws_system_prompt(connection, obj, session)
         when "SAMPLE"

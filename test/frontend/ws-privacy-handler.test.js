@@ -352,10 +352,10 @@ describe('WsPrivacyHandler.handleToggleAck when the container does not answer', 
     expect(window.setAlert.mock.calls[0][1]).toBe('error');
   });
 
-  it('turns the toggle off and points to a new chat when the chat has already begun', () => {
+  it('turns the toggle off and points to Reset when the session has already started', () => {
     window.WsPrivacyHandler.handleToggleAck({ enabled: false, error: 'privacy_chat_started' });
     expect(document.getElementById('check-privacy-session').checked).toBe(false);
-    expect(window.setAlert.mock.calls[0][0]).toContain('Start a new chat');
+    expect(window.setAlert.mock.calls[0][0]).toContain('Press Reset');
     expect(window.setAlert.mock.calls[0][1]).toBe('warning');
     expect(window.safeWsSend).not.toHaveBeenCalled();
   });

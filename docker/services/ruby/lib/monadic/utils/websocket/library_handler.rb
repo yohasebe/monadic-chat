@@ -230,7 +230,11 @@ module WebSocketHelper
     # programmatic client could still hit this path, so reject the save
     # before any storage side-effect to keep restored PII off disk.
     # The session of a real chat is a Rack session object, not a Hash: read it by key.
-    if session.respond_to?(:key?) && (session[:_privacy_pipeline] || session[:_privacy_session_enabled] == true)
+    # A Private chat whose filter could not be started is refused too: it
+    # stays Private (nothing of it is kept), with the filter off.
+    if session.respond_to?(:key?) &&
+       (session[:_privacy_pipeline] || session[:_privacy_session_enabled] == true ||
+        (defined?(Monadic::History::Policy) && Monadic::History::Policy.private?(session)))
       Monadic::Utils::ExtraLogger.log { "[Library] LIBRARY_SAVE rejected: Privacy Filter is active in this session" }
       send_to_client(connection, {
         'type' => 'library_saved', 'res' => 'failure',

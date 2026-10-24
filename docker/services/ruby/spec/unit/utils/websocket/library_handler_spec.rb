@@ -3,6 +3,7 @@
 require 'spec_helper'
 require 'monadic/library'
 require_relative '../../../../lib/monadic/utils/websocket/library_handler'
+require_relative '../../../../lib/monadic/history/policy'
 
 # Behaviour tests for the WebSocket Library handlers. We instantiate a
 # host class that mixes in WebSocketHelper and stub:
@@ -351,6 +352,16 @@ RSpec.describe 'WebSocketHelper Library handlers' do
         msg = replies.first
         expect(msg['res']).to eq('failure')
         expect(msg['content']).to match(/Privacy Filter is active/)
+      end
+
+      it 'rejects the save of a Private chat whose filter could not be started' do
+        expect(Monadic::Library::Manager).not_to receive(:import_from_text)
+        session = { chat_id: 'chat-x' }
+        Monadic::History::Policy.mark_private!(session)
+
+        host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, session)
+
+        expect(replies.first['res']).to eq('failure')
       end
     end
   end

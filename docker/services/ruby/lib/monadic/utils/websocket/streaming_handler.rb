@@ -656,7 +656,8 @@ module WebSocketHelper
               "type" => "privacy_state",
               "enabled" => true,
               "registry_count" => pipeline.registry_count,
-              "error" => nil
+              "error" => nil,
+              "private" => true
             }
             state_payload["detection"] = detection_state if detection_state.is_a?(Hash)
             send_or_broadcast(state_payload.to_json, ws_session_id)

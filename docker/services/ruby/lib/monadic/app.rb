@@ -713,16 +713,20 @@ class MonadicApp
     end
 
     # Log command input and output (best-effort: a missing or read-only
-    # log directory must not turn a successful command into a failure)
+    # log directory must not turn a successful command into a failure).
+    # Nothing of a Private chat's work: its commands carry the chat.
+    private_work = defined?(Monadic::History::Policy) && Monadic::History::Policy.current_work_private?
     begin
-      Monadic::Utils::Environment.rotate_log(COMMAND_LOG_FILE)
-      File.open(COMMAND_LOG_FILE, "a") do |f|
-        f.puts "Time: #{Time.now}"
-        redact = Monadic::Utils::SecretRedactor.method(:redact)
-        f.puts "Command: #{redact.call(command.is_a?(Array) ? Shellwords.join(command) : command)}"
-        f.puts "Error: #{redact.call(stderr)}" if stderr.strip.length.positive?
-        f.puts "Output: #{redact.call(stdout)}"
-        f.puts "-----------------------------------"
+      unless private_work
+        Monadic::Utils::Environment.rotate_log(COMMAND_LOG_FILE)
+        File.open(COMMAND_LOG_FILE, "a") do |f|
+          f.puts "Time: #{Time.now}"
+          redact = Monadic::Utils::SecretRedactor.method(:redact)
+          f.puts "Command: #{redact.call(command.is_a?(Array) ? Shellwords.join(command) : command)}"
+          f.puts "Error: #{redact.call(stderr)}" if stderr.strip.length.positive?
+          f.puts "Output: #{redact.call(stdout)}"
+          f.puts "-----------------------------------"
+        end
       end
     rescue StandardError
       # best-effort

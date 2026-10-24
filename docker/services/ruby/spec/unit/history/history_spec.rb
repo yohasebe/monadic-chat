@@ -253,6 +253,12 @@ RSpec.describe Monadic::History do
       expect(stored_bytes).to include(marker)
     end
 
+    it 'does not make the history file for a Private chat' do
+      session = session_with("private #{SecureRandom.hex(8)}", _privacy_session_enabled: true)
+      expect(described_class.record(session, store: store)).to be_nil
+      expect(Dir.glob(File.join(dir, '*'))).to be_empty
+    end
+
     it 'removes what was kept of a chat that becomes Private' do
       marker = "MARK#{SecureRandom.hex(16)}"
       session = session_with("before #{marker}")

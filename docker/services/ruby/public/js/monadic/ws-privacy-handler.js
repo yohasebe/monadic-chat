@@ -57,6 +57,7 @@
   }
 
   function handleState(data) {
+    notePrivate(data);
     _lastEnabled = !!(data && data.enabled);
     const el = findIndicator();
     if (!el) {
@@ -88,6 +89,7 @@
       const toggleEl = document.getElementById('check-privacy-session');
       if (toggleEl && toggleEl.checked && !toggleEl.disabled &&
           typeof window.safeWsSend === 'function') {
+        noteRequested(true);
         window.safeWsSend({ message: 'PRIVACY_TOGGLE', enabled: true });
       }
       el.style.display = 'none';
@@ -168,7 +170,25 @@
   // replaces it, so the notice does not stay once the filter is on.
   let _startingShown = false;
 
+  // Whether the chat in this tab is Private (nothing of it is written to
+  // disk). The server says so in its privacy replies; asking for the filter
+  // counts as Private until it answers, so a doubt errs to Private.
+  let _chatPrivate = false;
+
+  function noteRequested(enabled) {
+    if (enabled) _chatPrivate = true;
+  }
+
+  function notePrivate(data) {
+    if (data && typeof data.private === 'boolean') _chatPrivate = data.private;
+  }
+
+  function isChatPrivate() {
+    return _chatPrivate;
+  }
+
   function handleToggleAck(data) {
+    notePrivate(data);
     const toggleEl = document.getElementById('check-privacy-session');
     const desired = !!(data && data.enabled);
     const afterStarting = _startingShown;
@@ -642,6 +662,8 @@
     openRegistryModal: openRegistryModal,
     isActive: isActive,
     isEnabled: function () { return _lastEnabled; },
+    isChatPrivate: isChatPrivate,
+    noteRequested: noteRequested,
     openExportDialog: openExportDialog,
     resetExportDialog: resetExportDialog,
     handleExportData: handleExportData,

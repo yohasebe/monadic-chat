@@ -359,6 +359,7 @@ function refreshPrivacyToggleGate(opts) {
   // pre-lock language and must not be retargeted mid-conversation.
   if (typeof window.safeWsSend === "function" && !isLocked) {
     if (opts.initial && nextChecked) {
+      if (window.WsPrivacyHandler && window.WsPrivacyHandler.noteRequested) window.WsPrivacyHandler.noteRequested(true);
       window.safeWsSend({ message: "PRIVACY_TOGGLE", enabled: true });
     } else if (!opts.initial && !usable) {
       window.safeWsSend({ message: "PRIVACY_TOGGLE", enabled: false });
@@ -2837,6 +2838,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // reply is what actually confirms the new state. ws-privacy-handler
     // reverts the visual checkbox on backend rejection.
     if (typeof window.safeWsSend === 'function') {
+      if (window.WsPrivacyHandler && window.WsPrivacyHandler.noteRequested) window.WsPrivacyHandler.noteRequested(newState);
       window.safeWsSend({ message: 'PRIVACY_TOGGLE', enabled: newState });
     }
 

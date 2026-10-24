@@ -16,8 +16,10 @@ module Monadic
     end
 
     # Writes the chat in `session` to the history. A Private chat is never
-    # written: what was kept of it before it became Private is removed and a
-    # tombstone keeps any later copy of it out. A chat with no user words
+    # written, and the history file is not even made for it: the chat is
+    # Private before it begins, and this process remembers its id (in
+    # memory), which keeps out a later copy of it that lacks the mark. If a
+    # row of it is there anyway, it is removed. A chat with no user words
     # left has its row removed. Returns the revision written, or nil.
     #
     # Called only for a session the tab's state accepted (not one from a
@@ -30,8 +32,8 @@ module Monadic
       return nil unless chat_id
 
       generation = session[:_ws_generation] || session['_ws_generation']
-      if Policy.private?(session)
-        store.delete(chat_id, tab: tab, generation: generation)
+      if Policy.private?(session) || Policy.known_private?(chat_id)
+        store.clear(chat_id, tab: tab, generation: generation)
         return nil
       end
 

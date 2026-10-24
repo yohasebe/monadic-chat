@@ -192,6 +192,24 @@ describe('SessionState Tests', () => {
       expect(parsed.app.current).toBe('TestApp');
     });
     
+    // The browser may keep sessionStorage on disk: a Private chat's words and
+    // its settings (the system prompt is the user's own text) are left out.
+    test('leaves the words and settings of a Private chat out of sessionStorage', () => {
+      window.WsPrivacyHandler = { isChatPrivate: () => true };
+      try {
+        window.SessionState.addMessage({ role: 'user', text: 'private words', mid: 'm1' });
+        window.SessionState.app.current = 'TestApp';
+        window.SessionState.app.params = { initial_prompt: 'my own prompt' };
+        window.SessionState.save();
+        const saved = sessionStorage.getItem('monadicState');
+        expect(saved).not.toContain('private words');
+        expect(saved).not.toContain('my own prompt');
+        expect(JSON.parse(saved).app.current).toBe('TestApp');
+      } finally {
+        delete window.WsPrivacyHandler;
+      }
+    });
+
     test('should restore state from sessionStorage', () => {
       // Set up saved state - SessionState now uses sessionStorage for tab isolation
       const savedState = {

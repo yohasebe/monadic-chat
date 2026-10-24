@@ -454,6 +454,13 @@
           }
         }
 
+        // A Private chat's messages and settings (its system prompt is the
+        // user's own text) are not written: the browser may keep this on
+        // disk. The server holds the chat for a reload.
+        const isPrivate = !!(window.WsPrivacyHandler &&
+          typeof window.WsPrivacyHandler.isChatPrivate === 'function' &&
+          window.WsPrivacyHandler.isChatPrivate());
+
         const stateToSave = {
           session: {
             id: this.session.id,
@@ -463,12 +470,12 @@
           },
           app: {
             current: this.app.current,
-            params: this.app.params,
+            params: isPrivate ? {} : this.app.params,
             model: this.app.model
           },
           conversation: {
             // Save messages up to calculated limit
-            messages: this.conversation.messages.slice(-maxMessages)
+            messages: isPrivate ? [] : this.conversation.messages.slice(-maxMessages)
           },
           ui: {
             autoScroll: this.ui.autoScroll

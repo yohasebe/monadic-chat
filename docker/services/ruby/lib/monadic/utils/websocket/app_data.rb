@@ -278,7 +278,8 @@ module WebSocketHelper
       registry = state && state[:privacy] && state[:privacy][:registry]
       send_or_broadcast({ "type" => "privacy_state", "enabled" => rack_session[:_privacy_session_enabled] == true,
                           "registry_count" => registry.is_a?(Hash) ? registry.size : 0, "error" => nil,
-                          "restored" => true }.to_json, ws_session_id)
+                          "restored" => true,
+                          "private" => Monadic::History::Policy.private?(rack_session) }.to_json, ws_session_id)
     end
 
     # Send info message to hide spinner and show "Ready" status

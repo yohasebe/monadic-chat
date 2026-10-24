@@ -172,6 +172,8 @@ module Monadic
     def log_invocation(argv, stdout, stderr)
       log_path = command_log_file
       return unless log_path
+      # Nothing of a Private chat's work: its commands carry the chat.
+      return if defined?(Monadic::History::Policy) && Monadic::History::Policy.current_work_private?
       File.open(log_path, 'a') do |f|
         f.puts "Time: #{Time.now}"
         redact = Monadic::Utils::SecretRedactor.method(:redact)

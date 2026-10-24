@@ -24,6 +24,16 @@ Notes:
 
 Tests: `spec/unit/utils/secret_redactor_spec.rb`.
 
+## Private Chats
+
+Nothing is logged for the work of a Private chat (`Monadic::History::Policy.current_work_private?`: the chat the work started in, as `EgressGuard.for_chat` keeps it for the threads and fibers it starts, or the tab's session; the ids of Private chats are kept in memory, so work of a Private chat stays Private after the tab moves to a new chat). A line cannot be told to hold none of the chat, so the whole line is left out:
+
+- `ExtraLogger` (`log`, `log_json`, `log_raw`) writes nothing.
+- `command.log` gets no entry (`Shell.log_invocation`, `MonadicApp#send_command`).
+- What the process prints (`STDOUT`/`STDERR`, the server log) is dropped: `Monadic::History::PrivateOutput` is prepended to both streams at startup, so `puts`, `print`, loggers made earlier on them and other threads are covered.
+
+Tests: `spec/unit/history/private_work_spec.rb`.
+
 ## Build Logs
 
 - Python build (overwritten each run):

@@ -14,18 +14,23 @@
   const confirmRow = document.getElementById('confirm-row');
 
   let confirmRequired = true;
+  // English until main sends the app's language with the init message.
+  let messages = {
+    tooShort: 'Passphrase must be at least 8 characters.',
+    mismatch: 'Passphrases do not match.'
+  };
 
   function validate() {
     const v = pp.value;
     if (confirmRequired) {
       const v2 = pp2.value;
       if (v.length < 8) {
-        err.textContent = 'Passphrase must be at least 8 characters.';
+        err.textContent = messages.tooShort;
         ok.disabled = true;
         return false;
       }
       if (v !== v2) {
-        err.textContent = 'Passphrases do not match.';
+        err.textContent = messages.mismatch;
         ok.disabled = true;
         return false;
       }
@@ -63,8 +68,20 @@
     }
   });
 
-  // Receive initial config from main process (title, hint, confirmRequired).
+  // Receive initial config from main process (title, hint, confirmRequired,
+  // and the window's own words in the app's language).
   window.passphraseAPI.onInit((opts) => {
+    const labels = (opts && opts.labels) || {};
+    if (opts && opts.lang) document.documentElement.lang = opts.lang;
+    if (labels.windowTitle) document.title = labels.windowTitle;
+    if (labels.label) document.getElementById('label-pp').textContent = labels.label;
+    if (labels.confirmLabel) document.getElementById('label-pp2').textContent = labels.confirmLabel;
+    if (labels.cancel) cancel.textContent = labels.cancel;
+    if (labels.ok) ok.textContent = labels.ok;
+    messages = {
+      tooShort: labels.tooShort || messages.tooShort,
+      mismatch: labels.mismatch || messages.mismatch
+    };
     if (opts && opts.title) titleEl.textContent = opts.title;
     if (opts && opts.hint) hintEl.textContent = opts.hint;
     if (opts && opts.confirmRequired === false) {

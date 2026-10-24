@@ -265,6 +265,13 @@
     "importDbPassphraseTitle": "Dokument-Datenbank entschlüsseln",
     "importDbPassphraseHint": "Geben Sie die beim Export verwendete Passphrase ein.",
     "importDbDecryptingMessage": "Dokument-Datenbank wird entschlüsselt...",
-    "importDbDecryptFailed": "Entschlüsselung fehlgeschlagen. Falsche Passphrase oder Datei wurde verändert."
+    "importDbDecryptFailed": "Entschlüsselung fehlgeschlagen. Falsche Passphrase oder Datei wurde verändert.",
+    "passphrase": {
+      "windowTitle": "Passphrase",
+      "label": "Passphrase",
+      "confirmLabel": "Passphrase bestätigen",
+      "tooShort": "Die Passphrase muss mindestens 8 Zeichen lang sein.",
+      "mismatch": "Die Passphrasen stimmen nicht überein."
+    }
   }
 }

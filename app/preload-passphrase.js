@@ -5,7 +5,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('passphraseAPI', {
-  // Renderer subscribes once to receive { title, hint, confirmRequired }.
+  // Renderer subscribes once to receive { title, hint, confirmRequired, lang, labels }.
   onInit: (callback) => {
     ipcRenderer.once('passphrase-prompt:init', (_event, opts) => callback(opts));
   },

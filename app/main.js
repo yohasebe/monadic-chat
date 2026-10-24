@@ -2034,10 +2034,21 @@ function decryptDbImport(encPath, plainPath, passphrase) {
 // decrypt-time prompts pass false to allow a single-field prompt.
 function promptPassphrase(parent, opts) {
   const options = Object.assign({
-    title: 'Enter Passphrase',
-    hint: 'Used to encrypt the export file. Minimum 8 characters.',
+    title: i18n.t('dialogs.exportDbPassphraseTitle'),
+    hint: i18n.t('dialogs.exportDbPassphraseHint'),
     confirmRequired: true
   }, opts || {});
+  // The window's own words, in the app's language.
+  options.lang = i18n.getLanguage();
+  options.labels = {
+    windowTitle: i18n.t('dialogs.passphrase.windowTitle'),
+    label: i18n.t('dialogs.passphrase.label'),
+    confirmLabel: i18n.t('dialogs.passphrase.confirmLabel'),
+    tooShort: i18n.t('dialogs.passphrase.tooShort'),
+    mismatch: i18n.t('dialogs.passphrase.mismatch'),
+    cancel: i18n.t('dialogs.cancel'),
+    ok: i18n.t('dialogs.ok')
+  };
 
   return new Promise((resolve) => {
     const win = new BrowserWindow({
@@ -2049,7 +2060,7 @@ function promptPassphrase(parent, opts) {
       resizable: false,
       minimizable: false,
       maximizable: false,
-      title: 'Passphrase',
+      title: options.labels.windowTitle,
       show: false,
       autoHideMenuBar: true,
       webPreferences: {

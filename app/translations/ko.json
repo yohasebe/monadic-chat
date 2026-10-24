@@ -173,7 +173,14 @@
     "importDbPassphraseTitle": "문서 DB 복호화",
     "importDbPassphraseHint": "내보낼 때 설정한 암호를 입력하세요.",
     "importDbDecryptingMessage": "문서 DB를 복호화하는 중...",
-    "importDbDecryptFailed": "복호화에 실패했습니다. 암호가 틀렸거나 파일이 변조되었습니다."
+    "importDbDecryptFailed": "복호화에 실패했습니다. 암호가 틀렸거나 파일이 변조되었습니다.",
+    "passphrase": {
+      "windowTitle": "암호",
+      "label": "암호",
+      "confirmLabel": "암호 확인",
+      "tooShort": "암호는 8자 이상이어야 합니다.",
+      "mismatch": "암호가 일치하지 않습니다."
+    }
   },
   "messages": {
     "dockerNotRunning": "Docker Desktop이 실행되고 있지 않습니다. Docker Desktop을 먼저 시작한 후 다시 시도하세요.",

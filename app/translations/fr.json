@@ -265,6 +265,13 @@
     "importDbPassphraseTitle": "Déchiffrer la base de données de documents",
     "importDbPassphraseHint": "Entrez la phrase de passe utilisée lors de l'export.",
     "importDbDecryptingMessage": "Déchiffrement de la base de données de documents...",
-    "importDbDecryptFailed": "Échec du déchiffrement. Phrase de passe incorrecte ou fichier modifié."
+    "importDbDecryptFailed": "Échec du déchiffrement. Phrase de passe incorrecte ou fichier modifié.",
+    "passphrase": {
+      "windowTitle": "Phrase de passe",
+      "label": "Phrase de passe",
+      "confirmLabel": "Confirmer la phrase de passe",
+      "tooShort": "La phrase de passe doit comporter au moins 8 caractères.",
+      "mismatch": "Les phrases de passe ne correspondent pas."
+    }
   }
 }

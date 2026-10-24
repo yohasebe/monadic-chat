@@ -272,6 +272,13 @@
     "importDbPassphraseTitle": "Decrypt Document DB",
     "importDbPassphraseHint": "Enter the passphrase used when the file was exported.",
     "importDbDecryptingMessage": "Decrypting Document DB...",
-    "importDbDecryptFailed": "Decryption failed. Wrong passphrase, or the file has been modified."
+    "importDbDecryptFailed": "Decryption failed. Wrong passphrase, or the file has been modified.",
+    "passphrase": {
+      "windowTitle": "Passphrase",
+      "label": "Passphrase",
+      "confirmLabel": "Confirm passphrase",
+      "tooShort": "Passphrase must be at least 8 characters.",
+      "mismatch": "Passphrases do not match."
+    }
   }
 }

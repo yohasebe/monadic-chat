@@ -272,6 +272,13 @@
     "importDbPassphraseTitle": "ドキュメントDBを復号",
     "importDbPassphraseHint": "エクスポート時に設定したパスフレーズを入力してください。",
     "importDbDecryptingMessage": "ドキュメントDBを復号しています...",
-    "importDbDecryptFailed": "復号に失敗しました。パスフレーズが違うか、ファイルが改ざんされています。"
+    "importDbDecryptFailed": "復号に失敗しました。パスフレーズが違うか、ファイルが改ざんされています。",
+    "passphrase": {
+      "windowTitle": "パスフレーズ",
+      "label": "パスフレーズ",
+      "confirmLabel": "パスフレーズ（確認）",
+      "tooShort": "パスフレーズは 8 文字以上にしてください。",
+      "mismatch": "パスフレーズが一致しません。"
+    }
   }
 }

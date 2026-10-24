@@ -173,7 +173,14 @@
     "importDbPassphraseTitle": "Descifrar Base de Datos de Documentos",
     "importDbPassphraseHint": "Ingrese la contraseña usada al exportar.",
     "importDbDecryptingMessage": "Descifrando base de datos de documentos...",
-    "importDbDecryptFailed": "Falló el descifrado. Contraseña incorrecta o archivo modificado."
+    "importDbDecryptFailed": "Falló el descifrado. Contraseña incorrecta o archivo modificado.",
+    "passphrase": {
+      "windowTitle": "Contraseña",
+      "label": "Contraseña",
+      "confirmLabel": "Confirmar contraseña",
+      "tooShort": "La contraseña debe tener al menos 8 caracteres.",
+      "mismatch": "Las contraseñas no coinciden."
+    }
   },
   "messages": {
     "dockerNotRunning": "Docker Desktop no está en ejecución. Por favor, inicie Docker Desktop primero e intente de nuevo.",

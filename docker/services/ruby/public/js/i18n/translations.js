@@ -145,7 +145,7 @@ const webUITranslations = {
         tip: "Cross-checks this answer against your other configured providers.", tipSingle: "Add a second provider's API key for a cross-provider check (with one provider it is a weaker self-consistency check).",
         confidence: "Confidence", consensus: "Consensus", disagreements: "Disagreements",
         panel: "Panel", moderator: "Moderator", weakSignal: "single-provider — weak signal",
-        timedOut: "Verification timed out", busy: "Please wait for the current operation to finish",
+        timedOut: "Verification timed out", filesNotVerified: "Answers about images or attached files cannot be verified yet", busy: "Please wait for the current operation to finish",
         conf_high: "high", conf_medium: "medium", conf_low: "low", conf_unknown: "unknown", conf_unavailable: "unavailable",
         rec_trust: "trust", rec_verify: "verify", rec_escalate: "escalate",
         corr_corroborated: "corroborated", corr_partial: "partial", corr_disputed: "disputed"
@@ -796,7 +796,7 @@ const webUITranslations = {
         tip: "この回答を他の設定済みプロバイダと照合します。", tipSingle: "2社目のAPIキーを設定するとクロスプロバイダ検証が有効になります（1社では弱い自己整合チェックです）。",
         confidence: "信頼度", consensus: "合意", disagreements: "相違点",
         panel: "パネル", moderator: "モデレータ", weakSignal: "単一プロバイダ — 弱い信号",
-        timedOut: "検証がタイムアウトしました", busy: "現在の処理が終わるまでお待ちください",
+        timedOut: "検証がタイムアウトしました", filesNotVerified: "画像や添付ファイルについての回答は、まだ検証できません", busy: "現在の処理が終わるまでお待ちください",
         conf_high: "高", conf_medium: "中", conf_low: "低", conf_unknown: "不明", conf_unavailable: "検証不可",
         rec_trust: "信頼できる", rec_verify: "要確認", rec_escalate: "要再検討",
         corr_corroborated: "裏付けあり", corr_partial: "部分的", corr_disputed: "異議あり"
@@ -1447,7 +1447,7 @@ const webUITranslations = {
         tip: "将此回答与您其他已配置的提供商交叉核对。", tipSingle: "配置第二个提供商的API密钥即可进行跨提供商验证（仅一个提供商时为较弱的自一致性检查）。",
         confidence: "可信度", consensus: "共识", disagreements: "分歧",
         panel: "评审组", moderator: "主持模型", weakSignal: "单一提供方 — 弱信号",
-        timedOut: "验证超时", busy: "请等待当前操作完成",
+        timedOut: "验证超时", filesNotVerified: "暂时无法验证关于图像或附件的回答", busy: "请等待当前操作完成",
         conf_high: "高", conf_medium: "中", conf_low: "低", conf_unknown: "未知", conf_unavailable: "无法验证",
         rec_trust: "可信", rec_verify: "需核实", rec_escalate: "需复核",
         corr_corroborated: "已佐证", corr_partial: "部分一致", corr_disputed: "有异议"
@@ -2121,7 +2121,7 @@ const webUITranslations = {
         tip: "이 응답을 다른 구성된 제공자와 교차 확인합니다.", tipSingle: "두 번째 제공자의 API 키를 추가하면 교차 제공자 검증이 가능합니다(제공자가 하나면 약한 자기 일관성 검사입니다).",
         confidence: "신뢰도", consensus: "합의", disagreements: "이견",
         panel: "패널", moderator: "중재자", weakSignal: "단일 제공자 — 약한 신호",
-        timedOut: "검증 시간 초과", busy: "현재 작업이 끝날 때까지 기다려 주세요",
+        timedOut: "검증 시간 초과", filesNotVerified: "이미지나 첨부 파일에 관한 답변은 아직 검증할 수 없습니다", busy: "현재 작업이 끝날 때까지 기다려 주세요",
         conf_high: "높음", conf_medium: "중간", conf_low: "낮음", conf_unknown: "알 수 없음", conf_unavailable: "검증 불가",
         rec_trust: "신뢰", rec_verify: "확인 필요", rec_escalate: "재검토 필요",
         corr_corroborated: "입증됨", corr_partial: "부분적", corr_disputed: "이견 있음"
@@ -2772,7 +2772,7 @@ const webUITranslations = {
         tip: "Contrasta esta respuesta con tus otros proveedores configurados.", tipSingle: "Añade la clave API de un segundo proveedor para una verificación entre proveedores (con uno solo es una comprobación de autoconsistencia más débil).",
         confidence: "Confianza", consensus: "Consenso", disagreements: "Discrepancias",
         panel: "Panel", moderator: "Moderador", weakSignal: "un solo proveedor — señal débil",
-        timedOut: "La verificación agotó el tiempo", busy: "Espere a que termine la operación actual",
+        timedOut: "La verificación agotó el tiempo", filesNotVerified: "Las respuestas sobre imágenes o archivos adjuntos aún no se pueden verificar", busy: "Espere a que termine la operación actual",
         conf_high: "alta", conf_medium: "media", conf_low: "baja", conf_unknown: "desconocida", conf_unavailable: "no disponible",
         rec_trust: "confiar", rec_verify: "verificar", rec_escalate: "escalar",
         corr_corroborated: "corroborada", corr_partial: "parcial", corr_disputed: "en disputa"
@@ -3423,7 +3423,7 @@ const webUITranslations = {
         tip: "Recoupe cette réponse avec vos autres fournisseurs configurés.", tipSingle: "Ajoutez la clé API d'un second fournisseur pour une vérification entre fournisseurs (avec un seul, c'est une vérification d'auto-cohérence plus faible).",
         confidence: "Confiance", consensus: "Consensus", disagreements: "Désaccords",
         panel: "Panel", moderator: "Modérateur", weakSignal: "fournisseur unique — signal faible",
-        timedOut: "La vérification a expiré", busy: "Veuillez attendre la fin de l'opération en cours",
+        timedOut: "La vérification a expiré", filesNotVerified: "Les réponses portant sur des images ou des fichiers joints ne peuvent pas encore être vérifiées", busy: "Veuillez attendre la fin de l'opération en cours",
         conf_high: "élevée", conf_medium: "moyenne", conf_low: "faible", conf_unknown: "inconnue", conf_unavailable: "indisponible",
         rec_trust: "faire confiance", rec_verify: "vérifier", rec_escalate: "escalader",
         corr_corroborated: "corroborée", corr_partial: "partielle", corr_disputed: "contestée"
@@ -4074,7 +4074,7 @@ const webUITranslations = {
         tip: "Gleicht diese Antwort mit Ihren anderen konfigurierten Anbietern ab.", tipSingle: "Fügen Sie den API-Schlüssel eines zweiten Anbieters hinzu für eine anbieterübergreifende Prüfung (mit nur einem Anbieter ist es eine schwächere Selbstkonsistenzprüfung).",
         confidence: "Konfidenz", consensus: "Konsens", disagreements: "Abweichungen",
         panel: "Panel", moderator: "Moderator", weakSignal: "einzelner Anbieter — schwaches Signal",
-        timedOut: "Verifizierung zeitüberschritten", busy: "Bitte warten Sie, bis der aktuelle Vorgang abgeschlossen ist",
+        timedOut: "Verifizierung zeitüberschritten", filesNotVerified: "Antworten zu Bildern oder angehängten Dateien können noch nicht verifiziert werden", busy: "Bitte warten Sie, bis der aktuelle Vorgang abgeschlossen ist",
         conf_high: "hoch", conf_medium: "mittel", conf_low: "niedrig", conf_unknown: "unbekannt", conf_unavailable: "nicht verfügbar",
         rec_trust: "vertrauen", rec_verify: "prüfen", rec_escalate: "eskalieren",
         corr_corroborated: "bestätigt", corr_partial: "teilweise", corr_disputed: "bestritten"

@@ -648,6 +648,14 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "history_list":
+      case "history_renamed":
+      case "history_deleted":
+      case "history_resumed": {
+        if (window.HistoryPanel) window.HistoryPanel.onMessage(data);
+        break;
+      }
+
       case "import_result": {
         // The tab's connection took (or could not take) an imported
         // conversation; the import dialog waits for this.
@@ -1081,6 +1089,7 @@ window.loadedApp = "Chat";
         if (wmr && typeof wmr.handlePastMessages === 'function') {
           wmr.handlePastMessages(data);
         }
+        if (window.HistoryPanel) window.HistoryPanel.refreshSoon();
         break;
       }
       case "message": {
@@ -1142,6 +1151,8 @@ window.loadedApp = "Chat";
         if (wsh && typeof wsh.handleHtml === 'function') {
           wsh.handleHtml(data);
         }
+        // The chat was kept in the history with this answer.
+        if (window.HistoryPanel) window.HistoryPanel.refreshSoon();
         break;
       }
       case "user": {

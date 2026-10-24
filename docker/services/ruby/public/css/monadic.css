@@ -4161,6 +4161,57 @@ img.base64-image,
   padding: 0.75rem 1.25rem;
 }
 
+/* Chat history: the latest chats in the sidebar, and the Chats tab of the
+   window it shares with the shared folder. */
+.history-recent-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0.25rem 0.375rem;
+  border-radius: var(--border-radius);
+  color: var(--text-primary);
+}
+.history-recent-item:hover,
+.history-recent-item:focus-visible {
+  background-color: var(--bg-hover);
+}
+.history-recent-item.is-open {
+  cursor: default;
+  color: var(--text-secondary);
+}
+.history-recent-name,
+.history-recent-topic {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-recent-name {
+  font-size: 0.875rem;
+}
+.history-recent-topic {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+#sharedFolderModal .manage-tabs {
+  border-bottom: 0;
+}
+#sharedFolderModal .history-name-cell {
+  min-width: 14rem;
+}
+#sharedFolderModal .history-name,
+#sharedFolderModal .history-topic {
+  overflow-wrap: anywhere;
+}
+#sharedFolderModal .history-open-badge {
+  background-color: var(--chip-neutral-bg);
+  border: 1px solid var(--chip-neutral-border);
+  color: var(--chip-neutral-color);
+  font-weight: normal;
+}
+
 } /* end @layer components */
 
 /* ============================================ */
@@ -4182,6 +4233,11 @@ img.base64-image,
 }
 .dark-theme #sharedFolderModal .sf-table thead th {
   background-color: var(--bg-secondary);
+}
+.dark-theme #sharedFolderModal .manage-tabs .nav-link.active {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-primary) var(--border-primary) transparent;
+  color: var(--text-primary);
 }
 
 

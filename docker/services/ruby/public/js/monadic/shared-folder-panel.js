@@ -623,6 +623,7 @@
 
   function onPanelKey(e) {
     if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || (e.key !== 'a' && e.key !== 'A')) return;
+    if (!filesShown()) return;
     if (previewing || trashing || editable(e.target)) return;
     e.preventDefault();
     const files = filesOnly();
@@ -1156,9 +1157,24 @@
   function open() {
     const modalEl = $id('sharedFolderModal');
     if (!modalEl || !window.bootstrap) return;
+    if (window.HistoryPanel) window.HistoryPanel.showPane('files');
     isOpen = true;
     bootstrap.Modal.getOrCreateInstance(modalEl).show();
     load('');
+  }
+
+  // The panel shares its window with the chat history; the files are read
+  // when their tab is first shown there.
+  function onPaneShown(e) {
+    const modalEl = $id('sharedFolderModal');
+    if (!e.detail || e.detail.pane !== 'files' || isOpen || !modalEl || !modalEl.classList.contains('show')) return;
+    isOpen = true;
+    load('');
+  }
+
+  function filesShown() {
+    const body = $id('shared-folder-files-body');
+    return !body || body.style.display !== 'none';
   }
 
   let searchTimer = null;
@@ -1209,6 +1225,7 @@
       });
     }
     $on($id('sharedFolderModal'), 'keydown', onPanelKey);
+    document.addEventListener('monadic:manage-pane', onPaneShown);
     document.addEventListener('selectionchange', onSelectionChange);
     // Not closed while entries are being moved.
     $on($id('sharedFolderModal'), 'hide.bs.modal', function (e) { if (trashing) e.preventDefault(); });

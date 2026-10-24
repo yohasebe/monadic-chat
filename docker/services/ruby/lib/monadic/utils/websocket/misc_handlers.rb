@@ -167,8 +167,10 @@ module WebSocketHelper
 
   # What the page shows of the chat now in the session (an imported or a
   # resumed one), in the order it applies them; the pauses let it build the
-  # app list before the parameters select from it.
-  private def send_chat_to_page(connection, session)
+  # app list before the parameters select from it. A resumed chat is shown
+  # with its Privacy Filter state locked, as after a reload, so the page
+  # does not turn the filter on for it as it does for a new chat.
+  private def send_chat_to_page(connection, session, restored: false)
     apps_data = prepare_apps_data(session[:parameters]["ui_language"], session: session)
     app_name = session[:parameters]["app_name"]
     shown = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == app_name }
@@ -184,8 +186,10 @@ module WebSocketHelper
                                    "schema" => state[:context_schema], "from_import" => true })
     end
     registry = state && state[:privacy] && state[:privacy][:registry]
-    send_to_client(connection, { "type" => "privacy_state", "enabled" => session[:_privacy_session_enabled] == true,
-                                 "registry_count" => registry.is_a?(Hash) ? registry.size : 0, "error" => nil })
+    privacy = { "type" => "privacy_state", "enabled" => session[:_privacy_session_enabled] == true,
+                "registry_count" => registry.is_a?(Hash) ? registry.size : 0, "error" => nil }
+    privacy["restored"] = true if restored
+    send_to_client(connection, privacy)
   end
 
   private def handle_ws_update_params(connection, obj, session)

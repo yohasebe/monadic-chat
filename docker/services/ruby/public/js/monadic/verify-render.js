@@ -105,7 +105,7 @@ function renderVerifyConfidence(data) {
     bodyHtml += '<div class="verify-row"><strong>' + esc(verifyT('moderator', 'Moderator')) + ':</strong> ' +
       esc(data.moderator.provider) + (data.moderator.model ? ' / ' + esc(data.moderator.model) : '') + '</div>';
   }
-  if (data.note) bodyHtml += '<div class="verify-row verify-muted"><small>' + esc(data.note) + '</small></div>';
+  if (data.note) bodyHtml += '<div class="verify-row verify-muted"><small>' + esc(data.note_key ? verifyT(data.note_key, data.note) : data.note) + '</small></div>';
   if (data.judge_error) bodyHtml += '<div class="verify-row verify-error"><small>' + esc(data.judge_error) + '</small></div>';
 
   panel.classList.add('verify-result--' + esc(conf));

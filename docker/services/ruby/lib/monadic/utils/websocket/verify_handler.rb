@@ -33,6 +33,19 @@ module WebSocketHelper
     #     persona would homogenise answers and inflate agreement);
     #   - `active` bounds cost to the user's context window (no summarisation —
     #     a lossy summary would itself diverge from what the original saw).
+    # The panel gets the conversation as text only. A question about an image
+    # or an attached file would reach it without the file, and its answers
+    # (that it cannot see it, or something made up) would count against a
+    # right answer. Such a conversation is not verified.
+    with_files = messages[0...idx].any? do |m|
+      m["role"] == "user" && m["active"] != false && m["app_name"] == ai["app_name"] &&
+        (!Array(m["images"]).empty? || !Array(m["attachments"]).empty?)
+    end
+    if with_files
+      return send_to_client(connection, verify_error(mid, "Not verified: answers about images or attached files cannot be verified yet",
+                                                     note_key: "filesNotVerified"))
+    end
+
     panel_messages = messages[0...idx].filter_map do |m|
       next unless %w[user assistant].include?(m["role"])
       next if m["active"] == false || m["type"] == "search" || m["app_name"] != ai["app_name"]
@@ -89,9 +102,10 @@ module WebSocketHelper
     end
   end
 
-  def verify_error(mid, note)
+  # note_key names the page's translation of the note.
+  def verify_error(mid, note, note_key: nil)
     { "type" => "verify_confidence", "mid" => mid, "confidence" => "unavailable",
-      "recommendation" => "verify", "note" => note }
+      "recommendation" => "verify", "note" => note, "note_key" => note_key }.compact
   end
 
   # Cap each persisted panel answer so a verified message's stored verdict stays

@@ -383,8 +383,8 @@ const modelSpec = {
     "supports_pdf_upload": true,
     "supports_file_inputs": true,
     "deprecated": true,
-    "sunset_date": "2026-06-30",
-    "successor": "gpt-5.4-mini"
+    "sunset_date": "2027-01-14",
+    "successor": "gpt-6-luna"
   },
   "gpt-4o-mini": {
     "context_window" : [1, 128000],
@@ -398,8 +398,8 @@ const modelSpec = {
     "supports_pdf_upload": true,
     "supports_file_inputs": true,
     "deprecated": true,
-    "sunset_date": "2026-06-30",
-    "successor": "gpt-5.4-nano"
+    "sunset_date": "2027-01-14",
+    "successor": "gpt-6-luna"
   },
   // GPT-5-Codex (agent model for coding tasks)
   "gpt-5-codex": {
@@ -1172,6 +1172,19 @@ const modelSpec = {
     "supports_thinking": true,
     "reasoning_effort": [["low", "high", "max"], "low"]
   },
+  // GLM 5.3 Flash (2026-10-22): same reasoning values as GLM 5.3 (none and
+  // medium return 400, checked 2026-10-24), and it takes images.
+  "zai-glm-5-3-flash": {
+    "context_window": [1, 1048576],
+    "max_output_tokens" : [1, 128000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_structured_output": true,
+    "supports_thinking": true,
+    "reasoning_effort": [["low", "high", "max"], "low"]
+  },
   // Mistral Medium 3.5: frontier-class multimodal, agentic + coding,
   // 256k context, function calling, structured outputs. The Mistral API
   // accepts only "none" or "high" for reasoning_effort on this family —
@@ -1580,7 +1593,17 @@ const modelSpec = {
     "tts_family": "gemini",
     "tts_pace_prefix": true
   },
+  // Mistral still serves 26.03; Monadic moved to Voxtral 3, so a saved
+  // choice follows the successor.
   "voxtral-mini-tts-2603": {
+    "tts_capability": true,
+    "tts_family": "mistral",
+    "deprecated": true,
+    "successor": "voxtral-mini-tts-3-0"
+  },
+  // Voxtral 3 (2026-10-20): the same /v1/audio/speech request as 26.03
+  // (checked 2026-10-24).
+  "voxtral-mini-tts-3-0": {
     "tts_capability": true,
     "tts_family": "mistral"
   },
@@ -1701,7 +1724,17 @@ const modelSpec = {
   },
   // Voxtral Mini Transcribe 2 (26.02). The 25.07 name was retired
   // 2026-05-31 and now answers as voxtral-mini-latest (probed 2026-10-17).
+  // Mistral still serves 26.02; Monadic moved to Transcribe 3, so a saved
+  // model follows the successor.
   "voxtral-mini-2602": {
+    "stt_capability": true,
+    "stt_provider": "mistral",
+    "deprecated": true,
+    "successor": "voxtral-mini-transcribe-3-0"
+  },
+  // Voxtral Mini Transcribe 3 (2026-10-20): the same request as 26.02; it
+  // gave back a test sentence word for word (checked 2026-10-24).
+  "voxtral-mini-transcribe-3-0": {
     "stt_capability": true,
     "stt_provider": "mistral"
   },
@@ -1896,11 +1929,11 @@ const providerDefaults = {
     "audio_transcription": ["cohere-transcribe-03-2026"]
   },
   "mistral": {
-    "chat": ["mistral-large-4", "mistral-medium-3-5", "zai-glm-5-3"],
+    "chat": ["mistral-large-4", "mistral-medium-3-5", "zai-glm-5-3", "zai-glm-5-3-flash"],
     "code": ["mistral-medium-3-5", "mistral-small-2603"],
     "vision": ["mistral-small-2603"],
-    "tts": ["voxtral-mini-tts-2603"],
-    "audio_transcription": ["voxtral-mini-2602"]
+    "tts": ["voxtral-mini-tts-3-0"],
+    "audio_transcription": ["voxtral-mini-transcribe-3-0"]
   },
   "xai": {
     "chat": ["grok-4.7", "grok-4.6", "grok-4.5", "grok-4.20-0309-non-reasoning", "grok-4.3", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309"],
@@ -2014,7 +2047,7 @@ const ttsChoices = {
   "elevenlabs-flash": { "provider": "elevenlabs", "model": "eleven_flash_v2_5" },
   "gemini-flash": { "provider": "gemini", "model": "gemini-3.8-flash-tts" },
   "gemini-flash-lite": { "provider": "gemini", "model": "gemini-3.8-flash-lite-tts" },
-  "mistral": { "provider": "mistral", "model": "voxtral-mini-tts-2603" },
+  "mistral": { "provider": "mistral", "model": "voxtral-mini-tts-3-0" },
   "grok": { "provider": "xai", "model": "grok-tts" },
   "webspeech": { "provider": "webspeech", "model": null, "execution": "browser" },
   // Values saved by earlier versions

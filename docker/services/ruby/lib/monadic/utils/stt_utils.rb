@@ -175,7 +175,7 @@ module InteractionUtils
   # @param blob [String] The audio data
   # @param format [String] The audio format (e.g., "webm", "mp3", "wav")
   # @param lang_code [String] The language code (e.g., "en", "ja")
-  # @param model [String] The model to use (e.g., "voxtral-mini-2602")
+  # @param model [String] The model to use (e.g., "voxtral-mini-transcribe-3-0")
   # @return [Hash] The transcription result or error
   def mistral_stt_api_request(blob, format, lang_code, model)
     api_key = CONFIG["MISTRAL_API_KEY"]

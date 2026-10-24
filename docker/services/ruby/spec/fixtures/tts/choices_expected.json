@@ -9,7 +9,7 @@
   "elevenlabs-flash": { "id": "elevenlabs-flash", "provider": "elevenlabs", "model": "eleven_flash_v2_5" },
   "gemini-flash": { "id": "gemini-flash", "provider": "gemini", "model": "gemini-3.8-flash-tts" },
   "gemini-flash-lite": { "id": "gemini-flash-lite", "provider": "gemini", "model": "gemini-3.8-flash-lite-tts" },
-  "mistral": { "id": "mistral", "provider": "mistral", "model": "voxtral-mini-tts-2603" },
+  "mistral": { "id": "mistral", "provider": "mistral", "model": "voxtral-mini-tts-3-0" },
   "grok": { "id": "grok", "provider": "xai", "model": "grok-tts" },
   "webspeech": { "id": "webspeech", "provider": "webspeech", "model": null, "execution": "browser" },
   "openai": { "id": "openai-tts-4o", "provider": "openai", "model": "gpt-4o-mini-tts-2025-12-15" },

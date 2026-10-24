@@ -41,8 +41,8 @@ RSpec.describe ModelConsistency do
     describe '.sunset_info' do
       it 'returns sunset_date and successor for deprecated models' do
         info = ModelConsistency::SpecLoader.sunset_info(spec, 'gpt-4o')
-        expect(info[:sunset_date]).to eq('2026-06-30')
-        expect(info[:successor]).to eq('gpt-5.4-mini')
+        expect(info[:sunset_date]).to eq('2027-01-14')
+        expect(info[:successor]).to eq('gpt-6-luna')
       end
 
       it 'returns nils for models without lifecycle data' do

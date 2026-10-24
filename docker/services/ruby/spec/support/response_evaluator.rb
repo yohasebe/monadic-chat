@@ -388,12 +388,14 @@ module ResponseEvaluator
       request['Authorization'] = "Bearer #{ENV['OPENAI_API_KEY']}"
 
       request.body = JSON.generate({
-        model: 'gpt-4o-mini',  # Fast and cheap for evaluation
+        # Fast and cheap for evaluation. A reasoning model: it takes
+        # max_completion_tokens, not max_tokens, and no temperature.
+        model: 'gpt-6-luna',
         messages: [
           { role: 'user', content: prompt }
         ],
-        max_tokens: 100,
-        temperature: 0.0  # Deterministic evaluation
+        max_completion_tokens: 100,
+        reasoning_effort: 'none'
       })
 
       response = http.request(request)

@@ -19,6 +19,10 @@ module Monadic
         websearch math conversation_language
       ].freeze
       HEADING_LIMIT = 80
+      CONTEXT_FIELD_NAME = /\A[A-Za-z][A-Za-z0-9_]{0,63}\z/
+      CONTEXT_FIELD_LIMIT = 32
+      CONTEXT_ITEM_LIMIT = 200
+      CONTEXT_TEXT_LIMIT = 2000
 
       module_function
 
@@ -65,12 +69,54 @@ module Monadic
         out
       end
 
+      # The Session Context as the panel shows it: a turn count and, for each
+      # field, a list of items with their text, the turn they came from and
+      # whether they were edited. Field names are those of the app's context
+      # schema when it has one. Anything else in it (an internal value, a
+      # nested record) is left out, and sizes are capped.
       def session_context(session)
         state = value_of(session, :monadic_state)
         return nil unless state.is_a?(Hash)
 
         context = state[:conversation_context] || state['conversation_context']
-        context.is_a?(Hash) && !context.empty? ? JSON.parse(JSON.generate(context)) : nil
+        return nil unless context.is_a?(Hash)
+
+        names = context_field_names(state[:context_schema] || state['context_schema'])
+        out = {}
+        turns = context['_turn_count'] || context[:_turn_count]
+        out['_turn_count'] = turns if turns.is_a?(Integer)
+        context.each do |key, items|
+          name = key.to_s
+          next unless items.is_a?(Array) && CONTEXT_FIELD_NAME.match?(name)
+          next if names && !names.include?(name)
+          break if out.size > CONTEXT_FIELD_LIMIT
+
+          kept = items.first(CONTEXT_ITEM_LIMIT).filter_map { |item| context_item(item) }
+          out[name] = kept unless kept.empty?
+        end
+        out.keys == ['_turn_count'] || out.empty? ? nil : out
+      end
+
+      def context_item(item)
+        item = { 'text' => item } if item.is_a?(String)
+        return nil unless item.is_a?(Hash)
+
+        text = item['text'] || item[:text]
+        return nil unless text.is_a?(String) && !text.strip.empty?
+
+        out = { 'text' => text[0, CONTEXT_TEXT_LIMIT] }
+        turn = item['turn'] || item[:turn]
+        out['turn'] = turn if turn.is_a?(Integer)
+        edited = item.key?('edited') ? item['edited'] : item[:edited]
+        out['edited'] = edited if [true, false].include?(edited)
+        out
+      end
+
+      def context_field_names(schema)
+        fields = schema.is_a?(Hash) ? (schema[:fields] || schema['fields']) : nil
+        return nil unless fields.is_a?(Array)
+
+        fields.filter_map { |f| f.is_a?(Hash) ? (f[:name] || f['name'])&.to_s : nil }
       end
 
       def pick(hash, fields)

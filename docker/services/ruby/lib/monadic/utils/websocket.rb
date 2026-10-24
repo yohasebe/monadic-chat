@@ -61,7 +61,7 @@ module WebSocketHelper
     params = get_session_params || {}
     Monadic::Utils::ExtraLogger.log { "[sync_session_state!] Session synced: #{session_id}" }
 
-    WebSocketHelper.update_session_state(
+    accepted = WebSocketHelper.update_session_state(
       session_id,
       messages: session[:messages] || [],
       parameters: params,
@@ -69,7 +69,9 @@ module WebSocketHelper
       chat_state: Monadic::Workspace::Chats.chat_state(session),
       generation: session[:_ws_generation]
     )
-    record_history
+    # A connection that a newer one replaced does not write the history
+    # either: its copy of the chat is older than the tab's.
+    record_history if accepted
   end
 
   # Keeps the chat in the conversation history (when that is on). A failure

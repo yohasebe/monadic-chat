@@ -15,9 +15,14 @@ module Monadic
       ENV['MONADIC_HISTORY'] == 'true'
     end
 
-    # Writes the chat in `session` to the history, or, for a Private chat,
-    # removes anything of it that was written before it became Private.
-    # Returns the revision written, or nil.
+    # Writes the chat in `session` to the history. A Private chat is never
+    # written: what was kept of it before it became Private is removed and a
+    # tombstone keeps any later copy of it out. A chat with no user words
+    # left has its row removed. Returns the revision written, or nil.
+    #
+    # Called only for a session the tab's state accepted (not one from a
+    # connection that a newer one replaced); the connection's generation is
+    # checked again by the store, in the same transaction as the write.
     def record(session, store: Store.default)
       return nil unless enabled?
 
@@ -25,15 +30,19 @@ module Monadic
       return nil unless chat_id
 
       if Policy.private?(session)
-        store.delete(chat_id) if store.get(chat_id)
+        store.delete(chat_id)
         return nil
       end
 
       payload = Serializer.payload(session)
-      return nil unless payload
+      unless payload
+        store.clear(chat_id)
+        return nil
+      end
 
       params = payload['parameters'] || {}
-      store.save(chat_id, payload, app_name: params['app_name'], model: params['model'],
+      store.save(chat_id, payload, generation: session[:_ws_generation] || session['_ws_generation'],
+                                   app_name: params['app_name'], model: params['model'],
                                    headings: Serializer.headings(payload))
     end
   end

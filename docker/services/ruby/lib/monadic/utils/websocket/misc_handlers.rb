@@ -195,7 +195,10 @@ module WebSocketHelper
       # previous app's chat left in the session is dropped with it: the
       # Session Context, the privacy registry, pipelines memoized for that
       # app, the toggle (the frontend re-negotiates it via PRIVACY_TOGGLE),
-      # and tool results such as the last image or notebook.
+      # and tool results such as the last image or notebook. The messages go
+      # too (the page clears them when the app changes): the new chat must
+      # not start with the previous one's words, Private or not.
+      session[:messages] = []
       Monadic::Workspace::Chats.begin_new!(session)
       # Push a privacy_state event so the frontend indicator reflects the
       # cleared registry immediately, instead of staying at the previous

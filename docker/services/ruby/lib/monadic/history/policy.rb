@@ -7,9 +7,10 @@ module Monadic
     #
     # The decision is the server's and stays for the chat. It does not follow
     # the Privacy Filter's health: a filter that is down or switched off does
-    # not make a chat that used it a normal one. A chat with any trace of the
-    # Privacy Filter (it was turned on, words were marked, or a registry was
-    # built) is Private, and so is one the user started as Private.
+    # not make a chat that used it a normal one. Asking for the Privacy
+    # Filter marks the chat Private at once (whether or not the filter is
+    # up), and a chat with any other trace of it (words were marked, a
+    # registry or a pipeline was built) is Private too.
     module Policy
       SESSION_KEY = :_history_policy
       PRIVATE = 'private'
@@ -36,6 +37,7 @@ module Monadic
 
       def privacy_traces?(session)
         return true if session[:_privacy_session_enabled] == true || session['_privacy_session_enabled'] == true
+        return true if session[:_privacy_pipeline] || session['_privacy_pipeline']
 
         state = session[:monadic_state] || session['monadic_state']
         privacy = state.is_a?(Hash) ? (state[:privacy] || state['privacy']) : nil

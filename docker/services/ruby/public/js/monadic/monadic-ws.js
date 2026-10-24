@@ -59,7 +59,8 @@
     'LIBRARY_RAG_QUERY',
     'LIBRARY_RAG_TOGGLE',
     'LIBRARY_RENAME',
-    'LIBRARY_SET_SCOPE'
+    'LIBRARY_SET_SCOPE',
+    'HISTORY_LIST'
   ]);
 
   // Queue caps: 20 entries total, 30s TTL per entry, 500ms dedup

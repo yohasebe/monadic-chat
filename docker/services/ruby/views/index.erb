@@ -431,6 +431,17 @@
             </div><!-- end #pdf-panel-body -->
           </div>
 
+          <!-- The conversation history: shown once the server says it keeps one. -->
+          <div id="history-panel" class="mb-3 rounded shaded-panel overflow-hidden" style="display:none">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#history-panel-body" aria-expanded="true">
+              <span class="text"><i class="fa-solid fa-clock-rotate-left"></i> <span data-i18n="ui.historyPanel.panelTitle">Chat History</span></span>
+            </h5>
+            <div id="history-panel-body" class="collapse show px-3 pb-3">
+              <ul id="history-recent" class="list-unstyled mb-2 history-recent"></ul>
+              <button id="history-browse" type="button" class="btn btn-sm btn-secondary text-nowrap" title="See every kept chat" data-i18n-title="ui.historyPanel.browseHint"><i class="fa-solid fa-table-list"></i> <span data-i18n="ui.historyPanel.browse">See all</span></button>
+            </div>
+          </div>
+
           <div id="shared-folder-panel" class="mb-3 rounded shaded-panel overflow-hidden">
             <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#shared-folder-panel-body" aria-expanded="true">
               <span class="text"><i class="fa-regular fa-folder-open"></i> <span data-i18n="ui.sharedFolderPanel.panelTitle">Shared Folder</span></span>
@@ -1297,10 +1308,43 @@
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="sharedFolderModalLabel"><i class="fa-regular fa-folder-open"></i> <span data-i18n="ui.sharedFolderPanel.modalTitle">Shared Folder</span></h5>
+            <h5 class="modal-title" id="sharedFolderModalLabel">
+              <span class="manage-title" data-pane="files"><i class="fa-regular fa-folder-open"></i> <span data-i18n="ui.sharedFolderPanel.modalTitle">Shared Folder</span></span>
+              <span class="manage-title" data-pane="chats" style="display:none"><i class="fa-solid fa-clock-rotate-left"></i> <span data-i18n="ui.historyPanel.modalTitle">Chat History</span></span>
+            </h5>
+            <!-- Chats and files in one place; the tabs appear when the history is kept. -->
+            <ul class="nav nav-tabs ms-3 me-auto manage-tabs" id="manage-tabs" role="tablist" style="display:none">
+              <li class="nav-item" role="presentation"><button class="nav-link" type="button" role="tab" id="manage-tab-chats" data-pane="chats" aria-selected="false" aria-controls="history-chats-body" data-i18n="ui.historyPanel.tabChats">Chats</button></li>
+              <li class="nav-item" role="presentation"><button class="nav-link active" type="button" role="tab" id="manage-tab-files" data-pane="files" aria-selected="true" aria-controls="shared-folder-files-body" data-i18n="ui.historyPanel.tabFiles">Files</button></li>
+            </ul>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
-          <div class="modal-body">
+          <div class="modal-body" id="history-chats-body" role="tabpanel" aria-labelledby="manage-tab-chats" style="display:none">
+            <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
+              <input type="search" class="form-control form-control-sm" style="max-width: 20rem" id="history-search" placeholder="Search names and words" data-i18n-placeholder="ui.historyPanel.searchPlaceholder" aria-label="Search names and words" data-i18n-aria-label="ui.historyPanel.searchPlaceholder">
+              <span id="history-info" class="small text-secondary me-auto"></span>
+              <button type="button" class="btn btn-sm btn-secondary" id="history-refresh" title="Refresh" data-i18n-title="ui.historyPanel.refresh"><i class="fa-solid fa-rotate"></i></button>
+            </div>
+            <p class="small text-secondary mb-2" data-i18n="ui.historyPanel.note">Chats are kept on this computer, in Monadic Chat's state folder. Private chats are not kept. Removing a chat here removes it from the history only.</p>
+            <!-- One place for what is going on: loading, nothing to show, errors, and questions before an action. -->
+            <div id="history-status" class="sf-status small mb-2" role="status" aria-live="polite" style="display:none"></div>
+            <div class="sf-table-wrap">
+            <table class="table table-sm align-middle sf-table history-table">
+              <thead>
+                <tr>
+                  <th data-i18n="ui.historyPanel.colChat">Chat</th>
+                  <th data-i18n="ui.historyPanel.colApp">App</th>
+                  <th class="text-end" data-i18n="ui.historyPanel.colMessages">Messages</th>
+                  <th data-i18n="ui.historyPanel.colActivity">Last activity</th>
+                  <th><span class="visually-hidden" data-i18n="ui.historyPanel.colActions">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody id="history-tbody"></tbody>
+            </table>
+            </div>
+            <button type="button" class="btn btn-sm btn-secondary mt-2" id="history-more" style="display:none" data-i18n="ui.historyPanel.more">Show more</button>
+          </div>
+          <div class="modal-body" id="shared-folder-files-body" role="tabpanel" aria-labelledby="manage-tab-files">
             <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
               <button type="button" class="btn btn-sm btn-secondary" id="shared-folder-up" style="display:none" title="Up one folder" data-i18n-title="ui.sharedFolderPanel.up"><i class="fa-solid fa-arrow-up"></i></button>
               <div id="shared-folder-path" class="me-auto"></div>

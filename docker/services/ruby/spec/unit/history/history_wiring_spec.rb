@@ -209,6 +209,22 @@ RSpec.describe 'What the handlers write to the history' do
       expect(store.get(kept[:chat_id])['payload']['messages'].map { |m| m['text'] }).to eq([marker, 'from the new tab'])
     end
 
+    it 'asks before it replaces a Private chat with words in it, and shows the resumed chat locked' do
+      kept = chat_session('kept', generation: 1)
+      sync(kept)
+      other_tab = "tab-#{SecureRandom.hex(4)}"
+      here = { chat_id: Monadic::Workspace::Ids.generate(:chat), _ws_generation: WebSocketHelper.claim_session_state(other_tab),
+               messages: [{ 'role' => 'user', 'text' => 'private words' }], parameters: {}, _privacy_session_enabled: true }
+      expect(resume_in(other_tab, here, kept[:chat_id])).to include('success' => false, 'error' => 'history_private_here')
+      expect(here[:messages].map { |m| m['text'] }).to eq(['private words'])
+
+      Thread.current[:websocket_session_id] = other_tab
+      obj = { 'chat_id' => kept[:chat_id], 'confirm' => true }
+      host.send(:handle_ws_history_resume, nil, obj, here, host.send(:history_resumable?, obj, here))
+      expect(host.sent.last).to include('success' => true)
+      expect(host.sent).to include(include('type' => 'privacy_state', 'enabled' => false, 'restored' => true))
+    end
+
     it 'does not resume a chat open in another tab, or touch the chat here' do
       kept = chat_session(marker, generation: 1)
       sync(kept)

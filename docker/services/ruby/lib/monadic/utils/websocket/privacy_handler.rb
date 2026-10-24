@@ -51,7 +51,7 @@ module WebSocketHelper
       # the server about a new app): Private only takes things away.
       if !Monadic::History::Policy.private?(session) && chat_begun?(session)
         return send_to_client(connection, { "type" => "privacy_toggle_ack", "enabled" => false,
-                                            "error" => "privacy_chat_started" })
+                                            "error" => "privacy_chat_started", "private" => false })
       end
 
       # Asking for the filter makes the chat Private, whether or not the
@@ -70,13 +70,14 @@ module WebSocketHelper
         session[:_privacy_session_enabled] = false
         session.delete(:_privacy_pipeline)
         reason = privacy_container_coming_up? ? "privacy_container_starting" : "privacy_container_unreachable"
-        send_to_client(connection, { "type" => "privacy_toggle_ack", "enabled" => false, "error" => reason })
+        send_to_client(connection, { "type" => "privacy_toggle_ack", "enabled" => false, "error" => reason, "private" => true })
       else
         session[:_privacy_session_enabled] = true
         send_to_client(connection, {
           "type" => "privacy_toggle_ack",
           "enabled" => true,
-          "error" => nil
+          "error" => nil,
+          "private" => true
         })
         # Push a fresh privacy_state so the indicator becomes visible right
         # away. Without this the indicator only shows up after the first
@@ -88,10 +89,14 @@ module WebSocketHelper
     else
       session[:_privacy_session_enabled] = false
       session.delete(:_privacy_pipeline)
+      # Turned off before the chat begins, the chat is a normal one again
+      # (nothing of it was written); once it has begun, it stays Private.
+      Monadic::History::Policy.clear!(session) unless chat_begun?(session)
       send_to_client(connection, {
         "type" => "privacy_toggle_ack",
         "enabled" => false,
-        "error" => nil
+        "error" => nil,
+        "private" => Monadic::History::Policy.private?(session)
       })
       # Mirror the toggle to the indicator so the badge disappears
       # immediately when the user opts out, instead of staying visible
@@ -124,7 +129,8 @@ module WebSocketHelper
       "type" => "privacy_state",
       "enabled" => enabled,
       "registry_count" => registry_count,
-      "error" => nil
+      "error" => nil,
+      "private" => Monadic::History::Policy.private?(session)
     }
     if enabled
       begin

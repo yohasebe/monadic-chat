@@ -187,7 +187,8 @@ module WebSocketHelper
     end
     registry = state && state[:privacy] && state[:privacy][:registry]
     privacy = { "type" => "privacy_state", "enabled" => session[:_privacy_session_enabled] == true,
-                "registry_count" => registry.is_a?(Hash) ? registry.size : 0, "error" => nil }
+                "registry_count" => registry.is_a?(Hash) ? registry.size : 0, "error" => nil,
+                "private" => Monadic::History::Policy.private?(session) }
     privacy["restored"] = true if restored
     send_to_client(connection, privacy)
   end
@@ -223,7 +224,8 @@ module WebSocketHelper
         "type" => "privacy_state",
         "enabled" => false,
         "registry_count" => 0,
-        "error" => nil
+        "error" => nil,
+        "private" => false
       }.to_json
       if ws_session_id
         WebSocketHelper.send_to_session(privacy_state_msg, ws_session_id)
@@ -522,7 +524,8 @@ module WebSocketHelper
     # The Privacy Filter is off for the new chat until the page turns it on
     # again; tell the page, so its indicator does not keep showing the old
     # chat's ON (the page turns it back on itself when its toggle is on).
-    send_or_broadcast({ "type" => "privacy_state", "enabled" => false, "registry_count" => 0, "error" => nil }.to_json,
+    send_or_broadcast({ "type" => "privacy_state", "enabled" => false, "registry_count" => 0, "error" => nil,
+                        "private" => false }.to_json,
                       Thread.current[:websocket_session_id])
   end
 end

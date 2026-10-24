@@ -360,3 +360,32 @@ describe('WsPrivacyHandler.handleToggleAck when the container does not answer', 
     expect(window.safeWsSend).not.toHaveBeenCalled();
   });
 });
+
+describe('WsPrivacyHandler: whether the chat is Private', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '<input type="checkbox" id="check-privacy-session">';
+    window.setAlert = jest.fn();
+    window.getTranslation = (key, fallback) => fallback;
+  });
+
+  it('counts asking for the filter as Private until the server answers', () => {
+    const h = window.WsPrivacyHandler;
+    h.handleState({ enabled: false, private: false });
+    expect(h.isChatPrivate()).toBe(false);
+    h.noteRequested(true);
+    expect(h.isChatPrivate()).toBe(true);
+    // The filter could not start: the chat is still Private.
+    h.handleToggleAck({ enabled: false, error: 'privacy_container_unreachable', private: true });
+    expect(h.isChatPrivate()).toBe(true);
+    // A new chat (Reset, another app) is not.
+    h.handleState({ enabled: false, private: false });
+    expect(h.isChatPrivate()).toBe(false);
+  });
+
+  it('keeps what it knows when a reply does not say', () => {
+    const h = window.WsPrivacyHandler;
+    h.noteRequested(true);
+    h.handleState({ enabled: true, registry_count: 0 });
+    expect(h.isChatPrivate()).toBe(true);
+  });
+});

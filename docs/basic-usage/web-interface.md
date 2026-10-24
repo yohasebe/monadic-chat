@@ -159,7 +159,7 @@ PDFs are stored on your computer. Back them up with **Export Document DB** and r
 
 ## Chat History Panel :id=chat-history-panel
 
-Monadic Chat keeps your chats on this computer, in `~/monadic/state`, outside the shared folder. A chat is kept from the first message you write, and each new message updates it. Private chats (chats in which you turned the [Privacy Filter](../advanced-topics/privacy-filter.md) on) are not kept.
+Monadic Chat keeps your chats on this computer, in `~/monadic/state`, outside the shared folder. A chat is kept from the first message you write, and each new message updates it. Private chats (chats started with the [Privacy Filter](../advanced-topics/privacy-filter.md) on) are not kept.
 
 What is kept of a chat: the text of its messages, the app, the model and the system prompt, the main settings (such as reasoning effort, context size, web search and the conversation language), and the [Session Context](../advanced-topics/session-context.md). Images, the contents of attached files, thinking and the records of tool calls are not kept. The API keys set in Monadic Chat and 1Password references are removed from what is kept, chat names included. Other secrets written in a chat, such as a password or a key that Monadic Chat does not have, are kept as written: do not paste them into a chat.
 

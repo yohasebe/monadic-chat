@@ -51,6 +51,9 @@ require_relative "monadic/utils/environment"
 # service: every outbound HTTP request is checked where it is sent.
 require_relative "monadic/utils/privacy/egress_guard"
 Monadic::Utils::Privacy::EgressGuard.install!
+# Nothing of a Private chat is printed to the server's log.
+require_relative "monadic/history/private_output"
+Monadic::History::PrivateOutput.install!
 
 # Backward compatibility - DEPRECATED
 # All tests have been migrated. This can be removed after verifying no external dependencies.

@@ -18,7 +18,13 @@ RSpec.describe 'What the handlers write to the history' do
   let(:host) do
     Class.new do
       include WebSocketHelper
-      def send_to_client(*); end
+      def sent
+        @sent ||= []
+      end
+
+      def send_to_client(_connection, payload)
+        sent << payload
+      end
     end.new
   end
 
@@ -114,5 +120,103 @@ RSpec.describe 'What the handlers write to the history' do
     expect(texts).to eq([['first words in the new app']])
     store.close
     expect(stored_bytes).not_to include(marker)
+  end
+
+  describe 'the list, names and removal' do
+    it 'lists headings and whether a chat is open, and finds a chat by its words' do
+      session = chat_session("plan the trip to #{marker}", generation: 1)
+      sync(session)
+      allow(WebSocketHelper).to receive(:live_chat_ids).and_return([session[:chat_id]])
+
+      host.send(:handle_ws_history_list, nil, { 'query' => marker })
+      reply = host.sent.last
+      expect(reply['items'].map { |i| i['chat_id'] }).to eq([session[:chat_id]])
+      expect(reply['items'].first).to include('open' => true, 'heading_first' => "plan the trip to #{marker}")
+      expect(reply['items'].first.keys).not_to include('payload', 'search_text')
+
+      host.send(:handle_ws_history_list, nil, { 'query' => '%' })
+      expect(host.sent.last['items']).to eq([])
+    end
+
+    it 'names a chat, and removes it only when no tab has it open' do
+      session = chat_session(marker, generation: 1)
+      sync(session)
+      host.send(:handle_ws_history_rename, nil, { 'chat_id' => session[:chat_id], 'title' => "  My\ntrip  " })
+      expect(store.list.first['title_user']).to eq('My trip')
+
+      allow(WebSocketHelper).to receive(:live_chat_ids).and_return([session[:chat_id]])
+      host.send(:handle_ws_history_delete, nil, { 'chat_id' => session[:chat_id] })
+      expect(host.sent.last).to include('success' => false, 'error' => 'history_chat_open')
+
+      allow(WebSocketHelper).to receive(:live_chat_ids).and_return([])
+      host.send(:handle_ws_history_delete, nil, { 'chat_id' => session[:chat_id] })
+      expect(host.sent.last).to include('success' => true)
+      store.close
+      expect(stored_bytes).not_to include(marker)
+    end
+
+    it 'takes only chat ids this server issues' do
+      host.send(:handle_ws_history_delete, nil, { 'chat_id' => '../history.sqlite3' })
+      expect(host.sent.last).to include('success' => false, 'error' => 'history_not_found')
+    end
+
+    it 'keeps the order of the list when only the Session Context changes' do
+      first = chat_session('first chat', generation: 1)
+      sync(first)
+      later = chat_session('later chat', generation: 1).merge(chat_id: Monadic::Workspace::Ids.generate(:chat))
+      allow(Time).to receive(:now).and_return(Time.now + 60)
+      sync(later)
+      allow(Time).to receive(:now).and_return(Time.now + 120)
+      first[:monadic_state] = { conversation_context: { 'topics' => [{ 'text' => 'trips' }] } }
+      sync(first)
+      expect(store.list.map { |r| r['chat_id'] }).to eq([later[:chat_id], first[:chat_id]])
+    end
+  end
+
+  describe 'resuming a chat' do
+    before { allow(host).to receive(:prepare_apps_data).and_return({}) }
+
+    def resume_in(other_tab, session, chat_id)
+      Thread.current[:websocket_session_id] = other_tab
+      Thread.current[:rack_session] = session
+      obj = { 'chat_id' => chat_id }
+      host.send(:handle_ws_history_resume, nil, obj, session, host.send(:history_resumable?, obj, session))
+      host.sent.last
+    end
+
+    it 'continues the chat under its id in another tab, which then is the only one to write it' do
+      kept = chat_session(marker, generation: 1)
+      sync(kept)
+      other_tab = "tab-#{SecureRandom.hex(4)}"
+      generation = WebSocketHelper.claim_session_state(other_tab)
+      here = { chat_id: Monadic::Workspace::Ids.generate(:chat), _ws_generation: generation,
+               messages: [], parameters: { 'ui_language' => 'ja' }, gemini3_last_image: 'left.png' }
+
+      expect(resume_in(other_tab, here, kept[:chat_id])).to include('success' => true)
+      expect(here[:chat_id]).to eq(kept[:chat_id])
+      expect(here[:messages].map { |m| m['text'] }).to eq([marker])
+      expect(here[:parameters]).to include('app_name' => 'ChatOpenAI', 'ui_language' => 'ja', 'auto_speech' => false)
+      expect(here).not_to have_key(:gemini3_last_image)
+      expect(host.sent.map { |m| m['type'] }).to include('past_messages')
+
+      Thread.current[:websocket_session_id] = tab
+      kept[:messages] << { 'mid' => 'm2', 'role' => 'user', 'text' => 'from the old tab' }
+      sync(kept)
+      expect(store.get(kept[:chat_id])['payload']['messages'].map { |m| m['text'] }).to eq([marker])
+      Thread.current[:websocket_session_id] = other_tab
+      here[:messages] << { 'mid' => 'm3', 'role' => 'user', 'text' => 'from the new tab' }
+      sync(here)
+      expect(store.get(kept[:chat_id])['payload']['messages'].map { |m| m['text'] }).to eq([marker, 'from the new tab'])
+    end
+
+    it 'does not resume a chat open in another tab, or touch the chat here' do
+      kept = chat_session(marker, generation: 1)
+      sync(kept)
+      allow(WebSocketHelper).to receive(:live_chat_ids).and_return([kept[:chat_id]])
+      here = { chat_id: Monadic::Workspace::Ids.generate(:chat), messages: [{ 'role' => 'user', 'text' => 'mine' }],
+               parameters: { 'app_name' => 'ChatClaude' } }
+      expect(resume_in("tab-#{SecureRandom.hex(4)}", here, kept[:chat_id])).to include('success' => false, 'error' => 'history_chat_open')
+      expect(here[:messages].map { |m| m['text'] }).to eq(['mine'])
+    end
   end
 end

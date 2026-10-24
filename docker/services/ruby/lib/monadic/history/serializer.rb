@@ -16,9 +16,10 @@ module Monadic
       ATTACHMENT_FIELDS = %w[attachment_id purpose].freeze
       PARAMETER_FIELDS = %w[
         app_name model reasoning_effort context_size initial_prompt
-        websearch math conversation_language
+        websearch math conversation_language temperature max_tokens
       ].freeze
       HEADING_LIMIT = 80
+      SEARCH_TEXT_LIMIT = 200_000
       CONTEXT_FIELD_NAME = /\A[A-Za-z][A-Za-z0-9_]{0,63}\z/
       CONTEXT_FIELD_LIMIT = 32
       CONTEXT_ITEM_LIMIT = 200
@@ -53,6 +54,13 @@ module Monadic
         first = texts.first
         recent = texts.length > 1 ? texts.last : nil
         [cut(first), cut(recent)]
+      end
+
+      # The words of the conversation, for finding it again by them.
+      def search_text(payload)
+        payload['messages'].filter_map do |m|
+          m['text'] if %w[user assistant].include?(m['role'])
+        end.join("\n")[0, SEARCH_TEXT_LIMIT]
       end
 
       def message(raw)

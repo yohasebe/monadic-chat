@@ -23,7 +23,7 @@ module Monadic
     # Called only for a session the tab's state accepted (not one from a
     # connection that a newer one replaced); the connection's generation is
     # checked again by the store, in the same transaction as the write.
-    def record(session, store: Store.default)
+    def record(session, tab: nil, store: Store.default)
       return nil unless enabled?
 
       chat_id = session[Monadic::Workspace::Chats::SESSION_KEY] || session[Monadic::Workspace::Chats::SESSION_KEY.to_s]
@@ -41,9 +41,18 @@ module Monadic
       end
 
       params = payload['parameters'] || {}
-      store.save(chat_id, payload, generation: session[:_ws_generation] || session['_ws_generation'],
+      store.save(chat_id, payload, tab: tab, generation: session[:_ws_generation] || session['_ws_generation'],
                                    app_name: params['app_name'], model: params['model'],
-                                   headings: Serializer.headings(payload))
+                                   headings: Serializer.headings(payload), search_text: Serializer.search_text(payload))
+    end
+
+    # The list as the page shows it, with whether each chat is open in a tab
+    # now. Nothing of the conversations themselves.
+    def list(query: nil, offset: 0, limit: 50, open_chat_ids: [], store: Store.default)
+      open = open_chat_ids.to_a
+      store.list(limit: limit, offset: offset, query: query).map do |row|
+        row.merge('open' => open.include?(row['chat_id']))
+      end
     end
   end
 end

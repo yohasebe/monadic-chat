@@ -18,17 +18,6 @@ require_relative '../../../lib/monadic/utils/websocket/audio_handler'
 RSpec.describe 'What would make files of a Private chat' do
   let(:policy) { Monadic::History::Policy }
 
-  # Each example starts with no chat's scope in this fiber (another spec run
-  # before may have left one), and the one there before is put back.
-  around do |example|
-    key = Monadic::Utils::Privacy::EgressGuard::CHAT_KEY
-    before = Fiber[key]
-    Fiber[key] = nil
-    example.run
-  ensure
-    Fiber[key] = before
-  end
-
   def chat(private: false)
     session = { chat_id: Monadic::Workspace::Ids.generate(:chat), messages: [], parameters: {} }
     policy.mark_private!(session) if private

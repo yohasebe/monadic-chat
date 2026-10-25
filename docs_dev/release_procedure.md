@@ -124,10 +124,13 @@ has no `:dev-<sha>` of its own: use the tag of the latest dev commit that did,
 after confirming that no service directory changed since
 (`git diff --stat <that sha> <release sha> -- docker/services .github/workflows/publish-images.yml`).
 
-When the candidate is approved, and before `:latest` is needed, run the
-workflow by hand:
+When the candidate is approved, and before `:latest` is needed, confirm that
+`<sha>` is on dev and that its `Publish service images` run succeeded, then
+run the workflow by hand from dev (a run from another branch does nothing):
 
 ```bash
+git merge-base --is-ancestor <sha> origin/dev && echo on-dev
+gh run list --workflow publish-images.yml --commit <sha> --json event,conclusion
 gh workflow run publish-images.yml --ref dev -f source=dev-<sha> -f version=<version>
 ```
 

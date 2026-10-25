@@ -69,3 +69,6 @@ docker/services/ruby/scripts/generators/video_generator_gemini.rb | FileUtils.mk
 docker/services/ruby/scripts/cli_tools/image_query.rb | File.binwrite(source, original) | system-temp | resize work folder (Dir.mktmpdir)
 docker/services/ruby/lib/monadic/utils/shared_fs.rb | File.open(root, READ_FLAGS) | shared-root | opens the shared folder itself read-only (RDONLY, NOFOLLOW) to hold it
 docker/services/ruby/lib/monadic/utils/shared_path_guard.rb | File.open(copy, "wb", 0o600) | system-temp | with_local_copy!: the copy in a new folder of its own in the system temp folder
+docker/services/ruby/lib/monadic/history/store.rb | FileUtils.mkdir_p(File.dirname(@path), mode: 0o700) | state | folder of the conversation history (state folder; refused inside the shared folder)
+docker/services/ruby/lib/monadic/history/store.rb | File.open(@path, File::WRONLY | File::CREAT, 0o600) { nil } | state | the conversation history, made owner-only before SQLite opens it (state folder)
+docker/services/ruby/lib/monadic/history/store.rb | File.chmod(0o600, file) if File.exist?(file) | state | keeps the history and its companion files owner-only (state folder)

@@ -6,6 +6,7 @@
     - A folder of the shared folder shown in the file manager is selected, not opened
     - Monadic Chat reads and writes files of the shared folder only inside it
     - A message can attach only files uploaded to its own chat, and a tool's image is sent to the model only when the file is an image
+    - The Privacy Filter logs only the kind of an error a request meets **(rebuild the Privacy container)**
   - Changes you may notice
     - Your own scripts in `scripts/` run in the Python container only, after the system's commands on the search path: **give them names of their own** **(rebuild the Python container)**
     - Monadic Chat does not start when `apps`, `helpers` or `services` in the shared folder is a link: **replace it with a real folder and move the files into it**
@@ -26,6 +27,10 @@
     - The desktop app's windows follow the Web UI's theme setting and use its buttons and colors
     - Web UI dialogs have a `Cancel` button and buttons that delete are outlined in red; desktop app dialogs list `Cancel` last, Esc cancels them, and removing all Docker data is not the default
     - `Verify` does not check answers about images or attached files
+    - Chats are kept on this computer, in `~/monadic/state` outside the shared folder, from the first message you write; Private chats are not kept
+    - The Privacy Filter is set before `Start Session` and stays as set for the session; press `Reset` to change it. A chat started with it on is Private
+    - In a Private chat, `Text from file`, `Text from URL`, PDF import, audio file upload, writing files with tools, and voice input except with a Gemini speech-to-text model are unavailable
+    - The Knowledge Base app is removed; the Knowledge Base browser and `Use Knowledge Base for retrieval (this session)` in apps stay
   - New
     - Shared Folder panel: what each entry in the shared folder is, its size, which chat uses it and why it is needed (**do not remove the hidden `.monadic-shared-root` file Monadic Chat keeps there**)
     - The Shared Folder panel searches, sorts and filters the list, marks files made by test runs, and in the desktop app moves items to the system's Trash (rows are selected as in a file manager: click, Cmd/Ctrl+click, Shift+click or a drag)
@@ -38,6 +43,8 @@
     - New models: Claude Haiku 5.5, Gemini 4 Argon, DeepSeek V4.1 Flash and GLM 5.3 Flash (Mistral)
     - A message can be sent with attached files and no text, and the files are listed on the message's card
     - ElevenLabs v4 and v4 Turbo for text-to-speech, with Expressive Speech
+    - Chat History panel: the five chats with the latest activity, to continue in the tab with their messages, app, model and settings, or to remove from the history; `See all` lists every chat in the Chats tab of the shared folder's window
+    - Monadic Chat writes nothing of a Private chat on its own, not to the chat history, the page's stored state or its logs; `Export`, the Privacy export and `PDF Export` make files only when you use them
   - Fixed
     - Keys stored in 1Password are read with the 1Password CLI 2.41 and later
     - The Privacy Filter masks overlapping detections as one, and says when it is still starting **(rebuild the Privacy container)**
@@ -69,6 +76,7 @@
     - MCP: the server reserves its token budget before each call, and `monadic_status` shows `tokens_reserved`
     - Only one Monadic Chat server runs against `~/monadic/state` at a time; another one does not start
     - The Ruby container image does not include Node.js; building it needs the JS bundle from `npm run build:js`
+    - `rake server:debug` starts again on the same port right after it stops, also when keys in `~/monadic/config/env` are 1Password references
 
 - [October, 2026] 1.0.0-beta.43
   - Security

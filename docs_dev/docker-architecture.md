@@ -101,12 +101,14 @@ Key mechanics:
   selenium (+ privacy/extractor when enabled) before building the
   locally-built images with `--no-cache`, and the image verification step
   fails the build when a required pull did not produce an image.
-- Tag policy: `:latest` (the default consumed by user installs) moves only
-  via main pushes (release path) or `workflow_dispatch`; dev pushes publish
-  `:dev` instead, which dev-branch CI consumes (`MONADIC_IMAGE_TAG=dev` in
-  specs.yml). A release also publishes an immutable `:<version>` tag
-  (`workflow_dispatch` with the `version` input) for rollback. Users can
-  pin or switch tags via `MONADIC_IMAGE_TAG` in `~/monadic/config/env`.
+- Tag policy: only dev pushes build. They publish `:dev`, which dev-branch
+  CI consumes (`MONADIC_IMAGE_TAG=dev` in specs.yml), and `:dev-<commit sha>`,
+  which stays with that commit. `:latest` (the default consumed by user
+  installs) and the version tag move only through `workflow_dispatch`,
+  which copies a checked `:dev-<sha>` manifest unchanged (see
+  `docs_dev/release_procedure.md`, Service images). Main pushes publish
+  nothing. Users can pin or switch tags via `MONADIC_IMAGE_TAG` in
+  `~/monadic/config/env`.
 - The ghcr.io packages must be public for anonymous pulls to work.
 - `remove_legacy_prebuilt_images` (called on start) deletes local
   `yohasebe/monadic-privacy|embeddings|extractor`, `yohasebe/selenium` and

@@ -2,6 +2,7 @@
 
 require "spec_helper"
 require "fileutils"
+require "socket"
 require "tmpdir"
 require_relative "../../../lib/monadic/utils/secret_references"
 
@@ -106,6 +107,27 @@ RSpec.describe Monadic::Utils::SecretReferences do
 
     it "leaves every key unset when op is not installed" do
       expect(refs.read_with_op({ "A_API_KEY" => "op://Test/A/credential" }, op: File.join(@dir, "no-op"))).to eq({})
+    end
+
+    # The server's listening socket is shared with the processes it forks,
+    # so it is open across exec; the daemon op starts would keep it.
+    it "gives op none of the server's descriptors" do
+      server = TCPServer.new("127.0.0.1", 0)
+      server.close_on_exec = false
+      probe = write("probe-op", <<~RUBY).tap { |path| File.chmod(0o755, path) }
+        #!/usr/bin/env ruby
+        open = begin
+          IO.for_fd(#{server.fileno}, autoclose: false)
+          "open"
+        rescue Errno::EBADF
+          "closed"
+        end
+        File.write("#{@dir}/socket.log", open)
+      RUBY
+      refs.read_with_op({ "A_API_KEY" => "op://Test/A/credential" }, op: probe)
+      expect(File.read(File.join(@dir, "socket.log"))).to eq("closed")
+    ensure
+      server&.close
     end
   end
 

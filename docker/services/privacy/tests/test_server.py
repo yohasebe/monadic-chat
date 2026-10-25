@@ -301,3 +301,17 @@ def test_the_honorific_rule_runs_in_the_analyzer_with_its_name():
     assert any(s.get("recognizer") == "JpHonorificPersonRecognizer" and s["end"] - s["start"] == 4 for s in spans)
     r = client.post("/v1/anonymize", json={"text": "山田一君さんへ", "languages": ["ja"]}).json()
     assert r["masked_text"] == "<<PERSON_1>>さんへ"
+
+
+def test_an_error_a_request_meets_is_logged_by_its_kind_only(monkeypatch, caplog):
+    import server
+
+    def fail(text, spans, registry):
+        raise ValueError(f"could not mask: {text}")
+
+    monkeypatch.setattr(server, "_build_masked", fail)
+    r = client.post("/v1/anonymize", json={"text": "hello MARKER-7341", "languages": ["en"]})
+    assert r.status_code == 500
+    assert "MARKER-7341" not in r.text
+    assert "MARKER-7341" not in caplog.text
+    assert "POST /v1/anonymize failed: ValueError" in caplog.text

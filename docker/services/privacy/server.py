@@ -24,6 +24,49 @@ LOG = logging.getLogger("privacy.server")
 analyzer = build_analyzer()
 app = FastAPI(title="Privacy Filter")
 
+
+class QuietErrors:
+    """An error a request meets is logged by its kind only.
+
+    The default report of an uncaught error is a traceback with the error's
+    message, which can hold part of the text: a Private chat's (the filter is
+    on only in Private chats), and the container's output is kept on disk by
+    Docker's logs. Starlette raises the error again after any handler so that
+    the server logs it, so it is caught here, inside that.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        started = False
+
+        async def tracked_send(message):
+            nonlocal started
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive, tracked_send)
+        except Exception as exc:  # noqa: BLE001
+            LOG.error("%s %s failed: %s", scope.get("method"), scope.get("path"), type(exc).__name__)
+            if started:
+                return
+            await send({
+                "type": "http.response.start",
+                "status": 500,
+                "headers": [(b"content-type", b"text/plain; charset=utf-8")],
+            })
+            await send({"type": "http.response.body", "body": b"Internal Server Error"})
+
+
+app.add_middleware(QuietErrors)
+
 PLACEHOLDER_RE = re.compile(r"<<([A-Z_]+)_(\d+)>>")
 JA_HONORIFICS = ("様", "さま", "さん", "くん", "君", "殿", "氏", "先生", "ちゃん")
 

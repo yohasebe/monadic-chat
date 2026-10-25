@@ -114,6 +114,31 @@ git tag v<version> <new-sha>
 git push origin v<version>
 ```
 
+### Service images
+
+A push to `main` publishes no service images. The images a release ships are
+the ones a dev push built and tagged `:dev-<full commit sha>`; the release
+candidate is checked with `MONADIC_IMAGE_TAG=dev-<sha>` in the checking
+machine's `~/monadic/config/env`. A commit that changes no service directory
+has no `:dev-<sha>` of its own: use the tag of the latest dev commit that did,
+after confirming that no service directory changed since
+(`git diff --stat <that sha> <release sha> -- docker/services .github/workflows/publish-images.yml`).
+
+When the candidate is approved, and before `:latest` is needed, run the
+workflow by hand:
+
+```bash
+gh workflow run publish-images.yml --ref dev -f source=dev-<sha> -f version=<version>
+```
+
+It builds nothing. For each service it copies the `:dev-<sha>` manifest to
+`:<version>`, then to `:latest`, and fails when a copy's digest differs from
+the source's or when `:<version>` already exists. `:latest` is what user
+installs pull, so this step reaches users of earlier versions too. The
+workflow cannot put an earlier version back on `:latest` (its version tag
+exists); do that per service with
+`docker buildx imagetools create -t <image>:latest <image>:<earlier version>`.
+
 ## 5. Build all platform packages
 
 Run from the project root, **in the foreground** (the build must go through
@@ -361,9 +386,9 @@ PY
   one round-trip chat per provider → quit → all containers stop (the standard
   3-point smoke).
 - Confirm the 12 assets are attached and manifests validate against them.
-- `ghcr` service images are pulled as `:latest` and are unchanged across most
-  releases, so no separate publish is needed unless a service Dockerfile
-  changed.
+- `ghcr` service images are pulled as `:latest`: check that each service's
+  `:latest` and `:<version>` have the digest of the `:dev-<sha>` the candidate
+  was checked with (§4, Service images).
 
 ## 11. Replacing assets of a published release
 

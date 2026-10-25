@@ -24,14 +24,16 @@ name: Publish service images
 # arch automatically on macOS (Apple Silicon), Windows (WSL2) and Linux.
 #
 # Triggers / tag policy:
-#   - push to main touching a service directory → :latest (the release
-#     path; user installs consume :latest by default)
-#   - push to dev touching a service directory → :dev (build validation +
-#     an image for dev-branch CI/testing; never exposed to end users)
-#   - workflow_dispatch → :latest; pass `version` during a release to
-#     also publish an immutable :<version> tag for rollback
-#     (paths-filtered push and tag events do not combine reliably, so
-#     version tagging is an explicit dispatch input instead)
+#   - push to dev touching a service directory → builds, and tags the
+#     result :dev and :dev-<commit sha> (never exposed to end users). The
+#     :dev-<sha> tag names the images of one commit, so a release
+#     candidate is checked against exactly those images.
+#   - workflow_dispatch (`source` = dev-<sha>, `version`) → builds nothing:
+#     the checked :dev-<sha> manifests are copied to :<version> and then
+#     :latest, and each copy must have the source's digest. User installs
+#     consume :latest by default, so it moves only here, at a release.
+#   - push to main publishes nothing: a rebuild there would differ from
+#     the images the release candidate was checked against.
 #   - end users can pin or switch tags via MONADIC_IMAGE_TAG in
 #     ~/monadic/config/env (compose interpolation; default latest)
 #
@@ -42,12 +44,16 @@ name: Publish service images
 on:
   workflow_dispatch:
     inputs:
+      source:
+        description: 'The checked images to publish: dev-<full commit sha>'
+        required: true
+        type: string
       version:
-        description: 'Optional version tag to publish in addition to :latest (e.g. 1.0.0-beta.21)'
-        required: false
+        description: 'The version tag to publish them as, with :latest (e.g. 1.0.0-beta.44)'
+        required: true
         type: string
   push:
-    branches: [main, dev]
+    branches: [dev]
     paths:
       - '.github/workflows/publish-images.yml'
       - 'docker/services/embeddings/**'
@@ -59,6 +65,7 @@ on:
 
 jobs:
   build:
+    if: github.event_name == 'push'
     strategy:
       fail-fast: false
       matrix:
@@ -164,28 +171,14 @@ jobs:
 
       - name: Create multi-arch manifest
         working-directory: /tmp/digests
-        # Tag policy — :latest is what user installs consume by default, so
-        # it must only move through gated paths:
-        #   - push to main (release flow; the tree has passed the full
-        #     local + CI gates) → :latest
-        #   - workflow_dispatch → :latest (+ :<version> when the input is
-        #     given, for immutable rollback points at release time)
-        #   - push to dev → :dev only. Validates the Dockerfiles build and
-        #     gives CI/developers an image matching the dev branch without
-        #     exposing untested content to end users.
+        # Only dev pushes build (see the tag policy at the top): :dev follows
+        # the branch, :dev-<sha> stays with this commit for a release to
+        # publish unchanged.
         run: |
           IMAGE="ghcr.io/${{ github.repository_owner }}/monadic-${{ matrix.service }}"
-          if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF_NAME}" = "dev" ]; then
-            TAGS="-t ${IMAGE}:dev"
-          else
-            TAGS="-t ${IMAGE}:latest"
-          fi
-          VERSION="${{ inputs.version }}"
-          if [ -n "${VERSION}" ]; then
-            TAGS="${TAGS} -t ${IMAGE}:${VERSION}"
-          fi
-          echo "VERIFY_TAG=$(echo "${TAGS}" | awk '{print $2}')" >> "$GITHUB_ENV"
-          docker buildx imagetools create ${TAGS} $(printf "${IMAGE}@sha256:%s " *)
+          echo "VERIFY_TAG=${IMAGE}:dev-${GITHUB_SHA}" >> "$GITHUB_ENV"
+          docker buildx imagetools create -t "${IMAGE}:dev" -t "${IMAGE}:dev-${GITHUB_SHA}" \
+            $(printf "${IMAGE}@sha256:%s " *)
 
       - name: Inspect published manifest
         # ghcr.io can lag a few seconds between accepting a manifest push
@@ -202,3 +195,61 @@ jobs:
           done
           echo "Manifest for ${VERIFY_TAG} not readable after retries."
           exit 1
+
+  promote:
+    if: github.event_name == 'workflow_dispatch'
+    strategy:
+      # One service failing must not leave the others half-published
+      # unnoticed; each reports on its own and the run fails.
+      fail-fast: false
+      matrix:
+        service: [embeddings, privacy, extractor, python, qdrant, selenium]
+    name: publish ${{ matrix.service }} as ${{ inputs.version }}
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Nothing is built: the manifest checked as :<source> is copied as it
+      # is. The version tag is written first and must not exist yet, so a
+      # published version is never replaced; :latest moves only after the
+      # version tag holds the source's digest.
+      - name: Copy the checked manifest to the version and latest tags
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/monadic-${{ matrix.service }}
+          SOURCE: ${{ inputs.source }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE" =~ ^dev-[0-9a-f]{40}$ ]] || { echo "source must be dev-<full commit sha>"; exit 1; }
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+(\.[0-9A-Za-z]+)*)?$ ]] || { echo "version is not a version number"; exit 1; }
+          digest_of() {
+            local i
+            for i in 1 2 3 4 5; do
+              if docker buildx imagetools inspect "$1" --format '{{json .Manifest}}' | jq -er .digest; then
+                return 0
+              fi
+              sleep 10
+            done
+            return 1
+          }
+          if docker buildx imagetools inspect "${IMAGE}:${VERSION}" >/dev/null 2>&1; then
+            echo "${IMAGE}:${VERSION} already exists; a published version is not replaced"
+            exit 1
+          fi
+          src=$(digest_of "${IMAGE}:${SOURCE}")
+          echo "source ${IMAGE}:${SOURCE} = ${src}"
+          docker buildx imagetools create -t "${IMAGE}:${VERSION}" "${IMAGE}@${src}"
+          got=$(digest_of "${IMAGE}:${VERSION}")
+          [ "$got" = "$src" ] || { echo "${VERSION} has ${got}, not ${src}; :latest is left as it was"; exit 1; }
+          docker buildx imagetools create -t "${IMAGE}:latest" "${IMAGE}@${src}"
+          got=$(digest_of "${IMAGE}:latest")
+          [ "$got" = "$src" ] || { echo "latest has ${got}, not ${src}"; exit 1; }
+          echo "${IMAGE}:${VERSION} and :latest = ${src}"

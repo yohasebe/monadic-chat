@@ -54,6 +54,7 @@ APPS = {} unless defined?(APPS)
 require 'fileutils'
 require_relative 'support/test_run_dir'
 require_relative '../lib/monadic/utils/environment'
+require_relative '../lib/monadic/utils/privacy/egress_guard'
 Monadic::Utils::Environment.singleton_class.prepend(Module.new do
   def log_path
     File.join(Monadic::TestRunDir.current_run_dir, 'monadic_log').tap { |dir| FileUtils.mkdir_p(dir) }
@@ -201,6 +202,18 @@ RSpec.configure do |config|
 
   # Include custom retry helper for E2E tests
   config.include E2ERetryHelper, type: :e2e
+
+  # Starting a chat (a Reset, a new chat) marks the fiber it runs in as that
+  # chat's work, as it marks a connection's. Examples share one fiber, so
+  # each starts with no chat's mark and the one there before is put back.
+  config.around(:each) do |example|
+    key = Monadic::Utils::Privacy::EgressGuard::CHAT_KEY
+    before = Fiber[key]
+    Fiber[key] = nil
+    example.run
+  ensure
+    Fiber[key] = before
+  end
   
   # Start the Docker services for integration and E2E tests, only when the
   # run asks for it: a plain run of spec/unit also selects a few tagged

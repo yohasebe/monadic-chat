@@ -143,13 +143,15 @@ module Monadic
       # One `op inject` call for every reference, so 1Password asks at most
       # once. The template goes in on stdin; nothing is written to disk. Each
       # value sits between two copies of a random boundary, so a value that
-      # spans lines is kept whole.
+      # spans lines is kept whole. op gets none of the server's descriptors:
+      # the daemon it may start outlives the server and would keep holding
+      # the server's listening socket, so the port could not be opened again.
       def read_with_op(refs, op: ENV.fetch("MONADIC_OP_CLI", "op"))
         return {} if refs.empty?
 
         boundary = "--monadic-#{SecureRandom.hex(16)}--"
         template = refs.map { |key, ref| "#{boundary}#{key}\n{{ #{ref} }}\n" }.join + boundary
-        out, _err, status = Open3.capture3(op, "inject", stdin_data: template)
+        out, _err, status = Open3.capture3(op, "inject", stdin_data: template, close_others: true)
         return {} unless status.success?
 
         out.split(boundary).each_with_object({}) do |part, values|

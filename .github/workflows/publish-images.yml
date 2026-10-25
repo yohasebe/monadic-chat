@@ -197,7 +197,14 @@ jobs:
           exit 1
 
   promote:
-    if: github.event_name == 'workflow_dispatch'
+    # Only the workflow as it is on dev may move :latest, not a copy on
+    # another branch.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev'
+    # Two runs for one service would race between the version check and
+    # the copy; the second waits for the first.
+    concurrency:
+      group: promote-${{ matrix.service }}
+      cancel-in-progress: false
     strategy:
       # One service failing must not leave the others half-published
       # unnoticed; each reports on its own and the run fails.

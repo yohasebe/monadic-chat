@@ -167,7 +167,7 @@ jobs:
                 | ($r.masked_text | type == "string") and ($r.entities | type == "array")
                 and ($r.masked_text | (contains($n) or contains($e)) | not)
                 and (["PERSON", "EMAIL_ADDRESS"] | all(. as $t | any($r.entities[];
-                  .type == $t and (.placeholder | type == "string")
+                  .type == $t and (.placeholder | type == "string" and length > 0)
                   and (.placeholder as $p | $r.masked_text | contains($p)))))' >/dev/null; then
               echo "$1: masked $(echo "$out" | jq -c '[.entities[].type]')"
             else

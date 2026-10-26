@@ -155,15 +155,20 @@ jobs:
             sleep 3
           done
           [ "$got" = "$want" ] || { echo "languages loaded: ${got:-none}, expected $want"; docker logs "$cid" 2>&1 | tail -30; exit 1; }
-          # The name and the email must both be gone from the text, each as its
-          # own entity: a placeholder for the email alone must not pass.
+          # The name and the email must both be gone from the text, each replaced
+          # by the placeholder of its own entity: a placeholder for the email
+          # alone, or an empty text, must not pass.
           check() {
             body=$(jq -n --arg t "$2" --arg l "$1" '{text: $t, languages: [$l]}')
             out=$(curl -fsS --connect-timeout 5 --max-time 60 -X POST http://127.0.0.1:8000/v1/anonymize \
               -H 'Content-Type: application/json' -d "$body")
             if echo "$out" | jq -e --arg n "$3" --arg e "$4" '
-                (.masked_text | type == "string" and ((contains($n) or contains($e)) | not))
-                and ([.entities[]?.type] | index("PERSON") != null and index("EMAIL_ADDRESS") != null)' >/dev/null; then
+                . as $r
+                | ($r.masked_text | type == "string") and ($r.entities | type == "array")
+                and ($r.masked_text | (contains($n) or contains($e)) | not)
+                and (["PERSON", "EMAIL_ADDRESS"] | all(. as $t | any($r.entities[];
+                  .type == $t and (.placeholder | type == "string")
+                  and (.placeholder as $p | $r.masked_text | contains($p)))))' >/dev/null; then
               echo "$1: masked $(echo "$out" | jq -c '[.entities[].type]')"
             else
               echo "$1: the name and the email were not both masked: $out"
@@ -172,6 +177,8 @@ jobs:
           }
           check en "Please email John Smith at john.smith@example.com tomorrow." "John Smith" "john.smith@example.com"
           check ja "田中太郎さんのメールは taro@example.jp です。" "田中太郎" "taro@example.jp"
+          # The server is done with; the test container loads every model again.
+          docker rm -f "$cid" >/dev/null
           # The tests run with every language, so the ones for a language are
           # not skipped; their packages are pinned and installed under the
           # image's constraints, so the image's own versions stay as built.

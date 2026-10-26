@@ -128,6 +128,46 @@ jobs:
             python -c "import os, sys, onnxruntime; v = onnxruntime.__version__; print(\"onnxruntime\", v); sys.exit(0 if v == os.environ[\"RUNTIME\"] else \"onnxruntime \" + v + \" is not the pinned \" + os.environ[\"RUNTIME\"])"
             cd /monadic/scripts/converters && python -m unittest test_speech_segments'
 
+      # The privacy image loads its spaCy models when the server starts, and
+      # a build can pull in packages that no longer load them. Start it with
+      # every language of language_map.json, as users can choose any of them,
+      # and ask it: each language loaded, a name and an email masked in
+      # English and Japanese, and the server tests passing. A failure here
+      # stops the job, so the digest is never tagged.
+      - name: Check the privacy image loads and masks
+        if: matrix.service == 'privacy'
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/monadic-privacy@${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          dir=docker/services/privacy
+          langs=$(jq -r 'keys | join(",")' "$dir/language_map.json")
+          want=$(jq -c 'keys' "$dir/language_map.json")
+          cid=$(docker run -d -p 127.0.0.1:8000:8000 -e PRIVACY_LANGS_RUNTIME="$langs" "$IMAGE")
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          got=""
+          for i in $(seq 1 60); do
+            if body=$(curl -fsS http://127.0.0.1:8000/v1/health 2>/dev/null); then
+              got=$(echo "$body" | jq -c '.languages | sort'); break
+            fi
+            [ "$(docker inspect -f '{{.State.Running}}' "$cid")" = "true" ] || break
+            sleep 3
+          done
+          [ "$got" = "$want" ] || { echo "languages loaded: ${got:-none}, expected $want"; docker logs "$cid" 2>&1 | tail -30; exit 1; }
+          check() {
+            out=$(curl -fsS -X POST http://127.0.0.1:8000/v1/anonymize -H 'Content-Type: application/json' \
+              -d "$(jq -n --arg t "$2" --arg l "$1" '{text: $t, languages: [$l]}')")
+            masked=$(echo "$out" | jq -r .masked_text)
+            case "$masked" in *"$3"*) echo "$1: the email was not masked"; exit 1;; esac
+            case "$masked" in *"<<"*">>"*) echo "$1: masked $(echo "$out" | jq -c '[.entities[].type]')";; *) echo "$1: no placeholder"; exit 1;; esac
+          }
+          check en "Please email John Smith at john.smith@example.com tomorrow." "john.smith@example.com"
+          check ja "田中太郎さんのメールは taro@example.jp です。" "taro@example.jp"
+          docker run --rm -v "$PWD/$dir/tests:/app/tests:ro" --entrypoint bash "$IMAGE" -c '
+            set -euo pipefail
+            PIP_CONSTRAINT= pip install -q --no-cache-dir pytest httpx
+            python -m pytest -q -p no:cacheprovider /app/tests'
+
       - name: Export digest
         run: |
           mkdir -p /tmp/digests

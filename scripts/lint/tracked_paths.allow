@@ -63,7 +63,7 @@ docker/services/*/compose{,.build,.dev}.yml
 docker/services/support_scripts/*.sh
 docker/services/{embeddings,extractor,privacy}/**/*.py
 docker/services/embeddings/*.sh
-docker/services/privacy/language_map.json
+docker/services/privacy/{language_map.json,constraints.txt}
 docker/services/privacy/recognizers/*.yaml
 docker/services/python/**/*.{py,sh}
 docker/services/python/matplotlibrc

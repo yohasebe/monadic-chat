@@ -297,18 +297,23 @@ module Monadic
         db.execute('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
         version = db.get_first_value("SELECT value FROM meta WHERE key = 'schema_version'")&.to_i
         raise Newer, "the history was written by a newer version (schema #{version})" if version && version > SCHEMA_VERSION
-        return if version == SCHEMA_VERSION
 
         db.transaction(:immediate) do
-          db.execute(<<~SQL)
-            CREATE TABLE history_chats (
-              chat_id TEXT PRIMARY KEY, app_name TEXT, model TEXT, title_user TEXT,
-              heading_first TEXT, heading_recent TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
-              last_activity_at TEXT NOT NULL, revision INTEGER NOT NULL, owner_tab TEXT, generation INTEGER,
-              message_count INTEGER NOT NULL, search_text TEXT, payload TEXT NOT NULL)
-          SQL
-          db.execute('CREATE TABLE deleted_chats (chat_id TEXT PRIMARY KEY, deleted_at TEXT NOT NULL)')
-          db.execute("INSERT INTO meta (key, value) VALUES ('schema_version', ?)", [SCHEMA_VERSION.to_s])
+          unless version
+            db.execute(<<~SQL)
+              CREATE TABLE history_chats (
+                chat_id TEXT PRIMARY KEY, app_name TEXT, model TEXT, title_user TEXT,
+                heading_first TEXT, heading_recent TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                last_activity_at TEXT NOT NULL, revision INTEGER NOT NULL, owner_tab TEXT, generation INTEGER,
+                message_count INTEGER NOT NULL, search_text TEXT, payload TEXT NOT NULL)
+            SQL
+            db.execute('CREATE TABLE deleted_chats (chat_id TEXT PRIMARY KEY, deleted_at TEXT NOT NULL)')
+            db.execute("INSERT INTO meta (key, value) VALUES ('schema_version', ?)", [SCHEMA_VERSION.to_s])
+          end
+          # The list's order (newest activity first). An index changes no
+          # record, so a file made without it is given it as it opens and
+          # stays readable by the code that made it.
+          db.execute('CREATE INDEX IF NOT EXISTS history_chats_activity ON history_chats (last_activity_at DESC, chat_id)')
         end
       end
 

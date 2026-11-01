@@ -36,6 +36,11 @@ RSpec.describe Monadic::Utils::TrialLog do
     expect(events.map { |e| e["arguments_digest"] }.uniq.size).to eq(1)
   end
 
+  it "makes the file the owner's only" do
+    described_class.usage({ "input_tokens" => 1 }, app: "A", env: env)
+    expect(File.stat(File.join(@dir, described_class::FILE_NAME)).mode & 0o777).to eq(0o600)
+  end
+
   it "keeps no argument text" do
     described_class.tool_calls(calls, app: "A", depth: 0, env: env)
     expect(File.read(File.join(@dir, described_class::FILE_NAME))).not_to include("draft.pdf")

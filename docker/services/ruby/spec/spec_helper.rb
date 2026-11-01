@@ -44,8 +44,9 @@ else
 end
 
 # Nor does app code under test: a reference it resolves goes to an op
-# that always fails, unless a spec sets its own fake op.
-ENV["MONADIC_OP_CLI"] ||= "/usr/bin/false"
+# that always fails, whatever the shell sets. A spec that needs its own fake
+# op sets it for itself.
+ENV["MONADIC_OP_CLI"] = "/usr/bin/false"
 
 # Initialize global variables used by the application
 $MODELS = {} unless defined?($MODELS)

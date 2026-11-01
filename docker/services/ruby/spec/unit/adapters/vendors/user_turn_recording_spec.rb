@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "../../../support/registered_provider_examples"
 %w[openai claude gemini grok deepseek mistral cohere ollama].each do |p|
   require_relative "../../../../lib/monadic/adapters/vendors/#{p}_helper"
 end
@@ -16,6 +17,8 @@ RSpec.describe "Recording the user turn in each provider helper" do
                          GeminiHelper => ["gemini", "GEMINI_API_KEY"], GrokHelper => ["xai", "XAI_API_KEY"],
                          DeepSeekHelper => ["deepseek", "DEEPSEEK_API_KEY"], MistralHelper => ["mistral", "MISTRAL_API_KEY"],
                          CohereHelper => ["cohere", "COHERE_API_KEY"], OllamaHelper => ["ollama", nil] }.freeze
+
+  it_behaves_like 'coverage of registered chat providers', PROVIDERS_FOR_TURN.keys.map(&:name)
 
   let(:refs) { [{ "attachment_id" => "a_0123456789abcdef", "role" => "input", "purpose" => "video", "display_name" => "clip.mp4" }] }
   let(:line) { "Attached video: clip.mp4 (attachment_id: a_0123456789abcdef)" }

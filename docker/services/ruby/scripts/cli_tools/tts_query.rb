@@ -28,6 +28,12 @@ WRITE_TIMEOUT = 60
 MAX_RETRIES = 5
 RETRY_DELAY = 1
 
+# The config file first, then this process's environment.
+def tts_api_key(provider)
+  from_file = ->(name) { Monadic::Utils::SecretReferences.config_value(name) }
+  Monadic::Utils::TtsProvider.api_key(provider, from_file, ENV)
+end
+
 # Load ModelSpec for SSOT model resolution (optional — falls back to hardcoded defaults)
 begin
   require 'monadic/utils/model_spec'
@@ -69,11 +75,7 @@ def list_openai_voices
 end
 
 def list_elevenlabs_voices
-  # Try config file first (primary source of truth)
-  elevenlabs_api_key = Monadic::Utils::SecretReferences.config_value("ELEVENLABS_API_KEY")
-
-  # Fall back to ENV only if config file doesn't have the key
-  elevenlabs_api_key = ENV["ELEVENLABS_API_KEY"] if elevenlabs_api_key.nil? || elevenlabs_api_key.empty?
+  elevenlabs_api_key = tts_api_key("elevenlabs")
 
   return [] unless elevenlabs_api_key
 
@@ -185,11 +187,7 @@ def tts_api_request(text,
 
   case Monadic::Utils::TtsProvider.provider_of(provider)
   when "elevenlabs"
-    # Try config file first (primary source of truth)
-    api_key = Monadic::Utils::SecretReferences.config_value("ELEVENLABS_API_KEY")
-
-    # Fall back to ENV only if config file doesn't have the key
-    api_key = ENV["ELEVENLABS_API_KEY"] if api_key.nil? || api_key.empty?
+    api_key = tts_api_key("elevenlabs")
 
     if api_key.nil?
       return { type: "error", content: "ERROR: ELEVENLABS_API_KEY is not set." }
@@ -238,11 +236,7 @@ def tts_api_request(text,
     output_format = "mp3_44100_128"
     target_uri = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
   when "gemini"
-    # Try config file first (primary source of truth)
-    api_key = Monadic::Utils::SecretReferences.config_value("GEMINI_API_KEY")
-
-    # Fall back to ENV only if config file doesn't have the key
-    api_key = ENV["GEMINI_API_KEY"] if api_key.nil? || api_key.empty?
+    api_key = tts_api_key("gemini")
 
     if api_key.nil?
       return { type: "error", content: "ERROR: GEMINI_API_KEY is not set." }
@@ -304,11 +298,7 @@ def tts_api_request(text,
     body = Monadic::Utils::GeminiRequest.without_storage(body)
     target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent"
   when "openai"
-    # Try config file first (primary source of truth)
-    api_key = Monadic::Utils::SecretReferences.config_value("OPENAI_API_KEY")
-
-    # Fall back to ENV only if config file doesn't have the key
-    api_key = ENV["OPENAI_API_KEY"] if api_key.nil? || api_key.empty?
+    api_key = tts_api_key("openai")
 
     if api_key.nil?
       return { type: "error", content: "ERROR: OPENAI_API_KEY is not set." }

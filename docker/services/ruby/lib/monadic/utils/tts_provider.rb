@@ -11,6 +11,31 @@ module Monadic
 
       MAX_ALIAS_HOPS = 5
 
+      # The config key each server-side TTS provider reads.
+      API_KEYS = {
+        "openai" => "OPENAI_API_KEY",
+        "elevenlabs" => "ELEVENLABS_API_KEY",
+        "gemini" => "GEMINI_API_KEY"
+      }.freeze
+
+      def self.api_key_name(provider)
+        API_KEYS[provider.to_s]
+      end
+
+      # The provider's key from the first source that has one, or nil. A
+      # source is anything answering [] with a key name (CONFIG, ENV, a
+      # lambda); a blank value counts as no key.
+      def self.api_key(provider, *sources)
+        name = api_key_name(provider)
+        return nil unless name
+
+        sources.each do |source|
+          value = source[name].to_s.strip
+          return value unless value.empty?
+        end
+        nil
+      end
+
       # A TTS provider selector value resolved through ttsChoices
       # (model_spec.js): { requested_id:, id:, provider:, model:, execution: },
       # following `alias` for values saved by earlier versions. nil for an

@@ -199,7 +199,12 @@ RSpec.describe 'Gemini credential transport invariant' do
 
   context 'Net::HTTP paths' do
     let(:net) { double('Net HTTP transport').as_null_object }
+    # What the generators save goes to a temp folder standing in for the
+    # shared folder.
     before do
+      @shared = Dir.mktmpdir
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@shared)
+      allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(@shared)
       allow(File).to receive(:open).and_call_original
       allow(File).to receive(:open).with(anything, 'wb').and_yield(StringIO.new)
       allow(Net::HTTP).to receive(:start).and_yield(net)
@@ -213,6 +218,7 @@ RSpec.describe 'Gemini credential transport invariant' do
       end
       allow(Monadic::Utils::ProgressBroadcaster).to receive(:with_progress).and_yield
     end
+    after { FileUtils.rm_rf(@shared) }
 
     it 'authenticates context extraction in headers' do
       host = Class.new { include ContextExtractorAgent }.new
@@ -238,6 +244,7 @@ RSpec.describe 'Gemini credential transport invariant' do
     it 'authenticates music generation in headers' do
       helper.generate_music_with_lyria(prompt: 'Hello')
       expect_header_auth
+      expect(Dir.children(@shared)).to all(start_with('lyria_music_'))
     end
   end
 

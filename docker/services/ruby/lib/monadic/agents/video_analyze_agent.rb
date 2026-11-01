@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'shellwords'
+require_relative "../utils/gemini_request"
 require_relative '../utils/environment'
 require_relative '../utils/provider_capabilities'
 require_relative '../utils/shared_path_guard'
@@ -772,7 +773,7 @@ module VideoAnalyzeAgent
       contents: [{ parts: parts }]
     }
 
-    res = video_vision_http_post(uri, headers, body)
+    res = video_vision_http_post(uri, headers, Monadic::Utils::GeminiRequest.without_storage(body))
     unless res.status.success?
       return "ERROR: Gemini Vision API error (#{res.status}): #{Monadic::Utils::ProviderResponse.error_message(res.body.to_s)}"
     end

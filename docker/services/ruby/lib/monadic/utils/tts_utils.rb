@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "gemini_request"
 require_relative 'tts_provider'
 
 require 'base64'
@@ -239,6 +240,7 @@ module InteractionUtils
       # Always use non-streaming endpoint for better performance.
       # Gemini TTS returns complete audio in one response anyway. The 3.1
       # model is REST-only (no Live API), so this path covers both.
+      body = Monadic::Utils::GeminiRequest.without_storage(body)
       target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent"
     when "xai"
       # Grok dedicated TTS REST API. Uses a single model (grok-tts) with 5
@@ -621,6 +623,7 @@ module InteractionUtils
       # The model comes from ttsChoices (model_spec.js)
       model_name = resolve_tts_model(provider)
 
+      body = Monadic::Utils::GeminiRequest.without_storage(body)
       target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent"
 
       require 'http'

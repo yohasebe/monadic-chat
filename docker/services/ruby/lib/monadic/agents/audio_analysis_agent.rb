@@ -4,6 +4,7 @@ require "base64"
 require "http"
 require "json"
 require "tempfile"
+require_relative "../utils/gemini_request"
 require_relative "../utils/environment"
 require_relative "../utils/shared_path_guard"
 
@@ -120,7 +121,7 @@ module AudioAnalysisAgent
     begin
       res = HTTP.headers("Content-Type" => "application/json", "x-goog-api-key" => api_key)
                .timeout(connect: ANALYSIS_CONNECT_TIMEOUT, write: ANALYSIS_WRITE_TIMEOUT, read: ANALYSIS_READ_TIMEOUT)
-               .post(uri, json: body)
+               .post(uri, json: Monadic::Utils::GeminiRequest.without_storage(body))
     rescue HTTP::Error, HTTP::TimeoutError => e
       if retries < ANALYSIS_MAX_RETRIES
         retries += 1

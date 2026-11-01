@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "../utils/gemini_request"
 require_relative "../utils/system_defaults"
 require_relative "../utils/extra_logger"
 require_relative "../utils/model_spec"
@@ -441,7 +442,7 @@ module ContextExtractorAgent
     # Don't set temperature for thinking models
     request_body["generationConfig"]["temperature"] = 0.3 unless is_thinking_model
 
-    response = make_http_request(uri, request_body, {
+    response = make_http_request(uri, Monadic::Utils::GeminiRequest.without_storage(request_body), {
       "Content-Type" => "application/json", "x-goog-api-key" => api_key
     })
 

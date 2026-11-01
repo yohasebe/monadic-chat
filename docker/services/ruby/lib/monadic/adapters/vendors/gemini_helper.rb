@@ -3,6 +3,7 @@
 
 require "uri"
 require "cgi"
+require_relative "../../utils/gemini_request"
 require_relative "../../utils/request_retry"
 require_relative "../../utils/shared_path_guard"
 require_relative "../../utils/interaction_utils"
@@ -250,7 +251,7 @@ module GeminiHelper
         request = Net::HTTP::Post.new(uri)
         request['Content-Type'] = 'application/json'
         request['x-goog-api-key'] = api_key
-        request.body = body.to_json
+        request.body = Monadic::Utils::GeminiRequest.without_storage(body).to_json
 
         response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
           http.request(request)
@@ -368,7 +369,7 @@ module GeminiHelper
       request = Net::HTTP::Post.new(uri)
       request['Content-Type'] = 'application/json'
       request['x-goog-api-key'] = api_key
-      request.body = body.to_json
+      request.body = Monadic::Utils::GeminiRequest.without_storage(body).to_json
       response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
         http.request(request)
       end
@@ -671,7 +672,7 @@ module GeminiHelper
     begin
       http = HTTP.headers(headers)
                  .timeout(connect: 30, read: 120, write: 60)
-      res = http.post(target_uri, json: body)
+      res = http.post(target_uri, json: Monadic::Utils::GeminiRequest.without_storage(body))
 
       if res.status.success?
         response_data = JSON.parse(res.body)
@@ -913,7 +914,7 @@ module GeminiHelper
     
     # Make request
     begin
-      response = post_json_with_retries(http, target_uri, body,
+      response = post_json_with_retries(http, target_uri, Monadic::Utils::GeminiRequest.without_storage(body),
                                         max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
 
       # Check for valid response
@@ -2274,7 +2275,7 @@ module GeminiHelper
       Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Attempt #{attempt + 1}/#{MAX_RETRIES}" } if attempt > 0
       res = http.timeout(connect: open_timeout,
                          write: write_timeout,
-                         read: read_timeout).post(target_uri, json: body)
+                         read: read_timeout).post(target_uri, json: Monadic::Utils::GeminiRequest.without_storage(body))
       if res.status.success?
         Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Response status: #{res.status}" }
         break
@@ -4061,7 +4062,7 @@ module GeminiHelper
       request = Net::HTTP::Post.new(uri)
       request['Content-Type'] = 'application/json'
       request['x-goog-api-key'] = api_key
-      request.body = request_body.to_json
+      request.body = Monadic::Utils::GeminiRequest.without_storage(request_body).to_json
 
       response = Monadic::Utils::ProgressBroadcaster.with_progress(
         source: "ImageGeneratorGemini",

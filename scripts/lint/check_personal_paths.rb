@@ -17,6 +17,8 @@
 #   - /var/folders/... and /private/var/folders/...   (macOS per-user temp)
 #   - ~/.<name>                  (a dotfile or dot-directory in someone's home,
 #                                 e.g. a shell profile holding secrets)
+#   - tmp/memo, CLAUDE.md, AGENTS.md (the maintainers' own notes and agent
+#                                 files, which are not part of the product)
 #
 # What we DO NOT flag:
 #   - "~/..." without a leading dot (tilde — host-portable, e.g. ~/monadic)
@@ -46,9 +48,8 @@ ROOT = Pathname.new(__dir__).join('..', '..').realpath
 # sometimes need explicit personal paths.
 #
 # A scan that reads nothing also finds no violations, so a renamed root or a
-# misresolved ROOT would pass silently. The floors sit about 20% below the
-# current counts of text files (app 22, lib 207, scripts 14, public/js 91,
-# python 25, extractor 6, embeddings 6, privacy 12); lower one when files are genuinely
+# misresolved ROOT would pass silently. The floors sit below the number of
+# text files each root holds; lower one when files are genuinely
 # removed, and drop the entry when a root is retired on purpose.
 SCAN_ROOTS = {
   'app' => 17,
@@ -99,12 +100,22 @@ PERSONAL_PATH_PATTERNS = [
   %r{\$\{?HOME\}?/\.[A-Za-z0-9_]}
 ].freeze
 
+# References to files that stay on the maintainer's machine. The scan roots
+# are what ships, so a pointer to them helps no user or contributor.
+INTERNAL_REFERENCE_PATTERNS = [
+  %r{\btmp/memo\b},
+  /\bCLAUDE\.md\b/,
+  /\bAGENTS\.md\b/
+].freeze
+
+FLAGGED_PATTERNS = PERSONAL_PATH_PATTERNS + INTERNAL_REFERENCE_PATTERNS
+
 def personal_path_in_bytes?(data)
   views = [data.b] + [0, 1].map do |offset|
     data.byteslice(offset..).force_encoding('UTF-16LE')
         .encode('UTF-8', invalid: :replace, undef: :replace, replace: '?')
   end
-  views.any? { |view| PERSONAL_PATH_PATTERNS.any? { |re| view.match?(re) } }
+  views.any? { |view| FLAGGED_PATTERNS.any? { |re| view.match?(re) } }
 end
 
 # Files git ignores can be neither committed nor shipped (release payloads
@@ -170,7 +181,7 @@ each_target_file do |rel_root, path|
 
   text = File.read(path, encoding: 'UTF-8', invalid: :replace, undef: :replace, replace: '?')
   text.each_line.with_index do |line, idx|
-    next unless PERSONAL_PATH_PATTERNS.any? { |re| line.match?(re) }
+    next unless FLAGGED_PATTERNS.any? { |re| line.match?(re) }
     next if allowed_violation?(rel, line)
 
     violations << { path: rel, line: idx + 1 }
@@ -189,7 +200,7 @@ unless short.empty?
 end
 
 if violations.empty?
-  puts '[lint:personal_paths] OK — no personal home-directory paths found.'
+  puts '[lint:personal_paths] OK — no personal home-directory paths or internal references found.'
   exit 0
 end
 

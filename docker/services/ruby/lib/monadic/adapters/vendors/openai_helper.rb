@@ -2337,10 +2337,12 @@ module OpenAIHelper
       # buffer.encode!("UTF-8", "UTF-16")
 
       scanner = StringScanner.new(buffer)
-      # Responses API uses different event format
-      # Use multiline mode (m flag) to allow . to match newlines within JSON
-      pattern = /data: (\{.*?\})(?=\n|\z)/m
-      
+      # One event is one line ending in a newline (JSON escapes the newlines
+      # inside it). An event whose line has not fully arrived stays in the
+      # buffer for the next chunk: a chunk can end anywhere, also right
+      # after a "}" inside the event.
+      pattern = /data: (\{.*?\})\n/m
+
       until scanner.eos?
         matched = scanner.scan_until(pattern)
         if matched
@@ -2384,10 +2386,10 @@ module OpenAIHelper
             DebugHelper.debug("[ResponsesTiming] app=#{app} event=#{event_type.inspect} duration_ms=#{duration_ms}", category: :metrics, level: :info)
           end
         else
-          scanner.terminate
+          break
         end
       end
-      
+
       buffer = scanner.rest
     end
 

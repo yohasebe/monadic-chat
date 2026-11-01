@@ -5,11 +5,11 @@ require_relative "../../../../lib/monadic/adapters/vendors/mistral_helper"
 
 # Two things the live API showed on 2026-10-06:
 #
-# 1. Leaving reasoning_effort out means different things per model. Mistral
-#    Large 4 / Medium 3.5 do not reason without it; Z.ai GLM 5.3 reasons at
-#    about its maximum, and rejects "none" (accepts low/high/max). Dropping
-#    "none" therefore made "no reasoning" silently the most expensive setting
-#    on GLM.
+# 1. Leaving reasoning_effort out means different things per model. Medium
+#    3.5 does not reason without it; Z.ai GLM 5.3 reasons at about its
+#    maximum, and rejects "none" (accepts low/high/max); Large 4 rejects
+#    "none" (accepts low/medium/high). Where "none" is refused, the lowest
+#    level is sent, so "no reasoning" is never the most expensive setting.
 # 2. The model list dropped every id ending in a version number, so
 #    mistral-medium-3-5 (the provider default), mistral-large-4 and
 #    zai-glm-5-3 never reached the model selector.
@@ -17,26 +17,27 @@ RSpec.describe MistralHelper do
   let(:helper) { Class.new { include MistralHelper }.new }
 
   describe "#mistral_effort_for" do
-    # Said explicitly: Mistral Large 4 reasons when the field is missing.
+    # Said explicitly: Medium 3.5 reasons when the field is missing.
     it "sends none for no reasoning where the model accepts none" do
-      expect(helper.mistral_effort_for("mistral-large-4", "none")).to eq("none")
-      expect(helper.mistral_effort_for("mistral-large-4", nil)).to eq("none")
       expect(helper.mistral_effort_for("mistral-medium-3-5", "none")).to eq("none")
+      expect(helper.mistral_effort_for("mistral-medium-3-5", nil)).to eq("none")
     end
 
     it "sends the lowest level where the model rejects none, so no reasoning is not max" do
+      expect(helper.mistral_effort_for("mistral-large-4", "none")).to eq("low")
+      expect(helper.mistral_effort_for("mistral-large-4", nil)).to eq("low")
       expect(helper.mistral_effort_for("zai-glm-5-3", "none")).to eq("low")
       expect(helper.mistral_effort_for("zai-glm-5-3", nil)).to eq("low")
     end
 
     it "passes a supported level through" do
+      expect(helper.mistral_effort_for("mistral-large-4", "medium")).to eq("medium")
       expect(helper.mistral_effort_for("mistral-large-4", "high")).to eq("high")
       expect(helper.mistral_effort_for("zai-glm-5-3", "max")).to eq("max")
     end
 
     it "maps an unsupported level to the nearest accepted one instead of a 400" do
-      expect(helper.mistral_effort_for("mistral-large-4", "low")).to eq("high")
-      expect(helper.mistral_effort_for("mistral-large-4", "medium")).to eq("high")
+      expect(helper.mistral_effort_for("mistral-large-4", "xhigh")).to eq("high")
       expect(helper.mistral_effort_for("zai-glm-5-3", "medium")).to eq("high")
       expect(helper.mistral_effort_for("zai-glm-5-3", "xhigh")).to eq("max")
     end
@@ -46,7 +47,7 @@ RSpec.describe MistralHelper do
     end
 
     it "never raises the effort for a value it does not know" do
-      expect(helper.mistral_effort_for("mistral-large-4", "off")).to eq("none")
+      expect(helper.mistral_effort_for("mistral-large-4", "off")).to eq("low")
       expect(helper.mistral_effort_for("zai-glm-5-3", "off")).to eq("low")
       expect(helper.mistral_effort_for("zai-glm-5-3", "  ")).to eq("low")
       expect(helper.mistral_effort_for("zai-glm-5-3", "HIGH")).to eq("high")
@@ -62,12 +63,14 @@ RSpec.describe MistralHelper do
 
   describe "#mistral_buffer_answer?" do
     it "holds the answer back only when reasoning was asked for on a model that can take none" do
-      expect(helper.mistral_buffer_answer?("mistral-large-4", "high", true)).to be true
-      expect(helper.mistral_buffer_answer?("mistral-large-4", "none", true)).to be false
-      expect(helper.mistral_buffer_answer?("mistral-large-4", nil, true)).to be false
+      expect(helper.mistral_buffer_answer?("mistral-medium-3-5", "high", true)).to be true
+      expect(helper.mistral_buffer_answer?("mistral-medium-3-5", "none", true)).to be false
+      expect(helper.mistral_buffer_answer?("mistral-medium-3-5", nil, true)).to be false
     end
 
-    it "streams GLM, which returns its reasoning as structured parts" do
+    it "streams Large 4 and GLM, which return their reasoning as structured parts" do
+      expect(helper.mistral_buffer_answer?("mistral-large-4", "high", true)).to be false
+      expect(helper.mistral_buffer_answer?("mistral-large-4", "low", true)).to be false
       expect(helper.mistral_buffer_answer?("zai-glm-5-3", "low", true)).to be false
       expect(helper.mistral_buffer_answer?("zai-glm-5-3", "max", true)).to be false
     end
@@ -84,10 +87,10 @@ RSpec.describe MistralHelper do
     let(:app_helper) { Class.new(MonadicApp) { include MistralHelper }.new }
     let(:cases) do
       [
-        ["mistral-large-4", nil, "none"],
-        ["mistral-large-4", "none", "none"],
+        ["mistral-large-4", nil, "low"],
+        ["mistral-large-4", "none", "low"],
+        ["mistral-large-4", "medium", "medium"],
         ["mistral-large-4", "high", "high"],
-        ["mistral-large-4", "low", "high"],
         ["mistral-medium-3-5", "none", "none"],
         ["mistral-small-2603", "high", "high"],
         ["zai-glm-5-3", nil, "low"],

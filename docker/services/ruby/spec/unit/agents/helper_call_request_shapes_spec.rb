@@ -8,9 +8,9 @@ require_relative "../../../lib/monadic/shared_tools/parallel_dispatch"
 
 # The short helper calls that talk to the provider APIs directly (context
 # extraction, image description, parallel sub-agents) take what a model
-# accepts from the catalog, not from its name. Each of the cases below sent
-# a parameter the model refuses, or read only the first reply block, and
-# failed against the live API on 2026-10-17 with the default models.
+# accepts from the catalog, not from its name. Each case below is a request
+# that would otherwise send a parameter the model refuses, or read only the
+# first reply block.
 RSpec.describe "Helper-call request shapes", :no_api do
   let(:rp) { Monadic::Utils::ProviderResponse }
   let(:spec) { Monadic::Utils::ModelSpec }
@@ -48,7 +48,7 @@ RSpec.describe "Helper-call request shapes", :no_api do
       expect(spec.lowest_reasoning_effort("gpt-6-luna")).to eq("none")
       expect(spec.lowest_reasoning_effort("gpt-6.1-sol")).to eq("low")
       expect(spec.lowest_reasoning_effort("claude-haiku-5-5")).to eq("low")
-      expect(spec.lowest_reasoning_effort("mistral-large-4")).to eq("none")
+      expect(spec.lowest_reasoning_effort("mistral-large-4")).to eq("low")
       expect(spec.lowest_reasoning_effort("claude-haiku-4-5-20251001")).to be_nil
     end
   end
@@ -112,10 +112,10 @@ RSpec.describe "Helper-call request shapes", :no_api do
       expect(sent.last["output_config"]).to eq(effort: "low")
     end
 
-    it "says none to Mistral Large 4 and reads its parts" do
+    it "asks Mistral Large 4 for its least reasoning and reads its parts" do
       stub_request({ "choices" => [{ "message" => { "content" => [{ "type" => "text", "text" => "{}" }] } }] })
       expect(agent.call_provider_api("mistral", "mistral-large-4", "s", "k")).to eq("{}")
-      expect(sent.last).to include("reasoning_effort" => "none")
+      expect(sent.last).to include("reasoning_effort" => "low")
     end
 
     it "turns DeepSeek thinking off for every DeepSeek chat model" do
@@ -133,20 +133,27 @@ RSpec.describe "Helper-call request shapes", :no_api do
       stub_const("CONFIG", { "MISTRAL_API_KEY" => "test-key" })
     end
 
-    def send_with(reply, **options)
+    def send_with(reply, model: "mistral-large-4", **options)
       body = nil
       allow(app_helper).to receive(:post_json_with_retries) do |_http, _uri, b, **|
         body = b
         double(status: double(success?: true), body: reply.to_json)
       end
       result = app_helper.send_query({ "messages" => [{ "role" => "user", "content" => "hi" }] }.merge(options),
-                                     model: "mistral-large-4")
+                                     model: model)
       [body, result]
     end
 
-    it "adds top_p 1 to a temperature of 0, which Large 4 requires for greedy sampling" do
-      body, = send_with({ "choices" => [{ "message" => { "content" => "ok" } }] }, "temperature" => 0.0)
+    it "adds top_p 1 to a temperature of 0, which greedy sampling requires" do
+      body, = send_with({ "choices" => [{ "message" => { "content" => "ok" } }] }, model: "mistral-medium-3-5",
+                        "temperature" => 0.0)
       expect(body).to include("temperature" => 0.0, "top_p" => 1.0, "reasoning_effort" => "none")
+    end
+
+    it "leaves temperature out for Large 4, which reasons at every level" do
+      body, = send_with({ "choices" => [{ "message" => { "content" => "ok" } }] }, "temperature" => 0.0)
+      expect(body).to include("reasoning_effort" => "low")
+      expect(body).not_to include("temperature", "top_p")
     end
 
     it "returns the text of a reply given as thinking and text parts" do
@@ -185,7 +192,7 @@ RSpec.describe "Helper-call request shapes", :no_api do
       agent.send(:vision_query_mistral, "Color?", image, "mistral-large-4", "k")
       expect(sent[0][:reasoning_effort]).to eq("low")
       expect(sent[1][:thinking]).to eq(type: "disabled")
-      expect(sent[2][:reasoning_effort]).to eq("none")
+      expect(sent[2][:reasoning_effort]).to eq("low")
     end
 
     it "reports an error whose body is a plain string" do

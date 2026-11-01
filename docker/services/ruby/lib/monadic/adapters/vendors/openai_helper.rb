@@ -20,6 +20,7 @@ require_relative "../../utils/json_repair"
 require_relative "../../utils/system_prompt_injector"
 require_relative "../../utils/openai_file_inputs_cache"
 require_relative "../../utils/extra_logger"
+require_relative "../../utils/trial_log"
 require_relative "../base_vendor_helper"
 require_relative "../../monadic_performance"
 require_relative "../../dsl/configurations"
@@ -1897,6 +1898,7 @@ module OpenAIHelper
       lines.join("\n")
     }
 
+    Monadic::Utils::TrialLog.tool_calls(tools, app: obj["app_name"], depth: call_depth)
     tools = filter_openai_duplicate_tools(tools)
 
     pending_tool_images = nil
@@ -2742,6 +2744,7 @@ module OpenAIHelper
       response_data = json["response"] || json  # Handle both nested and flat structures
       # Capture usage if present
       usage = response_data["usage"] || json["usage"]
+      Monadic::Utils::TrialLog.usage(usage, app: obj["app_name"])
       if usage.is_a?(Hash)
         state[:usage_input_tokens] = usage["input_tokens"] || usage["prompt_tokens"] || state[:usage_input_tokens]
         state[:usage_output_tokens] = usage["output_tokens"] || usage["completion_tokens"] || state[:usage_output_tokens]

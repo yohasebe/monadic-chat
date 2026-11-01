@@ -218,7 +218,7 @@
     "glob": "^10.5.0",
     "@xmldom/xmldom": "^0.8.15",
     "ip-address": "^10.3.1",
-    "brace-expansion": "^5.0.9",
+    "brace-expansion": "^5.0.12",
     "fast-uri": "^3.1.7",
     "undici": "^6.28.0",
     "browserslist": "^4.28.8"

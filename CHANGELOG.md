@@ -6,6 +6,7 @@
     - A folder of the shared folder shown in the file manager is selected, not opened
     - Monadic Chat reads and writes files of the shared folder only inside it
     - A message can attach only files uploaded to its own chat, and a tool's image is sent to the model only when the file is an image
+    - Requests to Google Gemini ask Google not to store them
     - The Privacy Filter logs only the type of an error, not the text of the request **(rebuild the Privacy container)**
   - Changes you may notice
     - Your own scripts in `scripts/` run in the Python container only, after the system's commands on the search path: **give them names of their own** **(rebuild the Python container)**
@@ -17,6 +18,7 @@
     - Live Conversation uses Grok Voice 3.0 with xAI and Gemini 3.8 Live with Gemini
     - Video Generator with Gemini makes videos with Gemini Omni: 720p in 16:9 or 9:16, 3 to 10 seconds, with no choice between a fast and a quality model
     - Gemini Pro TTS is no longer offered: a saved choice moves to Gemini Flash TTS, and the page says so once
+    - GPT-5.2 Codex is no longer offered: a saved choice moves to GPT-5.6 Sol
     - Settings that decide where requests go or what program runs are not read from `~/monadic/config/env`: proxy settings, `MCP_SERVER_HOST`, and settings ending in `_URL`, `_HOST`, `_ENDPOINT`, `_PROXY`, `_CMD` or `_COMMAND`, among others: **set them in the shell that starts the app**
     - Values in `~/monadic/config/env` are taken as written (`$VAR`, `${VAR}` and `$(...)` are not expanded), and a setting that names a file is used only when it is an absolute path to an existing file or folder outside the shared folder
     - A file in the shared folder that is a link is not read or written, and a link to a folder outside the shared folder is not followed: **put the file itself in the shared folder**
@@ -24,6 +26,7 @@
     - Video and subtitle links in earlier chats no longer open: **analyze the same attachment again to get new ones**
     - After this version runs once, earlier versions cannot read the chat records in `~/monadic/state`
     - Mistral text-to-speech and speech-to-text use Voxtral 3, and a saved Mistral choice moves to it
+    - Mistral Large 4 always reasons: `Reasoning Effort` offers `low`, `medium` and `high`, and `low` is used when no reasoning is asked for
     - The desktop app's windows follow the Web UI's theme setting and use its buttons and colors
     - Web UI dialogs have a `Cancel` button and buttons that delete are outlined in red; desktop app dialogs list `Cancel` last, Esc cancels them, and removing all Docker data is not the default
     - `Verify` does not check answers about images or attached files
@@ -63,7 +66,6 @@
     - Live Conversation with xAI Grok starts and keeps talking
     - The Session Context is extracted with the default OpenAI, Claude and Mistral models, and Research Assistant runs its parallel tasks with Claude, OpenAI and Mistral
     - Image and video descriptions work with the Claude models that read images
-    - `Reasoning Effort` `none` with Mistral Large 4 turns its reasoning off
     - In every interface language, the console's `Start`, `Stop` and `Restart` buttons follow the status, and the console's status and messages are translated
     - The desktop app's dialogs, passphrase window and console messages appear in the interface language
     - Enter in an open dialog stays in the dialog instead of sending the message

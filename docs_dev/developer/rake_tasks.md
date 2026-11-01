@@ -134,24 +134,22 @@ For comprehensive testing documentation, see the [Testing Guide](testing_guide.m
 ### Quick Test Commands
 
 ```bash
-# Run all tests (Ruby + JavaScript) and code style checks
-rake
+# Run all tests (Ruby, JavaScript and Python)
+rake test
 
-# Run all Ruby tests (RSpec)
-rake spec
-rake test  # Alias
+# Quick runs
+rake spec:quick       # Ruby unit + integration
+rake test:quick       # Ruby unit + integration, then Jest
 
-# Run specific test categories
-rake spec_unit        # Unit tests only (fast, no dependencies)
-rake spec_integration # Integration tests (requires containers)
-rake spec_system      # System tests (MDSL validation)
-rake spec_docker      # Docker infrastructure tests
+# Ruby specs by directory (from docker/services/ruby)
+bundle exec rspec spec/unit --tag '~integration' --tag '~e2e'
+bundle exec rspec spec/integration
 rake spec_e2e:jupyter_notebook  # E2E: Jupyter local ops
 rake spec_e2e:monadic_context   # E2E: Monadic context display
 
 # Code quality checks
 rake rubocop          # Ruby code style
-rake eslint           # JavaScript linting
+npx eslint .          # JavaScript linting
 rake jstest           # JavaScript tests (Jest)
 ```
 
@@ -159,10 +157,8 @@ rake jstest           # JavaScript tests (Jest)
 
 | Test Type | Required Dependencies |
 |-----------|----------------------|
-| `spec_unit` | Ruby only |
-| `spec_integration` | • Qdrant + embeddings containers (started automatically by `rake test`)<br>• Python container (Docker)<br>• Selenium container (port 4444) |
-| `spec_system` | Ruby only |
-| `spec_docker` | All Docker containers running |
+| `spec/unit` | Ruby only |
+| `spec/integration` | • Qdrant + embeddings containers (started automatically by `rake test`)<br>• Python container (Docker)<br>• Selenium container (port 4444) |
 | `spec_e2e` | • All Docker containers<br>• AI provider API keys<br>• WebSocket server (auto-started) |
 
 ### E2E Testing

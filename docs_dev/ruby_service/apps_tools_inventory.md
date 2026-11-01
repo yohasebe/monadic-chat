@@ -51,7 +51,6 @@ Groups without a note are always visible. A provider list after a group or tool 
 | DrawIO Grapher | OpenAI, Claude, Gemini, Grok | `planning` | `preview_drawio`, `write_drawio_file`, `stop_drawio_browser` |
 | Image Generator | OpenAI, Gemini, Grok | `planning` | `generate_image_with_gemini` (Gemini), `monadic_load_state`, `generate_image_with_grok` (Grok), `generate_image_with_openai` (OpenAI) |
 | Jupyter Notebook | OpenAI, Claude, Gemini, Grok | `jupyter_operations`, `python_execution`, `file_operations`, `file_reading`, `planning`, `verification` | `monadic_load_state`, `create_and_populate_jupyter_notebook` (Gemini, Grok), `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
-| Knowledge Base | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | — | `list_conversations`, `search_library`, `get_conversation_details`, `library_stats`, `update_conversation_scope`, `delete_conversation_from_library`, `import_conversation_from_text` |
 | Language Practice | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | — | — |
 | Language Practice Plus | OpenAI, Claude | — | `load_context`, `save_response`, `set_target_language` |
 | Live Conversation | OpenAI, Gemini, Grok | — | — |

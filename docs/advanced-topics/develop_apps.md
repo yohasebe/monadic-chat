@@ -66,7 +66,7 @@ Loading rules:
 - `.rb` files are loaded before `.mdsl` files.
 - Files whose names start with `_` are not loaded.
 - Files in folders named `test`, `helpers` or `services` inside `apps` are not loaded as apps.
-- Files reached through a symbolic link are not loaded.
+- Files reached through a symbolic link, and files that have another hard link, are not loaded.
 - In development mode (`rake server:debug`), apps and helpers in the shared folder are loaded only when the shell that starts the server sets `MONADIC_LOAD_USER_CODE=true`.
 
 If an app fails to load, the other apps still load. The failed apps and the errors are listed in the server output (`docker logs monadic-chat-ruby-container`, or the terminal in development mode).

@@ -10,7 +10,7 @@ Monadic Chat のコンソールの `Shared Folder` ボタン（または **Open 
 
 コードを実行できるアプリ（Code Interpreter など）では、共有フォルダのファイルを読み込めます。共有フォルダのいちばん上にあるファイルは名前だけで指定できます。サブフォルダの中のファイルは、共有フォルダからの相対パスで指定します。
 
-AI エージェントが（function calling などで）処理を行う途中で、中間のファイルが共有フォルダに保存されることがあります。ときどき確認して、要らないファイルを消してください。
+AI エージェントが（function calling などで）処理を行う途中で、中間のファイルが共有フォルダに保存されることがあります。
 
 JupyterLab も `/monadic/data` で起動するので、JupyterLab からも共有フォルダのファイルを使えます。[JupyterLab との連携](./jupyterlab.md)を参照してください。
 
@@ -82,7 +82,7 @@ JupyterLab も `/monadic/data` で起動するので、JupyterLab からも共�
 - **DrawIO Grapher**：図のファイル（`.drawio`）とプレビュー（PNG）
 - **Web Insight**：Web ページのスクリーンショット（PNG）
 
-ほとんどのファイルは、タイムスタンプや識別子を含む名前で、共有フォルダのいちばん上に保存されます。要らなくなったファイルは、ときどき消してください。
+ほとんどのファイルは、タイムスタンプや識別子を含む名前で、共有フォルダのいちばん上に保存されます。[共有フォルダパネル](../basic-usage/web-interface.md#shared-folder-panel)で、各ファイルが何かを確かめ、要らなくなったものをごみ箱に移せます。
 
 
 ## Monadic Chat のディレクトリ構造
@@ -102,7 +102,7 @@ Monadic Chat は起動するとき、次のフォルダが無ければ作りま�
 ```
 
 
-`data` フォルダが共有フォルダで、Ruby、Python、Selenium、Extractor の各コンテナにマウントされます。その中の `apps`、`helpers`、`services` フォルダは、コンテナの中では読み取り専用です。これらのサブフォルダには、Monadic Chat に自分で加えるものを置きます。追加のアプリの作り方は、[追加アプリの開発](../advanced-topics/develop_apps.md)を参照してください。
+`data` フォルダが共有フォルダで、Ruby、Python、Selenium、Extractor の各コンテナにマウントされます。その中の `apps`、`helpers`、`services` フォルダは、コンテナの中では読み取り専用です。これらのサブフォルダには、Monadic Chat に自分で加えるものを置きます。`apps`、`helpers`、`services` は本物のフォルダでなければなりません。どれかがリンクのときは、Monadic Chat は起動しません。共有フォルダの中のリンクであるファイルは読み書きせず、共有フォルダの外のフォルダを指すリンクはたどりません。追加のアプリの作り方は、[追加アプリの開発](../advanced-topics/develop_apps.md)を参照してください。
 
 `apps`
 

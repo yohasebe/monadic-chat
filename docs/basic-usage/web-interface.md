@@ -165,31 +165,31 @@ What is kept of a chat: the text of its messages, the app, the model and the sys
 
 Backups of your computer (such as Time Machine) and sync services that hold `~/monadic` copy the history too.
 
-The Chat History panel lists the five chats with the latest activity; click one to continue it in this tab. `See all` opens the Chats tab of the window the shared folder uses.
+The Chat History panel lists the five chats with the latest activity; click one to continue it in this tab. **See all** opens the Chats tab of the window the shared folder uses.
 
 In the Chats tab:
 
 - The search box finds chats by their names and by the words in them.
-- Each chat shows its name (or its first and latest topics), the app, the number of messages and when it last had a new message. The list is ordered by that time, newest first; `Show more` adds older chats.
-- `Continue` opens the chat in this tab with its messages, app, model and settings. The app's tools are set up anew, and Auto speech and Start from assistant are off for the continued chat. The chat that was in this tab stays in the history. If it is Private and has messages, you are asked first, since it is not kept.
-- `Name` gives the chat a name (up to 120 characters). Press Enter to save it or Esc to cancel.
-- `Remove from the history` removes the chat after a second click to confirm. The chat can no longer be read from Monadic Chat; this is not a promise that no copy of it is left on the disk. Files the chat made in the shared folder, exported files and backups of your computer are not removed.
+- Each chat shows its name (or its first and latest topics), the app, the number of messages and when it last had a new message. The list is ordered by that time, newest first; **Show more** adds older chats.
+- **Continue** opens the chat in this tab with its messages, app, model and settings. The app's tools are set up anew, and Auto speech and Start from assistant are off for the continued chat. The chat that was in this tab stays in the history. If it is Private and has messages, you are asked first, since it is not kept.
+- **Name** gives the chat a name (up to 120 characters). Press Enter to save it or Esc to cancel.
+- **Remove from the history** removes the chat after a second click to confirm. The chat can no longer be read from Monadic Chat. Files the chat made in the shared folder, exported files and backups of your computer are not removed.
 - A chat open in a tab is marked "Open in a tab" and can be neither continued nor removed from another tab. To continue or remove it, start a new chat in the tab that has it open.
 
 ## Shared Folder Panel :id=shared-folder-panel
 
-The Shared Folder panel shows what the shared folder (`~/monadic/data`) holds. Click `Browse` to open the list in the Files tab of its window (the Chats tab holds the [chat history](#chat-history-panel)). It shows one folder at a time; click a folder to open it, and use the path at the top to go back.
+The Shared Folder panel shows what the shared folder (`~/monadic/data`) holds. Click **Browse** to open the list in the Files tab of its window (the Chats tab holds the [chat history](#chat-history-panel)). It shows one folder at a time; click a folder to open it, and use the path at the top to go back.
 
 Each entry shows its name, what it is, its size and when it was last modified:
 
-- **What it is** comes from Monadic Chat's own record where it has one (the folders of chats, the copies earlier versions made for playing an attached video) and otherwise only from the entry's name, marked "(by its name)". A name does not tell whether a file is still needed. The videos and subtitles the page plays are kept by Monadic Chat outside the shared folder; the `pub_` files earlier versions left in the shared folder are no longer used and can be moved to the trash.
+- **What it is** comes from Monadic Chat's own record where it has one (the folders of chats, files named `pub_…`) and otherwise only from the entry's name, marked "(by its name)". A name does not tell whether a file is still needed. The videos and subtitles the page plays are kept by Monadic Chat outside the shared folder; files named `pub_…` in the shared folder are not used and can be moved to the trash.
 - Entries Monadic Chat or your own setup reads (your scripts, apps and helpers, your Docker services, the backup of the document database) are marked with a lock and the reason.
 - The folder of a chat open in a tab is marked "in use".
 - Files made by Monadic Chat's own test runs (named `monadic-test-…`) are marked "Made by a test run"; names that test runs used before are marked "Possibly left by a test run".
 - Links are listed as links and not followed.
 - Sizes of folders are counted in the background and appear as they finish. A size shown as "≥" was counted only in part (a very large folder, or one partly unreadable).
 
-The upper band sets what is listed: search by name, sort by name, size (`Largest first`) or modification time (`Newest first`), narrow to one kind of item, and narrow to items not modified in the last 30, 90 or 365 days. Long lists are shown in pages of 100, 200 or 500 items. A line below the bands says when the list is loading, when the folder is empty or nothing matches, and what went wrong or what moving to the Trash did.
+The upper band sets what is listed: search by name, sort by name, size (**Largest first**) or modification time (**Newest first**), narrow to one kind of item, and narrow to items not modified in the last 30, 90 or 365 days. Long lists are shown in pages of 100, 200 or 500 items. A line below the bands says when the list is loading, when the folder is empty or nothing matches, and what went wrong or what moving to the Trash did.
 
 Click a folder's name, double-click its row, or press Enter (or Cmd/Ctrl+↓) to open it; use the up-arrow button next to the path (or Cmd/Ctrl+↑) to go back up.
 
@@ -199,7 +199,7 @@ Double-click an image, audio, video, PDF or text file, or select it and press Sp
 
 In the desktop app, the button on the right of an item shows it in your file manager, selected in the folder that holds it; neither a folder nor a file is opened.
 
-In the desktop app, items can also be moved to the system's Trash. The lower band holds `Skip folders when selecting all`, `Select all shown`, `Select on all pages` (every item matching the search and filters), `Select test files` and the trash button; the count and total size of what is selected, with a button to clear the selection, are shown beside them. With `Skip folders when selecting all` checked, `Select all shown`, `Select on all pages` and Cmd/Ctrl+A select files only; a folder can still be selected by itself. Click the trash button and confirm in the dialog that names the count and the first items. While items are being moved, a spinner is shown over the panel and nothing else can be done in it. Items that are kept for a reason, and the folder of a chat open in a tab and what is in it, cannot be selected. Moved items can be put back from the Trash.
+In the desktop app, items can also be moved to the system's Trash. The lower band holds **Skip folders when selecting all**, **Select all shown**, **Select on all pages** (every item matching the search and filters), **Select test files** and the trash button; the count and total size of what is selected, with a button to clear the selection, are shown beside them. With **Skip folders when selecting all** checked, **Select all shown**, **Select on all pages** and Cmd/Ctrl+A select files only; a folder can still be selected by itself. Click the trash button and confirm in the dialog that names the count and the first items. While items are being moved, a spinner is shown over the panel and nothing else can be done in it. Items that are kept for a reason, and the folder of a chat open in a tab and what is in it, cannot be selected. Moved items can be put back from the Trash.
 
 ?> Monadic Chat keeps a small hidden file, `.monadic-shared-root`, in the shared folder. Do not remove it: without it, entries cannot be shown in the file manager or moved to the Trash (the list is still shown).
 

@@ -57,7 +57,7 @@ Saving these settings runs `monadic.sh refresh-service extractor`, which recreat
 - `ensure-service extractor`: pulls the image if it is missing, then starts the container. Prints `EXTRACTOR_DISABLED`, `EXTRACTOR_NOT_BUILT`, `STARTED` or `ALREADY_RUNNING`.
 - `refresh-service extractor`: prints `REFRESHED` or `NOT_RUNNING`.
 
-**Settings → Install Options → Knowledge Base Quality Pack** sets `EXTRACTOR_SERVICE=true` in `~/monadic/config/env`.
+**Actions → Install Options → Knowledge Base Quality Pack** sets `EXTRACTOR_SERVICE=true` in `~/monadic/config/env`.
 
 ## Ruby Side
 

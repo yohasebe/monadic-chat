@@ -78,7 +78,7 @@ All documentation should reflect the **current implementation only**:
   - Remove phrases like "Previously...", "Changed from...", "Used to be..."
 
 - **No future content** - Don't document planned features, TODOs, or unresolved issues
-  - Move all future enhancements to `tmp/memo/future_enhancements.md`
+  - Keep future enhancements in the git-ignored `tmp/memo/`, not in the repository
   - Remove "Future Enhancements", "TODO", "Coming soon", "Planned features" sections
   - Remove "not yet implemented", "under development" notes
 

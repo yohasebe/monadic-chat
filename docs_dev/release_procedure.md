@@ -402,5 +402,3 @@ PY
 - `docs_dev/electron-build.md` — build environment, Windows signing on Parallels
 - `docs_dev/electron-build.md` (Code Signing) — notarization credentials and checks
 - `docs_dev/docker-build-caching.md` — container build/caching behavior
-- Maintainer memories: `release-beta27-2026-07-10`, `macos-zip-symlink-autoupdate-bug`,
-  `auto-updater-selfheal-lesson`, `release-manifest-drift`, `mac_notarize_skipped_misread`

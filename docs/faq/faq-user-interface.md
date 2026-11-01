@@ -7,10 +7,10 @@
 - **Copy**<br />Copies the message text to the clipboard.
 - **Play**<br />Plays the message text using speech synthesis.
 - **Stop**<br />Stops playback of synthesized speech.
-- **Delete**<br />Opens a dialog with options to either `Delete this message and below`, `Delete this message only`, or `Cancel`. The first option deletes the selected message and all messages that appear after it in the conversation, which can be useful in certain cases but should be used with caution. The `Delete this message only` option should also be used carefully, as it may disrupt the alternating user-assistant message pattern required by some API providers, which can lead to API errors.
+- **Delete**<br />Opens a dialog with options to either **Delete this message and below**, **Delete this message only**, or **Cancel**. The first option deletes the selected message and all messages that appear after it in the conversation, which can be useful in certain cases but should be used with caution. The **Delete this message only** option should also be used carefully, as it may disrupt the alternating user-assistant message pattern required by some API providers, which can lead to API errors.
 
-?> **Note**: For the last message in the conversation, only `Delete this message only` and `Cancel` are shown.
-- **Edit**<br />Allows editing the message. For most messages, clicking this button displays an inline text editor directly in the chat interface with `Save` and `Cancel` buttons. If the message is your own last message, clicking `Edit` moves its text to the message box, sets the role selector, and removes the original message, so you can revise and resend it. Other messages, including assistant and system messages, are edited in place; they keep their position, and the messages after them are kept.
+?> **Note**: For the last message in the conversation, only **Delete this message only** and **Cancel** are shown.
+- **Edit**<br />Allows editing the message. For most messages, clicking this button displays an inline text editor directly in the chat interface with **Save** and **Cancel** buttons. If the message is your own last message, clicking **Edit** moves its text to the message box, sets the role selector, and removes the original message, so you can revise and resend it. Other messages, including assistant and system messages, are edited in place; they keep their position, and the messages after them are kept.
 - **Verify**<br />On assistant messages, cross-checks the response with your other configured providers (with only one provider, it is a weaker self-consistency check).
 - **Active/Inactive**<br />A small dot that is green when the message is active.
 
@@ -24,7 +24,7 @@
 
 ---
 
-##### Q: What is the role of the `Role` selector next to the message input box? :id=role-selector-function
+##### Q: What is the role of the **Role** selector next to the message input box? :id=role-selector-function
 
 **A**: Each role has the following function:
 

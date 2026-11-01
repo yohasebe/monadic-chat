@@ -2,24 +2,24 @@
   - Security
     - Tool calls are limited to the tools given to the model
     - Secrets are kept out of logs, tool results and error messages, and the configuration file is readable by your user account only
-    - Only the Settings window can read the stored keys, and the OpenAI key is no longer sent to the web page
+    - Only the Settings window can read the stored keys, and the web page does not receive the OpenAI key
     - A folder of the shared folder shown in the file manager is selected, not opened
     - Monadic Chat reads and writes files of the shared folder only inside it
     - A message can attach only files uploaded to its own chat, and a tool's image is sent to the model only when the file is an image
-    - The Privacy Filter logs only the kind of an error a request meets **(rebuild the Privacy container)**
+    - The Privacy Filter logs only the type of an error, not the text of the request **(rebuild the Privacy container)**
   - Changes you may notice
     - Your own scripts in `scripts/` run in the Python container only, after the system's commands on the search path: **give them names of their own** **(rebuild the Python container)**
     - Monadic Chat does not start when `apps`, `helpers` or `services` in the shared folder is a link: **replace it with a real folder and move the files into it**
     - A custom app's `<app>_tools.rb` and `<app>_constants.rb`, and files in `apps` and `helpers`, are not loaded when they are links, or hard links with another name elsewhere
     - The scripts that come with Monadic Chat read their keys from `~/monadic/config/env` only
-    - While the server runs, a closed tab's chat is kept for reopening; one unused for 7 days, or beyond the 50 most recently used, may be cleared
+    - While the server runs, a closed tab's chat is kept for reopening; one unused for 7 days, or beyond the 50 most recently used, is cleared
     - Image and video descriptions with Claude use Claude Haiku 5.5, Gemini image generation uses Nano Banana 2.1, and code generation with OpenAI uses GPT-6 Sol
     - Live Conversation uses Grok Voice 3.0 with xAI and Gemini 3.8 Live with Gemini
     - Video Generator with Gemini makes videos with Gemini Omni: 720p in 16:9 or 9:16, 3 to 10 seconds, with no choice between a fast and a quality model
     - Gemini Pro TTS is no longer offered: a saved choice moves to Gemini Flash TTS, and the page says so once
-    - Settings that change where requests go are not read from `~/monadic/config/env`: proxy settings, `QDRANT_URL`, `EXTRACTOR_URL`, `EMBEDDINGS_URL` and settings ending in `_URL`, `_HOST`, `_ENDPOINT`, `_PROXY`, `_CMD` or `_COMMAND` (**set them in the shell that starts the app**)
-    - Values in `~/monadic/config/env` are taken as written (`$VAR`, `${VAR}` and `$(...)` are not expanded), and a setting that names a file in the shared folder is ignored
-    - Links inside the shared folder are not followed when files there are read or written: **put the file itself in the shared folder**
+    - Settings that decide where requests go or what program runs are not read from `~/monadic/config/env`: proxy settings, `MCP_SERVER_HOST`, and settings ending in `_URL`, `_HOST`, `_ENDPOINT`, `_PROXY`, `_CMD` or `_COMMAND`, among others: **set them in the shell that starts the app**
+    - Values in `~/monadic/config/env` are taken as written (`$VAR`, `${VAR}` and `$(...)` are not expanded), and a setting that names a file is used only when it is an absolute path to an existing file or folder outside the shared folder
+    - A file in the shared folder that is a link is not read or written, and a link to a folder outside the shared folder is not followed: **put the file itself in the shared folder**
     - The videos and subtitles a chat plays are kept outside the shared folder; the `pub_` files earlier versions left there are no longer used and can be moved to the Trash
     - Video and subtitle links in earlier chats no longer open: **analyze the same attachment again to get new ones**
     - After this version runs once, earlier versions cannot read the chat records in `~/monadic/state`
@@ -27,19 +27,20 @@
     - The desktop app's windows follow the Web UI's theme setting and use its buttons and colors
     - Web UI dialogs have a `Cancel` button and buttons that delete are outlined in red; desktop app dialogs list `Cancel` last, Esc cancels them, and removing all Docker data is not the default
     - `Verify` does not check answers about images or attached files
-    - Chats are kept on this computer, in `~/monadic/state` outside the shared folder, from the first message you write; Private chats are not kept
+    - Chats are kept on this computer, in `~/monadic/state` outside the shared folder, from the first message you send
     - The Privacy Filter is set before `Start Session` and stays as set for the session; press `Reset` to change it. A chat started with it on is Private
-    - In a Private chat, `Text from file`, `Text from URL`, PDF import, audio file upload, writing files with tools, and voice input except with a Gemini speech-to-text model are unavailable
+    - In a Private chat, `Text from file`, `Text from URL`, attaching files, PDF import, audio file upload, writing files with tools, and voice input except with a Gemini speech-to-text model are unavailable
     - The Knowledge Base app is removed; the Knowledge Base browser and `Use Knowledge Base for retrieval (this session)` in apps stay
   - New
-    - Shared Folder panel: what each entry in the shared folder is, its size, which chat uses it and why it is needed (**do not remove the hidden `.monadic-shared-root` file Monadic Chat keeps there**)
+    - Shared Folder panel: what each entry in the shared folder is, its size, which chat uses it and why it is needed: **do not remove the hidden `.monadic-shared-root` file Monadic Chat keeps there**
     - The Shared Folder panel searches, sorts and filters the list, marks files made by test runs, and in the desktop app moves items to the system's Trash (rows are selected as in a file manager: click, Cmd/Ctrl+click, Shift+click or a drag)
-    - The Shared Folder panel previews images, audio, video, PDFs and text files, shows how much is selected, narrows the list to items not modified for 30, 90 or 365 days, and copies the path a chat uses for an item; long lists are shown in pages, and every matching item on every page can be selected at once
+    - The Shared Folder panel previews images, audio, video, PDFs and text files, and copies the path a chat uses for an item
+    - The Shared Folder panel shows how much is selected, narrows the list to items not modified for 30, 90 or 365 days, and shows long lists in pages, with every matching item on every page selectable at once
     - Mark words for the Privacy Filter to mask: select them and click `Mask` (Ctrl/Cmd+Shift+K), or type `⟦words⟧` (`⟦words|type⟧` with a type) **(rebuild the Privacy container)**
-    - Marked words are masked throughout the conversation, also in second opinions, Verify, AI User and the Session Context; a request that still holds one (for example in the system prompt) is not sent
+    - Marked words are masked throughout the conversation, also in second opinions, `Verify`, AI User and the Session Context; a request that still holds one (for example in the system prompt) is not sent
     - In Japanese, a name followed by an honorific (さん, 様, 氏, 先生, くん, 君, ちゃん, 殿) is masked whole
     - When you ask for a detailed analysis, Video Describer describes a video over 10 minutes in up to 5 parts (each up to 10 minutes with up to 16 frames), two at a time **(rebuild the Python container)**
-    - Long recordings are transcribed over several connections at once, waiting together when the provider asks to slow down
+    - Long recordings are transcribed in less time
     - New models: Claude Haiku 5.5, Gemini 4 Argon, DeepSeek V4.1 Flash and GLM 5.3 Flash (Mistral)
     - A message can be sent with attached files and no text, and the files are listed on the message's card
     - ElevenLabs v4 and v4 Turbo for text-to-speech, with Expressive Speech
@@ -48,16 +49,16 @@
   - Fixed
     - Keys stored in 1Password are read with the 1Password CLI 2.41 and later
     - The Privacy Filter masks overlapping detections as one, and says when it is still starting **(rebuild the Privacy container)**
-    - A new chat starts clean after Reset, an app switch or an import, and switching apps stops a reply still being written
+    - A new chat starts clean after `Reset`, an app switch or an import, and switching apps stops a reply still being written
     - An imported conversation reaches the model, and an export includes the app's state and the Session Context
-    - No "responding" status or Cancel button is left after a stopped reply, and Cancel also stops the speech for the reply
+    - No "responding" status or `Cancel` button is left after a stopped reply, and `Cancel` also stops the speech for the reply
     - A provider that cannot be reached is reported after a few tries instead of leaving the reply waiting
     - Rebuilt containers are used at once, and a failed build or pull is reported
     - Keys that 1Password could not provide are named, with what to do, and 1Password values that span lines are read whole
     - Older messages are no longer shortened in exports and after a reload
     - Knowledge Base: an imported file is not kept in the shared folder, saving again keeps the saved version if the new one cannot be written, and the list shows the newest entries
     - PDF uploads, and cells added to a Jupyter notebook, leave no copy in the shared folder
-    - A transcription host that cannot be reached over IPv6 is tried over IPv4, and an empty reply from an image-analysis model is reported as an error
+    - Transcription works on networks without IPv6, and an empty reply from an image-analysis model is reported as an error
     - DeepSeek ends a long chain of tool calls with an answer, and xAI Grok keeps showing that tools are running between rounds
     - Live Conversation with xAI Grok starts and keeps talking
     - The Session Context is extracted with the default OpenAI, Claude and Mistral models, and Research Assistant runs its parallel tasks with Claude, OpenAI and Mistral
@@ -66,9 +67,9 @@
     - In every interface language, the console's `Start`, `Stop` and `Restart` buttons follow the status, and the console's status and messages are translated
     - The desktop app's dialogs, passphrase window and console messages appear in the interface language
     - Enter in an open dialog stays in the dialog instead of sending the message
-    - Secondary text is readable in the dark Web UI, and the mask editor shows which drawing tool is selected
+    - The mask editor shows which drawing tool is selected
     - An image sent with a message reaches the model's answer also when the model first calls a tool (OpenAI, xAI Grok, Ollama)
-    - In the dark theme, the status line, the `Mask` menu, the `Cancel` button and the yellow buttons are readable, and turn badges (T1, T2, …) match the theme
+    - In the dark theme, secondary text, the status line, the `Mask` menu, the `Cancel` button and the yellow buttons are readable, and turn badges (T1, T2, …) match the theme
   - For developers
     - `rake server:debug` loads custom apps and helpers from the shared folder only with `MONADIC_LOAD_USER_CODE=true` in the shell (the setting in `~/monadic/config/env` is ignored)
     - `rake db:export` and `rake db:import` are removed
@@ -211,7 +212,7 @@
     - API keys that appear in error messages are masked
   - Changes you may notice
     - Gemini TTS defaults to Gemini 3.8 Flash, with 3.8 Flash-Lite as a lower-cost option; earlier models stay in the list
-    - Gemini 3.8 Flash receives a short bracketed tone cue, which can add a word or laugh; **leave cues off where text must be exact**
+    - Gemini 3.8 Flash receives a short bracketed tone cue, which can add a word or laugh: **leave cues off where text must be exact**
     - Gemini 3.8 Flash-Lite receives no tone direction; inline markers still work
     - Audio from the Gemini 3.8 models carries Google's content credentials, recording that it was made by generative AI and when, and saved files keep them
     - OpenAI defaults move to GPT-6 Sol for chat and GPT-6 Luna for vision, both cheaper; the GPT-5.6 models stay in the list
@@ -272,7 +273,7 @@
     - Exporting a conversation with masking masks every text field, including highlights, reasoning, rendered HTML and your prompt
     - A vocabulary map in a masked export no longer carries file paths from your machine
   - Changes you may notice
-    - **Monadic Chat requires macOS 13 (Ventura) or later.**
+    - **Monadic Chat requires macOS 13 (Ventura) or later**
     - Automatic updating to this release is blocked on macOS 12, which keeps running 1.0.0-beta.31
   - New
     - GPT-6 Astra (opt-in) joins the model list; it is priced well above the GPT-5.6 family, so choose it from the model dropdown
@@ -556,7 +557,7 @@
     - Cohere Command A+ does not reason when reasoning is `disabled`
     - Gemini Veo Video Generator uses an uploaded image as the source frame instead of repeating its greeting
 
-- [April, 2026] 1.0.0-beta.16 (skip release — tag and source archive only; superseded by beta.17 before a GitHub Release page was published)
+- [April, 2026] 1.0.0-beta.16
   - Security
     - The Privacy Filter masks messages before they reach the provider
     - With the Privacy Filter on, title suggestions, context extraction and Second Opinion are masked too, and are skipped when the privacy backend is down
@@ -567,13 +568,13 @@
     - The Perplexity provider and its apps are removed: **switch Perplexity app variants to another provider**
     - `PERPLEXITY_API_KEY` and `PERPLEXITY_DEFAULT_MODEL` in `~/monadic/config/env` are unused and can be deleted
     - Cloud PDF mode is removed: PDFs are stored locally only, and `PDF_STORAGE_MODE`, `PDF_DEFAULT_STORAGE`, `OPENAI_VECTOR_STORE_ID` and `OPENAI_VECTOR_STORE_ID__<APP>` are ignored
-    - **Re-import PDFs you used in Cloud mode; the copies in your OpenAI account remain and can be removed from the OpenAI dashboard.**
+    - PDFs used in Cloud mode are not carried over, and the copies in your OpenAI account can be removed from the OpenAI dashboard: **re-import them**
     - The Knowledge Base replaces the PDF Navigator and Content Reader apps
     - Grok 4 Fast, Grok 4.1 Fast, Grok 4, Grok Code Fast 1, Grok 3 and Grok Imagine Image Pro are removed
     - xAI defaults are Grok 4.20 (non-reasoning) for chat, Grok 4.3 for code and vision, and Grok Imagine for images
     - Grok 4.3 offers low, medium and high reasoning effort
     - The Privacy Filter is installed by default with English; German, Spanish, French, Italian, Japanese, Dutch, Portuguese and Chinese are added in Settings → Install Options **(rebuild the Privacy container)**
-    - The Privacy Filter masks in the sidebar's conversation language; "Automatic" masks as English, so **set the language for non-English content**
+    - The Privacy Filter masks in the sidebar's conversation language; "Automatic" masks as English: **set the language for non-English content**
     - The Privacy Filter toggle is disabled for uninstalled languages, and turns back off with an error when the Privacy container is not running
     - `PRIVACY_FILTER=false` in `~/monadic/config/env` turns the Privacy Filter off
     - PDF extraction uses pdfplumber and pypdfium2, so no AGPL dependencies remain; headings and tables are slightly weaker without the Quality Pack
@@ -620,7 +621,7 @@
     - Help search and the PDF knowledge base run fully locally and no longer need an OpenAI API key
     - Two new containers, Qdrant (about 80 MB) and embeddings with the multilingual-e5-base model (about 2.5 GB), always start with Monadic Chat
     - The PGVector container is removed
-    - **Existing local PDF uploads are not migrated: re-upload them after upgrading.**
+    - Existing local PDF uploads are not migrated: **re-upload them after upgrading**
     - After re-uploading, you can remove the old `monadic-chat-pgvector-data` Docker volume
     - Uploaded PDFs stay separate for each app
     - Help search makes no network calls
@@ -980,6 +981,10 @@
     - Copy to clipboard works in the built-in browser on macOS
     - Text-to-speech and speech-to-text work in the built-in browser
 
+- [May, 2024] Talk to Claude/Cohere/Gemini apps added
+  - Changes you may notice
+    - The app runs on Ruby, Python, PGVector, and Selenium containers
+
 - [April, 2024] 0.9.85
   - Changes you may notice
     - Small UI adjustments
@@ -1063,6 +1068,12 @@
     - A declarative DSL for app authoring, with documentation
     - Simpler app icon management
 
+- [February, 2024] Mermaid diagram support
+  - New
+    - Files can be read into the conversation
+  - Fixed
+    - Several apps are more stable
+
 - [January, 2024] 0.9.37
   - Changes you may notice
     - Config, data, and log files use a new folder structure
@@ -1073,6 +1084,15 @@
     - Tool use (function calling) is logged in more detail
   - Fixed
     - The app starts faster after a build
+
+- [January, 2024] Default model set to `gpt-3.5-turbo-1106`
+  - New
+    - OpenAI's January 2024 models are supported
+    - Image understanding
+    - Voice Interpreter app
+    - Language Practice Plus app is updated
+    - Mac/Win Monadic Chat Console UI is improved
+    - Text-to-speech responds faster in auto-speech mode
 
 - [December, 2023] 0.9.30
   - Changes you may notice
@@ -1104,6 +1124,12 @@
   - For developers
     - App settings accept a `group` attribute
 
+- [November, 2023] Image generator app updated to support dall-e-3
+  - New
+    - Speech-to-text voice input works in Chrome, Edge, and Safari
+    - Voice playback streams naturally using OpenAI's text-to-speech API
+    - OpenAI's new models are supported (0.3.0)
+
 - [October, 2023] 0.9.6
   - New
     - PDF text extraction uses PyMuPDF4LLM
@@ -1119,6 +1145,10 @@
     - General stability is improved
   - For developers
     - App development is better supported
+
+- [September, 2023]
+  - Fixed
+    - Several apps are more stable
 
 - [August, 2023] 0.8.11
   - Changes you may notice
@@ -1137,6 +1167,13 @@
     - `Continue` button
     - The browser opens automatically
 
+- [July, 2023] Installers for Mac and Windows released for Monadic Chat (0.2.0)
+  - Changes you may notice
+    - The original command-line program is renamed [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli) and moved to another repository
+  - New
+    - Image generation
+    - The initial version of Monadic Chat (1.0.0) is released
+
 - [June, 2023]
   - Changes you may notice
     - The app file is named Monadic Chat instead of monadic-chat
@@ -1152,37 +1189,3 @@
     - Monadic Chat Console UI is improved
   - Fixed
     - Uninstalling containers works more cleanly
-
-- [May, 2023] Talk to Claude/Cohere/Gemini apps added
-  - Changes you may notice
-    - The app runs on Ruby, Python, PGVector, and Selenium containers
-
-- [February, 2023] Mermaid diagram support
-  - New
-    - Files can be read into the conversation
-  - Fixed
-    - Several apps are more stable
-
-- [January, 2023] Default model set to `gpt-3.5-turbo-1106`
-  - New
-    - OpenAI's January 2024 models are supported
-    - Image understanding
-    - Voice Interpreter app
-    - Language Practice Plus app is updated
-    - Mac/Win Monadic Chat Console UI is improved
-    - Text-to-speech responds faster in auto-speech mode
-
-- [November, 2023] Image generator app updated to support dall-e-3.
-  - New
-    - Speech-to-text voice input works in Chrome, Edge, and Safari
-    - Voice playback streams naturally using OpenAI's text-to-speech API
-    - OpenAI's new models are supported (0.3.0)
-
-- [September, 2023] Stability improvement with several apps modified
-
-- [July, 2023] Installers for Mac and Windows released for Monadic Chat (0.2.0).
-  - Changes you may notice
-    - The original command-line program is renamed [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli) and moved to another repository
-  - New
-    - Image generation
-    - The initial version of Monadic Chat (1.0.0) is released

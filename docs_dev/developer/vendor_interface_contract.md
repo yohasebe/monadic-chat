@@ -14,7 +14,7 @@ Vendor helpers are Ruby modules located in `lib/monadic/adapters/vendors/`. Each
 |---|---|---|
 | `define_timeouts(prefix, open:, read:, write:)` | Timeout configuration from CONFIG | `open_timeout`, `read_timeout`, `write_timeout` |
 | `define_models_cache(cache_key)` | Model cache clearing | `clear_models_cache` |
-| `retry_with_backoff(max_retries:, delay:)` | Generic retry wrapper | (instance method) |
+| `post_json_with_retries(http, uri, body, max_retries:, retry_delay:, rescue_errors: [])` | Non-streaming JSON POST with retries | (instance method) |
 
 ## Required Interface Methods
 
@@ -262,5 +262,3 @@ Checklist:
 9. Add API key mapping in `monadic.rb`
 10. Update frontend `getProviderFromGroup()` in `monadic.js`
 11. Add tests
-
-See also: CLAUDE.md "Adding a New AI Provider" checklist.

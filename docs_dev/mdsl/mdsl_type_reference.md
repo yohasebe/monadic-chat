@@ -247,7 +247,7 @@ When adding new MDSL parameters:
 
 2. **Update DSL parser** (if needed):
    - Add method to appropriate context class
-   - Add to `FEATURE_MAP` if it's a feature flag
+   - For a feature flag, add it to `SimplifiedFeatureConfiguration` (`lib/monadic/dsl/configurations.rb`)
 
 3. **Update documentation**:
    - Add to this type reference

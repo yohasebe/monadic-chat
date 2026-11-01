@@ -829,7 +829,12 @@ module OpenAIHelper
     is_initial_greeting = body["messages"].length == 1 &&
                           (body["messages"][0]["role"] == "system" || body["messages"][0]["role"] == "developer")
 
-    if last_text.to_s != "" && body.dig("messages", -1, "content") && !is_initial_greeting
+    # Only a user message takes the suffix. After a tool call the last
+    # message is the tool's result (its content a String, its keys symbols or,
+    # through HashWithIndifferentAccess parameters, strings too).
+    last_message = body["messages"].last
+    last_is_user = last_message.is_a?(Hash) && last_message["role"].to_s == "user" && last_message["content"].is_a?(Array)
+    if last_text.to_s != "" && last_is_user && !is_initial_greeting
       augmented_text = Monadic::Utils::SystemPromptInjector.augment_user_message(
         base_message: last_text.to_s,
         session: session,

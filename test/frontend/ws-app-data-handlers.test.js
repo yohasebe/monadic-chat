@@ -459,7 +459,7 @@ describe('ws-app-data-handlers', () => {
       expect(appsSelect.options.length).toBeGreaterThan(0);
     });
 
-    // §38: no path that assigns #apps.value fires 'change', and the
+    // No path that assigns #apps.value fires 'change', and the
     // viewer's own fallbacks all miss when the app list arrives late
     // (server restart + hard reload) — leaving an empty frame. The handler
     // must notify the viewer explicitly at the end of APPS processing with
@@ -684,7 +684,7 @@ describe('ws-app-data-handlers', () => {
   });
 });
 
-describe('§38c: multiple APPS within one timeout window', () => {
+describe('multiple APPS within one timeout window', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     const mk = (id, tag = 'div') => { const el = document.createElement(tag); el.id = id; document.body.appendChild(el); return el; };

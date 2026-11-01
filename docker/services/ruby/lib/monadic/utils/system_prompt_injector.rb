@@ -321,7 +321,8 @@ module Monadic
             # prose within the JSON/sentinel wrapper, so a parallel rule
             # repeating "plain prose only" would be redundant AND potentially
             # contradictory with "emit a directive block first". See
-            # docs_dev/expressive_speech_instruction_mode.md §5.7.
+            # docs_dev/expressive_speech_instruction_mode.md ("What the Model Is
+            # Asked For").
             tts_provider && !tts_provider.to_s.empty? &&
               !Monadic::Utils::TtsMarkerVocabulary.tag_aware?(tts_provider) &&
               !Monadic::Utils::TtsMarkerVocabulary.instruction_mode?(tts_provider)

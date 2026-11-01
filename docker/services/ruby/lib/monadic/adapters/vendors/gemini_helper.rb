@@ -532,10 +532,9 @@ module GeminiHelper
 
   # Image generation model endpoints (separate from chat models)
   # These are specialized APIs not included in the regular model list
-  # Imagen 4.0 reached its sunset on 2026-08-17 and is gone from the live model
-  # list (verified 2026-08-22), so the imagen4* keys were removed: leaving them
-  # here kept a route that could only ever fail. generate_image_with_imagen_direct
-  # stays for the /predict shape in case a future Imagen returns.
+  # Imagen 4.0 reached its sunset on 2026-08-17 and is not in the model list,
+  # so there are no imagen4* keys (such a route could only fail).
+  # generate_image_with_imagen_direct handles the /predict shape.
   IMAGE_GENERATION_MODELS = {
     # Gemini image models (GA, v1beta generateContent) — Nano Banana 2.1 / 2 / Pro
     "gemini-nano-banana-2.1" => "gemini-nano-banana-2.1",

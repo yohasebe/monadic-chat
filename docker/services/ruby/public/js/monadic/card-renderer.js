@@ -304,13 +304,13 @@ function assistantBadge(content) {
              "<i class='fas fa-hand'></i> " + window.escapeHtml(label) + "</span>";
   }
 
-  // Tools used in a speech-to-speech turn (function calling wave 1): the
+  // Tools used in a speech-to-speech turn: the
   // server attaches them to the card as tools_used metadata. Entries WITH a
   // paragraph position (`at`) render as INLINE badges at that boundary
-  // (insertInlineToolBadge, §37-3) — the header stays clean. Only entries
+  // (insertInlineToolBadge) — the header stays clean. Only entries
   // WITHOUT a position (older canon, non-folded cards) fall back to this
   // header badge, so no tool is ever invisible and none is shown twice
-  // (§37-4: the two render paths are exclusive per entry).
+  // (the two render paths are exclusive per entry).
   if (content && Array.isArray(content.tools_used) && content.tools_used.length > 0) {
     const unpositioned = content.tools_used.filter((t) => !t || typeof t.at !== 'number');
     if (unpositioned.length > 0) {
@@ -325,7 +325,7 @@ function assistantBadge(content) {
 }
 
 /**
- * Insert a tool badge at a paragraph boundary inside a card body (§37-3).
+ * Insert a tool badge at a paragraph boundary inside a card body.
  *
  * Live Conversation folds a tool-bridged exchange into ONE card whose
  * paragraphs are joined by "\n\n"; each tools_used entry then carries
@@ -335,7 +335,7 @@ function assistantBadge(content) {
  * initial non-folded card) are skipped — the header badge covers those.
  *
  * Accepts either a CARD element (badges go into its .card-text) or a live
- * view TEXT container (.lc-live-text, §37-5) directly.
+ * view TEXT container (.lc-live-text) directly.
  *
  * @param {HTMLElement} cardEl - the card element or .lc-live-text container
  * @param {Array} toolsUsed - tools_used entries ({name, status, at?})
@@ -345,9 +345,9 @@ function insertInlineToolBadge(cardEl, toolsUsed) {
   const isTextContainer = cardEl.classList && cardEl.classList.contains('lc-live-text');
   const body = isTextContainer ? cardEl : cardEl.querySelector('.card-text');
   if (!body) return;
-  // §40: consecutive calls at the SAME boundary merge into ONE badge —
-  // a batch (one response emitting several calls) otherwise stacked one
-  // badge per call, which read as noise (dogfood: search_web twice).
+  // Consecutive calls at the SAME boundary merge into ONE badge, so a
+  // batch (one response emitting several calls) does not stack one badge
+  // per call.
   // Merging is a render concern only: the underlying entries stay separate
   // so call_id status correlation keeps working.
   const groups = new Map(); // at → [tool, ...] in arrival order
@@ -369,7 +369,7 @@ function insertInlineToolBadge(cardEl, toolsUsed) {
     // spacing comes from the .lc-tools-badge rule in monadic.css instead.
     span.className = 'mc-badge ' + (anyError ? 'mc-badge--red' : 'mc-badge--grey') +
       ' lc-tools-badge';
-    // §37-12: a call still running shows the app's canonical busy glyph
+    // A call still running shows the app's canonical busy glyph
     // (fa-spinner + fa-spin, as used for Saving/Importing/Loading; the
     // reduce-motion carve-out lives in monadic.css). Once it finishes the
     // icon becomes the tool glyph — a spinning wrench read as decoration

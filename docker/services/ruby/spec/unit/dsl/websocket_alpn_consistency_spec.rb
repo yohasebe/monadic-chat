@@ -6,16 +6,13 @@ require 'spec_helper'
 # `Async::HTTP::Endpoint.parse` against a `wss://` URL must explicitly
 # pass `alpn_protocols: ["http/1.1"]`.
 #
-# Why this spec exists (real incident, Phase 0 spike during the Realtime
-# STT integration on 2026-05-11):
+# Why this spec exists:
 #   async-http negotiates HTTP/2 via ALPN by default when the server
 #   supports it. OpenAI's edge does. The WebSocket Upgrade handshake
 #   (RFC 6455) is HTTP/1.1-only — there is no equivalent in HTTP/2 —
 #   so without an explicit downgrade the server replies `405 Method Not
 #   Allowed` and the WS never opens. The fix is to pin the ALPN protocol
-#   list to `["http/1.1"]` at endpoint construction. Captured in
-#   tmp/memo/realtime-transcription-plan.md §4 finding #1 and the
-#   feedback_websocket_http1_alpn.md memory entry.
+#   list to `["http/1.1"]` at endpoint construction.
 #
 # Plain `http://` / `https://` parse calls are unaffected (they are not
 # WebSocket upgrades), so the check only fires for `wss://` URLs — both

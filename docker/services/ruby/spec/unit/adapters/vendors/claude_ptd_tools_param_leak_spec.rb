@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-# Regression (found via live dogfood, invisible to earlier unit tests):
+# Regression:
 # build_claude_final_tools merges obj["tools"] (tools_param) into the request
 # with only tavily filtered out, which re-introduced PTD-hidden conditional tools
 # that visible_tools had already dropped — defeating progressive disclosure for

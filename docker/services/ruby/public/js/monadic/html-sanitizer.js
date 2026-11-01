@@ -4,7 +4,7 @@
  * Central DOMPurify wrapper for model-controlled HTML before it reaches
  * innerHTML sinks (createCard, server-rendered edit HTML, renderAndApply,
  * Verify panel). The allowlist is driven by the intentional HTML the app
- * itself emits — see tmp/memo/xss_display_compat_audit.md:
+ * itself emits:
  *
  *   - div.generated_image > img (image generation tools)
  *   - div.generated_video > video[controls] > source[src,type] (video tools)

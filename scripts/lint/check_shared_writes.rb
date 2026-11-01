@@ -27,8 +27,8 @@ ROOT = Pathname.new(__dir__).join('..', '..').realpath
 ALLOW_FILE = Pathname.new(__dir__).join('shared_writes.allow')
 
 # Scan roots with the fewest files a scan of each may read (see scan_floor.rb).
-# Floors sit about 20% below the current counts; lower one when files are
-# genuinely removed.
+# Floors sit below the number of files each root holds, so a misresolved
+# root or a broken glob fails loudly; lower one when files are genuinely removed.
 SCAN_ROOTS = {
   'docker/services/ruby/lib' => 196,
   'docker/services/ruby/scripts' => 10,

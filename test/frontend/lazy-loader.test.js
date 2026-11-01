@@ -3,9 +3,9 @@
  */
 
 /**
- * §38d: a rejected LazyLoader promise must not veto retries forever.
- * With no CDN fallback (maxgraph), a cached rejection was a permanent
- * dead end — the viewer stayed an empty frame with no way forward.
+ * A rejected LazyLoader promise must not veto retries forever.
+ * With no CDN fallback (maxgraph), a cached rejection would be a permanent
+ * dead end — the viewer would stay an empty frame with no way forward.
  */
 
 const fs = require('fs');
@@ -16,7 +16,7 @@ function loadLazyLoader() {
   eval(fs.readFileSync(filePath, 'utf8'));
 }
 
-describe('LazyLoader failure eviction (§38d)', () => {
+describe('LazyLoader failure eviction', () => {
   beforeEach(() => {
     document.head.innerHTML = '';
     delete window.LazyLoader;

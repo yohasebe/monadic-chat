@@ -31,8 +31,8 @@ require_relative 'scan_floor'
 ROOT = Pathname.new(__dir__).join('..', '..').realpath
 
 # Scan roots with the fewest files a scan of each may read (see scan_floor.rb).
-# Floors sit about 20% below the current counts (app 12, lib 205, scripts 12, apps 191, public/js 91);
-# lower one when files are genuinely removed.
+# Floors sit below the number of files each root holds, so a misresolved
+# root or a broken glob fails loudly; lower one when files are genuinely removed.
 SCAN_ROOTS = {
   'app' => 9,
   'docker/services/ruby/lib' => 164,

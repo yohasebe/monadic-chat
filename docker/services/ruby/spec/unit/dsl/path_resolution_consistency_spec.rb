@@ -4,26 +4,21 @@ require 'spec_helper'
 
 # Cross-cutting invariant: shared-volume path resolution must go through
 # the canonical `Monadic::Utils::Environment.shared_volume` accessor
-# (per CLAUDE.md "Dual-Mode Execution"), never through lexical
+# (which resolves the container and host paths), never through lexical
 # `defined?(SHARED_VOL)` / `defined?(LOCAL_SHARED_VOL)` checks.
 #
 # Why this spec exists: the legacy `defined?(SHARED_VOL)` pattern silently
 # fails in production whenever the calling module lives outside MonadicApp's
 # lexical chain — Ruby's `defined?` does not walk the receiver's class
-# hierarchy, only Module.nesting. Tests previously masked the bug by
-# calling `stub_const("SHARED_VOL", ...)`, which creates a *top-level*
-# constant visible from every module — a namespace that production code
-# never enjoys. Three agents (`video_analyze_agent`, `audio_transcription_agent`,
-# `image_analysis_agent`) carried this bug for ~8 months before it surfaced
-# in Video Describer (commit `0403fc68` for the fix).
+# hierarchy, only Module.nesting. Tests can mask the bug by calling
+# `stub_const("SHARED_VOL", ...)`, which creates a *top-level* constant
+# visible from every module — a namespace that production code never has.
 #
 # This spec walks every production Ruby file under `lib/` AND `apps/`
 # and fails CI the moment a new occurrence of the anti-pattern is
-# introduced. The `apps/` coverage was added 2026-05-09 after the
-# Video Describer dogfood: `apps/auto_forge/utils/path_config.rb` had
-# a `defined?(MonadicApp::SHARED_VOL)` form (fully qualified, so
-# safe), but apps are a likely future site for the same bug if a
-# new tool author copies the unqualified form from older code. The
+# introduced. `apps/` is covered because a tool author may copy the
+# unqualified form from older code (the fully qualified
+# `defined?(MonadicApp::SHARED_VOL)` form is safe). The
 # walk is cheap (file read + regex), so the broader coverage costs
 # almost nothing.
 RSpec.describe "Shared-volume path resolution consistency" do

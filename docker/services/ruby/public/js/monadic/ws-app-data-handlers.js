@@ -694,7 +694,7 @@ function handleAppsMessage(data) {
         // initialAppLoaded is the real guard: a count===1 check read at fire
         // time breaks when a WS reconnect delivers APPS twice within 150ms —
         // both timers then see count===2 and BOTH skip, leaving the app
-        // (and the workflow viewer) uninitialized (§38 root-cause candidate).
+        // (and the workflow viewer) uninitialized.
         if (!fromParamUpdate && !importRequestedApp && !window.initialAppLoaded && !isImportingNotRestoring) {
           const sel = currentAppsVal;
           if (sel) {
@@ -781,7 +781,7 @@ function handleAppsMessage(data) {
       }
     }
   }
-  // Notify the Workflow Viewer of the SETTLED app (§38). No path that
+  // Notify the Workflow Viewer of the SETTLED app. No path that
   // assigns #apps.value fires 'change', and on the failing path (server
   // restart + hard reload: WS reconnect late, asset cache busted) every
   // fallback window — the viewer's init snapshot, its setDisplayMode rAF,

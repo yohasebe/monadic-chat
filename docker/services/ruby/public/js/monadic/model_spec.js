@@ -215,8 +215,8 @@ const modelSpec = {
     "skip_in_progress_events": true
   },
   // GPT-6.1 Sol (2026-09-29): same price and limits as GPT-6 Sol, but
-  // reasoning cannot be turned off — "none" is a 400 (probed; the API lists
-  // low..max, default medium). The app default is the lowest level; an app
+  // reasoning cannot be turned off — "none" is a 400 (the API lists low..max,
+  // default medium). The app default is the lowest level; an app
   // asking for "none" gets it too (openai_helper#openai_effort_for).
   "gpt-6.1-sol": {
     "context_window": [1, 1050000],
@@ -593,7 +593,7 @@ const modelSpec = {
     "beta_flags": []
   },
   // Claude Sonnet 5.5 — the current Sonnet, same price and limits as Sonnet 5.
-  // Live-probed: `thinking: {type: "disabled"}`, non-default temperature and
+  // `thinking: {type: "disabled"}`, non-default temperature and
   // forced tool_choice all return 400; thinking blocks are bound to the
   // conversation (drop_block accepted with adaptive thinking). Omitting
   // `thinking` runs adaptive at the default effort (high), as on Sonnet 5.
@@ -670,7 +670,7 @@ const modelSpec = {
     "structured_output_mode": "json_schema",
     "beta_flags": []
   },
-  // Claude Haiku 5.5 (2026-10-07). Probed 2026-10-17: thinks when `thinking`
+  // Claude Haiku 5.5 (2026-10-07): thinks when `thinking`
   // is omitted and returns its thinking only with display "summarized";
   // temperature other than the default and `between_tools` are 400;
   // thinking.type "disabled" and forced tool_choice are accepted; thinking
@@ -906,7 +906,7 @@ const modelSpec = {
     "sunset_date": "2026-06-25",
     "successor": "gemini-3.6-flash"
   },
-  // Gemini 4 Argon (2026-10-13). Probed 2026-10-17: thinking levels low,
+  // Gemini 4 Argon (2026-10-13): thinking levels low,
   // medium and high (minimal is 400); thinkingBudget 0 and temperature are
   // accepted; function calls, images and Google Search work.
   "gemini-4-argon": {
@@ -1011,8 +1011,8 @@ const modelSpec = {
     "deprecated": true,
     "successor": "gemini-3.5-flash-lite"
   },
-  // Nano Banana 2.1 (2026-10-06), the successor of 3.1 Flash Image. Probed
-  // 2026-10-17: same generateContent reply (inline JPEG), from a prompt and
+  // Nano Banana 2.1 (2026-10-06), the successor of 3.1 Flash Image: the
+  // same generateContent reply (inline JPEG), from a prompt and
   // from an inline video.
   "gemini-nano-banana-2.1": {
     "context_window": [131072],
@@ -1109,7 +1109,7 @@ const modelSpec = {
   },
   // Mistral models
   // devstral models (agentic code). Devstral 2 was retired 2026-07-31; the
-  // alias now answers as mistral-medium-3-5 (probed 2026-10-17), so the
+  // alias now answers as mistral-medium-3-5, so the
   // catalog points saved selections there.
   "devstral-latest": {
     "deprecated": true,
@@ -1160,7 +1160,7 @@ const modelSpec = {
   // 1M context, 128k output). reasoning_effort accepts low/high/max and
   // rejects "none"; WITHOUT the parameter it reasons at about max, so the
   // helper sends the lowest level when no reasoning is asked for
-  // (mistral_effort_for). "low" is close to no reasoning (checked 2026-10-06).
+  // (mistral_effort_for). "low" is close to no reasoning.
   "zai-glm-5-3": {
     "context_window": [1, 1048576],
     "max_output_tokens" : [1, 128000],
@@ -1173,7 +1173,7 @@ const modelSpec = {
     "reasoning_effort": [["low", "high", "max"], "low"]
   },
   // GLM 5.3 Flash (2026-10-22): same reasoning values as GLM 5.3 (none and
-  // medium return 400, checked 2026-10-24), and it takes images.
+  // medium return 400), and it takes images.
   "zai-glm-5-3-flash": {
     "context_window": [1, 1048576],
     "max_output_tokens" : [1, 128000],
@@ -1435,7 +1435,7 @@ const modelSpec = {
   },
   // DeepSeek models
   // V4.1 Flash (2026-09-10, updated 2026-10-17): sees images natively. The
-  // V4 Flash names below are retired and answer as this model for now.
+  // V4 Flash names below are retired and answer as this model.
   "deepseek-flash": {
     "context_window" : [1, 1000000],
     "max_output_tokens" : [1, 384000],
@@ -1601,15 +1601,14 @@ const modelSpec = {
     "deprecated": true,
     "successor": "voxtral-mini-tts-3-0"
   },
-  // Voxtral 3 (2026-10-20): the same /v1/audio/speech request as 26.03
-  // (checked 2026-10-24).
+  // Voxtral 3 (2026-10-20): the same /v1/audio/speech request as 26.03.
   "voxtral-mini-tts-3-0": {
     "tts_capability": true,
     "tts_family": "mistral"
   },
   // Eleven v4 and v4 Turbo (2026-09-28): play the same inline audio tags as
-  // v3 (probed 2026-10-17: "[laughs]" is performed, not read); /stream
-  // refuses optimize_streaming_latency (400, checked 2026-10-18).
+  // v3 ("[laughs]" is performed, not read); /stream refuses
+  // optimize_streaming_latency (400).
   "eleven_v4": {
     "tts_capability": true,
     "tts_family": "elevenlabs-v3",
@@ -1621,7 +1620,7 @@ const modelSpec = {
     "tts_latency_option": false
   },
   // Sent to the convert endpoint (the whole file), the app's choice for v3;
-  // refuses previous_text (400, checked 2026-10-18).
+  // refuses previous_text (400).
   "eleven_v3": {
     "tts_capability": true,
     "tts_family": "elevenlabs-v3",
@@ -1723,7 +1722,7 @@ const modelSpec = {
     "stt_provider": "cohere"
   },
   // Voxtral Mini Transcribe 2 (26.02). The 25.07 name was retired
-  // 2026-05-31 and now answers as voxtral-mini-latest (probed 2026-10-17).
+  // 2026-05-31 and now answers as voxtral-mini-latest.
   // Mistral still serves 26.02; Monadic moved to Transcribe 3, so a saved
   // model follows the successor.
   "voxtral-mini-2602": {
@@ -1732,8 +1731,7 @@ const modelSpec = {
     "deprecated": true,
     "successor": "voxtral-mini-transcribe-3-0"
   },
-  // Voxtral Mini Transcribe 3 (2026-10-20): the same request as 26.02; it
-  // gave back a test sentence word for word (checked 2026-10-24).
+  // Voxtral Mini Transcribe 3 (2026-10-20): the same request as 26.02.
   "voxtral-mini-transcribe-3-0": {
     "stt_capability": true,
     "stt_provider": "mistral"
@@ -1783,11 +1781,11 @@ const modelSpec = {
   // server silently substitutes another model for names it does not know
   // (grok-voice-3.0 as of 2026-10-17) and reports the one it chose in
   // session.created, so the STS bridge validates that echo and stops on
-  // mismatch. Probed 2026-10-17: same session shape, events and function
-  // calls as 2.0; the user transcript arrives as .completed only.
-  // Voices: 26 IDs validated against the TTS REST API 2026-08-01 (the
-  // realtime endpoint itself accepts any string silently, so names come
-  // from the shared TTS voice registry).
+  // mismatch. Same session shape, events and function calls as 2.0; the
+  // user transcript arrives as .completed only.
+  // Voices: the IDs of the TTS REST API (the realtime endpoint itself
+  // accepts any string silently, so names come from the shared TTS voice
+  // registry).
   "grok-voice-3.0": {
     "supports_speech_to_speech": true,
     "sts_provider": "xai",
@@ -1820,8 +1818,8 @@ const modelSpec = {
   // (reconnect re-seeds from the canon).
   // Voices: all 30 prebuilt names accepted via Live setup 2026-08-01.
   // Gemini 3.8 Live (2026-09-15), the successor of 3.1 Flash Live Preview.
-  // Probed 2026-10-17 with the app's setup: spoken input transcribed, audio
-  // reply with its transcript, function calls.
+  // Spoken input is transcribed; the reply is audio with its transcript, and
+  // function calls work.
   "gemini-3.8-live": {
     "supports_speech_to_speech": true,
     "sts_provider": "gemini",
@@ -1912,9 +1910,8 @@ const providerDefaults = {
     "chat": ["gemini-3.8-flash", "gemini-4-argon", "gemini-3.6-flash", "gemini-3.1-pro-preview"],
     "vision": ["gemini-3.8-flash", "gemini-3.6-flash"],
     "audio_transcription": ["gemini-3.8-flash", "gemini-3.6-flash"],
-    // Imagen 4.0 reached its sunset on 2026-08-17 and is gone from the live
-    // model list (verified 2026-08-22), so only the conversational image
-    // models remain.
+    // Imagen 4.0 is retired, so only the conversational image models
+    // remain.
     "image": ["gemini-nano-banana-2.1", "gemini-3-pro-image"],
     // Gemini Omni over the Interactions API (scripts/generators/video_generator_gemini.rb);
     // Veo 3.1, its predecessor, is listed by Google to stop 2026-10-22.

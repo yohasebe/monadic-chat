@@ -112,8 +112,7 @@ module MistralHelper
     rank = MISTRAL_EFFORT_RANK.index(requested)
 
     # "none" is sent, not left out: Mistral Large 4 reasons when the field is
-    # missing (probed 2026-10-17: 412 completion tokens with no field, 5
-    # with "none").
+    # missing; "none" turns reasoning off.
     if requested.empty? || requested == "none" || rank.nil?
       return accepts_none ? "none" : above_none.first
     end

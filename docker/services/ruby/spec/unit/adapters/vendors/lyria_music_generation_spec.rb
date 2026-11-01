@@ -9,8 +9,7 @@ require_relative '../../../../lib/monadic/adapters/vendors/gemini_helper'
 
 # Unit coverage for generate_music_with_lyria. The live Gemini call is stubbed;
 # these specs pin the response parsing (audio part extraction, mime→ext, lyrics
-# formatting), the file save, and the error/empty paths — the part the live
-# dogfood exercised but no unit test covered.
+# formatting), the file save, and the error/empty paths.
 RSpec.describe 'GeminiHelper#generate_music_with_lyria' do
   subject(:helper) do
     Class.new do

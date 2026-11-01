@@ -20,7 +20,7 @@ module Monadic
     module JobStore
       module_function
 
-      # Concurrency gate (design §5): cap simultaneously-running jobs so a CLI
+      # Concurrency gate: cap simultaneously-running jobs so a CLI
       # agent cannot spawn unbounded threads / parallel API spend.
       MAX_CONCURRENT = 3
 
@@ -107,7 +107,7 @@ module Monadic
         end
       end
 
-      # Kill switch (design §5). Killing a thread mid-subprocess may leave an
+      # Kill switch. Killing a thread mid-subprocess may leave an
       # orphaned child (e.g. tts_query.rb) running to completion with its
       # output discarded — acceptable for a cancel.
       def cancel(id)

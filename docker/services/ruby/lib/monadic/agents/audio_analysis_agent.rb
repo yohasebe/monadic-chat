@@ -76,9 +76,8 @@ module AudioAnalysisAgent
       # recommends keeping temperature at its default 1.0 for ALL Gemini 3
       # models — lowering it "may lead to unexpected behavior, such as looping
       # or degraded performance" — and explicitly advises REMOVING explicitly
-      # set low temperatures. A temperature 0.2 experiment here (2026-06-10)
-      # confirmed the warning in dogfood: the critique lost candor (praise
-      # bias, dropped its mention of real timing rush). Fabrication and
+      # set low temperatures. A low temperature here makes the critique lose
+      # candor (praise bias, missed timing problems). Fabrication and
       # praise-bias countermeasures live in the critique PROMPT instead.
       body = {
         contents: [{

@@ -52,7 +52,7 @@ app "LiveConversationOpenAI" do
     # and with the toggle off the realtime session config carries no tools
     # key at all (wire invariant in the handler spec).
     library_search false
-    # Server-VAD tuning (dogfood round 1). API defaults (threshold 0.5,
+    # Server-VAD tuning. API defaults (threshold 0.5,
     # silence 500ms) both misfired: brief hesitations ended the user's turn,
     # and speaker echo of the assistant's own voice started phantom turns.
     # Higher threshold + longer silence trade a little response latency for

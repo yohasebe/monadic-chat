@@ -3,14 +3,17 @@
  *
  * Tests for ws-vocabulary-handler.js — the frontend layer that transforms
  * ${TOKEN} occurrences using the backend-shipped vocabulary_map. Per-token
- * display mode (decision E): `decorate` keeps the literal symbol with hover +
+ * display mode: `decorate` keeps the literal symbol with hover +
  * click-to-reveal; `expand` replaces it with the resolved value.
  */
 
 require('../../docker/services/ruby/public/js/monadic/ws-vocabulary-handler');
+const os = require('os');
+const path = require('path');
 
+const SHARED_PATH = path.join(os.tmpdir(), 'monadic', 'data');
 // New map shape: { TOKEN: { value, display } }.
-const MAP = { SHARED: { value: '/Users/me/monadic/data', display: 'decorate' } };
+const MAP = { SHARED: { value: SHARED_PATH, display: 'decorate' } };
 
 function decorate(html, map = MAP) {
   const root = document.createElement('div');
@@ -30,8 +33,8 @@ describe('WsVocabularyHandler.decorateTokens — decorate mode', () => {
     const span = root.querySelector('span.vocab-token');
     expect(span).not.toBeNull();
     expect(span.textContent).toBe('${SHARED}');
-    expect(span.getAttribute('data-vocab-path')).toBe('/Users/me/monadic/data');
-    expect(span.getAttribute('title')).toContain('/Users/me/monadic/data');
+    expect(span.getAttribute('data-vocab-path')).toBe(SHARED_PATH);
+    expect(span.getAttribute('title')).toContain(SHARED_PATH);
     // The path tail stays as plain text (only the token is wrapped).
     expect(root.textContent).toBe('see ${SHARED}/x.txt now');
   });
@@ -123,7 +126,7 @@ describe('WsVocabularyHandler click action', () => {
     window.electronAPI = { revealPath };
     const root = decorate('<p>${SHARED}/x</p>');
     root.querySelector('span.vocab-token').click();
-    expect(revealPath).toHaveBeenCalledWith('/Users/me/monadic/data');
+    expect(revealPath).toHaveBeenCalledWith(SHARED_PATH);
     delete window.electronAPI;
   });
 
@@ -133,7 +136,7 @@ describe('WsVocabularyHandler click action', () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     const root = decorate('<p>${SHARED}/x</p>');
     root.querySelector('span.vocab-token').click();
-    expect(writeText).toHaveBeenCalledWith('/Users/me/monadic/data');
+    expect(writeText).toHaveBeenCalledWith(SHARED_PATH);
   });
 
   it('does not trigger reveal/clipboard when an expand .vocab-value is clicked', () => {

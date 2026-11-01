@@ -191,8 +191,8 @@ async function gracefulStopThenInstall() {
   // observed symptom: app quits but does NOT restart. A short delay
   // before quitAndInstall lets Squirrel set up cleanly.
   //
-  // Rationale for 1500ms: empirically chosen. Squirrel's helper spawn is
-  // typically observed in the 200-500ms range after quit signal; 1500ms
+  // Rationale for 1500ms: Squirrel's helper typically spawns within
+  // 200-500ms of the quit signal; 1500ms
   // gives ~3x headroom for slower systems without being perceptible to
   // the user who is already waiting for the update to apply.
   await new Promise(resolve => setTimeout(resolve, 1500));

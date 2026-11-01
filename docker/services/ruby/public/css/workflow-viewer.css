@@ -228,7 +228,7 @@
   cursor: grabbing;
 }
 
-/* --- Load error (§38d): shown when maxgraph fails to load, with a retry --- */
+/* --- Load error: shown when maxgraph fails to load, with a retry --- */
 .wv-load-error {
   display: flex;
   align-items: center;

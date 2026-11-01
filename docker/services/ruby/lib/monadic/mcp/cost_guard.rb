@@ -4,7 +4,7 @@ module Monadic
   module MCP
     # Process-level token budget for the Conduit surface.
     #
-    # Conduit's first principle for cost safety (design §5): the platform — not
+    # Conduit's first principle for cost safety: the platform — not
     # the calling CLI agent — enforces the ceiling. Every Conduit tool that
     # spends provider tokens reserves against this budget BEFORE the call (a
     # hard ceiling that refuses runaway work) and settles the reservation with

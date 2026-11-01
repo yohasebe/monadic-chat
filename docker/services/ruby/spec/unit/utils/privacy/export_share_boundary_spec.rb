@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../../../spec_helper'
+require 'tmpdir'
 
 # The masked export exists so a conversation can be handed to someone else
 # without the values the privacy filter detected. Masking the message body is
@@ -45,7 +46,7 @@ RSpec.describe 'Privacy export share boundary' do
   # carry prose. Using the same string throughout means a single search over
   # the payload answers "did anything leak".
   let(:pii) { 'Example Person' }
-  let(:local_path) { '/Users/someone/private/notes.md' }
+  let(:local_path) { File.join(Dir.tmpdir, 'private', 'notes.md') }
   let(:registry) { { '<<PERSON_1>>' => pii } }
 
   let(:session) do
@@ -97,7 +98,7 @@ RSpec.describe 'Privacy export share boundary' do
     end
 
     it 'carries no path from the exporting machine' do
-      expect(JSON.generate(payload)).not_to include('/Users/')
+      expect(JSON.generate(payload)).not_to include(local_path)
     end
 
     it 'drops the placeholder-to-original table' do

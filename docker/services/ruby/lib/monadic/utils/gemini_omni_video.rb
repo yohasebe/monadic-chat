@@ -21,10 +21,9 @@ module Monadic
     # dropped connection is reported as an unknown outcome instead of being
     # sent again. A video counts as made only once its file is saved.
     #
-    # Live-checked 2026-10-17: a reply in about 25 s; response_format.duration
-    # "4s" and "8s" give exactly that length at 1280x720 with audio; an image
-    # given with <FIRST_FRAME> and task image_to_video becomes the first frame;
-    # a value the model refuses is a 400 with error.message.
+    # response_format.duration gives the video's length at 1280x720 with
+    # audio; an image given with <FIRST_FRAME> and task image_to_video becomes
+    # the first frame; a value the model refuses is a 400 with error.message.
     class GeminiOmniVideo
       ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions"
       API_HOST = "generativelanguage.googleapis.com"

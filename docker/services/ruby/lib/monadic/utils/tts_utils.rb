@@ -109,7 +109,7 @@ module InteractionUtils
         }
       end
 
-      # Eleven v3 refuses previous_text (400, checked 2026-10-18).
+      # Eleven v3 refuses previous_text with a 400.
       if previous_text.to_s != "" && Monadic::Utils::ModelSpec.get_model_property(model, "tts_previous_text") != false
         body["previous_text"] = previous_text
       end
@@ -512,7 +512,7 @@ module InteractionUtils
         }
       end
 
-      # Eleven v3 refuses previous_text (400, checked 2026-10-18).
+      # Eleven v3 refuses previous_text with a 400.
       if previous_text.to_s != "" && Monadic::Utils::ModelSpec.get_model_property(model, "tts_previous_text") != false
         body["previous_text"] = previous_text
       end

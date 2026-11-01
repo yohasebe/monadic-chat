@@ -200,7 +200,7 @@ describe('ws-message-renderer', () => {
       expect(addedMid).toMatch(/^restored-/);
     });
 
-    // §37-3: Live Conversation markers (interrupted / tools_used) persist in
+    // Live Conversation markers (interrupted / tools_used) persist in
     // the canon but are not part of msg.badge — rebuilding the badge through
     // assistantBadge is what keeps them visible across a LOAD re-render.
     it('builds assistant badges via assistantBadge so canon markers survive LOAD', () => {

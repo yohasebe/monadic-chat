@@ -633,8 +633,7 @@ describe('WebSocket Handlers', () => {
       // Realtime STT in ws-session-handler.js#handleSTT writes the
       // final transcript to the textarea itself, then delegates to
       // this handler for UI cleanup. Without the flag the value gets
-      // the transcript twice — observed in dogfood as
-      // "こんにちは。 こんにちは。" doubled messages.
+      // the transcript twice (a doubled message).
       const msgEl = document.getElementById('message');
       msgEl.value = 'caller already wrote this';
 

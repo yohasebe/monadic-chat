@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require 'tmpdir'
 require 'monadic/library'
 
 RSpec.describe Monadic::Library::Importers::Code do
@@ -246,7 +247,7 @@ RSpec.describe Monadic::Library::Importers::Code do
     end
 
     it 'uses basename of an absolute path' do
-      result = described_class.import(ruby_input, filename: '/Users/me/proj/lib/foo.rb')
+      result = described_class.import(ruby_input, filename: File.join(Dir.tmpdir, 'proj', 'lib', 'foo.rb'))
       expect(result.dig('conversation_metadata', 'source')).to eq('code:foo.rb')
     end
   end

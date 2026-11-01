@@ -233,7 +233,7 @@ describe('card-renderer', () => {
     });
   });
 
-  // ── insertInlineToolBadge (§37-3) ────────────────────────
+  // ── insertInlineToolBadge ────────────────────────
   describe('insertInlineToolBadge', () => {
     function cardWithParas(texts) {
       const card = document.createElement('div');

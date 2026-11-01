@@ -415,11 +415,10 @@ RSpec.describe 'AutoForge Diagnosis Integration', type: :integration do
       expect(result[:success]).to be true
       # debug_timing.duration is the Ruby-side wall-clock from start to end of
       # debug_html, which includes send_command overhead, Python startup,
-      # Selenium connect/page-load, JS evaluation and cleanup. Under a fully
-      # loaded `rake test:all[full]` host (~26 min, ~600 specs) the
-      # observed wall-clock was 157s vs 3s on an idle host; the threshold
-      # below is sized for the loaded case while still catching real perf
-      # regressions (e.g. >3 min would indicate a true degradation).
+      # Selenium connect/page-load, JS evaluation and cleanup. The bound is
+      # sized for a host busy with the full suite, where this takes far
+      # longer than on an idle host; exceeding 3 min indicates a real
+      # performance regression.
       debug_duration = result.dig(:debug_timing, :duration) || 0
       expect(debug_duration).to be < 180
 

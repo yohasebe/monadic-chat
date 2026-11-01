@@ -7,6 +7,7 @@ require_relative 'ledger'
 require_relative 'folders'
 require_relative 'shared_folder_preview'
 require_relative '../utils/environment'
+require_relative '../utils/shared_fs'
 
 module Monadic
   module Workspace
@@ -27,6 +28,7 @@ module Monadic
       # matches, so it never acts on a different folder that happens to
       # have the same relative path.
       ROOT_ID_FILE = '.monadic-shared-root'
+      ROOT_ID_LIMIT = 64
 
       # Entries at the top of the shared folder that Monadic Chat or the
       # user's own setup reads: never offered for removal, nor anything in
@@ -118,12 +120,22 @@ module Monadic
             File.unlink(temp) if File.exist?(temp)
           end
         end
-        raise Invalid, "#{ROOT_ID_FILE} is not a plain file" unless File.lstat(path).file?
+        bytes = Monadic::Utils::SharedFs.in_dir(root, []) do |dir|
+          file = Monadic::Utils::SharedFs.open_read(dir, ROOT_ID_FILE)
+          begin
+            file.read(ROOT_ID_LIMIT + 1).to_s
+          ensure
+            file.close
+          end
+        end
+        raise Invalid, "#{ROOT_ID_FILE} is too large" if bytes.bytesize > ROOT_ID_LIMIT
 
-        id = File.read(path, 64).to_s.strip
+        id = bytes.strip
         raise Invalid, "#{ROOT_ID_FILE} does not hold an id" unless id.match?(/\A[0-9a-f]{32}\z/)
 
         id
+      rescue Monadic::Utils::SharedFs::Unsafe, Errno::ELOOP
+        raise Invalid, "#{ROOT_ID_FILE} is not a plain file"
       end
 
       # The id, or why there is none (the folder may be read-only): the list
@@ -287,12 +299,24 @@ module Monadic
       end
 
       def ledger_index(ledger, live_chat_ids)
-        snapshot = ledger.snapshot
-        by_dir = {}
-        snapshot[:workspaces].each do |workspace_id, record|
-          by_dir[record['relative_dir']] = record.merge('workspace_id' => workspace_id)
+        @index_mutex ||= Mutex.new
+        index = @index_mutex.synchronize do
+          stat = File.stat(ledger.path)
+          key = [ledger.path, stat.dev, stat.ino, stat.size, stat.mtime.to_r, stat.ctime.to_r]
+          if @index_key != key
+            snapshot = ledger.snapshot
+            by_dir = {}
+            snapshot[:workspaces].each do |workspace_id, record|
+              by_dir[record['relative_dir']] = record.merge('workspace_id' => workspace_id)
+            end
+            @index = { workspaces: by_dir, attachments: snapshot[:attachments] }
+            @index_key = key
+          end
+          @index
         end
-        { workspaces: by_dir, attachments: snapshot[:attachments], live: live_chat_ids.compact.to_a }
+        index.merge(live: live_chat_ids.compact.to_a)
+      rescue Errno::ENOENT
+        { workspaces: {}, attachments: {}, live: live_chat_ids.compact.to_a }
       rescue Ledger::Unreadable, SystemCallError
         { workspaces: {}, attachments: {}, live: live_chat_ids.compact.to_a, unreadable: true }
       end
@@ -310,7 +334,7 @@ module Monadic
         item[:preview] = SharedFolderPreview.kind_for(name) if kind == 'file'
         item.merge!(size_of(kind, stat, relative, sizes))
         item.merge!(what_it_is(parts, name, kind, index))
-        protected_reason = PROTECTED[parts.first || name]
+        protected_reason = PROTECTED[top_name(parts.first || name)]
         item[:protected_reason] = protected_reason if protected_reason
         item[:busy_reason] ||= 'open_in_tab' if in_open_chat?(parts, item, index)
         item[:capabilities] = { reveal: reveal && %w[file folder].include?(kind),
@@ -340,7 +364,7 @@ module Monadic
         return false if index[:unreadable]
         return false unless %w[file folder].include?(kind)
         return false if item[:protected_reason] || item[:busy_reason]
-        return false if parts.empty? && FOLDERS.key?(item[:name])
+        return false if parts.empty? && FOLDERS.key?(top_name(item[:name]))
 
         relative = item[:path]
         index[:workspaces].none? do |dir, record|
@@ -358,17 +382,50 @@ module Monadic
         root = data_root
         # Each part as the folder spells it: on a file system that ignores
         # case, "Apps" would reach "apps" and miss its protection.
+        check_spelling!(root, parts)
+        dir = folder_at(root, parts[0..-2])
+        item = describe(dir, parts[0..-2], parts.last, ledger_index(ledger, live_chat_ids), nil)
+        raise Invalid, 'the entry is not there' unless item
+
+        item
+      end
+
+      # The OS spells the path of the open entry, including its parents.
+      # Entries that cannot be opened are checked by listing instead.
+      def check_spelling!(root, parts)
+        target = File.join(root, *parts)
+        stat = File.lstat(target)
+        if stat.directory?
+          Monadic::Utils::SharedFs.in_dir(root, parts) do |dir|
+            raise Invalid, 'the entry is not there' unless SharedFolderPreview.opened_path(dir) == target
+          end
+        elsif stat.file?
+          Monadic::Utils::SharedFs.in_dir(root, parts[0..-2]) do |dir|
+            file = Monadic::Utils::SharedFs.open_read(dir, parts.last)
+            begin
+              raise Invalid, 'the entry is not there' unless SharedFolderPreview.opened_path(file) == target
+            ensure
+              file.close
+            end
+          end
+        else
+          check_spelling_by_listing!(root, parts)
+        end
+      rescue Errno::EACCES, Errno::EPERM, SharedFolderPreview::Unavailable
+        check_spelling_by_listing!(root, parts)
+      rescue Monadic::Utils::SharedFs::Unsafe, SystemCallError
+        raise Invalid, 'the entry is not there'
+      end
+
+      def check_spelling_by_listing!(root, parts)
         dir = root
         parts.each do |part|
           raise Invalid, 'the entry is not there' unless Dir.children(dir).include?(part)
 
           dir = File.join(dir, part)
         end
-        dir = folder_at(root, parts[0..-2])
-        item = describe(dir, parts[0..-2], parts.last, ledger_index(ledger, live_chat_ids), nil)
-        raise Invalid, 'the entry is not there' unless item
-
-        item
+      rescue SystemCallError
+        raise Invalid, 'the entry is not there'
       end
 
       def size_of(kind, stat, relative, sizes)
@@ -381,14 +438,21 @@ module Monadic
         end
       end
 
+      # A top entry's name as PROTECTED and FOLDERS hold it. The shared folder
+      # may be on a file system that ignores case, where `Apps` is the folder
+      # read as `apps`.
+      def top_name(name)
+        name.to_s.downcase
+      end
+
       def what_it_is(parts, name, kind, index)
-        top = parts.first || name
+        top = top_name(parts.first || name)
         return { classification: 'protected', classification_source: 'name' } if PROTECTED.key?(top)
         return { classification: 'test_file', classification_source: 'name' } if test_file?(parts, name)
         return { classification: 'test_candidate', classification_source: 'name' } if test_candidate?(parts, name)
 
         if parts.empty?
-          return { classification: FOLDERS[name], classification_source: 'name' } if FOLDERS.key?(name) && kind == 'folder'
+          return { classification: FOLDERS[top], classification_source: 'name' } if FOLDERS.key?(top) && kind == 'folder'
 
           return public_copy(name, index) if name.start_with?('pub_')
           return { classification: 'intermediate_candidate', classification_source: 'name' } if INTERMEDIATE_PATTERNS.any? { |re| re.match?(name) }

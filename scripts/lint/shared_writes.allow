@@ -72,3 +72,4 @@ docker/services/ruby/lib/monadic/utils/shared_path_guard.rb | File.open(copy, "w
 docker/services/ruby/lib/monadic/history/store.rb | FileUtils.mkdir_p(File.dirname(@path), mode: 0o700) | state | folder of the conversation history (state folder; refused inside the shared folder)
 docker/services/ruby/lib/monadic/history/store.rb | File.open(@path, File::WRONLY | File::CREAT, 0o600) { nil } | state | the conversation history, made owner-only before SQLite opens it (state folder)
 docker/services/ruby/lib/monadic/history/store.rb | File.chmod(0o600, file) if File.exist?(file) | state | keeps the history and its companion files owner-only (state folder)
+docker/services/ruby/lib/monadic/utils/trial_log.rb | File.open(File.join(folder, FILE_NAME), "a") | log | measurement log in the folder MONADIC_TRIAL_LOG names (shell only; refused inside the shared folder)

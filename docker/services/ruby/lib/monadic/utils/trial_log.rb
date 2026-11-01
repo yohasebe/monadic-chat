@@ -2,7 +2,6 @@
 
 require "json"
 require "digest"
-require "fileutils"
 
 module Monadic
   module Utils
@@ -14,7 +13,8 @@ module Monadic
     # It holds no message text and no tool arguments: a tool call is kept as
     # its name, its call id and a digest of its arguments, so two calls with
     # the same arguments can be told apart from two different ones. Nothing
-    # is written for the work of a Private chat.
+    # is written for the work of a Private chat, nor when the folder does not
+    # exist or is in the shared folder.
     module TrialLog
       FLAG = "MONADIC_TRIAL_LOG"
       FILE_NAME = "events.jsonl"
@@ -56,8 +56,10 @@ module Monadic
 
         context = defined?(Monadic::Workspace::RequestContext) ? Monadic::Workspace::RequestContext.current : nil
         line = JSON.generate(record.merge("request_id" => context&.request_id, "at" => Time.now.utc.iso8601(3)))
+        return unless File.directory?(folder) && defined?(Monadic::History::Store)
+
+        Monadic::History::Store.refuse_inside_shared_folder!(folder)
         MUTEX.synchronize do
-          FileUtils.mkdir_p(folder)
           File.open(File.join(folder, FILE_NAME), "a") { |f| f.puts(line) }
         end
       rescue StandardError

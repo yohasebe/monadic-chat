@@ -12,7 +12,9 @@ module Monadic
     #
     # It holds no message text and no tool arguments: a tool call is kept as
     # its name, its call id and a digest of its arguments, so two calls with
-    # the same arguments can be told apart from two different ones. Nothing
+    # the same arguments can be told apart from two different ones. The
+    # digest does not make the record anonymous: short arguments can be
+    # guessed back from it. The file is the owner's only (0600). Nothing
     # is written for the work of a Private chat, nor when the folder does not
     # exist or is in the shared folder.
     module TrialLog
@@ -60,7 +62,7 @@ module Monadic
 
         Monadic::History::Store.refuse_inside_shared_folder!(folder)
         MUTEX.synchronize do
-          File.open(File.join(folder, FILE_NAME), "a") { |f| f.puts(line) }
+          File.open(File.join(folder, FILE_NAME), File::WRONLY | File::APPEND | File::CREAT, 0o600) { |f| f.puts(line) }
         end
       rescue StandardError
         nil # measuring must never break a reply

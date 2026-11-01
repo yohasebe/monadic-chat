@@ -71,6 +71,28 @@ RSpec.describe Monadic::MCP::ConduitAgent do
     end
   end
 
+  describe ".run request shape" do
+    it "sends the task as the user's message, after the agent's system prompt" do
+      stub_const("CONFIG", CONFIG.merge("OPENAI_API_KEY" => "test-key"))
+      bodies = []
+      allow_any_instance_of(OpenAIHelper).to receive(:execute_openai_api_call) do |_app, _headers, body, *_rest|
+        bodies << JSON.parse(JSON.generate(body))
+        [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "done" } }] }]
+      end
+
+      result = described_class.run(task: "Summarize the shared notes", provider: "openai", model: "gpt-5.4",
+                                   groups: %w[file_reading])
+
+      expect(result).to eq("done")
+      body = bodies.first
+      system_text = body["instructions"].to_s + Array(body["messages"]).select { |m| %w[system developer].include?(m["role"]) }.to_json
+      user_text = JSON.generate(Array(body["input"] || body["messages"]).select { |m| m["role"] == "user" })
+      expect(user_text).to include("Summarize the shared notes")
+      expect(system_text).to include(described_class.send(:system_prompt)[0, 40])
+      expect(user_text).not_to include(described_class.send(:system_prompt)[0, 40])
+    end
+  end
+
   describe ".build_agent_app" do
     after { described_class.send(:remove_app_class, @app_state.name) if @app_state }
 

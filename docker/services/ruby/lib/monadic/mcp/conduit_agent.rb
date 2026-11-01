@@ -82,15 +82,19 @@ module Monadic
           # WebSocket layer normally injects (which a headless run lacks):
           #   - "message": every provider's prepare_request reads the user input
           #     from obj["message"] and appends it to session[:messages] itself,
-          #     so we pass the task there (NOT pre-added to messages) and start
-          #     with an empty history — exactly the WebSocket's first-turn shape.
+          #     so we pass the task there (NOT pre-added to messages).
           #   - "context_size": providers take messages.last(N); a missing/zero N
           #     drops the turn and the model just greets.
+          # The history starts as the page's does: the initial prompt as the
+          # first message (the providers take the first message as the
+          # system prompt's place).
           params = host.settings.merge(
             "context_size" => RUNTIME_CONTEXT_SIZE,
             "message" => task.to_s
           )
-          session = { parameters: params, messages: [] }
+          initial = { "mid" => SecureRandom.hex(4), "role" => "system", "text" => params["initial_prompt"].to_s,
+                      "app_name" => app_key, "active" => true }
+          session = { parameters: params, messages: [initial] }
           results = Timeout.timeout(wall_clock_limit) do
             host.api_request("user", session, call_depth: 0) { |_fragment| nil }
           end

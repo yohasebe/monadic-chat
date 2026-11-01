@@ -47,24 +47,20 @@ RSpec.describe "Gemini TTS selector reachability" do
         expect(resolved).to match_array(representatives)
       end
 
-      it "resolves explicit variants by name while preserving the unsuffixed default" do
-        reordered = %w[gemini-2.5-pro-preview-tts gemini-3.8-flash-lite-tts gemini-3.8-flash-tts]
-        allow(Monadic::Utils::ModelSpec).to receive(:get_provider_models).with("gemini", "tts").and_return(reordered)
-        receiver = public_send(route)
-        expect(receiver.send(:resolve_tts_model, "gemini-flash")).to eq(reordered[2])
-        expect(receiver.send(:resolve_tts_model, "gemini-flash-lite")).to eq(reordered[1])
-        expect(receiver.send(:resolve_tts_model, "gemini-pro")).to eq(reordered[0])
-        expect(receiver.send(:resolve_tts_model, "gemini")).to eq(reordered.first)
-      end
-
-      [nil, [], ["gemini-2.5-pro-preview-tts"]].each do |available|
-        it "does not substitute another variant when Flash/Lite are absent from #{available.inspect}" do
-          allow(Monadic::Utils::ModelSpec).to receive(:get_provider_models).with("gemini", "tts").and_return(available)
-          %w[gemini-flash gemini-flash-lite].each do |label|
-            expect(public_send(route).send(:resolve_tts_model, label)).to be_nil
-          end
+      # The choice names its model in ttsChoices: reordering or emptying the
+      # provider's TTS list changes nothing.
+      [%w[gemini-2.5-pro-preview-tts gemini-3.8-flash-lite-tts gemini-3.8-flash-tts], [], nil].each do |list|
+        it "resolves each value to its own model whatever the TTS list holds (#{list.inspect})" do
+          allow(Monadic::Utils::ModelSpec).to receive(:get_provider_models).and_call_original
+          allow(Monadic::Utils::ModelSpec).to receive(:get_provider_models).with("gemini", "tts").and_return(list)
+          receiver = public_send(route)
+          expect(receiver.send(:resolve_tts_model, "gemini-flash")).to eq("gemini-3.8-flash-tts")
+          expect(receiver.send(:resolve_tts_model, "gemini-flash-lite")).to eq("gemini-3.8-flash-lite-tts")
+          expect(receiver.send(:resolve_tts_model, "gemini-pro")).to eq("gemini-3.8-flash-tts")
+          expect(receiver.send(:resolve_tts_model, "gemini")).to eq("gemini-3.8-flash-tts")
         end
       end
+
     end
   end
 end

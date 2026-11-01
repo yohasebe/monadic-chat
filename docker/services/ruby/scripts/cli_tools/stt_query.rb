@@ -5,6 +5,8 @@ $LOAD_PATH.unshift('/monadic/lib') if File.directory?('/monadic/lib')
 $LOAD_PATH.unshift(File.expand_path('../../lib', __dir__)) if File.directory?(File.expand_path('../../lib', __dir__))
 
 require "securerandom"
+require "stringio"
+require_relative "../../lib/monadic/utils/shared_path_guard"
 require "base64"
 require "http"
 require_relative "../../lib/monadic/utils/secret_references"
@@ -43,7 +45,8 @@ def stt_api_request(audiofile, response_format = "text", lang_code = nil, model 
 
   begin
     options = {
-      file: HTTP::FormData::File.new(audiofile),
+      # Read as a plain file of the shared folder, never through a link.
+      file: HTTP::FormData::File.new(StringIO.new(Monadic::Utils::SharedPathGuard.read_file!(audiofile, &:read)), filename: File.basename(audiofile)),
       model: model,
       response_format: response_format
     }
@@ -104,7 +107,7 @@ begin
   
   response = stt_api_request(audiofile, response_format, lang_code, model)
   outfile = "#{outpath}/stt_#{Time.now.strftime("%Y%m%d_%H%M%S")}.json"
-  File.write(outfile, response)
+  Monadic::Utils::SharedPathGuard.write_file!(outfile, response.to_s)
   puts response
 rescue StandardError => e
   pp e.message

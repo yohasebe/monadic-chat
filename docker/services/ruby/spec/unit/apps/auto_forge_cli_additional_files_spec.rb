@@ -18,6 +18,9 @@ RSpec.describe 'AutoForge CLI optional files' do
 
   let(:helper) { helper_class.new }
 
+  # The projects live in the shared folder; the temp folders stand in for it.
+  before { allow(Monadic::Utils::Environment).to receive(:data_path).and_return(Dir.tmpdir) }
+
   describe '#suggest_cli_additional_files' do
     it 'suggests README and custom option when the script has no config or external deps' do
       Dir.mktmpdir do |dir|

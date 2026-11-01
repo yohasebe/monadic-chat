@@ -1,338 +1,100 @@
-# WebSocket Progress Broadcasting Implementation
+# WebSocket Sessions and Progress Messages
 
-## Overview
-This document describes the WebSocket progress broadcasting feature implemented for long-running OpenAI Code operations. The feature displays progress updates in the temp card (yellow warning area) during operations that may take 10+ minutes.
+This page describes how the server addresses WebSocket messages to a browser tab, and how long-running operations report progress. The code is in `lib/monadic/utils/websocket.rb` and `lib/monadic/utils/websocket/connection_manager.rb`.
 
-## Implementation Date
-2025-09-28
+## Session ID
 
-## Problem Addressed
-OpenAI Code operations can take 10-20 minutes or longer. Without progress updates, users couldn't tell if the system was still working or had frozen. Progress messages were appearing in console and #status-message but NOT in the content area's temp card where streaming text normally appears.
+Each browser tab is its own session.
 
-## Solution Architecture
+- `public/js/monadic/ws-tab-id.js` creates a tab ID (`crypto.randomUUID()`, or `tab-<time>-<random>` without it) and keeps it in `sessionStorage` under `monadicTabId`, so it survives a reload of the same tab and differs between tabs. `window.getMonadicTabId()` returns it.
+- The WebSocket URL carries `?tab_id=<id>`. HTTP requests that act on a tab's chat (conversation import, attachments, the shared-folder panel, the Monadic state export, an app's graph) send the same `tab_id`.
+- `handle_websocket_connection` uses `tab_id` as the session ID. A connection without `tab_id` uses `session[:websocket_session_id]` from the Rack session, creating a UUID the first time.
+- The session ID is stored in `Thread.current[:websocket_session_id]` for the connection's thread. Threads started from it do not inherit it, so code that spawns threads reads it first and passes it on.
 
-### Key Components Modified
+## Connection Tracking
 
-1. **`lib/monadic/utils/websocket.rb`**
-   - Added progress broadcasting capabilities to WebSocketHelper module
-   - Uses WebSocket connection broadcast for message delivery
-   - Session management for tracking multiple connections per session
+| Structure | Contents |
+|---|---|
+| `@@ws_connections` | every open connection |
+| `@@connections_by_session` | session ID → set of connections (a tab can briefly have two while it reconnects) |
+| `@@session_state` | per session: messages, parameters, `chat_id`, the rest of the chat state, and a generation counter |
+| `@@live_sessions` | session ID → the session object the tab's open connection runs its chat in |
 
-2. **`lib/monadic/agents/openai_code_agent.rb`**
-   - Integrated with WebSocketHelper for progress updates
-   - Sends 1-minute interval updates during long operations
-   - Passes session context to progress threads
+Each new connection claims a generation (`claim_session_state`). `update_session_state` ignores writes from an older generation, so a closing connection cannot overwrite what its replacement did. On close the connection is removed from both lists, its live session is unregistered (only by the connection that registered it), and staged imports for the tab are dropped when no connection of the tab is left.
 
-3. **`apps/auto_forge/auto_forge_tools.rb`**
-   - Passes progress callbacks through to OpenAI Code agent
+## Sending
 
-## Critical Implementation Details
+| Method | Delivers to |
+|---|---|
+| `send_or_broadcast(message, session_id)` | the session's connections; all connections when there is no session ID |
+| `WebSocketHelper.send_to_session(json, session_id)` | every connection of the session; dead connections are removed |
+| `WebSocketHelper.send_audio_to_session(json, session_id)` | one connection of the session, so audio does not play twice |
+| `send_error(content, session_id)` | the session, after removing account identifiers from provider error text |
+| `send_to_client(connection, …)` | one connection (`pong` replies to `PING`) |
+| `WebSocketHelper.broadcast_to_all(json)` | every connection |
 
-### WebSocket Broadcasting Requirement
-**IMPORTANT**: Messages MUST be sent through WebSocketHelper broadcasting methods to reach all connected clients. Use `WebSocketHelper.broadcast_progress()` or `WebSocketHelper.broadcast_to_all()`.
+Messages that belong to a chat go to its session. `broadcast_to_all` is used for:
 
-```ruby
-# CORRECT - Messages appear in temp card for all clients
-WebSocketHelper.broadcast_progress(fragment, target_session_id)
+- voice lists (`elevenlabs_voices`, `gemini_voices`, `mistral_voices`)
+- component degradation notices (`system_info` from `DegradationNotifier`)
+- MCP server status (`broadcast_mcp_status`)
+- the fallback of the senders above when no session ID is known
 
-# CORRECT - Broadcast to all connections
-WebSocketHelper.broadcast_to_all(message.to_json)
+## Progress Messages
 
-# INCORRECT - Sends to only one connection
-ws.write(message.to_json)
-```
+A progress message is a `wait` fragment:
 
-### Message Format
-Progress messages must have this format to trigger the temp card display:
 ```json
-{
-  "type": "wait",
-  "content": "Progress message text",
-  "timestamp": 1234567890.123
-}
+{"type": "wait", "content": "…", "source": "…", "timestamp": 1234567890.1}
 ```
 
-The JavaScript frontend handles `type: "wait"` messages by calling `setAlert(content, "warning")` which displays them in the yellow temp card area.
+Optional fields: `minutes`, `elapsed`, `remaining`, `step_progress` (`{mode: "sequential"|"parallel", current, total, steps}`), `parallel_progress` (`{completed, total, task_names}`).
 
-## Features Added
+`WebSocketHelper.send_progress_fragment(fragment, session_id)` sends a Hash fragment whose `type` is `wait` or `fragment` through `broadcast_progress`, which adds `timestamp` and sends to the session (or to all connections without a session ID). Nothing is sent when `WEBSOCKET_PROGRESS_ENABLED` is `false`.
 
-### 1. Session Management Structure
-- `@@connections_by_session`: Hash mapping session IDs to Sets of WebSocket connections
-- Supports multiple tabs/connections per session
-- Broadcast currently goes to all connections via the channel while preserving per-session tracking for targeted messaging
+Senders:
 
-### 2. Progress Broadcasting Methods
-- `broadcast_progress(fragment, target_session_id)`: Main broadcasting method
-- `send_to_session(message_json, session_id)`: Session-specific sending (uses WebSocket connections)
-- `broadcast_to_all(message)`: Broadcast to all active connections
+| Sender | Interval | `source` |
+|---|---|---|
+| `Monadic::Utils::ProgressBroadcaster.with_progress` (media generation, Grok compaction, Conduit jobs) | 30 s by default | caller's name |
+| OpenAI code agent (`start_progress_thread`) | `OPENAI_CODE_PROGRESS_INTERVAL` (60 s); only when the call timeout exceeds 120 s, a progress block is given and `OPENAI_CODE_PROGRESS_ENABLED` is not `false` | `OpenAICodeAgent` |
+| Claude code agent | next step every 40 s | `ClaudeCodeAgent` |
+| Grok code agent | next step every 30 s | `GrokCodeAgent` |
+| `Monadic::Utils::StepProgress.send_step_progress` | per step | caller's name |
+| Parallel dispatch, parallel Python execution, Second Opinion across providers | per completed task | `ParallelDispatch`, `ParallelCodeExecution`, `MultiProviderVerification` |
 
-### 3. Feature Flag
-- `WEBSOCKET_PROGRESS_ENABLED`: Controls whether progress broadcasting is active
-- Defaults to `true` if not specified in config
+`ProgressBroadcaster` also copies each message into the Conduit job record (`Monadic::MCP::JobStore.report`) when the work runs in a Conduit job. Progress is best-effort: errors in progress threads are swallowed.
 
-## Design Decisions and Rationale
+AutoForge passes a callback to the code agents that calls `send_progress_fragment` with the tab's session ID.
 
-### Why Keep Session Management?
-Although broadcasting currently goes to all subscribers, maintaining session management:
-1. **Enables targeted messaging** without additional architectural changes
-2. **Supports connection cleanup** by tracking and removing dead connections
-3. **Assists debugging** by exposing which sessions have active connections
-4. **Adds minimal overhead** thanks to set-based storage
+## Display
 
-### Why Include session_id in Messages?
-Currently unused by JavaScript, but included for:
-1. **Client-side filtering**: Clients can filter messages by session
-2. **Debugging**: Track which session generated which message
-3. **Backward compatibility**: Easy to add filtering without changing message format
+`websocket.js` hands `wait` messages to `WsToolHandler.handleWait` (`ws-tool-handler.js`). For a `source` that names a known agent or contains `Agent`, `Generator` or `Analyzer`, the message is shown in the assistant's temporary card (`#temp-card`), created if needed:
 
-### Why Use Direct WebSocket Connections?
-The `send_to_session` method sends directly to WebSocket connections:
-1. **Simplicity**: No need for intermediate channels or message queues
-2. **Performance**: Direct connection sending is faster
-3. **Compatibility**: Works with Async::WebSocket architecture
-
-## Testing Considerations
-
-The test file `spec/lib/monadic/utils/websocket_helper_spec.rb` tests direct WebSocket connection management:
-1. Tests verify the WebSocket connection tracking and broadcasting logic
-2. Integration tests verify actual message delivery through WebSocket connections
-3. Tests use mock WebSocket connections to verify broadcast behavior
+1. with `step_progress`: the current step (and the elapsed minutes when `minutes` is above 0) and a list of steps with check marks or spinners;
+2. otherwise with `minutes`: a localized phase label chosen by elapsed minutes, the elapsed time, and the remaining time when 1–5 minutes remain;
+3. otherwise with `parallel_progress` (`ParallelDispatch`, `MultiProviderVerification`): "completed / total" and the task list;
+4. otherwise the content with an icon.
 
 ## Configuration
 
-Add to `~/monadic/config/env` to control:
-```bash
-# Enable/disable progress broadcasting (default: true)
-WEBSOCKET_PROGRESS_ENABLED=true
+`~/monadic/config/env`:
 
-# Enable detailed logging for debugging
-EXTRA_LOGGING=true
-```
+| Key | Default | Effect |
+|---|---|---|
+| `WEBSOCKET_PROGRESS_ENABLED` | `true` | `false` stops all progress messages |
+| `OPENAI_CODE_PROGRESS_ENABLED` | `true` | `false` stops the OpenAI code agent's progress thread |
+| `OPENAI_CODE_PROGRESS_INTERVAL` | `60` | seconds between the OpenAI code agent's messages |
+| `EXTRA_LOGGING` | `false` | logs sends, session registration and dead-connection cleanup |
 
 ## Troubleshooting
 
-### Progress Not Appearing in Temp Card
-1. Check that WebSocket connections are active in `@@ws_connections`
-2. Verify message has `type: "wait"`
-3. Check browser console for WebSocket errors
-4. Enable `EXTRA_LOGGING` to see detailed broadcast logs
+- **No progress shown**: check that the sender passes the tab's session ID (read from `Thread.current[:websocket_session_id]` before starting a thread); with `EXTRA_LOGGING`, `No connections found for session …` means the ID does not match an open connection.
+- **Message shown in another tab**: the sender used `broadcast_to_all`, or passed a nil session ID, which falls back to it.
 
-### Messages Appear in Console but Not UI
-This means messages may not be reaching the WebSocket connection. Verify that `WebSocketHelper.broadcast_progress()` or `broadcast_to_all()` is being called correctly.
+## Tests
 
-## Code Locations
-
-- WebSocket core: `lib/monadic/utils/websocket.rb` (connection routing, `send_or_broadcast` helper)
-- Connection manager: `lib/monadic/utils/websocket/connection_manager.rb` (`broadcast_progress`, `send_to_session`, `broadcast_to_all`)
-- OpenAI Code integration: `lib/monadic/agents/openai_code_agent.rb` (`start_progress_thread`)
-- AutoForge integration: `apps/auto_forge/auto_forge_tools.rb`
-- JavaScript handler: `public/js/monadic/ws-tool-handler.js` (wait/message display)
-- Tests: `spec/lib/monadic/utils/websocket_helper_spec.rb`
-
-## Session Isolation for Multi-User Environments
-
-### Implementation Date
-2025-11-07
-
-### Problem Addressed
-Prior to this update, `broadcast_to_all()` sent messages to ALL WebSocket connections across all sessions. With several tabs open, this caused:
-- One tab's parameters/messages appearing in another tab
-- Data from one conversation shown in another
-- Session state contamination between tabs
-
-### Solution
-Modified all broadcasting calls in session-specific operations to use **session-targeted broadcasting**:
-
-```ruby
-# Get session ID from thread context
-ws_session_id = Thread.current[:websocket_session_id]
-
-# Send to session only (all tabs within same browser session)
-if ws_session_id
-  WebSocketHelper.send_to_session(message.to_json, ws_session_id)
-else
-  WebSocketHelper.broadcast_to_all(message.to_json)  # Fallback
-end
-```
-
-### Modified Functions
-1. **`push_apps_data`** (apps, parameters, past_messages, info messages)
-2. **`handle_edit_message`** (edit_success, error messages)
-3. **`handle_delete_message`** (change_status, info messages)
-4. **`UPDATE_PARAMS` handler** (parameters message)
-
-### Session Management Architecture
-
-**Session ID Storage:**
-- Stored in `_monadic_session_id` cookie (browser-level)
-- Also stored in Rack session (server-side)
-- Generated as UUID on first connection
-- Thread-local storage: `Thread.current[:websocket_session_id]`
-
-**Connection Tracking:**
-- `@@connections_by_session[session_id]` → Set of WebSocket connections
-- Multiple tabs in same browser = same session ID = shared state
-- Different browsers/profiles/incognito = different session IDs = isolated state
-
-**Session Sharing Rules:**
-- ✅ Same browser, multiple tabs → **Shared session**
-- ✅ Same browser, multiple windows → **Shared session**
-- ❌ Different browsers (Chrome vs Firefox) → **Separate sessions**
-- ❌ Normal vs Incognito mode → **Separate sessions**
-- ❌ Different devices → **Separate sessions**
-- ❌ Different browser profiles → **Separate sessions**
-
-### Multi-Tab Session Synchronization
-
-When a new tab opens while a conversation is active in another tab:
-1. Server sends `current_app_name` in apps message
-2. Client prioritizes `current_app_name` over default app selection
-3. New tab automatically selects the same app as existing tabs
-4. No confirmation modal is shown (uses `proceedWithAppChange` directly)
-
-**Synchronized Data Across Tabs (Same Session):**
-- Active app selection
-- Model and parameter settings (when sent via Start/Send)
-- Conversation messages
-- Message edits and deletions
-
-**Parameter Sync Timing:**
-- UI changes are local until user clicks Start or Send
-- Then parameters broadcast to all tabs in same session
-- Other sessions remain unaffected
-
-### Security Benefits
-- **Tab isolation**: Each tab's data stays in that tab
-- **Session Integrity**: Browser sessions remain independent
-
-### Backward Compatibility
-All modified functions include fallback to `broadcast_to_all()` when `ws_session_id` is not available, maintaining compatibility with edge cases or legacy connection paths.
-
-## Complete Session Isolation Implementation
-
-### Final Implementation Date
-2025-11-07 (continued from initial implementation)
-
-### Comprehensive Handler Coverage
-
-After the initial 4 handlers, **ALL** remaining session-specific broadcasts were systematically converted to session-targeted broadcasting. The complete list of fixed handlers:
-
-#### Core Session Data Handlers (Initial Implementation)
-1. **`push_apps_data`** - Apps list, parameters, past messages, info
-2. **`handle_edit_message`** - Edit success, error messages
-3. **`handle_delete_message`** - Change status, info messages
-4. **`UPDATE_PARAMS` handler** - Parameter updates
-
-#### Message Processing Handlers
-5. **`update_message_status`** - Change status, info messages
-6. **`start_tts_playback`** - TTS audio data, progress updates
-7. **`send_transcription_result`** - STT transcription results
-8. **AI_USER_QUERY handler** - All AI processing messages (wait, started, error, ai_user_msg, finished, safety errors)
-9. **SAMPLE handler** - Sample messages and errors
-10. **AUDIO handler** - Audio processing errors
-11. **HTML handler** - Conversation content display, status updates, info messages, errors
-
-#### Control Command Handlers
-12. **CANCEL handler** - Cancellation confirmation
-13. **RESET handler** - Session reset (already session-scoped via session[:messages].clear)
-14. **UPDATE_LANGUAGE handler** - Language change confirmation
-15. **STOP_TTS handler** - TTS stop confirmation
-
-#### Streaming Logic (CRITICAL - Most Complex)
-16. **Main streaming initialization** - Error broadcasts for app not found, fragment errors
-17. **Streaming fragments** - Fragment forwarding to frontend during LLM streaming
-18. **Streaming completion** - Streaming complete message
-19. **Streaming errors** - API errors, content not found, empty response errors
-20. **Auto_speech TTS** - Post-completion TTS after streaming finishes
-
-### Connection-Level Fixes
-
-#### PING/PONG Handler
-- **Previous**: `broadcast_to_all({ "type" => "pong" })` - sent PONG to ALL connections
-- **Fixed**: `send_to_client(connection, { "type" => "pong" })` - connection-specific keepalive
-- **Rationale**: PING/PONG is a connection-level keepalive mechanism, not session-level or global
-
-### What Remains Global (By Design)
-
-The following broadcasts correctly remain global as they represent system-wide shared resources:
-
-1. **Voice Lists** (`push_voice_data` in `websocket/tts_handler.rb`):
-   - `elevenlabs_voices` and `gemini_voices`
-   - These are system capabilities, not user-specific data
-
-2. **Method Definition**: `broadcast_to_all` in `websocket/connection_manager.rb`
-
-3. **Fallback**: `send_or_broadcast` helper defaults to `broadcast_to_all` when no session ID is available
-
-### Session ID Capture Pattern
-
-For async blocks and callbacks, session ID must be captured in outer scope:
-
-```ruby
-# Capture session ID BEFORE entering async blocks
-ws_session_id = Thread.current[:websocket_session_id]
-
-# Use the centralized helper (defined in websocket.rb)
-some_async_operation do |result|
-  send_or_broadcast(result.to_json, ws_session_id)
-end
-```
-
-#### Additional Handler Fixes (Final Comprehensive Review)
-
-On 2025-11-07, a final systematic review using grep found 3 additional handlers that were missed in the initial implementation:
-
-22. **`update_message_status_after_edit` helper** - Called by `handle_edit_message`, broadcasts status updates after message edits
-    - **Location**: `websocket/message_editor.rb` (`update_message_status_after_edit`)
-    - **Broadcasts**: `change_status` (when messages changed), `info` (always)
-
-23. **TTS handler** - Manual TTS requests when user clicks TTS button
-    - **Location**: `websocket/tts_handler.rb` (`handle_ws_tts`)
-    - **Broadcasts**: TTS audio responses (Web Speech API or generated audio)
-
-These fixes complete the session isolation implementation. All user-specific data and audio are now properly isolated.
-
-### Security Status: COMPLETE
-
-After this comprehensive implementation (including final review fixes):
-
-✅ **All session-specific broadcasts** use session-targeted delivery (23 handler categories total)
-✅ **All error messages** are isolated to the triggering session
-✅ **All streaming content** is isolated to the requesting session
-✅ **All TTS audio** is delivered only to the requesting session
-✅ **Message edit status updates** are session-isolated
-✅ **Connection keepalive (PONG)** is connection-specific
-✅ **Shared resources (voice lists)** correctly remain global
-✅ **Multi-tab synchronization** works within same session
-✅ **Tab isolation** works across different sessions
-
-Messages reach only the tab (session) they belong to.
-
-### Testing Recommendations
-
-To verify session isolation:
-
-1. **Multi-User Test**: Open two different browsers (e.g., Chrome + Firefox)
-   - Start different conversations in each
-   - Verify messages don't leak between browsers
-   - Verify parameters remain isolated
-
-2. **Multi-Tab Test**: Open multiple tabs in same browser
-   - Verify state syncs across tabs
-   - Verify other browser sessions remain isolated
-
-3. **Error Isolation Test**: Trigger errors in one session
-   - Verify errors only appear in that session
-   - Verify other sessions unaffected
-
-4. **Streaming Isolation Test**: Start long AI response in one session
-   - Verify streaming content only appears in requesting session
-   - Verify other sessions can start independent conversations
-
-## Notes
-
-- The MDSL validation errors seen during server startup are unrelated to this feature
-- Background bash processes (409abb, 4d556e) were test servers during development
-- The implementation prioritizes working functionality over architectural purity
-- Session isolation keeps one tab's progress and parameters out of the others
-- All fixes maintain backward compatibility via fallback clauses
+- `spec/unit/utils/progress_broadcaster_spec.rb`, `spec/unit/utils/step_progress_spec.rb`
+- `spec/unit/shared_tools/parallel_dispatch_spec.rb`, `spec/unit/shared_tools/parallel_python_execution_spec.rb`
+- `spec/unit/workspace/new_chat_state_spec.rb` (session state and generations)
+- `test/frontend/ws-tool-handler.test.js`

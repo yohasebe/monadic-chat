@@ -161,11 +161,6 @@ module MonadicHelper
       return JSON.generate({ success: false, message: e.message })
     end
 
-    # Track our own temp file so we can delete it after generation.
-    temp_file_path = nil
-    if image_path.to_s.start_with?("video_gen_temp_")
-      temp_file_path = File.join(Monadic::Utils::Environment.data_path, image_path)
-    end
 
     # Build CLI command
     parts = []
@@ -226,12 +221,9 @@ module MonadicHelper
         raw_stderr: stderr
       })
     ensure
-      # Delete only the temp file we materialized (not user-managed images).
-      begin
-        File.unlink(temp_file_path) if temp_file_path && File.exist?(temp_file_path)
-      rescue StandardError
-        # best-effort cleanup
-      end
+      # Only the file this process wrote from an upload is removed; a name
+      # the model or the session gave is never deleted.
+      Monadic::Utils::ToolImageUtils.discard_materialized(image_path) if image_path
     end
   end
 

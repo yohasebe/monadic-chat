@@ -111,4 +111,22 @@ RSpec.describe 'WebSocketHelper Verify handler' do
             responses: [{ provider: 'openai', model: 'm', success: true, text: 'z' * 9000 }] }
     expect(host.slim_verify_for_persist(big)[:responses].first[:text].length).to be <= 4001
   end
+
+  # The panel gets text only, so a question about an image or an attached
+  # file is not sent to it: its answers would count against a right answer.
+  [['an image', { 'images' => [{ 'title' => 'p.webp', 'data' => 'data:image/webp;base64,AA' }] }],
+   ['an attached file', { 'attachments' => [{ 'attachment_id' => 'att_1' }] }]].each do |what, extra|
+    it "does not verify an answer to a question with #{what}" do
+      messages[1].merge!(extra)
+      host.handle_ws_verify_confidence(connection, { 'mid' => 'a1' }, {})
+      expect(Monadic::MCP::Conduit).not_to have_received(:call)
+      expect(sent.last).to include('confidence' => 'unavailable', 'note_key' => 'filesNotVerified')
+    end
+  end
+
+  it 'still verifies a text-only conversation' do
+    host.handle_ws_verify_confidence(connection, { 'mid' => 'a1' }, {})
+    expect(Monadic::MCP::Conduit).to have_received(:call)
+  end
+
 end

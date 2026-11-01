@@ -127,9 +127,6 @@ Prints statistics for the current dump.
 Prints the path of the dump and exits non-zero if the file is missing. It does
 not transform or filter anything.
 
-### help:build_dev
-Deprecated alias that warns and redirects to `help:build_internal`.
-
 ## Distribution
 
 The dump reaches users through two paths, both of which take the file as-is:
@@ -201,8 +198,8 @@ reports the failed attempt through `last_attempt`.
 #### Coordination and replacement
 
 Instances and processes targeting the same database must share the coordination
-directory: `/monadic/data/.help-installation` in the container or
-`~/monadic/data/.help-installation` on the host. `job.lock` serializes installers;
+directory, in the state folder (where only the server writes): `/monadic/state/help-installation`
+in the container or `~/monadic/state/help-installation` on the host. `job.lock` serializes installers;
 `readers.lock` protects the full duration of Help reads using `flock`. Lock files
 are never unlinked because lock ownership is tied to their inode. Progress is
 persisted in `progress.json` with file and directory `fsync` and atomic rename.

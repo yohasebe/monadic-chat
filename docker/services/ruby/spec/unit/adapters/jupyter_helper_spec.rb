@@ -94,8 +94,8 @@ RSpec.describe "JupyterHelper" do
 
       before do
         allow(Monadic::Utils::Environment).to receive(:data_path).and_return("/test/data")
-        allow(File).to receive(:exist?).and_return(true)
-        allow(File).to receive(:read).and_return(notebook_content)
+        # Notebooks are read through the guard
+        allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).and_return(notebook_content)
       end
 
       it "returns cells with their info" do
@@ -108,15 +108,19 @@ RSpec.describe "JupyterHelper" do
 
       it "handles filename without .ipynb extension" do
         helper.get_jupyter_cells_with_results(filename: "test")
-        expect(File).to have_received(:exist?).with("/test/data/test.ipynb")
+        expect(Monadic::Utils::SharedPathGuard).to have_received(:read_bytes!).with("/test/data/test.ipynb")
       end
     end
 
     context "when notebook does not exist" do
-      before do
-        allow(Monadic::Utils::Environment).to receive(:data_path).and_return("/test/data")
-        allow(File).to receive(:exist?).and_return(false)
+      around do |example|
+        Dir.mktmpdir("jupyter-none") do |dir|
+          @empty = dir
+          example.run
+        end
       end
+
+      before { allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@empty) }
 
       it "returns error message" do
         result = helper.get_jupyter_cells_with_results(filename: "nonexistent.ipynb")

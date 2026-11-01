@@ -27,7 +27,7 @@ require_relative '../../../lib/monadic/dsl/loader'
 #
 # Production load order is mirrored at suite startup: all .rb companion
 # files (constants/tools) are pre-required before MDSL evaluation, so
-# constants like KnowledgeBaseConstants::SYSTEM_PROMPT are visible during
+# an app's constants (such as its SYSTEM_PROMPT) are visible during
 # the DSL eval (matching how lib/monadic.rb#load_app_files orders things).
 
 APPS_DIR = File.expand_path('../../../apps', __dir__)
@@ -148,14 +148,6 @@ KB_SAVE_ONLY_MDSLS = %w[
   jupyter_notebook/jupyter_notebook_gemini.mdsl
   jupyter_notebook/jupyter_notebook_grok.mdsl
   jupyter_notebook/jupyter_notebook_openai.mdsl
-  knowledge_base/knowledge_base_claude.mdsl
-  knowledge_base/knowledge_base_cohere.mdsl
-  knowledge_base/knowledge_base_deepseek.mdsl
-  knowledge_base/knowledge_base_gemini.mdsl
-  knowledge_base/knowledge_base_grok.mdsl
-  knowledge_base/knowledge_base_mistral.mdsl
-  knowledge_base/knowledge_base_ollama.mdsl
-  knowledge_base/knowledge_base_openai.mdsl
   monadic_help/monadic_help_openai.mdsl
   video_describer/video_describer_app.mdsl
   video_describer/video_describer_gemini.mdsl
@@ -308,7 +300,7 @@ RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
     {
       'PF only'      => [PF_ONLY_MDSLS, 25],
       'KB search'    => [KB_SEARCH_MDSLS, 53],
-      'KB save only' => [KB_SAVE_ONLY_MDSLS, 32],
+      'KB save only' => [KB_SAVE_ONLY_MDSLS, 24],
       'Neither'      => [NEITHER_MDSLS, 27]
     }.each do |label, (list, expected_size)|
       it "#{label}: list size is #{expected_size}" do

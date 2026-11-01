@@ -18,7 +18,15 @@
  * @param {Object} data - Message data with content array of message objects
  */
 function handlePastMessages(data) {
+  // Whether the chat is Private comes with its words: noted before they
+  // are held, so they are not stored if it is.
+  if (window.WsPrivacyHandler && typeof window.WsPrivacyHandler.notePrivate === 'function') {
+    window.WsPrivacyHandler.notePrivate(data);
+  }
   const serverMessages = Array.isArray(data["content"]) ? data["content"] : [];
+  // The conversation is replaced: edits waiting for an answer have nothing
+  // left to put back.
+  window.pendingEdits = {};
   if (window.debugWebSocket) console.log(`[Session] Rendering past_messages (count=${serverMessages.length})`);
 
   if (data["from_import"]) {
@@ -115,6 +123,9 @@ function handlePastMessages(data) {
           false,  // monadic parameter
           userTurnNumber  // turnNumber
         );
+        if (userCard && typeof window.addAttachmentsToCard === 'function') {
+          window.addAttachmentsToCard(userCard, msg.attachments);
+        }
         if (discourseEl && userCard) {
           discourseEl.appendChild(userCard);
         }
@@ -126,7 +137,7 @@ function handlePastMessages(data) {
         // assistantBadge(content) renders the same base badge as the literal
         // default below, PLUS any markers the canon carries (interrupted,
         // tools_used) — without it, LOAD silently dropped Live Conversation
-        // badges even though the flags persist in the canon (§37-3).
+        // badges even though the flags persist in the canon.
         const badge =
           msg.badge ||
           (typeof window.assistantBadge === 'function'
@@ -153,7 +164,7 @@ function handlePastMessages(data) {
         if (window.MarkdownRenderer) {
           window.MarkdownRenderer.applyRenderers(assistantCard[0] || assistantCard);
         }
-        // §37-3: position-aware tool badges (LC fold/merge canon carries
+        // Position-aware tool badges (LC fold/merge canon carries
         // tools_used entries with `at` = paragraph index). Inserted AFTER
         // applyRenderers so post-processing cannot wipe them; entries
         // without `at` are skipped (header badge only — backward compat).
@@ -263,6 +274,9 @@ function handlePastMessages(data) {
  * @param {Object} data - Message data with mid, html, content, images
  */
 function handleEditSuccess(data) {
+  // The server took the edit: nothing is to be put back.
+  if (window.pendingEdits) delete window.pendingEdits[data.mid];
+
   // Handle successful message edit
   setAlert(`<i class='fa-solid fa-circle-check'></i> ${data.content}`, "success");
 
@@ -415,7 +429,10 @@ function handleEditSuccess(data) {
 function handleDisplaySample(data) {
   // Immediately display the sample message
   const content = data.content;
-  if (!content || !content.mid || !content.role || !content.text || !content.badge) {
+  // A user sample may be attached files with no text.
+  const attachments = content && content.role === "user" && Array.isArray(content.attachments) ? content.attachments : [];
+  if (!content || !content.mid || !content.role || !content.badge || typeof content.text !== "string" ||
+      (!content.text && attachments.length === 0)) {
     if (content) console.error("Invalid display_sample message format:", data);
     return;
   }
@@ -445,6 +462,10 @@ function handleDisplaySample(data) {
     true  // Always active
   );
 
+  if (attachments.length && typeof window.addAttachmentsToCard === 'function') {
+    window.addAttachmentsToCard(cardElement[0] || cardElement, attachments);
+  }
+
   // Append to discourse
   var discourseEl = $id("discourse");
   if (discourseEl && cardElement) {
@@ -457,12 +478,13 @@ function handleDisplaySample(data) {
   }
 
   // Add message to messages array to ensure edit functionality works correctly
-  if (content.text) {
+  if (content.text || attachments.length) {
     const messageObj = {
       "role": content.role,
       "text": content.text,
       "mid": content.mid
     };
+    if (attachments.length) messageObj.attachments = attachments;
 
     // Add to messages array - this ensures last message detection works correctly
     window.SessionState.addMessage(messageObj);

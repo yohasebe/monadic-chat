@@ -117,7 +117,7 @@ if (SessionState.shouldForceNewSession()) {
 ```javascript
 // Set current app and parameters
 SessionState.setCurrentApp('Chat', {
-  model: 'gpt-4',
+  model: '<model-id>',
   temperature: 0.7
 });
 
@@ -239,7 +239,6 @@ window.doResetActions = function() {
 ### Patch Files
 
 - `utilities.js` - Core utility functions
-- `utilities_websearch_patch.js` - Web search extensions
 - `websocket.js` - WebSocket communication
 
 ## Internationalization (i18n) System

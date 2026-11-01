@@ -1,3 +1,4 @@
+require_relative '../utils/shared_path_guard'
 # frozen_string_literal: true
 
 module LatexHelper
@@ -123,7 +124,7 @@ module LatexHelper
         
         if fixed_code != latex_code
           # Save backup
-          File.write("#{working_dir}/#{tex_file}.backup", latex_code)
+          Monadic::Utils::SharedPathGuard.write_file!("#{working_dir}/#{tex_file}.backup", latex_code)
           
           # Try compilation with fixed code
           compile_result = compile_latex(fixed_code, base_filename, working_dir)

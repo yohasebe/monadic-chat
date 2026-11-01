@@ -80,12 +80,12 @@ app "CodingAssistantOpenAI" do
     temperature 0.0
 
     agents do
-      code_generator model: "gpt-5.3-codex"
+      code_generator model: "gpt-6-sol"
     end
   end
 
   # OpenAI Responses API server-side compaction (GA, Feb 2026).
-  # Coding Assistant delegates heavy codegen to gpt-5.3-codex across many
+  # Coding Assistant delegates heavy codegen to its code generator across many
   # turns; file_operations + run_code results accumulate quickly. Default
   # 150K threshold matches Code Interpreter OpenAI.
   compaction do

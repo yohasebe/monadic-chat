@@ -77,7 +77,12 @@ RSpec.describe Monadic::Utils::SegmentTranscriber do
   let(:pcm) { File.join(dir, 'audio_24k.pcm') }
   let(:rate) { 24_000 }
 
-  before { File.binwrite(pcm, ([1] * (rate * 40)).pack('s<*')) }
+  # The decoded audio is in the run folder, read through SharedPathGuard:
+  # the temporary folder stands for the shared folder.
+  before do
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(dir)
+    File.binwrite(pcm, ([1] * (rate * 40)).pack('s<*'))
+  end
   after { FileUtils.rm_rf(dir) }
 
   def seg(id, from, to)
@@ -92,9 +97,12 @@ RSpec.describe Monadic::Utils::SegmentTranscriber do
       'segments' => segs }
   end
 
+  # One connection at a time unless a test asks for more (the scripted
+  # connections are then handed out in the order they are asked for).
   def transcriber(doc, connections, **opts)
     described_class.new(segments: doc, pcm_path: pcm, model: 'gpt-transcribe',
-                        connect: -> { connections.shift || raise(IOError, 'no more connections') }, **opts)
+                        connect: -> { connections.shift || raise(IOError, 'no more connections') },
+                        **{ concurrency: 1 }.merge(opts))
   end
 
   let(:three) { segments_doc(seg('seg000001', 1, 3), seg('seg000002', 5, 6.5), seg('seg000003', 10, 39)) }
@@ -312,6 +320,214 @@ RSpec.describe Monadic::Utils::SegmentTranscriber do
     expect(result['segments'].map { |s| s['error'] }).to all(eq('connection_limit'))
   end
 
+  describe 'several connections at once' do
+    # A connection whose replies take a moment, so the others go on meanwhile
+    # (the workers are fibers: sleeping in one lets the next one run).
+    def slow(conn, delay: 0.02)
+      conn.define_singleton_method(:read) do |timeout|
+        sleep delay
+        super(timeout)
+      end
+      conn
+    end
+
+    let(:six) { segments_doc(*Array.new(6) { |i| seg(format('seg%06d', i + 1), i * 5, i * 5 + 1 + i * 0.5) }) }
+
+    it 'sends segments on several connections at the same time, each tied to its own text' do
+      in_flight = 0
+      most = 0
+      conns = Array.new(3) do
+        slow(fake_server.new do |event, c|
+          case event['type']
+          when 'session.update' then [session_updated]
+          when 'input_audio_buffer.commit'
+            in_flight += 1
+            most = [most, in_flight].max
+            item = committed(c)
+            [item, completed(item['item_id'], "text for #{c.appended_bytes_since_last_commit} bytes")]
+          end
+        end)
+      end
+      done = lambda do |_seg, _result|
+        in_flight -= 1
+      end
+      result = transcriber(six, conns.dup, concurrency: 3, on_progress: done).run
+      expect(result['status']).to eq('complete')
+      expect(most).to be >= 2
+      expect(result['segments'].map { |sg| sg['provenance']['connection_id'] }.uniq.size).to eq(3)
+      six['segments'].each_with_index do |sg, i|
+        bytes = (sg['end_sample'] - sg['start_sample']) * 2
+        expect(result['segments'][i]['text']).to eq("text for #{bytes} bytes")
+      end
+    end
+
+    it 'gives the segment of a lost connection back to be sent on another' do
+      dropping = slow(fake_server.new do |event, _c|
+        next [session_updated] if event['type'] == 'session.update'
+      end)
+      dropping.define_singleton_method(:read) do |timeout|
+        sleep 0.01
+        raise IOError, 'connection closed' if @written.any? { |e| e['type'] == 'input_audio_buffer.commit' }
+
+        super(timeout)
+      end
+      conns = [dropping] + Array.new(4) { slow(fake_server.new(&well_behaved)) }
+      result = transcriber(six, conns, concurrency: 2).run
+      expect(result['status']).to eq('complete')
+      expect(result['segments'].map { |sg| sg['status'] }).to all(eq('complete'))
+      expect(result['segments'].map { |sg| sg['attempts'] }.sum).to eq(7) # one segment sent twice
+    end
+
+    it 'stops every connection when the chat is cancelled' do
+      cancel = false
+      commits = 0
+      conns = Array.new(3) do
+        slow(fake_server.new do |event, c|
+          next [session_updated] if event['type'] == 'session.update'
+          next unless event['type'] == 'input_audio_buffer.commit'
+
+          commits += 1
+          cancel = true
+          item = committed(c)
+          [item, completed(item['item_id'], 'x')]
+        end)
+      end
+      result = transcriber(six, conns.dup, concurrency: 3, cancelled: -> { cancel }).run
+      expect(result['status']).to eq('cancelled')
+      expect(commits).to be <= 3
+      expect(result['segments'].count { |sg| sg['status'] == 'pending' }).to be >= 3
+      expect(conns.map(&:closed)).to all(be(true))
+    end
+  end
+
+  describe 'runs of segments, rate limits and refusals' do
+    let(:six) { segments_doc(*Array.new(6) { |i| seg(format('seg%06d', i + 1), i * 5, i * 5 + 2) }) }
+
+    it 'gives each connection a run of consecutive segments of about the same length' do
+      conns = Array.new(3) { fake_server.new(&well_behaved) }
+      result = transcriber(six, conns.dup, concurrency: 3).run
+      by_conn = result['segments'].group_by { |sg| sg['provenance']['connection_id'] }
+      expect(by_conn.values.map { |sgs| sgs.map { |sg| sg['segment_id'] } })
+        .to match_array([%w[seg000001 seg000002], %w[seg000003 seg000004], %w[seg000005 seg000006]])
+    end
+
+    it 'waits before connecting again after a rate limit, then goes on' do
+      stub_const("#{described_class}::RATE_LIMIT_WAIT", 0.2)
+      opened = []
+      limited = fake_server.new { |e, _| [{ 'type' => 'error', 'error' => { 'code' => 'rate_limit_exceeded' } }] if e['type'] == 'session.update' }
+      conns = [limited, fake_server.new(&well_behaved)]
+      connect = lambda do
+        opened << Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        conns.shift
+      end
+      t = described_class.new(segments: three, pcm_path: pcm, model: 'gpt-transcribe', connect: connect, concurrency: 1)
+      result = t.run
+      expect(result['status']).to eq('complete')
+      expect(opened[1] - opened[0]).to be >= 0.14 # 0.2 s with up to 25 % less for jitter
+    end
+
+    it 'stops every connection when the service refuses for good, and says why' do
+      connect = -> { raise described_class::Refused, 'the connection was refused (401)' }
+      t = described_class.new(segments: six, pcm_path: pcm, model: 'gpt-transcribe', connect: connect, concurrency: 3)
+      result = t.run
+      expect(result['status']).to eq('failed')
+      expect(result['segments'].map { |sg| sg['error'] }).to all(eq('refused'))
+    end
+
+    it 'stops every connection when the session refuses the key' do
+      opened = 0
+      connect = lambda do
+        opened += 1
+        fake_server.new { |e, _| [{ 'type' => 'error', 'error' => { 'code' => 'invalid_api_key' } }] if e['type'] == 'session.update' }
+      end
+      t = described_class.new(segments: six, pcm_path: pcm, model: 'gpt-transcribe', connect: connect, concurrency: 1)
+      result = t.run
+      expect(opened).to eq(1)
+      expect(result['segments'].map { |sg| sg['error'] }).to all(eq('refused'))
+    end
+
+    it 'sends nothing more once the caller says the budget is spent' do
+      allowed = 2
+      on_attempt = lambda do |_seconds|
+        allowed -= 1
+        allowed >= 0
+      end
+      conns = Array.new(2) { fake_server.new(&well_behaved) }
+      t = described_class.new(segments: six, pcm_path: pcm, model: 'gpt-transcribe', connect: -> { conns.shift },
+                              concurrency: 1, on_attempt: on_attempt)
+      result = t.run
+      expect(result['segments'].count { |sg| sg['status'] == 'complete' }).to eq(2)
+      expect(result['segments'].drop(2).map { |sg| sg['error'] }).to all(eq('budget'))
+    end
+
+    it 'stops the other connections from sending once one is refused for budget' do
+      answers = []
+      on_attempt = lambda do |_seconds|
+        answers << (answers.size != 1) # the second attempt is refused
+        answers.last
+      end
+      # Replies take a moment, so both connections are sending when one is refused.
+      slow_server = Class.new(fake_server) do
+        def read(timeout)
+          sleep 0.001
+          super
+        end
+      end
+      conns = Array.new(4) { slow_server.new(&well_behaved) }
+      t = described_class.new(segments: six, pcm_path: pcm, model: 'gpt-transcribe', connect: -> { conns.shift },
+                              concurrency: 2, on_attempt: on_attempt)
+      result = t.run
+      expect(answers.last).to be(false) # nothing was asked, or sent, after the refusal
+      expect(result['segments'].count { |sg| sg['status'] == 'complete' }).to eq(1)
+      expect(result['segments'].reject { |sg| sg['status'] == 'complete' }.map { |sg| sg['error'] }).to all(eq('budget'))
+    end
+
+    it 'tries the next address of the host when one is unreachable' do
+      endpoint = double(each: nil)
+      allow(endpoint).to receive(:each).and_yield(:v6).and_yield(:v4)
+      tried = []
+      conn = described_class::WebSocketConnection.connect_any(endpoint) do |address|
+        tried << address
+        raise Errno::EHOSTUNREACH if address == :v6
+
+        :connected
+      end
+      expect(conn).to eq(:connected)
+      expect(tried).to eq(%i[v6 v4])
+    end
+
+    it 'raises the last error when no address of the host can be reached' do
+      endpoint = double
+      allow(endpoint).to receive(:each).and_yield(:v6).and_yield(:v4)
+      expect do
+        described_class::WebSocketConnection.connect_any(endpoint) { |_| raise Errno::EHOSTUNREACH }
+      end.to raise_error(Errno::EHOSTUNREACH)
+    end
+
+    it 'does not send a segment again on the same connection once the chat is cancelled' do
+      commits = 0
+      cancel = false
+      conn = fake_server.new do |event, c|
+        next [session_updated] if event['type'] == 'session.update'
+        next unless event['type'] == 'input_audio_buffer.commit'
+
+        commits += 1
+        cancel = true
+        item = committed(c)
+        [item, { 'type' => described_class::FAILED, 'item_id' => item['item_id'], 'error' => { 'code' => 'x' } }]
+      end
+      result = transcriber(three, [conn], cancelled: -> { cancel }).run
+      expect(commits).to eq(1)
+      expect(result['status']).to eq('cancelled')
+    end
+
+    it 'keeps why a segment that never got a connection could not be sent' do
+      silent = -> { fake_server.new { |_e, _c| nil } } # the session never starts
+      result = transcriber(three, Array.new(2) { silent.call }, max_connections: 2).run
+      expect(result['segments'].first).to include('error' => 'connection_limit', 'last_error' => 'timeout')
+    end
+  end
+
   describe Monadic::Utils::SegmentTranscriber::Batch do
     def batch(doc, transcribe, **opts)
       described_class.new(segments: doc, pcm_path: pcm, model: 'xai-stt', transcribe: transcribe, **opts)
@@ -330,6 +546,17 @@ RSpec.describe Monadic::Utils::SegmentTranscriber do
       expect(result['segments'].map { |s| s['start_sample'] }).to eq([rate, 5 * rate, 10 * rate])
       header = sent.min_by(&:bytesize)[0, 44].unpack('a4Va4a4VvvVVvva4V')
       expect(header.values_at(0, 2, 5, 6, 7, 10)).to eq(['RIFF', 'WAVE', 1, 1, rate, 16])
+    end
+
+    it 'does not send a segment the caller has no budget left for' do
+      sent = 0
+      allowed = [true, false, true]
+      result = batch(three, lambda { |_wav|
+        sent += 1
+        'ok'
+      }, concurrency: 1, on_attempt: ->(_s) { allowed.shift }).run
+      expect(sent).to eq(2)
+      expect(result['segments'].map { |sg| sg['error'] }).to eq([nil, 'budget', nil])
     end
 
     it 'sends no more than the given number at a time' do

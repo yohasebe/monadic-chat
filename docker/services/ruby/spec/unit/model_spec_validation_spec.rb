@@ -87,7 +87,7 @@ RSpec.describe "Model Specification Validation" do
   describe "Model Specification Report" do
     # Reports only, and it calls the live provider APIs to do it. Passing
     # means the report was produced, not that the catalog matches any
-    # provider; the assertions live in the groups above.
+    # provider; this file makes no assertions about the catalog.
     it "generates a comprehensive report of model status" do
       puts "\n" + "=" * 80
       puts "MODEL SPECIFICATION VALIDATION REPORT"

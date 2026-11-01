@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "secret_redactor"
+
 module Monadic
   module Utils
     # Unified error formatting for all providers
@@ -40,13 +42,29 @@ module Monadic
 
       REDACTION = "[redacted]"
 
+      CATEGORIES = [API_KEY_ERROR, API_ERROR, NETWORK_ERROR, TIMEOUT_ERROR, PARSING_ERROR,
+                    VALIDATION_ERROR, TOOL_ERROR, UNKNOWN_ERROR].freeze
+      FORMATTED = /\A\[[^\]\n]+\] (?:#{CATEGORIES.map { |c| Regexp.escape(c) }.join('|')}): /
+
       class << self
+        # Whether text is an error this formatter made (what a provider's
+        # send_query returns instead of a reply).
+        def formatted?(text)
+          text.is_a?(String) && FORMATTED.match?(text)
+        end
+
+        # Whether what a send_query returned is an error rather than a reply:
+        # one this formatter made, or an "ERROR:" line.
+        def error_reply?(text)
+          text.is_a?(String) && (text.start_with?("ERROR:", "Error:") || formatted?(text))
+        end
+
         # Replace credentials and account identifiers in provider error text. Returns the input
         # unchanged when it carries none, so ordinary messages stay readable.
         def scrub_identifiers(text)
           return text if text.nil?
 
-          IDENTIFIER_PATTERNS.reduce(text.to_s) { |acc, re| acc.gsub(re, REDACTION) }
+          IDENTIFIER_PATTERNS.reduce(SecretRedactor.redact(text.to_s)) { |acc, re| acc.gsub(re, REDACTION) }
         end
 
         # Format error with consistent structure
@@ -59,7 +77,8 @@ module Monadic
           code = details[:code]
           suggestion = details[:suggestion]
           
-          error_parts = ["[#{provider}] #{category}: #{message}"]
+          # Formatted errors reach the browser, the model and saved chats.
+          error_parts = ["[#{provider}] #{category}: #{scrub_identifiers(message.to_s)}"]
           error_parts << "Suggestion: #{suggestion}" if suggestion
           error_parts << "(Code: #{code})" if code
           
@@ -115,7 +134,8 @@ module Monadic
           )
         end
 
-        # Format tool execution error
+        # Format tool execution error (the result goes back to the model;
+        # format replaces secrets and identifiers).
         def tool_error(provider:, tool_name:, message:)
           format(
             category: TOOL_ERROR,

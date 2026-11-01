@@ -10,9 +10,8 @@
  *
  * Symmetric with monadic-fetch.js: that helper enforces a contract for
  * all HTTP I/O, this helper enforces one for all WebSocket I/O. See
- * docs_dev/safe_ws_send_plan.md for the design rationale, idempotency
- * audit, and rollout plan (H7 phases of the architecture hardening
- * effort).
+ * docs_dev/frontend/safe_ws_send.md for the API, the queue and the
+ * replayable message types.
  *
  * Usage:
  *   const r = window.safeWsSend({ message: 'RESET' });
@@ -32,7 +31,7 @@
   'use strict';
 
   // Message types whose server-side handlers are idempotent under
-  // replay. Audited in docs_dev/safe_ws_send_plan.md §3.3. Anything
+  // replay (docs_dev/frontend/safe_ws_send.md). Anything
   // not in this set defaults to non-idempotent (safer to fail fast
   // than to risk a silent double-send for non-replayable actions like
   // CHAT messages).
@@ -60,12 +59,13 @@
     'LIBRARY_RAG_QUERY',
     'LIBRARY_RAG_TOGGLE',
     'LIBRARY_RENAME',
-    'LIBRARY_SET_SCOPE'
+    'LIBRARY_SET_SCOPE',
+    'HISTORY_LIST'
   ]);
 
   // Queue caps: 20 entries total, 30s TTL per entry, 500ms dedup
   // window. Tuned for "two reset clicks while reconnecting" not "store
-  // a session's worth of messages." See plan §3.4.
+  // a session's worth of messages."
   const QUEUE_CAP = 20;
   const QUEUE_TTL_MS = 30_000;
   const DEDUP_WINDOW_MS = 500;

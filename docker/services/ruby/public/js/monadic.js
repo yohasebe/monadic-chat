@@ -318,7 +318,7 @@ function refreshPrivacyToggleGate(opts) {
     fallback = "Privacy Filter is disabled.";
   } else if (!languageSupported) {
     disabledKey = "ui.privacyFilterLanguageNotInstalled";
-    fallback = "Privacy Filter is not installed for this language. Install via Settings → Install Options.";
+    fallback = "Privacy Filter is not installed for this language. Install it from Actions → Install Options.";
   }
   const tooltip = (typeof webUIi18n !== "undefined" && disabledKey)
     ? webUIi18n.t(disabledKey)
@@ -359,6 +359,7 @@ function refreshPrivacyToggleGate(opts) {
   // pre-lock language and must not be retargeted mid-conversation.
   if (typeof window.safeWsSend === "function" && !isLocked) {
     if (opts.initial && nextChecked) {
+      if (window.WsPrivacyHandler && window.WsPrivacyHandler.noteRequested) window.WsPrivacyHandler.noteRequested(true);
       window.safeWsSend({ message: "PRIVACY_TOGGLE", enabled: true });
     } else if (!opts.initial && !usable) {
       window.safeWsSend({ message: "PRIVACY_TOGGLE", enabled: false });
@@ -788,15 +789,12 @@ document.addEventListener("DOMContentLoaded", function () {
     if (websearchCb && websearchCb.checked) indicators += '<span class="mc-badge mc-badge--blue me-1">Web Search</span>';
     var mathCb = $id("math");
     if (mathCb && mathCb.checked) indicators += '<span class="mc-badge mc-badge--grey me-1">Math</span>';
-    // Knowledge Base access indicator. Two distinct paths hit the Library:
-    //  - any app with the shared library_search tool, when the sidebar
-    //    "Use Knowledge Base for retrieval" toggle is ON (checked AND enabled
-    //    — a checked-but-disabled toggle means this app can't use it);
-    //  - the Knowledge Base app itself, which always has full DB access via
-    //    its own tools regardless of the toggle (the toggle is disabled there).
+    // Knowledge Base access indicator: an app with the shared library_search
+    // tool, when the sidebar "Use Knowledge Base for retrieval" toggle is ON
+    // (checked AND enabled — a checked-but-disabled toggle means this app
+    // can't use it).
     var kbToggle = $id("library-rag-toggle");
-    var isKbApp = !!(appsSelect && /^KnowledgeBase/.test(appsSelect.value || ""));
-    if (isKbApp || (kbToggle && kbToggle.checked && !kbToggle.disabled)) {
+    if (kbToggle && kbToggle.checked && !kbToggle.disabled) {
       indicators += '<span class="mc-badge mc-badge--green me-1">Knowledge Base</span>';
     }
     var reasoningEffortSel = $id("reasoning-effort");
@@ -2840,6 +2838,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // reply is what actually confirms the new state. ws-privacy-handler
     // reverts the visual checkbox on backend rejection.
     if (typeof window.safeWsSend === 'function') {
+      if (window.WsPrivacyHandler && window.WsPrivacyHandler.noteRequested) window.WsPrivacyHandler.noteRequested(newState);
       window.safeWsSend({ message: 'PRIVACY_TOGGLE', enabled: newState });
     }
 
@@ -3150,6 +3149,15 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
+    // Whether the chat is Private is decided before it starts: from here
+    // on the chat can attach files and run tools, so the Privacy Filter
+    // toggle is locked (Reset or another app unlocks it, for a new chat).
+    {
+      const privacyEl = $id("check-privacy-session");
+      if (privacyEl) privacyEl.disabled = true;
+      window.privacyToggleLocked = true;
+    }
+
     const shouldSkipAssistant = (typeof window !== 'undefined') && window.skipAssistantInitiation === true;
     
 
@@ -3320,12 +3328,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
     setAlert(`<i class='fas fa-robot'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.thinking') : 'THINKING'}`, "warning");
     params = setParams();
-    // Attached videos are named in the message by attachment_id, which the
-    // video tools take; the files themselves are on the server already.
+    // The text as typed. Attached files go as structure: the server checks
+    // them, tells the model about them, and lets the answer's tools take
+    // only these (and those of earlier messages).
     const typedText = ($id("message") || {}).value;
-    const attachmentLines = typeof window.videoAttachmentLines === 'function' ? window.videoAttachmentLines() : '';
-    const userMessageText = [typedText, attachmentLines].filter(function (part) { return part; }).join("\n\n");
+    const userMessageText = typedText || '';
     params["message"] = userMessageText;
+    const attachmentRefs = typeof window.videoAttachmentRefs === 'function' ? window.videoAttachmentRefs() : [];
+    if (attachmentRefs.length) params["attachments"] = attachmentRefs;
+    // What to give back for another try if the message is not accepted or
+    // fails: the typed text, the attachment cards, and the images and PDFs.
+    window.pendingSend = {
+      text: typedText || '',
+      role: ($id("select-role") || {}).value || 'user',
+      attachments: typeof window.snapshotVideoAttachments === 'function' ? window.snapshotVideoAttachments() : [],
+      images: typeof window.snapshotImages === 'function' ? window.snapshotImages() : []
+    };
 
     // Mark that user has interacted with this tab (for app change confirmation)
     window.userHasInteractedInTab = true;
@@ -3368,6 +3386,8 @@ document.addEventListener("DOMContentLoaded", function () {
       reconnect_websocket(ws, function (_ws) {
         const role = ($id("select-role") || {}).value.split("-")[1];
         const msg_object = { message: "SAMPLE", content: userMessageText, role: role }
+        // Attached files go with a user sample too, so later messages can use them.
+        if (attachmentRefs.length) msg_object.attachments = attachmentRefs;
         // SAMPLE appends a fresh-mid turn to session[:messages] so a
         // queued replay would create a duplicate sample message.
         // Non-idempotent → default fail-fast.
@@ -3417,13 +3437,14 @@ document.addEventListener("DOMContentLoaded", function () {
         // Lock the Privacy Filter toggle once the first message of the
         // session has been sent. The locked state is also enforced by the
         // backend (Pipeline is cached in session[:_privacy_pipeline]).
-        // Reset / app change / new conversation re-enables editing.
+        // Reset / app change / new conversation re-enables editing. The lock
+        // is set even when the toggle is disabled for another reason (an
+        // unsupported language), so a later language change cannot unlock
+        // it mid-chat: whether a chat is Private is decided when it begins.
         {
           const privacyEl = $id("check-privacy-session");
-          if (privacyEl && !privacyEl.disabled) {
-            privacyEl.disabled = true;
-            window.privacyToggleLocked = true;
-          }
+          if (privacyEl) privacyEl.disabled = true;
+          window.privacyToggleLocked = true;
         }
         if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
           WorkflowViewer.setStage('input');
@@ -3564,7 +3585,7 @@ document.addEventListener("DOMContentLoaded", function () {
     let serverContextSchema = null;
     let progressiveTools = null;
     try {
-      const response = await fetch('/monadic_state');
+      const response = await fetch('/monadic_state' + (typeof window.monadicTabQuery === 'function' ? window.monadicTabQuery() : ''));
       if (!response.ok) throw new Error(`/monadic_state failed: ${response.status}`);
       const data = await response.json();
       if (data.success) {
@@ -4216,16 +4237,15 @@ document.addEventListener("DOMContentLoaded", function () {
   // adding a new provider a single-row edit instead of another `else if`
   // branch in the change handler below. OpenAI-family providers fall through
   // to the default (#openai-voices) so they don't need explicit entries.
+  // Keyed by the provider of the selected choice (TtsProvider.providerOf).
   const TTS_VOICE_PANELS = {
     "elevenlabs":              { panelId: "elevenlabs-voices" },
-    "elevenlabs-flash":        { panelId: "elevenlabs-voices" },
-    "elevenlabs-multilingual": { panelId: "elevenlabs-voices" },
-    "elevenlabs-v3":           { panelId: "elevenlabs-voices" },
+    "gemini":                  { panelId: "gemini-voices" },
     // Mistral Voxtral exposes no speed parameter server-side.
     "mistral":                 { panelId: "mistral-voices", supportsSpeed: false },
     // Grok TTS: playback rate is handled client-side (AVAudioPlayer in native
     // clients); the server API has no speed field, so the slider is hidden.
-    "grok":                    { panelId: "grok-voices",    supportsSpeed: false },
+    "xai":                     { panelId: "grok-voices",    supportsSpeed: false },
     "webspeech":               { panelId: "webspeech-voices", onShow: () => {
       if (typeof initWebSpeech === "function") initWebSpeech();
     } }
@@ -4303,8 +4323,9 @@ document.addEventListener("DOMContentLoaded", function () {
     TTS_VOICE_PANEL_IDS.forEach(id => $hide($id(id)));
     $show($id("tts-speed-container"));
 
-    const entry = window.TtsProvider.isGemini(params["tts_provider"]) && params["tts_provider"] !== "gemini"
-      ? { panelId: "gemini-voices" } : TTS_VOICE_PANELS[params["tts_provider"]];
+    const panelProvider = params["tts_provider"] === "gemini"
+      ? null : window.TtsProvider.providerOf(params["tts_provider"]);
+    const entry = panelProvider ? TTS_VOICE_PANELS[panelProvider] : null;
     const panelId = entry ? entry.panelId : TTS_DEFAULT_PANEL_ID;
     $show($id(panelId));
     if (entry && entry.supportsSpeed === false) {
@@ -4527,6 +4548,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Use the form handlers module if available, otherwise fallback
       const response = await formHandlers.importSession(file);
+
+      // The server read the file; the tab takes the conversation over its
+      // own connection, which stops what is running and starts the new chat.
+      // The import is done when that connection says so.
+      if (response && response.success) {
+        const result = await applyImportOverConnection(response.import_token);
+        if (!result.success) {
+          response.success = false;
+          response.error = result.error;
+        }
+      }
 
       // Process the response
       if (response && response.success) {
@@ -5148,3 +5180,36 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   })();
 });
+
+// Sends a staged import to this tab's connection and waits for its result
+// (import_result), so the dialog reports what the server did, not only that
+// the request left the page.
+function applyImportOverConnection(token, timeoutMs) {
+  return new Promise(function (resolve) {
+    if (!token || typeof window.safeWsSend !== 'function') {
+      resolve({ success: false, error: "Could not reach the server to finish the import. Please try again." });
+      return;
+    }
+    let done = false;
+    const finish = function (result) {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      if (window.onImportResult === onResult) window.onImportResult = null;
+      resolve(result);
+    };
+    const onResult = function (data) {
+      if (!data || data.token !== token) return;
+      finish(data.success ? { success: true } : { success: false, error: data.error || "The import could not be finished." });
+    };
+    const timer = setTimeout(function () {
+      finish({ success: false, error: "The server did not finish the import in time. Please try again." });
+    }, timeoutMs || 30000);
+    window.onImportResult = onResult;
+    const sent = window.safeWsSend({ message: "IMPORT_APPLY", token: token });
+    if (!sent || !sent.sent) {
+      finish({ success: false, error: "Could not reach the server to finish the import. Please try again." });
+    }
+  });
+}
+window.applyImportOverConnection = applyImportOverConnection;

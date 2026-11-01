@@ -263,6 +263,8 @@
 
     <link href="css/pigments-default.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link href="css/syntax-themes.css?timestamp=<%= @timestamp %>" rel="stylesheet">
+    <!-- Design tokens (CSS variables) used by monadic.css; after vendor-layers.css, which fixes the layer order -->
+    <link href="css/tokens.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link href="css/monadic.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link href="css/workflow-viewer.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link href="css/print.css?timestamp=<%= @timestamp %>" rel="stylesheet" media="print">
@@ -293,9 +295,11 @@
           <button id="cancel_query" class="btn btn-light me-2" aria-label="Cancel Query" title="Cancel current operation" data-i18n-title="ui.cancelQuery">
             <i class="fas fa-ban"></i><span data-i18n="ui.cancelQuery">CANCEL</span>
           </button>
-          <div id="status-message" class="me-2" data-i18n="ui.notStarted">Not started</div>
+          <%# Indicators that come and go sit left of the status line, so the
+              status line keeps its place (the group is aligned right). %>
           <span id="privacy-indicator" class="me-2" style="display:none;"></span>
           <span id="sts-usage-indicator" class="me-2" style="display:none;"></span>
+          <div id="status-message" class="me-2" data-i18n="ui.notStarted">Not started</div>
           <button id="toggle-menu" class="btn btn-light" aria-label="Toggle Menu" title="Toggle menu visibility" data-i18n-title="ui.toggleMenu">
             <i class="fas fa-bars"></i>
           </button>
@@ -427,6 +431,26 @@
             </div><!-- end #pdf-panel-body -->
           </div>
 
+          <!-- The conversation history: shown once the server says it keeps one. -->
+          <div id="history-panel" class="mb-3 rounded shaded-panel overflow-hidden" style="display:none">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#history-panel-body" aria-expanded="true">
+              <span class="text"><i class="fa-solid fa-clock-rotate-left"></i> <span data-i18n="ui.historyPanel.panelTitle">Chat History</span></span>
+            </h5>
+            <div id="history-panel-body" class="collapse show px-3 pb-3">
+              <ul id="history-recent" class="list-unstyled mb-2 history-recent"></ul>
+              <button id="history-browse" type="button" class="btn btn-sm btn-secondary text-nowrap" title="See every kept chat" data-i18n-title="ui.historyPanel.browseHint"><i class="fa-solid fa-table-list"></i> <span data-i18n="ui.historyPanel.browse">See all</span></button>
+            </div>
+          </div>
+
+          <div id="shared-folder-panel" class="mb-3 rounded shaded-panel overflow-hidden">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#shared-folder-panel-body" aria-expanded="true">
+              <span class="text"><i class="fa-regular fa-folder-open"></i> <span data-i18n="ui.sharedFolderPanel.panelTitle">Shared Folder</span></span>
+            </h5>
+            <div id="shared-folder-panel-body" class="collapse show px-3 pb-3">
+              <button id="shared-folder-browse" type="button" class="btn btn-sm btn-secondary text-nowrap" title="See what the shared folder holds" data-i18n-title="ui.sharedFolderPanel.browseHint"><i class="fa-solid fa-table-list"></i> <span data-i18n="ui.sharedFolderPanel.browse">Browse</span></button>
+            </div>
+          </div>
+
           <div id="library-panel" class="mb-3 rounded shaded-panel overflow-hidden">
             <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#library-panel-body" aria-expanded="true">
               <span class="text" data-i18n="ui.knowledgeBase"><i class="fas fa-book"></i> Knowledge Base</span>
@@ -445,7 +469,7 @@
               <div class="form-check form-switch mt-2 mb-1 d-flex align-items-center" id="library-rag-toggle-row">
                 <input class="form-check-input me-2" type="checkbox" role="switch" id="library-rag-toggle">
                 <label class="form-check-label small mb-0 flex-grow-1" for="library-rag-toggle" data-i18n="ui.libRagToggleLabel">Use Knowledge Base for retrieval (this session)</label>
-                <i id="library-rag-help" class="fa-regular fa-circle-question text-secondary small ms-2" role="img" tabindex="0" title="When ON, apps that support tools can retrieve from shareable conversations via library_search. Default OFF." data-i18n-title="ui.libRagToggleHint"></i>
+                <i id="library-rag-help" class="fa-regular fa-circle-question text-secondary small ms-2" role="img" tabindex="0" title="When ON, the model can search the entries of this app and the Global entries via library_search. Default OFF." data-i18n-title="ui.libRagToggleHint"></i>
               </div>
               <div class="mt-2 small text-secondary" id="library-stats-info"></div>
             </div><!-- end #library-panel-body -->
@@ -564,9 +588,8 @@
                 <option id="openai-stt-realtime-whisper" value="gpt-realtime-whisper" disabled>GPT Realtime Whisper &#9889;</option>
                 <option id="gemini-stt-flash" value="gemini-3.6-flash" disabled>Gemini 3.6 Flash</option>
                 <option id="elevenlabs-stt-scribe-v2" value="scribe_v2" disabled>ElevenLabs Scribe v2</option>
-                <option id="elevenlabs-stt-scribe-experimental" value="scribe_v1_experimental" disabled>ElevenLabs Scribe v1 (Experimental)</option>
                 <option id="cohere-stt-transcribe" value="cohere-transcribe-03-2026" disabled>Cohere Transcribe</option>
-                <option id="mistral-stt-voxtral" value="voxtral-mini-transcribe-2507" disabled>Mistral Voxtral Transcribe</option>
+                <option id="mistral-stt-voxtral" value="voxtral-mini-transcribe-3-0" disabled>Mistral Voxtral Transcribe</option>
                 <option id="xai-stt-option" value="xai-stt" disabled>xAI Speech-to-Text</option>
               </select>
             </div>
@@ -580,9 +603,10 @@
                 <option id="elevenlabs-flash-provider-option" value="elevenlabs-flash" disabled>ElevenLabs (Flash v2.5)</option>
                 <option id="elevenlabs-multilingual-provider-option" value="elevenlabs-multilingual" disabled>ElevenLabs (Multilingual v2)</option>
                 <option id="elevenlabs-v3-provider-option" value="elevenlabs-v3" disabled>ElevenLabs (v3)</option>
+                <option id="elevenlabs-v4-provider-option" value="elevenlabs-v4" disabled>ElevenLabs (v4)</option>
+                <option id="elevenlabs-v4-turbo-provider-option" value="elevenlabs-v4-turbo" disabled>ElevenLabs (v4 Turbo)</option>
                 <option id="gemini-flash-provider-option" value="gemini-flash" disabled>Gemini (Flash TTS)</option>
                 <option id="gemini-flash-lite-provider-option" value="gemini-flash-lite" disabled>Gemini (Flash-Lite TTS)</option>
-                <option id="gemini-pro-provider-option" value="gemini-pro" disabled>Gemini (Pro TTS)</option>
                 <option id="mistral-tts-provider-option" value="mistral" disabled>Mistral (Voxtral TTS)</option>
                 <option id="grok-tts-provider-option" value="grok" disabled>Grok TTS</option>
                 <option id="webspeech-provider-option" value="webspeech" selected>Web Speech API</option>
@@ -971,6 +995,19 @@
                     <button id="image-file" class="btn btn-sm btn-warning text-nowrap me-2" title="Attach image file to message" data-i18n="ui.image" data-i18n-title="ui.attachImage"><i class="fas fa-image"></i> Image</button>
                     <button id="doc" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from document file" data-i18n="ui.fromFile" data-i18n-title="ui.importFromDoc"><i class="fa-solid fa-file-arrow-up"></i> Text from file</button>
                     <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from web URL" data-i18n="ui.fromURL" data-i18n-title="ui.importFromWeb"><i class="fa-solid fa-globe"></i> Text from URL</button>
+                    <div class="btn-group me-2" id="privacy-mark-group" style="display: none;">
+                      <button id="privacy-mark" type="button" class="btn btn-sm btn-warning text-nowrap" title="Mark the selected words to be masked in this chat (Ctrl/Cmd+Shift+K)" data-i18n-title="ui.privacyMark.hint"><i class="fas fa-user-lock"></i> <span data-i18n="ui.privacyMark.button">Mask</span></button>
+                      <button type="button" class="btn btn-sm btn-warning dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Type" data-i18n-aria-label="ui.privacyMark.typeMenu"></button>
+                      <ul class="dropdown-menu privacy-mark-menu">
+                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="PERSON" data-i18n="ui.privacyMark.person">Person</button></li>
+                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="ORGANIZATION" data-i18n="ui.privacyMark.organization">Organization</button></li>
+                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="LOCATION" data-i18n="ui.privacyMark.location">Place</button></li>
+                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="EMAIL_ADDRESS" data-i18n="ui.privacyMark.email">Email address</button></li>
+                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="PHONE_NUMBER" data-i18n="ui.privacyMark.phone">Phone number</button></li>
+                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="URL" data-i18n="ui.privacyMark.url">URL</button></li>
+                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="DATE_TIME" data-i18n="ui.privacyMark.date">Date</button></li>
+                      </ul>
+                    </div>
                     <button id="audio-upload" class="btn btn-sm btn-warning text-nowrap me-2" style="display: none;" title="Upload audio or MIDI file for analysis" data-i18n="ui.audioUpload" data-i18n-title="ui.uploadAudioMidi"><i class="fas fa-music"></i> <span data-i18n="ui.audioUpload">Audio/MIDI</span></button>
                   </div>
                 </div>
@@ -1266,7 +1303,151 @@
       </div>
     </div>
 
-    <!-- Modal: Browse all conversations in the Knowledge Base -->
+    <!-- Modal: the Shared Folder panel -->
+    <div class="modal fade" id="sharedFolderModal" tabindex="-1" aria-labelledby="sharedFolderModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="sharedFolderModalLabel">
+              <span class="manage-title" data-pane="files"><i class="fa-regular fa-folder-open"></i> <span data-i18n="ui.sharedFolderPanel.modalTitle">Shared Folder</span></span>
+              <span class="manage-title" data-pane="chats" style="display:none"><i class="fa-solid fa-clock-rotate-left"></i> <span data-i18n="ui.historyPanel.modalTitle">Chat History</span></span>
+            </h5>
+            <!-- Chats and files in one place; the tabs appear when the history is kept. -->
+            <ul class="nav nav-tabs ms-3 me-auto manage-tabs" id="manage-tabs" role="tablist" style="display:none">
+              <li class="nav-item" role="presentation"><button class="nav-link" type="button" role="tab" id="manage-tab-chats" data-pane="chats" aria-selected="false" aria-controls="history-chats-body" data-i18n="ui.historyPanel.tabChats">Chats</button></li>
+              <li class="nav-item" role="presentation"><button class="nav-link active" type="button" role="tab" id="manage-tab-files" data-pane="files" aria-selected="true" aria-controls="shared-folder-files-body" data-i18n="ui.historyPanel.tabFiles">Files</button></li>
+            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body" id="history-chats-body" role="tabpanel" aria-labelledby="manage-tab-chats" style="display:none">
+            <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
+              <input type="search" class="form-control form-control-sm" style="max-width: 20rem" id="history-search" placeholder="Search names and words" data-i18n-placeholder="ui.historyPanel.searchPlaceholder" aria-label="Search names and words" data-i18n-aria-label="ui.historyPanel.searchPlaceholder">
+              <span id="history-info" class="small text-secondary me-auto"></span>
+              <button type="button" class="btn btn-sm btn-secondary" id="history-refresh" title="Refresh" data-i18n-title="ui.historyPanel.refresh"><i class="fa-solid fa-rotate"></i></button>
+            </div>
+            <p class="small text-secondary mb-2" data-i18n="ui.historyPanel.note">Chats are kept on this computer, in Monadic Chat's state folder. Private chats are not kept. Removing a chat here removes it from the history only.</p>
+            <!-- One place for what is going on: loading, nothing to show, errors, and questions before an action. -->
+            <div id="history-status" class="sf-status small mb-2" role="status" aria-live="polite" style="display:none"></div>
+            <div class="sf-table-wrap">
+            <table class="table table-sm align-middle sf-table history-table">
+              <thead>
+                <tr>
+                  <th data-i18n="ui.historyPanel.colChat">Chat</th>
+                  <th data-i18n="ui.historyPanel.colApp">App</th>
+                  <th class="text-end" data-i18n="ui.historyPanel.colMessages">Messages</th>
+                  <th data-i18n="ui.historyPanel.colActivity">Last activity</th>
+                  <th><span class="visually-hidden" data-i18n="ui.historyPanel.colActions">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody id="history-tbody"></tbody>
+            </table>
+            </div>
+            <button type="button" class="btn btn-sm btn-secondary mt-2" id="history-more" style="display:none" data-i18n="ui.historyPanel.more">Show more</button>
+          </div>
+          <div class="modal-body" id="shared-folder-files-body" role="tabpanel" aria-labelledby="manage-tab-files">
+            <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
+              <button type="button" class="btn btn-sm btn-secondary" id="shared-folder-up" style="display:none" title="Up one folder" data-i18n-title="ui.sharedFolderPanel.up"><i class="fa-solid fa-arrow-up"></i></button>
+              <div id="shared-folder-path" class="me-auto"></div>
+              <span id="shared-folder-info" class="small text-secondary"></span>
+              <button type="button" class="btn btn-sm btn-secondary" id="shared-folder-refresh" title="Refresh" data-i18n-title="ui.sharedFolderPanel.refresh"><i class="fa-solid fa-rotate"></i></button>
+            </div>
+            <p class="small text-secondary mb-2" data-i18n="ui.sharedFolderPanel.note">What an entry is comes from Monadic Chat's record where it has one, and otherwise only from its name. Sizes of folders are counted in the background.</p>
+            <!-- What is listed: search and filters. -->
+            <div class="sf-band sf-conditions mb-2">
+              <input type="search" class="form-control form-control-sm" style="max-width: 14rem" id="shared-folder-search" placeholder="Search names" data-i18n-placeholder="ui.sharedFolderPanel.searchPlaceholder" aria-label="Search names" data-i18n-aria-label="ui.sharedFolderPanel.searchPlaceholder">
+              <select class="form-select form-select-sm" style="max-width: 12rem" id="shared-folder-sort" aria-label="Order" data-i18n-aria-label="ui.sharedFolderPanel.orderLabel">
+                <option value="name" data-i18n="ui.sharedFolderPanel.sortName">By name</option>
+                <option value="size" data-i18n="ui.sharedFolderPanel.sortSize">Largest first</option>
+                <option value="modified" data-i18n="ui.sharedFolderPanel.sortModified">Newest first</option>
+              </select>
+              <select class="form-select form-select-sm" style="max-width: 16rem" id="shared-folder-filter" aria-label="Kind" data-i18n-aria-label="ui.sharedFolderPanel.kindLabel">
+                <option value="" data-i18n="ui.sharedFolderPanel.filterAll">All items</option>
+                <option value="test_file" data-i18n="ui.sharedFolderPanel.testFile">Made by a test run</option>
+                <option value="test_candidate" data-i18n="ui.sharedFolderPanel.testCandidate">Possibly left by a test run</option>
+                <option value="intermediate_candidate" data-i18n="ui.sharedFolderPanel.intermediate">Possibly a working file</option>
+                <option value="generated" data-i18n="ui.sharedFolderPanel.generated">Generated file</option>
+                <option value="public_copy" data-i18n="ui.sharedFolderPanel.publicCopy">Copy for playback</option>
+                <option value="other" data-i18n="ui.sharedFolderPanel.other">Other</option>
+              </select>
+              <select class="form-select form-select-sm" style="max-width: 13rem" id="shared-folder-age" aria-label="Last modified" data-i18n-aria-label="ui.sharedFolderPanel.ageLabel">
+                <option value="" data-i18n="ui.sharedFolderPanel.ageAll">Modified any time</option>
+                <option value="30" data-i18n="ui.sharedFolderPanel.age30">Not modified in 30 days</option>
+                <option value="90" data-i18n="ui.sharedFolderPanel.age90">Not modified in 90 days</option>
+                <option value="365" data-i18n="ui.sharedFolderPanel.age365">Not modified in 365 days</option>
+              </select>
+            </div>
+            <!-- What to do with the list: selecting and moving to the Trash. The buttons are disabled, never hidden,
+                 when they have nothing to act on, and what is selected is shown in a width of its own, so nothing moves. -->
+            <div class="sf-band sf-actions mb-2" id="shared-folder-actions" style="display:none">
+              <div class="form-check mb-0 text-nowrap" title="Selecting all (shown or on all pages, or Cmd/Ctrl+A) leaves out folders; a folder can still be selected by itself" data-i18n-title="ui.sharedFolderPanel.filesOnlyTitle">
+                <input class="form-check-input" type="checkbox" id="shared-folder-files-only">
+                <label class="form-check-label small" for="shared-folder-files-only" data-i18n="ui.sharedFolderPanel.filesOnly">Skip folders when selecting all</label>
+              </div>
+              <button type="button" class="btn btn-sm btn-primary" id="shared-folder-select-all" aria-pressed="false" data-i18n="ui.sharedFolderPanel.selectAll">Select all shown</button>
+              <button type="button" class="btn btn-sm btn-primary" id="shared-folder-select-matching" data-i18n="ui.sharedFolderPanel.selectMatching">Select on all pages</button>
+              <button type="button" class="btn btn-sm btn-primary" id="shared-folder-select-tests" data-i18n="ui.sharedFolderPanel.selectTests">Select test files</button>
+              <button type="button" class="btn btn-sm btn-danger" id="shared-folder-trash" disabled title="Move to Trash" aria-label="Move to Trash" data-i18n-title="ui.sharedFolderPanel.trashSelected" data-i18n-aria-label="ui.sharedFolderPanel.trashSelected"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
+              <div class="sf-choice-info">
+                <span id="shared-folder-selection" class="small text-secondary text-nowrap" style="visibility:hidden"></span>
+                <button type="button" class="btn btn-sm btn-secondary" id="shared-folder-clear-selection" style="visibility:hidden" title="Clear selection" aria-label="Clear selection" data-i18n-title="ui.sharedFolderPanel.clearSelection" data-i18n-aria-label="ui.sharedFolderPanel.clearSelection"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+              </div>
+            </div>
+            <!-- One place for what is going on: loading, nothing to show, errors, and what moving to the Trash did. -->
+            <div id="shared-folder-status" class="sf-status small mb-2" role="status" aria-live="polite" style="display:none"></div>
+            <div id="shared-folder-pager-top" class="sf-pager mb-2" style="display:none">
+              <button type="button" class="btn btn-sm btn-secondary sf-prev" title="Previous page" data-i18n-title="ui.sharedFolderPanel.prevPage"><i class="fa-solid fa-chevron-left"></i></button>
+              <span class="small text-secondary sf-page-label"></span>
+              <button type="button" class="btn btn-sm btn-secondary sf-next" title="Next page" data-i18n-title="ui.sharedFolderPanel.nextPage"><i class="fa-solid fa-chevron-right"></i></button>
+              <select class="form-select form-select-sm ms-auto sf-per-page" style="max-width: 9rem" aria-label="Items per page" data-i18n-aria-label="ui.sharedFolderPanel.perPage" data-i18n-title="ui.sharedFolderPanel.perPage" title="Items per page">
+                <option value="100">100</option>
+                <option value="200">200</option>
+                <option value="500">500</option>
+              </select>
+            </div>
+            <div class="sf-table-wrap">
+            <table class="table table-sm align-middle sf-table">
+              <thead>
+                <tr>
+                  <th data-i18n="ui.sharedFolderPanel.colName">Name</th>
+                  <th data-i18n="ui.sharedFolderPanel.colWhat">What it is</th>
+                  <th class="text-end" data-i18n="ui.sharedFolderPanel.colSize">Size</th>
+                  <th data-i18n="ui.sharedFolderPanel.colModified">Modified</th>
+                  <th><span class="visually-hidden" data-i18n="ui.sharedFolderPanel.colActions">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody id="shared-folder-tbody" tabindex="0"></tbody>
+            </table>
+            </div>
+            <div id="shared-folder-pager" class="sf-pager mt-2" style="display:none">
+              <button type="button" class="btn btn-sm btn-secondary sf-prev" title="Previous page" data-i18n-title="ui.sharedFolderPanel.prevPage"><i class="fa-solid fa-chevron-left"></i></button>
+              <span class="small text-secondary sf-page-label"></span>
+              <button type="button" class="btn btn-sm btn-secondary sf-next" title="Next page" data-i18n-title="ui.sharedFolderPanel.nextPage"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+          </div>
+          <div id="shared-folder-preview" class="sf-preview-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="shared-folder-preview-name">
+            <div class="sf-preview-card">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <span id="shared-folder-preview-name" class="small fw-semibold text-break me-auto"></span>
+                <span id="shared-folder-preview-count" class="small text-secondary"></span>
+                <button type="button" class="btn-close" id="shared-folder-preview-close" aria-label="Close the preview" data-i18n-aria-label="ui.sharedFolderPanel.previewClose" data-i18n-title="ui.sharedFolderPanel.previewClose" title="Close the preview"></button>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-secondary" id="shared-folder-preview-prev" title="Previous file" data-i18n-title="ui.sharedFolderPanel.previewPrev"><i class="fa-solid fa-chevron-left"></i></button>
+                <div id="shared-folder-preview-body" class="flex-grow-1 text-center" style="min-width: 0"></div>
+                <button type="button" class="btn btn-sm btn-secondary" id="shared-folder-preview-next" title="Next file" data-i18n-title="ui.sharedFolderPanel.previewNext"><i class="fa-solid fa-chevron-right"></i></button>
+              </div>
+              <div class="small text-secondary mt-2 text-center" data-i18n="ui.sharedFolderPanel.previewKeys">← → to move, Esc to close</div>
+            </div>
+          </div>
+          <div id="shared-folder-busy" class="sf-preview-overlay" style="display:none" role="status" aria-live="polite">
+            <div class="sf-busy-card">
+              <i class="fa-solid fa-spinner fa-spin me-2"></i><span data-i18n="ui.sharedFolderPanel.trashing">Moving to the Trash…</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="modal fade" id="libraryBrowseModal" tabindex="-1" aria-labelledby="libraryBrowseModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -1384,8 +1565,8 @@
             <span data-i18n="ui.modals.pdfDeleteConfirmation">Are you sure you want to delete</span> <span class="fw-bold text-secondary-styled" id="pdfToDelete"></span>?
           </div>
           <div class="modal-footer">
-            <div></div>
-            <button type="button" id="pdfDeleteConfirmed" class="btn btn-sm btn-primary" data-i18n="ui.modals.confirm">Confirm</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" id="pdfDeleteConfirmed" class="btn btn-sm btn-outline-danger" data-i18n="ui.modals.confirm">Confirm</button>
           </div>
         </div>
       </div>
@@ -1404,8 +1585,8 @@
             <p id="messageToDelete" class="text-secondary-styled"></p>
           </div>
           <div class="modal-footer flex-column align-items-stretch">
-            <button type="button" id="deleteMessageOnly" class="btn btn-sm btn-warning mb-2" data-i18n="ui.deleteMessageOnly"><i class="fa-regular fa-circle-right"></i> Delete this message only</button>
-            <button type="button" id="deleteMessageAndSubsequent" class="btn btn-sm btn-warning mb-2" data-i18n="ui.deleteMessageAndBelow"><i class="fa-regular fa-circle-down"></i> Delete this message and below</button>
+            <button type="button" id="deleteMessageOnly" class="btn btn-sm btn-outline-danger mb-2" data-i18n="ui.deleteMessageOnly"><i class="fa-regular fa-circle-right"></i> Delete this message only</button>
+            <button type="button" id="deleteMessageAndSubsequent" class="btn btn-sm btn-outline-danger mb-2" data-i18n="ui.deleteMessageAndBelow"><i class="fa-regular fa-circle-down"></i> Delete this message and below</button>
             <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
           </div>
         </div>
@@ -1446,7 +1627,7 @@
               <input id="file-load" class="form-control form-control-sm" type="file" name="file" accept=".json">
             </div>
             <div class="modal-footer">
-              <div></div>
+              <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
               <div class="spinner-border" role="status" id="load-spinner" style="display: none;">
                 <span class="visually-hidden">Loading . . .</span>
               </div>
@@ -1474,7 +1655,7 @@
             <input class="form-control form-control-sm" id="fileFile" type="file" name="fileFile">
           </div>
           <div class="modal-footer">
-            <div></div>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
             <div class="spinner-border" role="status" id="file-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
@@ -1500,7 +1681,7 @@
             <input class="form-control form-control-sm" id="docFile" type="file" name="docFile">
           </div>
           <div class="modal-footer">
-            <div></div>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
             <div class="spinner-border" role="status" id="doc-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
@@ -1522,7 +1703,7 @@
             <input class="form-control form-control-sm" id="audioFile" type="file" name="audioFile" accept=".mp3,.wav,.m4a,.ogg,.flac,.mid,.midi">
           </div>
           <div class="modal-footer">
-            <div></div>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
             <div class="spinner-border" role="status" id="audio-upload-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
@@ -1550,7 +1731,7 @@
             </div>
           </div>
           <div class="modal-footer">
-            <div></div>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
             <div class="spinner-border" role="status" id="url-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>

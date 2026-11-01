@@ -149,6 +149,13 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
       expect(out).to include('returned snippet')
     end
 
+    it 'searches the Global entries only when the session names no app' do
+      expect(Monadic::Library::Retriever).to receive(:cascade_search)
+        .with('q', hash_including(app_name: 'Global'))
+        .and_return([])
+      host.library_search(query: 'q')
+    end
+
     it 'clamps top_n into [1, 10]' do
       expect(Monadic::Library::Retriever).to receive(:cascade_search)
         .with(anything, hash_including(top_n: 10))

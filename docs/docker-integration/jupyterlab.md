@@ -1,90 +1,53 @@
 # JupyterLab Integration
 
-Monadic Chat has a feature to launch JupyterLab. JupyterLab is an integrated development environment (IDE) for data science and machine learning. By using JupyterLab, you can perform data analysis and visualization using Python.
+Monadic Chat can start JupyterLab, an environment for data analysis and visualization with Python, in the Python container.
 
 ## Launching JupyterLab
 
-Click the `Actions/Start JupyterLab` menu in the Monadic Chat console to launch JupyterLab.
+Choose **Actions → Start JupyterLab** in the Monadic Chat console. The menu item is available while Monadic Chat is running.
 
-- JupyterLab can be accessed at [http://localhost:8889](http://localhost:8889) or [http://127.0.0.1:8889](http://127.0.0.1:8889)
-- No password or token is required (configured for local use only)
-
+- JupyterLab opens at [http://localhost:8889](http://localhost:8889) (or [http://127.0.0.1:8889](http://127.0.0.1:8889))
+- No password or token is required; JupyterLab is reachable only from your computer
 
 <!-- SCREENSHOT: Monadic Chat Actions menu showing Start JupyterLab and Stop JupyterLab options -->
 
-When JupyterLab is launched, it starts with `/monadic/data` as its home directory and current working directory. This allows you to access files in the shared folder within JupyterLab.
+JupyterLab starts in the shared folder (`/monadic/data`), so the files you place in `~/monadic/data` are available there.
 
 <!-- SCREENSHOT: JupyterLab terminal window showing command prompt at /monadic/data directory -->
 
 ## Stopping JupyterLab
 
-To stop JupyterLab, close the JupyterLab tab or click the `Actions/Stop JupyterLab` menu in the Monadic Chat console.
+Choose **Actions → Stop JupyterLab**. JupyterLab keeps running when you close its browser tab, and it stops when Monadic Chat stops.
 
-## Using JupyterLab App
+## Using the Jupyter Notebook App
 
-In the basic Jupyter Notebook app of Monadic Chat, you can do the following by interacting with the AI agent in the chat:
+In the Jupyter Notebook app, you ask the AI agent in the chat to work with notebooks. The agent can:
 
 - Start and stop JupyterLab
-- Create new notebooks in the shared folder
-- Load notebooks from the shared folder
-- Add new cells to notebooks
+- Create notebooks in the shared folder and list the existing ones
+- Add, edit, move, and delete cells, and run them
+- Read the outputs of cells and fix cells that raise errors
+- Restart or interrupt the kernel
 
-For complex multi-step tasks, the app first proposes a numbered plan and waits for your approval before executing it (Plan-Approve-Execute workflow).
+For a task with several steps, the app first proposes a numbered plan and waits for your approval before carrying it out.
 
-## Jupyter Access
-
-All Jupyter features are available:
-- The JupyterLab interface can be accessed at [http://127.0.0.1:8889](http://127.0.0.1:8889)
-- The `Jupyter Notebook` app is available in the application menu
-- AI agents can create, modify, and execute Jupyter notebooks
+The Jupyter Notebook app is available for OpenAI, Anthropic, Gemini, and xAI.
 
 ## Tips for Using JupyterLab
 
-- **Working Directory**: JupyterLab starts with `/monadic/data` as the working directory
-- **Persistent Storage**: All files saved in `/monadic/data` persist across container restarts
-- **Python Packages**: Additional packages can be installed in notebook cells with `!uv pip install --no-cache package_name`. For persistent installs that survive rebuilds, see [Python Container](python-container.md)
-- **Terminal Access**: Use the Terminal in JupyterLab to access the Python container directly
+- **Saved files**: Files saved in `/monadic/data` are kept in `~/monadic/data` on your computer
+- **Python packages**: `!uv pip install --no-cache package_name` in a notebook cell installs a package that stays until the container is recreated, for example by a rebuild or an update. To keep packages across rebuilds, see [Python Container](python-container.md)
+- **Terminal**: The Terminal in JupyterLab opens a shell in the Python container
 
+## Japanese Text in Plots
 
-## Japanese Text Support
+When the Jupyter Notebook app adds cells that contain Japanese text or use matplotlib, it adds a font setup cell along with them, so Japanese text in matplotlib plots is displayed with the Noto Sans CJK JP font installed in the Python container.
 
-Monadic Chat's Jupyter Notebook applications include automatic Japanese font configuration for matplotlib plots.
-
-### Automatic Font Setup
-
-When you create or run a Jupyter notebook that contains:
-- Japanese text (Hiragana, Katakana, or Kanji characters)
-- matplotlib imports or usage
-
-The system automatically inserts a font configuration cell that:
-1. Configures matplotlib to use Japanese fonts (Noto Sans CJK JP or IPAGothic)
-2. Suppresses font-related warnings
-3. Ensures proper display of Japanese characters in plots
-
-### How It Works
-
-The font setup code is automatically inserted:
-- After the first matplotlib import statement (if present)
-- Or at the beginning of the notebook (if no imports found)
-- Only when Japanese text or matplotlib usage is detected
-- Only if not already present (tagged with "font-setup" metadata)
-
-### Supported Fonts
-
-The system checks for the following fonts in order:
-1. Noto Sans CJK JP (preferred)
-2. IPA Gothic
-3. System-configured Japanese fonts
-
-### Example
-
-When you create a notebook with Japanese text:
+For example, the labels in this code are displayed in Japanese:
 
 ```python
 import matplotlib.pyplot as plt
-import numpy as np
 
-# Plot with Japanese labels
 plt.plot([1, 2, 3], [1, 4, 2])
 plt.title('日本語のタイトル')
 plt.xlabel('横軸')
@@ -92,39 +55,10 @@ plt.ylabel('縦軸')
 plt.show()
 ```
 
-The system automatically adds the font configuration before your code runs, ensuring Japanese text displays correctly.
-
-### Technical Details
-
-#### Font Paths
-The system checks these font locations:
-- `/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc`
-- `/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc`
-- `/usr/share/fonts/opentype/ipafont/ipag.ttf`
-- `/usr/share/fonts/truetype/ipafont/ipag.ttf`
-
-#### Configuration
-- Font family: sans-serif
-- Unicode minus: disabled (prevents minus sign display issues)
-- Warnings: suppressed for missing glyphs
-
-### Troubleshooting
-
-If Japanese text still doesn't display:
-1. Restart the Jupyter kernel
-2. Re-run all cells
-3. Check that the font setup cell executed successfully
-4. Verify fonts are installed in the Python container
-
-### Notes
-
-- This feature is available for all Jupyter Notebook apps (OpenAI, Claude, Gemini, Grok)
-- The font setup is persistent within each notebook session
-- No manual configuration required - it's automatic!
+If Japanese text is still not displayed, restart the kernel and run all cells again, starting with the font setup cell.
 
 ## Related Apps
 
-- **Code Interpreter**: Executes Python code directly in chat without needing to open JupyterLab
-- **Jupyter Notebook**: AI agent that can create and manage Jupyter notebooks through chat
+- **Code Interpreter**: runs Python code directly in the chat, without opening JupyterLab
+- **Jupyter Notebook**: creates and edits Jupyter notebooks through the chat
 - Both apps use the same Python environment as JupyterLab
-

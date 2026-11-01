@@ -30,8 +30,8 @@ SCRIPT_EXCLUDE = %r{/(vendor|node_modules|dist|\.venv|site-packages)/|\.min\.js\
 QUERY_KEY = /[?&](?:key|api_key)=/i
 KEY_FRAGMENT_END = /\b(?:key|api_key)=\z/i
 CREDENTIAL_NAME = /api_?key|apikey|token|secret/i
-# A scan that reads nothing also reports zero violations. These floors sit a
-# little below the current counts (Ruby 279, JavaScript 107, Python 27) so a
+# A scan that reads nothing also reports zero violations. These floors sit
+# below the number of files of each language, so a
 # misresolved root or a broken glob fails loudly; lower them when files are
 # genuinely removed.
 MIN_SCANNED = { ruby: 250, javascript: 95, python: 24 }.freeze

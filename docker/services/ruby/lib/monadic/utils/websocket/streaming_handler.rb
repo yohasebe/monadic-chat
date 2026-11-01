@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../../workspace'
+require_relative '../privacy/outbound'
 
 require_relative '../tts_provider'
 
@@ -15,11 +16,6 @@ require_relative '../tts_marker_vocabulary'
 require_relative '../tts_instruction_extractor'
 
 module WebSocketHelper
-  # Inactive messages longer than this threshold (in characters) are truncated
-  # to save memory. Original text is preserved for potential reactivation.
-  INACTIVE_MSG_TRUNCATION_THRESHOLD = 500
-  INACTIVE_MSG_PREVIEW_LENGTH = 200
-
   # Background thread for token counting using native tokenizer.
   # @param text [String] Text to count tokens for
   # @param encoding_name [String] Encoding name (default: o200k_base)
@@ -80,6 +76,15 @@ module WebSocketHelper
     encoding_name = "o200k_base"
 
     begin
+      # A message that carries its full text in "original_text" (a shortened
+      # copy in "text") gets the full text back before it is counted.
+      messages.each do |m|
+        next unless m["original_text"]
+
+        m["text"] = m.delete("original_text")
+        m["tokens"] = nil
+      end
+
       # Batch process messages that need token counting to reduce HTTP requests
       messages_to_count = []
       messages.each do |m|
@@ -94,7 +99,8 @@ module WebSocketHelper
           messages_to_count << m
         end
 
-        # Mark all messages as active initially
+        # A message counted for the first time starts active. A counted one
+        # keeps the flag the provider helper set when it chose the history.
         m["active"] = true
       end
 
@@ -116,27 +122,8 @@ module WebSocketHelper
         break if context_size.positive? && active_messages.size <= context_size
       end
 
-      # Truncate content of inactive messages to reduce memory footprint.
-      # Original text is preserved in "original_text" so it can be restored
-      # if the message is reactivated (e.g., when token limits change).
-      messages.each do |m|
-        next if m["active"]
-        next if m["role"] == "system"
-        next if m["original_text"] # already truncated
-        next unless m["text"].is_a?(String) && m["text"].size > INACTIVE_MSG_TRUNCATION_THRESHOLD
-
-        m["original_text"] = m["text"]
-        m["text"] = m["text"][0, INACTIVE_MSG_PREVIEW_LENGTH] + "\n\n[... content truncated ...]"
-        m["tokens"] = nil
-      end
-
-      # Restore original text for messages that became active again
-      messages.each do |m|
-        next unless m["active"] && m["original_text"]
-
-        m["text"] = m.delete("original_text")
-        m["tokens"] = nil # will be recounted in next cycle
-      end
+      # Inactive messages keep their whole text: providers choose what to
+      # send, and the browser, exports and reloads show the whole message.
 
       # Calculate total token counts for different roles
       count_total_system_tokens = messages.filter { |m| m["role"] == "system" }.sum { |m| m["tokens"] || 0 }
@@ -196,6 +183,25 @@ module WebSocketHelper
   # Main streaming handler — processes LLM API responses with realtime TTS,
   # fragment buffering, post-completion TTS, and context extraction.
   # @return [Thread] The streaming thread (returned for orchestrator control)
+  # The fields a user message gets when it is accepted: its request, the
+  # attachments it was sent with, and a snapshot of what it was sent with,
+  # fixed then (the values of input controls come with them later). A sent
+  # message and a user sample are recorded alike.
+  private def user_turn_fields(request_id:, chat_id:, app_name:, attachment_refs:)
+    refs = Array(attachment_refs)
+    fields = { "request_id" => request_id }
+    fields["attachments"] = refs unless refs.empty?
+    fields["request_snapshot"] = {
+      "request_id" => request_id,
+      "chat_id" => chat_id,
+      "app_name" => app_name,
+      "sent_at" => Time.now.utc.iso8601,
+      "input_values" => {},
+      "attachments" => refs
+    }
+    fields
+  end
+
   private def handle_ws_streaming(connection, obj, session, queue)
     # Get session ID for targeted broadcasting throughout streaming
     ws_session_id = Thread.current[:websocket_session_id]
@@ -205,6 +211,40 @@ module WebSocketHelper
     # then dropped rather than delivered into, and recorded in, the new one.
     chat_at_start = session[Monadic::Workspace::Chats::SESSION_KEY]
     chat_changed = -> { session[Monadic::Workspace::Chats::SESSION_KEY] != chat_at_start }
+
+    # Words the user marked for the Privacy Filter are taken out of the
+    # message (and kept for the chat) before it is recorded or sent; a
+    # message that cannot be sent masked is not sent at all.
+    if obj.key?("message")
+      clean = take_privacy_marks(obj["message"], session, ws_session_id)
+      return nil if clean.nil?
+
+      obj["message"] = clean
+    end
+
+    # The attachments sent with this message, checked against the ledger,
+    # and the request the answer runs under: which attachments its tools
+    # may take by id (these, and those of earlier messages of this chat).
+    # They belong to this message only, so they are kept out of the
+    # session's parameters.
+    attachment_refs = nil
+    if obj.key?("attachments")
+      begin
+        attachment_refs = Monadic::Workspace::Attachments.refs_for_message!(chat_id: chat_at_start, refs: obj.delete("attachments"))
+      rescue Monadic::Workspace::Attachments::Unusable => e
+        # not_accepted: the page keeps the earlier messages and gives the
+        # text and the attachments back for another try.
+        send_error(e.message, ws_session_id, { "not_accepted" => true })
+        return nil
+      end
+    end
+    earlier_ids = Array(session[:messages]).flat_map do |m|
+      m["role"] == "user" ? Array(m["attachments"]).map { |a| a["attachment_id"] } : []
+    end
+    request_context = Monadic::Workspace::RequestContext.new(
+      chat_id: chat_at_start,
+      attachment_ids: earlier_ids + Array(attachment_refs).map { |a| a["attachment_id"] }
+    )
 
     session[:parameters].merge! obj
 
@@ -224,10 +264,13 @@ module WebSocketHelper
 
     # Start background token counting for the user message immediately
     message_text = obj["message"].to_s
-    if !message_text.empty?
-      # Use o200k_base encoding for most LLMs
-      token_count_thread = initialize_token_counting(message_text, "o200k_base")
-      Thread.current[:token_count_thread] = token_count_thread
+    # A message of attached files only is recorded too.
+    if !message_text.empty? || !Array(attachment_refs).empty?
+      unless message_text.empty?
+        # Use o200k_base encoding for most LLMs
+        token_count_thread = initialize_token_counting(message_text, "o200k_base")
+        Thread.current[:token_count_thread] = token_count_thread
+      end
 
       # Add user message to session for context extraction
       params = get_session_params
@@ -237,7 +280,8 @@ module WebSocketHelper
         "text" => message_text,
         "app_name" => params["app_name"],
         "active" => true
-      }
+      }.merge(user_turn_fields(request_id: request_context.request_id, chat_id: chat_at_start,
+                               app_name: params["app_name"], attachment_refs: attachment_refs))
       session[:messages] << user_message_data
       sync_session_state!
 
@@ -254,17 +298,13 @@ module WebSocketHelper
 
     if obj["auto_speech"]
       provider = obj["tts_provider"]
-      if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
-        voice = obj["elevenlabs_tts_voice"]
-      elsif Monadic::Utils::TtsProvider.gemini?(provider)
-        voice = provider == "gemini" ? obj["tts_voice"] : obj["gemini_tts_voice"]
-      elsif provider == "mistral"
-        voice = obj["mistral_tts_voice"]
-      elsif provider == "grok"
-        voice = obj["grok_tts_voice"]
-      else
-        voice = obj["tts_voice"]
-      end
+      voice = case Monadic::Utils::TtsProvider.provider_of(provider)
+              when "elevenlabs" then obj["elevenlabs_tts_voice"]
+              when "gemini" then provider == "gemini" ? obj["tts_voice"] : obj["gemini_tts_voice"]
+              when "mistral" then obj["mistral_tts_voice"]
+              when "xai" then obj["grok_tts_voice"]
+              else obj["tts_voice"]
+              end
       speed = obj["tts_speed"]
       response_format = "aac"
       model = if defined?(Monadic::Utils::ModelSpec)
@@ -276,6 +316,8 @@ module WebSocketHelper
     thread = Thread.new do
       # Set thread type for identification
       Thread.current[:type] = :tts
+      # The request this answer runs under, fixed for all of it.
+      Monadic::Workspace::RequestContext.enter(request_context)
 
       # If we have a token counting thread, wait for it to complete and save result
       if defined?(token_count_thread) && token_count_thread
@@ -470,6 +512,20 @@ module WebSocketHelper
         if session[:_privacy_pipeline]
           text = session[:_privacy_pipeline].sanitize_for_tts(text)
         end
+        # Words the user marked: replaced by their type if the reply holds
+        # one, and nothing is spoken if one is still there.
+        if Monadic::Utils::Privacy::Outbound.marked_terms?(session)
+          pipeline = session[:_privacy_pipeline]
+          text = pipeline.sanitize_restored_for_tts(text) if pipeline.respond_to?(:sanitize_restored_for_tts)
+          begin
+            Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, text)
+            # As the TTS service would receive it (dictionary, provider markers).
+            Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, tts_text_as_sent(text, provider)) if respond_to?(:tts_text_as_sent, true)
+          rescue Monadic::Utils::Privacy::Outbound::Refused
+            text = ""
+            send_tts_withheld(ws_session_id)
+          end
+        end
 
         Monadic::Utils::ExtraLogger.log { "[DEBUG] POST-COMPLETION TTS: Using #{tts_text_from_target ? 'tts_target extracted text' : 'buffer.join'}" }
 
@@ -600,7 +656,8 @@ module WebSocketHelper
               "type" => "privacy_state",
               "enabled" => true,
               "registry_count" => pipeline.registry_count,
-              "error" => nil
+              "error" => nil,
+              "private" => true
             }
             state_payload["detection"] = detection_state if detection_state.is_a?(Hash)
             send_or_broadcast(state_payload.to_json, ws_session_id)

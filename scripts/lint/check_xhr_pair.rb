@@ -35,8 +35,8 @@ JS_ROOTS = {
   'app' => ROOT.join('app')
 }.freeze
 
-# Fewest files each scan may read (see scan_floor.rb). Floors sit about 20%
-# below the current counts (routes 7, public/js/monadic 85, app 12); lower one
+# Fewest files each scan may read (see scan_floor.rb). Floors sit below the
+# number of files each root holds; lower one
 # when files are genuinely removed. The routes floor is checked before the
 # "routes using request.xhr?: 0" exit, which an empty routes scan would reach.
 # The JS floors apply only when some route uses request.xhr?, since the JS

@@ -144,6 +144,70 @@ describe('ws-error-handler', () => {
       expect(global.setInputFocus).toHaveBeenCalled();
     });
 
+    it('gives back the typed text and the attachments of the message, not the lines added for the model', () => {
+      window.params = { message: 'look\n\nAttached video: a.mp4 (attachment_id: a_1)' };
+      window.pendingSend = { text: 'look', attachments: [{ attachment_id: 'a_1', name: 'a.mp4' }], images: [{ title: 'shot.png' }] };
+      window.restoreVideoAttachments = jest.fn();
+      window.restoreImages = jest.fn();
+      handlers.handleError({ content: 'error' });
+      expect(document.getElementById('message').value).toBe('look');
+      expect(window.restoreImages).toHaveBeenCalledWith([{ title: 'shot.png' }]);
+      delete window.restoreImages;
+      expect(window.restoreVideoAttachments).toHaveBeenCalledWith([{ attachment_id: 'a_1', name: 'a.mp4' }]);
+      expect(window.pendingSend).toBeNull();
+      delete window.restoreVideoAttachments;
+    });
+
+    it('gives a refused sample back with its role, and stops its time limit', () => {
+      const role = document.getElementById('select-role');
+      role.innerHTML = '<option value="user">user</option><option value="sample-assistant">assistant</option>';
+      role.value = 'user';
+      const changed = jest.fn();
+      role.addEventListener('change', changed);
+      window.pendingSend = { text: 'I am Bob', role: 'sample-assistant', attachments: [], images: [] };
+      const timedOut = jest.fn();
+      window.currentSampleTimeout = setTimeout(timedOut, 10);
+      handlers.handleError({ content: 'Nothing was sent.', not_accepted: true });
+      expect(role.value).toBe('sample-assistant');
+      expect(changed).toHaveBeenCalledTimes(1);
+      expect(document.getElementById('message').value).toBe('I am Bob');
+      expect(window.currentSampleTimeout).toBeNull();
+      return new Promise(resolve => setTimeout(resolve, 30)).then(() => expect(timedOut).not.toHaveBeenCalled());
+    });
+
+    it('keeps the last card when the server did not accept the message (it was never shown)', () => {
+      const discourse = document.getElementById('discourse');
+      discourse.innerHTML = '<div class="card" id="m-earlier"><span class="user-color">User</span></div>';
+      handlers.handleError({ content: 'An attached file is not known to this chat.', not_accepted: true });
+      expect(global.deleteMessage).not.toHaveBeenCalled();
+      handlers.handleError({ content: 'error' });
+      expect(global.deleteMessage).toHaveBeenCalledWith('m-earlier');
+      discourse.innerHTML = '';
+    });
+
+    it('when an answer is still running (busy), gives the send back and leaves that answer on screen', () => {
+      const discourse = document.getElementById('discourse');
+      discourse.innerHTML = '<div class="card" id="m-running"><span class="user-color">User</span></div>';
+      document.getElementById('temp-card').style.display = '';
+      window.streamingResponse = true;
+      window.pendingSend = { text: 'and this', attachments: [{ attachment_id: 'a_2', name: 'b.mp4' }], images: [{ title: 'shot.png' }] };
+      window.restoreVideoAttachments = jest.fn();
+      window.restoreImages = jest.fn();
+      handlers.handleError({ content: 'answer_still_running', not_accepted: true, busy: true });
+      expect(document.getElementById('message').value).toBe('and this');
+      expect(window.restoreImages).toHaveBeenCalledWith([{ title: 'shot.png' }]);
+      expect(window.restoreVideoAttachments).toHaveBeenCalledWith([{ attachment_id: 'a_2', name: 'b.mp4' }]);
+      expect(window.pendingSend).toBeNull();
+      expect(global.setAlert).toHaveBeenCalledWith(expect.stringContaining('still running'), 'warning');
+      expect(window.streamingResponse).toBe(true);
+      expect(document.getElementById('temp-card').style.display).toBe('');
+      expect(global.deleteMessage).not.toHaveBeenCalled();
+      expect(global.WorkflowViewer.setStage).not.toHaveBeenCalled();
+      delete window.restoreVideoAttachments;
+      delete window.restoreImages;
+      discourse.innerHTML = '';
+    });
+
     it('restores message value from params for non-AI-User errors', () => {
       window.params = { message: 'my original message' };
       handlers.handleError({ content: 'error' });
@@ -248,11 +312,11 @@ describe('ws-error-handler', () => {
 /**
  * Voice-capture recovery on error.
  *
- * Observed live: an STS turn that dies between AUDIO_COMMIT and its stt/audio
- * events (upstream realtime session hits its 60-minute cap) left the mic UI
- * stranded on "Processing speech..." — the generic reset hid the spinner but
- * an armed auto-speech watchdog re-showed it. The error path must disarm the
- * watchdogs and hide the spinner last.
+ * An STS turn can die between AUDIO_COMMIT and its stt/audio events (for
+ * example when the upstream realtime session hits its time cap). The generic
+ * reset hides the spinner, but an armed auto-speech watchdog would re-show it
+ * and strand the mic UI on "Processing speech...". The error path must disarm
+ * the watchdogs and hide the spinner last.
  */
 describe('handleError voice-capture recovery', () => {
   beforeEach(() => {

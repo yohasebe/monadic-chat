@@ -9,8 +9,7 @@ require_relative '../../../../lib/monadic/adapters/vendors/gemini_helper'
 
 # Unit coverage for generate_music_with_lyria. The live Gemini call is stubbed;
 # these specs pin the response parsing (audio part extraction, mime→ext, lyrics
-# formatting), the file save, and the error/empty paths — the part the live
-# dogfood exercised but no unit test covered.
+# formatting), the file save, and the error/empty paths.
 RSpec.describe 'GeminiHelper#generate_music_with_lyria' do
   subject(:helper) do
     Class.new do
@@ -41,6 +40,7 @@ RSpec.describe 'GeminiHelper#generate_music_with_lyria' do
   before do
     stub_const('CONFIG', { 'GEMINI_API_KEY' => 'test-key' })
     allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(tmpdir)
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(tmpdir)
     # with_progress just runs the block (no websocket in unit context)
     allow(Monadic::Utils::ProgressBroadcaster).to receive(:with_progress) { |*_, &blk| blk.call }
   end
@@ -165,7 +165,7 @@ RSpec.describe 'GeminiHelper#generate_music_with_lyria' do
 
     # The REST API takes the enum name; "audio/wav" (the Python SDK's spelling)
     # is rejected with 400 INVALID_ARGUMENT by both lyria-3.5 and
-    # lyria-3-pro-preview (checked against the live API, 2026-10-05).
+    # lyria-3-pro-preview.
     it 'requests WAV with the AUDIO_WAV enum when output_format is wav on the Pro model' do
       helper.generate_music_with_lyria(prompt: 'x', lyria_model: 'pro', output_format: 'wav')
       expect(sent_body.dig('generationConfig', 'responseFormat', 'audio', 'mimeType')).to eq('AUDIO_WAV')

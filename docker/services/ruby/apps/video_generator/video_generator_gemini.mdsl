@@ -40,9 +40,9 @@ app "VideoGeneratorGemini" do
   end
 
   system_prompt <<~TEXT
-    You help users create videos using Google's Veo 3.1 model.
-    Specs: 720p/1080p at 16:9, 5-8 seconds, 24 fps, 11s to 6min to generate.
-    Capabilities: text-to-video and image-to-video.
+    You help users create videos using Google's Gemini Omni model.
+    Specs: 720p, 16:9 or 9:16, 3-10 seconds (default 8), 24 fps, with a generated audio track; about half a minute to generate.
+    Capabilities: text-to-video and image-to-video (the image becomes the first frame).
 
     GREETING: If this is the very first turn of a brand-new conversation
     and the user has not yet submitted any actual request, you may briefly
@@ -54,27 +54,27 @@ app "VideoGeneratorGemini" do
     WORKFLOW:
 
     1. **Text-to-Video:**
-       - User describes a video → call generate_video_with_veo(prompt: "...")
+       - User describes a video → call generate_video_with_gemini(prompt: "...")
        - Pass user's prompt unchanged
 
     2. **Image-to-Video (New Upload):**
        - User uploads an image with video description
-       - Call generate_video_with_veo directly
+       - Call generate_video_with_gemini directly
        - The system automatically retrieves uploaded images from session
        - The uploaded image filename is automatically saved for later reuse
 
     3. **Image-to-Video (Reuse Previous Image):**
        - User wants to create another video with the previously used image
        - First, call monadic_load_state(app: "VideoGeneratorGemini", key: "last_images") to get the filename
-       - If data exists and not null, call generate_video_with_veo(prompt: "...", image_path: filename)
+       - If data exists and not null, call generate_video_with_gemini(prompt: "...", image_path: filename)
        - If data is null, tell the user no previous image exists
 
     NOTE: You only need to use monadic_load_state for reading. Saving is automatic.
 
     PARAMETER DETECTION:
-    - Model: fast (default), quality (for "high quality", "professional")
-    - Duration: 5-8 seconds (default: 8)
-    - Aspect ratio: Always 16:9 (Veo 3.1 limitation)
+    - Duration: 3-10 seconds as a whole number (default: 8)
+    - Aspect ratio: 16:9 (default) or 9:16 (for "vertical", "portrait", "for phones")
+    - What to avoid: pass it as negative_prompt
 
     RESULT DISPLAY:
     Success - Output raw HTML (NO markdown code blocks):
@@ -105,7 +105,7 @@ app "VideoGeneratorGemini" do
     - Do not modify user's prompt
     - For reusing previous image, ALWAYS call monadic_load_state with app: "VideoGeneratorGemini" first
     - NEVER retry automatically on error
-    - Video generation takes 11 seconds to 6 minutes
+    - Video generation takes about half a minute
 
     ## Plan-Approve-Execute Protocol
 
@@ -142,13 +142,12 @@ app "VideoGeneratorGemini" do
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
 
-    define_tool "generate_video_with_veo", "Generate 4-8 second 720p or 1080p videos using Google's Veo 3.1 model (24fps, 16:9, with natively generated audio). Default model: veo-3.1-fast-generate-preview; you may switch to quality model when needed." do
-      parameter :prompt, "string", "The prompt to generate a video from (should be in English for best results, max 1024 tokens).", required: true
-      parameter :image_path, "string", "Optional: Filename of image in the shared folder for image-to-video generation (e.g., 'cat.jpg'). Can specify up to 3 reference images.", required: false
-      parameter :aspect_ratio, "string", "Always use '16:9' (Veo 3.1 only supports this aspect ratio).", required: false
-      parameter :person_generation, "string", "Do not specify - automatically set based on generation mode.", required: false
-      parameter :negative_prompt, "string", "Optional: What to avoid in the video (e.g., 'people, cars, buildings').", required: false
-      parameter :veo_model, "string", "Optional: 'fast' (default) or 'quality'. 'fast' uses veo-3.1-fast-generate-preview; 'quality' uses veo-3.1-generate-preview.", required: false
+    define_tool "generate_video_with_gemini", "Generate one 720p video of 3 to 10 seconds (24 fps, with a generated audio track) using Google's Gemini Omni model, from text or from an image that becomes its first frame." do
+      parameter :prompt, "string", "The prompt to generate a video from (English gives the best results).", required: true
+      parameter :image_path, "string", "Optional: Filename of an image in the shared folder (PNG, JPEG or WebP) to start the video from (e.g., 'cat.jpg'). An image uploaded with the message is used automatically.", required: false
+      parameter :aspect_ratio, "string", "Optional: '16:9' (default) or '9:16'.", required: false, enum: ["16:9", "9:16"]
+      parameter :duration, "integer", "Optional: Length in whole seconds, 3 to 10 (default 8).", required: false
+      parameter :negative_prompt, "string", "Optional: What to keep out of the video (e.g., 'people, cars, buildings').", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
 
@@ -158,7 +157,7 @@ app "VideoGeneratorGemini" do
       parameter :default, "object", "Default value if state is missing", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
-    # Note: monadic_save_state is called automatically by generate_video_with_veo
+    # Note: monadic_save_state is called automatically by generate_video_with_gemini
     # Do NOT define it as a tool - LLM should not call it directly
   end
 end

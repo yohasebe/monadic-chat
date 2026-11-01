@@ -104,9 +104,16 @@ RSpec.describe Monadic::VectorStore::QdrantBackend do
       expect(backend.collection_exists?(name: 'foo')).to be false
     end
 
-    it 'returns false on transport error' do
+    it 'raises on a transport error instead of reporting the collection missing' do
       allow(http_client).to receive(:get).and_raise(HTTP::Error.new('network down'))
-      expect(backend.collection_exists?(name: 'foo')).to be false
+      expect { backend.collection_exists?(name: 'foo') }
+        .to raise_error(Monadic::VectorStore::BackendError, /unavailable/)
+    end
+
+    it 'raises on a server error instead of reporting the collection missing' do
+      allow(http_client).to receive(:get).and_return(fake_response(status: 500))
+      expect { backend.collection_exists?(name: 'foo') }
+        .to raise_error(Monadic::VectorStore::BackendError, /500/)
     end
   end
 

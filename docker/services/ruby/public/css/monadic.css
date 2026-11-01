@@ -14,301 +14,8 @@
 /* ============================================ */
 @layer base {
 
-/* CSS Variables - Single source of truth for common values */
+/* CSS variables (design tokens) are in tokens.css, loaded before this file. */
 
-:root {
-  /* Transition Durations - Matching existing values */
-  --transition-fast: 200ms;     /* Used for quick interactions */
-  --transition-normal: 300ms;    /* Standard transitions */
-  --transition-slow: 500ms;      /* Smooth animations like scrolling */
-
-  /* Border Settings - Consistent across UI */
-  --border-width: 1px;
-  --border-radius: 4px;
-  --border-radius-large: 8px;
-  --border-radius-pill: 50%;
-  --border-color: #ced4da;
-  --border-color-light: rgba(255, 255, 255, 0.3);
-  --border-color-dark: rgba(0, 0, 0, 0.2);
-
-  /* Shadows - Standardized depths */
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 3px 8px rgba(0, 0, 0, 0.3);
-  --shadow-xl: 0 4px 12px rgba(0, 0, 0, 0.4);
-
-  /* Opacity Levels */
-  --opacity-hover: 0.9;
-  --opacity-disabled: 0.5;
-  --opacity-backdrop: 0.5;
-
-  /* Spacing - Based on existing patterns */
-  --spacing-xs: 0.25rem;
-  --spacing-sm: 0.5rem;
-  --spacing-md: 0.75rem;
-  --spacing-lg: 1rem;
-  --spacing-xl: 1.5rem;
-
-  /* Font Sizes - Standardized */
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.875rem;
-  --font-size-base: 1rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.25rem;
-
-  /* ============================================ */
-  /* Light Theme Colors (Default) */
-  /* ============================================ */
-
-  /* Background Colors */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f0f0f0;
-  --bg-body: #DCDCDC;
-  --bg-panel: #F8F8F8;
-  --bg-card-assistant: #fcedee;
-  --bg-card-user: #f6f8ff;
-  --bg-card-system: #ffffff;
-  --bg-code: #f8f8f8;
-  --bg-blockquote: #f8f8f8;
-  --bg-hover: #f2f2f2;
-  --bg-navbar: #F8F8F8;
-  --bg-input: #ffffff;
-
-  /* Text Colors */
-  --text-primary: #333;
-  --text-secondary: #777;
-  --text-tertiary: #666;
-  --text-quaternary: #555;
-  --text-muted: #999;
-  --text-link: #2268cf;
-  --text-link-hover: #174890;
-
-  /* Border Colors */
-  --border-primary: #ced4da;
-  --border-secondary: #e0e0e0;
-  --border-tertiary: #ddd;
-  --border-strong: #555;
-  --border-medium: #999;
-  --border-light: #d0d0d0;
-
-  /* Accent Colors (remain consistent across themes) */
-  --accent-amber: #ffc107;
-  --accent-red: #DC4C64;
-  --accent-blue: #4CACDC;
-  --accent-green: #22ad50;
-
-  /* Role & Icon Colors */
-  --color-icon-primary: #ffc107;
-  --color-assistant: rgb(220, 76, 100);
-  --color-user: #4CACDC;
-  --color-system: #22ad50;
-  --color-info: #2196f3;
-  --color-link: #0d6efd;
-  --color-link-hover: #0a58ca;
-
-  /* Status Colors */
-  --status-error: #dc3545;
-  --status-warning: #fd7e14;
-  --status-info: #0dcaf0;
-  --status-success: #198754;
-
-  /* Button Colors - Unified for consistency */
-  --btn-primary: #007bff;
-  --btn-secondary: #718096;
-  --btn-warning: #ffa726;
-  --btn-danger: #ef5350;
-  --btn-info: #29b6f6;
-
-  /* Panel Borders - Lightened for softer appearance */
-  --panel-border: #9e9e9e;
-  --panel-border-subtle: #e0e0e0;
-
-  /* Component-specific */
-  --scrollbar-thumb: #999;
-  --scrollbar-track: #DCDCDC;
-  --spinner-bg: #777;
-  --code-text: #555;
-  --inline-code-bg: rgba(0, 0, 0, 0.05);
-
-  /* Badge Colors — soft tints derived from the theme accents (--accent-red /
-     --accent-blue) so category badges read as the same color family as the
-     vivid status badges, just lighter. Tools = red family, Capabilities = blue
-     family. */
-  --badge-tools-bg: #fce9ed;
-  --badge-tools-border: #f1c9d2;
-  --badge-tools-color: #b1374f;
-  --badge-capabilities-bg: #e6f3fb;
-  --badge-capabilities-border: #c2e0f1;
-  --badge-capabilities-color: #1f78a8;
-  --badge-category-label: #666;
-
-  /* Tool Group Badge — blue family, aligned with Capabilities */
-  --tool-group-badge-bg: #e6f3fb;
-  --tool-group-badge-color: #1f78a8;
-
-  /* Alert Message Colors */
-  --alert-info-bg: #e3f2fd;
-  --alert-info-color: #1565c0;
-  --alert-info-accent: #1976d2;
-  --alert-error-bg: #ffebee;
-  --alert-error-color: #c62828;
-  --alert-error-accent: #d32f2f;
-
-  /* Focus Colors */
-  --focus-outline: #4A90E2;
-  --focus-shadow: rgba(74, 144, 226, 0.3);
-  --focus-shadow-light: rgba(74, 144, 226, 0.15);
-
-  /* Voice Button Colors */
-  --voice-btn-bg: #5bc0de;
-  --voice-btn-border: #46b8da;
-  --voice-btn-hover-bg: #39b3d7;
-  --voice-btn-hover-border: #31b0d5;
-
-  /* TTS Indicator */
-  --tts-active-color: #DC4C64;
-
-  /* Navbar */
-  --navbar-border: #d5d5d5;
-
-  /* JSON Display Colors */
-  --json-label-primary: #495057;
-  --json-label-secondary: #343a40;
-  --json-text-muted: #6c757d;
-  --json-text-dark: #212529;
-
-  /* Dropdown Highlight */
-  --dropdown-highlight-bg: #f2f8ff;
-  --dropdown-highlight-accent: #3377ff;
-}
-
-/* ============================================ */
-
-/* Dark Theme Colors */
-
-/* ============================================ */
-
-.dark-theme {
-  /* Background Colors */
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #333333;
-  --bg-body: #1a1a1a;
-  --bg-panel: #2a2a2a;
-  --bg-card-assistant: #3d3d3d;
-  --bg-card-user: #424242;
-  --bg-card-system: #2a2a2a;
-  --bg-code: #2a2a2a;
-  --bg-blockquote: #2a2a2a;
-  --bg-hover: #3a3a3a;
-  --bg-navbar: #2a2a2a;
-  --bg-input: #2a2a2a;
-
-  /* Text Colors */
-  --text-primary: #f5f5f5;
-  --text-secondary: #d0d0d0;
-  --text-tertiary: #b8b8b8;
-  --text-quaternary: #e0e0e0;
-  --text-muted: #999;
-  --text-link: #6b9bd8;
-  --text-link-hover: #8fb3e8;
-
-  /* Border Colors */
-  --border-primary: #4a4a4a;
-  --border-secondary: #3a3a3a;
-  --border-tertiary: #444;
-  --border-strong: #5a5a5a;
-  --border-medium: #444;
-  --border-light: #3a3a3a;
-
-  /* Accent Colors (slightly adjusted for dark mode visibility) */
-  --accent-amber: #ffc107;
-  --accent-red: #e56b7f;
-  --accent-blue: #6bc2e8;
-  --accent-green: #4cd374;
-
-  /* Role & Icon Colors (link colors adjusted for dark mode) */
-  --color-link: #6b9bd8;
-  --color-link-hover: #8fb3e8;
-
-  /* Status Colors (adjusted for dark mode) */
-  --status-error: #f47983;
-  --status-warning: #ff9f50;
-  --status-info: #4fd8f0;
-  --status-success: #5bc47f;
-
-  /* Button Colors - Adjusted for dark mode visibility */
-  --btn-primary: #4a9eff;
-  --btn-secondary: #8b96a8;
-  --btn-warning: #ffb84d;
-  --btn-danger: #ff6b6b;
-  --btn-info: #52c9ff;
-
-  /* Panel Borders - Darker for dark mode */
-  --panel-border: #555;
-  --panel-border-subtle: #3a3a3a;
-
-  /* Component-specific */
-  --scrollbar-thumb: #555;
-  --scrollbar-track: #2a2a2a;
-  --spinner-bg: #3a3a3a;
-  --code-text: #d0d0d0;
-  --inline-code-bg: rgba(255, 255, 255, 0.1);
-
-  /* Badge Colors — accent-derived tints (dark): Tools = red family,
-     Capabilities = blue family, matching the light-theme derivation. */
-  --badge-tools-bg: #3a2a2e;
-  --badge-tools-border: #5a3a42;
-  --badge-tools-color: #eaa8b4;
-  --badge-capabilities-bg: #233640;
-  --badge-capabilities-border: #355365;
-  --badge-capabilities-color: #93cdea;
-  --badge-category-label: #b0b0b0;
-
-  /* Tool Group Badge — blue family, aligned with Capabilities */
-  --tool-group-badge-bg: #233640;
-  --tool-group-badge-color: #93cdea;
-
-  /* Alert Message Colors */
-  --alert-info-bg: #1a3050;
-  --alert-info-color: #8fb3e8;
-  --alert-info-accent: #6b9bd8;
-  --alert-error-bg: #4a2020;
-  --alert-error-color: #f47983;
-  --alert-error-accent: #ff6b6b;
-
-  /* Focus Colors */
-  --focus-outline: #6b9bd8;
-  --focus-shadow: rgba(107, 155, 216, 0.3);
-  --focus-shadow-light: rgba(107, 155, 216, 0.15);
-
-  /* Voice Button Colors */
-  --voice-btn-bg: #3a8da8;
-  --voice-btn-border: #2a7d98;
-  --voice-btn-hover-bg: #4a9db8;
-  --voice-btn-hover-border: #3a8da8;
-
-  /* TTS Indicator */
-  --tts-active-color: #e56b7f;
-
-  /* Navbar */
-  --navbar-border: #4a4a4a;
-
-  /* JSON Display Colors */
-  --json-label-primary: #b0b0b0;
-  --json-label-secondary: #d0d0d0;
-  --json-text-muted: #8a8a8a;
-  --json-text-dark: #e0e0e0;
-
-  /* Dropdown Highlight */
-  --dropdown-highlight-bg: #2a3a4a;
-  --dropdown-highlight-accent: #6b9bd8;
-
-  /* Shadows need to be lighter in dark mode */
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 3px 8px rgba(0, 0, 0, 0.5);
-  --shadow-xl: 0 4px 12px rgba(0, 0, 0, 0.6);
-}
 
 /* ============================================== */
 
@@ -992,8 +699,8 @@ div.sourcecode-toggle i {
 .badge {
   font-weight: 300;
 }
-/* Status badge colors are defined together with the rest of the badge color
-   system near the end of this file (search "Badge color system"). */
+/* Status badge colors are defined with the rest of the badge rules near the
+   end of this file; the colours are in tokens.css ("Badge color system"). */
 
 a {
   font-weight: 500;
@@ -2152,6 +1859,13 @@ legend {
   margin-left: auto;
 }
 
+/* The files attached to a user message, on its card. */
+.message-attachments .file-container {
+  width: fit-content;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
 .pdf-preview {
   display: flex;
   align-items: center;
@@ -3304,9 +3018,9 @@ img.base64-image,
 /* Secondary button style - balanced gray for white text contrast */
 
 .btn-secondary {
-  background-color: #78828c; /* Slightly lighter gray (between gray-500 and gray-400) */
-  border-color: #78828c;
-  color: #ffffff;
+  background-color: var(--btn-secondary-bg); /* Slightly lighter gray (between gray-500 and gray-400) */
+  border-color: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
 }
 
 .btn-secondary:hover {
@@ -3466,10 +3180,11 @@ img.base64-image,
   flex-shrink: 0;
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--bs-secondary-color, #6c757d);
-  background: var(--bs-tertiary-bg, #f8f9fa);
+  color: var(--chip-neutral-color);
+  background: var(--chip-neutral-bg);
+  border: 1px solid var(--chip-neutral-border);
   border-radius: 3px;
-  padding: 0.1rem 0.35rem;
+  padding: calc(0.1rem - 1px) calc(0.35rem - 1px);
   min-width: 1.5rem;
   text-align: center;
 }
@@ -3522,9 +3237,10 @@ img.base64-image,
   justify-content: center;
   font-size: 0.65rem;
   font-weight: 600;
-  background: #dc4c64;
-  color: white;
-  padding: 2px 5px;
+  background: var(--chip-assistant-bg);
+  color: var(--chip-assistant-color);
+  border: 1px solid var(--chip-assistant-border);
+  padding: 1px 4px;
   border-radius: 3px;
   margin-right: 8px;
   min-width: 22px;
@@ -3534,7 +3250,9 @@ img.base64-image,
 /* User turn badge (blue to match user icon) */
 
 .card-turn-badge-user {
-  background: #4cacdc;
+  background: var(--chip-user-bg);
+  color: var(--chip-user-color);
+  border-color: var(--chip-user-border);
 }
 
 /* Highlight effect when navigating to a card */
@@ -4030,18 +3748,18 @@ img.base64-image,
 
 /* Primary button colors */
 .btn-primary {
-  background-color: #007bff;
-  border-color: #007bff;
+  background-color: var(--btn-primary-bg);
+  border-color: var(--btn-primary-bg);
 }
 
 .btn-primary:focus {
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  box-shadow: 0 0 0 0.2rem var(--btn-primary-focus-shadow-color);
 }
 
 .btn-primary:active,
 .btn-primary.active {
-  background-color: #0056b3;
-  border-color: #004085;
+  background-color: var(--btn-primary-active-bg);
+  border-color: var(--btn-primary-active-border);
 }
 
 .btn-primary:hover {
@@ -4050,13 +3768,13 @@ img.base64-image,
 }
 
 .btn-primary:disabled {
-  background-color: #6c9bd1;
-  border-color: #6c9bd1;
+  background-color: var(--btn-primary-disabled-bg);
+  border-color: var(--btn-primary-disabled-bg);
 }
 
 /* Secondary button focus */
 .btn-secondary:focus {
-  box-shadow: 0 0 0 0.2rem rgba(113, 128, 150, 0.25);
+  box-shadow: 0 0 0 0.2rem var(--btn-secondary-focus-shadow-color);
 }
 
 /* Cancel button focus */
@@ -4153,6 +3871,37 @@ img.base64-image,
 
 #status-message.text-info {
   color: #1565c0 !important;
+}
+
+/* Dark: in this layer, next to the light rules. Both are !important, and for
+   !important declarations an earlier layer wins, so in the dark-theme layer
+   these lost to the light ones. In the same layer the more specific win. */
+
+.dark-theme #status-message {
+  background-color: #2b2b2b !important;
+  border: 1px solid #444444 !important;
+}
+
+/* Dark mode: Status type colors (ID + class selectors have high specificity) */
+
+.dark-theme #status-message.text-success {
+  color: #7fd89f !important;
+}
+
+.dark-theme #status-message.text-warning {
+  color: #f59e0b !important;
+}
+
+.dark-theme #status-message.text-danger {
+  color: #ef5350 !important;
+}
+
+.dark-theme #status-message.text-info {
+  color: #60a5fa !important;
+}
+
+.dark-theme #status-message.text-secondary {
+  color: #d0d0d0 !important;
 }
 
 #status-message.text-secondary {
@@ -4260,12 +4009,245 @@ img.base64-image,
   color: #f59e0b;
 }
 
+/* Shared Folder panel: the toolbar and the preview sit on the panel
+   colour, the table head stays in view, rows show hover and choice. */
+#sharedFolderModal {
+  --sf-selected-bg: #dbe7f7;
+  --sf-selected-border: #8fb0dd;
+}
+#sharedFolderModal .sf-band {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--border-radius-large);
+  padding: 0.5rem 0.75rem;
+}
+#sharedFolderModal .sf-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  font-weight: 600;
+  font-size: 0.85em;
+}
+#shared-folder-tbody tr > td {
+  transition: background-color 0.1s ease;
+}
+#shared-folder-tbody tr:hover > td {
+  background-color: var(--bg-hover);
+}
+#shared-folder-tbody tr.sf-selected > td {
+  background-color: var(--sf-selected-bg);
+}
+#shared-folder-tbody tr.sf-selected > td:first-child {
+  box-shadow: inset 3px 0 0 var(--sf-selected-border);
+}
+#shared-folder-tbody:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-blue) 60%, transparent);
+  outline-offset: 2px;
+}
+/* The keyboard's row, while the list has the focus. */
+#shared-folder-tbody:focus tr.sf-cursor > td {
+  border-top: 1px dashed var(--sf-selected-border);
+  border-bottom: 1px dashed var(--sf-selected-border);
+}
+#sharedFolderModal .sf-kind-folder { color: var(--accent-amber); }
+#sharedFolderModal .sf-kind-media { color: var(--accent-blue); }
+#sharedFolderModal .sf-kind-pdf { color: var(--accent-red); }
+#sharedFolderModal .sf-kind-other { color: var(--text-secondary); }
+#sharedFolderModal .modal-content { position: relative; }
+#sharedFolderModal .sf-folder-link {
+  color: inherit;
+  text-decoration: none;
+}
+#sharedFolderModal .sf-folder-link:hover {
+  color: var(--accent-blue);
+  text-decoration: underline;
+}
+/* Not d-flex: its !important would keep a hidden pager in view. */
+#sharedFolderModal .sf-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+/* Buttons take the Web UI's categories (grey moves around and acts on a
+   row, blue chooses, red moves to the Trash); next to each other they are
+   one height, whether they hold an icon, a count or words. */
+#sharedFolderModal .btn-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-height: calc(1.5em + 0.5rem + 2px);
+}
+#sharedFolderModal .sf-preview-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background-color: rgba(0, 0, 0, 0.45);
+  border-radius: inherit;
+}
+/* The cards laid over the panel: the preview and the spinner while moving. */
+#sharedFolderModal .sf-preview-card,
+#sharedFolderModal .sf-busy-card {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--border-radius-large);
+  box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.3);
+}
+#sharedFolderModal .sf-preview-card {
+  width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  padding: 0.75rem 1rem;
+}
+/* Long names wrap. On a narrow window only the table scrolls sideways
+   (there the head of the table no longer stays in view, as the box that
+   scrolls is then the table's own). */
+@media (max-width: 767.98px) {
+  #sharedFolderModal .sf-table-wrap {
+    overflow-x: auto;
+  }
+}
+#shared-folder-tbody td:first-child {
+  overflow-wrap: anywhere;
+  min-width: 12rem;
+}
+#sharedFolderModal .sf-preview-card pre { text-align: left; }
+/* Two bands: what is listed (search and filters), then what to do with it.
+   Each wraps as a whole group on a narrow panel; the width kept for what is
+   selected never shrinks, so the buttons beside it do not move. */
+#sharedFolderModal .sf-conditions,
+#sharedFolderModal .sf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+#sharedFolderModal .sf-conditions .form-control,
+#sharedFolderModal .sf-conditions .form-select {
+  flex: 0 1 auto;
+}
+#sharedFolderModal .sf-choice-info {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 0 0 15rem;
+  min-width: 0;
+}
+#sharedFolderModal .sf-choice-info #shared-folder-selection {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#sharedFolderModal .sf-actions .btn-sm {
+  white-space: nowrap;
+}
+#sharedFolderModal .sf-status {
+  color: var(--text-secondary);
+  padding: 0.25rem 0.5rem;
+}
+#sharedFolderModal .sf-status.sf-status-warn {
+  color: var(--text-primary);
+  background-color: color-mix(in srgb, var(--btn-warning) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--btn-warning) 45%, transparent);
+  border-radius: var(--border-radius);
+}
+#sharedFolderModal .sf-busy-card {
+  padding: 0.75rem 1.25rem;
+}
+
+/* Chat history: the latest chats in the sidebar, and the Chats tab of the
+   window it shares with the shared folder. */
+.history-recent-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0.25rem 0.375rem;
+  border-radius: var(--border-radius);
+  color: var(--text-primary);
+}
+.history-recent-item:hover,
+.history-recent-item:focus-visible {
+  background-color: var(--bg-hover);
+}
+.history-recent-item.is-open {
+  cursor: default;
+  color: var(--text-secondary);
+}
+.history-recent-name,
+.history-recent-topic {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-recent-name {
+  font-size: 0.875rem;
+}
+.history-recent-topic {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+#sharedFolderModal .manage-tabs {
+  border-bottom: 0;
+}
+#sharedFolderModal .history-name-cell {
+  min-width: 14rem;
+}
+#sharedFolderModal .history-name,
+#sharedFolderModal .history-topic {
+  overflow-wrap: anywhere;
+}
+#sharedFolderModal .history-open-badge {
+  background-color: var(--chip-neutral-bg);
+  border: 1px solid var(--chip-neutral-border);
+  color: var(--chip-neutral-color);
+  font-weight: normal;
+}
+
+  /* A Private chat makes no files: what would make them is hidden (the
+     server refuses it too). Set by WsPrivacyHandler. */
+  body.chat-private #doc,
+  body.chat-private #url,
+  body.chat-private #pdf-import,
+  body.chat-private #audio-upload {
+    display: none !important;
+  }
 } /* end @layer components */
 
 /* ============================================ */
 /* Dark Theme Layer: All dark mode overrides */
 /* ============================================ */
 @layer dark-theme {
+
+/* Shared Folder panel: hover and choice survive the dark table rule
+   (which clears cell backgrounds), with colours of the dark palette. */
+.dark-theme #sharedFolderModal {
+  --sf-selected-bg: #243a5a;
+  --sf-selected-border: #4a7bbf;
+}
+.dark-theme #shared-folder-tbody tr:hover > td {
+  background-color: var(--bg-hover);
+}
+.dark-theme #shared-folder-tbody tr.sf-selected > td {
+  background-color: var(--sf-selected-bg);
+}
+.dark-theme #sharedFolderModal .sf-table thead th {
+  background-color: var(--bg-secondary);
+}
+.dark-theme #sharedFolderModal .manage-tabs .nav-link.active {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-primary) var(--border-primary) transparent;
+  color: var(--text-primary);
+}
+
 
 /* ============================================== */
 
@@ -4344,6 +4326,13 @@ img.base64-image,
   border-color: var(--border-medium);
 }
 
+/* A range slider draws its own track; the box above would sit behind it */
+
+.dark-theme .form-range {
+  background-color: transparent;
+  border-color: transparent;
+}
+
 /* Dark mode: Ensure textarea specifically has white text */
 
 .dark-theme textarea,
@@ -4418,7 +4407,6 @@ img.base64-image,
 /* Dark mode: Override any Bootstrap or system colors that might be dark */
 
 .dark-theme .text-dark,
-.dark-theme .text-muted,
 .dark-theme .text-black-50 {
   color: var(--text-primary);
 }
@@ -4428,7 +4416,7 @@ img.base64-image,
 /* Exclude h5, h6, icons, and their children to preserve header icon colors */
 
 .dark-theme .shaded-panel p,
-.dark-theme .shaded-panel span:not(.assistant-color):not(.user-color):not(.system-color):not(.badge-tools):not(.badge-capabilities):not(.tool-group-badge):not(h5 span):not(h6 span):not(.like-h6 span):not(.text),
+.dark-theme .shaded-panel span:not(.assistant-color):not(.user-color):not(.system-color):not(.badge-tools):not(.badge-capabilities):not(.tool-group-badge):not(h5 span):not(h6 span):not(.like-h6 span):not(.text):not(.btn-warning span),
 .dark-theme .shaded-panel div:not(.icon-container):not(.badge-tools):not(.badge-capabilities):not(.tool-group-badge),
 .dark-theme .shaded-panel label,
 .dark-theme .shaded-panel td,
@@ -4670,9 +4658,9 @@ img.base64-image,
 }
 
 .dark-theme .btn-secondary {
-  background-color: #5a6470;
-  border-color: #5a6470;
-  color: #e5e7eb;
+  background-color: var(--btn-secondary-bg);
+  border-color: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
 }
 
 .dark-theme .btn-secondary:hover {
@@ -4830,11 +4818,6 @@ i.fas.fa-bolt,
 
 /* Dark mode for turn grouping */
 
-.dark-theme #context-panel .context-turn-label {
-  background: var(--json-label-secondary);
-  color: #adb5bd;
-}
-
 .dark-theme #context-panel .context-turn-items {
   color: #dee2e6;
 }
@@ -4854,14 +4837,6 @@ i.fas.fa-bolt,
 
 .dark-theme .context-turn-group.edited {
   border-left-color: #ffc107;
-}
-
-.dark-theme .card-turn-badge {
-  background: #e57373;
-}
-
-.dark-theme .card-turn-badge-user {
-  background: #64b5f6;
 }
 
 .dark-theme .card.context-highlight {
@@ -4954,6 +4929,22 @@ i.fas.fa-bolt,
   filter: drop-shadow(0 0 6px rgba(255, 193, 7, 0.25));
 }
 
+/* Dark mode: Delete buttons (red outline). Bootstrap's #dc3545 is dim on the
+   dark surfaces; the dark error color reads, with dark text when filled. */
+
+.dark-theme .btn-outline-danger {
+  --bs-btn-color: var(--status-error);
+  --bs-btn-border-color: var(--status-error);
+  --bs-btn-hover-color: var(--bg-body);
+  --bs-btn-hover-bg: var(--status-error);
+  --bs-btn-hover-border-color: var(--status-error);
+  --bs-btn-active-color: var(--bg-body);
+  --bs-btn-active-bg: var(--status-error);
+  --bs-btn-active-border-color: var(--status-error);
+  --bs-btn-disabled-color: var(--status-error);
+  --bs-btn-disabled-border-color: var(--status-error);
+}
+
 /* Dark mode: Outline secondary buttons (needs to override Bootstrap) */
 
 .dark-theme .btn-outline-secondary {
@@ -4979,29 +4970,29 @@ i.fas.fa-bolt,
 /* Dark mode: Modal dialogs (high specificity) */
 
 .dark-theme .modal-content {
-  background-color: #2b2b2b;
-  color: #e5e5e5;
-  border: 1px solid #444;
+  background-color: var(--modal-bg);
+  color: var(--modal-text);
+  border: 1px solid var(--modal-border-color);
 }
 
 .dark-theme .modal-header {
-  background-color: #333;
-  color: #e5e5e5;
-  border-bottom: 1px solid #444;
+  background-color: var(--modal-header-bg);
+  color: var(--modal-text);
+  border-bottom: 1px solid var(--modal-divider-color);
 }
 
 .dark-theme .modal-header .modal-title {
-  color: #e5e5e5;
+  color: var(--modal-title-color);
 }
 
 .dark-theme .modal-body {
-  background-color: #2b2b2b;
-  color: #e5e5e5;
+  background-color: var(--modal-bg);
+  color: var(--modal-text);
 }
 
 .dark-theme .modal-footer {
-  background-color: #2b2b2b;
-  border-top: 1px solid #444;
+  background-color: var(--modal-bg);
+  border-top: 1px solid var(--modal-divider-color);
 }
 
 /* Dark mode: Modal form inputs (high specificity with attribute selectors) */
@@ -5010,18 +5001,18 @@ i.fas.fa-bolt,
 .dark-theme .modal-body input[type="file"],
 .dark-theme .modal-body textarea,
 .dark-theme .modal-body select {
-  background-color: #3a3a3a;
-  color: #e5e5e5;
-  border: 1px solid #555;
+  background-color: var(--modal-input-bg);
+  color: var(--modal-input-text);
+  border: 1px solid var(--modal-input-border);
 }
 
 .dark-theme .modal-body input[type="text"]::placeholder,
 .dark-theme .modal-body textarea::placeholder {
-  color: #999;
+  color: var(--modal-placeholder);
 }
 
 .dark-theme .modal-body label {
-  color: #e5e5e5;
+  color: var(--modal-text);
 }
 
 /* Dark mode: Modal close button */
@@ -5053,10 +5044,6 @@ i.fas.fa-bolt,
   color: #e5e5e5;
 }
 
-.dark-theme #tts-toast .toast-body .text-muted {
-  color: #aaa;
-}
-
 /* Dark mode: Navbar improvements (ID selectors have high specificity) */
 
 .dark-theme #main-nav {
@@ -5076,34 +5063,6 @@ i.fas.fa-bolt,
   border-color: #666;
 }
 
-/* Dark mode: Unified status styling (ID selector has high specificity) */
-
-.dark-theme #status-message {
-  background-color: #2b2b2b !important;
-  border: 1px solid #444444 !important;
-}
-
-/* Dark mode: Status type colors (ID + class selectors have high specificity) */
-
-.dark-theme #status-message.text-success {
-  color: #7fd89f !important;
-}
-
-.dark-theme #status-message.text-warning {
-  color: #f59e0b !important;
-}
-
-.dark-theme #status-message.text-danger {
-  color: #ef5350 !important;
-}
-
-.dark-theme #status-message.text-info {
-  color: #60a5fa !important;
-}
-
-.dark-theme #status-message.text-secondary {
-  color: #d0d0d0 !important;
-}
 
 /* Dark mode: Toggle menu button (ID selector has high specificity) */
 
@@ -5256,6 +5215,43 @@ i.fas.fa-bolt,
 .dark-theme .generated-audio-player {
   background: #2a2a2e;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Dark mode: dropdown menus. The Web UI switches themes with a class, not
+   Bootstrap's data-bs-theme, so the menu would keep Bootstrap's white. */
+
+.dark-theme .dropdown-menu {
+  --bs-dropdown-bg: var(--modal-bg);
+  --bs-dropdown-color: var(--text-primary);
+  --bs-dropdown-border-color: var(--modal-border-color);
+  --bs-dropdown-link-color: var(--text-primary);
+  --bs-dropdown-link-hover-color: var(--text-primary);
+  --bs-dropdown-link-hover-bg: var(--bg-hover);
+}
+
+/* Dark mode: turn badges keep their chip colors inside cards, where every
+   span otherwise takes the card's text color. */
+
+.dark-theme .card .card-turn-badge {
+  color: var(--chip-assistant-color);
+}
+
+.dark-theme .card .card-turn-badge-user {
+  color: var(--chip-user-color);
+}
+
+/* Dark mode: the Cancel button beside the status line */
+
+.dark-theme #cancel_query {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.dark-theme #cancel_query span {
+  color: var(--text-primary);
+}
+
+.dark-theme #cancel_query:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 } /* end @layer dark-theme */
@@ -5856,15 +5852,15 @@ i.fas.fa-bolt,
   #theme-system:hover:not(:disabled),
   #theme-light:hover:not(:disabled),
   #theme-dark:hover:not(:disabled) {
-    background-color: #5a6268;
-    border-color: #545b62;
+    background-color: var(--btn-secondary-hover-bg);
+    border-color: var(--btn-secondary-hover-border);
   }
 
   /* Primary buttons - add background color change */
   .btn-primary:hover:not(:disabled),
   #start-button:hover:not(:disabled) {
-    background-color: #0069d9;
-    border-color: #0062cc;
+    background-color: var(--btn-primary-hover-bg);
+    border-color: var(--btn-primary-hover-border);
   }
 
   .dark-theme .btn-warning:hover:not(:disabled),
@@ -5998,6 +5994,68 @@ i.fas.fa-bolt,
   #cancel_query i {
     margin-right: 0 !important;
   }
+}
+
+
+/* Shared Folder panel: the same categories as elsewhere (grey, blue,
+   red) in quieter tones. Kept here, after the hover rules above, since a
+   later layer wins over any selector in an earlier one. */
+#sharedFolderModal .btn-secondary {
+  background-color: #8a939e;
+  border-color: #8a939e;
+  color: #ffffff;
+}
+#sharedFolderModal .btn-primary {
+  background-color: #4a72b0;
+  border-color: #4a72b0;
+  color: #ffffff;
+}
+#sharedFolderModal .btn-danger {
+  background-color: #bf625e;
+  border-color: #bf625e;
+  color: #ffffff;
+}
+#sharedFolderModal .btn-secondary:hover:not(:disabled),
+#sharedFolderModal .btn-secondary:active {
+  background-color: #77818c;
+  border-color: #77818c;
+}
+#sharedFolderModal .btn-primary:hover:not(:disabled),
+#sharedFolderModal .btn-primary:active {
+  background-color: #43699f;
+  border-color: #43699f;
+}
+#sharedFolderModal .btn-danger:hover:not(:disabled),
+#sharedFolderModal .btn-danger:active {
+  background-color: #a9524e;
+  border-color: #a9524e;
+}
+.dark-theme #sharedFolderModal .btn-secondary {
+  background-color: #525c69;
+  border-color: #525c69;
+  color: #e5e7eb;
+}
+.dark-theme #sharedFolderModal .btn-primary {
+  background-color: #3f669f;
+  border-color: #3f669f;
+  color: #eef2f8;
+}
+.dark-theme #sharedFolderModal .btn-danger {
+  background-color: #9c4f4b;
+  border-color: #9c4f4b;
+  color: #f6eceb;
+}
+.dark-theme #sharedFolderModal .btn-secondary:hover:not(:disabled) {
+  background-color: #5f6a78;
+  border-color: #5f6a78;
+}
+.dark-theme #sharedFolderModal .btn-primary:hover:not(:disabled) {
+  background-color: #446ca6;
+  border-color: #446ca6;
+}
+.dark-theme #sharedFolderModal .btn-danger:hover:not(:disabled) {
+  background-color: #ab5955;
+  border-color: #ab5955;
 }
 
 } /* end @layer responsive */
@@ -6401,7 +6459,8 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   line-height: 1.2;
 }
 /* Confidence badge colors (.verify-badge--*) are defined with the rest of the
-   badge color system near the end of this file (search "Badge color system"). */
+   badge rules near the end of this file; the colours are in tokens.css
+   ("Badge color system"). */
 
 .dark-theme .verify-result { background: rgba(255, 255, 255, 0.05); border-color: var(--border-color-light); }
 
@@ -6470,33 +6529,7 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   vertical-align: middle;
 }
 
-/* === Badge color system: one accent-derived tint set for ALL badges =======
-   Every badge (category, status, confidence) uses a soft tinted background +
-   accent-colored text + a visible accent border — a single refined treatment,
-   colored by SEMANTIC family (red/blue/green/amber/grey). Replaces the earlier
-   flat solid-fill status badges. Defined last so it supersedes the vivid rules
-   above. */
-:root {
-  --bdg-red-bg: #fce9ed;   --bdg-red-bd: #f1c9d2;   --bdg-red-fg: #b1374f;
-  --bdg-blue-bg: #e6f3fb;  --bdg-blue-bd: #c2e0f1;  --bdg-blue-fg: #1f78a8;
-  --bdg-green-bg: #e6f6ec; --bdg-green-bd: #c2e6cf; --bdg-green-fg: #1e7d3f;
-  --bdg-amber-bg: #fdf3d9; --bdg-amber-bd: #f0e0a8; --bdg-amber-fg: #8a6d1a;
-  --bdg-grey-bg: #eef0f2;  --bdg-grey-bd: #dcdfe3;  --bdg-grey-fg: #5f6b76;
-  /* Category vars point at the shared tokens (single source of truth). */
-  --badge-tools-bg: var(--bdg-red-bg); --badge-tools-border: var(--bdg-red-bd); --badge-tools-color: var(--bdg-red-fg);
-  --badge-capabilities-bg: var(--bdg-blue-bg); --badge-capabilities-border: var(--bdg-blue-bd); --badge-capabilities-color: var(--bdg-blue-fg);
-  --tool-group-badge-bg: var(--bdg-blue-bg); --tool-group-badge-color: var(--bdg-blue-fg);
-}
-.dark-theme {
-  --bdg-red-bg: #3a2a2e;   --bdg-red-bd: #5a3a42;   --bdg-red-fg: #eaa8b4;
-  --bdg-blue-bg: #233640;  --bdg-blue-bd: #355365;  --bdg-blue-fg: #93cdea;
-  --bdg-green-bg: #233a2c; --bdg-green-bd: #355f43; --bdg-green-fg: #8fd6a6;
-  --bdg-amber-bg: #3a3320; --bdg-amber-bd: #5f5530; --bdg-amber-fg: #e8cf8f;
-  --bdg-grey-bg: #2e3338;  --bdg-grey-bd: #444b52;  --bdg-grey-fg: #b8c0c8;
-  --badge-tools-bg: var(--bdg-red-bg); --badge-tools-border: var(--bdg-red-bd); --badge-tools-color: var(--bdg-red-fg);
-  --badge-capabilities-bg: var(--bdg-blue-bg); --badge-capabilities-border: var(--bdg-blue-bd); --badge-capabilities-color: var(--bdg-blue-fg);
-  --tool-group-badge-bg: var(--bdg-blue-bg); --tool-group-badge-color: var(--bdg-blue-fg);
-}
+
 
 /* The app's own badge component. Markup uses `mc-badge mc-badge--<family>`
    instead of Bootstrap's `badge bg-*`: bootstrap.min.css is imported into
@@ -6540,8 +6573,8 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
    vendor at the top of this file). Their display:none !important must beat
    Bootstrap's vendor-layer utilities — .d-flex{display:flex !important}
    otherwise wins, because for !important the layer order reverses and any
-   layered !important beats an unlayered one. This was the root cause of
-   the thinking toggle staying visible in LC (dogfood, browser-measured).
+   layered !important beats an unlayered one, which would leave the
+   thinking toggle visible in LC.
    Plain inline display from JS $hide/$show also loses to these rules;
    the JS-side none!important enforcement stays as a second layer. */
 @layer lc-overrides {
@@ -6647,7 +6680,7 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   background: transparent;
 }
 
-/* Speech highlight (§37-13C): the sentence the assistant is speaking right
+/* Speech highlight: the sentence the assistant is speaking right
    now, driven by the playback clock. A quiet tint of the existing blue
    badge family — visible at a glance, never a loud selection color. */
 .lc-speaking {
@@ -6685,20 +6718,20 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   font-size: 1.05rem;
 }
 
-/* A tools badge inserted BETWEEN paragraphs (Live Conversation, §37-3) is
+/* A tools badge inserted BETWEEN paragraphs (Live Conversation) is
    its own block, not part of a text run: it needs symmetric breathing room
    in the paragraph gap instead of the inline offset a title badge uses.
    Without this the badge crowds the paragraph below it and reads as
-   vertically misaligned (dogfood). Title badges are unaffected — they live
+   vertically misaligned. Title badges are unaffected — they live
    in .card-title, which this selector does not match. */
 .card-text > .lc-tools-badge {
   margin: 0.4rem 0 0.55rem;
 }
 
 /* In the live view the badge reads vertically off-center — but the
-   asymmetry is NOT a margin problem (browser-measured, §37-15): as an
+   asymmetry is NOT a margin problem: as an
    inline-level box the badge sits in an anonymous line box whose strut
-   adds ~6px above it that no margin can remove. Making it block-level
+   adds space above it that no margin can remove. Making it block-level
    (flex + max-content) kills the line box; the gap above then comes
    entirely from the preceding paragraph's margin-bottom, matching the
    paragraph rhythm. The card side keeps its own paragraph-margin system. */
@@ -6706,4 +6739,25 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   display: flex;
   width: max-content;
   margin: 0 0 1rem;
+}
+
+/* Type menu of the Mask button: a compact list of actions (not links). */
+.privacy-mark-menu {
+  min-width: 0;
+  padding: 0.25rem 0;
+  font-size: 13px;
+}
+
+.privacy-mark-menu .dropdown-item {
+  padding: 0.2rem 0.9rem;
+  line-height: 1.4;
+  color: var(--text-primary);
+  font-weight: 400;
+}
+
+.privacy-mark-menu .dropdown-item:hover,
+.privacy-mark-menu .dropdown-item:focus {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  text-decoration: none;
 }

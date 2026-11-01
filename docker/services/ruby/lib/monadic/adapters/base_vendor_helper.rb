@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
+require 'json'
+
 require_relative "../utils/http_client"
+require_relative "../utils/tool_dispatch_guard"
+require_relative "../workspace/request_context"
 
 # BaseVendorHelper
 # Shared utilities for vendor helpers. Provides macros for common patterns
@@ -182,6 +186,85 @@ module BaseVendorHelper
     end
   end
 
+  # Shows the user message of this turn on the page and adds what the
+  # provider knows of it (html, language, images) to the message the server
+  # recorded when it accepted the send. That message is found by the
+  # request the answer runs under, not by its text: the same text may have
+  # been sent before. The page gets the message's attachments with it, and
+  # only once the message holds what it is shown with (an edit or delete of
+  # the shown card finds it). A message added here under a request carries
+  # that request, so the next call for it finds this one. Without a request
+  # the last message stands in when it has the same text.
+  def record_user_turn!(session, res, &block)
+    content = res["content"]
+    request_id = Monadic::Workspace::RequestContext.current&.request_id
+    existing = if request_id
+                 session[:messages].reverse_each.find { |m| m["role"] == "user" && m["request_id"] == request_id }
+               else
+                 last = session[:messages].last
+                 last if last && last["role"] == "user" && last["text"] == content["text"]
+               end
+    if existing
+      # What the server fixed when it accepted the send stays as it was.
+      existing.merge!(content.except(*USER_TURN_SERVER_FIELDS))
+      content["attachments"] = existing["attachments"] if existing["attachments"]
+    else
+      content["request_id"] = request_id if request_id
+      session[:messages] << content
+    end
+    block&.call res
+  end
+
+  USER_TURN_SERVER_FIELDS = %w[request_id attachments request_snapshot].freeze
+
+  # Whether this send has a user turn to record and show: typed text, or
+  # files attached to the message of the current request with no text.
+  def user_turn_to_record?(role, message, session)
+    return false unless role == "user"
+    return true if message.to_s != ""
+
+    request_id = Monadic::Workspace::RequestContext.current&.request_id
+    return false unless request_id
+
+    Array(session[:messages]).reverse_each.any? do |m|
+      m["role"] == "user" && m["request_id"] == request_id && !Array(m["attachments"]).empty?
+    end
+  end
+
+  # The messages as the model reads them: a user message's attachments are
+  # described after its text. The described messages are copies; the
+  # session keeps what the user typed. Helpers call it on the finished
+  # context before converting it, so the Privacy Filter sees the names.
+  def model_facing_context(context)
+    context.map { |msg| model_facing_message(msg) }
+  end
+
+  def model_facing_message(msg)
+    return msg unless msg.is_a?(Hash) && msg["role"] == "user"
+
+    text = msg["text"].to_s
+    lines = Array(msg["attachments"]).filter_map do |ref|
+      next unless ref.is_a?(Hash)
+
+      id = model_facing_value(ref["attachment_id"], 64)
+      # A message recorded with the line in its text already (sent while the
+      # page still added the lines).
+      next if id.empty? || text.match?(/^Attached (?:video|audio): .+ \(attachment_id: #{Regexp.escape(id)}\)$/)
+
+      kind = ref["purpose"] == "audio" ? "audio" : "video"
+      name = model_facing_value(ref["display_name"], 200)
+      "Attached #{kind}: #{name.empty? ? "file" : name} (attachment_id: #{id})"
+    end
+    return msg if lines.empty?
+
+    msg.merge("text" => [text, lines.join("\n")].reject(&:empty?).join("\n\n"))
+  end
+
+  # One line of plain text: no control or format characters, no line breaks.
+  def model_facing_value(value, limit)
+    value.to_s.scrub("?").gsub(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/, " ").squeeze(" ").strip[0, limit]
+  end
+
   # Privacy Filter integration helpers.
   # Vendor helpers call apply_privacy_to_messages just before http.post and
   # restore_response_text after the response text is finalized. The work is
@@ -221,9 +304,9 @@ module BaseVendorHelper
   # Substitution Pipeline integration (Vocabulary provider only).
   #
   # Vocabulary lets the user and assistant share `${TOKEN}` variables (e.g.
-  # ${SHARED} for the synced data folder). It is opt-in per app via a
-  # `vocabulary do; use :shared; end` MDSL block and carries zero overhead for
-  # apps that do not declare it.
+  # ${SHARED} for the synced data folder). The default tokens
+  # (Vocabulary::DEFAULT_TOKENS) are on for every app; `vocabulary do; use ...; end`
+  # adds tokens and `vocabulary false` turns it off.
   #
   # Privacy is deliberately NOT registered here: it stays on its own
   # `:_privacy_pipeline` hot path. The two providers have opposite failure
@@ -282,18 +365,55 @@ module BaseVendorHelper
   #   1. Chat Completions: content is a String
   #   2. Responses API: content is Array of {type, text} items
   def apply_privacy_to_messages(messages, session, app_settings)
+    require_relative '../utils/privacy/outbound'
+    outbound = Monadic::Utils::Privacy::Outbound
     pipeline = privacy_pipeline_for(session, app_settings)
-    return messages unless pipeline
+    unless pipeline
+      # Words the user marked stay protected when the filter is off.
+      raise outbound::Refused, 'words were marked to be masked in this chat, but the Privacy Filter is off' if outbound.marked_terms?(session)
+
+      return messages
+    end
 
     require_relative '../utils/privacy/types'
     # Note: language detection for "auto" mode happens upstream in
     # handle_ws_streaming on the raw user-typed text, not here. Hooking it
     # here would see vendor-adapter-injected placeholders (e.g. OpenAI
     # Responses API's "Let's start" filler) and lock to the wrong language.
+    mask_text = lambda do |text|
+      next text unless text.is_a?(String) && !text.empty?
+
+      pipeline.before_send_to_llm(Monadic::Utils::Privacy::RawMessage.new(text, "user", {})).text
+    end
+    # In a chat with words the user marked, what a tool gave back is masked
+    # like the conversation: it can carry those words (a search result, a
+    # page). Otherwise tool results are left as they were.
+    mask_tools = outbound.marked_terms?(session)
     messages.map do |msg|
       role = msg[:role] || msg["role"]
-      # System / developer / tool roles are app-defined (system prompts,
-      # tool plumbing) and must not be re-masked.
+      type = (msg[:type] || msg["type"]).to_s
+      if mask_tools && type == "function_call_output"
+        output_key = msg.key?(:output) ? :output : "output"
+        next msg.merge(output_key => mask_text.call(msg[output_key]))
+      end
+      if mask_tools && role.to_s == "tool"
+        content_key = msg.key?(:content) ? :content : "content"
+        # A string, or (Cohere) parts: text, and documents whose data is JSON.
+        # A part's own type and id are protocol and stay as they are.
+        content = msg[content_key]
+        masked_content = if content.is_a?(Array)
+                           content.map do |part|
+                             next privacy_mask_value(part, mask_text) unless part.is_a?(Hash)
+
+                             part.to_h { |k, v| [k, %w[type id].include?(k.to_s) ? v : privacy_mask_value(v, mask_text)] }
+                           end
+                         else
+                           privacy_mask_value(content, mask_text)
+                         end
+        next msg.merge(content_key => masked_content)
+      end
+      # System / developer roles are app-defined (system prompts, tool
+      # plumbing) and must not be re-masked.
       next msg unless %w[user assistant].include?(role.to_s)
       text_key = msg.key?(:content) ? :content : "content"
       content = msg[text_key]
@@ -306,6 +426,23 @@ module BaseVendorHelper
         new_content = content.map do |item|
           next item unless item.is_a?(Hash)
           item_type = (item[:type] || item["type"]).to_s
+          if mask_tools && item_type == "tool_result"
+            result_key = item.key?(:content) ? :content : "content"
+            result = item[result_key]
+            masked_result = if result.is_a?(String)
+                              mask_text.call(result)
+                            elsif result.is_a?(Array)
+                              result.map do |part|
+                                next part unless part.is_a?(Hash) && (part.key?("text") || part.key?(:text))
+
+                                part_key = part.key?(:text) ? :text : "text"
+                                part.merge(part_key => mask_text.call(part[part_key]))
+                              end
+                            else
+                              result
+                            end
+            next item.merge(result_key => masked_result)
+          end
           next item unless %w[input_text text].include?(item_type)
           item_text_key = item.key?(:text) ? :text : "text"
           text = item[item_text_key]
@@ -318,6 +455,40 @@ module BaseVendorHelper
       else
         msg
       end
+    end
+  end
+
+  # The whole request body, just before it is sent. With words the user
+  # marked for the Privacy Filter, nothing is sent when the filter is off,
+  # or when a marked word is still anywhere in the body (the system prompt,
+  # a tool, the app's settings: places that are not masked). The body is
+  # only read. Every vendor calls this, whether the filter is on or not.
+  def protect_marked_words!(body, session, app_settings)
+    require_relative '../utils/privacy/outbound'
+    outbound = Monadic::Utils::Privacy::Outbound
+    return body unless outbound.marked_terms?(session)
+    raise outbound::Refused, 'words were marked to be masked in this chat, but the Privacy Filter is off' unless privacy_pipeline_for(session, app_settings)
+
+    outbound.check_no_marked_words!(session, body)
+    body
+  end
+
+  # Every string in a tool's result masked, the structure kept: a string
+  # that is JSON is read, masked value by value and written again (so its
+  # escapes stay valid); keys are left as they are.
+  def privacy_mask_value(value, mask_text, depth = 0)
+    case value
+    when String
+      inner = Monadic::Utils::Privacy::Outbound.json_value(value)
+      unless inner.nil?
+        raise Monadic::Utils::Privacy::Outbound::Refused, 'a tool result is nested as JSON too deeply to be masked' if depth >= Monadic::Utils::Privacy::Outbound::JSON_DEPTH
+
+        return JSON.generate(privacy_mask_value(inner, mask_text, depth + 1))
+      end
+      mask_text.call(value)
+    when Array then value.map { |v| privacy_mask_value(v, mask_text, depth) }
+    when Hash then value.transform_values { |v| privacy_mask_value(v, mask_text, depth) }
+    else value
     end
   end
 
@@ -345,6 +516,8 @@ module BaseVendorHelper
                                 write: write_timeout,
                                 read: read_timeout).post(target_uri, json: body)
         break if response && response.status && response.status.success?
+      rescue Monadic::Utils::Privacy::Outbound::Refused
+        raise # nothing was sent, and trying again would not change that
       rescue *rescue_errors
         # Transient request failure — retry after the delay below.
       end

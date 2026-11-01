@@ -12,6 +12,7 @@ This is the internal developer documentation for Monadic Chat. It contains techn
 New to the codebase? Start here:
 - **[Debug Mode & Local Docs](server-debug-mode.md)** - How to run the development server and access local documentation
 - **[Docs Link Checker](docs-link-checker.md)** - Validate all documentation links to prevent 404 errors
+- **[CHANGELOG Style](changelog_style.md)** - How release entries are written
 - **[Common Issues](common-issues.md)** - Troubleshooting guide for common development problems
 
 ### Architecture
@@ -35,15 +36,18 @@ Test infrastructure and procedures:
 - **[Test Runner](test_runner.md)** - Unified test runner documentation
 - **[Test Quick Reference](test_quickref.md)** - Quick reference for running tests
 - **[Testing Guide](testing.md)** - Testing philosophy and best practices
+- **[Anti-Pattern Lints](developer/anti_pattern_lints.md)** - CI lint rules and the safe helpers they pair with
+- **[Tool Dispatch](developer/tool_dispatch.md)** - Which tool calls run and how they are called
 
 ### Feature Documentation
 In-depth documentation of specific features:
-- **[Auto Forge Internals](auto_forge_internals.md)** - Artifact Builder architecture
+- **[Auto Forge Internals](auto_forge_internals.md)** - Auto Forge architecture (orchestrator + provider code agents)
 - **[SSOT Normalization](ssot_normalization_and_accessors.md)** - Model specification normalization
 
 ### Frontend & Backend
 Component-specific documentation:
 - **[Frontend](frontend/)** - JavaScript modules and UI components
+- **[Safe WebSocket Send](frontend/safe_ws_send.md)** - The one way to send WebSocket messages
 - **[Backend](ruby_service/)** - Ruby service implementation
 - **[Python Service](python_service/)** - Python service (JupyterLab & tools)
 - **[MDSL](mdsl/)** - Monadic DSL documentation
@@ -53,7 +57,7 @@ Component-specific documentation:
 ### Internal vs External Documentation
 
 **Use Internal docs (`docs_dev/`) for:**
-- Implementation details and architecture decisions
+- Implementation details, mechanisms, and rules in force (no history or design rationale)
 - Internal APIs and data flows
 - Development workflows and debugging
 - Test procedures and infrastructure
@@ -74,7 +78,7 @@ All documentation should reflect the **current implementation only**:
   - Remove phrases like "Previously...", "Changed from...", "Used to be..."
 
 - **No future content** - Don't document planned features, TODOs, or unresolved issues
-  - Move all future enhancements to `tmp/memo/future_enhancements.md`
+  - Keep future enhancements in the git-ignored `tmp/memo/`, not in the repository
   - Remove "Future Enhancements", "TODO", "Coming soon", "Planned features" sections
   - Remove "not yet implemented", "under development" notes
 
@@ -89,7 +93,7 @@ All documentation should reflect the **current implementation only**:
 ### Content Placement
 
 **Internal docs (`docs_dev/`):**
-- ✅ Implementation details and architecture decisions
+- ✅ Implementation details, mechanisms, and rules in force
 - ✅ Technical constraints and current limitations
 - ✅ Development workflows and debugging guides
 - ❌ TODO items, unresolved issues, pending decisions

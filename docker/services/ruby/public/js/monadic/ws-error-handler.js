@@ -16,6 +16,43 @@
  * @param {Object} data - Message data with content (string or object with key/details)
  */
 function handleError(data) {
+  // A send refused because an answer is still running: give the text and
+  // the attachments back, and leave that answer's display as it is.
+  if (data.busy) {
+    const pending = window.pendingSend;
+    const busyMsgEl = $id("message");
+    if (busyMsgEl && pending) busyMsgEl.value = pending.text;
+    if (pending && typeof window.restoreImages === 'function') window.restoreImages(pending.images);
+    if (pending && typeof window.restoreVideoAttachments === 'function') window.restoreVideoAttachments(pending.attachments);
+    window.pendingSend = null;
+    setAlert(getTranslation('ui.messages.answerStillRunning', 'The previous answer is still running. Send again when it has finished, or stop it first.'), 'warning');
+    return;
+  }
+
+  // A refused edit: put that card and its message back as the server keeps
+  // them. The message box and any answer running are not touched.
+  if (data.edit_refused) {
+    const undo = window.pendingEdits && window.pendingEdits[data.mid];
+    if (undo) {
+      delete window.pendingEdits[data.mid];
+      const editedCard = $id(data.mid);
+      const editedText = editedCard && editedCard.querySelector('.card-text');
+      if (editedText && typeof undo.html === 'string') editedText.innerHTML = undo.html;
+      // The message as the page holds it now (a reload may have replaced it).
+      const list = Array.isArray(window.messages) ? window.messages : [];
+      const editedMessage = list.find(function (m) { return m && m.mid === data.mid; });
+      if (editedMessage) editedMessage.text = undo.text;
+    }
+    setAlert(data.content, 'error');
+    return;
+  }
+
+  // A refused sample has answered; its time limit no longer applies.
+  if (window.currentSampleTimeout) {
+    clearTimeout(window.currentSampleTimeout);
+    window.currentSampleTimeout = null;
+  }
+
   // Clear any pending spinner check interval on error
   if (window.spinnerCheckInterval) {
     clearInterval(window.spinnerCheckInterval);
@@ -46,6 +83,7 @@ function handleError(data) {
       'ai_user_requires_conversation': 'ui.messages.aiUserRequiresConversation',
       'message_not_found_for_editing': 'ui.messages.messageNotFoundForEditing',
       'voice_input_empty': 'ui.messages.voiceInputEmpty',
+      'voice_input_private': 'ui.messages.voiceInputPrivate',
       'text_input_empty': 'ui.messages.textInputEmpty',
       'invalid_message_format': 'ui.messages.invalidMessageFormat',
       'api_stopped_safety': 'ui.messages.apiStoppedSafety',
@@ -60,6 +98,7 @@ function handleError(data) {
         'ai_user_requires_conversation': 'AI User requires an existing conversation. Please start a conversation first.',
         'message_not_found_for_editing': 'Message not found for editing',
         'voice_input_empty': 'Voice input is empty',
+        'voice_input_private': 'In a Private chat, voice input works with a Gemini speech-to-text model only.',
         'text_input_empty': 'The text input is empty',
         'invalid_message_format': 'Invalid message format received',
         'api_stopped_safety': 'The API stopped responding because of safety reasons',
@@ -122,17 +161,32 @@ function handleError(data) {
       if (aiUserBtn) aiUserBtn.disabled = false;
       updateAIUserButtonState(window.messages);
     } else {
-      // For non-AI User errors, remove user message that caused error
-      const discourseCards = document.querySelectorAll("#discourse .card");
-      const lastCard = discourseCards.length > 0 ? discourseCards[discourseCards.length - 1] : null;
-      if (lastCard && lastCard.querySelector(".user-color")) {
-        deleteMessage(lastCard.id);
+      // For non-AI User errors, remove user message that caused error. A
+      // message the server did not accept was never shown, so the last
+      // card is an earlier one and stays.
+      if (!data.not_accepted) {
+        const discourseCards = document.querySelectorAll("#discourse .card");
+        const lastCard = discourseCards.length > 0 ? discourseCards[discourseCards.length - 1] : null;
+        if (lastCard && lastCard.querySelector(".user-color")) {
+          deleteMessage(lastCard.id);
+        }
       }
 
-      // Restore the message content so user can edit and retry
+      // Restore the message content so user can edit and retry: the typed
+      // text and the attachments it was sent with, when they are known.
       const params = window.params || {};
+      const pending = window.pendingSend;
       const errMsgEl = $id("message");
-      if (errMsgEl) errMsgEl.value = params["message"] || '';
+      if (errMsgEl) errMsgEl.value = pending ? pending.text : (params["message"] || '');
+      if (pending && typeof window.restoreImages === 'function') window.restoreImages(pending.images);
+      if (pending && typeof window.restoreVideoAttachments === 'function') window.restoreVideoAttachments(pending.attachments);
+      // A sample keeps its role, so the retry is not sent as a user message.
+      const errRoleEl = $id("select-role");
+      if (pending && pending.role && errRoleEl && errRoleEl.value !== pending.role) {
+        errRoleEl.value = pending.role;
+        $dispatch(errRoleEl, "change");
+      }
+      window.pendingSend = null;
     }
 
     // Notify Workflow Viewer of error state
@@ -150,8 +204,8 @@ function handleError(data) {
     }
 
     // Voice-capture recovery. A turn that dies between AUDIO_COMMIT and its
-    // `stt`/audio events (observed live: the upstream realtime session hits
-    // its 60-minute cap) leaves the mic UI on "Processing speech..." with the
+    // `stt`/audio events (for example when the upstream realtime session hits
+    // its time cap) leaves the mic UI on "Processing speech..." with the
     // auto-speech watchdogs armed — one of them re-shows the spinner after
     // the generic reset above has hidden it. Disarm them and hide the
     // spinner LAST, so an upstream failure cannot strand the UI.

@@ -17,7 +17,23 @@ module Monadic
           @timeout = timeout
         end
 
-        def anonymize(text:, languages:, registry:, entity_types: nil, options: {})
+        # The container this was built with masks the strings the user marked
+        # (terms); an older one ignores them. Asked once, then kept.
+        def supports_terms?
+          return @supports_terms unless @supports_terms.nil?
+
+          response = HTTP.timeout(2).get("#{@endpoint}/v1/health")
+          body = response.status.success? ? JSON.parse(response.body.to_s) : {}
+          @supports_terms = Array(body['capabilities']).include?('terms')
+        rescue StandardError
+          false
+        end
+
+        def anonymize(text:, languages:, registry:, entity_types: nil, options: {}, terms: [])
+          if terms.any? && !supports_terms?
+            raise BackendError, 'The Privacy container does not mask marked words yet; update it with Actions > Build Privacy Container'
+          end
+
           body = {
             text: text,
             languages: languages,
@@ -28,7 +44,10 @@ module Monadic
             }
           }
           body[:entity_types] = entity_types if entity_types
+          body[:terms] = terms.map { |t| { text: t[:text] || t['text'], type: t[:type] || t['type'] } } if terms.any?
           resp = post_json('/v1/anonymize', body)
+          raise BackendError, 'Privacy backend gave no masked text' unless resp['masked_text'].is_a?(String)
+
           {
             masked_text: resp['masked_text'],
             registry: resp['registry'] || {},

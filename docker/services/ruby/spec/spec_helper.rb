@@ -31,6 +31,9 @@ if config_path
     # host; the specs do not, so leave it out rather than send the reference to
     # a provider as a key. Specs that need the key then skip as if it were unset.
     next if value.start_with?('op://')
+    # The user's extra logging is for the app, not for a test run: on, it
+    # stays on for the whole run (the logger remembers its first answer).
+    next if key == 'EXTRA_LOGGING'
     CONFIG[key] = value
     ENV[key] = value  # Also set in ENV for compatibility
   end
@@ -45,6 +48,19 @@ $MODELS = {} unless defined?($MODELS)
 APPS = {} unless defined?(APPS)
 
 # Load core application files AFTER CONFIG is set
+# Specs never write to the user's ~/monadic/log: extra.log, command.log and
+# the other logs go to this run's results folder. Set before the app is
+# loaded, which fixes MonadicApp::EXTRA_LOG_FILE from it.
+require 'fileutils'
+require_relative 'support/test_run_dir'
+require_relative '../lib/monadic/utils/environment'
+require_relative '../lib/monadic/utils/privacy/egress_guard'
+Monadic::Utils::Environment.singleton_class.prepend(Module.new do
+  def log_path
+    File.join(Monadic::TestRunDir.current_run_dir, 'monadic_log').tap { |dir| FileUtils.mkdir_p(dir) }
+  end
+end)
+
 require_relative '../lib/monadic/app'
 require_relative '../lib/monadic/core'
 require_relative '../lib/monadic/utils/selenium_helper'
@@ -146,6 +162,7 @@ require_relative 'support/custom_retry'
 
 # Load Docker container manager for automatic container startup
 require_relative 'support/docker_container_manager'
+require_relative 'support/shared_folder_test_files'
 require_relative 'support/text_response_assertions'
 require_relative 'support/generator_script_loader'
 
@@ -185,14 +202,31 @@ RSpec.configure do |config|
 
   # Include custom retry helper for E2E tests
   config.include E2ERetryHelper, type: :e2e
+
+  # Starting a chat (a Reset, a new chat) marks the fiber it runs in as that
+  # chat's work, as it marks a connection's. Examples share one fiber, so
+  # each starts with no chat's mark and the one there before is put back.
+  config.around(:each) do |example|
+    key = Monadic::Utils::Privacy::EgressGuard::CHAT_KEY
+    before = Fiber[key]
+    Fiber[key] = nil
+    example.run
+  ensure
+    Fiber[key] = before
+  end
   
-  # Automatically start containers for integration and E2E tests
+  # Start the Docker services for integration and E2E tests, only when the
+  # run asks for it: a plain run of spec/unit also selects a few tagged
+  # examples, and must not start the user's containers.
   config.before(:suite) do
-    # Only start containers if running integration or E2E tests
     if RSpec.world.filtered_examples.values.flatten.any? { |ex|
          ex.metadata[:integration] || ex.metadata[:e2e]
        }
-      DockerContainerManager.ensure_containers_running
+      if ENV["MONADIC_TEST_START_CONTAINERS"] == "1"
+        DockerContainerManager.ensure_containers_running
+      else
+        puts "\nContainers are not started: set MONADIC_TEST_START_CONTAINERS=1 to start them for integration and E2E examples.\n\n"
+      end
     end
 
     # Load all apps for matrix tests and artifact tests

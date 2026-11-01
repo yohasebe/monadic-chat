@@ -2,6 +2,8 @@ require 'cgi'
 require 'json'
 require 'fileutils'
 require 'shellwords'
+require_relative '../../lib/monadic/utils/shared_path_guard'
+require 'securerandom'
 require_relative '../../lib/monadic/utils/environment'
 
 # Shared tools for Mermaid Grapher (provider-independent)
@@ -32,12 +34,13 @@ module MermaidGrapherTools
     return format_tool_response(validation_payload) unless validation_payload[:success]
 
     # 2. Generate HTML
-    timestamp = Time.now.to_i
+    # Unique per call, so concurrent previews never share a file name
+    timestamp = "#{Time.now.to_i}_#{SecureRandom.hex(4)}"
     html_filename = "mermaid_live_#{timestamp}.html"
     screenshot_filename = "mermaid_preview_#{timestamp}.png"
     shared_volume = Monadic::Utils::Environment.shared_volume
     html_path = File.join(shared_volume, html_filename)
-    File.write(html_path, build_mermaid_html(sanitized_code))
+    Monadic::Utils::SharedPathGuard.write_file!(html_path, build_mermaid_html(sanitized_code))
 
     # 3. Browser session management via web_navigator.py
     file_url = "file:///monadic/data/#{html_filename}"
@@ -118,7 +121,7 @@ module MermaidGrapherTools
       # Single image mode: diagram fits in one capture
       src = File.join(shared_volume, ss_result[:screenshot])
       dst = File.join(shared_volume, screenshot_filename)
-      FileUtils.cp(src, dst) if File.exist?(src)
+      (Monadic::Utils::SharedPathGuard.copy_file!(src, dst) rescue nil)
 
       # No gallery_html — Mermaid diagrams are rendered as SVG directly by
       # the client-side MarkdownRenderer. Instead, inject via _image so the
@@ -145,7 +148,8 @@ module MermaidGrapherTools
       )
     )
   ensure
-    # Keep latest HTML (browser is displaying it); clean up older ones
+    # Keep the latest HTML (the browser is displaying it); preview images are
+    # read after the tool returns, so only stale ones are removed
     cleanup_old_mermaid_files(keep_latest: html_filename) if html_filename
   end
 
@@ -243,7 +247,7 @@ module MermaidGrapherTools
       {
         success: true,
         documentation_url: url,
-        hint: "Use websearch_agent to fetch the latest syntax from this URL",
+        hint: "Use fetch_web_content to read the latest syntax from this URL",
         workflow_status: 'reference_info',
         next_action: 'review_documentation'
       }
@@ -256,11 +260,12 @@ module MermaidGrapherTools
   def copy_screenshot_tiles(tile_filenames, base_name, shared_volume)
     tile_filenames.each_with_index.filter_map do |tile_file, idx|
       src = File.join(shared_volume, tile_file)
-      next unless File.exist?(src)
-
       dst_name = "#{base_name}_tile#{idx + 1}.png"
-      FileUtils.cp(src, File.join(shared_volume, dst_name))
+      # Read and written as plain files of the shared folder, never through a link.
+      Monadic::Utils::SharedPathGuard.copy_file!(src, File.join(shared_volume, dst_name))
       dst_name
+    rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError, IOError
+      nil
     end
   end
 
@@ -273,7 +278,7 @@ module MermaidGrapherTools
 
     # Quick health check — if Selenium is unreachable, clear stale session file
     unless selenium_service_reachable?
-      File.delete(session_file) rescue nil
+      (Monadic::Utils::SharedPathGuard.delete_file!(session_file) rescue nil)
       return false
     end
 
@@ -338,16 +343,23 @@ module MermaidGrapherTools
     )
   end
 
-  # Remove old mermaid_live_*.html and mermaid_preview_*.png files, optionally keeping one HTML
+  # Preview images younger than this may not have been read yet by the vendor
+  # helper of this or another session, so they are left in place
+  PREVIEW_IMAGE_MAX_AGE = 600
+
+  # Remove old mermaid_live_*.html files, optionally keeping one, and preview
+  # images older than PREVIEW_IMAGE_MAX_AGE seconds
   def cleanup_old_mermaid_files(keep_latest: nil)
     shared_volume = Monadic::Utils::Environment.shared_volume
     Dir.glob(File.join(shared_volume, "mermaid_live_*.html")).each do |f|
       next if keep_latest && File.basename(f) == keep_latest
 
-      FileUtils.rm_f(f)
+      (Monadic::Utils::SharedPathGuard.delete_file!(f) rescue nil)
     end
     Dir.glob(File.join(shared_volume, "mermaid_preview_*.png")).each do |f|
-      FileUtils.rm_f(f)
+      next if Time.now - File.lstat(f).mtime < PREVIEW_IMAGE_MAX_AGE
+
+      (Monadic::Utils::SharedPathGuard.delete_file!(f) rescue nil)
     end
   end
 
@@ -530,7 +542,7 @@ module MermaidGrapherTools
     HTML
 
     # Write HTML file
-    File.write(html_path, html_content)
+    Monadic::Utils::SharedPathGuard.write_file!(html_path, html_content)
 
     # Use Selenium to check for errors
     command = <<~CMD
@@ -591,7 +603,7 @@ finally:
     puts "[DEBUG validate_with_mermaid_cli] Selenium result: #{result.inspect}" if ENV['DEBUG']
 
     # Clean up HTML file
-    File.delete(html_path) if html_path && File.exist?(html_path)
+    (Monadic::Utils::SharedPathGuard.delete_file!(html_path) rescue nil) if html_path
 
     # Check for Selenium connection errors (raise to trigger fallback)
     if result.is_a?(String) && result.include?("Failed to resolve 'monadic-chat-selenium-container'")

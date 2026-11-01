@@ -1,5 +1,7 @@
 # frozen_string_literal: false
 
+require_relative "../utils/privacy/marks"
+
 # Session state management routes
 # Export/import conversation state and session data
 
@@ -54,11 +56,49 @@ def privacy_synthesize_session(header, body, mode)
   result
 end
 
+# The chat of the tab a request comes from (tab_id): as its open connection
+# holds it, or, while the tab reconnects, as the tab last saved it. A tab
+# with neither has no chat (an empty one). The request's own session is
+# shared by every tab and is not a chat; it is read only by a request that
+# names no tab (older pages).
+def tab_chat_session(tab_id)
+  return session if tab_id.nil? || tab_id.to_s.empty?
+
+  live = WebSocketHelper.live_session(tab_id)
+  return live if live
+
+  saved = WebSocketHelper.fetch_session_state(tab_id.to_s)
+  return {} unless saved
+
+  (saved[:chat_state] || {}).merge(messages: saved[:messages], parameters: saved[:parameters])
+end
+
+# The marked words of an imported file, checked: a list of { text, type }
+# with a known type, as the Privacy container takes them. Raises
+# ArgumentError on anything else (the import then stops, rather than go on
+# without the words).
+def privacy_import_terms(raw)
+  return [] if raw.nil?
+  raise ArgumentError, "the marked words in the file are not a list" unless raw.is_a?(Array)
+  raise ArgumentError, "the file has too many marked words" if raw.size > 200
+
+  require_relative "../utils/privacy/marks"
+  known = Monadic::Utils::Privacy::Marks::TYPE_ALIASES.keys
+  raw.map do |term|
+    text = term.is_a?(Hash) ? term["text"].to_s : ""
+    type = term.is_a?(Hash) ? (term["type"] || "PERSON").to_s : ""
+    raise ArgumentError, "a marked word in the file is not readable" if text.empty? || text.length > 200 || !known.include?(type)
+
+    { text: text, type: type }
+  end.reverse.uniq { |t| t[:text] }.reverse # a word given twice keeps its last type
+end
+
 # Get monadic_state for export (Session State mechanism)
 get "/monadic_state" do
   content_type :json
 
   response_data = { success: true, monadic_state: nil }
+  session = tab_chat_session(params[:tab_id])
 
   if session[:monadic_state]
     # Convert symbol keys to strings for JSON serialization
@@ -102,10 +142,8 @@ get "/monadic_state" do
   response_data.to_json
 end
 
-# Upload a Session JSON file to load past messages. Always returns JSON;
-# the legacy form-submission fallback was unreachable from the Web UI
-# and has been removed for the JsonRoute pattern (see
-# docs_dev/architecture_hardening_plan.md §3.2).
+# Upload a Session JSON file to load past messages. Always returns JSON
+# (see JSON routes in docs_dev/developer/anti_pattern_lints.md).
 post "/load" do
   content_type :json
 
@@ -123,6 +161,7 @@ post "/load" do
         # We unwrap each into the standard { parameters, messages } shape so the
         # rest of /load processes them like any other import.
         privacy_registry_to_restore = nil
+        privacy_terms_source = json_data
         if json_data.is_a?(Hash) && json_data["envelope"].is_a?(Hash) &&
            json_data["envelope"].dig("cipher", "algorithm") == "AES-256-GCM"
           passphrase = (params[:passphrase] || "").to_s
@@ -140,6 +179,7 @@ post "/load" do
             return error_json("Privacy file integrity check failed: #{e.message}")
           end
           decrypted = JSON.parse(plaintext)
+          privacy_terms_source = decrypted
           json_data = privacy_synthesize_session(json_data["header"], decrypted, "encrypted")
           privacy_registry_to_restore = decrypted["registry"] if decrypted["registry"].is_a?(Hash)
         elsif json_data.is_a?(Hash) && json_data["header"].is_a?(Hash) &&
@@ -161,14 +201,23 @@ post "/load" do
           return error_json("Invalid format: missing parameters or messages")
         end
 
-        # Set session data
-        session[:status] = "loaded"
+        # The conversation is built here and taken over by the tab it was
+        # sent from, on its own WebSocket (IMPORT_APPLY): that connection
+        # runs the tab's chat, so it stops what is running, starts a new
+        # chat and puts this one in. This request's session is not the chat.
+        tab_id = params[:tab_id].to_s
+        return error_json("Import error: open Monadic Chat in this tab first") if tab_id.empty?
+
+        imported = {}
+        require_relative "../utils/privacy/marks"
+        marked_in_messages = []
+        parse_marks = !(privacy_terms_source.is_a?(Hash) && privacy_terms_source["marks_parsed"] == true)
         # Force initiate_from_assistant and auto_speech to false to prevent unwanted auto-behaviors on import
         # (deletion is not enough because app defaults will override missing keys)
         imported_params = json_data["parameters"].dup
         imported_params["initiate_from_assistant"] = false
         imported_params["auto_speech"] = false
-        session[:parameters] = imported_params
+        imported[:parameters] = imported_params
 
         Monadic::Utils::ExtraLogger.log { "[Import] Set parameters: initiate_from_assistant=#{imported_params['initiate_from_assistant']}, auto_speech=#{imported_params['auto_speech']}" }
 
@@ -176,12 +225,12 @@ post "/load" do
         # with the skills the model had acquired (reproducibility). Volatile
         # and absent from older exports, so this is a no-op for those.
         if json_data["progressive_tools"].is_a?(Hash)
-          Monadic::Utils::ProgressiveToolManager.import_unlocked(session, json_data["progressive_tools"])
+          Monadic::Utils::ProgressiveToolManager.import_unlocked(imported, json_data["progressive_tools"])
         end
 
         # Check if the first message is a system message
         if json_data["messages"].first && json_data["messages"].first["role"] == "system"
-          session[:parameters]["initial_prompt"] = json_data["messages"].first["text"]
+          imported[:parameters]["initial_prompt"] = json_data["messages"].first["text"]
         end
 
         # Restore monadic_state if present in import data (for Session State mechanism)
@@ -193,7 +242,7 @@ post "/load" do
           # reading ["data"] from an Integer or Array raised, which failed the
           # whole import. Skip what does not fit and let session_context below
           # restore the panel.
-          session[:monadic_state] = json_data["monadic_state"].transform_keys(&:to_s).each_with_object({}) do |(app_key, app_data), result|
+          imported[:monadic_state] = json_data["monadic_state"].transform_keys(&:to_s).each_with_object({}) do |(app_key, app_data), result|
             next unless app_data.is_a?(Hash)
 
             entries = app_data.transform_keys(&:to_s).each_with_object({}) do |(state_key, state_entry), app_result|
@@ -208,7 +257,7 @@ post "/load" do
             result[app_key] = entries unless entries.empty?
           end
 
-          Monadic::Utils::ExtraLogger.log { "[Import] Restored monadic_state for apps: #{session[:monadic_state].keys.join(', ')}" }
+          Monadic::Utils::ExtraLogger.log { "[Import] Restored monadic_state for apps: #{imported[:monadic_state].keys.join(', ')}" }
         end
 
         # Files written before the export separated them carry the panel under
@@ -224,12 +273,12 @@ post "/load" do
 
         # Restore session_context if present in import data (for Session Context feature)
         if json_data["session_context"]
-          session[:monadic_state] ||= {}
-          session[:monadic_state][:conversation_context] = json_data["session_context"]
+          imported[:monadic_state] ||= {}
+          imported[:monadic_state][:conversation_context] = json_data["session_context"]
 
           # Also store context_schema if present
           if json_data["context_schema"]
-            session[:monadic_state][:context_schema] = json_data["context_schema"]
+            imported[:monadic_state][:context_schema] = json_data["context_schema"]
           end
 
           Monadic::Utils::ExtraLogger.log { "[Import] Restored session_context with #{json_data['session_context'].keys.join(', ')}" }
@@ -240,13 +289,22 @@ post "/load" do
         # replaced: it keeps the upstream socket billing, and its Stop-time
         # merge span would point into the OLD canon and fold the imported
         # history (same invariant as RESET's teardown).
-        WebSocketHelper.teardown_sts_session_for(session) if defined?(WebSocketHelper)
         app_name = json_data["parameters"]["app_name"]
-        session[:messages] = json_data["messages"].uniq.map do |msg|
+        imported[:messages] = json_data["messages"].uniq.map do |msg|
           # Skip invalid messages
           next unless msg["role"] && msg["text"]
 
           text = msg["text"]
+          # Words a person marked in what they wrote (⟦…⟧) are read as when
+          # typed: taken out and kept for the chat, so they are masked from
+          # the start of the imported chat. (A model's reply is not read for
+          # marks.)
+          # A file this version wrote has its marks taken out already (its
+          # brackets are the user's own text), so it is not read again.
+          if parse_marks && msg["role"] == "user" && Monadic::Utils::Privacy::Marks.any?(text)
+            text, found = Monadic::Utils::Privacy::Marks.extract(text)
+            marked_in_messages.concat(found)
+          end
 
           # Create message object with required fields
           mid = msg["mid"] || SecureRandom.hex(4)
@@ -279,105 +337,39 @@ post "/load" do
           message_obj
         end.compact # Remove nil values from invalid messages
 
-        if session[:websocket_session_id]
-          WebSocketHelper.update_session_state(
-            session[:websocket_session_id],
-            messages: session[:messages],
-            parameters: session[:parameters]
-          )
+        # Privacy registry restoration (Block D.4): seeded into the chat when
+        # the tab takes the import, so the next message reuses the imported
+        # placeholders. RD-1 (memory-only) preserved.
+        # The words the user had marked come back with a restored file, so the
+        # imported chat goes on masking them (a masked file holds none).
+        terms_to_restore = begin
+          privacy_import_terms(privacy_terms_source.is_a?(Hash) ? privacy_terms_source["terms"] : nil)
+        rescue ArgumentError => e
+          return error_json("Import error: #{e.message}")
         end
-
-        # Privacy registry restoration (Block D.4). Pre-seed the in-memory
-        # registry so the next message reuses imported placeholders. RD-1
-        # (memory-only) preserved: this only re-populates session memory.
-        if privacy_registry_to_restore.is_a?(Hash) && !privacy_registry_to_restore.empty?
-          session[:monadic_state] ||= {}
-          session[:monadic_state][:privacy] = {
-            registry: privacy_registry_to_restore,
-            audit: [{ ts: Time.now.to_i, op: :import, count: privacy_registry_to_restore.size }]
+        terms_to_restore = (terms_to_restore + marked_in_messages).reverse.uniq { |t| t[:text] }.reverse
+        return error_json("Import error: the file has too many marked words") if terms_to_restore.size > 200
+        has_registry = privacy_registry_to_restore.is_a?(Hash) && !privacy_registry_to_restore.empty?
+        if has_registry || terms_to_restore.any?
+          registry = has_registry ? privacy_registry_to_restore : {}
+          imported[:monadic_state] ||= {}
+          imported[:monadic_state][:privacy] = {
+            registry: registry,
+            audit: [{ ts: Time.now.to_i, op: :import, count: registry.size }],
+            terms: terms_to_restore
           }
-          # Drop any previously-instantiated pipeline so the next vendor call
-          # rebuilds it from session state (re-reads the imported registry).
-          session.delete(:_privacy_pipeline)
           # Importing a registry implies the user wanted privacy on for this
           # conversation; mirror that in the backend SSOT toggle so vendor
           # helpers honor it without requiring the user to re-toggle.
-          session[:_privacy_session_enabled] = true
-          # Push fresh privacy_state to the client so the indicator updates.
-          ws_for_state = params[:tab_id] || session[:websocket_session_id]
-          if ws_for_state
-            WebSocketHelper.send_to_session({
-              "type" => "privacy_state",
-              "enabled" => true,
-              "registry_count" => privacy_registry_to_restore.size,
-              "error" => nil
-            }.to_json, ws_for_state)
-          end
-          Monadic::Utils::ExtraLogger.log { "[Privacy] Restored registry with #{privacy_registry_to_restore.size} entries from import" }
+          imported[:_privacy_session_enabled] = true
         end
 
-        # Debug logging after import (only when EXTRA_LOGGING is enabled)
-        Monadic::Utils::ExtraLogger.log { "JSON import: #{session[:messages].size} messages loaded for app '#{json_data['parameters']['app_name']}'" }
+        Monadic::Utils::ExtraLogger.log { "JSON import: #{imported[:messages].size} messages read for app '#{json_data['parameters']['app_name']}'" }
+        token = WebSocketHelper.stage_import(tab_id, imported)
 
-        # Push imported data to client via WebSocket (eliminates need for reload)
-        begin
-          # Prepare apps data
-          apps_data = prepare_apps_data
-
-          # Filter messages by app_name and exclude search messages
-          current_app_name = session[:parameters]["app_name"]
-          filtered_messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
-
-          # Get the WebSocket session ID for targeted sending (prevents cross-tab contamination)
-          # Try to get tab_id from params first (sent by form-handlers.js)
-          ws_session_id = params[:tab_id] || session[:websocket_session_id]
-
-          if ws_session_id
-            # Send to specific tab/session only (prevents other tabs from receiving import data)
-            # Mark messages as from_import to ensure parameters waits for apps processing
-            WebSocketHelper.send_to_session({ "type" => "apps", "content" => apps_data, "version" => session[:version], "docker" => session[:docker], "from_import" => true }.to_json, ws_session_id) unless apps_data.empty?
-            sleep(0.2) # Increased delay to ensure apps message is fully processed before parameters
-            WebSocketHelper.send_to_session({ "type" => "parameters", "content" => session[:parameters], "from_import" => true }.to_json, ws_session_id) unless session[:parameters].empty?
-            sleep(0.05)
-            WebSocketHelper.send_to_session({ "type" => "past_messages", "content" => filtered_messages, "from_import" => true }.to_json, ws_session_id)
-
-            # Send session_context if present (for Session Context feature)
-            if session[:monadic_state] && session[:monadic_state][:conversation_context]
-              context_schema = session[:monadic_state][:context_schema] || nil
-              WebSocketHelper.send_to_session({
-                "type" => "context_update",
-                "context" => session[:monadic_state][:conversation_context],
-                "schema" => context_schema,
-                "from_import" => true
-              }.to_json, ws_session_id)
-            end
-          else
-            # Fallback to broadcast if no session ID (shouldn't happen in normal operation)
-            WebSocketHelper.broadcast_to_all({ "type" => "apps", "content" => apps_data, "version" => session[:version], "docker" => session[:docker], "from_import" => true }.to_json) unless apps_data.empty?
-            sleep(0.2)
-            WebSocketHelper.broadcast_to_all({ "type" => "parameters", "content" => session[:parameters], "from_import" => true }.to_json) unless session[:parameters].empty?
-            sleep(0.05)
-            WebSocketHelper.broadcast_to_all({ "type" => "past_messages", "content" => filtered_messages, "from_import" => true }.to_json)
-
-            # Send session_context if present (for Session Context feature)
-            if session[:monadic_state] && session[:monadic_state][:conversation_context]
-              context_schema = session[:monadic_state][:context_schema] || nil
-              WebSocketHelper.broadcast_to_all({
-                "type" => "context_update",
-                "context" => session[:monadic_state][:conversation_context],
-                "schema" => context_schema,
-                "from_import" => true
-              }.to_json)
-            end
-          end
-
-          Monadic::Utils::ExtraLogger.log { "JSON import: Pushed #{filtered_messages.size} messages via WebSocket (with from_import flag)" }
-        rescue => e
-          # Log error but don't fail the import - client can still reload manually if needed
-          Monadic::Utils::ExtraLogger.log { "Failed to push import data via WebSocket: #{e.message}" }
-        end
-
-        { success: true, app_name: json_data['parameters']['app_name'] }.to_json
+        { success: true, app_name: json_data['parameters']['app_name'], import_token: token }.to_json
+      rescue Monadic::Utils::Privacy::Marks::Invalid => e
+        error_json("Import error: words marked with \u27E6 \u27E7 in the file could not be read: #{e.message}")
       rescue JSON::ParserError => e
         error_json("Invalid JSON format")
       rescue => e

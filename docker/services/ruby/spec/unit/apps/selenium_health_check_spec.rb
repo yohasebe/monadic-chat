@@ -50,6 +50,7 @@ RSpec.describe "Selenium service health check" do
 
         before do
           allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(shared_volume)
+          allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared_volume)
         end
 
         after { FileUtils.rm_rf(shared_volume) }

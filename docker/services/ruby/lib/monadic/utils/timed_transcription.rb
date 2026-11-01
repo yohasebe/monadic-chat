@@ -3,7 +3,7 @@
 require 'json'
 require_relative 'segment_transcriber'
 require_relative 'subtitles'
-require_relative 'public_copy'
+require_relative 'shared_path_guard'
 require_relative '../shell'
 require_relative '../workspace'
 
@@ -74,7 +74,7 @@ module Monadic
           return { text: "Audio transcription failed: could not find speech in the audio.#{" #{detail}" unless detail.empty?}" }
         end
 
-        doc = JSON.parse(File.read(segments_path))
+        doc = JSON.parse(SharedPathGuard.read_bytes!(segments_path))
         return { text: "(The video has no audio track.)" } if doc["status"] == "absent"
         return { text: "(No speech was detected in the audio.)" } if doc["status"] == "no_speech_detected"
         return { text: "Audio transcription failed: #{@api_key_name} is not set." } if @api_key.empty?
@@ -117,6 +117,9 @@ module Monadic
       def self.format_transcript(result)
         if result["status"] == "failed"
           reason = result["segments"].filter_map { |seg| seg["error"] }.first
+          # A run that ran out of connections says why the connections failed.
+          cause = result["segments"].filter_map { |seg| seg["last_error"] }.first
+          reason = "#{reason} (last error: #{cause})" if reason && cause && cause != reason
           return "Audio transcription failed#{": #{reason}" if reason}."
         end
 
@@ -178,41 +181,68 @@ module Monadic
         end
       end
 
-      # Written under a temporary name and renamed, so a reader never finds a
-      # half-written transcript. Returns whether it was saved.
+      # Written new under a temporary name and put in place (SharedPathGuard,
+      # never through a link), so a reader never finds a half-written
+      # transcript. Returns whether it was saved.
       def save(result)
-        path = File.join(@job[:path], "transcript.json")
-        partial = "#{path}.part-#{Process.pid}"
-        File.write(partial, JSON.pretty_generate(result))
-        File.rename(partial, path)
+        SharedPathGuard.write_file!(File.join(@job[:path], "transcript.json"), JSON.pretty_generate(result))
         @saved = true
-      rescue SystemCallError, IOError => e
+      rescue SharedPathGuard::InvalidPath, SystemCallError, IOError => e
         @save_error = e.class.name.split("::").last
         false
-      ensure
-        File.delete(partial) if partial && File.exist?(partial) rescue nil
       end
 
       # The decoded audio (about 144 MB for 50 minutes) is only needed while
       # the segments are sent.
       def remove_decoded_audio
-        Monadic::Workspace::Jobs.outputs(@job, PCM).each { |path| File.delete(path) }
-      rescue SystemCallError, Monadic::Workspace::Jobs::Unavailable
+        Monadic::Workspace::Jobs.outputs(@job, PCM).each { |path| SharedPathGuard.delete_file!(path) }
+      rescue SystemCallError, SharedPathGuard::InvalidPath, Monadic::Workspace::Jobs::Unavailable
         nil
       end
 
-      # Subtitle files for the transcript, in the run folder and as public
-      # copies (WebVTT for the player, SRT for other programs). Returns
-      # { vtt:, srt: } addresses, or nil when there is nothing to show.
+      # Subtitle files for the transcript (WebVTT for the player, SRT for
+      # other programs): kept as artifacts of the run (Workspace::Artifacts),
+      # with a copy in the run folder, and published from the kept artifact
+      # (Workspace::Publications) when the run is a chat's, never from the run
+      # folder's copy. Returns { vtt:, srt: } addresses, or nil when there is
+      # nothing to show.
       def write_subtitles(result)
         return nil if Subtitles.cues(result).empty?
 
         { vtt: Subtitles.vtt(result), srt: Subtitles.srt(result) }.to_h do |kind, body|
-          path = File.join(@job[:path], "transcript.#{kind}")
-          File.write(path, body)
-          [kind, PublicCopy.publish(path, "pub_#{@job[:job_id]}.#{kind}")]
+          # Kept first: when it cannot be kept, no copy is left in the run
+          # folder and nothing is published.
+          kept = keep_subtitles(kind, body)
+          next [kind, nil] unless kept
+
+          SharedPathGuard.write_file!(File.join(@job[:path], "transcript.#{kind}"), body)
+          [kind, publish_subtitles(kept)]
         end.compact.then { |links| links.empty? ? nil : links }
-      rescue SystemCallError, IOError
+      rescue SharedPathGuard::InvalidPath, SystemCallError, IOError
+        nil
+      end
+
+      # The address of the artifact's publication, or nil: a run outside any
+      # chat (the MCP server) is not published, and one that cannot be is
+      # left without an address (the run folder still has its copy).
+      def publish_subtitles(kept)
+        return nil unless @job.dig(:owner, :kind) == :chat
+
+        "/data/#{Monadic::Workspace::Publications.create!(kind: 'artifact', id: kept[:artifact_id])[:name]}"
+      rescue Monadic::Workspace::Publications::Unavailable, Monadic::Workspace::Publications::Changed,
+             Monadic::Workspace::Ledger::Unreadable, Monadic::Workspace::Ledger::Conflict,
+             Monadic::Workspace::ServerOwner::Refused, SystemCallError, IOError => e
+        warn "[Workspace] Subtitles not published: #{e.class.name.split('::').last}"
+        nil
+      end
+
+      # The artifact, or nil when it could not be kept (then it is not
+      # published).
+      def keep_subtitles(kind, body)
+        Monadic::Workspace::Artifacts.store!(job: @job, kind: "subtitle_#{kind}", body: body)
+      rescue Monadic::Workspace::Ledger::Unreadable, Monadic::Workspace::Ledger::Conflict,
+             Monadic::Workspace::ServerOwner::Refused, SystemCallError, IOError, KeyError, ArgumentError => e
+        warn "[Workspace] Subtitles not kept: #{e.class.name.split('::').last}"
         nil
       end
     end

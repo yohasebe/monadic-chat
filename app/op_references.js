@@ -11,6 +11,7 @@
 // reference text, which names the vault and item. Messages carry the key
 // name and a reason code only.
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
@@ -105,10 +106,25 @@ function classify(stderr) {
   return 'failed';
 }
 
+// The command for `op inject` with its template on stdin. op (2.41 and
+// later) takes stdin only from a pipe, and a child of Node gets a socket on
+// macOS and Linux, so there the template goes through `cat` into a pipe.
+// The script is fixed and op's path is its $0, so nothing is interpreted;
+// the reference stays on stdin. A TERM from the timeout reaches op too.
+const INJECT_THROUGH_PIPE =
+  'exec 3<&0 0</dev/null; trap \'kill "$p" 2>/dev/null\' TERM; ' +
+  'cat <&3 | "$0" inject & p=$!; wait "$p"; s=$?; wait "$p" 2>/dev/null; exit "$s"';
+function injectCall(op, platform = process.platform) {
+  if (platform === 'win32') return [op, ['inject']];
+  return ['/bin/sh', ['-c', INJECT_THROUGH_PIPE, op]];
+}
+
 // Reads every reference with one `op inject`, so 1Password asks at most once.
 // op inject fails as a whole when any reference fails; only then is each one
-// read on its own, to tell which keys failed and why.
-async function resolveReferences(refs, { op = locateOp(), runner = run } = {}) {
+// read on its own, to tell which keys failed and why. Each of those reads is
+// an `op inject` of that reference alone, so the reference goes on stdin and
+// never in argv, where other processes can list it.
+async function resolveReferences(refs, { op = locateOp(), runner = run, platform = process.platform } = {}) {
   const keys = Object.keys(refs);
   const values = {};
   const failures = {};
@@ -118,14 +134,19 @@ async function resolveReferences(refs, { op = locateOp(), runner = run } = {}) {
     return { values, failures };
   }
 
-  const template = keys.map(key => `${key}={{ ${refs[key]} }}\n`).join('');
-  const all = await runner(op, ['inject'], template);
+  // Each value sits between two copies of a random boundary, so a value
+  // that spans lines is kept whole.
+  const boundary = `--monadic-${crypto.randomBytes(16).toString('hex')}--`;
+  const template = keys.map(key => `${boundary}${key}\n{{ ${refs[key]} }}\n`).join('') + boundary;
+  const [cmd, args] = injectCall(op, platform);
+  const all = await runner(cmd, args, template);
   if (all.code === 0) {
-    for (const line of all.stdout.split('\n')) {
-      const eq = line.indexOf('=');
-      if (eq <= 0) continue;
-      const key = line.slice(0, eq);
-      const value = line.slice(eq + 1).replace(/\r$/, '');
+    for (const part of all.stdout.split(boundary)) {
+      const nl = part.indexOf('\n');
+      if (nl <= 0) continue;
+      const key = part.slice(0, nl);
+      // Only the newline the template put after the value comes off.
+      const value = part.slice(nl + 1).replace(/\n$/, '');
       if (refs[key] && value) values[key] = value;
     }
     for (const key of keys) if (!values[key]) failures[key] = 'failed';
@@ -133,7 +154,7 @@ async function resolveReferences(refs, { op = locateOp(), runner = run } = {}) {
   }
 
   for (const key of keys) {
-    const one = await runner(op, ['read', '--no-newline', refs[key]], '');
+    const one = await runner(cmd, args, `{{ ${refs[key]} }}`);
     if (one.code === 0 && one.stdout) values[key] = one.stdout;
     else failures[key] = classify(one.stderr);
   }
@@ -206,6 +227,7 @@ class SecretCache {
 
 module.exports = {
   isReference,
+  injectCall,
   referencesIn,
   opCandidates,
   isRunnable,

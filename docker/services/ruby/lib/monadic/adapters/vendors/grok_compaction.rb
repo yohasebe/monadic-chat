@@ -21,7 +21,7 @@ require_relative "../../utils/progress_broadcaster"
 #   - The blob is opaque: never parsed, edited, or hand-merged. Re-compaction
 #     folds the previous blob plus new messages into a fresh blob.
 #
-# Empirically verified against the live API (2026-06-13):
+# API behavior this module relies on:
 #   - Input order MUST be [compaction_item, system, tail]. Placing the system
 #     message BEFORE the blob silently drops the system instructions.
 #   - A corrupted/foreign blob returns HTTP 400 invalid-argument
@@ -123,6 +123,8 @@ module GrokCompaction
     if privacy_enabled_for?(app_settings, session)
       compact_input = apply_privacy_to_messages(compact_input, session, app_settings)
     end
+    # Words the user marked: masked wherever they are, or nothing is sent.
+    protect_marked_words!(compact_input, session, app_settings)
 
     blob = request_compaction(compact_input, model: model, api_key: api_key)
     if blob.nil?

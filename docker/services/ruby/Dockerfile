@@ -7,6 +7,9 @@ LABEL project=$PROJECT_TAG
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential wget curl git pandoc \
+    # fiddle (shared-folder writes through openat) is built against libffi;
+    # the runtime stage already has libffi8 from the base image
+    libffi-dev \
     ca-certificates gnupg lsb-release \
     postgresql postgresql-contrib libpq-dev \
     # libglib2.0-dev libgirepository1.0-dev \
@@ -45,13 +48,6 @@ RUN apt-get update && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 20.x for ABC notation validation (uses downloaded abcjs from vendor assets)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-
 RUN curl -fsSL https://download.docker.com/linux/debian/gpg | \
     gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
 
@@ -88,20 +84,12 @@ COPY public/ $WORKSPACE/public/
 # changes; runtime version checks use the installation's full SHA-256.
 COPY help_data/ $WORKSPACE/help_data/
 
-# Build JS bundle if not pre-built on host (concatenates 68 scripts into 1).
-# Normally monadic.sh runs `npm run build:js` before docker build.
-# This fallback uses plain concatenation (no minification) when esbuild is unavailable.
-RUN if [ ! -f $WORKSPACE/public/js/monadic.bundle.min.js ]; then \
-      echo "Building JS bundle inside container (concatenation only)..." && \
-      node -e " \
-        const fs = require('fs'); \
-        const p = '$WORKSPACE/public/'; \
-        const files = fs.readFileSync(p + 'js/monadic.bundle.files.txt', 'utf8').trim().split('\n'); \
-        const out = files.map(f => '/* === ' + f + ' === */\n' + fs.readFileSync(p + f, 'utf8')).join(';\n'); \
-        fs.writeFileSync(p + 'js/monadic.bundle.min.js', out); \
-        console.log('Bundle: ' + files.length + ' files, ' + Math.round(out.length/1024) + ' KB'); \
-      " || echo "WARN: JS bundle build failed, individual files will be used"; \
-    fi
+# The page in the container loads the JS bundle only. It is built on the host
+# (`npm run build:js`, which monadic.sh runs before this build) and shipped
+# prebuilt in the app's package; the image has no Node.js to build it here.
+RUN test -f $WORKSPACE/public/js/monadic.bundle.min.js || { \
+      echo "ERROR: public/js/monadic.bundle.min.js is missing. Run 'npm run build:js' and build again." >&2; \
+      exit 1; }
 COPY views/ $WORKSPACE/views/
 RUN mkdir -p $WORKSPACE/internal_config
 
@@ -111,7 +99,7 @@ RUN mkdir -p log/ bin/
 
 COPY scripts/ $WORKSPACE/scripts/
 RUN find $WORKSPACE/scripts -type f \( -name "*.sh" -o -name "*.rb" \) -exec chmod +x {} \;
-ENV PATH="$WORKSPACE/scripts:$WORKSPACE/scripts/utilities:$WORKSPACE/scripts/cli_tools:$WORKSPACE/scripts/generators:$WORKSPACE/scripts/diagnostics:$WORKSPACE/scripts/diagnostics/apps:$WORKSPACE/scripts/diagnostics/apps/concept_visualizer:$WORKSPACE/scripts/diagnostics/apps/wikipedia:/usr/local/bundle/bin:${PATH}"
+ENV PATH="$WORKSPACE/scripts:$WORKSPACE/scripts/utilities:$WORKSPACE/scripts/cli_tools:$WORKSPACE/scripts/generators:/usr/local/bundle/bin:${PATH}"
 
 # Copy assets list for vendor assets
 COPY bin/assets_list.sh $WORKSPACE/bin/assets_list.sh
@@ -126,11 +114,12 @@ COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# copy `rbsetup.sh` to `/monadic` and run it
-
-COPY rbsetup.sh /monadic/rbsetup.sh
-RUN chmod +x /monadic/rbsetup.sh
-RUN /monadic/rbsetup.sh
+# ~/monadic/config/rbsetup.sh comes in as a build secret: the script is not
+# left in any layer, the image or the build context. RBSETUP_SHA (its hash)
+# reruns this step when the script changes; builds without it skip it.
+ARG RBSETUP_SHA=none
+RUN --mount=type=secret,id=rbsetup,required=false \
+    if [ -s /run/secrets/rbsetup ]; then bash /run/secrets/rbsetup; fi
 
 # Download vendor assets for offline use
 RUN /monadic/scripts/download_assets.sh

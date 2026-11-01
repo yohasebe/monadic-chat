@@ -204,6 +204,25 @@ describe('ws-tool-handler', () => {
       expect(cardText.innerHTML).toContain('Test');
     });
 
+    it('shows the step list when a code agent also sends minutes', () => {
+      handlers.handleWait({
+        content: 'Writing code',
+        source: 'ClaudeCodeAgent',
+        minutes: 2,
+        remaining: 10,
+        step_progress: {
+          mode: 'sequential',
+          current: 1,
+          steps: ['Plan', 'Code', 'Test']
+        }
+      });
+
+      const cardText = document.querySelector('#temp-card .card-text');
+      expect(cardText.innerHTML).toContain('Plan');
+      expect(cardText.innerHTML).toContain('Test');
+      expect(cardText.innerHTML).toContain('2 minute(s) elapsed');
+    });
+
     it('shows parallel progress indicators', () => {
       handlers.handleWait({
         content: 'Dispatching...',

@@ -1,8 +1,8 @@
-# AutoForge Internal Documentation
+# Auto Forge Internals
 
 ## Overview
 
-AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer application generation system that combines intelligent orchestration with provider-specific code generation. Each provider variant uses its optimal models for orchestration and code generation.
+Auto Forge (MDSL `display_name` "Auto Forge") generates applications in two layers: an orchestrator model, and a code agent of the same provider.
 
 ## Architecture
 
@@ -26,10 +26,10 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
 ┌──────────────────▼───────────────────────────┐
 │         Tool Methods Layer                   │
 │         (auto_forge_tools.rb)                │
-│   - generate_application                     │
-│   - debug_application                        │
-│   - list_projects                            │
-│   - validate_specification                   │
+│   - generate_application, debug_application  │
+│   - list_projects, validate_specification    │
+│   - generate_additional_file, finish_task    │
+│   - <provider>_code_agent                    │
 └──────────────────┬───────────────────────────┘
                    │
 ┌──────────────────▼───────────────────────────┐
@@ -58,7 +58,7 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
   - `GrokCodeAgent` for Grok code generation
 - Handles project management, optional CLI asset generation, and file I/O
 - Coordinates between orchestration and code generation
-- **Project resolution fallback**: When `debug_application` is called without a project name (e.g., `debug_application({})`), `resolve_project_context` falls back to the most recently created project with an `index.html`. This prevents infinite generate→debug→regenerate loops when the LLM omits the project name parameter.
+- **Project resolution fallback**: When `debug_application` is called without a project name (e.g., `debug_application({})`), `resolve_project_context` falls back to the most recently created project with an `index.html`. so `debug_application({})` targets the latest project; when that project has no `index.html`, the result is `error_type: :missing_name`.
 
 #### 3. Application Logic (`auto_forge.rb`)
 - Main application class
@@ -67,9 +67,10 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
 - Context persistence for modifications
 
 #### 4. HTML Generators
-- **OpenAI**: `agents/html_generator.rb` with OpenAICodeAgent - Interfaces with OpenAI Code
+- **OpenAI**: `agents/html_generator.rb` with OpenAICodeAgent
 - **Claude**: Uses `agents/html_generator.rb` with ClaudeCodeAgent callback - Interfaces with Claude models via claude_code_agent
-- **Grok**: `agents/grok_html_generator.rb` with GrokCodeAgent - Interfaces with Grok-Code-Fast-1
+- **Grok**: `agents/grok_html_generator.rb` with GrokCodeAgent
+- The code agents use the provider's default code model (`providerDefaults` code entry, `ModelSpec.default_code_model`); OpenAI and Grok can be overridden by argument, MDSL or `OPENAI_CODE_MODEL` / `GROK_CODE_MODEL`
 - Builds prompts optimized for each provider's code generation model
 - Handles both new generation and modifications
 - Extracts and validates HTML output
@@ -95,7 +96,7 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
 # Provider helpers route to the correct API automatically.
 
 # Code generation is delegated to the provider-specific agent
-call_gpt5_codex(prompt: prompt, app_name: 'AutoForge')          # OpenAI
+call_openai_code(prompt: prompt, app_name: 'AutoForge')         # OpenAI
 claude_code_agent(prompt, 'AutoForgeClaude')                    # Claude
 call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 ```
@@ -108,10 +109,8 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
    - Manages tool calls and structured responses
 
 2. **Code Generation (Provider Agents)**:
-   - OpenAI Code via `OpenAICodeAgent` for OpenAI
-   - Claude Code via `ClaudeCodeAgent` for Claude
-   - Grok-Code-Fast-1 via `GrokCodeAgent` for Grok
-   - All use the provider's Responses API with deterministic parameters
+   - `OpenAICodeAgent` (OpenAI), `ClaudeCodeAgent` (Claude), `GrokCodeAgent` (Grok)
+   - Claude calls `send_query` (Messages API, temperature 0.3, reasoning effort medium); OpenAI and Grok go through `api_request`
    - Provider-specific prompt builders optimize for each model's strengths
    - Output sanitizers ensure consistent artifacts across providers
 
@@ -122,29 +121,20 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 ~/monadic/data/auto_forge/
 ├── [AppName]_[YYYYMMDD]_[HHMMSS]/
 │   ├── index.html
-│   └── context.json (for modifications)
+│   └── .autoforge.json (metadata: created_at, project_name, base_name, …)
+├── .backups/
+└── .templates/
 ```
 
 ### Unicode Handling
 - Full UTF-8 support for project names
 - Only filesystem-unsafe characters are replaced
 - Japanese/Chinese/emoji characters preserved
-- Example: "病気診断アプリ" → "病気診断アプリ_20240127_162936"
+- Example: "病気診断アプリ" → "病気診断アプリ_YYYYMMDD_HHMMSS"
 
 ### Context Persistence
-```json
-{
-  "original_spec": {
-    "name": "TodoApp",
-    "type": "productivity",
-    "description": "...",
-    "features": [...]
-  },
-  "created_at": "2024-01-27T16:29:36Z",
-  "modified_at": "2024-01-27T17:15:22Z",
-  "modification_count": 3
-}
-```
+
+The context for modifications is kept in the session, under `@context[:auto_forge]`. The project folder holds `.autoforge.json` with the project metadata.
 
 ## Provider Variants & Progress Broadcasting
 
@@ -157,16 +147,13 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
   - `ClaudeCodeAgent` for Claude
   - `GrokCodeAgent` for Grok
 - Progress fragments optionally include `minutes`/`remaining` values; when missing, the UI still displays provider-specific status text.
-- Web UI translation keys (`claudeOpusGenerating`, `grokCodeGenerating`, etc.) were added for every locale to keep progress messages localized.
+- Progress text uses translation keys such as `claudeOpusGenerating` and `grokCodeGenerating` (`public/js/i18n/translations.js`).
 
 ### Grok-Specific Implementation Details
 
-- **Orchestration Model**: Grok's reasoning model with `reasoning_effort: "medium"` for balanced quality and speed
-- **Code Generation Model**: Grok's code generation model (default in `GrokCodeAgent`)
-- **Prompt Optimization**: Prompts emphasize "smaller, focused tasks" and "iterative development" to match Grok-Code-Fast-1's strengths
-- **Performance**: 92 tokens/sec throughput, significantly faster than OpenAI Code
-- **Cost**: 6-7x cheaper than OpenAI Code
-- **Strengths**: HTML/CSS/JavaScript, SVG graphics, animations, visual components
+- **Orchestration**: `reasoning_effort "low"` (Claude: `"low"`, OpenAI: `"none"`)
+- **Code Generation Model**: the default code model for xAI (`GrokCodeAgent`)
+- **Prompts**: ask for smaller, focused tasks and iterative development
 - **Agent Files**:
   - `agents/grok_html_generator.rb`: HTML/CSS/JS generation
   - `agents/grok_cli_generator.rb`: CLI tool generation
@@ -181,24 +168,20 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
   - Usage examples (USAGE.md) are suggested when argument parsing libraries (argparse, OptionParser, click, etc.) are detected.
   - A “custom asset” entry is always included to remind the orchestrator that arbitrary files can be generated on demand.
 - `generate_additional_file` re-validates project context (project path, type, and main file) before writing to disk.
-- Custom file requests require both `file_name` (sanitized to avoid traversal) and `instructions`. Content is produced through the provider agent (`codex_callback`, `call_gpt5_codex`, or `claude_code_agent`) using a rich prompt that includes the main script excerpt and existing files.
+- Custom file requests require both `file_name` (sanitized to avoid traversal) and `instructions`. Content is produced through `context[:codex_callback]`, which wraps `call_openai_code`, `claude_code_agent` or `call_grok_code`, using a rich prompt that includes the main script excerpt and existing files.
 
 ## Error Handling
 
 ### Common Error Patterns
 
 1. **Model Errors**:
-   - OpenAI Code returning chat responses → Fixed with proper prompt formatting
-   - Temperature parameter errors → Removed for Responses API models
    - Model not found → Ensure API key has access
 
 2. **Generation Errors**:
-   - Placeholder HTML (173 bytes) → Mock generator conflict (resolved)
    - Empty response → Timeout or API issues
-   - Long generation time → Normal for the OpenAI and Claude coding agents (2-5 minutes)
+   - Time limits: OpenAI code agent 1200 s (`OPENAI_CODE_TIMEOUT`), Grok 300 s (`GROK_CODE_TIMEOUT`)
 
 3. **File System Errors**:
-   - Unicode project names → Fixed with proper encoding
    - Directory creation failures → Check permissions
    - File not found → Verify project exists with list_projects
 
@@ -240,12 +223,6 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 - Complex apps: 2-5 minutes
 - Modifications: Usually faster than initial generation
 
-### Optimization Strategies
-1. Reuse existing content for modifications
-2. Cache project lookups
-3. Parallel tool execution where possible
-4. Keep prompts concise to reduce generation time across providers
-
 ## Testing
 
 ### Unit Tests
@@ -270,13 +247,14 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 - Tool diagnostic functionality
 ```
 
+Also: `auto_forge_claude_advisor_integration_spec.rb`, `auto_forge_debugger_spec.rb`, `auto_forge_finish_task_spec.rb`, `auto_forge_project_path_spec.rb` (same folder).
+
 ### Integration Tests
-See system tests for end-to-end workflows
+`spec/integration/apps/auto_forge_debug_integration_spec.rb` and `auto_forge_diagnosis_integration_spec.rb`
 
 ## Known Limitations
 
 1. **API Constraints**:
-   - OpenAI Code requires Responses API
    - No streaming for complex generations
    - Rate limits apply
 
@@ -293,9 +271,8 @@ See system tests for end-to-end workflows
 ## Maintenance Notes
 
 ### When Updating Models
-1. Check `model_spec.js` for API type configuration
-2. Verify Responses API compatibility
-3. Test both orchestration and code generation
+1. Check `model_spec.js` for the model's `api_type` and code-model entries
+2. Test both orchestration and code generation
 4. Update documentation
 
 ### When Adding Features
@@ -309,7 +286,7 @@ See system tests for end-to-end workflows
 | Issue | Cause | Solution |
 |-------|-------|----------|
 | "Model not found" | Wrong model name or no access | Check API key permissions |
-| Slow generation | Normal for OpenAI Code | Add progress indicators |
+| Slow generation | Long code generation | Progress is shown in the temp card |
 | Empty HTML | API timeout | Increase timeout settings |
 | Unicode errors | Encoding issues | Ensure UTF-8 throughout |
 | Selenium failures | Container not running | Check Docker status |

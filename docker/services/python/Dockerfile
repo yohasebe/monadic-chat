@@ -55,11 +55,9 @@ RUN uv pip install --no-cache \
       svgwrite~=1.4 cairosvg~=2.8 tinycss~=0.4 cssselect~=1.3 pygal~=3.1 \
       pyecharts~=2.0 pyecharts-snapshot~=0.2 \
       opencv-python~=4.11
-# Note: moviepy removed — extract_frames.py now calls system ffmpeg via
-# subprocess for the single audio-extraction operation that previously
-# required it. The system ffmpeg is already installed via apt above.
-# midiutil + pretty_midi moved to the optional librosa group below since
-# they are only used by the Music Lab pipeline.
+# extract_frames.py extracts audio with the system ffmpeg (installed via apt
+# above). midiutil and pretty_midi are in the optional librosa group below;
+# only the Music Lab pipeline uses them.
 
 # Speech detection for Video Describer's timed transcript
 # (scripts/converters/speech_segments.py): Silero VAD (MIT) on the CPU
@@ -117,11 +115,21 @@ RUN find /monadic/scripts -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod
 RUN mkdir -p /monadic/data/scripts
 
 # Set environment variables (visible to LLM)
-ENV PATH="/monadic/data/scripts:/monadic/scripts:/monadic/scripts/utilities:/monadic/scripts/services:/monadic/scripts/cli_tools:/monadic/scripts/converters:/monadic/scripts/music:${PATH}"
+# The user's scripts in the shared folder come last: code a model runs can
+# write there, and must not stand in for python3, bash and the like.
+ENV PATH="/monadic/scripts:/monadic/scripts/utilities:/monadic/scripts/services:/monadic/scripts/cli_tools:/monadic/scripts/converters:/monadic/scripts/music:${PATH}:/monadic/data/scripts"
 ENV FONT_PATH=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
 ENV PIP_ROOT_USER_ACTION=ignore
 
 # Create symbolic link for data directory
 RUN ln -s /monadic/data /data
+
+# ~/monadic/config/pysetup.sh runs last, so what it installs is in the image.
+# It comes in as a build secret: the script is not left in any layer, the
+# image or the build context. PYSETUP_SHA (its hash) reruns this step when
+# the script changes; builds without the secret (CI) skip it.
+ARG PYSETUP_SHA=none
+RUN --mount=type=secret,id=pysetup,required=false \
+    if [ -s /run/secrets/pysetup ]; then bash /run/secrets/pysetup; fi
 
 COPY Dockerfile /monadic/Dockerfile

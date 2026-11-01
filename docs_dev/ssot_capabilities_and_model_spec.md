@@ -1,53 +1,41 @@
-**Single Source of Truth (SSOT) Overview**
-- Canonical source for model capabilities lives in `public/js/monadic/model_spec.js`.
-- UI and server helpers consult this spec to enable/disable features consistently across providers.
-- You can extend or override models via `~/monadic/config/models.json` (merged at runtime).
+# Model Capabilities (SSOT)
 
-**Key Capabilities (Canonical Properties)**
-- api_type: Selects API family (e.g., "responses").
-- tool_capability: Enables function/tool calling.
-- supports_streaming: Enables server‑sent events (streaming output).
-- vision_capability: Enables image input.
-- supports_pdf: Model supports PDF handling (general capability).
-- supports_pdf_upload: Model supports PDF file uploads (if false, use URL only).
-- supports_web_search: Enables native web search.
-- is_reasoning_model: Marks reasoning/thinking models.
-- reasoning_effort / supports_thinking / thinking_budget: Reasoning controls (vendor‑dependent).
-- latency_tier: Slow/normal hint for UI.
+`public/js/monadic/model_spec.js` holds the capabilities of every model. The browser reads it directly; Ruby reads it through `Monadic::Utils::ModelSpec`. `~/monadic/config/models.json` is merged over it at load time (entries are added or their properties replaced). The full vocabulary is in [Model Spec Vocabulary](developer/model_spec_vocabulary.md).
 
-**UI Behavior (Buttons and Inputs)**
-- Image/PDF attach button appears when:
-  - The current app enables images (app feature), and
-  - The selected model has `vision_capability: true`.
-- Button text and accepted file types:
-  - If `supports_pdf_upload: true` → label shows “Image/PDF” and accepts `.pdf`.
-  - Otherwise → label shows “Image” only, `.pdf` is not accepted.
-- URL‑only PDFs: when a model declares `supports_pdf: true` but `supports_pdf_upload: false`, paste a public PDF URL into your message instead of uploading a file.
+## Frequently Used Properties
 
-**Provider Notes (Examples)**
-- Cohere: PDF uploads are not supported (use other providers or paste text).
-- Claude/Gemini/OpenAI: Models indicate PDF/image capabilities in the spec; UI/server honor them.
+| Property | Meaning |
+|---|---|
+| `api_type` | API family, e.g. `"responses"` |
+| `tool_capability` | Tool calling |
+| `supports_streaming` | Streaming output |
+| `vision_capability` | Image input |
+| `supports_pdf` / `supports_pdf_upload` | PDF input / PDF file upload |
+| `supports_file_inputs` | Other document files as input |
+| `supports_web_search` | Native web search |
+| `reasoning_effort`, `supports_thinking`, `thinking_budget` | Reasoning controls |
 
-**Overriding Models**
-- Create `~/monadic/config/models.json` to add or modify entries.
-- This file merges over the default `model_spec.js` at runtime.
-- Prefer the canonical property names above for consistency.
+## Attach Button
 
-**Troubleshooting**
-- If an attach button is missing, check: app image feature, model `vision_capability`, and `supports_pdf_upload`.
-- If a PDF upload is rejected, the model may require a URL (check `supports_pdf_upload`).
-- Enable `EXTRA_LOGGING` to record a one‑line capability audit in server logs.
+`ui-utilities.js` shows the attach button when the model has `vision_capability` or the app is an image generation app. Its label:
 
-**Model Naming Policy**
-- **Only base model names**: Do NOT add dated versions (e.g., `gpt-5-2025-08-07`, `o3-2025-04-16`) to `model_spec.js`. Only add the base name (e.g., `gpt-5`, `o3`).
-- **Alias/Fallback system**: The `ModelSpec.normalize_model_name()` and `resolve_model_alias()` methods automatically map dated versions to their base models. For example, `gpt-5-2025-08-07` automatically uses the `gpt-5` spec.
-- **Supported date formats**: YYYY-MM-DD (OpenAI), YYYYMMDD (Claude), MM-YYYY (Cohere), YYMM (Mistral), -NNN version numbers (Gemini).
-- **Special-purpose models**: Do NOT add audio/realtime/transcription/embedding models to `model_spec.js`. These are handled separately by their respective features.
-- **-latest aliases**: For providers that use `-latest` aliases (e.g., Mistral's `mistral-large-latest`), prefer the `-latest` version in the spec.
-- **Legacy models**: Do not add clearly outdated models (e.g., `gpt-3.5-turbo`) even if they still exist in the API.
+| Condition | Label | Accepts PDF |
+|---|---|---|
+| Image generation app (Image Generator for Gemini: Image/PDF) | Image | No |
+| `supports_file_inputs` | File | Yes, and other documents |
+| PDF upload supported | Image/PDF | Yes |
+| Otherwise | Image | No |
 
-**For App Authors**
-- Let `model_spec.js` drive behavior; avoid hardcoding model names.
-- Prefer feature flags (e.g., `tool_capability`, `supports_streaming`) over lists.
-- When in doubt, expose options in your app config, but trust SSOT to gate availability.
+PDF upload support is `supports_pdf_upload` when the model sets it, otherwise `supports_pdf` (`isPdfSupportedForModel` in `model-capabilities.js`).
 
+## Naming Rules for Entries
+
+- Add the base model name. Add a dated name only when its capabilities differ from the base, or when no dateless name exists; dated names without an entry resolve to the base entry ([Model Alias and Version Filtering](developer/model_alias_system.md)).
+- When a provider offers `-latest` aliases, use the alias.
+- Do not add models that are already superseded.
+- Speech and music models carry `tts_capability` or `music_capability`; the chat model lists exclude them, and models with `embedding_dimensions`.
+
+## For App Authors
+
+- Gate behavior on capability properties, not model names.
+- Let the spec decide what a model offers; app settings decide what the app uses.

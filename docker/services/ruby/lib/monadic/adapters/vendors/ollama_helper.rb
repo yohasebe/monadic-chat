@@ -261,6 +261,11 @@ module OllamaHelper
       "Content-Type" => "application/json"
     }
 
+    # Resolve model via SSOT only (no hardcoded fallback), as the other helpers do
+    model = model.to_s.strip
+    model = nil if model.empty?
+    model ||= SystemDefaults.get_default_model('ollama')
+
     body = {
       "model" => model,
       "stream" => false,
@@ -268,6 +273,7 @@ module OllamaHelper
     }
 
     body.merge!(options)
+    body["model"] = model if body["model"].to_s.strip.empty?
     http = HTTP.headers(headers)
 
     res = nil
@@ -368,30 +374,19 @@ module OllamaHelper
       html = markdown_to_html(message)
     end
 
-    if message != "" && role == "user"
+    if user_turn_to_record?(role, message, session)
       res = { "type" => "user",
               "content" => {
                 "mid" => request_id,
+                "role" => role,
                 "text" => obj["message"],
                 "html" => html,
-                "lang" => detect_language(obj["message"])
+                "lang" => detect_language(obj["message"]),
+                "app_name" => obj["app_name"],
+                "active" => true
               } }
       res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
-      block&.call res
-    end
-
-    if message != "" && role == "user"
-      res = { "mid" => request_id,
-              "role" => role,
-              "text" => obj["message"],
-              "html" => html,
-              "lang" => detect_language(obj["message"]),
-              "app_name" => obj["app_name"],
-              "active" => true }
-      if obj["images"] && obj["images"].is_a?(Array)
-        res["images"] = obj["images"]
-      end
-      session[:messages] << res
+      record_user_turn!(session, res, &block)
     end
 
     session[:messages].each { |msg| msg["active"] = false }
@@ -401,6 +396,7 @@ module OllamaHelper
     end
     context.each { |msg| msg["active"] = true }
     strip_inactive_image_data(session)
+    context = model_facing_context(context)
 
     ollama_endpoint = OllamaHelper.find_endpoint
 
@@ -424,8 +420,8 @@ module OllamaHelper
 
     # Enable thinking for models that support it. For Ollama, the Show Thinking
     # toggle is the sole control (Ollama has no reasoning_effort API parameter —
-    # only binary think on/off). The toggle defaults to ON in the UI; users who
-    # don't want thinking can switch it OFF for faster responses.
+    # only binary think on/off). The toggle defaults to OFF in the UI; users can
+    # switch it ON to see the model's thinking.
     show_thinking = obj["show_thinking"]
     show_thinking_off = [false, "false"].include?(show_thinking)
     if !show_thinking_off && supports_thinking?(obj["model"])
@@ -497,7 +493,9 @@ module OllamaHelper
         message = { "role" => msg["role"], "content" => msg["text"] }
       end
 
-      if msg["images"] && role == "user"
+      # A user message keeps its images when the request returns tool
+      # results too: the answer is written by that later request.
+      if msg["images"] && (role == "user" || msg["role"] == "user")
         message["images"] = msg["images"]&.map do |img|
           img["data"].split(",")[1]
         end
@@ -546,6 +544,8 @@ module OllamaHelper
     if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
       body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
     end
+    # Words the user marked: masked wherever they are in the body, or nothing is sent.
+    protect_marked_words!(body, session, app_settings)
 
     res = nil
     last_error = nil
@@ -561,6 +561,7 @@ module OllamaHelper
         end
         target_uri = "#{current_endpoint}/chat"
 
+        Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
         res = http.timeout(connect: open_timeout,
                            write: write_timeout,
                            read: read_timeout).post(target_uri, json: body)
@@ -602,7 +603,7 @@ module OllamaHelper
     Monadic::Utils::ExtraLogger.log { "[Ollama] Unexpected error: #{e.message}" }
     Monadic::Utils::ExtraLogger.log { "[Ollama] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     OllamaHelper.reset_endpoint_cache
-    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}" }
+    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}" }
     block&.call res
     [res]
   end
@@ -805,17 +806,22 @@ module OllamaHelper
       end
 
       begin
-        function_return = if function_name == "request_tool"
+        refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
+        function_return = if refusal
+                           # Run only the tools offered to the model in the latest request;
+                           # this also covers calls parsed from the text.
+                           refusal
+                         elsif function_name == "request_tool"
                            Monadic::Utils::ProgressiveToolManager.handle_request_tool(
                              session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: converted
                            )
                          elsif converted.empty?
-                           APPS[app].send(function_name.to_sym)
+                           APPS[app].public_send(function_name.to_sym)
                          else
-                           APPS[app].send(function_name.to_sym, **converted)
+                           APPS[app].public_send(function_name.to_sym, **converted)
                          end
       rescue StandardError => e
-        function_return = "ERROR: #{e.message}"
+        function_return = "ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"
       end
 
       # Collect gallery HTML for tool-generated images
@@ -895,8 +901,8 @@ module OllamaHelper
     # Ollama uses OpenAI-compatible tool format
     return [] unless tools_config
 
-    # Tools arrive from app_data.rb as a JSON string (see app_data.rb:78-82
-    # which calls `.to_json` on the Array/Hash before sending via WebSocket).
+    # Tools arrive from utils/websocket/app_data.rb as a JSON string (it calls
+    # `.to_json` on the Array/Hash before sending them over the WebSocket).
     # Parse here so the case statement below can handle it as structured data.
     if tools_config.is_a?(String)
       return [] if tools_config.strip.empty?

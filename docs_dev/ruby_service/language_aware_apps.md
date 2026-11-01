@@ -1,60 +1,25 @@
-# Language Setting Awareness by App
+# Conversation Language
 
-## Apps that USE the language selector setting
+The conversation language selector (`#conversation-language`) sets the language every app is asked to answer in.
 
-These apps will respect the user's language preference from the language selector:
+## Flow
 
-### Standard Chat Apps
-- Chat (all providers)
-- Chat Plus (all providers)
-- Coding Assistant
-- Content Reader
-- Research Assistant
-- Second Opinion
-- Math Tutor
-- Mail Composer
-- Novel Writer
-- Speech Draft Helper
-- Monadic Help
-- PDF Navigator
+1. `SYSTEM_PROMPT` (Start Session) carries `conversation_language`; `misc_handlers.rb` stores it in `session[:runtime_settings][:language]` (`auto` when missing). It is not written into the stored system prompt.
+2. `UPDATE_LANGUAGE` changes it during a session and answers with `language_updated` (`language`, `language_name`, `text_direction`).
+3. The `language_preference` rule of `SystemPromptInjector` (`lib/monadic/utils/system_prompt_injector.rb`) appends `LanguageConfig.system_prompt_for_language(lang)` to the system prompt on every request. All chat vendor helpers build their system prompt through `SystemPromptInjector.augment`.
 
-### Creative Apps
-- Image Generator
-- Video Generator
-- DrawIO Grapher
-- Concept Visualizer
-- Syntax Tree
+## Prompts
 
-### Code-related Apps
-- Code Interpreter
-- Jupyter Notebook
+`Monadic::Utils::LanguageConfig` (`lib/monadic/utils/language_config.rb`):
 
-## Apps with PARTIAL language selector support
+- `auto`: answer in the language of the user's message, English when there is none, and do not mention this.
+- A language code in `LANGUAGES`: answer in that language unless the user asks to switch.
+- An unknown code: nothing is added.
 
-These apps respect the language selector for initial interactions but have their own language management for core functionality:
+## Text Direction
 
-### Translation & Language Learning Apps
-- **Voice Interpreter** - Uses user's language for initial question, then manages translation languages
-- **Translate** - Uses user's language to ask for source/target languages
-- **Language Practice** - Uses user's language for initial greeting and questions about learning goals
-- **Language Practice Plus** - Similar to Language Practice with enhanced features
+`text_direction` is `rtl` for `ar`, `he`, `fa` and `ur`, otherwise `ltr`. On `language_updated`, `ws-session-handler.js` adds or removes the `rtl-messages` class on `body`.
 
-### How these apps use the language setting
+## Translation and Language-Learning Apps
 
-These apps are specifically designed for language learning and translation:
-1. **Initial interactions** - Use the user's preferred language for greetings and setup questions
-2. **Core functionality** - Manage languages independently as part of their primary purpose
-3. **Explanations** - Fall back to user's preferred language when providing help or clarification
-4. **Multiple languages** - Support simultaneous use of different languages for learning/translation
-
-## Recommendations
-
-For translation and language learning apps:
-- Apps now use the language selector for initial interactions (improved UX)
-- Core functionality still manages languages independently (as needed)
-- This hybrid approach provides better user experience while maintaining functionality
-
-For other apps:
-- All standard conversation apps correctly use the language selector
-- The language preference is properly injected into system prompts
-- RTL languages are handled appropriately in the UI
+Translate, Voice Interpreter, Language Practice and Language Practice Plus receive the same instruction. Their system prompts tell the model which languages to use for the translation or the practice itself, so the selected language applies to greetings, setup questions and explanations.

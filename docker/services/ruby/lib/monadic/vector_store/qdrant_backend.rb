@@ -27,11 +27,13 @@ module Monadic
         body = { vectors: normalize_vectors_config(vectors) }
         put("/collections/#{name}", body)
         payload_indexes.each do |idx|
-          put("/collections/#{name}/index", {
-            field_name: idx[:field],
-            field_schema: idx[:schema]
-          })
+          create_payload_index(name: name, field: idx[:field], schema: idx[:schema])
         end
+        true
+      end
+
+      def create_payload_index(name:, field:, schema:)
+        put("/collections/#{name}/index", { field_name: field, field_schema: schema })
         true
       end
 
@@ -43,11 +45,17 @@ module Monadic
         true
       end
 
+      # Only a 404 means the collection is not there. Any other failure is
+      # raised, so a caller does not go on to create a collection that may
+      # exist on a server it cannot read.
       def collection_exists?(name:)
         response = HTTP.timeout(@timeout).get("#{@endpoint}/collections/#{name}")
-        response.status.success?
-      rescue HTTP::Error
-        false
+        return true if response.status.success?
+        return false if response.status.code == 404
+
+        raise BackendError, "Qdrant answered #{response.status.code} for collection #{name}"
+      rescue HTTP::Error => e
+        raise BackendError, "Qdrant unavailable: #{e.message}"
       end
 
       # Unlike collection_exists?, this preserves connectivity failures.

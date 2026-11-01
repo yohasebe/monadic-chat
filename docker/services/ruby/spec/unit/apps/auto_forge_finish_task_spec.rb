@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require 'tmpdir'
 
 require_relative '../../../apps/auto_forge/auto_forge_tools'
 
-# Tests for the explicit task-completion signal tool added to AutoForge Claude
-# as part of the root fix for the Verification Protocol loop issue.
+# Tests for the explicit task-completion signal tool in AutoForge Claude.
 #
 # Design: finish_task is called by the model as its final action. It returns
 # a closing message and force-stops the tool call loop by setting
@@ -27,12 +27,13 @@ RSpec.describe 'AutoForgeTools#finish_task' do
     end
 
     it 'includes the file location when deliverable is provided' do
+      deliverable = File.join(Dir.tmpdir, 'monadic', 'data', 'auto_forge', 'TodoMini', 'index.html')
       result = tool.finish_task(
         summary: 'Built TodoMini',
-        deliverable: '/Users/x/monadic/data/auto_forge/TodoMini/index.html'
+        deliverable: deliverable
       )
       expect(result).to include('File location:')
-      expect(result).to include('/Users/x/monadic/data/auto_forge/TodoMini/index.html')
+      expect(result).to include(deliverable)
     end
 
     it 'omits the file location line when deliverable is nil' do

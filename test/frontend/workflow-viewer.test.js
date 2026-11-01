@@ -255,8 +255,8 @@ describe('WorkflowViewer', () => {
       spy.mockRestore();
     });
 
-    // §38d: a failed maxgraph load used to leave an empty frame with no
-    // way forward. Now the container shows an error with a retry button.
+    // A failed maxgraph load shows an error with a retry button instead of
+    // an empty frame.
     test('shows an error with a working retry button when maxGraph fails to load', async () => {
       delete window.WorkflowViewer;
       delete window.maxgraph;

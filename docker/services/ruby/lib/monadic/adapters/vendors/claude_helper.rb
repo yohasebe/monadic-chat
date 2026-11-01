@@ -1,3 +1,5 @@
+require_relative "../../utils/request_retry"
+require_relative '../../utils/shared_path_guard'
 require_relative "../../utils/http_client"
 require 'fileutils'
 require 'securerandom'
@@ -143,27 +145,10 @@ module ClaudeHelper
     [value, source]
   end
 
-  # Function to write logs to file - enabled for debugging AI User issues
-  def log_to_file(message, type="general")
-    return unless CONFIG["DEBUG_AI_USER"]
-    
-    begin
-      log_dir = File.join(Dir.home, "monadic", "log")
-      FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
-      
-      file_name = case type
-                  when "ai_user"
-                    "claude_ai_user_debug.log"
-                  else
-                    "claude_debug.log"
-                  end
-      
-      File.open(File.join(log_dir, file_name), "a") do |f|
-        f.puts("[#{Time.now}] #{message}")
-      end
-    rescue => e
-      # Silent fail for logging
-    end
+  # ANTHROPIC_NATIVE_WEBSEARCH=false turns off Claude's own web search. The
+  # config reader turns "false" into the boolean, so compare as a string.
+  def claude_native_websearch_allowed?
+    CONFIG["ANTHROPIC_NATIVE_WEBSEARCH"].to_s.strip.downcase != "false"
   end
 
   # Simple non-streaming chat completion
@@ -590,11 +575,10 @@ module ClaudeHelper
     # that turn. Sent for every Claude model rather than gated in model_spec
     # because it applies provider-wide, like the advisor header above.
     #
-    # Verified 2026-07-25 against every Claude model in the catalog: with the
-    # header a tool change reads the prefix from cache instead of recreating
-    # it (Sonnet 5: cache_creation 4912 -> 0, cache_read 0 -> 4912). Anthropic
+    # For every Claude model in the catalog, with the header a tool change
+    # reads the prefix from cache instead of recreating it. Anthropic
     # documents it for Opus 5 / Opus 4.8 / Fable 5 only; the others accept and
-    # honor it today. Models that do not support it ignore the header (no
+    # honor it. Models that do not support it ignore the header (no
     # error), so if coverage is ever narrowed this silently reverts to the
     # previous cache-invalidating behavior — no breakage, just lost savings.
     beta_flags << "mid-conversation-tool-changes-2026-07-01"
@@ -623,8 +607,7 @@ module ClaudeHelper
     # are automatically attached. Apps can override with custom edits via
     # MDSL `context_management do edits [...] end`, or disable entirely with
     # `context_management false` — in that case only the context_size sliding
-    # window (client-side) trims history. The beta header is still attached
-    # when the model supports it so that the server recognizes our opt-out.
+    # window (client-side) trims history, and the beta header is not sent.
     begin
       supports_context_management = Monadic::Utils::ModelSpec.supports_context_management?(obj["model"])
       app_context_management = APPS[app]&.settings&.[]("context_management")
@@ -1041,6 +1024,11 @@ module ClaudeHelper
 
   # Execute the HTTP API call, handle retries, and route to streaming processing.
   private def execute_claude_api_call(headers, body, app, session, call_depth, websearch_enabled, use_native_websearch, &block)
+    # A model found unavailable earlier in this session goes straight to its
+    # fallback (a retried request does not ask for it again first).
+    known_fallback = session[:_unavailable_models]&.[](body["model"])
+    body["model"] = known_fallback if known_fallback
+
     target_uri = "#{API_ENDPOINT}/messages"
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
@@ -1053,10 +1041,12 @@ module ClaudeHelper
     if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
       body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
     end
+    # Words the user marked: masked wherever they are in the body, or nothing is sent.
+    protect_marked_words!(body, session, app_settings)
 
     if Monadic::Utils::ExtraLogger.enabled? || ENV["DEBUG_CLAUDE"]
       Monadic::Utils::ExtraLogger.log {
-        msg = "\nClaude API Headers:\n  x-api-key: #{headers["x-api-key"]&.slice(0, 20)}...\n  anthropic-beta: #{headers["anthropic-beta"]}"
+        msg = "\nClaude API Headers:\n  x-api-key: #{headers["x-api-key"].to_s.empty? ? "missing" : "set"}\n  anthropic-beta: #{headers["anthropic-beta"]}"
         if headers["anthropic-beta"]
           msg += "\n    Beta headers breakdown:"
           headers["anthropic-beta"].split(",").each { |beta| msg += "\n      - #{beta.strip}" }
@@ -1070,6 +1060,7 @@ module ClaudeHelper
       }
     end
 
+    Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
     res = post_json_with_retries(http, target_uri, body,
                                  max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
 
@@ -1095,6 +1086,7 @@ module ClaudeHelper
                         "content" => "#{body["model"]} is currently unavailable; continuing with #{fallback_model}." })
         end
         Monadic::Utils::ExtraLogger.log { "[Claude] #{body["model"]} unavailable (404 not_found); falling back to #{fallback_model}" }
+        (session[:_unavailable_models] ||= {})[body["model"]] = fallback_model
         body["model"] = fallback_model
         return execute_claude_api_call(headers, body, app, session, call_depth, websearch_enabled, use_native_websearch, &block)
       end
@@ -1158,7 +1150,7 @@ module ClaudeHelper
 
     use_native_websearch = websearch &&
                           Monadic::Utils::ModelSpec.supports_web_search?(model) &&
-                          CONFIG["ANTHROPIC_NATIVE_WEBSEARCH"] != "false"
+                          claude_native_websearch_allowed?
     obj["use_native_websearch"] = use_native_websearch
 
     # Build system prompts
@@ -1179,7 +1171,7 @@ module ClaudeHelper
     message = obj["message"].to_s
 
     # Push the user message to the client as early as possible
-    if message != "" && role == "user"
+    if user_turn_to_record?(role, message, session)
       @thinking = nil
       @signature = nil
       res = { "type" => "user",
@@ -1194,17 +1186,7 @@ module ClaudeHelper
               } }
 
       res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
-      block&.call res
-
-      existing_msg = session[:messages].find do |m|
-        m["role"] == "user" && m["text"] == obj["message"]
-      end
-
-      if existing_msg
-        existing_msg.merge!(res["content"])
-      else
-        session[:messages] << res["content"]
-      end
+      record_user_turn!(session, res, &block)
 
       Monadic::Utils::ExtraLogger.log { "Claude: user message pushed early (mid=#{request_id})" }
     end
@@ -1246,6 +1228,7 @@ module ClaudeHelper
     configure_claude_tools(body, obj, app, session, role, thinking_config[:thinking_enabled], use_native_websearch)
 
     # Build messages
+    context = model_facing_context(context)
     messages_result = build_claude_messages(body, context, obj, model, role, session, &block)
     return messages_result if messages_result # nil on success, Array on error
 
@@ -1265,22 +1248,33 @@ module ClaudeHelper
 
     # Execute API call
     websearch_enabled = obj["websearch"] == "true" || obj["websearch"] == true
-    execute_claude_api_call(headers, body, app, session, call_depth, websearch_enabled, use_native_websearch, &block)
-  rescue HTTP::Error, HTTP::TimeoutError
-    if num_retrial < MAX_RETRIES
+    # Only the request is retried, so nothing before it (such as the
+    # user card) is sent again, and only until part of the reply has reached
+    # the browser. Each attempt sends a copy of the request body, which the
+    # call adds fields of its own to. After MAX_RETRIES the error goes on to
+    # the rescue below.
+    request_body = body
+    sent = { replied: false }
+    relay = Monadic::Utils::RequestRetry.relay(block, sent)
+    begin
+      body = Monadic::Utils::RequestRetry.copy(request_body)
+      execute_claude_api_call(headers, body, app, session, call_depth, websearch_enabled, use_native_websearch, &relay)
+    rescue HTTP::Error, HTTP::TimeoutError
+      raise if num_retrial >= MAX_RETRIES || sent[:replied]
+
       num_retrial += 1
       sleep RETRY_DELAY
       retry
-    else
-      error_message = Monadic::Utils::ErrorFormatter.network_error(
-        provider: "Claude",
-        message: "Request timed out",
-        timeout: true
-      )
-      res = { "type" => "error", "content" => error_message }
-      block&.call res
-      [res]
     end
+  rescue HTTP::Error, HTTP::TimeoutError
+    error_message = Monadic::Utils::ErrorFormatter.network_error(
+      provider: "Claude",
+      message: "Request timed out",
+      timeout: true
+    )
+    res = { "type" => "error", "content" => error_message }
+    block&.call res
+    [res]
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[Claude] Unexpected error: #{e.message}\n[Claude] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     error_message = Monadic::Utils::ErrorFormatter.api_error(
@@ -1839,7 +1833,10 @@ module ClaudeHelper
       argument_hash[:session] = session
     end
 
-    if tool_name == "request_tool"
+    if (refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, tool_name))
+      # Run only the tools offered to the model in the latest request.
+      tool_return = refusal
+    elsif tool_name == "request_tool"
       # request_tool has no Ruby method: it is the progressive-disclosure meta-tool.
       tool_return = Monadic::Utils::ProgressiveToolManager.handle_request_tool(
         session: session, app_name: app, app_settings: (app_instance&.settings || {}), argument_hash: argument_hash
@@ -1847,9 +1844,9 @@ module ClaudeHelper
     else
       begin
         if argument_hash.empty?
-          tool_return = app_instance.send(tool_name.to_sym)
+          tool_return = app_instance.public_send(tool_name.to_sym)
         else
-          tool_return = app_instance.send(tool_name.to_sym, **argument_hash)
+          tool_return = app_instance.public_send(tool_name.to_sym, **argument_hash)
         end
 
         Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{tool_name} returned: #{tool_return.to_s[0..500]}" }
@@ -2172,10 +2169,14 @@ module ClaudeHelper
                 end
 
     docs_dir = File.join(base_path, "documents")
-    FileUtils.mkdir_p(docs_dir) unless File.directory?(docs_dir)
+    Monadic::Utils::SharedPathGuard.mkdir_p!(docs_dir)
 
+    # The name comes from the provider's response: only its last part is
+    # used, and the file is written never through a link.
+    filename = File.basename(filename.to_s.tr("\\", "/"))
+    filename = "claude_file" if filename.empty? || %w[. ..].include?(filename)
     file_path = File.join(docs_dir, filename)
-    File.binwrite(file_path, file_data)
+    Monadic::Utils::SharedPathGuard.write_file!(file_path, file_data, mode: "wb")
 
     # Create platform-independent relative path display
     home_display = if RUBY_PLATFORM =~ /mingw|mswin|cygwin/

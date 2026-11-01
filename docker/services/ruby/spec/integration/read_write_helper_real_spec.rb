@@ -64,7 +64,7 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
             # In container, create test directory in /tmp instead of read-only /monadic
             "/tmp/test_#{Time.now.to_i}_#{rand(1000)}"
           else
-            File.join(Dir.home, "monadic/data/test_#{Time.now.to_i}_#{rand(1000)}")
+            File.join(Dir.home, "monadic", "data", SharedFolderTestFiles.name("#{Time.now.to_i}_#{rand(1000)}"))
           end
     FileUtils.mkdir_p(dir)
     dir
@@ -161,10 +161,10 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
       end
       
       it "writes content to a real file" do
-        filename = "test_write_#{Time.now.to_i}"
+        filename = SharedFolderTestFiles.name("write_#{Time.now.to_i}")
         content = "This is test content\nWith multiple lines"
         
-        result = helper.write_to_file(
+        result = helper.send(:write_to_file,
           filename: filename,
           extension: "txt",
           text: content
@@ -182,10 +182,10 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
       end
       
       it "handles special characters in content" do
-        filename = "special_chars_#{Time.now.to_i}"
+        filename = SharedFolderTestFiles.name("special_chars_#{Time.now.to_i}")
         content = "Special chars: @#$%^&*() 日本語 émojis 🎉"
         
-        result = helper.write_to_file(
+        result = helper.send(:write_to_file,
           filename: filename,
           extension: "txt",
           text: content
@@ -205,7 +205,7 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
         # This simulates trying to write to a subdirectory that doesn't exist
         filename_with_path = "nonexistent_#{Time.now.to_i}/subdir/test"
         
-        result = helper.write_to_file(
+        result = helper.send(:write_to_file,
           filename: filename_with_path,
           extension: "txt",
           text: "Test content"
@@ -224,7 +224,7 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
         # Use a system directory name that would fail
         filename = "/root/test_#{Time.now.to_i}"
         
-        result = helper.write_to_file(
+        result = helper.send(:write_to_file,
           filename: filename,
           extension: "txt",
           text: "This should fail"
@@ -237,7 +237,7 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
     context "when testing cross-container file operations" do
       it "verifies file sharing between Python container and local Ruby environment" do
         # Test file operations through Python container which is always running
-        filename = "container_test_#{Time.now.to_i}"
+        filename = SharedFolderTestFiles.name("container_#{Time.now.to_i}")
         content = "Container test content from Python"
         
         # Use Python container to write a file
@@ -258,8 +258,9 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
         expect(File.read(local_file)).to eq(content)
         
         # Also test that write_to_file works correctly in development
-        write_result = helper.write_to_file(
-          filename: "local_test_#{Time.now.to_i}",
+        local_name = SharedFolderTestFiles.name("local_#{Time.now.to_i}")
+        write_result = helper.send(:write_to_file,
+          filename: local_name,
           extension: "txt",
           text: "Local write test"
         )
@@ -267,7 +268,7 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
         
         # Clean up
         File.delete(local_file) if File.exist?(local_file)
-        Dir.glob(File.join(Dir.home, "monadic", "data", "local_test_*.txt")).each { |f| File.delete(f) }
+        FileUtils.rm_f(File.join(Dir.home, "monadic", "data", "#{local_name}.txt"))
       end
     end
   end
@@ -280,7 +281,7 @@ RSpec.describe "ReadWriteHelper with real file operations", type: :integration d
       
       # Test with invalid filename characters (if applicable to the OS)
       if RUBY_PLATFORM !~ /mswin|mingw|cygwin/
-        result = helper.write_to_file(
+        result = helper.send(:write_to_file,
           filename: "invalid\0name",
           extension: "txt",
           text: "test"

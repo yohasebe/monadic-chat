@@ -4,9 +4,14 @@
 # invocations below execute inside docker/services/ruby, whose Gemfile is
 # the correct bundle for the specs (the root Gemfile lacks e.g. the csv
 # gem, so an inherited BUNDLE_GEMFILE from `bundle exec rake` breaks them).
-def sh_unbundled(command)
+# Pass containers: true for runs that need the Docker services: spec_helper
+# starts them only when MONADIC_TEST_START_CONTAINERS=1 is set. The variable
+# goes on the command itself, as with_unbundled_env drops ENV changes made
+# after Bundler loaded.
+def sh_unbundled(command, containers: false)
   require "bundler"
-  Bundler.with_unbundled_env { sh command }
+  env = containers ? { "MONADIC_TEST_START_CONTAINERS" => "1" } : {}
+  Bundler.with_unbundled_env { sh env, command }
 end
 
 # =============================================================================
@@ -22,7 +27,7 @@ namespace :spec_api do
     ENV['SUMMARY_RUN_ID'] ||= Time.now.utc.strftime('%Y%m%d_%H%M%SZ')
     Dir.chdir("docker/services/ruby") do
       fmt = (ENV['SUMMARY_ONLY'] == '1') ? '--format progress' : '--format documentation'
-      sh_unbundled "bundle exec rspec spec/integration/api_media #{fmt}"
+      sh_unbundled "bundle exec rspec spec/integration/api_media #{fmt}", containers: true
     end
   end
 end
@@ -71,11 +76,11 @@ task :spec do
 
     # Run integration tests if available
     puts "\nRunning integration tests..."
-    sh_unbundled "bundle exec rspec spec/integration #{fmt} --no-fail-fast --no-profile" rescue puts "Integration tests skipped (not available)"
+    sh_unbundled "bundle exec rspec spec/integration #{fmt} --no-fail-fast --no-profile", containers: true rescue puts "Integration tests skipped (not available)"
 
     # Run system tests
     puts "\nRunning system tests..."
-    sh_unbundled "bundle exec rspec spec/system #{fmt} --no-fail-fast --no-profile" rescue puts "System tests skipped (not available)"
+    sh_unbundled "bundle exec rspec spec/system #{fmt} --no-fail-fast --no-profile", containers: true rescue puts "System tests skipped (not available)"
   end
 ensure
   # Only stop qdrant + embeddings if we started them
@@ -91,12 +96,6 @@ end
 namespace :spec do
   desc "Run quick tests (unit + integration only, excludes system tests)"
   task :quick do
-    # Set environment variables for test database connection
-    ENV['POSTGRES_HOST'] ||= 'localhost'
-    ENV['POSTGRES_PORT'] ||= '5433'
-    ENV['POSTGRES_USER'] ||= 'postgres'
-    ENV['POSTGRES_PASSWORD'] ||= 'postgres'
-
     # Set HOST_OS for Docker Compose
     ENV['HOST_OS'] ||= `uname -s`.chomp
 
@@ -138,7 +137,7 @@ namespace :spec do
 
       # Run integration tests if available
       puts "\nRunning integration tests..."
-      sh_unbundled "bundle exec rspec spec/integration #{fmt} --no-fail-fast --no-profile" rescue puts "Integration tests skipped (not available)"
+      sh_unbundled "bundle exec rspec spec/integration #{fmt} --no-fail-fast --no-profile", containers: true rescue puts "Integration tests skipped (not available)"
 
       puts "\n✅ Quick tests completed (system tests excluded)"
     end
@@ -182,7 +181,7 @@ namespace :spec_system do
   desc "Run web search system tests"
   task :websearch do
     Dir.chdir("docker/services/ruby") do
-      sh_unbundled "bundle exec rspec spec/system/chat_websearch_system_spec.rb spec/system/chat_websearch_update_spec.rb --format documentation"
+      sh_unbundled "bundle exec rspec spec/system/chat_websearch_system_spec.rb spec/system/chat_websearch_update_spec.rb --format documentation", containers: true
     end
   end
 end
@@ -409,7 +408,7 @@ end
 desc "Run Jupyter controller integration test"
 task :jupyter_integration do
   Dir.chdir("docker/services/ruby") do
-    sh_unbundled "bundle exec rspec spec/integration/jupyter_controller_integration_spec.rb --format documentation"
+    sh_unbundled "bundle exec rspec spec/integration/jupyter_controller_integration_spec.rb --format documentation", containers: true
   end
 end
 

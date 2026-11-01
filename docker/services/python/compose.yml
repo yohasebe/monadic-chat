@@ -21,16 +21,31 @@ services:
         PYOPT_MEDIAPIPE: ${PYOPT_MEDIAPIPE:-false}
         PYOPT_TRANSFORMERS: ${PYOPT_TRANSFORMERS:-false}
         IMGOPT_IMAGEMAGICK: ${IMGOPT_IMAGEMAGICK:-false}
+        PYSETUP_SHA: ${MONADIC_PYSETUP_SHA:-none}
+      # ~/monadic/config/pysetup.sh, as a build secret (see the Dockerfile).
+      # monadic.sh sets its contents for the build; without them it is empty.
+      secrets:
+        - pysetup
     ports:
       - "127.0.0.1:8889:8889"
     container_name: monadic-chat-python-container
     volumes:
       # The named-volume line below is inert cruft: the bind mount that
       # follows targets the same container path and wins, so no named
-      # volume is ever materialized (verified 2026-06-12). See the note
+      # volume is ever materialized. See the note
       # in services/ruby/compose.yml before "fixing" this.
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
+      # Custom apps, helpers and container definitions (services) are code
+      # the host loads: read-only here, where code a model writes can run
+      # (monadic.sh creates them).
+      - ~/monadic/data/apps:/monadic/data/apps:ro
+      - ~/monadic/data/helpers:/monadic/data/helpers:ro
+      - ~/monadic/data/services:/monadic/data/services:ro
     command: ["sleep", "infinity"]
     networks:
       - monadic-chat-network
+
+secrets:
+  pysetup:
+    environment: MONADIC_PYSETUP_CONTENT

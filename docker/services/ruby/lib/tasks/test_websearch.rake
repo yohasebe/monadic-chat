@@ -77,7 +77,7 @@ namespace :test do
           session = {
             messages: [],
             parameters: {
-              "model" => "gpt-4.1-mini",
+              "model" => Monadic::Utils::ModelSpec.default_chat_model("openai"),
               "message" => test_query,
               "websearch" => true,
               "temperature" => 0.0,
@@ -114,7 +114,7 @@ namespace :test do
           session = {
             messages: [],
             parameters: {
-              "model" => "claude-sonnet-4-6",
+              "model" => Monadic::Utils::ModelSpec.default_chat_model("anthropic"),
               "message" => test_query,
               "websearch" => true,
               "temperature" => 0.0,
@@ -151,7 +151,7 @@ namespace :test do
           session = {
             messages: [],
             parameters: {
-              "model" => "gemini-2.5-flash",
+              "model" => Monadic::Utils::ModelSpec.default_chat_model("gemini"),
               "message" => test_query,
               "websearch" => true,
               "temperature" => 0.0,
@@ -189,7 +189,7 @@ namespace :test do
           session = {
             messages: [],
             parameters: {
-              "model" => "grok-4-fast-reasoning",
+              "model" => Monadic::Utils::ModelSpec.default_chat_model("xai"),
               "message" => test_query,
               "websearch" => true,
               "temperature" => 0.0,

@@ -3,7 +3,10 @@
 require 'json'
 require 'timeout'
 
+require_relative "../utils/gemini_request"
 require_relative 'child_threads'
+require_relative '../utils/model_spec'
+require_relative '../utils/provider_response'
 
 module MonadicSharedTools
   module ParallelDispatch
@@ -232,6 +235,21 @@ module MonadicSharedTools
       end
     end
 
+    # Sub-agents answer deterministically where the model takes a sampling
+    # temperature: the catalog declares one for it (current OpenAI reasoning
+    # models do not, and refuse anything but the default). top_p goes with it
+    # because Mistral Large 4 refuses temperature 0 unless top_p is 1.
+    def sub_call_sampling(model)
+      return {} unless Monadic::Utils::ModelSpec.get_model_property(model, "temperature")
+
+      { "temperature" => 0.0, "top_p" => 1.0 }
+    end
+
+    def sub_call_error(parsed, status)
+      message = Monadic::Utils::ProviderResponse.error_message(parsed)
+      "API error: #{message.to_s.empty? ? status : message}"
+    end
+
     # OpenAI-compatible chat completions (OpenAI, DeepSeek, Grok, Mistral)
     def openai_compat_sub_call(endpoint, api_key, model, prompt, timeout_secs)
       headers = {
@@ -240,9 +258,8 @@ module MonadicSharedTools
       }
       body = {
         "model" => model,
-        "messages" => [{ "role" => "user", "content" => prompt }],
-        "temperature" => 0.0
-      }
+        "messages" => [{ "role" => "user", "content" => prompt }]
+      }.merge(sub_call_sampling(model))
       # OpenAI newer models use max_completion_tokens; others use max_tokens
       if endpoint.include?("api.openai.com")
         body["max_completion_tokens"] = SUB_AGENT_MAX_TOKENS
@@ -253,8 +270,8 @@ module MonadicSharedTools
                 .timeout(write: timeout_secs, connect: 10, read: timeout_secs)
                 .post(endpoint, json: body)
       parsed = JSON.parse(res.body.to_s)
-      raise "API error: #{parsed.dig("error", "message") || parsed["error"] || res.status}" if parsed["error"] || res.status >= 400
-      parsed.dig("choices", 0, "message", "content") || ""
+      raise sub_call_error(parsed, res.status) if parsed["error"] || res.status >= 400
+      Monadic::Utils::ProviderResponse.message_text(parsed.dig("choices", 0, "message", "content")).to_s
     end
 
     # Anthropic Messages API
@@ -267,15 +284,17 @@ module MonadicSharedTools
       body = {
         "model" => model,
         "messages" => [{ "role" => "user", "content" => prompt }],
-        "max_tokens" => SUB_AGENT_MAX_TOKENS,
-        "temperature" => 0.0
+        "max_tokens" => SUB_AGENT_MAX_TOKENS
       }
+      # Claude 4.7+ refuses temperature altogether.
+      body["temperature"] = 0.0 unless Monadic::Utils::ModelSpec.rejects_sampling_params?(model)
       res = HTTP.headers(headers)
                 .timeout(write: timeout_secs, connect: 10, read: timeout_secs)
                 .post(endpoint, json: body)
       parsed = JSON.parse(res.body.to_s)
-      raise "API error: #{parsed.dig("error", "message") || parsed["error"] || res.status}" if parsed["error"] || res.status >= 400
-      parsed.dig("content", 0, "text") || ""
+      raise sub_call_error(parsed, res.status) if parsed["error"] || res.status >= 400
+
+      Monadic::Utils::ProviderResponse.claude_text(parsed["content"]).to_s
     end
 
     # Google Gemini GenerateContent API
@@ -287,9 +306,9 @@ module MonadicSharedTools
       }
       res = HTTP.headers("Content-Type" => "application/json", "x-goog-api-key" => api_key)
                 .timeout(write: timeout_secs, connect: 10, read: timeout_secs)
-                .post(target_uri, json: body)
+                .post(target_uri, json: Monadic::Utils::GeminiRequest.without_storage(body))
       parsed = JSON.parse(res.body.to_s)
-      raise "API error: #{parsed.dig("error", "message") || parsed["error"] || res.status}" if parsed["error"] || res.status >= 400
+      raise sub_call_error(parsed, res.status) if parsed["error"] || res.status >= 400
       parsed.dig("candidates", 0, "content", "parts", 0, "text") || ""
     end
 
@@ -365,9 +384,9 @@ module MonadicSharedTools
       }
       res = HTTP.headers("Content-Type" => "application/json", "x-goog-api-key" => api_key)
                 .timeout(write: timeout_secs, connect: 10, read: timeout_secs)
-                .post(target_uri, json: body)
+                .post(target_uri, json: Monadic::Utils::GeminiRequest.without_storage(body))
       parsed = JSON.parse(res.body.to_s)
-      raise "API error: #{parsed.dig("error", "message") || parsed["error"] || res.status}" if parsed["error"] || res.status >= 400
+      raise sub_call_error(parsed, res.status) if parsed["error"] || res.status >= 400
       parsed.dig("candidates", 0, "content", "parts", 0, "text") || ""
     end
 
@@ -382,14 +401,14 @@ module MonadicSharedTools
         "model" => model,
         "messages" => [{ "role" => "user", "content" => prompt }],
         "max_tokens" => SUB_AGENT_MAX_TOKENS,
-        "temperature" => 0.0,
         "tools" => [{ "type" => "web_search_20250305", "name" => "web_search", "max_uses" => 5 }]
       }
+      body["temperature"] = 0.0 unless Monadic::Utils::ModelSpec.rejects_sampling_params?(model)
       res = HTTP.headers(headers)
                 .timeout(write: timeout_secs, connect: 10, read: timeout_secs)
                 .post(endpoint, json: body)
       parsed = JSON.parse(res.body.to_s)
-      raise "API error: #{parsed.dig("error", "message") || parsed["error"] || res.status}" if parsed["error"] || res.status >= 400
+      raise sub_call_error(parsed, res.status) if parsed["error"] || res.status >= 400
 
       # Extract only text blocks (skip web_search_tool_result blocks)
       content = parsed["content"]

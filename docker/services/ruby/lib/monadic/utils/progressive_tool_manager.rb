@@ -15,6 +15,23 @@ module Monadic
       # capability is never acquired through the dynamic skill system.
       WEBSEARCH_GROUP = "web_search_tools"
 
+      # The Knowledge Base search group follows the per-session "Use Knowledge
+      # Base for retrieval" toggle: shown without unlocking while it is on,
+      # hidden and not unlockable while it is off.
+      LIBRARY_GROUP = "library_search"
+      LIBRARY_TOGGLE_KEY = "library_rag_enabled"
+      # Tools of the group, however the app imported them (conditional or always).
+      LIBRARY_TOOL_NAMES = %w[library_search].freeze
+
+      def library_rag_enabled?(session)
+        params = session.respond_to?(:[]) ? session[:parameters] : nil
+        return false unless params.respond_to?(:[])
+
+        value = params[LIBRARY_TOGGLE_KEY]
+        value = params[LIBRARY_TOGGLE_KEY.to_sym] if value.nil? && params.respond_to?(:key?)
+        value == true || value.to_s == "true"
+      end
+
       # True only when the session has web search explicitly turned off
       # (false/"false"). A missing value (e.g. headless callers that manage web
       # search themselves) leaves the tools untouched.
@@ -28,6 +45,18 @@ module Monadic
                   params["websearch"]
                 end
         value == false || value == "false"
+      end
+
+      # Knowledge Base search is visible exactly while its toggle is on: added
+      # back from `all_tools` when on, removed when off (or absent).
+      def apply_library_toggle(tools, all_tools, session, conditional_names)
+        names = Set.new(LIBRARY_TOOL_NAMES) | Set.new(conditional_names)
+        kb = ->(t) { names.include?(extract_tool_name(t).to_s) }
+        if library_rag_enabled?(session)
+          tools + all_tools.select { |t| kb.call(t) && !tools.include?(t) }
+        else
+          tools.reject { |t| kb.call(t) }
+        end
       end
 
       # Names of the tools that belong to `group` in this app's progressive
@@ -55,10 +84,10 @@ module Monadic
         # Note: session can be Rack::Session::Abstract::SessionHash, which is Hash-like but not a Hash subclass
         return default_tools unless session.respond_to?(:[]) && session.respond_to?(:[]=) && app_settings.is_a?(Hash)
 
-        metadata = app_settings["progressive_tools"] || app_settings[:progressive_tools]
-        return default_tools unless metadata.is_a?(Hash)
-
         return default_tools unless default_tools.is_a?(Array)
+
+        metadata = app_settings["progressive_tools"] || app_settings[:progressive_tools]
+        return apply_library_toggle(default_tools, default_tools, session, Set.new) unless metadata.is_a?(Hash)
 
         metadata = deep_symbolize(metadata)
         tools_array = default_tools.dup
@@ -94,6 +123,8 @@ module Monadic
           ws_names = group_tool_names(metadata, WEBSEARCH_GROUP)
           filtered = filtered.reject { |t| ws_names.include?(extract_tool_name(t).to_s) } unless ws_names.empty?
         end
+
+        filtered = apply_library_toggle(filtered, tools_array, session, group_tool_names(metadata, LIBRARY_GROUP))
 
         filtered
       end
@@ -178,6 +209,9 @@ module Monadic
            (key == WEBSEARCH_GROUP || group_tool_names(metadata, WEBSEARCH_GROUP).include?(key))
           return []
         end
+
+        # The Knowledge Base group is governed by its toggle, not by request_tool.
+        return [] if key == LIBRARY_GROUP || group_tool_names(metadata, LIBRARY_GROUP).include?(key)
 
         targets = Array(mapping[key]).dup
         targets << key if conditional_names.include?(key)
@@ -277,6 +311,8 @@ module Monadic
           # Don't advertise a UI-toggle-gated group (web search) while its
           # toggle is off — the model must not be told to request it.
           next if websearch_off && key.to_s == WEBSEARCH_GROUP
+          # The Knowledge Base group follows its toggle and is never requested.
+          next if key.to_s == LIBRARY_GROUP
           hint = group[:hint].to_s
           # Every menu line MUST tell the model to unlock via request_tool with
           # the group key. A hint that says "Call <skill> ..." (without

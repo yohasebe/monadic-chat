@@ -109,10 +109,6 @@ function updateAppSelectIcon(appValue) {
   }
 }
 
-// Update the "model-selected" badge text in the menu panel
-// Uses current #model value, current app's provider group, and reasoning effort (if supported)
-// (reverted) updateModelSelectedBadge helper was removed
-
 
   // setCookie, getCookie, setCookieValues → extracted to cookie-utils.js
 
@@ -854,7 +850,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
     // Never resurrect it in Live Conversation: realtime models emit no
     // reasoning, and the capability check runs after HIDDEN_IN_LC hid it —
     // a plain $show would strip the inline none!important and let the
-    // toggle leak back in (dogfood). The .lc-app CSS rule is the second
+    // toggle leak back in. The .lc-app CSS rule is the second
     // layer of the same guard (house pattern: belt and suspenders).
     if (spec["supports_thinking"] && !document.body.classList.contains('lc-app')) {
       $show(thinkingContainer);
@@ -1007,7 +1003,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
   // Speech-to-speech app mode must track EVERY path that applies params —
   // the app-change handler alone missed the reload-with-session restore
   // ("continue session"), which loads params without a change event and
-  // left the Live Conversation UI unapplied (dogfood round 3).
+  // left the Live Conversation UI unapplied.
   if (window.LiveConversation && typeof window.LiveConversation.setAppMode === 'function') {
     const lcAppName = params["app_name"];
     window.LiveConversation.setAppMode(
@@ -1385,7 +1381,7 @@ function doResetActions(resetToDefaultApp = false) {
   // RESET and LOAD are both idempotent and queued FIFO when the
   // WebSocket is not OPEN; the LOAD reply is what populates the new
   // session, so the submission order matters and is preserved by
-  // safeWsSend's drain (see docs_dev/safe_ws_send_plan.md §3.4).
+  // safeWsSend's drain (see docs_dev/frontend/safe_ws_send.md).
   window.safeWsSend({ "message": "RESET" });
   // Get UI language from cookie or default to 'en'
   const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';

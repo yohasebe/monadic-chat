@@ -23,7 +23,7 @@ RSpec.describe Monadic::Utils::ModelSpec do
           "presets" => {"low" => 8000, "medium" => 14000, "high" => 20000})
       end
       expect(described_class.get_provider_models("gemini", "chat").first(2))
-        .to eq(%w[gemini-3.8-flash gemini-3.6-flash])
+        .to eq(%w[gemini-3.8-flash gemini-4-argon])
     end
 
     it "normalizes reasoning_model to is_reasoning_model (Cohere)" do

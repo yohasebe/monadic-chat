@@ -13,8 +13,9 @@ RSpec.describe "VideoGeneratorTools" do
       expect(VideoGeneratorGemini.included_modules).to include(GeminiHelper)
     end
 
-    it "responds to generate_video_with_veo method" do
+    it "responds to generate_video_with_gemini, and to the name it had with Veo" do
       app = VideoGeneratorGemini.new
+      expect(app).to respond_to(:generate_video_with_gemini)
       expect(app).to respond_to(:generate_video_with_veo)
     end
   end

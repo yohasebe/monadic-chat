@@ -1,179 +1,57 @@
 # End-to-End (E2E) Tests
 
-This directory contains end-to-end tests that verify UI/server wiring and local workflows without calling real AI provider APIs. Real API coverage was moved to spec_api under spec/integration.
+The specs in `docker/services/ruby/spec/e2e/` exercise the local server through its WebSocket without calling provider APIs. Provider behavior is covered by the integration specs ([integration.md](integration.md)).
 
-## Overview
+## Files
 
-E2E tests simulate user interactions with the local server, focusing on:
-- WebSocket communication and message flow
-- Local tool execution and file operations
-- Basic app wiring and regressions
-Real provider API behavior is validated in spec/integration (see Rake tasks under spec_api).
+| File | Contents |
+|---|---|
+| `jupyter_notebook_grok_spec.rb` | Jupyter operations run locally |
+| `monadic_context_display_spec.rb` | Display of monadic context, with mock responses |
+| `e2e_helper.rb` | `wait_for_server`, `create_websocket_connection`, `send_chat_message`, `wait_for_response`, `extract_ai_response`, `tool_used?`, `check_containers_running` |
+| `validation_helper.rb` | Response checks such as `valid_response?`, `code_execution_attempted?`, `system_error?`, `web_search_performed?` |
+| `e2e_retry_helper.rb`, `pdf_upload_helper.rb`, `shared_examples/` | Retry helper, PDF upload helper, shared examples |
+| `run_e2e_tests.sh` | Starts the Python, Qdrant and Selenium containers that are missing, then runs the specs |
 
-## Test Structure
+## Running
 
-```
-e2e/
-├── jupyter_notebook_grok_spec.rb      # Jupyter local ops (no real API)
-├── monadic_context_display_spec.rb    # Monadic JSON display using mock responses
-├── shared_examples/                   # Reusable test examples
-├── e2e_helper.rb                      # WebSocket connection helpers
-├── validation_helper.rb               # Flexible validation methods
-└── run_e2e_tests.sh                   # Test runner script
-```
+From the repository root:
 
-## Running Tests
-
-### Specific E2E Tests (run from the repository root)
 ```bash
-rake spec_e2e:jupyter_notebook   # Jupyter local ops (no real API)
-rake spec_e2e:monadic_context    # Monadic JSON display (mock responses)
+rake spec_e2e:jupyter_notebook
+rake spec_e2e:monadic_context
 ```
 
-### All E2E Tests (no real API)
+From `docker/services/ruby`:
+
 ```bash
-cd docker/services/ruby
-./spec/e2e/run_e2e_tests.sh all  # Does not hit real provider APIs
+./spec/e2e/run_e2e_tests.sh all               # or jupyter_notebook, monadic_context
+bundle exec rspec spec/e2e/monadic_context_display_spec.rb
 ```
 
-Real API provider tests live in spec_api tasks. Examples:
-```bash
-# Non-media API smoke across providers (Ollama excluded by default)
-RUN_API=true PROVIDERS=openai,anthropic bundle exec rake spec_api:smoke
+The specs need the server on `localhost:4567` and the containers they use; they skip when these are not available. No provider API key is needed.
 
-# Media (image/voice) API tests
-RUN_API=true RUN_MEDIA=true bundle exec rake spec_api:media
-```
+## Writing a Spec
 
-### Manual Test Execution
-```bash
-cd docker/services/ruby
-bundle exec rspec spec/e2e/jupyter_notebook_grok_spec.rb
-bundle exec rspec spec/e2e/monadic_context_display_spec.rb:23  # specific line
-```
-
-## Test Philosophy
-
-1. **No real APIs**: E2E never invokes real provider endpoints
-2. **Functional wiring**: Validate message flow and UI/server glue
-3. **Minimal redundancy**: Real API scenarios belong to spec_api
-4. **Flexible assertions**: Prefer robust, behavior-oriented checks
-5. **Clean retry**: Custom retry helper available if needed
-
-## Key Testing Patterns
-
-### Code Execution Validation
 ```ruby
-expect(code_execution_attempted?(response)).to be true
-```
+require_relative "e2e_helper"
 
-### Flexible Content Matching
-```ruby
-expect(response.downcase).to match(/keyword1|keyword2|keyword3/i)
-```
-
-### System Error Handling
-```ruby
-skip "System error or tool failure" if system_error?(response)
-```
-
-## Prerequisites
-
-- Docker containers for local services as needed (auto-started)
-- Server on `localhost:4567` (auto-started if needed)
-- No provider API keys required for E2E
-
-## Writing New E2E Tests
-
-### Basic Structure
-```ruby
-require_relative 'e2e_helper'
-
-RSpec.describe "Feature E2E Workflow", type: :e2e do
+RSpec.describe "Feature E2E", type: :e2e do
   include E2EHelper
 
   before(:all) do
-    unless check_containers_running
-      skip "E2E tests require all containers to be running"
-    end
-    
-    unless wait_for_server
-      skip "E2E tests require server to be running"
-    end
+    skip "containers not running" unless check_containers_running
+    skip "server not running" unless wait_for_server
   end
 
-  it "completes user workflow" do
-    ws_connection = create_websocket_connection
-    
-    send_chat_message(ws_connection, "Your message", app: "AppName")
-    response = wait_for_response(ws_connection)
-    
-    expect(response).to include("expected content")
-    
-    ws_connection[:client].close
+  it "completes the workflow" do
+    ws = create_websocket_connection
+    send_chat_message(ws, "Your message", app: "AppName")
+    response = wait_for_response(ws)
+    expect(valid_response?(response)).to be true
+    ws[:client].close
   end
 end
 ```
 
-### Best Practices
-
-1. **Always check prerequisites** in `before(:all)` blocks
-2. **Clean up resources** in `after` blocks
-3. **Use descriptive test names** that explain the workflow
-4. **Test both success and failure paths**
-5. **Include performance expectations** where relevant
-6. **Mock external services** when necessary for reliability
-
-## Debugging
-
-### Enable verbose output:
-```bash
-VERBOSE=true bundle exec rspec spec/e2e
-```
-
-### Common Issues
-
-1. **"Server not running" errors**
-   - Ensure server is started: `rake server`
-   - Check port 4567 is not in use
-
-2. **"Containers not running" errors**
-   - Start containers: `./docker/monadic.sh start`
-   - Verify with: `docker ps | grep monadic`
-
-3. **Timeout errors**
-   - Increase timeout in `wait_for_response`
-   - Check API keys are valid
-   - Verify network connectivity
-
-4. **WebSocket connection failures**
-   - Check firewall settings
-   - Ensure WebSocket port (4567) is accessible
-   - Look for errors in server logs
-
-## CI/CD Integration
-
-These tests are designed to run in CI environments:
-
-```yaml
-# Example GitHub Actions configuration
-- name: Start services
-  run: |
-    ./docker/monadic.sh build
-    ./docker/monadic.sh start
-    rake server &
-    sleep 10
-
-- name: Run E2E tests
-  run: |
-    cd docker/services/ruby
-    bundle exec rspec spec/e2e --format documentation
-```
-
-## Performance Benchmarks
-
-Expected response times under normal conditions:
-- Simple chat queries: < 5 seconds
-- Code execution: < 10 seconds  
-- PDF search: < 15 seconds
-- Multi-step workflows: < 30 seconds
+Check behavior (a reply, a tool attempt) rather than exact text, and skip on `system_error?`.

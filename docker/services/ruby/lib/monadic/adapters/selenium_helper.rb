@@ -1,5 +1,6 @@
 require 'shellwords'
 require_relative '../utils/environment'
+require_relative '../utils/shared_path_guard'
 
 module MonadicHelper
   def fetch_web_content(url: "")
@@ -23,7 +24,8 @@ module MonadicHelper
 
         success = false
         max_retrials.times do
-          if File.exist?(filepath)
+          # The page is a plain file of the shared folder, read never through a link.
+          if Monadic::Utils::SharedPathGuard.file_stat(filepath)
             success = true
             break
           elsif max_retrials.positive?
@@ -34,9 +36,11 @@ module MonadicHelper
           end
         end
 
-        result = if success
-                   File.read(filepath)
-                 else
+        result = begin
+                   raise Errno::ENOENT unless success
+
+                   Monadic::Utils::SharedPathGuard.read_bytes!(filepath).force_encoding("UTF-8")
+                 rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
                    "Error occurred: The #{filename} could not be read."
                  end
       else

@@ -46,21 +46,13 @@ Backend (openai_helper.rb)
 - **Size limit**: 50 MB per file
 - **Failure handling**: Returns `nil`, caller falls back to base64
 - **Lifecycle**: Cache cleared when session ends; files auto-deleted by OpenAI after retention period
+- **Inline instead**: `resolve_file_id_for_input` returns `nil` (and the file is sent inline as base64) when only part of the data is base64, or when the conversation has words marked for the Privacy Filter
 
 ## Model Capability Flag
 
 **Flag**: `supports_file_inputs: true` in `model_spec.js`
 
-Added to models that support the File Inputs API:
-- GPT-5.4 series (gpt-5.4, gpt-5.4-mini)
-- GPT-5.3 series (gpt-5.3-chat-latest)
-- GPT-5.2 series (gpt-5.2, gpt-5.2-chat-latest)
-- GPT-5.1 series (gpt-5.1, gpt-5.1-chat-latest)
-- GPT-5 series (gpt-5, gpt-5-mini, gpt-5-pro, gpt-5-chat-latest)
-- GPT-4.1 series (gpt-4.1, gpt-4.1-mini, gpt-4.1-nano)
-- GPT-4o series (gpt-4o, gpt-4o-mini)
-
-**Not** added to: gpt-5-nano, gpt-5.4-nano (no PDF/file support), codex models (coding-only)
+Set on the OpenAI models that accept the File Inputs API; see the `supports_file_inputs` entries in `model_spec.js`. Not set on the nano and codex models.
 
 ## Frontend UI Tiers
 
@@ -68,22 +60,24 @@ The file selection button adapts based on model capabilities:
 
 | Tier | Condition | Button Text | Accepted Files |
 |------|-----------|-------------|----------------|
-| 1 | `supports_file_inputs` | "File" | Images + PDF + XLSX, DOCX, code files, etc. |
-| 2 | `supports_pdf_upload` | "Image/PDF" | Images + PDF |
+| 1 | `supports_file_inputs` | "Attach file" | Images + PDF + XLSX, DOCX, code files, etc. |
+| 2 | `supports_pdf_upload` (falls back to `supports_pdf`) | "Image/PDF" | Images + PDF |
 | 3 | Default | "Image" | Images only |
+
+Image-generation apps skip tiers 1 and 2, except that the Gemini Image Generator accepts PDF.
 
 URL input section is shown only when `api_type === "responses"` AND tier 1 or 2.
 
 ## Provider Independence
 
 - `file_id` is an OpenAI-specific concept, stored only in session cache
-- Other providers (Claude, Gemini, etc.) continue using base64 — no changes needed
+- Other providers (Claude, Gemini, etc.) use base64 data
 - The `images` array in messages carries the same `{ title, data, type }` structure for all providers
 - `document_type?()` in `openai_helper.rb` gates document handling to OpenAI only
 
 ## Testing
 
-- **Ruby**: `spec/unit/utils/openai_file_inputs_cache_spec.rb` (11 specs)
+- **Ruby**: `spec/unit/utils/openai_file_inputs_cache_spec.rb`
 - **Ruby**: `spec/unit/adapters/vendors/document_mime_types_spec.rb` (DOCUMENT_MIME_TYPES coverage)
 - **Ruby**: `spec/unit/adapters/vendors/openai_helper_spec.rb` (document_type? + resolve_file_id_for_input)
 - **Frontend**: `test/frontend/select_image.test.js` (getDocumentIcon, isDocumentType, getMimeTypeFromExtension)

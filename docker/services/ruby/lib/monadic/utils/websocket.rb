@@ -8,7 +8,9 @@ require 'async/queue'
 require 'async/websocket/adapters/rack'
 require 'twitter_cldr'
 require_relative 'error_formatter'
+require_relative 'privacy/egress_guard'
 require_relative '../workspace'
+require_relative '../history'
 require_relative '../agents/ai_user_agent'
 require_relative '../agents/context_extractor_agent'
 require_relative 'boolean_parser'
@@ -31,6 +33,7 @@ require_relative 'websocket/html_handler'
 require_relative 'websocket/misc_handlers'
 require_relative 'websocket/privacy_handler'
 require_relative 'websocket/verify_handler'
+require_relative 'websocket/history_handler'
 require_relative 'websocket/sts_stream_handler'
 
 Monadic::Utils::SSLConfiguration.configure! if defined?(Monadic::Utils::SSLConfiguration)
@@ -56,16 +59,41 @@ module WebSocketHelper
     session_id = Thread.current[:websocket_session_id]
     return unless session_id
 
+    Monadic::History::Policy.note_begun!(session)
+
     params = get_session_params || {}
     Monadic::Utils::ExtraLogger.log { "[sync_session_state!] Session synced: #{session_id}" }
 
-    WebSocketHelper.update_session_state(
+    accepted = WebSocketHelper.update_session_state(
       session_id,
       messages: session[:messages] || [],
       parameters: params,
       chat_id: session[Monadic::Workspace::Chats::SESSION_KEY],
+      chat_state: Monadic::Workspace::Chats.chat_state(session),
       generation: session[:_ws_generation]
     )
+    # A connection that a newer one replaced does not write the history
+    # either: its copy of the chat is older than the tab's.
+    record_history if accepted
+  end
+
+  # Whether the history gives the chat to another tab (it was resumed there).
+  def history_taken_elsewhere?(chat_id, tab)
+    return false unless chat_id && Monadic::History.enabled?
+
+    owner = Monadic::History::Store.default.owner(chat_id)
+    !owner.nil? && owner != tab
+  rescue StandardError
+    false
+  end
+
+  # Keeps the chat in the conversation history (when that is on). A failure
+  # is logged by its kind only, never with the conversation, and does not
+  # stop the chat.
+  def record_history
+    Monadic::History.record(session, tab: Thread.current[:websocket_session_id])
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[History] not saved: #{e.class}" }
   end
 
   # Sentence segmentation using TwitterCLDR (faster and better RTL support than PragmaticSegmenter)
@@ -124,17 +152,27 @@ module WebSocketHelper
 
       Thread.current[:websocket_session_id] = ws_session_id
       Thread.current[:rack_session] = session
+      # What this connection starts (threads and fibers included) is done for
+      # this chat: words marked in it are checked in what is sent.
+      Monadic::Utils::Privacy::EgressGuard.for_chat(session)
       # This connection's generation; writes from a connection it replaced
       # are ignored from now on.
       session[:_ws_generation] = WebSocketHelper.claim_session_state(ws_session_id)
 
-      # Tab isolation: Each tab must have completely independent session state
-      # Always initialize with empty session first to clear any Rack session data from other tabs
+      # Tab isolation: a chat belongs to its tab, and the tab keeps it
+      # between connections. The cookie's session is shared by every tab
+      # and is not updated by this connection after it opens, so nothing of
+      # a chat is taken from it: whatever it holds beyond the connection's
+      # own keys is dropped first.
+      Monadic::Workspace::Chats.clear_chat_state!(session)
       session[:messages] = []
       session[:parameters] = {}
 
-      # Then restore saved state if it exists (for page refresh/reconnection)
+      # Then restore saved state if it exists (for page refresh/reconnection).
+      # A chat another tab took from the history while this one was away
+      # goes on there: this tab starts a new chat instead of a stale copy.
       saved_state = WebSocketHelper.fetch_session_state(ws_session_id)
+      saved_state = nil if saved_state && history_taken_elsewhere?(saved_state[:chat_id], ws_session_id)
       if saved_state
         session[:messages] = saved_state[:messages] if saved_state[:messages]
         if saved_state[:parameters]
@@ -145,9 +183,15 @@ module WebSocketHelper
         end
       end
 
-      # Reconnecting the same tab continues its chat; anything else starts one.
+      # Reconnecting the same tab continues its chat, with what the chat
+      # had besides its messages (tool results, the Session Context, the
+      # privacy registry); anything else starts one.
+      if saved_state && Monadic::Workspace::Ids.valid?(:chat, saved_state[:chat_id])
+        (saved_state[:chat_state] || {}).each { |key, value| session[key] = value }
+      end
       Monadic::Workspace::Chats.resume!(session, saved_state && saved_state[:chat_id])
       sync_session_state!
+      WebSocketHelper.register_live_session(ws_session_id, session, session[:_ws_generation])
 
       Monadic::Utils::ExtraLogger.log { "[WebSocket] Session state: #{saved_state ? 'restored' : 'new'} (#{ws_session_id})" }
 
@@ -182,21 +226,13 @@ module WebSocketHelper
       when "TTS"
           handle_ws_tts(connection, obj, session)
         when "CANCEL"
-          # Get session ID for targeted broadcasting
-          ws_session_id = Thread.current[:websocket_session_id]
-
           thread&.kill
           thread = nil
           suggestion&.kill
           suggestion = nil
           queue.clear
 
-          cancel_message = { "type" => "cancel" }.to_json
-          if ws_session_id
-            WebSocketHelper.send_to_session(cancel_message, ws_session_id)
-          else
-            WebSocketHelper.broadcast_to_all(cancel_message)
-          end
+          handle_ws_cancel(Thread.current[:websocket_session_id])
         when "PDF_TITLES"
           handle_ws_pdf_titles(connection, obj, session)
         when "DELETE_PDF"
@@ -248,7 +284,7 @@ module WebSocketHelper
           # that is incoherent (and its merge span may predate the reload).
           # Every legitimate LOAD sender has already ended the conversation
           # client-side, so this is a no-op there — it exists for the import
-          # / stray-tab paths (review round 4, P1).
+          # / stray-tab paths.
           teardown_sts_session(session)
           handle_load_message(connection)
         when "DELETE"
@@ -264,7 +300,50 @@ module WebSocketHelper
         when "HTML"
           handle_ws_html(connection, obj, session, thread, queue)
         when "UPDATE_PARAMS"
+          # Another app starts a new chat: a reply still being written for
+          # the previous one is stopped first, as on Reset.
+          if app_change?(obj, session)
+            stop_running_reply(thread, queue)
+            thread = nil
+            stop_running_reply(suggestion, nil)
+            suggestion = nil
+          end
           handle_ws_update_params(connection, obj, session)
+        when "IMPORT_APPLY"
+          # A conversation read from a file replaces this tab's chat: what
+          # is running for the current one is stopped first, as on Reset,
+          # but only once the import is there to take (a stale or foreign
+          # token leaves the chat alone).
+          imported = WebSocketHelper.take_import(ws_session_id, obj["token"])
+          if imported
+            stop_running_reply(thread, queue)
+            thread = nil
+            stop_running_reply(suggestion, nil)
+            suggestion = nil
+          end
+          handle_ws_import_apply(connection, obj, session, imported)
+        when "HISTORY_LIST"
+          handle_ws_history_list(connection, obj)
+        when "HISTORY_RENAME"
+          handle_ws_history_rename(connection, obj)
+        when "HISTORY_DELETE"
+          handle_ws_history_delete(connection, obj)
+        when "HISTORY_RESUME"
+          # A chat from the history replaces this tab's chat: what runs for
+          # the current one is stopped first, as for an import, but only
+          # when that chat can be resumed here.
+          refusal = history_resume_refusal(obj, session)
+          begin
+            if refusal.nil?
+              stop_running_reply(thread, queue)
+              thread = nil
+              stop_running_reply(suggestion, nil)
+              suggestion = nil
+            end
+            handle_ws_history_resume(connection, obj, session, refusal)
+          ensure
+            WebSocketHelper.release_chat(obj['chat_id'].to_s) if refusal.nil?
+          end
         when "SYSTEM_PROMPT"
           handle_ws_system_prompt(connection, obj, session)
         when "SAMPLE"
@@ -310,7 +389,19 @@ module WebSocketHelper
         when "VERIFY_CONFIDENCE"
           handle_ws_verify_confidence(connection, obj, session)
         else # fragment
-          thread = handle_ws_streaming(connection, obj, session, queue)
+          # One answer at a time: a send that arrives while one is running
+          # is not accepted (busy: the page gives the text and attachments
+          # back and leaves the running answer as it is).
+          if thread&.alive?
+            send_error("answer_still_running", ws_session_id, { "not_accepted" => true, "busy" => true })
+            next
+          end
+
+          # A message that is not accepted (attachments that do not check
+          # out, a privacy or voice-only refusal) starts no thread; the
+          # answer already running stays the one Cancel and Reset stop.
+          started = handle_ws_streaming(connection, obj, session, queue)
+          thread = started if started
         end
       end # end case
     end # end while
@@ -324,6 +415,10 @@ module WebSocketHelper
       teardown_sts_session(session) if session
 
       WebSocketHelper.remove_connection_with_session(connection, ws_session_id)
+      WebSocketHelper.unregister_live_session(ws_session_id, session[:_ws_generation]) if session
+      # Nothing stays staged for a tab with no connection left (a newer
+      # connection of the same tab keeps what was staged for it).
+      WebSocketHelper.drop_imports(ws_session_id) unless WebSocketHelper.live_session(ws_session_id)
 
       Monadic::Utils::ExtraLogger.log { "[WebSocket] Connection closed for session #{ws_session_id}" }
 
@@ -331,6 +426,7 @@ module WebSocketHelper
 
       Thread.current[:websocket_session_id] = nil
       Thread.current[:rack_session] = nil
+      Monadic::Utils::Privacy::EgressGuard.for_chat(nil)
 
       thread&.kill
       suggestion&.kill
@@ -347,12 +443,25 @@ module WebSocketHelper
     end
   end
 
+  # After the reply threads are stopped: speech still being made for the
+  # reply stops too (it starts when the text is done), and the browser is told.
+  def handle_ws_cancel(ws_session_id)
+    stop_tts_threads("CANCEL") if respond_to?(:stop_tts_threads, true)
+
+    cancel_message = { "type" => "cancel" }.to_json
+    if ws_session_id
+      WebSocketHelper.send_to_session(cancel_message, ws_session_id)
+    else
+      WebSocketHelper.broadcast_to_all(cancel_message)
+    end
+  end
+
   # The ONE way to deliver an error to the client. Provider error text carries
   # account identifiers (xAI names the team UUID, Google the project number,
   # OpenAI the organization), and an error shown in the chat is saved with the
   # conversation and travels with any export — so the identifiers are scrubbed
-  # here, once, instead of at every call site. The untouched text still goes to
-  # the EXTRA_LOGGING trace, which stays on the user's own machine.
+  # here, once, instead of at every call site. The EXTRA_LOGGING trace records
+  # the scrubbed text too.
   #
   # Building `{"type" => "error"}` inline elsewhere bypasses this and is pinned
   # against by spec/unit/utils/websocket/error_send_boundary_spec.rb.
@@ -362,7 +471,7 @@ module WebSocketHelper
   def send_error(content, session_id = Thread.current[:websocket_session_id], extra = {})
     scrubbed = scrub_error_content(content)
     if scrubbed != content
-      Monadic::Utils::ExtraLogger.log { "[WebSocket] error text scrubbed before delivery; raw: #{content.inspect}" }
+      Monadic::Utils::ExtraLogger.log { "[WebSocket] error text scrubbed before delivery: #{scrubbed.inspect}" }
     end
     payload = { "type" => "error", "content" => scrubbed }.merge(extra)
     send_or_broadcast(payload.to_json, session_id)
@@ -453,6 +562,10 @@ module WebSocketHelper
   # so the key alone is backend-authoritative for the toggle half).
   private def sts_privacy_active?(session)
     return false unless session.respond_to?(:[])
+    # Words the user marked keep speech-to-speech closed, on or off: the
+    # voice session would be given the conversation as written.
+    require_relative 'privacy/outbound'
+    return true if Monadic::Utils::Privacy::Outbound.marked_terms?(session)
     return false unless session[:_privacy_session_enabled] == true
 
     params = session[:parameters] || session["parameters"]

@@ -1,171 +1,109 @@
-# 基本構造
+# 基本構成
 
-Monadic Chatでは、Dockerコンテナとして構築された仮想環境をシステムに組み込むことにより、言語モデルのAPIだけでは実現できない高度な機能を提供しています。
+Monadic Chat は、言語モデルの API と合わせて、いくつかの Docker コンテナを動かします。AI エージェントはこれらのコンテナでコマンドやコードを実行し、ファイルを扱えるので、API だけではできないことができます。
 
-Dockerコンテナ内にはユーザーとAIエージェントの両方がアクセス可能で、自然言語によるコミュニケーションを通じて協力し合いながら環境に変化を生じさせることが可能です。具体的には、ユーザーの指示のもとにAIエージェントがコマンドをインストールしたり、そのコマンドの使い方を教えたり、自らコマンドを実行して結果を返したりすることができます。
+コンテナは、利用者と AI エージェントの両方が使えます。コマンドを導入して実行し、結果を返すよう、エージェントに自然な言葉で頼めます。
 
-また、ホストコンピュータと個々のDockerコンテナとの間でデータを共有するための仕組みも提供しています。これにより、ユーザーは仮想環境とシームレスに連携でき、必要なファイルをAIエージェントに提供したり、AIエージェントにより生成されたファイルを取得したりすることができます。
+共有フォルダは、お使いのコンピューターとコンテナをつなぎます。エージェントに渡すファイルをここに置き、エージェントが作ったファイルもここに保存されます。
 
-![Basic Architecture](../assets/images/basic-architecture-ja.png ':size=800')
+![Basic Architecture](../assets/images/basic-architecture.png ':size=800')
 
 ## ローカルでの動作 :id=local-operation
 
-- すべてのコンポーネントが単一のマシン上で実行される
-- Dockerコンテナ、Webサーバー、UIが同じデバイス上に存在
-- ネットワークバインディングは`127.0.0.1`（localhost）を使用
-- 実行されているデバイスからのみアクセス可能
-- 各ブラウザタブは独立した会話セッションです（[マルチタブセッション管理](../advanced-topics/advanced-configuration.md#multi-tab-sessions)を参照）
+- すべての部品（コンテナ、Web サーバー、画面）が 1 台のコンピューターで動きます
+- ポートはすべて `127.0.0.1`（localhost）に割り当てられ、そのコンピューターからだけ使えます
+- ブラウザーのタブごとに、独立した会話のセッションになります（[マルチタブのセッション管理](../advanced-topics/advanced-configuration.md#multi-tab-sessions)を参照）
 
-## 標準コンテナ :id=standard-containers
+## 標準の Docker コンテナ :id=standard-containers
 
-標準では下記のコンテナが構築されます。
+### Ruby コンテナ（`monadic-chat-ruby-container`） :id=ruby-container
+Monadic Chat のサーバーと Web 画面を動かします。どのアプリにも必要です。
+- **ポート**：4567（Web 画面）、3100（MCP サーバー、`MCP_SERVER_ENABLED=true` のとき使用）
+- **マウントするフォルダ**：`/monadic/data`（共有フォルダ）、`/monadic/config`、`/monadic/log`
 
-### Rubyコンテナ（`monadic-chat-ruby-container`） :id=ruby-container
-Monadic Chatのアプリケーションを実行するために必要なコンテナです。Webインターフェイスを提供するためにも使用されます。
-- **ポート**: 4567（Webインターフェイス）、3100（`127.0.0.1` のみ、MCP サーバー。`MCP_SERVER_ENABLED=true` のときに有効）
-- **主な機能**: Sinatra Webサーバー、WebSocketサポート、Docker管理
-- **共有ボリューム**: `/monadic/data`、`/monadic/config`、`/monadic/log`
-- **このコンテナが必要なアプリ**: すべてのアプリ（Webインターフェイスを実行し、すべてのMonadic Chat機能を管理するコアコンテナです）
+### Python コンテナ（`monadic-chat-python-container`） :id=python-container
+アプリのための Python のコード、コマンドラインのツール、JupyterLab を動かします。
+- **ポート**：8889（JupyterLab）
+- **使うアプリ**：Code Interpreter、Jupyter Notebook、Research Assistant、Math Tutor、Video Describer、Syntax Tree、Concept Visualizer、Mermaid Grapher、DrawIO Grapher、Web Insight、Auto Forge、Knowledge Base のファイルの取り込み
+- 追加のコンポーネント（LaTeX、Python のライブラリ、ImageMagick）は **Actions → Install Options** で加えます。[Python コンテナ](python-container.md)を参照してください。
 
-### Pythonコンテナ（`monadic-chat-python-container`） :id=python-container
-Monadic Chatの機能を拡張するためのPythonスクリプトを実行するために使用されます。JupyterLabもこのコンテナ上で実行されます。
-- **ポート**: 8889（JupyterLab）
-- **主な機能**: Pythonコード実行、JupyterLab、LaTeXサポート（図の生成用）
-- **このコンテナを使用するアプリ**: 
-  - `Code Interpreter` - データ分析と計算のためのPythonコード実行
-  - `Jupyter Notebook` - コード実行用のインタラクティブなノートブックインターフェイス
-  - `Video Describer` - Pythonライブラリを使用したビデオファイルの分析
-  - `Syntax Tree` - LaTeX/TikZを使用した言語学的樹形図の生成
-  - `Concept Visualizer` - LaTeX/TikZを使用した概念図の作成
-  - Python実行用の`run_code`または`run_script`ツールを使用するアプリ
+### Selenium コンテナ（`monadic-chat-selenium-container`） :id=selenium-container
+アプリが操作する Chromium ブラウザーを動かし、Web ページを開いたりスクリーンショットを撮ったりします。
+- **ポート**：4444（Selenium）、7900（**Open → Open noVNC** でのブラウザーの表示）、5900（VNC）
+- **使うアプリ**：Web Insight、Research Assistant、Auto Forge、Mermaid Grapher、DrawIO Grapher
 
-### Seleniumコンテナ（`monadic-chat-selenium-container`） :id=selenium-container
-Seleniumを使用して仮想的なWebブラウザを操作して、Webページのスクレイピングを行うために使用されます。
-- **ポート**: 4444、5900、7900（Selenium Grid）
-- **主な機能**: Chromeブラウザの自動化、Webスクレイピング
-- **このコンテナを使用するアプリ**: 
-  - `Code Interpreter` - Webスクレイピングタスクに使用可能
-  - `Mermaid Grapher` - Mermaid図の検証とプレビュースクリーンショットの作成
-  - `Research Assistant` - 情報収集のためのWebスクレイピングを使用
-  - `Web Insight` - Webページのスクリーンショット撮影とテキストコンテンツ抽出
-  - `fetch_html_content`または`selenium_agent`ツールを使用するアプリ
+### Qdrant コンテナ（`monadic-chat-qdrant-container`） :id=qdrant-container
+ベクトルデータベース [Qdrant](https://qdrant.tech) を動かします。Knowledge Base、PDF Database、ヘルプのデータを保存します。[ベクトルデータベース](vector-database.md)を参照してください。
 
-### Qdrantコンテナ（`monadic-chat-qdrant-container`） :id=qdrant-container
-Knowledge Base のチャンクとヘルプシステムインデックスを格納する Qdrant ベクトルデータベースを実行するコンテナです。
-- **ポート**: 6333（ホスト） → 6333（REST）、6334 → 6334（gRPC）。dev モードでのみ公開
-- **主な機能**: HNSW インデックス付きベクトル類似度検索、payload フィルタリング、マルチベクトル格納
-- **このコンテナを使用するアプリ**:
-  - `Knowledge Base` - PDF / Office / Markdown / コード / チャットセッションのインポート内容をエンベディングで保存・検索
-  - `Monadic Help` - ベクトル類似度を使用したドキュメント検索
-  - `Monadic::VectorStore` を使用するカスタム RAG アプリ
+### Embeddings コンテナ（`monadic-chat-embeddings-container`） :id=embeddings-container
+Knowledge Base、PDF Database、ヘルプの検索のために、`intfloat/multilingual-e5-base` モデルでテキストをベクトルに変換します。CPU で動き、API キーは要りません。
 
-### Embeddingsコンテナ（`monadic-chat-embeddings-container`） :id=embeddings-container
-`intfloat/multilingual-e5-base` sentence-transformer モデルをラップする小さな FastAPI サービスを実行します。
-- **ポート**: 8002（ホスト） → 8000（コンテナ）。dev モードでのみ公開
-- **主な機能**: 英語、日本語など多言語に対応するローカル 768 次元テキスト埋め込み
-- **このコンテナを使用するアプリ**: Qdrant と同じ（Knowledge Base、Monadic Help、カスタム RAG）
-- 外部 API キー不要。埋め込み推論はホスト CPU 上で完結します。
+### Privacy コンテナ（`monadic-chat-privacy-container`） :id=privacy-container
+[Privacy Filter](../advanced-topics/privacy-filter.md) のために個人情報を見つけます。Privacy Filter は、テキストを API に送る前に個人情報をプレースホルダーに置き換えます。ローカルで動き、API キーは要りません。
 
-### Privacyコンテナ（`monadic-chat-privacy-container`） :id=privacy-container
-Privacy Filter が使用するローカルの個人情報マスキングサービス（spaCy + Presidio）を実行し、テキストを外部 API に送信する前に個人情報をプレースホルダーに置き換えます。デフォルトで起動します（`PRIVACY_FILTER=true`）。
-- **主な機能**: Privacy Filter 用の固有表現抽出と個人情報マスキング
-- **このコンテナを使用するアプリ**: Privacy Filter が有効な間はすべてのアプリ（デフォルトで有効）
-- 外部 API キー不要。マスキングはホスト CPU 上でローカルに実行されます。
+### Extractor コンテナ（`monadic-chat-extractor-container`） :id=extractor-container
+Knowledge Base Quality Pack をインストールしたときだけあります（**Actions → Install Options → Install Knowledge Base Quality Pack**）。Knowledge Base にファイルを取り込むとき、[Docling](https://github.com/docling-project/docling) で PDF からテキストを取り出します（レイアウトの解析と OCR を含みます）。このコンテナが無いときは、PDF からのテキストの抽出を Python コンテナで行います。このとき OCR は行わないので、スキャンした画像だけの PDF からはテキストを取り出せません。
 
-### Extractorコンテナ（`monadic-chat-extractor-container`） :id=extractor-container
-オプトインのコンテナで、Knowledge Base Quality Pack（[Docling](https://github.com/docling-project/docling) ベースの OCR 対応ドキュメント抽出サービス）を提供します。**アクション → インストールオプション** からインストールします（`EXTRACTOR_SERVICE=true` が設定されます）。インストールされている場合、Knowledge Base の PDF インポートはこのコンテナを経由してレイアウト解析付き・OCR 対応で抽出されます。未インストールの場合、PDF は Python コンテナの pdfplumber で処理されます。
-- **主な機能**: レイアウト解析付き PDF 抽出、表構造の復元、OCR（言語はインストールオプションで選択可能）
-- **このコンテナを使用するアプリ**: `Knowledge Base`（ファイルインポート）
-- 外部 API キー不要。抽出はローカルで実行されます。
-
-
-## アプリタイプ別のコンテナ要件 :id=container-requirements
+## アプリごとに必要なコンテナ :id=container-requirements
 
 ### 最小構成 :id=minimal-setup
-基本的なチャット機能には、Rubyコンテナのみが厳密に必要です。Rubyコンテナだけで動作するアプリには以下が含まれます：
-- Chat（すべてのプロバイダー）
+次のアプリは Ruby コンテナだけを使います（Qdrant と Embeddings は常に動いています）。
+- Chat
 - Voice Chat
 - Mail Composer
-- Coding Assistant（コード実行なし）
+- Coding Assistant
 - Language Practice
 - Novel Writer
 - Translate
 
 ### 拡張機能 :id=extended-functionality
-以下のコンテナは追加機能を有効にします：
 
-**Pythonコンテナ**: 以下に必要：
-- コード実行（Code Interpreter、Jupyter Notebook）
-- 図の生成（Syntax Tree、Concept Visualizer）
-- ビデオ分析（Video Describer）
-- LaTeXレンダリングを使用するアプリ
+**Python コンテナ**：
+- コードの実行（Code Interpreter、Jupyter Notebook）
+- LaTeX による図（Syntax Tree、Concept Visualizer）
+- 動画の分析（Video Describer）
+- Knowledge Base へのファイルの取り込み（PDF と Office のファイル）
 
-**Seleniumコンテナ**: 以下に必要：
-- Webコンテンツの取得（Research Assistant、Web Insight）
-- Mermaid図の検証とプレビュー
-- Webスクレイピング機能
+**Selenium コンテナ**：
+- Web ページを開く、スクリーンショットを撮る（Web Insight、Research Assistant、Auto Forge）
+- 図のプレビュー（Mermaid Grapher、DrawIO Grapher）
 
-**Qdrant + Embeddings コンテナ**: 以下に必要：
-- Knowledge Base（ファイルインポート + 保存したチャットセッション）
-- ヘルプシステム（Monadic Help）
-- カスタム RAG アプリケーション
+**Qdrant と Embeddings のコンテナ**：
+- Knowledge Base
+- PDF Database
+- Monadic Chat Help
 
-これらは常に基盤サービスとして同時に立ち上がります。オプトインフラグはありません。なお、Knowledge Base のファイルインポートには抽出経路も必要です。PDF と Office ファイルの抽出は Python コンテナが担当し、Knowledge Base Quality Pack がインストールされている場合は PDF の抽出を Extractor コンテナが担当します。
+?> 独自のコンテナを加える方法は、[Docker コンテナの追加](../advanced-topics/adding-containers.md)を参照してください。
 
-?> 追加のDockerコンテナを導入する方法については、[Dockerコンテナの追加](../advanced-topics/adding-containers.md)を参照してください。
-  
-## Ollama連携（ネイティブ） :id=ollama-integration
+## Ollama との連携（ネイティブ） :id=ollama-integration
 
-Monadic Chatは、ローカルLLMの実行に[Ollama](https://ollama.com)をサポートしています。OllamaはホストOS上でネイティブに動作し（Dockerコンテナ内ではありません）、GPU アクセラレーション（macOSのMetal、Linux/WindowsのCUDA）を直接利用できます。[https://ollama.com/download](https://ollama.com/download) からOllamaをインストールし、`ollama pull <model>` コマンドでモデルを管理してください。設定方法は[Ollamaの利用](../advanced-topics/ollama.md)を参照してください。
+Monadic Chat は、ローカルの LLM として [Ollama](https://ollama.com) を使えます。Ollama はコンテナではなくお使いのコンピューターで動き、その GPU を使います（macOS は Metal、Linux と Windows は CUDA）。[https://ollama.com/download](https://ollama.com/download) からインストールし、`ollama pull <model>` でモデルをダウンロードします。[Ollama の利用](../advanced-topics/ollama.md)を参照してください。
 
-## コンテナネットワークアーキテクチャ :id=network-architecture
+## コンテナのネットワーク構成 :id=network-architecture
 
-すべてのコンテナは共有Dockerネットワークを介して通信します：
+### ネットワークの設定 :id=network-configuration
+- **ネットワーク名**：`monadic-chat-network`（bridge）
+- コンテナどうしは、コンテナ名で互いに接続します
 
-### ネットワーク構成 :id=network-configuration
-- **ネットワーク名**: `monadic-chat-network`
-- **ネットワークドライバー**: Bridge
-- **コンテナ間通信**: コンテナ名をホスト名として使用して有効化
+### コンテナの起動 :id=container-dependencies
+- Start を押すと、Ruby、Python、Selenium、Qdrant、Embeddings、Privacy のコンテナが起動します。Extractor コンテナは、インストールしてあれば起動します
+- Web 画面は Ruby コンテナの準備ができるとすぐに開きます。Knowledge Base とヘルプの検索は、Qdrant と Embeddings の起動が終わると使えます（初回の起動は、埋め込みのモデルを読み込むので時間がかかります）。ヘルプの検索には、Monadic Chat Info パネルの **Help Data** からインストールしたヘルプのデータも要ります
+- アプリに必要なコンテナが止まっていれば、そのアプリを選んだときに Monadic Chat が起動し直します
 
-### コンテナの依存関係と起動順序 :id=container-dependencies
-1. **Qdrant** と **embeddings** が基盤サービスとして並行起動
-2. **Python** と **Selenium** もアプリケーション起動のたびに同時に立ち上がる
-3. **Privacy**（デフォルトで有効）と **Extractor**（オプトイン）も、それぞれの機能が有効な場合は起動時に立ち上がる
-4. **Ruby** はすぐに起動し、ベクトルサービスはアプリケーションレベルのリトライで待つ
+### 共有するデータのボリューム :id=shared-volumes
+- **共有フォルダ**：`~/monadic/data` は、Ruby、Python、Selenium、Extractor の各コンテナの `/monadic/data` にマウントされます
+- **設定とログ**：`/monadic/config` と `/monadic/log` は、Ruby コンテナだけにマウントされます
+- Qdrant は、データを Docker のボリューム `monadic-chat-qdrant-data` に保存します
 
-後からコンテナが停止していることが検出された場合（手動停止後など）は、`ensure-service` のリカバリー経路で個別に再起動されます。
+## 更新と再ビルド :id=rebuilding-process
 
-Ruby コンテナは qdrant や embeddings に対して `depends_on` のヘルスチェック結合を意図的に持ちません。embeddings コンテナは初回起動時に `multilingual-e5-base` のロードで 30-60 秒かかる場合があり、その完了を待たずに Ruby Web UI にアクセスできるようにするためです。
+- アプリを更新した後の最初の Start で、Ruby コンテナが再ビルドされます（ビルドのキャッシュを使うので短時間です）。ほかのコンテナは、更新で定義が変わったものだけが更新されます
+- **Actions → Build Ruby Container** と **Actions → Build Python Container** は、キャッシュを使わずに一からビルドします
+- Start の進み具合はコンソールに表示されます。起動ごとのまとめは `~/monadic/log/docker_startup.log` に書かれます
 
-### 共有データボリューム :id=shared-volumes
-すべてのコンテナは以下へのアクセスを共有します：
-- **ユーザーデータ**: `~/monadic/data`（コンテナ内では`/monadic/data`としてマウント）
-- **設定**: Rubyコンテナのみが`/monadic/config`への排他的アクセスを持つ
-- **ログ**: Rubyコンテナのみが`/monadic/log`への排他的アクセスを持つ
+## 起動時のヘルスチェック :id=startup-health
 
-## コンテナの再ビルドプロセス :id=rebuilding-process
+Start のとき、Monadic Chat は Ruby コンテナが正常（healthy）と報告するまで待ちます。異常と報告されたときは、Ruby コンテナを一度だけ再ビルドして起動し直します。このとき、コンソールには情報として表示されます。
 
-アプリケーションが更新された場合、Monadic Chatは再ビルドが必要なコンテナをインテリジェントに判断します：
-
-1. 新規インストールの場合、すべてのコンテナが最初から構築されます
-2. バージョン更新時:
-   - Python、Selenium、Embeddings コンテナの Dockerfile に変更があるかチェックします
-   - 変更が検出された場合、すべてのコンテナの完全な再ビルドが実行されます
-   - 変更が検出されない場合、Rubyコンテナのみが再ビルドされます
-
-この最適化された再ビルドプロセスにより、最も一般的な更新シナリオであるRubyコードのみが変更された場合に、更新時間を短縮できます。
-
-## オーケストレーションのヘルスチェックと自動リカバリー
-
-起動時、Rubyコントロールプレーンがサービスを調整し、ヘルスチェックを実行します。コントロールプレーンが更新されたコンテナ（Pythonやユーザーコンテナのビルド後など）を管理する準備がまだ整っていないことを検出すると、Rubyコンテナのキャッシュフレンドリーな再ビルドを1回実行し、起動を継続します。これはユーザーに情報ステータスとして表示され（警告ではありません）、準備完了時に緑色の成功メッセージが表示されます。
-
-### 診断
-- 最終的な起動サマリーは`~/monadic/log/docker_startup.log`に記録されます。
-- 自動リフレッシュが実行された場合、`Auto-rebuilt Ruby due to failed health probe`と表示されます。
-- `~/monadic/config/env`で`START_HEALTH_TRIES`と`START_HEALTH_INTERVAL`を設定してプローブを調整できます。
-
-### 依存指紋とキャッシュフレンドリーなRuby更新
-
-- Ruby の更新は **Gem 依存が変わったときのみ** 行います。`Gemfile` と `monadic.gemspec` の SHA256 を `com.monadic.gems_hash` としてイメージに埋め込み、作業コピーと一致しない場合にだけ再ビルドします。
-- 再ビルドは Docker のキャッシュを活用し、可能な限り bundle レイヤーを再利用します。
-- 診断目的で完全ノーキャッシュにしたい場合は、`~/monadic/config/env` に `FORCE_RUBY_REBUILD_NO_CACHE=true` を設定してください。
+- 待つ長さは、`~/monadic/config/env` の `START_HEALTH_TRIES`（既定は `20`）と `START_HEALTH_INTERVAL`（秒、既定は `2`）で決まります
+- `~/monadic/config/env` に `FORCE_RUBY_REBUILD_NO_CACHE=true` を書くと、Ruby の再ビルドは毎回キャッシュを使いません

@@ -2,7 +2,7 @@
 
 ## Setup
 
-Monadic Chat connects directly to Ollama running on your host machine. This provides full GPU acceleration (Metal on macOS, CUDA on Linux) and eliminates the need for a separate Docker container.
+Monadic Chat connects to Ollama running on your computer, outside Docker. Ollama uses the GPU of the computer (Metal on macOS, CUDA on Linux).
 
 ### 1. Install Ollama
 
@@ -14,93 +14,70 @@ Download and install Ollama for your operating system:
 
 ### 2. Pull a Model
 
-After installation, pull at least one model. A lightweight text-only starter:
+After installation, pull at least one model:
 
 ```bash
-ollama pull gemma4:e4b
+ollama pull <model-name>
 ```
 
-For a model that supports vision, tool calling, and thinking in one package:
-
-```bash
-ollama pull qwen3-vl:8b-thinking
-```
-
-You can browse available models at [Ollama Library](https://ollama.com/library). See the [Model Capabilities](#model-capabilities) section below for details on how Monadic Chat adapts to each model's features.
+Available models are listed in the [Ollama Library](https://ollama.com/library). For the tool features of Monadic Chat, choose a model with the `tools` capability; see [Model Capabilities](#model-capabilities).
 
 ### 3. Start Ollama
 
-Ensure Ollama is running before starting Monadic Chat. On macOS and Windows, the Ollama app starts automatically at login. On Linux, you may need to start it manually:
+Ollama must be running when you use the Ollama apps. On macOS and Windows, the Ollama app starts at login. On Linux, start it yourself if it is not running:
 
 ```bash
 ollama serve
 ```
 
-!> **Linux users**: By default, Ollama only listens on `127.0.0.1` (localhost). Since Monadic Chat's backend runs inside a Docker container, it connects to the host via `host.docker.internal`, which resolves to the Docker bridge gateway IP — not `127.0.0.1`. To allow connections from Docker containers, start Ollama with `OLLAMA_HOST=0.0.0.0 ollama serve`, or enable **"Expose Ollama to the network"** in the Ollama app settings. This is not required on macOS or Windows, where Docker Desktop handles this transparently.
+!> **Linux users**: Ollama listens only on `127.0.0.1` by default. Monadic Chat's backend runs in a Docker container and reaches the host through `host.docker.internal`, which is not `127.0.0.1` on Linux. Start Ollama with `OLLAMA_HOST=0.0.0.0 ollama serve`, or turn on **"Expose Ollama to the network"** in the Ollama app settings. This is not needed on macOS or Windows.
 
 ### 4. Start Monadic Chat
 
-Start Monadic Chat normally. The Ollama apps will appear in the Ollama group. If Ollama is not running, the apps will show an error message when you try to use them.
+Start Monadic Chat as usual. The Ollama apps are in the Ollama group. If Ollama is not running, the apps show an error message when you use them.
 
 ## Adding Language Models
 
-Use the `ollama` command to manage models directly on your system:
+Manage models with the `ollama` command:
 
 ```bash
 # List installed models
 ollama list
 
-# Pull a new model
-ollama pull gemma3:4b
-
-# Run a model (downloads if not present)
-ollama run llama3.2
+# Pull a model
+ollama pull <model-name>
 
 # Remove a model
 ollama rm <model-name>
 ```
 
-Models you install will be automatically available for selection in the Ollama apps. Reload the web interface if a newly added model does not appear immediately.
+Installed models appear in the model menu of the Ollama apps. If a model you just added does not appear, reload the web interface.
 
 ## Model Capabilities :id=model-capabilities
 
-Monadic Chat detects each Ollama model's features at runtime by querying Ollama's `/api/show` endpoint. The UI adapts automatically: the image upload button appears only for vision-capable models, the thinking panel shows only for models that expose reasoning, and tool-using apps only send tool definitions to models that support function calling.
+Monadic Chat reads each model's capabilities from Ollama's `/api/show` endpoint and adapts the interface:
 
-The following capabilities are detected:
+| Capability | What it enables |
+|------------|-----------------|
+| **vision** | Image input. The image button appears only for these models. |
+| **tools** | Tool calling: web search and the tool features of Coding Assistant, Mail Composer and Knowledge Base. |
+| **thinking** | Reasoning output, shown in the thinking panel. The Show Thinking toggle turns it on and off. |
 
-| Capability | Description | Example Models |
-|------------|-------------|----------------|
-| **vision** | Image input support (multimodal) | `qwen3-vl:*`, `llava`, `llama3.2-vision` |
-| **tools** | Function calling for tool-enabled apps (Coding Assistant, Knowledge Base) | `qwen3-vl:*`, `qwen3:*`, `llama3.1`, `mistral` |
-| **thinking** | Streaming reasoning output via Ollama's `think` parameter | `qwen3-vl:*-thinking`, `qwen3:*-thinking`, `deepseek-r1:*` |
-| **structured output** | JSON schema-constrained generation (supported by all models) | all |
+Structured output (generation constrained by a JSON schema) works with every model.
 
-You can inspect any model's capabilities directly with:
+To see a model's capabilities:
 
 ```bash
 ollama show <model-name>
 ```
 
-If Ollama is temporarily unavailable when Monadic Chat starts, the system falls back to a name-based heuristic (e.g. models with `-thinking` in the name are treated as thinking-capable).
+When `/api/show` gives no answer for a model, Monadic Chat guesses from the model name (for example, a name containing `thinking` is treated as a thinking model, and a name containing `vision` or `-vl` as a vision model) and treats the model as able to call tools.
 
-> **Note on `-thinking` model variants**: Models with `-thinking` in the name (e.g. `qwen3-vl:8b-thinking`) always generate reasoning tokens internally, even when the Show Thinking toggle is off. This results in slower responses that cannot be avoided. For faster responses, use non-thinking variants such as `gemma4:e4b`, which can fully disable thinking when the toggle is off.
+?> Some models produce reasoning on every request, even when Show Thinking is off; their names often contain `thinking`. They answer more slowly. If speed matters, choose a model whose thinking can be turned off.
 
-## Recommended Models for Tool Calling
+## Models Without Tool Calling
 
-Most Monadic Chat features (web search, file operations, agentic workflows, structured tool dispatch) require a model with the `tools` capability. When you select an Ollama model whose `/api/show` capabilities list omits `tools`, the sidebar shows a yellow **No tool calling** indicator and the tool features of Coding Assistant, Mail Composer, and Knowledge Base will not work.
-
-The following families ship with tool calling and fit comfortably in 16 GB unified memory at Q4 quantization. Sizes are approximate VRAM footprint after quantization; consult `ollama show <model>` for authoritative numbers.
-
-| Family | Tag | Approx. size (Q4) | Notes |
-|--------|-----|-------------------|-------|
-| Qwen3-VL | `qwen3-vl:4b` / `qwen3-vl:8b` | 3 GB / 6 GB | Vision + tools + thinking. Strong CJK coverage. |
-| Qwen3 | `qwen3:4b` / `qwen3:8b` | 2.5 GB / 5 GB | Text-only, tools + thinking. |
-| Llama 3.1 | `llama3.1:8b` | 5 GB | Tools, no vision. |
-| Llama 3.2 | `llama3.2:3b` | 2 GB | Tools, no vision. Small footprint. |
-| Mistral | `mistral:7b-instruct` (and tool-calling variants) | 4 GB | Tools, no vision. Check the tag for `-instruct` or `-tool-use`. |
-| Phi-3.5 Mini | `phi3.5:3.8b` | 2.5 GB | Tools, no vision. Microsoft-released. |
-
-For text-only chat without agentic features, smaller non-tool models such as `gemma3:4b` or `gemma4:e4b` are perfectly suitable — the sidebar warning is informational, not blocking.
+When the selected model does not have the `tools` capability, the sidebar shows a yellow **No tool calling** indicator. Web search and the tool features of Coding Assistant, Mail Composer and Knowledge Base do not work with that model. For plain conversation, such a model works without problems.
 
 ## Available Apps
 
@@ -108,19 +85,17 @@ The following apps are available in the Ollama group:
 
 | App | Description |
 |-----|-------------|
-| **Chat** | General conversational AI assistant. Supports text and images. |
-| **Coding Assistant** | Programming help with code suggestions and explanations. Supports file operations in the shared folder. |
-| **Knowledge Base** | Manage conversations and documents stored in the project-wide Knowledge Base: search, sharing across apps, and importing external content. |
-| **Language Practice** | Language conversation practice with grammar corrections. |
-| **Mail Composer** | Email drafting assistance with tone customization. Supports file operations in the shared folder. |
-| **Voice Chat** | Conversational AI with voice input and output support. |
+| **Chat** | General conversation. Accepts images when a vision model is selected. |
+| **Coding Assistant** | Help with programming, including file operations in the shared folder. |
+| **Knowledge Base** | Work with the Knowledge Base: search, list, change scope, import and delete entries. |
+| **Language Practice** | Conversation practice in a foreign language, with corrections. |
+| **Mail Composer** | Help with writing emails, including file operations in the shared folder. |
+| **Voice Chat** | Conversation by voice. |
 
-Coding Assistant and Mail Composer use tool calling for file operations, and Knowledge Base uses it for Library operations. These apps require a model with the `tools` capability (see [Model Capabilities](#model-capabilities)). Chat additionally supports image input when a vision-capable model is selected.
+Coding Assistant, Mail Composer and Knowledge Base need a model with the `tools` capability.
 
 ## Technical Details
 
-- **GPU Acceleration**: Native Ollama uses Metal (macOS) or CUDA (Linux) for hardware-accelerated inference
-- **Default Model**: The default model can be configured via `OLLAMA_DEFAULT_MODEL` in `~/monadic/config/env`
-- **Connection**: Monadic Chat's Ruby backend (running in Docker) connects to host Ollama via `host.docker.internal:11434`
-- **Model List**: The app dynamically checks for available models when the Ollama service is running
-- **Fallback**: If Ollama is not running, the app returns an error message instead of silently failing
+- **Default model**: Set `OLLAMA_DEFAULT_MODEL` in `~/monadic/config/env`.
+- **Connection**: The backend connects to `host.docker.internal:11434`, and to `localhost:11434` when that fails.
+- **Model list**: The list of models is read from Ollama while it is running and refreshed every 30 seconds.

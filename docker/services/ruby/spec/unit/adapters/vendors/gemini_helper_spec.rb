@@ -453,7 +453,7 @@ RSpec.describe GeminiHelper do
 
     # Public API methods
     %i[api_request process_json_data process_functions send_query
-       generate_video_with_veo generate_image_with_gemini generate_image_with_imagen_direct].each do |method|
+       generate_video_with_gemini generate_video_with_veo generate_image_with_gemini generate_image_with_imagen_direct].each do |method|
       it "#{method} is public" do
         expect(helper_class.public_method_defined?(method)).to be(true),
           "Expected #{method} to be public"

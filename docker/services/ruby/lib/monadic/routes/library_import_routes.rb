@@ -42,6 +42,7 @@ require 'fileutils'
 require 'securerandom'
 require 'tempfile'
 require 'monadic/library'
+require_relative '../utils/shared_path_guard'
 
 # Cap each upload at 100 MiB. Larger files would queue extractor work
 # for an extended time and risk filling the imports/ directory. Override
@@ -90,75 +91,87 @@ post "/library/import" do
   options[:license] = params["libraryLicense"].to_s unless params["libraryLicense"].to_s.strip.empty?
 
   # Persist the upload under the shared volume so the python container
-  # can read it via the same `/monadic/data` mount.
+  # can read it via the same `/monadic/data` mount. The copy is used only
+  # while this import runs and is deleted when it ends, however it ends.
   data_root = Monadic::Utils::Environment.data_path
   imports_dir = File.join(data_root, 'library', 'imports')
-  FileUtils.mkdir_p(imports_dir)
+  Monadic::Utils::SharedPathGuard.mkdir_p!(imports_dir)
   dest_path = File.join(imports_dir, "#{Time.now.to_i}_#{SecureRandom.hex(4)}_#{filename}")
 
+  # Until the worker owns the copy, a failure here removes it: only a copy
+  # this request put in place, never a file that already had the name.
+  written = false
   begin
-    File.open(dest_path, 'wb') { |f| f.write(file["tempfile"].read) }
-  ensure
-    file["tempfile"].close rescue nil
-  end
-
-  import_id = Monadic::Library::ImportTracker.create
-  Monadic::Library::ImportTracker.update(
-    import_id,
-    filename: filename,
-    scope_app: scope_app,
-    upload_bytes: upload_size
-  )
-
-  # Worker thread. We deliberately use Thread.new (not Async::Task)
-  # because the inner pipeline is synchronous I/O against http extractor
-  # / embeddings / Qdrant — fiber scheduling buys nothing here, and
-  # Thread releases the request handler immediately.
-  Thread.new do
-    Thread.current.report_on_exception = false
     begin
-      Monadic::Library::ImportTracker.update(import_id, stage: 'extracting')
-      conversation = Monadic::Library::FileImporter.build_conversation(
-        path: dest_path, filename: filename, options: options
-      )
-
-      Monadic::Library::ImportTracker.update(import_id, stage: 'embedding_storing')
-      store = Monadic::Library::Store.new
-      result = Monadic::Library::Manager.import_conversation(
-        store: store, conversation: conversation, scope_app: scope_app
-      )
-
-      Monadic::Library::ImportTracker.update(
-        import_id,
-        stage: 'done',
-        finished_at: Time.now,
-        conversation_id: result[:conversation_id],
-        counts: result[:counts].each_with_object({}) { |(k, v), h| h[k.to_s] = v }
-      )
-    rescue Monadic::Library::FileImporter::UnsupportedFormatError => e
-      Monadic::Library::ImportTracker.update(
-        import_id, stage: 'error', finished_at: Time.now, error: e.message
-      )
-    rescue Monadic::Library::FileImporter::ExtractionError => e
-      Monadic::Library::ImportTracker.update(
-        import_id, stage: 'error', finished_at: Time.now,
-        error: "Extraction failed: #{e.message}"
-      )
-    rescue ArgumentError => e
-      Monadic::Library::ImportTracker.update(
-        import_id, stage: 'error', finished_at: Time.now, error: e.message
-      )
-    rescue StandardError => e
-      if defined?(Monadic::Utils::ExtraLogger)
-        Monadic::Utils::ExtraLogger.log do
-          "[Library] Async /library/import failed: #{e.class}: #{e.message}"
-        end
-      end
-      Monadic::Library::ImportTracker.update(
-        import_id, stage: 'error', finished_at: Time.now,
-        error: "Library import failed: #{e.class.name} - #{e.message}"
-      )
+      Monadic::Utils::SharedPathGuard.write_file!(dest_path, file["tempfile"], replace: false)
+      written = true
+    ensure
+      file["tempfile"].close rescue nil
     end
+
+    import_id = Monadic::Library::ImportTracker.create
+    Monadic::Library::ImportTracker.update(
+      import_id,
+      filename: filename,
+      scope_app: scope_app,
+      upload_bytes: upload_size
+    )
+
+    # Worker thread. We deliberately use Thread.new (not Async::Task)
+    # because the inner pipeline is synchronous I/O against http extractor
+    # / embeddings / Qdrant — fiber scheduling buys nothing here, and
+    # Thread releases the request handler immediately.
+    Thread.new do
+      Thread.current.report_on_exception = false
+      begin
+        Monadic::Library::ImportTracker.update(import_id, stage: 'extracting')
+        conversation = Monadic::Library::FileImporter.build_conversation(
+          path: dest_path, filename: filename, options: options
+        )
+
+        Monadic::Library::ImportTracker.update(import_id, stage: 'embedding_storing')
+        store = Monadic::Library::Store.new
+        result = Monadic::Library::Manager.import_conversation(
+          store: store, conversation: conversation, scope_app: scope_app
+        )
+
+        Monadic::Library::ImportTracker.update(
+          import_id,
+          stage: 'done',
+          finished_at: Time.now,
+          conversation_id: result[:conversation_id],
+          counts: result[:counts].each_with_object({}) { |(k, v), h| h[k.to_s] = v }
+        )
+      rescue Monadic::Library::FileImporter::UnsupportedFormatError => e
+        Monadic::Library::ImportTracker.update(
+          import_id, stage: 'error', finished_at: Time.now, error: e.message
+        )
+      rescue Monadic::Library::FileImporter::ExtractionError => e
+        Monadic::Library::ImportTracker.update(
+          import_id, stage: 'error', finished_at: Time.now,
+          error: "Extraction failed: #{e.message}"
+        )
+      rescue ArgumentError => e
+        Monadic::Library::ImportTracker.update(
+          import_id, stage: 'error', finished_at: Time.now, error: e.message
+        )
+      rescue StandardError => e
+        if defined?(Monadic::Utils::ExtraLogger)
+          Monadic::Utils::ExtraLogger.log do
+            "[Library] Async /library/import failed: #{e.class}: #{e.message}"
+          end
+        end
+        Monadic::Library::ImportTracker.update(
+          import_id, stage: 'error', finished_at: Time.now,
+          error: "Library import failed: #{e.class.name} - #{e.message}"
+        )
+      ensure
+        (Monadic::Utils::SharedPathGuard.delete_file!(dest_path) rescue nil)
+      end
+    end
+  rescue StandardError
+    (Monadic::Utils::SharedPathGuard.delete_file!(dest_path) rescue nil) if written
+    raise
   end
 
   status 202

@@ -2,175 +2,170 @@
 
 ## 概要
 
-ツールグループは、複数のアプリケーション間で共有できる関連ツールのコレクションです。アプリを作成または使用する際、どのツールグループが利用可能かを示すバッジが表示されます。
+ツールグループは、いくつものアプリで共有する、関連するツールのまとまりです。アプリは `import_shared_tools` でグループを取り込み、アプリの説明に、使っているグループが表示されます。
 
-## ツールグループバッジ
+## ツールグループのバッジ
 
-ツールグループバッジはアプリセレクターインターフェースに表示され、利用可能なツールを示します：
+アプリの説明の欄に、ツールグループがバッジで表示されます。行は最大で 3 つです。
 
-- **青色バッジ** (🔧): 常時利用可能なツール（例：ファイル操作、Python実行）
-- **黄色バッジ** (⚡): 条件付き利用可能なツール（例：Web自動化 - Seleniumが必要）
+- **Tools (Always)**：最初からツールがモデルに送られるグループ
+- **Tools (Conditional)**：モデルが `request_tool` で求めるまで隠れているグループ
+- **Capabilities**：Web 検索や Knowledge Base など、アプリの機能
 
-バッジには、ツールグループ名とそのグループ内のツール数が表示されます。
+バッジには、グループのアイコンと名前が表示されます。バッジにポインターを重ねると、説明とツールの数が表示されます。条件を満たしていない `conditional` のグループは表示されません。
 
 ## 利用可能なツールグループ
 
-### 常時利用可能
+下のアプリの一覧は、それぞれのグループを取り込んでいる組み込みのアプリです。
 
-これらのツールグループは常に利用可能で、追加のセットアップは不要です：
+### 条件のないグループ
 
-#### Jupyter操作（12ツール）
-- Jupyterノートブックの作成と管理
-- ノートブックへのセル追加
-- JupyterLabでのコード実行
-- ノートブックコンテンツの一覧表示と取得
+#### Jupyter Operations（12 ツール）
+- Jupyter のノートブックを作り、管理する
+- ノートブックにセルを加える
+- JupyterLab でコードを実行する
+- ノートブックの一覧と内容を取得する
 
-**このツールを使用するアプリ**: Jupyter Notebook（全プロバイダー）
+**使っているアプリ**：Jupyter Notebook
 
-#### Python実行（4ツール）
-- サンドボックス化されたコンテナでのPythonコード実行
-- Python環境とパッケージのチェック
-- 計算ライブラリへのアクセス（NumPy、Pandasなど）
+#### Python Execution（4 ツール）
+- Python コンテナで Python のコードを実行する
+- Python の環境とパッケージを確かめる
+- Python のライブラリをインストールする
 
-**このツールを使用するアプリ**: Code Interpreter、Jupyter Notebook
+**使っているアプリ**：Code Interpreter、Jupyter Notebook、Math Tutor、Research Assistant
 
-#### ファイル操作（3ツール）
-- 共有フォルダからのファイル読み込み
-- 共有フォルダへのファイル書き込み・追記
-- 共有フォルダ内のファイル一覧表示
+#### File Operations（3 ツール）
+- 共有フォルダのファイルを読む
+- 共有フォルダのファイルに書き込む・追記する
+- 共有フォルダのファイルの一覧を得る
 
-**このツールを使用するアプリ**: Chat Plus、Code Interpreter、Jupyter Notebook
+**使っているアプリ**：すべてのアプリに自動で加わります。
 
-#### ファイル読み込み（3ツール）
-- 共有フォルダからのテキストファイル読み込み
-- PDFファイルからのテキスト抽出
-- Officeドキュメント（Word、Excel、PowerPoint）からのテキスト抽出
+#### File Reading（3 ツール）
+- 共有フォルダのテキストファイルを読む
+- PDF のファイルからテキストを取り出す
+- Office の文書（Word、Excel、PowerPoint）からテキストを取り出す
 
-**このツールを使用するアプリ**: Research Assistant、Chat Plus
+**使っているアプリ**：Code Interpreter、Jupyter Notebook、Math Tutor、Research Assistant
 
-#### プランニング（1ツール）
-- 複雑なマルチステップタスクの構造化された実行計画を提案
-- AIが実行前にユーザーに計画を提示し、承認を待つ
+#### Planning（1 ツール）
+- いくつもの手順がある作業の計画を示す
+- 作業を始める前に、計画を利用者に見せて承認を得る
 
-**このツールを使用するアプリ**: 全ツール対応アプリ（Code Interpreter、Research Assistant、Coding Assistant、Jupyter Notebook、AutoForge、Math Tutor 等）
+**使っているアプリ**：ツールを使うアプリの多く。たとえば Code Interpreter、Coding Assistant、Research Assistant、Jupyter Notebook、Math Tutor、AutoForge（OpenAI、Grok）、Mermaid Grapher、DrawIO Grapher、Web Insight
 
-#### Python並列実行（1ツール）
-- 2〜5個の独立したPythonコードスニペットを並列実行
-- 各スニペットは独自のプロセスで実行され、結果がまとめて返却される
-- テンポラリカードUIでリアルタイムに進捗表示
-- 複数の可視化、統計分析、モデル比較の同時実行に最適
+#### Parallel Python Execution（1 ツール）
+- 互いに独立した 2〜5 個の Python のコードを並行して実行する
+- それぞれのコードは別のプロセスで動き、結果はまとめて集められる
+- 実行中は、進み具合が一時的なカードに表示される
 
-**このツールを使用するアプリ**: Code Interpreter（全プロバイダー）
+**使っているアプリ**：Code Interpreter
 
-#### 並列ディスパッチ（1ツール）
-- 2〜5個の独立したサブタスクを別々のAPI呼び出しで並列実行
-- 各サブエージェントはテキストのみの呼び出しとして実行され、結果が収集・統合される
-- UIでWeb検索トグルが有効な場合、サブエージェントの**Web検索**をサポート
-- Web検索はプロバイダーのネイティブメカニズムを使用し、ネイティブ検索のないプロバイダーにはTavily APIをフォールバックとして使用 — [プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)を参照
-- テンポラリカードUIでリアルタイムに進捗表示
+#### Parallel Dispatch（1 ツール）
+- 互いに独立した 2〜5 個の小さな作業を、別々の API の呼び出しで並行して実行する
+- それぞれのサブエージェントはテキストだけの呼び出しで動き、結果は集められてまとめられる
+- Web Search のスイッチがオンなら、サブエージェントも Web を検索できる。検索にはプロバイダー自身の検索を使い、それがないプロバイダーでは Tavily API を使う。[プロバイダー機能の表](../basic-usage/basic-apps.md#provider-capabilities)を参照
+- 実行中は、進み具合が一時的なカードに表示される
 
-**このツールを使用するアプリ**: Research Assistant（全プロバイダー）
+**使っているアプリ**：Research Assistant
 
-#### 検証（1ツール）
-- ユーザーに結果を提示する前に、自己検証の結果を記録
-- ステータス: passed（合格）、issues_found（問題発見）、fixed（修正済み）をサポート
-- 検証が合格するか、リトライ上限（3回）に達すると自動的にツールループを停止
-- 処理中、テンポラリカードUIに検証ステータスが表示される
+#### Verification（1 ツール）
+- 利用者に示す前に、作業を確かめた結果を記録する
+- 状態：passed、issues found、fixed
+- 状態が passed か fixed になるか、3 回試すと、ツールの繰り返しが止まる
+- 実行中は、状態が一時的なカードに表示される
 
-**このツールを使用するアプリ**: Code Interpreter、Jupyter Notebook、AutoForge、Mermaid Grapher、DrawIO Grapher、Second Opinion（全プロバイダー）
+**使っているアプリ**：Code Interpreter、Jupyter Notebook、Mermaid Grapher、AutoForge（OpenAI、Grok）
 
-#### アプリ作成（3ツール）
-- 利用可能なMonadic Chatアプリケーションの一覧表示
-- 特定のアプリの詳細情報の取得
-- 基本的なアプリテンプレートファイルの作成
+#### App Creation（3 ツール）
+- Monadic Chat のアプリの一覧を得る
+- アプリの詳しい情報を得る
+- アプリのひな形のファイルを作る
 
-**このツールを使用するアプリ**: 組み込みアプリはデフォルトではインポートしていません。カスタムアプリで`import_shared_tools`または`reachable_skills`により利用可能
+**使っているアプリ**：組み込みのアプリにはありません。独自のアプリで `import_shared_tools` か `reachable_skills` を使えば使えます
 
-#### セッションコンテキスト（4ツール）
-- 会話コンテキスト（トピック、人物、メモ）の取得・更新・クリア
-- コンテキストから特定の項目を削除
-- コンテキストはサイドバーパネルに表示される
+#### Session Context（4 ツール）
+- 会話の文脈（話題、人物、メモ）を取得・更新・消去する
+- 文脈から特定の項目を取り除く
+- 文脈はサイドバーのパネルに表示される
 
-**このツールを使用するアプリ**: Chat Plus（全プロバイダー）
+**使っているアプリ**：Chat Plus
 
-### 条件付き利用可能
+### 条件のあるグループ
 
-これらのツールグループは、特定のコンテナまたはAPIキーが利用可能である必要があります：
+#### Web Automation（16 ツール）
+**必要なもの**：Selenium と Python のコンテナ
 
-#### Web自動化（16ツール）
-**必要条件**: SeleniumコンテナとPythonコンテナが実行中
+- Web ページを、画面の大きさのスクリーンショットとして撮る（端末のプリセットあり）
+- noVNC で見られる、操作できるブラウザーのセッションを動かす
+- 操作できるブラウザーで、移動、クリック、入力、スクロール、選択、キーの入力をする
+- ページの構造を調べ、候補の要素に印を付ける
 
-- Webページのビューポートサイズスクリーンショットのキャプチャ（デバイスプリセット対応）
-- noVNCで可視化されるインタラクティブブラウザセッションの実行
-- インタラクティブブラウザでのナビゲート、クリック、入力、スクロール、選択、キー送信
-- ページ構造の確認と、曖昧さ解消のための候補要素への番号付きラベル表示
+**使っているアプリ**：Web Insight、AutoForge、Research Assistant（OpenAI、Claude、Gemini、Grok）
 
-**このツールを使用するアプリ**: Web Insight（全プロバイダー）、AutoForge（全プロバイダー）
+Selenium のコンテナは Monadic Chat とともに起動します。グループが表示されないときは、起動が終わるまで待ってください。Selenium のイメージがないときは、**Actions → Build All** でダウンロードします。
 
-**有効化方法**:
-SeleniumコンテナはMonadic Chatの起動時に自動で起動します。バッジが利用不可の
-場合は起動完了を待ってください。Seleniumイメージが存在しない場合は
-**Actions → Build All** を実行してダウンロードしてください。
+#### Video Analysis（1 ツール）
+**必要なもの**：OpenAI、Anthropic、Gemini、xAI のどれかで動くアプリと、そのプロバイダーの API キー
 
-#### 動画分析（1ツール）
-**必要条件**: OpenAI、Anthropic、Gemini、xAI のいずれかのアプリで、そのプロバイダーのAPIキーが設定済み
+- マルチモーダルのモデルで動画の内容を分析する
+- フレームから動画を説明する
+- フレームはアプリ自身のプロバイダーにだけ送られる。そのプロバイダーに音声認識があれば（OpenAI、Gemini、xAI）、音声も文字に起こされる。なければ、音声は文字に起こしていないと説明に書かれる
 
-- マルチモーダルAIを使用した動画コンテンツの分析
-- 動画フレームからの説明生成
-- フレームはアプリ自身のプロバイダーにだけ送られます。音声トラックは、そのプロバイダーが音声認識に対応している場合（OpenAI、Gemini）に文字起こしされ、対応していない場合は文字起こしをしなかったことが説明に添えられます
+**使っているアプリ**：Video Describer
 
-**このツールを使用するアプリ**: Video Describer
+#### Web Search（4 ツール）
+**必要なもの**：`TAVILY_API_KEY`
 
-#### Web検索（4ツール）
-**必要条件**: ネイティブWeb検索を持たないプロバイダーでは`TAVILY_API_KEY`が必要 — [プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)を参照
+- Tavily で Web を検索し、ページを取得する（引用付き）
+- URL の内容を取得し、共有フォルダに保存する
 
-- プロバイダーに応じた方法（ネイティブまたはTavily）でのWeb検索
-- URLからコンテンツを取得し共有フォルダに保存
-- 引用付きのTavily検索・ページ取得
+このグループの検索のツールは、Tavily を通して結果を返します。プロバイダー自身の Web 検索は、Web Search のスイッチでオンにする別の機能で、このグループがなくても使えます。[プロバイダー機能の表](../basic-usage/basic-apps.md#provider-capabilities)を参照してください。`TAVILY_API_KEY` がないときは、このグループの検索のツールは結果を返しません。
 
-**このツールを使用するアプリ**: Research Assistant、Mermaid Grapher、Wikipedia
+**使っているアプリ**：Research Assistant、Mermaid Grapher、Wikipedia
 
-#### 音声文字起こし（1ツール）
-**必要条件**: OpenAI または Gemini のアプリで、そのプロバイダーのAPIキーが設定済み
+#### Audio Transcription（1 ツール）
+**必要なもの**：OpenAI、Gemini、xAI のどれかで動くアプリと、そのプロバイダーの API キー
 
-- 音声認識機能による音声ファイルの文字起こし
-- 音声はアプリ自身のプロバイダーにだけ送られます。ほかのプロバイダーのアプリでは、このツールは提供されません
+- 音声認識で音声のファイルを文字に起こす
+- 音声はアプリ自身のプロバイダーにだけ送られる。ほかのプロバイダーのアプリには、このツールはない
 
-**このツールを使用するアプリ**: Video Describer、Speech Draft Helper
+**使っているアプリ**：Speech Draft Helper
 
-#### 画像分析（1ツール）
-**必要条件**: OpenAI、Anthropic、Gemini、xAI、Mistral、Cohere、DeepSeek のいずれかのアプリで、そのプロバイダーのAPIキーが設定済み
+#### Image Analysis（1 ツール）
+**必要なもの**：OpenAI、Anthropic、Gemini、xAI、Mistral、Cohere、DeepSeek のどれかで動くアプリと、そのプロバイダーの API キー
 
-- ビジョン機能を使用した画像ファイル内容の分析と説明
-- 画像はアプリ自身のプロバイダーにだけ送られ、ほかのプロバイダーに送られることはありません
+- モデルの画像を読む能力で、画像のファイルの内容を説明する
+- 画像はアプリ自身のプロバイダーにだけ送られる
 
-**このツールを使用するアプリ**: Code Interpreter、Research Assistant
+**使っているアプリ**：Code Interpreter、Research Assistant、Speech Draft Helper
 
-#### ライブラリ検索（1ツール）
-**必要条件**: ナレッジベース（埋め込みサービス）が利用可能
+#### Library Search（1 ツール）
+**必要なもの**：Knowledge Base（Qdrant と embeddings のコンテナ）
 
-- プロジェクト全体のナレッジベースからクエリに関連する箇所を検索
-- 元の会話やドキュメントへの引用リンク付きでスニペットを返す
+- 問い合わせに関係する部分を Knowledge Base から探す
+- もとの会話や文書へのリンクの付いた引用とともに、該当する部分を返す
 
-**このツールを使用するアプリ**: 対象となるアプリに自動注入されます。ツールはセッションごとのナレッジベース検索トグルによってさらにゲートされます
+**使っているアプリ**：Knowledge Base を検索できるアプリに加わります。セッションで Knowledge Base の検索のスイッチがオンのときに使われます
 
-## ツールの可用性について
+プロバイダーにない能力（画像、動画、音声の入力）が要るグループは、そのプロバイダーのアプリには加わりません。
 
-### ツールが利用できない理由
+## ツールの利用可否について
 
-1. **コンテナの不足**: 一部のツールはDockerコンテナ（Selenium、Python）が実行中である必要がある
-2. **APIキーの不足**: 一部のツールは特定のAPIキーが設定されている必要がある
-3. **システム要件**: 一部のツールは特定のシステムリソースや依存関係を必要とする場合がある
+### 一部のツールが利用できない理由
+
+1. **コンテナ**：Docker のコンテナ（Selenium、Python）が要るツールがあります
+2. **API キー**：特定の API キーが要るツールがあります
+3. **プロバイダーの能力**：画像、動画、音声の入力が要るツールがあります
 
 ### エラーメッセージ
 
-利用できないツールを使用しようとすると、以下を説明する明確なエラーメッセージが表示されます：
-- 何が不足しているか（例：「Seleniumコンテナが実行されていません」）
-- 修正方法（例：コンテナ起動の完了を待つ、Seleniumイメージが存在しない場合は **Actions → Build All** を実行）
+ツールを実行できないときは、エラーのメッセージに、何が足りないか（たとえば "Selenium container is not running"）と、どう直すか（たとえば、コンテナの起動を待つ、Selenium のイメージがなければ **Actions → Build All** を実行する）が書かれます。
 
-## ツールグループを使用したアプリの作成
+## ツールグループを使ったアプリの作成
 
-MDSLを使用してカスタムアプリを作成する場合、個別にツールを定義する代わりにツールグループをインポートできます。詳細については、[Monadic DSLドキュメント](monadic_dsl.md)を参照してください。
+MDSL で独自のアプリを作るときは、ツールを 1 つずつ定義する代わりに、ツールグループを取り込めます。[Monadic DSL](monadic_dsl.md) を参照してください。
 
 ### 例
 
@@ -181,23 +176,25 @@ app "MyCustomAppOpenAI" do
     model "<model-id>"
   end
 
-  # ファイル操作ツールをインポート
-  import_shared_tools :file_operations, visibility: "always"
+  # Import Python execution tools
+  import_shared_tools :python_execution, visibility: "always"
 
-  # Web自動化ツールをインポート（Seleniumに依存）
+  # Import web automation tools (hidden until the model asks for them)
   import_shared_tools :web_automation, visibility: "conditional"
 end
 ```
 
+visibility の既定は `"conditional"` です。
+
 ## 動的スキル（reachable_skills）
 
-アプリは、将来使うかもしれないすべてのツールをあらかじめ宣言しておく必要はありません。`reachable_skills` を使うと、会話の流れに応じて*必要になったときに獲得できる*ツールグループを宣言できます。これらのツールは、モデルが実際に必要とするまで隠されたままです。
+アプリは、使うかもしれないツールをすべて宣言する必要はありません。`reachable_skills` で、会話の途中で使えるようになるツールグループを宣言できます。モデルが必要とするまで、ツールは隠れています。
 
-動作の仕組み:
+しくみ：
 
-1. 隠されたグループは、短いメニュー（各グループの名前と1行の説明）としてモデルに提示されます。
-2. モデルがあるグループを必要と判断すると、名前で要求します（`request_tool("web_search_tools")`）。
-3. グループ全体が解除され、同じ会話の中でそのツールが使えるようになります。
+1. 隠れているグループは、短いメニュー（グループごとの名前と 1 行の説明）としてモデルに示されます。
+2. モデルはグループが必要になると、名前で求めます（`request_tool("web_search_tools")`）。
+3. グループ全体が使えるようになり、そのツールは会話の終わりまで使えます。
 
 ```ruby
 app "MyAssistantOpenAI" do
@@ -206,47 +203,40 @@ app "MyAssistantOpenAI" do
     model "<model-id>"
   end
 
-  # 会話で必要になったときに手を伸ばせるグループ
+  # Groups the app can reach for when the conversation calls for them.
   reachable_skills :web_search_tools, :image_analysis
 
-  # または、読み取り専用の安全なグループ群を1行でまとめて指定:
+  # Or reach for the curated pool of read-only safe groups in one line:
   # reachable_skills :safe
 end
 ```
 
-`reachable_skills :group_a, :group_b` は、各グループを `import_shared_tools :group_a, visibility: "conditional"` でインポートするのと同等ですが、意図をより明確に表現します。`reachable_skills :safe` は、読み取り専用の安全なグループ群に展開されます。
+`reachable_skills :group_a, :group_b` は、それぞれのグループを `import_shared_tools :group_a, visibility: "conditional"` で取り込むのと同じです。`reachable_skills :safe` は、読み取り専用のグループに展開されます：Web Search、File Reading、Image Analysis、Video Analysis、Audio Transcription、Session Context、Verification、Planning。
 
-これにより、アプリは既定では軽量に保たれます。すべてのツールを最初から提示するのではなく、会話が実際に必要とするグループだけが露出します。獲得したスキルはセッションのエクスポート時に保存され、再度開いたときに復元されるため、保存した会話は同じツールが使える状態で再開できます。
-
-## ツールグループのメリット
-
-1. **一貫性**: ツールはすべてのアプリで同じように動作
-2. **明確性**: 追加セットアップが必要な機能を明確に表示
-3. **エラー防止**: 利用できないツールは非表示または役立つエラーメッセージを表示
-4. **効率性**: ツールグループはアプリ間で再利用され、コードの重複を削減
+使えるようになったスキルは、セッションを書き出すと保存され、読み込むと元に戻るので、保存した会話は同じツールで続けられます。
 
 ## トラブルシューティング
 
-### ツールグループが利用不可のまま
+### ツールグループが利用できないままの場合
 
-必要なコンテナを起動した後でもツールグループが利用不可と表示される場合：
+必要なコンテナが起動した後も、ツールグループが使えないままのとき：
 
-1. **Webインターフェイスを再読み込み**: ツールの可用性はアプリ一覧を構築する時点で評価されます
-2. **コンテナを再起動**: アクションメニューからコンテナを停止して起動
-3. **コンテナステータスを確認**: `docker ps`（またはコンソールパネルのステータス表示）でコンテナが実行中か確認
-4. **ログを確認**: コンテナログに起動を妨げるエラーが表示される場合がある
+1. **Web の画面を再読み込みする**：使えるかどうかは、アプリの一覧を作るときに確かめられます
+2. **Monadic Chat を再起動する**：Stop してから Start します
+3. **コンテナを確かめる**：`docker ps` を実行するか、コンソールのパネルのメッセージを読みます
+4. **ログを確かめる**：コンテナのログに、起動しなかった理由が出ていることがあります
 
-### ツールが期待通りに動作しない
+### ツールが期待通りに動作しない場合
 
-ツールが利用可能だが正しく動作しない場合：
+ツールは使えるのに、うまく動かないとき：
 
-1. **共有フォルダの権限を確認**: ファイルがアクセス可能か確認
-2. **APIキーを確認**: APIキーが有効で十分なクレジットがあるか確認
-3. **コンテナログを確認**: コンテナ出力でエラーを探す
-4. **アプリを再起動**: Monadic Chatを再起動することで解決する問題もある
+1. **共有フォルダを確かめる**：ファイルを読めるか確かめます
+2. **API キーを確かめる**：有効で、残高があるか確かめます
+3. **コンテナのログを確かめる**：コンテナの出力にエラーがないか見ます
+4. **Monadic Chat を再起動する**
 
 ## 関連ドキュメント
 
-- [Monadic DSL](monadic_dsl.md) - カスタムアプリの作成
-- [Docker統合](../docker-integration/basic-architecture.md) - コンテナ管理
-- [共有フォルダ](../docker-integration/shared-folder.md) - ファイル操作
+- [Monadic DSL](monadic_dsl.md) - 独自のアプリの作成
+- [Docker 統合](../docker-integration/basic-architecture.md) - コンテナの管理
+- [共有フォルダ](../docker-integration/shared-folder.md) - ファイルの操作

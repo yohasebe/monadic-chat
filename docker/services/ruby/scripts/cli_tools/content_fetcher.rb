@@ -1,5 +1,10 @@
 #!/usr/bin/env ruby
 
+# The file is read as a plain file of the shared folder (SharedPathGuard):
+# never through a link, which could point at a file only this process can
+# read.
+require_relative "../../lib/monadic/utils/shared_path_guard"
+
 # Get the filepath from command line arguments
 filepath = ARGV[0]
 # Get the sizecap from command line arguments, defaulting to 10MB
@@ -12,21 +17,14 @@ begin
     exit 1
   end
 
-  # Check if the file exists and is readable
-  unless File.readable?(filepath)
-    puts "ERROR: File #{filepath} does not exist or is not readable."
-    exit 1
-  end
+  Monadic::Utils::SharedPathGuard.read_file!(filepath) do |f|
+    f.set_encoding("UTF-8")
+    file_size = f.stat.size
+    # Check if the file size exceeds the sizecap
+    if file_size > sizecap
+      puts "WARNING: File size exceeds sizecap (#{file_size} bytes > #{sizecap} bytes). Only the first #{sizecap} bytes will be read."
+    end
 
-  # Get the file size
-  file_size = File.size(filepath)
-  # Check if the file size exceeds the sizecap
-  if file_size > sizecap
-    puts "WARNING: File size exceeds sizecap (#{file_size} bytes > #{sizecap} bytes). Only the first #{sizecap} bytes will be read."
-  end
-
-  # Open the file in read mode with UTF-8 encoding
-  File.open(filepath, "r:UTF-8") do |f|
     begin
       # Read a sample of the file to check content
       sample = f.read(1024)
@@ -69,6 +67,9 @@ begin
     end
   end
 
+rescue Monadic::Utils::SharedPathGuard::InvalidPath, Errno::ENOENT, Errno::EACCES
+  puts "ERROR: File #{filepath} does not exist or is not readable."
+  exit 1
 rescue StandardError => e
   puts "An error occurred: #{e.message}"
   exit 1

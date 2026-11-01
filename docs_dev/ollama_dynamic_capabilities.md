@@ -2,7 +2,7 @@
 
 ## Overview
 
-Unlike cloud providers (OpenAI, Anthropic, etc.) where model capabilities are well-known at build time, Ollama models are installed locally by users and vary per machine. A user might install `qwen3-vl:8b-thinking` (vision + tools + thinking) or `llama3.2:3b` (text only). To adapt the UI and backend behavior correctly, Monadic Chat queries Ollama's `/api/show` endpoint at runtime to discover each model's actual capabilities.
+Ollama models are installed by the user, so the set of models and their capabilities differ per machine. Monadic Chat reads each installed model's capabilities from Ollama's `/api/show` endpoint at runtime instead of listing them in `model_spec.js`.
 
 ## Architecture
 
@@ -25,8 +25,8 @@ Object.assign(modelSpec, ollama_models)
 
 **Fallback chain**:
 1. **Primary**: `/api/show` capability data (accurate, per-model)
-2. **Secondary**: Name-based heuristic when fetch fails (e.g. `qwen3-vl:*` → vision=true, `*-thinking`/`-r1` → thinking=true)
-3. **Tertiary**: Static fallback entry in `model_spec.js` for the recommended model (`qwen3-vl:8b-thinking`)
+2. **Secondary**: when the fetch fails, name-based rules: `tool_capability: true`, vision when the name contains `-vl`, `:vl`, `vision` or `llava`, thinking when it contains `thinking` or `-r1`; context window 8192
+3. **Tertiary**: the one static Ollama entry in `model_spec.js`, used when Ollama cannot be reached at page load
 
 ### 2. HTTP layer (`api_routes.rb`)
 
@@ -49,7 +49,7 @@ Gate logic lives in the `#model` change handler in `public/js/monadic.js`:
 
 The "flag must be present" condition is critical: when `/api/show` is unreachable, the name-based fallback in `list_models_with_capabilities` writes `tool_capability: true` optimistically. The corresponding spec (`ollama_helper_spec.rb`) pins that explicit `tool_capability: false` is set whenever `/api/show` returns a capabilities array that omits `"tools"`, so a missing flag genuinely means "unknown" rather than "no tools".
 
-The hint does **not** disable the model selection — non-tool Ollama models remain perfectly usable for plain chat. Documentation in `docs/advanced-topics/ollama.md` lists recommended tool-calling families (Qwen3-VL / Qwen3 / Llama 3.1 / Llama 3.2 / Mistral / Phi-3.5 Mini).
+The hint does **not** disable the model selection — non-tool Ollama models remain perfectly usable for plain chat. The user-facing description is in `docs/advanced-topics/ollama.md` (Models Without Tool Calling).
 
 ## Capability Detection
 
@@ -62,24 +62,16 @@ The `/api/show` endpoint returns a `capabilities` array like `["completion", "vi
 | `thinking` | `supports_thinking` |
 | `completion` | (implicit — all chat models) |
 
-The `context_length` is nested under `model_info.<arch>.context_length` (e.g. `model_info.qwen3vl.context_length`). Because the architecture prefix varies per model, the parser scans for any key ending in `.context_length` to remain architecture-agnostic.
-
-## Why Not Static Entries?
-
-The earlier approach (pre-2026-04-05) added individual model entries to `model_spec.js`. This was discarded because:
-
-- **Non-viable for Ollama's scale**: The Ollama library has hundreds of models, each with multiple sizes/quantizations
-- **Name-based heuristics are fragile**: `qwen3:4b` turned out to support thinking despite not having `-thinking` in its name
-- **User environment varies**: Users install different models; hardcoding can't keep up
-- **Ollama provides authoritative data**: `/api/show` is the canonical source — using it eliminates drift
-
-The single remaining static entry (`qwen3-vl:8b-thinking`) exists only as a safety net for when Ollama is temporarily unreachable at page load. See the comment in `model_spec.js` near that entry.
+The `context_length` is nested under `model_info.<arch>.context_length`. Because the architecture prefix varies per model, the parser scans for any key ending in `.context_length`. A model without it gets 8192.
 
 ## Cache Lifecycle
 
-- **Per-model cache** (`@capabilities_cache`): 5-minute TTL. Populated lazily on first request per model.
-- **Invalidation**: `reset_capabilities_cache` is exposed for tests. In production, TTL expiry handles staleness naturally.
-- **Memory cost**: Negligible — a few hundred bytes per installed model.
+- **Per-model cache** (`@capabilities_cache`): `CAPABILITIES_CACHE_TTL` (300 s), filled on the first request for each model.
+- **Invalidation**: `reset_capabilities_cache` (used by tests); otherwise entries expire with the TTL.
+
+## Tool Definitions Arrive as a JSON String
+
+`obj["tools"]` reaches the vendor helpers as a JSON string: `lib/monadic/utils/websocket/app_data.rb` serializes Array and Hash tool definitions with `to_json` before they are sent to the browser. `format_tools_for_ollama` accepts a String, an Array or a Hash; it parses a string with `JSON.parse` and returns `[]` for an empty or unparsable one. Any helper that reads its tools from `obj["tools"]` must parse a string the same way.
 
 ## Related Files
 

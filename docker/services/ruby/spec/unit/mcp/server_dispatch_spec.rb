@@ -27,6 +27,70 @@ RSpec.describe Monadic::MCP::Server do
       .to receive(:container_running?).and_return(false)
   end
 
+  def post_raw(body)
+    post "/mcp", body, "CONTENT_TYPE" => "application/json", "HTTP_HOST" => "localhost"
+    last_response
+  end
+
+  describe "JSON-RPC framing" do
+    it "answers a notification with 202 and no body" do
+      res = post_raw({ jsonrpc: "2.0", method: "notifications/initialized" }.to_json)
+      expect(res.status).to eq(202)
+      expect(res.body).to be_empty
+    end
+
+    it "answers ping with an empty result" do
+      expect(rpc("ping")).to eq("jsonrpc" => "2.0", "id" => 1, "result" => {})
+    end
+
+    it "answers a batch with an array of reply objects, leaving notifications out" do
+      batch = [{ jsonrpc: "2.0", id: 1, method: "ping" },
+               { jsonrpc: "2.0", method: "notifications/initialized" },
+               { jsonrpc: "2.0", id: 2, method: "ping" }]
+      replies = JSON.parse(post_raw(batch.to_json).body)
+      expect(replies).to eq([{ "jsonrpc" => "2.0", "id" => 1, "result" => {} },
+                             { "jsonrpc" => "2.0", "id" => 2, "result" => {} }])
+    end
+
+    it "answers a batch of notifications only with 202" do
+      expect(post_raw([{ jsonrpc: "2.0", method: "notifications/initialized" }].to_json).status).to eq(202)
+    end
+
+    it "marks only the bad element of a batch as an Invalid Request" do
+      replies = JSON.parse(post_raw([1, { jsonrpc: "2.0", id: 7, method: "ping" }].to_json).body)
+      expect(replies[0].dig("error", "code")).to eq(-32_600)
+      expect(replies[1]).to eq("jsonrpc" => "2.0", "id" => 7, "result" => {})
+    end
+
+    it "answers an empty batch with one Invalid Request" do
+      expect(JSON.parse(post_raw("[]").body).dig("error", "code")).to eq(-32_600)
+    end
+
+    it "answers params or arguments that are not objects with Invalid params" do
+      post_raw({ jsonrpc: "2.0", id: 1, method: "tools/list", params: [] }.to_json)
+      expect(JSON.parse(last_response.body).dig("error", "code")).to eq(-32_602)
+      [[], false, nil].each do |value|
+        expect(rpc("tools/call", { "name" => "monadic_status", "arguments" => value }).dig("error", "code")).to eq(-32_602)
+      end
+    end
+
+    it "runs a tool when arguments are left out" do
+      allow(Monadic::MCP::Conduit).to receive(:call).and_return({ success: true })
+      expect(rpc("tools/call", { "name" => "monadic_status" })["result"]).to include("structuredContent")
+    end
+
+    it "takes a JSON-RPC response from the client with 202 and no body" do
+      res = post_raw({ jsonrpc: "2.0", id: 5, result: {} }.to_json)
+      expect(res.status).to eq(202)
+      expect(res.body).to be_empty
+    end
+
+    it "refuses GET with 405" do
+      get "/mcp", {}, "HTTP_HOST" => "localhost"
+      expect(last_response.status).to eq(405)
+    end
+  end
+
   describe "tools/list" do
     it "returns the Conduit capability surface, not app__tool entries" do
       body = rpc("tools/list")

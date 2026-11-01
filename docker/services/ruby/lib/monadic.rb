@@ -47,6 +47,13 @@ require_relative "monadic/version"
 
 # Load environment utilities early
 require_relative "monadic/utils/environment"
+# Words the user marks for the Privacy Filter never leave for another
+# service: every outbound HTTP request is checked where it is sent.
+require_relative "monadic/utils/privacy/egress_guard"
+Monadic::Utils::Privacy::EgressGuard.install!
+# Nothing of a Private chat is printed to the server's log.
+require_relative "monadic/history/private_output"
+Monadic::History::PrivateOutput.install!
 
 # Backward compatibility - DEPRECATED
 # All tests have been migrated. This can be removed after verifying no external dependencies.
@@ -54,6 +61,7 @@ IN_CONTAINER = Monadic::Utils::Environment.in_container?
 
 require_relative "monadic/utils/setup"
 require_relative "monadic/utils/secret_references"
+require_relative "monadic/utils/env_file"
 require_relative "monadic/utils/tokenizer"
 require_relative "monadic/help"
 
@@ -94,8 +102,9 @@ require_relative "monadic/adapters/vendors/grok_helper"
 require_relative "monadic/adapters/vendors/ollama_helper"
 
 envpath = File.expand_path Paths::ENV_PATH
-Dotenv.load(envpath)
-Monadic::Utils::SecretReferences.scrub_env!
+# Only the settings the code reads from ENV go there, and never one that
+# decides where requests go or what program runs (EnvFile).
+Monadic::Utils::SecretReferences.scrub_env!(loaded: Monadic::Utils::EnvFile.load!(envpath))
 
 # Include TavilyHelper for tavily_fetch method
 include TavilyHelper
@@ -185,23 +194,13 @@ CONFIG = {
 
 unresolved_references = []
 begin
-  # Only process environment variables from the .env file, not dictionary data
-  File.read(Paths::ENV_PATH).split("\n").each do |line|
-    next if line.strip.empty? || line.strip.start_with?("#")
-    
-    # Check for valid line format (key=value)
-    if !line.include?("=")
-      # Skip non-environment variable lines without warning since they might be TTS dictionary entries
-      # that should be in a separate file
-      next
-    end
-    
-    key, value = line.split("=", 2) # Split only on first '=' to handle values containing '='
-    next if key.nil? || key.empty?
-    
-    # Trim any whitespace and quotes from values
-    value = value.strip.gsub(/^['"]|['"]$/, '') if value
+  # The file's settings through EnvFile, the same parse that gave ENV its
+  # values: nothing in a value is expanded or run, and a proxy, a service
+  # address, a program path, a port that is not a number or a file in the
+  # shared folder is not taken.
+  raise Errno::ENOENT, Paths::ENV_PATH unless File.exist?(Paths::ENV_PATH)
 
+  Monadic::Utils::EnvFile.accepted(Paths::ENV_PATH).each do |key, value|
     # A 1Password reference (op://...) stands for the value; an unresolved
     # one leaves the key unset rather than passing the reference on.
     if Monadic::Utils::SecretReferences.reference?(value)
@@ -217,25 +216,15 @@ begin
       next
     end
     
-    converted_value = case value
-                      when "true"
-                        true
-                      when "false"
-                        false
-                      when /^\d+$/ # integer
-                        value.to_i
-                      when /^\d+\.\d+$/ # float
-                        value.to_f
-                      when nil
-                        # Handle nil value
-                        puts "Warning: Empty value for key '#{key}'"
-                        next # Skip empty values instead of storing them as empty strings
-                      else
-                        value
-                      end
-    CONFIG[key] = converted_value
+    if value.nil?
+      puts "Warning: Empty value for key '#{key}'"
+      next # Skip empty values instead of storing them as empty strings
+    end
+
+    CONFIG[key] = Monadic::Utils::SecretReferences.setting_value(key, value)
   end
   
+  Monadic::Utils::SecretReferences.record_unresolved(unresolved_references)
   unless unresolved_references.empty?
     puts "1Password references not resolved, left unset: #{unresolved_references.join(', ')}"
   end
@@ -265,14 +254,6 @@ end
 # Runs after the env file is read, or failed to be read, so the access
 # check stays off on every path
 Monadic::Utils::ServerMode.normalize!(CONFIG)
-
-# Attachments a stopped server left half-saved are marked failed, so no chat
-# treats them as usable. Reads only; writes when there is something to mark.
-begin
-  Monadic::Workspace::Ledger.default.reconcile_interrupted! if File.exist?(Monadic::Workspace::Ledger.default_path)
-rescue StandardError => e
-  puts "[Workspace] Ledger check skipped: #{e.class}"
-end
 
 # Configure SSL defaults after environment has been processed
 begin
@@ -373,8 +354,9 @@ def load_app_files
   end
 
   # 2. User apps (~/monadic/data/apps/)
+  # (never through a link, and in development mode only when asked: see SharedPathGuard.user_code_files)
   if Dir.exist?(user_apps_dir)
-    Dir["#{File.join(user_apps_dir, "**") + File::SEPARATOR}*.{rb,mdsl}"].sort.each do |file|
+    Monadic::Utils::SharedPathGuard.user_code_files(user_apps_dir, File.join("**", "*.{rb,mdsl}")).each do |file|
       basename = File.basename(file)
       next if basename.start_with?("_")
       next if file.include?("/test/")
@@ -632,12 +614,7 @@ def init_apps
           }
         end
 
-        common_tools = []
-        common_tools << defn.call("find_closest_text", "Find the closest text snippets in local PDF database", { "text" => "string", "top_n" => "integer" })
-        common_tools << defn.call("get_text_snippet", "Retrieve one text snippet from a document by position", { "doc_id" => "integer", "position" => "integer" })
-        common_tools << defn.call("list_titles", "List all document titles in local PDF database", {})
-        common_tools << defn.call("find_closest_doc", "Find the closest documents in local PDF database", { "text" => "string", "top_n" => "integer" })
-        common_tools << defn.call("get_text_snippets", "Retrieve all snippets of a document", { "doc_id" => "integer" })
+        common_tools = Monadic::Pdf::Store::TOOLS.map { |name, (desc, params)| defn.call(name, desc, params) }
 
         common_tools.each do |tool|
           name = tool.dig("function", "name")
@@ -720,8 +697,9 @@ APPS = init_apps
 
 # Configure the Sinatra application
 configure do
-  use Rack::Session::Pool
-  set :session_secret, ENV.fetch("SESSION_SECRET") { SecureRandom.hex(64) }
+  # Sessions come from config.ru (Rack::Session::CappedPool). A second
+  # session middleware here would replace that session for every route and
+  # the WebSocket, and its limits would never apply.
   set :public_folder, "public"
   set :views, "views"
   set :api_key, CONFIG["OPENAI_API_KEY"]
@@ -772,8 +750,16 @@ require_relative "monadic/routes/session_routes"
 require_relative "monadic/routes/library_import_routes"
 require_relative "monadic/routes/help_routes"
 require_relative "monadic/routes/attachment_routes"
+require_relative "monadic/routes/shared_folder_routes"
 register Monadic::Routes::HelpRoutes
 register Monadic::Routes::AttachmentRoutes
+
+# A one-segment URL is a shortcut to a file in the shared folder. Defined
+# after every other route: Sinatra matches in order, and defined earlier it
+# took GET /monadic_state (the export of a chat's state) as a file name.
+get "/:filename" do |filename|
+  redirect to("/data/#{filename}")
+end
 
 
 # ──────────────────────────────────────────────────────────────

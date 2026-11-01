@@ -299,3 +299,111 @@ describe('WsPrivacyHandler.handleState — re-arm reconciliation on backend OFF'
     expect(window.safeWsSend).not.toHaveBeenCalled();
   });
 });
+
+describe('WsPrivacyHandler.handleState for a chat restored after a reload', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '<div id="privacy-indicator"></div><input type="checkbox" id="check-privacy-session">';
+    window.privacyToggleLocked = false;
+    window.safeWsSend = jest.fn();
+  });
+
+  it('shows the chat\'s state, locked, without negotiating the toggle again', () => {
+    window.WsPrivacyHandler.handleState({ enabled: true, registry_count: 2, restored: true });
+    const toggle = document.getElementById('check-privacy-session');
+    expect(toggle.checked).toBe(true);
+    expect(toggle.disabled).toBe(true);
+    expect(window.privacyToggleLocked).toBe(true);
+
+    window.WsPrivacyHandler.handleState({ enabled: false, registry_count: 0, restored: true });
+    expect(toggle.checked).toBe(false);
+    expect(window.safeWsSend).not.toHaveBeenCalled();
+  });
+});
+
+describe('WsPrivacyHandler.handleToggleAck when the container does not answer', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '<input type="checkbox" id="check-privacy-session" checked>';
+    window.setAlert = jest.fn();
+    window.safeWsSend = jest.fn();
+    window.getTranslation = (key, fallback) => fallback;
+  });
+
+  it('turns the toggle off and asks the user to try again in a moment while it starts', () => {
+    window.WsPrivacyHandler.handleToggleAck({ enabled: false, error: 'privacy_container_starting' });
+    expect(document.getElementById('check-privacy-session').checked).toBe(false);
+    expect(window.setAlert.mock.calls[0][0]).toContain('starting');
+    expect(window.setAlert.mock.calls[0][1]).toBe('warning');
+    expect(window.safeWsSend).not.toHaveBeenCalled();
+  });
+
+  it('replaces the starting notice once the filter turns on', () => {
+    window.WsPrivacyHandler.handleToggleAck({ enabled: false, error: 'privacy_container_starting' });
+    window.WsPrivacyHandler.handleToggleAck({ enabled: true, error: null });
+    expect(window.setAlert.mock.calls[1][0]).toContain('ready');
+    expect(window.setAlert.mock.calls[1][1]).toBe('success');
+    window.WsPrivacyHandler.handleToggleAck({ enabled: true, error: null });
+    expect(window.setAlert).toHaveBeenCalledTimes(2); // only after a starting notice
+  });
+
+  it('turns the toggle off and says so when the container is not coming up', () => {
+    window.WsPrivacyHandler.handleToggleAck({ enabled: false, error: 'privacy_container_unreachable' });
+    expect(document.getElementById('check-privacy-session').checked).toBe(false);
+    expect(window.setAlert.mock.calls[0][0]).toContain('could not be started');
+    expect(window.setAlert.mock.calls[0][1]).toBe('error');
+  });
+
+  it('turns the toggle off and points to Reset when the session has already started', () => {
+    window.WsPrivacyHandler.handleToggleAck({ enabled: false, error: 'privacy_chat_started' });
+    expect(document.getElementById('check-privacy-session').checked).toBe(false);
+    expect(window.setAlert.mock.calls[0][0]).toContain('Press Reset');
+    expect(window.setAlert.mock.calls[0][1]).toBe('warning');
+    expect(window.safeWsSend).not.toHaveBeenCalled();
+  });
+});
+
+describe('WsPrivacyHandler: whether the chat is Private', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '<input type="checkbox" id="check-privacy-session">';
+    window.setAlert = jest.fn();
+    window.getTranslation = (key, fallback) => fallback;
+  });
+
+  it('counts asking for the filter as Private until the server answers', () => {
+    const h = window.WsPrivacyHandler;
+    h.handleState({ enabled: false, private: false });
+    expect(h.isChatPrivate()).toBe(false);
+    h.noteRequested(true);
+    expect(h.isChatPrivate()).toBe(true);
+    // The filter could not start: the chat is still Private.
+    h.handleToggleAck({ enabled: false, error: 'privacy_container_unreachable', private: true });
+    expect(h.isChatPrivate()).toBe(true);
+    // A new chat (Reset, another app) is not.
+    h.handleState({ enabled: false, private: false });
+    expect(h.isChatPrivate()).toBe(false);
+  });
+
+  it('marks the page while the chat is Private, so what would make files is hidden', () => {
+    const h = window.WsPrivacyHandler;
+    h.handleState({ enabled: false, private: true });
+    expect(document.body.classList.contains('chat-private')).toBe(true);
+    h.handleState({ enabled: false, private: false });
+    expect(document.body.classList.contains('chat-private')).toBe(false);
+  });
+
+  it('takes whether the chat is Private from the restored words', () => {
+    const h = window.WsPrivacyHandler;
+    h.notePrivate({ private: true, content: [] });
+    expect(h.isChatPrivate()).toBe(true);
+    h.notePrivate({ content: [] });
+    expect(h.isChatPrivate()).toBe(true);
+    h.notePrivate({ private: false, content: [] });
+    expect(h.isChatPrivate()).toBe(false);
+  });
+
+  it('keeps what it knows when a reply does not say', () => {
+    const h = window.WsPrivacyHandler;
+    h.noteRequested(true);
+    h.handleState({ enabled: true, registry_count: 0 });
+    expect(h.isChatPrivate()).toBe(true);
+  });
+});

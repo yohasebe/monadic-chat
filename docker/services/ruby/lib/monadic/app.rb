@@ -5,6 +5,8 @@ require 'ostruct'
 require 'timeout'
 require_relative "./utils/string_utils"
 require_relative "./utils/environment"
+require_relative "./utils/secret_references"
+require_relative "./utils/shared_path_guard"
 require_relative "./utils/extra_logger"
 require_relative "./utils/tokenizer"
 require_relative "./utils/progressive_tool_manager"
@@ -18,19 +20,16 @@ Dir.glob(File.expand_path("agents/**/*.rb", __dir__)).sort.each do |rb|
 end
 
 # Load user helpers from ~/monadic/data/helpers/
+# (never through a link, and in development mode only when asked: see SharedPathGuard.user_code_files)
 direct_helpers_dir = Monadic::Utils::Environment.helpers_path
-if Dir.exist?(direct_helpers_dir)
-  Dir.glob(File.join(direct_helpers_dir, "**", "*.rb")).sort.each do |rb|
-    require rb
-  end
+Monadic::Utils::SharedPathGuard.user_code_files(direct_helpers_dir, File.join("**", "*.rb")).each do |rb|
+  require rb
 end
 
 # Load per-app helpers from ~/monadic/data/apps/*/helpers/
 user_apps_dir = Monadic::Utils::Environment.apps_path
-if Dir.exist?(user_apps_dir)
-  Dir.glob(File.join(user_apps_dir, "*", "helpers", "**", "*.rb")).sort.each do |rb|
-    require rb
-  end
+Monadic::Utils::SharedPathGuard.user_code_files(user_apps_dir, File.join("*", "helpers", "**", "*.rb")).each do |rb|
+  require rb
 end
 
 # Require new monadic modules
@@ -344,50 +343,44 @@ class MonadicApp
                    success_with_output: "Command has been executed with the following output: \n"
                   )
 
+    command_env = {}
+    command_chdir = nil
     case container.to_s
     when "ruby"
-      if Monadic::Utils::Environment.in_container?
-        system_script_dir = SYSTEM_SCRIPT_DIR
-        user_system_script_dir = USER_SCRIPT_DIR
-        shared_volume = SHARED_VOL
-      else
-        system_script_dir = LOCAL_SYSTEM_SCRIPT_DIR
-        user_system_script_dir = LOCAL_USER_SCRIPT_DIR
-        shared_volume = LOCAL_SHARED_VOL
+      # This runs in the Ruby process's own environment, which can read the
+      # keys (and in the container, Docker). Nothing from the shared folder,
+      # which code the model runs can write, is put on PATH or made
+      # executable; a bundled Ruby script runs with this Ruby, both by
+      # absolute path; and the keys are taken out of the environment.
+      ruby_side = ruby_side_command(command)
+      if ruby_side[:refused]
+        refused = ruby_side[:refused]
+        return yield("", refused, OpenStruct.new(success?: false)) if block_given?
+
+        return "Error occurred: #{refused}"
       end
-      ruby_script_dirs = [
-        system_script_dir,
-        "#{system_script_dir}/cli_tools",
-        "#{system_script_dir}/utilities",
-        "#{system_script_dir}/generators",
-        user_system_script_dir
-      ].join(":")
-      # Build the full command that will be executed
-      # Note: Command is not escaped here, will be handled by system() call
-      full_command = <<~SYS
-        find #{system_script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
-        find #{user_system_script_dir} -type f -exec chmod +x {} + 2>/dev/null | : && \
-        export PATH="#{ruby_script_dirs}:${PATH}" && \
-        cd #{shared_volume} && \
-        #{command}
-      SYS
-      system_command = full_command
+
+      system_command = ruby_side[:argv]
+      command_chdir = ruby_side[:chdir]
+      command_env = ruby_side_env.merge("PATH" => ruby_side[:path])
     when "python"
       container = "monadic-chat-python-container"
-      # Add all Python script directories to PATH
+      # Add all Python script directories to PATH. The user's scripts in the
+      # shared folder come last, after the system's: code a model runs can
+      # write there, and a python3 or bash it left must not stand in for the
+      # real ones (a script with its own name is still found).
       python_script_dirs = [
         "/monadic/scripts",
         "/monadic/scripts/utilities",
         "/monadic/scripts/services",
         "/monadic/scripts/cli_tools",
         "/monadic/scripts/converters",
-        "/monadic/scripts/music",
-        "#{USER_SCRIPT_DIR}"
+        "/monadic/scripts/music"
       ].join(":")
       # Build the bash command that will be executed inside the container
       # Note: We don't escape the command here because it will be properly escaped
       # when passed to bash -c via Shellwords.escape(bash_command)
-      bash_command = "find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null; export PATH=\"#{python_script_dirs}:${PATH}\"; #{command}"
+      bash_command = "find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null; export PATH=\"#{python_script_dirs}:${PATH}:#{USER_SCRIPT_DIR}\"; #{command}"
       system_command = <<~DOCKER.strip
         docker exec -w #{SHARED_VOL} #{container} bash -c #{Shellwords.escape(bash_command)}
       DOCKER
@@ -420,7 +413,11 @@ class MonadicApp
                     else
                       120  # 2 minutes default
                     end
-    stdout, stderr, status = self.capture_command(system_command, timeout: timeout_value)
+    stdout, stderr, status = self.capture_command(system_command, timeout: timeout_value, env: command_env, chdir: command_chdir)
+    # What a command prints goes on to tool results and the model: the output
+    # keeps everything but known secret values; the error text is redacted.
+    stdout = Monadic::Utils::SecretRedactor.redact_values(stdout)
+    stderr = Monadic::Utils::SecretRedactor.redact(stderr)
 
     if block_given?
       yield(stdout, stderr, status)
@@ -431,10 +428,11 @@ class MonadicApp
         "#{success_with_output}#{truncate_output(stdout)}"
       end
     else
-      "Error occurred: #{stderr}"
+      # The error text goes back to the model.
+      "Error occurred: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(stderr)}"
     end
   rescue StandardError => e
-    "Error occurred: #{e.message}"
+    "Error occurred: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"
   end
 
   # Truncate large command output to avoid bloating LLM context.
@@ -453,6 +451,31 @@ class MonadicApp
     tail = lines.last(TAIL_LINES).join
     omitted = lines.size - HEAD_LINES - TAIL_LINES
     "#{head}\n... (#{omitted} lines omitted — output truncated to #{MAX_OUTPUT_BYTES / 1000} KB) ...\n\n#{tail}"
+  end
+
+  # The MD5 digest of each plain file directly in a folder of the shared
+  # folder, read never through a link; links, folders and unreadable files
+  # are left out.
+  def shared_file_digests(dir)
+    Dir[File.join(dir, "*")].each_with_object({}) do |path, digests|
+      next unless Monadic::Utils::SharedPathGuard.file_stat(path)
+
+      digests[path] = Monadic::Utils::SharedPathGuard.read_file!(path) do |io|
+        digest = Digest::MD5.new
+        while (chunk = io.read(1 << 16))
+          digest << chunk
+        end
+        digest.hexdigest
+      end
+    rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError, IOError => e
+      DebugHelper.debug("Could not read file for its digest: #{File.basename(path)} - #{e.class}", category: :app, level: :warning)
+    end
+  end
+
+  def remove_code_file(path)
+    Monadic::Utils::SharedPathGuard.delete_file!(path)
+  rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+    nil
   end
 
   def send_code(code:, command:, extension:, success: "The code has been executed successfully", max_retries: 3, retry_delay: 1.5, keep_file: false)
@@ -497,49 +520,17 @@ class MonadicApp
       unique_id = SecureRandom.hex(4)
       filename = "code_#{timestamp}_#{unique_id}.#{extension}"
 
-      if keep_file
-        # Create a permanent file with timestamp-based name
-        file_path = File.join(data_dir, filename)
-        File.write(file_path, code)
-      else
-        # Create a temporary file with timestamp-based name
-        temp_file = Tempfile.new(["code_#{timestamp}", ".#{extension}"], data_dir)
-        temp_file.write(code)
-        temp_file.close
-        file_path = temp_file.path
-      end
+      # The code file is a new plain file of the shared folder, which the
+      # Python container sees at SHARED_VOL: no copy into the container.
+      # Only a file this attempt made is removed afterwards: a name already
+      # taken (or refused) is left as it is.
+      created = nil
+      file_path = File.join(data_dir, filename)
+      Monadic::Utils::SharedPathGuard.write_file!(file_path, code, replace: false)
+      created = file_path
 
-      # Get the list of files with their content digest before execution
-      local_files1 = {}
-      Dir[File.join(files_dir, "*")].each do |f|
-        begin
-          # Skip directories
-          next if File.directory?(f)
-          local_files1[f] = File.exist?(f) ? Digest::MD5.file(f).hexdigest : nil
-        rescue Errno::EACCES => e
-          # Permission denied - skip this file
-          DebugHelper.debug("Permission denied accessing file: #{f}", category: :app, level: :warning)
-          next
-        rescue Errno::ENOENT => e
-          # File was deleted between Dir[] and File.exist? - skip
-          next
-        rescue Errno::EISDIR => e
-          # Is a directory - skip
-          next
-        rescue IOError => e
-          # General I/O error - skip this file
-          DebugHelper.debug("IO error accessing file: #{f} - #{e.message}", category: :app, level: :warning)
-          next
-        end
-      end
-
-      # Copy the file to the container
-      docker_command = ["docker", "cp", file_path, "#{container}:#{SHARED_VOL}/#{filename}"]
-
-      stdout, stderr, status = self.capture_command(docker_command, timeout: 30)  # 30 seconds for file copy
-      unless status.success?
-        raise "Error occurred during file copy: #{stderr}"
-      end
+      # The content digest of each file before execution
+      local_files1 = shared_file_digests(files_dir)
 
       # Execute the code in the container with longer timeout for complex operations
       docker_command = ["docker", "exec", "-w", SHARED_VOL, container, *command_argv, filename]
@@ -550,29 +541,8 @@ class MonadicApp
       sleep COMMAND_DELAY
 
       if status.success?
-        # Get the list of files with their content digest after execution
-        local_files2 = {}
-        Dir[File.join(files_dir, "*")].each do |f|
-          begin
-            # Skip directories
-            next if File.directory?(f)
-            local_files2[f] = File.exist?(f) ? Digest::MD5.file(f).hexdigest : nil
-          rescue Errno::EACCES => e
-            # Permission denied - skip this file
-            DebugHelper.debug("Permission denied accessing file after execution: #{f}", category: :app, level: :warning)
-            next
-          rescue Errno::ENOENT => e
-            # File was deleted - skip
-            next
-          rescue Errno::EISDIR => e
-            # Is a directory - skip
-            next
-          rescue IOError => e
-            # General I/O error - skip this file
-            DebugHelper.debug("IO error accessing file after execution: #{f} - #{e.message}", category: :app, level: :warning)
-            next
-          end
-        end
+        # The content digest of each file after execution
+        local_files2 = shared_file_digests(files_dir)
 
         # Detect new or modified files
         changed_files = []
@@ -615,8 +585,8 @@ class MonadicApp
           output += "\n\nOutput: #{truncate_output(stdout)}" if stdout.strip.length.positive?
         end
 
-        # Clean up temporary file if keep_file is false
-        temp_file.unlink if !keep_file && temp_file
+        # Remove the code file unless it is to be kept
+        remove_code_file(created) unless keep_file
 
         output
       else
@@ -634,6 +604,9 @@ class MonadicApp
         raise StandardError, error_details
       end
     rescue StandardError => e
+      # Each attempt writes its own code file
+      remove_code_file(created) if created && !keep_file
+      created = nil
       if retries < max_retries
         retries += 1
         sleep(retry_delay)
@@ -656,11 +629,71 @@ class MonadicApp
     Time.now.to_s
   end
 
-  def capture_command(command, timeout: 120)
-    self.class.capture_command(command, timeout: timeout)
+  def capture_command(command, timeout: 120, env: {}, chdir: nil)
+    self.class.capture_command(command, timeout: timeout, env: env, chdir: chdir)
   end
 
-  def self.capture_command(command, timeout: 120)  # Default 120 seconds timeout
+  # The scripts that come with Monadic Chat and run on the Ruby side.
+  RUBY_SIDE_SCRIPT_DIRS = %w[. cli_tools utilities generators].freeze
+  # Names of environment variables that hold credentials.
+  CREDENTIAL_ENV = Monadic::Utils::SecretReferences::CREDENTIAL_NAME
+
+  # A Ruby-side command runs only a Ruby script that comes with Monadic Chat
+  # (`tts_query.rb ARGS...`), as `<this ruby> <its absolute path> ARGS...`,
+  # without a shell, from the shared folder, with a PATH of the bundled
+  # scripts and the process's own absolute, non-shared directories.
+  # Returns { argv:, chdir:, path: }, or { refused: reason } for anything else.
+  def ruby_side_command(command)
+    in_container = Monadic::Utils::Environment.in_container?
+    scripts = in_container ? SYSTEM_SCRIPT_DIR : LOCAL_SYSTEM_SCRIPT_DIR
+    shared = in_container ? SHARED_VOL : LOCAL_SHARED_VOL
+    script_dirs = RUBY_SIDE_SCRIPT_DIRS.map { |d| File.expand_path(d, scripts) }
+
+    words = begin
+              Shellwords.split(command.to_s)
+            rescue ArgumentError
+              []
+            end
+    first = words.first.to_s
+    unless first.end_with?(".rb") && !first.include?("/")
+      return { refused: "Only the Ruby scripts that come with Monadic Chat run on the Ruby side." }
+    end
+
+    found = script_dirs.map { |d| File.join(d, first) }.find { |f| File.file?(f) }
+    return { refused: "#{first} is not a script that comes with Monadic Chat; scripts in the shared folder run only in the Python container." } unless found
+
+    { argv: [RbConfig.ruby, found, *words.drop(1)], chdir: shared, path: ruby_side_path(script_dirs, shared) }
+  end
+
+  # The bundled script folders, then this process's PATH without relative
+  # or empty entries (the current directory), folders that do not exist,
+  # and any folder that is, or is really (links followed), in the shared
+  # folder.
+  def ruby_side_path(script_dirs, shared)
+    shared_root = real_dir(shared) || File.expand_path(shared)
+    own = ENV.fetch("PATH", "").split(":").select do |dir|
+      real = dir.start_with?("/") && real_dir(dir)
+      real && real != shared_root && !real.start_with?("#{shared_root}/")
+    end
+    (script_dirs + own).uniq.join(":")
+  end
+
+  def real_dir(path)
+    File.realpath(path)
+  rescue SystemCallError
+    nil
+  end
+
+  # The environment of a Ruby-side command: credentials are unset (the
+  # bundled scripts read their keys from the configuration themselves).
+  def ruby_side_env
+    ENV.keys.grep(CREDENTIAL_ENV).to_h { |key| [key, nil] }
+  end
+
+  # Not tools: called only from the implementations of declared tools.
+  private :send_command, :send_code, :capture_command, :ruby_side_command, :ruby_side_path, :ruby_side_env
+
+  def self.capture_command(command, timeout: 120, env: {}, chdir: nil)  # Default 120 seconds timeout
     unless command
       return ["Error: command is required.", nil, 1]
     end
@@ -671,7 +704,8 @@ class MonadicApp
 
       Timeout::timeout(timeout) do
         # An Array runs without a shell, each element one argument
-        stdout, stderr, status = command.is_a?(Array) ? Open3.capture3(*command) : Open3.capture3(command)
+        opts = chdir ? { chdir: chdir } : {}
+        stdout, stderr, status = command.is_a?(Array) ? Open3.capture3(env, *command, **opts) : Open3.capture3(env, command, **opts)
       end
     rescue Timeout::Error
       error_msg = "Command timed out after #{timeout} seconds. This may happen with complex syntax trees or when using high reasoning effort settings. Consider simplifying the input or reducing reasoning_effort."
@@ -679,15 +713,20 @@ class MonadicApp
     end
 
     # Log command input and output (best-effort: a missing or read-only
-    # log directory must not turn a successful command into a failure)
+    # log directory must not turn a successful command into a failure).
+    # Nothing of a Private chat's work: its commands carry the chat.
+    private_work = defined?(Monadic::History::Policy) && Monadic::History::Policy.current_work_private?
     begin
-      Monadic::Utils::Environment.rotate_log(COMMAND_LOG_FILE)
-      File.open(COMMAND_LOG_FILE, "a") do |f|
-        f.puts "Time: #{Time.now}"
-        f.puts "Command: #{command.is_a?(Array) ? Shellwords.join(command) : command}"
-        f.puts "Error: #{stderr}" if stderr.strip.length.positive?
-        f.puts "Output: #{stdout}"
-        f.puts "-----------------------------------"
+      unless private_work
+        Monadic::Utils::Environment.rotate_log(COMMAND_LOG_FILE)
+        File.open(COMMAND_LOG_FILE, "a") do |f|
+          f.puts "Time: #{Time.now}"
+          redact = Monadic::Utils::SecretRedactor.method(:redact)
+          f.puts "Command: #{redact.call(command.is_a?(Array) ? Shellwords.join(command) : command)}"
+          f.puts "Error: #{redact.call(stderr)}" if stderr.strip.length.positive?
+          f.puts "Output: #{redact.call(stdout)}"
+          f.puts "-----------------------------------"
+        end
       end
     rescue StandardError
       # best-effort
@@ -728,13 +767,6 @@ class MonadicApp
     end
   end
 
-  def log_to_file(message)
-    log_file_path = File.join(Dir.home, "monadic", "log", "monadic_app_debug.log")
-    File.open(log_file_path, "a") do |f|
-      f.puts("[#{Time.now}] #{message}")
-    end
-  end
-
   def markdownify(text)
     provider = CONFIG["AI_USER_PROVIDER"] || "openai"
     
@@ -760,8 +792,7 @@ class MonadicApp
       ]
     }
     
-    # For debugging purpose
-    log_to_file("DEBUG MARKDOWNIFY: Using provider #{provider} with model #{model}")
+    Monadic::Utils::ExtraLogger.log { "[markdownify] provider=#{provider} model=#{model}" }
     
     send_query(parameters)
   end

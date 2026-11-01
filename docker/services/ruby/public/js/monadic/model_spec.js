@@ -46,6 +46,9 @@ const modelSpec = {
   },
   // gpt-5.1 models
   "gpt-5.1": {
+    "deprecated": true,
+    "sunset_date": "2027-04-01",
+    "successor": "gpt-6-sol",
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
     "reasoning_effort": [["none", "low", "medium", "high"], "none"],
@@ -60,6 +63,9 @@ const modelSpec = {
     "skip_in_progress_events": true
   },
   "gpt-5.3-codex": {
+    "deprecated": true,
+    "sunset_date": "2027-04-01",
+    "successor": "gpt-6-sol",
     "context_window": [1, 400000],
     "max_output_tokens": [1, 128000],
     "reasoning_effort": [["none", "low", "medium", "high", "xhigh"], "low"],
@@ -80,6 +86,9 @@ const modelSpec = {
     "skip_in_progress_events": true
   },
   "gpt-5.2-codex": {
+    "deprecated": true,
+    "sunset_date": "2026-07-23",
+    "successor": "gpt-5.6-sol",
     "context_window": [1, 400000],
     "max_output_tokens": [1, 128000],
     "reasoning_effort": [["low", "medium", "high", "xhigh"], "low"],
@@ -180,13 +189,12 @@ const modelSpec = {
   // knowledge cutoff 2026-02-16. Positioning per OpenAI: Sol = flagship for
   // complex reasoning/agentic coding ($5/$30 per 1M), Terra = default tier
   // balancing intelligence and cost ($2.50/$15), Luna = cost-optimized
-  // ($1/$6). The reasoning enumeration was verified against the live API
-  // 2026-07-10: the error enum lists none…xhigh, and "max" (the announced Max
-  // mode) is additionally accepted and echoed by all three models; "ultra" is
+  // ($1/$6). Reasoning effort: the API's error enum lists none…xhigh, and
+  // "max" (the announced Max mode) is additionally accepted and echoed by all
+  // three models; "ultra" is
   // rejected (ChatGPT-side only), so it is intentionally absent here.
   // -------------------------------------------------------------------------
-  // GPT-6 Astra — OpenAI's frontier model. Four restrictions, all verified
-  // live on 2026-09-05:
+  // GPT-6 Astra — OpenAI's frontier model. Four restrictions:
   //   * reasoning effort accepts low..max only; "none" and "minimal" 400
   //   * temperature and top_p are rejected outright
   //   * function tools require the Responses API — Chat Completions returns
@@ -209,8 +217,8 @@ const modelSpec = {
     "skip_in_progress_events": true
   },
   // GPT-6.1 Sol (2026-09-29): same price and limits as GPT-6 Sol, but
-  // reasoning cannot be turned off — "none" is a 400 (probed; the API lists
-  // low..max, default medium). The app default is the lowest level; an app
+  // reasoning cannot be turned off — "none" is a 400 (the API lists low..max,
+  // default medium). The app default is the lowest level; an app
   // asking for "none" gets it too (openai_helper#openai_effort_for).
   "gpt-6.1-sol": {
     "context_window": [1, 1050000],
@@ -342,6 +350,9 @@ const modelSpec = {
   },
   // GPT-5.4 Nano (high-volume simple tasks, 400K context, compaction)
   "gpt-5.4-nano": {
+    "deprecated": true,
+    "sunset_date": "2027-04-01",
+    "successor": "gpt-6-luna",
     "context_window": [1, 400000],
     "max_output_tokens": [1, 128000],
     "reasoning_effort": [["none", "low", "medium", "high", "xhigh"], "low"],
@@ -374,8 +385,8 @@ const modelSpec = {
     "supports_pdf_upload": true,
     "supports_file_inputs": true,
     "deprecated": true,
-    "sunset_date": "2026-06-30",
-    "successor": "gpt-5.4-mini"
+    "sunset_date": "2027-01-14",
+    "successor": "gpt-6-luna"
   },
   "gpt-4o-mini": {
     "context_window" : [1, 128000],
@@ -389,8 +400,8 @@ const modelSpec = {
     "supports_pdf_upload": true,
     "supports_file_inputs": true,
     "deprecated": true,
-    "sunset_date": "2026-06-30",
-    "successor": "gpt-5.4-nano"
+    "sunset_date": "2027-01-14",
+    "successor": "gpt-6-luna"
   },
   // GPT-5-Codex (agent model for coding tasks)
   "gpt-5-codex": {
@@ -418,7 +429,7 @@ const modelSpec = {
   // models stay out of providerDefaults — opt-in via the model dropdown only.
   //
   // Fable 5.1 succeeds Fable 5 at the same price. Two flags drive its
-  // differences, both verified live on 2026-09-02 (Fable 5 has neither):
+  // differences (Fable 5 has neither):
   //   rejects_forced_tool_choice  tool_choice "any"/"tool" return 400
   //   thinking_block_binding      a thinking block is bound to the prefix
   //                               that produced it, so replaying one after
@@ -584,7 +595,7 @@ const modelSpec = {
     "beta_flags": []
   },
   // Claude Sonnet 5.5 — the current Sonnet, same price and limits as Sonnet 5.
-  // Live-probed: `thinking: {type: "disabled"}`, non-default temperature and
+  // `thinking: {type: "disabled"}`, non-default temperature and
   // forced tool_choice all return 400; thinking blocks are bound to the
   // conversation (drop_block accepted with adaptive thinking). Omitting
   // `thinking` runs adaptive at the default effort (high), as on Sonnet 5.
@@ -661,6 +672,37 @@ const modelSpec = {
     "structured_output_mode": "json_schema",
     "beta_flags": []
   },
+  // Claude Haiku 5.5 (2026-10-07): thinks when `thinking`
+  // is omitted and returns its thinking only with display "summarized";
+  // temperature other than the default and `between_tools` are 400;
+  // thinking.type "disabled" and forced tool_choice are accepted; thinking
+  // blocks are bound to their prefix (drop_block reports the dropped block).
+  "claude-haiku-5-5": {
+    "context_window" : [1, 1000000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 128000], 128000],
+    "reasoning_effort": [["low", "medium", "high", "xhigh", "max"], "medium"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "supports_adaptive_thinking": true,
+    "thinking_on_by_default": true,
+    "thinking_budget": {
+      "min": 1024,
+      "default": 10000,
+      "max": null
+    },
+    "rejects_sampling_params": true,
+    "thinking_block_binding": true,
+    "thinking_display_default_omitted": true,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "supports_context_management": true,
+    "structured_output": true,
+    "structured_output_mode": "json_schema",
+    "beta_flags": []
+  },
   "claude-haiku-4-5-20251001": {
     "context_window" : [1, 200000],
     "api_version": "2023-06-01",
@@ -674,6 +716,9 @@ const modelSpec = {
     "beta_flags": []
   },
   "claude-sonnet-4-5-20250929": {
+    "deprecated": true,
+    "sunset_date": "2026-11-30",
+    "successor": "claude-sonnet-5-5",
     "context_window" : [1, 200000],
     "api_version": "2023-06-01",
     "max_output_tokens" : [[1, 64000], 64000],
@@ -762,8 +807,7 @@ const modelSpec = {
     "native_multiturn_reasoning": true
   },
   // Gemini models
-  // Thinking levels and budget-zero support verified against the live API
-  // on 2026-09-22. Budget bounds and presets are application choices, not
+  // Budget bounds and presets are application choices, not
   // the API's accepted range. The selected default effort remains low.
   "gemini-3.6-flash": {
     "context_window" : [1048576],
@@ -863,6 +907,21 @@ const modelSpec = {
     "sunset_date": "2026-06-25",
     "successor": "gemini-3.6-flash"
   },
+  // Gemini 4 Argon (2026-10-13): thinking levels low,
+  // medium and high (minimal is 400); thinkingBudget 0 and temperature are
+  // accepted; function calls, images and Google Search work.
+  "gemini-4-argon": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "reasoning_effort": [["low", "medium", "high"], "medium"],
+    "supports_thinking": true,
+    "supports_thinking_level": true,
+    "thinking_level": [["low", "medium", "high"], "medium"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_web_search": true,
+    "supports_pdf": true
+  },
   "gemini-3.1-pro-preview": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
@@ -953,8 +1012,22 @@ const modelSpec = {
     "deprecated": true,
     "successor": "gemini-3.5-flash-lite"
   },
+  // Nano Banana 2.1 (2026-10-06), the successor of 3.1 Flash Image: the
+  // same generateContent reply (inline JPEG), from a prompt and
+  // from an inline video.
+  "gemini-nano-banana-2.1": {
+    "context_window": [131072],
+    "max_output_tokens": [1, 32768],
+    "vision_capability": true,
+    "image_generation": true,
+    "supports_video_to_image": true,
+    "supports_web_search": true,
+    "skip_in_progress_events": true
+  },
   // Gemini 3.1 Flash Image (Nano Banana 2) — image generation + video-to-image, GA 2026-05-28
   "gemini-3.1-flash-image": {
+    "deprecated": true,
+    "successor": "gemini-nano-banana-2.1",
     "context_window": [131072],
     "max_output_tokens": [1, 32768],
     "vision_capability": true,
@@ -1036,8 +1109,12 @@ const modelSpec = {
     "successor": "gemini-3.1-pro-preview"
   },
   // Mistral models
-  // devstral models (agentic code — replaces codestral for tool-use workflows)
+  // devstral models (agentic code). Devstral 2 was retired 2026-07-31; the
+  // alias now answers as mistral-medium-3-5, so the
+  // catalog points saved selections there.
   "devstral-latest": {
+    "deprecated": true,
+    "successor": "mistral-medium-3-5",
     "max_output_tokens" : [1, 262000],
     "temperature": [[0.0, 1.0], 0.3],
     "top_p": [[0.0, 1.0], 1.0],
@@ -1065,8 +1142,9 @@ const modelSpec = {
   },
   // Mistral Large 4 (public preview 2026-10-06): open-weight multimodal MoE
   // (1.05T total, 49B active). The API reports a 524,288-token context
-  // (the model page says 1M). reasoning_effort accepts only "none"/"high"
-  // like Medium 3.5; without it the model does not reason.
+  // (the model page says 1M). reasoning_effort accepts low/medium/high and
+  // rejects "none"; it reasons at every level and returns the reasoning as
+  // structured thinking parts, so "low" is the least reasoning there is.
   "mistral-large-4": {
     "context_window": [1, 524288],
     "max_output_tokens" : [1, 262000],
@@ -1078,13 +1156,13 @@ const modelSpec = {
     "vision_capability": true,
     "supports_structured_output": true,
     "supports_thinking": true,
-    "reasoning_effort": [["none", "high"], "none"]
+    "reasoning_effort": [["low", "medium", "high"], "low"]
   },
   // Z.ai GLM 5.3, hosted by Mistral (third-party open-weight, text only,
   // 1M context, 128k output). reasoning_effort accepts low/high/max and
   // rejects "none"; WITHOUT the parameter it reasons at about max, so the
   // helper sends the lowest level when no reasoning is asked for
-  // (mistral_effort_for). "low" is close to no reasoning (checked 2026-10-06).
+  // (mistral_effort_for). "low" is close to no reasoning.
   "zai-glm-5-3": {
     "context_window": [1, 1048576],
     "max_output_tokens" : [1, 128000],
@@ -1092,6 +1170,19 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
     "vision_capability": false,
+    "supports_structured_output": true,
+    "supports_thinking": true,
+    "reasoning_effort": [["low", "high", "max"], "low"]
+  },
+  // GLM 5.3 Flash (2026-10-22): same reasoning values as GLM 5.3 (none and
+  // medium return 400), and it takes images.
+  "zai-glm-5-3-flash": {
+    "context_window": [1, 1048576],
+    "max_output_tokens" : [1, 128000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "tool_capability": true,
+    "vision_capability": true,
     "supports_structured_output": true,
     "supports_thinking": true,
     "reasoning_effort": [["low", "high", "max"], "low"]
@@ -1169,8 +1260,11 @@ const modelSpec = {
     "vision_capability": true,
     "supports_thinking": true
   },
-  // Mistral Labs experimental models
+  // Mistral Labs experimental models (retired 2026-04-30; gone from the model
+  // list, kept so saved sessions reach the successor Mistral names)
   "labs-mistral-small-creative": {
+    "deprecated": true,
+    "successor": "ministral-8b-latest",
     "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 2.0], 0.8],
     "top_p": [[0.0, 1.0], 1.0],
@@ -1207,8 +1301,11 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true
   },
-  // open models
+  // open models (retired 2026-07-31; kept so saved sessions reach the
+  // successor Mistral names)
   "open-mistral-nemo": {
+    "deprecated": true,
+    "successor": "ministral-8b-latest",
     "max_output_tokens" : [1, 131000],
     "temperature": [[0.0, 1.0], 0.3],
     "top_p": [[0.0, 1.0], 1.0],
@@ -1274,12 +1371,11 @@ const modelSpec = {
   // tool calling, web search, and structured output. Pricing ~$2 in / $6 out /
   // ~$0.50 cached per 1M (long-context tier ~doubles above the 200K threshold).
   // presence_penalty / frequency_penalty omitted to match the grok-4.3
-  // sampling-restriction posture. Verified against the live xAI API 2026-07-09.
+  // sampling-restriction posture.
   // grok-4.6 — xAI chat default. Same base pricing as grok-4.5, but
   // cached input costs more ($0.50/$1.00 vs $0.30/$0.60), so a cache-heavy
   // workload is not automatically cheaper on the newer model. It has no
   // alias: "grok-4.6-latest" fails rather than resolving.
-  // Effort vocabulary verified against the live API on 2026-09-22.
   "grok-4.6": {
     "context_window" : [1, 500000],
     "max_output_tokens" : [1, 32768],
@@ -1293,8 +1389,8 @@ const modelSpec = {
     "supports_parallel_function_calling": true,
     "structured_output": true
   },
-  // Context, vision and effort verified on 2026-09-22. Other capabilities
-  // inherit the 4.6 contract; retain its application output cap of 32768.
+  // Capabilities other than context, vision and effort follow the 4.6
+  // contract, including its application output cap of 32768.
   "grok-4.7": {
     "context_window" : [1, 500000],
     "max_output_tokens" : [1, 32768],
@@ -1339,8 +1435,24 @@ const modelSpec = {
     "structured_output": true
   },
   // DeepSeek models
+  // V4.1 Flash (2026-09-10, updated 2026-10-17): sees images natively. The
+  // V4 Flash names below are retired and answer as this model.
+  "deepseek-flash": {
+    "context_window" : [1, 1000000],
+    "max_output_tokens" : [1, 384000],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "reasoning_content": ["disabled", "enabled"],
+    "reasoning_effort": ["high", "max"]
+  },
   // V4 series: unified models with thinking/non-thinking mode toggle
   "deepseek-v4-flash": {
+    "deprecated": true,
+    "successor": "deepseek-flash",
     "context_window" : [1, 1000000],
     "max_output_tokens" : [1, 384000],
     "temperature": [[0.0, 2.0], 1.0],
@@ -1364,13 +1476,15 @@ const modelSpec = {
   },
   // DeepSeek's only vision model. The "-exp" is the vendor's own marker for an
   // experimental release, so it is offered for image input but kept out of the
-  // chat default. Live probe: reads images correctly, calls tools, and honors
+  // chat default. It reads images, calls tools, and honors
   // the same V4 thinking controls as the text models — which matters, because
   // it reasons by default and would otherwise spend the whole token budget on
   // a trace and return empty content. Limits mirror deepseek-v4-flash, its base
   // model; the vision guide documents only the image limits (JPEG/PNG/GIF/WebP,
   // user messages only).
   "deepseek-v4-flash-vision-exp": {
+    "deprecated": true,
+    "successor": "deepseek-flash",
     "context_window" : [1, 1000000],
     "max_output_tokens" : [1, 384000],
     "temperature": [[0.0, 2.0], 1.0],
@@ -1401,15 +1515,12 @@ const modelSpec = {
   //
   // `tts_family` matches the canonical family keys used by
   // TtsTextProcessors.family_for (Ruby) and TtsTagSanitizer.familyFor (JS).
-  // `tts_instructions_capability: true` means the model accepts the
-  // out-of-band `instructions` parameter (currently OpenAI gpt-4o-mini-tts
-  // only). `tts_voices` is the list the UI uses when it gates the voice
-  // dropdown by the active TTS model.
+  // `tts_voices` is the list the UI uses when it gates the voice dropdown by
+  // the active TTS model.
   // -------------------------------------------------------------------------
   "gpt-4o-mini-tts-2025-12-15": {
     "tts_capability": true,
     "tts_family": "openai-instruction",
-    "tts_instructions_capability": true,
     "tts_voices": ["alloy", "ash", "ballad", "coral", "echo", "fable",
                    "onyx", "nova", "sage", "shimmer", "verse", "marin", "cedar"],
     "tts_default_voice": "coral",
@@ -1419,7 +1530,6 @@ const modelSpec = {
   "tts-1-hd": {
     "tts_capability": true,
     "tts_family": "openai",
-    "tts_instructions_capability": false,
     "tts_voices": ["alloy", "ash", "coral", "echo", "fable", "onyx",
                    "nova", "sage", "shimmer"],
     "tts_default_voice": "alloy",
@@ -1429,7 +1539,6 @@ const modelSpec = {
   "tts-1": {
     "tts_capability": true,
     "tts_family": "openai",
-    "tts_instructions_capability": false,
     "tts_voices": ["alloy", "ash", "coral", "echo", "fable", "onyx",
                    "nova", "sage", "shimmer"],
     "tts_default_voice": "alloy",
@@ -1439,7 +1548,6 @@ const modelSpec = {
   "grok-tts": {
     "tts_capability": true,
     "tts_family": "xai",
-    "tts_instructions_capability": false,
     // Authoritative built-in voice roster from xAI GET /v1/tts/voices
     // (all natively multilingual). `eve` is the xAI default. Keep in sync
     // with the grok-tts-voice options in views/index.erb.
@@ -1451,51 +1559,82 @@ const modelSpec = {
   "gemini-3.8-flash-tts": {
     "tts_capability": true,
     "tts_family": "gemini",
-    "tts_style_directive": "bracket_cue",
-    "tts_instructions_capability": true
+    "tts_style_directive": "bracket_cue"
   },
   "gemini-3.8-flash-lite-tts": {
     "tts_capability": true,
     "tts_family": "gemini",
     // Reads a style cue aloud as part of the script, even in brackets and
     // not on every call, so none is sent. Inline tags in the text still work.
-    "tts_style_directive": "omit",
-    "tts_instructions_capability": true
+    "tts_style_directive": "omit"
   },
+  // Stops 2026-11-17.
   "gemini-3.1-flash-tts-preview": {
+    "deprecated": true,
+    "sunset_date": "2026-11-17",
+    "successor": "gemini-3.8-flash-tts",
     "tts_capability": true,
-    "tts_family": "gemini",
-    "tts_instructions_capability": true
+    "tts_family": "gemini"
   },
+  // Stops 2026-11-17.
   "gemini-2.5-flash-preview-tts": {
+    "deprecated": true,
+    "sunset_date": "2026-11-17",
+    "successor": "gemini-3.8-flash-tts",
     "tts_capability": true,
     "tts_family": "gemini",
-    "tts_instructions_capability": true
+    "tts_pace_prefix": true
   },
+  // Stops 2026-11-17.
   "gemini-2.5-pro-preview-tts": {
+    "deprecated": true,
+    "sunset_date": "2026-11-17",
+    "successor": "gemini-3.8-flash-tts",
     "tts_capability": true,
     "tts_family": "gemini",
-    "tts_instructions_capability": true
+    "tts_pace_prefix": true
   },
+  // Mistral still serves 26.03; Monadic moved to Voxtral 3, so a saved
+  // choice follows the successor.
   "voxtral-mini-tts-2603": {
     "tts_capability": true,
     "tts_family": "mistral",
-    "tts_instructions_capability": false
+    "deprecated": true,
+    "successor": "voxtral-mini-tts-3-0"
   },
+  // Voxtral 3 (2026-10-20): the same /v1/audio/speech request as 26.03.
+  "voxtral-mini-tts-3-0": {
+    "tts_capability": true,
+    "tts_family": "mistral"
+  },
+  // Eleven v4 and v4 Turbo (2026-09-28): play the same inline audio tags as
+  // v3 ("[laughs]" is performed, not read); /stream refuses
+  // optimize_streaming_latency (400).
+  "eleven_v4": {
+    "tts_capability": true,
+    "tts_family": "elevenlabs-v3",
+    "tts_latency_option": false
+  },
+  "eleven_v4_turbo": {
+    "tts_capability": true,
+    "tts_family": "elevenlabs-v3",
+    "tts_latency_option": false
+  },
+  // Sent to the convert endpoint (the whole file), the app's choice for v3;
+  // refuses previous_text (400).
   "eleven_v3": {
     "tts_capability": true,
     "tts_family": "elevenlabs-v3",
-    "tts_instructions_capability": false
+    "tts_endpoint": "convert",
+    "tts_previous_text": false
   },
   "eleven_multilingual_v2": {
     "tts_capability": true,
-    "tts_family": "elevenlabs",
-    "tts_instructions_capability": false
+    "tts_family": "elevenlabs"
   },
   "eleven_flash_v2_5": {
     "tts_capability": true,
-    "tts_family": "elevenlabs",
-    "tts_instructions_capability": false
+    "tts_family": "elevenlabs"
   },
 
   // -------------------------------------------------------------------------
@@ -1521,15 +1660,15 @@ const modelSpec = {
     "supports_realtime_streaming": true
   },
   // OpenAI retires whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe and
-  // gpt-4o-transcribe-diarize on 2027-02-26 (announced 2026-08-26); all four
-  // were still live on 2026-09-02. gpt-transcribe replaces the first three on
-  // /v1/audio/transcriptions — verified to accept response_format "json" with
+  // gpt-4o-transcribe-diarize on 2027-02-26 (announced 2026-08-26).
+  // gpt-transcribe replaces the first three on /v1/audio/transcriptions — it
+  // accepts response_format "json" with
   // logprobs and a language hint, which is everything this codebase asks of
   // them. It does NOT accept "diarized_json", and gpt-live-transcribe has no
   // batch endpoint at all, so speaker diarization has no successor yet: the
   // diarize entry below carries the sunset date without one, and stays
   // selectable until a replacement exists.
-  // supports_segment_transcription: verified (2026-10-10) to transcribe audio
+  // supports_segment_transcription: transcribes audio
   // appended and committed by the client in a realtime transcription session
   // with turn detection off — one item per commit, usage in seconds. Video
   // Describer's timed transcript relies on exactly that.
@@ -1574,6 +1713,8 @@ const modelSpec = {
     "stt_provider": "elevenlabs"
   },
   "scribe_v1_experimental": {
+    "deprecated": true,
+    "successor": "scribe_v2",
     "stt_capability": true,
     "stt_provider": "elevenlabs"
   },
@@ -1581,7 +1722,24 @@ const modelSpec = {
     "stt_capability": true,
     "stt_provider": "cohere"
   },
+  // Voxtral Mini Transcribe 2 (26.02). The 25.07 name was retired
+  // 2026-05-31 and now answers as voxtral-mini-latest.
+  // Mistral still serves 26.02; Monadic moved to Transcribe 3, so a saved
+  // model follows the successor.
+  "voxtral-mini-2602": {
+    "stt_capability": true,
+    "stt_provider": "mistral",
+    "deprecated": true,
+    "successor": "voxtral-mini-transcribe-3-0"
+  },
+  // Voxtral Mini Transcribe 3 (2026-10-20): the same request as 26.02.
+  "voxtral-mini-transcribe-3-0": {
+    "stt_capability": true,
+    "stt_provider": "mistral"
+  },
   "voxtral-mini-transcribe-2507": {
+    "deprecated": true,
+    "successor": "voxtral-mini-2602",
     "stt_capability": true,
     "stt_provider": "mistral"
   },
@@ -1621,12 +1779,31 @@ const modelSpec = {
   },
 
   // xAI realtime speech-to-speech (wss://api.x.ai/v1/realtime). Note: the
-  // server silently substitutes think-fast-1.0 for unknown model names, so
-  // the STS bridge validates the session's model echo and stops on mismatch.
-  // Voices: 26 IDs validated against the TTS REST API 2026-08-01 (the
-  // realtime endpoint itself accepts any string silently, so names come
-  // from the shared TTS voice registry).
+  // server silently substitutes another model for names it does not know
+  // (grok-voice-3.0 as of 2026-10-17) and reports the one it chose in
+  // session.created, so the STS bridge validates that echo and stops on
+  // mismatch. Same session shape, events and function calls as 2.0; the
+  // user transcript arrives as .completed only.
+  // Voices: the IDs of the TTS REST API (the realtime endpoint itself
+  // accepts any string silently, so names come from the shared TTS voice
+  // registry).
+  "grok-voice-3.0": {
+    "supports_speech_to_speech": true,
+    "sts_provider": "xai",
+    "sts_tools_capability": true,
+    "sts_voice": "eve",
+    "sts_voices": ["ara", "rex", "sal", "eve", "leo",
+                   "carina", "zagan", "helix", "orion", "luna", "iris", "altair",
+                   "zenith", "perseus", "helios", "lux", "kepler", "rigel", "cosmo",
+                   "celeste", "ursa", "sirius", "lumen", "castor", "naksh", "atlas"]
+  },
+
+  // Renamed by xAI to grok-voice-2.0 (the server now reports that name, so
+  // the exact-match check above stopped every session) and deprecated in
+  // favour of grok-voice-3.0. Kept so saved sessions resolve to the successor.
   "grok-voice-think-fast-2.0": {
+    "deprecated": true,
+    "successor": "grok-voice-3.0",
     "supports_speech_to_speech": true,
     "sts_provider": "xai",
     "sts_tools_capability": true,
@@ -1640,8 +1817,26 @@ const modelSpec = {
   // Gemini Live (BidiGenerateContent). Input 16kHz / output 24kHz;
   // transcription is incremental both ways; 15-minute session cap
   // (reconnect re-seeds from the canon).
-  // Voices: all 30 prebuilt names accepted via Live setup 2026-08-01.
+  // Voices: all 30 prebuilt names are accepted in the Live setup.
+  // Gemini 3.8 Live (2026-09-15), the successor of 3.1 Flash Live Preview.
+  // Spoken input is transcribed; the reply is audio with its transcript, and
+  // function calls work.
+  "gemini-3.8-live": {
+    "supports_speech_to_speech": true,
+    "sts_provider": "gemini",
+    "sts_tools_capability": true,
+    "sts_voice": "Kore",
+    "sts_voices": ["Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus",
+                   "Aoede", "Callirrhoe", "Autonoe", "Enceladus", "Iapetus",
+                   "Umbriel", "Algieba", "Despina", "Erinome", "Algenib",
+                   "Rasalgethi", "Laomedeia", "Achernar", "Alnilam", "Schedar",
+                   "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
+                   "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat"]
+  },
   "gemini-3.1-flash-live-preview": {
+    "deprecated": true,
+    "sunset_date": "2026-11-17",
+    "successor": "gemini-3.8-live",
     "supports_speech_to_speech": true,
     "sts_provider": "gemini",
     "sts_tools_capability": true,
@@ -1697,8 +1892,8 @@ const modelSpec = {
  */
 const providerDefaults = {
   "openai": {
-    "chat": ["gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna", "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.5", "gpt-5.2", "gpt-5.1"],
-    "code": ["gpt-5.3-codex", "gpt-5.6-sol", "gpt-5.2-codex", "gpt-5.4-mini"],
+    "chat": ["gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna", "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.5", "gpt-5.2"],
+    "code": ["gpt-6-sol", "gpt-5.6-sol", "gpt-5.4-mini"],
     "vision": ["gpt-6-luna", "gpt-5.6-luna", "gpt-5.4-mini"],
     "audio_transcription": ["gpt-transcribe"],
     // First entry is the default. The 2.5 models are offered as choices; moving
@@ -1708,21 +1903,23 @@ const providerDefaults = {
     "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"]
   },
   "anthropic": {
-    "chat": ["claude-sonnet-5-5", "claude-haiku-4-5-20251001"],
+    "chat": ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-haiku-4-5-20251001"],
     "code": ["claude-sonnet-5-5"],
-    "vision": ["claude-haiku-4-5-20251001"]
+    "vision": ["claude-haiku-5-5"]
   },
   "gemini": {
-    "chat": ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.1-pro-preview"],
+    "chat": ["gemini-3.8-flash", "gemini-4-argon", "gemini-3.6-flash", "gemini-3.1-pro-preview"],
     "vision": ["gemini-3.8-flash", "gemini-3.6-flash"],
     "audio_transcription": ["gemini-3.8-flash", "gemini-3.6-flash"],
-    // Imagen 4.0 reached its sunset on 2026-08-17 and is gone from the live
-    // model list (verified 2026-08-22), so only the conversational image
-    // models remain.
-    "image": ["gemini-3.1-flash-image", "gemini-3-pro-image"],
-    "video": ["veo-3.1-fast-generate-preview", "veo-3.1-generate-preview"],
+    // Imagen 4.0 is retired, so only the conversational image models
+    // remain.
+    "image": ["gemini-nano-banana-2.1", "gemini-3-pro-image"],
+    // Gemini Omni over the Interactions API (scripts/generators/video_generator_gemini.rb);
+    // Veo 3.1, its predecessor, is listed by Google to stop 2026-10-22.
+    "video": ["gemini-omni-1.1-flash"],
     "music": ["lyria-3.5", "lyria-3-clip-preview"],
-    "tts": ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts", "gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]
+    // The preview TTS models (deprecated, stop 2026-11-17) are not offered.
+    "tts": ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts"]
   },
   "cohere": {
     "chat": ["command-a-plus-05-2026", "command-a-03-2025", "command-a-vision-07-2025", "command-a-reasoning-08-2025"],
@@ -1730,11 +1927,11 @@ const providerDefaults = {
     "audio_transcription": ["cohere-transcribe-03-2026"]
   },
   "mistral": {
-    "chat": ["mistral-large-4", "mistral-medium-3-5", "zai-glm-5-3"],
-    "code": ["devstral-latest", "mistral-small-2603"],
+    "chat": ["mistral-large-4", "mistral-medium-3-5", "zai-glm-5-3", "zai-glm-5-3-flash"],
+    "code": ["mistral-medium-3-5", "mistral-small-2603"],
     "vision": ["mistral-small-2603"],
-    "tts": ["voxtral-mini-tts-2603"],
-    "audio_transcription": ["voxtral-mini-transcribe-2507"]
+    "tts": ["voxtral-mini-tts-3-0"],
+    "audio_transcription": ["voxtral-mini-transcribe-3-0"]
   },
   "xai": {
     "chat": ["grok-4.7", "grok-4.6", "grok-4.5", "grok-4.20-0309-non-reasoning", "grok-4.3", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309"],
@@ -1752,16 +1949,16 @@ const providerDefaults = {
     "audio_transcription": ["xai-stt"]
   },
   "deepseek": {
-    "chat": ["deepseek-v4-flash", "deepseek-v4-pro"],
-    // Vision only: the model is experimental, so it is reached by attaching an
-    // image (the helper swaps to it) rather than by being a chat default.
-    "vision": ["deepseek-v4-flash-vision-exp"]
+    "chat": ["deepseek-flash", "deepseek-v4-pro"],
+    // deepseek-flash sees images itself; the helper swaps to this only from a
+    // model that cannot (deepseek-v4-pro).
+    "vision": ["deepseek-flash"]
   },
   "ollama": {
     "chat": ["gemma4:e4b", "qwen3-vl:8b-thinking"]
   },
   "elevenlabs": {
-    "tts": ["eleven_v3", "eleven_multilingual_v2", "eleven_flash_v2_5"],
+    "tts": ["eleven_v3", "eleven_multilingual_v2", "eleven_flash_v2_5", "eleven_v4", "eleven_v4_turbo"],
     "audio_transcription": ["scribe_v2"],
     "music": ["music_v2_5"]
   }
@@ -1774,9 +1971,9 @@ const providerDefaults = {
 // change, and the model then picks a value that the API rejects. That is not
 // hypothetical — the OpenAI tool advertised the DALL·E-era sizes 256x256 and
 // 512x512 and the qualities "standard" and "hd" long after DALL·E was removed
-// (2026-05-12), and every one of them answered 400 on a live probe.
+// (2026-05-12), and the API rejects every one of them with 400.
 //
-// Values verified against the live API on 2026-08-21. `seed` is documented in
+// `seed` is documented in
 // OpenAI's image guide but rejected as an unknown parameter, so it is absent.
 const imageGenerationOptions = {
   "openai": {
@@ -1787,7 +1984,7 @@ const imageGenerationOptions = {
              "2048x2048", "2048x1152", "3840x2160", "2160x3840"],
     // Quality is per model: gpt-image-2 rejects `xhigh` ("The model
     // 'gpt-image-2' does not support quality 'xhigh'"), while the 2.5 models
-    // accept it and `max`. Verified against the live API on 2026-09-21.
+    // accept it and `max`.
     // A model listed in providerDefaults.openai.image must appear here, and a
     // model absent from this table is not resolvable — callers stop rather
     // than guess. Parameters other than the ones named here fall through to
@@ -1809,7 +2006,7 @@ const imageGenerationOptions = {
     "input_fidelity": ["low", "high"]
   },
   "xai": {
-    // Verified against the live API on 2026-09-22. These request values are
+    // These request values are
     // shared by the xAI image models, so no per-model table is needed.
     "quality": ["low", "medium", "high", "auto"],
     "aspect_ratio": ["1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2",
@@ -1818,12 +2015,45 @@ const imageGenerationOptions = {
   "gemini": {
     // The conversational image models, which are a different set from
     // providerDefaults.gemini.image (that list drives the Imagen path).
-    // Both verified present in the live model list on 2026-08-21.
-    "model": ["gemini-3.1-flash-image", "gemini-3-pro-image"]
+    // gemini-3.1-flash-image is deprecated in favour of Nano Banana 2.1.
+    "model": ["gemini-nano-banana-2.1", "gemini-3-pro-image"]
     // aspect_ratio is deliberately absent: the accepted set has not been
     // verified against the API, and turning free-form prose into an enum
     // would remove ratios the model may well accept.
   }
+};
+
+// -------------------------------------------------------------------------
+// TTS choices: the values of the TTS provider selector (#tts-provider), each
+// naming the provider that speaks it and the registered model it sends. How a
+// model is sent and how its text is prepared come from the model's entry
+// (tts_family and the like), not from the choice. A value saved before a
+// choice was renamed or retired names its successor with `alias`; a retired
+// one also sets `retired`, and the page says so when it moves the value. Web Speech
+// runs in the browser and sends no model.
+// Read by Monadic::Utils::TtsProvider (Ruby) and tts-provider.js (browser).
+// -------------------------------------------------------------------------
+const ttsChoices = {
+  "openai-tts-4o": { "provider": "openai", "model": "gpt-4o-mini-tts-2025-12-15" },
+  "openai-tts-hd": { "provider": "openai", "model": "tts-1-hd" },
+  "openai-tts": { "provider": "openai", "model": "tts-1" },
+  "elevenlabs-v4": { "provider": "elevenlabs", "model": "eleven_v4" },
+  "elevenlabs-v4-turbo": { "provider": "elevenlabs", "model": "eleven_v4_turbo" },
+  "elevenlabs-v3": { "provider": "elevenlabs", "model": "eleven_v3" },
+  "elevenlabs-multilingual": { "provider": "elevenlabs", "model": "eleven_multilingual_v2" },
+  "elevenlabs-flash": { "provider": "elevenlabs", "model": "eleven_flash_v2_5" },
+  "gemini-flash": { "provider": "gemini", "model": "gemini-3.8-flash-tts" },
+  "gemini-flash-lite": { "provider": "gemini", "model": "gemini-3.8-flash-lite-tts" },
+  "mistral": { "provider": "mistral", "model": "voxtral-mini-tts-3-0" },
+  "grok": { "provider": "xai", "model": "grok-tts" },
+  "webspeech": { "provider": "webspeech", "model": null, "execution": "browser" },
+  // Values saved by earlier versions
+  "openai": { "alias": "openai-tts-4o" },
+  "elevenlabs": { "alias": "elevenlabs-flash" },
+  "gemini": { "alias": "gemini-flash" },
+  "web-speech": { "alias": "webspeech" },
+  // Retired choices: a saved value moves to the successor with a notice
+  "gemini-pro": { "alias": "gemini-flash", "retired": true }
 };
 
 // Expose modelSpec globally for browser environment
@@ -1831,6 +2061,7 @@ if (typeof window !== 'undefined') {
   window.modelSpec = modelSpec;
   window.providerDefaults = providerDefaults;
   window.imageGenerationOptions = imageGenerationOptions;
+  window.ttsChoices = ttsChoices;
 }
 
 // Support for Jest testing environment (CommonJS)
@@ -1844,6 +2075,11 @@ if (typeof module !== 'undefined' && module.exports) {
   });
   Object.defineProperty(module.exports, 'imageGenerationOptions', {
     value: imageGenerationOptions,
+    enumerable: false,
+    configurable: true
+  });
+  Object.defineProperty(module.exports, 'ttsChoices', {
+    value: ttsChoices,
     enumerable: false,
     configurable: true
   });

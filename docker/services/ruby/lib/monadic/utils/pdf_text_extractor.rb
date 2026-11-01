@@ -1,18 +1,25 @@
 # frozen_string_literal: false
 
-require "parallel"
+require "fileutils"
+require "securerandom"
 require_relative "debug_helper"
+require_relative "shared_path_guard"
 
 RAG_TOKENS = ENV.fetch("PDF_RAG_TOKENS", "4000").to_i
 RAG_OVERLAP_LINES = ENV.fetch("PDF_RAG_OVERLAP_LINES", "4").to_i
 
 class PDF2Text
-  THREADS = 4
+  # As long as the extractor service is given (OCR over many pages).
+  EXTRACT_TIMEOUT = 600 # seconds
 
   attr_reader :file_path, :text_data
 
-  # Initializes the PDF2Text class
-  def initialize(path:, max_tokens: RAG_TOKENS, separator: "\n", overwrap_lines: RAG_OVERLAP_LINES)
+  # Initializes the PDF2Text class. in_shared: whether path is a file of the
+  # shared folder (read through SharedPathGuard, never through a link) or
+  # the server's own file elsewhere (an upload's temporary file), which the
+  # caller says, not where the path points.
+  def initialize(path:, max_tokens: RAG_TOKENS, separator: "\n", overwrap_lines: RAG_OVERLAP_LINES, in_shared: true)
+    @in_shared = in_shared
     @file_path = path
     @file_name = File.basename(path)
     @max_tokens = max_tokens
@@ -28,19 +35,27 @@ class PDF2Text
 
     data_path = Monadic::Utils::Environment.data_path + "/"
 
-    new_file_name = "#{Time.now.to_i}.pdf"
+    # The python container reads the file through the shared folder. The copy
+    # has a name of its own, so extractions at the same time do not read each
+    # other's file, and it is removed when the extraction ends.
+    new_file_name = "pdf2text_#{SecureRandom.hex(8)}.pdf"
     new_file_path = File.expand_path(File.join(data_path, new_file_name))
 
-    FileUtils.cp(file_path, new_file_path)
+    guard = Monadic::Utils::SharedPathGuard
+    if @in_shared
+      guard.copy_file!(file_path, new_file_path, replace: false)
+    else
+      File.open(file_path, "rb") { |source| guard.write_file!(new_file_path, source, replace: false) }
+    end
+    # Only a copy this call put in place is removed afterwards.
+    copied = new_file_path
 
     # Route through Monadic::Shell so the container name and the
     # shared-volume workdir share the same source of truth as every
-    # other docker invocation. Shellwords.escape on new_file_name
-    # protects against any shell metacharacters in the timestamped
-    # filename (paranoia — Time.now.to_i is digits only).
+    # other docker invocation.
     require_relative '../shell'
     body = "pdf2txt.py #{Monadic::Shell.escape(new_file_name)} --format md --json"
-    stdout, stderr, status = Monadic::Shell.bash(container: :python, body: body)
+    stdout, stderr, status = Monadic::Shell.bash(container: :python, body: body, timeout: EXTRACT_TIMEOUT)
     if status.success?
       begin
         # Filter out any non-JSON content before the opening brace.
@@ -59,6 +74,12 @@ class PDF2Text
     else
       raise "Error extracting text: #{stderr}"
     end
+  ensure
+    begin
+      Monadic::Utils::SharedPathGuard.delete_file!(copied) if copied
+    rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+      nil
+    end
   end
 
   # Extracts the text from the PDF file
@@ -70,11 +91,11 @@ class PDF2Text
       pages = doc_json["pages"]
       raise "No pages found in PDF" if pages.nil? || pages.empty?
       
-      Parallel.each(pages, in_threads: THREADS) do |page|
+      # In page order.
+      @text_data = pages.map do |page|
         text = page["text"].gsub(/[^[:print:]\s]/, " ")
-        text = text.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
-        @text_data += "#{text}\n"
-      end
+        "#{text.encode('UTF-8', invalid: :replace, undef: :replace, replace: '')}\n"
+      end.join
     rescue NoMethodError => e
       DebugHelper.debug("Invalid PDF structure: #{e.message}", category: :app, level: :error)
       raise "PDF file appears to be corrupted or empty"
@@ -122,7 +143,7 @@ if $PROGRAM_NAME == __FILE__
   file_path = ARGV[0]
 
   if File.exist?(file_path)
-    pdf = PDF2Text.new(path: file_path, max_tokens: RAG_TOKENS, separator: "\n", overwrap_lines: RAG_OVERLAP_LINES)
+    pdf = PDF2Text.new(path: file_path, max_tokens: RAG_TOKENS, separator: "\n", overwrap_lines: RAG_OVERLAP_LINES, in_shared: false)
     pdf.extract
     split_texts = pdf.split_text
     split_texts.each_with_index do |split_text, index|

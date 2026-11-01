@@ -1471,9 +1471,9 @@ const WorkflowViewer = (function () {
       }
       if (typeof window.maxgraph === 'undefined') {
         console.warn('[WorkflowViewer] maxGraph not loaded');
-        // §38d: surface the failure and offer a retry — this used to return
-        // silently with initialised=false and no way forward (a rejected
-        // LazyLoader promise was also cached forever; see lazy-loader.js).
+        // Surface the failure and offer a retry rather than returning
+        // silently with initialised=false (a rejected LazyLoader promise is
+        // not cached, so the retry reaches the network; see lazy-loader.js).
         var errContainer = $id('workflow-viewer-container');
         if (errContainer) {
           var tFn = function (key, fallback) {
@@ -1768,7 +1768,7 @@ const WorkflowViewer = (function () {
       saveViewState(); // Save current app's view before switching
       currentApp = name; currentData = null; updateTitle(null);
       container.innerHTML = '<div class="workflow-viewer-message"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</div>';
-      fetch('/api/app/' + encodeURIComponent(name) + '/graph')
+      fetch('/api/app/' + encodeURIComponent(name) + '/graph' + (typeof window.monadicTabQuery === 'function' ? window.monadicTabQuery() : ''))
         .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(function (data) {
           if (data.error) throw new Error(data.error);

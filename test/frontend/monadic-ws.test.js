@@ -1,10 +1,10 @@
 /**
  * Tests for monadic-ws.js (safeWsSend wrapper).
  *
- * These specs cover the state matrix from docs_dev/safe_ws_send_plan.md
- * §3.2: every combination of (ws state) × (idempotent yes/no) routes
- * to the correct outcome (send / queue / fail), and the queue
- * semantics (cap, TTL, dedup) match §3.4.
+ * These specs cover the behavior in docs_dev/frontend/safe_ws_send.md:
+ * every combination of (ws state) × (idempotent yes/no) routes to the
+ * correct outcome (send / queue / fail), and the queue limits (cap,
+ * TTL, dedup).
  *
  * The lint:bare_ws_send rule (planned H7.9) will catch new bare
  * ws.send() calls; these tests catch behaviour regressions in the

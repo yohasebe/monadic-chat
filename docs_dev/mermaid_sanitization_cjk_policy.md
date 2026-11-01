@@ -1,84 +1,32 @@
-# Mermaid Source Sanitization — CJK Safety Policy
+# Mermaid Source Sanitization — CJK Safety
 
-## Summary
+Mermaid source for the Mermaid Grapher app is sanitized before validation and rendering: Western smart punctuation that models often write (curly quotes, typographic dashes, fullwidth forms) is folded to ASCII so that the Mermaid parser accepts it.
 
-Mermaid source typed/generated for the Mermaid Grapher app is "sanitized"
-before validation and rendering: Western *smart* punctuation that LLMs often
-emit (curly quotes, typographic dashes, fullwidth forms) is folded back to
-ASCII so the Mermaid parser does not choke on it.
+## Rule
 
-**These fold rules MUST NOT include CJK characters that merely look like
-Western punctuation.** Never add the following to the fold character classes:
+The fold rules must not include CJK characters that only look like Western punctuation:
 
-| Code point | Char | Why it must be preserved |
+| Code point | Character | Reason |
 | --- | --- | --- |
-| U+30FC | long-vowel mark | Japanese prolonged sound (e.g. クロマトグラフィー). Folding to `-` corrupts katakana words. |
-| U+300C / U+300D | corner brackets | Japanese quotation/label brackets. Folding to `"` corrupts labels. |
+| U+30FC | long-vowel mark | Part of Japanese words (e.g. クロマトグラフィー); folding it to `-` breaks the word and the Mermaid parse |
+| U+300C / U+300D | corner brackets | Japanese quotation and label brackets; folding them to `"` breaks labels |
 
-## Background (the bug this policy prevents)
+## Two Implementations
 
-2026-06-02: A chemistry mindmap with the node クロマトグラフィー failed to render
-with **"Syntax error in text — mermaid version 11.4.1"**, even though the tool
-reported *"Done — verified successfully"*.
+The same rules exist twice and must stay equivalent:
 
-Root cause: both sanitizers folded the long-vowel mark (U+30FC) to ASCII `-`,
-turning クロマトグラフィー into a katakana word ending in a stray hyphen.
-Mermaid's `mindmap` parser then failed on the hyphen. The "verified
-successfully" message was misleading because the **preview path skips Selenium
-validation and uses a lenient static check** (`run_full_validation` with
-`source: :preview_tool`), which did not flag the corrupted text — so validation
-and rendering disagreed.
+1. **Ruby**: `sanitize_mermaid_code` in `apps/mermaid_grapher/mermaid_grapher_tools.rb`.
+2. **JavaScript**: `sanitizeMermaidSource` in `public/js/monadic/ws-content-renderer.js`.
 
-## The two mirrored implementations (keep them in sync)
+Both carry a `CJK SAFETY` comment that points to this page.
 
-The same fold ruleset is implemented twice and must stay equivalent:
+## Tests
 
-1. **Server (Ruby)** — `apps/mermaid_grapher/mermaid_grapher_tools.rb`,
-   `sanitize_mermaid_code`.
-2. **Frontend (JS)** — `public/js/monadic/ws-content-renderer.js`,
-   `sanitizeMermaidSource`.
+- `spec/unit/apps/mermaid_sanitize_cjk_safety_spec.rb`: the long-vowel mark, corner brackets and a Japanese mindmap line survive; Western smart punctuation is folded; no fold `gsub` line contains the CJK code points.
+- `test/frontend/websocket-utilities.test.js`: the long-vowel mark is kept; dashes and quotes are folded.
 
-Both carry a `CJK SAFETY` comment block pointing at this document.
+## Render-Error Check in the Preview
 
-## Regression guards
+`preview_mermaid` validates with a static check (`run_full_validation(…, source: :preview_tool)`) and then renders the diagram in Selenium. Before taking the screenshot it runs `web_navigator.py --action check_render_error`, which reports whether the page shows Mermaid's error graphic (`svg[aria-roledescription="error"]`, `.error-icon`, `.error-text`). On an error, `preview_mermaid` returns a failure with the error text instead of a screenshot. Covered by `spec/unit/apps/mermaid_preview_render_error_spec.rb`.
 
-CJK safety is pinned on both stacks; a re-introduction of the long-vowel mark
-or corner brackets into a fold rule (or a behavioral regression) fails these:
-
-- **Ruby**: `spec/unit/apps/mermaid_sanitize_cjk_safety_spec.rb`
-  - behavioral: long-vowel / corner brackets / a Japanese mindmap line survive
-    sanitization; Western smart punctuation is still folded.
-  - source guard: no fold `gsub` line contains the CJK code points.
-- **Frontend (Jest)**: `test/frontend/websocket-utilities.test.js`
-  - behavioral: long-vowel and クロマトグラフィー are preserved; dashes/quotes folded.
-
-## Render-error gating (the structural fix)
-
-The deeper structural issue behind the original report was that the **preview
-path validated with a lenient static check while the real render happened in
-the browser**, so a sanitizer bug (or any other defect) could pass validation
-yet fail rendering — and the screenshot step would happily capture Mermaid's
-error graphic (the "bomb" icon) and report success.
-
-This is now closed. `preview_mermaid` consults a dedicated web_navigator
-action, `check_render_error`, between rendering and screenshotting:
-
-- **`check_render_error`** (`docker/services/python/scripts/cli_tools/web_navigator.py`)
-  runs JS in the live page and reports whether the rendered SVG is Mermaid's
-  error graphic (`svg[aria-roledescription="error"]` / `.error-icon` /
-  `.error-text`), returning `{render_error: bool, error_text}`.
-- **`preview_mermaid`** (`mermaid_grapher_tools.rb`) returns a failure with the
-  error detail when `render_error` is true, instead of capturing and presenting
-  the error screen. The LLM then sees the real Mermaid error and can self-correct.
-
-Pinned by `spec/unit/apps/mermaid_preview_render_error_spec.rb` (render-error →
-failure, clean render → proceeds to screenshot).
-
-### Remaining minor divergence (low priority)
-
-`build_mermaid_html` initializes Mermaid with `securityLevel: 'loose'`, while the
-chat renderer (`ws-content-renderer.js`) uses `'strict'`. The preview therefore
-renders under slightly more permissive settings than the chat surface. The
-render-error gate catches outright parse failures regardless, but a diagram that
-only fails under `strict` could still pass preview. Aligning the two security
-levels is a separate, lower-priority cleanup.
+The preview page initializes Mermaid with `securityLevel: 'loose'`; the chat renderer uses `'strict'`.

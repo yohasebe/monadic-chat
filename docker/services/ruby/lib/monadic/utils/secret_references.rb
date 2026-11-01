@@ -2,7 +2,9 @@
 
 require "json"
 require "open3"
+require "securerandom"
 require_relative "environment"
+require_relative 'env_file'
 
 module Monadic
   module Utils
@@ -22,6 +24,10 @@ module Monadic
       module_function
 
       REFERENCE = %r{\Aop://}
+      # Names of settings and environment variables that hold credentials:
+      # the one rule for removing them from child environments and for
+      # collecting the values SecretRedactor replaces.
+      CREDENTIAL_NAME = /(?:API_KEY|ACCESS_KEY|ACCESS_KEY_ID|_KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIALS?)\z/i
       DELIVERED_PATH = "/run/monadic-secrets/env"
 
       def reference?(value)
@@ -36,6 +42,23 @@ module Monadic
         resolved[key]
       end
 
+      # The CONFIG value for a config/env entry, written out or read from
+      # 1Password: "true"/"false" and whole numbers become booleans and
+      # numbers, which the settings that take them compare against. A
+      # credential stays the string it is (a password may be all digits).
+      # The whole value must match, so a value that spans lines stays a string.
+      def setting_value(key, value)
+        return value if key.to_s.match?(CREDENTIAL_NAME)
+
+        case value
+        when "true" then true
+        when "false" then false
+        when /\A\d+\z/ then value.to_i
+        when /\A\d+\.\d+\z/ then value.to_f
+        else value
+        end
+      end
+
       # Keys whose references could not be resolved, for messages.
       def unresolved_keys(pairs)
         pairs.select { |key, value| reference?(value) && resolved[key].nil? }.map(&:first)
@@ -48,11 +71,9 @@ module Monadic
       # One key from config/env, resolved, for scripts that read the file
       # themselves instead of loading CONFIG. nil when absent or unresolved.
       def config_value(key, path = Environment.env_path)
-        # Read directly; a missing file is a SystemCallError like any other.
-        line = File.read(path).each_line.map(&:strip).reverse.find { |l| l.start_with?("#{key}=") }
-        return nil unless line
-
-        value = line.split("=", 2).last.to_s.strip.gsub(/\A['"]|['"]\z/, "")
+        # The same parse as the server's (EnvFile); a missing file reads as
+        # nothing.
+        value = EnvFile.parse(path)[key].to_s
         return nil if value.empty?
 
         resolve(key, value)
@@ -61,15 +82,45 @@ module Monadic
       end
 
       # Dotenv copies config/env into ENV, references included. Remove those,
-      # so no ENV fallback hands a reference on as a key. Resolved values are
-      # not put back: every child process would inherit them.
-      def scrub_env!(env = ENV)
-        env.to_h.each { |key, value| env.delete(key) if reference?(value) }
+      # so no ENV fallback hands a reference on as a key. Credentials whose
+      # ENV value is the one in the file (`loaded`, the parsed file) are
+      # removed too: CONFIG holds them, and every child process would inherit
+      # them from ENV. That includes values the rake task loaded before the
+      # server started. A credential with another value (set by the shell) is
+      # left alone. Resolved values are not put back. The removed credentials
+      # are kept in this process (removed_credentials) so SecretRedactor still
+      # knows them: Dotenv expands `${VAR}`, so its value can differ from the
+      # one in CONFIG.
+      def scrub_env!(env = ENV, loaded: {})
+        removed = {}
+        env.to_h.each do |key, value|
+          from_file = loaded.key?(key) && loaded[key] == value && key.match?(CREDENTIAL_NAME)
+          removed[key] = value if from_file
+          env.delete(key) if reference?(value) || from_file
+        end
+        @removed_credentials = removed_credentials.merge(removed).freeze
+      end
+
+      # Credentials scrub_env! took out of ENV, for SecretRedactor only.
+      def removed_credentials
+        @removed_credentials || {}
+      end
+
+      # Keys whose references could not be read when config/env was loaded,
+      # for telling the user which ones (names only).
+      def unresolved_at_load
+        @unresolved_at_load || []
+      end
+
+      def record_unresolved(keys)
+        @unresolved_at_load = Array(keys).map(&:to_s).uniq.freeze
       end
 
       # For tests.
       def reset!
         @resolved = nil
+        @unresolved_at_load = nil
+        @removed_credentials = nil
       end
 
       def read_delivered(path = DELIVERED_PATH)
@@ -84,29 +135,32 @@ module Monadic
       def references_in_env(path = Environment.env_path)
         return {} unless File.file?(path)
 
-        File.read(path).each_line.each_with_object({}) do |line, refs|
-          key, value = line.strip.split("=", 2)
-          next if key.nil? || value.nil? || key.start_with?("#")
-
-          value = value.strip.gsub(/\A['"]|['"]\z/, "")
-          refs[key] = value if reference?(value)
-        end
+        EnvFile.parse(path).select { |_key, value| reference?(value) }
       rescue SystemCallError
         {}
       end
 
       # One `op inject` call for every reference, so 1Password asks at most
-      # once. The template goes in on stdin; nothing is written to disk.
+      # once. The template goes in on stdin; nothing is written to disk. Each
+      # value sits between two copies of a random boundary, so a value that
+      # spans lines is kept whole. op gets none of the server's descriptors:
+      # the daemon it may start outlives the server and would keep holding
+      # the server's listening socket, so the port could not be opened again.
       def read_with_op(refs, op: ENV.fetch("MONADIC_OP_CLI", "op"))
         return {} if refs.empty?
 
-        template = refs.map { |key, ref| "#{key}={{ #{ref} }}\n" }.join
-        out, _err, status = Open3.capture3(op, "inject", stdin_data: template)
+        boundary = "--monadic-#{SecureRandom.hex(16)}--"
+        template = refs.map { |key, ref| "#{boundary}#{key}\n{{ #{ref} }}\n" }.join + boundary
+        out, _err, status = Open3.capture3(op, "inject", stdin_data: template, close_others: true)
         return {} unless status.success?
 
-        out.each_line.each_with_object({}) do |line, values|
-          key, value = line.chomp.split("=", 2)
-          values[key] = value if refs.key?(key) && value && !value.empty?
+        out.split(boundary).each_with_object({}) do |part, values|
+          key, value = part.split("\n", 2)
+          next if key.nil? || value.nil?
+
+          # Only the newline the template put after the value comes off.
+          value = value.delete_suffix("\n")
+          values[key] = value if refs.key?(key) && !value.empty?
         end
       rescue SystemCallError
         {}

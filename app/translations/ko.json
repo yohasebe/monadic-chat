@@ -13,7 +13,11 @@
     "exporting": "내보내는 중",
     "quitting": "종료 중",
     "checking": "확인 중",
-    "updating": "업데이트 중"
+    "updating": "업데이트 중",
+    "started": "시작됨",
+    "finalizing": "마무리 중",
+    "notinstalled": "설치되지 않음",
+    "portinuse": "포트 사용 중"
   },
   "menu": {
     "file": "파일",
@@ -124,6 +128,11 @@
     "quit": "종료"
   },
   "dialogs": {
+    "sharedFolderTrash": {
+      "message": "공유 폴더의 항목 {{count}}개를 휴지통으로 옮길까요?",
+      "move": "휴지통으로 이동",
+      "more": "외 {{count}}개"
+    },
     "unsavedChangesTitle": "저장되지 않은 변경 사항",
     "unsavedChangesMessage": "저장하지 않은 변경 사항이 있습니다. 닫기 전에 저장하시겠습니까?",
     "saveAndClose": "저장하고 닫기",
@@ -168,7 +177,61 @@
     "importDbPassphraseTitle": "문서 DB 복호화",
     "importDbPassphraseHint": "내보낼 때 설정한 암호를 입력하세요.",
     "importDbDecryptingMessage": "문서 DB를 복호화하는 중...",
-    "importDbDecryptFailed": "복호화에 실패했습니다. 암호가 틀렸거나 파일이 변조되었습니다."
+    "importDbDecryptFailed": "복호화에 실패했습니다. 암호가 틀렸거나 파일이 변조되었습니다.",
+    "passphrase": {
+      "windowTitle": "암호",
+      "label": "암호",
+      "confirmLabel": "암호 확인",
+      "tooShort": "암호는 8자 이상이어야 합니다.",
+      "mismatch": "암호가 일치하지 않습니다."
+    },
+    "updateAvailable": {
+      "message": "업데이트가 있습니다",
+      "detail": "새 버전: {{latest}} (현재: {{current}}).\n백그라운드에서 다운로드하며, 준비되면 재시작을 요청합니다.",
+      "viewReleases": "모든 릴리스 보기"
+    },
+    "upToDate": {
+      "message": "최신 버전입니다",
+      "detail": "이미 최신 버전({{version}})을 사용 중입니다."
+    },
+    "updateReady": {
+      "title": "업데이트 준비 완료",
+      "message": "Monadic Chat {{version}}을(를) 설치할 수 있습니다.",
+      "detail": "Docker 컨테이너를 정상적으로 중지한 뒤 재시작하여 업데이트를 적용합니다. 진행 중인 대화는 사라지므로 먼저 마치거나 저장하세요.",
+      "restartNow": "지금 재시작",
+      "later": "나중에"
+    },
+    "updateError": {
+      "title": "업데이트 오류",
+      "message": "자동 업데이트에 실패했습니다",
+      "detail": "릴리스 페이지에서 최신 버전을 직접 다운로드할 수 있습니다.",
+      "openReleases": "릴리스 페이지 열기",
+      "close": "닫기"
+    },
+    "dockerErrorTitle": "Docker 오류",
+    "dockerCommandFailed": "Docker 명령이 코드 {{code}}(으)로 종료되었습니다.",
+    "openFolderFailed": "폴더를 열 수 없습니다",
+    "serverStartFailed": "서버를 시작하지 못했습니다. 다시 시도하세요.",
+    "ttsDictReadFailed": "TTS 사전 파일을 읽지 못했습니다:",
+    "ttsDictFilter": "CSV 파일",
+    "documentDbNotFound": "문서 DB 파일을 찾을 수 없습니다. monadic-qdrant.tar.gz 또는 monadic-qdrant.tar.gz.enc를 ~/monadic/data/에 두세요.",
+    "pendingBuilds": {
+      "setupTitle": "컨테이너 설정",
+      "setupMessage": "이 컴퓨터에 아직 설정되지 않은 컨테이너가 있습니다.",
+      "setupDetail": "지금 설정하거나 설정 없이 시작할 수 있습니다. 설정하지 않은 컨테이너는 기능이 처음 필요로 할 때 설정되므로 첫 사용에 시간이 더 걸립니다.",
+      "setupButton": "설정 후 시작",
+      "startNow": "지금 시작",
+      "rebuildTitle": "컨테이너 재구축 권장",
+      "rebuildMessage": "저장한 설정을 적용하려면 일부 컨테이너를 재구축해야 합니다.",
+      "rebuildDetailSomeNotBuilt": "재구축하지 않으면 이미 빌드된 컨테이너는 이전 설정을 유지합니다. 아직 빌드되지 않은 컨테이너는 기능이 처음 필요로 할 때 설정됩니다.",
+      "rebuildDetail": "재구축하지 않으면 이전에 빌드한 이미지로 시작합니다.",
+      "rebuildButton": "재구축 후 시작",
+      "startAnyway": "그대로 시작",
+      "notBuilt": "아직 빌드되지 않음",
+      "optionsChanged": "옵션 변경됨 ({{options}})",
+      "pythonContainer": "Python 컨테이너",
+      "minutes": "{{range}}분"
+    }
   },
   "messages": {
     "dockerNotRunning": "Docker Desktop이 실행되고 있지 않습니다. Docker Desktop을 먼저 시작한 후 다시 시도하세요.",
@@ -191,8 +254,26 @@
     "removingContainers": "컨테이너와 이미지를 제거하는 중입니다.",
     "stoppingAllProcesses": "모든 프로세스를 중지하는 중입니다.",
     "systemStopped": "{{time}}에 시스템이 중지되었습니다",
+    "serverNotRunning": "서버가 실행되고 있지 않습니다. 먼저 서버를 시작하세요.",
+    "serverStoppedAfterSleep": "시스템 절전/복귀 후 서버가 중지되었습니다. 서버를 다시 시작하세요.",
     "quittingMonadicChat": "Monadic Chat를 종료하는 중...",
     "monadicChatPreparing": "Monadic Chat를 준비하는 중...",
+    "dockerNotInstalled": {
+      "darwin": "Docker를 찾을 수 없습니다. Docker Desktop for Mac을 설치하고 실행한 다음 <b>Start</b>를 누르세요.",
+      "win32": "Docker를 찾을 수 없습니다. Docker Desktop for Windows(WSL 2에서 실행됨)를 설치하고 실행한 다음 <b>Start</b>를 누르세요.",
+      "linux": "Docker를 찾을 수 없습니다. 사용 중인 배포판용 Docker Engine을 설치한 다음 <b>Start</b>를 누르세요."
+    },
+    "opReferencesReading": "1Password에서 키 {{count}}개를 읽는 중...",
+    "opReferencesStaleContainer": "Ruby 컨테이너가 이전 버전으로 빌드되어 1Password에서 읽은 키를 사용할 수 없습니다. 이대로라면 키 대신 op:// 참조가 제공업체에 전송됩니다. <b>Actions → Build Ruby Container</b>로 다시 빌드한 다음 <b>Start</b>를 누르세요.",
+    "opReferenceFailed": "1Password에서 {{key}}을(를) 읽을 수 없습니다: {{reason}}. 다음 Start 전까지 이 키가 필요한 기능은 사용할 수 없습니다.",
+    "opReferenceReasons": {
+      "opMissing": "1Password CLI(op)를 찾을 수 없습니다",
+      "notSignedIn": "1Password가 잠겨 있거나 CLI에 로그인되어 있지 않습니다",
+      "cancelled": "요청이 거부되었습니다",
+      "notFound": "참조가 존재하는 항목과 필드를 가리키지 않습니다",
+      "timeout": "1Password가 제시간에 응답하지 않았습니다",
+      "failed": "1Password CLI가 오류를 보고했습니다"
+    },
     "monadicChatStopping": "Monadic Chat를 중지하는 중...",
     "monadicChatRestarting": "Monadic Chat를 재시작하는 중...",
     "buildingMonadicChat": "Monadic Chat를 빌드하는 중...",
@@ -233,14 +314,20 @@
     "buildMonadicFinished": "Monadic Chat 빌드가 완료되고 컨테이너가 시작되었습니다. 자세한 내용은 콘솔 패널을 확인하세요.",
     "containerFailedBuild": "컨테이너 빌드에 실패했습니다.",
     "noUserContainers": "빌드할 사용자 컨테이너가 없습니다.",
-    "buildLogsAvailable": "빌드 로그는 공유 폴더에 저장되었습니다.",
-    "checkLogFiles": "공유 폴더의 다음 로그 파일을 확인하세요:",
+    "buildLogsAvailable": "빌드 로그는 로그 폴더에 저장되었습니다.",
+    "checkLogFiles": "로그 폴더의 다음 로그 파일을 확인하세요:",
     "allContainersAvailable": "모든 컨테이너를 사용할 수 있습니다. 계속 진행합니다...",
     "runningContainers": "실행 중인 컨테이너",
     "containerAccessInfo": "다음 명령을 사용하여 컨테이너에 직접 액세스할 수 있습니다:",
     "systemAvailableAt": "시스템 액세스 주소",
     "versionInfo": "Monadic Chat 앱 v{{appVersion}}  컨테이너 이미지 v{{containerVersion}}",
     "versionInfoApp": "앱",
-    "versionInfoContainer": "컨테이너"
+    "versionInfoContainer": "컨테이너",
+    "languageSettingsApplied": "업데이트된 언어 설정을 {{service}} 컨테이너에 적용했습니다.",
+    "pythonBuildSucceeded": "Python 빌드에 성공했습니다.",
+    "pythonBuildFailed": "Python 빌드에 실패했습니다.",
+    "updateSuccessfulVersion": "업데이트 완료: 버전 {{version}}",
+    "stoppingContainersBeforeRestart": "재시작 전에 Docker 컨테이너를 중지하는 중...",
+    "buildLogsLabel": "로그:"
   }
 }

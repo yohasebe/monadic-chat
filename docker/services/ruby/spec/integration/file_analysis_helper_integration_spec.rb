@@ -36,7 +36,7 @@ RSpec.describe "FileAnalysisHelper Integration", type: :integration do
     context "with a real test image" do
       before do
         # Create a simple test image
-        @test_image_path = File.join(Monadic::Utils::Environment.data_path, "test_image.png")
+        @test_image_path = File.join(Monadic::Utils::Environment.data_path, SharedFolderTestFiles.name("test_image.png"))
         
         # Create a simple PNG image using ImageMagick if available
         if system("which magick > /dev/null 2>&1")
@@ -87,21 +87,22 @@ RSpec.describe "FileAnalysisHelper Integration", type: :integration do
       
       it "handles special characters in image paths" do
         # Create test image with special characters
-        special_path = File.join(Monadic::Utils::Environment.data_path, "test image (special).png")
+        special_path = File.join(Monadic::Utils::Environment.data_path, SharedFolderTestFiles.name("test image (special).png"))
 
         # Create a fresh image for this test (source may be cleaned up by after block)
         png_data = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A].pack("C*")
         File.binwrite(special_path, png_data)
         
-        result = app_instance.analyze_image(
-          message: "Test special path",
-          image_path: special_path
-        )
-        
-        expect(result).to be_a(String)
-        
-        # Cleanup
-        File.delete(special_path) if File.exist?(special_path)
+        begin
+          result = app_instance.analyze_image(
+            message: "Test special path",
+            image_path: special_path
+          )
+
+          expect(result).to be_a(String)
+        ensure
+          File.delete(special_path) if File.exist?(special_path)
+        end
       end
     end
     
@@ -122,7 +123,7 @@ RSpec.describe "FileAnalysisHelper Integration", type: :integration do
     context "with a real test audio" do
       before do
         # Create a simple test audio file
-        @test_audio_path = File.join(Monadic::Utils::Environment.data_path, "test_audio.wav")
+        @test_audio_path = File.join(Monadic::Utils::Environment.data_path, SharedFolderTestFiles.name("test_audio.wav"))
         
         # Create a simple WAV file using sox if available
         if system("which sox > /dev/null 2>&1")
@@ -160,19 +161,20 @@ RSpec.describe "FileAnalysisHelper Integration", type: :integration do
       
       it "handles special characters in audio paths" do
         # Create audio file with special characters
-        special_audio_path = File.join(Monadic::Utils::Environment.data_path, "test audio (special).wav")
+        special_audio_path = File.join(Monadic::Utils::Environment.data_path, SharedFolderTestFiles.name("test audio (special).wav"))
         
         # Copy test audio to special path
         FileUtils.cp(@test_audio_path, special_audio_path)
         
-        result = app_instance.analyze_audio(
-          audio: special_audio_path
-        )
-        
-        expect(result).to be_a(String)
-        
-        # Cleanup
-        File.delete(special_audio_path) if File.exist?(special_audio_path)
+        begin
+          result = app_instance.analyze_audio(
+            audio: special_audio_path
+          )
+
+          expect(result).to be_a(String)
+        ensure
+          File.delete(special_audio_path) if File.exist?(special_audio_path)
+        end
       end
     end
     

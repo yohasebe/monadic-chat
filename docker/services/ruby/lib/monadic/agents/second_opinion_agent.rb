@@ -1,5 +1,7 @@
 require_relative "../utils/system_defaults"
 require_relative '../utils/privacy/outbound'
+require_relative '../utils/error_formatter'
+require_relative '../utils/extra_logger'
 
 module SecondOpinionAgent
 
@@ -142,9 +144,9 @@ module SecondOpinionAgent
 
     # Create a single user message containing all context
     # The evaluated response is fenced between explicit BEGIN/END markers.
-    # Without them (dogfood 2026-06-10) the evaluator read the formatting
+    # Without them the evaluator reads the formatting
     # instructions that follow as a trailing artifact OF the response and
-    # deducted points for a flaw the user never saw.
+    # deducts points for a flaw the user never saw.
     user_message_content = <<~TEXT
       Please verify and make comments about the following query and response pair. If the response is correct, you should say 'The response is correct'. But you should be rather critical and meticulous, considering many factors, so it is more likely that you will find possible caveats in the response.
 
@@ -173,6 +175,12 @@ module SecondOpinionAgent
 
       Replace YOUR_COMMENTS_HERE with your actual comments and X with a number from 1 to 10.
     TEXT
+    begin
+      # Words the user marked: nothing is sent while one is still in it.
+      Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, user_message_content)
+    rescue Monadic::Utils::Privacy::Outbound::Refused => e
+      return { comments: "Error: the second opinion was not requested: #{e.message}.", validity: "error", model: "none" }
+    end
 
     # All providers will receive the same single user message format
     messages = [
@@ -217,29 +225,31 @@ module SecondOpinionAgent
 
     begin
       # Use the provider's helper to send the query
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        puts "SecondOpinionAgent: Sending query to #{target_provider} with model #{target_model}"
-        puts "SecondOpinionAgent: Messages: #{messages.inspect}"
-      end
-      
+      Monadic::Utils::ExtraLogger.log { "SecondOpinionAgent: Sending query to #{target_provider} with model #{target_model} (#{messages.length} messages)" }
+
       response = helper.send_query(parameters, model: target_model)
-      
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        puts "SecondOpinionAgent: Received response: #{response.inspect[0..200]}..."
-      end
+
+      Monadic::Utils::ExtraLogger.log { "SecondOpinionAgent: Received response: #{response.inspect[0..200]}..." }
     rescue => e
-      # Error handling
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        puts "SecondOpinionAgent Error: #{e.message}"
-        puts "SecondOpinionAgent Error Backtrace: #{e.backtrace.first(3).join("\n")}"
-      end
+      Monadic::Utils::ExtraLogger.log { "SecondOpinionAgent Error: #{e.message}\n#{e.backtrace.first(3).join("\n")}" }
+      # The comments go back to the model that asked: no secrets or identifiers.
       return {
-        comments: "Failed to get second opinion from #{target_provider}: #{e.message}",
+        comments: "Failed to get second opinion from #{target_provider}: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}",
         validity: "error",
         model: "#{target_provider}:#{target_model}"
       }
     end
     
+    # An error the provider's helper returned is a failed evaluation, not one
+    # to parse.
+    if Monadic::Utils::ErrorFormatter.error_reply?(response)
+      return {
+        comments: "Failed to get second opinion from #{target_provider}: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(response)}",
+        validity: "error",
+        model: "#{target_provider}:#{target_model}"
+      }
+    end
+
     # Parse the response to extract comments, validity, and model
     if response.is_a?(String)
       comments = ""
@@ -308,10 +318,7 @@ module SecondOpinionAgent
   # losing it on a privacy backend outage is preferable to leaking
   # un-masked PII to a different provider.
   def mask_for_second_opinion(text, pipeline, role)
-    return text if text.nil? || text.to_s.empty?
-    require_relative '../utils/privacy/types'
-    raw = Monadic::Utils::Privacy::RawMessage.new(text.to_s, role, {})
-    pipeline.before_send_to_llm(raw).text
+    Monadic::Utils::Privacy::Outbound.mask(text, pipeline, role)
   end
 
   def normalize_provider_name(name)

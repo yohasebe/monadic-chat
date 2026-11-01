@@ -1,237 +1,78 @@
-# Realtime Streaming Transcription (Internal Architecture)
+# Realtime Streaming Transcription
 
-Internal design notes for the streaming STT path introduced in beta.16
-(`gpt-realtime-whisper ⚡`). The public-facing description lives in
-`docs/basic-usage/message-input.md` § "Realtime Streaming Transcription".
-This document captures the implementation choices and traps a future
-maintainer needs to understand before touching the code.
+Speech input can stream audio to OpenAI's Realtime transcription endpoint and show the transcript while the user speaks. The public description is in `docs/basic-usage/message-input.md`. Other STT models use the batch path (`stt_api_request`).
 
-## Scope
+## When the Streaming Path Is Used
 
-OpenAI Realtime Transcription only. Other providers (Gemini, xAI,
-ElevenLabs, Cohere, Mistral, Whisper-1) remain on the batch path and
-will until they ship a transcription-only realtime endpoint. The
-chat-oriented bidirectional Live APIs (Gemini Live, etc.) are
-deliberately out of scope — they bundle STT with LLM cycles, charge
-for LLM tokens, and require prompt-engineering "only transcribe"
-which makes them strictly inferior to the batch path for our use case.
+`SttGate.isRealtimeSttEnabled()` (`public/js/monadic/stt-gate.js`) decides when Speech Input starts:
 
-## Data flow
+1. The selected STT model must be an OpenAI model: its `stt_provider` in `model_spec.js` is `openai` (or absent). A model without an entry is non-OpenAI when its name starts with one of `NON_OPENAI_STT_PREFIXES`, which match the Ruby fallback `ModelSpec.stt_provider_from_name`.
+2. The model has `supports_realtime_streaming: true`, or `localStorage.stt_realtime` is `'1'` (development override).
+3. If anything is missing (no `#stt-model`, no `window.modelSpec`, `localStorage` throws), the batch path is used.
 
-```
-recording.js                Monadic WS                bridge task
-   │  AUDIO_CHUNK   ─────►   cmd_queue ◄──── writer fiber ──► OpenAI WS
-   │  AUDIO_COMMIT  ─────►   cmd_queue                       (input_audio_buffer.*)
-   │  AUDIO_ABORT   ─────►   cmd_queue                              │
-   │                                       reader fiber ◄───────────┘
-   │  stt_partial   ◄──────  send_or_broadcast ◄── reader (delta events)
-   │  stt           ◄──────  send_or_broadcast ◄── reader (completed event)
-```
+The STT selector marks the streaming model with ⚡ (`views/index.erb`). When the selected chat model has `supports_speech_to_speech`, the same audio stream is used for the speech-to-speech session regardless of the STT model (`SttGate.isStsModelSelected()`).
 
-### Client side (`docker/services/ruby/public/js/monadic/`)
+If `startAudioStream()` fails, the client shows "Realtime STT unavailable; falling back to standard mode" and records with the batch path.
 
-- `audio-pcm-encoder-worklet.js` — `AudioWorkletProcessor` that pulls
-  Float32 mic samples from the AudioContext, decimates to 24 kHz mono,
-  converts to Int16 LE, and posts ~100 ms `ArrayBuffer` chunks via
-  `port.postMessage`. **Not** part of `monadic.bundle.min.js`; loaded
-  as a separate static asset because AudioWorklet scripts must come
-  from their own URL.
-- `recording.js`
-  - `startAudioStream()` constructs the AudioContext + AudioWorkletNode,
-    sends each PCM chunk over the existing Monadic WebSocket as a
-    `{ message: "AUDIO_CHUNK", content: <base64>, stt_model, lang_code }`
-    frame. Lifecycle parallels the legacy `startAudioCapture()` so the
-    rest of the recording UX (waveform, Stop button, silence detection
-    no-op for the streaming path) stays unchanged.
-  - `isRealtimeSttEnabled()` (in the standalone `monadic/stt-gate.js`
-    module) gates the worklet path. The realtime endpoint is OpenAI-only,
-    so the gate FIRST rejects any non-OpenAI STT model — identified by the
-    same provider prefixes the batch router uses
-    (`NON_OPENAI_STT_PREFIXES`: `gemini-`, `scribe`, `cohere-transcribe`,
-    `voxtral`, `xai-stt`). Only for an OpenAI STT model does it then
-    consult `window.modelSpec[model].supports_realtime_streaming`, falling
-    back to the `localStorage.stt_realtime === '1'` debug back door. This
-    OpenAI-only precondition is essential: without it a stale back-door
-    flag would send e.g. ElevenLabs `scribe_v2` to the realtime endpoint,
-    which 400s ("Realtime STT: Invalid value").
-  - On Stop → `AUDIO_COMMIT`; on silence-abort → `AUDIO_ABORT`.
-  - Enter-key capture-phase listener delegates to the voice button
-    click handler while a streaming session is active, so Enter
-    commits the audio instead of inserting a newline or
-    firing easy-submit on a partial.
-- `ws-session-handler.js`
-  - `handleSTTPartial(data)` renders the cumulative partial transcript
-    into `#message-partial-overlay` as a two-span structure: an
-    invisible `.stt-mirror` carrying the textarea's current value
-    (re-read on every delta) followed by a grey-italic `.stt-partial`
-    holding the partial text itself. The textarea's `value` is never
-    mutated during streaming, so user typing during recording is
-    preserved.
-  - `handleSTT(data)` checks
-    `overlay.classList.contains('is-active')` to know streaming was in
-    progress, appends the final transcript to `messageEl.value`
-    (preserving any user-typed text), and tears down the overlay. If
-    the overlay is not active, falls through to the legacy
-    `messageEl.value + " " + content` batch path.
-  - `clearSTTPartialOverlay()` is exported via `window.WsSessionHandler`
-    for `recording.js` to call from the abort/start paths.
+## Client
 
-### Server side (`docker/services/ruby/lib/monadic/utils/websocket/`)
+- `audio-pcm-encoder-worklet.js`: an `AudioWorkletProcessor` that resamples the microphone to 24 kHz mono, converts to Int16 little-endian and posts 100 ms chunks. It is loaded from its own URL (`/js/monadic/audio-pcm-encoder-worklet.js`), not from the bundle.
+- `recording.js`, `startAudioStream()`: connects microphone → worklet → a muted gain node, and sends each chunk as
 
-- `audio_stream_handler.rb` is mixed into `WebSocketHelper`. Three
-  message handlers (`handle_audio_chunk`, `handle_audio_commit`,
-  `handle_audio_abort`) enqueue commands onto a per-session
-  `Async::Queue`; an `Async` bridge task spawned on the first
-  `AUDIO_CHUNK` owns the upstream WS to OpenAI.
-- The bridge task has two fibers sharing the OpenAI WS connection:
-  - **Reader fiber** (`realtime_reader_loop`) — pulls frames from
-    OpenAI, dispatches on `payload["type"]`:
-    - `session.updated` → signals the `ready` notification
-    - `conversation.item.input_audio_transcription.delta` → appends
-      to `state[:partial]`, forwards as `stt_partial` to the client
-    - `conversation.item.input_audio_transcription.completed` →
-      forwards as `stt` (final), signals the `done` notification
-    - `error` → forwards as `error`, signals `done`
-  - **Writer fiber** (`realtime_writer_loop`) — pulls commands from
-    `cmd_queue`:
-    - `:append` chunks before `session.updated` are buffered locally
-      (Phase 0 trap, see below); after the ack they are flushed and
-      subsequent chunks pass through directly.
-    - `:commit` waits up to `REALTIME_STT_COMMIT_TIMEOUT` (15 s) for
-      `session.updated`, flushes any pending chunks, sends
-      `input_audio_buffer.commit`, then waits for `.completed`
-      (same timeout).
-    - `:abort` breaks the loop and lets the bridge tear down.
+  ```json
+  {"message": "AUDIO_CHUNK", "content": "<base64 PCM16>", "stt_model": "<model>", "lang_code": "<code or auto>", "chat_model": "<model>"}
+  ```
 
-## Traps captured in this implementation
+  The STT model is the selected one, otherwise `providerDefaults.openai.audio_transcription[0]`. The silence detector only drives the waveform; silence does not stop the stream.
+- **Stop** (or Enter while streaming, through a capture-phase `keydown` listener) sends `AUDIO_COMMIT` and tears down the audio graph.
+- `ws-session-handler.js`:
+  - `handleSTTPartial` writes into `#message-partial-overlay`: an invisible `.stt-mirror` span with the textarea's current text, then a `.stt-partial` span with the partial transcript. The textarea itself is not changed, so the user can type while speaking.
+  - `handleSTT`: when the overlay is active, the final transcript is appended to the textarea (except in a speech-to-speech session) and the overlay is cleared; the rest (buttons, spinner, easy submit) is done by `handleSTTMessage` with `_alreadyAppended`. Without an active overlay, the transcript is appended as in the batch path.
+  - `clearSTTPartialOverlay` is exported on `window.WsSessionHandler`.
 
-### 1. HTTP/1.1 ALPN is mandatory
+## Server
 
-`async-http` negotiates HTTP/2 by default via TLS ALPN. The WebSocket
-upgrade handshake (RFC 6455) exists only in HTTP/1.1 — there is no
-equivalent in HTTP/2 — so without explicit downgrade OpenAI's edge
-replies with `405 Method Not Allowed` and the connection never
-becomes a WS. The endpoint must be constructed with
-`alpn_protocols: ["http/1.1"]`:
+`websocket.rb` routes `AUDIO_CHUNK`, `AUDIO_COMMIT` and `AUDIO_ABORT` through `route_audio_event`: to the speech-to-speech bridge when the chat model (from `chat_model`, checked against `model_spec.js`) supports speech-to-speech, otherwise to `lib/monadic/utils/websocket/audio_stream_handler.rb`.
 
-```ruby
-endpoint = Async::HTTP::Endpoint.parse(
-  REALTIME_STT_URL, alpn_protocols: ["http/1.1"]
-)
-```
+### Bridge
 
-Pinned by the invariant spec
-`spec/unit/dsl/websocket_alpn_consistency_spec.rb`, which walks
-`lib/**/*.rb` and fails any `Async::HTTP::Endpoint.parse` call on a
-`wss://` URL that omits the kwarg.
+The first `AUDIO_CHUNK` of a session creates `session[:_realtime_stt]` (command queue, partial transcript, ready/done conditions, model, language) and starts an `Async` bridge task:
 
-### 2. Audio buffer must follow `session.updated`
+1. Without `OPENAI_API_KEY`, the client gets an error.
+2. The task takes a slot from a per-process semaphore whose size is `REALTIME_STT_MAX_CONCURRENT` from the config (default 8), read when the semaphore is first created.
+3. It opens `wss://api.openai.com/v1/realtime?intent=transcription` over HTTP/1.1 (`alpn_protocols: ["http/1.1"]`) and sends `session.update`:
+   - `type: "transcription"`, input format `audio/pcm` at 24000 Hz, `noise_reduction: near_field`, the transcription model, and `language` unless the language is empty or `auto`;
+   - `turn_detection: null`, except for models whose name starts with `REALTIME_STT_DEFAULT_MODEL`, which reject the key.
 
-OpenAI processes events in receive order. Sending
-`input_audio_buffer.append` before the `session.updated` ack
-associates the buffer with the not-yet-configured session, and the
-subsequent commit returns `input_audio_buffer_commit_empty`. The
-writer fiber therefore buffers `:append` commands locally until
-`state[:session_ready]` flips true (signalled by the reader fiber on
-the `ready` notification), then flushes and switches to
-pass-through.
+A retired model in `stt_model` is replaced by its successor (`ModelSpec.resolve_deprecated_model`); an empty value uses `REALTIME_STT_DEFAULT_MODEL`.
 
-### 3. Model-specific `turn_detection` handling
+### Reader and Writer
 
-- `gpt-realtime-whisper` **rejects** any `turn_detection` value
-  ("Turn detection is not supported for this transcription model").
-  Omit the key from `session.update`.
-- `gpt-4o-transcribe` and `gpt-4o-mini-transcribe` default to
-  `server_vad` with a 200 ms silence threshold, which auto-commits
-  on every short pause and clashes with our user-controlled Stop
-  semantics. Send `turn_detection: null` to disable.
-- `session.update` is sparse-merge: omitting a key means "unchanged
-  from server default", not "disable". So explicit `null` is the
-  correct way to turn server VAD off, not omission.
+| Upstream event | Action |
+|---|---|
+| `session.updated` | mark the session ready |
+| `conversation.item.input_audio_transcription.delta` | append to the partial transcript; send `{"type": "stt_partial", "content": <partial so far>}` |
+| `conversation.item.input_audio_transcription.completed` | send `{"type": "stt", "content": <transcript>, "logprob": null}` |
+| `error` | send an error `Realtime STT: <message>` |
 
-### 4. Undocumented API params can corrupt sibling fields
+| Command | Action |
+|---|---|
+| `:append` | held locally until `session.updated`, then flushed; afterwards sent directly as `input_audio_buffer.append` |
+| `:commit` | wait up to `REALTIME_STT_COMMIT_TIMEOUT` (15 s) for `session.updated`, flush, send `input_audio_buffer.commit`, wait up to 15 s for `.completed`, close |
+| `:abort` | close |
 
-Unrelated but pinned in the same release: the OpenAI
-`/v1/audio/speech` endpoint silently accepted an undocumented
-`language` field and used it to alter the semantics of the
-`instructions` field — causing `gpt-4o-mini-tts` to speak the
-instructions aloud (e.g. "Speak in a calm voice…" was read by the
-voice). Lesson: undocumented params are not silent-ignored, they can
-have side effects on sibling fields. Captured separately in
-`feedback_undocumented_api_params.md`.
+Errors sent to the client: `No audio captured` (commit without chunks), `Realtime STT session setup timeout`, `Realtime STT timed out waiting for transcript`, `Realtime STT failed: …`. `AUDIO_ABORT` signals both conditions first, so an abort does not wait for a timeout and produces no timeout error. Messages go to the tab's session (`send_or_broadcast`, `send_error`). When the bridge ends, `session[:_realtime_stt]` is cleared.
 
-### 5. Bundled JS handler registration
+Only models that stream emit `.delta` events; others return a single `.completed` after the commit, so no partial transcript is shown.
 
-`ws-session-handler.js` is part of `monadic.bundle.min.js`. Adding a
-new function in the file is necessary but not sufficient — the
-dispatch surface (`window.WsSessionHandler = { ... }` at the bottom
-of the file) must list it explicitly, or the WS message dispatcher
-in `websocket.js` cannot find it. Documented in
-`feedback_websocket_handler_paths.md`.
+## Capability Flag
 
-## Capability flag SSOT
+`supports_realtime_streaming: true` in `model_spec.js` makes an STT model eligible. It is read by the JS gate and by `Monadic::Utils::ModelSpec.supports_realtime_streaming?`. `listModels` (`utilities.js`) keeps such models out of chat model lists.
 
-A streaming-capable STT model declares `supports_realtime_streaming: true`
-in `model_spec.js`:
+## Tests
 
-```js
-"gpt-realtime-whisper": {
-  "stt_capability": true,
-  "supports_realtime_streaming": true
-}
-```
-
-Both the JS gate (`recording.js#isRealtimeSttEnabled`) and the Ruby
-accessor (`Monadic::Utils::ModelSpec.supports_realtime_streaming?`)
-read this single flag. Adding a future streaming-capable STT model
-is a one-line capability change; no UI or routing surgery required.
-
-## Test surface
-
-- `test/frontend/ws-session-handler.test.js` — overlay state-machine
-  cases for `handleSTTPartial` / `handleSTT` /
-  `clearSTTPartialOverlay`. Covers empty start, separator insertion,
-  user-typing-during-stream, multi-delta overwrite, commit-from-active,
-  user-typed-then-commit, explicit clear.
-- `test/frontend/recording-stt-gate.test.js` — capability gate
-  semantics, exercising the shipped `stt-gate.js` module directly
-  (required as-is; no mirrored copy). Covers the OpenAI-only
-  precondition: non-OpenAI STT models never enter realtime even with
-  the debug back door set.
-- `test/frontend/stt-gate-prefix-parity.test.js` — cross-stack drift
-  guard locking `NON_OPENAI_STT_PREFIXES` (JS gate) to the
-  `model.start_with?` provider prefixes in `stt_utils.rb` (Ruby batch
-  router), so a new non-OpenAI provider added to one but not the other
-  fails CI instead of silently regressing the realtime bug.
-- `spec/unit/utils/websocket/audio_stream_handler_spec.rb` — wire
-  contract for `session.update` payload shape and
-  `parse_realtime_payload` edge cases. Mocks the WS connection at
-  the `write` / `flush` level; does not start the async bridge.
-- `spec/unit/dsl/websocket_alpn_consistency_spec.rb` — grep-based
-  invariant locking out the HTTP/2 ALPN trap.
-
-The full async bridge (queue → fibers → real WS) is exercised end-to-end
-by manual dogfood per the verification block in
-`tmp/memo/realtime-transcription-plan.md` § Phase 2. An integration
-suite with a mocked OpenAI WS is out of scope until/unless a
-regression-blocking concern motivates one.
-
-## Future extension points
-
-- Adding `gpt-4o-transcribe` (or future OpenAI variants) to the
-  streaming path: set `supports_realtime_streaming: true` in
-  `model_spec.js`; the bridge already handles the
-  `turn_detection: null` requirement for non-whisper models.
-- A user-controlled "always batch" toggle: not currently needed
-  because the ⚡ glyph + capability flag combination is already
-  user-visible and explicit. Revisit if dogfood reveals confusion.
-- Server VAD-driven multi-segment dictation: feasible with
-  `gpt-4o-transcribe` and `turn_detection: { type: "server_vad" }`
-  — would produce multiple `.completed` events per session. Would
-  require recasting `handleSTT` to append rather than commit-then-
-  clear. Out of scope for v1.
-- Other providers when they ship transcription-only realtime
-  endpoints: add a provider-specific adapter to
-  `audio_stream_handler.rb`. Reuse the same client wire format
-  (`AUDIO_CHUNK` / `AUDIO_COMMIT` / `AUDIO_ABORT`); add a small
-  adapter module per provider for the upstream WS protocol.
+- `test/frontend/ws-session-handler.test.js`: overlay handling in `handleSTTPartial`, `handleSTT`, `clearSTTPartialOverlay`
+- `test/frontend/recording-stt-gate.test.js`: the gate, including that non-OpenAI models never stream
+- `test/frontend/stt-gate-prefix-parity.test.js`: `NON_OPENAI_STT_PREFIXES` matches the Ruby prefixes
+- `spec/unit/utils/websocket/audio_stream_handler_spec.rb`: `session.update` payload and `parse_realtime_payload`
+- `spec/unit/dsl/websocket_alpn_consistency_spec.rb`: every `Async::HTTP::Endpoint.parse` on a `wss://` URL sets HTTP/1.1 ALPN

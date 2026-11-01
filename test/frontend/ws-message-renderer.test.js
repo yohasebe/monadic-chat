@@ -83,6 +83,37 @@ const handlers = require('../../docker/services/ruby/public/js/monadic/ws-messag
 
 describe('ws-message-renderer', () => {
   describe('handlePastMessages', () => {
+    it('shows the files attached to a user message from history on its card', () => {
+      const attachments = [{ attachment_id: 'a_1', purpose: 'video', display_name: 'clip.mp4' }];
+      window.addAttachmentsToCard = jest.fn();
+      handlers.handlePastMessages({ content: [
+        { role: 'system', text: 'S', mid: 'sys-1' },
+        { role: 'user', text: '', mid: 'u-1', active: true, attachments }
+      ] });
+      expect(window.addAttachmentsToCard).toHaveBeenCalledWith(expect.any(HTMLElement), attachments);
+      delete window.addAttachmentsToCard;
+    });
+
+    // The page may keep what it holds on disk (sessionStorage): whether the
+    // chat is Private is noted before any of its words are taken in.
+    it('notes whether the chat is Private before it takes in the words', () => {
+      const order = [];
+      window.WsPrivacyHandler = { notePrivate: jest.fn(() => order.push('private')) };
+      global.createCard = jest.fn(() => { order.push('card'); return document.createElement('div'); });
+      try {
+        const data = { private: true, content: [
+          { role: 'system', text: 'S', mid: 'sys-1' },
+          { role: 'user', text: 'private words', mid: 'u-1', active: true }
+        ] };
+        handlers.handlePastMessages(data);
+        expect(window.WsPrivacyHandler.notePrivate).toHaveBeenCalledWith(data);
+        expect(order[0]).toBe('private');
+        expect(order).toContain('card');
+      } finally {
+        delete window.WsPrivacyHandler;
+      }
+    });
+
     it('renders user and assistant messages from history', () => {
       const data = {
         content: [
@@ -169,7 +200,7 @@ describe('ws-message-renderer', () => {
       expect(addedMid).toMatch(/^restored-/);
     });
 
-    // §37-3: Live Conversation markers (interrupted / tools_used) persist in
+    // Live Conversation markers (interrupted / tools_used) persist in
     // the canon but are not part of msg.badge — rebuilding the badge through
     // assistantBadge is what keeps them visible across a LOAD re-render.
     it('builds assistant badges via assistantBadge so canon markers survive LOAD', () => {
@@ -261,6 +292,32 @@ describe('ws-message-renderer', () => {
   });
 
   describe('handleDisplaySample', () => {
+    it('shows the files attached to a user sample on its card', () => {
+      const attachments = [{ attachment_id: 'a_1', purpose: 'video', display_name: 'clip.mp4' }];
+      window.addAttachmentsToCard = jest.fn();
+      handlers.handleDisplaySample({ content: { mid: 'sample-u', role: 'user', text: 'See this', badge: '<span>User</span>', attachments } });
+      expect(window.addAttachmentsToCard).toHaveBeenCalledWith(expect.any(HTMLElement), attachments);
+      expect(window.SessionState.addMessage).toHaveBeenCalledWith(expect.objectContaining({ mid: 'sample-u', attachments }));
+      delete window.addAttachmentsToCard;
+    });
+
+    it('shows a user sample of attached files with no text, and keeps it', () => {
+      const attachments = [{ attachment_id: 'a_1', purpose: 'video', display_name: 'clip.mp4' }];
+      window.addAttachmentsToCard = jest.fn();
+      handlers.handleDisplaySample({ content: { mid: 'sample-e', role: 'user', text: '', badge: '<span>User</span>', attachments } });
+      expect(global.createCard).toHaveBeenCalled();
+      expect(window.addAttachmentsToCard).toHaveBeenCalledWith(expect.any(HTMLElement), attachments);
+      expect(window.SessionState.addMessage).toHaveBeenCalledWith(expect.objectContaining({ mid: 'sample-e', text: '', attachments }));
+      delete window.addAttachmentsToCard;
+    });
+
+    it('does not show a sample with no text and no attachments', () => {
+      handlers.handleDisplaySample({ content: { mid: 'sample-n', role: 'user', text: '', badge: '<span>User</span>' } });
+      handlers.handleDisplaySample({ content: { mid: 'sample-a', role: 'assistant', text: '', badge: '<span>A</span>',
+                                                attachments: [{ attachment_id: 'a_1' }] } });
+      expect(global.createCard).not.toHaveBeenCalled();
+    });
+
     it('creates and appends a card for the sample message', () => {
       const data = {
         content: {

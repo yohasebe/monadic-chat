@@ -37,7 +37,10 @@ module RealAudioTestHelper
     escaped_text = text.gsub('"', '\\"').gsub("'", "\\'").gsub('$', '\\$').gsub('`', '\\`')
 
     # Write text to a file in the test tmp directory
-    text_filename = "test_text_#{timestamp}.md"
+    # The TTS tool writes the audio beside the shared folder's root under the
+    # text file's name, so the name carries the test prefix.
+    text_base = SharedFolderTestFiles.name("text_#{timestamp}")
+    text_filename = "#{text_base}.md"
     text_path = File.join(TEST_TMP_DIR, text_filename)
     File.write(text_path, text)
     
@@ -58,7 +61,9 @@ module RealAudioTestHelper
     # TTS tool outputs audio file to ~/monadic/data/ (not TEST_TMP_DIR)
     # with same base name as input text file but .mp3 extension
     data_dir = File.join(Dir.home, "monadic", "data")
-    audio_patterns = ["test_text_#{timestamp}.mp3", "test_text_#{timestamp}.wav", "#{timestamp}.mp3"]
+    # Only the audio made from this text file is taken (never a file of the
+    # user's that merely has the same timestamp).
+    audio_patterns = ["#{text_base}.mp3", "#{text_base}.wav"]
     host_path = nil
 
     # Search in both the TTS output directory and TEST_TMP_DIR

@@ -277,7 +277,7 @@ window.loadedApp = "Chat";
     // Drain any messages that safeWsSend queued while we were
     // disconnected. Done first so an idempotent RESET/LOAD/DELETE
     // queued by the user lands before the standard CHECK_TOKEN flow.
-    // See docs_dev/safe_ws_send_plan.md §3.5.
+    // See docs_dev/frontend/safe_ws_send.md.
     if (window.MonadicWs && typeof window.MonadicWs.drainQueue === 'function') {
       try { window.MonadicWs.drainQueue(); } catch (e) { console.warn('[WebSocket] drainQueue failed:', e); }
     }
@@ -299,7 +299,7 @@ window.loadedApp = "Chat";
     window.safeWsSend({
       message: "CHECK_TOKEN",
       initial: true,
-      contents: ($id("token") || {}).value || '',
+      // No key goes from the page: the server checks the one it has.
       ui_language: uiLanguage
     }, { silentDrop: true });
 
@@ -648,6 +648,23 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "history_list":
+      case "history_renamed":
+      case "history_deleted":
+      case "history_resumed": {
+        if (window.HistoryPanel) window.HistoryPanel.onMessage(data);
+        break;
+      }
+
+      case "import_result": {
+        // The tab's connection took (or could not take) an imported
+        // conversation; the import dialog waits for this.
+        if (typeof window.onImportResult === 'function') {
+          window.onImportResult(data);
+        }
+        break;
+      }
+
       case "privacy_toggle_ack": {
         const wph_ack = window.WsPrivacyHandler;
         if (wph_ack && typeof wph_ack.handleToggleAck === 'function') {
@@ -779,7 +796,7 @@ window.loadedApp = "Chat";
         break;
       }
 
-      // Tool-use visibility (function calling wave 1, design §37).
+      // Tool-use visibility for speech-to-speech turns.
       case "sts_tool_call": {
         const lcTool = window.LiveConversation;
         if (lcTool && typeof lcTool.onToolCall === 'function') {
@@ -912,6 +929,13 @@ window.loadedApp = "Chat";
         const wch = window.WsConnectionHandler;
         if (wch && typeof wch.handleTokenNotVerified === 'function') {
           wch.handleTokenNotVerified(data);
+        }
+        break;
+      }
+      case "secret_references_unresolved": {
+        const wch = window.WsConnectionHandler;
+        if (wch && typeof wch.handleSecretReferencesUnresolved === 'function') {
+          wch.handleSecretReferencesUnresolved(data);
         }
         break;
       }
@@ -1065,6 +1089,7 @@ window.loadedApp = "Chat";
         if (wmr && typeof wmr.handlePastMessages === 'function') {
           wmr.handlePastMessages(data);
         }
+        if (window.HistoryPanel) window.HistoryPanel.refreshSoon();
         break;
       }
       case "message": {
@@ -1120,10 +1145,14 @@ window.loadedApp = "Chat";
       }
 
       case "html": {
+        // The answer arrived: nothing of the message is to be given back now.
+        window.pendingSend = null;
         const wsh = window.WsHtmlHandler;
         if (wsh && typeof wsh.handleHtml === 'function') {
           wsh.handleHtml(data);
         }
+        // The chat was kept in the history with this answer.
+        if (window.HistoryPanel) window.HistoryPanel.refreshSoon();
         break;
       }
       case "user": {

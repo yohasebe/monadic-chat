@@ -1,8 +1,10 @@
 # frozen_string_literal: false
 
+require_relative "../../utils/request_retry"
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/usage_normalizer"
 require_relative "../../utils/extra_logger"
+require_relative "../../utils/system_prompt_injector"
 require_relative "../base_vendor_helper"
 require_relative "../../shared_tools/tavily_definitions"
 require 'strscan'
@@ -52,7 +54,12 @@ module DeepSeekHelper
     end
 
   # Simple non-streaming chat completion
-  def send_query(options, model: "deepseek-v4-flash")
+  def send_query(options, model: nil)
+    # Resolve model via SSOT only (no hardcoded fallback)
+    model = model.to_s.strip
+    model = nil if model.empty?
+    model ||= SystemDefaults.get_default_model('deepseek')
+
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     
@@ -104,14 +111,10 @@ module DeepSeekHelper
       "messages" => messages
     }
 
-    # V4 models default to thinking=enabled on the API side, which can consume
-    # the entire max_tokens budget on chain-of-thought and leave content empty.
-    # send_query is a non-streaming probe (used by SecondOpinion / AI User /
-    # ContextExtractor) that wants the final answer directly, so disable
-    # thinking explicitly. The retired pre-V4 generation (API shut down
-    # 2026-07-24; ids kept here only for backward-compat branches)
-    # are unaffected.
-    if model.to_s.include?("deepseek-v4")
+    # Models with a thinking switch think by default on the API side, which can
+    # use the whole max_tokens budget and leave content empty. send_query
+    # (Second Opinion, AI User, context extraction) wants the answer directly.
+    if deepseek_thinking_switch?(model)
       body["thinking"] = { "type" => "disabled" }
     end
     
@@ -146,19 +149,22 @@ module DeepSeekHelper
         end
         return content
       rescue => e
-        return "Error: #{e.message}"
+        return "Error: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"
       end
     else
-      begin
-        error_data = response && response.body ? JSON.parse(response.body) : {}
-        error_message = error_data["error"] || "Unknown error"
-        return "Error: #{error_message}"
-      rescue => e
-        return "Error: Failed to parse error response"
-      end
+      # DeepSeek errors are shaped like OpenAI's: {"error": {"message": ...}}.
+      raw = response&.body.to_s
+      error_data = begin JSON.parse(raw) rescue raw end
+      error_message = if error_data.is_a?(Hash)
+                        err = error_data["error"]
+                        (err.is_a?(Hash) ? err["message"] : err) || error_data["message"] || "Unknown error"
+                      else
+                        error_data.to_s.strip.empty? ? "HTTP #{response&.status&.code}" : error_data.to_s
+                      end
+      return "Error: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(error_message.to_s)}"
     end
   rescue => e
-    return "Error: #{e.message}"
+    return "Error: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"
   end
 
   def api_request(role, session, call_depth: 0, &block)
@@ -205,44 +211,18 @@ module DeepSeekHelper
     if role != "tool"
       message = obj["message"].to_s
 
-      # If the app is monadic, the message is passed through the monadic_map function
-      if obj["monadic"].to_s == "true" && message != ""
-        if message != ""
-          APPS[app].methods
-          message = APPS[app].monadic_unit(message)
-        end
-      end
-
-      # HTML is generated from the original message, not the monadic version
-      html = if obj["message"] != ""
-               markdown_to_html(obj["message"])
-             else
-               obj["message"]
-             end
-
-      if message != "" && role == "user"
+      if user_turn_to_record?(role, message, session)
         res = { "type" => "user",
                 "content" => {
                   "mid" => request_id,
                   "role" => role,
                   "text" => obj["message"],
-                  "html" => markdown_to_html(obj["message"]),
-                  "lang" => detect_language(obj["message"])
+                  "html" => markdown_to_html(obj["message"], math: obj["math"]),
+                  "lang" => detect_language(message),
+                  "app_name" => obj["app_name"]
                 } }
-        block&.call res
-
-        # Check if this user message was already added by websocket.rb (for context extraction)
-        # to avoid duplicate consecutive user messages that cause API errors
-        existing_msg = session[:messages].find do |m|
-          m["role"] == "user" && m["text"] == obj["message"]
-        end
-
-        if existing_msg
-          # Update existing message with additional fields instead of adding new one
-          existing_msg.merge!(res["content"])
-        else
-          session[:messages] << res["content"]
-        end
+        res["content"]["images"] = obj["images"] if obj["images"].is_a?(Array)
+        record_user_turn!(session, res, &block)
       end
     end
 
@@ -258,6 +238,7 @@ module DeepSeekHelper
     end
     context.each { |msg| msg["active"] = true if msg }
     strip_inactive_image_data(session)
+    context = model_facing_context(context)
 
     headers = {
       "Content-Type" => "application/json",
@@ -286,7 +267,14 @@ module DeepSeekHelper
     body["messages"] = context.compact.map do |msg|
       if !system_message_modified && msg["role"] == "system"
         system_message_modified = true
-        content = msg["text"]
+        content = Monadic::Utils::SystemPromptInjector.augment(
+          base_prompt: msg["text"], session: session,
+          options: {
+            websearch_enabled: false, reasoning_model: false,
+            websearch_prompt: nil, system_prompt_suffix: obj["system_prompt_suffix"]
+          },
+          separator: "\n\n---\n\n"
+        )
         # Add websearch prompt if enabled
         content += "\n\n---\n\n" + WEBSEARCH_PROMPT if websearch
         # Add JSON format prompt if monadic/json mode (required by DeepSeek API)
@@ -343,24 +331,35 @@ module DeepSeekHelper
 
     configure_deepseek_reasoning(body, obj, is_json, role)
 
-    execute_deepseek_api_call(headers, body, app, session, call_depth, &block)
-  rescue HTTP::Error, HTTP::TimeoutError
-    if num_retrial < MAX_RETRIES
+    # Only the request is retried, so nothing before it (such as the
+    # user card) is sent again, and only until part of the reply has reached
+    # the browser. Each attempt sends a copy of the request body, which the
+    # call adds fields of its own to. After MAX_RETRIES the error goes on to
+    # the rescue below.
+    request_body = body
+    sent = { replied: false }
+    relay = Monadic::Utils::RequestRetry.relay(block, sent)
+    begin
+      body = Monadic::Utils::RequestRetry.copy(request_body)
+      execute_deepseek_api_call(headers, body, app, session, call_depth, &relay)
+    rescue HTTP::Error, HTTP::TimeoutError
+      raise if num_retrial >= MAX_RETRIES || sent[:replied]
+
       num_retrial += 1
       sleep RETRY_DELAY
       retry
-    else
-      error_message = "The request has timed out."
-      Monadic::Utils::ExtraLogger.log { "[DeepSeek] #{error_message}" }
-      formatted_error = Monadic::Utils::ErrorFormatter.network_error(
-        provider: "DeepSeek",
-        message: error_message,
-        timeout: true
-      )
-      res = { "type" => "error", "content" => formatted_error }
-      block&.call res
-      [res]
     end
+  rescue HTTP::Error, HTTP::TimeoutError
+    error_message = "The request has timed out."
+    Monadic::Utils::ExtraLogger.log { "[DeepSeek] #{error_message}" }
+    formatted_error = Monadic::Utils::ErrorFormatter.network_error(
+      provider: "DeepSeek",
+      message: error_message,
+      timeout: true
+    )
+    res = { "type" => "error", "content" => formatted_error }
+    block&.call res
+    [res]
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[DeepSeek] Unknown error: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}" }
     formatted_error = Monadic::Utils::ErrorFormatter.api_error(
@@ -769,42 +768,34 @@ module DeepSeekHelper
     })
   end
 
+  # True when model_spec.js gives the model a thinking switch
+  # (`reasoning_content: ["disabled", "enabled"]`).
+  def deepseek_thinking_switch?(model)
+    Array(Monadic::Utils::ModelSpec.get_model_property(model.to_s, "reasoning_content")).map(&:to_s).include?("enabled")
+  end
+
+  # True when this request runs with thinking on.
+  def deepseek_thinking_on?(obj)
+    deepseek_thinking_switch?(obj["model"]) && obj["reasoning_content"].to_s != "disabled"
+  end
+
   def configure_deepseek_reasoning(body, obj, is_json, role)
     model = obj["model"].to_s
-    is_v4_model = model.include?("deepseek-v4")
-    is_legacy_reasoner = model.include?("reasoner") || model.include?("-r1")
 
-    if is_v4_model
-      # V4 models use thinking.type parameter (API default: enabled).
-      # Map user's reasoning_content UI setting ("disabled"/"enabled") to thinking.type.
-      reasoning_setting = obj["reasoning_content"].to_s
-      thinking_type = reasoning_setting == "disabled" ? "disabled" : "enabled"
+    if deepseek_thinking_switch?(model)
+      # thinking.type follows the reasoning_content setting (API default: enabled).
+      thinking_type = deepseek_thinking_on?(obj) ? "enabled" : "disabled"
       body["thinking"] = { "type" => thinking_type }
 
       if thinking_type == "enabled"
         effort = obj["reasoning_effort"].to_s
-        body["thinking"]["reasoning_effort"] = effort if %w[high max].include?(effort)
+        levels = Array(Monadic::Utils::ModelSpec.get_model_property(model, "reasoning_effort")).map(&:to_s)
+        body["thinking"]["reasoning_effort"] = effort if levels.include?(effort)
       end
+    end
 
-      if is_json && role != "tool"
-        body["response_format"] ||= { "type" => "json_object" }
-      end
-    elsif is_legacy_reasoner
-      body.delete("temperature")
-      body.delete("presence_penalty")
-      body.delete("frequency_penalty")
-
-      body["messages"] = body["messages"].map.with_index do |msg, idx|
-        msg["content"] = msg["content"]&.sub(/---\n\n/, "") || msg["content"]
-        if msg["role"] == "assistant" && idx < body["messages"].length - 1
-          msg.delete("reasoning_content")
-        end
-        msg
-      end
-    else
-      if is_json && role != "tool"
-        body["response_format"] ||= { "type" => "json_object" }
-      end
+    if is_json && role != "tool"
+      body["response_format"] ||= { "type" => "json_object" }
     end
   end
 
@@ -980,21 +971,11 @@ module DeepSeekHelper
       !valid_tool_names.include?(tc.dig("function", "name"))
     end
 
-    if invalid_calls.any? && call_depth < 1
+    # An unknown name is not retried here: like every provider, the call gets
+    # an error result, which the model sees in the next round.
+    if invalid_calls.any?
       invalid_names = invalid_calls.map { |tc| tc.dig("function", "name") }.join(", ")
-      DebugHelper.debug("DeepSeek: Invalid function name(s) detected: #{invalid_names}. Triggering retry.", category: :api, level: :warn)
-
-      correction_message = "Error: The function name '#{invalid_names}' is not valid. " \
-                           "You must use the exact function name from this list: #{valid_tool_names.join(', ')}. " \
-                           "Please call the correct function with the proper name."
-
-      session[:messages] << {
-        "role" => "user",
-        "text" => correction_message,
-        "active" => true
-      }
-
-      return api_request("user", session, call_depth: call_depth + 1, &block)
+      DebugHelper.debug("DeepSeek: Unknown function name(s) in DSML: #{invalid_names}", category: :api, level: :warn)
     end
 
     text_result["choices"][0]["message"]["tool_calls"] = tool_calls
@@ -1120,10 +1101,7 @@ module DeepSeekHelper
         end
       }
 
-      model_name = obj["model"] || ""
-      is_legacy_reasoner = model_name.include?("reasoner") || model_name.include?("-r1")
-      is_v4_thinking = model_name.include?("deepseek-v4") && obj["reasoning_content"].to_s != "disabled"
-      if is_legacy_reasoner || is_v4_thinking
+      if deepseek_thinking_on?(obj)
         reasoning_content = text_result&.dig("choices", 0, "message", "reasoning_content")
         if reasoning_content && !reasoning_content.empty?
           assistant_msg["reasoning_content"] = reasoning_content
@@ -1140,8 +1118,14 @@ module DeepSeekHelper
       context << assistant_msg
 
       call_depth += 1
-      if call_depth > MAX_FUNC_CALLS
-        return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
+      # The turn's tool rounds are counted in the session, as in the other
+      # helpers: at MAX_FUNC_CALLS the next request goes without tools, so
+      # the model answers in text.
+      session[:call_depth_per_turn] = session[:call_depth_per_turn].to_i + 1
+      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
+        return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
+          provider: "DeepSeek", message: "Maximum function call depth exceeded"
+        ) }]
       end
 
       new_results = process_functions(app, session, tools_data, context, call_depth, &block)
@@ -1192,17 +1176,21 @@ module DeepSeekHelper
     if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
       body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
     end
+    # Words the user marked: masked wherever they are in the body, or nothing is sent.
+    protect_marked_words!(body, session, app_settings)
 
     if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
       body.delete("tools")
       body.delete("tool_choice")
     end
 
+    Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
     res = post_json_with_retries(http, target_uri, body,
                                  max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
 
     unless res.status.success?
-      error_report = JSON.parse(res.body)
+      # A proxy or gateway can answer with a body that is not JSON.
+      error_report = (JSON.parse(res.body) rescue nil) || { "error" => { "message" => "HTTP #{res.status}" } }
       Monadic::Utils::ExtraLogger.log { "[DeepSeek] API error: #{error_report}" }
       formatted_error = format_api_error(error_report, "deepseek")
       res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
@@ -1246,7 +1234,12 @@ module DeepSeekHelper
     # surface a call via its content fallbacks (JSON or DSML). Block execution
     # here — the single point every request path converges on — so a UI-disabled
     # capability never runs regardless of how it was requested.
-    if Monadic::SharedTools::TavilyDefinitions.web_search_tool?(function_name) &&
+    refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
+    if refusal
+      # Run only the tools offered to the model in the latest request; this also
+      # covers calls written in the content (DSML or JSON).
+      function_return = refusal
+    elsif Monadic::SharedTools::TavilyDefinitions.web_search_tool?(function_name) &&
        !Monadic::SharedTools::TavilyDefinitions.websearch_requested?(session[:parameters])
       Monadic::Utils::ExtraLogger.log { "[DeepSeek] Web Search off — blocked #{function_name}" }
       function_return = "❌ Web search is turned off for this conversation. " \
@@ -1259,12 +1252,12 @@ module DeepSeekHelper
                               session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: converted
                             )
                           elsif converted.empty?
-                            APPS[app].send(function_name.to_sym)
+                            APPS[app].public_send(function_name.to_sym)
                           else
-                            APPS[app].send(function_name.to_sym, **converted)
+                            APPS[app].public_send(function_name.to_sym, **converted)
                           end
       rescue StandardError => e
-        function_return = "ERROR: #{e.message}"
+        function_return = "ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"
       end
     end
 

@@ -3,6 +3,7 @@
 require "spec_helper"
 require "tmpdir"
 require "fileutils"
+require "digest"
 require_relative "../../../lib/monadic/utils/timed_transcription"
 
 # The shared timed transcription, with the Python container and the provider
@@ -12,14 +13,21 @@ RSpec.describe Monadic::Utils::TimedTranscription do
   around do |example|
     Dir.mktmpdir("timed-transcription") do |dir|
       @data = File.join(dir, "data")
+      @state = File.join(dir, "state")
       FileUtils.mkdir_p(File.join(@data, "conversations", "c1", "artifacts"))
       example.run
     end
   end
 
+  let(:ids) { Monadic::Workspace::Ids }
+  let(:chat_id) { ids.generate(:chat) }
+  let(:workspace_id) { ids.generate(:workspace) }
   let!(:job) do
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data)
-    Monadic::Workspace::Jobs.create!("conversations/c1")
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(@state)
+    Monadic::Workspace::Ledger.default.register_workspace(chat_id: chat_id, workspace_id: workspace_id,
+                                                          app_name: "Chat", relative_dir: "conversations/c1")
+    Monadic::Workspace::Jobs.create!(workspace_id)
   end
   let(:segments_doc) do
     { "schema" => "speech-segments", "schema_version" => 1, "sample_rate_hz" => 24_000,
@@ -31,6 +39,7 @@ RSpec.describe Monadic::Utils::TimedTranscription do
 
   before do
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data)
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(@state)
     allow(Monadic::Shell).to receive(:exec) do |argv:, **|
       expect(argv.first(2)).to eq(["python", described_class::SEGMENT_SCRIPT])
       if segmenter_stderr.empty?
@@ -62,6 +71,53 @@ RSpec.describe Monadic::Utils::TimedTranscription do
     expect(result[:subtitles].keys).to contain_exactly(:vtt, :srt)
     expect(saved["status"]).to eq("complete")
     expect(pcm_left?).to be(false)
+  end
+
+  describe "subtitles" do
+    after { Monadic::Workspace::Ledger.clear_unsettled! }
+
+    let(:ledger_data) { JSON.parse(File.read(Monadic::Workspace::Ledger.default.path)) }
+
+    def run_with_texts
+      texts = ["Hello there.", "Goodbye."]
+      transcription(transcribe: ->(_wav) { texts.shift }).run
+    end
+
+    it "keeps both as artifacts of the chat's run and publishes copies of the kept bytes" do
+      # The run folder's copy is changed as soon as it is written; the public
+      # copy still has what the server made.
+      allow(Monadic::Utils::SharedPathGuard).to receive(:write_file!).and_wrap_original do |m, path, *rest, **kw|
+        written = m.call(path, *rest, **kw)
+        File.write(path, "CHANGED") if path.to_s.end_with?("transcript.vtt", "transcript.srt")
+        written
+      end
+      result = run_with_texts
+      artifacts = ledger_data["artifacts"].values
+      expect(artifacts.map { |a| a["kind"] }).to contain_exactly("subtitle_vtt", "subtitle_srt")
+      expect(artifacts).to all(include("owner" => "chat", "chat_id" => chat_id, "workspace_id" => workspace_id,
+                                       "job_id" => job[:job_id]))
+      vtt = artifacts.find { |a| a["kind"] == "subtitle_vtt" }
+      expect(vtt["copy_path"]).to eq("#{job[:relative]}/transcript.vtt")
+
+      name = result[:subtitles][:vtt].delete_prefix("/data/")
+      publication = ledger_data["publications"].find { |_, r| r["name"] == name }
+      expect(publication.last).to include("status" => "ready", "source" => include("kind" => "artifact"))
+      public_vtt = File.join(@state, "publications", publication.first, name)
+      expect(File.read(public_vtt)).to start_with("WEBVTT")
+      expect(Digest::SHA256.hexdigest(File.binread(public_vtt))).to eq(vtt["sha256"])
+      expect(Dir.glob(File.join(@data, "pub_*"))).to be_empty
+      expect(File.read(File.join(job[:path], "transcript.vtt"))).to eq("CHANGED")
+    end
+
+    it "publishes nothing it could not keep, and leaves no copy of it in the run folder" do
+      job
+      Monadic::Workspace::Ledger.unsettle!(Monadic::Workspace::Ledger.default.path)
+      result = nil
+      expect { result = run_with_texts }.to output(/Subtitles not kept: Unsettled/).to_stderr
+      expect(result[:subtitles]).to be_nil
+      expect(Dir.glob(File.join(@data, "pub_*"))).to be_empty
+      expect(Dir.glob(File.join(job[:path], "transcript.{vtt,srt}"))).to be_empty
+    end
   end
 
   it "keeps the segments done so far, marked stopped, when its thread is stopped (Reset or Cancel)" do
@@ -112,15 +168,22 @@ RSpec.describe Monadic::Utils::TimedTranscription do
     expect(described_class.format_transcript(doc)).to include("count from the start of the audio track, which a player shows at 00:02")
   end
 
+  it "says why the connections failed when a run ran out of them" do
+    doc = { "status" => "failed", "sample_rate_hz" => 24_000,
+            "segments" => [{ "status" => "failed", "error" => "connection_limit", "last_error" => "connection" }] }
+    expect(described_class.format_transcript(doc))
+      .to eq("Audio transcription failed: connection_limit (last error: connection).")
+  end
+
   it "says when the transcript could not be saved, and does not leave a stopped one in its place" do
-    allow(File).to receive(:rename).and_call_original
-    allow(File).to receive(:rename).with(a_string_ending_with("transcript.json.part-#{Process.pid}"), anything)
-                                   .and_raise(Errno::ENOSPC)
+    allow(Monadic::Utils::SharedFs).to receive(:write_new).and_call_original
+    allow(Monadic::Utils::SharedFs).to receive(:write_new).with(anything, "transcript.json", any_args)
+                                                          .and_raise(Errno::ENOSPC)
     texts = ["Hello there.", "Goodbye."]
     result = transcription(transcribe: ->(_wav) { texts.shift }).run
     expect(result[:text]).to eq("Audio transcription failed: the transcript could not be saved in the run folder (ENOSPC).")
     expect(File.exist?(File.join(job[:path], "transcript.json"))).to be(false)
-    expect(Dir.children(job[:path]).grep(/\.part-/)).to be_empty
+    expect(Dir.children(job[:path]).grep(/\.tmp\z/)).to be_empty
     expect(pcm_left?).to be(false)
   end
 
@@ -155,7 +218,7 @@ RSpec.describe Monadic::Utils::TimedTranscription do
     run.join(10)
     expect(saved["status"]).to eq("complete")
     expect(saved["segments"].map { |s| s["text"] }).to eq(["Hello there.", "Goodbye."])
-    expect(Dir.children(job[:path]).grep(/\.part-/)).to be_empty
+    expect(Dir.children(job[:path]).grep(/\.tmp\z/)).to be_empty
     expect(pcm_left?).to be(false)
   end
 

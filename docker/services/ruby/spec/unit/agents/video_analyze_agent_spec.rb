@@ -5,6 +5,7 @@ require 'json'
 require 'stringio'
 require 'fileutils'
 require 'tmpdir'
+require 'digest'
 require 'http'
 require_relative '../../../lib/monadic/agents/image_analysis_agent'
 require_relative '../../../lib/monadic/agents/audio_transcription_agent'
@@ -85,10 +86,10 @@ RSpec.describe VideoAnalyzeAgent do
     context 'when video processing is successful' do
       before do
         # Stub file reading for frames JSON
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with("./frames_20250629_154801.json").and_return(false)
-        allow(File).to receive(:exist?).with("/monadic/data/frames_20250629_154801.json").and_return(true)
-        allow(File).to receive(:read).with("/monadic/data/frames_20250629_154801.json").and_return(sample_frames_json)
+        # The frames JSON is read through the guard
+        allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).and_call_original
+        allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!)
+          .with(File.join(Monadic::Utils::Environment.shared_volume, "frames_20250629_154801.json")).and_return(sample_frames_json)
 
         # Stub Vision API call
         allow(agent).to receive(:video_vision_openai).and_return("This is a video showing a deer crossing the road.")
@@ -157,10 +158,9 @@ RSpec.describe VideoAnalyzeAgent do
     context 'output without audio file' do
       before do
         agent.extractor_output = "15 frames extracted\nBase64-encoded frames saved to ./frames_only.json"
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with("./frames_only.json").and_return(false)
-        allow(File).to receive(:exist?).with("/monadic/data/frames_only.json").and_return(true)
-        allow(File).to receive(:read).with("/monadic/data/frames_only.json").and_return(sample_frames_json)
+        allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).and_call_original
+        allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!)
+          .with(File.join(Monadic::Utils::Environment.shared_volume, "frames_only.json")).and_return(sample_frames_json)
         allow(agent).to receive(:video_vision_openai).and_return("Video description only")
       end
 
@@ -174,10 +174,10 @@ RSpec.describe VideoAnalyzeAgent do
 
     context 'error handling' do
       before do
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with("./frames_20250629_154801.json").and_return(false)
-        allow(File).to receive(:exist?).with("/monadic/data/frames_20250629_154801.json").and_return(true)
-        allow(File).to receive(:read).with("/monadic/data/frames_20250629_154801.json").and_return(sample_frames_json)
+        # The frames JSON is read through the guard
+        allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).and_call_original
+        allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!)
+          .with(File.join(Monadic::Utils::Environment.shared_volume, "frames_20250629_154801.json")).and_return(sample_frames_json)
       end
 
       it 'returns video analysis error when Vision API fails' do
@@ -229,9 +229,7 @@ RSpec.describe VideoAnalyzeAgent do
         "data:image/png;base64,iVBORw0KGgo=",
         "iVBORw0KGgo="
       ]
-      allow(File).to receive(:exist?).and_call_original
-      allow(File).to receive(:exist?).with("/test/frames.json").and_return(true)
-      allow(File).to receive(:read).with("/test/frames.json").and_return(JSON.generate(frames_with_prefix))
+      allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).with("/test/frames.json").and_return(JSON.generate(frames_with_prefix))
 
       result = agent.send(:read_frames_json, "/test/frames.json")
 
@@ -239,9 +237,7 @@ RSpec.describe VideoAnalyzeAgent do
     end
 
     it 'returns error for invalid JSON' do
-      allow(File).to receive(:exist?).and_call_original
-      allow(File).to receive(:exist?).with("/test/frames.json").and_return(true)
-      allow(File).to receive(:read).with("/test/frames.json").and_return("not json")
+      allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).with("/test/frames.json").and_return("not json")
 
       result = agent.send(:read_frames_json, "/test/frames.json")
 
@@ -298,8 +294,7 @@ RSpec.describe VideoAnalyzeAgent do
   end
 
   def read_document(document)
-    allow(File).to receive(:exist?).with("/test/frames.json").and_return(true)
-    allow(File).to receive(:read).with("/test/frames.json").and_return(JSON.generate(document))
+    allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).with("/test/frames.json").and_return(JSON.generate(document))
     agent.send(:read_frames_json, "/test/frames.json")
   end
 
@@ -364,7 +359,7 @@ RSpec.describe VideoAnalyzeAgent do
         OpenAIHelper.const_set(:OUTPUT_TOKEN_KEY, :max_completion_tokens)
       end
       response = double(status: double(success?: true), body: JSON.generate({
-        choices: [{ message: { content: "Description" } }], content: [{ text: "Description" }],
+        choices: [{ message: { content: "Description" } }], content: [{ type: "text", text: "Description" }],
         candidates: [{ content: { parts: [{ text: "Description" }] } }]
       }))
       expect(agent).to receive(:video_vision_http_post) do |uri, _headers, body|
@@ -390,6 +385,26 @@ RSpec.describe VideoAnalyzeAgent do
       end
       expect(agent.send(:video_vision_query, "Describe", timed_document)).to eq("Description")
     end
+  end
+
+  it 'asks a reasoning model for the least reasoning and calls an empty reply a failure' do
+    agent.settings["provider"] = "openai"
+    CONFIG["OPENAI_API_KEY"] = "own-test-key"
+    unless defined?(OpenAIHelper)
+      stub_const("OpenAIHelper", Module.new)
+      OpenAIHelper.const_set(:OUTPUT_TOKEN_KEY, :max_completion_tokens)
+    end
+    allow(ImageAnalysisAgent).to receive(:vision_model_for).and_return("vision-test-model")
+    allow(Monadic::Utils::ModelSpec).to receive(:get_reasoning_effort_options).with("vision-test-model")
+      .and_return(options: %w[none low high], default: "none")
+    response = double(status: double(success?: true), body: JSON.generate({
+      choices: [{ message: { content: "" }, finish_reason: "length" }]
+    }))
+    expect(agent).to receive(:video_vision_http_post) do |_uri, _headers, body|
+      expect(body[:reasoning_effort]).to eq("none")
+      response
+    end
+    expect(agent.send(:video_vision_query, "Describe", timed_document)).to start_with("ERROR:").and include("length")
   end
 
   it 'does not invent timestamps for legacy arrays' do
@@ -493,6 +508,10 @@ RSpec.describe VideoAnalyzeAgent do
       allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data)
       allow(Monadic::Utils::Environment).to receive(:state_path).and_return(@state)
       allow(Monadic::Workspace::Ledger).to receive(:default).and_return(ledger)
+      # As when the attachments were sent with a message of this chat (the
+      # request's own checks are in request_attachments_spec.rb).
+      allow(Monadic::Workspace::RequestContext).to receive(:current)
+        .and_return(instance_double(Monadic::Workspace::RequestContext, chat_id: chat_id, allows?: true))
       allow(Monadic::Utils::SharedPathGuard).to receive(:command_path).and_call_original
       allow(Monadic::Utils::VideoProbe).to receive(:check!).and_call_original
       allow(agent).to receive(:video_vision_openai).and_return('A deer crosses the road.')
@@ -539,32 +558,43 @@ RSpec.describe VideoAnalyzeAgent do
       expect(transcribed.first).to start_with(File.join(File.realpath(@data), call[:argv][3].delete_prefix('/monadic/data/')))
     end
 
-    it 'puts a copy of the attached video in the shared folder for the page to play' do
-      record = attach
-      result = agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id })
-      name = "pub_#{record[:attachment_id]}.mp4"
-      expect(result).to start_with("Video for display: /data/#{name}\n\n")
-      copy = File.join(File.realpath(@data), name)
-      expect(File.binread(copy)).to eq(mp4)
-      expect(Dir[File.join(File.realpath(@data), '*.part-*')]).to be_empty
-
-      # The copy is a copy: writing to it leaves the attachment as it was.
-      File.binwrite(copy, 'changed')
-      original = File.join(File.realpath(@data), record[:relative_path])
-      expect(File.binread(original)).to eq(mp4)
+    def published_name(result)
+      result[%r{\AVideo for display: /data/(pub_[a-z0-9]{16}\.mp4)\n\n}, 1]
     end
 
-    it 'makes the copy once, and goes on without it when it cannot be made' do
+    it 'publishes a checked copy of the attached video, kept where only the server writes, for the page to play' do
       record = attach
-      2.times { agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id }) }
-      expect(Dir[File.join(File.realpath(@data), 'pub_*')].size).to eq(1)
+      result = agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id })
+      name = published_name(result)
+      expect(name).not_to be_nil
+      publication = ledger.publication_named(name)
+      expect(publication).to include(status: 'ready', chat_id: chat_id, sha256: Digest::SHA256.hexdigest(mp4))
+      copy = File.join(@state, 'publications', publication[:publication_id], name)
+      expect(File.binread(copy)).to eq(mp4)
+      expect(Dir[File.join(File.realpath(@data), 'pub_*')]).to be_empty
 
-      allow(IO).to receive(:copy_stream).and_raise(Errno::ENOSPC)
+      # The copy is a copy: changing the attachment leaves it as it was.
+      File.binwrite(File.join(File.realpath(@data), record[:relative_path]), 'changed')
+      expect(File.binread(copy)).to eq(mp4)
+    end
+
+    it 'publishes once, and goes on without it when it cannot be published' do
+      record = attach
+      names = Array.new(2) { published_name(agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id })) }
+      expect(names.uniq.size).to eq(1)
+      expect(ledger.publications.size).to eq(1)
+
+      allow(Monadic::Workspace::Ledger::Disk).to receive(:sync_dir).and_wrap_original do |m, dir|
+        raise Errno::ENOSPC if dir.include?('/publications/p_')
+
+        m.call(dir)
+      end
       other = attach
       result = agent.analyze_video(attachment_id: other[:attachment_id], session: { chat_id: chat_id })
       expect(result).not_to include('Video for display')
       expect(result).to include('A deer crosses the road.')
-      expect(Dir[File.join(File.realpath(@data), '*.part-*')]).to be_empty
+      expect(ledger.publications.size).to eq(1)
+      expect(Dir.children(File.join(@state, 'publications')).size).to eq(1)
     end
 
     it 'takes an attachment id passed as the file name as the attachment' do
@@ -589,7 +619,7 @@ RSpec.describe VideoAnalyzeAgent do
 
     it 'refuses without a session to say which chat it is' do
       record = attach
-      expect(agent.analyze_video(attachment_id: record[:attachment_id])).to start_with('Error: No such attachment')
+      expect(agent.analyze_video(attachment_id: record[:attachment_id])).to start_with('Error:')
       expect(calls).to be_empty
     end
 
@@ -686,10 +716,21 @@ RSpec.describe VideoAnalyzeAgent do
         expect(result).to include("A deer crosses the road.\n\n---\n\nAudio Transcript:\n[00:01–00:03] Hello there.")
       end
 
+      it "keeps the subtitles as artifacts of the attachment's chat, in the attachment's run" do
+        allow(agent).to receive(:video_vision_query).and_return('A deer crosses the road.')
+        record = attach
+        analyze
+        artifacts = JSON.parse(File.read(ledger.path))['artifacts'].values
+        expect(artifacts.map { |a| a['kind'] }).to contain_exactly('subtitle_vtt', 'subtitle_srt')
+        expect(artifacts).to all(include('owner' => 'chat', 'chat_id' => chat_id, 'workspace_id' => record[:workspace_id]))
+        workspace_dir = ledger.workspace(record[:workspace_id])[:relative_dir]
+        expect(artifacts.map { |a| a['copy_path'] }).to all(start_with("#{workspace_dir}/artifacts/#{artifacts.first['job_id']}/"))
+      end
+
       it 'keeps the transcript when the frame analysis fails' do
         allow(agent).to receive(:video_vision_query).and_return('ERROR: vision refused')
         result = analyze
-        expect(result).to match(%r{\AVideo for display: /data/pub_a_[a-z0-9]{16}\.mp4\n\nVideo analysis failed: ERROR: vision refused})
+        expect(result).to match(%r{\AVideo for display: /data/pub_[a-z0-9]{16}\.mp4\n\nVideo analysis failed: ERROR: vision refused})
         expect(result).to include("Audio Transcript:\n[00:01–00:03] Hello there.")
       end
 
@@ -718,7 +759,13 @@ RSpec.describe VideoAnalyzeAgent do
         end
         allow(agent).to receive(:video_vision_query) { sleep 30 }
         runner = Thread.new { analyze }
-        audio_started.pop
+        # Bounded: if the analysis returns before the audio work starts, say
+        # what it returned instead of waiting for ever.
+        unless audio_started.pop(timeout: 10)
+          outcome = runner.join(1) ? runner.value.to_s[0, 300] : 'still running'
+          runner.kill
+          raise "the audio work did not start (analysis: #{outcome})"
+        end
         runner.kill
         runner.join(5)
         sleep 0.2
@@ -795,12 +842,17 @@ RSpec.describe VideoAnalyzeAgent do
       it 'writes subtitle files for the transcript and links copies the page can load' do
         result = analyze
         job = File.join(File.realpath(@data), segment_calls.first[:argv][3].delete_prefix('/monadic/data/'))
-        job_id = File.basename(job)
-        expect(result).to include("Subtitles: /data/pub_#{job_id}.vtt (WebVTT), /data/pub_#{job_id}.srt (SRT)")
+        links = result[%r{Subtitles: /data/(pub_[a-z0-9]{16}\.vtt) \(WebVTT\), /data/(pub_[a-z0-9]{16}\.srt) \(SRT\)}]
+        expect(links).not_to be_nil
         vtt = File.read(File.join(job, 'transcript.vtt'))
         expect(vtt).to start_with("WEBVTT\n\n00:00:01.000 --> 00:00:03.000\nHello there.\n")
-        expect(File.read(File.join(File.realpath(@data), "pub_#{job_id}.vtt"))).to eq(vtt)
-        expect(File.read(File.join(File.realpath(@data), "pub_#{job_id}.srt"))).to include("2\n00:01:01,000 --> 00:01:02,500\nGoodbye.")
+        copies = %w[vtt srt].to_h do |kind|
+          record = ledger.publication_named(result[%r{/data/(pub_[a-z0-9]{16}\.#{kind})}, 1])
+          [kind, File.read(File.join(@state, 'publications', record[:publication_id], record[:name]))]
+        end
+        expect(copies['vtt']).to eq(vtt)
+        expect(copies['srt']).to include("2\n00:01:01,000 --> 00:01:02,500\nGoodbye.")
+        expect(Dir[File.join(File.realpath(@data), 'pub_*')]).to be_empty
       end
 
       it 'links no subtitles when no segment has words' do
@@ -887,7 +939,11 @@ RSpec.describe VideoAnalyzeAgent do
         call = segment_calls.first
         expect(call[:argv][2]).to eq('/monadic/data/clip.mp4')
         expect(call[:argv][3]).to match(%r{\A/monadic/data/conversations/[^/]+/artifacts/j_[a-z0-9]{16}\z})
-        expect(ledger.workspace_for_chat(chat_id)).not_to be_nil
+        workspace = ledger.workspace_for_chat(chat_id)
+        expect(workspace).not_to be_nil
+        artifacts = JSON.parse(File.read(ledger.path))['artifacts'].values
+        expect(artifacts).to all(include('owner' => 'chat', 'chat_id' => chat_id, 'workspace_id' => workspace[:workspace_id]))
+        expect(artifacts.size).to eq(2)
 
         expect(agent.send(:timed_transcript, { input: '/monadic/data/clip.mp4' }, 'openai', nil)).to be_nil
         expect(segment_calls.size).to eq(1)
@@ -937,6 +993,169 @@ RSpec.describe VideoAnalyzeAgent do
       record = attach
       result = agent.analyze_video(attachment_id: record[:attachment_id], session: { chat_id: chat_id })
       expect(result).to include('took longer than 15 minutes')
+    end
+  end
+
+  describe 'a detailed analysis' do
+    def frame(id, ms)
+      { "frame_id" => id, "source_frame_index" => ms / 100, "timestamp_ms" => ms,
+        "image" => "AAA=", "mime_type" => "image/jpeg" }
+    end
+
+    let(:windowed) do
+      { "schema_version" => 1, "duration_ms" => 1_500_000, "timestamp_source" => "ffprobe_best_effort_pts",
+        "frames" => [frame("f000000", 0), frame("f000600", 60_000), frame("f010000", 1_000_000)],
+        "windows" => [
+          { "window_id" => "w01", "start_ms" => 0, "end_ms" => 500_000, "candidate_count" => 4,
+            "frame_ids" => %w[f000000 f000600] },
+          { "window_id" => "w02", "start_ms" => 500_000, "end_ms" => 1_000_000, "candidate_count" => 0,
+            "frame_ids" => [] },
+          { "window_id" => "w03", "start_ms" => 1_000_000, "end_ms" => 1_500_000, "candidate_count" => 2,
+            "frame_ids" => %w[f010000] }
+        ] }
+    end
+
+    it 'asks the extractor for windows only when the user asked for detail' do
+      agent.send(:run_extractor, "in.mp4", "out", 1, 50)
+      expect(extractor_calls.last[:argv]).not_to include("--window-seconds")
+
+      agent.send(:run_extractor, "in.mp4", "out", 1, 50, true)
+      argv = extractor_calls.last[:argv]
+      expect(argv).to include("--window-seconds", "--max-windows", "--window-frames")
+      expect(argv[argv.index("--window-seconds") + 1]).to eq("600")
+      expect(argv[argv.index("--window-frames") + 1]).to eq("16")
+      expect(argv[argv.index("--frames") + 1]).to eq("50") # a video under ten minutes keeps the usual limit
+    end
+
+    it 'never asks for more frames in a window than the provider takes in one request' do
+      agent.send(:run_extractor, "in.mp4", "out", 1, 12, true)
+      argv = extractor_calls.last[:argv]
+      expect(argv[argv.index("--window-frames") + 1]).to eq("12")
+    end
+
+    let(:three_parts) do
+      windowed.merge("frames" => windowed["frames"] + [frame("f006000", 600_000)],
+                     "windows" => windowed["windows"].map do |w|
+                       w["window_id"] == "w02" ? w.merge("frame_ids" => %w[f006000]) : w
+                     end)
+    end
+
+    it 'describes each part on its own request and says which parts it could not describe' do
+      seen = Queue.new
+      allow(agent).to receive(:video_vision_query) do |query, document|
+        part = query[/part \d of \d/]
+        seen << [part, document["frames"].map { |f| f["frame_id"] }]
+        part == "part 1 of 3" ? "A deer appears." : "ERROR: Video vision analysis failed: timeout"
+      end
+      result = agent.send(:describe_by_window, "What happens?", windowed)
+      expect(Array.new(seen.size) { seen.pop }.sort).to eq([["part 1 of 3", %w[f000000 f000600]], ["part 3 of 3", %w[f010000]]])
+      expect(result).to include("described in 3 parts")
+      expect(result).to include("Part 1 of 3 (video time 00:00–08:20):\nA deer appears.")
+      expect(result).to include("Part 2 of 3 (video time 08:20–16:40):\n(Not described: no frames were selected")
+      expect(result).to include("Part 3 of 3 (video time 16:40–25:00):\n(Not described: Video vision analysis failed: timeout)")
+    end
+
+    it 'fails when no part could be described' do
+      allow(agent).to receive(:video_vision_query).and_return("ERROR: Video vision analysis failed: refused")
+      expect(agent.send(:describe_by_window, "What happens?", windowed)).to eq("ERROR: Video vision analysis failed: refused")
+    end
+
+    it 'starts no part once the time for the detailed analysis is over' do
+      stub_const("VideoAnalyzeAgent::DETAILED_TIME_LIMIT", -1)
+      expect(agent).not_to receive(:video_vision_query)
+      expect(agent.send(:describe_by_window, "What happens?", windowed)).to start_with("ERROR:")
+    end
+
+    it 'keeps the parts already described when the time runs out partway' do
+      clock = 0
+      allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC) { clock }
+      started = Queue.new
+      allow(agent).to receive(:video_vision_query) do |query|
+        started << query
+        100.times { break if started.size == 2; sleep 0.05 } # the first two parts run together
+        clock = VideoAnalyzeAgent::DETAILED_TIME_LIMIT + 1 # and take all the time
+        "Seen."
+      end
+      result = agent.send(:describe_by_window, "What happens?", three_parts)
+      expect(agent).to have_received(:video_vision_query).twice
+      expect(result).to include("Part 1 of 3 (video time 00:00–08:20):\nSeen.", "Part 2 of 3 (video time 08:20–16:40):\nSeen.")
+      expect(result).to include("Part 3 of 3 (video time 16:40–25:00):\n(Not described: the detailed analysis ran out of time")
+    end
+
+    it 'describes at most two parts at the same time' do
+      running = 0
+      most = 0
+      lock = Mutex.new
+      allow(agent).to receive(:video_vision_query) do
+        lock.synchronize { most = [most, running += 1].max }
+        sleep 0.05
+        lock.synchronize { running -= 1 }
+        "Seen."
+      end
+      four = three_parts.merge("frames" => three_parts["frames"] + [frame("f012000", 1_200_000)],
+                               "windows" => three_parts["windows"] + [
+                                 { "window_id" => "w04", "start_ms" => 1_200_000, "end_ms" => 1_500_000,
+                                   "candidate_count" => 1, "frame_ids" => %w[f012000] }
+                               ])
+      result = agent.send(:describe_by_window, "What happens?", four)
+      expect(agent).to have_received(:video_vision_query).exactly(4).times
+      expect(most).to eq(VideoAnalyzeAgent::DETAILED_CONCURRENCY)
+      expect(result.scan(/^Part (\d) of 4/).flatten).to eq(%w[1 2 3 4]) # in the video's order
+    end
+
+    it 'sends no more parts once the chat has moved on' do
+      ours = true
+      allow(agent).to receive(:video_vision_query) do
+        ours = false # a Reset while the first parts were being described
+        "Seen."
+      end
+      four = three_parts.merge("frames" => three_parts["frames"] + [frame("f012000", 1_200_000)],
+                               "windows" => three_parts["windows"] + [
+                                 { "window_id" => "w04", "start_ms" => 1_200_000, "end_ms" => 1_500_000,
+                                   "candidate_count" => 1, "frame_ids" => %w[f012000] }
+                               ])
+      result = agent.send(:describe_by_window, "What happens?", four, still_ours: -> { ours })
+      expect(agent).to have_received(:video_vision_query).at_most(2).times
+      expect(result).to include("(Not described: the chat moved on before this part.)")
+    end
+
+    it 'stops the parts being described when the analysis itself is stopped' do
+      started = Queue.new
+      allow(agent).to receive(:video_vision_query) do
+        started << Thread.current
+        sleep
+      end
+      caller = Thread.new { agent.send(:describe_by_window, "What happens?", three_parts) }
+      parts = [started.pop(timeout: 5), started.pop(timeout: 5)]
+      expect(parts).to all(be_a(Thread)) # two parts were being described at once
+      caller.kill.join(5)
+      expect(parts.map(&:alive?)).to eq([false, false])
+      expect(started).to be_empty # the third part was never sent
+    ensure
+      caller&.kill
+      parts&.each { |part| part&.kill }
+    end
+
+    it 'takes detailed as true only for true or "true"' do
+      allow(agent).to receive(:read_frames_json).and_return(windowed.except("windows"))
+      allow(agent).to receive(:video_vision_query).and_return("Seen.")
+      [[true, true], ["true", true], [false, false], ["false", false], [nil, false]].each do |value, windows|
+        agent.analyze_video(file: "test.mp4", detailed: value)
+        expect(extractor_calls.last[:argv].include?("--window-seconds")).to be(windows)
+      end
+    end
+
+    it 'describes a windowed video part by part and an unwindowed one in a single request' do
+      allow(agent).to receive(:read_frames_json).and_return(windowed)
+      allow(agent).to receive(:video_vision_query).and_return("Seen.")
+      result = agent.analyze_video(file: "test.mp4", detailed: true)
+      expect(result).to include("Part 1 of 3")
+      expect(agent).to have_received(:video_vision_query).twice
+      expect(extractor_calls.last[:argv]).to include("--window-seconds")
+
+      allow(agent).to receive(:read_frames_json).and_return(windowed.except("windows"))
+      expect(agent.analyze_video(file: "test.mp4")).not_to include("Part 1 of 3")
+      expect(extractor_calls.last[:argv]).not_to include("--window-seconds")
     end
   end
 end

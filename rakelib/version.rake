@@ -369,7 +369,9 @@ task :update_version, [:from_version, :to_version] do |_t, args|
         if dry_run
           puts "Would add new entry to CHANGELOG.md for version #{to_version}#{dry_run_message}"
         else
-          new_entry = "- [#{month_year}] #{to_version}\n  - Version updated from #{from_version}\n\n"
+          # The heading only: the items are written for the release
+          # (docs_dev/changelog_style.md).
+          new_entry = "- [#{month_year}] #{to_version}\n\n"
           lines.unshift(new_entry)
           puts "Adding new entry to CHANGELOG.md for version #{to_version}"
           File.write(changelog, lines.join)

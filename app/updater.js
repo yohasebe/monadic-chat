@@ -17,6 +17,8 @@
 
 const { autoUpdater } = require('electron-updater');
 const { app, dialog, shell } = require('electron');
+// The same instance main.js sets the UI language on.
+const i18n = require('./i18n');
 
 let deps = null;
 let downloadInProgress = false;
@@ -34,7 +36,7 @@ let downloadInProgress = false;
 let installInProgress = false;
 
 function init(injected) {
-  deps = injected; // { dockerManager, getMainWindow, log, i18n }
+  deps = injected; // { dockerManager, getMainWindow, log }
 
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
@@ -66,12 +68,13 @@ function init(injected) {
 
     const result = await dialog.showMessageBox(mainWindow, {
       type: 'info',
-      buttons: ['Restart Now', 'Later'],
+      buttons: [i18n.t('dialogs.updateReady.restartNow'), i18n.t('dialogs.updateReady.later')],
       defaultId: 0,
       cancelId: 1,
-      title: 'Update Ready',
-      message: `Monadic Chat ${info.version} is ready to install.`,
-      detail: 'The app will stop Docker containers gracefully, then restart to apply the update. Any in-progress conversation will be lost — please finish or save first.'
+      noLink: true,
+      title: i18n.t('dialogs.updateReady.title'),
+      message: i18n.t('dialogs.updateReady.message', { version: info.version }),
+      detail: i18n.t('dialogs.updateReady.detail')
     });
 
     if (result.response !== 0) {
@@ -98,11 +101,13 @@ function init(injected) {
 
     dialog.showMessageBox(mainWindow, {
       type: 'error',
-      buttons: ['Open Releases Page', 'Close'],
+      buttons: [i18n.t('dialogs.updateError.openReleases'), i18n.t('dialogs.updateError.close')],
       defaultId: 0,
-      title: 'Update Error',
-      message: 'Automatic update failed',
-      detail: `${message}\n\nYou can download the latest version manually from the releases page.`
+      cancelId: 1,
+      noLink: true,
+      title: i18n.t('dialogs.updateError.title'),
+      message: i18n.t('dialogs.updateError.message'),
+      detail: `${message}\n\n${i18n.t('dialogs.updateError.detail')}`
     }).then((result) => {
       if (result.response === 0) {
         shell.openExternal('https://github.com/yohasebe/monadic-chat/releases');
@@ -165,7 +170,7 @@ async function gracefulStopThenInstall() {
       // once the 'Stopped' status is emitted.
       await deps.dockerManager.runCommand(
         'stop',
-        '[HTML]: <p>Stopping Docker containers before restart . . .</p>',
+        `[HTML]: <p>${i18n.t('messages.stoppingContainersBeforeRestart')}</p>`,
         'Stopping',
         'Stopped'
       );
@@ -186,8 +191,8 @@ async function gracefulStopThenInstall() {
   // observed symptom: app quits but does NOT restart. A short delay
   // before quitAndInstall lets Squirrel set up cleanly.
   //
-  // Rationale for 1500ms: empirically chosen. Squirrel's helper spawn is
-  // typically observed in the 200-500ms range after quit signal; 1500ms
+  // Rationale for 1500ms: Squirrel's helper typically spawns within
+  // 200-500ms of the quit signal; 1500ms
   // gives ~3x headroom for slower systems without being perceptible to
   // the user who is already waiting for the update to apply.
   await new Promise(resolve => setTimeout(resolve, 1500));

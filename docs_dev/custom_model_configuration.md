@@ -173,7 +173,7 @@ When developing custom Monadic apps with MDSL, you can reference custom models b
 app "MyCustomApp" do
   llm do
     provider "OpenAI"
-    model ["my-custom-model", "gpt-4o"]
+    model ["my-custom-model", "<another-model-id>"]
   end
 end
 ```

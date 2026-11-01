@@ -6,10 +6,23 @@ require 'fileutils'
 require 'open3'
 require_relative '../../../lib/monadic/utils/pdf_text_extractor'
 
+require 'stringio'
+require 'tmpdir'
+
 RSpec.describe PDF2Text do
   let(:test_pdf_path) { '/tmp/test.pdf' }
-  let(:extractor) { described_class.new(path: test_pdf_path) }
+  # The upload route's form: the server's own temporary file.
+  let(:extractor) { described_class.new(path: test_pdf_path, in_shared: false) }
   
+  # The copy into the shared folder and its removal go through the guard;
+  # they are played here, so nothing is written to a real folder.
+  def stub_copy
+    allow(File).to receive(:open).and_call_original
+    allow(File).to receive(:open).with(test_pdf_path, "rb").and_yield(StringIO.new("%PDF"))
+    allow(Monadic::Utils::SharedPathGuard).to receive(:write_file!)
+    allow(Monadic::Utils::SharedPathGuard).to receive(:delete_file!)
+  end
+
   # Mock constants and environment
   before do
     allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(false)
@@ -51,20 +64,34 @@ RSpec.describe PDF2Text do
     context 'when file exists' do
       before do
         allow(File).to receive(:exist?).and_return(true)
-        allow(FileUtils).to receive(:cp)
-        allow(Time).to receive(:now).and_return(Time.at(1234567890))
+        stub_copy
+        allow(SecureRandom).to receive(:hex).with(8).and_return('0123456789abcdef')
       end
-      
-      it 'copies file to data directory with timestamp' do
+
+      it 'copies the file to the data directory under a name of its own' do
         mock_stdout = '{"pages": []}'
-        allow(Open3).to receive(:capture3).and_return([mock_stdout, '', double(success?: true)])
-        
-        expect(FileUtils).to receive(:cp).with(
-          test_pdf_path,
-          File.expand_path('~/monadic/data/1234567890.pdf')
-        )
-        
+        allow(Monadic::Shell).to receive(:bash).and_return([mock_stdout, '', double(success?: true)])
+
         extractor.pdf2text(test_pdf_path)
+        expect(Monadic::Utils::SharedPathGuard).to have_received(:write_file!)
+          .with(File.expand_path('~/monadic/data/pdf2text_0123456789abcdef.pdf'), an_instance_of(StringIO), replace: false)
+      end
+
+      it 'gives the extraction a time limit' do
+        allow(Monadic::Shell).to receive(:bash).and_return(['{"pages": []}', '', double(success?: true)])
+        extractor.pdf2text(test_pdf_path)
+        expect(Monadic::Shell).to have_received(:bash).with(hash_including(container: :python, timeout: PDF2Text::EXTRACT_TIMEOUT))
+      end
+
+      it 'removes the copy when the extraction ends, also when it fails' do
+        copy = File.expand_path('~/monadic/data/pdf2text_0123456789abcdef.pdf')
+        allow(Monadic::Shell).to receive(:bash).and_return(['{"pages": []}', '', double(success?: true)])
+        extractor.pdf2text(test_pdf_path)
+        expect(Monadic::Utils::SharedPathGuard).to have_received(:delete_file!).with(copy).once
+
+        allow(Monadic::Shell).to receive(:bash).and_return(['', 'boom', double(success?: false)])
+        expect { extractor.pdf2text(test_pdf_path) }.to raise_error(/Error extracting text/)
+        expect(Monadic::Utils::SharedPathGuard).to have_received(:delete_file!).with(copy).twice
       end
       
       context 'with successful extraction' do
@@ -72,7 +99,7 @@ RSpec.describe PDF2Text do
           mock_json = { "pages" => [{ "text" => "Sample text" }] }
           mock_stdout = mock_json.to_json
           
-          allow(Open3).to receive(:capture3).and_return([mock_stdout, '', double(success?: true)])
+          allow(Monadic::Shell).to receive(:bash).and_return([mock_stdout, '', double(success?: true)])
           
           result = extractor.pdf2text(test_pdf_path)
           expect(result).to eq(mock_json)
@@ -81,13 +108,13 @@ RSpec.describe PDF2Text do
       
       context 'with extraction failure' do
         it 'raises error when command fails' do
-          allow(Open3).to receive(:capture3).and_return(['', 'Error message', double(success?: false)])
+          allow(Monadic::Shell).to receive(:bash).and_return(['', 'Error message', double(success?: false)])
           
           expect { extractor.pdf2text(test_pdf_path) }.to raise_error('Error extracting text: Error message')
         end
         
         it 'raises error for invalid JSON' do
-          allow(Open3).to receive(:capture3).and_return(['invalid json', '', double(success?: true)])
+          allow(Monadic::Shell).to receive(:bash).and_return(['invalid json', '', double(success?: true)])
           allow(DebugHelper).to receive(:debug)
           
           expect { extractor.pdf2text(test_pdf_path) }.to raise_error('PDF extraction returned invalid JSON format')
@@ -102,14 +129,11 @@ RSpec.describe PDF2Text do
         
         it 'uses container data path' do
           mock_stdout = '{"pages": []}'
-          allow(Open3).to receive(:capture3).and_return([mock_stdout, '', double(success?: true)])
-          
-          expect(FileUtils).to receive(:cp).with(
-            test_pdf_path,
-            '/monadic/data/1234567890.pdf'
-          )
+          allow(Monadic::Shell).to receive(:bash).and_return([mock_stdout, '', double(success?: true)])
           
           extractor.pdf2text(test_pdf_path)
+          expect(Monadic::Utils::SharedPathGuard).to have_received(:write_file!)
+            .with('/monadic/data/pdf2text_0123456789abcdef.pdf', anything, replace: false)
         end
       end
     end
@@ -158,13 +182,9 @@ RSpec.describe PDF2Text do
         expect { extractor.extract }.not_to raise_error
       end
       
-      it 'uses parallel processing' do
-        expect(Parallel).to receive(:each).with(
-          mock_json["pages"],
-          in_threads: PDF2Text::THREADS
-        ).and_yield(mock_json["pages"][0])
-        
-        extractor.extract
+      it 'keeps the pages in order' do
+        mock_json["pages"] = (1..20).map { |i| { "text" => "Page #{i}" } }
+        expect(extractor.extract).to eq((1..20).map { |i| "Page #{i}\n" }.join)
       end
     end
     
@@ -342,16 +362,16 @@ RSpec.describe PDF2Text do
   describe 'Error handling' do
     it 'provides helpful error messages' do
       allow(File).to receive(:exist?).and_return(true)
-      allow(FileUtils).to receive(:cp)
-      allow(Open3).to receive(:capture3).and_return(['', 'Docker daemon not running', double(success?: false)])
+      stub_copy
+      allow(Monadic::Shell).to receive(:bash).and_return(['', 'Docker daemon not running', double(success?: false)])
       
       expect { extractor.pdf2text(test_pdf_path) }.to raise_error(/Error extracting text:.*Docker daemon/)
     end
     
     it 'logs debug information for JSON parse errors' do
       allow(File).to receive(:exist?).and_return(true)
-      allow(FileUtils).to receive(:cp)
-      allow(Open3).to receive(:capture3).and_return(['<html>Not JSON</html>', '', double(success?: true)])
+      stub_copy
+      allow(Monadic::Shell).to receive(:bash).and_return(['<html>Not JSON</html>', '', double(success?: true)])
       allow(DebugHelper).to receive(:debug)
 
       expect(DebugHelper).to receive(:debug).with(
@@ -361,6 +381,46 @@ RSpec.describe PDF2Text do
       )
 
       expect { extractor.pdf2text(test_pdf_path) }.to raise_error('PDF extraction returned invalid JSON format')
+    end
+  end
+  describe "a PDF of the shared folder (the MCP tool's form)" do
+    around do |example|
+      Dir.mktmpdir("pdf2text") do |dir|
+        @root = File.join(dir, "data")
+        @outside = File.join(dir, "outside")
+        FileUtils.mkdir_p([@root, @outside])
+        example.run
+      end
+    end
+
+    before do
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@root)
+      allow(Monadic::Shell).to receive(:bash).and_return(['{"pages": []}', '', double(success?: true)])
+    end
+
+    it "copies nothing from outside the shared folder when the PDF is a link" do
+      File.write(File.join(@outside, "secret.txt"), "SECRET")
+      File.symlink(File.join(@outside, "secret.txt"), File.join(@root, "doc.pdf"))
+      expect { described_class.new(path: File.join(@root, "doc.pdf")).pdf2text(File.join(@root, "doc.pdf")) }
+        .to raise_error(Monadic::Utils::SharedPathGuard::InvalidPath)
+      expect(Dir.children(@root)).to eq(["doc.pdf"])
+    end
+
+    it "leaves a file it did not make when the copy's name is taken" do
+      File.write(File.join(@root, "doc.pdf"), "%PDF")
+      allow(SecureRandom).to receive(:hex).and_call_original
+      allow(SecureRandom).to receive(:hex).with(8).and_return("0" * 16)
+      taken = File.join(@root, "pdf2text_#{'0' * 16}.pdf")
+      File.write(taken, "someone else's")
+      expect { described_class.new(path: File.join(@root, "doc.pdf")).pdf2text(File.join(@root, "doc.pdf")) }
+        .to raise_error(Errno::EEXIST)
+      expect(File.read(taken)).to eq("someone else's")
+    end
+
+    it "copies a plain PDF of the shared folder and removes its copy after" do
+      File.write(File.join(@root, "doc.pdf"), "%PDF")
+      described_class.new(path: File.join(@root, "doc.pdf")).pdf2text(File.join(@root, "doc.pdf"))
+      expect(Dir.children(@root)).to eq(["doc.pdf"])
     end
   end
 end

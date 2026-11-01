@@ -9,6 +9,7 @@ require_relative "../../utils/system_prompt_injector"
 require_relative "../../monadic_performance"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
+require_relative "../../utils/provider_response"
 require_relative "../base_vendor_helper"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/extra_logger"
@@ -86,12 +87,13 @@ module MistralHelper
   # What leaving the parameter out means differs by model, so "none" cannot
   # simply be dropped: Mistral Large 4 / Medium 3.5 / Small 4 do not reason
   # without it, but Z.ai GLM 5.3 reasons at about its maximum, and rejects
-  # "none" outright (accepts low/high/max; checked live 2026-10-06). So:
+  # "none" outright (accepts low/high/max). So:
   # - a model whose spec declares no reasoning_effort gets nothing (Magistral
   #   rejects the parameter: "reasoning_effort is not enabled for this model");
   # - "none", no request, or a value this method does not know goes out as
-  #   nothing where the model accepts none, and as its lowest level where it
-  #   does not — an unknown value never raises the effort;
+  #   "none" where the model accepts it (said explicitly: Large 4 reasons
+  #   when the field is missing), and as its lowest level where it does not —
+  #   an unknown value never raises the effort;
   # - a known level the model does not accept becomes the nearest accepted
   #   level at or above it (else the highest), instead of a 400.
   # The model's levels are ordered by MISTRAL_EFFORT_RANK, not by how the spec
@@ -109,8 +111,10 @@ module MistralHelper
     requested = requested.to_s.strip.downcase
     rank = MISTRAL_EFFORT_RANK.index(requested)
 
+    # "none" is sent, not left out, where the model takes it (Medium 3.5
+    # reasons when the field is missing); elsewhere the lowest level is.
     if requested.empty? || requested == "none" || rank.nil?
-      return accepts_none ? nil : above_none.first
+      return accepts_none ? "none" : above_none.first
     end
     return requested if levels.include?(requested)
 
@@ -212,14 +216,14 @@ module MistralHelper
       "safe_prompt" => false
     }
     
-    # Reasoning models get reasoning_effort instead of temperature, as
-    # mistral_effort_for decides (nil = send none and use temperature).
+    # Reasoning models get the effort mistral_effort_for decides; temperature
+    # goes with it when the model is not reasoning ("none", or no effort).
     mistral_effort = mistral_effort_for(model, options["reasoning_effort"])
-    if is_reasoning_model && mistral_effort
-      body["reasoning_effort"] = mistral_effort
-    else
-      # For non-reasoning models or when reasoning disabled, use temperature
+    body["reasoning_effort"] = mistral_effort if is_reasoning_model && mistral_effort
+    if !is_reasoning_model || mistral_effort.nil? || mistral_effort == "none"
       body["temperature"] = options["temperature"] || 0.7
+      # Mistral Large 4 refuses temperature 0 (greedy sampling) unless top_p is 1.
+      body["top_p"] = 1.0 if body["temperature"].to_f.zero?
     end
 
     # Add tool definitions if provided (for testing tool-calling apps)
@@ -282,11 +286,12 @@ module MistralHelper
                 end
               }
             end
-            text_content = message["content"] || ""
+            # Reasoning models answer with thinking and text parts.
+            text_content = Monadic::Utils::ProviderResponse.message_text(message["content"]) || ""
             return { text: text_content, tool_calls: tool_calls }
           end
 
-          return message["content"].to_s
+          return Monadic::Utils::ProviderResponse.message_text(message["content"]).to_s
         end
         
         return Monadic::Utils::ErrorFormatter.parsing_error(
@@ -386,37 +391,20 @@ module MistralHelper
     if role != "tool"
       message = obj["message"].to_s
 
-      if message != ""
-        html = markdown_to_html(message)
+      if user_turn_to_record?(role, message, session)
+        res = { "type" => "user",
+                "content" => {
+                  "mid" => request_id,
+                  "role" => role,
+                  "text" => message,
+                  "html" => markdown_to_html(message),
+                  "lang" => detect_language(message),
+                  "app_name" => obj["app_name"]
+                } }
+        res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
 
-        if message != "" && role == "user"
-          res = { "type" => "user",
-                  "content" => {
-                    "mid" => request_id,
-                    "role" => role,
-                    "text" => message,
-                    "html" => html,
-                    "lang" => detect_language(message),
-                    "app_name" => obj["app_name"]
-                  } }
-          res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
-
-          block&.call res
-
-          # Check if this user message was already added by websocket.rb (for context extraction)
-          # to avoid duplicate consecutive user messages that cause API errors
-          existing_msg = session[:messages].find do |m|
-            m["role"] == "user" && m["text"] == message
-          end
-
-          if existing_msg
-            # Update existing message with additional fields instead of adding new one
-            existing_msg.merge!(res["content"])
-          else
-            session[:messages] << res["content"]
-          end
-        end
-    end
+        record_user_turn!(session, res, &block)
+      end
     end
 
     # After sending user card, check API key. If not set, return error card and exit
@@ -457,16 +445,17 @@ module MistralHelper
       "messages" => []
     }
     
-    # Reasoning models get reasoning_effort instead of temperature, as
-    # mistral_effort_for decides (nil = send none and use temperature).
+    # Reasoning models get the effort mistral_effort_for decides; temperature
+    # goes with it when the model is not reasoning ("none", or no effort).
     mistral_effort = mistral_effort_for(obj["model"], obj["reasoning_effort"])
     if is_reasoning_model && mistral_effort
       body["reasoning_effort"] = mistral_effort
-      # Log if extra logging is enabled
       DebugHelper.debug("Mistral: Using reasoning_effort '#{mistral_effort}' for model #{obj["model"]}", category: :api, level: :info)
-    else
-      # For non-reasoning models, use temperature
+    end
+    if !is_reasoning_model || mistral_effort.nil? || mistral_effort == "none"
       body["temperature"] = temperature || 0.7
+      # Mistral Large 4 refuses temperature 0 (greedy sampling) unless top_p is 1.
+      body["top_p"] = 1.0 if body["temperature"].to_f.zero?
     end
 
     # SSOT: supports_streaming gate (default true)
@@ -484,6 +473,7 @@ module MistralHelper
     # Set the max tokens
     body["max_tokens"] = max_tokens || 4096
 
+    context = model_facing_context(context)
     configure_mistral_tools(body, obj, app, session, websearch, context)
 
     msg_result = build_mistral_messages(body, context, obj, session, role, &block)
@@ -500,6 +490,8 @@ module MistralHelper
     if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
       body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
     end
+    # Words the user marked: masked wherever they are in the body, or nothing is sent.
+    protect_marked_words!(body, session, app_settings)
 
     # Force text-only response when force-stop is active (e.g., after parallel dispatch
     # or verification sets call_depth_per_turn = FORCE_STOP_DEPTH). Prevents the model from attempting
@@ -513,6 +505,7 @@ module MistralHelper
     Monadic::Utils::ExtraLogger.log { "Processing Mistral query (Call depth: #{call_depth})\n#{JSON.pretty_generate(body)}" }
 
     begin
+      Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
       res = http.timeout(connect: open_timeout,
                         write: write_timeout,
                         read: read_timeout).post(target_uri, json: body)
@@ -652,8 +645,7 @@ module MistralHelper
               end
             end
 
-            # Magistral streams its reasoning INSIDE the content array
-            # (verified against the live API 2026-07-09):
+            # Magistral streams its reasoning INSIDE the content array:
             #   delta.content = [{ "type" => "thinking",
             #                      "thinking" => [{"type"=>"text","text"=>...}] }]
             # while the final answer arrives as plain-string content deltas.
@@ -1186,10 +1178,9 @@ module MistralHelper
       elsif msg["role"] == "assistant" && msg["thinking"].to_s.strip != "" &&
             (Monadic::Utils::ModelSpec.supports_thinking?(obj["model"]) rescue false)
         # Magistral stops reasoning as soon as the history contains an
-        # assistant turn WITHOUT a thinking block (verified live 2026-07-09:
-        # the same request produced 511 thinking deltas with the block
-        # replayed and 0 without; prompt_mode:"reasoning" does not restore
-        # it). Replay each turn's stored trace so multi-turn reasoning stays
+        # assistant turn WITHOUT a thinking block (the same request streams
+        # thinking deltas with the block replayed and none without;
+        # prompt_mode:"reasoning" does not restore it). Replay each turn's stored trace so multi-turn reasoning stays
         # alive. Only real, previously-captured thinking is replayed — never
         # synthesized.
         {
@@ -1272,14 +1263,18 @@ module MistralHelper
 
     # Call the function
     begin
-      function_return = if function_name == "request_tool"
+      refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
+      function_return = if refusal
+                          # Run only the tools offered to the model in the latest request.
+                          refusal
+                        elsif function_name == "request_tool"
                           Monadic::Utils::ProgressiveToolManager.handle_request_tool(
                             session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: args_hash
                           )
                         elsif args_hash.empty?
-                          APPS[app].send(function_name.to_sym)
+                          APPS[app].public_send(function_name.to_sym)
                         else
-                          APPS[app].send(function_name.to_sym, **args_hash)
+                          APPS[app].public_send(function_name.to_sym, **args_hash)
                         end
     rescue StandardError => e
       function_return = Monadic::Utils::ErrorFormatter.tool_error(

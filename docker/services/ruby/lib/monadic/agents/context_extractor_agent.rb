@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 
+require_relative "../utils/gemini_request"
 require_relative "../utils/system_defaults"
 require_relative "../utils/extra_logger"
+require_relative "../utils/model_spec"
+require_relative "../utils/provider_response"
 require "net/http"
 require "uri"
 require "json"
@@ -124,10 +127,7 @@ module ContextExtractorAgent
   # chat path's :block contract; a degraded extraction that re-leaks
   # PII would defeat the purpose of the user enabling the filter.
   def mask_for_extraction(text, pipeline, role)
-    return text if text.nil? || text.to_s.empty?
-    require_relative '../utils/privacy/types'
-    raw = Monadic::Utils::Privacy::RawMessage.new(text.to_s, role, {})
-    pipeline.before_send_to_llm(raw).text
+    Monadic::Utils::Privacy::Outbound.mask(text, pipeline, role)
   end
 
   # Extract context from a conversation exchange using direct HTTP API calls
@@ -217,11 +217,25 @@ module ContextExtractorAgent
     TEXT
 
     system_message = "#{extraction_prompt}\n\nConversation to analyze:\n#{conversation_text}"
+    begin
+      # Words the user marked, in the schema or the prompt as well as in the
+      # conversation: nothing is sent while one is there.
+      # (Only read: a word in the schema or the prompt stops the extraction.)
+      Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, system_message)
+    rescue Monadic::Utils::Privacy::Outbound::Refused => e
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Not sent: #{e.message}" }
+      return nil
+    end
 
     begin
       Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Calling API: provider=#{provider}, model=#{model}" }
 
-      result = call_provider_api(provider, model, system_message, api_key)
+      Thread.current[:monadic_extraction_session] = session
+      result = begin
+        call_provider_api(provider, model, system_message, api_key)
+      ensure
+        Thread.current[:monadic_extraction_session] = nil
+      end
 
       Monadic::Utils::ExtraLogger.log { "[ContextExtractor] API result: #{result.nil? ? 'nil' : "#{result.length} chars"}" }
 
@@ -280,40 +294,33 @@ module ContextExtractorAgent
       ]
     }
 
-    # Check for reasoning/thinking models
-    is_deepseek_reasoner = provider == "deepseek" && model.to_s.include?("reasoner")
-    # V4 series (deepseek-v4-flash / deepseek-v4-pro) defaults to thinking
-    # enabled on the API side. Context extraction is a simple JSON task that
-    # does not benefit from chain-of-thought, and a 500-token budget would be
-    # consumed by reasoning before content is emitted, returning an empty
-    # response. Disable thinking explicitly for V4 in this path.
-    is_deepseek_v4 = provider == "deepseek" && model.to_s.include?("deepseek-v4")
+    # Context extraction is a short JSON task: it should not spend its token
+    # budget on reasoning, whatever the model does by default. What a model
+    # takes comes from the catalog, not from its name.
+    lowest_effort = Monadic::Utils::ModelSpec.lowest_reasoning_effort(model)
+    takes_temperature = !Monadic::Utils::ModelSpec.get_model_property(model, "temperature").nil?
 
-    # Handle OpenAI-specific parameters based on model.
-    # Output-token key sourced from OpenAIHelper::OUTPUT_TOKEN_KEY_STR (SSOT).
     if provider == "openai"
-      request_body[OpenAIHelper::OUTPUT_TOKEN_KEY_STR] = 500
-
-      # GPT-5 models don't support temperature, use reasoning_effort instead
-      if model.start_with?("gpt-5")
-        # Use "none" for all GPT-5 variants (context extraction is a simple task)
-        request_body["reasoning_effort"] = "none"
+      # Output-token key sourced from OpenAIHelper::OUTPUT_TOKEN_KEY_STR (SSOT).
+      # A reasoning model without "none" (GPT-6.1 Sol) still thinks a little.
+      request_body[OpenAIHelper::OUTPUT_TOKEN_KEY_STR] = lowest_effort.nil? || lowest_effort == "none" ? 500 : 2000
+      if lowest_effort
+        request_body["reasoning_effort"] = lowest_effort
       else
-        # Other OpenAI models (gpt-4.1, etc.) support temperature
         request_body["temperature"] = 0.3
       end
-    elsif is_deepseek_reasoner
-      # DeepSeek reasoner needs more tokens for reasoning + response
-      request_body["max_tokens"] = 2000
-      # Don't set temperature for reasoner models
-    elsif is_deepseek_v4
-      # V4 models: turn off thinking so 500 tokens are spent on the JSON
-      # output, not on chain-of-thought. Temperature is supported.
+    elsif provider == "deepseek"
+      # DeepSeek V4 models think unless told not to; the 500 tokens would go to
+      # reasoning before any JSON (an empty reply).
       request_body["thinking"] = { "type" => "disabled" }
       request_body["max_tokens"] = 500
       request_body["temperature"] = 0.3
+    elsif provider == "mistral"
+      # Mistral Large 4 reasons when reasoning_effort is left out.
+      request_body["max_tokens"] = lowest_effort.nil? || lowest_effort == "none" ? 500 : 2000
+      request_body["reasoning_effort"] = lowest_effort if lowest_effort
+      request_body["temperature"] = 0.3 if takes_temperature
     else
-      # Other providers (xAI, Mistral, regular DeepSeek) use max_tokens and temperature
       request_body["max_tokens"] = 500
       request_body["temperature"] = 0.3
     end
@@ -326,8 +333,9 @@ module ContextExtractorAgent
     return nil unless response
 
     data = JSON.parse(response)
-    # DeepSeek reasoner returns reasoning_content separately, content has the actual response
-    data.dig("choices", 0, "message", "content")
+    # DeepSeek returns reasoning_content separately; Mistral reasoning models
+    # return the content as thinking and text parts.
+    Monadic::Utils::ProviderResponse.message_text(data.dig("choices", 0, "message", "content"))
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[ContextExtractor] OpenAI-compatible API error: #{e.message}" }
     nil
@@ -384,10 +392,12 @@ module ContextExtractorAgent
       "system" => system_message,
       "messages" => [
         { "role" => "user", "content" => "Extract context and return JSON only." }
-      ],
-      "max_tokens" => 500,
-      "temperature" => 0.3
+      ]
     }
+    # A model that thinks by default gets its lowest effort and room for it;
+    # Claude 4.7+ refuses temperature altogether.
+    Monadic::Utils::ProviderResponse.claude_light_request(model, 500).each { |k, v| request_body[k.to_s] = v }
+    request_body["temperature"] = 0.3 unless Monadic::Utils::ModelSpec.rejects_sampling_params?(model)
 
     response = make_http_request(uri, request_body, {
       "x-api-key" => api_key,
@@ -400,12 +410,7 @@ module ContextExtractorAgent
     data = JSON.parse(response)
     # Handle both regular and extended thinking responses
     # Extended thinking has thinking blocks before text
-    content_array = data["content"]
-    if content_array.is_a?(Array)
-      text_item = content_array.find { |item| item["type"] == "text" }
-      return text_item["text"] if text_item
-    end
-    nil
+    Monadic::Utils::ProviderResponse.claude_text(data["content"])
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Anthropic API error: #{e.message}" }
     nil
@@ -437,7 +442,7 @@ module ContextExtractorAgent
     # Don't set temperature for thinking models
     request_body["generationConfig"]["temperature"] = 0.3 unless is_thinking_model
 
-    response = make_http_request(uri, request_body, {
+    response = make_http_request(uri, Monadic::Utils::GeminiRequest.without_storage(request_body), {
       "Content-Type" => "application/json", "x-goog-api-key" => api_key
     })
 
@@ -552,6 +557,10 @@ module ContextExtractorAgent
 
   # Make HTTP request with timeout (HTTPS)
   def make_http_request(uri, body, headers)
+    # Words the user marked in the chat being extracted: the request as it
+    # goes out (instructions added for a provider included) is checked last.
+    privacy_session = Thread.current[:monadic_extraction_session]
+    Monadic::Utils::Privacy::Outbound.check_no_marked_words!(privacy_session, body) if privacy_session
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
     http.open_timeout = 10
@@ -576,6 +585,10 @@ module ContextExtractorAgent
 
   # Make HTTP request with timeout (HTTP, no SSL - for local services like Ollama)
   def make_http_request_local(uri, body, headers)
+    # Words the user marked in the chat being extracted: the request as it
+    # goes out (instructions added for a provider included) is checked last.
+    privacy_session = Thread.current[:monadic_extraction_session]
+    Monadic::Utils::Privacy::Outbound.check_no_marked_words!(privacy_session, body) if privacy_session
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = false
     http.open_timeout = 10

@@ -21,6 +21,17 @@ module Monadic
       COLLECTIONS = [Schema::PDF_DOCS, Schema::PDF_ITEMS].freeze
       DEFAULT_APP_KEY = 'global'
 
+      # The tools offered to apps with pdf_vector_storage: name =>
+      # [description, { parameter => JSON type }]. doc_id is the point id
+      # this store gives a document, a UUID string.
+      TOOLS = {
+        'find_closest_text' => ['Find the closest text snippets in local PDF database', { 'text' => 'string', 'top_n' => 'integer' }],
+        'get_text_snippet' => ['Retrieve one text snippet from a document by position', { 'doc_id' => 'string', 'position' => 'integer' }],
+        'list_titles' => ['List all document titles in local PDF database', {}],
+        'find_closest_doc' => ['Find the closest documents in local PDF database', { 'text' => 'string', 'top_n' => 'integer' }],
+        'get_text_snippets' => ['Retrieve all snippets of a document', { 'doc_id' => 'string' }]
+      }.freeze
+
       def initialize(app_key: DEFAULT_APP_KEY,
                      vector_store: Monadic::VectorStore.default_backend,
                      embeddings: Monadic::Embeddings.default_client)
@@ -33,18 +44,21 @@ module Monadic
 
       # ─── Bootstrap ─────────────────────────────────────────────────────
 
+      # Collections made earlier get the indexes of the current schema, once
+      # per process (see VectorStore::Bootstrap).
+      @indexed = {}
+      @indexed_mutex = Mutex.new
+      class << self
+        attr_reader :indexed, :indexed_mutex
+      end
+
       # Create the pdf_docs and pdf_items collections if they do not yet
       # exist. Idempotent and cheap to call repeatedly.
       def bootstrap_collections!
-        COLLECTIONS.each do |name|
-          next if @store.collection_exists?(name: name)
-          defn = Schema::DEFINITIONS[name]
-          @store.create_collection(
-            name: name,
-            vectors: defn[:vectors],
-            payload_indexes: defn[:payload_indexes]
-          )
-        end
+        Monadic::VectorStore::Bootstrap.ensure_collections!(
+          @store, COLLECTIONS,
+          indexed: self.class.indexed, mutex: self.class.indexed_mutex, tag: 'PDF'
+        )
       end
 
       # ─── Read API ──────────────────────────────────────────────────────
@@ -55,6 +69,7 @@ module Monadic
       end
 
       def list_titles
+        bootstrap_collections!
         scroll_all(Schema::PDF_DOCS, filter: app_filter).map do |point|
           payload = point['payload'] || {}
           {
@@ -90,6 +105,7 @@ module Monadic
       end
 
       def get_text_snippet(doc_id, position)
+        bootstrap_collections!
         items = scroll_all(
           Schema::PDF_ITEMS,
           filter: combine_filters(
@@ -102,6 +118,7 @@ module Monadic
       end
 
       def get_text_snippets(doc_id)
+        bootstrap_collections!
         items = scroll_all(
           Schema::PDF_ITEMS,
           filter: combine_filters(doc_id_filter(doc_id), app_filter)

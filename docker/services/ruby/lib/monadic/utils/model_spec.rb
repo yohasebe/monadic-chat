@@ -334,6 +334,18 @@ module Monadic
           { options: options, default: default }
         end
         
+        # The least reasoning a model can be asked for: "none" where the model
+        # accepts it, otherwise its lowest level. nil when the catalog gives
+        # the model no [options, default] effort pair. For short helper calls
+        # (context extraction, image description) that must not spend their
+        # token budget on reasoning, whatever the model does by default.
+        def lowest_reasoning_effort(model_name)
+          options = get_reasoning_effort_options(model_name)&.dig(:options)
+          return nil unless options.is_a?(Array) && !options.empty?
+
+          options.include?("none") ? "none" : options.first
+        end
+
         def supports_reasoning_effort_minimal?(model_name)
           effort_config = get_reasoning_effort_options(model_name)
           return false unless effort_config
@@ -457,10 +469,10 @@ module Monadic
           get_model_property(model_name, "tts_family")
         end
 
-        # True when the model accepts the out-of-band `instructions`
-        # parameter (OpenAI gpt-4o-mini-tts).
-        def tts_instructions?(model_name)
-          get_model_property(model_name, "tts_instructions_capability") == true
+        # True when a Gemini TTS model takes a spoken-pace instruction at the
+        # start of the text; the others get none.
+        def tts_pace_prefix?(model_name)
+          get_model_property(model_name, "tts_pace_prefix") == true
         end
 
         # In-band style directive syntax; nil keeps the legacy prefix.
@@ -573,6 +585,18 @@ module Monadic
           allowed.include?(value.to_s)
         end
 
+        # The TTS provider selector's values (ttsChoices in model_spec.js);
+        # resolved through Monadic::Utils::TtsProvider.
+        def load_tts_choices
+          return @tts_choices if @tts_choices
+
+          js_content = read_model_spec_js
+          @tts_choices = js_content ? extract_js_object(js_content, "ttsChoices") : {}
+        rescue StandardError => e
+          puts "Warning: Failed to load ttsChoices: #{e.message}"
+          @tts_choices = {}
+        end
+
         def load_image_generation_options
           return @image_generation_options if @image_generation_options
 
@@ -648,6 +672,7 @@ module Monadic
           @spec = nil
           @provider_defaults = nil
           @image_generation_options = nil
+          @tts_choices = nil
           remove_instance_variable(:@js_content) if defined?(@js_content)
           nil
         end

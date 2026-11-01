@@ -23,6 +23,15 @@ RSpec.describe SecondOpinionAgent do
     end
   end
 
+  describe "an error the provider's helper returns" do
+    it "is a failed evaluation, not comments to parse" do
+      helper = double("helper", send_query: "[Cohere] API Error: nothing was sent")
+      allow(agent).to receive(:get_provider_helper).and_return(helper)
+      result = agent.second_opinion_agent(user_query: "q", agent_response: "a", provider: "cohere", model: "command-r")
+      expect(result[:validity]).to eq("error")
+    end
+  end
+
   describe "#determine_provider_and_model" do
     context "provider name normalization" do
       it "normalizes claude/anthropic to claude" do
@@ -62,7 +71,7 @@ RSpec.describe SecondOpinionAgent do
         expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4.7")
         expect(agent.send(:determine_provider_and_model, "mistral", nil)[1]).to eq("mistral-large-4")
         expect(agent.send(:determine_provider_and_model, "cohere", nil)[1]).to eq("command-a-plus-05-2026")
-        expect(agent.send(:determine_provider_and_model, "deepseek", nil)[1]).to eq("deepseek-v4-flash")
+        expect(agent.send(:determine_provider_and_model, "deepseek", nil)[1]).to eq("deepseek-flash")
       end
     end
     

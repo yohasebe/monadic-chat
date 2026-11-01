@@ -26,10 +26,26 @@ RSpec.describe Monadic::Library::FileImporter do
     end
   end
 
+  # The import copy lives in the shared folder; the temp folder stands in for it.
+  before { allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@tmp) }
+
   def write_temp(name, content)
     path = File.join(@tmp, name)
     File.write(path, content)
     path
+  end
+
+  describe 'reading the import copy' do
+    it 'refuses a link in place of the copy' do
+      outside = Dir.mktmpdir
+      secret = File.join(outside, 'env')
+      File.write(secret, "OPENAI_API_KEY=secret\n")
+      path = File.join(@tmp, 'notes.md')
+      File.symlink(secret, path)
+      expect { described_class.build_conversation(path: path) }.to raise_error(StandardError)
+    ensure
+      FileUtils.rm_rf(outside) if outside
+    end
   end
 
   describe '.build_conversation (Markdown)' do
@@ -181,9 +197,18 @@ RSpec.describe Monadic::Library::FileImporter do
   describe '.run_python_extractor (error path)' do
     it 'wraps non-zero exit in ExtractionError' do
       fake_status = instance_double(Process::Status, success?: false)
-      allow(Open3).to receive(:capture3).and_return(['', 'boom', fake_status])
+      allow(Monadic::Shell).to receive(:exec).and_return(['', 'boom', fake_status])
       expect { described_class.run_python_extractor('/dev/null', '/tmp/missing.pdf') }
         .to raise_error(Monadic::Library::FileImporter::ExtractionError, /boom/)
+    end
+
+    it 'stops an extraction that runs past the time limit and reports it as failed' do
+      allow(Monadic::Shell).to receive(:exec).and_raise(Monadic::Shell::TimedOut, 'python did not finish within 600 seconds')
+      expect { described_class.run_python_extractor('/dev/null', '/tmp/missing.pdf') }
+        .to raise_error(Monadic::Library::FileImporter::ExtractionError, /did not finish/)
+      expect(Monadic::Shell).to have_received(:exec)
+        .with(container: :python, argv: ['python', '/dev/null', '/tmp/missing.pdf'],
+              timeout: Monadic::Library::FileImporter::EXTRACT_TIMEOUT)
     end
   end
 

@@ -263,11 +263,29 @@ RSpec.describe AudioTranscriptionAgent do
       expect(agent.send(:transcribe_xai, "x", "wav", "xai-stt", "k", nil)).to eq("ERROR: xAI STT API error (500): busy")
     end
 
+    it 'sends a segment once when it times out, leaving the next try to the caller' do
+      posts = 0
+      timed = double
+      allow(timed).to receive(:post) do
+        posts += 1
+        raise HTTP::TimeoutError, "read timed out"
+      end
+      allow(HTTP).to receive(:headers).and_return(double(timeout: timed))
+      allow(agent).to receive(:sleep)
+
+      expect(agent.transcribe_audio_bytes("xai", "RIFF", "wav", "xai-stt")).to start_with("ERROR:")
+      expect(posts).to eq(1)
+
+      posts = 0
+      expect { agent.send(:transcribe_xai, "RIFF", "wav", "xai-stt", "k", nil) }.to raise_error(HTTP::TimeoutError)
+      expect(posts).to eq(2) # a whole file is still tried again once
+    end
+
     it 'transcribes audio held in memory with the provider that owns it' do
       allow(agent).to receive(:gemini_transcription_request).and_return("gemini text")
       allow(agent).to receive(:transcribe_xai).and_return("xai text")
       expect(agent.transcribe_audio_bytes("google", "RIFF", "wav", "gemini-3.8-flash")).to eq("gemini text")
-      expect(agent).to have_received(:gemini_transcription_request).with("RIFF", "audio/wav", "gemini-3.8-flash", "test-gemini-key", nil)
+      expect(agent).to have_received(:gemini_transcription_request).with("RIFF", "audio/wav", "gemini-3.8-flash", "test-gemini-key", nil, retries: 0)
       expect(agent.transcribe_audio_bytes("xai", "RIFF", "wav", "xai-stt", "ja")).to eq("xai text")
       expect(agent.transcribe_audio_bytes("openai", "RIFF", "wav", "gpt-transcribe")).to start_with("ERROR:")
     end

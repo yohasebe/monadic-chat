@@ -2,22 +2,23 @@
 
 ## Overview
 
-Tool groups are collections of related tools that can be shared across multiple applications. When you create or use an app, you'll see badges indicating which tool groups are available.
+Tool groups are sets of related tools that several apps share. An app imports a group with `import_shared_tools`, and the app's description shows which groups it uses.
 
 ## Tool Group Badges
 
-Tool group badges appear in the app selector interface and indicate which tools are available:
+The app's description area shows the tool groups as badges, in up to three rows:
 
-- **Blue badges** (🔧): Always-available tools (e.g., File Operations, Python Execution)
-- **Yellow badges** (⚡): Conditionally-available tools (e.g., Web Automation - requires Selenium)
+- **Tools (Always)**: groups whose tools are sent to the model from the start
+- **Tools (Conditional)**: groups that stay hidden until the model asks for them with `request_tool`
+- **Capabilities**: features of the app, such as web search or the Knowledge Base
 
-The badge shows both the tool group name and the number of tools in that group.
+Each badge has the group's icon and name. Hover over a badge to see its description and the number of tools. A conditional group whose requirements are not met is not shown.
 
 ## Available Tool Groups
 
-### Always Available
+The lists of apps below name the built-in apps that import each group.
 
-These tool groups are always available and don't require additional setup:
+### Groups Without Requirements
 
 #### Jupyter Operations (12 tools)
 - Create and manage Jupyter notebooks
@@ -25,152 +26,146 @@ These tool groups are always available and don't require additional setup:
 - Execute code in JupyterLab
 - List and retrieve notebook contents
 
-**Apps using this**: Jupyter Notebook (all providers)
+**Apps using this**: Jupyter Notebook
 
 #### Python Execution (4 tools)
-- Execute Python code in a sandboxed container
-- Check Python environment and packages
-- Access computational libraries (NumPy, Pandas, etc.)
+- Execute Python code in the Python container
+- Check the Python environment and packages
+- Install Python libraries
 
-**Apps using this**: Code Interpreter, Jupyter Notebook
+**Apps using this**: Code Interpreter, Jupyter Notebook, Math Tutor, Research Assistant
 
 #### File Operations (3 tools)
-- Read files from shared folder
-- Write or append to files in shared folder
-- List files in shared folder
+- Read files from the shared folder
+- Write or append to files in the shared folder
+- List files in the shared folder
 
-**Apps using this**: Chat Plus, Code Interpreter, Jupyter Notebook
+**Apps using this**: Every app gets this group automatically.
 
 #### File Reading (3 tools)
-- Read text files from shared folder
+- Read text files from the shared folder
 - Extract text from PDF files
 - Extract text from Office documents (Word, Excel, PowerPoint)
 
-**Apps using this**: Research Assistant, Chat Plus
+**Apps using this**: Code Interpreter, Jupyter Notebook, Math Tutor, Research Assistant
 
 #### Planning (1 tool)
-- Propose structured execution plans for complex multi-step tasks
-- AI presents plan to user for approval before executing
+- Propose a plan for a task with several steps
+- The plan is shown to the user for approval before the work starts
 
-**Apps using this**: All tool-enabled apps (Code Interpreter, Research Assistant, Coding Assistant, Jupyter Notebook, AutoForge, Math Tutor, etc.)
+**Apps using this**: Most apps that use tools, for example Code Interpreter, Coding Assistant, Research Assistant, Jupyter Notebook, Math Tutor, AutoForge (OpenAI, Grok), Mermaid Grapher, DrawIO Grapher and Web Insight
 
 #### Parallel Python Execution (1 tool)
 - Execute 2-5 independent Python code snippets in parallel
-- Each snippet runs in its own process with results collected together
-- Progress displayed in real-time via the temporary card UI
-- Ideal for simultaneous visualizations, statistical analyses, and model comparisons
+- Each snippet runs in its own process, and the results are collected together
+- Progress is shown in the temporary card while it runs
 
-**Apps using this**: Code Interpreter (all providers)
+**Apps using this**: Code Interpreter
 
 #### Parallel Dispatch (1 tool)
-- Dispatch 2-5 independent sub-tasks to run in parallel via separate API calls
-- Each sub-agent runs as a text-only call; results are collected and synthesized
-- Supports **web search** for sub-agents when the Web Search toggle is enabled in the UI
-- Web search uses the provider's native mechanism, or the Tavily API for providers without native search — see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities)
-- Progress displayed in real-time via the temporary card UI
+- Dispatch 2-5 independent sub-tasks to run in parallel as separate API calls
+- Each sub-agent runs as a text-only call; the results are collected and combined
+- Sub-agents can search the web when the Web Search toggle is on. The search uses the provider's own search, or the Tavily API for providers without it; see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities)
+- Progress is shown in the temporary card while it runs
 
-**Apps using this**: Research Assistant (all providers)
+**Apps using this**: Research Assistant
 
 #### Verification (1 tool)
-- Record the outcome of self-verifying work before presenting it to the user
-- Supports statuses: passed, issues found, fixed
-- Automatically stops the tool loop when verification passes or the retry limit (3 attempts) is reached
-- Verification status is displayed in the temporary card UI during processing
+- Record the result of checking the work before presenting it to the user
+- Statuses: passed, issues found, fixed
+- The tool loop stops when the status is passed or fixed, or after 3 attempts
+- The status is shown in the temporary card while it runs
 
-**Apps using this**: Code Interpreter, Jupyter Notebook, AutoForge, Mermaid Grapher, DrawIO Grapher, Second Opinion (all providers)
+**Apps using this**: Code Interpreter, Jupyter Notebook, Mermaid Grapher, AutoForge (OpenAI, Grok)
 
 #### App Creation (3 tools)
-- List all available Monadic Chat applications
-- Get detailed information about a specific app
+- List the Monadic Chat apps
+- Get detailed information about an app
 - Create a basic app template file
 
-**Apps using this**: Not imported by built-in apps by default; available to custom apps via `import_shared_tools` or `reachable_skills`
+**Apps using this**: No built-in app; custom apps can use it through `import_shared_tools` or `reachable_skills`
 
 #### Session Context (4 tools)
-- Get, update, and clear conversation context (topics, people, notes)
-- Remove specific items from context
-- Context is displayed in the sidebar panel
+- Get, update, and clear the conversation context (topics, people, notes)
+- Remove specific items from the context
+- The context is shown in the sidebar panel
 
-**Apps using this**: Chat Plus (all providers)
+**Apps using this**: Chat Plus
 
-### Conditionally Available
-
-These tool groups require specific containers or API keys to be available:
+### Groups With Requirements
 
 #### Web Automation (16 tools)
-**Requires**: Selenium and Python containers running
+**Requires**: the Selenium and Python containers
 
 - Capture web pages as viewport-sized screenshots (with device presets)
-- Run an interactive browser session visible via noVNC
+- Run an interactive browser session visible through noVNC
 - Navigate, click, type, scroll, select, and press keys in the interactive browser
-- Inspect page structure and annotate candidate elements for disambiguation
+- Inspect the page structure and mark candidate elements
 
-**Apps using this**: Web Insight (all providers), AutoForge (all providers)
+**Apps using this**: Web Insight, AutoForge, Research Assistant (OpenAI, Claude, Gemini, Grok)
 
-**How to enable**:
-The Selenium container starts automatically with Monadic Chat. If the badge
-shows the group as unavailable, wait for startup to finish; if the Selenium
-image is missing, run **Actions → Build All** to download it.
+The Selenium container starts with Monadic Chat. If the group is not shown, wait for startup to finish; if the Selenium image is missing, run **Actions → Build All** to download it.
 
 #### Video Analysis (1 tool)
-**Requires**: An app on OpenAI, Anthropic, Gemini, or xAI, with that provider's API key
+**Requires**: an app on OpenAI, Anthropic, Gemini, or xAI, with that provider's API key
 
-- Analyze video content using multimodal AI
-- Generate descriptions from video frames
-- Frames are sent only to the app's own provider. The audio track is transcribed when that provider offers speech-to-text (OpenAI, Gemini); otherwise the description says that the audio was not transcribed
+- Analyze video content with a multimodal model
+- Describe the video from its frames
+- Frames are sent only to the app's own provider. The audio track is transcribed when that provider offers speech-to-text (OpenAI, Gemini, xAI); otherwise the description says that the audio was not transcribed
 
 **Apps using this**: Video Describer
 
 #### Web Search (4 tools)
-**Requires**: `TAVILY_API_KEY` for providers without native web search — see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities)
+**Requires**: `TAVILY_API_KEY`
 
-- Search the web using the provider-appropriate method (native or Tavily)
-- Fetch content from URLs and save it to the shared folder
-- Tavily-backed search and page fetch with citations
+- Search the web and fetch pages through Tavily, with citations
+- Fetch the content of a URL and save it to the shared folder
+
+The search tools of this group return results through Tavily. A provider's own web search is a separate feature, turned on with the Web Search toggle, and works without this group; see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities). Without `TAVILY_API_KEY`, the search tools of this group return no results.
 
 **Apps using this**: Research Assistant, Mermaid Grapher, Wikipedia
 
 #### Audio Transcription (1 tool)
-**Requires**: An app on OpenAI or Gemini, with that provider's API key
+**Requires**: an app on OpenAI, Gemini, or xAI, with that provider's API key
 
-- Transcribe audio files using speech-to-text capabilities
+- Transcribe audio files with speech-to-text
 - The audio is sent only to the app's own provider; apps on other providers do not offer this tool
 
-**Apps using this**: Video Describer, Speech Draft Helper
+**Apps using this**: Speech Draft Helper
 
 #### Image Analysis (1 tool)
-**Requires**: An app on OpenAI, Anthropic, Gemini, xAI, Mistral, Cohere, or DeepSeek, with that provider's API key
+**Requires**: an app on OpenAI, Anthropic, Gemini, xAI, Mistral, Cohere, or DeepSeek, with that provider's API key
 
-- Analyze and describe the contents of an image file using vision capabilities
-- The image is sent only to the app's own provider, never to another one
+- Describe the contents of an image file with the model's vision capability
+- The image is sent only to the app's own provider
 
-**Apps using this**: Code Interpreter, Research Assistant
+**Apps using this**: Code Interpreter, Research Assistant, Speech Draft Helper
 
 #### Library Search (1 tool)
-**Requires**: Knowledge Base (embeddings service) available
+**Requires**: the Knowledge Base (Qdrant and embeddings containers)
 
-- Search the project-wide Knowledge Base for passages relevant to a query
-- Returns snippets with citations linking back to the original conversation or document
+- Search the Knowledge Base for passages relevant to a query
+- Returns passages with citations that link back to the conversation or document
 
-**Apps using this**: Automatically injected into eligible apps; the tool is additionally gated by the per-session Knowledge Base retrieval toggle
+**Apps using this**: Added to the apps that can search the Knowledge Base; used when the Knowledge Base retrieval switch is on for the session
+
+Groups that need a capability the provider lacks (image, video or audio input) are not added to apps on that provider.
 
 ## Understanding Tool Availability
 
 ### Why Some Tools Are Unavailable
 
-1. **Missing Containers**: Some tools require Docker containers (Selenium, Python) to be running
-2. **Missing API Keys**: Some tools require specific API keys to be configured
-3. **System Requirements**: Some tools may require specific system resources or dependencies
+1. **Containers**: Some tools need Docker containers (Selenium, Python)
+2. **API keys**: Some tools need a specific API key
+3. **Provider capabilities**: Some tools need image, video or audio input
 
 ### Error Messages
 
-When you try to use an unavailable tool, you'll receive a clear error message explaining:
-- What is missing (e.g., "Selenium container is not running")
-- How to fix it (e.g., wait for container startup to finish, or run **Actions → Build All** if the Selenium image is missing)
+When a tool cannot run, the error message says what is missing (for example, "Selenium container is not running") and how to fix it (for example, wait for the container to start, or run **Actions → Build All** if the Selenium image is missing).
 
 ## Creating Apps with Tool Groups
 
-If you're creating custom apps using MDSL, you can import tool groups instead of defining tools individually. See the [Monadic DSL documentation](monadic_dsl.md) for details.
+In your own MDSL apps, you can import tool groups instead of defining each tool. See [Monadic DSL](monadic_dsl.md).
 
 ### Example
 
@@ -181,23 +176,25 @@ app "MyCustomAppOpenAI" do
     model "<model-id>"
   end
 
-  # Import file operations tools
-  import_shared_tools :file_operations, visibility: "always"
+  # Import Python execution tools
+  import_shared_tools :python_execution, visibility: "always"
 
-  # Import web automation tools (conditional on Selenium)
+  # Import web automation tools (hidden until the model asks for them)
   import_shared_tools :web_automation, visibility: "conditional"
 end
 ```
 
+The default visibility is `"conditional"`.
+
 ## Dynamic Skills (reachable_skills)
 
-An app does not have to declare every tool it might ever use. With `reachable_skills`, an app can declare tool groups it is *allowed to acquire on demand* during a conversation. The tools stay hidden until the model actually needs them.
+An app does not have to declare every tool it might use. With `reachable_skills`, an app declares tool groups it may acquire during a conversation. The tools stay hidden until the model needs them.
 
 How it works:
 
-1. The hidden groups are presented to the model as a short menu (each group's name and a one-line description).
-2. When the model decides it needs a group, it requests it by name (`request_tool("web_search_tools")`).
-3. The whole group is unlocked and its tools become usable within the same conversation.
+1. The hidden groups are shown to the model as a short menu (each group's name and a one-line description).
+2. When the model needs a group, it asks for it by name (`request_tool("web_search_tools")`).
+3. The whole group is unlocked, and its tools can be used for the rest of the conversation.
 
 ```ruby
 app "MyAssistantOpenAI" do
@@ -214,36 +211,29 @@ app "MyAssistantOpenAI" do
 end
 ```
 
-`reachable_skills :group_a, :group_b` is equivalent to importing each group with `import_shared_tools :group_a, visibility: "conditional"`, but states the intent more clearly. `reachable_skills :safe` expands to the curated set of read-only safe groups.
+`reachable_skills :group_a, :group_b` is the same as importing each group with `import_shared_tools :group_a, visibility: "conditional"`. `reachable_skills :safe` expands to the read-only groups: Web Search, File Reading, Image Analysis, Video Analysis, Audio Transcription, Session Context, Verification and Planning.
 
-This keeps an app lean by default: only the groups the conversation actually needs are exposed, rather than presenting every tool up front. Acquired skills are preserved when a session is exported and restored when it is reopened, so a saved conversation resumes with the same tools available.
-
-## Benefits of Tool Groups
-
-1. **Consistency**: Tools work the same way across all apps
-2. **Clarity**: Clear indication of which features require additional setup
-3. **Error Prevention**: Unavailable tools are hidden or show helpful error messages
-4. **Efficiency**: Tool groups are reused across apps, reducing code duplication
+Acquired skills are kept when a session is exported and restored when it is imported, so a saved conversation resumes with the same tools.
 
 ## Troubleshooting
 
 ### Tool Group Remains Unavailable
 
-If a tool group shows as unavailable even after starting the required containers:
+If a tool group stays unavailable after the containers it needs have started:
 
-1. **Reload the web interface**: Tool availability is evaluated when the app list is built
-2. **Restart containers**: Stop and start the container from the Actions menu
-3. **Check container status**: Verify containers are running with `docker ps` (or the status messages in the console panel)
-4. **Check logs**: Container logs may show errors preventing startup
+1. **Reload the web interface**: availability is checked when the app list is built
+2. **Restart Monadic Chat**: Stop, then Start
+3. **Check the containers**: run `docker ps`, or read the messages in the console panel
+4. **Check the logs**: container logs may show why a container did not start
 
 ### Tools Not Working as Expected
 
-If tools are available but not working correctly:
+If tools are available but do not work:
 
-1. **Check shared folder permissions**: Ensure files are accessible
-2. **Check API keys**: Verify API keys are valid and have sufficient credits
-3. **Check container logs**: Look for errors in container output
-4. **Restart the app**: Some issues may be resolved by restarting Monadic Chat
+1. **Check the shared folder**: make sure the files can be read
+2. **Check the API keys**: make sure they are valid and have credit
+3. **Check the container logs**: look for errors in the container output
+4. **Restart Monadic Chat**
 
 ## Related Documentation
 

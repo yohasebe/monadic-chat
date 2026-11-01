@@ -65,7 +65,9 @@ RSpec.describe "MermaidGrapherTools#preview_mermaid render-error gating" do
 
   before do
     # Avoid touching the real shared volume / filesystem.
-    allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(Dir.mktmpdir)
+    shared_dir = Dir.mktmpdir
+    allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(shared_dir)
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared_dir)
   end
 
   context "when the browser rendered Mermaid's error graphic" do

@@ -8,7 +8,7 @@
 - Utilize a diverse range of AI models
 - Engage in multi-modal interactions
 - JupyterLab integration
-- Privacy Filter for PII masking (opt-in)
+- Privacy Filter for PII masking, turned on per conversation
 
 [Get Started](/README.md)
 [GitHub](https://github.com/yohasebe/monadic-chat/)

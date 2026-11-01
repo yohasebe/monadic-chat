@@ -8,14 +8,13 @@ require 'async/semaphore'
 require 'json'
 require 'monadic/utils/extra_logger'
 require 'monadic/utils/websocket/audio_stream_handler'
+require 'monadic/utils/websocket/sts_stream_handler'
+require 'monadic/utils/websocket'
 
 # Unit tests for the synchronous, side-effect-free parts of the Realtime
 # STT bridge in WebSocketHelper. The full bridge (Async fibers, OpenAI WS
 # connection, session.update → session.updated ack → flush → commit →
-# completed) is exercised end-to-end by manual dogfood (see memo
-# tmp/memo/realtime-transcription-plan.md Phase 2 verification block);
-# the integration suite covers it with a real WS mock if/when we add
-# one. These tests pin the wire contract — the `session.update` payload
+# completed) is not covered here. These tests pin the wire contract — the `session.update` payload
 # shape and the message-parsing edges — that any future refactor must
 # preserve.
 RSpec.describe "WebSocketHelper realtime STT bridge — wire contract" do
@@ -319,6 +318,15 @@ RSpec.describe "WebSocketHelper realtime STT bridge — wire contract" do
     it "caps concurrent upstream WS connections at 8 by default" do
       expect(WebSocketHelper::REALTIME_STT_MAX_CONCURRENT).to eq(8)
     end
+
+    it "reads REALTIME_STT_MAX_CONCURRENT from the loaded config when called" do
+      stub_const("CONFIG", { "REALTIME_STT_MAX_CONCURRENT" => "12" })
+      expect(WebSocketHelper.realtime_stt_max_concurrent).to eq(12)
+      stub_const("CONFIG", { "REALTIME_STT_MAX_CONCURRENT" => "0" })
+      expect(WebSocketHelper.realtime_stt_max_concurrent).to eq(8)
+      stub_const("CONFIG", { "STS_MAX_CONCURRENT" => 6 })
+      expect(WebSocketHelper.sts_max_concurrent).to eq(6)
+    end
   end
 
   describe "upstream concurrency cap" do
@@ -329,7 +337,7 @@ RSpec.describe "WebSocketHelper realtime STT bridge — wire contract" do
     it "exposes a singleton Async::Semaphore with the configured limit" do
       sem = WebSocketHelper.realtime_stt_semaphore
       expect(sem).to be_an(Async::Semaphore)
-      expect(sem.limit).to eq(WebSocketHelper::REALTIME_STT_MAX_CONCURRENT)
+      expect(sem.limit).to eq(WebSocketHelper.realtime_stt_max_concurrent)
       # Singleton: every call returns the same object.
       expect(WebSocketHelper.realtime_stt_semaphore).to equal(sem)
     end

@@ -39,11 +39,18 @@ module AudioTranscriptionAgent
   end
 
   # An audio file attached to the chat (by its id), as a path in the shared
-  # folder and the chat folder it belongs to. The chat is the session's; an
-  # id from another chat, or an attachment that is not audio, is refused.
+  # folder and the chat folder it belongs to. Only an attachment the message
+  # being answered allows is taken, while the session is still that chat;
+  # an attachment that is not audio is refused.
   def resolve_audio_attachment(attachment_id, session)
     chat_id = AudioTranscriptionAgent.session_value(session, Monadic::Workspace::Chats::SESSION_KEY)
-    record = Monadic::Workspace::Attachments.resolve!(chat_id: chat_id, attachment_id: attachment_id.to_s)
+    context = Monadic::Workspace::RequestContext.current
+    if context && context.chat_id != chat_id
+      raise Monadic::Workspace::Attachments::Unusable.new(:chat_moved_on, "this chat has ended.")
+    end
+
+    record = Monadic::Workspace::Attachments.resolve_for_request!(attachment_id: attachment_id.to_s, context: context,
+                                                                   session: session)
     raise Monadic::Workspace::Attachments::Unusable.new(:purpose, "attachment #{record[:original_name]} is not an audio file.") unless record[:purpose] == "audio"
 
     record
@@ -75,7 +82,7 @@ module AudioTranscriptionAgent
                 else
                   Monadic::Workspace::Folders.ensure_for_chat!(chat_id, app_name: self.class.name)
                 end
-    job = Monadic::Workspace::Jobs.create!(workspace[:relative_dir])
+    job = Monadic::Workspace::Jobs.create!(workspace[:workspace_id])
     output = Monadic::Utils::SharedPathGuard.command_path(job[:path], container: "python", must_exist: false)
     return { answer: "Error: the run folder is outside the shared folder." } unless output
 

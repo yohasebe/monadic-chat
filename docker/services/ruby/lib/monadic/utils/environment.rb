@@ -5,6 +5,10 @@ module Monadic
     # Unified environment configuration module that consolidates
     # all environment-specific logic (paths, database connections, etc.)
     module Environment
+      # The shared folder as the containers (and the tools a chat uses) see
+      # it, whatever the mode the server runs in.
+      CONTAINER_DATA_PATH = '/monadic/data'
+
       module_function
 
       # Core environment detection
@@ -38,7 +42,7 @@ module Monadic
       end
 
       def data_path
-        resolve_path('/monadic/data')
+        resolve_path(CONTAINER_DATA_PATH)
       end
 
       # Server-owned records (the workspace ledger). Kept outside the shared

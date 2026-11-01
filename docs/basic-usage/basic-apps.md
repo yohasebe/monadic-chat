@@ -37,7 +37,6 @@ The table below shows which apps are available for which AI model providers.
 | Speech Draft Helper | ✅ | | | | | | | |
 | Web Insight | ✅ | ✅ | | | ✅ | ✅ | | |
 | Video Describer | ✅ | | | | ✅ | ✅ | | |
-| Knowledge Base | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | |
@@ -49,9 +48,9 @@ The table below shows which apps are available for which AI model providers.
 
 ## Privacy Filter and Knowledge Base by App :id=privacy-kb-by-app
 
-Privacy Filter (PF) and Knowledge Base save (KB) are **mutually exclusive** at the app level. Apps that handle PII intentionally are scoped as "ephemeral with PF on"; apps whose conversations have long-term retrieval value are scoped to KB save with PF off. A third group (artifact-centric apps such as image / video / diagram / document generators) supports neither — the artifact lives in `~/monadic/data/`, and the surrounding conversation is iteration-log noise that would only pollute KB search.
+An app supports either the Privacy Filter (PF) or saving to the Knowledge Base (KB), not both. Apps that create images, videos, diagrams, music or documents support neither: their output is saved in the shared folder (`~/monadic/data`).
 
-To preserve a PF-protected conversation, use **Privacy Export** (encrypted, optionally masked-only). To browse or share a KB entry, use the **Browse** modal in the right sidebar.
+To keep a conversation that used the Privacy Filter, click the Privacy indicator in the top bar and use **Export this conversation** (it can be encrypted, and masked). To see what is saved in the Knowledge Base, click **Browse** in the Knowledge Base panel.
 
 | App | Privacy Filter | Knowledge Base Save |
 |-----|:--:|:--:|
@@ -79,7 +78,6 @@ To preserve a PF-protected conversation, use **Privacy Export** (encrypted, opti
 | Speech Draft Helper | | ✅ |
 | Web Insight | | ✅ |
 | Video Describer | | ✅ |
-| Knowledge Base | | ✅ |
 | Code Interpreter | | ✅ |
 | Coding Assistant | | ✅ |
 | Jupyter Notebook | | ✅ |
@@ -89,7 +87,7 @@ To preserve a PF-protected conversation, use **Privacy Export** (encrypted, opti
 | Document Generator | | |
 | Monadic Chat Help | | ✅ |
 
-A blank cell in **both** columns indicates an artifact-centric app where the generated output (image, video, diagram, document, etc.) is the value, not the conversation. Use the per-card **Copy** / **Download** controls or the shared folder to retain artifacts; KB save is intentionally not available because the surrounding chat does not carry retrieval value.
+A blank cell in **both** columns marks an app whose output (image, video, diagram, document, etc.) is saved as a file. Keep it with the controls on the message or from the shared folder.
 
 ## Provider Capabilities Overview :id=provider-capabilities
 
@@ -142,11 +140,11 @@ Apps for co-writing novels, drafting emails and speeches, and generating Office 
 
 ### Image Generator
 
-Generate images from text descriptions, edit existing images with natural-language instructions, and create image variations. See [Image Generator](../apps/image-generator.md).
+Generate images from text descriptions, and edit images with natural-language instructions. See [Image Generator](../apps/image-generator.md).
 
 ### Video Generator
 
-Create videos from text descriptions or existing images, with remix support for modifying generated videos. See [Video Generator](../apps/video-generator.md).
+Create videos from text descriptions or from an image. See [Video Generator](../apps/video-generator.md).
 
 ### Music Generator
 
@@ -170,7 +168,7 @@ Capture and interact with web pages through a controlled browser, and analyze th
 
 ### Knowledge Base
 
-A unified, project-wide library of saved conversations and imported documents (PDF, Office, Markdown, source code). An entry is retrievable from the app that saved it, or from every app once it is scoped `Global`. See [Knowledge Base](../apps/knowledge-base.md).
+A unified, project-wide library of saved conversations and imported documents (PDF, Office, Markdown, source code). An entry is retrievable from the app that saved it, or, once it is scoped `Global`, from the other apps that search the Knowledge Base (with **Use Knowledge Base for retrieval (this session)** on). See [Knowledge Base](../apps/knowledge-base.md).
 
 ### Coding & Notebook Apps
 
@@ -187,6 +185,6 @@ Learn music theory hands-on with playable examples and backing tracks, and evalu
 - Music Lab
 - Music Analyst
 
-### AutoForge / Artifact Builder
+### Auto Forge
 
-Autonomous web-app generation: builds complete single-file web applications and CLI tools through AI orchestration. See [AutoForge / Artifact Builder](../apps/auto_forge.md).
+Builds single-file web applications and command-line tools from your description. See [Auto Forge](../apps/auto_forge.md).

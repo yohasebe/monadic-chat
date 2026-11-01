@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative '../../lib/monadic/utils/shared_path_guard'
 require 'fileutils'
 require 'time'
 require 'json'
@@ -34,8 +35,8 @@ module AutoForgeUtils
     base_path = AutoForge::Utils::PathConfig.project_base_path
     project_path = File.join(base_path, project_name)
 
-    # Create directory
-    FileUtils.mkdir_p(project_path)
+    # Create directory (never through a link)
+    Monadic::Utils::SharedPathGuard.mkdir_p!(project_path)
 
     # Store metadata if provided
     if metadata.any?
@@ -45,7 +46,7 @@ module AutoForgeUtils
         project_name: project_name,
         base_name: base_name
       )
-      File.write(metadata_file, JSON.pretty_generate(full_metadata))
+      Monadic::Utils::SharedPathGuard.write_file!(metadata_file, JSON.pretty_generate(full_metadata))
     end
 
     {
@@ -71,11 +72,13 @@ module AutoForgeUtils
       project_name = File.basename(dir)
       metadata_file = File.join(dir, ".autoforge.json")
 
-      metadata = if File.exist?(metadata_file)
-        JSON.parse(File.read(metadata_file), symbolize_names: true)
-      else
-        {}
+      # Read as a plain file of the shared folder, never through a link.
+      metadata_text = begin
+        Monadic::Utils::SharedPathGuard.read_text(metadata_file)
+      rescue SystemCallError
+        nil # listed without its details
       end
+      metadata = metadata_text ? JSON.parse(metadata_text, symbolize_names: true) : {}
 
       # Check if index.html exists
       has_index = File.exist?(File.join(dir, "index.html"))
@@ -114,7 +117,9 @@ module AutoForgeUtils
     list_projects.each do |project|
       created_at = Time.parse(project[:created_at])
       if created_at < cutoff_time
-        FileUtils.rm_rf(project[:path])
+        # Removed through folders held open: a link in the project is removed
+        # itself, never followed.
+        Monadic::Utils::SharedPathGuard.remove_tree!(project[:path])
         removed << project[:name]
       end
     end

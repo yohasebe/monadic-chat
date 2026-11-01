@@ -2,19 +2,22 @@
 
 require 'spec_helper'
 require 'base64'
+require 'tmpdir'
 require 'stringio'
+require_relative '../../support/provider_matrix_helper'
 require_relative '../../../lib/monadic/utils/tts_utils'
 require_relative '../../../lib/monadic/utils/stt_utils'
 require_relative '../../../lib/monadic/agents/audio_analysis_agent'
 require_relative '../../../lib/monadic/agents/audio_transcription_agent'
 require_relative '../../../lib/monadic/agents/image_analysis_agent'
 require_relative '../../../lib/monadic/agents/video_analyze_agent'
+require_relative '../../../lib/monadic/utils/gemini_omni_video'
 require_relative '../../../lib/monadic/agents/context_extractor_agent'
 require_relative '../../../lib/monadic/shared_tools/parallel_dispatch'
 require_relative '../../../lib/monadic/utils/websocket'
 require_relative '../../../lib/monadic/utils/websocket/sts_stream_handler'
 
-RSpec.describe 'Gemini credential transport invariant' do
+RSpec.describe 'Gemini request transport invariants' do
   let(:key) { 'AIza_NOT_A_REAL_KEY_HEADER_TEST_ONLY_0000' }
   let(:requests) { [] }
   let(:client) { double('HTTP transport') }
@@ -26,10 +29,19 @@ RSpec.describe 'Gemini credential transport invariant' do
   let(:response) { double('HTTP response', body: body, status: double(success?: true, code: 200, :>= => false), headers: {}) }
   let(:helper) { Class.new { include GeminiHelper }.new }
   let(:tts) { Class.new { include InteractionUtils }.new }
-  let(:video_script) { GeneratorScriptLoader.load('video_generator_gemini.rb') }
 
-  def record_request(url, headers)
-    requests << [url.to_s, headers.transform_keys { |name| name.to_s.downcase }]
+  def record_request(url, headers, body = nil)
+    body = JSON.parse(body) if body.is_a?(String)
+    body = JSON.parse(JSON.generate(body)) if body.is_a?(Hash)
+    requests << [url.to_s, headers.transform_keys { |name| name.to_s.downcase }, body]
+  end
+
+  def expect_no_storage
+    generated = requests.select { |url, _headers, _body| URI.parse(url).path.match?(/:(?:generateContent|streamGenerateContent)\z/) }
+    generated.each do |url, _headers, body|
+      expect(body).to include('store' => false), "#{url} must disable request storage"
+      expect(body.fetch('generationConfig', {})).not_to have_key('store')
+    end
   end
 
   def expect_header_auth
@@ -39,6 +51,7 @@ RSpec.describe 'Gemini credential transport invariant' do
       expect(URI.decode_www_form(URI.parse(url).query.to_s).map(&:first)).not_to include('key', 'api_key')
       expect(headers['x-goog-api-key']).to eq(key)
     end
+    expect_no_storage
   end
 
   before do
@@ -51,8 +64,8 @@ RSpec.describe 'Gemini credential transport invariant' do
     end
     allow(client).to receive(:follow).and_return(client)
     [:post, :get].each do |verb|
-      allow(client).to receive(verb) do |url, **_options|
-        record_request(url, @headers)
+      allow(client).to receive(verb) do |url, **options|
+        record_request(url, @headers, options[:json] || options[:body])
         response
       end
     end
@@ -122,7 +135,10 @@ RSpec.describe 'Gemini credential transport invariant' do
     expect(messages.join).not_to include(key)
     expect(output.string).not_to include(key)
     expect(messages.join).to include('Sending HTTP POST')
-    expect(output.string).to include('Request URI:')
+    expect(messages.join).to include('API error')
+    # The request body holds the user's text; it is not printed.
+    expect(output.string).not_to include('Hello')
+    expect(messages.join).not_to include('Hello')
   end
 
   it 'authenticates STT in headers' do
@@ -132,16 +148,18 @@ RSpec.describe 'Gemini credential transport invariant' do
   end
 
   it 'authenticates audio analysis in headers' do
-    path = '/fake/header-test.mp3'
-    allow(File).to receive(:exist?).with(path).and_return(true)
-    allow(File).to receive(:size).with(path).and_return(10)
-    allow(File).to receive(:binread).with(path).and_return('fake audio')
-    AudioAnalysisAgent.analyze(audio_path: path, prompt: 'Hello', model: 'gemini-test')
+    # The audio is read from the shared folder; a temp folder stands in for it.
+    Dir.mktmpdir do |dir|
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(dir)
+      path = File.join(dir, 'header-test.mp3')
+      File.binwrite(path, 'fake audio')
+      AudioAnalysisAgent.analyze(audio_path: path, prompt: 'Hello', model: 'gemini-test')
+    end
     expect_header_auth
   end
 
   it 'authenticates audio transcription in headers' do
-    allow(File).to receive(:binread).with('/fake/header-test.mp3').and_return('fake audio')
+    allow(Monadic::Utils::SharedPathGuard).to receive(:read_bytes!).with('/fake/header-test.mp3', limit: anything).and_return('fake audio')
     host = Class.new { include AudioTranscriptionAgent }.new
     host.send(:transcribe_gemini, '/fake/header-test.mp3', 'gemini-test', key, 'en')
     expect_header_auth
@@ -193,13 +211,18 @@ RSpec.describe 'Gemini credential transport invariant' do
 
   context 'Net::HTTP paths' do
     let(:net) { double('Net HTTP transport').as_null_object }
+    # What the generators save goes to a temp folder standing in for the
+    # shared folder.
     before do
+      @shared = Dir.mktmpdir
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@shared)
+      allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(@shared)
       allow(File).to receive(:open).and_call_original
       allow(File).to receive(:open).with(anything, 'wb').and_yield(StringIO.new)
       allow(Net::HTTP).to receive(:start).and_yield(net)
       allow(Net::HTTP).to receive(:new).and_return(net)
       allow(net).to receive(:request) do |request|
-        record_request(request.uri || "https://generativelanguage.googleapis.com#{request.path}", request.to_hash.transform_values(&:first))
+        record_request(request.uri || "https://generativelanguage.googleapis.com#{request.path}", request.to_hash.transform_values(&:first), request.body)
         result = Net::HTTPOK.new('1.1', '200', 'OK')
         result.instance_variable_set(:@read, true)
         result.body = body
@@ -207,6 +230,7 @@ RSpec.describe 'Gemini credential transport invariant' do
       end
       allow(Monadic::Utils::ProgressBroadcaster).to receive(:with_progress).and_yield
     end
+    after { FileUtils.rm_rf(@shared) }
 
     it 'authenticates context extraction in headers' do
       host = Class.new { include ContextExtractorAgent }.new
@@ -224,6 +248,19 @@ RSpec.describe 'Gemini credential transport invariant' do
       expect_header_auth
     end
 
+    it 'disables storage in the provider matrix image request' do
+      saved_key = ENV['GEMINI_API_KEY']
+      ENV['GEMINI_API_KEY'] = key
+      host = ProviderMatrixHelper::ProviderClient.new('gemini')
+      allow(host).to receive(:throttle!)
+      allow(host).to receive(:log_request)
+      host.image_generate_api('Hello')
+      expect(requests.size).to eq(1)
+      expect_no_storage
+    ensure
+      saved_key ? ENV['GEMINI_API_KEY'] = saved_key : ENV.delete('GEMINI_API_KEY')
+    end
+
     it 'authenticates Imagen in headers' do
       helper.generate_image_with_imagen_direct(prompt: 'Hello', model: 'imagen-test')
       expect_header_auth
@@ -232,42 +269,37 @@ RSpec.describe 'Gemini credential transport invariant' do
     it 'authenticates music generation in headers' do
       helper.generate_music_with_lyria(prompt: 'Hello')
       expect_header_auth
+      expect(Dir.children(@shared)).to all(start_with('lyria_music_'))
     end
   end
 
-  it 'authenticates video generation in headers' do
-    video_script.request_video_generation('Hello', nil, 1, '16:9', nil, nil, 4, key)
-    expect_header_auth
-  end
+  # Video generation is Gemini Omni over the Interactions API
+  # (Monadic::Utils::GeminiOmniVideo, used by video_generator_gemini.rb).
+  let(:omni) { Monadic::Utils::GeminiOmniVideo.new(api_key: key, model: 'gemini-omni-1.1-flash', save_dir: Dir.tmpdir) }
 
-  it 'authenticates video polling in headers' do
-    video_script.check_operation_status('operations/fake', key, 1, 0)
+  it 'authenticates video generation in headers' do
+    omni.generate(prompt: 'Hello')
     expect_header_auth
   end
 
   it 'authenticates video download in headers' do
-    allow(video_script).to receive(:get_save_path).and_return('/fake/')
-    allow(File).to receive(:open).and_yield(StringIO.new)
-    video_script.save_video('https://generativelanguage.googleapis.com/v1beta/files/fake:download?alt=media', '16:9', 0, key)
+    omni.send(:download, 'https://generativelanguage.googleapis.com/v1beta/files/fake:download?alt=media')
     expect_header_auth
   end
+
   it 'does not send download credentials to external storage URLs or redirect targets' do
-    allow(video_script).to receive(:get_save_path).and_return('/fake/')
-    allow(File).to receive(:open).and_yield(StringIO.new)
-    callback = nil
-    allow(client).to receive(:follow) { |**options| callback = options[:on_redirect]; client }
-    video_script.save_video('https://storage.example.invalid/fake.mp4', '16:9', 0, key)
-    expect(requests.first.last).not_to have_key('x-goog-api-key')
-    expect(callback).to respond_to(:call)
-    ['https://storage.example.invalid/fake.mp4', 'http://generativelanguage.googleapis.com/fake'].each do |url|
-      redirected = HTTP::Request.new(verb: :get, uri: url, headers: { 'x-goog-api-key' => key })
-      callback.call(response, redirected)
-      expect(redirected.headers['x-goog-api-key']).to be_nil
-    end
-    same_origin = HTTP::Request.new(verb: :get, uri: 'https://generativelanguage.googleapis.com/fake',
-                                   headers: { 'x-goog-api-key' => key })
-    callback.call(response, same_origin)
-    expect(same_origin.headers['x-goog-api-key']).to eq(key)
+    omni.send(:download, 'https://storage.example.invalid/fake.mp4')
+    expect(requests).to be_empty
+
+    redirect = double('redirect', body: '', headers: { 'Location' => 'https://storage.example.invalid/signed.mp4' },
+                                  status: double(success?: false, code: 302))
+    replies = [response, redirect, response]
+    allow(client).to receive(:get) { |url, **_| record_request(url, @headers); replies.shift }
+    omni.send(:download, 'https://generativelanguage.googleapis.com/v1beta/files/fake:download?alt=media')
+    urls = requests.map(&:first)
+    expect(urls.last).to eq('https://storage.example.invalid/signed.mp4')
+    expect(requests.last[1]).not_to have_key('x-goog-api-key')
+    requests[0..-2].each { |_url, headers| expect(headers['x-goog-api-key']).to eq(key) }
   end
 
 end

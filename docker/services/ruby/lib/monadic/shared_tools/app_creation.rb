@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require_relative '../utils/shared_path_guard'
 
 # Shared App Creation/Management Tools for Monadic Chat
 # Provides basic Monadic Chat application management capabilities
@@ -86,6 +87,9 @@ module MonadicSharedTools
             # Extract English description
             if content =~ /description\s+do.*?en\s+<<~TEXT\s+(.*?)\s+TEXT/m
               description = $1.strip
+            elsif content =~ /description\s+do\s+en\s+("(?:[^"\\]|\\.)*")/m
+              # a template made by create_simple_app_template: a quoted literal
+              description = (Regexp.last_match(1).undump rescue nil)&.strip
             end
           end
 
@@ -139,9 +143,11 @@ module MonadicSharedTools
                      File.expand_path('../../apps', __dir__)
                    end
 
-        app_path = File.join(apps_dir, app_name)
-
-        unless Dir.exist?(app_path)
+        # A bundled app's folder name only: no path, and nothing reached
+        # through a link out of the bundled apps.
+        app_path = File.join(apps_dir, app_name.to_s)
+        unless app_name.to_s.match?(/\A[A-Za-z0-9_]+\z/) && Dir.exist?(app_path) &&
+               File.realpath(app_path).start_with?("#{File.realpath(apps_dir)}/")
           return {
             success: false,
             error: "App not found: #{app_name}"
@@ -172,7 +178,11 @@ module MonadicSharedTools
           }
         end
 
-        # Read MDSL content
+        # Read MDSL content (a file of the bundled app, not a link out of it)
+        unless File.realpath(mdsl_file).start_with?("#{File.realpath(app_path)}/")
+          return { success: false, error: "No MDSL files found for app: #{app_name}" }
+        end
+
         mdsl_content = File.read(mdsl_file)
 
         # Extract app name from MDSL
@@ -260,12 +270,22 @@ module MonadicSharedTools
     def create_simple_app_template(app_name:, display_name:, provider: "openai", description: "")
       begin
         # Validate app_name format
-        unless app_name =~ /^[a-z][a-z0-9_]*$/
+        # \A and \z: ^ and $ match at any line, and a name with a newline
+        # would carry a path (or code) past them.
+        unless app_name.is_a?(String) && app_name.match?(/\A[a-z][a-z0-9_]*\z/)
           return {
             success: false,
             error: "Invalid app_name format. Use lowercase letters, numbers, and underscores only (e.g., 'my_app')"
           }
         end
+        unless provider.is_a?(String) && provider.match?(/\A[a-z][a-z0-9]*\z/)
+          return { success: false, error: "Invalid provider. Use a provider name such as 'openai'" }
+        end
+
+        # The text goes into a Ruby file (MDSL) as quoted literals, which no
+        # text can end early or interpolate into (a heredoc's closing word can).
+        safe_display_name = display_name.to_s.dump
+        safe_description = description.to_s.strip.dump
 
         # Determine data directory
         data_dir = if defined?(Monadic::Utils::Environment) && Monadic::Utils::Environment.in_container?
@@ -277,12 +297,10 @@ module MonadicSharedTools
         # Create template content
         template = <<~MDSL
         app "#{app_name.split('_').map(&:capitalize).join}#{provider.capitalize}" do
-          display_name "#{display_name}"
+          display_name #{safe_display_name}
 
           description do
-            en <<~TEXT
-            #{description}
-            TEXT
+            en #{safe_description}
           end
 
           icon "fa-solid fa-robot"
@@ -321,7 +339,7 @@ module MonadicSharedTools
         filename = "#{app_name}_#{provider}_template_#{timestamp}.mdsl"
         filepath = File.join(data_dir, filename)
 
-        File.write(filepath, template, encoding: 'UTF-8')
+        Monadic::Utils::SharedPathGuard.write_file!(filepath, template.encode('UTF-8'))
 
         {
           success: true,

@@ -1,156 +1,50 @@
-# Model Specification Sync Tests
+# Model Specification Sync Report
 
-model_spec.jsとプロバイダAPIの同期状態を確認するテストです。
+`spec/unit/model_spec_validation_spec.rb` compares the model names in `public/js/monadic/model_spec.js` with the model lists the providers' APIs return. It only prints a report: a difference does not fail the example.
 
-## テストの実行方法
+## Running
 
-### 1. 基本的な実行
-
-```bash
-# すべてのテストを実行
-bundle exec rspec spec/unit/model_spec_validation_spec.rb
-
-# レポートのみ生成
-bundle exec rspec spec/unit/model_spec_validation_spec.rb:321 --format documentation
-
-# 特定のプロバイダのみテスト
-bundle exec rspec spec/unit/model_spec_validation_spec.rb -e "OpenAI"
-```
-
-### 2. 便利スクリプトの使用
+From `docker/services/ruby/`:
 
 ```bash
-# bin/check_model_syncスクリプトを使用
+# The report
+bundle exec rspec spec/unit/model_spec_validation_spec.rb -e "generates a comprehensive report" --format documentation
+
+# The same, through the script
 ./bin/check_model_sync
 ```
 
-## 必要な設定
+The example calls the live provider APIs (`list_models` of each helper).
 
-### APIキー
-以下のAPIキーを`~/monadic/config/env`に設定してください：
+## API Keys
 
-- `OPENAI_API_KEY` - OpenAIモデルの検証用
-- `ANTHROPIC_API_KEY` - Claudeモデルの検証用  
-- `COHERE_API_KEY` - Cohereモデルの検証用
-- `MISTRAL_API_KEY` - Mistralモデルの検証用
-- `XAI_API_KEY` - Grokモデルの検証用
-- `DEEPSEEK_API_KEY` - DeepSeekモデルの検証用
+A provider is checked only when its key is set in the environment or in `~/monadic/config/env`; otherwise its line says `Skipped (no API key)`.
 
-**注意**: APIキーが設定されていないプロバイダのテストは自動的にスキップされます。
+| Provider | Key | Names compared |
+|---|---|---|
+| OpenAI | `OPENAI_API_KEY` | `gpt…`, `o1`–`o9…`, `chatgpt…`, `codex…` |
+| Claude | `ANTHROPIC_API_KEY` | `claude…` |
+| Cohere | `COHERE_API_KEY` | `command…`, `embed…`, `rerank…`, `c4ai…` |
+| Mistral | `MISTRAL_API_KEY` | `mistral…`, `open-…`, `codestral…`, `pixtral…`, `ministral…`, `magistral…`, `devstral…`, `voxtral…` |
+| Grok (xAI) | `XAI_API_KEY` | `grok…` |
+| DeepSeek | `DEEPSEEK_API_KEY` | `deepseek…` |
 
-## テストの内容
+Models that `should_exclude_from_model_spec?` matches (speech, transcription, voice and similar models) are left out of the API list before comparing.
 
-各プロバイダに対して以下を検証：
+## Report
 
-1. **新しいモデルの検出**
-   - APIに存在するがmodel_spec.jsに無いモデルを検出
-   - 「Missing in spec」として報告
+For each provider:
 
-2. **古いモデルの検出**
-   - model_spec.jsに存在するがAPIに無いモデルを検出
-   - 「Potentially deprecated」として警告
+- `Models in API`: the number of models the API returned, after exclusion
+- `Models in spec`: the number of `model_spec.js` keys that match the provider's name pattern
+- `Missing in spec`: models the API returned that `model_spec.js` does not have
+- `Potentially deprecated`: `model_spec.js` keys that the API did not return
+- `All models are in sync!` when both lists are empty
+- `Error - …` when the API call failed
 
-3. **同期状態の確認**
-   - 完全に同期している場合は「All models are in sync!」と表示
+## Related Files
 
-## レポートの見方
-
-```
-================================================================================
-MODEL SPECIFICATION VALIDATION REPORT
-================================================================================
-
-OpenAI:
-  ✓ Models in API: 35        # APIから取得したモデル数
-  ✓ Models in spec: 21       # model_spec.js内のモデル数
-  ⚠️  Missing in spec: ...    # 追加が必要なモデル
-  ⚠️  Potentially deprecated: ... # 削除を検討すべきモデル
-```
-
-## 定期実行の推奨
-
-### Gitフック (推奨)
-`.git/hooks/pre-commit`に追加：
-
-```bash
-#!/bin/bash
-echo "Checking model specification sync..."
-cd docker/services/ruby
-bundle exec rspec spec/unit/model_spec_validation_spec.rb:321 --format progress
-```
-
-### CI/CDパイプライン
-GitHub Actionsなどに組み込み：
-
-```yaml
-- name: Check Model Sync
-  run: |
-    cd docker/services/ruby
-    bundle exec rspec spec/unit/model_spec_validation_spec.rb
-```
-
-### 手動での定期確認
-週次または月次で実行することを推奨：
-
-```bash
-# クイックチェック
-./bin/check_model_sync
-
-# 詳細レポート
-bundle exec rspec spec/unit/model_spec_validation_spec.rb:321 -fd
-```
-
-## model_spec.jsの更新方法
-
-テストで不整合が検出された場合：
-
-1. **新しいモデルを追加**
-   ```javascript
-   // public/js/monadic/model_spec.js
-   "new-model-name": {
-     "context_window": [1, 128000],
-     "max_output_tokens": [1, 4096],
-     // 他のパラメータ...
-   }
-   ```
-
-2. **古いモデルを削除**
-   - 本当に廃止されたか確認してから削除
-   - 一部のモデルは意図的に残す場合もある
-
-3. **テストを再実行して確認**
-   ```bash
-   bundle exec rspec spec/unit/model_spec_validation_spec.rb:321 -fd
-   ```
-
-## トラブルシューティング
-
-### "No API key"と表示される
-- 対応するAPIキーを設定してください
-- スキップされても他のプロバイダはテスト可能です
-
-### モデル取得でエラーが発生
-- ネットワーク接続を確認
-- APIキーの有効性を確認
-- レート制限に達していないか確認
-
-### JavaScript解析エラー
-- Node.jsがインストールされているか確認
-- model_spec.jsの構文エラーをチェック
-
-## プロバイダ別の特記事項
-
-### xAI (Grok)
-- `/language-models`エンドポイントから動的取得
-- APIキーが必要
-
-### OpenAI, Claude, Cohere, Mistral, DeepSeek
-- 各プロバイダのAPIから動的取得
-- 対応するAPIキーが必要
-
-## 関連ファイル
-
-- テスト本体: `spec/unit/model_spec_validation_spec.rb`
-- モデル定義: `public/js/monadic/model_spec.js`
-- 各プロバイダヘルパー: `lib/monadic/adapters/vendors/*_helper.rb`
-- 実行スクリプト: `bin/check_model_sync`
+- `spec/unit/model_spec_validation_spec.rb`
+- `public/js/monadic/model_spec.js`
+- `lib/monadic/adapters/vendors/*_helper.rb`
+- `bin/check_model_sync`

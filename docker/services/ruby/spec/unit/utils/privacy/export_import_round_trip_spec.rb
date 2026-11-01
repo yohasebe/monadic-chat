@@ -47,14 +47,16 @@ RSpec.describe 'Export/import round trip for session state' do
     lines[start, (finish - start) + 2].join
   end
 
+  # The route builds the import in `imported` (the tab's connection takes it
+  # into its chat afterwards).
   def import(json_data, code)
-    session = {}
+    imported = {}
     # ExtraLogger is called inside the block; the surrounding module is not
     # loaded here.
     stub = Module.new { def self.log(*); end }
     Object.const_set(:StubLogger, stub) unless Object.const_defined?(:StubLogger)
     eval(code.gsub('Monadic::Utils::ExtraLogger', 'StubLogger')) # rubocop:disable Security/Eval
-    session
+    imported
   end
 
   let(:app_state) { { 'notes' => { data: %w[x], version: 1, updated_at: 't' } } }

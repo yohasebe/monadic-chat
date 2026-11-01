@@ -29,19 +29,16 @@ function handleElevenLabsVoices(data) {
   const cookieValue = getCookie("elevenlabs-tts-voice");
   const voices = data["content"];
 
-  const ttsOptionIds = [
-    "elevenlabs-flash-provider-option",
-    "elevenlabs-multilingual-provider-option",
-    "elevenlabs-v3-provider-option"
-  ];
   const sttOptionIds = [
     "elevenlabs-stt-scribe-v2",
-    "elevenlabs-stt-scribe",
-    "elevenlabs-stt-scribe-experimental"
+    "elevenlabs-stt-scribe"
   ];
 
   const disabledState = !(voices.length > 0);
-  ttsOptionIds.concat(sttOptionIds).forEach(id => {
+  Array.from(($id("tts-provider") || {}).options || []).filter(option =>
+    window.TtsProvider.providerOf(option.value) === "elevenlabs"
+  ).forEach(option => { option.disabled = disabledState; });
+  sttOptionIds.forEach(id => {
     const el = $id(id);
     if (el) el.disabled = disabledState;
   });
@@ -68,13 +65,7 @@ function handleElevenLabsVoices(data) {
 
   // Restore saved cookie value for provider if it was elevenlabs
   const savedProvider = getCookie("tts-provider");
-  if (["elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3"].includes(savedProvider)) {
-    const providerSelect = $id("tts-provider");
-    if (providerSelect) {
-      providerSelect.value = savedProvider;
-      $dispatch(providerSelect, "change");
-    }
-  }
+  window.TtsProvider.restoreSaved($id("tts-provider"), savedProvider, "elevenlabs");
 }
 
 /**
@@ -124,13 +115,7 @@ function handleGeminiVoices(data) {
 
   // Restore saved cookie value for provider if it was gemini
   const savedProvider = getCookie("tts-provider");
-  if (window.TtsProvider.isGemini(savedProvider) && savedProvider !== "gemini") {
-    const providerSelect = $id("tts-provider");
-    if (providerSelect) {
-      providerSelect.value = savedProvider;
-      $dispatch(providerSelect, "change");
-    }
-  }
+  window.TtsProvider.restoreSaved($id("tts-provider"), savedProvider, "gemini");
 }
 
 /**
@@ -175,13 +160,7 @@ function handleMistralVoices(data) {
 
   // Restore saved cookie value for provider if it was mistral
   const savedProvider = getCookie("tts-provider");
-  if (savedProvider === "mistral") {
-    const providerSelect = $id("tts-provider");
-    if (providerSelect) {
-      providerSelect.value = savedProvider;
-      $dispatch(providerSelect, "change");
-    }
-  }
+  window.TtsProvider.restoreSaved($id("tts-provider"), savedProvider, "mistral");
 }
 
 /**
@@ -272,8 +251,11 @@ function handleAppsMessage(data) {
       }
 
       // If this is after a reset, re-initialize the app
-      // Check if parameters message hasn't been received yet
-      if (!data["from_parameters"] && !fromParamUpdate) {
+      // Check if parameters message hasn't been received yet. An import's
+      // app list is followed by the imported parameters, which select the
+      // app; re-selecting the one shown now would move the tab off the
+      // imported chat.
+      if (!data["from_parameters"] && !fromParamUpdate && !data["from_import"]) {
         // Re-initialize the current app with proceedWithAppChange
         setTimeout(function() {
           if (typeof window.proceedWithAppChange === 'function') {
@@ -712,7 +694,7 @@ function handleAppsMessage(data) {
         // initialAppLoaded is the real guard: a count===1 check read at fire
         // time breaks when a WS reconnect delivers APPS twice within 150ms —
         // both timers then see count===2 and BOTH skip, leaving the app
-        // (and the workflow viewer) uninitialized (§38 root-cause candidate).
+        // (and the workflow viewer) uninitialized.
         if (!fromParamUpdate && !importRequestedApp && !window.initialAppLoaded && !isImportingNotRestoring) {
           const sel = currentAppsVal;
           if (sel) {
@@ -799,7 +781,7 @@ function handleAppsMessage(data) {
       }
     }
   }
-  // Notify the Workflow Viewer of the SETTLED app (§38). No path that
+  // Notify the Workflow Viewer of the SETTLED app. No path that
   // assigns #apps.value fires 'change', and on the failing path (server
   // restart + hard reload: WS reconnect late, asset cache busted) every
   // fallback window — the viewer's init snapshot, its setDisplayMode rAF,

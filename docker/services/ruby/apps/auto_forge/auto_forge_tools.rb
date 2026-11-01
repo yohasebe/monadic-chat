@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative '../../lib/monadic/utils/shared_path_guard'
 require 'cgi'
 require 'fileutils'
 require 'securerandom'
@@ -89,10 +90,10 @@ module AutoForgeTools
 
     # Create app instance with context
     # Note: Using local variable only to avoid race conditions with shared @context
-    # Ensure context includes API key from environment if not already present
+    # Ensure context includes the API key from the configuration
     context = {}
-    if ENV['OPENAI_API_KEY'] && !context[:openai_api_key] && !context[:api_key]
-      context = context.merge(openai_api_key: ENV['OPENAI_API_KEY'])
+    if CONFIG['OPENAI_API_KEY'] && !context[:openai_api_key] && !context[:api_key]
+      context = context.merge(openai_api_key: CONFIG['OPENAI_API_KEY'])
     end
 
     # Get session ID for progress broadcasting (multiple fallbacks)
@@ -176,11 +177,11 @@ module AutoForgeTools
     # Dynamically extend the appropriate agent module to avoid helper conflicts
     context[:codex_callback] = case agent
     when :claude
-      # Extend ClaudeCodeAgent to get claude_opus_agent method
-      self.extend(Monadic::Agents::ClaudeCodeAgent) unless self.respond_to?(:claude_code_agent)
+      # Extend ClaudeCodeAgent to get call_claude_code method
+      self.extend(Monadic::Agents::ClaudeCodeAgent) unless self.respond_to?(:call_claude_code)
       ->(prompt, app_name, &block) do
         actual_block = block || progress_callback
-        self.claude_code_agent(prompt, app_name || 'ClaudeCodeAgent', &actual_block)
+        self.call_claude_code(prompt: prompt, app_name: app_name || 'ClaudeCodeAgent', &actual_block)
       end
     when :grok
       # Extend GrokCodeAgent to get call_grok_code method
@@ -662,7 +663,7 @@ module AutoForgeTools
       return { success: false, error: "Invalid README path (it must be inside the shared folder)" }
     end
 
-    File.write(readme_path, readme)
+    Monadic::Utils::SharedPathGuard.write_file!(readme_path, readme)
     { success: true, filename: 'README.md' }
   end
 
@@ -701,7 +702,7 @@ module AutoForgeTools
       return { success: false, error: "Invalid config path (it must be inside the shared folder)" }
     end
 
-    File.write(config_path, config)
+    Monadic::Utils::SharedPathGuard.write_file!(config_path, config)
     { success: true, filename: filename }
   end
 
@@ -751,7 +752,7 @@ module AutoForgeTools
       return { success: false, error: "Invalid file path (it must be inside the shared folder)" }
     end
 
-    File.write(file_path, body)
+    Monadic::Utils::SharedPathGuard.write_file!(file_path, body)
     { success: true, filename: filename }
   end
 
@@ -863,11 +864,13 @@ module AutoForgeTools
     # Project state is now tracked through the filesystem only
 
     # Try to find the main CLI script by looking for shebang
-    fallback = Dir.glob(File.join(project_path, '*')).find do |f|
-      File.file?(f) && !f.end_with?('.json', '.md', '.txt') && File.read(f, 100).include?('#!')
-    end
+    # Read as plain files of the shared folder, never through a link.
+    Dir.glob(File.join(project_path, '*')).sort.each do |f|
+      next if f.end_with?('.json', '.md', '.txt')
 
-    return [fallback, File.read(fallback)] if fallback
+      content = Monadic::Utils::SharedPathGuard.read_text(f)
+      return [f, content] if content&.byteslice(0, 100)&.include?('#!')
+    end
 
     [nil, nil]
   rescue StandardError => e
@@ -938,7 +941,7 @@ module AutoForgeTools
 
     return { success: false, error: normalized[:error] } unless normalized[:success]
 
-    File.write(target_file, normalized[:content])
+    Monadic::Utils::SharedPathGuard.write_file!(target_file, normalized[:content])
 
     { success: true, filename: validation[:file_name] }
   rescue StandardError => e
@@ -1108,7 +1111,7 @@ module AutoForgeTools
     end
 
     html_path = File.join(project_info[:path], 'index.html')
-    existing_content = File.exist?(html_path) ? File.read(html_path) : nil
+    existing_content = Monadic::Utils::SharedPathGuard.read_text(html_path)
 
     mode, fix_content = AutoForge::Utils::CodexResponseAnalyzer.analyze_response(
       code_content,
@@ -1129,7 +1132,9 @@ module AutoForgeTools
     project_name = diagnosis[:project_name]
 
     begin
-      FileUtils.cp(html_path, backup_path)
+      # The page is read as a plain file of the shared folder: a link in its
+      # place is never followed (its target would be copied in).
+      Monadic::Utils::SharedPathGuard.copy_file!(html_path, backup_path, replace: false)
 
       apply_result = case fix_mode
                      when :patch
@@ -1141,7 +1146,7 @@ module AutoForgeTools
                      end
 
       unless apply_result[:success]
-        FileUtils.mv(backup_path, html_path, force: true)
+        Monadic::Utils::SharedPathGuard.rename_file!(backup_path, html_path)
         return {
           success: false,
           message: "Failed to apply fixes: #{apply_result[:error]}. Original file restored."
@@ -1151,7 +1156,7 @@ module AutoForgeTools
       verification = debug_application_raw('spec' => { 'name' => project_name })
 
       if !verification[:success] && (fetch_from_hash(verification, :error) || '').include?('Selenium')
-        File.delete(backup_path) if File.exist?(backup_path)
+        (Monadic::Utils::SharedPathGuard.delete_file!(backup_path) rescue nil)
         return {
           success: true,
           message: <<~MSG
@@ -1167,7 +1172,7 @@ module AutoForgeTools
           MSG
         }
       elsif verification[:success]
-        File.delete(backup_path) if File.exist?(backup_path)
+        (Monadic::Utils::SharedPathGuard.delete_file!(backup_path) rescue nil)
         remaining_errors = fetch_array(verification, :javascript_errors).length
 
         if remaining_errors.zero?
@@ -1195,14 +1200,14 @@ module AutoForgeTools
           }
         end
       else
-        FileUtils.mv(backup_path, html_path, force: true)
+        Monadic::Utils::SharedPathGuard.rename_file!(backup_path, html_path)
         {
           success: false,
           message: "Verification failed: #{fetch_from_hash(verification, :error)}. Original file restored."
         }
       end
     rescue => e
-      FileUtils.mv(backup_path, html_path, force: true) if File.exist?(backup_path)
+      (Monadic::Utils::SharedPathGuard.rename_file!(backup_path, html_path) rescue nil)
       {
         success: false,
         message: "Unexpected error during fix: #{e.message}. Original file restored."
@@ -1743,4 +1748,7 @@ module AutoForgeTools
     # Call the shared Grok-Code implementation
     call_grok_code(prompt: prompt, app_name: "AutoForgeGrok")
   end
+
+  # Declared tools: called by name from the model, so they must be public.
+  public :openai_code_agent, :claude_code_agent, :grok_code_agent
 end

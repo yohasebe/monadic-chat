@@ -10,6 +10,36 @@ require_relative "lib/monadic/utils/unlimited_session_store"
 require_relative "lib/monadic/utils/auth_middleware"
 require_relative "lib/monadic/utils/local_origin_guard"
 
+# What only the server does (a program that loads lib/monadic, such as a rake
+# task, leaves the state folder alone). One server writes the state folder:
+# this one takes its mark before anything there is read or changed, and does
+# not start without it (another server, in the container or run from the
+# host, may be using the folder).
+begin
+  Monadic::Workspace::ServerOwner.acquire!
+rescue Monadic::Workspace::ServerOwner::Refused => e
+  warn "[Workspace] Not starting: #{e.message}"
+  Monadic::Workspace::ServerOwner.stop_server!
+  raise
+end
+
+# Attachments a stopped server left half-saved are marked failed, so no chat
+# treats them as usable. Reads only; writes when there is something to mark.
+begin
+  Monadic::Workspace::Ledger.default.reconcile_interrupted! if File.exist?(Monadic::Workspace::Ledger.default_path)
+rescue StandardError => e
+  puts "[Workspace] Ledger check skipped: #{e.class}"
+end
+
+# Publications a stopped server left pending are removed, and those whose
+# chat's folder is gone are revoked with their copies (before any request).
+begin
+  revoked = Monadic::Workspace::Publications.reconcile!
+  puts "[Workspace] Publications revoked: #{revoked.size}" unless revoked.empty?
+rescue StandardError => e
+  puts "[Workspace] Publications check skipped: #{e.class}"
+end
+
 set :logging, true
 set :bind, "0.0.0.0"
 
@@ -17,15 +47,28 @@ set :bind, "0.0.0.0"
 # server. See lib/monadic/utils/local_origin_guard.rb.
 use Monadic::Utils::LocalOriginGuard
 
+# A Private chat makes no files: the requests that would make them are
+# refused before anything reads their body (Rack writes file parts to disk
+# while parsing). See lib/monadic/history/private_request_guard.rb.
+require_relative "lib/monadic/history/private_request_guard"
+use Monadic::History::PrivateRequestGuard,
+    paths: [Monadic::Routes::AttachmentRoutes::PATH, "/pdf", "/document", "/upload_audio", "/fetch_webpage"],
+    session_lookup: ->(tab_id) { WebSocketHelper.live_session(tab_id) },
+    state_lookup: ->(tab_id) { WebSocketHelper.fetch_http_session_state(tab_id) }
+
 # Remove the temporary files Rack writes for multipart uploads once the
 # response is sent; left alone they stay until garbage collection.
 use Rack::TempfileReaper
+
+# A conversation to import is read in memory: no temporary file is made of
+# it (it may be one exported from a Private chat).
+use Monadic::Workspace::UploadInMemory, paths: ["/load"]
 
 # Attachments: the chat fixed from the tab, then the size cap, both before
 # anything reads the request body.
 use Monadic::Workspace::UploadContext,
     paths: [Monadic::Routes::AttachmentRoutes::PATH],
-    state_lookup: ->(tab_id) { WebSocketHelper.fetch_session_state(tab_id) }
+    state_lookup: ->(tab_id) { WebSocketHelper.fetch_http_session_state(tab_id) }
 # Every upload, likewise capped before anything reads the body: Rack writes
 # file parts to disk while parsing, with no total limit of its own.
 use Monadic::Workspace::UploadLimit, limits: {
@@ -39,9 +82,9 @@ use Monadic::Workspace::UploadLimit, limits: {
   "/library/import" => LIBRARY_IMPORT_MAX_BYTES + 1_000_000
 }
 
-# Use unlimited in-memory sessions to handle large message imports
-# Rack::Session::Pool has size limits that cause "Content dropped" warnings
-# Use a capped pool to avoid unbounded memory growth while allowing larger payloads
+# The only session middleware (the routes and the WebSocket use this one).
+# In memory, with no size limit on a session; sessions left idle are removed
+# so the pool does not grow without bound (see unlimited_session_store.rb).
 use Rack::Session::CappedPool, key: 'monadic.session',
                                expire_after: 86400,  # 24 hours
                                max_sessions: (ENV['SESSION_MAX_COUNT'] || 50).to_i,

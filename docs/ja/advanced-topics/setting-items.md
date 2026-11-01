@@ -33,23 +33,25 @@ end
 ## 必須設定
 
 ### アプリ定義
-- `app "AppName"` - アプリ識別子。Rubyクラス名と正確に一致する必要があります（例：`app "ChatOpenAI"`には`class ChatOpenAI`が必要）
+- `app "AppName"` - アプリの名前。作られる Ruby のクラスの名前にもなります（例：`app "ChatOpenAI"`）
 - `description` - アプリケーションの目的の簡潔な説明
-- `icon` - アイコン識別子（Font Awesomeクラスまたは組み込みアイコン名）
+- `icon` - アイコン識別子（Font Awesome のクラスまたはアイコンの名前）
 - `system_prompt` - AIモデルへのシステム指示
+
+`description`、`icon`、`system_prompt` がない場合も、アプリは既定の値で読み込まれ、アプリの説明に警告が表示されます。
 
 ### アプリレベルの任意設定
 - `display_name` - UIに表示される名前（デフォルトはアプリ名）。`features` の中ではなく、`description` や `icon` と同じアプリレベルに書きます
 
 ### LLM設定
-`llm`ブロックは必須で、以下を含みます：
-- `provider` - AIプロバイダー（openai、claude、geminiなど）
-- `model` - 使用する特定のモデル
+`llm`ブロックには、以下を書きます：
+- `provider` - AIプロバイダー（`openai`、`anthropic`、`gemini`、`mistral`、`cohere`、`deepseek`、`xai`、`ollama`）
+- `model` - モデル。メニューで選ばせるときはモデルの配列。省くと、プロバイダーの既定のモデルが使われます
 
 ## オプション設定
 
 ### LLMブロックのオプション
-- `temperature` - 応答のランダム性を制御。範囲と利用可否はプロバイダーとモデルに依存。一部のモデル（各プロバイダーの推論特化型モデルなど）はtemperature調整をサポートしません
+- `temperature` - 応答のランダム性を制御（0.0〜2.0、既定 0.7）。モデルが受け付ける範囲はプロバイダーとモデルによって違い、推論のモデルの中には受け付けないものもあります
 - `max_tokens` - レスポンスの最大トークン数（利用可否と上限はモデルにより異なる）
 - `presence_penalty` - 繰り返しトピックのペナルティ。一部のOpenAIおよびMistralモデルでサポート
 - `frequency_penalty` - 繰り返し単語のペナルティ。一部のOpenAIおよびMistralモデルでサポート
@@ -58,7 +60,7 @@ end
 featuresブロック内のすべての設定はオプションです：
 
 #### 表示とインタラクション
-- `group` - UIでアプリを整理するためのメニューグループ名。デフォルトでは、アプリはプロバイダーごとに自動的にグループ化されます（例：「OpenAI」、「Anthropic」）。カスタムグループを作成するために上書きできますが、デフォルトのプロバイダーベースのグループ化を維持することを推奨します
+- `group` - UIでアプリを整理するためのメニューグループ名。既定では、アプリはプロバイダーごとにまとめられます（例：「OpenAI」、「Anthropic」）
 - `disabled` - trueの場合、メニューからアプリを非表示
 - `easy_submit` - Enterキーのみでメッセージ送信
 - `auto_speech` - AI応答を音声として自動再生
@@ -66,10 +68,9 @@ featuresブロック内のすべての設定はオプションです：
 
 #### コンテンツ機能
 - `pdf_vector_storage` - RAG（検索拡張生成）のためのPDFデータベース機能を有効化。UIにPDFインポートボタンとデータベースパネルを表示
-- `file` - テキストファイルアップロードを有効化
 - `websearch` - ウェブ検索機能を有効化
 - `image_generation` - AI画像生成機能を有効化。以下の値を受け付けます：
-  - `true` - 完全な画像生成機能（作成、編集、バリエーション）
+  - `true` - 画像の生成と編集
   - `"upload_only"` - 画像アップロードのみ（生成・編集なし）
   - `false` - 無効（デフォルト）
 - `mermaid` - Mermaidダイアグラムレンダリングを有効化
@@ -90,12 +91,10 @@ featuresブロック内のすべての設定はオプションです：
 `sts_vad_*` は省略するとプロバイダ既定値が使われます。またすべてのプロバイダがすべてのキーを解釈するわけではありません（xAI は `sts_vad_prefix_ms` を無視します）。OpenAI 変種の Live Conversation では `sts_vad_type` / `sts_vad_eagerness` をユーザーがターン判定セレクタから選ぶこともでき、選択した値は次のセッションで MDSL の既定より優先されます。
 
 #### コンテキスト管理
-- `context_size` - 含める過去のメッセージ数
-- `monadic` - JSONベースの状態管理を有効化（複数プロバイダーで利用可能、機能は異なる）
-- `toggle` - 折りたたみ可能セクションを有効化（Claude/Gemini/Mistral/Cohere）
+- `context_size` - モデルに送る直近のメッセージの数。Web の画面の **Max Context Size** の欄の値にもなります
+- `monadic` - Session State と Session Context を有効化。[Monadic モード](./monadic-mode.md)を参照
+- `toggle` - 応答の中の `<div class='toggle'>` のブロックを、折りたためる節として表示
 - `prompt_suffix` - すべてのユーザーメッセージに追加されるテキスト
-
-?> **重要**: `monadic`と`toggle`を両方有効にしないでください - これらは相互排他的な表示モードです。
 
 ### Toolsブロック
 AIが使用できる関数を定義：
@@ -109,34 +108,35 @@ end
 ```
 
 ### 高度な設定
-- `response_format` - 構造化出力形式を指定（OpenAI）
+- `response_format` - 構造化出力形式を指定（OpenAI。Ollama では、Ollama の `format` パラメーターに変換されます）
 - `reasoning_effort` - サポートされているモデルの推論強度を制御。利用可能な値はモデルによって異なります（例：一部のモデルでは "low", "high"）
-- `models` - 利用可能なモデルリストを上書き
 - `jupyter` - Jupyterノートブックアクセスを有効化
 - `reachable_skills` - 会話の流れに応じてアプリがオンデマンドで獲得できるツールグループを宣言（`tools`ブロックの外、アプリレベルに記述）。`reachable_skills :safe`は読み取り専用の安全なグループ一式に展開されます。[ツールグループ](./tool-groups.md)を参照
 - `compaction` - サーバーサイドの会話コンパクション（対応するAPIを持つプロバイダーで有効）を制御（アプリレベルに記述）。OpenAIアプリではこのディレクティブがなくてもデフォルトのしきい値で有効です。`compaction false`でオプトアウト、`compaction do ... end`ブロック内の`compact_threshold`でトリガーしきい値をカスタマイズできます
 
-!> **重要**: `jupyter`機能はUIの機能を有効にするだけです。実際のJupyter機能を使用するには、アプリで対応するツール定義（`run_jupyter`、`create_jupyter_notebook`など）を実装する必要があります。例については、Jupyter Notebookアプリの実装を参照してください。
+!> **重要**: `jupyter`機能はUIの機能を有効にするだけです。実際のJupyter機能を使用するには、アプリで対応するツール定義（`:jupyter_operations` のグループの `create_jupyter_notebook`、`run_jupyter_cells` など）を実装する必要があります。例については、Jupyter Notebookアプリの実装を参照してください。
 
 ## システムレベル設定
 
-これらはMDSLファイルではなく、Monadic Chatの設定パネルで設定されます：
+これらは MDSL ファイルではなく、**Settings** ウィンドウ（**Open → Settings**）で設定します。項目は General、System、API Keys、Voice & Audio、Services、Install Options、Actions、About です。設定できるものの例：
 
-- 各プロバイダーのAPIキー（OpenAI、Claude、Geminiなど）
-- Tavilyウェブ検索用APIキー
-- シンタックスハイライトテーマ
+- 各プロバイダー、ElevenLabs、Tavily の API キー
+- UI の言語、Browser Mode、Launch at Login、Menu Bar Mode
+- Extra Logging
+- TTS の辞書のファイルと、Auto Speech の大きさの上限
+- MCP サーバーとそのポート
+- [Install Options](./advanced-configuration.md#install-options)（Privacy Filter の言語、Knowledge Base Quality Pack を含む）
 
-設定はアプリケーション起動時に読み込まれ、セッション間で保持されます。
+設定は `~/monadic/config/env` に保存され、セッションをまたいで保たれます。
 
-音声認識（STT）モデルは、設定パネルやMDSLファイルではなく、Web UIの**Speech Settings**パネルで選択します。選択内容はブラウザのローカルストレージに保存されます。
-
+音声認識（STT）のモデルは、Settings ウィンドウや MDSL ファイルではなく、Web の画面の **Speech** パネルで選びます。選んだものはブラウザーの Cookie に保存されます。
 
 ## 完全な例
 
 ```ruby
 app "ChatOpenAI" do
   description "OpenAIを使用した汎用チャットアプリケーション"
-  icon "fa-comments"
+  icon "fa-solid fa-comments"
 
   llm do
     provider "openai"
@@ -152,10 +152,6 @@ app "ChatOpenAI" do
     monadic false
     # 注: 画像アップロードはビジョン機能を持つモデルで自動的に有効になります
     websearch true
-  end
-  
-  tools do
-    # 標準ツールのみを使用する場合でも空のブロックが必要
   end
   
   system_prompt <<~TEXT

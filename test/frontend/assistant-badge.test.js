@@ -126,7 +126,7 @@ describe('assistantBadge tools_used badge (function calling wave 1)', () => {
     expect(assistantBadge({ role: 'assistant', text: 'hi', tools_used: [] })).not.toContain('fa-tools');
   });
 
-  // §37-4: positioned entries render inline (insertInlineToolBadge) — the
+  // Positioned entries render inline (insertInlineToolBadge) — the
   // header badge is a fallback for entries WITHOUT a position, exclusive
   // per entry so no tool shows twice or vanishes.
   it('renders no header badge when every entry has a paragraph position (at)', () => {

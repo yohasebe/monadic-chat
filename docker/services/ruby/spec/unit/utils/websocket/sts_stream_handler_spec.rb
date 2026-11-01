@@ -200,13 +200,13 @@ RSpec.describe "WebSocketHelper STS bridge" do
       audio_in = session_cfg[:audio][:input]
       expect(audio_in[:format]).to eq({ type: "audio/pcm", rate: 24_000 })
       # Continuous mode: the server VAD segments turns (create_response /
-      # interrupt_response default to true upstream — live-probed).
+      # interrupt_response default to true upstream).
       expect(audio_in[:turn_detection]).to eq({ type: "server_vad" })
     end
 
     # gpt-4o-transcribe is retired on 2027-02-26; gpt-transcribe is the
     # documented replacement for final transcripts of committed realtime
-    # turns, and the realtime session accepts it (live-probed 2026-09-02).
+    # turns, and the realtime session accepts it.
     it "enables input audio transcription with gpt-transcribe" do
       expect(session_cfg[:audio][:input][:transcription][:model]).to eq("gpt-transcribe")
     end
@@ -386,7 +386,7 @@ RSpec.describe "WebSocketHelper STS bridge" do
     it "maps response.cancelled to sts_audio_cancelled and finalizes the partial card as interrupted" do
       turn = fresh_turn("tid9")
       turn[:assistant_transcript] << "partial answer"
-      # §39: the card exists only when the response was actually SPOKEN —
+      # The card exists only when the response was actually SPOKEN —
       # mark an audio frame as having arrived for this turn.
       turn[:spoken_response_ids] = { "r" => true }
       state[:turn] = turn
@@ -497,7 +497,7 @@ RSpec.describe "WebSocketHelper STS bridge" do
       state[:seeded] = true
       turn = fresh_turn("tid-abort")
       turn[:assistant_transcript] << "partial"
-      # §39: an interrupted card requires a spoken response (audio frame).
+      # An interrupted card requires a spoken response (audio frame).
       turn[:spoken_response_ids] = { "r" => true }
       state[:turn] = turn
       host.session[:_sts] = state
@@ -561,7 +561,7 @@ RSpec.describe "WebSocketHelper STS bridge" do
         host.send(:sts_reader_loop, conn, state, "ws-test")
         expect(turn[:pending_fragments]).not_to be_empty
         turn[:assistant_transcript] << "partial"
-        # §39: the interrupted card exists only for a SPOKEN response.
+        # The interrupted card exists only for a SPOKEN response.
         turn[:spoken_response_ids] = { "r" => true }
 
         host.send(:sts_finalize_interrupted_turn, state, turn, "ws-test")
@@ -601,7 +601,7 @@ RSpec.describe "WebSocketHelper STS bridge" do
       # GA's response.create REPLACES the session instructions for that
       # response — the greeting instructions must therefore CARRY the app
       # instructions (and the language prompt), or the greeting drops the
-      # conversation language (dogfood: Japanese session greeted in English).
+      # conversation language (a Japanese session greeted in English).
       greeting = create["response"]["instructions"]
       expect(greeting).to include("You are a friendly assistant.")
       expect(greeting).to include(WebSocketHelper::STS_INITIATE_INSTRUCTIONS)
@@ -668,8 +668,8 @@ RSpec.describe "WebSocketHelper STS bridge" do
       end
     end
 
-    # Mic warm-up noise buffered before Start once got flushed after the
-    # greeting; the VAD heard it as speech and barge-in-cancelled the
+    # Mic warm-up noise buffered before Start, if flushed after the
+    # greeting, is heard by the VAD as speech and barge-in-cancels the
     # greeting (its transcript hallucinated into a stray sentence). The
     # conversation starts at :start — earlier audio is discarded.
     it "discards audio chunks buffered before :start" do
@@ -700,7 +700,7 @@ RSpec.describe "WebSocketHelper STS bridge" do
       expect(appended).to eq(["LIVE"])
     end
 
-    # Review P3-1: pending discard is once per bridge too — a duplicate
+    # Pending discard is once per bridge too — a duplicate
     # STS_START mid-conversation must not throw away legitimate speech
     # buffered across a reconnect.
     it "keeps buffered audio on a duplicate :start" do
@@ -830,7 +830,7 @@ RSpec.describe "WebSocketHelper STS bridge" do
       expect(items.map { |i| i.dig("item", "role") }).to eq(%w[user assistant])
       expect(items.map { |i| i.dig("item", "content", 0, "text") }).to eq(%w[u2 a2])
       expect(items.all? { |i| i["type"] == "conversation.item.create" }).to be(true)
-      # GA vocabulary (live-probed 2026-07-31): user items take input_text,
+      # GA vocabulary: user items take input_text,
       # assistant items take output_text — the legacy "text" is rejected
       # ("Invalid value: 'text'. Value must be 'output_text'."), which
       # surfaced on the first mid-conversation reconnect re-seed.
@@ -945,7 +945,7 @@ RSpec.describe "WebSocketHelper STS bridge" do
     it "exposes a singleton Async::Semaphore with the configured limit" do
       sem = WebSocketHelper.sts_semaphore
       expect(sem).to be_an(Async::Semaphore)
-      expect(sem.limit).to eq(WebSocketHelper::STS_MAX_CONCURRENT)
+      expect(sem.limit).to eq(WebSocketHelper.sts_max_concurrent)
       expect(WebSocketHelper.sts_semaphore).to equal(sem)
     end
   end
@@ -1204,7 +1204,7 @@ RSpec.describe 'WebSocketHelper STS continuous mode' do
       expect(harness.sts_vad_config).to eq({ type: 'server_vad' })
     end
 
-    it 'lets session params override the MDSL vad type (§37-16)' do
+    it 'lets session params override the MDSL vad type' do
       app = double('app', settings: { sts_vad_silence_ms: 800 })
       stub_const('APPS', { 'LiveConversationOpenAI' => app })
       harness.session[:parameters]['sts_vad_type'] = 'semantic_vad'
@@ -1266,8 +1266,8 @@ RSpec.describe 'WebSocketHelper STS continuous mode' do
 
     # Fresh-vs-resume is decided here against the canonical
     # session[:messages] — the client's greet hint only reports the toggle.
-    # A stale client-side messages array once suppressed the greeting on a
-    # genuinely fresh conversation (dogfood round 4).
+    # A stale client-side messages array must not suppress the greeting on
+    # a genuinely fresh conversation.
     it 'suppresses the greeting when the canon has conversation turns' do
       queue = Async::Queue.new
       harness.session[:messages] = [{ 'role' => 'user', 'text' => 'earlier' }]
@@ -1279,21 +1279,33 @@ RSpec.describe 'WebSocketHelper STS continuous mode' do
       Sync { expect(queue.dequeue).to eq([:start, false]) }
     end
 
-    # Review round 5, concern #1: after a fatal (e.g. xAI silent model
+    # After a fatal (e.g. xAI silent model
     # fallback) mic chunks still in flight must not respawn the bridge into
     # the same fatal — each respawn opens a billed upstream session.
     it 'refuses to respawn a bridge for the model that just failed fatally' do
-      harness.session[:_sts_fatal] = 'grok-voice-think-fast-2.0'
+      harness.session[:_sts_fatal] = 'grok-voice-3.0'
       allow(harness).to receive(:run_sts_bridge!)
 
-      state = harness.ensure_sts_state!({ 'chat_model' => 'grok-voice-think-fast-2.0' })
+      state = harness.ensure_sts_state!({ 'chat_model' => 'grok-voice-3.0' })
 
       expect(state).to be_nil
       expect(harness.session[:_sts]).to be_nil
     end
 
+    # xAI renamed grok-voice-think-fast-2.0 (it now reports grok-voice-2.0,
+    # which the exact-match check refuses); a saved session still naming it
+    # must reach the successor rather than stop every time.
+    it 'starts the successor of a model the catalog marks as retired' do
+      allow(harness).to receive(:run_sts_bridge!)
+
+      state = harness.ensure_sts_state!({ 'chat_model' => 'grok-voice-think-fast-2.0' })
+
+      expect(state[:model]).to eq('grok-voice-3.0')
+      harness.session[:_sts] && harness.session[:_sts][:bridge_task]&.stop
+    end
+
     it 'clears the fatal memory when a different model is requested' do
-      harness.session[:_sts_fatal] = 'grok-voice-think-fast-2.0'
+      harness.session[:_sts_fatal] = 'grok-voice-3.0'
       # The bridge itself is not under test — spawning it would open a real
       # upstream connection from a unit spec.
       allow(harness).to receive(:run_sts_bridge!)
@@ -1317,7 +1329,7 @@ RSpec.describe 'WebSocketHelper STS continuous mode' do
       expect(state[:canon_start]).to eq(2)
     end
 
-    # Review P1-A: session start ALWAYS appends the system prompt to the
+    # Session start ALWAYS appends the system prompt to the
     # canon before Start can be pressed, so an emptiness check never greeted.
     # Fresh means no user/assistant turns — system messages do not count.
     it 'still greets when the canon holds only the system prompt' do
@@ -1423,7 +1435,7 @@ A classic indeed.")
       expect(harness.send(:sts_merge_conversation_fragments!, harness.session, state)).to be false
     end
 
-    # Review round 4, P2: an unrecorded span must mean NO span. Defaulting
+    # An unrecorded span must mean NO span. Defaulting
     # nil to 0 claimed the whole canon — a stray STS_STOP against a bridge
     # that never saw STS_START would have folded the loaded history.
     it 'treats a missing canon_start as no span (never folds the whole canon)' do
@@ -1446,7 +1458,7 @@ A classic indeed.")
     end
   end
 
-  # Review round 4, P1: replacing the canon (import / LOAD) while a bridge
+  # Replacing the canon (import / LOAD) while a bridge
   # is live must tear the bridge down — otherwise its merge span points into
   # the OLD canon and Stop folds the imported history.
   describe 'teardown from non-WebSocket contexts' do
@@ -1462,7 +1474,7 @@ A classic indeed.")
     end
   end
 
-  # P2-1 (review finding): RESET clears the canon, so a live bridge must not
+  # RESET clears the canon, so a live bridge must not
   # survive it — it would keep the upstream socket (and billing) alive and
   # keep speaking into a conversation that no longer exists.
   describe 'RESET tears down a live bridge' do
@@ -1545,7 +1557,7 @@ A classic indeed.")
       expect(state[:turn][:id]).not_to eq('old')      # fresh turn opened
     end
 
-    # P1-2 (review finding): the gate is open only after the user's stt card
+    # The gate is open only after the user's stt card
     # has been delivered, but a barge-in can land while transcription still
     # lags. Gate state must not decide whether the interrupted card exists.
     it 'finalizes at speech_started even when the order gate is still closed' do
@@ -1574,7 +1586,7 @@ A classic indeed.")
       expect(sent.map { |m| m['type'] }).not_to include('sts_audio_cancelled')
     end
 
-    # Review P2-1: a spontaneous response.create (greeting) races the user's
+    # A spontaneous response.create (greeting) races the user's
     # first utterance — its response.created can arrive AFTER speech_started
     # replaced state[:turn], and binding to the current turn would address
     # the greeting's audio/done/cancelled to the wrong turn.
@@ -1594,7 +1606,7 @@ A classic indeed.")
       expect(state[:pending_response_turn]).to be_nil
     end
 
-    # P1-1 (review finding, barge-in killer): upstream's response.cancelled
+    # Upstream's response.cancelled
     # arrives AFTER speech_started has replaced state[:turn]. Attributing it
     # to the current turn sent sts_audio_cancelled with the NEW turn's id, and
     # the client then discarded that turn's audio forever. Response-scoped
@@ -1624,7 +1636,7 @@ A classic indeed.")
       # client's cancelled-set (keyed by old id) can discard it
     end
 
-    # Review P2-2: utterance A's transcription.completed can arrive after
+    # Utterance A's transcription.completed can arrive after
     # utterance B's speech_started. Opening B's order gate with A's
     # completed would let B's assistant fragments out before B's own user
     # card — the exact inversion the gate exists to prevent.
@@ -1643,10 +1655,10 @@ A classic indeed.")
       expect(user_cards.size).to eq(1)
     end
 
-    # P2-4: a cancelled response can emit BOTH response.cancelled and a
+    # A cancelled response can emit BOTH response.cancelled and a
     # response.done — one accounting message per response, and the late
     # transcript.done must not re-emit a card over the interrupted one.
-    # THE GA cancel path (live-probed 2026-08-01): no response.cancelled
+    # THE GA cancel path: no response.cancelled
     # event exists — cancellation arrives ONLY as response.done with
     # status="cancelled". The interrupted card and the client-side audio
     # discard must both come from this event.
@@ -1690,7 +1702,7 @@ A classic indeed.")
     end
 
     # Audio deltas run ahead of transcript deltas, so the interrupted card
-    # freezes mid-word while the heard audio ran further (dogfood round 5).
+    # freezes mid-word while the heard audio ran further.
     # The late transcript.done refreshes the card body in place.
     it 'updates the interrupted card text from the late transcript.done' do
       state = base_state
@@ -1712,11 +1724,11 @@ A classic indeed.")
       expect(msg['text']).to eq('partial answer, full sentence.')
     end
 
-    # Review P2-3: a barge-in before any transcript arrived leaves nothing
+    # A barge-in before any transcript arrived leaves nothing
     # to put on a card, but the turn IS interrupted — the late
     # transcript.done must carry the interrupted marker, not masquerade as
     # a completed turn. (The model DID speak — audio ran ahead of the
-    # transcript — so under §39 the card exists and carries the marker.)
+    # transcript — so under the zero-audio rule the card exists and carries the marker.)
     it 'marks the late-done card interrupted when the barge-in preceded any transcript' do
       state = base_state
       run_reader([{ type: 'response.created', response: { id: 'resp-1' } },
@@ -1740,13 +1752,13 @@ A classic indeed.")
                     transcript: 'the full' }], state)
 
       # A prefix of what's already shown is strictly older information —
-      # the card stays untouched (§37-11: it never shrinks, either).
+      # the card stays untouched (it never shrinks, either).
       expect(sent.select { |m| m['type'] == 'sts_card_text' }).to be_empty
     end
 
     # The client's fragment handler repositions the streaming temp-card only
-    # on is_first — STS fragments without it left the in-progress assistant
-    # card stranded above newer user cards (dogfood round 6).
+    # on is_first — STS fragments without it would leave the in-progress
+    # assistant card stranded above newer user cards.
     it 'stamps is_first on the first fragment of each turn only' do
       state = base_state
       turn = { id: 't', assistant_transcript: +'', assistant_finalized: false,
@@ -1779,10 +1791,10 @@ A classic indeed.")
   end
 end
 
-# xAI dialect (all shapes live-probed 2026-08-01). The turn machinery is
+# xAI dialect. The turn machinery is
 # shared; what the profile encapsulates is connection facts, the session
 # payload shape, the cumulative transcription event, the fatal
-# model-mismatch guard (silent fallback to think-fast-1.0) and per-minute
+# model-mismatch guard (silent fallback to another model) and per-minute
 # accounting.
 RSpec.describe 'xAI realtime provider profile' do
   let(:harness) do
@@ -1797,7 +1809,7 @@ RSpec.describe 'xAI realtime provider profile' do
   end
 
   it 'routes grok-* models to the xai profile, everything else to openai' do
-    expect(harness.sts_provider_for('grok-voice-think-fast-2.0')).to eq('xai')
+    expect(harness.sts_provider_for('grok-voice-3.0')).to eq('xai')
     expect(harness.sts_provider_for('grok-voice-latest')).to eq('xai')
     expect(harness.sts_provider_for('gpt-realtime-2.1')).to eq('openai')
   end
@@ -1806,18 +1818,17 @@ RSpec.describe 'xAI realtime provider profile' do
     profile = WebSocketHelper::STS_PROVIDER_PROFILES['xai']
     expect(profile[:url]).to eq('wss://api.x.ai/v1/realtime')
     expect(profile[:api_key_env]).to eq('XAI_API_KEY')
-    # 26 IDs (5 original + 21 added 2026-07), validated against TTS REST
-    # 2026-08-01. The profile list is the fallback for model_spec sts_voices.
+    # 26 IDs, the same set the TTS REST API accepts. The profile list is the fallback for model_spec sts_voices.
     expect(profile[:voices].size).to eq(26)
     expect(profile[:voices]).to include('eve', 'ara', 'rex', 'sal', 'leo', 'luna', 'atlas')
     expect(profile[:model_mismatch_fatal]).to be true
   end
 
-  describe 'session.update payload (xAI shape, live-probed 2026-08-01)' do
+  describe 'session.update payload (xAI shape)' do
     let(:payload) do
       stub_const('APPS', {})
       harness.build_sts_session_update_payload(
-        { provider: 'xai', model: 'grok-voice-think-fast-2.0', voice: 'eve',
+        { provider: 'xai', model: 'grok-voice-3.0', voice: 'eve',
           instructions: 'Be brief.', language: 'ja' }
       )
     end
@@ -1850,9 +1861,9 @@ RSpec.describe 'xAI realtime provider profile' do
       expect(session_cfg).not_to have_key(:tools)
     end
 
-    it 'never injects the removed native search entries (2026-08-03, user decision)' do
+    it 'never injects native search entries' do
       on = harness.build_sts_session_update_payload(
-        { provider: 'xai', model: 'grok-voice-think-fast-2.0', voice: 'eve',
+        { provider: 'xai', model: 'grok-voice-3.0', voice: 'eve',
           instructions: '', websearch: true } # legacy state key is ignored
       )
       tools = on.dig(:session, :tools)
@@ -1944,7 +1955,7 @@ RSpec.describe 'xAI dialect in the reader' do
 
   let(:base_state) do
     { session_ready: true, ready: Async::Condition.new, turn: nil,
-      cmd_queue: Async::Queue.new, provider: 'xai', model: 'grok-voice-think-fast-2.0' }
+      cmd_queue: Async::Queue.new, provider: 'xai', model: 'grok-voice-3.0' }
   end
 
   # xAI sends CUMULATIVE transcripts (.updated), not deltas — appending
@@ -1961,18 +1972,18 @@ RSpec.describe 'xAI dialect in the reader' do
     expect(base_state[:turn][:user_partial]).to eq('こんにちは、今日は')
   end
 
-  # Live-probed: unknown models silently become think-fast-1.0. Running the
+  # Unknown models silently become another one. Running the
   # conversation on a model the user did not pick is a misrepresentation.
   it 'stops fatally when the session reports a different model' do
     run_reader([{ type: 'session.created',
-                  session: { model: 'grok-voice-think-fast-1.0' } }], base_state)
+                  session: { model: 'grok-voice-2.0' } }], base_state)
 
     err = sent.find { |m| m['type'] == 'error' }
     expect(err['content']).to include('silent fallback')
     expect(base_state[:fatal]).to be true
   end
 
-  # Review round 5, P2: without the signal a writer parked in
+  # Without the signal a writer parked in
   # sts_wait_for_ready blocked up to 15s and surfaced a second, misleading
   # "setup timeout" error after the fatal card.
   it 'signals ready and records the session-level fatal memory on mismatch' do
@@ -1981,13 +1992,13 @@ RSpec.describe 'xAI dialect in the reader' do
     allow(ready).to receive(:signal) { signalled = true }
 
     run_reader([{ type: 'session.created',
-                  session: { model: 'grok-voice-think-fast-1.0' } }], base_state)
+                  session: { model: 'grok-voice-2.0' } }], base_state)
 
     expect(signalled).to be true
-    expect(harness.session[:_sts_fatal]).to eq('grok-voice-think-fast-2.0')
+    expect(harness.session[:_sts_fatal]).to eq('grok-voice-3.0')
   end
 
-  # Review round 5, P3-1: a straggler cumulative update for utterance A must
+  # A straggler cumulative update for utterance A must
   # not repaint anything once A's card is final AND the conversation has
   # moved on to turn B.
   it 'ignores late transcription.updated for a finalized PREVIOUS turn' do
@@ -2007,10 +2018,10 @@ RSpec.describe 'xAI dialect in the reader' do
     expect(turn_b[:user_partial]).to eq('')
   end
 
-  # Dogfood (Grok round 1): xAI emits completed REPEATEDLY per utterance
+  # xAI emits completed REPEATEDLY per utterance
   # with growing cumulative snapshots. One turn owns ONE user message that
-  # grows in place — appending each snapshot produced duplicated-paragraph
-  # user cards.
+  # grows in place — appending each snapshot would produce
+  # duplicated-paragraph user cards.
   it 'grows one user message in place across repeated completed events' do
     state = base_state
     run_reader([{ type: 'input_audio_buffer.speech_started' },
@@ -2026,10 +2037,10 @@ RSpec.describe 'xAI dialect in the reader' do
     expect(update['content']).to eq('Nothing special so far. So good.')
   end
 
-  # OpenAI dogfood: a continuation utterance whose speech_started went
-  # missing resolved to the PREVIOUS turn (user card final) and the grow
-  # path dropped its shorter text silently — spoken words vanished from the
-  # record. A different-item completed must always produce its own card.
+  # OpenAI: a continuation utterance whose speech_started went missing
+  # resolves to the PREVIOUS turn (user card final), and the grow path must
+  # not drop its shorter text silently — spoken words would vanish from
+  # the record. A different-item completed must always produce its own card.
   it 'creates a fresh card for a different-item completed on a spent turn' do
     state = base_state
     run_reader([{ type: 'input_audio_buffer.speech_started' },
@@ -2046,7 +2057,7 @@ RSpec.describe 'xAI dialect in the reader' do
   end
 
   # Trailing-silence hallucinations transcribe as bare punctuation and made
-  # empty-looking user cards (dogfood: a card containing just ".").
+  # empty-looking user cards (e.g. a card containing just ".").
   it 'suppresses punctuation-only transcripts (no card, empty stt)' do
     state = base_state
     run_reader([{ type: 'input_audio_buffer.speech_started' },
@@ -2085,14 +2096,14 @@ RSpec.describe 'xAI dialect in the reader' do
 
   it 'accepts the session when the model echo matches' do
     run_reader([{ type: 'session.created',
-                  session: { model: 'grok-voice-think-fast-2.0' } }], base_state)
+                  session: { model: 'grok-voice-3.0' } }], base_state)
 
     expect(sent.select { |m| m['type'] == 'error' }).to be_empty
     expect(base_state[:fatal]).to be_nil
   end
 end
 
-# Gemini Live dialect (all shapes live-probed 2026-08-01). Gemini is a
+# Gemini Live dialect. Gemini is a
 # genuinely different protocol (BidiGenerateContent) — the translator maps
 # its serverContent stream onto the internal (OpenAI-GA-shaped) event
 # vocabulary so the shared turn machinery stays provider-blind.
@@ -2119,11 +2130,11 @@ RSpec.describe 'Gemini Live provider' do
 
   it 'resolves the provider from the model_spec sts_provider field' do
     expect(harness.sts_provider_for('gemini-3.1-flash-live-preview')).to eq('gemini')
-    expect(harness.sts_provider_for('grok-voice-think-fast-2.0')).to eq('xai')
+    expect(harness.sts_provider_for('grok-voice-3.0')).to eq('xai')
     expect(harness.sts_provider_for('gpt-realtime-2.1')).to eq('openai')
   end
 
-  describe 'setup payload (live-probed shape)' do
+  describe 'setup payload' do
     let(:payload) do
       stub_const('APPS', {})
       harness.build_sts_session_update_payload(
@@ -2152,7 +2163,7 @@ RSpec.describe 'Gemini Live provider' do
       expect(payload[:setup]).not_to have_key(:tools)
     end
 
-    it 'never injects the removed google_search entry (2026-08-03, user decision)' do
+    it 'never injects a google_search entry' do
       on = harness.build_sts_session_update_payload(
         { provider: 'gemini', model: 'gemini-3.1-flash-live-preview',
           voice: 'Kore', instructions: '', websearch: true } # legacy state key is ignored
@@ -2237,7 +2248,7 @@ RSpec.describe 'Gemini Live provider' do
       expect(state[:gem][:resp_open]).to be false
     end
 
-    # Review round 6, P1-1: Gemini keeps delivering the PREVIOUS utterance's
+    # Gemini keeps delivering the PREVIOUS utterance's
     # transcription after the answer starts. That is NOT barge-in — treating
     # it as one cancelled healthy responses mid-air. Real barge-in announces
     # itself via the interrupted flag.
@@ -2256,7 +2267,7 @@ RSpec.describe 'Gemini Live provider' do
       expect(state[:gem][:resp_open]).to be true
     end
 
-    # Review round 6, P1-2: an interrupted turn with an empty transcript
+    # An interrupted turn with an empty transcript
     # never sets assistant_finalized — the interrupted flag must open the
     # next utterance's turn, or utterance B merges into turn A.
     it 'opens a new turn after an interrupted (but not finalized) turn' do
@@ -2272,7 +2283,7 @@ RSpec.describe 'Gemini Live provider' do
       expect(events.last['item_id']).to eq('gitem-2')
     end
 
-    # Review round 6, P2: a turn can complete with NO model content (safety
+    # A turn can complete with NO model content (safety
     # filter). The user side must close so the next utterance does not merge
     # into the open turn.
     it 'closes the user turn when turnComplete arrives without any response' do
@@ -2307,10 +2318,9 @@ RSpec.describe 'Gemini Live provider' do
     end
   end
 
-  # Sequence pin from the live probe (2026-08-01): a full healthy turn in
-  # probe order, run through the REAL reader so translation and the shared
+  # A full healthy turn in upstream event order, run through the REAL reader so translation and the shared
   # turn machinery are exercised together.
-  describe 'probe-order sequence through the reader' do
+  describe 'upstream event order through the reader' do
     let(:sent) { [] }
     let(:seq_harness) do
       msgs = sent
@@ -2411,9 +2421,9 @@ RSpec.describe 'STS session config carries no tools' do
   end
 end
 
-# Dogfood round 3: the user's conversation-language setting (Japanese) never
-# reached the bridge — the transcriber auto-detected Japanese speech as
-# Korean, and the assistant drifted Korean → English. The language must pin
+# The user's conversation-language setting must reach the bridge: without
+# it the transcriber can auto-detect Japanese speech as Korean, and the
+# assistant drifts Korean → English. The language must pin
 # BOTH sides: input transcription and response instructions.
 RSpec.describe 'STS session config carries the conversation language' do
   let(:harness) do
@@ -2488,9 +2498,9 @@ RSpec.describe 'STS voice SSOT resolution (model_spec → profile fallback)' do
   end
 
   it 'accepts the expanded xAI voice registry (26) and defaults to eve' do
-    st = state_for({ 'model' => 'grok-voice-think-fast-2.0', 'sts_voice' => 'luna' })
+    st = state_for({ 'model' => 'grok-voice-3.0', 'sts_voice' => 'luna' })
     expect(st[:voice]).to eq('luna')
-    st = state_for({ 'model' => 'grok-voice-think-fast-2.0', 'sts_voice' => 'bogus' })
+    st = state_for({ 'model' => 'grok-voice-3.0', 'sts_voice' => 'bogus' })
     expect(st[:voice]).to eq('eve')
   end
 
@@ -2537,7 +2547,7 @@ RSpec.describe 'STS speed (OpenAI only)' do
   end
 
   it 'omits speed entirely for xAI and Gemini (never sent)' do
-    st = state_for({ 'model' => 'grok-voice-think-fast-2.0', 'sts_speed' => '1.25' })
+    st = state_for({ 'model' => 'grok-voice-3.0', 'sts_speed' => '1.25' })
     expect(st[:speed]).to be_nil
     st = state_for({ 'model' => 'gemini-3.1-flash-live-preview', 'sts_speed' => '1.25' })
     expect(st[:speed]).to be_nil
@@ -2554,7 +2564,7 @@ end
 RSpec.describe 'STS voice data consistency (model_spec ↔ profile fallback)' do
   {
     'gpt-realtime-2.1' => 'openai',
-    'grok-voice-think-fast-2.0' => 'xai',
+    'grok-voice-3.0' => 'xai',
     'gemini-3.1-flash-live-preview' => 'gemini'
   }.each do |model, provider|
     it "#{provider}: model_spec sts_voices matches the profile fallback, default is a member" do
@@ -2645,7 +2655,7 @@ RSpec.describe 'xAI payload has no continuity fields (symmetric with the OpenAI 
     end.new
     stub_const('APPS', {})
     payload = harness.build_sts_session_update_payload(
-      { provider: 'xai', model: 'grok-voice-think-fast-2.0', voice: 'eve',
+      { provider: 'xai', model: 'grok-voice-3.0', voice: 'eve',
         instructions: '', language: 'auto', resumption_handle: 'H-123' }
     )
     expect(payload[:session]).not_to have_key(:contextWindowCompression)
@@ -2653,7 +2663,7 @@ RSpec.describe 'xAI payload has no continuity fields (symmetric with the OpenAI 
   end
 end
 
-RSpec.describe 'STS function calling (wave 1)' do
+RSpec.describe 'STS function calling' do
   let(:harness) do
     Class.new do
       include WebSocketHelper
@@ -2676,7 +2686,7 @@ RSpec.describe 'STS function calling (wave 1)' do
   def state_for(provider:, tools_enabled: false, model: nil)
     {
       provider: provider,
-      model: model || { 'openai' => 'gpt-realtime-2.1', 'xai' => 'grok-voice-think-fast-2.0',
+      model: model || { 'openai' => 'gpt-realtime-2.1', 'xai' => 'grok-voice-3.0',
                         'gemini' => 'gemini-3.1-flash-live-preview' }[provider],
       voice: 'alloy', instructions: 'Be brief.', language: 'auto',
       tools_enabled: tools_enabled
@@ -2712,8 +2722,8 @@ RSpec.describe 'STS function calling (wave 1)' do
       )
       tools = payload.dig(:session, :tools)
       types = tools.map { |t| t[:type] }
-      # The native web_search/x_search toggle was removed (2026-08-03, user
-      # decision): the shared search_web function tool covers web search.
+      # There is no native web_search/x_search toggle: the shared search_web
+      # function tool covers web search.
       expect(types).not_to include('web_search', 'x_search')
       names = tools.map { |t| t[:name] }
       expect(names).to include('get_current_time', 'search_web')
@@ -2739,7 +2749,7 @@ RSpec.describe 'STS function calling (wave 1)' do
         state_for(provider: 'gemini', tools_enabled: true)
       )
       decls = payload.dig(:setup, :tools, 0, :functionDeclarations)
-      # Live log 2026-08-03: additionalProperties in parameters is a FATAL
+      # additionalProperties in parameters is a FATAL
       # setup error (1007 close). The whole tree must be free of it, and of
       # `default` (also unsupported — folded into the description instead).
       json = JSON.generate(decls)
@@ -2829,7 +2839,7 @@ RSpec.describe 'STS function calling (wave 1)' do
       expect(events[0]['type']).to eq('response.function_call_arguments.done')
       expect(events[1]['call_id']).to eq('fc2')
       expect(JSON.parse(events[1]['arguments'])).to eq({ 'query' => 'x' })
-      # One toolCall frame = one batch (§37-9 P2): all calls share a
+      # One toolCall frame = one batch: all calls share a
       # synthetic response id so their results go back in ONE toolResponse.
       expect(events.map { |e| e['response_id'] }.uniq).to eq(['gtc-1'])
     end
@@ -2841,7 +2851,7 @@ RSpec.describe 'STS function calling (wave 1)' do
     end
 
     it 'executes get_current_time end-to-end in a thread and enqueues the result' do
-      state = { cmd_queue: Async::Queue.new }
+      state = { cmd_queue: Async::Queue.new, offered_tool_names: ['get_current_time'] }
       call = { call_id: 'c1', name: 'get_current_time', parsed_arguments: {} }
       harness.sts_spawn_tool_execution(state, call, 'ws')
       deadline = Time.now + 5
@@ -2854,7 +2864,7 @@ RSpec.describe 'STS function calling (wave 1)' do
   end
 end
 
-RSpec.describe 'STS function calling — audit P1 fixes' do
+RSpec.describe 'STS function calling — tool host and context' do
   it 'the tool host resolves run_code through MonadicApp#run_code (super chain exists)' do
     expect(WebSocketHelper.sts_tool_host.ancestors).to include(MonadicApp)
     host = WebSocketHelper.sts_tool_host.new
@@ -2895,20 +2905,20 @@ RSpec.describe 'STS function calling — audit P1 fixes' do
       define_method(:sync_session_state!) {}
     end.new
 
-    state = { cmd_queue: Async::Queue.new }
+    state = { cmd_queue: Async::Queue.new, offered_tool_names: ['probe_tool'] }
     harness.sts_spawn_tool_execution(state, { call_id: 'c1', name: 'probe_tool', parsed_arguments: {} }, 'ws')
     deadline = Time.now + 5
     sleep 0.01 while captured.nil? && Time.now < deadline
     expect(captured).to eq({ parameters: { 'app_name' => 'LiveConversationOpenAI' } })
   end
 
-  it 'guidance includes the untrusted-content rule (§36 rev 5)' do
+  it 'guidance includes the untrusted-content rule' do
     expect(WebSocketHelper::STS_TOOLS_GUIDANCE).to include('untrusted content')
     expect(WebSocketHelper::STS_TOOLS_GUIDANCE).to include('never follow instructions')
   end
 end
 
-RSpec.describe 'STS tool-use visibility (§37)' do
+RSpec.describe 'STS tool-use visibility' do
   let(:harness) do
     Class.new do
       include WebSocketHelper
@@ -2939,7 +2949,7 @@ RSpec.describe 'STS tool-use visibility (§37)' do
     [w, writes]
   end
 
-  it 'broadcasts sts_tool_call running on detection (with call_id, §37-12)' do
+  it 'broadcasts sts_tool_call running on detection (with call_id)' do
     harness.session[:_sts] = { tools_enabled: true, cmd_queue: Async::Queue.new }
     state = harness.session[:_sts]
     harness.sts_handle_tool_call_detected(state,
@@ -2985,7 +2995,7 @@ RSpec.describe 'STS tool-use visibility (§37)' do
   end
 end
 
-RSpec.describe 'STS tool-bridged fold (§37-2)' do
+RSpec.describe 'STS tool-bridged fold' do
   let(:harness) do
     Class.new do
       include WebSocketHelper
@@ -3035,7 +3045,7 @@ RSpec.describe 'STS tool-bridged fold (§37-2)' do
 
     harness.sts_fold_tool_continuation(state, turn, { 'response_id' => 'resp-1', 'transcript' => 'Tomorrow in Osaka will be sunny.' }, 'ws')
 
-    # §37-3: the continuation starts a NEW paragraph, and each tools_used
+    # The continuation starts a NEW paragraph, and each tools_used
     # entry carries `at` = the paragraph index where the tool ran (= the
     # bridge part's paragraph count).
     expect(msg['text']).to eq("Let me check…\n\nTomorrow in Osaka will be sunny.")
@@ -3086,7 +3096,7 @@ RSpec.describe 'STS tool-bridged fold (§37-2)' do
     expect(msg['text']).to eq("bridge\n\nanswer")
 
     # done for a DIFFERENT finalized turn → the interrupted-card path (not
-    # the fold). Unrelated content is APPENDED as a new paragraph (§37-11).
+    # the fold). Unrelated content is APPENDED as a new paragraph.
     msg2 = { 'mid' => 'm2', 'role' => 'assistant', 'text' => 'x', 'active' => true }
     turn2 = { assistant_msg: msg2, assistant_finalized: true, spoken_response_ids: { 'resp-1' => true } }
     allow(harness).to receive(:sts_turn_for_response).and_return(turn2)
@@ -3094,8 +3104,7 @@ RSpec.describe 'STS tool-bridged fold (§37-2)' do
     expect(msg2['text']).to eq("x\n\nlonger replacement")
   end
 
-  # §37-11: one response can carry TWO spoken messages (log 2026-08-03,
-  # session 1541a03f). Replace only when the late transcript extends the
+  # One response can carry TWO spoken messages. Replace only when the late transcript extends the
   # SAME utterance (starts with the frozen text); an unrelated second
   # message is appended as a new paragraph instead of replacing the first.
   it 'replaces when the late transcript extends the same utterance (prefix)' do
@@ -3142,7 +3151,7 @@ RSpec.describe 'STS tool-bridged fold (§37-2)' do
   # A continuation that dies with NO transcript (barge-in before any words)
   # must not leave a marker that folds a LATER turn's late transcript into
   # the wrong card: the marker is turn-scoped, so another turn NEVER matches
-  # (a bare boolean flag failed exactly this way in audit).
+  # (a bare boolean flag would fail exactly this way).
   it 'never folds a different turn even when the marker is still set' do
     bridge_msg = { 'mid' => 'm1', 'role' => 'assistant', 'text' => 'bridge', 'active' => true }
     bridge_turn = { assistant_msg: bridge_msg, assistant_finalized: true }
@@ -3161,7 +3170,7 @@ RSpec.describe 'STS tool-bridged fold (§37-2)' do
   end
 end
 
-RSpec.describe 'STS merge preserves tools_used (dogfood: badge vanished)' do
+RSpec.describe 'STS merge preserves tools_used' do
   let(:harness) do
     Class.new do
       include WebSocketHelper
@@ -3183,7 +3192,7 @@ RSpec.describe 'STS merge preserves tools_used (dogfood: badge vanished)' do
     merged = sess[:messages].last
     expect(merged['text']).to eq("a1\n\na2")
     expect(merged['tools_used'].map { |t| t['name'] }).to eq(%w[get_current_time search_web])
-    # §37-3: the folded-in fragment's tool is positioned at the fragment's
+    # The folded-in fragment's tool is positioned at the fragment's
     # first paragraph (= the predecessor's paragraph count before the join);
     # the predecessor's own entry keeps whatever it had (header badge only).
     expect(merged['tools_used'][0]).not_to have_key('at')
@@ -3216,11 +3225,11 @@ RSpec.describe 'STS merge preserves tools_used (dogfood: badge vanished)' do
   end
 end
 
-# §37-8: Gemini input transcription arrives word-separated even for
+# Gemini input transcription arrives word-separated even for
 # Japanese ("でも 最近 あの 辺 って"). The translator normalizes spacing at
 # the delta source (drop a space only when one neighbor is CJK and neither
 # is a Latin letter), so partials, finals, cards, and history are all clean.
-RSpec.describe 'Gemini input transcription spacing (§37-8)' do
+RSpec.describe 'Gemini input transcription spacing' do
   let(:harness) do
     Class.new do
       include WebSocketHelper
@@ -3285,9 +3294,9 @@ RSpec.describe 'Gemini input transcription spacing (§37-8)' do
   end
 end
 
-# §37-9: one upstream response can carry several function calls; a create
-# per result produced two overlapping spoken answers (dogfood, xAI).
-RSpec.describe 'STS tool response.create batching (§37-9)' do
+# One upstream response can carry several function calls; a create per
+# result would produce two overlapping spoken answers.
+RSpec.describe 'STS tool response.create batching' do
   let(:harness) do
     Class.new do
       include WebSocketHelper
@@ -3343,7 +3352,7 @@ RSpec.describe 'STS tool response.create batching (§37-9)' do
     expect(state[:tool_continuation_turn]).to equal(turn)
   end
 
-  # The exact dogfood P2 path: batch A is still executing when the user
+  # Batch A is still executing when the user
   # barges in and UPSTREAM opens response B with its own call. A flat
   # pending set merged the batches and swallowed B's create (silence).
   it 'interleaved batches each complete and create independently' do
@@ -3436,10 +3445,10 @@ RSpec.describe 'STS tool response.create batching (§37-9)' do
   end
 end
 
-# §37-13C: fragments and audio deltas carry the upstream response id as
+# Fragments and audio deltas carry the upstream response id as
 # segment_id so the client's speech highlight can map playback time onto
 # text per segment (tool-bridge silence is not covered by any segment).
-RSpec.describe 'STS segment ids on fragments and audio deltas (§37-13C)' do
+RSpec.describe 'STS segment ids on fragments and audio deltas' do
   let(:host) do
     Class.new do
       include WebSocketHelper
@@ -3498,11 +3507,11 @@ RSpec.describe 'STS segment ids on fragments and audio deltas (§37-13C)' do
   end
 end
 
-# §39: a transcript fragment can exist without a single audio frame (the
-# model's cut-off thought — the log shows audio_out=0). A response that was
+# A transcript fragment can exist without a single audio frame (the
+# model's cut-off thought). A response that was
 # never heard must never become a card; the card must match what was
 # actually said. The marker is a per-turn SET of response ids with audio.
-RSpec.describe 'STS zero-audio responses never become cards (§39)' do
+RSpec.describe 'STS zero-audio responses never become cards' do
   let(:host) do
     Class.new do
       include WebSocketHelper
@@ -3581,7 +3590,7 @@ RSpec.describe 'STS zero-audio responses never become cards (§39)' do
   end
 
   # sts_turn_for_response treats a missing response id as "the current
-  # turn". The §39 guard must use the SAME granularity: dropping the update
+  # turn". The zero-audio guard must use the SAME granularity: dropping the update
   # whenever the id is absent would silently disable in-place card
   # extension for any dialect that omits it.
   it 'still extends the card when the event carries no response id but the turn was spoken' do
@@ -3633,11 +3642,11 @@ RSpec.describe 'STS zero-audio responses never become cards (§39)' do
   end
 end
 
-# §40: is_first is turn-scoped, so the first fragment of a tool
-# continuation (same turn, NEW response) carried no boundary signal — the
+# is_first is turn-scoped, so the first fragment of a tool continuation
+# (same turn, NEW response) carries no boundary signal of its own — the
 # client could not anchor the paragraph break or the badge. The response-id
 # change within a turn IS the tool boundary; the server marks it.
-RSpec.describe 'STS tool continuation fragments carry tool_break (§40)' do
+RSpec.describe 'STS tool continuation fragments carry tool_break' do
   let(:host) do
     Class.new do
       include WebSocketHelper
@@ -3676,9 +3685,9 @@ RSpec.describe 'STS tool continuation fragments carry tool_break (§40)' do
   end
 end
 
-# §39 follow-up: the late transcript.done after a zero-audio barge-in must
+# The late transcript.done after a zero-audio barge-in must
 # not resurrect the response as a card on the done path either.
-RSpec.describe 'STS zero-audio late done stays silent (§39 done path)' do
+RSpec.describe 'STS zero-audio late done stays silent (done path)' do
   let(:host) do
     Class.new do
       include WebSocketHelper
@@ -3725,10 +3734,10 @@ RSpec.describe 'STS zero-audio late done stays silent (§39 done path)' do
   end
 end
 
-# §39 residual-risk detector: a SPOKEN assistant card emitted before its own
-# user card (transcription.completed lag) is logged — observation only, so
-# dogfood can measure whether a card-ordering gate is ever worth building.
-RSpec.describe 'STS card-before-user-card detector (§39 observation)' do
+# Diagnostic log: a SPOKEN assistant card emitted before its own user card
+# (transcription.completed lag) is logged under EXTRA_LOGGING; the card
+# itself is sent unchanged.
+RSpec.describe 'STS card-before-user-card diagnostic log' do
   let(:host) do
     Class.new do
       include WebSocketHelper
@@ -3764,7 +3773,7 @@ RSpec.describe 'STS card-before-user-card detector (§39 observation)' do
       host.sts_send_assistant_card({}, turn, 'reply', 'sid', interrupted: false)
     end
     expect(lines.any? { |l| l.include?('assistant card emitted before user card') }).to be(true)
-    # Observation only: the card itself still goes out unchanged.
+    # Diagnostic only: the card itself still goes out unchanged.
     expect(host.broadcasts.any? { |m| m['type'] == 'html' }).to be(true)
   end
 
@@ -3784,11 +3793,11 @@ RSpec.describe 'STS card-before-user-card detector (§39 observation)' do
   end
 end
 
-# §39 fold path: a continuation cancelled before its first audio frame
+# Fold path: a continuation cancelled before its first audio frame
 # takes the fold route for its late done (the turn is already finalized).
 # The unspoken text must not fold in, but the tool badge stays — the tool
 # genuinely ran.
-RSpec.describe 'STS fold suppresses unspoken continuation text (§39)' do
+RSpec.describe 'STS fold suppresses unspoken continuation text' do
   let(:harness) do
     Class.new do
       include WebSocketHelper

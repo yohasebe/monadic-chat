@@ -18,7 +18,8 @@
 /**
  * Handle "token_verified" WebSocket message.
  * Enables OpenAI TTS/STT models and updates UI state.
- * @param {Object} data - Message data with token and ai_user_initial_prompt
+ * @param {Object} data - Message data with content and ai_user_initial_prompt
+ *   (never the key itself: the server checks its key and keeps it)
  */
 function handleTokenVerified(data) {
   // Use the handler if available, otherwise use inline code
@@ -26,9 +27,7 @@ function handleTokenVerified(data) {
   if (typeof wsHandlers !== 'undefined' && wsHandlers && typeof wsHandlers.handleTokenVerification === 'function') {
     handled = wsHandlers.handleTokenVerification(data);
   } else {
-    // Fallback to inline handling
-    const apiTokenEl = $id("api-token");
-    if (apiTokenEl) apiTokenEl.value = data["token"];
+    // Fallback to inline handling (the key itself is never sent to the page)
     const aiUserPromptEl = $id("ai-user-initial-prompt");
     if (aiUserPromptEl) aiUserPromptEl.value = data["ai_user_initial_prompt"];
     handled = true;
@@ -38,7 +37,7 @@ function handleTokenVerified(data) {
     window.verified = "full";
 
     // Enable OpenAI TTS options when token is verified
-    ["openai-tts-4o", "openai-tts", "openai-tts-hd"].forEach(function(id) {
+    window.TtsProvider.idsOf("openai").forEach(function(id) {
       const el = $id(id);
       if (el) el.disabled = false;
     });
@@ -102,11 +101,8 @@ function handleOpenAIAPIError(_data) {
     if (el) el.disabled = false;
   });
 
-  const apiTokenEl = $id("api-token");
-  if (apiTokenEl) apiTokenEl.value = "";
-
   // Disable OpenAI TTS options
-  ["openai-tts-4o", "openai-tts", "openai-tts-hd"].forEach(function(id) {
+  window.TtsProvider.idsOf("openai").forEach(function(id) {
     const el = $id(id);
     if (el) el.disabled = true;
   });
@@ -134,11 +130,8 @@ function handleTokenNotVerified(_data) {
     if (el) el.disabled = false;
   });
 
-  const tokenEl = $id("api-token");
-  if (tokenEl) tokenEl.value = "";
-
   // Disable OpenAI TTS options
-  ["openai-tts-4o", "openai-tts", "openai-tts-hd"].forEach(function(id) {
+  window.TtsProvider.idsOf("openai").forEach(function(id) {
     const el = $id(id);
     if (el) el.disabled = true;
   });
@@ -153,11 +146,31 @@ function handleTokenNotVerified(_data) {
   setAlert(`<i class='fa-solid fa-bolt'></i> ${tokenNotSetText}`, "warning");
 }
 
+/**
+ * Handle "secret_references_unresolved": keys left unset because their
+ * 1Password references could not be read when the server started (names
+ * only). Shown once per page, in full, as a system card: the status line
+ * is too short for what to do about it.
+ * @param {Object} data - { keys: [String] }
+ */
+function handleSecretReferencesUnresolved(data) {
+  const keys = Array.isArray(data && data.keys) ? data.keys.map(String) : [];
+  if (keys.length === 0 || window.secretReferencesNoticeShown) return;
+  window.secretReferencesNoticeShown = true;
+
+  const template = getTranslation('ui.messages.unresolvedSecretReferences',
+    'These keys are 1Password references that could not be read, so they are not set: {keys}. ' +
+    'Unlock 1Password and restart Monadic Chat.');
+  const names = keys.map((k) => `<code>${window.escapeHtml(k)}</code>`).join(', ');
+  setAlert(template.replace('{keys}', names), "error");
+}
+
 // Export for browser environment
 window.WsConnectionHandler = {
   handleTokenVerified,
   handleOpenAIAPIError,
-  handleTokenNotVerified
+  handleTokenNotVerified,
+  handleSecretReferencesUnresolved
 };
 
 // Support for Jest testing environment (CommonJS)

@@ -2,6 +2,8 @@
 
 require 'cgi'
 
+require_relative "../../utils/request_retry"
+require_relative "../../utils/shared_path_guard"
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/usage_normalizer"
 require_relative "../../utils/error_formatter"
@@ -319,7 +321,9 @@ module GrokHelper
         { "role" => msg["role"], "content" => [{ "type" => "text", "text" => augmented_text }] }
       else
         message = { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
-        if msg["images"] && role == "user"
+        # A user message keeps its images when the request returns tool
+        # results too: the answer is written by that later request.
+        if msg["images"] && (role == "user" || msg["role"] == "user")
           msg["images"].each do |img|
             messages_containing_img = true
             message["content"] << {
@@ -489,7 +493,10 @@ module GrokHelper
     if privacy_enabled_for?(app_settings, session) && body["input"].is_a?(Array)
       body["input"] = apply_privacy_to_messages(body["input"], session, app_settings)
     end
+    # Words the user marked: masked wherever they are in the body, or nothing is sent.
+    protect_marked_words!(body, session, app_settings)
 
+    Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
     res = post_json_with_retries(http, target_uri, body,
                                  max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
 
@@ -518,11 +525,13 @@ module GrokHelper
                    .map { |c| c["text"] }
                    .join
       frag = "" if frag.nil?
-      block&.call({ "type" => "fragment", "content" => frag, "finish_reason" => "stop" })
-      block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-
-      # Check for function calls in output
+      # A reply that calls tools is not the end of the turn: the browser keeps
+      # its "processing tools" state when DONE comes with "tool_calls".
       function_calls = output.select { |item| item["type"] == "function_call" }
+      finish_reason = function_calls.any? ? "tool_calls" : "stop"
+      block&.call({ "type" => "fragment", "content" => frag, "finish_reason" => finish_reason })
+      block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => finish_reason })
+
       if function_calls.any?
         tool_calls = function_calls.map do |fc|
           { "id" => fc["call_id"] || fc["id"], "function" => { "name" => fc["name"], "arguments" => fc["arguments"] || "{}" } }
@@ -628,12 +637,16 @@ module GrokHelper
 
     # Execute function
     begin
-      function_return = if function_name == "request_tool"
+      refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
+      function_return = if refusal
+        # Run only the tools offered to the model in the latest request.
+        refusal
+      elsif function_name == "request_tool"
         Monadic::Utils::ProgressiveToolManager.handle_request_tool(
           session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: argument_hash
         )
       else
-        APPS[app].send(function_name.to_sym, **argument_hash)
+        APPS[app].public_send(function_name.to_sym, **argument_hash)
       end
       send_verification_notification(session, &block) if function_name == "report_verification"
 
@@ -699,11 +712,11 @@ module GrokHelper
                     File.join(File.expand_path("~/monadic/data"), actual_path)
 
       begin
-        if File.exist?(full_path)
-          content = File.read(full_path)
-          if content.include?("&lt;svg") || content.include?("&gt;")
-            File.write(full_path, content.gsub("&lt;", "<").gsub("&gt;", ">").gsub("&quot;", '"').gsub("&amp;", "&"))
-          end
+        # The name comes from what the run printed: read and written only as
+        # a plain file of the shared folder, never through a link.
+        content = Monadic::Utils::SharedPathGuard.read_file!(full_path) { |f| f.read.force_encoding("UTF-8") }
+        if content.include?("&lt;svg") || content.include?("&gt;")
+          Monadic::Utils::SharedPathGuard.write_file!(full_path, content.gsub("&lt;", "<").gsub("&gt;", ">").gsub("&quot;", '"').gsub("&amp;", "&"))
         end
       rescue StandardError
         # ignore
@@ -1094,7 +1107,7 @@ module GrokHelper
 
       html = markdown_to_html(obj["message"], math: obj["math"])
 
-      if message != "" && role == "user"
+      if user_turn_to_record?(role, message, session)
 
         res = { "type" => "user",
                 "content" => {
@@ -1106,20 +1119,7 @@ module GrokHelper
                   "app_name" => obj["app_name"]
                 } }
         res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
-        block&.call res
-
-        # Check if this user message was already added by websocket.rb (for context extraction)
-        # to avoid duplicate consecutive user messages that cause API errors
-        existing_msg = session[:messages].find do |m|
-          m["role"] == "user" && m["text"] == obj["message"]
-        end
-
-        if existing_msg
-          # Update existing message with additional fields instead of adding new one
-          existing_msg.merge!(res["content"])
-        else
-          session[:messages] << res["content"]
-        end
+        record_user_turn!(session, res, &block)
       end
     end
 
@@ -1212,6 +1212,7 @@ module GrokHelper
 
     configure_grok_tools(body, model, obj, app, session, role, websearch_native)
 
+    context = model_facing_context(context)
     context_messages, _messages_containing_img = build_grok_messages(
       context, role, obj, session, body, message_with_snippet, prompt_suffix, data, &block
     )
@@ -1228,24 +1229,35 @@ module GrokHelper
       )
     end
 
-    execute_grok_api_call(headers, body, app, session, call_depth, disable_streaming, original_user_model, &block)
-  rescue HTTP::Error, HTTP::TimeoutError
-    if num_retrial < MAX_RETRIES
+    # Only the request is retried, so nothing before it (such as the
+    # user card) is sent again, and only until part of the reply has reached
+    # the browser. Each attempt sends a copy of the request body, which the
+    # call adds fields of its own to. After MAX_RETRIES the error goes on to
+    # the rescue below.
+    request_body = body
+    sent = { replied: false }
+    relay = Monadic::Utils::RequestRetry.relay(block, sent)
+    begin
+      body = Monadic::Utils::RequestRetry.copy(request_body)
+      execute_grok_api_call(headers, body, app, session, call_depth, disable_streaming, original_user_model, &relay)
+    rescue HTTP::Error, HTTP::TimeoutError
+      raise if num_retrial >= MAX_RETRIES || sent[:replied]
+
       num_retrial += 1
       sleep RETRY_DELAY
       retry
-    else
-      error_message = "The request has timed out."
-      DebugHelper.debug(error_message, category: :api, level: :error)
-      formatted_error = Monadic::Utils::ErrorFormatter.network_error(
-          provider: "xAI",
-          message: error_message,
-          timeout: true
-        )
-      res = { "type" => "error", "content" => formatted_error }
-      block&.call res
-      [res]
     end
+  rescue HTTP::Error, HTTP::TimeoutError
+    error_message = "The request has timed out."
+    DebugHelper.debug(error_message, category: :api, level: :error)
+    formatted_error = Monadic::Utils::ErrorFormatter.network_error(
+        provider: "xAI",
+        message: error_message,
+        timeout: true
+      )
+    res = { "type" => "error", "content" => formatted_error }
+    block&.call res
+    [res]
   rescue StandardError => e
     DebugHelper.debug("API request error: #{e.message}", category: :api, level: :error)
     DebugHelper.debug("Backtrace: #{e.backtrace.join("\n")}", category: :api, level: :debug)

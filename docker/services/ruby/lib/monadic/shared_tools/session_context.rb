@@ -17,6 +17,7 @@
 #   end
 
 require_relative 'monadic_session_state'
+require_relative '../utils/extra_logger'
 
 module MonadicSharedTools
   module SessionContext
@@ -68,12 +69,12 @@ module MonadicSharedTools
     #   update_context(topics: ["Machine Learning"], notes: ["User prefers Python"])
     #   # => { success: true, context: { topics: [...], people: [...], notes: [...] } }
     def update_context(topics: nil, people: nil, notes: nil, replace: false, session: nil)
-      # Always log when update_context is called (for debugging)
-      puts "[SessionContext] update_context called with topics=#{topics.inspect}, people=#{people.inspect}, notes=#{notes.inspect}, replace=#{replace}"
-      puts "[SessionContext] session parameter received: #{session.nil? ? 'nil' : 'present'}"
+      # Logged with EXTRA_LOGGING (it carries the context)
+      Monadic::Utils::ExtraLogger.log { "[SessionContext] update_context called with topics=#{topics.inspect}, people=#{people.inspect}, notes=#{notes.inspect}, replace=#{replace}" }
+      Monadic::Utils::ExtraLogger.log { "[SessionContext] session parameter received: #{session.nil? ? 'nil' : 'present'}" }
 
       session ||= @session || Thread.current[:session]
-      puts "[SessionContext] session after fallback: #{session.nil? ? 'nil' : 'present'}"
+      Monadic::Utils::ExtraLogger.log { "[SessionContext] session after fallback: #{session.nil? ? 'nil' : 'present'}" }
 
       # Get current context (pass session to ensure consistency)
       current = get_context(session: session)
@@ -171,13 +172,13 @@ module MonadicSharedTools
                    Thread.current[:websocket_session_id]
 
       if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        puts "[SessionContext] broadcast_context_update called"
-        puts "[SessionContext] session_id: #{session_id.inspect}"
-        puts "[SessionContext] context: #{context.inspect}"
+        Monadic::Utils::ExtraLogger.log { "[SessionContext] broadcast_context_update called" }
+        Monadic::Utils::ExtraLogger.log { "[SessionContext] session_id: #{session_id.inspect}" }
+        Monadic::Utils::ExtraLogger.log { "[SessionContext] context: #{context.inspect}" }
       end
 
       unless session_id
-        puts "[SessionContext] No session_id found, skipping broadcast" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "[SessionContext] No session_id found, skipping broadcast" }
         return
       end
 
@@ -190,15 +191,15 @@ module MonadicSharedTools
       # Use WebSocketHelper to send to specific session only
       if defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:send_to_session)
         WebSocketHelper.send_to_session(message.to_json, session_id)
-        puts "[SessionContext] Sent context_update to session #{session_id}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "[SessionContext] Sent context_update to session #{session_id}" }
       else
-        puts "[SessionContext] WebSocketHelper not available" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "[SessionContext] WebSocketHelper not available" }
       end
     rescue StandardError => e
       # Log error but don't fail the context update
       if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        puts "[SessionContext] WebSocket broadcast error: #{e.message}"
-        puts "[SessionContext] Backtrace: #{e.backtrace.first(5).join("\n")}"
+        Monadic::Utils::ExtraLogger.log { "[SessionContext] WebSocket broadcast error: #{e.message}" }
+        Monadic::Utils::ExtraLogger.log { "[SessionContext] Backtrace: #{e.backtrace.first(5).join("\n")}" }
       end
     end
 

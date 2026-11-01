@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
+require_relative "../../utils/request_retry"
+require_relative "../../utils/shared_path_guard"
 require_relative "../../utils/http_client"
+require_relative "../../utils/privacy/outbound"
 require 'cgi'
 require 'fileutils'
 require 'base64'
@@ -31,7 +34,6 @@ module OpenAIHelper
   # 20 round-trips is generous for most workflows; Auto Forge complex builds may use 15+.
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.openai.com/v1"
-  REASONING_CONTEXT_MAX = 3
 
   # Output-token param name for OpenAI's Chat Completions and Responses
   # APIs. GPT-5.x rejected the legacy `max_tokens` form in 2026-Q1; the
@@ -543,13 +545,13 @@ module OpenAIHelper
         source = File.realpath(img["data"].to_s) rescue nil
         root = File.realpath(shared_folder) rescue nil
         if source && root && source.start_with?(root + File::SEPARATOR) && File.file?(source)
-          FileUtils.cp(source, target_path)
+          Monadic::Utils::SharedPathGuard.copy_file!(source, target_path)
           true
         elsif img["data"].to_s.start_with?("data:")
           data_uri = img["data"].to_s
           _content_type, encoded_data = data_uri.match(/^data:([^;]+);base64,(.+)$/)[1..2]
           decoded_data = Base64.decode64(encoded_data)
-          File.open(target_path, 'wb') { |f| f.write(decoded_data) }
+          Monadic::Utils::SharedPathGuard.write_file!(target_path, decoded_data)
           true
         else
           false
@@ -673,11 +675,12 @@ module OpenAIHelper
   private def build_openai_messages(body, context, session, obj, role, image_generation, image_file_references,
                                     reasoning_model, websearch_enabled, websearch_prompt, initial_prompt, prompt_suffix, message_with_snippet, &block)
     messages_containing_img = false
-    data = nil
 
     body["messages"] = context.compact.map do |msg|
       message = { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
-      if msg["images"] && role == "user" && !image_generation
+      # A user message keeps its images when the request returns tool
+      # results too: the answer is written by that later request.
+      if msg["images"] && (role == "user" || msg["role"] == "user") && !image_generation
         msg["images"].each do |img|
           messages_containing_img = true
           if img["type"] == "application/pdf" || document_type?(img["type"])
@@ -765,11 +768,6 @@ module OpenAIHelper
 
     last_text = context.last&.dig("text")
 
-    if last_text&.match?(/\^\s*__DATA__\s*$/m)
-      last_text, data = last_text.split("__DATA__")
-      context.last["text"] = last_text if context.last
-    end
-
     last_text = message_with_snippet if message_with_snippet.to_s != ""
 
     # If this is an image generation request, add the image filenames to the last message
@@ -846,17 +844,6 @@ module OpenAIHelper
           end
         end
       end
-    end
-
-    if data
-      body["messages"] << {
-        "role" => "user",
-        "content" => [{ "type" => "text", "text" => data.strip }]
-      }
-      body["prediction"] = {
-        "type" => "content",
-        "content" => data.strip
-      }
     end
 
     # Use unified system prompt injector for dynamic prompt augmentation
@@ -1239,6 +1226,8 @@ module OpenAIHelper
         body["input"] = apply_privacy_to_messages(body["input"], session, app_settings)
       end
     end
+    # Words the user marked: masked wherever they are in the body, or nothing is sent.
+    protect_marked_words!(body, session, app_settings)
 
     DebugHelper.debug("OpenAI API endpoint: #{target_uri}", category: :api, level: :debug)
     DebugHelper.debug("Using Responses API: #{use_responses_api}", category: :api, level: :debug)
@@ -1269,6 +1258,7 @@ module OpenAIHelper
         }
       end
 
+      Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
       res = http.timeout(**timeout_settings).post(target_uri, json: body)
       break if res.status.success?
 
@@ -1276,12 +1266,14 @@ module OpenAIHelper
     end
 
     unless res&.status&.success?
-      error_body = JSON.parse(res.body)
-      error_report = error_body["error"]
-      Monadic::Utils::ExtraLogger.log { "[OpenAI API Error] #{error_report}" }
+      # A proxy or gateway can answer with a body that is not JSON.
+      error_body = (JSON.parse(res.body) rescue nil)
+      error_report = error_body.is_a?(Hash) ? error_body["error"] : nil
+      Monadic::Utils::ExtraLogger.log { "[OpenAI API Error] #{error_report || "HTTP #{res.status}"}" }
+      message = error_report.is_a?(Hash) ? error_report["message"] : error_report
       formatted_error = Monadic::Utils::ErrorFormatter.api_error(
         provider: "OpenAI",
-        message: error_report["message"] || "Unknown API error",
+        message: message || "HTTP #{res.status}",
         code: res.status.code
       )
       res = { "type" => "error", "content" => formatted_error }
@@ -1470,7 +1462,7 @@ module OpenAIHelper
 
       html = markdown_to_html(message, math: obj["math"])
 
-      if message != "" && role == "user"
+      if user_turn_to_record?(role, message, session)
 
         res = { "type" => "user",
                 "content" => {
@@ -1482,20 +1474,7 @@ module OpenAIHelper
                   "app_name" => obj["app_name"]
                 } }
         res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
-        block&.call res
-
-        # Check if this user message was already added by websocket.rb (for context extraction)
-        # to avoid duplicate consecutive user messages that cause API errors
-        existing_msg = session[:messages].find do |m|
-          m["role"] == "user" && m["text"] == obj["message"]
-        end
-
-        if existing_msg
-          # Update existing message with additional fields instead of adding new one
-          existing_msg.merge!(res["content"])
-        else
-          session[:messages] << res["content"]
-        end
+        record_user_turn!(session, res, &block)
       end
     end
 
@@ -1549,6 +1528,7 @@ module OpenAIHelper
     configure_openai_tools(body, obj, app, session, role, caps, use_responses_api)
 
     # Process images and build messages
+    context = model_facing_context(context)
     image_file_references = prepare_openai_image_generation_refs(context, image_generation, role, shared_folder)
     messages_containing_img = build_openai_messages(
       body, context, session, obj, role, image_generation, image_file_references,
@@ -1577,28 +1557,39 @@ module OpenAIHelper
       end
     end
 
-    execute_openai_api_call(
-      headers, body, target_uri, app, session, obj,
-      use_responses_api, reasoning_model, reasoning_effort,
-      original_user_model, current_call_depth, num_retrial, &block
-    )
-  rescue HTTP::Error, HTTP::TimeoutError
-    if num_retrial < MAX_RETRIES
+    # Only the request is retried, so nothing before it (such as the
+    # user card) is sent again, and only until part of the reply has reached
+    # the browser. Each attempt sends a copy of the request body, which the
+    # call adds fields of its own to. After MAX_RETRIES the error goes on to
+    # the rescue below.
+    request_body = body
+    sent = { replied: false }
+    relay = Monadic::Utils::RequestRetry.relay(block, sent)
+    begin
+      body = Monadic::Utils::RequestRetry.copy(request_body)
+      execute_openai_api_call(
+        headers, body, target_uri, app, session, obj,
+        use_responses_api, reasoning_model, reasoning_effort,
+        original_user_model, current_call_depth, num_retrial, &relay
+      )
+    rescue HTTP::Error, HTTP::TimeoutError
+      raise if num_retrial >= MAX_RETRIES || sent[:replied]
+
       num_retrial += 1
       sleep RETRY_DELAY
       retry
-    else
-      error_message = "The request has timed out."
-      Monadic::Utils::ExtraLogger.log { "[OpenAI] #{error_message}" }
-      formatted_error = Monadic::Utils::ErrorFormatter.network_error(
-        provider: "OpenAI",
-        message: error_message,
-        timeout: true
-      )
-      res = { "type" => "error", "content" => formatted_error }
-      block&.call res
-      [res]
     end
+  rescue HTTP::Error, HTTP::TimeoutError
+    error_message = "The request has timed out."
+    Monadic::Utils::ExtraLogger.log { "[OpenAI] #{error_message}" }
+    formatted_error = Monadic::Utils::ErrorFormatter.network_error(
+      provider: "OpenAI",
+      message: error_message,
+      timeout: true
+    )
+    res = { "type" => "error", "content" => formatted_error }
+    block&.call res
+    [res]
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[OpenAI] Unexpected error: #{e.message}\n[OpenAI] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     formatted_error = Monadic::Utils::ErrorFormatter.api_error(
@@ -1978,16 +1969,22 @@ module OpenAIHelper
     skip_function_execution = false
     function_return = nil
 
+    # Run only the tools offered to the model in the latest request.
+    if (refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name))
+      function_return = refusal
+      skip_function_execution = true
+    end
+
     # request_tool has no Ruby method: it is the progressive-disclosure meta-tool.
     # Unlock the requested skill so its tools become visible on the next round.
-    if function_name == "request_tool"
+    if !skip_function_execution && function_name == "request_tool"
       function_return = Monadic::Utils::ProgressiveToolManager.handle_request_tool(
         session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: argument_hash
       )
       skip_function_execution = true
     end
 
-    if function_name == "find_help_topics" && app.to_s == "MonadicHelpOpenAI"
+    if !skip_function_execution && function_name == "find_help_topics" && app.to_s == "MonadicHelpOpenAI"
       obj["help_topics_call_count"] = obj["help_topics_call_count"].to_i + 1
       call_count = obj["help_topics_call_count"]
 
@@ -2030,9 +2027,9 @@ module OpenAIHelper
         end
 
         if argument_hash.empty?
-          function_return = APPS[app].send(function_name.to_sym)
+          function_return = APPS[app].public_send(function_name.to_sym)
         else
-          function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+          function_return = APPS[app].public_send(function_name.to_sym, **argument_hash)
         end
 
         Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{function_name} returned: #{function_return.to_s[0..500]}" }
@@ -2912,7 +2909,6 @@ module OpenAIHelper
         Array(entry["content"]).select { |c| c.is_a?(Hash) && c["type"] == "output_text" }.map { |c| c["text"] }
       end.flatten.join("\n\n").strip
       message["reasoning_content"] = reasoning_text_combined unless reasoning_text_combined.empty?
-      obj["reasoning_context"] = JSON.parse(JSON.generate(reasoning_entries.last(REASONING_CONTEXT_MAX)))
       # Carry this round's reasoning across the tool-call recursion (which
       # re-enters with a fresh local `state`) so the final answer's Thinking
       # panel reflects the whole trace. Read the raw segment text (the same
@@ -2978,23 +2974,7 @@ module OpenAIHelper
       merged_reasoning = [session[:openai_reasoning].to_s, reasoning_texts.join("\n\n")]
                          .reject { |s| s.strip.empty? }.join("\n\n")
       response["choices"][0]["message"]["reasoning_content"] = merged_reasoning unless merged_reasoning.strip.empty?
-      if reasoning_texts.any?
-        obj["reasoning_context"] = JSON.parse(JSON.generate(state[:reasoning_segments].filter_map do |segment|
-          text = segment[:text].to_s.strip
-          next if text.empty?
-          {
-            "type" => "reasoning",
-            "content" => [
-              {
-                "type" => "output_text",
-                "text" => text
-              }
-            ]
-          }
-        end.last(REASONING_CONTEXT_MAX)))
-      else
-        obj.delete("reasoning_context") if obj.key?("reasoning_context")
-      end
+      obj.delete("reasoning_context")
 
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => state[:finish_reason] || "stop" })
       [response]
@@ -3052,108 +3032,6 @@ module OpenAIHelper
 
   # Helper methods for Responses API
 
-  # Check if a model should use the Responses API
-  def use_responses_api?(model)
-    Monadic::Utils::ModelSpec.responses_api?(model)
-  end
-  
-  # Get a response by ID (for stateful conversations)
-  def get_response(response_id)
-    api_key = CONFIG["OPENAI_API_KEY"]
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
-    
-    target_uri = "#{API_ENDPOINT}/responses/#{response_id}"
-    http = Monadic::Utils::HttpClient.rest.headers(headers)
-    
-    begin
-      res = http.get(target_uri)
-      if res.status.success?
-        JSON.parse(res.body)
-      else
-        nil
-      end
-    rescue HTTP::Error, HTTP::TimeoutError
-      nil
-    end
-  end
-  
-  # Delete a response by ID
-  def delete_response(response_id)
-    api_key = CONFIG["OPENAI_API_KEY"]
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
-    
-    target_uri = "#{API_ENDPOINT}/responses/#{response_id}"
-    http = Monadic::Utils::HttpClient.rest.headers(headers)
-    
-    begin
-      res = http.delete(target_uri)
-      res.status.success?
-    rescue HTTP::Error, HTTP::TimeoutError
-      false
-    end
-  end
-  
-  # Cancel a background response
-  def cancel_response(response_id)
-    api_key = CONFIG["OPENAI_API_KEY"]
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
-    
-    target_uri = "#{API_ENDPOINT}/responses/#{response_id}/cancel"
-    http = Monadic::Utils::HttpClient.rest.headers(headers)
-    
-    begin
-      res = http.post(target_uri)
-      if res.status.success?
-        JSON.parse(res.body)
-      else
-        nil
-      end
-    rescue HTTP::Error, HTTP::TimeoutError
-      nil
-    end
-  end
-  
-  # Get input items for a response
-  def get_response_input_items(response_id, options = {})
-    api_key = CONFIG["OPENAI_API_KEY"]
-    headers = {
-      "Content-Type" => "application/json",
-      "Authorization" => "Bearer #{api_key}"
-    }
-    
-    params = {}
-    params[:limit] = options[:limit] if options[:limit]
-    params[:after] = options[:after] if options[:after]
-    params[:before] = options[:before] if options[:before]
-    params[:include] = options[:include] if options[:include]
-    
-    query_string = params.map { |k, v| "#{k}=#{v}" }.join("&")
-    target_uri = "#{API_ENDPOINT}/responses/#{response_id}/input_items"
-    target_uri += "?#{query_string}" unless query_string.empty?
-    
-    http = Monadic::Utils::HttpClient.rest.headers(headers)
-    
-    begin
-      res = http.get(target_uri)
-      if res.status.success?
-        JSON.parse(res.body)
-      else
-        nil
-      end
-    rescue HTTP::Error, HTTP::TimeoutError
-      nil
-    end
-  end
-
   # Document MIME types supported by OpenAI File Inputs API
   DOCUMENT_MIME_TYPES = %w[
     application/pdf
@@ -3178,6 +3056,10 @@ module OpenAIHelper
   # Returns file_id string on success, nil on failure (caller falls back to base64).
   def resolve_file_id_for_input(session, img)
     return nil unless img["data"].is_a?(String) && img["data"].include?(";base64,")
+    # A chat with words the user marked uploads nothing ahead of the request:
+    # the file goes in the request itself, where the last check sees its name
+    # and can stop the whole request before anything is sent.
+    return nil if Monadic::Utils::Privacy::Outbound.marked_terms?(session)
 
     # Parse data URI → mime_type, base64_data
     _header, base64_data = img["data"].split(";base64,", 2)

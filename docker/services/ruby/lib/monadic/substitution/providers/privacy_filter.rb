@@ -20,7 +20,7 @@ module Monadic
       # orchestration: language/entity-type resolution, registry bookkeeping,
       # restoration, and TTS sanitization.
       #
-      # 8-step pipeline (see docs_dev/privacy_filter_design.md):
+      # 8-step pipeline:
       #   register_input -> extract_entities -> update_registry -> render_masked
       #   -> send_to_llm (vendor adapter) -> validate_placeholders
       #   -> restore_for_user -> append_audit
@@ -32,7 +32,7 @@ module Monadic
       #
       # Two public surfaces coexist:
       #   * Generic Provider hooks (on_input / on_output_render) — String in/out,
-      #     for the Substitution::Pipeline chain (wired in a later phase).
+      #     for the Substitution::Pipeline provider contract.
       #   * Legacy rich methods (before_send_to_llm -> MaskedMessage,
       #     after_receive_from_llm -> RestoredResponse, sanitize_*, registry_*) —
       #     consumed by the existing vendor adapters, handlers, and agents.
@@ -49,6 +49,12 @@ module Monadic
         # token to the user. The captured TYPE_N rebuilds the clean registry
         # key, so the corruption never reaches the UI.
         RESTORE_RE = /<<[\s?]*([A-Z_]+)_(\d+)[\s?]*>>/
+
+        # The registry key a RESTORE_RE match stands for: the clean
+        # "<<TYPE_N>>", however the model mangled the token around it.
+        def self.placeholder_key(match)
+          "<<#{match[1]}_#{match[2]}>>"
+        end
 
         # Languages for which the Privacy container can build a spaCy NER model.
         # Mirrors docker/services/privacy/language_map.json keys.
@@ -158,18 +164,19 @@ module Monadic
           return restored_text unless enabled?
           return restored_text unless restored_text.is_a?(String) && !restored_text.empty?
           reg = @registry.registry
-          return restored_text if reg.empty?
+          # Words the user marked are not read out either, even before the
+          # chat's model has seen them (and so before they are in the registry).
+          marked = @registry.terms.map { |t| [t[:text] || t['text'], (t[:type] || t['type']).to_s.tr('_', ' ')] }
+          return restored_text if reg.empty? && marked.empty?
 
-          # Sort by original length descending so longer entities are replaced
-          # before any shorter substring of theirs.
-          ordered = reg.sort_by { |_, original| -original.to_s.length }
-          ordered.each_with_object(restored_text.dup) do |(placeholder, original), out|
-            next if original.to_s.empty?
+          labels = reg.filter_map do |placeholder, original|
             m = placeholder.match(/\A<<([A-Z_]+)_(\d+)>>\z/)
-            next unless m
-            label = "#{m[1].tr('_', ' ')} #{m[2]}"
-            out.gsub!(original.to_s, label)
+            [original.to_s, "#{m[1].tr('_', ' ')} #{m[2]}"] if m
           end
+          # Overlapping strings are replaced as one, so no part of one is read
+          # out because another was replaced first.
+          require_relative '../../utils/privacy/outbound'
+          Monadic::Utils::Privacy::Outbound.replace_union(restored_text, labels + marked)
         end
 
         def registry_count
@@ -208,6 +215,7 @@ module Monadic
             languages: resolve_languages,
             registry: @registry.registry,
             entity_types: presidio_entity_types,
+            terms: @registry.terms,
             options: {
               score_threshold: @config[:score_threshold],
               honorific_trim: @config[:honorific_trim]
@@ -236,7 +244,7 @@ module Monadic
             # corrupted token ("<<?EMAIL_ADDRESS_2?>>") maps to the clean
             # registry key "<<EMAIL_ADDRESS_2>>" — both on restore and in the
             # span/missing metadata, so the corruption never surfaces.
-            placeholder = "<<#{type_str}_#{match[2]}>>"
+            placeholder = self.class.placeholder_key(match)
 
             if reg.key?(placeholder)
               original = reg[placeholder]
@@ -300,6 +308,13 @@ module Monadic
             raise Monadic::Utils::Privacy::BackendError,
                   "Privacy backend failed (on_failure=:block): #{err.message}"
           when :pass
+            # Words the user marked are never sent unmasked, whatever the app
+            # allows for a failed detection.
+            if @registry.terms.any?
+              raise Monadic::Utils::Privacy::BackendError,
+                    "Privacy backend failed with marked words in the chat: #{err.message}"
+            end
+
             warn "[Privacy] backend failed, passing raw text: #{err.message}"
             raw_message
           else

@@ -19,7 +19,7 @@ module AutoForge
         codex_caller = nil
 
         if agent == :claude
-          if @context[:app_instance] && @context[:app_instance].respond_to?(:claude_code_agent)
+          if @context[:app_instance] && @context[:app_instance].respond_to?(:call_claude_code)
             puts "[HTMLGenerator] Using app_instance for Claude Opus" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
             codex_caller = @context[:app_instance]
           elsif @context[:codex_callback] && @context[:codex_callback].respond_to?(:call)
@@ -44,8 +44,8 @@ module AutoForge
 
           result =
             if agent == :claude
-              if codex_caller.respond_to?(:claude_code_agent)
-                codex_caller.claude_code_agent(full_prompt, 'ClaudeCodeAgent', &block)
+              if codex_caller.respond_to?(:call_claude_code)
+                codex_caller.call_claude_code(prompt: full_prompt, app_name: 'ClaudeCodeAgent', &block)
               else
                 codex_caller.call(full_prompt, 'ClaudeCodeAgent', &block)
               end

@@ -911,7 +911,13 @@
       var defaultLabel = data.updated
         ? t('ui.libUpdateSuccess', 'Updated existing Knowledge Base entry.')
         : t('ui.libSaveSuccess', 'Saved to Knowledge Base.');
-      flashAlert("<i class='fa-solid fa-circle-check'></i> " + escapeHtml(defaultLabel), 'success');
+      if (data.warning === 'prior_version_left') {
+        // Saved, but some points of the earlier version are still stored.
+        flashAlert("<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(t('ui.libUpdatePartial',
+          'Updated the Knowledge Base entry, but part of the earlier version could not be removed and may still appear.')), 'warning');
+      } else {
+        flashAlert("<i class='fa-solid fa-circle-check'></i> " + escapeHtml(defaultLabel), 'success');
+      }
     } else {
       var msg = (data && data.content) ? data.content : 'Save failed';
       var prefix = t('ui.libSaveFailure', 'Failed to save');
@@ -1302,7 +1308,7 @@
     };
 
     try {
-      fetch('/monadic_state').then(function (resp) {
+      fetch('/monadic_state' + (typeof window.monadicTabQuery === 'function' ? window.monadicTabQuery() : '')).then(function (resp) {
         if (!resp || !resp.ok) { afterState(null); return; }
         return resp.json().then(function (data) {
           afterState((data && data.monadic_state) ? data.monadic_state : null);
@@ -1757,9 +1763,7 @@
         var on = ragToggle.checked;
         // Push the preference to localStorage *and* to the server so
         // the next session inherits the same default and the current
-        // session reflects it immediately. The server handles the
-        // first-message lock, so toggling here before the lock fires
-        // is the user's last chance to change it.
+        // session reflects it immediately.
         writeRagDefault(on);
         setRagToggle(on);
         // Refresh the header summary bar so its "Knowledge Base" badge

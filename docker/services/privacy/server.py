@@ -24,6 +24,49 @@ LOG = logging.getLogger("privacy.server")
 analyzer = build_analyzer()
 app = FastAPI(title="Privacy Filter")
 
+
+class QuietErrors:
+    """An error a request meets is logged by its kind only.
+
+    The default report of an uncaught error is a traceback with the error's
+    message, which can hold part of the text: a Private chat's (the filter is
+    on only in Private chats), and the container's output is kept on disk by
+    Docker's logs. Starlette raises the error again after any handler so that
+    the server logs it, so it is caught here, inside that.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        started = False
+
+        async def tracked_send(message):
+            nonlocal started
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive, tracked_send)
+        except Exception as exc:  # noqa: BLE001
+            LOG.error("%s %s failed: %s", scope.get("method"), scope.get("path"), type(exc).__name__)
+            if started:
+                return
+            await send({
+                "type": "http.response.start",
+                "status": 500,
+                "headers": [(b"content-type", b"text/plain; charset=utf-8")],
+            })
+            await send({"type": "http.response.body", "body": b"Internal Server Error"})
+
+
+app.add_middleware(QuietErrors)
+
 PLACEHOLDER_RE = re.compile(r"<<([A-Z_]+)_(\d+)>>")
 JA_HONORIFICS = ("様", "さま", "さん", "くん", "君", "殿", "氏", "先生", "ちゃん")
 
@@ -50,11 +93,33 @@ class AnalyzeOptions(BaseModel):
     honorific_trim: bool = True
 
 
+# What this server can do beyond the first protocol. A client that needs a
+# capability checks for it and does not send (rather than send unmasked)
+# when it is missing.
+PROTOCOL = 2
+CAPABILITIES = ["terms"]
+
+# Types a user can give a term they mark.
+TERM_TYPES = {"PERSON", "ORGANIZATION", "LOCATION", "EMAIL_ADDRESS", "PHONE_NUMBER", "URL", "DATE_TIME"}
+MAX_TERMS = 200
+MAX_TERM_LENGTH = 200
+MAX_TERM_SPANS = 10_000
+
+
+class Term(BaseModel):
+    text: str = Field(min_length=1, max_length=MAX_TERM_LENGTH)
+    type: str = "PERSON"
+
+
 class AnonymizeRequest(BaseModel):
     text: str
     languages: list[str] = Field(default_factory=lambda: ["en"])
     registry: dict[str, str] = Field(default_factory=dict)
     options: AnalyzeOptions = Field(default_factory=AnalyzeOptions)
+    # Strings the user marked in the conversation. Every occurrence is
+    # masked, whatever the detection finds, the languages or the entity
+    # whitelist say.
+    terms: list[Term] = Field(default_factory=list, max_length=MAX_TERMS)
     # Whitelist of Presidio entity types to mask. Empty list means "no filter
     # — return all detected types" (legacy behavior). Default kept as None so
     # existing unfiltered callers stay unchanged.
@@ -68,13 +133,15 @@ class DeanonymizeRequest(BaseModel):
 
 @app.get("/v1/health")
 def health() -> dict[str, Any]:
-    return {"status": "ok", "languages": enabled_languages()}
+    return {"status": "ok", "languages": enabled_languages(), "protocol": PROTOCOL, "capabilities": CAPABILITIES}
 
 
 @app.get("/v1/info")
 def info() -> dict[str, Any]:
     return {
         "languages": enabled_languages(),
+        "protocol": PROTOCOL,
+        "capabilities": CAPABILITIES,
         "recognizers": [
             {
                 "name": r.name,
@@ -92,7 +159,9 @@ def _analyze_per_language(text: str, languages: list[str], score_threshold: floa
         try:
             results = analyzer.analyze(text=text, language=lang, score_threshold=score_threshold)
         except Exception as exc:  # noqa: BLE001
-            LOG.warning("analyze(lang=%s) failed: %s", lang, exc)
+            # The kind only: the message can hold part of the text, which is
+            # a Private chat's (the filter is on only in Private chats).
+            LOG.warning("analyze(lang=%s) failed: %s", lang, type(exc).__name__)
             continue
         for r in results:
             spans.append({
@@ -101,39 +170,49 @@ def _analyze_per_language(text: str, languages: list[str], score_threshold: floa
                 "end": r.end,
                 "score": float(r.score),
                 "lang_used": lang,
+                "recognizer": (r.recognition_metadata or {}).get("recognizer_name"),
             })
     return spans
 
 
 def _resolve_overlaps(spans: list[dict]) -> list[dict]:
-    """Drop spans that lose to a higher-priority overlapping span.
+    """Merge overlapping spans so that every detected character stays masked.
 
-    Rules:
+    Overlapping spans (directly or through a chain) form one group. The group
+    is masked as one span covering all of them, so a span that loses on type
+    never leaves its characters unmasked. Its type and score come from the
+    winner among the group's spans:
       1. Strict containment: outer wins (longer span absorbs inner).
       2. Score gap >= 0.1: higher score wins.
       3. Otherwise: TYPE_PRIORITY decides.
       4. DATE_TIME never beats numeric ID types when overlapping.
     """
-    spans = sorted(spans, key=lambda s: (s["start"], -(s["end"] - s["start"])))
-    kept: list[dict] = []
-    for cand in spans:
-        loser = False
-        for i, k in enumerate(list(kept)):
-            if cand["end"] <= k["start"] or cand["start"] >= k["end"]:
-                continue
-            winner = _pick_winner(cand, k)
-            if winner is k:
-                loser = True
-                break
-            kept[i] = cand
-            loser = True
-            break
-        if not loser:
-            kept.append(cand)
-    return sorted(kept, key=lambda s: s["start"])
+    ordered = sorted(spans, key=lambda s: (s["start"], -(s["end"] - s["start"])))
+    groups: list[list[dict]] = []
+    group_end = -1
+    for span in ordered:
+        if groups and span["start"] < group_end:
+            groups[-1].append(span)
+            group_end = max(group_end, span["end"])
+        else:
+            groups.append([span])
+            group_end = span["end"]
+
+    merged = []
+    for group in groups:
+        winner = group[0]
+        for other in group[1:]:
+            winner = _pick_winner(winner, other)
+        merged.append({**winner, "start": min(s["start"] for s in group), "end": max(s["end"] for s in group)})
+    return merged
 
 
 def _pick_winner(a: dict, b: dict) -> dict:
+    # A string the user marked keeps the type the user gave it.
+    a_user = a.get("source") == "user"
+    b_user = b.get("source") == "user"
+    if a_user != b_user:
+        return a if a_user else b
     # DATE_TIME always loses to numeric ID types
     if a["type"] == "DATE_TIME" and b["type"] in NUMERIC_TYPES:
         return b
@@ -153,10 +232,29 @@ def _pick_winner(a: dict, b: dict) -> dict:
     return a if pa >= pb else b
 
 
+def _term_spans(text: str, terms: list[Term]) -> list[dict]:
+    """Every occurrence of every marked term, found as a literal string."""
+    spans = []
+    for term in terms:
+        start = text.find(term.text)
+        while start != -1:
+            spans.append({"start": start, "end": start + len(term.text), "type": term.type,
+                          "score": 1.0, "lang_used": None, "source": "user"})
+            if len(spans) > MAX_TERM_SPANS:
+                raise HTTPException(status_code=422, detail="too many occurrences of the marked terms")
+            start = text.find(term.text, start + 1)
+    return spans
+
+
+HONORIFIC_RECOGNIZERS = {"JpHonorificPersonRecognizer"}
+
+
 def _trim_japanese_honorifics(text: str, spans: list[dict]) -> list[dict]:
     out = []
     for s in spans:
-        if s["type"] != "PERSON" or s.get("lang_used") != "ja":
+        # The honorific rule's spans end before the honorific already; trimming
+        # them again would cut a name ending like one (山田一君さん).
+        if s["type"] != "PERSON" or s.get("lang_used") != "ja" or s.get("recognizer") in HONORIFIC_RECOGNIZERS:
             out.append(s)
             continue
         surface = text[s["start"]:s["end"]]
@@ -238,15 +336,25 @@ def anonymize(req: AnonymizeRequest) -> dict[str, Any]:
     if not req.languages:
         raise HTTPException(status_code=400, detail="languages must not be empty")
 
+    unknown = sorted({t.type for t in req.terms} - TERM_TYPES)
+    if unknown:
+        raise HTTPException(status_code=422, detail=f"unknown term types: {', '.join(unknown)}")
+
     raw_spans = _analyze_per_language(req.text, req.languages, req.options.score_threshold)
     detected = len(raw_spans)
     if req.entity_types:
         whitelist = set(req.entity_types)
         raw_spans = [s for s in raw_spans if s["type"] in whitelist]
+    # Honorifics are trimmed from each detection before overlaps are merged:
+    # trimming the merged span would also uncover characters that another
+    # detection covered.
+    if req.options.honorific_trim:
+        raw_spans = _trim_japanese_honorifics(req.text, raw_spans)
+    # Marked terms are added after the trim: what the user marked is masked
+    # whole, honorific or not.
+    raw_spans += _term_spans(req.text, req.terms)
     merged = _resolve_overlaps(raw_spans)
     after_merge = len(merged)
-    if req.options.honorific_trim:
-        merged = _trim_japanese_honorifics(req.text, merged)
     masked_text, new_registry, entities = _build_masked(req.text, merged, req.registry)
     return {
         "masked_text": masked_text,

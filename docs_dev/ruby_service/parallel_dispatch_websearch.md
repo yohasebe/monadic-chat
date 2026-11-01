@@ -1,58 +1,41 @@
-# Parallel Dispatch: Web Search Integration
+# Parallel Dispatch
 
-## Overview
+The `parallel_dispatch` group (`lib/monadic/shared_tools/parallel_dispatch.rb`) provides `dispatch_parallel_tasks`, which sends several prompts to the app's own provider at once and returns the answers together.
 
-The `ParallelDispatch` shared tool module (`lib/monadic/shared_tools/parallel_dispatch.rb`) supports web search for sub-agents. When enabled, each sub-agent call includes provider-appropriate web search capabilities without introducing tool-call loops.
+## Call
 
-## Architecture
+`dispatch_parallel_tasks(tasks:, timeout: nil, websearch: nil, session: nil)`
 
-### Web Search Strategy Routing
+- `tasks`: 1 to `MAX_PARALLEL_TASKS` (5) hashes with `id` and `prompt`.
+- `timeout`: seconds per task, default 120, at most 300.
+- Only one call per user turn (`session[:parallel_dispatch_called]`); a second call returns an error telling the model to use the earlier results.
+- Model: the session's model, otherwise the provider default.
+- Each task runs in a child thread; progress is sent to the session's WebSocket. The result is JSON with each task's `id`, `success` and `content` or `error` ("Timed out after …s" on timeout).
 
-Each provider in `PROVIDER_CONFIG` has a `websearch_strategy` that determines how web search is integrated:
+## Provider
 
-| Strategy | Provider(s) | Mechanism |
+`resolve_provider_config` picks the `PROVIDER_CONFIG` entry whose helper module the app includes (OpenAI when none matches). Sub-calls use only that provider's API.
+
+## Web Search
+
+Web search is on when `websearch` is true, otherwise when the session's `websearch` parameter is true.
+
+| Strategy | Providers | How |
 |---|---|---|
-| `:responses_api` | OpenAI, Grok | Responses API (`/v1/responses`) with `web_search` tool |
-| `:grounding` | Gemini | `google_search` grounding tool in GenerateContent |
-| `:native_tool` | Claude | `web_search_20250305` server-side tool in Messages API |
-| `:tavily` | Mistral, Cohere, DeepSeek | Tavily API prefetch + prompt injection |
+| `:responses_api` | OpenAI, xAI | Responses API with the `web_search` tool (`responses_api_sub_call`) |
+| `:grounding` | Gemini | `google_search` grounding (`gemini_websearch_sub_call`) |
+| `:native_tool` | Anthropic | Messages API with the server-side `web_search` tool, `max_uses` 5; only text blocks are kept (`anthropic_websearch_sub_call`) |
+| `:tavily` | Mistral, Cohere, DeepSeek | Tavily search before the call, results put in front of the prompt (`tavily_prefetch_and_inject`) |
 
-### Activation Flow
+Tavily:
 
-```
-MDSL features { websearch true }
-  -> UI checkbox (#websearch) default ON
-  -> params["websearch"] = true/false (based on user toggle)
-  -> session[:parameters]["websearch"]
-  -> dispatch_parallel_tasks reads session
-  -> sub_agent_api_call(websearch: ws_enabled)
-  -> strategy-specific sub_call method
-```
+- Without `TAVILY_API_KEY` the task fails with an error.
+- Query: the first 400 characters of the prompt, `search_depth: "basic"`, `max_results: 3`.
+- A Tavily error or an empty result leaves the prompt unchanged.
 
-### Priority
-
-```
-Explicit parameter (websearch: true/false) > Session setting > Default (false)
-```
-
-## Key Methods
-
-- `responses_api_sub_call` - OpenAI/Grok Responses API with `web_search` tool
-- `gemini_websearch_sub_call` - Gemini with `google_search` grounding
-- `anthropic_websearch_sub_call` - Claude with `web_search_20250305`, extracts text blocks only
-- `tavily_prefetch_and_inject` - Tavily search prefetch, injects results as context before prompt
-- `standard_sub_call` - Extracted from original `sub_agent_api_call`, handles non-websearch routing
-
-## Tavily Fallback Behavior
-
-- **TAVILY_API_KEY not set**: Raises `RuntimeError` (prevents silent failure)
-- **Tavily API error**: Falls back to original prompt (best-effort)
-- **Search query**: Truncated to 400 chars, `search_depth: "basic"`, `max_results: 3`
-
-## Testing
+## Tests
 
 ```bash
+cd docker/services/ruby
 bundle exec rspec spec/unit/shared_tools/parallel_dispatch_spec.rb
 ```
-
-Test groups cover: PROVIDER_CONFIG strategies, websearch propagation, all 4 websearch sub_call methods, routing logic, Tavily error handling.

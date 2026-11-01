@@ -53,9 +53,8 @@ afterEach(() => {
   delete window.messages;
   delete window.setAlert;
   delete window.LiveConversation;
-  // startConversation sets this global (§37-7). Leaving it set would leak a
-  // "the user already interacted" state into whatever suite runs next — the
-  // test-isolation defect class this repo has been bitten by before.
+  // startConversation sets this global. Leaving it set would leak a
+  // "the user already interacted" state into whatever suite runs next.
   delete window.userHasInteractedInTab;
   delete window.responseStarted;
   delete window.streamingResponse;
@@ -97,8 +96,8 @@ describe('app-mode switching', () => {
     expect(changed).toContain('auto-speech'); // listeners must see the change
   });
 
-  // CSS and JS can skew (cached stylesheet vs fresh markup left the AI User
-  // row operable in dogfood) — the JS inline enforcement must not depend on
+  // CSS and JS can skew (a cached stylesheet against fresh markup can leave
+  // the AI User row operable) — the JS inline enforcement must not depend on
   // the stylesheet at all.
   it('inline-hides pipeline-only UI on entering LC mode and restores it on exit', () => {
     document.body.insertAdjacentHTML('beforeend',
@@ -113,9 +112,9 @@ describe('app-mode switching', () => {
     expect(document.getElementById('voice-panel').style.display).toBe('');
   });
 
-  // Review P1-B: setAppMode(off) runs at the end of EVERY loadParams. It
+  // setAppMode(off) runs at the end of EVERY loadParams. It
   // must restore only what LC itself hid (none!important signature) — an
-  // unconditional removeProperty stripped hides that loadParams had just
+  // unconditional removeProperty would strip hides that loadParams has just
   // applied for ordinary apps (e.g. $hide of #model_parameters).
   it('leaves non-LC inline hides intact when exiting LC mode', () => {
     document.body.insertAdjacentHTML('beforeend',
@@ -160,9 +159,9 @@ describe('start', () => {
     expect(start).toEqual({ message: 'STS_START', chat_model: 'gpt-realtime-2.1', greet: true });
   });
 
-  // §37-7: the app-switch reset confirmation keys on userHasInteractedInTab,
-  // which only the TEXT submit paths set — a voice-only session left it
-  // false and the switch wiped the conversation without asking.
+  // The app-switch reset confirmation keys on userHasInteractedInTab,
+  // which only the TEXT submit paths set — a voice-only session would leave
+  // it false and the switch would wipe the conversation without asking.
   it('marks the tab as user-interacted (voice conversation is a user action)', async () => {
     delete window.userHasInteractedInTab; // an earlier start in this file set it
     await LC.startConversation();
@@ -170,8 +169,8 @@ describe('start', () => {
   });
 
   // Resume-vs-fresh is decided SERVER-side against the canonical
-  // session[:messages]; the client's messages array proved stale in dogfood
-  // and silently suppressed the greeting. The client only reports the
+  // session[:messages]; the client's messages array can be stale and would
+  // silently suppress the greeting. The client only reports the
   // toggle state — even with local messages present.
   it('sends the toggle state regardless of the local messages array', async () => {
     window.messages = [{ role: 'user', text: 'earlier turn' }];
@@ -227,7 +226,7 @@ describe('start', () => {
     expect(typeof chunk.content).toBe('string');
   });
 
-  // P2-2 (review finding): getUserMedia's permission prompt is arbitrarily
+  // getUserMedia's permission prompt is arbitrarily
   // long; a Stop (or RESET) landing during the await must leave no orphaned
   // capture streaming and must not open the bridge.
   it('releases the capture and sends no STS_START when stopped mid-startup', async () => {
@@ -652,7 +651,7 @@ describe('voice and speed controls', () => {
       sts_voices: ['alloy', 'marin', 'cedar'],
       sts_speed_capability: true
     },
-    'grok-voice-think-fast-2.0': {
+    'grok-voice-3.0': {
       supports_speech_to_speech: true,
       sts_provider: 'xai',
       sts_voice: 'eve',
@@ -698,11 +697,11 @@ describe('voice and speed controls', () => {
   it('shows the speed control only for sts_speed_capability models', () => {
     const wrap = document.getElementById('lc-speed-wrap');
     // inline-flex, not flex: a block-level flex next to the plain-inline
-    // cardview wrap shifts the baseline (dogfood: misaligned checkboxes).
+    // cardview wrap shifts the baseline (misaligned checkboxes).
     expect(wrap.style.display).toBe('inline-flex');
 
     const modelEl = document.getElementById('model');
-    modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+    modelEl.replaceChildren(new Option('grok-voice-3.0', 'grok-voice-3.0', true, true));
     LC.setAppMode(normalApp);
     LC.setAppMode(lcApp);
     expect(document.getElementById('lc-speed-wrap').style.display).toBe('none');
@@ -710,7 +709,7 @@ describe('voice and speed controls', () => {
     expect(select().value).toBe('eve');
   });
 
-  // §37-14A: the voice choice is remembered per provider in a cookie
+  // The voice choice is remembered per provider in a cookie
   // (sets are disjoint), restored only when the value is still offered.
   describe('voice cookie', () => {
     let store;
@@ -747,7 +746,7 @@ describe('voice and speed controls', () => {
     it('uses a different key per provider (no cross-provider bleed)', () => {
       store['lc-voice-xai'] = 'luna';
       const modelEl = document.getElementById('model');
-      modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+      modelEl.replaceChildren(new Option('grok-voice-3.0', 'grok-voice-3.0', true, true));
       LC.setAppMode(normalApp);
       LC.setAppMode(lcApp);
       expect(select().value).toBe('luna');
@@ -760,7 +759,7 @@ describe('voice and speed controls', () => {
       window.params['sts_voice'] = 'sage';      // an OpenAI voice
       store['lc-voice-xai'] = 'luna';           // what the user picked on xAI
       const modelEl = document.getElementById('model');
-      modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+      modelEl.replaceChildren(new Option('grok-voice-3.0', 'grok-voice-3.0', true, true));
       LC.setAppMode(normalApp);
       LC.setAppMode(lcApp);
       expect(select().value).toBe('luna');
@@ -902,7 +901,7 @@ describe('panel layout and model-ready re-render', () => {
     window.modelSpec = {
       'gpt-realtime-2.1': { supports_speech_to_speech: true, sts_provider: 'openai',
                             sts_voice: 'alloy', sts_voices: ['alloy'] },
-      'grok-voice-think-fast-2.0': { supports_speech_to_speech: true, sts_provider: 'xai',
+      'grok-voice-3.0': { supports_speech_to_speech: true, sts_provider: 'xai',
                             sts_voice: 'eve', sts_voices: ['eve', 'luna'] }
     };
     window.params = {};
@@ -942,14 +941,14 @@ describe('panel layout and model-ready re-render', () => {
     expect(document.getElementById('lc-voice-select').options.length).toBe(0);
 
     // Dropdown is built later → change event re-renders
-    modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+    modelEl.replaceChildren(new Option('grok-voice-3.0', 'grok-voice-3.0', true, true));
     modelEl.dispatchEvent(new Event('change', { bubbles: true }));
     const sel = document.getElementById('lc-voice-select');
     expect([...sel.options].map(o => o.value)).toEqual(['eve', 'luna']);
   });
 });
 
-describe('live view zone discipline (§37-6: partial stream lags the response)', () => {
+describe('live view zone discipline (partial stream lags the response)', () => {
   beforeEach(() => {
     window.params = {};
     LC.setAppMode(lcApp);
@@ -984,9 +983,9 @@ describe('live view zone discipline (§37-6: partial stream lags the response)',
     expect(curText()).toBe('second answer');
   });
 
-  // The measured dogfood round 6 path: the response starts BEFORE the
-  // transcription finishes streaming, so fragments and partials interleave.
-  // A resume-swap per fragment ping-ponged the same utterance between zones.
+  // The response starts BEFORE the transcription finishes streaming, so
+  // fragments and partials interleave. A resume-swap per fragment would
+  // ping-pong the same utterance between zones.
   it('does not ping-pong when fragments interleave an in-flight partial stream', async () => {
     await LC.startConversation();
     LC.onAssistantFragment({ content: 'ちょっと調', is_first: true });
@@ -1079,7 +1078,7 @@ describe('tools toggle (function calling wave 1)', () => {
   });
 });
 
-describe('tool-use visibility in the live view (§37-5)', () => {
+describe('tool-use visibility in the live view', () => {
   beforeEach(() => {
     window.params = {};
     window.insertInlineToolBadge =
@@ -1121,7 +1120,7 @@ describe('tool-use visibility in the live view (§37-5)', () => {
     LC.onAssistantFragment({ content: 'Combined answer.', is_first: true });
 
     const text = document.querySelector('#lc-live-current .lc-live-text');
-    // §40: calls at the SAME boundary merge into one badge — unique names
+    // Calls at the SAME boundary merge into one badge — unique names
     // joined, worst status (the error) coloring the whole badge.
     const badges = text.querySelectorAll('.lc-tools-badge');
     expect(badges.length).toBe(1);
@@ -1131,10 +1130,10 @@ describe('tool-use visibility in the live view (§37-5)', () => {
     expect(text.querySelectorAll(':scope > p').length).toBe(2);
   });
 
-  // §40: on every provider the tool continuation is the SAME turn, so its
+  // On every provider the tool continuation is the SAME turn, so its
   // first fragment carries no is_first — the server marks it tool_break
-  // instead. Without handling it, the answer ran into the bridge paragraph
-  // and the badge fell to the bottom (dogfood 2026-08-05, OpenAI).
+  // instead. Without handling it, the answer runs into the bridge paragraph
+  // and the badge falls to the bottom.
   it('tool_break anchors the paragraph break and badge without is_first', async () => {
     await LC.startConversation();
     LC.onAssistantFragment({ content: 'Let me check the forecast.', is_first: true, segment_id: 'r1' });
@@ -1159,9 +1158,9 @@ describe('tool-use visibility in the live view (§37-5)', () => {
     ]);
   });
 
-  // §40: the segment map lives ON the zone, so the promote → resume-swap
-  // round trip (a late user final landing mid-stream) no longer wipes it —
-  // that wipe is what killed the speech highlight in dogfood.
+  // The segment map lives ON the zone, so the promote → resume-swap
+  // round trip (a late user final landing mid-stream) does not wipe it —
+  // a wiped map would stop the speech highlight.
   it('the segment map survives a late user final promoting the zone', async () => {
     await LC.startConversation();
     LC.onAssistantFragment({ content: 'First part of the reply. ', is_first: true, segment_id: 'r1' });
@@ -1219,7 +1218,7 @@ describe('tool-use visibility in the live view (§37-5)', () => {
   });
 });
 
-describe('running tool badge spins until done (§37-12)', () => {
+describe('running tool badge spins until done', () => {
   beforeEach(() => {
     window.params = {};
     window.insertInlineToolBadge =
@@ -1260,7 +1259,7 @@ describe('running tool badge spins until done (§37-12)', () => {
 
   // The GLYPH carries the state, not just the motion: a running call shows
   // the app's busy spinner, a finished one the tool icon. A spinning wrench
-  // read as decoration rather than progress (user choice, dogfood).
+  // reads as decoration rather than progress.
   it('swaps the busy spinner glyph for the tool glyph when the call finishes', async () => {
     await LC.startConversation();
     LC.onAssistantFragment({ content: 'Let me check.', is_first: true });
@@ -1298,7 +1297,7 @@ describe('running tool badge spins until done (§37-12)', () => {
     LC.onAssistantFragment({ content: 'Checking both.', is_first: true });
     LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c1' });
     LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c2' });
-    // §40: same boundary, same name → merged into one badge. The entries
+    // Same boundary, same name → merged into one badge. The entries
     // stay separate underneath (call_id correlation), only the render merges.
     expect(badges().length).toBe(1);
     expect(badges()[0].querySelector('i').className).toContain('fa-spin');
@@ -1325,7 +1324,7 @@ describe('running tool badge spins until done (§37-12)', () => {
     expect(badges()[0].nextElementSibling).toBe(paras[1]);
   });
 
-  // §37-14B: the running badge's `at` was fixed when the call started, but
+  // The running badge's `at` was fixed when the call started, but
   // the boundary only settles when the answer begins (the bridge can gain
   // paragraphs meanwhile) — the anchor refreshes it instead of leaving the
   // badge behind the answer.
@@ -1335,8 +1334,8 @@ describe('running tool badge spins until done (§37-12)', () => {
     LC.onToolCall({ name: 'search_web', status: 'running', call_id: 'c1' });
     expect(badges().length).toBe(1);
 
-    // The bridge text gains a paragraph before the answer (e.g. a §37-11
-    // second message folded into the same card).
+    // The bridge text gains a paragraph before the answer (e.g. a second
+    // spoken message of one response folded into the same card).
     document.getElementById('discourse').insertAdjacentHTML('beforeend',
       '<div class="card" id="m1"><div class="card-header"><div class="card-title"></div></div>' +
       '<div class="card-body"><div class="card-text">Let me check.</div></div></div>');
@@ -1350,7 +1349,7 @@ describe('running tool badge spins until done (§37-12)', () => {
     expect(badges()[0].nextElementSibling).toBe(paras[2]);
   });
 
-  // §37-13A: Gemini finalizes the user turn only when the model starts
+  // Gemini finalizes the user turn only when the model starts
   // answering, so during the call the current zone is still USER — the
   // badge needs an empty assistant zone, and the answer must continue in
   // that same zone after the late user-final shuffles the zones around.
@@ -1381,7 +1380,7 @@ describe('running tool badge spins until done (§37-12)', () => {
 });
 
 
-describe('tool-bridged fold client behavior (§37-2)', () => {
+describe('tool-bridged fold client behavior', () => {
   beforeEach(() => {
     window.params = {};
     LC.setAppMode(lcApp);
@@ -1411,7 +1410,7 @@ describe('tool-bridged fold client behavior (§37-2)', () => {
     expect(document.querySelectorAll('#m1 .lc-tools-badge').length).toBe(1);
   });
 
-  // §39: a suppressed (unspoken) continuation arrives as tools_used with
+  // A suppressed (unspoken) continuation arrives as tools_used with
   // UNCHANGED text. The grow path used to wipe the body before re-inserting
   // badges, so re-sent entries could not pile up; the badge-only path has no
   // such wipe, and the server re-sends the UNION on every fold.
@@ -1461,7 +1460,7 @@ describe('tool-bridged fold client behavior (§37-2)', () => {
   });
 });
 
-describe('streaming indicator reset on Stop (§37-5)', () => {
+describe('streaming indicator reset on Stop', () => {
   beforeEach(() => {
     window.params = {};
     LC.setAppMode(lcApp);
@@ -1510,7 +1509,7 @@ describe('streaming indicator reset on Stop (§37-5)', () => {
   });
 });
 
-describe('single folded card with positioned badges (§37-3)', () => {
+describe('single folded card with positioned badges', () => {
   beforeEach(() => {
     window.params = {};
     LC.setAppMode(lcApp);
@@ -1535,14 +1534,14 @@ describe('single folded card with positioned badges (§37-3)', () => {
     expect(paras.length).toBe(2);
     expect(paras[0].textContent).toBe('Let me check…');
     expect(paras[1].textContent).toBe('The answer is 42.');
-    // §37-4: positioned entries render INLINE only — no header badge.
+    // Positioned entries render INLINE only — no header badge.
     expect(document.querySelector('#m1 .card-title .lc-tools-badge')).toBeNull();
     // positioned badges delegated with the card and the raw entries
     expect(window.insertInlineToolBadge).toHaveBeenCalledWith(
       document.getElementById('m1'), toolsUsed);
   });
 
-  it('renders a header badge for UNPOSITIONED entries only (mixed data, §37-4)', async () => {
+  it('renders a header badge for UNPOSITIONED entries only (mixed data)', async () => {
     window.insertInlineToolBadge = jest.fn();
     await LC.startConversation();
     document.getElementById('discourse').insertAdjacentHTML('beforeend',
@@ -1601,7 +1600,7 @@ describe('single folded card with positioned badges (§37-3)', () => {
   });
 });
 
-describe('thinking display stays hidden in LC (dogfood: capability $show race)', () => {
+describe('thinking display stays hidden in LC (capability $show race)', () => {
   const fs = require('fs');
   const path = require('path');
   const utilsSrc = fs.readFileSync(
@@ -1617,10 +1616,10 @@ describe('thinking display stays hidden in LC (dogfood: capability $show race)',
       /spec\["supports_thinking"\]\s*&&\s*!document\.body\.classList\.contains\('lc-app'\)/);
   });
 
-  // Root cause (browser-measured, §37-4): for !important declarations the
+  // For !important declarations the
   // cascade-layer order REVERSES — an unlayered .lc-app rule loses to
-  // Bootstrap's vendor-layer .d-flex{display:flex !important}. The fix
-  // declares lc-overrides BEFORE vendor and puts the hiding rules inside it.
+  // Bootstrap's vendor-layer .d-flex{display:flex !important}, so
+  // lc-overrides is declared BEFORE vendor and holds the hiding rules.
   it('lc-overrides is declared before vendor (important inversion)', () => {
     expect(cssSrc).toMatch(/@layer lc-overrides, vendor,/);
   });
@@ -1628,9 +1627,9 @@ describe('thinking display stays hidden in LC (dogfood: capability $show race)',
   // The statement in monadic.css is NOT enough: layer order is fixed by the
   // FIRST statement the browser sees, and vendor-layers.css (loaded earlier)
   // creates `vendor` via @import layer(vendor). A later statement can only
-  // APPEND unknown names, so lc-overrides landed after utilities — last for
-  // important, i.e. still losing to .d-flex. Browser-measured: the toggle
-  // only disappeared once the order was declared here, ahead of the imports.
+  // APPEND unknown names, so lc-overrides would land after utilities — last
+  // for important, i.e. still losing to .d-flex. The order must be declared
+  // here, ahead of the imports.
   it('vendor-layers.css declares the order before it creates the vendor layer', () => {
     const vendorSrc = fs.readFileSync(
       path.join(__dirname, '../../docker/services/ruby/public/css/vendor-layers.css'), 'utf8');
@@ -1651,7 +1650,7 @@ describe('thinking display stays hidden in LC (dogfood: capability $show race)',
   });
 });
 
-describe('speech highlight (§37-13C)', () => {
+describe('speech highlight', () => {
   beforeEach(() => {
     window.params = {};
     window.insertInlineToolBadge =
@@ -1678,8 +1677,8 @@ describe('speech highlight (§37-13C)', () => {
     expect(speakingSpan().textContent).toBe('元気ですか。');
   });
 
-  // `total` is the audio SCHEDULED so far and deltas outrun playback ~3-5x
-  // (measured), so early in a response the fraction is inflated; as more
+  // `total` is the audio SCHEDULED so far and deltas outrun playback
+  // several times over, so early in a response the fraction is inflated; as more
   // audio lands it drops and a raw mapping would walk the highlight BACK
   // over text already spoken. Speech only moves forward, so the highlight
   // must too — within a segment.
@@ -1759,7 +1758,7 @@ describe('speech highlight (§37-13C)', () => {
   });
 });
 
-describe('turn detection selector (§37-16)', () => {
+describe('turn detection selector', () => {
   const vadSpec = {
     'gpt-realtime-2.1': {
       supports_speech_to_speech: true,
@@ -1768,7 +1767,7 @@ describe('turn detection selector (§37-16)', () => {
       sts_voices: ['alloy'],
       sts_semantic_vad_capability: true
     },
-    'grok-voice-think-fast-2.0': {
+    'grok-voice-3.0': {
       supports_speech_to_speech: true,
       sts_provider: 'xai',
       sts_voice: 'eve',
@@ -1802,7 +1801,7 @@ describe('turn detection selector (§37-16)', () => {
     expect(wrap().style.display).toBe('inline-flex');
 
     const modelEl = document.getElementById('model');
-    modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+    modelEl.replaceChildren(new Option('grok-voice-3.0', 'grok-voice-3.0', true, true));
     LC.setAppMode(normalApp);
     LC.setAppMode(lcApp);
     expect(wrap().style.display).toBe('none');
@@ -1833,9 +1832,9 @@ describe('turn detection selector (§37-16)', () => {
     expect(sel().value).toBe('high');
   });
 
-  // Restoring sets no `change` event, so the params the BRIDGE reads stayed
-  // empty and the session silently fell back to the MDSL default: the UI
-  // claimed "by meaning" while the wire carried server_vad (dogfood). The
+  // Restoring sets no `change` event, so the params the BRIDGE reads would
+  // stay empty and the session would silently fall back to the MDSL default:
+  // the UI would claim "by meaning" while the wire carries server_vad. The
   // selector's displayed value and the value that ships must never diverge.
   it('writes the restored choice into params, not just the selector', () => {
     store['lc-turn-openai'] = 'low';
@@ -1850,7 +1849,7 @@ describe('turn detection selector (§37-16)', () => {
     window.params['sts_vad_type'] = 'semantic_vad';
     window.params['sts_vad_eagerness'] = 'low';
     const modelEl = document.getElementById('model');
-    modelEl.replaceChildren(new Option('grok-voice-think-fast-2.0', 'grok-voice-think-fast-2.0', true, true));
+    modelEl.replaceChildren(new Option('grok-voice-3.0', 'grok-voice-3.0', true, true));
     LC.setAppMode(normalApp);
     LC.setAppMode(lcApp);
     expect(wrap().style.display).toBe('none');
@@ -1875,7 +1874,7 @@ describe('turn detection selector (§37-16)', () => {
   });
 });
 
-describe('badge-only card text update (§39 suppress path)', () => {
+describe('badge-only card text update (suppressed continuation)', () => {
   beforeEach(() => {
     window.params = {};
     window.insertInlineToolBadge =
@@ -1894,7 +1893,7 @@ describe('badge-only card text update (§39 suppress path)', () => {
       '<div class="card" id="m1"><div class="card-header"><div class="card-title">Assistant</div></div>' +
       '<div class="card-body"><div class="card-text">Let me check…</div></div></div>');
 
-    // §39: the unspoken continuation was suppressed server-side, so the
+    // The unspoken continuation was suppressed server-side, so the
     // update carries the SAME text plus only the tool badge.
     LC.onCardText({ mid: 'm1', content: 'Let me check…',
                     tools_used: [{ name: 'search_web', status: 'done', at: 1 }] });

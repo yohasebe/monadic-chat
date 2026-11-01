@@ -55,6 +55,35 @@ RSpec.describe Monadic::Library::Store do
       expect(vector_store).not_to receive(:create_collection)
       store.bootstrap_collections!
     end
+
+    context 'with collections made earlier' do
+      before do
+        described_class.indexed_mutex.synchronize { described_class.indexed.clear }
+        Monadic::VectorStore::Schema::LIBRARY_COLLECTIONS.each do |name|
+          allow(vector_store).to receive(:collection_exists?).with(name: name).and_return(true)
+        end
+      end
+
+      after { described_class.indexed_mutex.synchronize { described_class.indexed.clear } }
+
+      it 'adds the scope_app index to each, once per process' do
+        calls = []
+        allow(vector_store).to receive(:create_payload_index) { |**kw| calls << kw }
+        store.bootstrap_collections!
+        store.bootstrap_collections!
+        scope = calls.select { |c| c[:field] == 'scope_app' }.map { |c| c[:name] }
+        expect(scope).to match_array(Monadic::VectorStore::Schema::LIBRARY_COLLECTIONS)
+        expect(calls.map { |c| c[:field] }).not_to include('visibility')
+      end
+
+      it 'keeps working when the index cannot be created, and does not try again in the process' do
+        attempts = 0
+        allow(vector_store).to receive(:create_payload_index) { attempts += 1; raise Monadic::VectorStore::BackendError, 'down' }
+        expect { store.bootstrap_collections! }.not_to raise_error
+        expect { store.bootstrap_collections! }.not_to raise_error
+        expect(attempts).to eq(Monadic::VectorStore::Schema::LIBRARY_COLLECTIONS.size)
+      end
+    end
   end
 
   describe '#upsert_points' do
@@ -170,6 +199,38 @@ RSpec.describe Monadic::Library::Store do
         exact: true
       )
       store.conversation_count(app_name: 'CodeInterpreterOpenAI')
+    end
+  end
+
+  describe '#point_ids and #delete_point_ids' do
+    it 'collects every point of a conversation across pages and deletes those ids only' do
+      allow(vector_store).to receive(:scroll) do |collection:, offset:, **|
+        if collection == 'library_turns' && offset.nil?
+          { points: [{ 'id' => 't1' }], next: 'cursor' }
+        elsif collection == 'library_turns'
+          { points: [{ 'id' => 't2' }], next: nil }
+        elsif collection == 'library_summaries'
+          { points: [{ 'id' => 's1' }], next: nil }
+        else
+          { points: [], next: nil }
+        end
+      end
+      ids = store.point_ids('conv-1')
+      expect(ids).to eq('library_summaries' => ['s1'], 'library_turns' => %w[t1 t2], 'library_messages' => [])
+
+      store.delete_point_ids(ids)
+      expect(vector_store).to have_received(:delete_points).with(collection: 'library_summaries', ids: ['s1'])
+      expect(vector_store).to have_received(:delete_points).with(collection: 'library_turns', ids: %w[t1 t2])
+      expect(vector_store).not_to have_received(:delete_points).with(hash_including(collection: 'library_messages'))
+    end
+  end
+
+  describe '#delete_point_ids order and failure' do
+    it 'deletes the summary last' do
+      order = []
+      allow(vector_store).to receive(:delete_points) { |collection:, **| order << collection }
+      store.delete_point_ids('library_summaries' => ['s'], 'library_turns' => ['t'])
+      expect(order).to eq(%w[library_turns library_summaries])
     end
   end
 

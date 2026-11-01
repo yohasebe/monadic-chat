@@ -1,13 +1,15 @@
 # frozen_string_literal: true
 
 require 'shellwords'
+require_relative "../utils/gemini_request"
 require_relative '../utils/environment'
 require_relative '../utils/provider_capabilities'
 require_relative '../utils/shared_path_guard'
+require_relative '../shared_tools/child_threads'
 require_relative '../utils/video_probe'
 require_relative '../utils/model_spec'
+require_relative '../utils/provider_response'
 require_relative '../utils/timed_transcription'
-require_relative '../utils/public_copy'
 require_relative '../shell'
 require_relative '../workspace'
 
@@ -53,6 +55,19 @@ module VideoAnalyzeAgent
     "xai"       => 50
   }.freeze
 
+  # A detailed analysis (asked for by the user) of a video longer than one
+  # window: the video is split into at most DETAILED_MAX_WINDOWS equal parts
+  # of at most DETAILED_WINDOW_SECONDS, each with its own DETAILED_WINDOW_FRAMES
+  # frames, described one request a part. Shorter videos are analysed as usual.
+  DETAILED_WINDOW_SECONDS = 600
+  DETAILED_MAX_WINDOWS = 5
+  DETAILED_WINDOW_FRAMES = 16
+  # Parts described at the same time.
+  DETAILED_CONCURRENCY = 2
+  # No part is started once the parts have taken this long; the rest are
+  # reported as not described.
+  DETAILED_TIME_LIMIT = 15 * 60
+
   # Seconds the frame and audio extraction may take (long videos decode
   # slowly; the default command timeout of two minutes cut them off).
   VIDEO_EXTRACT_TIMEOUT = 900
@@ -74,7 +89,8 @@ module VideoAnalyzeAgent
 
   # attachment_id: a video the user attached to this chat (preferred).
   # file: a file in the shared folder, for videos placed there by hand.
-  def analyze_video(file: nil, attachment_id: nil, fps: 1, query: nil, session: nil)
+  # detailed: the user asked for a detailed analysis (see DETAILED_WINDOW_SECONDS).
+  def analyze_video(file: nil, attachment_id: nil, fps: 1, query: nil, session: nil, detailed: false)
     return "Error: attachment_id or file is required." if attachment_id.to_s.empty? && file.to_s.empty?
 
     # Models sometimes pass the attachment id as the file name. A shared-folder
@@ -96,11 +112,12 @@ module VideoAnalyzeAgent
     frame_limit = PROVIDER_FRAME_LIMITS.fetch(provider)
     safe_fps = fps.to_i
     safe_fps = 1 if safe_fps <= 0
+    detailed = [true, "true"].include?(detailed)
 
     extracted = if attachment_id.to_s.empty?
-                  extract_from_shared_file(file, safe_fps, frame_limit)
+                  extract_from_shared_file(file, safe_fps, frame_limit, detailed)
                 else
-                  extract_from_attachment(attachment_id.to_s, session, safe_fps, frame_limit)
+                  extract_from_attachment(attachment_id.to_s, session, safe_fps, frame_limit, detailed)
                 end
     return extracted if extracted.is_a?(String) # Error message
 
@@ -140,7 +157,11 @@ module VideoAnalyzeAgent
     audio = Thread.new { video_transcript_section(extracted, provider, session) }
     audio.report_on_exception = false
     description = begin
-      video_vision_query(video_query, frames)
+      if frames.is_a?(Hash) && frames["windows"]
+        describe_by_window(video_query, frames, still_ours: -> { !chat_moved_on?(extracted, session) })
+      else
+        video_vision_query(video_query, frames)
+      end
     rescue StandardError => e
       "ERROR: #{e.class.name.split('::').last}"
     end
@@ -212,20 +233,27 @@ module VideoAnalyzeAgent
   end
 
   # The attached video, run in a folder of its own inside the chat's folder.
-  # The chat is the session's; an id from another chat is refused.
-  def extract_from_attachment(attachment_id, session, fps, frame_limit)
+  # Only an attachment the message being answered allows (sent with it or
+  # an earlier message of the same chat) is taken, and only while the
+  # session is still that chat.
+  def extract_from_attachment(attachment_id, session, fps, frame_limit, detailed = false)
     chat_id = session && session[Monadic::Workspace::Chats::SESSION_KEY]
-    record = Monadic::Workspace::Attachments.resolve!(chat_id: chat_id, attachment_id: attachment_id)
+    context = Monadic::Workspace::RequestContext.current
+    if context && context.chat_id != chat_id
+      raise Monadic::Workspace::Attachments::Unusable.new(:chat_moved_on, "This chat has ended.")
+    end
+
+    record = Monadic::Workspace::Attachments.resolve_for_request!(attachment_id: attachment_id, context: context, session: session)
     return "Error: attachment #{record[:original_name]} is not a video." unless record[:purpose] == "video"
 
     workspace = Monadic::Workspace::Ledger.default.workspace(record[:workspace_id])
-    job = Monadic::Workspace::Jobs.create!(workspace[:relative_dir])
+    job = Monadic::Workspace::Jobs.create!(workspace[:workspace_id])
     input = Monadic::Utils::SharedPathGuard.command_path(record[:path], container: "python")
     output = Monadic::Utils::SharedPathGuard.command_path(job[:path], container: "python", must_exist: false)
     return "Error: the attachment or its run folder is outside the shared folder." unless input && output
 
     Monadic::Utils::VideoProbe.check!(input)
-    _stdout, stderr, status = run_extractor(input, output, fps, frame_limit)
+    _stdout, stderr, status = run_extractor(input, output, fps, frame_limit, detailed)
     return "Error: #{OLD_PYTHON_IMAGE}" if stderr.to_s.include?("unrecognized arguments")
 
     json = Monadic::Workspace::Jobs.outputs(job, /\Aframes_[0-9_]+\.json\z/).first
@@ -244,25 +272,21 @@ module VideoAnalyzeAgent
     "Error: extracting frames took longer than #{VIDEO_EXTRACT_TIMEOUT / 60} minutes. Try a shorter video."
   end
 
-  # A copy of the attached video directly in the shared folder, where the page
-  # can play it (/data/<name>); the attachment itself stays in the chat's
-  # folder. A real copy, not a link: code that writes to the public file must
-  # not change the attachment. Made once per attachment, written under a
-  # temporary name and then renamed so that a half-written file is never
-  # served. Returns the address, or nil when the copy cannot be made.
+  # The address where the page plays the attached video (/data/pub_...): a
+  # publication of the attachment (Workspace::Publications), a checked copy
+  # kept where only the server can change it, made once and used again while
+  # it is there. Returns nil when it cannot be published.
   def publish_attachment(record)
-    ext = File.extname(record[:original_name].to_s).downcase
-    return nil unless ext.match?(/\A\.[a-z0-9]{1,5}\z/)
-
-    publish_copy(record[:path], "pub_#{record[:attachment_id]}#{ext}")
-  end
-
-  def publish_copy(source, name)
-    Monadic::Utils::PublicCopy.publish(source, name)
+    "/data/#{Monadic::Workspace::Publications.create!(kind: 'attachment', id: record[:attachment_id])[:name]}"
+  rescue Monadic::Workspace::Publications::Unavailable, Monadic::Workspace::Publications::Changed,
+         Monadic::Workspace::Ledger::Unreadable, Monadic::Workspace::Ledger::Conflict,
+         Monadic::Workspace::ServerOwner::Refused, SystemCallError, IOError => e
+    warn "[Workspace] Video not published: #{e.class.name.split('::').last}"
+    nil
   end
 
   # A video placed in the shared folder by name (the way before attachments).
-  def extract_from_shared_file(file, fps, frame_limit)
+  def extract_from_shared_file(file, fps, frame_limit, detailed = false)
     # The same check before decoding as for attachments.
     input = Monadic::Utils::SharedPathGuard.command_path(file.to_s, container: "python")
     return "Error: #{file} was not found in the shared folder." unless input
@@ -274,7 +298,7 @@ module VideoAnalyzeAgent
     end
 
     # Written next to the video, in the shared folder (the way before attachments).
-    stdout, stderr, status = run_extractor(input, "./", fps, frame_limit)
+    stdout, stderr, status = run_extractor(input, "./", fps, frame_limit, detailed)
     return "Error: #{OLD_PYTHON_IMAGE}" if stderr.to_s.include?("unrecognized arguments")
 
     split_res = "#{stdout}#{stderr}"
@@ -297,9 +321,13 @@ module VideoAnalyzeAgent
   # absolute path (scripts in the shared folder come first on PATH there, so
   # a file named like it must not run instead), and a time limit long enough
   # for the longest video VideoProbe accepts.
-  def run_extractor(input, output, fps, frame_limit)
+  def run_extractor(input, output, fps, frame_limit, detailed = false)
     argv = ["python", EXTRACT_SCRIPT, input, output, "--fps", fps.to_s, "--format", "png",
             "--frames", frame_limit.to_s, "--json", *AUDIO_ARGS]
+    if detailed
+      argv += ["--window-seconds", DETAILED_WINDOW_SECONDS.to_s, "--max-windows", DETAILED_MAX_WINDOWS.to_s,
+               "--window-frames", [DETAILED_WINDOW_FRAMES, frame_limit].min.to_s]
+    end
     Monadic::Shell.exec(container: :python, argv: argv, timeout: VIDEO_EXTRACT_TIMEOUT)
   end
 
@@ -342,7 +370,7 @@ module VideoAnalyzeAgent
     return nil unless Monadic::Workspace::Ids.valid?(:chat, chat_id) && extracted[:input]
 
     workspace = Monadic::Workspace::Folders.ensure_for_chat!(chat_id, app_name: self.class.name)
-    job = Monadic::Workspace::Jobs.create!(workspace[:relative_dir])
+    job = Monadic::Workspace::Jobs.create!(workspace[:workspace_id])
     output = Monadic::Utils::SharedPathGuard.command_path(job[:path], container: "python", must_exist: false)
     output ? [job, output] : nil
   rescue Monadic::Workspace::Jobs::Unavailable, Monadic::Workspace::Ledger::Unreadable
@@ -377,19 +405,19 @@ module VideoAnalyzeAgent
   def read_frames_json(json_path)
     return "ERROR: Invalid file path (path traversal not allowed)" if json_path.to_s.match?(%r{(?:\A|/)\.\.(?:/|\z)})
 
-    # Strip leading ./ and resolve to the active shared volume.
+    # Strip leading ./ and resolve to the active shared volume; an absolute
+    # path (a run folder's file) is taken as it is. Read as a plain file of
+    # the shared folder, never through a link and never outside it.
     clean_path = json_path.sub(%r{\A\./}, "")
-    shared_path = File.join(Monadic::Utils::Environment.shared_volume, clean_path)
+    path = clean_path.start_with?("/") ? clean_path : File.join(Monadic::Utils::Environment.shared_volume, clean_path)
+    text = begin
+      Monadic::Utils::SharedPathGuard.read_bytes!(path)
+    rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+      nil
+    end
+    return "ERROR: Frames JSON file not found: #{json_path}" unless text
 
-    path = if File.exist?(json_path)
-             json_path
-           elsif File.exist?(shared_path)
-             shared_path
-           end
-
-    return "ERROR: Frames JSON file not found: #{json_path}" unless path && File.exist?(path)
-
-    json_data = JSON.parse(File.read(path))
+    json_data = JSON.parse(text)
 
     if json_data.is_a?(Array) && !json_data.empty? && json_data.all? { |item| item.is_a?(String) }
       # Legacy input: never invent timestamps from array positions.
@@ -461,14 +489,92 @@ module VideoAnalyzeAgent
       puts "[VideoAnalyzeAgent] Using provider: #{provider}, model: #{model}, frames: #{frames.size}"
     end
 
-    case provider
-    when "openai"    then video_vision_openai(query, frames, model, api_key)
-    when "anthropic" then video_vision_claude(query, frames, model, api_key)
-    when "google"    then video_vision_gemini(query, frames, model, api_key)
-    when "xai"       then video_vision_grok(query, frames, model, api_key)
-    end
+    text = case provider
+           when "openai"    then video_vision_openai(query, frames, model, api_key)
+           when "anthropic" then video_vision_claude(query, frames, model, api_key)
+           when "google"    then video_vision_gemini(query, frames, model, api_key)
+           when "xai"       then video_vision_grok(query, frames, model, api_key)
+           end
+    # A reply with no text is a failure, not a description.
+    text.to_s.strip.empty? ? "ERROR: Empty response from the vision model" : text
   rescue => e
     "ERROR: Video vision analysis failed: #{e.message}"
+  end
+
+  # A video split into windows (a detailed analysis): each part is described
+  # on its own request, DETAILED_CONCURRENCY at a time, and the parts are
+  # returned in order with their video times. The app's model puts them
+  # together. A part that fails, has no selected frames, or is not started
+  # before the time limit or once the chat moved on says so; the others are
+  # kept. An error only when no part could be described. When this call is
+  # stopped (Cancel), the parts still being described stop with it.
+  def describe_by_window(query, document, still_ours: -> { true })
+    by_id = document["frames"].to_h { |frame| [frame["frame_id"], frame] }
+    windows = document["windows"]
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + DETAILED_TIME_LIMIT
+    results = Array.new(windows.size)
+    waiting = Queue.new
+    windows.each_with_index do |window, index|
+      if Array(window["frame_ids"]).any? { |id| by_id[id] }
+        waiting << index
+      else
+        results[index] = [:skipped, "(Not described: no frames were selected from this part.)"]
+      end
+    end
+    waiting.close
+
+    workers = []
+    begin
+      [DETAILED_CONCURRENCY, waiting.size].min.times do
+        MonadicSharedTools::ChildThreads.spawn(workers) do
+          Thread.current.report_on_exception = false # a part's error is its result, not a log line
+          while (index = waiting.pop)
+            results[index] = describe_part(query, document, windows, index, by_id, deadline, still_ours)
+          end
+        end
+      end
+      workers.each(&:join)
+    ensure
+      MonadicSharedTools::ChildThreads.stop(workers)
+    end
+
+    if results.none? { |status, _| status == :described }
+      return results.find { |status, _| status == :failed }&.last || "ERROR: No part of the video could be described"
+    end
+
+    parts = windows.each_index.map do |index|
+      "Part #{index + 1} of #{windows.size} (video time #{video_window_span(windows[index])}):\n" \
+        "#{results[index].first == :failed ? "(Not described: #{results[index].last.delete_prefix('ERROR:').strip})" : results[index].last}"
+    end
+    "The video was described in #{windows.size} parts, in order. Each part saw only its own frames.\n\n" \
+      "#{parts.join("\n\n")}"
+  end
+
+  # One part of a detailed analysis: [:described, text], [:failed, error]
+  # or [:skipped, note]. Checked before the part is started: no part is
+  # started past the time limit or for a chat that has moved on. A part
+  # already started is not checked again (its request may be retried once
+  # after a network error); stopping the analysis stops it.
+  def describe_part(query, document, windows, index, by_id, deadline, still_ours)
+    unless still_ours.call
+      return [:skipped, "(Not described: the chat moved on before this part.)"]
+    end
+    if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+      return [:skipped, "(Not described: the detailed analysis ran out of time before this part.)"]
+    end
+
+    window = windows[index]
+    frames = Array(window["frame_ids"]).filter_map { |id| by_id[id] }
+    part_query = "This is part #{index + 1} of #{windows.size} of the video, from #{video_window_span(window)}. " \
+                 "Describe only what these frames show.\n#{query}"
+    reply = video_vision_query(part_query, document.merge("frames" => frames)).to_s
+    reply.start_with?("ERROR:") ? [:failed, reply] : [:described, reply]
+  rescue StandardError => e
+    [:failed, "ERROR: #{e.class.name.split('::').last}"]
+  end
+
+  def video_window_span(window)
+    "#{video_timestamp(window['start_ms'])}–#{video_timestamp(window['end_ms'])}"
   end
 
   # Evenly sample frames to fit within limit
@@ -587,17 +693,24 @@ module VideoAnalyzeAgent
     # critical for a single-shot vision query.
     body = {
       model: model,
-      OpenAIHelper::OUTPUT_TOKEN_KEY => 1000,
+      OpenAIHelper::OUTPUT_TOKEN_KEY => 4000,
       messages: [{ role: "user", content: content }]
     }
+    # Unasked, a reasoning model reasons at its own default level and can
+    # spend the whole output budget on it, leaving the description empty.
+    efforts = Monadic::Utils::ModelSpec.get_reasoning_effort_options(model)&.dig(:options)
+    body[:reasoning_effort] = efforts.first if efforts&.any?
 
     res = video_vision_http_post(uri, headers, body)
     unless res.status.success?
-      error = JSON.parse(res.body.to_s) rescue {}
-      return "ERROR: OpenAI Vision API error (#{res.status}): #{error.dig("error", "message") || res.body.to_s}"
+      return "ERROR: OpenAI Vision API error (#{res.status}): #{Monadic::Utils::ProviderResponse.error_message(res.body.to_s)}"
     end
 
-    JSON.parse(res.body.to_s).dig("choices", 0, "message", "content") || "ERROR: Empty response from OpenAI"
+    choice = JSON.parse(res.body.to_s).dig("choices", 0) || {}
+    text = choice.dig("message", "content").to_s
+    return text unless text.strip.empty?
+
+    "ERROR: Empty response from OpenAI (finish_reason: #{choice["finish_reason"] || "unknown"})"
   end
 
   def video_vision_claude(query, frames, model, api_key)
@@ -624,23 +737,18 @@ module VideoAnalyzeAgent
 
     body = {
       model: model,
-      max_tokens: 1000,
       messages: [{ role: "user", content: content }]
-    }
+    }.merge(Monadic::Utils::ProviderResponse.claude_light_request(model, 1000))
 
     res = video_vision_http_post(uri, headers, body)
     unless res.status.success?
-      error = JSON.parse(res.body.to_s) rescue {}
-      return "ERROR: Claude Vision API error (#{res.status}): #{error.dig("error", "message") || res.body.to_s}"
+      return "ERROR: Claude Vision API error (#{res.status}): #{Monadic::Utils::ProviderResponse.error_message(res.body.to_s)}"
     end
 
-    parsed = JSON.parse(res.body.to_s)
-    content_blocks = parsed["content"]
-    if content_blocks.is_a?(Array) && content_blocks.first
-      content_blocks.first["text"] || "ERROR: Empty response from Claude"
-    else
-      "ERROR: Unexpected response format from Claude"
-    end
+    content_blocks = JSON.parse(res.body.to_s)["content"]
+    return "ERROR: Unexpected response format from Claude" unless content_blocks.is_a?(Array)
+
+    Monadic::Utils::ProviderResponse.claude_text(content_blocks) || "ERROR: Empty response from Claude"
   end
 
   def video_vision_gemini(query, frames, model, api_key)
@@ -665,10 +773,9 @@ module VideoAnalyzeAgent
       contents: [{ parts: parts }]
     }
 
-    res = video_vision_http_post(uri, headers, body)
+    res = video_vision_http_post(uri, headers, Monadic::Utils::GeminiRequest.without_storage(body))
     unless res.status.success?
-      error = JSON.parse(res.body.to_s) rescue {}
-      return "ERROR: Gemini Vision API error (#{res.status}): #{error.dig("error", "message") || res.body.to_s}"
+      return "ERROR: Gemini Vision API error (#{res.status}): #{Monadic::Utils::ProviderResponse.error_message(res.body.to_s)}"
     end
 
     JSON.parse(res.body.to_s).dig("candidates", 0, "content", "parts", 0, "text") || "ERROR: Empty response from Gemini"
@@ -701,8 +808,7 @@ module VideoAnalyzeAgent
 
     res = video_vision_http_post(uri, headers, body)
     unless res.status.success?
-      error = JSON.parse(res.body.to_s) rescue {}
-      return "ERROR: Grok Vision API error (#{res.status}): #{error.dig("error", "message") || res.body.to_s}"
+      return "ERROR: Grok Vision API error (#{res.status}): #{Monadic::Utils::ProviderResponse.error_message(res.body.to_s)}"
     end
 
     JSON.parse(res.body.to_s).dig("choices", 0, "message", "content") || "ERROR: Empty response from Grok"

@@ -1,10 +1,8 @@
 # Client-Side Rendering Pipeline
 
-Last updated: 2025-11-08
-
 ## Overview
 
-All HTML generation for chat cards now happens in the browser. The Ruby server sends raw
+All HTML generation for chat cards happens in the browser. The Ruby server sends raw
 `msg.text` (Markdown or Monadic JSON) together with metadata (`app_name`, `monadic`,
 flags for KaTeX/ABC/Mermaid, etc.). The front-end converts that payload into styled HTML
 using `MarkdownRenderer`.

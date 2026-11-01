@@ -1,8 +1,10 @@
 #!/usr/bin/env ruby
 
 require_relative "../../lib/monadic/utils/http_client"
+require "stringio"
 require "base64"
 require_relative "../../lib/monadic/utils/shared_path_guard"
+require_relative "../../lib/monadic/utils/tool_image_utils"
 require "http"
 require "json"
 require "optparse"
@@ -214,37 +216,14 @@ def get_api_key
   api_key
 end
 
-# Function to get MIME type based on file extension
+# The bytes of a local image and the type their signature shows: a file that
+# does not start like an image is refused before anything is sent.
+def read_local_image(path)
+  bytes = Monadic::Utils::SharedPathGuard.read_file!(path, &:read)
+  mime_type = Monadic::Utils::ToolImageUtils.image_media_type(bytes)
+  raise ArgumentError, "#{File.basename(path)} is not a PNG, JPEG, GIF or WebP image" unless mime_type
 
-def get_mime_type(file_path)
-  ext = File.extname(file_path).downcase.delete('.')
-  case ext
-  when 'jpg', 'jpeg'
-    'image/jpeg'
-  when 'png'
-    'image/png'
-  when 'webp'
-    'image/webp'
-  else
-    # Try to detect from file content
-
-    begin
-      file_data = File.binread(file_path, 16) # Read first 16 bytes
-      if file_data.start_with?("\xFF\xD8") # JPEG magic number
-        'image/jpeg'
-      elsif file_data.start_with?("\x89PNG\r\n\x1A\n") # PNG magic number
-        'image/png'
-      elsif file_data.start_with?("RIFF") && file_data[8, 4] == "WEBP" # WEBP magic number
-        'image/webp'
-      else
-        puts "WARNING: Unable to determine MIME type for #{file_path}. Defaulting to image/jpeg"
-        'image/jpeg' # Default to JPEG as fallback
-      end
-    rescue StandardError
-      puts "WARNING: Unable to read file #{file_path}. Defaulting to image/jpeg"
-      'image/jpeg' # Default to JPEG as fallback
-    end
-  end
+  [mime_type, bytes]
 end
 
 def generate_image(options, num_retrials = 3)
@@ -318,8 +297,8 @@ def generate_image(options, num_retrials = 3)
         end
         # Also include any local files as base64 data URIs
         (options[:images] || []).each do |img_path|
-          mime_type = get_mime_type(img_path)
-          data = Base64.strict_encode64(File.binread(img_path))
+          mime_type, bytes = read_local_image(img_path)
+          data = Base64.strict_encode64(bytes)
           img_refs << { image_url: "data:#{mime_type};base64,#{data}" }
         end
         body[:images] = img_refs
@@ -358,11 +337,11 @@ def generate_image(options, num_retrials = 3)
 
         # Add images with proper MIME types
         options[:images].each do |img_path|
-          mime_type = get_mime_type(img_path)
+          mime_type, bytes = read_local_image(img_path)
           form[:"image[]"] ||= []
 
           image_file = HTTP::FormData::File.new(
-            img_path,
+            StringIO.new(bytes),
             content_type: mime_type,
             filename: File.basename(img_path)
           )
@@ -376,9 +355,9 @@ def generate_image(options, num_retrials = 3)
 
         # Add mask if provided
         if options[:mask]
-          mime_type = get_mime_type(options[:mask])
+          mime_type, bytes = read_local_image(options[:mask])
           form[:mask] = HTTP::FormData::File.new(
-            options[:mask],
+            StringIO.new(bytes),
             content_type: mime_type,
             filename: File.basename(options[:mask])
           )
@@ -420,7 +399,6 @@ def generate_image(options, num_retrials = 3)
       # Create output directory
 
       output_dir = "./"
-      FileUtils.mkdir_p(output_dir) unless Dir.exist?(output_dir)
       
       json["data"].each_with_index do |data, idx|
         base64_data = data["b64_json"]
@@ -446,9 +424,8 @@ def generate_image(options, num_retrials = 3)
           end
           file_path = File.join(output_dir, filename)
           
-          File.open(file_path, "wb") do |f|
-            f.write(image_data)
-          end
+          # The working folder is the shared folder; written never through a link.
+          Monadic::Utils::SharedPathGuard.write_file!(File.join(Monadic::Utils::Environment.data_path, filename), image_data)
           
           result[:images] << {
             path: file_path,

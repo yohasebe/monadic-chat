@@ -12,6 +12,8 @@
 # Those are marked as :integration and skipped in unit tests.
 
 require 'spec_helper'
+require 'tmpdir'
+require 'fileutils'
 
 RSpec.describe 'Tool Method Behavior' do
   let(:app_base_dir) { File.expand_path('../../../apps', __dir__) }
@@ -275,6 +277,16 @@ RSpec.describe 'Tool Method Behavior' do
     let(:instance) { app_class&.new }
 
     describe '#preview_mermaid', :integration do
+      # The preview page is written into the shared folder: a temporary one
+      # here, never the user's.
+      before do
+        @shared = Dir.mktmpdir('mermaid-shared-')
+        allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(@shared)
+        allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@shared)
+      end
+
+      after { FileUtils.rm_rf(@shared) if @shared }
+
       it 'validates mermaid code' do
         skip 'MermaidGrapherOpenAI not loaded' unless instance
         skip 'preview_mermaid not defined' unless instance.respond_to?(:preview_mermaid)

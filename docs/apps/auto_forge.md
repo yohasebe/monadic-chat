@@ -1,230 +1,65 @@
-# AutoForge / Artifact Builder
+# Auto Forge
 
-AutoForge (marketed as "Artifact Builder") is an autonomous application builder that creates complete, single-file web applications *and* command-line tools through intelligent AI orchestration.
+Auto Forge builds single-file web applications and command-line tools from your description. The model you chat with plans the work and talks with you, and a code generation model of the same provider writes the code.
 
-## Overview
+Auto Forge is available with OpenAI, Anthropic (Claude), and xAI (Grok). It needs the API key of the provider you use.
 
-AutoForge uses advanced AI models for planning and orchestration, combined with provider-specific code generation models. It creates self-contained HTML applications with embedded CSS and JavaScript or standalone CLI scripts, requiring no external dependencies.
+## What It Makes
 
-## Key Features
+- **Web applications**: one HTML file with the CSS and JavaScript inside it, which runs in the browser without a server and loads nothing from outside
+- **Command-line tools**: a standalone script in Python, Ruby, Node.js, or another language suited to the task. On request, Auto Forge also writes a README, a configuration template, or a dependency list (such as `requirements.txt` or `Gemfile`)
 
-### 1. Intelligent Application Generation
-- **Autonomous Planning**: Advanced AI models analyze requirements and create detailed implementation plans.
-- **Provider-Specific Codegen**: Specialized code generation models deliver production-ready artifacts.
-- **Single-File Output**: Web apps ship as a single HTML file; CLI tools ship as a standalone script.
-
-### 2. CLI Tool Support
-- **Language Detection**: AutoForge selects Python, Ruby, Node.js, or other languages based on the requested behaviour.
-- **Optional Assets on Demand**: README, config templates, and dependency manifests are only suggested when a project actually benefits from them.
-- **Actionable Guidance**: Post-generation instructions include permissions, execution commands, and next steps.
-- **Custom Text Assets**: Provide a `file_name` and `instructions` to generate any additional Markdown, config, or documentation file you need.
-
-### 3. Project Management
-- **Automatic Organization**: Projects are saved with timestamps and descriptive names.
-- **Unicode Support**: Full support for international characters in project names.
-- **Modification Support**: Existing applications can be updated iteratively.
-- **Project Listing**: View all previously generated projects.
-
-### 4. Debugging with Selenium (Optional, Web Apps Only)
-- **Automated Testing**: Runs applications in headless Chrome via Selenium.
-- **Error Detection**: Identifies JavaScript errors and console warnings.
-- **Performance Metrics**: Measures load time, DOM ready, and render time.
-- **Functionality Tests**: Verifies interactive elements work correctly.
+Examples of web applications: calculators, to-do lists that keep their data in the browser, timers, drawing canvases, memory games, Markdown editors, and color palette generators. Examples of command-line tools: data converters (CSV, JSON, XML), backup helpers, log analyzers, and file organizers.
 
 ## How to Use
 
-### Basic Workflow
+1. Select **Auto Forge** under the provider you want to use, and describe what you want to build: its name, what it does, and its features
+2. With OpenAI and xAI, Auto Forge first proposes a step-by-step plan and waits for your approval; you can ask for changes before it starts
+3. Auto Forge generates the application. Code generation for a complex application can take a few minutes; progress is shown in the chat while it runs
+4. Ask for changes to improve it or add features
 
-1. **Start a Conversation**: Open Artifact Builder and describe what you want to build
-2. **Provide Requirements**: Specify the application name, type, description, and features
-3. **Generate Application**: The system will create your application automatically
-4. **Debug (Optional)**: If Selenium is available, test the application for errors
-5. **Modify as Needed**: Request changes to improve or add features
+### Modifying and Starting Over
 
-### Example Applications
+To change an application, ask for the changes using the same application name. Auto Forge updates the latest version of that project. To build it again from scratch under the same name, ask for a fresh start; a new project folder is created.
 
-Artifact Builder can create various types of web applications:
-- Scientific calculators
-- Todo list applications with local storage
-- Countdown timers
-- Drawing canvas applications
-- Memory card games
-- Form builders
-- Markdown editors
-- Color palette generators
+To see the projects you have made, ask Auto Forge to list them.
 
-Artifact Builder also supports CLI utilities such as:
-- Runtime and environment inspectors
-- Data conversion scripts (CSV/JSON/XML)
-- Backup and archiving helpers
-- Log analyzers and stream processors
-- File organizers and bulk rename tools
+## Testing Web Applications
 
-### Tool Commands
+Auto Forge can open a generated web application in Chrome in the Selenium container and report:
+- JavaScript errors and console warnings
+- Results of trying the forms, buttons, and other interactive elements
+- Load time, DOM ready time, and render time
+- A screenshot of the page
 
-The system provides several tools you can request:
+With OpenAI and xAI, this check runs as part of building a web application. With Claude, it runs when you ask for it.
 
-#### `generate_application`
-Creates or modifies an application based on specifications.
+## Where Projects Are Saved
 
-Example:
-```json
-{
-  "spec": {
-    "name": "TodoApp",
-    "type": "productivity",
-    "description": "A simple todo list manager",
-    "features": ["Add tasks", "Mark complete", "Delete tasks", "Local storage"]
-  }
-}
-```
+Projects are saved in `~/monadic/data/auto_forge/`, one folder per project, named after the project with the date and time:
 
-#### `debug_application`
-Tests an existing web application using Selenium (requires Selenium container).
-
-Example:
-```json
-{
-  "spec": {
-    "name": "TodoApp"
-  }
-}
-```
-
-#### `list_projects`
-Shows all previously generated projects with their locations and creation times.
-
-#### `validate_specification`
-Checks if your application specification is complete before generation.
-
-#### `generate_additional_file`
-Available for CLI projects. Generates optional assets when they add clear value:
-- `readme` – usage instructions for the generated script.
-- `config` – template config file when the tool references configuration inputs.
-- `requirements` – dependency list (for example, `requirements.txt` or `Gemfile`) when non-standard libraries are detected.
-- `usage_examples` – Markdown guide with real-world scenarios (automatically suggested for tools with rich flag parsing).
-- **Custom file** – supply both `file_name` and `instructions` to materialize any text-based artifact (e.g., `USAGE.md`, `CHANGELOG.md`, `.env.example`).
-
-Example (custom asset):
-```json
-{
-  "file_name": "USAGE.md",
-  "instructions": "Document three typical workflows with commands and expected output."
-}
-```
-
-## Technical Details
-
-### Architecture
-- **Orchestration Layer**: Each provider's capable model handles planning, user interaction, and tool coordination via MDSL apps.
-- **Code Generation Layer**: Provider-specific code generation models produce the web/CLI artifact.
-- **File Management**: The Ruby backend manages project storage, context persistence, and optional file generation.
-- **Debug Layer**: Python/Selenium integration provides automated testing for web apps.
-
-### File Storage
-Projects are stored in `~/monadic/data/auto_forge/` with the following structure:
 ```text
 auto_forge/
-├── TodoApp_20250127_143022/
+├── TodoApp_20260127_143022/
 │   └── index.html
-├── Calculator_20250127_151234/
+├── Calculator_20260127_151234/
 │   └── index.html
-├── runtimes-lister_20250928_234449/
+├── runtimes-lister_20260928_234449/
 │   ├── runtimes_lister.py
-│   └── README.md (optional)
+│   └── README.md
 └── ...
 ```
 
-### Code Quality Standards
-All generated applications follow these standards:
-- Modern responsive design using CSS Grid/Flexbox
-- Vanilla JavaScript (no external frameworks)
-- Semantic HTML5 elements
-- Mobile-first responsive design
-- Accessibility best practices (ARIA labels)
-- CSS variables for theming
+Project names can contain characters of any language.
 
-## Advanced Features
+## Tips
 
-### Modifying Existing Applications
-To modify an existing application:
-1. Use the same application name as before
-2. Specify what changes you want
-3. The system will find and update the most recent version
-
-### Starting Fresh
-To create a new version from scratch:
-1. Use the same name but add `"reset": true` to the specification
-2. This will create a new project folder with a fresh implementation
-
-### Debugging Report
-When `debug_application` is used for web apps, you receive:
-- JavaScript error list
-- Console warnings
-- Functionality test results (forms, buttons, interactive elements)
-- Performance metrics (load time, DOM ready, render time)
-- Viewport information
-
-## Requirements
-
-### Basic Requirements
-- Monadic Chat with Ruby backend
-- One of the following:
-  - OpenAI API key (with access to advanced models)
-  - Anthropic API key (with access to advanced models)
-  - xAI API key (with access to advanced models)
-
-### Optional Requirements
-- Docker with Selenium container for debugging features (web apps only)
-- Python container for Selenium integration (for Selenium tests)
-
-## Application Scope
-
-1. **Single-File Applications**: Web projects are delivered as one HTML file; CLI projects as standalone scripts.
-2. **Self-Contained Design**: Web apps use embedded resources instead of external CDNs. CLI tools generate dependency manifests when non-standard libraries are used.
-3. **Client-Side Architecture**: Web projects run entirely in the browser without server components.
-4. **Session Focus**: Each conversation focuses on one application at a time
-
-## Best Practices
-
-1. **Clear Requirements**: Provide detailed descriptions of desired functionality
-2. **Iterative Development**: Start simple and add features progressively
-3. **Test Regularly**: Use `debug_application` after generating web apps to catch issues
-4. **Meaningful Names**: Use descriptive project names for easy identification
+1. Describe the functions you want in detail
+2. Start simple and add features step by step
+3. Give each project a descriptive name
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **Files Not Generated**: Code generation models can take 2-5 minutes for complex apps. Progress appears in the streaming temp card while generation runs.
-2. **Selenium Not Available**: The Selenium container starts with the application — check the console for startup errors if it is missing
-3. **Unicode Characters**: Project names with special characters are fully supported
-4. **Custom file requests rejected**: Make sure the filename is simple (no directories) and include clear instructions describing the desired content.
-
-### Error Messages
-
-- "Missing required parameters": Ensure all specification fields are provided
-- "Selenium container is not running": The Selenium container starts with the application; restart Monadic Chat if it is not running
-- "Project not found": Check the exact project name with list_projects
-
-## Provider Support & Progress Updates
-
-AutoForge supports multiple providers:
-- **OpenAI Auto Forge**: Uses OpenAI's orchestration and code generation models.
-- **Claude Auto Forge**: Uses Claude's orchestration and code generation models via the Anthropic Messages API.
-- **Grok Auto Forge**: Uses xAI's orchestration and code generation models.
-
-All variants broadcast long-running progress updates to the streaming temp card so you can track generation without monitoring the status bar.
-
-### Grok-Specific Characteristics
-
-Grok's code generation model excels at:
-- **Fast Iteration**: Quick generation suited to rapid build-and-revise cycles
-- **Front-End Development**: HTML/CSS/JavaScript, SVG graphics, animations
-- **Modern CSS**: Grid, Flexbox, CSS variables
-
-Grok's code generation model is optimized for:
-- Smaller, focused tasks with iterative development
-- Visual components and simple animations
-- Vanilla JavaScript implementations
-- Self-contained single-file applications
+- **No files appear yet**: code generation can take a few minutes for a complex application. Wait until the progress in the chat finishes
+- **"Selenium container is not running"**: the Selenium container starts with Monadic Chat. Check the console for errors at startup, and restart Monadic Chat
+- **"Project not found"**: ask Auto Forge to list the projects and use the exact project name

@@ -22,6 +22,7 @@ require_relative 'shared_tools/context_panel_helper'
 require_relative 'shared_tools/planning'
 require_relative 'shared_tools/verification'
 require_relative 'shared_tools/parallel_dispatch'
+require_relative 'shared_tools/parallel_python_execution'
 require_relative 'shared_tools/library_search'
 require_relative 'dsl/configurations'
 require_relative 'dsl/loader'
@@ -231,12 +232,10 @@ module MonadicDSL
   def self.inject_library_search!(state)
     provider = state.settings[:provider].to_s.downcase.to_sym
     tool_config = ToolConfiguration.new(state, provider)
-    # `conditional` reflects reality: the tool is exposed to the LLM only
-    # when the per-session "Use Knowledge Base for retrieval" toggle in
-    # the Knowledge Base panel is ON. The `web_search_tools` group uses
-    # the same `conditional` visibility for the parallel reason. The
-    # visibility tag affects only badge categorization (Tools (Always) vs
-    # Tools (Conditional)) — actual API gating is independent.
+    # Imported as `conditional`; ProgressiveToolManager then shows it exactly
+    # while the per-session "Use Knowledge Base for retrieval" toggle is ON
+    # (it is never unlocked through request_tool). The tool also returns a
+    # disabled message when the toggle is off.
     tool_config.import_shared_tools(:library_search, visibility: "conditional")
     new_tools = tool_config.to_h
 
@@ -252,7 +251,7 @@ module MonadicDSL
   end
 
   # After the user's MDSL block runs, ensure shared-folder read/write is wired
-  # into EVERY app so `${SHARED}` is actionable everywhere (Phase 9) — file
+  # into EVERY app so `${SHARED}` is actionable everywhere — file
   # interaction (editing local images, supplying source text, saving
   # transcripts) is broadly useful and reflects Monadic Chat's Docker shared-
   # folder integration. Unlike library_search this is unconditional: no
@@ -528,8 +527,7 @@ module MonadicDSL
         if MonadicDSL.library_search_eligible?(@state) &&
            !MonadicDSL.library_search_already_imported?(@state)
           begin
-            # See `inject_library_search!` for why `conditional`: the tool
-            # is gated by the per-session Knowledge Base retrieval toggle.
+            # Same visibility as `inject_library_search!`.
             tool_config.import_shared_tools(:library_search, visibility: "conditional")
           rescue StandardError => e
             puts "[DSL] library_search inline-inject skipped for #{@state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
@@ -729,6 +727,11 @@ module MonadicDSL
       class_def << "        @settings[:#{feature}] = #{value.inspect}\n"
     end
     
+    # context_size may be written in the llm block or in features; features wins
+    if state.settings[:context_size] && !state.features.key?(:context_size)
+      class_def << "        @settings[:context_size] = #{state.settings[:context_size].inspect}\n"
+    end
+
     # Add max_tokens if specified
     if state.settings[:max_tokens]
       class_def << "        @settings[:max_tokens] = #{state.settings[:max_tokens].inspect}\n"

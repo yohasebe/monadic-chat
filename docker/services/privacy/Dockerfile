@@ -10,6 +10,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+# Every pip call of the build, spacy download included, takes its versions
+# from constraints.txt: the requirements below name only direct packages,
+# and a compiled one spaCy links against (preshed) once broke loading the
+# models when a new release came in on a rebuild.
+COPY constraints.txt /app/constraints.txt
+ENV PIP_CONSTRAINT=/app/constraints.txt
+
 RUN pip install --no-cache-dir \
     "presidio-analyzer==2.2.355" \
     "spacy>=3.7,<3.8" \

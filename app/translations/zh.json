@@ -13,7 +13,11 @@
     "exporting": "导出中",
     "quitting": "退出中",
     "checking": "检查中",
-    "updating": "更新中"
+    "updating": "更新中",
+    "started": "已启动",
+    "finalizing": "即将完成",
+    "notinstalled": "未安装",
+    "portinuse": "端口被占用"
   },
   "menu": {
     "file": "文件",
@@ -124,6 +128,11 @@
     "quit": "退出"
   },
   "dialogs": {
+    "sharedFolderTrash": {
+      "message": "要将共享文件夹中的 {{count}} 个条目移到废纸篓吗？",
+      "move": "移到废纸篓",
+      "more": "另有 {{count}} 个"
+    },
     "unsavedChangesTitle": "未保存的更改",
     "unsavedChangesMessage": "您有未保存的更改。是否在关闭前保存？",
     "saveAndClose": "保存并关闭",
@@ -168,7 +177,61 @@
     "importDbPassphraseTitle": "解密文档数据库",
     "importDbPassphraseHint": "请输入导出时设置的密码。",
     "importDbDecryptingMessage": "正在解密文档数据库...",
-    "importDbDecryptFailed": "解密失败。密码错误，或文件已被修改。"
+    "importDbDecryptFailed": "解密失败。密码错误，或文件已被修改。",
+    "passphrase": {
+      "windowTitle": "密码",
+      "label": "密码",
+      "confirmLabel": "确认密码",
+      "tooShort": "密码至少需要 8 个字符。",
+      "mismatch": "两次输入的密码不一致。"
+    },
+    "updateAvailable": {
+      "message": "有可用更新",
+      "detail": "新版本：{{latest}}（当前：{{current}}）。\n将在后台下载；准备就绪后会请您重启。",
+      "viewReleases": "查看所有版本"
+    },
+    "upToDate": {
+      "message": "已是最新版本",
+      "detail": "您正在使用最新版本({{version}})。"
+    },
+    "updateReady": {
+      "title": "更新已就绪",
+      "message": "Monadic Chat {{version}} 已可安装。",
+      "detail": "应用将先正常停止 Docker 容器，然后重启以应用更新。进行中的对话将会丢失，请先完成或保存。",
+      "restartNow": "立即重启",
+      "later": "稍后"
+    },
+    "updateError": {
+      "title": "更新错误",
+      "message": "自动更新失败",
+      "detail": "您可以从发布页面手动下载最新版本。",
+      "openReleases": "打开发布页面",
+      "close": "关闭"
+    },
+    "dockerErrorTitle": "Docker 错误",
+    "dockerCommandFailed": "Docker 命令以代码 {{code}} 退出。",
+    "openFolderFailed": "无法打开文件夹",
+    "serverStartFailed": "无法启动服务器。请重试。",
+    "ttsDictReadFailed": "无法读取 TTS 词典文件：",
+    "ttsDictFilter": "CSV 文件",
+    "documentDbNotFound": "未找到文档数据库文件。请将 monadic-qdrant.tar.gz 或 monadic-qdrant.tar.gz.enc 放在 ~/monadic/data/ 中。",
+    "pendingBuilds": {
+      "setupTitle": "设置容器",
+      "setupMessage": "此计算机上有些容器尚未设置。",
+      "setupDetail": "可以现在设置，也可以不设置直接启动。未设置的容器会在功能首次需要时设置，因此首次使用会花更长时间。",
+      "setupButton": "设置并启动",
+      "startNow": "立即启动",
+      "rebuildTitle": "建议重建容器",
+      "rebuildMessage": "需要重建部分容器以应用已保存的设置。",
+      "rebuildDetailSomeNotBuilt": "如不重建，已构建的容器将保持之前的设置。尚未构建的容器会在功能首次需要时设置。",
+      "rebuildDetail": "如不重建，应用将使用之前构建的镜像启动。",
+      "rebuildButton": "重建并启动",
+      "startAnyway": "仍然启动",
+      "notBuilt": "尚未构建",
+      "optionsChanged": "选项已更改（{{options}}）",
+      "pythonContainer": "Python 容器",
+      "minutes": "{{range}} 分钟"
+    }
   },
   "messages": {
     "dockerNotRunning": "Docker Desktop未运行。请先启动Docker Desktop后重试。",
@@ -191,8 +254,26 @@
     "removingContainers": "正在删除容器和镜像。",
     "stoppingAllProcesses": "正在停止所有进程。",
     "systemStopped": "系统已于{{time}}停止",
+    "serverNotRunning": "服务器未运行。请先启动服务器。",
+    "serverStoppedAfterSleep": "系统睡眠/唤醒后服务器已停止。请重新启动服务器。",
     "quittingMonadicChat": "正在退出Monadic Chat...",
     "monadicChatPreparing": "Monadic Chat正在准备...",
+    "dockerNotInstalled": {
+      "darwin": "未找到 Docker。请安装并启动 Docker Desktop for Mac，然后按 <b>Start</b>。",
+      "win32": "未找到 Docker。请安装并启动 Docker Desktop for Windows（运行在 WSL 2 上），然后按 <b>Start</b>。",
+      "linux": "未找到 Docker。请为您的发行版安装 Docker Engine，然后按 <b>Start</b>。"
+    },
+    "opReferencesReading": "正在从 1Password 读取 {{count}} 个密钥...",
+    "opReferencesStaleContainer": "Ruby 容器由旧版本构建，无法使用从 1Password 读取的密钥；提供商将收到 op:// 引用而不是密钥。请通过 <b>Actions → Build Ruby Container</b> 重新构建，然后按 <b>Start</b>。",
+    "opReferenceFailed": "无法从 1Password 读取 {{key}}：{{reason}}。在下次 Start 之前，需要它的功能不可用。",
+    "opReferenceReasons": {
+      "opMissing": "未找到 1Password CLI（op）",
+      "notSignedIn": "1Password 已锁定或 CLI 未登录",
+      "cancelled": "请求已被拒绝",
+      "notFound": "该引用未指向现有的项目和字段",
+      "timeout": "1Password 未在规定时间内响应",
+      "failed": "1Password CLI 报告了错误"
+    },
     "monadicChatStopping": "Monadic Chat正在停止...",
     "monadicChatRestarting": "Monadic Chat正在重启...",
     "buildingMonadicChat": "正在构建Monadic Chat...",
@@ -233,14 +314,20 @@
     "buildMonadicFinished": "Monadic Chat构建已完成并启动容器。请检查控制台面板了解详情。",
     "containerFailedBuild": "容器构建失败。",
     "noUserContainers": "没有要构建的用户容器。",
-    "buildLogsAvailable": "构建日志已保存到共享文件夹。",
-    "checkLogFiles": "请检查共享文件夹中的以下日志文件：",
+    "buildLogsAvailable": "构建日志已保存到日志文件夹。",
+    "checkLogFiles": "请检查日志文件夹中的以下日志文件：",
     "allContainersAvailable": "所有容器都可用。继续进行...",
     "runningContainers": "运行中的容器",
     "containerAccessInfo": "您可以使用以下命令直接访问容器：",
     "systemAvailableAt": "系统可访问于",
     "versionInfo": "Monadic Chat 应用 v{{appVersion}}  容器镜像 v{{containerVersion}}",
     "versionInfoApp": "应用",
-    "versionInfoContainer": "容器"
+    "versionInfoContainer": "容器",
+    "languageSettingsApplied": "已将更新的语言设置应用到 {{service}} 容器。",
+    "pythonBuildSucceeded": "Python 构建成功。",
+    "pythonBuildFailed": "Python 构建失败。",
+    "updateSuccessfulVersion": "更新成功：版本 {{version}}",
+    "stoppingContainersBeforeRestart": "重启前正在停止 Docker 容器...",
+    "buildLogsLabel": "日志："
   }
 }

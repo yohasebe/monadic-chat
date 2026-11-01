@@ -1,4 +1,5 @@
 require 'shellwords'
+require 'securerandom'
 require_relative '../utils/shared_path_guard'
 require 'cgi'
 require 'digest'
@@ -79,7 +80,7 @@ module MonadicHelper
       end
       File.open(JUPYTER_LOG_FILE, "a") do |f|
         f.puts "Time: #{Time.now}"
-        f.puts "Cells: #{cells_str}"
+        f.puts "Cells: #{Monadic::Utils::SecretRedactor.redact(cells_str)}"
         f.puts "-----------------------------------"
       end
       Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] Logged to #{JUPYTER_LOG_FILE}" }
@@ -104,9 +105,11 @@ module MonadicHelper
                       end
       notebook_path = File.join(shared_volume, filename_with_ext)
       
-      return { success: false, error: "Notebook file not found at #{notebook_path}" } unless File.exist?(notebook_path)
-      
-      notebook = JSON.parse(File.read(notebook_path))
+      # Read as a plain file of the shared folder, never through a link.
+      text = (Monadic::Utils::SharedPathGuard.read_bytes!(notebook_path) rescue nil)
+      return { success: false, error: "Notebook file not found at #{notebook_path}" } unless text
+
+      notebook = JSON.parse(text)
       actual_cell_count = notebook['cells'].length
       expected_cell_count = expected_cells.is_a?(Array) ? expected_cells.length : 0
       
@@ -132,8 +135,8 @@ module MonadicHelper
         f.puts "ERROR Time: #{Time.now}"
         f.puts "Operation: #{operation}"
         f.puts "Filename: #{filename}"
-        f.puts "Error: #{error_message}"
-        f.puts "Cells attempted: #{cells.inspect[0..500]}" # Limit length
+        f.puts "Error: #{Monadic::Utils::SecretRedactor.redact(error_message)}"
+        f.puts "Cells attempted: #{Monadic::Utils::SecretRedactor.redact(cells.inspect[0..500])}" # Limit length
         f.puts "==================================="
       end
     rescue StandardError
@@ -355,7 +358,10 @@ module MonadicHelper
       end
     end
 
-    tempfile = Time.now.to_i.to_s
+    # The cells reach the Python container through a file in the shared
+    # folder; its name is the call's own (two chats can add cells in the same
+    # second), and it is removed once the container has read it.
+    tempfile = "jupyter_cells_#{Time.now.strftime('%Y%m%d_%H%M%S')}_#{SecureRandom.hex(4)}"
     Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] Writing to temp file: #{tempfile}.json" }
     write_to_file(filename: tempfile, extension: "json", text: cells_in_json)
 
@@ -406,6 +412,11 @@ module MonadicHelper
                  Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] JSON file not created in time" }
                  false
                end
+    begin
+      Monadic::Utils::SharedPathGuard.delete_file!(filepath)
+    rescue SystemCallError, Monadic::Utils::SharedPathGuard::InvalidPath
+      nil
+    end
 
     if results1
       # Generate access URL
@@ -671,10 +682,12 @@ module MonadicHelper
     data_path = Monadic::Utils::Environment.data_path
     notebook_path = File.join(data_path, filename_with_ext)
 
-    return [] unless File.exist?(notebook_path)
+    # Read as a plain file of the shared folder, never through a link.
+    text = (Monadic::Utils::SharedPathGuard.read_bytes!(notebook_path) rescue nil)
+    return [] unless text
 
     begin
-      notebook = JSON.parse(File.read(notebook_path))
+      notebook = JSON.parse(text)
     rescue JSON::ParserError
       return []
     end
@@ -714,13 +727,11 @@ module MonadicHelper
           unique_id = saved_images.size + 1
           image_filename = "jupyter_output_#{timestamp}_#{unique_id}.png"
           image_path = File.join(data_path, image_filename)
-          File.binwrite(image_path, Base64.decode64(png_data))
-
+          decoded = Base64.decode64(png_data)
           # Skip files that are too large (> 5 MB)
-          if File.size(image_path) > 5 * 1024 * 1024
-            File.delete(image_path)
-            next
-          end
+          next if decoded.bytesize > 5 * 1024 * 1024
+
+          Monadic::Utils::SharedPathGuard.write_file!(image_path, decoded)
 
           saved_images << image_filename
           seen_hashes << content_hash if seen_hashes && content_hash
@@ -779,10 +790,12 @@ module MonadicHelper
     filename_with_ext = filename.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
     notebook_path = File.join(Monadic::Utils::Environment.data_path, filename_with_ext)
     
-    return "Error: Notebook not found." unless File.exist?(notebook_path)
-    
+    # Read as a plain file of the shared folder, never through a link.
+    text = (Monadic::Utils::SharedPathGuard.read_bytes!(notebook_path) rescue nil)
+    return "Error: Notebook not found." unless text
+
     begin
-      notebook = JSON.parse(File.read(notebook_path))
+      notebook = JSON.parse(text)
       cells_with_results = []
       
       notebook['cells'].each_with_index do |cell, index|

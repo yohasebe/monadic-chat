@@ -11,12 +11,11 @@ RSpec.describe "Code Interpreter Integration Tests", type: :integration do
 
   describe "File operations" do
     let(:test_file_content) { "Hello, World!\nThis is a test file." }
-    let(:test_file_name) { "integration_test_#{Time.now.to_i}.txt" }
-    
-    after(:each) do
-      # Cleanup test files
-      cleanup_test_files
-    end
+    let(:test_file_name) { SharedFolderTestFiles.name("integration_test_#{Time.now.to_i}.txt") }
+
+    # Only what an example adds to the shared folder is removed afterwards.
+    before(:each) { @shared_before = SharedFolderTestFiles.snapshot(Monadic::Utils::Environment.data_path) }
+    after(:each) { SharedFolderTestFiles.remove_new(Monadic::Utils::Environment.data_path, @shared_before) }
 
     context "basic file operations" do
       it "can create and read test files" do
@@ -67,22 +66,4 @@ RSpec.describe "Code Interpreter Integration Tests", type: :integration do
     File.write(File.join(data_dir, filename), content)
   end
 
-  def cleanup_test_files
-    # Clean up any test files created during the test
-    data_dir = Monadic::Utils::Environment.data_path
-    
-    return unless Dir.exist?(data_dir)
-    
-    Dir.glob(File.join(data_dir, "integration_test_*")).each do |file|
-      File.delete(file) if File.exist?(file) && File.file?(file)
-    end
-    
-    Dir.glob(File.join(data_dir, "test_output_*")).each do |path|
-      if File.directory?(path)
-        FileUtils.rm_rf(path)
-      elsif File.file?(path)
-        File.delete(path)
-      end
-    end
-  end
 end

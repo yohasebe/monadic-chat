@@ -61,11 +61,11 @@ module MonadicHelper
     container = "monadic-chat-python-container"
     filepath = File.join(data_dir, "#{safe_filename}.#{safe_extension}")
 
-    # create a temporary file inside the data directory
+    # create a temporary file inside the data directory, never through a link
     begin
-      File.open(filepath, "w") do |f|
-        f.write(text)
-      end
+      Monadic::Utils::SharedPathGuard.write_file!(filepath, text)
+    rescue Monadic::Utils::SharedPathGuard::InvalidPath => e
+      return "Error: #{e.message}: #{filename}.#{extension}"
     rescue Errno::ENOENT => e
       return "Error: Directory does not exist for file: #{filename}.#{extension}"
     rescue Errno::EACCES => e
@@ -86,25 +86,10 @@ module MonadicHelper
       end
     end
 
+    # The Python container mounts the same shared folder, so the file is
+    # already there; nothing is copied by path.
     if success
-      if Monadic::Utils::Environment.in_container?
-        # Routed through Monadic::Shell so the container name and the
-        # cp invocation share the same source of truth as every other
-        # docker call. This is the H3 POC migration referenced in
-        # docs_dev/architecture_hardening_plan.md.
-        require_relative '../shell'
-        _stdout, stderr, status = Monadic::Shell.cp_to_container(
-          container: :python, host_path: filepath, container_path: data_dir
-        )
-
-        if status.exitstatus.zero?
-          "The file #{filename}.#{extension} has been written successfully."
-        else
-          "Error: #{stderr}"
-        end
-      else
-        "The file #{filename}.#{extension} has been written successfully."
-      end
+      "The file #{filename}.#{extension} has been written successfully."
     else
       "Error: The file could not be written."
     end
@@ -117,4 +102,7 @@ module MonadicHelper
     # Keep as fallback for any unexpected errors - maintaining backward compatibility
     "Error: The code could not be executed.\n#{e}"
   end
+
+  # Not a tool: called only from the implementations of declared tools.
+  private :write_to_file
 end

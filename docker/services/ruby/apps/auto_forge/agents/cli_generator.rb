@@ -22,8 +22,8 @@ module AutoForge
           if agent == :claude
             if @codex_callback
               @codex_callback.call(full_prompt, agent_name, &block)
-            elsif @app_instance && @app_instance.respond_to?(:claude_code_agent)
-              @app_instance.claude_code_agent(full_prompt, agent_name, &block)
+            elsif @app_instance && @app_instance.respond_to?(:call_claude_code)
+              @app_instance.call_claude_code(prompt: full_prompt, app_name: agent_name, &block)
             else
               return { success: false, error: "No Claude Opus access available" }
             end

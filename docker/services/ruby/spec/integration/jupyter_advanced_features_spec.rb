@@ -3,7 +3,7 @@
 require "spec_helper"
 
 RSpec.describe "Jupyter Advanced Features", :integration do
-  let(:test_notebook) { "test_advanced_#{Time.now.to_i}" }
+  let(:test_notebook) { SharedFolderTestFiles.name("advanced_#{Time.now.to_i}") }
   let(:app_instance) { JupyterNotebookOpenAI.new if defined?(JupyterNotebookOpenAI) }
   
   before(:all) do

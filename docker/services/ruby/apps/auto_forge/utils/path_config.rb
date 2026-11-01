@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'fileutils'
+require_relative '../../../lib/monadic/utils/shared_path_guard'
 
 module AutoForge
   module Utils
@@ -57,7 +58,7 @@ module AutoForge
       # @param path [String] Directory path
       # @return [String] The path that was ensured
       def ensure_directory(path)
-        FileUtils.mkdir_p(path) unless File.directory?(path)
+        Monadic::Utils::SharedPathGuard.mkdir_p!(path)
         path
       end
 

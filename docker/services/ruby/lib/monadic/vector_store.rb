@@ -9,6 +9,7 @@ require_relative 'vector_store/endpoint'
 require_relative 'vector_store/schema'
 require_relative 'vector_store/base'
 require_relative 'vector_store/qdrant_backend'
+require_relative 'vector_store/bootstrap'
 
 module Monadic
   module VectorStore

@@ -11,7 +11,7 @@ require_relative '../../../apps/auto_forge/agents/error_explainer'
 require_relative '../../../apps/auto_forge/utils/codex_response_analyzer'
 
 RSpec.describe 'AutoForge Diagnosis Integration', type: :integration do
-  let(:test_project_name) { "TestApp_#{Time.now.to_i}" }
+  let(:test_project_name) { SharedFolderTestFiles.name("TestApp_#{Time.now.to_i}") }
   let(:auto_forge_dir) { File.expand_path('~/monadic/data/auto_forge') }
   let(:project_dir) { File.join(auto_forge_dir, test_project_name) }
 
@@ -29,13 +29,28 @@ RSpec.describe 'AutoForge Diagnosis Integration', type: :integration do
   end
 
   before(:all) do
-    # Ensure AutoForge directory exists
+    # Ensure AutoForge directory exists (and remove it afterwards only if it was made here)
+    @made_auto_forge = !Dir.exist?(File.expand_path('~/monadic/data/auto_forge'))
     FileUtils.mkdir_p(File.expand_path('~/monadic/data/auto_forge'))
+  end
+
+  after(:all) do
+    dir = File.expand_path('~/monadic/data/auto_forge')
+    Dir.rmdir(dir) if @made_auto_forge && Dir.exist?(dir) && Dir.empty?(dir)
   end
 
   before(:each) do
     # Initialize context
     tool.instance_variable_set(:@context, {})
+
+    # The debugger saves a screenshot at the top of the shared folder and
+    # reports its name; only the screenshots reported here are removed.
+    @screenshots = []
+    allow(tool).to receive(:debug_application_raw).and_wrap_original do |original, *args|
+      result = original.call(*args)
+      @screenshots << result[:screenshot] if result.is_a?(Hash) && result[:screenshot]
+      result
+    end
 
     # Create test project directory
     FileUtils.mkdir_p(project_dir)
@@ -44,6 +59,10 @@ RSpec.describe 'AutoForge Diagnosis Integration', type: :integration do
   after(:each) do
     # Clean up test project
     FileUtils.rm_rf(project_dir) if Dir.exist?(project_dir)
+    @screenshots.each do |name|
+      path = File.join(File.expand_path('~/monadic/data'), File.basename(name.to_s))
+      File.delete(path) if File.file?(path)
+    end
 
     # Clear diagnosis state
     tool.clear_diagnosis_state
@@ -270,7 +289,7 @@ RSpec.describe 'AutoForge Diagnosis Integration', type: :integration do
 
       it 'handles missing index.html in valid directory' do
         # Create directory but no index.html
-        empty_dir = File.join(auto_forge_dir, "EmptyProject_#{Time.now.to_i}")
+        empty_dir = File.join(auto_forge_dir, SharedFolderTestFiles.name("EmptyProject_#{Time.now.to_i}"))
         FileUtils.mkdir_p(empty_dir)
 
         begin
@@ -297,7 +316,7 @@ RSpec.describe 'AutoForge Diagnosis Integration', type: :integration do
         selenium_error = {
           success: false,
           error: 'Selenium container is not running. Web automation features require the Selenium service to be active.',
-          suggestion: 'Please start the Selenium container from the Actions menu (Actions → Start Selenium Container) and try again.'
+          suggestion: 'Restart Monadic Chat (Stop, then Start) so that the Selenium container starts, and try again.'
         }
         allow_any_instance_of(AutoForge::Debugger).to receive(:check_selenium_or_error).and_return(selenium_error)
 
@@ -396,11 +415,10 @@ RSpec.describe 'AutoForge Diagnosis Integration', type: :integration do
       expect(result[:success]).to be true
       # debug_timing.duration is the Ruby-side wall-clock from start to end of
       # debug_html, which includes send_command overhead, Python startup,
-      # Selenium connect/page-load, JS evaluation and cleanup. Under a fully
-      # loaded `rake test:all[full]` host (~26 min, ~600 specs) the
-      # observed wall-clock was 157s vs 3s on an idle host; the threshold
-      # below is sized for the loaded case while still catching real perf
-      # regressions (e.g. >3 min would indicate a true degradation).
+      # Selenium connect/page-load, JS evaluation and cleanup. The bound is
+      # sized for a host busy with the full suite, where this takes far
+      # longer than on an idle host; exceeding 3 min indicates a real
+      # performance regression.
       debug_duration = result.dig(:debug_timing, :duration) || 0
       expect(debug_duration).to be < 180
 

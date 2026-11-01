@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "secret_redactor"
+
 # Unified debug control system for Monadic Chat
 module DebugHelper
   # Debug levels
@@ -26,49 +28,9 @@ module DebugHelper
   }.freeze
 
   class << self
-    SENSITIVE_KEY_PATTERN = /(API_KEY|TOKEN|SECRET|PASSWORD)\z/i.freeze
-
-    # Mask common secret formats inside strings (best-effort, non-intrusive)
+    # Replace secrets in text bound for stdout (see SecretRedactor).
     def mask_secrets(text)
-      s = text.to_s.dup
-      return s if s.empty?
-
-      # Generic API keys in env/config
-      begin
-        secrets = []
-        if defined?(CONFIG) && CONFIG
-          CONFIG.each do |k, v|
-            next unless k.to_s =~ SENSITIVE_KEY_PATTERN
-            val = v.to_s
-            secrets << val unless val.empty?
-          end
-        end
-        ENV.each do |k, v|
-          next unless k.to_s =~ SENSITIVE_KEY_PATTERN
-          val = v.to_s
-          secrets << val unless val.empty?
-        end
-        # Known patterns (e.g., OpenAI)
-        patterns = [
-          /sk-[A-Za-z0-9]{12,}/,
-          /xai-[A-Za-z0-9_-]{12,}/,
-          /ya29\.[A-Za-z0-9_-]{20,}/
-        ]
-
-        secrets.each do |val|
-          next if val.length < 8
-          masked = val[0, 3] + "…" + val[-2, 2]
-          s.gsub!(val, masked)
-        end
-        patterns.each do |pat|
-          s.gsub!(pat) do |m|
-            m[0, 3] + "…" + m[-2, 2]
-          end
-        end
-      rescue StandardError
-        # Best-effort only
-      end
-      s
+      Monadic::Utils::SecretRedactor.redact(text.to_s)
     end
 
     def format_exception(e, context = {})

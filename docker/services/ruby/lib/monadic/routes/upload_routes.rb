@@ -21,7 +21,8 @@ post "/upload_audio" do
       end
       user_data_dir = Monadic::Utils::Environment.data_path
       dest_path = File.join(user_data_dir, filename)
-      File.open(dest_path, "wb") { |f| IO.copy_stream(file_handler, f) }
+      # Never through a link in its place (code a model runs could have made one)
+      Monadic::Utils::SharedPathGuard.write_file!(dest_path, file_handler, mode: "wb")
       file_handler.close
       utf8_filename = filename.force_encoding("UTF-8")
       { success: true, filename: utf8_filename }.to_json
@@ -33,11 +34,8 @@ post "/upload_audio" do
   end
 end
 
-# Convert a document file to text. Always returns JSON; the legacy
-# form-submission fallback was unreachable from the Web UI (every caller
-# is an AJAX fetch) and produced confusing JSON-parse errors when the
-# X-Requested-With contract drifted. Removed for the JsonRoute pattern
-# documented in docs_dev/architecture_hardening_plan.md §3.2.
+# Convert a document file to text. Always returns JSON (see JSON routes
+# in docs_dev/developer/anti_pattern_lints.md).
 post "/document" do
   content_type :json
 
@@ -51,7 +49,8 @@ post "/document" do
 
     user_data_dir = Monadic::Utils::Environment.data_path
     doc_file_path = File.join(user_data_dir, filename)
-    File.open(doc_file_path, "wb") { |f| f.write(doc_file_handler.read) }
+    # Never through a link in its place (code a model runs could have made one)
+    Monadic::Utils::SharedPathGuard.write_file!(doc_file_path, doc_file_handler.read, mode: "wb")
 
     utf8_filename = File.basename(doc_file_path).force_encoding("UTF-8")
     doc_file_handler.close

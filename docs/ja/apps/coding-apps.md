@@ -1,47 +1,42 @@
 # コーディング・ノートブックアプリ
 
-コードの作成と実行のためのアプリです。サンドボックス化されたPython実行環境、プロフェッショナルなコーディング支援、Jupyter Notebookの作成に対応します。
+コードを書いて実行するためのアプリです。コンテナの中での Python の実行、コーディングの支援、Jupyter Notebook の作成ができます。
 
 ## Code Interpreter
 
 ![Code Interpreter app icon](../assets/icons/code-interpreter.png ':size=40')
 
-AIにプログラムコードを作成・実行させるアプリケーションです。プログラムの実行には、Dockerコンテナ内のPython環境が使用されます。実行結果として得られたテキストデータや画像は`Shared Folder`に保存されると共に、チャット上でも表示されます。
+AI に Python のコードを書かせ、Python コンテナで実行させるアプリです。コードが作ったテキストや画像は共有フォルダに保存され、チャットにも表示されます。AI は自分が作ったファイルを覚えているので、後のターンでそれらを参照できます。自分のファイル（スクリプトやデータ）を AI に渡すときは、共有フォルダに置き、メッセージの中でファイル名を伝えてください。
 
-AIに読み込ませたいファイル（PythonコードやCSVデータなど）がある場合は、`Shared Folder` にファイルを保存して、Userメッセージの中でファイル名を指定してください。AIがファイルの場所を見つけられない場合は、ファイル名を確認して、現在のコード実行環境から利用可能であることを伝えてください。
+?> **注意：** Python コンテナには日本語のフォント（Noto Sans CJK JP）が入っていて、matplotlib はそれを使うように設定されているので、グラフの日本語は正しく表示されます。
 
-?> **注意:** 日本語テキストを含むmatplotlibプロットでは、Pythonコンテナに日本語フォントサポート（Noto Sans CJK JP）がmatplotlibrcを通じて設定されています。
-
-コードがプロット画像を生成した場合、AIは描画結果を視覚的に検証し、文字化け、ラベルの重なり、データの不整合などの問題を検出して、必要に応じてコードを自動修正・再実行します。
-
-Code Interpreterの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
+Code Interpreter の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
 
 
 ## Coding Assistant
 
 ![Coding Assistant app icon](../assets/icons/coding-assistant.png ':size=40')
 
-プロフェッショナルなソフトウェアエンジニアとして機能するAIアシスタントです。コードの作成、ファイルの読み書き、プロジェクト管理など、開発作業全般をサポートします。
+ソフトウェア開発のためのアシスタントです。コードを書いて直し、共有フォルダのファイルを読み書きします。
 
-**主な機能:**
+**主な機能：**
 - コードの生成と編集
-- Shared Folderへのファイル読み書き（write/appendモード対応）
-- ディレクトリ内のファイルリスト表示
-- 複雑なコーディングタスクへの対応
+- 共有フォルダのファイルの読み書き（上書きと追記）
+- フォルダの中のファイルの一覧
+- OpenAI 版と xAI（Grok）版では、大きなコーディングの作業を、同じプロバイダーのコード生成モデルに任せます
 
-?> **注意:** Code InterpreterアプリはPythonコードを実行できますが、Coding Assistantアプリはコード生成とファイル操作に特化しており、コードの実行は行いません。
+?> **注意：** Code Interpreter は Python のコードを実行します。Coding Assistant はコードを書き、ファイルを扱いますが、コードは実行しません。
 
-
-Coding Assistantの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
+Coding Assistant の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
 
 
 ## Jupyter Notebook :id=jupyter-notebook
 
 ![Jupyter Notebook app icon](../assets/icons/jupyter-notebook.png ':size=40')
 
-AIがJupyter Notebookを作成して、ユーザーからのリクエストに応じてセルを追加し、セル内のコードを実行するアプリケーションです。コードの実行には、Dockerコンテナ内のPython環境が使用されます。作成されたNotebookは`Shared Folder`に保存されます。セルがプロット画像を生成した場合、AIは出力結果を視覚的に検証し、問題があれば修正してから結果を提示します。
+AI に Jupyter のノートブックを作らせ、頼んだとおりにセルを加えて実行させるアプリです。AI は今のノートブックを覚えているので、いくつものターンにわたって同じノートブックの編集と実行を続けられます。コードは Python コンテナで実行され、ノートブックは共有フォルダに保存されます。
 
-?> Jupyterノートブックを実行するためのJupyterLabサーバーの起動と停止は、AIエージェントに自然言語で依頼する他に、Monadic Chatコンソールパネルのメニューからも行うことができます（`Start JupyterLab`, `Stop JupyterLab`）。
+?> JupyterLab の起動と停止は、AI に頼むほか、コンソールの **Actions** メニューの **Start JupyterLab** と **Stop JupyterLab** でもできます。[JupyterLab](../docker-integration/jupyterlab.md) を参照してください。
 <br /><br /><!-- SCREENSHOT: Actionsメニュー - Start JupyterLabとStop JupyterLabのメニュー項目が表示されている様子 -->
 
-Jupyter Notebookの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
+Jupyter Notebook の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。

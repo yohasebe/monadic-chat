@@ -35,7 +35,7 @@ RSpec.describe MonadicApp do
 
     it "delegates to class method with timeout parameter" do
       # Test actual delegation by checking the result
-      stdout, stderr, status = app.capture_command("echo 'test'", timeout: 60)
+      stdout, stderr, status = app.send(:capture_command, "echo 'test'", timeout: 60)
       expect(stdout.strip).to eq("test")
       expect(status.success?).to be true
     end

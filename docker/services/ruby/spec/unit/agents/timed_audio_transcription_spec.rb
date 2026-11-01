@@ -96,11 +96,15 @@ RSpec.describe "Transcribing an audio file with times" do
   it "gives each line the time in the recording, with no 25 MB limit, and keeps the run in the chat's folder" do
     answer = host.analyze_audio(audio: "lecture.mp3", session: session)
     expect(answer).to include("[00:03–00:05] Good morning.")
-    expect(answer).to match(%r{Subtitles: /data/pub_j_[a-z0-9]{16}\.vtt \(WebVTT\), /data/pub_j_[a-z0-9]{16}\.srt \(SRT\)})
+    expect(answer).to match(%r{Subtitles: /data/pub_[a-z0-9]{16}\.vtt \(WebVTT\), /data/pub_[a-z0-9]{16}\.srt \(SRT\)})
     expect(answer).to match(%r{Saved in the chat's folder: conversations/[^/]+/artifacts/j_[a-z0-9]{16}/transcript\.json})
     expect(segmenter_calls.first.last(2)).to eq(%w[--timeline audio])
     expect(segmenter_calls.first[2]).to eq("/monadic/data/lecture.mp3")
     expect(transcriber_args[:language]).to eq("en")
+    workspace = ledger.workspace_for_chat(chat_id)
+    artifacts = JSON.parse(File.read(ledger.path))["artifacts"].values
+    expect(artifacts.map { |a| a["kind"] }).to contain_exactly("subtitle_vtt", "subtitle_srt")
+    expect(artifacts).to all(include("owner" => "chat", "chat_id" => chat_id, "workspace_id" => workspace[:workspace_id]))
   end
 
   it "says why an Opus or AAC file cannot go the whole-file way" do
@@ -110,9 +114,9 @@ RSpec.describe "Transcribing an audio file with times" do
   end
 
   it "does not name a saved transcript when it could not be saved" do
-    allow(File).to receive(:rename).and_call_original
-    allow(File).to receive(:rename).with(a_string_ending_with("transcript.json.part-#{Process.pid}"), anything)
-                                   .and_raise(Errno::ENOSPC)
+    allow(Monadic::Utils::SharedFs).to receive(:write_new).and_call_original
+    allow(Monadic::Utils::SharedFs).to receive(:write_new).with(anything, "transcript.json", any_args)
+                                                          .and_raise(Errno::ENOSPC)
     answer = host.analyze_audio(audio: "lecture.mp3", session: session)
     expect(answer).to include("could not be saved")
     expect(answer).not_to include("Saved in the chat's folder")
@@ -159,32 +163,50 @@ RSpec.describe "Transcribing an audio file with times" do
                                               original_name: name, source: StringIO.new(body), ledger: ledger)
     end
 
+    # As when the attachments were sent with a message of this chat: the
+    # tools answering it may take them.
+    def as_sent(*records, &block)
+      context = Monadic::Workspace::RequestContext.new(chat_id: chat_id, attachment_ids: records.map { |r| r[:attachment_id] })
+      Monadic::Workspace::RequestContext.with(context, &block)
+    end
+
     it "is transcribed from the chat's folder, with the run kept beside it" do
       record = attach
-      answer = host.analyze_audio(attachment_id: record[:attachment_id], session: session)
+      answer = as_sent(record) { host.analyze_audio(attachment_id: record[:attachment_id], session: session) }
       expect(answer).to include("[00:03–00:05] Good morning.")
       expect(segmenter_calls.first[2]).to eq("/monadic/data/#{record[:relative_path]}")
       expect(segmenter_calls.first[3]).to include("/artifacts/j_")
       expect(File.dirname(segmenter_calls.first[3])).to eq(File.join(File.dirname(File.dirname(segmenter_calls.first[2])), "artifacts"))
+      artifacts = JSON.parse(File.read(ledger.path))["artifacts"].values
+      expect(artifacts.size).to eq(2)
+      expect(artifacts).to all(include("owner" => "chat", "chat_id" => chat_id, "workspace_id" => record[:workspace_id]))
     end
 
     it "is found from a real Rack session too (the session of an actual chat)" do
       record = attach
       real = rack_session(chat_id: chat_id, parameters: {})
-      expect(host.analyze_audio(audio: record[:attachment_id], session: real)).to include("Good morning.")
+      expect(as_sent(record) { host.analyze_audio(audio: record[:attachment_id], session: real) }).to include("Good morning.")
     end
 
     it "is found when the model passes its id as the file name" do
       record = attach
-      expect(host.analyze_audio(audio: record[:attachment_id], session: session)).to include("Good morning.")
+      expect(as_sent(record) { host.analyze_audio(audio: record[:attachment_id], session: session) }).to include("Good morning.")
+    end
+
+    it "is refused when no message of the chat sent it (uploaded only, or its id written somewhere)" do
+      record = attach
+      expect(as_sent { host.analyze_audio(attachment_id: record[:attachment_id], session: session) }).to start_with("Error:")
+      expect(host.analyze_audio(audio: record[:attachment_id], session: session)).to start_with("Error:")
+      expect(as_sent { host.analyze_audio(audio: record[:attachment_id], session: session) }).to start_with("Error:")
+      expect(segmenter_calls).to be_empty
     end
 
     it "is refused in another chat, and a video attachment is not taken as audio" do
       record = attach
       other = session.merge(chat_id: Monadic::Workspace::Ids.generate(:chat))
-      expect(host.analyze_audio(attachment_id: record[:attachment_id], session: other)).to start_with("Error:")
+      expect(as_sent(record) { host.analyze_audio(attachment_id: record[:attachment_id], session: other) }).to start_with("Error:")
       video = attach(purpose: "video", name: "clip.mp4", body: "\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom".b + ("x" * 2000))
-      expect(host.analyze_audio(attachment_id: video[:attachment_id], session: session)).to eq("Error: attachment clip.mp4 is not an audio file.")
+      expect(as_sent(video) { host.analyze_audio(attachment_id: video[:attachment_id], session: session) }).to eq("Error: attachment clip.mp4 is not an audio file.")
       expect(segmenter_calls).to be_empty
     end
   end

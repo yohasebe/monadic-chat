@@ -1,89 +1,53 @@
-# JupyterLabとの連携
+# JupyterLab との連携
 
-Monadic Chatには、JupyterLabを起動する機能があります。JupyterLabは、データサイエンスや機械学習のための統合開発環境（IDE）です。JupyterLabを使用することで、Pythonを用いてデータの分析や可視化を行うことができます。
+Monadic Chat は、Python によるデータの分析と可視化の環境である JupyterLab を、Python コンテナで起動できます。
 
-## JupyterLabの起動
+## JupyterLab の起動
 
-Monadic Chatコンソールの`Actions/Start JupyterLab`メニューをクリックすると、JupyterLabが起動します。
+Monadic Chat のコンソールで **Actions → Start JupyterLab** を選びます。このメニューは、Monadic Chat が動いている間に使えます。
 
-- JupyterLabは[http://localhost:8889](http://localhost:8889)または[http://127.0.0.1:8889](http://127.0.0.1:8889)でアクセスできます
-- パスワードやトークンは不要です（ローカル使用専用に設定）
+- JupyterLab は [http://localhost:8889](http://localhost:8889)（または [http://127.0.0.1:8889](http://127.0.0.1:8889)）で開きます
+- パスワードやトークンは要りません。JupyterLab には、お使いのコンピューターからだけ接続できます
 
-<!-- SCREENSHOT: Actionsメニュー - Start JupyterLabとStop JupyterLabのメニュー項目が表示されている様子 -->
+<!-- SCREENSHOT: Monadic Chat Actions menu showing Start JupyterLab and Stop JupyterLab options -->
 
-JupyterLabを起動すると、`/monadic/data`をホームディレクトリとしてJupyterLabが起動します。このため、JupyterLab内でも共有フォルダ内のファイルにアクセスできます。
+JupyterLab は共有フォルダ（`/monadic/data`）で起動するので、`~/monadic/data` に置いたファイルをそこで使えます。
 
-<!-- SCREENSHOT: JupyterLabターミナル - JupyterLabインターフェース内でTerminalが開かれ、カレントディレクトリが/monadic/dataとなっている様子 -->
+<!-- SCREENSHOT: JupyterLab terminal window showing command prompt at /monadic/data directory -->
 
-## JupyterLabの停止
+## JupyterLab の停止
 
-JupyterLabを停止するには、JupyterLabのタブを閉じるか、Monadic Chatコンソールの`Actions/Stop JupyterLab`メニューをクリックします。
+**Actions → Stop JupyterLab** を選びます。ブラウザーのタブを閉じても JupyterLab は動き続け、Monadic Chat を止めると止まります。
 
-## JupyterLabアプリの利用
+## Jupyter Notebook アプリの利用
 
-Monadic Chatの基本アプリ`Jupyter Notebook`では、AIエージェントとのチャットを通じて次のようなことができます。
+Jupyter Notebook アプリでは、チャットで AI エージェントにノートブックの作業を頼みます。エージェントは次のことができます。
 
-- JupyterLabの起動と停止
-- 共有フォルダへの新規ノートブックの作成
-- 共有フォルダ内のノートブックの読み込み
-- ノートブックへの新規セルの追加
+- JupyterLab の起動と停止
+- 共有フォルダでのノートブックの作成と、既存のノートブックの一覧
+- セルの追加、編集、移動、削除と、セルの実行
+- セルの出力の読み取りと、エラーになったセルの修正
+- カーネルの再起動と中断
 
-複数ステップにわたる複雑なタスクでは、アプリはまず番号付きの計画を提示し、ユーザーの承認を得てから実行します（Plan-Approve-Execute ワークフロー）。
+いくつもの手順がある作業では、アプリはまず番号付きの計画を示し、承認を待ってから実行します。
 
-## Jupyterへのアクセス
+Jupyter Notebook アプリは、OpenAI、Anthropic、Gemini、xAI で使えます。
 
-すべてのJupyter機能が利用可能です：
-- JupyterLabインターフェースは[http://127.0.0.1:8889](http://127.0.0.1:8889)でアクセス可能
-- アプリケーションメニューに`Jupyter Notebook`アプリが表示される
-- AIエージェントがJupyterノートブックの作成、変更、実行を行える
+## JupyterLab を使うときのヒント
 
-## JupyterLab使用のヒント
+- **保存したファイル**：`/monadic/data` に保存したファイルは、お使いのコンピューターの `~/monadic/data` に残ります
+- **Python のパッケージ**：ノートブックのセルで `!uv pip install --no-cache package_name` と実行すると、パッケージが入ります。入れたパッケージは、再ビルドや更新などでコンテナが作り直されるまで残ります。再ビルドの後も残すには[Python コンテナ](python-container.md)を参照してください
+- **ターミナル**：JupyterLab の Terminal で、Python コンテナのシェルが開きます
 
-- **作業ディレクトリ**: JupyterLabは`/monadic/data`を作業ディレクトリとして起動します
-- **永続的ストレージ**: `/monadic/data`に保存されたすべてのファイルはコンテナの再起動後も保持されます
-- **Pythonパッケージ**: ノートブックのセルで `!uv pip install --no-cache package_name` により追加パッケージをインストールできます。再ビルド後も保持される永続的なインストール方法は[Pythonコンテナ](python-container.md)を参照してください
-- **ターミナルアクセス**: JupyterLabのTerminalを使用してPythonコンテナに直接アクセスできます
+## グラフの日本語
 
+Jupyter Notebook アプリが、日本語を含むセルや matplotlib を使うセルを追加するときは、フォントを設定するセルも一緒に追加します。これで、matplotlib のグラフの日本語が、Python コンテナに入っている Noto Sans CJK JP で表示されます。
 
-## 日本語テキストサポート
-
-Monadic ChatのJupyter Notebookアプリケーションには、matplotlibプロット用の自動日本語フォント設定が組み込まれています。
-
-### 自動フォント設定
-
-以下を含むJupyter notebookを作成または実行すると：
-- 日本語テキスト（ひらがな、カタカナ、または漢字）
-- matplotlibのインポートまたは使用
-
-システムは自動的にフォント設定セルを挿入します：
-1. 日本語フォント（Noto Sans CJK JPまたはIPAGothic）を使用するようmatplotlibを設定
-2. フォント関連の警告を抑制
-3. プロット内の日本語文字の適切な表示を保証
-
-### 動作の仕組み
-
-フォント設定コードは自動的に挿入されます：
-- 最初のmatplotlibインポート文の後（存在する場合）
-- またはノートブックの先頭（インポートが見つからない場合）
-- 日本語テキストまたはmatplotlibの使用が検出された場合のみ
-- まだ存在しない場合のみ（「font-setup」メタデータでタグ付け）
-
-### サポートされているフォント
-
-システムは以下のフォントを順番にチェックします：
-1. Noto Sans CJK JP（推奨）
-2. IPA Gothic
-3. システム設定の日本語フォント
-
-### 例
-
-日本語テキストを含むノートブックを作成すると：
+たとえば、次のコードのラベルは日本語で表示されます。
 
 ```python
 import matplotlib.pyplot as plt
-import numpy as np
 
-# 日本語ラベルを含むプロット
 plt.plot([1, 2, 3], [1, 4, 2])
 plt.title('日本語のタイトル')
 plt.xlabel('横軸')
@@ -91,39 +55,10 @@ plt.ylabel('縦軸')
 plt.show()
 ```
 
-システムはコードが実行される前に自動的にフォント設定を追加し、日本語テキストが正しく表示されるようにします。
+それでも日本語が表示されないときは、カーネルを再起動し、フォントの設定のセルからすべてのセルを実行し直してください。
 
-### 技術詳細
+## 関連するアプリ
 
-#### フォントパス
-システムは以下のフォントの場所をチェックします：
-- `/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc`
-- `/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc`
-- `/usr/share/fonts/opentype/ipafont/ipag.ttf`
-- `/usr/share/fonts/truetype/ipafont/ipag.ttf`
-
-#### 設定
-- フォントファミリー: sans-serif
-- Unicodeマイナス: 無効（マイナス記号の表示問題を防止）
-- 警告: 欠落グリフに対して抑制
-
-### トラブルシューティング
-
-日本語テキストがまだ表示されない場合：
-1. Jupyterカーネルを再起動
-2. すべてのセルを再実行
-3. フォント設定セルが正常に実行されたことを確認
-4. Pythonコンテナにフォントがインストールされていることを確認
-
-### 注意事項
-
-- この機能はすべてのJupyter Notebookアプリ（OpenAI、Claude、Gemini、Grok）で利用可能
-- フォント設定は各ノートブックセッション内で永続的
-- 手動設定は不要 - 自動です！
-
-## 関連アプリ
-
-- **Code Interpreter**: JupyterLabを開かずにチャット内でPythonコードを直接実行
-- **Jupyter Notebook**: チャットを通じてJupyterノートブックを作成・管理するAIエージェント
-- 両アプリはJupyterLabと同じPython環境を使用します
-
+- **Code Interpreter**：JupyterLab を開かずに、チャットで Python のコードを直接実行します
+- **Jupyter Notebook**：チャットで Jupyter のノートブックを作成・編集します
+- どちらのアプリも、JupyterLab と同じ Python の環境を使います

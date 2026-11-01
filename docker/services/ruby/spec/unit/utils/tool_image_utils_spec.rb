@@ -83,4 +83,38 @@ RSpec.describe Monadic::Utils::ToolImageUtils do
       }.to raise_error(Monadic::Utils::ToolImageUtils::ImageMaterializationError)
     end
   end
+
+  # The name comes from a tool's output and the bytes go to a provider: only an
+  # image directly in the shared folder is sent.
+  describe '.encode_image_for_api' do
+    let(:outside) { Dir.mktmpdir }
+    after { FileUtils.remove_entry(outside) if File.directory?(outside) }
+
+    before do
+      File.write(File.join(outside, 'env'), "OPENAI_API_KEY=secret\n")
+      File.binwrite(File.join(tmpdir, 'shot.png'), Base64.decode64(png_b64))
+    end
+
+    it 'sends an image, typed by its signature rather than its name' do
+      FileUtils.cp(File.join(tmpdir, 'shot.png'), File.join(tmpdir, 'shot.jpg'))
+      expect(described_class.encode_image_for_api('shot.png')[:media_type]).to eq('image/png')
+      expect(described_class.encode_image_for_api('shot.jpg')[:media_type]).to eq('image/png')
+    end
+
+    it 'sends nothing without an image signature, whatever its name' do
+      File.write(File.join(tmpdir, 'env.png'), "OPENAI_API_KEY=secret\n")
+      expect(described_class.encode_image_for_api('env.png')).to be_nil
+    end
+
+    it 'sends nothing above or below the shared folder, nor through a link' do
+      rel = File.join('..', File.basename(outside), 'env')
+      expect(described_class.encode_image_for_api(rel)).to be_nil
+      expect(described_class.encode_image_for_api(File.join(outside, 'env'))).to be_nil
+      FileUtils.mkdir_p(File.join(tmpdir, 'sub'))
+      FileUtils.cp(File.join(tmpdir, 'shot.png'), File.join(tmpdir, 'sub', 'a.png'))
+      expect(described_class.encode_image_for_api('sub/a.png')).to be_nil
+      File.symlink(File.join(tmpdir, 'shot.png'), File.join(tmpdir, 'linked.png'))
+      expect(described_class.encode_image_for_api('linked.png')).to be_nil
+    end
+  end
 end

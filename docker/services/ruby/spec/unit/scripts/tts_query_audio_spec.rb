@@ -170,9 +170,12 @@ RSpec.describe "Gemini TTS audio decoding" do
     input = "/tmp/gemini-tts-draft.txt"
     allow(File).to receive(:exist?).and_call_original
     allow(File).to receive(:exist?).with(input).and_return(true)
-    allow(File).to receive(:read).with(input).and_return("Hello")
+    allow(Monadic::Utils::SharedPathGuard).to receive(:read_file!).and_call_original
+    allow(Monadic::Utils::SharedPathGuard).to receive(:read_file!).with(input).and_return("Hello".b)
     output = StringIO.new("".b)
-    expect(File).to receive(:open).with(a_string_ending_with("/gemini-tts-draft.wav"), "wb").and_yield(output)
+    # Saved through the guard (never through a link); played here.
+    expect(Monadic::Utils::SharedPathGuard).to receive(:write_file!)
+      .with(a_string_ending_with("/gemini-tts-draft.wav"), anything) { |_path, bytes| output.write(bytes) }
     previous_argv = ARGV.dup
     begin
       ARGV.replace([input, "--provider=gemini-flash-lite", "--voice=kore"])
@@ -184,21 +187,25 @@ RSpec.describe "Gemini TTS audio decoding" do
     expect(output.string).to eq(wav)
   end
 
-  it "resolves the new default and legacy Pro in both request implementations" do
+  it "resolves the new default and the retired Pro choice in both request implementations" do
     allow(host).to receive(:resolve_tts_model).and_call_original
     [host, script].each do |receiver|
       expect(receiver.send(:resolve_tts_model, "gemini-flash")).to eq("gemini-3.8-flash-tts")
       expect(receiver.send(:resolve_tts_model, "gemini")).to eq("gemini-3.8-flash-tts")
-      expect(receiver.send(:resolve_tts_model, "gemini-pro")).to eq("gemini-2.5-pro-preview-tts")
+      expect(receiver.send(:resolve_tts_model, "gemini-pro")).to eq("gemini-3.8-flash-tts")
     end
   end
 
-  it "exposes both new models and all existing models through the Ruby SSOT accessor" do
-    models = %w[gemini-3.8-flash-tts gemini-3.8-flash-lite-tts gemini-3.1-flash-tts-preview gemini-2.5-flash-preview-tts gemini-2.5-pro-preview-tts]
-    expect(Monadic::Utils::ModelSpec.get_provider_models("gemini", "tts")).to eq(models)
-    models.each do |model_name|
+  it "offers the GA models and keeps the retiring previews registered as deprecated" do
+    offered = %w[gemini-3.8-flash-tts gemini-3.8-flash-lite-tts]
+    retiring = %w[gemini-3.1-flash-tts-preview gemini-2.5-flash-preview-tts gemini-2.5-pro-preview-tts]
+    expect(Monadic::Utils::ModelSpec.get_provider_models("gemini", "tts")).to eq(offered)
+    retiring.each do |model_name|
+      expect(Monadic::Utils::ModelSpec.deprecated?(model_name)).to be(true)
+      expect(Monadic::Utils::ModelSpec.get_model_property(model_name, "successor")).to eq("gemini-3.8-flash-tts")
+    end
+    (offered + retiring).each do |model_name|
       expect(Monadic::Utils::ModelSpec.tts_family(model_name)).to eq("gemini")
-      expect(Monadic::Utils::ModelSpec.tts_instructions?(model_name)).to be(true)
       expect(Monadic::Utils::ModelSpec.get_model_property(model_name, "tts_capability")).to be(true)
     end
   end
@@ -237,6 +244,32 @@ RSpec.describe "Gemini TTS audio decoding" do
                            response_format: "wav", instructions: "warm")
       expect(client).to have_received(:post) do |_, json:|
         expect(json.dig("contents", 0, "parts", 0, "text")).to eq("Say with this voice and style:\nwarm\n\nHello")
+      end
+    end
+
+    it "adds a pace instruction only for models whose SSOT entry allows it" do
+      %w[gemini-2.5-flash-preview-tts gemini-2.5-pro-preview-tts].each do |m|
+        expect(Monadic::Utils::ModelSpec.tts_pace_prefix?(m)).to be(true)
+      end
+      %w[gemini-3.8-flash-tts gemini-3.8-flash-lite-tts gemini-3.1-flash-tts-preview].each do |m|
+        expect(Monadic::Utils::ModelSpec.tts_pace_prefix?(m)).to be(false)
+      end
+
+      respond_with(wav, "audio/wav")
+      host.tts_api_request("Hello", provider: "gemini", voice: "kore", response_format: "wav", speed: 1.5)
+      expected = Monadic::Utils::ModelSpec.tts_pace_prefix?(model) ? "Speak quickly. Hello" : "Hello"
+      expect(client).to have_received(:post) do |_, json:|
+        expect(json.dig("contents", 0, "parts", 0, "text")).to eq(expected)
+      end
+    end
+
+    it "uses the SSOT flag rather than the model name for the pace instruction" do
+      allow(Monadic::Utils::ModelSpec).to receive(:tts_pace_prefix?).and_call_original
+      allow(Monadic::Utils::ModelSpec).to receive(:tts_pace_prefix?).with(model).and_return(true)
+      respond_with(wav, "audio/wav")
+      host.tts_api_request("Hello", provider: "gemini", voice: "kore", response_format: "wav", speed: 0.5)
+      expect(client).to have_received(:post) do |_, json:|
+        expect(json.dig("contents", 0, "parts", 0, "text")).to eq("Speak very slowly. Hello")
       end
     end
 

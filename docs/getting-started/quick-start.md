@@ -6,7 +6,7 @@ This tutorial will help you get started with Monadic Chat quickly. You'll learn 
 
 ## Prerequisites
 
-- Docker Desktop is installed and running (see [Installation Guide](installation.md))
+- Docker is installed and running (see [Installation Guide](installation.md))
 - Monadic Chat is installed and running
 - You have at least one API key (OpenAI recommended for this tutorial)
 
@@ -14,14 +14,17 @@ This tutorial will help you get started with Monadic Chat quickly. You'll learn 
 
 ### 1.1 Open Settings
 
-1. Click the **Settings** button in the Console Panel
-2. Select the **API Keys** panel from the sidebar
+1. Click the **Settings** button in the console
+2. Select **API Keys** in the sidebar
 
 ### 1.2 Add Your API Key
 
-1. Find the **OpenAI API Key** field
-2. Paste your API key (starts with `sk-`)
-3. Click **Save**
+1. Paste your OpenAI API key (it starts with `sk-`) into the `OPENAI_API_KEY` field
+2. Click **Save** at the bottom of the sidebar
+
+### 1.3 Start Monadic Chat
+
+Click **Start** in the console and wait until the **System** status shows **Started**.
 
 <!-- ![Settings Panel](../assets/images/settings-panel.png ':size=600') -->
 
@@ -31,9 +34,8 @@ This tutorial will help you get started with Monadic Chat quickly. You'll learn 
 
 ### 2.1 Select the Chat App
 
-1. Click the **Open Browser** button in the Console Panel
+1. Click the **Open Browser** button in the console. The web interface opens
 2. From the app menu, select **Chat** under the OpenAI group
-3. The web interface will open
 
 ### 2.2 Start Chatting
 
@@ -49,9 +51,8 @@ Setup is complete at this point — Monadic Chat is working. The rest of this pa
 
 ### 2.3 Try Web Search
 
-1. Click the **Settings** icon in the web interface
-2. Toggle **Web Search** to ON
-3. Ask a current question:
+1. In the **Monadic Chat Info** panel of the sidebar, turn on **Web Search**
+2. Ask a current question:
 
 ```
 What are the latest developments in AI this week?
@@ -64,7 +65,7 @@ The AI will search the web and provide current information.
 ### 3.1 Try Chat Plus
 
 1. From the app menu, select **Chat Plus**
-2. Notice the context panel that appears with your messages
+2. Notice the **Session Context** panel in the sidebar
 3. Have a conversation about planning a trip:
 
 ```
@@ -77,22 +78,21 @@ I want to plan a 5-day trip to Tokyo. Can you help me create an itinerary?
 I'm interested in technology and anime. Can you adjust the recommendations?
 ```
 
-5. Click on the context panels to see how information is being tracked
+5. Look at the **Session Context** panel to see what is being tracked
 
 ### 3.2 Understanding Monadic Context
 
-The Chat Plus app demonstrates "monadic" context management:
-- **Reasoning Process**: How the AI thinks about your request
-- **Topics Discussed**: Key subjects from the conversation
-- **People/Places**: Entities mentioned
-- **Important Notes**: Key information to remember
+The Chat Plus app keeps "monadic" context alongside the conversation:
+- **Topics**: Main subjects discussed
+- **People**: Names of people mentioned
+- **Notes**: Important facts and preferences to remember
 
 ## Step 4: Working with Files
 
 ### 4.1 Try Knowledge Base
 
 1. Select **Knowledge Base** from the app menu
-2. Open the Knowledge Base **Browse** modal and click **Import file**
+2. Click **Browse** in the Knowledge Base panel, and click **Import file** in the Knowledge Base Browser
 3. Pick a Markdown / PDF / Office (.docx/.xlsx/.pptx) / source-code file
 4. Once the import completes, ask the AI questions about the content (e.g., "summarise the imported document")
 
@@ -104,7 +104,7 @@ The Chat Plus app demonstrates "monadic" context management:
 Can you write a short Python script that generates a Fibonacci sequence?
 ```
 
-2. Copy the code with the **Copy** button on the message, or save the whole conversation with the **Export** button in the Session panel
+2. Copy the code with the copy icon on the message, or save the whole conversation with **Export** in the Session Controls panel
 
 ## Step 5: Code Execution
 
@@ -124,7 +124,7 @@ Can you create a simple bar chart showing the population of the 5 largest cities
 Now that you've tried the basics, explore more features:
 
 - **Voice Chat**: Try voice conversations with speech input/output
-- **Image Generation**: Create images with AI (requires image generation API access)
+- **Image Generator**: Create images with AI (requires image generation API access)
 - **Jupyter Notebook**: Interactive coding environment
 - **Mermaid Grapher**: Create diagrams and flowcharts
 
@@ -132,13 +132,13 @@ Browse [all available apps and provider capabilities](../basic-usage/basic-apps.
 
 ## Tips for Success
 
-1. **Save your conversations**: Use the **Export** button in the web UI's Session panel to save a chat as a JSON file, or the **Save** button in the Knowledge Base panel to store it in the Knowledge Base. The exported file carries the app's parameter settings as well, so importing it restores them
-2. **Check the logs**: If something goes wrong, the Console Panel logs show what happened
+1. **Save your conversations**: Use **Export** in the Session Controls panel to save a chat as a JSON file, or **Save** in the Knowledge Base panel to store it in the Knowledge Base. The exported file carries the app's parameter settings as well, so importing it restores them
+2. **Check the logs**: If something goes wrong, the console shows what happened
 3. **Run the same task on different providers**: Most apps exist in several provider variants, so the same prompt can be compared side by side — see [Comparing Providers](../reference/providers.md#comparing-providers)
 
 ## Getting Help
 
-- **Built-in Help**: The **Monadic Help** app answers questions about Monadic Chat itself — features, troubleshooting and usage
+- **Built-in Help**: The **Monadic Chat Help** app answers questions about Monadic Chat itself (features, troubleshooting and usage). It uses an OpenAI key, and its help data is installed from **Help Data** in the Monadic Chat Info panel
 - **FAQ**: Check [Frequently Asked Questions](../faq/faq-settings.md) for common issues
 
 ---

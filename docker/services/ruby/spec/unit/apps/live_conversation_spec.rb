@@ -14,9 +14,9 @@ LIVE_CONVERSATION_VARIANTS = {
   'LiveConversationOpenAI' => { file: 'live_conversation_openai.mdsl',
                                 models: ['gpt-realtime-2.1'] },
   'LiveConversationGrok' => { file: 'live_conversation_grok.mdsl',
-                              models: ['grok-voice-think-fast-2.0'] },
+                              models: ['grok-voice-3.0'] },
   'LiveConversationGemini' => { file: 'live_conversation_gemini.mdsl',
-                                models: ['gemini-3.1-flash-live-preview'] }
+                                models: ['gemini-3.8-live'] }
 }.freeze
 
 RSpec.describe 'Live Conversation app definitions' do

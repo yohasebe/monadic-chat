@@ -3,6 +3,7 @@
 require 'fileutils'
 require 'digest'
 require 'open3'
+require_relative '../../../lib/monadic/utils/shared_path_guard'
 require 'tempfile'
 require_relative 'encoding_helper'
 require_relative 'path_config'
@@ -43,7 +44,7 @@ module AutoForge
 
         # Ensure directory exists
         dir = File.dirname(path)
-        FileUtils.mkdir_p(dir)
+        Monadic::Utils::SharedPathGuard.mkdir_p!(dir)
         puts "[FileOps] Directory created/verified: #{dir}" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
 
         retries = 0
@@ -51,8 +52,8 @@ module AutoForge
 
         while retries < max_retries
           begin
-            # Write file
-            File.write(path, prepared_content, encoding: encoding)
+            # Write file (in the shared folder, never through a link)
+            Monadic::Utils::SharedPathGuard.write_file!(path, prepared_content.to_s.encode(encoding))
 
             # Verify file exists
             unless File.exist?(path)
@@ -61,7 +62,7 @@ module AutoForge
 
             # Verify content if requested
             if verify_content
-              read_content = File.read(path, encoding: encoding)
+              read_content = Monadic::Utils::SharedPathGuard.read_file!(path) { |f| f.read.force_encoding(encoding) }
               unless read_content == prepared_content
                 raise VerificationError, "Content verification failed"
               end
@@ -107,7 +108,7 @@ module AutoForge
 
         begin
           # Read original content
-          original_content = File.read(path)
+          original_content = Monadic::Utils::SharedPathGuard.read_file!(path) { |f| f.read.force_encoding("UTF-8") }
           original_checksum = Digest::SHA256.hexdigest(original_content)
 
           # Apply modifications
@@ -164,49 +165,6 @@ module AutoForge
         end
       end
 
-      # Apply patch file safely
-      # @param patch_file [String] Path to patch file
-      # @param target_dir [String] Directory to apply patch
-      # @param options [Hash] Options including :dry_run, :strip
-      # @return [Hash] Result with applied files and status
-      def apply_patch_safely(patch_file, target_dir, options = {})
-        unless File.exist?(patch_file)
-          raise FileOperationError, "Patch file not found: #{patch_file}"
-        end
-
-        unless File.directory?(target_dir)
-          raise FileOperationError, "Target directory not found: #{target_dir}"
-        end
-
-        strip_level = options[:strip] || 1
-        dry_run = options.fetch(:dry_run, false)
-
-        # Prepare patch command
-        cmd = ["patch", "-p#{strip_level}"]
-        cmd << "--dry-run" if dry_run
-        cmd << "-d"
-        cmd << target_dir
-
-        # Execute patch
-        stdout, stderr, status = Open3.capture3(*cmd, stdin_data: File.read(patch_file))
-
-        if status.success?
-          # Parse output to find affected files
-          affected_files = stdout.scan(/patching file ['"]?([^'"]+)['"]?/).flatten.uniq
-
-          {
-            success: true,
-            dry_run: dry_run,
-            affected_files: affected_files,
-            output: stdout
-          }
-        else
-          raise FileOperationError, "Patch failed: #{stderr}"
-        end
-      rescue Errno::ENOENT
-        raise FileOperationError, "patch command not found. Please install patch utility."
-      end
-
       # Delete file with safety checks and backup
       # @param path [String] File path to delete
       # @param options [Hash] Options including :backup, :safety_check
@@ -232,8 +190,8 @@ module AutoForge
           backup_path = create_backup(path)
         end
 
-        # Delete the file
-        File.delete(path)
+        # Delete the file (never through a link on the way)
+        Monadic::Utils::SharedPathGuard.delete_file!(path)
 
         # Verify deletion
         if File.exist?(path)
@@ -266,7 +224,7 @@ module AutoForge
 
         ignore_whitespace = options.fetch(:ignore_whitespace, false)
 
-        actual = File.read(path)
+        actual = Monadic::Utils::SharedPathGuard.read_file!(path) { |f| f.read.force_encoding('UTF-8') }
         expected = expected_content
 
         if ignore_whitespace
@@ -282,27 +240,14 @@ module AutoForge
       # @param content [String] Content to write
       # @return [Hash] Result
       def atomic_write(path, content)
-        dir = File.dirname(path)
-        FileUtils.mkdir_p(dir)
-
-        # Create temp file in same directory (for atomic move)
-        temp_file = Tempfile.new(['.autoforge_', '.tmp'], dir)
-
-        begin
-          temp_file.write(content)
-          temp_file.close
-
-          # Atomic move
-          File.rename(temp_file.path, path)
-
-          {
-            success: true,
-            path: path,
-            size: File.size(path)
-          }
-        ensure
-          temp_file.close! if temp_file
-        end
+        Monadic::Utils::SharedPathGuard.mkdir_p!(File.dirname(path))
+        # Written new and put in place by the guard (never through a link)
+        Monadic::Utils::SharedPathGuard.write_file!(path, content.to_s)
+        {
+          success: true,
+          path: path,
+          size: content.to_s.bytesize
+        }
       end
 
       private
@@ -312,14 +257,14 @@ module AutoForge
       # @return [String] Backup file path
       def create_backup(path)
         backup_directory = self.class.backup_dir
-        FileUtils.mkdir_p(backup_directory)
+        Monadic::Utils::SharedPathGuard.mkdir_p!(backup_directory)
 
         timestamp = Time.now.strftime("%Y%m%d_%H%M%S_%L")
         basename = File.basename(path)
         backup_name = "#{basename}.#{timestamp}.backup"
         backup_path = File.join(backup_directory, backup_name)
 
-        FileUtils.cp(path, backup_path)
+        Monadic::Utils::SharedPathGuard.copy_file!(path, backup_path)
         backup_path
       end
 
@@ -331,7 +276,7 @@ module AutoForge
           raise FileOperationError, "Backup file not found: #{backup_path}"
         end
 
-        FileUtils.cp(backup_path, target_path)
+        Monadic::Utils::SharedPathGuard.copy_file!(backup_path, target_path)
       end
     end
   end

@@ -1,7 +1,10 @@
 #!/usr/bin/env ruby
 
 require "securerandom"
+require_relative "../../lib/monadic/utils/shared_path_guard"
 require "base64"
+require "tmpdir"
+require "open3"
 require "http"
 require_relative "../../lib/monadic/utils/secret_references"
 
@@ -19,8 +22,20 @@ MAX_RETRIES = 1
 RETRY_DELAY = 1
 
 def get_base64(image_path, max_dimension = 512)
+  # The image is read as a plain file of the shared folder (never through a
+  # link) and measured and resized as a copy in a folder of its own outside
+  # it, so ImageMagick opens no path in the shared folder.
+  original = Monadic::Utils::SharedPathGuard.read_file!(image_path, &:read)
+  Dir.mktmpdir("image_query") do |work|
+    source = File.join(work, "source#{File.extname(image_path)}")
+    File.binwrite(source, original)
+    resize_to_base64(source, original, max_dimension)
+  end
+end
+
+def resize_to_base64(source, original, max_dimension)
   # Use `identify` to get dimensions with ImageMagick
-  output = `identify -format "%w %h" '#{image_path}'`
+  output, _status = Open3.capture2("identify", "-format", "%w %h", source)
   width, height = output.split.map(&:to_f)
 
   # Calculate the aspect ratio
@@ -48,15 +63,12 @@ def get_base64(image_path, max_dimension = 512)
 
   base64_data = ""
   if width > new_width || height > new_height
-    tempfile_path = File.join(File.dirname(image_path), "#{SecureRandom.uuid}#{File.extname(image_path)}")
-    # Use `magick` to resize the image with ImageMagick
-    command = "magick '#{image_path}' -resize #{new_width}x#{new_height} '#{tempfile_path}'"
-
-    system(command)
-    base64_data = Base64.strict_encode64(File.open(tempfile_path, "rb").read)
-    File.delete tempfile_path
+    resized = File.join(File.dirname(source), "resized#{File.extname(source)}")
+    geometry = format("%dx%d", new_width, new_height)
+    system("magick", source, "-resize", geometry, resized)
+    base64_data = Base64.strict_encode64(File.binread(resized))
   else
-    base64_data = Base64.strict_encode64(File.open(image_path, "rb").read)
+    base64_data = Base64.strict_encode64(original)
   end
   base64_data
 end

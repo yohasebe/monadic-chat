@@ -115,7 +115,7 @@ describe('WebSocket Handlers', () => {
       const result = handlers.handleTokenVerification(data);
 
       expect(result).toBe(true);
-      expect(document.getElementById('api-token').value).toBe('test-token');
+      expect(document.getElementById('api-token').value).not.toBe('test-token'); // a key, if sent, is placed nowhere
       expect(document.getElementById('ai-user-initial-prompt').value).toBe('test-prompt');
     });
 
@@ -135,7 +135,7 @@ describe('WebSocket Handlers', () => {
       const result = handlers.handleTokenVerification(data);
 
       expect(result).toBe(true);
-      expect(document.getElementById('api-token').value).toBe('test-token');
+      expect(document.getElementById('api-token').value).not.toBe('test-token'); // a key, if sent, is placed nowhere
       expect(document.getElementById('ai-user-initial-prompt').value).toBe('test-prompt');
     });
   });
@@ -633,8 +633,7 @@ describe('WebSocket Handlers', () => {
       // Realtime STT in ws-session-handler.js#handleSTT writes the
       // final transcript to the textarea itself, then delegates to
       // this handler for UI cleanup. Without the flag the value gets
-      // the transcript twice — observed in dogfood as
-      // "こんにちは。 こんにちは。" doubled messages.
+      // the transcript twice (a doubled message).
       const msgEl = document.getElementById('message');
       msgEl.value = 'caller already wrote this';
 
@@ -728,6 +727,30 @@ describe('WebSocket Handlers', () => {
       expect(document.getElementById('cancel_query').style.display).toBe('none');
 
       global.setInputFocus = originalSetInputFocus;
+    });
+
+    // Reset, another app or an import stops a reply on the server, which
+    // sends this message: the page must not keep showing it as running.
+    it('clears a cancel button shown with !important and replaces the responding status', () => {
+      const cancelEl = document.getElementById('cancel_query');
+      cancelEl.style.setProperty('display', 'flex', 'important');
+      window.responseStarted = true;
+      global.setAlert = jest.fn();
+      handlers.handleCancelMessage({ type: 'cancel' });
+      expect(cancelEl.style.getPropertyValue('display')).toBe('none');
+      expect(global.setAlert).toHaveBeenCalledWith(expect.stringContaining('Operation canceled'), 'warning');
+      expect(window.responseStarted).toBe(false);
+      delete global.setAlert;
+    });
+
+    it('leaves the status a user cancel has already set', () => {
+      window.responseStarted = false;
+      window.streamingResponse = false;
+      window.callingFunction = false;
+      global.setAlert = jest.fn();
+      handlers.handleCancelMessage({ type: 'cancel' });
+      expect(global.setAlert).not.toHaveBeenCalled();
+      delete global.setAlert;
     });
 
     it('should reset placeholder text for message input', () => {

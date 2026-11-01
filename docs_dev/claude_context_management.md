@@ -1,299 +1,77 @@
 # Claude Context Management
 
-> **Status**: Implemented (Beta feature)
-> **API Version**: `context-management-2025-06-27`
-> **Supported Models**: Claude Opus 4, Claude Sonnet 4.5
+The Claude helper sends Anthropic's context editing settings (`context_management`, beta `context-management-2025-06-27`) so that old tool results and thinking blocks are cleared on the server as a conversation grows. The conversation kept by Monadic Chat is not changed.
 
-## Overview
+## When It Is Sent
 
-Context management allows automatic management of conversation context as it grows, helping optimize costs and stay within context window limits. The API provides two strategies:
+`claude_helper.rb` adds `context_management` and the beta header when:
 
-1. **Tool result clearing** (`clear_tool_uses_20250919`): Automatically clears tool use/result pairs
-2. **Thinking block clearing** (`clear_thinking_20251015`): Manages thinking blocks from Extended Thinking
+- the model has `supports_context_management: true` in `model_spec.js` (`ModelSpec.supports_context_management?`),
+- the request is not a tool-result continuation (`role != "tool"`), and
+- the app has not set `context_management false`.
 
-## Implementation Status
+## Default Edits
 
-✅ **Fully Implemented**:
-- Model capability detection (`supports_context_management`)
-- Beta header automatic addition
-- MDSL configuration support
-- Default behavior with automatic thinking block management
+Without an MDSL setting:
 
-## How It Works
+| Edit | Added when | Settings |
+|---|---|---|
+| `clear_thinking_20251015` | Thinking is enabled | `keep: {type: "thinking_turns", value: 1}` |
+| `clear_tool_uses_20250919` | Always | `trigger: {type: "input_tokens", value: 100000}`, `keep: {type: "tool_uses", value: 5}`, `clear_at_least: {type: "input_tokens", value: 10000}` |
 
-### Server-Side Processing
+`clear_thinking` comes first; the API requires that order when both are present.
 
-Context editing is applied **server-side** before the prompt reaches Claude. Your client application maintains the full, unmodified conversation history—no need to sync client state with the edited version.
+## MDSL
 
-### Automatic Behavior
-
-**For all context-management-enabled models:**
-- Tool result clearing activates at 100K input tokens
-- Keeps 5 most recent tool uses
-- Clears at least 10K tokens per activation
-
-**When thinking is enabled:**
-- Thinking block clearing automatically added
-- Keeps thinking blocks from last assistant turn (default)
-- Preserves prompt cache when keeping thinking blocks
-
-## MDSL Configuration
-
-### Basic Configuration (Tool Result Clearing Only)
-
-```ruby
-app "MyApp" do
-  llm do
-    provider "anthropic"
-    model "claude-sonnet-4-5-20250929"
-  end
-
-  context_management do
-    edits [
-      {
-        type: "clear_tool_uses_20250919",
-        trigger: {
-          type: "input_tokens",
-          value: 50000  # Trigger at 50K tokens
-        },
-        keep: {
-          type: "tool_uses",
-          value: 3  # Keep 3 most recent tool uses
-        },
-        clear_at_least: {
-          type: "input_tokens",
-          value: 15000  # Clear at least 15K tokens
-        },
-        exclude_tools: []  # Clear all tools (or specify tools to exclude)
-      }
-    ]
-  end
-end
-```
-
-### Advanced Configuration (Tool + Thinking Clearing)
-
-```ruby
-app "MyApp" do
-  llm do
-    provider "anthropic"
-    model "claude-sonnet-4-5-20250929"
-    thinking budget: 10000
-  end
-
-  context_management do
-    edits [
-      # IMPORTANT: clear_thinking MUST come FIRST
-      {
-        type: "clear_thinking_20251015",
-        keep: {
-          type: "thinking_turns",
-          value: 2  # Keep thinking from last 2 assistant turns
-        }
-      },
-      {
-        type: "clear_tool_uses_20250919",
-        trigger: {
-          type: "input_tokens",
-          value: 50000
-        },
-        keep: {
-          type: "tool_uses",
-          value: 3
-        },
-        clear_at_least: {
-          type: "input_tokens",
-          value: 15000
-        },
-        exclude_tools: ["web_search"]  # Never clear web search results
-      }
-    ]
-  end
-end
-```
-
-### Keep All Thinking Blocks (Maximize Cache Hits)
-
-```ruby
-context_management do
-  edits [
-    {
-      type: "clear_thinking_20251015",
-      keep: "all"  # Keep all thinking blocks - maximizes cache hits
-    },
-    {
-      type: "clear_tool_uses_20250919",
-      # ... tool clearing config ...
-    }
-  ]
-end
-```
-
-## Configuration Options
-
-### Tool Result Clearing (`clear_tool_uses_20250919`)
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `trigger` | 100,000 tokens | When to start clearing (input_tokens or tool_uses) |
-| `keep` | 5 tool uses | How many recent tool use/result pairs to preserve |
-| `clear_at_least` | 10,000 tokens | Minimum tokens to clear (ensures cache invalidation is worthwhile) |
-| `exclude_tools` | `[]` | List of tool names to never clear |
-| `clear_tool_inputs` | `false` | Whether to clear tool call parameters (default: only results) |
-
-### Thinking Block Clearing (`clear_thinking_20251015`)
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `keep` | `{type: "thinking_turns", value: 1}` | Thinking blocks to preserve |
-
-**Keep Options:**
-- `{type: "thinking_turns", value: N}`: Keep thinking from last N assistant turns
-- `"all"`: Keep all thinking blocks (maximizes prompt cache hits)
-
-## Important Notes
-
-### Strategy Ordering
-
-When using both strategies, `clear_thinking_20251015` **MUST** come first in the `edits` array:
-
-```ruby
-edits [
-  { type: "clear_thinking_20251015", ... },  # FIRST
-  { type: "clear_tool_uses_20250919", ... }  # SECOND
-]
-```
-
-### Prompt Caching Interaction
-
-**Tool result clearing:**
-- Invalidates cached prompt prefixes when content is cleared
-- Use `clear_at_least` to ensure cache invalidation is worthwhile
-- Incurs cache write costs on each clear, but subsequent requests reuse the new cached prefix
-
-**Thinking block clearing:**
-- Keeping thinking blocks preserves cache (enables cache hits)
-- Clearing thinking blocks invalidates cache at the clearing point
-- Trade-off: cache performance vs. context window availability
-
-### Default Behavior Summary
-
-| Condition | Tool Clearing | Thinking Clearing |
-|-----------|---------------|-------------------|
-| No MDSL config, no thinking | Enabled (100K trigger) | Not added |
-| No MDSL config, thinking enabled | Enabled (100K trigger) | Auto-added (keep 1 turn) |
-| MDSL config provided | Uses MDSL config | Uses MDSL config |
-
-## Real-World Example: Research Assistant
-
-Research Assistant Claude uses aggressive clearing for web search results:
+At the app level (not inside `llm`):
 
 ```ruby
 context_management do
   edits [
     {
       type: "clear_tool_uses_20250919",
-      trigger: {
-        type: "input_tokens",
-        value: 50000  # Earlier than default (research contexts grow fast)
-      },
-      keep: {
-        type: "tool_uses",
-        value: 3  # Fewer than default (prioritize recent searches)
-      },
-      clear_at_least: {
-        type: "input_tokens",
-        value: 15000  # More than default (ensure worthwhile clearing)
-      },
-      exclude_tools: []  # Clear all tools including web_search
+      trigger: { type: "input_tokens", value: 50000 },
+      keep: { type: "tool_uses", value: 3 },
+      clear_at_least: { type: "input_tokens", value: 15000 },
+      exclude_tools: []
     }
   ]
 end
 ```
 
-**Rationale:**
-- Research queries generate large web search results
-- Only recent searches are typically relevant
-- Clearing earlier prevents hitting context limits mid-research
+- A block replaces the default edits entirely; with thinking enabled, add a `clear_thinking_20251015` edit first if it is wanted.
+- `context_management false` sends no context editing and no beta header. History is then limited only by `context_size`.
 
-## Response Information
+Research Assistant (Claude) uses the settings shown above.
 
-The API returns information about applied context edits:
+### Edit Options
 
-```json
-{
-  "context_management": {
-    "applied_edits": [
-      {
-        "type": "clear_thinking_20251015",
-        "cleared_thinking_turns": 3,
-        "cleared_input_tokens": 15000
-      },
-      {
-        "type": "clear_tool_uses_20250919",
-        "cleared_tool_uses": 8,
-        "cleared_input_tokens": 50000
-      }
-    ]
-  }
-}
-```
+`clear_tool_uses_20250919`:
 
-## Best Practices
+| Option | Meaning |
+|---|---|
+| `trigger` | When clearing starts (`input_tokens` or `tool_uses`) |
+| `keep` | Recent tool use/result pairs to keep |
+| `clear_at_least` | Minimum tokens to clear |
+| `exclude_tools` | Tool names never cleared |
+| `clear_tool_inputs` | Also clear tool call inputs (default: results only) |
 
-### When to Use Tool Result Clearing
+`clear_thinking_20251015`:
 
-✅ **Use for:**
-- Long-running coding sessions with many file operations
-- Research tasks with multiple web searches
-- Applications with frequent tool usage
-- Workflows that accumulate large tool results
+| Option | Meaning |
+|---|---|
+| `keep` | `{type: "thinking_turns", value: N}` (thinking of the last N assistant turns) or `"all"` |
 
-❌ **Avoid for:**
-- Short conversations unlikely to exceed 100K tokens
-- Applications where all tool results are critical context
-- Workflows where losing tool results breaks functionality
+Clearing changes the prompt prefix, so the prompt cache is written again from the cleared point. Keeping all thinking blocks keeps the cache.
 
-### When to Use Thinking Block Clearing
+## Response
 
-✅ **Use for:**
-- Extended thinking enabled applications
-- Long conversations with reasoning tasks
-- Scenarios prioritizing context window over cache
+The API reports what it cleared in `context_management.applied_edits` (type, `cleared_tool_uses` or `cleared_thinking_turns`, `cleared_input_tokens`).
 
-✅ **Use `keep: "all"` for:**
-- Maximizing prompt cache hits
-- Reducing input token costs
-- Applications with sufficient context window
+## Related Files
 
-### Exclude Tools Strategically
-
-Consider excluding tools whose results provide critical ongoing context:
-
-```ruby
-exclude_tools: [
-  "web_search",  # Web search results often needed for follow-ups
-  "memory"       # Memory tool results contain persistent state
-]
-```
-
-## Supported Models
-
-| Model | ID | Context Management | Thinking Clearing |
-|-------|-----|-------------------|-------------------|
-| Claude Opus 4 | `claude-opus-4-20250514` | ✅ | ✅ |
-| Claude Sonnet 4.5 | `claude-sonnet-4-5-20250929` | ✅ | ✅ |
-| Claude 3.5 Sonnet | `claude-3-5-sonnet-20241022` | ❌ | ❌ |
-| Claude Haiku 4.5 | `claude-haiku-4-5-20251001` | ❌ | ❌ |
-
-## Related Documentation
-
-- [Anthropic Context Management Documentation](https://docs.claude.com/en/docs/build-with-claude/context-editing)
-- [Extended Thinking Documentation](https://docs.claude.com/en/docs/build-with-claude/extended-thinking)
-- [Prompt Caching Documentation](https://docs.claude.com/en/docs/build-with-claude/prompt-caching)
-
-## Implementation Files
-
-- **Model Spec**: `public/js/monadic/model_spec.js` (defines `supports_context_management`)
-- **Helper**: `lib/monadic/adapters/vendors/claude_helper.rb` (implements context management)
-- **Accessor**: `lib/monadic/utils/model_spec.rb` (`supports_context_management?` method)
+- `public/js/monadic/model_spec.js` (`supports_context_management`)
+- `lib/monadic/utils/model_spec.rb` (`supports_context_management?`)
+- `lib/monadic/adapters/vendors/claude_helper.rb`
+- `lib/monadic/dsl.rb` (`context_management`)
+- [Anthropic: Context editing](https://docs.claude.com/en/docs/build-with-claude/context-editing)

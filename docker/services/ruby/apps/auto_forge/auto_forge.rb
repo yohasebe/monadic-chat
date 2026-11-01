@@ -3,12 +3,16 @@
 require 'digest'
 require 'securerandom'
 require 'tempfile'
+require 'tmpdir'
+require 'open3'
 require 'time'
 
 require_relative 'auto_forge_utils'
 require_relative 'utils/state_manager'
 require_relative 'utils/prompt_builder'
 require_relative 'utils/file_operations'
+require_relative 'utils/path_config'
+require_relative '../../lib/monadic/utils/shared_path_guard'
 require_relative 'agents/html_generator'
 require_relative 'agents/cli_generator'
 require_relative 'agents/grok_html_generator'
@@ -152,6 +156,14 @@ module AutoForge
       true
     end
 
+    # Whether path, links followed, is a folder under AutoForge's projects.
+    def inside_project_base?(path)
+      base = File.realpath(AutoForge::Utils::PathConfig.project_base_path)
+      File.realpath(path).start_with?("#{base}/")
+    rescue SystemCallError
+      false
+    end
+
     def existing_project_context(spec)
       data = fetch_context_data
       puts "[AutoForge] Checking for existing project, context data: #{data.inspect}" if CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -163,6 +175,10 @@ module AutoForge
 
       return nil unless path && !path.to_s.strip.empty?
       return nil unless Dir.exist?(path)
+      # A project is written only inside AutoForge's own folder: the path
+      # comes from the model, and a folder elsewhere in the shared folder
+      # (custom apps and helpers among them) holds code the server loads.
+      return nil unless inside_project_base?(path)
 
       spec_name = value_from_spec(spec, :name)
       if manual_path.nil? && spec_name && data[:base_name] && !spec_name.to_s.strip.empty?
@@ -231,7 +247,8 @@ module AutoForge
       file_name = "index.html"
       file_path = File.join(@project_path, file_name)
 
-      existing_content = File.exist?(file_path) ? File.read(file_path) : nil
+      # Read as a plain file of the shared folder, never through a link.
+      existing_content = Monadic::Utils::SharedPathGuard.read_text(file_path)
       if existing_content
         puts "[AutoForge] Found existing file at #{file_path}, size: #{existing_content.length} bytes" if CONFIG && CONFIG["EXTRA_LOGGING"]
         puts "[AutoForge] Will modify existing content instead of creating new" if CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -313,9 +330,8 @@ module AutoForge
                           .reject { |f| f.end_with?('.json', '.md', '.txt') }
       existing_file = existing_files.first
 
-      existing_content = nil
-      if existing_file && File.exist?(existing_file)
-        existing_content = File.read(existing_file)
+      existing_content = existing_file && Monadic::Utils::SharedPathGuard.read_text(existing_file)
+      if existing_content
         file_name = File.basename(existing_file)
         puts "[AutoForge] Found existing CLI script: #{file_name}" if CONFIG && CONFIG["EXTRA_LOGGING"]
       else
@@ -369,13 +385,11 @@ module AutoForge
 
       file_path = File.join(@project_path, file_name)
 
-      # Write the script
-      File.write(file_path, code)
-
-      # Make executable on Unix-like systems
-      if RUBY_PLATFORM !~ /mswin|mingw|cygwin/
-        File.chmod(0755, file_path)
-      end
+      # Write the script (in the project folder, never through a link),
+      # executable on Unix-like systems: the mode is set on the file written,
+      # never on a path that may have become a link since.
+      executable = RUBY_PLATFORM !~ /mswin|mingw|cygwin/
+      Monadic::Utils::SharedPathGuard.write_file!(file_path, code, perm: executable ? 0o755 : nil)
 
       # Store CLI-specific info in context
       store = @context[:auto_forge] || {}
@@ -418,21 +432,25 @@ module AutoForge
       { language: 'shell', extension: '.sh' }
     end
 
+    # The patch is applied to a copy in the system's temporary folder, to
+    # that one file only (the names in the diff are not used), and the
+    # result is written back through SharedPathGuard: the patch program
+    # never opens a path in the shared folder, where a link could send its
+    # writes elsewhere.
     def apply_patch_to_file(file_path, patch_text)
+      Dir.mktmpdir('autoforge_patch') do |work|
+        local = File.join(work, 'target')
+        Monadic::Utils::SharedPathGuard.read_file!(file_path) do |source|
+          File.open(local, 'wb') { |out| IO.copy_stream(source, out) }
+        end
+        diff = File.join(work, 'fix.diff')
+        File.write(diff, patch_text)
+        _stdout, stderr, status = Open3.capture3('patch', '--batch', '--forward', '--silent', local, diff)
+        raise "patch failed: #{stderr.to_s.lines.last.to_s.strip}" unless status.success?
 
-      Tempfile.create(['autoforge_patch', '.diff']) do |tmp|
-        tmp.write(patch_text)
-        tmp.flush
+        Monadic::Utils::SharedPathGuard.write_file!(file_path, File.binread(local))
 
-        strip_level = patch_text.include?('a/') || patch_text.include?('b/') ? 1 : 0
-
-        apply_patch_safely(
-          tmp.path,
-          File.dirname(file_path),
-          strip: strip_level
-        )
-
-        size = File.size(file_path)
+        size = File.size(local)
 
         record_artifact(@project_id, File.basename(file_path), {
           size: size,

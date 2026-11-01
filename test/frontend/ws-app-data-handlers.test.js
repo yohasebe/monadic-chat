@@ -1,3 +1,4 @@
+require('../../docker/services/ruby/public/js/monadic/model_spec');
 require('../../docker/services/ruby/public/js/monadic/tts-provider');
 /**
  * @jest-environment jsdom
@@ -66,14 +67,15 @@ describe('ws-app-data-handlers', () => {
     beforeEach(() => {
       voiceSelect = createDOMSelect('elevenlabs-tts-voice');
       createDOMSelect('tts-provider');
-      // TTS provider options
-      createDOMOption('elevenlabs-flash-provider-option');
-      createDOMOption('elevenlabs-multilingual-provider-option');
-      createDOMOption('elevenlabs-v3-provider-option');
+      // TTS provider options, found by the provider of their value
+      ['elevenlabs-flash', 'elevenlabs-multilingual', 'elevenlabs-v3', 'elevenlabs-v4', 'elevenlabs-v4-turbo'].forEach(value => {
+        const option = createDOMOption(`${value}-provider-option`);
+        option.value = value;
+        document.getElementById('tts-provider').appendChild(option);
+      });
       // STT options
       createDOMOption('elevenlabs-stt-scribe-v2');
       createDOMOption('elevenlabs-stt-scribe');
-      createDOMOption('elevenlabs-stt-scribe-experimental');
     });
 
     it('populates voice selector with voices', () => {
@@ -103,6 +105,7 @@ describe('ws-app-data-handlers', () => {
       expect(document.getElementById('elevenlabs-flash-provider-option').disabled).toBe(false);
       expect(document.getElementById('elevenlabs-multilingual-provider-option').disabled).toBe(false);
       expect(document.getElementById('elevenlabs-v3-provider-option').disabled).toBe(false);
+      expect(document.getElementById('elevenlabs-v4-turbo-provider-option').disabled).toBe(false);
       expect(document.getElementById('elevenlabs-stt-scribe-v2').disabled).toBe(false);
       expect(document.getElementById('elevenlabs-stt-scribe').disabled).toBe(false);
     });
@@ -115,6 +118,7 @@ describe('ws-app-data-handlers', () => {
       expect(document.getElementById('elevenlabs-flash-provider-option').disabled).toBe(true);
       expect(document.getElementById('elevenlabs-multilingual-provider-option').disabled).toBe(true);
       expect(document.getElementById('elevenlabs-v3-provider-option').disabled).toBe(true);
+      expect(document.getElementById('elevenlabs-v4-provider-option').disabled).toBe(true);
       expect(document.getElementById('elevenlabs-stt-scribe-v2').disabled).toBe(true);
     });
 
@@ -187,7 +191,7 @@ describe('ws-app-data-handlers', () => {
     beforeEach(() => {
       voiceSelect = createDOMSelect('gemini-tts-voice');
       createDOMSelect('tts-provider');
-      ['gemini-flash', 'gemini-flash-lite', 'gemini-pro'].forEach(value => {
+      ['gemini-flash', 'gemini-flash-lite'].forEach(value => {
         const option = createDOMOption(`${value}-provider-option`);
         option.value = value;
         document.getElementById('tts-provider').appendChild(option);
@@ -218,7 +222,7 @@ describe('ws-app-data-handlers', () => {
       handlers.handleGeminiVoices(data);
 
       expect(document.getElementById('gemini-flash-provider-option').disabled).toBe(false);
-      expect(document.getElementById('gemini-pro-provider-option').disabled).toBe(false);
+      expect(document.getElementById('gemini-flash-lite-provider-option').disabled).toBe(false);
       expect(document.getElementById('gemini-stt-flash').disabled).toBe(false);
     });
 
@@ -228,7 +232,7 @@ describe('ws-app-data-handlers', () => {
       handlers.handleGeminiVoices(data);
 
       expect(document.getElementById('gemini-flash-provider-option').disabled).toBe(true);
-      expect(document.getElementById('gemini-pro-provider-option').disabled).toBe(true);
+      expect(document.getElementById('gemini-flash-lite-provider-option').disabled).toBe(true);
       expect(document.getElementById('gemini-stt-flash').disabled).toBe(true);
     });
 
@@ -347,6 +351,36 @@ describe('ws-app-data-handlers', () => {
       global.normalizeGroupId = handlers.normalizeGroupId;
     });
 
+    describe('when apps are already loaded', () => {
+      beforeEach(() => {
+        jest.useFakeTimers();
+        window.apps = { ChatOpenAI: { app_name: 'ChatOpenAI', display_name: 'Chat', description: 'd' } };
+        const select = document.getElementById('apps');
+        const option = document.createElement('option');
+        option.value = 'ChatOpenAI';
+        select.appendChild(option);
+        select.value = 'ChatOpenAI';
+      });
+
+      afterEach(() => {
+        jest.useRealTimers();
+      });
+
+      it('re-selects the current app after a reset', () => {
+        handlers.handleAppsMessage({ version: '1', docker: true, content: window.apps });
+        jest.advanceTimersByTime(200);
+        expect(window.proceedWithAppChange).toHaveBeenCalledWith('ChatOpenAI');
+      });
+
+      // The imported parameters that follow select the app; re-selecting the
+      // one shown now would move the tab off the imported chat.
+      it('does not re-select the current app for an import', () => {
+        handlers.handleAppsMessage({ version: '1', docker: true, content: window.apps, from_import: true });
+        jest.advanceTimersByTime(200);
+        expect(window.proceedWithAppChange).not.toHaveBeenCalled();
+      });
+    });
+
     it('sets version string with Docker indicator', () => {
       const data = {
         version: '1.0.0-beta.8',
@@ -425,7 +459,7 @@ describe('ws-app-data-handlers', () => {
       expect(appsSelect.options.length).toBeGreaterThan(0);
     });
 
-    // §38: no path that assigns #apps.value fires 'change', and the
+    // No path that assigns #apps.value fires 'change', and the
     // viewer's own fallbacks all miss when the app list arrives late
     // (server restart + hard reload) — leaving an empty frame. The handler
     // must notify the viewer explicitly at the end of APPS processing with
@@ -650,7 +684,7 @@ describe('ws-app-data-handlers', () => {
   });
 });
 
-describe('§38c: multiple APPS within one timeout window', () => {
+describe('multiple APPS within one timeout window', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     const mk = (id, tag = 'div') => { const el = document.createElement(tag); el.id = id; document.body.appendChild(el); return el; };

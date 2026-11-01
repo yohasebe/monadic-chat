@@ -81,6 +81,14 @@ module WebSocketHelper
   @@session_state_mutex = Mutex.new
   @@session_state = {}
 
+  # A tab's state is kept while it has no connection, so a reload or a
+  # reconnect gets its chat back. A tab with an open connection keeps its
+  # state; the others are dropped after STATE_IDLE_TTL without use, and
+  # beyond STATE_MAX_IDLE the least recently used go first. A tab that comes
+  # back after that starts with an empty chat.
+  STATE_IDLE_TTL = 7 * 86_400 # seconds
+  STATE_MAX_IDLE = 50
+
   # Feature Flag for progress broadcasting
   def self.progress_broadcast_enabled?
     return false unless defined?(CONFIG)
@@ -97,6 +105,12 @@ module WebSocketHelper
     obj
   end
 
+  # Each value copied on its own, so one that cannot be copied whole does
+  # not leave the others shared.
+  def self.deep_clone_each(hash)
+    hash.each_with_object({}) { |(key, value), out| out[key] = deep_clone_session_state(value) }
+  end
+
   # A tab can briefly have two connections: the one it is reconnecting from
   # and the new one. Each connection claims a generation when it opens, and
   # a write from an older generation is ignored, so the old connection's
@@ -105,14 +119,20 @@ module WebSocketHelper
   def self.claim_session_state(session_id)
     @@session_state_mutex.synchronize do
       state = (@@session_state[session_id] ||= {})
+      state[:used_at] = monotonic_now
+      prune_session_state(keep: session_id)
       state[:generation] = state[:generation].to_i + 1
     end
   end
 
-  # chat_id is kept as is when not given, so callers that only carry
-  # messages and parameters do not move a tab to another chat. Returns
-  # false when the write came from a connection that has been replaced.
-  def self.update_session_state(session_id, messages:, parameters:, chat_id: nil, generation: nil)
+  # chat_id and chat_state are kept as they are when not given, so callers
+  # that only carry messages and parameters do not move a tab to another
+  # chat. chat_state is the rest of the chat's data (tool results, the
+  # Session Context, the privacy registry...). It is copied in and out, so
+  # a replaced connection still running cannot change what the tab's next
+  # connection gets. Returns false when the write came from a connection
+  # that has been replaced.
+  def self.update_session_state(session_id, messages:, parameters:, chat_id: nil, chat_state: nil, generation: nil)
     return unless session_id
 
     @@session_state_mutex.synchronize do
@@ -120,9 +140,11 @@ module WebSocketHelper
       state = @@session_state[session_id]
       return false if generation && state[:generation] && generation < state[:generation]
 
+      state[:used_at] = monotonic_now
       state[:messages] = deep_clone_session_state(messages || [])
       state[:parameters] = deep_clone_session_state(parameters || {})
       state[:chat_id] = chat_id if chat_id
+      state[:chat_state] = deep_clone_each(chat_state) if chat_state
       true
     end
   end
@@ -133,15 +155,158 @@ module WebSocketHelper
     @@session_state_mutex.synchronize do
       state = @@session_state[session_id]
       if state
+        state[:used_at] = monotonic_now
         {
           messages: deep_clone_session_state(state[:messages] || []),
           parameters: deep_clone_session_state(state[:parameters] || {}),
-          chat_id: state[:chat_id]
+          chat_id: state[:chat_id],
+          chat_state: deep_clone_each(state[:chat_state] || {})
         }
       else
         nil
       end
     end
+  end
+
+  # HTTP checks need the chat's identity, privacy decision and marked words,
+  # not its messages, tool results or the rest of its Session Context.
+  def self.fetch_http_session_state(session_id)
+    return nil unless session_id
+
+    @@session_state_mutex.synchronize do
+      state = @@session_state[session_id]
+      return nil unless state
+
+      state[:used_at] = monotonic_now
+      chat = (state[:chat_state] || {}).merge(Monadic::Workspace::Chats::SESSION_KEY => state[:chat_id])
+      policy = Monadic::History::Policy
+      private = policy.private?(chat) || policy.known_private?(state[:chat_id])
+      terms = Monadic::Utils::Privacy::Outbound.terms_of(chat).map { |text| { text: text.dup } }
+      {
+        chat_id: state[:chat_id]&.dup,
+        parameters: { 'app_name' => state.dig(:parameters, 'app_name')&.dup },
+        chat_state: { policy::SESSION_KEY => private ? policy::PRIVATE : nil,
+                      monadic_state: { privacy: { terms: terms } } }
+      }
+    end
+  end
+
+  # The session object each tab's open connection runs its chat in. HTTP
+  # requests that read a tab's chat (export, the app's graph) read it here:
+  # the cookie's session is shared by all tabs and is not the chat.
+  @@live_sessions = {}
+
+  def self.register_live_session(session_id, session, generation)
+    @@session_state_mutex.synchronize do
+      @@live_sessions[session_id] = { session: session, generation: generation }
+    end
+  end
+
+  # Only the connection that registered it removes it, so an old
+  # connection closing does not hide the new one's chat.
+  def self.unregister_live_session(session_id, generation)
+    @@session_state_mutex.synchronize do
+      entry = @@live_sessions[session_id]
+      @@live_sessions.delete(session_id) if entry && entry[:generation] == generation
+    end
+  end
+
+  # The chats open in some tab now, and those a tab is taking from the
+  # history (reserved until the tab has it open).
+  def self.live_chat_ids
+    @@session_state_mutex.synchronize { open_chat_ids_locked + @@reserved_chats.keys }
+  end
+
+  @@reserved_chats = {}
+
+  # Reserves a chat for the tab that resumes it: true only when no tab has
+  # it open and no other tab is taking it, checked and reserved at once.
+  def self.reserve_chat(chat_id)
+    @@session_state_mutex.synchronize do
+      next false if @@reserved_chats.key?(chat_id) || open_chat_ids_locked.include?(chat_id)
+
+      @@reserved_chats[chat_id] = true
+    end
+  end
+
+  def self.release_chat(chat_id)
+    @@session_state_mutex.synchronize { @@reserved_chats.delete(chat_id) }
+  end
+
+  def self.open_chat_ids_locked
+    @@live_sessions.values.map { |entry| entry[:session][Monadic::Workspace::Chats::SESSION_KEY] }.compact
+  end
+  private_class_method :open_chat_ids_locked
+
+  def self.live_session(session_id)
+    return nil if session_id.nil? || session_id.to_s.empty?
+
+    @@session_state_mutex.synchronize { @@live_sessions[session_id.to_s]&.dig(:session) }
+  end
+
+  # A conversation read from a file waits here until the tab it was sent
+  # from takes it over its WebSocket. The tab's own connection replaces its
+  # chat with it (stopping the reply and speech first, as Reset does): a
+  # request outside that connection cannot change the chat it is running.
+  # A staged import can be taken for IMPORT_TTL. It is held in memory until
+  # it is taken, replaced by the tab's next import, dropped when the tab has
+  # no connection left, or found expired by the next stage or take; at most
+  # IMPORT_MAX are held at once (each is one saved conversation, which /load
+  # caps in size).
+  IMPORT_TTL = 600 # seconds
+  IMPORT_MAX = 20
+  @@pending_imports = {}
+
+  def self.stage_import(session_id, payload)
+    token = SecureRandom.hex(16)
+    @@session_state_mutex.synchronize do
+      prune_imports
+      # A tab has one import waiting at most; the oldest go beyond the cap.
+      @@pending_imports.delete_if { |_, entry| entry[:session_id] == session_id }
+      @@pending_imports.shift while @@pending_imports.size >= IMPORT_MAX
+      @@pending_imports[token] = { session_id: session_id, payload: payload, at: monotonic_now }
+    end
+    token
+  end
+
+  # The staged import, once, and only for the tab it was staged for.
+  def self.take_import(session_id, token)
+    @@session_state_mutex.synchronize do
+      prune_imports
+      entry = @@pending_imports[token.to_s]
+      return nil unless entry && entry[:session_id] == session_id
+
+      @@pending_imports.delete(token.to_s)[:payload]
+    end
+  end
+
+  # A tab that closes leaves nothing staged behind.
+  def self.drop_imports(session_id)
+    @@session_state_mutex.synchronize do
+      @@pending_imports.delete_if { |_, entry| entry[:session_id] == session_id }
+    end
+  end
+
+  # Called with the mutex held.
+  def self.prune_session_state(keep: nil)
+    now = monotonic_now
+    idle = @@session_state.reject { |id, _| id == keep || @@live_sessions.key?(id) }
+    expired = idle.select { |_, state| now - state[:used_at].to_f > STATE_IDLE_TTL }.keys
+    expired.each { |id| @@session_state.delete(id) }
+    rest = idle.reject { |id, _| expired.include?(id) }
+    excess = rest.size - STATE_MAX_IDLE
+    return unless excess.positive?
+
+    rest.sort_by { |_, state| state[:used_at].to_f }.first(excess).each { |id, _| @@session_state.delete(id) }
+  end
+
+  def self.prune_imports
+    now = monotonic_now
+    @@pending_imports.delete_if { |_, entry| now - entry[:at] > IMPORT_TTL }
+  end
+
+  def self.monotonic_now
+    Process.clock_gettime(Process::CLOCK_MONOTONIC)
   end
 
   # Broadcast progress message to specific session or all

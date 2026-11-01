@@ -7,8 +7,8 @@ require "spec_helper"
 # the generator script's validation, and in the tool layer. Two copies of one
 # rule always drift, and the copy that drifts lies quietly — the OpenAI tool
 # offered the DALL-E sizes 256x256 / 512x512 and the qualities "standard" / "hd"
-# for months after DALL-E was removed (2026-05-12). A live probe on 2026-08-21
-# had the API answer 400 to all four, i.e. whenever the model picked one of
+# for months after DALL-E was removed (2026-05-12). The API answers 400 to all
+# four, i.e. whenever the model picked one of
 # them, generation simply failed.
 #
 # The fix is not to check the copies against each other but to remove them: the
@@ -49,15 +49,14 @@ RSpec.describe "image generation options come from the SSOT" do
     it "offers OpenAI only sizes the API still accepts" do
       sizes = Monadic::Utils::ModelSpec.image_options("openai", "size")
       expect(sizes).not_to be_empty
-      # Verified 400 on a live probe: below the minimum pixel budget.
+      # The API answers 400: below the minimum pixel budget.
       expect(sizes).not_to include("256x256", "512x512")
       expect(sizes).to include("1024x1024", "2048x2048")
     end
 
     # Quality is the one parameter whose accepted values differ per model, and
     # the difference is not cosmetic: asking gpt-image-2 for `xhigh` answers
-    # "The model 'gpt-image-2' does not support quality 'xhigh'" (live probe,
-    # 2026-09-21), while the 2.5 models generate. A single provider-wide list
+    # "The model 'gpt-image-2' does not support quality 'xhigh'", while the 2.5 models generate. A single provider-wide list
     # cannot describe both without either hiding values or offering rejected
     # ones.
     describe "quality, which differs per model" do

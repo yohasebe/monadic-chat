@@ -37,16 +37,19 @@ module Monadic
 
       # ─── Bootstrap ─────────────────────────────────────────────────────
 
+      # Collections made earlier get the indexes of the current schema, once
+      # per process (see VectorStore::Bootstrap).
+      @indexed = {}
+      @indexed_mutex = Mutex.new
+      class << self
+        attr_reader :indexed, :indexed_mutex
+      end
+
       def bootstrap_collections!
-        COLLECTIONS.each do |name|
-          next if @store.collection_exists?(name: name)
-          defn = Schema::DEFINITIONS[name]
-          @store.create_collection(
-            name: name,
-            vectors: defn[:vectors],
-            payload_indexes: defn[:payload_indexes]
-          )
-        end
+        Monadic::VectorStore::Bootstrap.ensure_collections!(
+          @store, COLLECTIONS,
+          indexed: self.class.indexed, mutex: self.class.indexed_mutex, tag: 'Library'
+        )
       end
 
       # ─── Generic plumbing ──────────────────────────────────────────────
@@ -82,6 +85,34 @@ module Monadic
             collection: name,
             filter: conversation_filter(conversation_id)
           )
+        end
+        true
+      end
+
+      # The ids of a conversation's points, by Library collection.
+      def point_ids(conversation_id)
+        COLLECTIONS.to_h do |name|
+          ids = []
+          offset = nil
+          loop do
+            page = scroll(collection: name, filter: conversation_filter(conversation_id), limit: 256, offset: offset)
+            ids.concat(page[:points].map { |p| p['id'] })
+            offset = page[:next]
+            break if offset.nil?
+          end
+          [name, ids]
+        end
+      end
+
+      # Deletes the points named in ids_by_collection ({ collection => ids }).
+      # The summary goes last, so an entry whose turns are being deleted is
+      # still listed until the end.
+      def delete_point_ids(ids_by_collection)
+        bootstrap_collections!
+        order = ids_by_collection.keys.sort_by { |name| name == Schema::LIBRARY_SUMMARIES ? 1 : 0 }
+        order.each do |name|
+          ids = ids_by_collection[name]
+          @store.delete_points(collection: name, ids: ids) unless ids.empty?
         end
         true
       end

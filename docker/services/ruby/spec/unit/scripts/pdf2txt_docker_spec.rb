@@ -54,7 +54,7 @@ RSpec.describe "pdf2txt.py in Docker", :integration do
     end
 
     it "reports error for non-PDF file" do
-      test_file = "test_not_pdf_#{Time.now.to_i}.txt"
+      test_file = SharedFolderTestFiles.name("not_pdf_#{Time.now.to_i}.txt")
       create_test_file(test_file, "This is not a PDF")
 
       begin
@@ -80,7 +80,7 @@ RSpec.describe "pdf2txt.py in Docker", :integration do
     end
     
     it "accepts various output formats" do
-      test_file = "test_formats_#{Time.now.to_i}.pdf"
+      test_file = SharedFolderTestFiles.name("formats_#{Time.now.to_i}.pdf")
       create_test_file(test_file, minimal_pdf_content)
       
       begin
@@ -99,7 +99,7 @@ RSpec.describe "pdf2txt.py in Docker", :integration do
     end
     
     it "rejects invalid format" do
-      test_file = "test_invalid_format_#{Time.now.to_i}.pdf"
+      test_file = SharedFolderTestFiles.name("invalid_format_#{Time.now.to_i}.pdf")
       create_test_file(test_file, minimal_pdf_content)
       
       begin
@@ -128,7 +128,7 @@ RSpec.describe "pdf2txt.py in Docker", :integration do
     end
     
     it "processes PDF with --all-pages flag" do
-      test_file = "test_all_pages_#{Time.now.to_i}.pdf"
+      test_file = SharedFolderTestFiles.name("all_pages_#{Time.now.to_i}.pdf")
       create_test_file(test_file, test_pdf_content)
       
       begin
@@ -141,7 +141,7 @@ RSpec.describe "pdf2txt.py in Docker", :integration do
     end
     
     it "outputs JSON with --json flag" do
-      test_file = "test_json_#{Time.now.to_i}.pdf"
+      test_file = SharedFolderTestFiles.name("json_#{Time.now.to_i}.pdf")
       create_test_file(test_file, test_pdf_content)
 
       begin
@@ -165,7 +165,7 @@ RSpec.describe "pdf2txt.py in Docker", :integration do
     end
     
     it "shows progress with --show-progress flag for markdown" do
-      test_file = "test_progress_#{Time.now.to_i}.pdf"
+      test_file = SharedFolderTestFiles.name("progress_#{Time.now.to_i}.pdf")
       create_test_file(test_file, test_pdf_content)
       
       begin
@@ -180,7 +180,7 @@ RSpec.describe "pdf2txt.py in Docker", :integration do
   
   describe "error handling" do
     it "handles corrupted PDF files" do
-      test_file = "test_corrupted_#{Time.now.to_i}.pdf"
+      test_file = SharedFolderTestFiles.name("corrupted_#{Time.now.to_i}.pdf")
       create_test_file(test_file, "%PDF-1.4\nThis is corrupted")
 
       begin
@@ -193,7 +193,7 @@ RSpec.describe "pdf2txt.py in Docker", :integration do
     end
 
     it "handles empty files" do
-      test_file = "test_empty_#{Time.now.to_i}.pdf"
+      test_file = SharedFolderTestFiles.name("empty_#{Time.now.to_i}.pdf")
       create_test_file(test_file, "")
 
       begin

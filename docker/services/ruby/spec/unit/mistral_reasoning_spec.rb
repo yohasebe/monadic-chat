@@ -5,8 +5,7 @@ require_relative "../../lib/monadic/utils/model_spec"
 
 # Magistral reasoning handling. Two regressions are locked here:
 #
-# 1. WIRE FORMAT — Magistral streams its reasoning INSIDE the content array
-#    (verified against the live Mistral API 2026-07-09):
+# 1. WIRE FORMAT — Magistral streams its reasoning INSIDE the content array:
 #      delta.content = [{ "type" => "thinking",
 #                         "thinking" => [{"type"=>"text","text"=>...}] }]
 #    while the answer arrives as plain-string content deltas. The generic
@@ -16,12 +15,12 @@ require_relative "../../lib/monadic/utils/model_spec"
 #
 # 2. reasoning_effort GATING — the Mistral API rejects reasoning_effort for
 #    Magistral models outright ("reasoning_effort is not enabled for this
-#    model", HTTP 400, verified live 2026-07-09); Magistral reasons by
+#    model", HTTP 400); Magistral reasons by
 #    default. The parameter must be sent ONLY for models whose spec declares
 #    a reasoning_effort property (SSOT gate), never merely because
 #    supports_thinking is true.
 RSpec.describe "Mistral Magistral Reasoning" do
-  describe "content-array thinking extraction (live wire format)" do
+  describe "content-array thinking extraction (wire format)" do
     # Mirrors the extraction in mistral_helper's streaming loop.
     def extract(delta)
       thinking = []

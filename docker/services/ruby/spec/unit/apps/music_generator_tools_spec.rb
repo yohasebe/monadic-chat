@@ -29,6 +29,7 @@ RSpec.describe MusicGeneratorTools do
   before do
     stub_const('CONFIG', { 'ELEVENLABS_API_KEY' => 'test-key' })
     allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(tmpdir)
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(tmpdir)
     allow(Monadic::Utils::ProgressBroadcaster).to receive(:with_progress) { |*_, &blk| blk.call }
     allow(Monadic::Utils::HttpClient).to receive(:generation).and_return(client)
     allow(client).to receive(:headers) { |h| posted << [:headers, h]; client }

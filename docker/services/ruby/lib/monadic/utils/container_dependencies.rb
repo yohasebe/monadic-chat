@@ -46,7 +46,28 @@ module Monadic
       # can request the baseline without inspecting every app's settings.
       BASE_SERVICES = %i[qdrant embeddings].freeze
 
+      # Services whose start was asked for and has not finished (for what
+      # waits on a service that may still be coming up).
+      @starting = {}
+      @starting_lock = Mutex.new
+
       module_function
+
+      # Asked for and not finished: waiting its turn in a start that has
+      # been scheduled, or being started now. Counted, so a start scheduled
+      # twice is still seen until both have handled it.
+      def starting?(service)
+        @starting_lock.synchronize { @starting.fetch(service, 0).positive? }
+      end
+
+      def mark_starting(services, on)
+        @starting_lock.synchronize do
+          Array(services).each do |service|
+            count = @starting.fetch(service, 0) + (on ? 1 : -1)
+            count.positive? ? @starting[service] = count : @starting.delete(service)
+          end
+        end
+      end
 
       # Determine which extra services an app requires.
       # Returns a Set of symbols. Base services (qdrant + embeddings) are
@@ -101,6 +122,10 @@ module Monadic
         needed = required_services(settings)
         result = { started: [], failed: [] }
 
+        # Each service is marked as starting until its turn is over (once
+        # each: what is left unhandled is unmarked at the end).
+        remaining = needed.dup
+        mark_starting(remaining, true)
         needed.each do |service|
           next if container_running?(service)
 
@@ -111,8 +136,15 @@ module Monadic
             result[:failed] << service
           end
           # :already_running and :disabled require no action
+        ensure
+          # Taken off the list and unmarked together (not split by a kill).
+          Thread.handle_interrupt(Object => :never) do
+            mark_starting(service, false) if remaining.delete(service)
+          end
         end
         result
+      ensure
+        mark_starting(remaining, false) if remaining
       end
 
       # Fire-and-forget background trigger to ensure containers for a given
@@ -132,6 +164,19 @@ module Monadic
         return false unless defined?(APPS) && APPS[app_name]
 
         target_settings = APPS[app_name].settings
+        # Seen as starting from now, not only once its turn comes.
+        scheduled = required_services(target_settings)
+        mark_starting(scheduled, true)
+        begin
+          start_thread(scheduled, target_settings, reason)
+        rescue ThreadError
+          mark_starting(scheduled, false) # the start never began
+          raise
+        end
+        true
+      end
+
+      def start_thread(scheduled, target_settings, reason)
         Thread.new do
           ensure_services_for_app(target_settings)
         rescue StandardError => e
@@ -143,8 +188,9 @@ module Monadic
             message: "background container startup failed (#{reason}): #{e.message}",
             severity: :error
           )
+        ensure
+          mark_starting(scheduled, false)
         end
-        true
       end
 
       # Check if a container is currently running.

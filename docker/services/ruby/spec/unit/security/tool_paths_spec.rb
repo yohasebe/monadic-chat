@@ -46,8 +46,8 @@ RSpec.describe 'Tool input boundaries' do
     allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(@root)
     allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(false)
     allow(conduit).to receive(:required_analysis_provider).and_return('openai')
-    allow(Monadic::MCP::CostGuard).to receive(:ensure_within!)
-    allow(Monadic::MCP::CostGuard).to receive(:record)
+    allow(Monadic::MCP::CostGuard).to receive(:reserve!)
+      .and_return(instance_double(Monadic::MCP::CostGuard::Reservation, settle: nil, close: nil, charge: true, held: 0))
     allow(Monadic::MCP::CostGuard).to receive(:status).and_return({})
     allow(drawio).to receive(:sleep)
     allow(File).to receive(:read).and_call_original
@@ -206,12 +206,52 @@ RSpec.describe 'Tool input boundaries' do
       expect(File.exist?(File.join(@outside, 'missing'))).to be(false)
     end
 
-    it 'rechecks the path after mkdir_p before writing' do
+    it 'writes nothing outside when a folder it made is swapped for a link before the write' do
       target = File.join(@root, 'new')
-      allow(FileUtils).to receive(:mkdir_p).with(target) { File.symlink(@outside, target) }
+      allow(Monadic::Utils::SharedPathGuard).to receive(:mkdir_p!).and_wrap_original do |original, path|
+        original.call(path).tap do
+          FileUtils.rm_rf(target)
+          File.symlink(@outside, target)
+        end
+      end
       result = helper.write_file_to_shared_folder(filepath: 'new/escape.txt', content: 'overwrite')
       expect(result[:success]).to be(false)
       expect(File.exist?(File.join(@outside, 'escape.txt'))).to be(false)
+    end
+
+    it 'writes nothing into the folders whose code the Ruby side loads or runs' do
+      FileUtils.mkdir_p(File.join(@root, 'helpers'))
+      File.symlink(File.join(@root, 'helpers'), File.join(@root, 'innocent'))
+      ['helpers/x.rb', 'apps/x/x.mdsl', 'apps/x/helpers/y.rb', 'scripts/ruby', 'Helpers/x.rb', 'SCRIPTS/bash',
+       './apps/x.rb', '/monadic/data/helpers/x.rb', 'innocent/x.rb', 'services/x/compose.yml',
+       'Services/x/compose.yml'].each do |path|
+        result = helper.write_file_to_shared_folder(filepath: path, content: 'puts :ran')
+        expect(result[:success]).to be(false), "#{path} was written"
+      end
+      written = Dir.glob(File.join(@root, '{apps,helpers,scripts,services,Helpers,SCRIPTS,Services}', '**', '*'), File::FNM_DOTMATCH)
+                   .select { |f| File.file?(f) }
+      expect(written).to be_empty
+      # a name that only starts like one of them is an ordinary folder
+      expect(helper.write_file_to_shared_folder(filepath: 'apps-notes/x.txt', content: 'ok')[:success]).to be(true)
+    end
+
+    it 'writes nothing where a loaded folder really is, when that folder is a link' do
+      FileUtils.mkdir_p(File.join(@root, 'ordinary'))
+      File.symlink(File.join(@root, 'ordinary'), File.join(@root, 'helpers'))
+      expect(helper.write_file_to_shared_folder(filepath: 'helpers/probe.rb', content: 'x')[:success]).to be(false)
+      expect(helper.write_file_to_shared_folder(filepath: 'ordinary/probe.rb', content: 'x')[:success]).to be(false)
+      expect(Dir.children(File.join(@root, 'ordinary'))).to be_empty
+    end
+
+    it 'never writes through a link in the file\'s place' do
+      FileUtils.mkdir_p(File.join(@root, 'notes'))
+      target = fixture('notes/kept.txt', text: 'kept')
+      File.symlink(target, File.join(@root, 'report.txt'))
+      expect(helper.write_file_to_shared_folder(filepath: 'report.txt', content: 'overwrite')[:success]).to be(false)
+      writer = Class.new { include MonadicHelper }.new
+      stub_const('MonadicApp::LOCAL_SHARED_VOL', @root)
+      expect(writer.send(:write_to_file, filename: 'report', extension: 'txt', text: 'overwrite')).to start_with('Error')
+      expect(File.read(target)).to eq('kept')
     end
 
     it 'writes and appends valid Unicode subfolder names' do
@@ -295,6 +335,7 @@ RSpec.describe 'Tool input boundaries' do
     end
 
     it 'passes canonical valid media paths to MCP agents' do
+      stub_const('CONFIG', CONFIG.merge('OPENAI_API_KEY' => 'test')) # checked before any budget is held
       image_path = fixture('日本語 folder/image name.png')
       audio_path = fixture('日本語 folder/audio name.mp3')
       host = double('agent')

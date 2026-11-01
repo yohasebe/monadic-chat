@@ -4,7 +4,9 @@ require "base64"
 require "http"
 require "json"
 require "tempfile"
+require_relative "../utils/gemini_request"
 require_relative "../utils/environment"
+require_relative "../utils/shared_path_guard"
 
 # AudioAnalysisAgent: Gemini-based *qualitative* analysis of audio.
 #
@@ -49,9 +51,20 @@ module AudioAnalysisAgent
   def analyze(audio_path:, prompt:, model:)
     api_key = defined?(CONFIG) ? CONFIG["GEMINI_API_KEY"] : ENV.fetch("GEMINI_API_KEY", nil)
     return "ERROR: GEMINI_API_KEY not configured" if api_key.nil? || api_key.to_s.empty?
-    return "ERROR: Audio file not found: #{audio_path}" unless File.exist?(audio_path)
+    # The file is read once, as a plain file of the shared folder (never
+    # through a link), into a copy outside it; the size check, ffmpeg and the
+    # read below all work on that copy.
+    Monadic::Utils::SharedPathGuard.with_local_copy!(audio_path) do |local|
+      analyze_local(local, File.extname(audio_path), prompt, model, api_key)
+    end
+  rescue Monadic::Utils::SharedPathGuard::InvalidPath, Errno::ENOENT
+    "ERROR: Audio file not found: #{File.basename(audio_path.to_s)}"
+  rescue StandardError => e
+    "ERROR: Audio analysis failed: #{e.message}"
+  end
 
-    send_path, mime_type, cleanup = prepare_audio(audio_path)
+  def analyze_local(local, ext, prompt, model, api_key)
+    send_path, mime_type, cleanup = prepare_audio(local, ext)
     begin
       size = File.size(send_path)
       if size > MAX_INLINE_BYTES
@@ -64,9 +77,8 @@ module AudioAnalysisAgent
       # recommends keeping temperature at its default 1.0 for ALL Gemini 3
       # models — lowering it "may lead to unexpected behavior, such as looping
       # or degraded performance" — and explicitly advises REMOVING explicitly
-      # set low temperatures. A temperature 0.2 experiment here (2026-06-10)
-      # confirmed the warning in dogfood: the critique lost candor (praise
-      # bias, dropped its mention of real timing rush). Fabrication and
+      # set low temperatures. A low temperature here makes the critique lose
+      # candor (praise bias, missed timing problems). Fabrication and
       # praise-bias countermeasures live in the critique PROMPT instead.
       body = {
         contents: [{
@@ -87,8 +99,8 @@ module AudioAnalysisAgent
   # Compress large files to mp3 16 kHz mono via ffmpeg (mirrors the proven
   # array-form invocation in stt_utils). Returns [path, mime, cleanup_or_nil];
   # falls back to the original file if ffmpeg is unavailable or fails.
-  def prepare_audio(audio_path)
-    ext = File.extname(audio_path).delete_prefix(".").downcase
+  def prepare_audio(audio_path, original_ext = File.extname(audio_path))
+    ext = original_ext.delete_prefix(".").downcase
     mime = AUDIO_MIME_TYPES[ext] || "audio/mpeg"
     return [audio_path, mime, nil] if File.size(audio_path) < COMPRESS_THRESHOLD_BYTES
 
@@ -109,7 +121,7 @@ module AudioAnalysisAgent
     begin
       res = HTTP.headers("Content-Type" => "application/json", "x-goog-api-key" => api_key)
                .timeout(connect: ANALYSIS_CONNECT_TIMEOUT, write: ANALYSIS_WRITE_TIMEOUT, read: ANALYSIS_READ_TIMEOUT)
-               .post(uri, json: body)
+               .post(uri, json: Monadic::Utils::GeminiRequest.without_storage(body))
     rescue HTTP::Error, HTTP::TimeoutError => e
       if retries < ANALYSIS_MAX_RETRIES
         retries += 1

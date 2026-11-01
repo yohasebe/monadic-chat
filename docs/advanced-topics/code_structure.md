@@ -42,14 +42,14 @@ Place your apps in `~/monadic/data/apps/`:
 
 Place your custom scripts in `~/monadic/data/scripts/`:
 - Scripts are automatically made executable
-- They're added to PATH so you can call them by name
-- Supports `.sh`, `.py`, `.rb` and other executable formats
+- They're added to the end of PATH in the Python container, so you can call them by name there (not on the Ruby side, which runs only the scripts that come with Monadic Chat)
+- Supports `.sh`, `.py` and other formats the Python container can run
 
 Example:
 ```text
 ~/monadic/data/scripts/
 ├── my_analyzer.py
-├── data_processor.rb
+├── data_processor.py
 └── utility.sh
 ```
 
@@ -69,7 +69,7 @@ You can use these as examples for your own apps.
 ## Logs and Debugging
 
 - Application logs: `~/monadic/log/`
-- Enable "Extra Logging" in Console Panel for detailed logs
+- Turn on **Extra Logging** in the System category of the Settings window for detailed logs (`~/monadic/log/extra.log`)
 - Use `puts` statements in Ruby code for debugging
 
 ## Best Practices

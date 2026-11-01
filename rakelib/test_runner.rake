@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+# spec_helper starts the Docker services only when this is set.
+START_CONTAINERS_ENV = { "MONADIC_TEST_START_CONTAINERS" => "1" }.freeze
+
 # -----------------------------------------------------------------------------
 # Unified Test Runner tasks (developer UX)
 # -----------------------------------------------------------------------------
@@ -14,40 +17,23 @@ namespace :test do
   task :run, [:suite, :options] do |_t, args|
     require_relative '../lib/test_runner'
     runner = TestRunner.new(args[:suite], args[:options])
-    runner.execute
+    exit 1 unless runner.execute
   end
 
   desc "Run tests using predefined profile from config/test/test-config.yml (fallback: .test-config.yml)"
   task :profile, [:name] do |_t, args|
-    require 'yaml'
     require_relative '../lib/test_runner'
-    # Prefer new path, fall back to legacy path for backward compatibility
-    config_path = ENV['TEST_PROFILE_PATH'] || 'config/test/test-config.yml'
-    unless File.exist?(config_path)
-      legacy = '.test-config.yml'
-      if File.exist?(legacy)
-        config_path = legacy
-        puts "[test:profile] Using legacy profile path: #{legacy}"
-      else
-        puts "Profile config not found: #{config_path} (or #{legacy})"
-        exit 1
-      end
-    end
-    cfg = YAML.safe_load(File.read(config_path)) || {}
-    profiles = cfg['profiles'] || {}
-    profile = profiles[args[:name]]
-    if profile.nil?
-      puts "Profile '#{args[:name]}' not found"
-      puts "Available profiles: #{profiles.keys.join(', ')}"
+    config = TestRunner.load_config
+    unless config
+      puts "Profile config not found: #{ENV['TEST_PROFILE_PATH'] || 'config/test/test-config.yml'} (or .test-config.yml)"
       exit 1
     end
-    suites = profile['suites'] || []
-    common_opts = profile.reject { |k, _| k == 'suites' }
-    suites.each do |suite|
-      options_str = common_opts.map { |k, v| "#{k}=#{Array(v).join(',')}" }.join(',')
-      Rake::Task['test:run'].invoke(suite, options_str)
-      Rake::Task['test:run'].reenable
+    runner = TestRunner.new(nil)
+    unless runner.load_profile(args[:name])
+      puts "Available profiles: #{(config['profiles'] || {}).keys.join(', ')}"
+      exit 1
     end
+    exit 1 unless runner.execute
   end
 
   desc "List recent test results"
@@ -194,7 +180,7 @@ namespace :test do
     puts "\n🧪 [#{step}/#{total_steps}] Running Ruby integration tests..."
     integration_json = File.join(output_dir, 'integration.json')
     Dir.chdir("docker/services/ruby") do
-      results[:ruby_integration] = system("bundle exec rspec spec/integration --format documentation --format json --out #{integration_json}")
+      results[:ruby_integration] = system(START_CONTAINERS_ENV, "bundle exec rspec spec/integration --format documentation --format json --out #{integration_json}")
     end
 
     # Ruby system tests
@@ -202,7 +188,7 @@ namespace :test do
     puts "\n🧪 [#{step}/#{total_steps}] Running Ruby system tests..."
     system_json = File.join(output_dir, 'system.json')
     Dir.chdir("docker/services/ruby") do
-      results[:ruby_system] = system("bundle exec rspec spec/system --format documentation --format json --out #{system_json}")
+      results[:ruby_system] = system(START_CONTAINERS_ENV, "bundle exec rspec spec/system --format documentation --format json --out #{system_json}")
     end
 
     # API tests (optional by level)
@@ -211,7 +197,7 @@ namespace :test do
       puts "\n🧪 [#{step}/#{total_steps}] Running API tests..."
       api_json = File.join(output_dir, 'api.json')
       Dir.chdir("docker/services/ruby") do
-        results[:api] = system("bundle exec rspec spec/integration --tag api --format documentation --format json --out #{api_json}")
+        results[:api] = system(START_CONTAINERS_ENV, "bundle exec rspec spec/integration --tag api --format documentation --format json --out #{api_json}")
       end
     else
       results[:api] = true
@@ -223,7 +209,7 @@ namespace :test do
       puts "\n🧪 [#{step}/#{total_steps}] Running Media tests (image/video/audio generation)..."
       media_json = File.join(output_dir, 'media.json')
       Dir.chdir("docker/services/ruby") do
-        results[:media] = system("bundle exec rspec spec/integration/api_media --format documentation --format json --out #{media_json}")
+        results[:media] = system(START_CONTAINERS_ENV, "bundle exec rspec spec/integration/api_media --format documentation --format json --out #{media_json}")
       end
     else
       results[:media] = true
@@ -236,7 +222,7 @@ namespace :test do
       websearch_json = File.join(output_dir, 'websearch.json')
       Dir.chdir("docker/services/ruby") do
         # Run websearch-tagged integration tests
-        results[:websearch] = system("bundle exec rspec spec/integration --tag websearch --format documentation --format json --out #{websearch_json}")
+        results[:websearch] = system(START_CONTAINERS_ENV, "bundle exec rspec spec/integration --tag websearch --format documentation --format json --out #{websearch_json}")
       end
     else
       results[:websearch] = true
@@ -320,16 +306,14 @@ namespace :test do
     system("rake test:run[unit,\"api_level=#{api_level},focus=critical\"]")
   end
 
-  desc "Run JavaScript tests via unified runner"
+  desc "Run JavaScript tests (Jest)"
   task :js do
-    require_relative '../lib/test_runner'
-    TestRunner.new('js').execute
+    Rake::Task["jstest"].invoke
   end
 
-  desc "Run Python tests via unified runner"
+  desc "Run Python tests"
   task :python do
-    require_relative '../lib/test_runner'
-    TestRunner.new('python').execute
+    Rake::Task["pytest:all"].invoke
   end
 
   desc "Analyze last test run results and extract failures/pending"

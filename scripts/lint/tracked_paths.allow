@@ -42,7 +42,7 @@ config/jest/jest.config.js
 lib/**/*.rb
 rakelib/*.rake
 scripts/**/*.{rb,js,mjs,sh}
-scripts/lint/tracked_paths.allow
+scripts/lint/{tracked_paths,shared_writes}.allow
 
 # --- Electron app -----------------------------------------------------------
 app/**/*.{js,html}
@@ -58,13 +58,12 @@ app/vendor/README.md
 # --- Docker services --------------------------------------------------------
 docker/monadic.sh
 docker/services/compose.yml
-docker/services/*.sh
 docker/services/*/Dockerfile
 docker/services/*/compose{,.build,.dev}.yml
 docker/services/support_scripts/*.sh
 docker/services/{embeddings,extractor,privacy}/**/*.py
 docker/services/embeddings/*.sh
-docker/services/privacy/language_map.json
+docker/services/privacy/{language_map.json,constraints.txt}
 docker/services/privacy/recognizers/*.yaml
 docker/services/python/**/*.{py,sh}
 docker/services/python/matplotlibrc
@@ -73,7 +72,7 @@ docker/services/python/@jupyterlab/**/*.jupyterlab-settings
 
 # Ruby service: application code
 docker/services/ruby/{Dockerfile,Gemfile,config.ru,*.gemspec,*.sh}
-docker/services/ruby/.{dockerignore,rubocop.yml,rubocop_todo.yml,rspec-integration,rspec_env}
+docker/services/ruby/.{dockerignore,rubocop.yml,rubocop_todo.yml,rspec-integration}
 docker/services/ruby/.bundle/config
 docker/services/ruby/apps/**/*.{rb,mdsl}
 docker/services/ruby/apps/auto_forge/config/standard_libraries.json
@@ -88,9 +87,9 @@ docker/services/ruby/views/*.erb
 
 # Ruby service: specs and their fixtures
 docker/services/ruby/spec/**/*.{rb,sh,yml}
-docker/services/ruby/spec/e2e/websearch
 docker/services/ruby/spec/fixtures/office/*.{docx,pptx,xlsx}
 docker/services/ruby/spec/fixtures/*.png
+docker/services/ruby/spec/fixtures/tts/*_expected.json
 docker/services/ruby/spec/integration/stt_noise_benchmark/data/truth.txt
 docker/services/ruby/spec/unit/scripts/generators/*.rb.disabled
 

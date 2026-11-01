@@ -4,6 +4,7 @@ require 'json'
 require 'base64'
 require 'tempfile'
 
+require_relative "gemini_request"
 require_relative 'extra_logger'
 
 module InteractionUtils
@@ -122,7 +123,7 @@ module InteractionUtils
     begin
       response = HTTP.headers("Content-Type" => "application/json", "x-goog-api-key" => CONFIG["GEMINI_API_KEY"])
         .timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT)
-        .post(url, json: body)
+        .post(url, json: Monadic::Utils::GeminiRequest.without_storage(body))
 
       if response.status.success?
         result = JSON.parse(response.body)
@@ -175,7 +176,7 @@ module InteractionUtils
   # @param blob [String] The audio data
   # @param format [String] The audio format (e.g., "webm", "mp3", "wav")
   # @param lang_code [String] The language code (e.g., "en", "ja")
-  # @param model [String] The model to use (e.g., "voxtral-mini-transcribe-26-02")
+  # @param model [String] The model to use (e.g., "voxtral-mini-transcribe-3-0")
   # @return [Hash] The transcription result or error
   def mistral_stt_api_request(blob, format, lang_code, model)
     api_key = CONFIG["MISTRAL_API_KEY"]
@@ -301,7 +302,7 @@ module InteractionUtils
   # @param blob [String] The audio data
   # @param format [String] The audio format (e.g., "webm", "mp3", "wav")
   # @param lang_code [String] The language code (e.g., "en", "ja", "auto")
-  # @param model [String] The model to use (e.g., "scribe_v2", "scribe_v1_experimental")
+  # @param model [String] The model to use (e.g., "scribe_v2")
   # @return [Hash] The transcription result or error
   def elevenlabs_stt_api_request(blob, format, lang_code, model)
     api_key = CONFIG["ELEVENLABS_API_KEY"]

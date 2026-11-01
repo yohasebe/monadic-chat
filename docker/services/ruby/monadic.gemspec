@@ -56,6 +56,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "commonmarker", "~> 2.3"
   spec.add_dependency "csv"
   spec.add_dependency "dotenv", "~> 3.1"
+  spec.add_dependency "fiddle", "1.1.8"
   spec.add_dependency "async", "~> 2.0"
   spec.add_dependency "async-websocket", "~> 0.30"
   spec.add_dependency "http", "~> 5.2"
@@ -71,6 +72,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency "pandoc-ruby"
   spec.add_dependency "parallel"
   spec.add_dependency "parslet"
+  # Conversation history store; pinned: the image installs from this file without the lock.
+  spec.add_dependency "sqlite3", "2.9.6"
   spec.add_dependency "twitter_cldr"
   spec.add_dependency "rack", "~> 3.2"
   spec.add_dependency "rake"

@@ -72,7 +72,7 @@ module DrawIOGrapher
     screenshot_filename = "drawio_preview_#{timestamp}.png"
     html_path = Monadic::Utils::SharedPathGuard.resolve_in_shared(html_filename, must_exist: false)
     return "❌ Invalid preview file path" unless html_path
-    File.write(html_path, build_drawio_preview_html(validated_content))
+    Monadic::Utils::SharedPathGuard.write_file!(html_path, build_drawio_preview_html(validated_content))
 
     # 5. Browser session management via web_navigator.py
     file_url = "file:///monadic/data/#{html_filename}"
@@ -107,7 +107,7 @@ module DrawIOGrapher
     if ss_result[:success] && ss_result[:screenshot]
       src = Monadic::Utils::SharedPathGuard.resolve_in_shared(ss_result[:screenshot], extensions: %w[.png])
       dst = Monadic::Utils::SharedPathGuard.resolve_in_shared(screenshot_filename, must_exist: false)
-      FileUtils.cp(src, dst) if src && dst
+      Monadic::Utils::SharedPathGuard.copy_file!(src, dst) if src && dst
     end
 
     result = {
@@ -144,9 +144,7 @@ module DrawIOGrapher
       resolved = Monadic::Utils::SharedPathGuard.resolve_in_shared(filepath, extensions: %w[.drawio], must_exist: false)
       return "❌ Invalid shared file path" unless resolved
 
-      File.open(resolved, "w") do |f|
-        f.write(validated_content)
-      end
+      Monadic::Utils::SharedPathGuard.write_file!(resolved, validated_content)
 
       # Verify file was written with shorter retry intervals for better UX
       success = false
@@ -287,7 +285,7 @@ module DrawIOGrapher
 
     # Quick health check — if Selenium is unreachable, clear stale session file
     unless selenium_service_reachable?
-      File.delete(session_file) rescue nil
+      (Monadic::Utils::SharedPathGuard.delete_file!(session_file) rescue nil)
       return false
     end
 
@@ -354,7 +352,7 @@ module DrawIOGrapher
     Dir.glob(File.join(shared_volume, "drawio_live_*.html")).each do |f|
       next if keep_latest && File.basename(f) == keep_latest
 
-      FileUtils.rm_f(f)
+      (Monadic::Utils::SharedPathGuard.delete_file!(f) rescue nil)
     end
   end
 end

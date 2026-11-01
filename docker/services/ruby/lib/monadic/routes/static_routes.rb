@@ -45,8 +45,7 @@ get "/" do
   @dev_js_cachebust = Time.now.to_i
   # In dev mode, bust CSS the same way. Keying CSS to the bundle mtime made
   # every stylesheet edit invisible until the JS bundle was next rebuilt —
-  # browsers kept serving the cached copy for the unchanged URL, which
-  # repeatedly surfaced as "the fix didn't take" during live dogfooding.
+  # browsers kept serving the cached copy for the unchanged URL.
   @timestamp = @dev_js_cachebust unless @dev_js_files.nil?
 
   session[:parameters] ||= {}
@@ -182,27 +181,26 @@ end
 # (scripts still run, e.g. interactive plots; the app's server refuses their
 # requests as coming from another origin). Not applied to every file: Chrome
 # does not open PDFs in a sandboxed document.
-SHARED_ACTIVE_TYPES = %w[text/html application/xhtml+xml image/svg+xml text/xml application/xml].freeze
+SHARED_ACTIVE_TYPES = %w[text/html application/xhtml+xml image/svg+xml text/xml application/xml text/vtt application/x-subrip].freeze
 SHARED_SANDBOX_POLICY = "sandbox allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads"
 
 def fetch_file(file_name)
-  # Path checks (top of the shared folder only, containment) live in
-  # Monadic::Utils::SharedFilePath so the specs exercise the same code.
-  file_path = Monadic::Utils::SharedFilePath.resolve(file_name, Monadic::Utils::Environment.data_path)
-  if file_path
-    headers "X-Content-Type-Options" => "nosniff"
-    if SHARED_ACTIVE_TYPES.include?(Rack::Mime.mime_type(File.extname(file_path), "application/octet-stream"))
-      headers "Content-Security-Policy" => SHARED_SANDBOX_POLICY
+  # Everything (name checks, opening once and never through a link, ranges,
+  # 304) is in Monadic::Utils::SharedFilePath.response, so the specs exercise
+  # the same code; what is served is the file it opened. A name starting with
+  # pub_ (in any case) is a publication: answered from the ledger alone
+  # (Monadic::Workspace::Publications.response), never from the shared folder.
+  sandbox = ->(type) { SHARED_ACTIVE_TYPES.include?(type) ? { "content-security-policy" => SHARED_SANDBOX_POLICY } : {} }
+  status_code, response_headers, response_body =
+    if Monadic::Workspace::Publications.public_name?(file_name)
+      Monadic::Workspace::Publications.response(file_name, request.env, extra_headers: sandbox)
+    else
+      Monadic::Utils::SharedFilePath.response(file_name, Monadic::Utils::Environment.data_path, request.env,
+                                              extra_headers: sandbox)
     end
-    send_file file_path
-  else
-    status 404
-    "Sorry, the file you are looking for is unavailable."
-  end
-rescue StandardError => e
-  puts "File fetch error: #{e.message}" if ENV["DEBUG"]
-  status 404
-  "Sorry, the file you are looking for is unavailable."
+  status status_code
+  headers response_headers
+  body response_body
 end
 
 get "/monadic/data/:file_name" do
@@ -211,8 +209,4 @@ end
 
 get "/data/:file_name" do
   fetch_file(params[:file_name])
-end
-
-get "/:filename" do |filename|
-  redirect to("/data/#{filename}")
 end

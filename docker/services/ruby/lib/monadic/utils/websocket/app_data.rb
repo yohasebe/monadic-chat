@@ -34,8 +34,8 @@ module WebSocketHelper
     # Filter and prepare messages
     filtered_messages = prepare_filtered_messages
 
-    # Send app data with from_initial_load flag to suppress Auto TTS
-    push_apps_data(connection, apps_data, filtered_messages, from_initial_load: true)
+    # The browser suppresses Auto Speech while it restores past messages.
+    push_apps_data(connection, apps_data, filtered_messages)
 
     # Handle voice data
     push_voice_data(connection)
@@ -228,7 +228,7 @@ module WebSocketHelper
   # @param connection [Async::WebSocket::Connection] WebSocket connection
   # @param apps [Hash] Apps data
   # @param filtered_messages [Array] Filtered messages
-  def push_apps_data(connection, apps, filtered_messages, from_initial_load: false)
+  def push_apps_data(connection, apps, filtered_messages)
     # Get session ID for targeted broadcasting
     ws_session_id = Thread.current[:websocket_session_id]
 
@@ -238,7 +238,7 @@ module WebSocketHelper
     # Debug logging (only when EXTRA_LOGGING is enabled)
     Monadic::Utils::ExtraLogger.log {
       params_present = rack_session[:parameters] && !rack_session[:parameters].empty?
-      "push_apps_data START: session=#{ws_session_id}, apps=#{apps.size}, params present=#{params_present}, messages=#{filtered_messages.size}, from_initial_load=#{from_initial_load}"
+      "push_apps_data START: session=#{ws_session_id}, apps=#{apps.size}, params present=#{params_present}, messages=#{filtered_messages.size}"
     }
 
     # Send apps message
@@ -263,14 +263,27 @@ module WebSocketHelper
     Monadic::Utils::ExtraLogger.log { "push_apps_data: Sent parameters message to session #{ws_session_id}" }
 
     # Send past_messages with additional delay to ensure parameters is processed first
-    # Add from_initial_load flag to suppress Auto TTS during automatic session restoration
     sleep(0.05)  # Additional 0.05s delay (total 0.1s from start)
-    past_messages_data = { "type" => "past_messages", "content" => filtered_messages }
-    past_messages_data["from_initial_load"] = true if from_initial_load
+    # Whether the chat is Private travels with its words, so the page knows
+    # it before it holds them (and does not store them).
+    past_messages_data = { "type" => "past_messages", "content" => filtered_messages,
+                           "private" => Monadic::History::Policy.private?(rack_session) }
     send_or_broadcast(past_messages_data.to_json, ws_session_id)
 
     # Debug logging for past_messages (only when EXTRA_LOGGING is enabled)
     Monadic::Utils::ExtraLogger.log { "push_apps_data: Sent past_messages with #{filtered_messages.size} items to session #{ws_session_id}" }
+
+    # A chat that goes on after a reload keeps its Privacy Filter state; the
+    # page shows it as it is (and locked, as before the reload) rather than
+    # from what it remembers for the app.
+    unless filtered_messages.empty?
+      state = rack_session[:monadic_state]
+      registry = state && state[:privacy] && state[:privacy][:registry]
+      send_or_broadcast({ "type" => "privacy_state", "enabled" => rack_session[:_privacy_session_enabled] == true,
+                          "registry_count" => registry.is_a?(Hash) ? registry.size : 0, "error" => nil,
+                          "restored" => true,
+                          "private" => Monadic::History::Policy.private?(rack_session) }.to_json, ws_session_id)
+    end
 
     # Send info message to hide spinner and show "Ready" status
     # For initial load with no parameters, send minimal info data

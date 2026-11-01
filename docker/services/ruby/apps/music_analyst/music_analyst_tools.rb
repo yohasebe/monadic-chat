@@ -81,8 +81,8 @@ module MusicAnalystTools
   end
 
   # Resolve the audio-capable Gemini model from the SSOT (providerDefaults),
-  # falling back to a known-good model — mirrors the agent model strategy in
-  # CLAUDE.md (ModelSpec accessor + hardcoded fallback).
+  # falling back to a known-good model, as the agents do (ModelSpec accessor
+  # + hardcoded fallback).
   def critique_model
     if defined?(Monadic::Utils::ModelSpec)
       Monadic::Utils::ModelSpec.default_audio_model("gemini") || CRITIQUE_MODEL_FALLBACK

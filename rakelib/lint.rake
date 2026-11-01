@@ -15,7 +15,7 @@ namespace :lint do
     end
   end
 
-  # Anti-pattern lint rules (see docs_dev/architecture_hardening_plan.md).
+  # Anti-pattern lint rules (see docs_dev/developer/anti_pattern_lints.md).
   # Each rule fails the build when its baseline is exceeded; the suite is
   # intentionally split so a partial green/red is still actionable.
 
@@ -23,7 +23,7 @@ namespace :lint do
   task :personal_paths do
     Dir.chdir(PROJECT_ROOT) do
       system('ruby scripts/lint/check_personal_paths.rb') ||
-        abort('Personal path lint failed (see docs_dev/architecture_hardening_plan.md §3.1)')
+        abort('Personal path lint failed (see docs_dev/developer/anti_pattern_lints.md)')
     end
   end
 
@@ -31,7 +31,7 @@ namespace :lint do
   task :shell_escape do
     Dir.chdir(PROJECT_ROOT) do
       system('ruby scripts/lint/check_shell_escape.rb') ||
-        abort('Shell escape lint failed (see docs_dev/architecture_hardening_plan.md §3.1)')
+        abort('Shell escape lint failed (see docs_dev/developer/anti_pattern_lints.md)')
     end
   end
 
@@ -39,7 +39,7 @@ namespace :lint do
   task :xhr_pair do
     Dir.chdir(PROJECT_ROOT) do
       system('ruby scripts/lint/check_xhr_pair.rb') ||
-        abort('XHR pair lint failed (see docs_dev/architecture_hardening_plan.md §3.1)')
+        abort('XHR pair lint failed (see docs_dev/developer/anti_pattern_lints.md)')
     end
   end
 
@@ -47,7 +47,7 @@ namespace :lint do
   task :data_path_literals do
     Dir.chdir(PROJECT_ROOT) do
       system('ruby scripts/lint/check_data_path_literals.rb') ||
-        abort('Data path literal lint failed (see docs_dev/architecture_hardening_plan.md §3.1)')
+        abort('Data path literal lint failed (see docs_dev/developer/anti_pattern_lints.md)')
     end
   end
 
@@ -55,7 +55,7 @@ namespace :lint do
   task :bare_ws_send do
     Dir.chdir(PROJECT_ROOT) do
       system('ruby scripts/lint/check_bare_ws_send.rb') ||
-        abort('Bare ws.send lint failed (see docs_dev/safe_ws_send_plan.md §3)')
+        abort('Bare ws.send lint failed (see docs_dev/frontend/safe_ws_send.md)')
     end
   end
 
@@ -72,6 +72,14 @@ namespace :lint do
     Dir.chdir(PROJECT_ROOT) do
       system('ruby scripts/lint/check_http_timeout.rb') ||
         abort('HTTP timeout lint failed: the http gem has no default timeout, so a silent peer hangs the thread forever. Build the client through Monadic::Utils::HttpClient (rest/generation/streaming/download).')
+    end
+  end
+
+  desc 'Check that writes into the shared folder go through SharedPathGuard'
+  task :shared_writes do
+    Dir.chdir(PROJECT_ROOT) do
+      system('ruby scripts/lint/check_shared_writes.rb') ||
+        abort('Shared write lint failed: a raw write follows links in the shared folder. Write through Monadic::Utils::SharedPathGuard, or add an entry to scripts/lint/shared_writes.allow saying where it writes and why.')
     end
   end
 
@@ -98,5 +106,5 @@ namespace :lint do
   end
 
   desc "Run every anti-pattern lint rule plus the self-check meta-test"
-  task :anti_patterns => [:tracked_paths, :personal_paths, :shell_escape, :xhr_pair, :data_path_literals, :bare_ws_send, :global_shadow_delegation, :http_timeout, :api_key_urls, :self_check]
+  task :anti_patterns => [:tracked_paths, :personal_paths, :shell_escape, :xhr_pair, :data_path_literals, :bare_ws_send, :global_shadow_delegation, :http_timeout, :shared_writes, :api_key_urls, :self_check]
 end

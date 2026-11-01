@@ -57,11 +57,23 @@
   }
 
   function handleState(data) {
+    notePrivate(data);
     _lastEnabled = !!(data && data.enabled);
     const el = findIndicator();
     if (!el) {
       emitStateChanged();
       return;
+    }
+
+    // A chat restored after a reload: the toggle shows the chat's state,
+    // locked as it was once the chat began (not re-negotiated).
+    if (data && data.restored) {
+      const restoredToggle = document.getElementById('check-privacy-session');
+      if (restoredToggle) {
+        restoredToggle.checked = !!data.enabled;
+        restoredToggle.disabled = true;
+        window.privacyToggleLocked = true;
+      }
     }
 
     if (!data || !data.enabled) {
@@ -77,6 +89,7 @@
       const toggleEl = document.getElementById('check-privacy-session');
       if (toggleEl && toggleEl.checked && !toggleEl.disabled &&
           typeof window.safeWsSend === 'function') {
+        noteRequested(true);
         window.safeWsSend({ message: 'PRIVACY_TOGGLE', enabled: true });
       }
       el.style.display = 'none';
@@ -149,22 +162,70 @@
   // (e.g., privacy_container_unreachable). A separate event from
   // privacy_state means we never confuse a toggle reply with an
   // unrelated indicator update from app-change / reset / import.
+  function privacyMessage(key, fallback) {
+    return typeof window.getTranslation === 'function' ? window.getTranslation(key, fallback) : fallback;
+  }
+
+  // The status line said the filter is starting; the next confirmation
+  // replaces it, so the notice does not stay once the filter is on.
+  let _startingShown = false;
+
+  // Whether the chat in this tab is Private (nothing of it is written to
+  // disk). The server says so in its privacy replies; asking for the filter
+  // counts as Private until it answers, so a doubt errs to Private.
+  let _chatPrivate = false;
+
+  // The page hides what would make files of a Private chat (see
+  // body.chat-private in monadic.css); the server refuses it as well.
+  function setPrivate(value) {
+    _chatPrivate = !!value;
+    if (document.body) document.body.classList.toggle('chat-private', _chatPrivate);
+  }
+
+  function noteRequested(enabled) {
+    if (enabled) setPrivate(true);
+  }
+
+  function notePrivate(data) {
+    if (data && typeof data.private === 'boolean') setPrivate(data.private);
+  }
+
+  function isChatPrivate() {
+    return _chatPrivate;
+  }
+
   function handleToggleAck(data) {
+    notePrivate(data);
     const toggleEl = document.getElementById('check-privacy-session');
     const desired = !!(data && data.enabled);
+    const afterStarting = _startingShown;
+    _startingShown = false;
 
     if (data && data.error) {
       // Backend rejected — sync visual state to "off" and surface the
-      // reason so the user understands why their toggle bounced back.
+      // reason so the user understands why their toggle bounced back
+      // (and whether to wait or to look into it).
       if (toggleEl) toggleEl.checked = false;
 
-      const msg = data.error === 'privacy_container_unreachable'
-        ? 'Privacy container is not running. Try restarting the application.'
-        : ('Privacy Filter error: ' + String(data.error).substring(0, 200));
+      let msg;
+      let level = 'error';
+      if (data.error === 'privacy_container_starting') {
+        // Short: it is shown on the one-line status (docs explain more).
+        msg = privacyMessage('ui.messages.privacyStarting', 'Privacy Filter starting; retry soon');
+        level = 'warning';
+        _startingShown = true;
+      } else if (data.error === 'privacy_chat_started') {
+        msg = privacyMessage('ui.messages.privacyChatStarted', 'Privacy Filter is chosen before a session starts. Press Reset to start a new chat with it.');
+        level = 'warning';
+      } else if (data.error === 'privacy_container_unreachable') {
+        msg = privacyMessage('ui.messages.privacyNotRunning', 'The Privacy Filter could not be started. Try restarting the application.');
+      } else {
+        msg = 'Privacy Filter error: ' + String(data.error).substring(0, 200);
+      }
       if (typeof window.setAlert === 'function') {
         window.setAlert(
           "<i class='fas fa-triangle-exclamation'></i> " + msg,
-          'error'
+          level
         );
       } else {
         console.warn('[Privacy]', msg);
@@ -174,6 +235,10 @@
 
     if (toggleEl && toggleEl.checked !== desired) {
       toggleEl.checked = desired;
+    }
+    if (afterStarting && desired && typeof window.setAlert === 'function') {
+      window.setAlert("<i class='fa-solid fa-circle-check'></i> " +
+        privacyMessage('ui.messages.privacyReady', 'Privacy Filter ready'), 'success');
     }
   }
 
@@ -604,6 +669,9 @@
     openRegistryModal: openRegistryModal,
     isActive: isActive,
     isEnabled: function () { return _lastEnabled; },
+    isChatPrivate: isChatPrivate,
+    noteRequested: noteRequested,
+    notePrivate: notePrivate,
     openExportDialog: openExportDialog,
     resetExportDialog: resetExportDialog,
     handleExportData: handleExportData,

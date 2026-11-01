@@ -16,7 +16,7 @@
  * ends, with a small jitter buffer (LEAD_IN_SEC) absorbing network
  * variance.
  *
- * Wire contract (see tmp/memo/sts_pipeline_v1.0.md §3-5):
+ * Wire contract:
  *   {"type":"sts_audio_delta","turn_id":..,"content":<base64 PCM16 mono LE>,"sample_rate":24000}
  *   {"type":"sts_audio_done","turn_id":..}
  *   {"type":"sts_audio_cancelled","turn_id":..}
@@ -40,7 +40,7 @@
   let nextStartTime = 0;
   let activeTurnId = null;
 
-  // §37-13C speech highlight: per-SEGMENT (= upstream response) playback
+  // Speech highlight: per-SEGMENT (= upstream response) playback
   // ranges on the audio clock. The live view maps the current position to
   // the currently spoken sentence; silence between segments (tool calls)
   // is simply not covered by any range, so the highlight cannot advance
@@ -160,7 +160,7 @@
    * @param {string} turnId - Response turn this chunk belongs to.
    * @param {Uint8Array} pcmBytes - PCM16 mono little-endian samples.
    * @param {number} sampleRate - Sample rate of pcmBytes (e.g. 24000).
-   * @param {string} [segmentId] - Upstream response id (§37-13C); defaults
+   * @param {string} [segmentId] - Upstream response id; defaults
    *   to turnId so single-response turns need no special handling.
    * @returns {boolean} true if scheduled, false if dropped.
    */
@@ -180,7 +180,7 @@
     // Mono-voice invariant: only one assistant turn may be audible at a
     // time. A turn switch without an explicit cancel happens whenever the
     // upstream moved on without emitting a cancellation we could attribute
-    // (observed in dogfood as two responses talking over each other), so
+    // (otherwise two responses talk over each other), so
     // the switch itself silences every other turn's scheduled tail.
     if (turnId !== activeTurnId) {
       Array.from(scheduledSources.keys()).forEach(function(id) {
@@ -225,7 +225,7 @@
     trackSource(turnId, source);
     nextStartTime = startAt + (samples.length / sampleRate);
 
-    // §37-13C: extend the segment's playback range on the audio clock.
+    // Extend the segment's playback range on the audio clock.
     const segId = (segmentId === null || segmentId === undefined || segmentId === '')
       ? turnId : String(segmentId);
     if (segId !== null) {
@@ -269,7 +269,7 @@
     nextStartTime = 0;
   }
 
-  // §37-13C: what is audible RIGHT NOW, as a segment-local playback
+  // What is audible RIGHT NOW, as a segment-local playback
   // position. Returns null during silence (nothing scheduled covers the
   // clock — e.g. while a tool runs), which the caller treats as "freeze,
   // do not advance". offset/total are seconds within the segment's

@@ -255,4 +255,32 @@ RSpec.describe "Privacy Filter with the session a real chat has" do
       end
     end
   end
+
+  # A tab that reconnects or imports a conversation has the filter on but no
+  # pipeline yet (a pipeline holds the session it was built for, so it is not
+  # carried over). What masks before the chat's own call builds one for this
+  # session, keeping the registry; an app without the filter still refuses.
+  describe "a chat whose pipeline is not built yet" do
+    let(:privacy_app) { double("App", settings: { privacy: { enabled: true } }) }
+    let(:plain_app) { double("App", settings: {}) }
+
+    before { stub_const("APPS", { "MailComposerOpenAI" => privacy_app, "ChatOpenAI" => plain_app }) }
+
+    it "gets one built for its own session" do
+      registry = { registry: { "Alice" => "<<PERSON_1>>" } }
+      session = real_session(parameters: { "app_name" => "MailComposerOpenAI" }, _privacy_session_enabled: true,
+                             monadic_state: { privacy: registry })
+      pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(session)
+      expect(pipeline).to be_a(Monadic::Substitution::Providers::PrivacyFilter)
+      expect(pipeline.instance_variable_get(:@session)).to equal(session)
+      expect(session[:_privacy_pipeline]).to equal(pipeline)
+      expect(session[:monadic_state][:privacy]).to eq(registry)
+    end
+
+    it "is refused when its app does not use the filter" do
+      session = real_session(parameters: { "app_name" => "ChatOpenAI" }, _privacy_session_enabled: true)
+      expect { Monadic::Utils::Privacy::Outbound.pipeline!(session) }
+        .to raise_error(Monadic::Utils::Privacy::Outbound::Refused)
+    end
+  end
 end

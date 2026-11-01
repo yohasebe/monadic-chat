@@ -188,7 +188,7 @@ RSpec.describe 'Attachments' do
     it 'takes no output from a job folder that is now a link' do
       record = accept
       workspace = ledger.workspace(record[:workspace_id])
-      job = Monadic::Workspace::Jobs.create!(workspace[:relative_dir])
+      job = Monadic::Workspace::Jobs.create!(workspace[:workspace_id], ledger: ledger)
       File.write(File.join(job[:path], 'frames_1.json'), '{}')
       expect(Monadic::Workspace::Jobs.outputs(job, /\Aframes_[0-9_]+\.json\z/).size).to eq(1)
 
@@ -199,7 +199,7 @@ RSpec.describe 'Attachments' do
 
     it 'takes no output that is itself a link' do
       record = accept
-      job = Monadic::Workspace::Jobs.create!(ledger.workspace(record[:workspace_id])[:relative_dir])
+      job = Monadic::Workspace::Jobs.create!(record[:workspace_id], ledger: ledger)
       File.write(File.join(outside, 'frames_3.json'), 'OUTSIDE')
       File.symlink(File.join(outside, 'frames_3.json'), File.join(job[:path], 'frames_3.json'))
       expect(Monadic::Workspace::Jobs.outputs(job, /\Aframes_[0-9_]+\.json\z/)).to be_empty

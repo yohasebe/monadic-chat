@@ -32,8 +32,8 @@ require_relative 'scan_floor'
 ROOT = Pathname.new(__dir__).join('..', '..').realpath
 
 # Scan roots with the fewest files a scan of each may read (see scan_floor.rb).
-# Floors sit about 20% below the current counts (public/js 90);
-# lower one when files are genuinely removed.
+# Floors sit below the number of files each root holds, so a misresolved
+# root or a broken glob fails loudly; lower one when files are genuinely removed.
 SCAN_ROOTS = {
   'docker/services/ruby/public/js' => 72
 }.freeze
@@ -122,7 +122,7 @@ violations.each do |v|
 end
 puts ''
 puts 'Migration target: window.safeWsSend(payload, opts)'
-puts '(see docs_dev/safe_ws_send_plan.md §3 for the helper API and'
+puts '(see docs_dev/frontend/safe_ws_send.md for the helper API and'
 puts 'idempotency contract).'
 
 if baseline && violations.size <= baseline

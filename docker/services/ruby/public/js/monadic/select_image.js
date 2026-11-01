@@ -86,13 +86,35 @@ function hasVideoAttachments() {
   return videoAttachments.length > 0;
 }
 
-// The lines that tell the model which files are attached. The list is left
-// as it is: it is cleared once the message has actually been sent.
-function videoAttachmentLines() {
-  return videoAttachments.map(function (v) {
-    const kind = v.purpose === 'audio' ? 'audio' : 'video';
-    return 'Attached ' + kind + ': ' + v.name + ' (attachment_id: ' + v.attachment_id + ')';
-  }).join('\n');
+// The attachments sent with the message, as the server takes them: the id
+// and its role only (the server reads the rest from its own record).
+function videoAttachmentRefs() {
+  return videoAttachments.map(function (v) { return { attachment_id: v.attachment_id, role: 'input' }; });
+}
+
+// The attachments as they are now, to give back if the message they were
+// sent with is not accepted or fails; and putting such a list back.
+function snapshotVideoAttachments() {
+  return videoAttachments.map(function (v) { return Object.assign({}, v); });
+}
+
+function restoreVideoAttachments(list) {
+  if (!Array.isArray(list) || list.length === 0) return;
+  attachmentGeneration += 1;
+  videoAttachments = list.map(function (v) { return Object.assign({}, v); });
+  updateFileDisplay(images);
+}
+
+// The images and PDFs of the input in the same way: the send clears them
+// once it is written to the socket, before the server has accepted it.
+function snapshotImages() {
+  return images.map(function (img) { return Object.assign({}, img); });
+}
+
+function restoreImages(list) {
+  if (!Array.isArray(list) || list.length === 0) return;
+  images = list.map(function (img) { return Object.assign({}, img); });
+  updateFileDisplay(images);
 }
 
 function clearVideoAttachments() {
@@ -628,7 +650,7 @@ function updateFileDisplay(files) {
     }
   });
 
-  // Attached videos and audio: on the server already, named in the next message.
+  // Attached videos and audio: on the server already, sent with the next message.
   videoAttachments.forEach(function (video, index) {
     const sizeMb = (Number(video.size || 0) / (1024 * 1024)).toFixed(1);
     const icon = video.purpose === 'audio' ? 'fa-file-audio' : 'fa-film';
@@ -790,7 +812,11 @@ window.isVideoFile = isVideoFile;
 window.isAudioFile = isAudioFile;
 window.uploadVideoAttachment = uploadVideoAttachment;
 window.hasVideoAttachments = hasVideoAttachments;
-window.videoAttachmentLines = videoAttachmentLines;
+window.videoAttachmentRefs = videoAttachmentRefs;
+window.snapshotVideoAttachments = snapshotVideoAttachments;
+window.restoreVideoAttachments = restoreVideoAttachments;
+window.snapshotImages = snapshotImages;
+window.restoreImages = restoreImages;
 window.clearVideoAttachments = clearVideoAttachments;
 window.getDocumentIcon = getDocumentIcon;
 window.isDocumentType = isDocumentType;

@@ -68,7 +68,7 @@ app "CodingAssistantDeepSeek" do
     # default (high). This states that.
     reasoning_effort "high"
     # V4 unified models are the default; thinking mode toggle controls reasoning depth.
-    model ["deepseek-v4-flash", "deepseek-v4-pro"]
+    model ["deepseek-flash", "deepseek-v4-pro"]
   end
   
   display_name "Coding Assistant"

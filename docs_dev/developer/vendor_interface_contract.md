@@ -14,7 +14,7 @@ Vendor helpers are Ruby modules located in `lib/monadic/adapters/vendors/`. Each
 |---|---|---|
 | `define_timeouts(prefix, open:, read:, write:)` | Timeout configuration from CONFIG | `open_timeout`, `read_timeout`, `write_timeout` |
 | `define_models_cache(cache_key)` | Model cache clearing | `clear_models_cache` |
-| `retry_with_backoff(max_retries:, delay:)` | Generic retry wrapper | (instance method) |
+| `post_json_with_retries(http, uri, body, max_retries:, retry_delay:, rescue_errors: [])` | Non-streaming JSON POST with retries | (instance method) |
 
 ## Required Interface Methods
 
@@ -112,7 +112,7 @@ def send_query(options, model: nil)
 end
 ```
 
-**Called from:** `AIUserAgent`, `SecondOpinionAgent`, `ContextExtractorAgent`, tool methods via `MonadicApp#send_query`
+**Called from:** `AIUserAgent`, `SecondOpinionAgent`, tool methods via `MonadicApp#send_query`
 
 **Implementation status:**
 
@@ -123,7 +123,7 @@ end
 | Gemini | ✓ | `model: nil` |
 | Cohere | ✓ | `model: nil` |
 | Mistral | ✓ | `model: nil` |
-| DeepSeek | ✓ | `model: "deepseek-chat"` |
+| DeepSeek | ✓ | `model: nil` |
 | Grok | ✓ | `model: nil` |
 | Ollama | ✓ | `model: nil` |
 | Tavily | ✗ | N/A (has `tavily_search` instead) |
@@ -161,6 +161,12 @@ end
 | Tavily | ✗ | N/A |
 
 **Note:** Grok's extra `disable_streaming` parameter is non-standard but backward-compatible (keyword arg with default).
+
+**The user message of the turn:** `handle_ws_streaming` records it when it accepts the send, under the turn's `request_id`. `api_request` adds its own fields (`html`, `lang`, `images`, and its own `mid`) and shows it on the page through `BaseVendorHelper#record_user_turn!`, which finds that message by the request of the current `Workspace::RequestContext` (not by its text, which may repeat), updates it before the page is told, and sends the page its `attachments`. A new helper calls it once, in place of adding the message itself. The fields the server fixed when it accepted the send (`request_id`, `attachments`, `request_snapshot`) are not overwritten. The helper decides whether there is a turn to record with `user_turn_to_record?`, which is also true for a message of attached files with no text. A user sample (`handle_ws_sample`) is recorded with the same fields (`user_turn_fields`), under a request of its own; samples of every role have their Privacy marks taken out first, and a system sample or a system edit that holds words to mask (new marks or words marked before) is refused, since system messages are sent unmasked. A send, a sample or an edit refused before anything is recorded (marks, attachments) gets an error carrying `not_accepted`, so the page keeps the cards it shows; a send or a sample gives the text back with its role, and a refused edit (`edit_refused`, `mid`) puts that card back as it was without touching the message box.
+
+**What the model reads of a user message:** the helper passes its finished context through `BaseVendorHelper#model_facing_context` before converting it. A user message with `attachments` becomes a copy whose text is followed by one line per file (`Attached video: NAME (attachment_id: ID)`, or `Attached audio: …`), the name reduced to one line of plain text; the session keeps the text as typed. The conversion runs before `apply_privacy_to_messages`, so the Privacy Filter sees the names. Cohere sends the current message apart from its context and takes its text from `model_facing_message`.
+
+**One answer at a time on a connection:** the WebSocket loop does not accept a send while the connection's answer thread is alive; it answers with an error carrying `not_accepted` and `busy`, and the page gives back the text, the attachments and the images without touching the running answer. Cancel, Reset and a closed connection stop that thread. A tab that reconnects gets a new connection, which does not see the old one's thread.
 
 ---
 
@@ -256,5 +262,3 @@ Checklist:
 9. Add API key mapping in `monadic.rb`
 10. Update frontend `getProviderFromGroup()` in `monadic.js`
 11. Add tests
-
-See also: CLAUDE.md "Adding a New AI Provider" checklist.

@@ -24,7 +24,7 @@ RSpec.describe "Jupyter Notebook Operations", :integration, :api do
   end
   # Test data directory
   let(:data_path) { File.join(Dir.home, "monadic", "data") }
-  let(:test_notebook_prefix) { "test_operations" }
+  let(:test_notebook_prefix) { SharedFolderTestFiles.name("operations") }
 
   # Cleanup helper
   def cleanup_test_notebooks

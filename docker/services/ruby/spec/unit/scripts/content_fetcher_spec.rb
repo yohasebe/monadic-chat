@@ -1,12 +1,21 @@
 require 'spec_helper'
 require 'tempfile'
 require 'open3'
+require 'tmpdir'
 
 RSpec.describe "content_fetcher.rb" do
   let(:script_path) { File.expand_path("../../../scripts/cli_tools/content_fetcher.rb", __dir__) }
   
+  let(:guard_path) { File.expand_path("../../../lib/monadic/utils/shared_path_guard", __dir__) }
+
+  # The script reads through SharedPathGuard; in its own process the shared
+  # folder is pointed at the temporary folder the test files are in, never
+  # at the user's.
   def run_script(args)
-    stdout, stderr, status = Open3.capture3("ruby", script_path, *args)
+    preamble = "require #{guard_path.inspect}; " \
+               "Monadic::Utils::Environment.define_singleton_method(:data_path) { #{Dir.tmpdir.inspect} }; " \
+               "ARGV.replace(#{args.inspect}); load #{script_path.inspect}"
+    stdout, stderr, status = Open3.capture3("ruby", "-e", preamble)
     { stdout: stdout, stderr: stderr, status: status }
   end
   

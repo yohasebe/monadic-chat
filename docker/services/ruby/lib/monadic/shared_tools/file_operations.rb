@@ -71,38 +71,28 @@ module MonadicSharedTools
         }
       end
 
-      # Check if file exists
-      unless File.exist?(full_path)
-        return {
-          success: false,
-          error: "File not found",
-          filepath: filepath
-        }
-      end
-
-      # Check if it's a file (not a directory)
-      unless File.file?(full_path)
-        return {
-          success: false,
-          error: "Path is a directory, not a file",
-          filepath: filepath
-        }
-      end
-
-      # Read file content
+      # Read once, as a plain file of the shared folder (never through a link,
+      # even one put there after the check above); the metadata is of the file
+      # read.
       begin
-        content = File.read(full_path, encoding: "UTF-8")
+        content, stat = Monadic::Utils::SharedPathGuard.read_file!(full_path) { |f| [f.read.force_encoding("UTF-8"), f.stat] }
 
         {
           success: true,
           filepath: filepath,
           content: content,
           metadata: {
-            size: File.size(full_path),
-            modified_at: File.mtime(full_path).iso8601,
-            created_at: File.ctime(full_path).iso8601,
+            size: stat.size,
+            modified_at: stat.mtime.iso8601,
+            created_at: stat.ctime.iso8601,
             lines: content.lines.count
           }
+        }
+      rescue Monadic::Utils::SharedPathGuard::InvalidPath, Errno::ENOENT, Errno::EISDIR
+        {
+          success: false,
+          error: "File not found",
+          filepath: filepath
         }
       rescue Errno::EACCES => e
         {
@@ -140,6 +130,12 @@ module MonadicSharedTools
     #        metadata: { size: 15, bytes_added: 15 }
     #      }
     def write_file_to_shared_folder(filepath:, content:, mode: "write")
+      # A Private chat makes no files.
+      if defined?(Monadic::History::Policy) && Monadic::History::Policy.current_work_private?
+        return { success: false, error: "This chat is Private: no file is written. Give the content in the reply instead.",
+                 filepath: filepath }
+      end
+
       # Validate mode parameter
       unless ["write", "append"].include?(mode)
         return {
@@ -152,13 +148,16 @@ module MonadicSharedTools
       unless full_path
         return { success: false, error: "File path is outside the shared folder or invalid", filepath: filepath }
       end
+      unless Monadic::Utils::SharedPathGuard.tool_writable?(full_path)
+        return { success: false, error: "Files are not written to the apps, helpers, scripts or services folders", filepath: filepath }
+      end
       relative_path = normalize_path_for_container(full_path).delete_prefix("#{CONTAINER_DATA_PREFIX}/")
 
       begin
         # Automatically create parent directories
         dir = File.dirname(full_path)
-        FileUtils.mkdir_p(dir) unless File.directory?(dir)
-        unless validate_file_path(full_path) == full_path
+        Monadic::Utils::SharedPathGuard.mkdir_p!(dir)
+        unless validate_file_path(full_path) == full_path && Monadic::Utils::SharedPathGuard.tool_writable?(full_path)
           return { success: false, error: "File path is outside the shared folder or invalid", filepath: filepath }
         end
 
@@ -169,10 +168,8 @@ module MonadicSharedTools
         # Determine file mode ('w' = write/overwrite, 'a' = append)
         file_mode = mode == "append" ? 'a' : 'w'
 
-        # Write the file with UTF-8 encoding
-        File.open(full_path, file_mode, encoding: "UTF-8") do |f|
-          f.write(content)
-        end
+        # Write the file (UTF-8), never through a link
+        Monadic::Utils::SharedPathGuard.write_file!(filepath, content.to_s.encode("UTF-8"), mode: file_mode)
 
         # Verify the file was written
         unless File.exist?(full_path)
@@ -296,11 +293,15 @@ module MonadicSharedTools
         directories = []
         files = []
 
-        # Process each entry
+        # Process each entry. A link is listed as a link and never followed:
+        # what it points to may be outside the shared folder.
         entries.sort.each do |entry|
           full_entry_path = File.join(target_dir, entry)
+          stat = File.lstat(full_entry_path)
 
-          if File.directory?(full_entry_path)
+          if stat.symlink?
+            files << { name: entry, type: "link" }
+          elsif stat.directory?
             # Count items in subdirectory
             item_count = Dir.entries(full_entry_path).reject { |e| e.start_with?('.') }.size
 
@@ -314,11 +315,14 @@ module MonadicSharedTools
             files << {
               name: entry,
               type: "file",
-              size: File.size(full_entry_path),
-              modified_at: File.mtime(full_entry_path).iso8601,
+              size: stat.size,
+              modified_at: stat.mtime.iso8601,
               extension: File.extname(entry)
             }
           end
+        rescue Errno::ENOENT
+          # Removed while the folder was listed
+          next
         end
 
         {

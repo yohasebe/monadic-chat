@@ -5,6 +5,8 @@ require_relative 'ids'
 require_relative 'ledger'
 require_relative 'folders'
 require_relative 'file_types'
+require_relative 'request_context'
+require_relative 'chats'
 require_relative '../utils/environment'
 require_relative '../utils/shared_path_guard'
 
@@ -55,15 +57,24 @@ module Monadic
         dest = File.join(Monadic::Utils::Environment.data_path, relative_path)
         created = false
         begin
-          size, digest = copy_exclusive(source, dest) { created = true }
+          size, digest = copy_exclusive(source, dest)
+          created = true
           # Checked again after writing: a folder swapped for a link while the
           # file was being written means it may have gone elsewhere.
           raise Folders::Unavailable, 'the chat folder changed while saving' unless Folders.real_path(relative_path)
 
           ledger.update_attachment(attachment_id, status: 'ready', 'size' => size, 'sha256' => digest)
+        rescue Ledger::Unsettled
+          # The ready record was put in place but may not be on disk: the
+          # finished file stays, and nothing more is written to the ledger.
+          raise Unusable.new(:unsettled, 'The file was saved, but its record could not be confirmed. Restart Monadic Chat.')
         rescue StandardError => e
           # Remove only a partial file this call created, never one it found.
-          File.unlink(dest) if created && File.exist?(dest)
+          begin
+            Monadic::Utils::SharedPathGuard.delete_file!(dest) if created
+          rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+            nil
+          end
           ledger.update_attachment(attachment_id, status: 'failed', 'failure' => e.class.name.split('::').last)
           raise Unusable.new(:write_failed, 'The file could not be saved to the shared folder.')
         end
@@ -85,8 +96,96 @@ module Monadic
         record.merge(path: path)
       end
 
+      MAX_PER_MESSAGE = 10
+      ROLES = %w[input].freeze
+
+      # The attachments sent with one message, checked against the ledger:
+      # each must be a ready attachment of this chat, listed once, with a
+      # known role. What the client sent besides the id and the role is not
+      # taken; purpose, name and size come from the ledger. Raises Unusable
+      # (nothing is sent to a provider then).
+      def refs_for_message!(chat_id:, refs:, ledger: Ledger.default)
+        list = refs.nil? ? [] : refs
+        raise Unusable.new(:invalid, 'The attachments of the message could not be read.') unless list.is_a?(Array)
+        raise Unusable.new(:too_many, "At most #{MAX_PER_MESSAGE} files can be attached to one message.") if list.size > MAX_PER_MESSAGE
+
+        seen = {}
+        list.map do |ref|
+          raise Unusable.new(:invalid, 'The attachments of the message could not be read.') unless ref.is_a?(Hash)
+
+          id = (ref['attachment_id'] || ref[:attachment_id]).to_s
+          role = (ref['role'] || ref[:role] || 'input').to_s
+          raise Unusable.new(:invalid, 'The attachments of the message could not be read.') unless ROLES.include?(role)
+          raise Unusable.new(:duplicate, 'The same file is attached twice.') if seen[id]
+
+          seen[id] = true
+          record = Ids.valid?(:attachment, id) && ledger.attachment(id)
+          raise Unusable.new(:unknown, 'An attached file is not known to this chat.') unless record && record[:chat_id] == chat_id
+          raise Unusable.new(:not_ready, 'An attached file is not ready.') unless record[:status] == 'ready'
+
+          { 'attachment_id' => id, 'role' => role, 'purpose' => record[:purpose],
+            'display_name' => record[:original_name], 'size' => record[:size] }
+        end
+      end
+
+      # Like resolve!, for a tool answering a message: the attachment must be
+      # one the request allows (sent with this message or an earlier one of
+      # the same chat). Without a request (a call from outside a chat
+      # message) no attachment can be taken by id. The message says nothing
+      # about which other attachments exist. With the session of the
+      # request's chat, an id the model copied with Privacy placeholders in
+      # it is restored first (unmask_id); a session of another chat is
+      # refused before its mapping is used.
+      def resolve_for_request!(attachment_id:, context: RequestContext.current, ledger: Ledger.default, session: nil)
+        if session && context && session[Chats::SESSION_KEY] != context.chat_id
+          raise Unusable.new(:chat_moved_on, 'This chat has ended.')
+        end
+
+        id = attachment_id.to_s
+        id = unmask_id(id, session) unless context&.allows?(id)
+        unless context && Ids.valid?(:attachment, id) && context.allows?(id)
+          raise Unusable.new(:not_in_request, 'This file was not attached to a message of this chat.')
+        end
+
+        resolve!(chat_id: context.chat_id, attachment_id: id, ledger: ledger)
+      end
+
+      # The Privacy Filter masks the messages sent to the model, and a part
+      # of an id that looks like a marked word or PII is masked with them, so
+      # the model may call a tool with "a_<<PERSON_1>>...". Only this value
+      # is restored, from the session's own Privacy mapping (the callers have
+      # checked that the session is still the request's chat); the result is
+      # then checked like any other id. What is sent to providers is not
+      # changed.
+      def unmask_id(value, session)
+        return value unless value.include?('<<') && session.respond_to?(:[])
+
+        state = session[:monadic_state]
+        privacy = state.is_a?(Hash) ? state[:privacy] : nil
+        registry = privacy.is_a?(Hash) ? privacy[:registry] : nil
+        return value unless registry.is_a?(Hash) && !registry.empty?
+
+        require_relative '../substitution/providers/privacy_filter'
+        filter = Monadic::Substitution::Providers::PrivacyFilter
+        value.gsub(filter::RESTORE_RE) do |token|
+          original = registry[filter.placeholder_key(Regexp.last_match)]
+          original.is_a?(String) ? original : token
+        end
+      end
+
+      # Compared as a plain file of the shared folder, never through a link.
       def unchanged?(path, record)
-        File.size(path) == record[:size] && Digest::SHA256.file(path).hexdigest == record[:sha256]
+        Monadic::Utils::SharedPathGuard.read_file!(path) do |io|
+          next false unless io.stat.size == record[:size]
+
+          digest = Digest::SHA256.new
+          while (chunk = io.read(1 << 16))
+            digest << chunk
+          end
+          digest.hexdigest == record[:sha256]
+        end
+      rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+        false
       end
 
       # The name kept for display: the base name the browser sent, as valid
@@ -112,18 +211,18 @@ module Monadic
         "#{stem}#{ext}"
       end
 
+      # Written whole under a temporary name and put in place only if nothing
+      # has the name yet (SharedPathGuard: never through a link, never over a
+      # file that is there).
       def copy_exclusive(source, dest)
         digest = Digest::SHA256.new
         size = 0
-        File.open(dest, File::WRONLY | File::CREAT | File::EXCL, 0o644) do |out|
-          yield if block_given?
+        Monadic::Utils::SharedPathGuard.write_file!(dest, replace: false) do |out|
           while (chunk = source.read(COPY_CHUNK))
             out.write(chunk)
             digest.update(chunk)
             size += chunk.bytesize
           end
-          out.flush
-          out.fsync
         end
         [size, digest.hexdigest]
       end

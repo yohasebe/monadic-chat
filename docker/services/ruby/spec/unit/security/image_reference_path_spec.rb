@@ -20,6 +20,9 @@ RSpec.describe "OpenAI image generation references" do
     end
   end
 
+  # The helper is given the shared folder, which is the data path.
+  before { allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@shared) }
+
   def refs_for(data)
     context = [{ "role" => "user", "images" => [{ "title" => "pic.png", "data" => data }] }]
     helper.send(:prepare_openai_image_generation_refs, context, true, "user", @shared)

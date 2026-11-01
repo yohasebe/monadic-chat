@@ -1,139 +1,61 @@
 # Integration Tests
 
-This document describes the integration test structure for Monadic Chat's Ruby service.
+Integration specs are in `docker/services/ruby/spec/integration/`.
 
-## Test Location
+## Provider Matrix
 
-Integration tests are located in `docker/services/ruby/spec/integration/`.
+`provider_matrix/all_providers_all_apps_spec.rb` has three groups, generated for each app that exists for each provider: Basic Response, Tool Invocation, and Initial Message (apps with `initiate_from_assistant`). Replies are judged by `ResponseEvaluator` in `spec/support/response_evaluator.rb`: fixed rules first (errors, refusals, known good patterns), then an OpenAI model when the rules are inconclusive.
 
-## Test Structure
-
-### Provider Matrix Tests (`provider_matrix/`)
-
-The main comprehensive test suite for validating all providers and apps:
-
-**File:** `all_providers_all_apps_spec.rb`
-
-**Purpose:**
-- Tests all provider × app combinations systematically
-- Validates response quality using AI-based evaluation (ResponseEvaluator)
-- Verifies tool calling functionality across all providers
-- Detects runtime errors in responses
-
-**Supported Providers:**
-- OpenAI, Anthropic, Gemini, xAI/Grok, Mistral, Cohere, DeepSeek, Ollama
-
-**Running:**
 ```bash
-# All providers
 RUN_API=true bundle exec rspec spec/integration/provider_matrix/
-
-# Specific providers
 PROVIDERS=openai,anthropic RUN_API=true bundle exec rspec spec/integration/provider_matrix/
-
-# With debug output
 DEBUG=true PROVIDERS=openai RUN_API=true bundle exec rspec spec/integration/provider_matrix/
 ```
 
-### Docker Infrastructure Tests
+- Without `PROVIDERS`: openai, anthropic, gemini, mistral, cohere, deepseek, xai, plus ollama when `INCLUDE_OLLAMA=true`.
+- `PROVIDER_CONFIG` maps a provider to its class suffix, file suffix and timeout; `APP_TEST_CONFIGS` holds each app's `prompt` and `expectation`.
+- The examples are skipped without `OPENAI_API_KEY`, and for providers that are not configured.
 
-| File | Description |
-|------|-------------|
-| `docker_infrastructure_spec.rb` | Container communication, health checks |
-| `tokenizer_spec.rb` | Native tokenizer (tiktoken_ruby) integration |
-| `code_interpreter_*.rb` | Code execution in containers |
+## Other Specs
 
-### Feature-Specific Tests
+| Area | Files |
+|---|---|
+| Media (needs `RUN_MEDIA=true`) | `api_media/image_generation_all_providers_spec.rb`, `api_media/voice_pipeline_spec.rb` |
+| Jupyter | `jupyter_*_spec.rb`, `gemini_jupyter_combined_function_spec.rb` |
+| Voice | `voice_*_spec.rb` |
+| Browser | `selenium_integration_spec.rb` |
+| Vector store | `qdrant/`, `embeddings/`, `library/`, `library_import_contract_spec.rb` |
+| WebSocket | `websocket_tab_isolation_spec.rb` |
+| Web search | `native_websearch_integration_spec.rb`, `parallel_dispatch_websearch_spec.rb`, `tavily_api_missing_spec.rb`, `xai_websearch_parameters_spec.rb` |
+| Tokenizer | `tokenizer_spec.rb` |
 
-| Category | Files | Description |
-|----------|-------|-------------|
-| Jupyter | `jupyter_*.rb` | Notebook creation, execution, advanced features |
-| Voice | `voice_*.rb` | TTS/STT integration, voice chat |
-| Web | `selenium_*.rb` | Browser automation, web scraping |
-| Database | `qdrant/`, `embeddings/`, `library/` | Vector DB, embeddings, Library |
-| WebSocket | `websocket_*.rb` | Real-time communication |
+## `Monadic::Utils::ResponseEvaluator`
 
-### API Tests (`api_media/`)
-
-Media generation tests requiring external API calls:
-
-| File | Description |
-|------|-------------|
-| `image_generation_all_providers_spec.rb` | Image generation across providers |
-| `voice_pipeline_spec.rb` | Voice synthesis pipeline |
-
-**Note:** Requires `RUN_MEDIA=true` environment variable.
-
-## ResponseEvaluator
-
-The `ResponseEvaluator` utility provides AI-based response validation:
+A separate evaluator in `lib/monadic/utils/response_evaluator.rb` asks an OpenAI model whether a reply meets an expectation.
 
 ```ruby
-require_relative '../../../lib/monadic/utils/response_evaluator'
-
-RE = Monadic::Utils::ResponseEvaluator
-
-result = RE.evaluate(
-  response: "The capital of France is Paris.",
-  expectation: "The AI correctly identified Paris as the capital",
-  prompt: "What is the capital of France?",
-  criteria: "Factual accuracy"
+result = Monadic::Utils::ResponseEvaluator.evaluate(
+  response: reply, expectation: "The AI greeted the user", prompt: "Say hello."
 )
-
-expect(result.match).to be(true)
-expect(result.confidence).to be >= 0.7
+result.match       # true / false
+result.confidence  # 0.0–1.0
+result.success?    # match and confidence >= 0.7
 ```
 
-**Features:**
-- AI-powered response validation (uses OpenAI API)
-- Confidence scoring
-- Batch evaluation for multiple expectations
-- Context-aware evaluation
+`batch_evaluate(response:, expectations:)` checks several expectations, and `matches?(…, threshold: 0.7)` returns a boolean.
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `RUN_API` | Enable API-dependent tests | `false` |
-| `PROVIDERS` | Comma-separated list of providers to test | all configured |
-| `RUN_MEDIA` | Enable media generation tests | `false` |
-| `DEBUG` | Enable debug output | `false` |
-| `OPENAI_API_KEY` | Required for ResponseEvaluator | - |
+| Variable | Effect |
+|---|---|
+| `RUN_API=true` | Run specs that call provider APIs |
+| `RUN_MEDIA=true` | Run media generation specs |
+| `PROVIDERS` | Comma-separated providers |
+| `INCLUDE_OLLAMA=true` | Add Ollama to the default provider list |
+| `DEBUG=true` | Print debug output |
 
-## Adding New Tests
+## Guidelines
 
-### Adding Apps to Provider Matrix
-
-Edit `APP_TEST_CONFIGS` in `all_providers_all_apps_spec.rb`:
-
-```ruby
-APP_TEST_CONFIGS = {
-  # ...existing apps...
-  'MyNewApp' => {
-    prompt: 'Test prompt for my app.',
-    expectation: 'The AI responded with relevant information',
-    skip_ai_evaluation: false  # Set true for process-oriented apps
-  }
-}
-```
-
-### Adding Providers
-
-1. Add to `PROVIDER_CONFIG`:
-```ruby
-PROVIDER_CONFIG = {
-  # ...existing providers...
-  'newprovider' => { suffix: 'NewProvider', timeout: 60 }
-}
-```
-
-2. Implement tool support in `provider_matrix_helper.rb`
-
-3. Add provider to helper's tool support list
-
-## Best Practices
-
-1. **Use permissive expectations** - Focus on "app works" not "response quality"
-2. **Handle timeouts gracefully** - Skip rather than fail for infrastructure issues
-3. **Check for runtime errors** - Pattern match for Ruby exceptions in responses
-4. **Use ResponseEvaluator** - For semantic validation instead of string matching
+- Check that the app works (non-empty reply, no runtime error), not the wording.
+- Skip on infrastructure timeouts instead of failing.
+- Judge meaning with an evaluator, not string equality.

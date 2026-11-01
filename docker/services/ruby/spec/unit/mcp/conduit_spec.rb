@@ -768,6 +768,16 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(result[:success]).to be false
     end
 
+    it "charges an evaluator error what it held, since the request may have gone out" do
+      allow(agent_host).to receive(:second_opinion_agent)
+        .and_return({ comments: "Failed: timeout", validity: "error", model: "openai:m" })
+      described_class.call("monadic_second_opinion", {
+        "user_query" => "test", "agent_response" => "test", "provider" => "openai"
+      })
+      expect(Monadic::MCP::CostGuard.status).to include(tokens_reserved: 0)
+      expect(Monadic::MCP::CostGuard.spent).to be >= described_class::DEFAULT_MAX_OUTPUT
+    end
+
     it "verifies across multiple providers in parallel" do
       allow(agent_host).to receive(:second_opinion_agent) do |provider:, **_|
         { comments: "checked by #{provider}", validity: "8/10", model: "#{provider}:m" }
@@ -893,6 +903,14 @@ RSpec.describe Monadic::MCP::Conduit do
         expect(result[:success]).to be false
         expect(result[:error]).to match(/Knowledge Base unavailable/)
       end
+
+      it "returns the same structured error when the embeddings service is down" do
+        allow(store).to receive(:find_closest_text)
+          .and_raise(Monadic::Embeddings::ClientError.new("embeddings unreachable"))
+        result = described_class.call("monadic_search_kb", { "query" => "q" })
+        expect(result[:success]).to be false
+        expect(result[:error]).to match(/Knowledge Base unavailable/)
+      end
     end
 
     describe "monadic_list_kb" do
@@ -948,6 +966,9 @@ RSpec.describe Monadic::MCP::Conduit do
   end
 
   describe "monadic_analyze_image" do
+    # The analysis handlers check for the provider's key before holding any budget.
+    before { stub_const("CONFIG", CONFIG.merge("OPENAI_API_KEY" => "test", "GEMINI_API_KEY" => "test", "XAI_API_KEY" => "test", "ANTHROPIC_API_KEY" => "test")) }
+
     let(:vhost) { double("vision_host") }
 
     around do |example|
@@ -1010,6 +1031,23 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(result[:success]).to be false
       expect(result[:error]).to match(/Budget exceeded/)
     end
+
+    it "holds and charges nothing when the provider has no key, since nothing could be sent" do
+      stub_const("CONFIG", CONFIG.merge("OPENAI_API_KEY" => ""))
+      expect(vhost).not_to receive(:image_analysis_agent)
+      result = described_class.call("monadic_analyze_image", { "prompt" => "p", "path" => "x.png", "provider" => "openai" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/OPENAI_API_KEY/)
+      expect(Monadic::MCP::CostGuard.status).to include(tokens_spent: 0, tokens_reserved: 0)
+    end
+
+    it "reports the budget after a failed call has been charged" do
+      allow(vhost).to receive(:image_analysis_agent).and_return("ERROR: read timed out")
+      result = described_class.call("monadic_analyze_image", { "prompt" => "p", "path" => "x.png", "provider" => "openai" })
+      expect(result[:budget]).to eq(Monadic::MCP::CostGuard.status)
+      expect(result[:budget]).to include(tokens_reserved: 0)
+      expect(result[:budget][:tokens_spent]).to be >= described_class::DEFAULT_MAX_OUTPUT
+    end
   end
 
   it "monadic_analyze_image requires a provider instead of picking one with a key" do
@@ -1018,6 +1056,9 @@ RSpec.describe Monadic::MCP::Conduit do
   end
 
   describe "monadic_transcribe_audio" do
+    # The analysis handlers check for the provider's key before holding any budget.
+    before { stub_const("CONFIG", CONFIG.merge("OPENAI_API_KEY" => "test", "GEMINI_API_KEY" => "test", "XAI_API_KEY" => "test", "ANTHROPIC_API_KEY" => "test")) }
+
     let(:ahost) { double("audio_host") }
 
     around do |example|
@@ -1107,6 +1148,7 @@ RSpec.describe Monadic::MCP::Conduit do
         expect(result[:artifacts].keys).to eq(%w[json vtt])
         expect(result[:artifacts]["json"]).to match(%r{\Atranscriptions/artifacts/j_[a-z0-9]{16}/transcript\.json\z})
         expect(given).to include(provider: "xai", language: "ja", input: "/monadic/data/speech.mp3")
+        expect(given[:job][:owner]).to eq(kind: :outside, root: "transcriptions")
         expect(result[:budget][:tokens_spent]).to be >= 100 # ten seconds of audio sent
       end
 
@@ -1184,6 +1226,9 @@ RSpec.describe Monadic::MCP::Conduit do
   end
 
   describe "monadic_analyze_audio" do
+    # The analysis handlers check for the provider's key before holding any budget.
+    before { stub_const("CONFIG", CONFIG.merge("OPENAI_API_KEY" => "test", "GEMINI_API_KEY" => "test", "XAI_API_KEY" => "test", "ANTHROPIC_API_KEY" => "test")) }
+
     before { Monadic::MCP::CostGuard.reset! }
     after { Monadic::MCP::CostGuard.reset! }
 
@@ -1228,6 +1273,9 @@ RSpec.describe Monadic::MCP::Conduit do
   end
 
   describe "monadic_analyze_video" do
+    # The analysis handlers check for the provider's key before holding any budget.
+    before { stub_const("CONFIG", CONFIG.merge("OPENAI_API_KEY" => "test", "GEMINI_API_KEY" => "test", "XAI_API_KEY" => "test", "ANTHROPIC_API_KEY" => "test")) }
+
     let(:vhost) { double("video_host") }
 
     before do
@@ -1338,6 +1386,20 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(result[:error]).to match(/ELEVENLABS_API_KEY is not set/)
     end
 
+    it "refuses a provider it does not offer instead of speaking with OpenAI" do
+      expect(thost).not_to receive(:text_to_speech)
+      expect { described_class.call("monadic_speak", { "text" => "hi", "provider" => "mistral" }) }
+        .to raise_error(ArgumentError, /Unsupported provider: mistral/)
+    end
+
+    it "refuses an ElevenLabs model it does not offer instead of speaking with another one" do
+      expect(thost).not_to receive(:text_to_speech)
+      %w[elevenlabs-v4 elevenlabs-no-such-model].each do |provider|
+        expect { described_class.call("monadic_speak", { "text" => "hi", "provider" => provider }) }
+          .to raise_error(ArgumentError, /Unsupported provider: #{provider}/)
+      end
+    end
+
     it "requires text" do
       expect { described_class.call("monadic_speak", {}) }
         .to raise_error(ArgumentError, /text is required/)
@@ -1368,15 +1430,15 @@ RSpec.describe Monadic::MCP::Conduit do
 
     it "refuses a direct (non-job) call and points to monadic_submit" do
       allow(described_class).to receive(:require_background_job).and_call_original
-      result = described_class.call("monadic_generate_code", { "prompt" => "p" })
+      result = described_class.call("monadic_generate_code", { "prompt" => "p", "provider" => "openai" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/must run in the background/)
     end
 
-    it "generates code with the auto-selected provider and charges the budget" do
+    it "generates code with the named provider and charges the budget" do
       expect(chost).to receive(:call_openai_code).with(prompt: "make a fib fn")
         .and_return({ code: "def fib(n); end", success: true, model: "gpt-5-codex" })
-      result = described_class.call("monadic_generate_code", { "prompt" => "make a fib fn" })
+      result = described_class.call("monadic_generate_code", { "prompt" => "make a fib fn", "provider" => "openai" })
       expect(result[:success]).to be true
       expect(result[:provider]).to eq("openai")
       expect(result[:code]).to include("def fib")
@@ -1396,7 +1458,7 @@ RSpec.describe Monadic::MCP::Conduit do
     it "maps an agent failure to a structured error" do
       allow(chost).to receive(:call_openai_code)
         .and_return({ error: "OpenAIHelper not available", success: false })
-      result = described_class.call("monadic_generate_code", { "prompt" => "p" })
+      result = described_class.call("monadic_generate_code", { "prompt" => "p", "provider" => "openai" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/OpenAIHelper not available/)
     end
@@ -1404,7 +1466,7 @@ RSpec.describe Monadic::MCP::Conduit do
     it "treats a provider error string leaked into the code field as a failure" do
       allow(chost).to receive(:call_openai_code)
         .and_return({ code: "[OpenAI] API Error: boom", success: true })
-      result = described_class.call("monadic_generate_code", { "prompt" => "p" })
+      result = described_class.call("monadic_generate_code", { "prompt" => "p", "provider" => "openai" })
       expect(result[:success]).to be false
       expect(result[:code]).to be_nil
       expect(result[:error]).to match(/API Error: boom/)
@@ -1415,22 +1477,42 @@ RSpec.describe Monadic::MCP::Conduit do
         .to raise_error(ArgumentError, /prompt is required/)
     end
 
+    it "refuses a direct call without a provider before the background check" do
+      allow(described_class).to receive(:require_background_job).and_call_original
+      expect { described_class.call("monadic_generate_code", { "prompt" => "p" }) }
+        .to raise_error(ArgumentError, /provider is required/)
+    end
+
+    it "requires a provider and does not pick one" do
+      expect(chost).not_to receive(:call_openai_code)
+      expect { described_class.call("monadic_generate_code", { "prompt" => "p" }) }
+        .to raise_error(ArgumentError, /provider is required/)
+    end
+
+    it "says the named provider is not configured instead of using another" do
+      allow(described_class).to receive(:code_provider_configured?) { |p| p == "openai" }
+      expect(chost).not_to receive(:call_openai_code)
+      result = described_class.call("monadic_generate_code", { "prompt" => "p", "provider" => "xai" })
+      expect(result[:success]).to be false
+      expect(result[:error]).to match(/xai is not configured/)
+    end
+
     it "rejects a provider that has no code agent" do
       expect { described_class.call("monadic_generate_code", { "prompt" => "p", "provider" => "gemini" }) }
         .to raise_error(ArgumentError, /has no code agent/)
     end
 
-    it "reports when no code provider is configured" do
+    it "reports when the named provider is not configured" do
       allow(described_class).to receive(:code_provider_configured?).and_return(false)
-      result = described_class.call("monadic_generate_code", { "prompt" => "p" })
+      result = described_class.call("monadic_generate_code", { "prompt" => "p", "provider" => "openai" })
       expect(result[:success]).to be false
-      expect(result[:error]).to match(/No code-capable provider/)
+      expect(result[:error]).to match(/openai is not configured/)
     end
 
     it "refuses when the budget is exhausted (no agent call)" do
       stub_const("CONFIG", CONFIG.merge("CONDUIT_TOKEN_BUDGET" => "1"))
       expect(chost).not_to receive(:call_openai_code)
-      result = described_class.call("monadic_generate_code", { "prompt" => "make something big" })
+      result = described_class.call("monadic_generate_code", { "prompt" => "make something big", "provider" => "openai" })
       expect(result[:success]).to be false
       expect(result[:error]).to match(/Budget exceeded/)
     end
@@ -1684,6 +1766,13 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(result[:error]).to match(/no web search key/)
     end
 
+    it "refuses a tool group it does not permit before holding or charging anything" do
+      expect(Monadic::MCP::ConduitAgent).not_to receive(:run)
+      expect { described_class.call("monadic_agent", { "task" => "t", "tools" => ["not_permitted"] }) }
+        .to raise_error(ArgumentError, /not permitted/)
+      expect(Monadic::MCP::CostGuard.status).to include(tokens_spent: 0, tokens_reserved: 0)
+    end
+
     it "requires a task" do
       expect { described_class.call("monadic_agent", {}) }
         .to raise_error(ArgumentError, /task is required/)
@@ -1724,10 +1813,20 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(polled[:result]).to include(:backend)
     end
 
+    it "refuses a job whose required arguments are missing" do
+      expect do
+        described_class.call("monadic_submit", { "tool" => "monadic_second_opinion", "arguments" => {} })
+      end.to raise_error(ArgumentError, /user_query, agent_response is required/)
+      expect do
+        described_class.call("monadic_submit", { "tool" => "monadic_generate_code", "arguments" => { "prompt" => "p" } })
+      end.to raise_error(ArgumentError, /provider is required/)
+    end
+
     it "captures a tool error as a failed job" do
-      # second_opinion raises ArgumentError without a query.
+      allow(described_class).to receive(:handle_second_opinion).and_raise(ArgumentError, "bad input")
       result = described_class.call("monadic_submit",
-                                    { "tool" => "monadic_second_opinion", "arguments" => {} })
+                                    { "tool" => "monadic_second_opinion",
+                                      "arguments" => { "user_query" => "q", "agent_response" => "a" } })
       Monadic::MCP::JobStore.fetch(result[:job_id]).thread.join
       polled = described_class.call("monadic_poll", { "job_id" => result[:job_id] })
       expect(polled[:status]).to eq("error")

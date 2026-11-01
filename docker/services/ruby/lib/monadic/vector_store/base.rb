@@ -22,6 +22,12 @@ module Monadic
         raise NotImplementedError
       end
 
+      # Create a payload index on an existing collection (no error when it
+      # is already there).
+      def create_payload_index(name:, field:, schema:)
+        raise NotImplementedError
+      end
+
       def delete_collection(name:)
         raise NotImplementedError
       end

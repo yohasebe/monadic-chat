@@ -1,34 +1,13 @@
 # Vendor-Specific Documentation
 
-This directory contains documentation for AI provider integrations in Monadic Chat.
+Each AI provider has a helper module in `docker/services/ruby/lib/monadic/adapters/vendors/`. The documents here describe the request, streaming, tool-call and error behavior of individual helpers.
 
 ## Contents
 
-- [Anthropic/Claude Architecture](anthropic_architecture.md) - Claude integration design decisions and implementation patterns
-  - Hardcoded behavior patterns and their rationale
-  - SSOT migration status
-  - API request formats and streaming
-  - Error handling and performance optimization
-
-- [DeepSeek Architecture](deepseek_architecture.md) - DeepSeek integration design decisions and implementation patterns
-  - DSML (DeepSeek Markup Language) parsing and normalization
-  - Malformed DSML detection and auto-retry mechanism
-  - Reasoner model tool calling support
-  - Strict mode for function calling
-  - Provider-specific troubleshooting
-
-## Overview
-
-Each AI provider (OpenAI, Anthropic, Gemini, Mistral, Cohere, DeepSeek, xAI/Grok, Ollama) has a corresponding helper class in `docker/services/ruby/lib/monadic/adapters/vendors/`.
-
-These documents explain:
-- **Design Decisions**: Why certain patterns were chosen (e.g., beta feature flags, streaming defaults)
-- **Architecture Evolution**: Migration from hardcoded logic to SSOT (Single Source of Truth)
-- **Provider-Specific Behavior**: Unique features and constraints of each provider
-- **Implementation Patterns**: Common patterns and best practices
+- [Anthropic/Claude Architecture](anthropic_architecture.md) — beta headers, thinking, limits, retries and streaming
+- [DeepSeek Architecture](deepseek_architecture.md) — thinking, images, tool calls, terminal tools and DSML parsing
 
 ## Related Documentation
 
-- [SSOT Normalization](../../ssot_normalization_and_accessors.md) - Single Source of Truth strategy for all providers
-- [Model Spec Vocabulary](../../developer/model_spec_vocabulary.md) - Canonical vocabulary for model capabilities
-- [Vendor Helpers](../../../docker/services/ruby/lib/monadic/adapters/vendors/) - Implementation code
+- [SSOT Normalization](../../ssot_normalization_and_accessors.md)
+- [Model Spec Vocabulary](../../developer/model_spec_vocabulary.md)

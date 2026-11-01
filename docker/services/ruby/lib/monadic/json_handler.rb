@@ -39,18 +39,9 @@ module MonadicChat
                   if actual_content.is_a?(Hash) && actual_content.key?("message") && actual_content.key?("context")
                     return actual_content
                   end
-                rescue JSON::ParserError => e
-                  # Try another approach - use eval to handle the escaping
-                  begin
-                    # This is a last resort for heavily escaped JSON
-                    evaluated = eval('"' + parsed["message"] + '"')
-                    actual_content = JSON.parse(evaluated)
-                    if actual_content.is_a?(Hash) && actual_content.key?("message") && actual_content.key?("context")
-                      return actual_content
-                    end
-                  rescue => e2
-                    # Continue with original parsed value
-                  end
+                rescue JSON::ParserError
+                  # Keep the parsed value. (The text is the model's: it is
+                  # never evaluated as Ruby to undo more escaping.)
                 end
               end
               return parsed

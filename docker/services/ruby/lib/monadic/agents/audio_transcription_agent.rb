@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 require "base64"
+require "stringio"
 require "http"
+require_relative "../utils/gemini_request"
 require_relative "../utils/environment"
 require_relative "../utils/shared_path_guard"
 require_relative "../utils/provider_capabilities"
@@ -86,8 +88,12 @@ module AudioTranscriptionAgent
     path = resolve_audio_path(audio_path)
     return path if path.is_a?(String) && path.start_with?("ERROR:")
 
-    # 2. Check file size
-    file_size = File.size(path)
+    # 2. Check file size (a plain file of the shared folder; every read below
+    # goes through the guard too, never through a link)
+    stat = Monadic::Utils::SharedPathGuard.file_stat(path)
+    return "ERROR: Audio file not found in the shared folder" unless stat
+
+    file_size = stat.size
     if file_size > AUDIO_MAX_FILE_SIZE
       return "ERROR: Audio file too large (#{file_size / 1024 / 1024}MB). Maximum: 25MB"
     end
@@ -115,11 +121,21 @@ module AudioTranscriptionAgent
       transcribe_gemini(path, stt_model, api_key, lang_code)
     when "xai"
       stt_model = AudioTranscriptionAgent.model_for("xai", model)
-      transcribe_xai(File.binread(path), File.extname(path).delete_prefix(".").downcase, stt_model, api_key, lang_code)
+      transcribe_xai(audio_bytes(path), File.extname(path).delete_prefix(".").downcase, stt_model, api_key, lang_code)
     end
   rescue => e
     "ERROR: Audio transcription failed: #{e.message}"
   end
+
+  # The bytes of the audio file, read through the guard and never more than
+  # the size limit, even when the file grows after it was checked.
+  def audio_bytes(path)
+    bytes = Monadic::Utils::SharedPathGuard.read_bytes!(path, limit: AUDIO_MAX_FILE_SIZE)
+    raise ArgumentError, "Audio file too large. Maximum: 25MB" unless bytes
+
+    bytes
+  end
+  private :audio_bytes
 
   # Audio already in memory (a speech segment of a video, as WAV), through
   # the same requests as a file. Gemini and xAI only; OpenAI segments go
@@ -128,9 +144,11 @@ module AudioTranscriptionAgent
     api_key = CONFIG[AUDIO_API_KEYS[provider]].to_s.strip
     return "ERROR: #{AUDIO_API_KEYS[provider]} is not set" if api_key.empty?
 
+    # No retry inside: the caller tries a segment again itself, and pays for
+    # each try before it is sent.
     case provider
-    when "google" then gemini_transcription_request(raw, AUDIO_MIME_TYPES[format] || "audio/wav", model, api_key, lang_code)
-    when "xai" then transcribe_xai(raw, format, model, api_key, lang_code)
+    when "google" then gemini_transcription_request(raw, AUDIO_MIME_TYPES[format] || "audio/wav", model, api_key, lang_code, retries: 0)
+    when "xai" then transcribe_xai(raw, format, model, api_key, lang_code, retries: 0)
     else "ERROR: #{provider} audio is not transcribed in segments"
     end
   rescue => e
@@ -164,7 +182,7 @@ module AudioTranscriptionAgent
     uri = "https://api.openai.com/v1/audio/transcriptions"
 
     options = {
-      file: HTTP::FormData::File.new(path),
+      file: HTTP::FormData::File.new(StringIO.new(audio_bytes(path)), filename: File.basename(path)),
       model: model,
       response_format: response_format
     }
@@ -208,10 +226,10 @@ module AudioTranscriptionAgent
 
   def transcribe_gemini(path, model, api_key, lang_code)
     ext = File.extname(path).delete_prefix(".").downcase
-    gemini_transcription_request(File.binread(path), AUDIO_MIME_TYPES[ext] || "audio/mpeg", model, api_key, lang_code)
+    gemini_transcription_request(audio_bytes(path), AUDIO_MIME_TYPES[ext] || "audio/mpeg", model, api_key, lang_code)
   end
 
-  def gemini_transcription_request(raw, mime_type, model, api_key, lang_code)
+  def gemini_transcription_request(raw, mime_type, model, api_key, lang_code, retries: AUDIO_MAX_RETRIES)
     uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model}:generateContent"
     base64_data = Base64.strict_encode64(raw)
 
@@ -241,17 +259,17 @@ module AudioTranscriptionAgent
       puts "[AudioTranscriptionAgent] Gemini model: #{model}, mime: #{mime_type}, size: #{raw.size} bytes"
     end
 
-    retries = 0
+    tries_left = retries
     begin
       res = HTTP.headers("Content-Type" => "application/json", "x-goog-api-key" => api_key)
                .timeout(
                  connect: AUDIO_CONNECT_TIMEOUT,
                  write: AUDIO_WRITE_TIMEOUT,
                  read: AUDIO_READ_TIMEOUT
-               ).post(uri, json: body)
+               ).post(uri, json: Monadic::Utils::GeminiRequest.without_storage(body))
     rescue HTTP::Error, HTTP::TimeoutError => e
-      if retries < AUDIO_MAX_RETRIES
-        retries += 1
+      if tries_left.positive?
+        tries_left -= 1
         sleep 1
         retry
       end
@@ -271,7 +289,7 @@ module AudioTranscriptionAgent
   # /v1/stt takes the file as multipart form data; the container format is
   # detected by the service, the extension only hints it.
 
-  def transcribe_xai(raw, format, model, api_key, lang_code)
+  def transcribe_xai(raw, format, model, api_key, lang_code, retries: AUDIO_MAX_RETRIES)
     form = HTTP::FormData.create(
       { file: HTTP::FormData::Part.new(raw, filename: "audio.#{format}") }
         .merge(lang_code && !lang_code.empty? && lang_code != "auto" ? { language: lang_code } : {})
@@ -281,14 +299,14 @@ module AudioTranscriptionAgent
       puts "[AudioTranscriptionAgent] xAI STT model: #{model}, size: #{raw.bytesize} bytes"
     end
 
-    retries = 0
+    tries_left = retries
     begin
       res = HTTP.headers("Content-Type" => form.content_type, "Authorization" => "Bearer #{api_key}")
                 .timeout(connect: AUDIO_CONNECT_TIMEOUT, write: AUDIO_WRITE_TIMEOUT, read: AUDIO_READ_TIMEOUT)
                 .post("https://api.x.ai/v1/stt", body: form.to_s)
     rescue HTTP::Error, HTTP::TimeoutError => e
-      if retries < AUDIO_MAX_RETRIES
-        retries += 1
+      if tries_left.positive?
+        tries_left -= 1
         sleep 1
         retry
       end

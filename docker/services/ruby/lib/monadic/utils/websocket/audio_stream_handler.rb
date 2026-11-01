@@ -48,7 +48,19 @@ module WebSocketHelper
   #
   # The default of 8 covers single-host / few-user deployments; raise
   # via REALTIME_STT_MAX_CONCURRENT in env for shared installations.
-  REALTIME_STT_MAX_CONCURRENT = (ENV["REALTIME_STT_MAX_CONCURRENT"] || "8").to_i
+  REALTIME_STT_MAX_CONCURRENT = 8
+
+  # Read when the semaphore is first built, after the env file is loaded
+  # (a value read at file load time would miss ~/monadic/config/env).
+  def self.concurrency_setting(key, default)
+    raw = (defined?(CONFIG) && CONFIG[key]) || ENV[key]
+    value = Integer(raw.to_s, exception: false)
+    value && value.positive? ? value : default
+  end
+
+  def self.realtime_stt_max_concurrent
+    concurrency_setting("REALTIME_STT_MAX_CONCURRENT", REALTIME_STT_MAX_CONCURRENT)
+  end
 
   # NOTE on scope: Async::Semaphore is per-process. Falcon currently runs
   # a single worker, so REALTIME_STT_MAX_CONCURRENT is the effective cap.
@@ -57,7 +69,7 @@ module WebSocketHelper
   # configured value must be divided down accordingly, or an out-of-
   # process limiter (e.g. shared file lock, Redis) added here.
   def self.realtime_stt_semaphore
-    @realtime_stt_semaphore ||= Async::Semaphore.new(REALTIME_STT_MAX_CONCURRENT)
+    @realtime_stt_semaphore ||= Async::Semaphore.new(realtime_stt_max_concurrent)
   end
 
   def handle_audio_chunk(_connection, obj)
@@ -144,7 +156,7 @@ module WebSocketHelper
     semaphore = WebSocketHelper.realtime_stt_semaphore
     if semaphore.blocking?
       Monadic::Utils::ExtraLogger.log do
-        "[AudioStream session=#{ws_session_id}] waiting for upstream WS slot (cap=#{REALTIME_STT_MAX_CONCURRENT})"
+        "[AudioStream session=#{ws_session_id}] waiting for upstream WS slot (cap=#{WebSocketHelper.realtime_stt_semaphore.limit})"
       end
     end
 

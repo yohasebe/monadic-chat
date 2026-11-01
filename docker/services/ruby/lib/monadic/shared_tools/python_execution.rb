@@ -153,21 +153,20 @@ module MonadicSharedTools
 
     # Check the Python container environment configuration
     #
-    # Returns Dockerfile and pysetup.sh contents to help users understand
-    # the execution environment, installed packages, and configuration.
+    # Returns the Dockerfile contents to help users understand the execution
+    # environment, installed packages, and configuration.
     #
     # Delegates to MonadicHelper#check_environment which fetches:
     # - Dockerfile: Container build configuration
-    # - pysetup.sh: Python package installation script
     #
     # @return [String] Formatted environment information with code blocks
     #
     # @example Check environment
     #   check_environment()
-    #   # => "### Dockerfile\n```\nFROM python:3.11...\n```\n\n### pysetup.sh\n```\n#!/bin/bash..."
+    #   # => "### Dockerfile\n```\nFROM python:3.12...\n```\n..."
     def check_environment
       # Call existing MonadicHelper implementation
-      # Returns formatted markdown with Dockerfile and pysetup.sh contents
+      # Returns formatted markdown with the Dockerfile contents
       super()
     end
 

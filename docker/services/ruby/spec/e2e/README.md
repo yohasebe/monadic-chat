@@ -79,7 +79,7 @@ skip "System error or tool failure" if system_error?(response)
 
 ## Prerequisites
 
-- Docker containers for local services as needed (auto-started)
+- Docker containers for local services as needed (`run_e2e_tests.sh` starts them; a direct `rspec` run needs `MONADIC_TEST_START_CONTAINERS=1`)
 - Server on `localhost:4567` (auto-started if needed)
 - No provider API keys required for E2E
 
@@ -177,12 +177,3 @@ Expected response times under normal conditions:
 - Code execution: < 10 seconds  
 - PDF search: < 15 seconds
 - Multi-step workflows: < 30 seconds
-
-## Future Enhancements
-
-Planned improvements:
-- [ ] Parallel test execution
-- [ ] Visual regression testing for generated charts
-- [ ] Load testing with multiple concurrent users
-- [ ] Cross-browser testing for web UI
-- [ ] Mobile app integration tests

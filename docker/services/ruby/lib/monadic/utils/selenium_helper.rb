@@ -39,7 +39,7 @@ module Monadic
         {
           success: false,
           error: "Selenium container is not running. Web automation features require the Selenium service to be active.",
-          suggestion: "Please start the Selenium container from the Actions menu (Actions → Start Selenium Container) and try again."
+          suggestion: "Restart Monadic Chat (Stop, then Start) so that the Selenium container starts, and try again."
         }
       end
 

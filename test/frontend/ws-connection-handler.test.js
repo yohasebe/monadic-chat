@@ -74,6 +74,8 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
+require('../../docker/services/ruby/public/js/monadic/model_spec');
+require('../../docker/services/ruby/public/js/monadic/tts-provider');
 const handlers = require('../../docker/services/ruby/public/js/monadic/ws-connection-handler');
 
 describe('ws-connection-handler', () => {
@@ -83,9 +85,10 @@ describe('ws-connection-handler', () => {
       expect(window.verified).toBe('full');
     });
 
-    it('sets API token value', () => {
-      handlers.handleTokenVerified({ token: 'sk-test123', ai_user_initial_prompt: '' });
-      expect(document.getElementById('api-token').value).toBe('sk-test123');
+    it('places no key on the page, even if one were sent', () => {
+      handlers.handleTokenVerified({ token: 'sk-MARKER-123', ai_user_initial_prompt: '' });
+      expect(document.getElementById('api-token').value).toBe('');
+      expect(document.body.innerHTML).not.toContain('sk-MARKER-123');
     });
 
     it('enables OpenAI TTS options', () => {
@@ -140,11 +143,6 @@ describe('ws-connection-handler', () => {
       expect(window.verified).toBe('partial');
     });
 
-    it('clears API token', () => {
-      document.getElementById('api-token').value = 'sk-old';
-      handlers.handleOpenAIAPIError({});
-      expect(document.getElementById('api-token').value).toBe('');
-    });
 
     it('disables OpenAI TTS options', () => {
       handlers.handleOpenAIAPIError({});
@@ -176,11 +174,6 @@ describe('ws-connection-handler', () => {
       expect(window.verified).toBe('partial');
     });
 
-    it('clears API token', () => {
-      document.getElementById('api-token').value = 'sk-old';
-      handlers.handleTokenNotVerified({});
-      expect(document.getElementById('api-token').value).toBe('');
-    });
 
     it('disables OpenAI TTS and STT', () => {
       handlers.handleTokenNotVerified({});
@@ -196,6 +189,34 @@ describe('ws-connection-handler', () => {
         expect.stringContaining('Valid OpenAI token not set'),
         'warning'
       );
+    });
+  });
+
+  describe('handleSecretReferencesUnresolved', () => {
+    beforeEach(() => {
+      window.secretReferencesNoticeShown = false;
+      window.escapeHtml = require('../../docker/services/ruby/public/js/monadic/text-utils.js').escapeHtml;
+    });
+
+    it('names the keys in a system card, escaped', () => {
+      handlers.handleSecretReferencesUnresolved({ keys: ['OPENAI_API_KEY', '<b>X</b>'] });
+      expect(setAlert).toHaveBeenCalledTimes(1);
+      const [text, type] = setAlert.mock.calls[0];
+      expect(type).toBe('error');
+      expect(text).toContain('<code>OPENAI_API_KEY</code>, <code>&lt;b&gt;X&lt;/b&gt;</code>');
+      expect(text).toContain('Unlock 1Password and restart Monadic Chat');
+    });
+
+    it('shows the notice once per page, however often the connection is made again', () => {
+      handlers.handleSecretReferencesUnresolved({ keys: ['OPENAI_API_KEY'] });
+      handlers.handleSecretReferencesUnresolved({ keys: ['OPENAI_API_KEY'] });
+      expect(setAlert).toHaveBeenCalledTimes(1);
+    });
+
+    it('says nothing without keys', () => {
+      handlers.handleSecretReferencesUnresolved({ keys: [] });
+      handlers.handleSecretReferencesUnresolved({});
+      expect(setAlert).not.toHaveBeenCalled();
     });
   });
 

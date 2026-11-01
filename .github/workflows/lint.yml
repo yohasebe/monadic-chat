@@ -1,7 +1,7 @@
 name: Lint
 
-# Anti-pattern lint suite (see docs_dev/architecture_hardening_plan.md
-# for the rationale and the per-rule baselines). Each rule catches one
+# Anti-pattern lint suite (see docs_dev/developer/anti_pattern_lints.md
+# for the rules). Each rule catches one
 # class of regression we have already shipped at least once; running
 # them on every PR is the lowest-cost way to keep that class extinct.
 #
@@ -68,6 +68,9 @@ jobs:
 
       - name: Outbound HTTP calls have timeouts
         run: ruby scripts/lint/check_http_timeout.rb
+
+      - name: Shared-folder writes go through SharedPathGuard
+        run: ruby scripts/lint/check_shared_writes.rb
 
       - name: API keys stay out of URLs
         run: ruby scripts/lint/check_api_key_urls.rb

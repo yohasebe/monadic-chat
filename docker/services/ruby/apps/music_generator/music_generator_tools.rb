@@ -2,6 +2,7 @@
 
 require 'json'
 require 'securerandom'
+require_relative '../../lib/monadic/utils/shared_path_guard'
 
 # ElevenLabs Music for the Music Generator.
 #
@@ -56,7 +57,7 @@ module MusicGeneratorTools
     ext = mime.include?("wav") ? "wav" : "mp3"
     filename = "elevenlabs_music_#{Time.now.to_i}_#{SecureRandom.hex(3)}.#{ext}"
     filepath = File.join(Monadic::Utils::Environment.shared_volume, filename)
-    File.binwrite(filepath, response.body.to_s)
+    Monadic::Utils::SharedPathGuard.write_file!(filepath, response.body.to_s)
 
     { success: true, service: ELEVENLABS_MUSIC_SERVICE, filename: filename, mime_type: mime,
       model: model_id, prompt: prompt }.to_json

@@ -5,6 +5,8 @@ require 'json'
 require 'securerandom'
 require 'time'
 require_relative 'ids'
+require_relative 'server_owner'
+require_relative 'ledger_schema'
 require_relative '../utils/environment'
 
 module Monadic
@@ -17,12 +19,102 @@ module Monadic
     # A JSON file guarded by a lock file: every change rereads the file under
     # an exclusive lock and replaces it by renaming a fully written copy, so
     # a crash mid-write leaves the previous ledger whole.
+    #
+    # A ledger of an earlier version is read in the current form without
+    # being changed; the first change keeps its bytes as they were in
+    # ledger.json.v1.bak (made and settled on disk before anything else) and
+    # then saves the current version. Nothing is put back automatically:
+    # going back to the backup loses what was recorded since.
     class Ledger
-      SCHEMA_VERSION = 1
+      SCHEMA_VERSION = LedgerSchema::VERSION
       FILE_NAME = 'ledger.json'
 
       class Conflict < StandardError; end
+      # A change that would take more room than is allowed (publications).
+      class Full < StandardError; end
+      # The ledger cannot be used: nothing is registered or removed then.
       class Unreadable < StandardError; end
+      # Not JSON.
+      class Syntax < Unreadable; end
+      # JSON, but not of the ledger's form (LedgerSchema).
+      class Shape < Unreadable; end
+      # Written by a newer version.
+      class Newer < Unreadable; end
+      # The earlier version could not be kept before the upgrade; nothing
+      # was changed.
+      class NotUpgraded < Unreadable; end
+      # A change was saved but may not be settled on disk: nothing more is
+      # written to this ledger by this process (it is looked at again when
+      # the server starts again).
+      class Unsettled < Unreadable; end
+
+      # Ledgers this process stopped writing (Unsettled), by path, for every
+      # Ledger object of that path.
+      @unsettled = {}
+      @unsettled_mutex = Mutex.new
+
+      def self.unsettled?(path)
+        @unsettled_mutex.synchronize { @unsettled.key?(identity(path)) }
+      end
+
+      def self.unsettle!(path)
+        @unsettled_mutex.synchronize { @unsettled[identity(path)] = true }
+      end
+
+      # The same ledger whatever path names it (a link to its folder, a
+      # relative path, another spelling of its name where case does not
+      # count): the real path of its folder and the name the folder holds it
+      # under (the name as given while there is no file yet).
+      def self.identity(path)
+        full = File.expand_path(path)
+        dir = File.realpath(File.dirname(full))
+        name = File.basename(full)
+        if File.exist?(full)
+          held = Dir.children(dir).find { |entry| File.identical?(File.join(dir, entry), full) }
+          name = held if held
+        end
+        File.join(dir, name)
+      end
+
+      def self.clear_unsettled!
+        @unsettled_mutex.synchronize { @unsettled.clear }
+      end
+
+      # What the ledger does to the disk, in one place. Every failure is
+      # passed on (a folder that cannot be synced is not taken as synced).
+      module Disk
+        module_function
+
+        # Makes a new file with these bytes, settled. A file of that name
+        # already there is left as it is (Errno::EEXIST); a file this call
+        # made and could not finish is removed.
+        def create_exclusive(path, bytes)
+          file = File.open(path, File::WRONLY | File::CREAT | File::EXCL, 0o600)
+          begin
+            file.write(bytes)
+            file.flush
+            file.fsync
+          rescue StandardError
+            file.close
+            File.unlink(path) rescue nil
+            raise
+          ensure
+            file.close unless file.closed?
+          end
+        end
+
+        def sync_file(path)
+          File.open(path, File::RDONLY) { |f| f.fsync }
+        end
+
+        def sync_dir(dir)
+          File.open(dir, File::RDONLY) { |d| d.fsync }
+        end
+
+        def replace(from, to)
+          File.rename(from, to)
+        end
+      end
 
       def self.default_path
         File.join(Monadic::Utils::Environment.state_path, FILE_NAME)
@@ -74,11 +166,12 @@ module Monadic
             'created_at' => stamp
           }
           chats[chat_id] = { 'workspace_id' => workspace_id, 'created_at' => stamp }
+          # Returned as saved, with no second read (see register_artifact)
+          export(workspace_id, workspaces[workspace_id])
         end
-        workspace(workspace_id)
       end
 
-      ATTACHMENT_STATES = %w[validating ready failed].freeze
+      ATTACHMENT_STATES = LedgerSchema::ATTACHMENT_STATES
 
       # An attachment is recorded before its file is written, as validating,
       # so a crash between the two leaves a record that reconcile! can fail
@@ -103,8 +196,9 @@ module Monadic
             'status' => 'validating',
             'created_at' => created_at.utc.iso8601
           }
+          # Returned as saved, with no second read (see register_artifact)
+          data['attachments'][attachment_id].transform_keys(&:to_sym).merge(attachment_id: attachment_id)
         end
-        attachment(attachment_id)
       end
 
       def update_attachment(attachment_id, status:, **fields)
@@ -114,14 +208,185 @@ module Monadic
           record = data['attachments'][attachment_id] or raise Conflict, 'unknown attachment'
           record['status'] = status
           fields.each { |key, value| record[key.to_s] = value }
+          # Returned as saved, with no second read (see register_artifact)
+          record.transform_keys(&:to_sym).merge(attachment_id: attachment_id)
         end
-        attachment(attachment_id)
       end
 
       def attachment(attachment_id)
         read do |data|
           record = data['attachments'][attachment_id]
           record && record.transform_keys(&:to_sym).merge(attachment_id: attachment_id)
+        end
+      end
+
+      # Records what the server made and has kept in the state folder
+      # (Artifacts.store!), with the size and sha256 of the bytes it wrote.
+      # The owner is a chat (its workspace is looked up here, not taken from
+      # the caller) or a folder for runs outside any chat; copy_path is built
+      # from that owner, never given.
+      def register_artifact(artifact_id:, owner:, job_id:, kind:, size:, sha256:, created_at: Time.now)
+        raise ArgumentError, 'invalid artifact id' unless Ids.valid?(:artifact, artifact_id)
+        raise ArgumentError, 'invalid job id' unless Ids.valid?(:job, job_id)
+        name = LedgerSchema::ARTIFACT_KINDS.fetch(kind) { raise ArgumentError, "unknown kind #{kind}" }
+
+        write do |data|
+          raise Conflict, 'artifact id already registered' if data['artifacts'].key?(artifact_id)
+
+          record = case owner[:kind]
+                   when :chat
+                     workspace = data['workspaces'][owner[:workspace_id]]
+                     raise Conflict, 'the run belongs to no chat in the ledger' unless workspace.is_a?(Hash)
+
+                     base = workspace['relative_dir']
+                     { 'owner' => 'chat', 'chat_id' => workspace['chat_id'], 'workspace_id' => owner[:workspace_id] }
+                   when :outside
+                     base = owner[:root]
+                     { 'owner' => 'outside', 'root' => base }
+                   else
+                     raise ArgumentError, 'unknown owner'
+                   end
+          data['artifacts'][artifact_id] = record.merge(
+            'job_id' => job_id,
+            'kind' => kind,
+            'copy_path' => "#{base}/artifacts/#{job_id}/#{name}",
+            'size' => size,
+            'sha256' => sha256,
+            'status' => 'ready',
+            'created_at' => created_at.utc.iso8601
+          )
+          # Returned as saved, with no second read: a read that failed after
+          # the save would be taken for a record that was never made.
+          data['artifacts'][artifact_id].transform_keys(&:to_sym).merge(artifact_id: artifact_id)
+        end
+      end
+
+      def artifact(artifact_id)
+        read do |data|
+          record = data['artifacts'][artifact_id]
+          record && record.transform_keys(&:to_sym).merge(artifact_id: artifact_id)
+        end
+      end
+
+      # Publications. Each change is checked again inside the ledger's lock:
+      # a pending record is made only when its source has none pending or
+      # ready, becomes ready only for the operation holding its token (and
+      # never after it was revoked or dropped), and a status changes only
+      # from the states named.
+
+      # The publication of a source that is pending or ready, or nil.
+      def live_publication(kind, id)
+        read do |data|
+          found = data['publications'].find do |_, record|
+            LedgerSchema::PUBLICATION_LIVE.include?(record['status']) && record['source'].values_at('kind', 'id') == [kind, id]
+          end
+          found && publication_record(*found)
+        end
+      end
+
+      def publication_named(name)
+        read do |data|
+          found = data['publications'].find { |_, record| record['name'] == name }
+          found && publication_record(*found)
+        end
+      end
+
+      def publications
+        read { |data| data['publications'].map { |id, record| publication_record(id, record) } }
+      end
+
+      # The ready publications by name, each with the folder of its chat
+      # (:relative_dir), from one read of the ledger (for serving).
+      def ready_publications
+        read do |data|
+          data['publications'].each_with_object({}) do |(id, record), index|
+            next unless record['status'] == 'ready'
+
+            workspace_id = data['chats'].dig(record['chat_id'], 'workspace_id')
+            relative_dir = workspace_id && data['workspaces'].dig(workspace_id, 'relative_dir')
+            index[record['name']] = publication_record(id, record).merge(relative_dir: relative_dir)
+          end
+        end
+      end
+
+      # Records a pending publication of a ready source of a chat, with the
+      # source's size and sha256. Refused (Conflict) when the source has a
+      # publication pending or ready, and (Full) when the pending and ready
+      # publications would hold more than cap_bytes.
+      def reserve_publication(publication_id:, name:, token:, kind:, id:, cap_bytes:, created_at: Time.now)
+        raise ArgumentError, 'invalid publication id' unless Ids.valid?(:publication, publication_id)
+
+        write do |data|
+          raise Conflict, 'publication id already registered' if data['publications'].key?(publication_id)
+          raise Conflict, 'publication name already registered' if data['publications'].any? { |_, r| r['name'] == name }
+
+          source = case kind
+                   when 'attachment' then data['attachments'][id]
+                   when 'artifact' then data['artifacts'][id]
+                   end
+          raise Conflict, 'the source is not a ready record of a chat' unless source.is_a?(Hash) && source['status'] == 'ready' && source['chat_id']
+
+          live = data['publications'].values.select { |r| LedgerSchema::PUBLICATION_LIVE.include?(r['status']) }
+          raise Conflict, 'the source is already published or being published' if live.any? { |r| r['source'].values_at('kind', 'id') == [kind, id] }
+
+          held = live.sum { |r| r['size'] }
+          raise Full, 'the copies for the page would take more room than is allowed' if held + source['size'] > cap_bytes
+
+          ext = name[LedgerSchema::PUBLICATION_NAME, 2]
+          data['publications'][publication_id] = {
+            'name' => name,
+            'source' => { 'kind' => kind, 'id' => id, 'sha256' => source['sha256'] },
+            'chat_id' => source['chat_id'],
+            'size' => source['size'],
+            'sha256' => source['sha256'],
+            'content_type' => LedgerSchema::PUBLICATION_TYPES[ext],
+            'status' => 'pending',
+            'token' => token,
+            'created_at' => created_at.utc.iso8601
+          }
+          publication_record(publication_id, data['publications'][publication_id])
+        end
+      end
+
+      # Makes the operation's pending publication ready. Refused (Conflict)
+      # when it is no longer that operation's pending record.
+      def settle_publication(publication_id, token)
+        write do |data|
+          record = data['publications'][publication_id]
+          unless record && record['status'] == 'pending' && record['token'] == token
+            raise Conflict, 'the publication is no longer pending for this operation'
+          end
+
+          record['status'] = 'ready'
+          record.delete('token')
+          publication_record(publication_id, record)
+        end
+      end
+
+      # Removes a pending publication: the operation's own (with its token),
+      # or any left by a server that stopped (token nil, at start only).
+      # True when it was there.
+      def drop_publication(publication_id, token = nil)
+        write do |data|
+          record = data['publications'][publication_id]
+          next false unless record && record['status'] == 'pending' && (token.nil? || record['token'] == token)
+
+          data['publications'].delete(publication_id)
+          true
+        end
+      end
+
+      # Sets a publication's status when it is one of from. True when changed.
+      def mark_publication(publication_id, status:, from:)
+        raise ArgumentError, "unknown state #{status}" unless LedgerSchema::PUBLICATION_STATES.include?(status)
+
+        write do |data|
+          record = data['publications'][publication_id]
+          next false unless record && from.include?(record['status'])
+
+          record['status'] = status
+          record.delete('token')
+          true
         end
       end
 
@@ -143,6 +408,12 @@ module Monadic
         read { |data| export(workspace_id, data['workspaces'][workspace_id]) }
       end
 
+      # The workspaces and attachments as one consistent read, for a caller
+      # that matches many folders against them (the shared folder's list).
+      def snapshot
+        read { |data| { workspaces: data['workspaces'], attachments: data['attachments'] } }
+      end
+
       def workspace_for_chat(chat_id)
         read do |data|
           workspace_id = data['chats'].dig(chat_id, 'workspace_id')
@@ -152,6 +423,10 @@ module Monadic
 
       private
 
+      def publication_record(publication_id, record)
+        record.transform_keys(&:to_sym).merge(publication_id: publication_id)
+      end
+
       def export(workspace_id, record)
         return nil unless record
 
@@ -159,20 +434,30 @@ module Monadic
       end
 
       def read
-        locked(File::LOCK_SH) { yield load }
+        locked(File::LOCK_SH) { yield load.first }
       end
 
+      # Changes are made only by the server that holds the state folder
+      # (ServerOwner), each one whole before that server stops.
       def write
         locked(File::LOCK_EX) do
-          data = load
-          result = yield data
-          save(data)
-          result
+          ServerOwner.writing do
+            raise Unsettled, 'the last change to the ledger may not be on disk; restart Monadic Chat' if self.class.unsettled?(@path)
+
+            data, version, raw = load
+            result = yield data
+            # A change that would leave the ledger out of form is not saved.
+            checked_current(data)
+            keep_earlier(raw) if raw && version < SCHEMA_VERSION
+            save(data)
+            result
+          end
         end
       end
 
       # The mutex covers threads of this process; the lock file covers a
-      # second process (the server run from the host while a container runs).
+      # second process on the same machine. Between the container and the
+      # host it is not relied on: one server holds the folder (ServerOwner).
       def locked(mode)
         @mutex.synchronize do
           File.open(@lock_path, File::RDWR | File::CREAT, 0o600) do |lock|
@@ -182,32 +467,60 @@ module Monadic
         end
       end
 
+      # [data in the current form, the version on disk, the bytes on disk
+      # (nil when there is no file yet)].
       def load
-        data = File.exist?(@path) ? JSON.parse(File.read(@path)) : {}
-        raise Unreadable, 'ledger is not a JSON object' unless data.is_a?(Hash)
-
-        version = data['schema_version'] || SCHEMA_VERSION
-        raise Unreadable, "ledger schema #{version} is newer than this version understands" if version > SCHEMA_VERSION
-
-        data['schema_version'] = version
-        data['chats'] ||= {}
-        data['workspaces'] ||= {}
-        data['attachments'] ||= {}
-        data
+        raw = File.exist?(@path) ? File.binread(@path) : nil
+        data, version = schema { LedgerSchema.check!(raw ? JSON.parse(raw) : {}) }
+        [data, version, raw]
       rescue JSON::ParserError
-        raise Unreadable, 'ledger is not valid JSON'
+        raise Syntax, 'ledger is not valid JSON'
+      end
+
+      def checked_current(data)
+        schema { LedgerSchema.check_current!(data) }
+      end
+
+      def schema
+        yield
+      rescue LedgerSchema::Newer => e
+        raise Newer, e.message
+      rescue LedgerSchema::Shape => e
+        raise Shape, "ledger is not of the expected form: #{e.message}"
+      end
+
+      # Keeps the bytes of the earlier version before the first change, and
+      # settles them on disk; an existing backup with other bytes is left as
+      # it is and these go under another name.
+      def keep_earlier(raw)
+        backup = "#{@path}.v1.bak"
+        if File.exist?(backup) && File.binread(backup) == raw
+          Disk.sync_file(backup)
+        else
+          backup = "#{@path}.v1.#{SecureRandom.hex(6)}.bak" if File.exist?(backup)
+          Disk.create_exclusive(backup, raw)
+        end
+        Disk.sync_dir(File.dirname(@path))
+      rescue SystemCallError, IOError
+        raise NotUpgraded, 'the ledger could not be kept before its upgrade; nothing was changed'
       end
 
       def save(data)
         tmp = "#{@path}.#{SecureRandom.hex(6)}.tmp"
-        File.open(tmp, File::WRONLY | File::CREAT | File::EXCL, 0o600) do |f|
-          f.write(JSON.pretty_generate(data))
-          f.flush
-          f.fsync
+        # On failure it removes what it made, and only that.
+        Disk.create_exclusive(tmp, JSON.pretty_generate(data))
+        begin
+          Disk.replace(tmp, @path)
+        rescue StandardError
+          File.unlink(tmp) rescue nil
+          raise
         end
-        File.rename(tmp, @path)
-      ensure
-        File.unlink(tmp) if tmp && File.exist?(tmp)
+        begin
+          Disk.sync_dir(File.dirname(@path))
+        rescue SystemCallError, IOError
+          self.class.unsettle!(@path)
+          raise Unsettled, 'the last change to the ledger may not be on disk; restart Monadic Chat'
+        end
       end
     end
   end

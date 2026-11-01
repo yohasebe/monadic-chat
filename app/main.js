@@ -15,7 +15,13 @@ const i18n = require('./i18n');
 // with `app/settings.html`'s build-state badges.
 const installOptions = require('./install_options.config');
 const opReferences = require('./op_references');
+const { createRevealHandler, createTrashHandler, showSharedPath, NO_ANSWER } = require('./shared_folder_reveal');
+const { writeStreamNoFollow, readStreamNoFollow, openReadNoFollow } = require('./no_follow_files');
 const { monadicShEnv, monadicInvocation } = require('./monadic_env');
+const { keepWarnings, createLineBuffer } = require('./build_output');
+const designTokens = require('./design_tokens');
+const { createThemeSync } = require('./theme_sync');
+const { createFitHandler } = require('./fit_window');
 
 // Splash window for updates
 let updateSplashWindow = null;
@@ -64,7 +70,7 @@ if (process.platform === 'darwin') {
   app.commandLine.appendSwitch('enable-features', 'AudioServiceHWAVAudioIO,WebRtcHWH264Encoding');
 }
 
-const { exec, execSync, spawn } = require('child_process');
+const { exec, execSync, execFileSync, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -477,6 +483,10 @@ let monadicScriptPath = app.isPackaged
   ? path.join(process.resourcesPath, 'app', 'docker', 'monadic.sh')
   : path.join(__dirname, '..', 'docker', 'monadic.sh');
 
+const loadDesignTokens = designTokens.createTokenLoader(designTokens.tokensPath({
+  packaged: app.isPackaged, resourcesPath: process.resourcesPath, appDir: __dirname
+}));
+
 const isWindows = os.platform() === 'win32';
 function monadicCmd(args) {
   return isWindows
@@ -654,7 +664,7 @@ class DockerManager {
           if (process.platform === 'linux') {
             noticeInMainWindow(formatMessage('warning', this.dockerUnavailableMessageKey()) + '<hr />');
           } else {
-            dialog.showErrorBox('Error', 'Failed to start Docker Desktop. Please start it manually and try again.');
+            dialog.showErrorBox(i18n.t('dialogs.error'), i18n.t('dialogs.dockerStartFailed'));
           }
         });
     }
@@ -766,8 +776,9 @@ class DockerManager {
               }
             });
             
-            subprocess.stdout.on('data', function (data) {
-              const output = data.toString();
+            // Handled a whole line at a time (a marker or a warning cut
+            // between two chunks would otherwise be missed or lost).
+            const stdoutLines = createLineBuffer(function (output) {
               
               // Translate Docker messages before displaying
               let translatedOutput = output;
@@ -835,11 +846,11 @@ class DockerManager {
                   // Styled version info with visual separation
                   const appLabel = i18n.t('messages.versionInfoApp');
                   const containerLabel = i18n.t('messages.versionInfoContainer');
-                  translatedOutput = `[HTML]: <p style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"><span style="background: #e8f4fc; border: 1px solid #b8d4e8; border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-desktop" style="color: #4CACDC; margin-right: 4px;"></i>${appLabel} <strong>v${appVersionMatch[1]}</strong></span><span style="background: #f0e8fc; border: 1px solid #d4b8e8; border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-brands fa-docker" style="color: #2496ED; margin-right: 4px;"></i>${containerLabel} <strong>v${containerVersionMatch[1]}</strong></span></p>`;
+                  translatedOutput = `[HTML]: <p style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"><span class="msg-version-app" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-desktop" style="color: #4CACDC; margin-right: 4px;"></i>${appLabel} <strong>v${appVersionMatch[1]}</strong></span><span class="msg-version-container" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-brands fa-docker" style="color: #2496ED; margin-right: 4px;"></i>${containerLabel} <strong>v${containerVersionMatch[1]}</strong></span></p>`;
                 }
               }
-              
-              writeToScreen(translatedOutput);
+
+              writeToScreen(keepWarnings(output, translatedOutput));
 
               // Parse build markers to optionally summarize into main window messages
               if (isBuildPython) {
@@ -856,13 +867,14 @@ class DockerManager {
                   if (mainWindow && !mainWindow.isDestroyed()) {
                     const icon = buildTracker.status === 'success' ? '<i class="fa-solid fa-circle-check" style="color:#22ad50;"></i>' : '<i class="fa-solid fa-circle-exclamation" style="color:#DC4C64;"></i>';
                     const runDir = buildTracker.runDir ? buildTracker.runDir : '';
-                    mainWindow.webContents.send('command-output', `[HTML]: <p>${icon} Python build ${buildTracker.status}. ${runDir ? 'Logs: '+runDir : ''}</p>`);
+                    const result = i18n.t(buildTracker.status === 'success' ? 'messages.pythonBuildSucceeded' : 'messages.pythonBuildFailed');
+                    mainWindow.webContents.send('command-output', `[HTML]: <p>${icon} ${result} ${runDir ? i18n.t('messages.buildLogsLabel') + ' ' + runDir : ''}</p>`);
                   }
                 }
               }
               
               // Check for server started message
-              if (data.toString().includes("[SERVER STARTED]")) {
+              if (output.includes("[SERVER STARTED]")) {
                 serverStartedReceived = true;
                 fetchWithRetry('http://localhost:4567')
                   .then((success) => {
@@ -926,14 +938,18 @@ class DockerManager {
                   });
               }
             });
-            
+            subprocess.stdout.on('data', function (data) {
+              stdoutLines.push(data.toString());
+            });
+
             subprocess.stderr.on('data', function (data) {
               console.error(data.toString());
             });
-            
+
             subprocess.on('close', function (code) {
+              stdoutLines.flush();
               if (code !== 0) {
-                dialog.showErrorBox('Error', `Docker command exited with code ${code}.`);
+                dialog.showErrorBox(i18n.t('dialogs.error'), i18n.t('dialogs.dockerCommandFailed', { code }));
               }
 
               // Don't update status here for 'start'/'build' commands - wait for SERVER STARTED
@@ -1099,11 +1115,12 @@ function checkForUpdatesManual(showDialog = false) {
             // Show dialog only when menu is clicked
             dialog.showMessageBox(mainWindow, {
               type: 'info',
-              buttons: ['Download & Install', 'View All Releases', 'Cancel'],
+              buttons: [i18n.t('messages.downloadAndInstall'), i18n.t('dialogs.updateAvailable.viewReleases'), i18n.t('dialogs.cancel')],
               defaultId: 0,
               cancelId: 2,
-              message: 'Update Available',
-              detail: `New: ${latestVersion} (current: ${currentVersion}).\nDownloads in the background; you'll be asked to restart when it's ready.`,
+              noLink: true,
+              message: i18n.t('dialogs.updateAvailable.message'),
+              detail: i18n.t('dialogs.updateAvailable.detail', { latest: latestVersion, current: currentVersion }),
               icon: path.join(iconDir, 'app-icon.png')
             }).then((result) => {
               if (result.response === 0) {
@@ -1137,9 +1154,9 @@ function checkForUpdatesManual(showDialog = false) {
             // Show dialog only when menu is clicked
             dialog.showMessageBox(mainWindow, {
               type: 'info',
-              buttons: ['OK'],
-              message: 'Up to Date',
-              detail: `You are already using the latest version (${currentVersion}).`,
+              buttons: [i18n.t('dialogs.ok')],
+              message: i18n.t('dialogs.upToDate.message'),
+              detail: i18n.t('dialogs.upToDate.detail', { version: currentVersion }),
               icon: path.join(iconDir, 'app-icon.png')
             });
           } else {
@@ -1153,7 +1170,7 @@ function checkForUpdatesManual(showDialog = false) {
       } else {
         if (showDialog) {
           // Show error dialog only when menu is clicked
-          dialog.showErrorBox('Error', 'Failed to retrieve the latest version number.');
+          dialog.showErrorBox(i18n.t('dialogs.error'), i18n.t('messages.failedToRetrieveVersion'));
         } else {
           // Display error in main window only on startup
           if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1167,7 +1184,7 @@ function checkForUpdatesManual(showDialog = false) {
     console.warn(`Update check failed: ${describeNetworkError(err)}`);
     if (showDialog) {
       // Show error dialog only when menu is clicked
-      dialog.showErrorBox('Error', i18n.t('messages.failedToCheckUpdates'));
+      dialog.showErrorBox(i18n.t('dialogs.error'), i18n.t('messages.failedToCheckUpdates'));
     } else {
       // On startup the offline warning already says updates need a
       // connection; repeating it here would only add noise.
@@ -1184,8 +1201,11 @@ function checkForUpdatesManual(showDialog = false) {
 function removeDockerData() {
   let options = {
     type: 'question',
-    buttons: [i18n.t('dialogs.cancel'), i18n.t('dialogs.deleteAll')],
+    // Removing everything is not the default; Esc and Enter both cancel.
+    buttons: [i18n.t('dialogs.deleteAll'), i18n.t('dialogs.cancel')],
     defaultId: 1,
+    cancelId: 1,
+    noLink: true,
     message: i18n.t('dialogs.confirmRemoveDockerData'),
     detail: i18n.t('dialogs.removeDockerDataMessage'),
     icon: path.join(iconDir, 'app-icon.png')
@@ -1193,7 +1213,7 @@ function removeDockerData() {
 
   dialog.showMessageBox(null, options).then((result) => {
     setTimeout(() => {
-      if (result.response === 1) {
+      if (result.response === 0) {
         dockerManager.runCommand('remove', formatMessage(null, 'messages.removingContainers'), 'Uninstalling', 'Uninstalled');
       } else {
         return false;
@@ -1231,8 +1251,10 @@ async function quitApp() {
 
   let options = {
     type: 'question',
-    buttons: [i18n.t('dialogs.cancel'), i18n.t('menu.quit')],
-    defaultId: 1,
+    buttons: [i18n.t('menu.quit'), i18n.t('dialogs.cancel')],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true,
     title: i18n.t('dialogs.quitConfirmTitle'),
     message: i18n.t('dialogs.quitConfirmTitle'),
     detail: i18n.t('dialogs.quitConfirmMessage'),
@@ -1241,7 +1263,7 @@ async function quitApp() {
 
   try {
     const result = await dialog.showMessageBox(mainWindow, options);
-    if (result.response === 1) {
+    if (result.response === 0) {
       try {
         const dockerStatus = await dockerManager.checkStatus();
         if (dockerStatus) {
@@ -1271,7 +1293,7 @@ async function quitApp() {
 
 function cleanupAndQuit() {
   // Send a shutdown notification to the web app
-  writeToScreen('[HTML]: <p>Quitting Monadic Chat . . .</p>');
+  writeToScreen(formatMessage(null, 'messages.quittingMonadicChat'));
   
   // No shutdown notification needed with the simplified approach
   
@@ -1335,8 +1357,7 @@ app.on('before-quit', (event) => {
 function openMainWindow() {
   createMainWindow();
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.show();
-    mainWindow.focus();
+    designTokens.showWindow(mainWindow, { focus: true });
   }
 }
 
@@ -1456,13 +1477,13 @@ function initializeApp() {
     setTimeout(() => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('command-output', `
-          [HTML]: <div style="margin: 10px 0; padding: 10px; background-color: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 4px;">
+          [HTML]: <div class="msg-update-done" style="margin: 10px 0; padding: 10px; border-left: 4px solid #4caf50; border-radius: 4px;">
             <p style="margin: 0; font-weight: bold;">
               <i class="fa-solid fa-check-circle" style="color:#4caf50;"></i> 
-              Update Successful: Version ${pendingUpdateState.version || app.getVersion()}
+              ${i18n.t('messages.updateSuccessfulVersion', { version: pendingUpdateState.version || app.getVersion() })}
             </p>
             <p style="margin: 5px 0 0 0;">
-              Monadic Chat has been successfully updated to the latest version.
+              ${i18n.t('messages.updateSuccessfulDesc')}
             </p>
           </div>
         `);
@@ -1575,7 +1596,7 @@ function initializeApp() {
                 updateStatusIndicator(prevStatus);
                 console.log(`Docker requirements check failed: ${error}`);
                 // Show error dialog for Docker issues
-                dialog.showErrorBox('Docker Error', error);
+                dialog.showErrorBox(i18n.t('dialogs.dockerErrorTitle'), error);
               });
             break;
           }
@@ -1593,7 +1614,7 @@ function initializeApp() {
             } catch (e) {
               console.warn('Failed to set silentReconnectMode in webview:', e);
             }
-            dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped')
+            dockerManager.runCommand('stop', formatMessage(null, 'messages.monadicChatStopping'), 'Stopping', 'Stopped')
               .then(() => {
                 // Send reset display command after stop is complete
                 if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1721,7 +1742,7 @@ function initializeApp() {
       .catch(error => {
         console.log(`Docker requirements check failed: ${error}`);
         // Show error dialog
-        dialog.showErrorBox('Error', error);
+        dialog.showErrorBox(i18n.t('dialogs.error'), error);
       })
       .finally(() => {
         updateApplicationMenu();
@@ -1737,8 +1758,7 @@ function initializeApp() {
         createMainWindow();
       } else {
         // If mainWindow exists, just show it
-        mainWindow.show();
-        mainWindow.focus();
+        designTokens.showWindow(mainWindow, { focus: true });
       }
     });
 
@@ -1813,7 +1833,7 @@ function initializeApp() {
 
     // Show main window if it exists
     if (mainWindow) {
-      mainWindow.show();
+      designTokens.showWindow(mainWindow);
     }
 
     // Set up window close handlers
@@ -1880,8 +1900,20 @@ function encryptDbExport(plainPath, encPath, passphrase) {
     }
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
 
-    const fout = fs.createWriteStream(encPath);
-    fout.on('error', reject);
+    // The input first: a failure there leaves nothing to clean up.
+    let fin;
+    let fout;
+    try {
+      fin = readStreamNoFollow(plainPath);
+      fout = writeStreamNoFollow(encPath);
+    } catch (err) {
+      if (fin) fin.destroy();
+      return reject(err);
+    }
+    fout.on('error', (err) => {
+      fout.discard();
+      reject(err);
+    });
 
     // Header
     fout.write(DB_ENC_MAGIC);
@@ -1889,9 +1921,9 @@ function encryptDbExport(plainPath, encPath, passphrase) {
     fout.write(salt);
     fout.write(iv);
 
-    const fin = fs.createReadStream(plainPath);
     fin.on('error', (err) => {
       fout.destroy();
+      fout.discard();
       reject(err);
     });
 
@@ -1904,9 +1936,10 @@ function encryptDbExport(plainPath, encPath, passphrase) {
         const tail = cipher.final();
         if (tail.length > 0) fout.write(tail);
         fout.write(cipher.getAuthTag());
-        fout.end(() => resolve());
+        fout.commit().then(resolve, reject);
       } catch (err) {
         fout.destroy();
+        fout.discard();
         reject(err);
       }
     });
@@ -1917,7 +1950,7 @@ function decryptDbImport(encPath, plainPath, passphrase) {
   return new Promise((resolve, reject) => {
     let stat;
     try {
-      stat = fs.statSync(encPath);
+      stat = fs.lstatSync(encPath);
     } catch (err) {
       return reject(err);
     }
@@ -1928,7 +1961,7 @@ function decryptDbImport(encPath, plainPath, passphrase) {
 
     let fd;
     try {
-      fd = fs.openSync(encPath, 'r');
+      fd = openReadNoFollow(encPath);
     } catch (err) {
       return reject(err);
     }
@@ -1955,15 +1988,25 @@ function decryptDbImport(encPath, plainPath, passphrase) {
       const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
       decipher.setAuthTag(tagBuf);
 
-      const fout = fs.createWriteStream(plainPath);
-      fout.on('error', reject);
-
-      const fin = fs.createReadStream(encPath, {
+      // The input first: a failure there leaves nothing to clean up.
+      const fin = readStreamNoFollow(encPath, {
         start: DB_ENC_HEADER_BYTES,
         end: totalSize - DB_ENC_TAG_BYTES - 1
       });
+      let fout;
+      try {
+        fout = writeStreamNoFollow(plainPath);
+      } catch (err) {
+        fin.destroy();
+        throw err;
+      }
+      fout.on('error', (err) => {
+        fout.discard();
+        reject(err);
+      });
       fin.on('error', (err) => {
         fout.destroy();
+        fout.discard();
         reject(err);
       });
 
@@ -1975,12 +2018,12 @@ function decryptDbImport(encPath, plainPath, passphrase) {
         try {
           const tail = decipher.final();
           if (tail.length > 0) fout.write(tail);
-          fout.end(() => resolve());
+          fout.commit().then(resolve, reject);
         } catch (err) {
           fout.destroy();
-          // Clean up partial decrypt; an authentication failure
-          // produces an unusable file.
-          try { fs.unlinkSync(plainPath); } catch (_) { /* ignore */ }
+          // Drop the partial decrypt; an authentication failure produces an
+          // unusable file, and the file in place is left as it was.
+          fout.discard();
           reject(new Error('Decryption failed (wrong passphrase or tampered file).'));
         }
       });
@@ -1998,21 +2041,33 @@ function decryptDbImport(encPath, plainPath, passphrase) {
 // decrypt-time prompts pass false to allow a single-field prompt.
 function promptPassphrase(parent, opts) {
   const options = Object.assign({
-    title: 'Enter Passphrase',
-    hint: 'Used to encrypt the export file. Minimum 8 characters.',
+    title: i18n.t('dialogs.exportDbPassphraseTitle'),
+    hint: i18n.t('dialogs.exportDbPassphraseHint'),
     confirmRequired: true
   }, opts || {});
+  // The window's own words, in the app's language.
+  options.lang = i18n.getLanguage();
+  options.labels = {
+    windowTitle: i18n.t('dialogs.passphrase.windowTitle'),
+    label: i18n.t('dialogs.passphrase.label'),
+    confirmLabel: i18n.t('dialogs.passphrase.confirmLabel'),
+    tooShort: i18n.t('dialogs.passphrase.tooShort'),
+    mismatch: i18n.t('dialogs.passphrase.mismatch'),
+    cancel: i18n.t('dialogs.cancel'),
+    ok: i18n.t('dialogs.ok')
+  };
 
   return new Promise((resolve) => {
     const win = new BrowserWindow({
       parent: parent || undefined,
       modal: !!parent,
       width: 400,
-      height: options.confirmRequired ? 280 : 220,
+      height: options.confirmRequired ? 276 : 214,
+      useContentSize: true,
       resizable: false,
       minimizable: false,
       maximizable: false,
-      title: 'Passphrase',
+      title: options.labels.windowTitle,
       show: false,
       autoHideMenuBar: true,
       webPreferences: {
@@ -2024,15 +2079,19 @@ function promptPassphrase(parent, opts) {
     });
 
     let resolved = false;
+    let showTimer = null;
     function settle(value) {
       if (resolved) return;
       resolved = true;
+      clearTimeout(showTimer);
       ipcMain.removeListener('passphrase-prompt:result', onResult);
+      ipcMain.removeListener('passphrase-prompt:fit', onFit);
       if (!win.isDestroyed()) win.close();
       resolve(value);
     }
 
-    function onResult(_event, payload) {
+    function onResult(event, payload) {
+      if (win.isDestroyed() || event.sender !== win.webContents) return;
       if (payload && payload.ok && typeof payload.passphrase === 'string') {
         settle(payload.passphrase);
       } else {
@@ -2041,10 +2100,23 @@ function promptPassphrase(parent, opts) {
     }
     ipcMain.on('passphrase-prompt:result', onResult);
 
+    // The page reports the height its content needs (titles and hints are
+    // translated and wrap); the window takes it before it is shown. If no
+    // report comes, the window is shown at its first size.
+    let shown = false;
+    function show() {
+      if (shown) return;
+      shown = true;
+      designTokens.showWindow(win);
+    }
+    const onFit = createFitHandler(win, { width: 400, onFitted: show });
+    ipcMain.on('passphrase-prompt:fit', onFit);
+
     win.on('closed', () => settle(null));
+    designTokens.prepareWindow(win, loadDesignTokens);
     win.webContents.once('did-finish-load', () => {
       win.webContents.send('passphrase-prompt:init', options);
-      win.show();
+      showTimer = setTimeout(show, 1000);
     });
     win.loadFile(path.join(__dirname, 'passphrase-prompt.html'));
   });
@@ -2191,7 +2263,7 @@ function updateContextMenu(disableControls = false) {
             })
             .catch((error) => {
               console.log(`Docker requirements check failed: ${error}`);
-              dialog.showErrorBox('Docker Error', error);
+              dialog.showErrorBox(i18n.t('dialogs.dockerErrorTitle'), error);
             });
         },
         enabled: disableControls ? false : currentStatus === 'Stopped'
@@ -2387,7 +2459,7 @@ function updateApplicationMenu() {
               })
               .catch((error) => {
                 console.log(`Docker requirements check failed: ${error}`);
-                dialog.showErrorBox('Docker Error', error);
+                dialog.showErrorBox(i18n.t('dialogs.dockerErrorTitle'), error);
               });
           },
           enabled: currentStatus === 'Stopped'
@@ -2518,6 +2590,7 @@ function updateApplicationMenu() {
                 buttons: [i18n.t('dialogs.importDbContinue'), i18n.t('dialogs.cancel')],
                 defaultId: 1,
                 cancelId: 1,
+                noLink: true,
                 title: i18n.t('dialogs.importDbConfirmTitle'),
                 message: i18n.t('dialogs.importDbConfirmMessage'),
                 detail: i18n.t('dialogs.importDbConfirmDetail'),
@@ -2534,8 +2607,7 @@ function updateApplicationMenu() {
               const hasEnc = fs.existsSync(encPath);
               const hasPlain = fs.existsSync(plainPath);
               if (!hasEnc && !hasPlain) {
-                dialog.showErrorBox(i18n.t('dialogs.error'),
-                  'Document DB file not found. Place monadic-qdrant.tar.gz or monadic-qdrant.tar.gz.enc in ~/monadic/data/.');
+                dialog.showErrorBox(i18n.t('dialogs.error'), i18n.t('dialogs.documentDbNotFound'));
                 return;
               }
 
@@ -2590,6 +2662,7 @@ function updateApplicationMenu() {
                 ],
                 defaultId: 0,
                 cancelId: 2,
+                noLink: true,
                 title: i18n.t('dialogs.exportDbConfirmTitle'),
                 message: i18n.t('dialogs.exportDbConfirmMessage'),
                 detail: i18n.t('dialogs.exportDbConfirmDetail'),
@@ -2755,7 +2828,7 @@ function updateTrayMenu() {
       label: i18n.t('menu.stopDockerContainers'),
       click: () => {
         openMainWindow();
-        dockerManager.runCommand('stop', '[HTML]: <p>Stopping the Docker services . . .</p>', 'Stopping', 'Stopped');
+        dockerManager.runCommand('stop', formatMessage(null, 'messages.stoppingDockerServices'), 'Stopping', 'Stopped');
       }
     },
     { type: 'separator' },
@@ -2787,8 +2860,10 @@ function updateTrayMenu() {
 // Helper function to translate status values
 function translateStatus(status) {
   if (!status) return '';
-  const statusKey = status.toLowerCase().replace(/\s+/g, '');
-  return i18n.t(`status.${statusKey}`) || status;
+  // i18n.t returns the key itself when there is no translation.
+  const key = `status.${status.toLowerCase().replace(/\s+/g, '')}`;
+  const label = i18n.t(key);
+  return label === key ? status : label;
 }
 
 // Helper function to format HTML messages with translations
@@ -2803,7 +2878,7 @@ function formatMessage(type, messageKey, params = {}) {
     laptop: '<i class="fa-solid fa-laptop" style="color:#4CACDC;"></i>',
     ruby: '<i class="fa-solid fa-gem" style="color:#CC342D;"></i>',
     python: '<i class="fa-brands fa-python" style="color:#3776AB;"></i>',
-    ollama: '<i class="fa-solid fa-horse" style="color:#333333;"></i>'
+    ollama: '<i class="fa-solid fa-horse icon-ollama"></i>'
   };
   
   let message = i18n.t(messageKey, params);
@@ -2889,6 +2964,19 @@ ipcMain.handle('get-translations', async (_e, lang) => {
   }
 });
 
+// The console window's own background, seen before its page paints: the
+// light value is unchanged; dark is the page's dark body (tokens.css
+// --bg-body).
+function consoleBackground() {
+  return nativeTheme.shouldUseDarkColors ? '#1a1a1a' : '#f0f0f0';
+}
+
+// The settings window's own background: its page's body color in light and
+// in dark (tokens.css --bg-panel).
+function settingsBackground() {
+  return nativeTheme.shouldUseDarkColors ? '#2a2a2a' : '#f5f5f7';
+}
+
 function createMainWindow() {
   if (mainWindow) return;
   // A new window has not loaded yet; notices wait for its did-finish-load.
@@ -2909,9 +2997,11 @@ function createMainWindow() {
     },
     title: "Monadic Chat",
     useContentSize: true,
+    // Shown once its page has the design variables (designTokens.showWindow)
+    show: false,
     // Show menu bar to enable standard shortcuts
     autoHideMenuBar: false,
-    backgroundColor: '#f0f0f0'
+    backgroundColor: consoleBackground()
   });
 
   // Check if port 4567 is already in use on initial launch
@@ -2932,7 +3022,9 @@ function createMainWindow() {
     return { action: 'deny' }
   })
 
+  designTokens.prepareWindow(mainWindow, loadDesignTokens);
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
+  designTokens.showWindow(mainWindow);
   
   // Ensure initial messages are sent after the window loads
   mainWindow.webContents.once('did-finish-load', () => {
@@ -2972,7 +3064,7 @@ function createMainWindow() {
       // "checking" line spinning with nothing to replace it.
       if (!startupOffline) {
         // Show update checking message
-        writeToScreen(`[HTML]: <p style="color: #666; font-size: 12px;"><i class="fa-solid fa-sync fa-spin"></i> ${i18n.t('messages.checkingForUpdates')}</p>`);
+        writeToScreen(`[HTML]: <p class="msg-checking" style="font-size: 12px;"><i class="fa-solid fa-sync fa-spin"></i> ${i18n.t('messages.checkingForUpdates')}</p>`);
 
         // Check for updates after main window is loaded (no dialog)
         setTimeout(() => {
@@ -3028,19 +3120,34 @@ function createMainWindow() {
   });
 }
 
+// The shared folder on this computer: ~/monadic/data, and on Windows the
+// same folder inside WSL, where the containers mount it from. WSL's own
+// $HOME is used as it is (not rebuilt as /home/<name>), and nothing is put
+// into a shell command line. Throws when it cannot be found.
+function resolveHostSharedRoot() {
+  if (os.platform() !== 'win32') {
+    return path.join(os.homedir(), 'monadic', 'data');
+  }
+  return wslMonadicPath('data');
+}
+
+// The Windows path of ~/monadic/<entry> inside WSL, from WSL's own $HOME.
+// entry is one of the fixed names below, never user input.
+function wslMonadicPath(entry) {
+  if (!['data', 'config', 'config/env', 'log'].includes(entry)) throw new Error(`unknown entry: ${entry}`);
+  const out = execFileSync('wsl.exe', ['sh', '-c', `wslpath -w "$HOME/monadic/${entry}"`], { encoding: 'utf8', timeout: 15000 });
+  const found = out.trim();
+  if (!found) throw new Error(`WSL did not give ~/monadic/${entry}`);
+  return found;
+}
+
 function openSharedFolder() {
   let folderPath;
-  if (os.platform() === 'darwin' || os.platform() === 'linux') {
-    folderPath = path.join(os.homedir(), 'monadic', 'data');
-  } else if (os.platform() === 'win32') {
-    try {
-      const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
-      const wslPath = `/home/${path.basename(wslHome)}/monadic/data`;
-      folderPath = execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
-    } catch (error) {
-      console.error('Error retrieving WSL path:', error);
-      return;
-    }
+  try {
+    folderPath = resolveHostSharedRoot();
+  } catch (error) {
+    console.error('Error retrieving the shared folder path:', error);
+    return;
   }
 
   // create folderPath if it does not exist
@@ -3053,7 +3160,7 @@ function openSharedFolder() {
       // result is a non-empty error string when the OS could not open the
       // folder — tell the user instead of failing silently.
       console.error('Error opening path:', result);
-      dialog.showErrorBox('Could not open folder', `${folderPath}\n\n${result}`);
+      dialog.showErrorBox(i18n.t('dialogs.openFolderFailed'), `${folderPath}\n\n${result}`);
     }
   });
 }
@@ -3064,9 +3171,7 @@ function openConfigFolder() {
     folderPath = path.join(os.homedir(), 'monadic', 'config');
   } else if (os.platform() === 'win32') {
     try {
-      const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
-      const wslPath = `/home/${path.basename(wslHome)}/monadic/config`;
-      folderPath = execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
+      folderPath = wslMonadicPath('config');
     } catch (error) {
       console.error('Error retrieving WSL path:', error);
       return;
@@ -3083,7 +3188,7 @@ function openConfigFolder() {
       // result is a non-empty error string when the OS could not open the
       // folder — tell the user instead of failing silently.
       console.error('Error opening path:', result);
-      dialog.showErrorBox('Could not open folder', `${folderPath}\n\n${result}`);
+      dialog.showErrorBox(i18n.t('dialogs.openFolderFailed'), `${folderPath}\n\n${result}`);
     }
   });
 }
@@ -3094,9 +3199,7 @@ function openLogFolder() {
     folderPath = path.join(os.homedir(), 'monadic', 'log');
   } else if (os.platform() === 'win32') {
     try {
-      const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
-      const wslPath = `/home/${path.basename(wslHome)}/monadic/log`;
-      folderPath = execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
+      folderPath = wslMonadicPath('log');
     } catch (error) {
       console.error('Error retrieving WSL path:', error);
       return;
@@ -3113,7 +3216,7 @@ function openLogFolder() {
       // result is a non-empty error string when the OS could not open the
       // folder — tell the user instead of failing silently.
       console.error('Error opening path:', result);
-      dialog.showErrorBox('Could not open folder', `${folderPath}\n\n${result}`);
+      dialog.showErrorBox(i18n.t('dialogs.openFolderFailed'), `${folderPath}\n\n${result}`);
     }
   });
 }
@@ -3137,7 +3240,7 @@ function openBrowser(url, outside = false, forceOpen = false) {
   // Enhanced browser opening function used in multiple places
   const launchBrowser = () => {
     console.log(`Opening browser to: ${url}`);
-    writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Opening the browser.</p>");
+    writeToScreen(formatMessage('success', 'messages.openingBrowser'));
     
     // Use shell.openExternal instead of spawn for more reliable behavior
     shell.openExternal(url).catch(err => {
@@ -3148,7 +3251,7 @@ function openBrowser(url, outside = false, forceOpen = false) {
         console.log('Browser opened with spawn fallback');
       } catch (spawnErr) {
         console.error('Error opening browser with spawn fallback:', spawnErr);
-        writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: #FF7F07;'></i>Failed to open browser automatically. Please open manually by navigating to: http://localhost:4567</p>");
+        writeToScreen(formatMessage('warning', 'messages.browserOpenFailed'));
       }
     });
   };
@@ -3169,17 +3272,17 @@ function openBrowser(url, outside = false, forceOpen = false) {
     isPortTaken(port, (taken) => {
       if (taken) {
         clearInterval(timer);
-        writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>The server is running on port 4567. Opening the browser.</p>");
+        writeToScreen(formatMessage('success', 'messages.serverRunningOnPort'));
         launchBrowser();
       } else {
         if (time == 0) {
           // Reduce UI noise: log to console output instead of user-facing messages
-          writeToScreen('Waiting for the server to start . . .');
+          writeToScreen(i18n.t('messages.waitingForServer'));
         }
         time += interval;
         if (time >= timeout) {
           clearInterval(timer);
-          dialog.showErrorBox('Error', "Failed to start the server. Please try again.");
+          dialog.showErrorBox(i18n.t('dialogs.error'), i18n.t('dialogs.serverStartFailed'));
         }
       }
 
@@ -3270,6 +3373,7 @@ function openSettingsWindow(category = null) {
       parent: mainWindow,
       modal: false,
       show: false,
+      backgroundColor: settingsBackground(),
       frame: true,
       title: 'Monadic Chat Settings',
       webPreferences: {
@@ -3280,6 +3384,7 @@ function openSettingsWindow(category = null) {
       }
     });
 
+    designTokens.prepareWindow(settingsWindow, loadDesignTokens);
     settingsWindow.loadFile(path.join(__dirname, 'settings.html'));
     
     // Send the current interface language to the settings window after it loads
@@ -3343,7 +3448,7 @@ function openSettingsWindow(category = null) {
       );
     }
   }
-  settingsWindow.show();
+  designTokens.showWindow(settingsWindow);
 }
 
 // Send fresh settings from disk to a renderer window
@@ -3448,20 +3553,20 @@ function computePendingContainerBuilds(imageStatus = null) {
   if (notBuilt('python', pyPrev)) {
     result.push({
       container: 'python_service',
-      label: 'Python container',
-      reason: 'not yet built',
+      label: i18n.t('dialogs.pendingBuilds.pythonContainer'),
+      changed: null,
       buildCommand: 'build_python_container_update',
-      estimate: '3–15 min'
+      minutes: '3–15'
     });
   } else if (pyPrev) {
     const changed = pyKeys.filter(k => pyPrev[k] !== undefined && String(pyPrev[k]) !== String(env[k] ?? 'false'));
     if (changed.length) {
       result.push({
         container: 'python_service',
-        label: 'Python container',
-        reason: `options changed (${changed.join(', ')})`,
+        label: i18n.t('dialogs.pendingBuilds.pythonContainer'),
+        changed,
         buildCommand: 'build_python_container_update',
-        estimate: '3–15 min'
+        minutes: '3–15'
       });
     }
   }
@@ -3473,9 +3578,9 @@ function computePendingContainerBuilds(imageStatus = null) {
     result.push({
       container: 'privacy_service',
       label: 'Privacy Filter',
-      reason: 'not yet built',
+      changed: null,
       buildCommand: 'build_privacy_container',
-      estimate: '3–5 min'
+      minutes: '3–5'
     });
   }
 
@@ -3486,9 +3591,9 @@ function computePendingContainerBuilds(imageStatus = null) {
     result.push({
       container: 'extractor_service',
       label: 'Knowledge Base Quality Pack',
-      reason: 'not yet built',
+      changed: null,
       buildCommand: 'build_extractor_container',
-      estimate: '5–10 min'
+      minutes: '5–10'
     });
   }
 
@@ -3514,7 +3619,7 @@ function refreshServiceContainersForLangChange(prevLangs, newEnv) {
         return;
       }
       if (String(stdout || '').includes('REFRESHED')) {
-        writeToScreen(`[HTML]: <p><i class='fa-solid fa-rotate' style='color:#61b0ff;'></i> Applied updated language settings to the ${service} container.</p>`);
+        writeToScreen(`[HTML]: <p><i class='fa-solid fa-rotate' style='color:#61b0ff;'></i> ${i18n.t('messages.languageSettingsApplied', { service })}</p>`);
       }
     });
   });
@@ -3536,27 +3641,30 @@ async function promptForPendingRebuilds() {
   // nothing has been saved or built yet. Skipping it does not leave the
   // feature broken either — ensure-service sets the container up the first
   // time an app needs it, so that first use is the one that waits.
-  const notBuiltOnly = pending.every(p => p.reason === 'not yet built');
-  const someNotBuilt = pending.some(p => p.reason === 'not yet built');
+  const notBuiltOnly = pending.every(p => !p.changed);
+  const someNotBuilt = pending.some(p => !p.changed);
   const lines = pending
-    .map(p => (notBuiltOnly ? `• ${p.label} (${p.estimate})` : `• ${p.label} — ${p.reason} (${p.estimate})`))
+    .map((p) => {
+      const minutes = i18n.t('dialogs.pendingBuilds.minutes', { range: p.minutes });
+      if (notBuiltOnly) return `• ${p.label} (${minutes})`;
+      const reason = p.changed ? i18n.t('dialogs.pendingBuilds.optionsChanged', { options: p.changed.join(', ') }) : i18n.t('dialogs.pendingBuilds.notBuilt');
+      return `• ${p.label} — ${reason} (${minutes})`;
+    })
     .join('\n');
   const dialogText = notBuiltOnly
     ? {
-        title: 'Set up containers',
-        message: 'Some containers are not set up on this computer yet.',
-        detail: `${lines}\n\nSet them up now, or start without them. Each one is then set up ` +
-          'the first time a feature needs it, so that first use takes longer.',
-        buttons: ['Set Up and Start', 'Start Now', 'Cancel']
+        title: i18n.t('dialogs.pendingBuilds.setupTitle'),
+        message: i18n.t('dialogs.pendingBuilds.setupMessage'),
+        detail: `${lines}\n\n${i18n.t('dialogs.pendingBuilds.setupDetail')}`,
+        buttons: [i18n.t('dialogs.pendingBuilds.setupButton'), i18n.t('dialogs.pendingBuilds.startNow'), i18n.t('dialogs.cancel')]
       }
     : {
-        title: 'Container rebuild recommended',
-        message: 'Some containers need to be rebuilt to apply your saved settings.',
-        detail: someNotBuilt
-          ? `${lines}\n\nWithout a rebuild, containers already built keep their previous settings. ` +
-            'Containers not built yet are set up the first time a feature needs them.'
-          : `${lines}\n\nWithout a rebuild, the app starts with the previously built images.`,
-        buttons: ['Rebuild and Start', 'Start Anyway', 'Cancel']
+        title: i18n.t('dialogs.pendingBuilds.rebuildTitle'),
+        message: i18n.t('dialogs.pendingBuilds.rebuildMessage'),
+        detail: `${lines}\n\n` + (someNotBuilt
+          ? i18n.t('dialogs.pendingBuilds.rebuildDetailSomeNotBuilt')
+          : i18n.t('dialogs.pendingBuilds.rebuildDetail')),
+        buttons: [i18n.t('dialogs.pendingBuilds.rebuildButton'), i18n.t('dialogs.pendingBuilds.startAnyway'), i18n.t('dialogs.cancel')]
       };
   const choice = await dialog.showMessageBox(mainWindow, {
     type: 'question',
@@ -3586,9 +3694,8 @@ async function promptForPendingRebuilds() {
 function getEnvPath() {
   if (os.platform() === 'win32') {
     try {
-      const wslHome = execSync('wsl.exe echo $HOME').toString().trim();
-      const wslPath = `/home/${path.basename(wslHome)}/monadic/config/env`;
-      return execSync(`wsl.exe wslpath -w ${wslPath}`).toString().trim();
+      // The same file writeEnvContent narrows with chmod in WSL.
+      return wslMonadicPath('config/env');
     } catch (error) {
       console.error('Error getting WSL path:', error);
       return null;
@@ -3596,6 +3703,24 @@ function getEnvPath() {
   } else {
     return path.join(os.homedir(), 'monadic', 'config', 'env');
   }
+}
+
+// The env file holds API keys: only its owner may read or write it.
+// writeFileSync's mode applies only when it creates the file, so an existing
+// file is narrowed as well. On Windows the file is inside WSL (see
+// getEnvPath) and a mode set through the \\wsl$ share does not reach it, so
+// WSL changes it.
+function writeEnvContent(envPath, content) {
+    fs.writeFileSync(envPath, content, { encoding: 'utf8', mode: 0o600 });
+    if (process.platform !== 'win32') {
+        fs.chmodSync(envPath, 0o600);
+        return;
+    }
+    try {
+        execFileSync('wsl.exe', ['--exec', 'sh', '-c', 'chmod 600 "$HOME/monadic/config/env"'], { timeout: 15000, windowsHide: true });
+    } catch (error) {
+        console.error('Could not restrict the env file in WSL:', error.message);
+    }
 }
 
 // Read the ENV file; if it does not exist, create it
@@ -3607,7 +3732,7 @@ function readEnvFile(envPath) {
     } catch {
         const envDir = path.dirname(envPath);
         fs.mkdirSync(envDir, { recursive: true });
-        fs.writeFileSync(envPath, '');
+        writeEnvContent(envPath, '');
         return {};
     }
 }
@@ -3621,7 +3746,7 @@ function writeEnvFile(envPath, envConfig) {
         .join('');
 
     try {
-        fs.writeFileSync(envPath, envContent);
+        writeEnvContent(envPath, envContent);
         return true;
     } catch (error) {
         console.error('Error saving settings:', error);
@@ -3902,7 +4027,17 @@ function loadSettings() {
   return envPath ? readEnvFile(envPath) : {};
 }
 
+// The settings carry the API keys, so only the Settings window's own page
+// may read or save them. The main window shares its preload but shows
+// content from outside the app.
+function isSettingsSender(event) {
+  return !!(settingsWindow && !settingsWindow.isDestroyed() &&
+    event.sender === settingsWindow.webContents &&
+    event.senderFrame === event.sender.mainFrame);
+}
+
 ipcMain.on('request-settings', (event) => {
+  if (!isSettingsSender(event)) return;
   sendSettingsToRenderer(event.sender);
 });
 
@@ -3976,24 +4111,95 @@ ipcMain.on('reveal-path', (_event, targetPath) => {
     let resolved = targetPath;
     const containerShared = '/monadic/data';
     if (resolved === containerShared || resolved.startsWith(containerShared + '/')) {
-      const hostShared = path.join(os.homedir(), 'monadic', 'data');
+      const hostShared = resolveHostSharedRoot();
       resolved = path.join(hostShared, resolved.slice(containerShared.length));
     }
 
-    let stat = null;
-    try { stat = fs.statSync(resolved); } catch (_) { stat = null; }
-    if (stat && stat.isDirectory()) {
-      shell.openPath(resolved);
-    } else {
-      // File (or non-existent): showItemInFolder opens the parent and selects
-      // the item when present.
-      shell.showItemInFolder(resolved);
-    }
+    // Only the shared folder itself is opened. Anything else, a folder too,
+    // is shown in its parent (showItemInFolder selects it when present):
+    // code a model runs can make a folder the system opens as an app
+    // (Name.app on macOS), and opening it would run it.
+    showSharedPath(resolved, { resolveRoot: resolveHostSharedRoot, fs, shell });
   } catch (err) {
     console.warn('[reveal-path] failed:', err && err.message);
   }
 });
 
+// The shared folder page shows an entry of the shared folder (see
+// shared_folder_reveal.js for what is checked first).
+ipcMain.handle('shared-folder-reveal', createRevealHandler({
+  resolveRoot: resolveHostSharedRoot,
+  isAppUrl,
+  // The app's own window, its top frame (not a page shown in a frame of it).
+  isAppSender: (event) => !!(webviewWindow && !webviewWindow.isDestroyed() && event.sender === webviewWindow.webContents &&
+    event.senderFrame === event.sender.mainFrame),
+  shell,
+  fs,
+  platform: os.platform()
+}));
+
+// The server's description of one entry of the shared folder, asked just
+// before the entry is moved to the trash: whether it may go is the server's
+// rule (protected entries, chats open in a tab). null when the answer cannot
+// be read, NO_ANSWER when the server cannot be reached; nothing is removed
+// then.
+function askSharedEntry(relativePath) {
+  return new Promise((resolve) => {
+    const http = require('http');
+    const req = http.get({
+      host: '127.0.0.1',
+      port: 4567,
+      path: `/api/shared_folder/entry?path=${encodeURIComponent(relativePath)}`,
+      headers: { Host: '127.0.0.1:4567', Accept: 'application/json' },
+      timeout: 10000
+    }, (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          resolve(res.statusCode === 200 && data && data.success ? data.item : null);
+        } catch (_) {
+          resolve(null);
+        }
+      });
+    });
+    req.on('timeout', () => { req.destroy(); resolve(NO_ANSWER); });
+    req.on('error', () => resolve(NO_ANSWER));
+  });
+}
+
+// Asks, in a dialog of the desktop app, before entries of the shared folder
+// are moved to the trash; the page cannot answer it. Cancel is the default.
+async function confirmSharedTrash(paths) {
+  if (!webviewWindow || webviewWindow.isDestroyed()) return false;
+  const shown = paths.slice(0, 5).join('\n') + (paths.length > 5 ? '\n' + i18n.t('dialogs.sharedFolderTrash.more', { count: paths.length - 5 }) : '');
+  const result = await dialog.showMessageBox(webviewWindow, {
+    type: 'warning',
+    buttons: [i18n.t('dialogs.sharedFolderTrash.move'), i18n.t('dialogs.cancel')],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+    message: i18n.t('dialogs.sharedFolderTrash.message', { count: paths.length }),
+    detail: shown
+  });
+  return result.response === 0;
+}
+
+// The shared folder page moves entries to the system's trash (see
+// shared_folder_reveal.js for what is checked).
+ipcMain.handle('shared-folder-trash', createTrashHandler({
+  resolveRoot: resolveHostSharedRoot,
+  isAppUrl,
+  isAppSender: (event) => !!(webviewWindow && !webviewWindow.isDestroyed() && event.sender === webviewWindow.webContents &&
+    event.senderFrame === event.sender.mainFrame),
+  askEntry: askSharedEntry,
+  confirm: confirmSharedTrash,
+  shell,
+  fs,
+  platform: os.platform()
+}));
 
 // Handle immediate UI language change
 ipcMain.on('change-ui-language', (_event, language) => {
@@ -4019,7 +4225,8 @@ ipcMain.on('change-ui-language', (_event, language) => {
 
 // Handle settings save from settings window. Returns { success } so the
 // renderer only shows the saved state once the env file is actually written.
-ipcMain.handle('save-settings', (_event, data) => {
+ipcMain.handle('save-settings', (event, data) => {
+  if (!isSettingsSender(event)) return { success: false };
   // Check if interface language has changed
   const envPath = getEnvPath();
   const oldConfig = envPath ? readEnvFile(envPath) : {};
@@ -4155,7 +4362,7 @@ app.whenReady().then(async () => {
       const content = fs.readFileSync(envPath, 'utf8');
       if (content.includes('INTERFACE_LANGUAGE=')) {
         const newContent = content.replace(/INTERFACE_LANGUAGE=/g, 'UI_LANGUAGE=');
-        fs.writeFileSync(envPath, newContent, 'utf8');
+        writeEnvContent(envPath, newContent);
       }
     } catch (error) {
       console.error('Error migrating env file:', error);
@@ -4255,6 +4462,16 @@ app.whenReady().then(async () => {
     // Log but don't crash - let the app continue if possible
   });
   
+  // The theme setting is read before the first window is made (at most a
+  // second), and read again on changes and after the computer wakes.
+  const themeSync = createThemeSync({ cookies: require('electron').session.fromPartition('persist:monadicchat').cookies, nativeTheme });
+  await themeSync.start();
+  powerMonitor.on('resume', () => { themeSync.refresh(); });
+  nativeTheme.on('updated', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setBackgroundColor(consoleBackground());
+    if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.setBackgroundColor(settingsBackground());
+  });
+
   // Check for pending updates before initializing the app
   const pendingUpdateState = readUpdateState();
   if (pendingUpdateState && pendingUpdateState.updateReady) {
@@ -4410,10 +4627,12 @@ ipcMain.on('reset-web-ui', async () => {
 });
 
 // Add IPC handler for selecting TTS dictionary file
-ipcMain.handle('select-tts-dict', async () => {
+ipcMain.handle('select-tts-dict', async (event) => {
+    // It writes the env file, so it answers the Settings window only.
+    if (!isSettingsSender(event)) return '';
     const result = await dialog.showOpenDialog({
         properties: ['openFile'],
-        filters: [{ name: 'CSV Files', extensions: ['csv'] }]
+        filters: [{ name: i18n.t('dialogs.ttsDictFilter'), extensions: ['csv'] }]
     });
     if (!result.canceled && result.filePaths.length > 0) {
         // Save the file path
@@ -4451,7 +4670,7 @@ ipcMain.handle('select-tts-dict', async () => {
             return filePath;
         } catch (error) {
             console.error('Error reading TTS dictionary file:', error);
-            dialog.showErrorBox('Error', `Failed to read TTS dictionary file: ${error.message}`);
+            dialog.showErrorBox(i18n.t('dialogs.error'), `${i18n.t('dialogs.ttsDictReadFailed')} ${error.message}`);
             return '';
         }
     }
@@ -4461,8 +4680,7 @@ ipcMain.handle('select-tts-dict', async () => {
 ipcMain.on('focus-main-window', () => {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.show();
-    mainWindow.focus();
+    designTokens.showWindow(mainWindow, { focus: true });
   }
 });
 // Open external URLs in the default browser when requested by the renderer
@@ -4478,9 +4696,9 @@ ipcMain.on('open-novnc', () => {
 // Theme Management (Dark Mode Support)
 // ============================================
 
-// Electron native theme always follows system preference
-// This affects window frame, dialogs, and native UI elements
-// Web UI content theme is managed independently via cookies
+// Until the Web UI's theme setting is read (theme_sync.js, in app.whenReady)
+// the native theme follows the system. It applies to window frames, dialogs
+// and prefers-color-scheme in every window.
 nativeTheme.themeSource = 'system';
 
 // Keep track of last check time to reduce frequency
@@ -4519,11 +4737,8 @@ async function updateDockerStatus() {
         updateContextMenu(false);
         updateStatusIndicator(currentStatus);
         writeToScreen('[SERVER STOPPED]');
-        if (process.platform === 'linux') {
-          writeToScreen(formatMessage('info', dockerManager.dockerUnavailableMessageKey()) + '<hr />');
-        } else {
-          writeToScreen('[HTML]: <hr /><p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> Docker Desktop is not running. Please start Docker Desktop and press <b>start</b> button.</p><hr />');
-        }
+        const key = process.platform === 'linux' ? dockerManager.dockerUnavailableMessageKey() : 'messages.dockerNotRunningStart';
+        writeToScreen(formatMessage('info', key) + '<hr />');
       }
     }
   }

@@ -13,7 +13,11 @@
     "exporting": "Exportation",
     "quitting": "Fermeture",
     "checking": "Vérification",
-    "updating": "Mise à jour"
+    "updating": "Mise à jour",
+    "started": "Démarré",
+    "finalizing": "Finalisation",
+    "notinstalled": "Non installé",
+    "portinuse": "Port utilisé"
   },
   "menu": {
     "file": "Fichier",
@@ -145,8 +149,26 @@
     "removingContainers": "Suppression des conteneurs et images.",
     "stoppingAllProcesses": "Arrêt de tous les processus.",
     "systemStopped": "Système arrêté à {{time}}",
+    "serverNotRunning": "Le serveur n'est pas en cours d'exécution. Veuillez d'abord démarrer le serveur.",
+    "serverStoppedAfterSleep": "Le serveur s'est arrêté après la mise en veille/reprise du système. Veuillez redémarrer le serveur.",
     "quittingMonadicChat": "Fermeture de Monadic Chat . . .",
     "monadicChatPreparing": "Préparation de Monadic Chat . . .",
+    "dockerNotInstalled": {
+      "darwin": "Docker est introuvable. Installez Docker Desktop for Mac, lancez-le, puis appuyez sur <b>Start</b>.",
+      "win32": "Docker est introuvable. Installez Docker Desktop for Windows (il fonctionne sur WSL 2), lancez-le, puis appuyez sur <b>Start</b>.",
+      "linux": "Docker est introuvable. Installez Docker Engine pour votre distribution, puis appuyez sur <b>Start</b>."
+    },
+    "opReferencesReading": "Lecture de {{count}} clé(s) depuis 1Password . . .",
+    "opReferencesStaleContainer": "Le conteneur Ruby a été construit par une version antérieure et ne peut pas utiliser les clés lues depuis 1Password ; les fournisseurs recevraient les références op:// au lieu des clés. Reconstruisez-le avec <b>Actions → Build Ruby Container</b>, puis appuyez sur <b>Start</b>.",
+    "opReferenceFailed": "Impossible de lire {{key}} depuis 1Password : {{reason}}. Les fonctions qui en ont besoin restent indisponibles jusqu'au prochain Start.",
+    "opReferenceReasons": {
+      "opMissing": "la CLI 1Password (op) est introuvable",
+      "notSignedIn": "1Password est verrouillé ou la CLI n'est pas connectée",
+      "cancelled": "la demande a été refusée",
+      "notFound": "la référence ne pointe pas vers un élément et un champ existants",
+      "timeout": "1Password n'a pas répondu à temps",
+      "failed": "la CLI 1Password a signalé une erreur"
+    },
     "monadicChatStopping": "Arrêt de Monadic Chat . . .",
     "monadicChatRestarting": "Redémarrage de Monadic Chat . . .",
     "buildingMonadicChat": "Construction de Monadic Chat . . .",
@@ -187,17 +209,28 @@
     "buildMonadicFinished": "La construction de Monadic Chat est terminée et les conteneurs sont démarrés. Consultez le panneau console pour plus de détails.",
     "containerFailedBuild": "Échec de la construction du conteneur.",
     "noUserContainers": "Aucun conteneur utilisateur à construire.",
-    "buildLogsAvailable": "Les journaux de construction sont disponibles dans le dossier partagé.",
-    "checkLogFiles": "Veuillez consulter les fichiers journaux suivants dans le dossier partagé :",
+    "buildLogsAvailable": "Les journaux de construction sont disponibles dans le dossier log.",
+    "checkLogFiles": "Veuillez consulter les fichiers journaux suivants dans le dossier log :",
     "allContainersAvailable": "Tous les conteneurs sont disponibles. Poursuite...",
     "runningContainers": "Conteneurs en cours d'exécution",
     "containerAccessInfo": "Vous pouvez accéder directement aux conteneurs en utilisant les commandes suivantes :",
     "systemAvailableAt": "Système disponible à",
     "versionInfo": "Monadic Chat app v{{appVersion}}  Image conteneur v{{containerVersion}}",
     "versionInfoApp": "App",
-    "versionInfoContainer": "Conteneur"
+    "versionInfoContainer": "Conteneur",
+    "languageSettingsApplied": "Les paramètres de langue mis à jour ont été appliqués au conteneur {{service}}.",
+    "pythonBuildSucceeded": "Construction Python réussie.",
+    "pythonBuildFailed": "Échec de la construction Python.",
+    "updateSuccessfulVersion": "Mise à jour réussie : version {{version}}",
+    "stoppingContainersBeforeRestart": "Arrêt des conteneurs Docker avant le redémarrage...",
+    "buildLogsLabel": "Journaux :"
   },
   "dialogs": {
+    "sharedFolderTrash": {
+      "message": "Placer {{count}} éléments du dossier partagé dans la corbeille ?",
+      "move": "Placer dans la corbeille",
+      "more": "et {{count}} de plus"
+    },
     "unsavedChangesTitle": "Modifications non enregistrées",
     "unsavedChangesMessage": "Vous avez des modifications non enregistrées. Enregistrer avant de fermer ?",
     "saveAndClose": "Enregistrer et fermer",
@@ -242,6 +275,60 @@
     "importDbPassphraseTitle": "Déchiffrer la base de données de documents",
     "importDbPassphraseHint": "Entrez la phrase de passe utilisée lors de l'export.",
     "importDbDecryptingMessage": "Déchiffrement de la base de données de documents...",
-    "importDbDecryptFailed": "Échec du déchiffrement. Phrase de passe incorrecte ou fichier modifié."
+    "importDbDecryptFailed": "Échec du déchiffrement. Phrase de passe incorrecte ou fichier modifié.",
+    "passphrase": {
+      "windowTitle": "Phrase de passe",
+      "label": "Phrase de passe",
+      "confirmLabel": "Confirmer la phrase de passe",
+      "tooShort": "La phrase de passe doit comporter au moins 8 caractères.",
+      "mismatch": "Les phrases de passe ne correspondent pas."
+    },
+    "updateAvailable": {
+      "message": "Mise à jour disponible",
+      "detail": "Nouvelle : {{latest}} (actuelle : {{current}}).\nLe téléchargement se fait en arrière-plan ; un redémarrage vous sera proposé une fois prêt.",
+      "viewReleases": "Voir toutes les versions"
+    },
+    "upToDate": {
+      "message": "À jour",
+      "detail": "Vous utilisez déjà la dernière version ({{version}})."
+    },
+    "updateReady": {
+      "title": "Mise à jour prête",
+      "message": "Monadic Chat {{version}} est prêt à être installé.",
+      "detail": "L'application arrêtera proprement les conteneurs Docker, puis redémarrera pour appliquer la mise à jour. Toute conversation en cours sera perdue ; terminez-la ou enregistrez-la d'abord.",
+      "restartNow": "Redémarrer maintenant",
+      "later": "Plus tard"
+    },
+    "updateError": {
+      "title": "Erreur de mise à jour",
+      "message": "La mise à jour automatique a échoué",
+      "detail": "Vous pouvez télécharger manuellement la dernière version depuis la page des versions.",
+      "openReleases": "Ouvrir la page des versions",
+      "close": "Fermer"
+    },
+    "dockerErrorTitle": "Erreur Docker",
+    "dockerCommandFailed": "La commande Docker s'est terminée avec le code {{code}}.",
+    "openFolderFailed": "Impossible d'ouvrir le dossier",
+    "serverStartFailed": "Impossible de démarrer le serveur. Veuillez réessayer.",
+    "ttsDictReadFailed": "Impossible de lire le fichier de dictionnaire TTS :",
+    "ttsDictFilter": "Fichiers CSV",
+    "documentDbNotFound": "Fichier de la base de documents introuvable. Placez monadic-qdrant.tar.gz ou monadic-qdrant.tar.gz.enc dans ~/monadic/data/.",
+    "pendingBuilds": {
+      "setupTitle": "Préparer les conteneurs",
+      "setupMessage": "Certains conteneurs ne sont pas encore préparés sur cet ordinateur.",
+      "setupDetail": "Préparez-les maintenant ou démarrez sans eux. Chacun est alors préparé la première fois qu'une fonction en a besoin, ce qui allonge cette première utilisation.",
+      "setupButton": "Préparer et démarrer",
+      "startNow": "Démarrer maintenant",
+      "rebuildTitle": "Reconstruction des conteneurs recommandée",
+      "rebuildMessage": "Certains conteneurs doivent être reconstruits pour appliquer vos paramètres enregistrés.",
+      "rebuildDetailSomeNotBuilt": "Sans reconstruction, les conteneurs déjà construits gardent leurs paramètres précédents. Ceux qui ne sont pas encore construits sont préparés la première fois qu'une fonction en a besoin.",
+      "rebuildDetail": "Sans reconstruction, l'application démarre avec les images construites précédemment.",
+      "rebuildButton": "Reconstruire et démarrer",
+      "startAnyway": "Démarrer quand même",
+      "notBuilt": "pas encore construit",
+      "optionsChanged": "options modifiées ({{options}})",
+      "pythonContainer": "Conteneur Python",
+      "minutes": "{{range}} min"
+    }
   }
 }

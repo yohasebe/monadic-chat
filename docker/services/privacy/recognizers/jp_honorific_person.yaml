@@ -1,0 +1,12 @@
+# A name followed by a Japanese honorific (さん, 様, 氏, 先生, くん, ちゃん,
+# 殿 ...) is a person, whatever the NER model makes of it. The whole run of
+# kanji/katakana before the honorific is taken (never only its tail), and
+# the honorific itself is not part of the span. Names in hiragana, and names
+# with no honorific, are not found this way.
+name: JpHonorificPersonRecognizer
+supported_language: ja
+supported_entity: PERSON
+patterns:
+  - name: jp_name_before_honorific
+    regex: "(?<![一-鿿々ァ-ヶー・\U00020000-\U0002FFFF])[一-鿿々ァ-ヶー・\U00020000-\U0002FFFF]{2,12}(?=(?:さん|さま|様|氏|先生|くん|君|ちゃん|殿))"
+    score: 0.6

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../../../spec_helper'
+require 'tmpdir'
 
 # The masked export exists so a conversation can be handed to someone else
 # without the values the privacy filter detected. Masking the message body is
@@ -14,6 +15,8 @@ require_relative '../../../spec_helper'
 # These examples pin the two rules that keep those out: an allow list decides
 # what may be carried at all, and every free-text field it does carry is
 # remasked, not just `text`.
+require_relative '../../../../lib/monadic/utils/privacy/outbound'
+
 RSpec.describe 'Privacy export share boundary' do
   # Load the four methods under test without the surrounding WebSocket module,
   # which pulls in the whole handler stack.
@@ -27,6 +30,7 @@ RSpec.describe 'Privacy export share boundary' do
     methods = %w[
       privacy_clean_messages privacy_remask_messages
       privacy_export_parameters privacy_remask_parameters
+      privacy_replace_union
     ].map { |name| src[/private def #{name}.*?^  end/m] }
 
     expect(constants.scan('PRIVACY_').size).to eq(4),
@@ -42,7 +46,7 @@ RSpec.describe 'Privacy export share boundary' do
   # carry prose. Using the same string throughout means a single search over
   # the payload answers "did anything leak".
   let(:pii) { 'Example Person' }
-  let(:local_path) { '/Users/someone/private/notes.md' }
+  let(:local_path) { File.join(Dir.tmpdir, 'private', 'notes.md') }
   let(:registry) { { '<<PERSON_1>>' => pii } }
 
   let(:session) do
@@ -94,7 +98,7 @@ RSpec.describe 'Privacy export share boundary' do
     end
 
     it 'carries no path from the exporting machine' do
-      expect(JSON.generate(payload)).not_to include('/Users/')
+      expect(JSON.generate(payload)).not_to include(local_path)
     end
 
     it 'drops the placeholder-to-original table' do
@@ -148,17 +152,18 @@ RSpec.describe 'Privacy export share boundary' do
     end
 
     let(:masked_branch) do
-      branch = source[/if content_kind == "masked" && !registry\.empty\?.*?^    end/m]
+      # The registry plus the words the user marked (remask).
+      branch = source[/if content_kind == "masked" && !remask\.empty\?.*?^    end/m]
       expect(branch).to be_a(String), 'the masked-export branch has moved or been renamed'
       branch
     end
 
     it 'remasks the messages' do
-      expect(masked_branch).to include('privacy_remask_messages(messages, registry)')
+      expect(masked_branch).to include('privacy_remask_messages(messages, remask)')
     end
 
     it 'remasks the parameters' do
-      expect(masked_branch).to include('privacy_remask_parameters(parameters, registry)')
+      expect(masked_branch).to include('privacy_remask_parameters(parameters, remask)')
     end
 
     it 'builds parameters through the allow list' do

@@ -196,11 +196,12 @@ get "/api/app/:name/graph" do
       input_types: input_types,
       output_types: output_types,
       tools: wv_extract_tools(s),
-      # Tools unlocked dynamically THIS SESSION via request_tool (progressive
-      # tool disclosure). HTTP routes share the Rack session object with the
-      # WebSocket handlers, so the live unlock state is visible here.
+      # Tools unlocked dynamically in this tab's chat via request_tool
+      # (progressive tool disclosure), read from the chat its connection
+      # holds (tab_id).
       unlocked_tools: (begin
-        pt = session && session[:progressive_tools]
+        chat = tab_chat_session(params[:tab_id])
+        pt = chat && chat[:progressive_tools]
         st = pt.is_a?(Hash) ? (pt[app_name] || pt[app_name.to_s]) : nil
         st.is_a?(Hash) ? Array(st[:unlocked] || st["unlocked"]).map(&:to_s).reject(&:empty?) : []
       rescue StandardError

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "gemini_request"
 require_relative 'tts_provider'
 
 require 'base64'
@@ -7,10 +8,28 @@ require 'net/http'
 require_relative 'extra_logger'
 require_relative 'tts_text_processors'
 require_relative 'tts_audio'
+require_relative 'privacy/outbound'
 
 module InteractionUtils
+  # What a speech request gives back when the text holds a word the user
+  # marked for the Privacy Filter: nothing was sent, and the page shows a
+  # notice for the speech only (the reply itself is fine).
+  TTS_WITHHELD = { "type" => "privacy_withheld" }.freeze
+
   def pcm_to_wav(pcm_data, **options)
     Monadic::Utils::TtsAudio.pcm_to_wav(pcm_data, **options)
+  end
+
+  # The text as a TTS service receives it: the user's dictionary applied,
+  # then the provider's own conversion (markers, tags). What is checked for
+  # words the user marked is this text, not the one before.
+  def tts_text_as_sent(text, provider)
+    converted = if CONFIG["TTS_DICT"]
+                  text.gsub(/(#{CONFIG["TTS_DICT"].keys.join("|")})/) { CONFIG["TTS_DICT"][$1] }
+                else
+                  text
+                end
+    Monadic::Utils::TtsTextProcessors.pre_send(provider, converted)
   end
 
   def tts_api_request(text,
@@ -25,20 +44,14 @@ module InteractionUtils
     # Handle nil text
     return nil if text.nil? || text.empty?
 
-    if CONFIG["TTS_DICT"]
-      text_converted = text.gsub(/(#{CONFIG["TTS_DICT"].keys.join("|")})/) { CONFIG["TTS_DICT"][$1] }
-    else
-      text_converted = text
-    end
-
-    text_converted = Monadic::Utils::TtsTextProcessors.pre_send(provider, text_converted)
+    text_converted = tts_text_as_sent(text, provider)
 
     num_retrial = 0
 
     val_speed = speed ? speed.to_f : 1.0
 
-    case provider
-    when "openai-tts-4o", "openai-tts", "openai-tts-hd"
+    case Monadic::Utils::TtsProvider.provider_of(provider)
+    when "openai"
       api_key = settings.api_key
       headers = {
         "Content-Type" => "application/json",
@@ -75,7 +88,7 @@ module InteractionUtils
       end
 
       target_uri = "#{API_ENDPOINT}/audio/speech"
-    when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3"
+    when "elevenlabs"
       api_key = CONFIG["ELEVENLABS_API_KEY"]
       headers = {
         "Content-Type" => "application/json",
@@ -97,7 +110,8 @@ module InteractionUtils
         }
       end
 
-      if previous_text.to_s != ""
+      # Eleven v3 refuses previous_text with a 400.
+      if previous_text.to_s != "" && Monadic::Utils::ModelSpec.get_model_property(model, "tts_previous_text") != false
         body["previous_text"] = previous_text
       end
 
@@ -105,18 +119,10 @@ module InteractionUtils
         body["language_code"] = language
       end
 
-      # ElevenLabs v3 must use the non-streaming endpoint (full file delivery).
-      # All other ElevenLabs models use the /stream endpoint, which starts
-      # returning audio earlier (lower TTFA) even when we read the body in one
-      # pass. The endpoint choice is independent of our own streaming behavior.
-      # optimize_streaming_latency=3 is the highest quality-preserving level
-      # (level 4 disables text normalization and hurts pronunciation).
+      # The endpoint and the latency option come from the model's entry
+      # (see elevenlabs_tts_uri).
       output_format = "mp3_44100_128"
-      target_uri = if provider == "elevenlabs-v3"
-                     "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
-                   else
-                     "https://api.elevenlabs.io/v1/text-to-speech/#{voice}/stream?output_format=#{output_format}&optimize_streaming_latency=3"
-                   end
+      target_uri = elevenlabs_tts_uri(model, voice, output_format)
     when "mistral"
       api_key = CONFIG["MISTRAL_API_KEY"]
       if api_key.nil?
@@ -148,11 +154,11 @@ module InteractionUtils
       end
 
       target_uri = "https://api.mistral.ai/v1/audio/speech"
-    when "web-speech", "webspeech"
+    when "webspeech"
       # For Web Speech API, we don't need to make an API call
       # Return early with a special response
       return { "type" => "web_speech", "content" => text_converted }
-    when Monadic::Utils::TtsProvider.method(:gemini?)
+    when "gemini"
       api_key = CONFIG["GEMINI_API_KEY"]
       if api_key.nil?
         return { "type" => "error", "content" => "ERROR: GEMINI_API_KEY is not set." }
@@ -167,19 +173,17 @@ module InteractionUtils
       }
 
       # Resolve target model first so speed-prefix logic can branch on it.
-      # SSOT: providerDefaults.gemini.tts (first entry is the default).
+      # The model comes from ttsChoices (model_spec.js).
       model_name = resolve_tts_model(provider)
 
-      # Apply speed control using natural language instructions for the 2.5
-      # TTS models. The 3.1 dedicated TTS model (gemini-3.1-flash-tts-preview)
-      # routes through a content classifier that treats pace prefixes as
-      # anomalous prompts — it can respond with text tokens or a
-      # PROHIBITED_CONTENT rejection. For 3.1 we omit the prefix and rely on
-      # player-side playback rate instead. Skipping the prefix at speed 1.0
-      # also reduces latency for the common path on older models.
-      uses_pace_prefix = !model_name.to_s.start_with?("gemini-3")
+      # Speed is a natural-language instruction at the start of the text for
+      # the models whose SSOT entry sets tts_pace_prefix. Other models can
+      # answer such a prefix with text tokens or a PROHIBITED_CONTENT
+      # rejection, so they get none and the player's playback rate sets the
+      # speed. Speed 1.0 adds no prefix.
+      uses_pace_prefix = Monadic::Utils::ModelSpec.tts_pace_prefix?(model_name)
       speed_instruction = if !uses_pace_prefix
-        ""  # 3.x TTS models: never prepend pace instruction
+        ""
       elsif val_speed >= 1.8
         "[extremely fast] "
       elsif val_speed >= 1.4
@@ -236,8 +240,9 @@ module InteractionUtils
       # Always use non-streaming endpoint for better performance.
       # Gemini TTS returns complete audio in one response anyway. The 3.1
       # model is REST-only (no Live API), so this path covers both.
+      body = Monadic::Utils::GeminiRequest.without_storage(body)
       target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent"
-    when "grok"
+    when "xai"
       # Grok dedicated TTS REST API. Uses a single model (grok-tts) with 5
       # voice IDs (eve, ara, rex, sal, leo). Returns MP3 bytes.
       # See https://docs.x.ai/ (Grok TTS) for the public reference.
@@ -287,19 +292,15 @@ module InteractionUtils
       unless res.status.success?
         error_report = JSON.parse(res.body) rescue { "message" => res.body.to_s }
 
-        # Log detailed error for Gemini
-        if Monadic::Utils::TtsProvider.gemini?(provider)
-          puts "Gemini TTS API Error: #{res.status} - #{error_report}"
-          puts "Request URI: #{target_uri}"
-          puts "Request body: #{body.to_json}"
-        end
+        # The request body holds the user's text: only the status and the error go to the log.
+        Monadic::Utils::ExtraLogger.log { "[TTS] #{provider} API error: #{res.status} - #{error_report}" }
 
         # For ElevenLabs, suppress "something_went_wrong" errors since audio often still works
         if provider&.start_with?("elevenlabs") &&
            (error_report.dig("detail", "status") == "something_went_wrong" ||
             error_report["detail"].to_s.include?("something_went_wrong"))
           # Log the error but don't send to client
-          puts "ElevenLabs API warning (suppressed): #{error_report}"
+          Monadic::Utils::ExtraLogger.log { "[TTS] ElevenLabs API warning (suppressed): #{error_report}" }
           # Return a silent success to avoid error display
           return { "type" => "audio", "content" => "" }
         end
@@ -355,7 +356,7 @@ module InteractionUtils
       end
 
       # Handle Mistral TTS response format - JSON with base64 audio_data
-      if provider == "mistral"
+      if Monadic::Utils::TtsProvider.provider_of(provider) == "mistral"
         begin
           mistral_response = JSON.parse(res.body.to_s)
           audio_base64 = mistral_response["audio_data"]
@@ -371,6 +372,8 @@ module InteractionUtils
 
       Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: Returning audio - body_size=#{res.body.to_s.length}" }
       { "type" => "audio", "content" => Base64.strict_encode64(res.body.to_s) }
+    rescue Monadic::Utils::Privacy::Outbound::Refused
+      TTS_WITHHELD.dup
     rescue => e
       Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request: Exception occurred - #{e.class}: #{e.message}\n#{e.backtrace.join("\n")}" }
       { "type" => "error", "content" => "ERROR: TTS request failed: #{e.message}" }
@@ -392,19 +395,13 @@ module InteractionUtils
     return if text.nil? || text.empty?
 
     # Apply TTS dictionary if configured
-    text_converted = if CONFIG["TTS_DICT"]
-                      text.gsub(/(#{CONFIG["TTS_DICT"].keys.join("|")})/) { CONFIG["TTS_DICT"][$1] }
-                    else
-                      text
-                    end
-
-    text_converted = Monadic::Utils::TtsTextProcessors.pre_send(provider, text_converted)
+    text_converted = tts_text_as_sent(text, provider)
 
     Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request_async: START - provider=#{provider}, text_length=#{text_converted.length}, sequence_id=#{sequence_id}" }
 
     # Currently supports OpenAI TTS only
-    case provider
-    when "openai-tts-4o", "openai-tts", "openai-tts-hd", "openai"
+    case Monadic::Utils::TtsProvider.provider_of(provider)
+    when "openai"
       api_key = settings.api_key
       model = resolve_tts_model(provider)
 
@@ -476,6 +473,7 @@ module InteractionUtils
             "type" => "error",
             "content" => "ERROR: TTS connection failed: #{e.message}"
           }
+          error_result = TTS_WITHHELD.dup if e.is_a?(Monadic::Utils::Privacy::Outbound::Refused)
           error_result["sequence_id"] = sequence_id if sequence_id
 
           Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: Connection error (http.rb) - #{e.message}, sequence_id=#{sequence_id}" }
@@ -486,7 +484,7 @@ module InteractionUtils
         end
       end
 
-    when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3"
+    when "elevenlabs"
       api_key = CONFIG["ELEVENLABS_API_KEY"]
       if api_key.nil?
         error_result = {
@@ -516,7 +514,8 @@ module InteractionUtils
         }
       end
 
-      if previous_text.to_s != ""
+      # Eleven v3 refuses previous_text with a 400.
+      if previous_text.to_s != "" && Monadic::Utils::ModelSpec.get_model_property(model, "tts_previous_text") != false
         body["previous_text"] = previous_text
       end
 
@@ -524,14 +523,9 @@ module InteractionUtils
         body["language_code"] = language
       end
 
-      # Match the sync-path endpoint selection: v3 uses non-streaming endpoint,
-      # others use /stream with optimize_streaming_latency=3 for lowest TTFA.
+      # Same endpoint selection as the sync path (elevenlabs_tts_uri).
       output_format = "mp3_44100_128"
-      target_uri = if provider == "elevenlabs-v3"
-                     "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
-                   else
-                     "https://api.elevenlabs.io/v1/text-to-speech/#{voice}/stream?output_format=#{output_format}&optimize_streaming_latency=3"
-                   end
+      target_uri = elevenlabs_tts_uri(model, voice, output_format)
 
       require 'http'
 
@@ -580,6 +574,7 @@ module InteractionUtils
             "type" => "error",
             "content" => "ERROR: ElevenLabs TTS connection failed: #{e.message}"
           }
+          error_result = TTS_WITHHELD.dup if e.is_a?(Monadic::Utils::Privacy::Outbound::Refused)
           error_result["sequence_id"] = sequence_id if sequence_id
 
           Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: ElevenLabs connection error (http.rb) - #{e.message}, sequence_id=#{sequence_id}" }
@@ -590,7 +585,7 @@ module InteractionUtils
         end
       end
 
-    when Monadic::Utils::TtsProvider.method(:gemini?)
+    when "gemini"
       api_key = CONFIG["GEMINI_API_KEY"]
       if api_key.nil?
         error_result = {
@@ -625,9 +620,10 @@ module InteractionUtils
         }
       }
 
-      # Use the appropriate Gemini model with TTS capability (SSOT: providerDefaults.gemini.tts)
+      # The model comes from ttsChoices (model_spec.js)
       model_name = resolve_tts_model(provider)
 
+      body = Monadic::Utils::GeminiRequest.without_storage(body)
       target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent"
 
       require 'http'
@@ -739,6 +735,7 @@ module InteractionUtils
             "type" => "error",
             "content" => "ERROR: Gemini TTS connection failed: #{e.message}"
           }
+          error_result = TTS_WITHHELD.dup if e.is_a?(Monadic::Utils::Privacy::Outbound::Refused)
           error_result["sequence_id"] = sequence_id if sequence_id
 
           Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: Gemini connection error (http.rb) - #{e.message}, sequence_id=#{sequence_id}" }
@@ -749,7 +746,7 @@ module InteractionUtils
         end
       end
 
-    when "grok"
+    when "xai"
       # Grok dedicated TTS REST API (non-streaming). Mirrors the synchronous
       # path in tts_api_request; provided here so the streaming/async helper
       # can be used uniformly by callers.
@@ -826,13 +823,14 @@ module InteractionUtils
             "type" => "error",
             "content" => "ERROR: Grok TTS connection failed: #{e.message}"
           }
+          error_result = TTS_WITHHELD.dup if e.is_a?(Monadic::Utils::Privacy::Outbound::Refused)
           error_result["sequence_id"] = sequence_id if sequence_id
           Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: Grok connection error - #{e.message}, sequence_id=#{sequence_id}" }
           Async { block.call(error_result) }
         end
       end
 
-    when "web-speech", "webspeech"
+    when "webspeech"
       # Web Speech API doesn't need HTTP request
       result = {
         "type" => "web_speech",
@@ -889,55 +887,23 @@ module InteractionUtils
 
   private
 
-  # Resolve TTS provider label to actual model name via providerDefaults.
-  # OpenAI TTS list is ordered: [0]=4o-mini, [1]=tts-1-hd, [2]=tts-1
-  # Gemini TTS list: unsuffixed default follows order; explicit variants resolve by name.
-  # ElevenLabs TTS list is ordered: [0]=eleven_v3, [1]=eleven_multilingual_v2, [2]=eleven_flash_v2_5
+  # The model a TTS provider selector value sends, from ttsChoices in
+  # model_spec.js (Monadic::Utils::TtsProvider). nil for an unknown value.
   def resolve_tts_model(provider_label)
-    if Monadic::Utils::TtsProvider.gemini?(provider_label)
-      tts_models = if defined?(Monadic::Utils::ModelSpec)
-                     Monadic::Utils::ModelSpec.get_provider_models("gemini", "tts")
-                   end
-      Monadic::Utils::TtsProvider.resolve_gemini_model(provider_label, tts_models)
-    elsif provider_label =~ /\Amistral/
-      tts_models = if defined?(Monadic::Utils::ModelSpec)
-                     Monadic::Utils::ModelSpec.get_provider_models("mistral", "tts")
-                   end
-      tts_models&.[](0)
-    elsif provider_label =~ /\Agrok/
-      # Grok TTS uses a single dedicated model (grok-tts).
-      # SSOT: providerDefaults.xai.tts in model_spec.js.
-      tts_models = if defined?(Monadic::Utils::ModelSpec)
-                     Monadic::Utils::ModelSpec.get_provider_models("xai", "tts")
-                   end
-      tts_models&.[](0)
-    elsif provider_label =~ /\Aelevenlabs/
-      tts_models = if defined?(Monadic::Utils::ModelSpec)
-                     Monadic::Utils::ModelSpec.get_provider_models("elevenlabs", "tts")
-                   end
-      case provider_label
-      when "elevenlabs-v3"
-        tts_models&.[](0)
-      when "elevenlabs-multilingual"
-        tts_models&.[](1)
-      else # "elevenlabs-flash", "elevenlabs"
-        tts_models&.[](2)
-      end
-    else
-      tts_models = if defined?(Monadic::Utils::ModelSpec)
-                     Monadic::Utils::ModelSpec.get_provider_models("openai", "tts")
-                   end
-      case provider_label
-      when "openai-tts-4o"
-        tts_models&.[](0)
-      when "openai-tts-hd"
-        tts_models&.[](1)
-      when "openai-tts"
-        tts_models&.[](2)
-      else
-        tts_models&.[](0)
-      end
-    end
+    Monadic::Utils::TtsProvider.model_for(provider_label)
+  end
+
+  # ElevenLabs: the convert endpoint returns the whole file; /stream starts
+  # sending audio earlier. Which one, and whether the latency option is sent
+  # (optimize_streaming_latency=3 is the highest quality-preserving level),
+  # come from the model's entry.
+  def elevenlabs_tts_uri(model, voice, output_format)
+    base = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}"
+    return "#{base}?output_format=#{output_format}" if Monadic::Utils::ModelSpec.get_model_property(model, "tts_endpoint") == "convert"
+
+    query = "output_format=#{output_format}"
+    query += "&optimize_streaming_latency=3" unless Monadic::Utils::ModelSpec.get_model_property(model, "tts_latency_option") == false
+    "#{base}/stream?#{query}"
   end
 
   # Fetch first available Mistral voice ID (cached per process).

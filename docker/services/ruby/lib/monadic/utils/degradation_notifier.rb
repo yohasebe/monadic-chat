@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'environment'
+require_relative 'error_formatter'
 
 module Monadic
   module Utils
@@ -56,7 +57,7 @@ module Monadic
 
         def format_line(component, message, severity)
           timestamp = Time.now.strftime('%Y-%m-%d %H:%M:%S')
-          "[#{timestamp}] [DEGRADED] [#{severity.to_s.upcase}] #{component}: #{message}"
+          "[#{timestamp}] [DEGRADED] [#{severity.to_s.upcase}] #{component}: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(message.to_s)}"
         end
 
         def write_stderr(line)
@@ -84,7 +85,7 @@ module Monadic
           prefix = severity == :info ? '' : '⚠️ '
           payload = {
             'type' => 'system_info',
-            'content' => "#{prefix}#{component}: #{message}"
+            'content' => "#{prefix}#{component}: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(message.to_s)}"
           }.to_json
           ::WebSocketHelper.broadcast_to_all(payload)
         rescue StandardError

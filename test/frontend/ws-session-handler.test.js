@@ -415,8 +415,7 @@ describe('ws-session-handler', () => {
     it('passes _alreadyAppended: true to wsHandlers.handleSTTMessage when overlay was active', () => {
       // Production has window.wsHandlers.handleSTTMessage defined.
       // Without the flag, that delegate ALSO appends data.content to
-      // messageEl.value, producing the doubled-message bug observed
-      // in dogfood. handleSTT must signal "we already wrote it" so
+      // messageEl.value, doubling the message. handleSTT must signal "we already wrote it" so
       // the delegate can skip its append.
       var messageEl = document.getElementById('message');
       messageEl.value = '';

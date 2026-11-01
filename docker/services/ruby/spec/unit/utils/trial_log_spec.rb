@@ -3,6 +3,7 @@
 require "spec_helper"
 require "tmpdir"
 require_relative "../../../lib/monadic/utils/trial_log"
+require_relative "../../../lib/monadic/history/store"
 
 RSpec.describe Monadic::Utils::TrialLog do
   around do |example|
@@ -51,6 +52,20 @@ RSpec.describe Monadic::Utils::TrialLog do
     stub_const("Monadic::History::Policy", policy)
     described_class.tool_calls(calls, app: "A", depth: 0, env: env)
     expect(events).to be_empty
+  end
+
+  it "writes nothing when the folder does not exist" do
+    missing = File.join(@dir, "missing")
+    described_class.usage({ "input_tokens" => 1 }, app: "A", env: { described_class::FLAG => missing })
+    expect(File.exist?(missing)).to be false
+  end
+
+  it "writes nothing in the shared folder" do
+    allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(@dir)
+    inside = File.join(@dir, "logs")
+    Dir.mkdir(inside)
+    described_class.usage({ "input_tokens" => 1 }, app: "A", env: { described_class::FLAG => inside })
+    expect(Dir.children(inside)).to be_empty
   end
 
   it "never raises when the folder cannot be written" do

@@ -8,8 +8,10 @@
 // macOS), and opening that would run it.
 const path = require('path');
 const { URL } = require('url');
+const { openReadNoFollow } = require('./no_follow_files');
 
 const ROOT_ID_FILE = '.monadic-shared-root';
+const ROOT_ID_LIMIT = 64;
 // The app's page that holds the Shared Folder panel. The same address also
 // serves files of the shared folder (/data/...), which a model's code can
 // write, so the origin alone does not tell the app's page from such a file.
@@ -55,7 +57,21 @@ function sharedRoot(rootId, deps) {
   const rootStat = deps.fs.statSync(root);
   if (!rootStat.isDirectory()) return { error: 'the shared folder is not a folder' };
   const idPath = path.join(root, ROOT_ID_FILE);
-  if (!deps.fs.lstatSync(idPath).isFile() || deps.fs.readFileSync(idPath, 'utf8').trim() !== rootId) {
+  const fd = openReadNoFollow(idPath, deps.fs);
+  let id;
+  try {
+    const bytes = Buffer.alloc(ROOT_ID_LIMIT + 1);
+    let count = 0;
+    while (count < bytes.length) {
+      const read = deps.fs.readSync(fd, bytes, count, bytes.length - count, null);
+      if (read === 0) break;
+      count += read;
+    }
+    if (count <= ROOT_ID_LIMIT) id = bytes.toString('utf8', 0, count).trim();
+  } finally {
+    deps.fs.closeSync(fd);
+  }
+  if (id !== rootId) {
     return { error: "this computer's shared folder is not the one listed" };
   }
   return { root, rootStat };

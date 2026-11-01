@@ -46,6 +46,49 @@ describe('shared folder reveal', () => {
 
   // A folder shaped like a macOS app is opened (run) by the system: it is
   // only shown, like any other folder.
+  it.each([32, 64, 65, 4096])('accepts only ID files within the byte limit (%i bytes)', async (size) => {
+    fs.writeFileSync(path.join(root, ROOT_ID_FILE), ROOT_ID.padEnd(size, ' '));
+    const result = await reveal(fromApp, { rootId: ROOT_ID, path: 'image.png' });
+    expect(result.ok).toBe(size <= 64);
+    expect(shell.showItemInFolder).toHaveBeenCalledTimes(size <= 64 ? 1 : 0);
+  });
+
+  it('refuses an ID file swapped for a link before it is opened', async () => {
+    const idPath = path.join(root, ROOT_ID_FILE);
+    const replacement = path.join(root, 'other-id');
+    fs.writeFileSync(replacement, ROOT_ID);
+    const open = fs.openSync;
+    const spy = jest.spyOn(fs, 'openSync').mockImplementation((target, ...args) => {
+      if (target === idPath) {
+        fs.unlinkSync(idPath);
+        fs.symlinkSync(replacement, idPath);
+      }
+      return open(target, ...args);
+    });
+    try {
+      expect((await reveal(fromApp, { rootId: ROOT_ID, path: 'image.png' })).ok).toBe(false);
+      expect(shell.showItemInFolder).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('bounds ID reads and closes the file when reading fails', async () => {
+    const read = jest.spyOn(fs, 'readSync').mockImplementation(() => { throw new Error('unreadable'); });
+    const close = jest.spyOn(fs, 'closeSync');
+    try {
+      expect((await reveal(fromApp, { rootId: ROOT_ID, path: 'image.png' })).ok).toBe(false);
+      expect(read).toHaveBeenCalledTimes(1);
+      expect(read.mock.calls[0][3]).toBeLessThanOrEqual(65);
+      const fd = read.mock.calls[0][0];
+      expect(close).toHaveBeenCalledWith(fd);
+      expect(() => fs.fstatSync(fd)).toThrow();
+    } finally {
+      read.mockRestore();
+      close.mockRestore();
+    }
+  });
+
   it('never opens a folder, which could be an app', async () => {
     fs.mkdirSync(path.join(root, 'Tool.app', 'Contents', 'MacOS'), { recursive: true });
     await expect(reveal(fromApp, { rootId: ROOT_ID, path: 'Tool.app' })).resolves.toEqual({ ok: true });

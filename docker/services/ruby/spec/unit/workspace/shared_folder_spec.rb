@@ -120,9 +120,22 @@ RSpec.describe Monadic::Workspace::SharedFolder do
     end
 
     it 'offers nothing while the record cannot be read' do
-      unreadable = double('Ledger')
+      unreadable = double('Ledger', path: ledger.path)
       allow(unreadable).to receive(:snapshot).and_raise(Monadic::Workspace::Ledger::Unreadable)
       expect(described_class.entry('notes.txt', ledger: unreadable)[:capabilities][:trash]).to be false
+    end
+
+    it 'keeps what is protected or kept for a purpose whatever case its name is written in on disk' do
+      write('Apps/mine.rb')
+      write('Auto_Forge/p/index.html')
+      %w[Apps Apps/mine.rb Auto_Forge].each do |path|
+        expect(described_class.entry(path, ledger: ledger)[:capabilities][:trash]).to be(false), path
+      end
+      expect(described_class.entry('Apps', ledger: ledger)[:protected_reason]).to eq('user_apps')
+    end
+
+    it 'protects every folder the code loader trusts' do
+      expect(described_class::PROTECTED.keys).to include(*Monadic::Utils::SharedPathGuard::TRUSTED_CODE_DIRS)
     end
 
     it 'takes a path only as the folder spells it' do

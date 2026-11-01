@@ -81,6 +81,13 @@ RSpec.describe 'What would make files of a Private chat' do
       expect(reached).to eq(['/document'])
     end
 
+    it 'refuses uploads when the stored chat is Private even if the live state has no privacy fields' do
+      tabs['tab-p'] = chat
+      states['tab-p'] = { chat_id: tabs['tab-p'][:chat_id], chat_state: { policy::SESSION_KEY => policy::PRIVATE } }
+      expect(post('/document', tab_id: 'tab-p').first).to eq(403)
+      expect(reached).to be_empty
+    end
+
     # An import from the tab of a Private chat is not logged either: what
     # runs for it is the Private chat's work.
     it "runs another request from a Private chat's tab as that chat's work" do

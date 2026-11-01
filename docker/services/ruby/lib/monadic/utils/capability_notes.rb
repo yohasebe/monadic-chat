@@ -5,6 +5,8 @@ require_relative "provider_capabilities"
 require_relative "tts_provider"
 require_relative "container_probe"
 require_relative "tool_key_requirements"
+require_relative "progressive_tool_manager"
+require_relative "secret_references"
 
 module Monadic
   module Utils
@@ -28,8 +30,13 @@ module Monadic
       }.freeze
 
       HEADER = "## What your tools can do now\n" \
-               "Checked by the app for this message. \"Ready\" means what the tool needs is there; " \
-               "the call itself can still fail, and then you say so."
+               "Checked by the app for this message. \"Ready\" means the checks below passed, not that " \
+               "the call will succeed; if a call fails, say so."
+
+      # The speech command reads its keys from the config file (its
+      # environment has no credentials), so that is where they are looked
+      # up here too.
+      SPEECH_KEY_SOURCE = ->(name) { SecretReferences.config_value(name) }
 
       module_function
 
@@ -42,7 +49,8 @@ module Monadic
       # to say. The container is asked once per user message (request_id);
       # what is unlocked is read anew each time, so the note follows the
       # tools after request_tool.
-      def for_session(session, request_id: nil, config: (defined?(CONFIG) ? CONFIG : {}), env: ENV)
+      def for_session(session, request_id: nil, config: (defined?(CONFIG) ? CONFIG : {}), env: ENV,
+                      speech_keys: SPEECH_KEY_SOURCE)
         params = session&.[](:parameters) || {}
         app_name = params["app_name"] || params[:app_name]
         return nil unless enabled_for?(app_name, env)
@@ -52,7 +60,7 @@ module Monadic
         return nil unless settings.is_a?(Hash)
 
         build(settings: settings, session: session, app_name: app_name, config: config,
-              probe: ->(service) { probe_once(service, request_id) })
+              probe: ->(service) { probe_once(service, request_id) }, speech_keys: speech_keys)
       end
 
       def probe_once(service, request_id)
@@ -64,36 +72,47 @@ module Monadic
         result
       end
 
-      def build(settings:, session:, app_name:, config:, probe: ->(service) { ContainerProbe.check(service) })
-        tool_names = Array(settings["tools"] || settings[:tools]).map { |t| ToolKeyRequirements.tool_name_of(t).to_s }
-        lines = analysis_lines(settings, session, app_name, config) +
+      def build(settings:, session:, app_name:, config:, probe: ->(service) { ContainerProbe.check(service) },
+                speech_keys: SPEECH_KEY_SOURCE)
+        tools = Array(settings["tools"] || settings[:tools])
+        tool_names = tools.map { |t| ToolKeyRequirements.tool_name_of(t).to_s }
+        lines = analysis_lines(settings, session, app_name, config, tools) +
                 reader_lines(tool_names, probe) +
-                speech_lines(tool_names, config)
+                speech_lines(tool_names, speech_keys)
         return nil if lines.empty?
 
         ([HEADER] + lines.map { |line| "- #{line}" }).join("\n")
       end
 
-      def analysis_lines(settings, session, app_name, config)
+      # Whether a group is offered comes from the tools this request sends
+      # (ProgressiveToolManager.visible_tools), not from the group's
+      # declaration; a group neither sent nor unlockable is left out.
+      def analysis_lines(settings, session, app_name, config, tools)
         provider = settings["provider"] || settings[:provider]
-        unlocked_names = unlocked(session, app_name)
+        app_tool_names = tools.map { |t| ToolKeyRequirements.tool_name_of(t).to_s }
+        visible = ProgressiveToolManager.visible_tools(app_name: app_name, session: session, app_settings: settings,
+                                                       default_tools: tools)
+        visible_names = visible.map { |t| ToolKeyRequirements.tool_name_of(t).to_s }
+        metadata = settings["progressive_tools"] || settings[:progressive_tools] || {}
+        unlockable_names = Array(metadata["conditional"] || metadata[:conditional]).map { |e| (e["name"] || e[:name]).to_s }
         Array(settings["imported_tool_groups"] || settings[:imported_tool_groups]).filter_map do |group|
           name = (group[:name] || group["name"]).to_sym
           capability, label = ANALYSIS_GROUPS[name]
           next unless capability
 
-          tools = MonadicSharedTools::Registry.tools_for(name).map { |t| t.name.to_s }
-          conditional = (group[:visibility] || group["visibility"]).to_s == "conditional"
-          offered = if conditional && (tools & unlocked_names).empty?
-                      "call request_tool(\"#{name}\") first to get #{tools.join(', ')}"
-                    else
-                      "offered as #{tools.join(', ')}"
+          group_tools = MonadicSharedTools::Registry.tools_for(name).map { |t| t.name.to_s } & app_tool_names
+          shown = group_tools & visible_names
+          offered = if shown.any?
+                      "offered as #{shown.join(', ')}"
+                    elsif (group_tools & unlockable_names).any?
+                      "call request_tool(\"#{name}\") first to get #{(group_tools & unlockable_names).join(', ')}"
                     end
+          next unless offered
           resolved = ProviderCapabilities.resolve(capability, provider, config)
           state = if resolved[:error]
                     "not available: #{resolved[:error].delete_prefix('ERROR: ')}. Do not call it; tell the user"
                   else
-                    "ready (the file is checked when the tool runs)"
+                    "ready: the provider supports it and its key is set (the file is checked when the tool runs)"
                   end
           "#{label}: #{offered}; #{state}."
         end
@@ -109,7 +128,7 @@ module Monadic
         result = probe.call(:python)
         state = case result[:state]
                 when :ready
-                  "ready"
+                  "ready: the Python container is running (the file is checked when the tool runs)"
                 when :stopped
                   "not ready: the Python container is not running. Do not call #{readers.size > 1 ? 'them' : 'it'}; " \
                   "ask the user to paste the text instead"
@@ -120,21 +139,17 @@ module Monadic
         ["Reading documents with #{names}: #{state}."]
       end
 
-      def speech_lines(tool_names, config)
+      def speech_lines(tool_names, speech_keys)
         return [] unless tool_names.include?("text_to_speech")
 
         states = TtsProvider::API_KEYS.map do |provider, key_name|
-          TtsProvider.api_key(provider, config) ? "#{provider} ready" : "#{provider} not available (#{key_name} is not set)"
+          TtsProvider.api_key(provider, speech_keys) ? "#{provider} ready" : "#{provider} not available (#{key_name} is not set)"
         end
         ["Speech with text_to_speech: #{states.join('; ')}. The voice list can name providers that are not ready. " \
          "Use only a provider marked ready, and use another provider only when the user chooses it."]
       end
 
-      def unlocked(session, app_name)
-        state = session&.[](:progressive_tools)&.[](app_name)
-        Array(state && (state[:unlocked] || state["unlocked"])).map(&:to_s).sort
-      end
-      private_class_method :probe_once, :analysis_lines, :reader_lines, :speech_lines, :unlocked
+      private_class_method :probe_once, :analysis_lines, :reader_lines, :speech_lines
     end
   end
 end

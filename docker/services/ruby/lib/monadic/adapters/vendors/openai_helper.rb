@@ -722,43 +722,12 @@ module OpenAIHelper
       message
     end
 
-    # "system" role must be replaced with "developer" for reasoning models
+    # "system" role must be replaced with "developer" for reasoning models.
+    # The text itself is set below, from the initial prompt and its
+    # injections, for every model.
     if reasoning_model
-      num_system_messages = 0
       body["messages"].each do |msg|
-        if msg["role"] == "system"
-          msg["role"] = "developer"
-          msg["content"].each do |content_item|
-            if content_item["type"] == "text" && num_system_messages == 0
-              base_text = if websearch_enabled && websearch_prompt
-                            "Web search enabled\n---\n" + content_item["text"]
-                          else
-                            "Formatting re-enabled\n---\n" + content_item["text"]
-                          end
-
-              augmented_text = Monadic::Utils::SystemPromptInjector.augment(
-                base_prompt: base_text,
-                session: session,
-                options: {
-                  websearch_enabled: false,
-                  reasoning_model: true,
-                  websearch_prompt: nil,
-                  system_prompt_suffix: obj["system_prompt_suffix"]
-                },
-                separator: "\n\n"
-              )
-
-              if websearch_enabled && websearch_prompt
-                augmented_text += "\n---\n" + websearch_prompt
-              end
-
-              Monadic::Utils::ExtraLogger.log { "[DEBUG] OpenAI Reasoning Model System Prompt Injection:\n  - Base text length: #{base_text.length}\n  - Augmented text length: #{augmented_text.length}" }
-
-              content_item["text"] = augmented_text
-            end
-          end
-          num_system_messages += 1
-        end
+        msg["role"] = "developer" if msg["role"] == "system"
       end
     end
 

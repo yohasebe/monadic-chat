@@ -406,9 +406,9 @@ module DeepSeekHelper
           next
         end
 
-        # Check for [DONE] message
-        begin
-          break if /\Rdata: \[DONE\]\R/ =~ buffer
+        # [DONE] ends the stream once what came with it has been read.
+        done = begin
+          /\Rdata: \[DONE\]\R/.match?(buffer)
         rescue StandardError
           next
         end
@@ -417,12 +417,16 @@ module DeepSeekHelper
         buffer.encode!("UTF-8", "UTF-16")
 
         scanner = StringScanner.new(buffer)
-        pattern = /data: (\{.*?\})(?=\n|\z)/
+        # One event is one line ending in a newline (JSON escapes the newlines
+        # inside it). An event whose line has not fully arrived stays in the
+        # buffer for the next chunk: a chunk can end anywhere, also right
+        # after a "}" inside the event.
+        pattern = /data: (\{.*?\})(?=\n)/
         
         until scanner.eos?
           matched = scanner.scan_until(pattern)
           if matched
-            json_data = matched.match(pattern)[1]
+            json_data = scanner[1]
             begin
               json = JSON.parse(json_data)
 
@@ -571,11 +575,12 @@ module DeepSeekHelper
               Monadic::Utils::ExtraLogger.log { "[DeepSeek] JSON parse error: #{e.message}" }
             end
           else
-            scanner.pos += 1
+            break
           end
         end
 
         buffer = scanner.rest
+        break if done
 
       rescue StandardError => e
         Monadic::Utils::ExtraLogger.log { "[DeepSeek] Streaming error: #{e.message}\n#{e.backtrace&.first(3)&.join("\n")}" }

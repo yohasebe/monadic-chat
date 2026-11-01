@@ -1331,11 +1331,15 @@ module ClaudeHelper
 
       scanner = StringScanner.new(buffer)
       # Use multiline mode (m flag) to allow . to match newlines within JSON
-      pattern = /data: (\{.*?\})(?=\n|\z)/m
+      # One event is one line ending in a newline (JSON escapes the newlines
+      # inside it). An event whose line has not fully arrived stays in the
+      # buffer for the next chunk: a chunk can end anywhere, also right
+      # after a "}" inside the event.
+      pattern = /data: (\{.*?\})(?=\n)/m
       until scanner.eos?
         matched = scanner.scan_until(pattern)
         if matched
-          json_data = matched.match(pattern)[1]
+          json_data = scanner[1]
           begin
             json = JSON.parse(json_data)
 

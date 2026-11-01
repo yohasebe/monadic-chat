@@ -45,6 +45,16 @@ module MonadicHelper
       Shellwords.escape("--language=#{language}"),
       Shellwords.escape("--instructions=#{instructions}")
     ].join(" ")
-    send_command(command: command, container: "ruby")
+    begin
+      send_command(command: command, container: "ruby")
+    ensure
+      # The text is only the command's input (the audio takes its name);
+      # it does not stay in the shared folder, whether the command worked.
+      begin
+        Monadic::Utils::SharedPathGuard.delete_file!(textpath)
+      rescue StandardError
+        nil
+      end
+    end
   end
 end

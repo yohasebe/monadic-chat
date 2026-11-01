@@ -21,7 +21,7 @@ require_relative "../../utils/progress_broadcaster"
 #   - The blob is opaque: never parsed, edited, or hand-merged. Re-compaction
 #     folds the previous blob plus new messages into a fresh blob.
 #
-# Empirically verified against the live API (2026-06-13):
+# API behavior this module relies on:
 #   - Input order MUST be [compaction_item, system, tail]. Placing the system
 #     message BEFORE the blob silently drops the system instructions.
 #   - A corrupted/foreign blob returns HTTP 400 invalid-argument

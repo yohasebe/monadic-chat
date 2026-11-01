@@ -178,7 +178,7 @@ module ImageAnalysisAgent
     # spend the output budget on it, leaving the description empty.
     lowest = Monadic::Utils::ModelSpec.lowest_reasoning_effort(model)
     body[:reasoning_effort] = lowest if lowest
-    # Optional fidelity control (verified live 2026-07-10: the platform accepts
+    # Optional fidelity control (the platform accepts
     # low/high/auto/original across GPT-5.x; "original" preserves full
     # resolution). Omitted by default so existing behavior is unchanged.
     if %w[low high auto original].include?(detail.to_s)

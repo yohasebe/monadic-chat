@@ -4,7 +4,7 @@ require 'spec_helper'
 require_relative '../../../../lib/monadic/adapters/vendors/cohere_helper'
 
 # North Mini Code handles the native Cohere v2 multi-turn tool flow with
-# reasoning on (verified against the live API), so it must skip the single-text
+# reasoning on, so it must skip the single-text
 # flattening that configure_cohere_reasoning applies to command-a-reasoning.
 # The opt-out is the model_spec flag `native_multiturn_reasoning`.
 RSpec.describe 'CohereHelper native_multiturn_reasoning bypass' do

@@ -7,8 +7,7 @@ require_relative '../../../../lib/monadic/adapters/vendors/claude_helper'
 # (conditional tool groups, dynamically unlocked skills). Without the
 # mid-conversation-tool-changes beta the whole cached prefix is re-created on
 # the turn where the tool set changes; with it, the prefix is read from cache.
-# Measured against the live API on 2026-07-25 (Sonnet 5: cache_creation
-# 4912 -> 0, cache_read 0 -> 4912). These examples pin that the header is
+# These examples pin that the header is
 # actually attached, and that it composes with the other beta flags.
 RSpec.describe 'Claude beta headers' do
   MID_TOOL_BETA = 'mid-conversation-tool-changes-2026-07-01'

@@ -4,7 +4,7 @@ require 'spec_helper'
 require_relative '../../../../lib/monadic/utils/model_spec'
 
 # GPT-6 Astra restricts four things the OpenAI helper would otherwise send.
-# All four were verified against the live API on 2026-09-05; each is handled by
+# Each is handled by
 # a declaration in model_spec.js rather than a branch in the helper, so these
 # examples pin the declarations.
 RSpec.describe 'GPT-6 Astra request contract' do

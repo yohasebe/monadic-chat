@@ -50,7 +50,7 @@ RSpec.describe 'CohereHelper thinking toggle persistence' do
   end
 
   # command-a-plus (a reasoning model) returns 422 INVALID_TOOL_GENERATION when
-  # `thinking: {type: "disabled"}` is sent alongside tools. Verified live:
+  # `thinking: {type: "disabled"}` is sent alongside tools;
   # dropping the thinking key (Cohere default) succeeds.
   describe '#drop_incompatible_thinking! (422 guard)' do
     let(:tools) { [{ "type" => "function", "function" => { "name" => "request_tool" } }] }

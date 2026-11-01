@@ -98,7 +98,7 @@ RSpec.describe "DeepSeek vision support" do
 
     it "keeps the thinking controls, which the model needs to answer at all" do
       # It reasons by default; without a way to disable that it spends the whole
-      # budget on a trace and returns empty content (observed on a live probe).
+      # budget on a trace and returns empty content.
       expect(Monadic::Utils::ModelSpec.get_model_property("deepseek-v4-flash-vision-exp", "reasoning_content"))
         .to include("disabled")
     end

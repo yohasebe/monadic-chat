@@ -87,7 +87,7 @@ module MistralHelper
   # What leaving the parameter out means differs by model, so "none" cannot
   # simply be dropped: Mistral Large 4 / Medium 3.5 / Small 4 do not reason
   # without it, but Z.ai GLM 5.3 reasons at about its maximum, and rejects
-  # "none" outright (accepts low/high/max; checked live 2026-10-06). So:
+  # "none" outright (accepts low/high/max). So:
   # - a model whose spec declares no reasoning_effort gets nothing (Magistral
   #   rejects the parameter: "reasoning_effort is not enabled for this model");
   # - "none", no request, or a value this method does not know goes out as
@@ -645,8 +645,7 @@ module MistralHelper
               end
             end
 
-            # Magistral streams its reasoning INSIDE the content array
-            # (verified against the live API 2026-07-09):
+            # Magistral streams its reasoning INSIDE the content array:
             #   delta.content = [{ "type" => "thinking",
             #                      "thinking" => [{"type"=>"text","text"=>...}] }]
             # while the final answer arrives as plain-string content deltas.
@@ -1179,10 +1178,9 @@ module MistralHelper
       elsif msg["role"] == "assistant" && msg["thinking"].to_s.strip != "" &&
             (Monadic::Utils::ModelSpec.supports_thinking?(obj["model"]) rescue false)
         # Magistral stops reasoning as soon as the history contains an
-        # assistant turn WITHOUT a thinking block (verified live 2026-07-09:
-        # the same request produced 511 thinking deltas with the block
-        # replayed and 0 without; prompt_mode:"reasoning" does not restore
-        # it). Replay each turn's stored trace so multi-turn reasoning stays
+        # assistant turn WITHOUT a thinking block (the same request streams
+        # thinking deltas with the block replayed and none without;
+        # prompt_mode:"reasoning" does not restore it). Replay each turn's stored trace so multi-turn reasoning stays
         # alive. Only real, previously-captured thinking is replayed — never
         # synthesized.
         {

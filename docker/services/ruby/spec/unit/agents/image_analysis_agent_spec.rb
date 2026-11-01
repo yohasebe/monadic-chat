@@ -183,8 +183,8 @@ RSpec.describe ImageAnalysisAgent do
     end
   end
 
-  # Mistral, Cohere and DeepSeek analyze images with their own models
-  # (checked against the live APIs 2026-10-07); nothing goes to another provider.
+  # Mistral, Cohere and DeepSeek analyze images with their own models;
+  # nothing goes to another provider.
   describe 'Mistral, Cohere and DeepSeek vision' do
     let(:image) { { base64: "QUJD", mime_type: "image/png" } }
     let(:posted) { [] }

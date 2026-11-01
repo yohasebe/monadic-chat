@@ -76,7 +76,7 @@ describe('Model Specification', () => {
 
     // Quality is the one image parameter whose accepted values differ per
     // model: gpt-image-2 answers "does not support quality 'xhigh'" while the
-    // 2.5 models generate (live probe, 2026-09-21). A provider-wide list
+    // 2.5 models generate. A provider-wide list
     // cannot describe both, so the table is keyed by model — and there is no
     // provider-level `quality` left to fall back to.
     it('keys OpenAI quality by model rather than by provider', () => {
@@ -177,7 +177,7 @@ describe('Model Specification', () => {
     it('catalogs grok-4.6 with vision and reasoning', () => {
       const m = modelSpec['grok-4.6'];
       expect(m).toBeDefined();
-      // Live probe (2026-08): text+image in, reasoning_effort accepted.
+      // Text+image in, reasoning_effort accepted.
       expect(m.vision_capability).toBe(true);
       expect(m.tool_capability).toBe(true);
       expect(m.reasoning_effort).toBeDefined();

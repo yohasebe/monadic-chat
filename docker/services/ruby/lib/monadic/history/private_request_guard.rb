@@ -99,12 +99,13 @@ module Monadic
         state = @state_lookup.call(tab_id)
         return [:unknown, nil] if session.nil? && state.nil?
 
-        chat = session || (state[:chat_state].is_a?(Hash) ? state[:chat_state] : {}).merge(chats => state[:chat_id])
-        private = Policy.private?(chat) || Policy.known_private?(state && state[:chat_id]) ||
+        stored = state && (state[:chat_state].is_a?(Hash) ? state[:chat_state] : {}).merge(chats => state[:chat_id])
+        chat = session || stored
+        private = Policy.private?(chat) || (stored && Policy.private?(stored)) || Policy.known_private?(state && state[:chat_id]) ||
                   Policy.known_private?(chat[chats])
         return [:normal, chat] unless private
 
-        chat = chat.merge(Policy::SESSION_KEY => Policy::PRIVATE) unless session
+        chat = chat.merge(Policy::SESSION_KEY => Policy::PRIVATE) unless Policy.stored(chat) == Policy::PRIVATE
         [:private, chat]
       rescue StandardError
         [:private, { Policy::SESSION_KEY => Policy::PRIVATE }]

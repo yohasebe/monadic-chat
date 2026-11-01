@@ -54,7 +54,7 @@ require_relative "lib/monadic/history/private_request_guard"
 use Monadic::History::PrivateRequestGuard,
     paths: [Monadic::Routes::AttachmentRoutes::PATH, "/pdf", "/document", "/upload_audio", "/fetch_webpage"],
     session_lookup: ->(tab_id) { WebSocketHelper.live_session(tab_id) },
-    state_lookup: ->(tab_id) { WebSocketHelper.fetch_session_state(tab_id) }
+    state_lookup: ->(tab_id) { WebSocketHelper.fetch_http_session_state(tab_id) }
 
 # Remove the temporary files Rack writes for multipart uploads once the
 # response is sent; left alone they stay until garbage collection.
@@ -68,7 +68,7 @@ use Monadic::Workspace::UploadInMemory, paths: ["/load"]
 # anything reads the request body.
 use Monadic::Workspace::UploadContext,
     paths: [Monadic::Routes::AttachmentRoutes::PATH],
-    state_lookup: ->(tab_id) { WebSocketHelper.fetch_session_state(tab_id) }
+    state_lookup: ->(tab_id) { WebSocketHelper.fetch_http_session_state(tab_id) }
 # Every upload, likewise capped before anything reads the body: Rack writes
 # file parts to disk while parsing, with no total limit of its own.
 use Monadic::Workspace::UploadLimit, limits: {

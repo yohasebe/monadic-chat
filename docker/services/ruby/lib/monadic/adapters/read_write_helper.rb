@@ -9,16 +9,28 @@ module MonadicHelper
     Monadic::Utils::SharedPathGuard.resolve_in_shared(file_path, must_exist: false)
   end
 
+  # The script each document reader runs, and the container it runs in.
+  DOCUMENT_READERS = {
+    "fetch_text_from_office" => { script: "office2txt.py", container: "python" },
+    "fetch_text_from_pdf" => { script: "pdf2txt.py", container: "python", options: %w[--format md --all-pages] },
+    "fetch_text_from_file" => { script: "content_fetcher.rb", container: "ruby" }
+  }.freeze
+
   def fetch_text_from_office(file: "")
-    fetch_shared_document(file, "office2txt.py", "python")
+    read_document("fetch_text_from_office", file)
   end
 
   def fetch_text_from_pdf(pdf: "")
-    fetch_shared_document(pdf, "pdf2txt.py", "python", "--format", "md", "--all-pages")
+    read_document("fetch_text_from_pdf", pdf)
   end
 
   def fetch_text_from_file(file: "")
-    fetch_shared_document(file, "content_fetcher.rb", "ruby")
+    read_document("fetch_text_from_file", file)
+  end
+
+  def read_document(tool, file)
+    reader = DOCUMENT_READERS.fetch(tool)
+    fetch_shared_document(file, reader[:script], reader[:container], *Array(reader[:options]))
   end
 
   def fetch_shared_document(file, script, container, *options)

@@ -2,6 +2,7 @@
 
 require_relative 'language_config'
 require_relative 'tts_marker_vocabulary'
+require_relative 'capability_notes'
 
 module Monadic
   module Utils
@@ -335,6 +336,20 @@ module Monadic
             "prose only. If earlier turns contain such markers, ignore them " \
             "as stage directions from a previous voice engine, not a pattern " \
             "to continue."
+          }
+        },
+        # What the app's tools can do now (CapabilityNotes), last so the
+        # prompt before it stays the same from request to request.
+        {
+          name: :capability_notes,
+          priority: 20,
+          condition: ->(session, _options) {
+            params = session&.[](:parameters) || {}
+            Monadic::Utils::CapabilityNotes.enabled_for?(params["app_name"] || params[:app_name])
+          },
+          generator: ->(session, _options) {
+            context = defined?(Monadic::Workspace::RequestContext) ? Monadic::Workspace::RequestContext.current : nil
+            Monadic::Utils::CapabilityNotes.for_session(session, request_id: context&.request_id).to_s
           }
         }
       ].freeze

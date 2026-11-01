@@ -29,6 +29,8 @@ module Monadic
       # have the same relative path.
       ROOT_ID_FILE = '.monadic-shared-root'
       ROOT_ID_LIMIT = 64
+      # Folders whose names are kept for checking the spelling of entries.
+      NAMES_CACHE_LIMIT = 32
 
       # Entries at the top of the shared folder that Monadic Chat or the
       # user's own setup reads: never offered for removal, nor anything in
@@ -390,42 +392,39 @@ module Monadic
         item
       end
 
-      # The OS spells the path of the open entry, including its parents.
-      # Entries that cannot be opened are checked by listing instead.
+      # Each part must be a name its folder holds, spelled as the folder
+      # lists it: on a file system that ignores case, "Conversations/<id>"
+      # would reach a chat's folder without matching the ledger. A path the
+      # system gives back for an open file can keep the spelling asked for
+      # (a shared folder mounted into a container does), so the folders are
+      # listed.
       def check_spelling!(root, parts)
-        target = File.join(root, *parts)
-        stat = File.lstat(target)
-        if stat.directory?
-          Monadic::Utils::SharedFs.in_dir(root, parts) do |dir|
-            raise Invalid, 'the entry is not there' unless SharedFolderPreview.opened_path(dir) == target
-          end
-        elsif stat.file?
-          Monadic::Utils::SharedFs.in_dir(root, parts[0..-2]) do |dir|
-            file = Monadic::Utils::SharedFs.open_read(dir, parts.last)
-            begin
-              raise Invalid, 'the entry is not there' unless SharedFolderPreview.opened_path(file) == target
-            ensure
-              file.close
-            end
-          end
-        else
-          check_spelling_by_listing!(root, parts)
-        end
-      rescue Errno::EACCES, Errno::EPERM, SharedFolderPreview::Unavailable
-        check_spelling_by_listing!(root, parts)
-      rescue Monadic::Utils::SharedFs::Unsafe, SystemCallError
-        raise Invalid, 'the entry is not there'
-      end
-
-      def check_spelling_by_listing!(root, parts)
         dir = root
         parts.each do |part|
-          raise Invalid, 'the entry is not there' unless Dir.children(dir).include?(part)
+          raise Invalid, 'the entry is not there' unless names_in(dir).include?(part)
 
           dir = File.join(dir, part)
         end
       rescue SystemCallError
         raise Invalid, 'the entry is not there'
+      end
+
+      # The names a folder holds, listed again only when the folder changed:
+      # adding, removing or renaming an entry changes its modification and
+      # status-change times. Choosing many entries of one folder then lists
+      # it once.
+      def names_in(dir)
+        stat = File.lstat(dir)
+        key = [stat.dev, stat.ino, stat.mtime.to_r, stat.ctime.to_r]
+        @names_mutex ||= Mutex.new
+        @names_mutex.synchronize do
+          @names ||= {}
+          cached = @names.delete(dir)
+          names = cached && cached[0] == key ? cached[1] : Dir.children(dir).to_set
+          @names[dir] = [key, names]
+          @names.shift while @names.size > NAMES_CACHE_LIMIT
+          names
+        end
       end
 
       def size_of(kind, stat, relative, sizes)

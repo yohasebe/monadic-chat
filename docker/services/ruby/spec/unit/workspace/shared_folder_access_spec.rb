@@ -71,18 +71,30 @@ RSpec.describe Monadic::Workspace::SharedFolder do
       4.times { |n| File.write(File.join(@data, relative, "file#{n}.txt"), 'x') }
     end
 
-    it 'reuses the validated ledger while checking current files and open chats' do
+    it 'reuses the validated ledger and the listing of an unchanged folder' do
       allow(ledger).to receive(:snapshot).and_call_original
       allow(Dir).to receive(:children).and_call_original
       4.times do |n|
         path = "#{relative}/file#{n}.txt"
         expect(described_class.entry(path, ledger: ledger)[:capabilities][:trash]).to be true
         expect(described_class.entry(path, ledger: ledger, live_chat_ids: [chat])[:capabilities][:trash]).to be false
-        File.unlink(File.join(@data, path))
-        expect { described_class.entry(path, ledger: ledger) }.to raise_error(described_class::Invalid)
       end
       expect(ledger).to have_received(:snapshot).once
-      expect(Dir).not_to have_received(:children)
+      expect(Dir).to have_received(:children).with(File.join(@data, relative)).once
+
+      File.unlink(File.join(@data, relative, 'file0.txt'))
+      expect { described_class.entry("#{relative}/file0.txt", ledger: ledger) }.to raise_error(described_class::Invalid)
+      expect(Dir).to have_received(:children).with(File.join(@data, relative)).twice
+    end
+
+    it "refuses a chat's folder asked for in another spelling, whatever path an open file reports" do
+      allow(Monadic::Workspace::SharedFolderPreview).to receive(:opened_path) do |io|
+        io.respond_to?(:path) ? io.path : nil
+      end
+      upper = "Conversations/#{workspace}"
+      expect { described_class.entry(upper, ledger: ledger, live_chat_ids: [chat]) }.to raise_error(described_class::Invalid)
+      expect { described_class.entry("#{upper}/file0.txt", ledger: ledger) }.to raise_error(described_class::Invalid)
+      expect(described_class.entry(relative, ledger: ledger, live_chat_ids: [chat])[:capabilities][:trash]).to be false
     end
 
     it 'can check an unreadable file by its exact directory entry' do

@@ -3,6 +3,7 @@
 require 'json'
 require 'timeout'
 
+require_relative "../utils/gemini_request"
 require_relative 'child_threads'
 require_relative '../utils/model_spec'
 require_relative '../utils/provider_response'
@@ -305,7 +306,7 @@ module MonadicSharedTools
       }
       res = HTTP.headers("Content-Type" => "application/json", "x-goog-api-key" => api_key)
                 .timeout(write: timeout_secs, connect: 10, read: timeout_secs)
-                .post(target_uri, json: body)
+                .post(target_uri, json: Monadic::Utils::GeminiRequest.without_storage(body))
       parsed = JSON.parse(res.body.to_s)
       raise sub_call_error(parsed, res.status) if parsed["error"] || res.status >= 400
       parsed.dig("candidates", 0, "content", "parts", 0, "text") || ""
@@ -383,7 +384,7 @@ module MonadicSharedTools
       }
       res = HTTP.headers("Content-Type" => "application/json", "x-goog-api-key" => api_key)
                 .timeout(write: timeout_secs, connect: 10, read: timeout_secs)
-                .post(target_uri, json: body)
+                .post(target_uri, json: Monadic::Utils::GeminiRequest.without_storage(body))
       parsed = JSON.parse(res.body.to_s)
       raise sub_call_error(parsed, res.status) if parsed["error"] || res.status >= 400
       parsed.dig("candidates", 0, "content", "parts", 0, "text") || ""

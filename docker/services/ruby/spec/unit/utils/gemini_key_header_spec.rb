@@ -4,6 +4,7 @@ require 'spec_helper'
 require 'base64'
 require 'tmpdir'
 require 'stringio'
+require_relative '../../support/provider_matrix_helper'
 require_relative '../../../lib/monadic/utils/tts_utils'
 require_relative '../../../lib/monadic/utils/stt_utils'
 require_relative '../../../lib/monadic/agents/audio_analysis_agent'
@@ -16,7 +17,7 @@ require_relative '../../../lib/monadic/shared_tools/parallel_dispatch'
 require_relative '../../../lib/monadic/utils/websocket'
 require_relative '../../../lib/monadic/utils/websocket/sts_stream_handler'
 
-RSpec.describe 'Gemini credential transport invariant' do
+RSpec.describe 'Gemini request transport invariants' do
   let(:key) { 'AIza_NOT_A_REAL_KEY_HEADER_TEST_ONLY_0000' }
   let(:requests) { [] }
   let(:client) { double('HTTP transport') }
@@ -29,8 +30,18 @@ RSpec.describe 'Gemini credential transport invariant' do
   let(:helper) { Class.new { include GeminiHelper }.new }
   let(:tts) { Class.new { include InteractionUtils }.new }
 
-  def record_request(url, headers)
-    requests << [url.to_s, headers.transform_keys { |name| name.to_s.downcase }]
+  def record_request(url, headers, body = nil)
+    body = JSON.parse(body) if body.is_a?(String)
+    body = JSON.parse(JSON.generate(body)) if body.is_a?(Hash)
+    requests << [url.to_s, headers.transform_keys { |name| name.to_s.downcase }, body]
+  end
+
+  def expect_no_storage
+    generated = requests.select { |url, _headers, _body| URI.parse(url).path.match?(/:(?:generateContent|streamGenerateContent)\z/) }
+    generated.each do |url, _headers, body|
+      expect(body).to include('store' => false), "#{url} must disable request storage"
+      expect(body.fetch('generationConfig', {})).not_to have_key('store')
+    end
   end
 
   def expect_header_auth
@@ -40,6 +51,7 @@ RSpec.describe 'Gemini credential transport invariant' do
       expect(URI.decode_www_form(URI.parse(url).query.to_s).map(&:first)).not_to include('key', 'api_key')
       expect(headers['x-goog-api-key']).to eq(key)
     end
+    expect_no_storage
   end
 
   before do
@@ -52,8 +64,8 @@ RSpec.describe 'Gemini credential transport invariant' do
     end
     allow(client).to receive(:follow).and_return(client)
     [:post, :get].each do |verb|
-      allow(client).to receive(verb) do |url, **_options|
-        record_request(url, @headers)
+      allow(client).to receive(verb) do |url, **options|
+        record_request(url, @headers, options[:json] || options[:body])
         response
       end
     end
@@ -210,7 +222,7 @@ RSpec.describe 'Gemini credential transport invariant' do
       allow(Net::HTTP).to receive(:start).and_yield(net)
       allow(Net::HTTP).to receive(:new).and_return(net)
       allow(net).to receive(:request) do |request|
-        record_request(request.uri || "https://generativelanguage.googleapis.com#{request.path}", request.to_hash.transform_values(&:first))
+        record_request(request.uri || "https://generativelanguage.googleapis.com#{request.path}", request.to_hash.transform_values(&:first), request.body)
         result = Net::HTTPOK.new('1.1', '200', 'OK')
         result.instance_variable_set(:@read, true)
         result.body = body
@@ -234,6 +246,19 @@ RSpec.describe 'Gemini credential transport invariant' do
     it 'authenticates the legacy image generation entry point in headers' do
       helper.generate_image_with_gemini(prompt: 'Hello')
       expect_header_auth
+    end
+
+    it 'disables storage in the provider matrix image request' do
+      saved_key = ENV['GEMINI_API_KEY']
+      ENV['GEMINI_API_KEY'] = key
+      host = ProviderMatrixHelper::ProviderClient.new('gemini')
+      allow(host).to receive(:throttle!)
+      allow(host).to receive(:log_request)
+      host.image_generate_api('Hello')
+      expect(requests.size).to eq(1)
+      expect_no_storage
+    ensure
+      saved_key ? ENV['GEMINI_API_KEY'] = saved_key : ENV.delete('GEMINI_API_KEY')
     end
 
     it 'authenticates Imagen in headers' do
@@ -273,7 +298,7 @@ RSpec.describe 'Gemini credential transport invariant' do
     omni.send(:download, 'https://generativelanguage.googleapis.com/v1beta/files/fake:download?alt=media')
     urls = requests.map(&:first)
     expect(urls.last).to eq('https://storage.example.invalid/signed.mp4')
-    expect(requests.last.last).not_to have_key('x-goog-api-key')
+    expect(requests.last[1]).not_to have_key('x-goog-api-key')
     requests[0..-2].each { |_url, headers| expect(headers['x-goog-api-key']).to eq(key) }
   end
 

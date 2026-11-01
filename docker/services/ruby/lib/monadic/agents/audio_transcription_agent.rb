@@ -3,6 +3,7 @@
 require "base64"
 require "stringio"
 require "http"
+require_relative "../utils/gemini_request"
 require_relative "../utils/environment"
 require_relative "../utils/shared_path_guard"
 require_relative "../utils/provider_capabilities"
@@ -265,7 +266,7 @@ module AudioTranscriptionAgent
                  connect: AUDIO_CONNECT_TIMEOUT,
                  write: AUDIO_WRITE_TIMEOUT,
                  read: AUDIO_READ_TIMEOUT
-               ).post(uri, json: body)
+               ).post(uri, json: Monadic::Utils::GeminiRequest.without_storage(body))
     rescue HTTP::Error, HTTP::TimeoutError => e
       if tries_left.positive?
         tries_left -= 1

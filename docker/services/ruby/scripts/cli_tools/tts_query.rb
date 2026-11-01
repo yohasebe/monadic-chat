@@ -5,6 +5,7 @@ $LOAD_PATH.unshift('/monadic/lib') if File.directory?('/monadic/lib')
 $LOAD_PATH.unshift(File.expand_path('../../lib', __dir__)) if File.directory?(File.expand_path('../../lib', __dir__))
 
 require "http"
+require_relative "../../lib/monadic/utils/gemini_request"
 require_relative "../../lib/monadic/utils/shared_path_guard"
 require "json"
 require_relative "../../lib/monadic/utils/secret_references"
@@ -300,6 +301,7 @@ def tts_api_request(text,
 
     # The model comes from ttsChoices (model_spec.js)
     model_name = resolve_tts_model(provider)
+    body = Monadic::Utils::GeminiRequest.without_storage(body)
     target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent"
   when "openai"
     # Try config file first (primary source of truth)

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require_relative '../../lib/monadic/utils/gemini_request'
 require 'fileutils'
 require 'timeout'
 require 'net/http'
@@ -511,7 +512,7 @@ module ProviderMatrixHelper
           http.use_ssl = true
           req = Net::HTTP::Post.new(uri)
           req['Content-Type'] = 'application/json'
-          req.body = JSON.generate(body)
+          req.body = JSON.generate(Monadic::Utils::GeminiRequest.without_storage(body))
           throttle!
           log_request(kind: 'image_generate', app: 'Image Generator', prompt: prompt)
           http.request(req)

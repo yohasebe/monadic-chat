@@ -43,6 +43,10 @@ else
   puts "No config file found at: #{config_paths.join(', ')}" if ENV["DEBUG"]
 end
 
+# Nor does app code under test: a reference it resolves goes to an op
+# that always fails, unless a spec sets its own fake op.
+ENV["MONADIC_OP_CLI"] ||= "/usr/bin/false"
+
 # Initialize global variables used by the application
 $MODELS = {} unless defined?($MODELS)
 APPS = {} unless defined?(APPS)

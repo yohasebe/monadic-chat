@@ -144,9 +144,9 @@ module SecondOpinionAgent
 
     # Create a single user message containing all context
     # The evaluated response is fenced between explicit BEGIN/END markers.
-    # Without them (dogfood 2026-06-10) the evaluator read the formatting
+    # Without them the evaluator reads the formatting
     # instructions that follow as a trailing artifact OF the response and
-    # deducted points for a flaw the user never saw.
+    # deducts points for a flaw the user never saw.
     user_message_content = <<~TEXT
       Please verify and make comments about the following query and response pair. If the response is correct, you should say 'The response is correct'. But you should be rather critical and meticulous, considering many factors, so it is more likely that you will find possible caveats in the response.
 

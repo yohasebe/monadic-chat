@@ -204,8 +204,8 @@ function handleError(data) {
     }
 
     // Voice-capture recovery. A turn that dies between AUDIO_COMMIT and its
-    // `stt`/audio events (observed live: the upstream realtime session hits
-    // its 60-minute cap) leaves the mic UI on "Processing speech..." with the
+    // `stt`/audio events (for example when the upstream realtime session hits
+    // its time cap) leaves the mic UI on "Processing speech..." with the
     // auto-speech watchdogs armed — one of them re-shows the spinner after
     // the generic reset above has hidden it. Disarm them and hide the
     // spinner LAST, so an upstream failure cannot strand the UI.

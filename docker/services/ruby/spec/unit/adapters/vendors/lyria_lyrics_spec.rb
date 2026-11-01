@@ -49,12 +49,12 @@ RSpec.describe 'GeminiHelper#format_lyria_lyrics' do
     expect(fmt(raw)).to eq("[0:00] Line one\n       Line two\n\n[0:24] Chorus line")
   end
 
-  it 'renders the real dogfood example: timestamps kept, raw codes gone' do
-    raw = "[[A0]]\n[0.0:] 朝の光を浴びて 走り出すハイウェイ\n[:] お気に入りのプレイリスト 窓を開けてさ\n[[B1]]\n[24.0:] ロードトリップ 終わらない夢を乗せて\n[:] (どこまでも行ける 二人なら)"
+  it 'renders multi-section lyrics with timestamps: timestamps kept, raw codes gone' do
+    raw = "[[A0]]\n[0.0:] First line of the verse\n[:] Second line of the verse\n[[B1]]\n[24.0:] First line of the chorus\n[:] (Echo of the chorus)"
     result = fmt(raw)
     expect(result).not_to match(/\[\[|\[:\]|\[\d+\.\d/)   # no raw section/continuation/seconds codes
-    expect(result).to include('[0:00] 朝の光を浴びて 走り出すハイウェイ')
-    expect(result).to include('[0:24] ロードトリップ 終わらない夢を乗せて')
+    expect(result).to include('[0:00] First line of the verse')
+    expect(result).to include('[0:24] First line of the chorus')
     expect(result).to include("\n\n")                      # section break preserved
   end
 end

@@ -45,8 +45,7 @@ get "/" do
   @dev_js_cachebust = Time.now.to_i
   # In dev mode, bust CSS the same way. Keying CSS to the bundle mtime made
   # every stylesheet edit invisible until the JS bundle was next rebuilt —
-  # browsers kept serving the cached copy for the unchanged URL, which
-  # repeatedly surfaced as "the fix didn't take" during live dogfooding.
+  # browsers kept serving the cached copy for the unchanged URL.
   @timestamp = @dev_js_cachebust unless @dev_js_files.nil?
 
   session[:parameters] ||= {}

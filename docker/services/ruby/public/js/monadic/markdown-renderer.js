@@ -488,7 +488,7 @@
      * Keys that are valid in a Monadic JSON response but must NOT be
      * rendered as visible "JSON sections" in the UI. Currently holds the
      * Expressive Speech instruction-mode field (see
-     * docs_dev/expressive_speech_instruction_mode.md §8.2): the directive
+     * docs_dev/expressive_speech_instruction_mode.md, "Display"): the directive
      * rides in the JSON so it can reach the TTS engine, but the reader
      * only needs to see the spoken `message` + per-app `context`.
      */

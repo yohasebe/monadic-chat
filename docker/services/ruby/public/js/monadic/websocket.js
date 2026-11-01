@@ -796,7 +796,7 @@ window.loadedApp = "Chat";
         break;
       }
 
-      // Tool-use visibility (function calling wave 1, design §37).
+      // Tool-use visibility for speech-to-speech turns.
       case "sts_tool_call": {
         const lcTool = window.LiveConversation;
         if (lcTool && typeof lcTool.onToolCall === 'function') {

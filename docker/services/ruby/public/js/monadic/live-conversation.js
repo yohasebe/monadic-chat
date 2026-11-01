@@ -38,7 +38,7 @@
   // UI surface that a realtime session does not consume. The same set is
   // hidden by CSS (.lc-app rules in monadic.css); this JS enforcement exists
   // because the two files can skew — a cached stylesheet against fresh
-  // markup left the AI User row operable in dogfood. Inline style wins over
+  // markup can leave the AI User row operable. Inline style wins over
   // any stylesheet state.
   const HIDDEN_IN_LC = [
     'ai-user-row', 'ai-status-panel', 'auto-speech-form', 'easy-submit-form',
@@ -122,10 +122,10 @@
       '<input type="checkbox" id="lc-tools-toggle" class="form-check-input me-1">' +
       '<label for="lc-tools-toggle" class="text-secondary" id="lc-tools-label"></label>' +
       '</span>' +
-      // Turn-detection selector (§37-16): ONE folded control — separate
+      // Turn-detection selector: ONE folded control — separate
       // type/eagerness controls would show eagerness for a mode that does
       // not use it. Capability-gated to OpenAI (semantic_vad + eagerness
-      // support, live-probed). Labels name WHAT is judged, never API terms.
+      // support). Labels name WHAT is judged, never API terms.
       '<span id="lc-turn-wrap" class="text-secondary align-items-center ms-3" style="display:none !important;">' +
       // text-nowrap: this label is the longest in the row, and without it the
       // label itself breaks mid-word ("ターン / 判定") once the row fills up.
@@ -146,8 +146,8 @@
     $id('lc-speed-label').textContent = t('ui.messages.lcSpeed', 'Speed');
     // The label names the SCOPE of the setting ("while talking"), not just
     // the mode: the toggle only governs the in-conversation display, and a
-    // bare "Card view" read as broken once the session ended, where cards
-    // are the only display there is (dogfood).
+    // bare "Card view" reads as broken once the session has ended, where
+    // cards are the only display there is.
     $id('lc-cardview-label').textContent = t('ui.messages.lcCardView', 'Cards while talking');
     $id('lc-tools-label').textContent = t('ui.messages.lcTools', 'Tools');
     $id('lc-turn-label').textContent = t('ui.messages.lcTurnDetection', 'Turn detection');
@@ -159,7 +159,7 @@
     $on($id('lc-voice-select'), 'change', function() {
       if (typeof params !== 'undefined') {
         params['sts_voice'] = $id('lc-voice-select').value;
-        // §37-14A: remember the choice per provider in a cookie (same
+        // Remember the choice per provider in a cookie (same
         // pattern as the TTS voice) — the voice sets are disjoint
         // (10/26/30), so a shared key would fall back to the default on
         // every provider switch.
@@ -193,7 +193,7 @@
     $on($id('lc-turn-select'), 'change', function() {
       if (typeof params !== 'undefined') {
         const v = $id('lc-turn-select').value;
-        // §37-16: one folded control drives BOTH wire keys; the silence
+        // One folded control drives BOTH wire keys; the silence
         // choice removes them so the MDSL default applies again.
         if (v === '') {
           delete params['sts_vad_type'];
@@ -202,7 +202,7 @@
           params['sts_vad_type'] = 'semantic_vad';
           params['sts_vad_eagerness'] = v;
         }
-        // Remember like the voice (per-provider key — §37-14A pattern).
+        // Remember like the voice (per-provider cookie key).
         const modelElNow = $id('model');
         const specNow = (window.modelSpec && modelElNow && modelElNow.value)
           ? (window.modelSpec[modelElNow.value] || {}) : {};
@@ -233,7 +233,7 @@
     if (appLabel) appLabel.textContent = currentAppDisplayName();
 
     const voices = Array.isArray(spec.sts_voices) ? spec.sts_voices : [];
-    // §37-14A: resolve the voice in order — session param, the remembered
+    // Resolve the voice in order — session param, the remembered
     // cookie for THIS provider (only if the value is still offered by the
     // current model: model changes and retired voices must not resurrect
     // it), then the model_spec default.
@@ -276,7 +276,7 @@
         wrap.style.removeProperty('display');
         // inline-flex, not flex: the sibling cardview wrap is a plain inline
         // span, and a block-level flex next to it shifts the baseline
-        // (dogfood: vertically misaligned checkboxes).
+        // (the checkboxes end up vertically misaligned).
         wrap.style.setProperty('display', 'inline-flex');
       } else {
         // 'important' is load-bearing: without it, an important stylesheet
@@ -292,8 +292,8 @@
 
     // Tools toggle (function calling wave 1): capability-gated, default
     // OFF. Available on all three providers — the shared search_web tool
-    // covers web search everywhere (the native search toggles were removed
-    // as duplicates, 2026-08-03).
+    // covers web search everywhere, so there is no separate native search
+    // toggle.
     const toolsWrap = $id('lc-tools-wrap');
     if (toolsWrap) {
       const toolsCapable = spec.sts_tools_capability === true;
@@ -308,8 +308,8 @@
       }
     }
 
-    // Turn-detection selector (§37-16): capability-gated to providers whose
-    // semantic mode is probe-verified (OpenAI only). Restore order: session
+    // Turn-detection selector: capability-gated to providers whose
+    // semantic mode is supported (OpenAI only). Restore order: session
     // params (validated) → remembered cookie (validated) → silence default.
     const turnWrap = $id('lc-turn-wrap');
     if (turnWrap) {
@@ -331,11 +331,10 @@
           }
         }
         $id('lc-turn-select').value = choice;
-        // Restoring from the cookie fires no `change`, so the params the
-        // bridge actually reads stayed empty and the session fell back to
-        // the MDSL default — the UI showed a setting that was not in
-        // effect (dogfood: selector said "by meaning" while the wire
-        // carried server_vad). Write the restored choice through.
+        // Restoring from the cookie fires no `change`, so without this the
+        // params the bridge reads stay empty and the session falls back to
+        // the MDSL default — the selector would show "by meaning" while the
+        // wire carries server_vad. Write the restored choice through.
         if (typeof params !== 'undefined') {
           if (choice === '') {
             delete params['sts_vad_type'];
@@ -375,7 +374,7 @@
   // Text of the last FINAL user transcript (stt). Partials are cumulative
   // prefixes of their eventual final, so a partial that is a prefix of this
   // is a late re-stream of an already-finalized utterance — display-only
-  // noise (dogfood round 6: the whole partial stream can lag the response).
+  // noise (the whole partial stream can lag the response).
   let lastUserFinal = '';
 
   function cardViewEnabled() {
@@ -424,7 +423,7 @@
       : t('ui.messages.lcRoleAssistant', 'Assistant');
   }
 
-  // Tool badges in the live view (§37-5): the same semantics as the folded
+  // Tool badges in the live view: the same semantics as the folded
   // card — a tool-bridged exchange accumulates as ONE text with "\n\n"
   // paragraph breaks, and each tool badge anchors at the paragraph boundary
   // where the call happened. Calls awaiting their answer's first fragment
@@ -440,8 +439,8 @@
       roleEl.textContent = entry.role ? zoneText(entry.role) : '';
     }
     if (textEl) {
-      // Paragraph split (§37-5): same "\n\n" semantics as the folded card.
-      // The CURRENT zone may also carry the speech-highlight span (§37-13C).
+      // Paragraph split: same "\n\n" semantics as the folded card.
+      // The CURRENT zone may also carry the speech-highlight span.
       const paras = String(entry.text || '').split('\n\n');
       textEl.replaceChildren();
       let offset = 0;
@@ -467,7 +466,7 @@
     const prev = $id('lc-live-prev');
     const cur = $id('lc-live-current');
     let prevEntry = livePrev;
-    // Invariant (b) (§37-6): never show one utterance in both zones — a
+    // Zone invariant: never show one utterance in both zones — a
     // same-role prev whose text is a prefix of (or equal to) the current
     // zone's text is a stale copy, so the prev zone stays empty.
     if (prevEntry.role && prevEntry.role === liveCurrent.role &&
@@ -496,8 +495,8 @@
                     final: role === 'user' ? !!isFinal : true };
     if (role === 'user' && isFinal) lastUserFinal = text;
     // A new current zone starts with a fresh segment map; the assistant
-    // zone that was just promoted KEEPS its map (segments live on the zone
-    // — §40), so a resume-swap can restore the highlight afterwards.
+    // zone that was just promoted KEEPS its map (segments live on the
+    // zone), so a resume-swap can restore the highlight afterwards.
     lastHighlightChar = null;
     highlightSegmentId = null;
     if (liveViewWanted()) renderLiveView();
@@ -507,13 +506,13 @@
   // fresh accumulation (barge-in / new response) — EXCEPT the first
   // fragment of a tool's ANSWER, which continues the same accumulation as
   // a new paragraph (mirroring the server-side fold). The server marks
-  // that fragment with tool_break (§40): is_first is turn-scoped upstream,
+  // that fragment with tool_break: is_first is turn-scoped upstream,
   // so a tool continuation — same turn, new response — carries is_first on
-  // NO provider, and inferring the boundary here proved wrong in dogfood
-  // (badge at the bottom, bridge and answer run together).
+  // NO provider, and inferring the boundary here goes wrong (badge at the
+  // bottom, bridge and answer run together).
   //
-  // segmentId (§37-13C) marks the upstream response this text belongs to;
-  // each zone carries its own segment map (`segments`, §40) recording where
+  // segmentId marks the upstream response this text belongs to;
+  // each zone carries its own segment map (`segments`) recording where
   // each segment starts in the zone text, so the speech highlight survives
   // the zone being promoted to prev and swapped back.
   let lastHighlightChar = null; // freeze target during silence / barge-in
@@ -530,7 +529,7 @@
 
   function liveAppend(role, delta, isFirst, segmentId, toolBreak) {
     if (isFirst || (toolBreak && role === 'assistant')) {
-      // §37-13A: the tool-continuation zone can also sit in PREV — on
+      // The tool-continuation zone can also sit in PREV — on
       // Gemini the late user-final arrives between the call and the answer
       // and promotes the badge-only zone out of current. Pull it back so
       // the answer continues in the zone that holds the badges.
@@ -548,16 +547,16 @@
         }
       }
       if (zone) {
-        // Tool-bridged continuation (§37-5/§40): anchor each pending call
+        // Tool-bridged continuation: anchor each pending call
         // at the boundary (= the bridge paragraph count) and keep
         // accumulating instead of resetting — otherwise the live view would
         // show only the answer while the card shows the folded whole.
         const hasText = zone.text.trim() !== '';
         const at = hasText ? zone.text.split('\n\n').length : 0;
         liveToolPending.forEach(function(p) {
-          // §37-12: a badge drawn when the call STARTED already sits at this
+          // A badge drawn when the call STARTED already sits at this
           // boundary — update its status rather than adding a second badge.
-          // §37-14B: its `at` was fixed when the call started, but the
+          // Its `at` was fixed when the call started, but the
           // paragraph count only settles now — refresh the position too.
           const existing = p.call_id &&
             zone.badges.find(function(b) { return b.call_id === p.call_id; });
@@ -587,7 +586,7 @@
     } else if (livePrev.role === role && livePrev.text !== '') {
       if (liveCurrent.role === 'user' && !liveCurrent.final) {
         // The partial stream of the CURRENT turn is still arriving (it lags
-        // the response — dogfood round 6). Moving a NON-FINAL user zone to
+        // the response). Moving a NON-FINAL user zone to
         // prev would (a) put a partial in the final-only prev slot and
         // (b) ping-pong on every fragment/partial pair. Instead the
         // response keeps accumulating in prev and the user's transcript
@@ -596,12 +595,12 @@
         livePrev.text += delta;
       } else {
         // Resume-swap: a LATE stt_partial for a FINALIZED utterance briefly
-        // promoted the in-flight assistant stream to prev (dogfood:
-        // assistant text lost its beginning). The response is still in
+        // promotes the in-flight assistant stream to prev (restarting here
+        // would lose the assistant text's beginning). The response is still in
         // flight — swap prev back into current and keep accumulating instead
         // of restarting from this fragment. The interleaved user text moves
         // to prev, so nothing is lost. The zone brings its segment map with
-        // it (§40), so a new segment starting here anchors at the RESUMED
+        // it, so a new segment starting here anchors at the RESUMED
         // text's end — not at 0, which mapped the highlight onto text that
         // was already spoken.
         const base = livePrev.text.length;
@@ -691,9 +690,9 @@
                  el.style.getPropertyPriority('display') === 'important') {
         // Restore ONLY what LC itself hid (none!important is LC's
         // signature). setAppMode(off) runs at the end of EVERY loadParams,
-        // and an unconditional removeProperty stripped hides that other
-        // code had just applied — e.g. loadParams' own $hide of
-        // #model_parameters in ordinary apps (review P1-B).
+        // and an unconditional removeProperty would strip hides that other
+        // code has just applied — e.g. loadParams' own $hide of
+        // #model_parameters in ordinary apps.
         el.style.removeProperty('display');
       }
     });
@@ -717,8 +716,8 @@
   }
 
   // ── Panel instruction ──────────────────────────────────────────────
-  // Client-only usage note pinned ABOVE the Start button (the old
-  // discourse card was invisible in the session-start flow — dogfood).
+  // Client-only usage note pinned ABOVE the Start button (a discourse
+  // card would be invisible in the session-start flow).
   // Shown only while the conversation is empty; never part of the canon.
   function renderInstruction() {
     const el = $id('lc-instruction');
@@ -805,12 +804,11 @@
   // ── Echo gate ──────────────────────────────────────────────────────
   // With speakers (no headphones) the assistant's own voice leaks into the
   // mic; browser AEC does not reliably cancel WebAudio output, so the
-  // upstream VAD hears the leak as user speech and answers itself — the
-  // dogfood failure mode was a self-talk cascade ("a" cards, overlapping
-  // responses). While assistant audio is actually audible (playback state,
+  // upstream VAD hears the leak as user speech and answers itself — a
+  // self-talk cascade ("a" cards, overlapping responses). While assistant audio is actually audible (playback state,
   // not delta-arrival state), quiet chunks are dropped; direct speech is
   // louder than leakage and passes, so barge-in still works.
-  // Tunable from the console for dogfooding: window.LC_ECHO_GATE_RMS
+  // Diagnostic override from the console: window.LC_ECHO_GATE_RMS
   // (0 disables).
   const DEFAULT_ECHO_GATE_RMS = 0.015;
   let gatedChunks = 0;
@@ -858,16 +856,16 @@
     // The app-switch reset confirmation keys on this flag ("the user built a
     // conversation in this tab"), but it is only set by the TEXT submit
     // paths — a voice-only Live Conversation never passes through them, so
-    // switching apps after a voice session wiped the conversation with no
-    // confirmation (§37-7). Starting a voice conversation is a user action
+    // switching apps after a voice session would wipe the conversation with
+    // no confirmation. Starting a voice conversation is a user action
     // too.
     window.userHasInteractedInTab = true;
 
     // The greet flag carries only the toggle state. Whether this is a FRESH
     // conversation (greeting) or a resume (silent seeding) is decided
     // server-side against the canonical session[:messages] — the client-side
-    // messages array proved stale in dogfood and silently suppressed the
-    // greeting on a genuinely fresh conversation.
+    // messages array can be stale and would silently suppress the greeting
+    // on a genuinely fresh conversation.
     const initiateEl = $id('initiate-from-assistant');
     const greet = !!(initiateEl && initiateEl.checked);
 
@@ -972,7 +970,7 @@
     if (userTempEl) { try { userTempEl.remove(); } catch (_) { /* noop */ } userTempEl = null; }
   }
 
-  // Ghost suppression (§37-3): a streaming temp-card whose content was
+  // Ghost suppression: a streaming temp-card whose content was
   // already folded into a finalized card must not linger as a display-only
   // duplicate. A merged:false Stop skips the LOAD re-render that would
   // otherwise clear it, so Stop itself removes it. Containment is checked
@@ -994,7 +992,7 @@
     if (absorbed) temp.remove();
   }
 
-  // Streaming-indicator reset (§37-5): assistant text arrives as "fragment"
+  // Streaming-indicator reset: assistant text arrives as "fragment"
   // messages, and the typed pipeline's fragment path sets the RESPONDING
   // alert plus responseStarted/streamingResponse — flags only its own
   // completion path clears. Stop (user, server-side, or mirrored) IS the
@@ -1138,11 +1136,11 @@
     const grows = text.length > body.textContent.trim().length;
     // Mirror the server's grow-only rule as a client-side belt — for the
     // TEXT only. A badge-carrying update is processed even without growth
-    // (§39: a suppressed unspoken continuation can arrive as tools_used
+    // (a suppressed unspoken continuation can arrive as tools_used
     // alone, and the badge must still render).
     if (!grows && !hasTools) return;
     if (grows) {
-      // Paragraph split (§37-3): folded text joins utterances with "\n\n" —
+      // Paragraph split: folded text joins utterances with "\n\n" —
       // render each as its own paragraph so position-aware tool badges can
       // sit at the boundary. textContent is inherently injection-safe.
       const paraEls = text.split('\n\n').map(function(para) {
@@ -1156,7 +1154,7 @@
       if (liveCurrent.role === 'assistant') {
         liveCurrent.text = text;
         // Positioned tool entries from the fold double as the live zone's
-        // badges (§37-5) — keeps the live view correct even when onToolCall
+        // badges — keeps the live view correct even when onToolCall
         // anchoring missed (e.g. live view toggled on mid-exchange).
         if (Array.isArray(data.tools_used)) {
           liveCurrent.badges = data.tools_used.filter(function(tool) {
@@ -1166,8 +1164,8 @@
       }
       if (liveViewWanted()) renderLiveView();
     } else if (hasTools) {
-      // No text growth, but the badge set may have changed (§39 suppress
-      // path) — keep the live zone's badges in sync too.
+      // No text growth, but the badge set may have changed (suppressed
+      // continuation) — keep the live zone's badges in sync too.
       if (liveCurrent.role === 'assistant') {
         liveCurrent.badges = data.tools_used.filter(function(tool) {
           return tool && typeof tool.at === 'number';
@@ -1176,7 +1174,7 @@
       }
     }
 
-    // Tools used this turn (§37-2/§37-4): positioned entries (`at`) render
+    // Tools used this turn: positioned entries (`at`) render
     // as inline badges at the paragraph boundary via insertInlineToolBadge;
     // entries WITHOUT a position (older canon) fall back to a single header
     // badge — exclusive per entry, so no tool shows twice or vanishes.
@@ -1195,11 +1193,11 @@
           title.appendChild(span);
         }
       }
-      // §37-3: entries with `at` get an inline badge at the paragraph
+      // Entries with `at` get an inline badge at the paragraph
       // boundary where the tool ran (display layer only; canon stays plain).
       // Clear the previous inline badges first: the server re-sends the
       // UNION of tools_used on every fold, and only the growth path rebuilds
-      // the body — a badge-only update (§39 suppressed continuation) would
+      // the body — a badge-only update (suppressed continuation) would
       // otherwise append the same badge again on each arrival.
       if (typeof window.insertInlineToolBadge === 'function') {
         body.querySelectorAll(':scope > .lc-tools-badge').forEach(function(el) { el.remove(); });
@@ -1210,7 +1208,7 @@
     // Duplicate suppression: the temp-card accumulates the same
     // continuation fragments that were just folded into this card — when
     // its content is contained in the folded text, it must not linger as
-    // a second, identical card (dogfood: two identical cards after Stop).
+    // a second, identical card (so Stop does not leave two identical cards).
     const temp = $id('temp-card');
     if (temp) {
       const tempBody = temp.querySelector('.card-text');
@@ -1229,7 +1227,7 @@
                data && data.segment_id, !!(data && data.tool_break));
   }
 
-  // ── Speech highlight (§37-13C) ──────────────────────────────────────
+  // ── Speech highlight ────────────────────────────────────────────────
   // Driven ONLY by the playback clock (WsStsPlayback.getPlaybackPosition) —
   // provider timing is never consulted. A SEGMENT is one upstream response
   // (a tool-bridged turn is two: bridge, silence, answer); the silence
@@ -1290,7 +1288,7 @@
     // pos null (silence / barge-in): keep the last position — freeze.
     //
     // Monotonic within a segment: `total` is the audio SCHEDULED so far, and
-    // deltas arrive ~3-5x faster than playback (measured), so early in a
+    // deltas arrive several times faster than playback, so early in a
     // response the denominator is far too small and the fraction too large.
     // As more audio lands, total grows and a raw fraction would move the
     // highlight BACKWARD — visible as a jump back over text already spoken.
@@ -1346,7 +1344,7 @@
     return null;
   }
 
-  // Tool-use visibility (§37/§37-12): running → status line + an immediate
+  // Tool-use visibility: running → status line + an immediate
   // badge (spinning) at the current paragraph boundary; done/error → update
   // THAT badge (spin off, red on error). The call_id correlates the two —
   // a name alone is ambiguous when one response repeats a tool. The badge's
@@ -1364,7 +1362,7 @@
     if (data.status === 'running') {
       liveToolPending.push({ name: name, status: 'done', call_id: callId });
       if (callId && !findToolBadge(callId)) {
-        // §37-13A: Gemini finalizes the user turn only when the model starts
+        // Gemini finalizes the user turn only when the model starts
         // answering, so during the call the current zone is still USER —
         // there is no assistant zone to hold the badge (OpenAI/xAI open one
         // with a bridge utterance). Open an empty assistant zone for the
@@ -1434,7 +1432,7 @@
       applyViewMode(); // restore discourse on teardown paths too
       document.body.classList.remove('lc-app', 'lc-locked');
     },
-    // §37-13C test seams
+    // Speech-highlight test seams
     _tickHighlight: tickHighlight,
     _highlightCharFor: highlightCharFor,
     _liveSegments: function() { return liveCurrent.segments || []; }

@@ -43,7 +43,7 @@ window.LazyLoader = (function () {
     });
 
     // A cached REJECTION would veto every later attempt forever — with no
-    // CDN fallback (maxgraph) that is a permanent dead end (§38). Evict
+    // CDN fallback (maxgraph) that is a permanent dead end. Evict
     // failures so the next call retries the network.
     promise.catch(function () {
       if (_cache[key] === promise) delete _cache[key];

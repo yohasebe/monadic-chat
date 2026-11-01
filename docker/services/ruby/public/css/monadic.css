@@ -6573,8 +6573,8 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
    vendor at the top of this file). Their display:none !important must beat
    Bootstrap's vendor-layer utilities — .d-flex{display:flex !important}
    otherwise wins, because for !important the layer order reverses and any
-   layered !important beats an unlayered one. This was the root cause of
-   the thinking toggle staying visible in LC (dogfood, browser-measured).
+   layered !important beats an unlayered one, which would leave the
+   thinking toggle visible in LC.
    Plain inline display from JS $hide/$show also loses to these rules;
    the JS-side none!important enforcement stays as a second layer. */
 @layer lc-overrides {
@@ -6680,7 +6680,7 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   background: transparent;
 }
 
-/* Speech highlight (§37-13C): the sentence the assistant is speaking right
+/* Speech highlight: the sentence the assistant is speaking right
    now, driven by the playback clock. A quiet tint of the existing blue
    badge family — visible at a glance, never a loud selection color. */
 .lc-speaking {
@@ -6718,20 +6718,20 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   font-size: 1.05rem;
 }
 
-/* A tools badge inserted BETWEEN paragraphs (Live Conversation, §37-3) is
+/* A tools badge inserted BETWEEN paragraphs (Live Conversation) is
    its own block, not part of a text run: it needs symmetric breathing room
    in the paragraph gap instead of the inline offset a title badge uses.
    Without this the badge crowds the paragraph below it and reads as
-   vertically misaligned (dogfood). Title badges are unaffected — they live
+   vertically misaligned. Title badges are unaffected — they live
    in .card-title, which this selector does not match. */
 .card-text > .lc-tools-badge {
   margin: 0.4rem 0 0.55rem;
 }
 
 /* In the live view the badge reads vertically off-center — but the
-   asymmetry is NOT a margin problem (browser-measured, §37-15): as an
+   asymmetry is NOT a margin problem: as an
    inline-level box the badge sits in an anonymous line box whose strut
-   adds ~6px above it that no margin can remove. Making it block-level
+   adds space above it that no margin can remove. Making it block-level
    (flex + max-content) kills the line box; the gap above then comes
    entirely from the preceding paragraph's margin-bottom, matching the
    paragraph rhythm. The card side keeps its own paragraph-margin system. */

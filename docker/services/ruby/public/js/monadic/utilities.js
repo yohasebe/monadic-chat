@@ -850,7 +850,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
     // Never resurrect it in Live Conversation: realtime models emit no
     // reasoning, and the capability check runs after HIDDEN_IN_LC hid it —
     // a plain $show would strip the inline none!important and let the
-    // toggle leak back in (dogfood). The .lc-app CSS rule is the second
+    // toggle leak back in. The .lc-app CSS rule is the second
     // layer of the same guard (house pattern: belt and suspenders).
     if (spec["supports_thinking"] && !document.body.classList.contains('lc-app')) {
       $show(thinkingContainer);
@@ -1003,7 +1003,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
   // Speech-to-speech app mode must track EVERY path that applies params —
   // the app-change handler alone missed the reload-with-session restore
   // ("continue session"), which loads params without a change event and
-  // left the Live Conversation UI unapplied (dogfood round 3).
+  // left the Live Conversation UI unapplied.
   if (window.LiveConversation && typeof window.LiveConversation.setAppMode === 'function') {
     const lcAppName = params["app_name"];
     window.LiveConversation.setAppMode(

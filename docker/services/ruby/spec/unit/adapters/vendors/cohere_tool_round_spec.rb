@@ -5,7 +5,7 @@ require_relative '../../../../lib/monadic/adapters/vendors/cohere_helper'
 
 # configure_cohere_tools must keep tools on tool-round requests (role == "tool")
 # and expose web-search tools when the Web Search toggle is on, even for
-# progressive-tool apps. Both were dogfood-confirmed against the live Cohere API:
+# progressive-tool apps. Against the Cohere API,
 # a replayed assistant tool-call turn with no tools 422s, and a just-unlocked
 # skill is only usable if the follow-up request still carries the tool set.
 RSpec.describe 'CohereHelper#configure_cohere_tools tool rounds & websearch' do

@@ -164,8 +164,8 @@ module Monadic
 
       # The six-line attribute template shared by both instruction-mode
       # variants. The LLM fills in each slot with a short natural-language
-      # description. See `docs_dev/expressive_speech_instruction_mode.md` §5.5
-      # for the rationale.
+      # description. See `docs_dev/expressive_speech_instruction_mode.md`
+      # ("What the Model Is Asked For").
       INSTRUCTION_ATTRIBUTE_TEMPLATE = <<~TMPL.strip
         Voice: <character of the voice — e.g., warm and clear, cool and mellow>
         Tone: <emotional coloring — e.g., sincere, playful, serious>

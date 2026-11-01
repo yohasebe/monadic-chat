@@ -187,7 +187,7 @@ end
 # What electron-builder itself places beside app.asar and the payload.
 RESOURCE_ALLOWED = %w[app app.asar app-update.yml].freeze
 # Electron's and Chromium's licenses from the Electron distribution, which
-# electron-builder puts in the mac resources (seen with Electron 44.9.3).
+# electron-builder puts in the mac resources.
 MAC_RESOURCE_ALLOWED = [/\A[A-Za-z0-9_]+\.lproj\z/, /\Aicon\.icns\z/,
                         /\ALICENSE\.electron\.txt\z/, /\ALICENSES\.chromium\.html\z/].freeze
 

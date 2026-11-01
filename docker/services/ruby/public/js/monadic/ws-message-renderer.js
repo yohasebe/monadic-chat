@@ -137,7 +137,7 @@ function handlePastMessages(data) {
         // assistantBadge(content) renders the same base badge as the literal
         // default below, PLUS any markers the canon carries (interrupted,
         // tools_used) — without it, LOAD silently dropped Live Conversation
-        // badges even though the flags persist in the canon (§37-3).
+        // badges even though the flags persist in the canon.
         const badge =
           msg.badge ||
           (typeof window.assistantBadge === 'function'
@@ -164,7 +164,7 @@ function handlePastMessages(data) {
         if (window.MarkdownRenderer) {
           window.MarkdownRenderer.applyRenderers(assistantCard[0] || assistantCard);
         }
-        // §37-3: position-aware tool badges (LC fold/merge canon carries
+        // Position-aware tool badges (LC fold/merge canon carries
         // tools_used entries with `at` = paragraph index). Inserted AFTER
         // applyRenderers so post-processing cannot wipe them; entries
         // without `at` are skipped (header badge only — backward compat).

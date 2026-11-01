@@ -1471,9 +1471,9 @@ const WorkflowViewer = (function () {
       }
       if (typeof window.maxgraph === 'undefined') {
         console.warn('[WorkflowViewer] maxGraph not loaded');
-        // §38d: surface the failure and offer a retry — this used to return
-        // silently with initialised=false and no way forward (a rejected
-        // LazyLoader promise was also cached forever; see lazy-loader.js).
+        // Surface the failure and offer a retry rather than returning
+        // silently with initialised=false (a rejected LazyLoader promise is
+        // not cached, so the retry reaches the network; see lazy-loader.js).
         var errContainer = $id('workflow-viewer-container');
         if (errContainer) {
           var tFn = function (key, fallback) {

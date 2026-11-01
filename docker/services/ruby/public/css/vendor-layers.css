@@ -9,8 +9,8 @@
    layer precedence is REVERSED (earlier layer wins, and unlayered loses to
    every layer): with lc-overrides last, Bootstrap's vendor-layer
    .d-flex{display:flex !important} beat Live Conversation's
-   display:none !important and the thinking toggle stayed visible
-   (dogfood, browser-measured). Keep this statement first. */
+   display:none !important and the thinking toggle stayed visible.
+   Keep this statement first. */
 @layer lc-overrides, vendor, base, components, dark-theme, responsive, utilities;
 
 @import url("../vendor/css/bootstrap.min.css") layer(vendor);

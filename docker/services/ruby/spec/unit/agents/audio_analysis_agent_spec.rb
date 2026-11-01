@@ -71,7 +71,7 @@ RSpec.describe AudioAnalysisAgent do
       # The Gemini 3 Developer Guide strongly recommends the default
       # temperature (1.0) for all Gemini 3 models and advises removing
       # explicitly set low values (risk: looping / degraded performance).
-      # A 0.2 experiment degraded critique candor in dogfood (2026-06-10).
+      # A low temperature makes the critique lose candor.
       # Pin that NO sampling config is sent so it can't quietly come back.
       it 'sends no generationConfig (Gemini 3 guidance: keep default temperature)' do
         captured = {}

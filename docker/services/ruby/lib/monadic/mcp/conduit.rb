@@ -34,7 +34,7 @@ module Monadic
     # Phase 1 introduces the first provider-spending capability:
     #   - monadic_query         : single-provider, context-aware query
     #
-    # Every spending tool goes through CostGuard (design §5): the platform
+    # Every spending tool goes through CostGuard: the platform
     # reserves a token budget BEFORE the call and records usage AFTER, so a
     # runaway CLI agent is refused rather than trusted. Provider Independence is
     # preserved by borrowing a real per-provider app instance from APPS and
@@ -2543,11 +2543,12 @@ module Monadic
           end
 
           # Clear before the call so a stale value from an earlier call can't leak
-          # in when this provider's send_query doesn't (yet) report usage.
+          # in when this provider's send_query doesn't report usage.
           Thread.current[:conduit_provider_usage] = nil
           raw = host.send_query(body, model: model)
           # Real provider-reported usage (normalized to {input,output,reasoning,
-          # cached,total}); nil for providers whose send_query is not yet wired.
+          # cached,total}), set by UsageNormalizer.capture in the vendor helper;
+          # nil when send_query does not call it or the response has no usage.
           provider_usage = Thread.current[:conduit_provider_usage]
           Thread.current[:conduit_provider_usage] = nil
           normalized = normalize_query_response(raw)

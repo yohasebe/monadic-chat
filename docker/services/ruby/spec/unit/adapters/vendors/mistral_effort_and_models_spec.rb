@@ -17,8 +17,7 @@ RSpec.describe MistralHelper do
   let(:helper) { Class.new { include MistralHelper }.new }
 
   describe "#mistral_effort_for" do
-    # Said explicitly: Mistral Large 4 reasons when the field is missing
-    # (probed 2026-10-17).
+    # Said explicitly: Mistral Large 4 reasons when the field is missing.
     it "sends none for no reasoning where the model accepts none" do
       expect(helper.mistral_effort_for("mistral-large-4", "none")).to eq("none")
       expect(helper.mistral_effort_for("mistral-large-4", nil)).to eq("none")

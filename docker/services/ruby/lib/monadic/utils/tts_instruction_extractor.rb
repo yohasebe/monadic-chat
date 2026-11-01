@@ -63,7 +63,8 @@ module Monadic
         instructions = nil unless instructions.is_a?(String) && !instructions.empty?
         # Note: we return ONLY the message text (not a reshaped JSON). The
         # caller that needs the full structure for display should still work
-        # off the original `text`; display-side suppression (§8.2) keeps the
+        # off the original `text`; display-side suppression
+        # (MONADIC_SUPPRESSED_KEYS in markdown-renderer.js) keeps the
         # `tts_instructions` field out of the rendered UI.
         [parsed["message"], instructions]
       end

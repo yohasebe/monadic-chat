@@ -197,9 +197,9 @@ describe('turn boundaries', () => {
     expect(Sts.getActiveTurnId()).toBeNull();
   });
 
-  // Mono-voice invariant (dogfood round 1): the upstream can move to a new
+  // Mono-voice invariant: the upstream can move to a new
   // response without ever emitting a cancellation we can attribute, and the
-  // old turn's scheduled tail then talked over the new answer. The turn
+  // old turn's scheduled tail would then talk over the new answer. The turn
   // switch itself must silence every other turn.
   it('a new turn silences the previous turn\'s scheduled tail', () => {
     Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
@@ -388,7 +388,7 @@ describe('integration with existing stop paths', () => {
   });
 });
 
-describe('segment timelines (§37-13C)', () => {
+describe('segment timelines', () => {
   it('records the segment range and reports the position inside it', () => {
     ctx.currentTime = 0;
     Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE, 'resp-1');

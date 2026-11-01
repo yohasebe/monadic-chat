@@ -154,8 +154,8 @@ RSpec.describe GrokCompaction do
       end
 
       it 'masks the compact input through the privacy pipeline before sending' do
-        # No production app enables both privacy and compaction today, so this
-        # fail-safe path is unreachable by dogfood. Pin the wiring here: when
+        # No production app enables both privacy and compaction, so this
+        # fail-safe path is reachable only here. Pin the wiring: when
         # privacy is on, the slice handed to the compact endpoint must be masked
         # with the same apply_privacy_to_messages used on the main request.
         allow(helper).to receive(:privacy_enabled_for?).and_return(true)

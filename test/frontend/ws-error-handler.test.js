@@ -312,11 +312,11 @@ describe('ws-error-handler', () => {
 /**
  * Voice-capture recovery on error.
  *
- * Observed live: an STS turn that dies between AUDIO_COMMIT and its stt/audio
- * events (upstream realtime session hits its 60-minute cap) left the mic UI
- * stranded on "Processing speech..." — the generic reset hid the spinner but
- * an armed auto-speech watchdog re-showed it. The error path must disarm the
- * watchdogs and hide the spinner last.
+ * An STS turn can die between AUDIO_COMMIT and its stt/audio events (for
+ * example when the upstream realtime session hits its time cap). The generic
+ * reset hides the spinner, but an armed auto-speech watchdog would re-show it
+ * and strand the mic UI on "Processing speech...". The error path must disarm
+ * the watchdogs and hide the spinner last.
  */
 describe('handleError voice-capture recovery', () => {
   beforeEach(() => {

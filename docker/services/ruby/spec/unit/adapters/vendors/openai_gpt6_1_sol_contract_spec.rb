@@ -4,8 +4,8 @@ require 'spec_helper'
 require_relative '../../../../lib/monadic/adapters/vendors/openai_helper'
 
 # GPT-6.1 Sol (2026-09-29) has GPT-6 Sol's price and limits but cannot turn
-# reasoning off: the API lists low..max and answers "none" with a 400
-# (probed 2026-09-30). An app, the second opinion agent or an AI user asking
+# reasoning off: the API lists low..max and answers "none" with a 400.
+# An app, the second opinion agent or an AI user asking
 # for "none" must get the lowest level, not a 400 and not the API default
 # (medium).
 RSpec.describe 'GPT-6.1 Sol request contract' do

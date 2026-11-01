@@ -41,13 +41,12 @@ PY
 # Warm-up conversion. download_models() alone does NOT cover everything the
 # runtime resolves: pipeline initialization performs pinned-revision HF Hub
 # snapshot lookups and fetches the remaining artifacts (e.g. tableformer
-# weights) on the user's first extract (verified 2026-06-12: first online
-# extract took ~15s with dozens of Hub requests; after this warm-up an
-# offline extract takes ~2s). Converting one blank PDF with the same
-# pipeline options as server.py forces all of that to resolve at build
-# time. This RUN must fail the image build (no try/except) — a missing
-# artifact here would otherwise surface as a runtime failure under the
-# offline mode set below. pypdfium2 is already a docling dependency.
+# weights) on the user's first extract, which then needs the network.
+# Converting one blank PDF with the same pipeline options as server.py
+# forces all of that to resolve at build time. This RUN must fail the
+# image build (no try/except) — a missing artifact here would otherwise
+# surface as a runtime failure under the offline mode set below.
+# pypdfium2 is already a docling dependency.
 RUN python - <<'PY'
 import pypdfium2 as pdfium
 pdf = pdfium.PdfDocument.new()

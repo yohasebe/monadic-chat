@@ -21,7 +21,7 @@ DOCS_EN = ROOT.join("docs")
 DOCS_JA = ROOT.join("docs", "ja")
 
 # Fewest EN/JA pairs a run may compare (see scan_floor.rb). The floor sits
-# about 20% below the current count (55); lower it when pages are genuinely
+# below the number of pairs; lower it when pages are genuinely
 # removed. A run that compares nothing reports parity for everything.
 MIN_PAIRS = 44
 

@@ -65,7 +65,7 @@
 
   // Queue caps: 20 entries total, 30s TTL per entry, 500ms dedup
   // window. Tuned for "two reset clicks while reconnecting" not "store
-  // a session's worth of messages." See plan §3.4.
+  // a session's worth of messages."
   const QUEUE_CAP = 20;
   const QUEUE_TTL_MS = 30_000;
   const DEDUP_WINDOW_MS = 500;

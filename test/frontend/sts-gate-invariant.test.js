@@ -138,8 +138,7 @@ describe('speech-to-speech mode is derived at a single point per side', () => {
   // (params without `message` → handle_ws_streaming). Live Conversation
   // apps declare the same flag as their greeting toggle, but their greeting
   // runs over the STS bridge — if the standard branch fires too, the
-  // session opens with the server's voice-only error card (dogfood round
-  // 2). Pin the suppression at the source so a refactor cannot drop it.
+  // session opens with the server's voice-only error card. Pin the suppression at the source so a refactor cannot drop it.
   it('the standard initiate flow is suppressed in Live Conversation mode', () => {
     const monadic = fs.readFileSync(
       path.join(ROOT, 'docker/services/ruby/public/js/monadic.js'), 'utf8');

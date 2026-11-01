@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  *
  * Display-compat golden tests and XSS-stripping tests for the model-output
- * sanitization path (see tmp/memo/xss_display_compat_audit.md):
+ * sanitization path:
  *
  *   MarkdownRenderer.render()  ->  sanitizeModelHtml()  (what createCard applies)
  *

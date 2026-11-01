@@ -284,7 +284,7 @@ module WebSocketHelper
           # that is incoherent (and its merge span may predate the reload).
           # Every legitimate LOAD sender has already ended the conversation
           # client-side, so this is a no-op there — it exists for the import
-          # / stray-tab paths (review round 4, P1).
+          # / stray-tab paths.
           teardown_sts_session(session)
           handle_load_message(connection)
         when "DELETE"

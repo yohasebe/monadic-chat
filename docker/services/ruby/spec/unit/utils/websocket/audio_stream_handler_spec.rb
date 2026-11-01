@@ -8,14 +8,13 @@ require 'async/semaphore'
 require 'json'
 require 'monadic/utils/extra_logger'
 require 'monadic/utils/websocket/audio_stream_handler'
+require 'monadic/utils/websocket/sts_stream_handler'
+require 'monadic/utils/websocket'
 
 # Unit tests for the synchronous, side-effect-free parts of the Realtime
 # STT bridge in WebSocketHelper. The full bridge (Async fibers, OpenAI WS
 # connection, session.update → session.updated ack → flush → commit →
-# completed) is exercised end-to-end by manual dogfood (see memo
-# tmp/memo/realtime-transcription-plan.md Phase 2 verification block);
-# the integration suite covers it with a real WS mock if/when we add
-# one. These tests pin the wire contract — the `session.update` payload
+# completed) is not covered here. These tests pin the wire contract — the `session.update` payload
 # shape and the message-parsing edges — that any future refactor must
 # preserve.
 RSpec.describe "WebSocketHelper realtime STT bridge — wire contract" do

@@ -198,6 +198,19 @@ RSpec.describe Monadic::History do
       expect(described_class::Serializer.payload({ messages: [{ 'role' => 'system', 'text' => 'p' }] })).to be_nil
     end
 
+    it 'keeps a chat begun with attached files only, with no heading of its own' do
+      session = session_with('')
+      payload = described_class::Serializer.payload(session)
+      expect(payload['messages'].map { |m| m['role'] }).to eq(%w[user assistant])
+      expect(payload['messages'].first['attachments']).to eq([{ 'attachment_id' => 'att_1', 'purpose' => 'video' }])
+      expect(described_class::Serializer.headings(payload)).to eq([nil, nil])
+    end
+
+    it 'keeps nothing for a user message with neither words nor attached files' do
+      session = { messages: [{ 'role' => 'user', 'text' => '  ' }, { 'role' => 'assistant', 'text' => 'ok' }] }
+      expect(described_class::Serializer.payload(session)).to be_nil
+    end
+
     it 'takes headings from the first and the latest user messages' do
       payload = { 'messages' => [{ 'role' => 'user', 'text' => 'Plan a trip' }, { 'role' => 'assistant', 'text' => 'ok' },
                                  { 'role' => 'user', 'text' => "Now the slides\n```code```" }] }

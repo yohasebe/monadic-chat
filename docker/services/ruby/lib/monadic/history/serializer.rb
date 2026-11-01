@@ -28,10 +28,10 @@ module Monadic
       module_function
 
       # The payload for a chat, or nil when there is nothing to keep yet
-      # (no user message).
+      # (no user message with words or attached files).
       def payload(session)
         messages = Array(value_of(session, :messages)).filter_map { |m| message(m) }
-        return nil unless messages.any? { |m| m['role'] == 'user' && !m['text'].to_s.strip.empty? }
+        return nil unless messages.any? { |m| m['role'] == 'user' && (!m['text'].to_s.strip.empty? || m['attachments']) }
 
         data = {
           'format_version' => FORMAT_VERSION,

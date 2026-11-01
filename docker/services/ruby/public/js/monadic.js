@@ -318,7 +318,7 @@ function refreshPrivacyToggleGate(opts) {
     fallback = "Privacy Filter is disabled.";
   } else if (!languageSupported) {
     disabledKey = "ui.privacyFilterLanguageNotInstalled";
-    fallback = "Privacy Filter is not installed for this language. Install via Settings → Install Options.";
+    fallback = "Privacy Filter is not installed for this language. Install it from Actions → Install Options.";
   }
   const tooltip = (typeof webUIi18n !== "undefined" && disabledKey)
     ? webUIi18n.t(disabledKey)

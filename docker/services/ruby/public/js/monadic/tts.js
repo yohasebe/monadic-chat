@@ -638,8 +638,8 @@ function ttsSpeak(text, callback) {
   const grok_voice = grokEl ? grokEl.value : "";
 
 
-  // aac produces ~28% lower TTFA and ~39% smaller payload than mp3 on OpenAI TTS
-  // (measured 2026-04-18). Providers that don't accept aac fall back to mp3
+  // aac gives a lower TTFA and a smaller payload than mp3 on OpenAI TTS.
+  // Providers that don't accept aac fall back to mp3
   // server-side (see tts_utils.rb Mistral branch).
   let response_format = "aac";
 

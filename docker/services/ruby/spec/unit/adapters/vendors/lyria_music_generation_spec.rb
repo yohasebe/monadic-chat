@@ -165,7 +165,7 @@ RSpec.describe 'GeminiHelper#generate_music_with_lyria' do
 
     # The REST API takes the enum name; "audio/wav" (the Python SDK's spelling)
     # is rejected with 400 INVALID_ARGUMENT by both lyria-3.5 and
-    # lyria-3-pro-preview (checked against the live API, 2026-10-05).
+    # lyria-3-pro-preview.
     it 'requests WAV with the AUDIO_WAV enum when output_format is wav on the Pro model' do
       helper.generate_music_with_lyria(prompt: 'x', lyria_model: 'pro', output_format: 'wav')
       expect(sent_body.dig('generationConfig', 'responseFormat', 'audio', 'mimeType')).to eq('AUDIO_WAV')

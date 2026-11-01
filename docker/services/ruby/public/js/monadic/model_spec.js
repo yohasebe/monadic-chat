@@ -189,13 +189,12 @@ const modelSpec = {
   // knowledge cutoff 2026-02-16. Positioning per OpenAI: Sol = flagship for
   // complex reasoning/agentic coding ($5/$30 per 1M), Terra = default tier
   // balancing intelligence and cost ($2.50/$15), Luna = cost-optimized
-  // ($1/$6). The reasoning enumeration was verified against the live API
-  // 2026-07-10: the error enum lists none…xhigh, and "max" (the announced Max
-  // mode) is additionally accepted and echoed by all three models; "ultra" is
+  // ($1/$6). Reasoning effort: the API's error enum lists none…xhigh, and
+  // "max" (the announced Max mode) is additionally accepted and echoed by all
+  // three models; "ultra" is
   // rejected (ChatGPT-side only), so it is intentionally absent here.
   // -------------------------------------------------------------------------
-  // GPT-6 Astra — OpenAI's frontier model. Four restrictions, all verified
-  // live on 2026-09-05:
+  // GPT-6 Astra — OpenAI's frontier model. Four restrictions:
   //   * reasoning effort accepts low..max only; "none" and "minimal" 400
   //   * temperature and top_p are rejected outright
   //   * function tools require the Responses API — Chat Completions returns
@@ -430,7 +429,7 @@ const modelSpec = {
   // models stay out of providerDefaults — opt-in via the model dropdown only.
   //
   // Fable 5.1 succeeds Fable 5 at the same price. Two flags drive its
-  // differences, both verified live on 2026-09-02 (Fable 5 has neither):
+  // differences (Fable 5 has neither):
   //   rejects_forced_tool_choice  tool_choice "any"/"tool" return 400
   //   thinking_block_binding      a thinking block is bound to the prefix
   //                               that produced it, so replaying one after
@@ -808,8 +807,7 @@ const modelSpec = {
     "native_multiturn_reasoning": true
   },
   // Gemini models
-  // Thinking levels and budget-zero support verified against the live API
-  // on 2026-09-22. Budget bounds and presets are application choices, not
+  // Budget bounds and presets are application choices, not
   // the API's accepted range. The selected default effort remains low.
   "gemini-3.6-flash": {
     "context_window" : [1048576],
@@ -1373,12 +1371,11 @@ const modelSpec = {
   // tool calling, web search, and structured output. Pricing ~$2 in / $6 out /
   // ~$0.50 cached per 1M (long-context tier ~doubles above the 200K threshold).
   // presence_penalty / frequency_penalty omitted to match the grok-4.3
-  // sampling-restriction posture. Verified against the live xAI API 2026-07-09.
+  // sampling-restriction posture.
   // grok-4.6 — xAI chat default. Same base pricing as grok-4.5, but
   // cached input costs more ($0.50/$1.00 vs $0.30/$0.60), so a cache-heavy
   // workload is not automatically cheaper on the newer model. It has no
   // alias: "grok-4.6-latest" fails rather than resolving.
-  // Effort vocabulary verified against the live API on 2026-09-22.
   "grok-4.6": {
     "context_window" : [1, 500000],
     "max_output_tokens" : [1, 32768],
@@ -1392,8 +1389,8 @@ const modelSpec = {
     "supports_parallel_function_calling": true,
     "structured_output": true
   },
-  // Context, vision and effort verified on 2026-09-22. Other capabilities
-  // inherit the 4.6 contract; retain its application output cap of 32768.
+  // Capabilities other than context, vision and effort follow the 4.6
+  // contract, including its application output cap of 32768.
   "grok-4.7": {
     "context_window" : [1, 500000],
     "max_output_tokens" : [1, 32768],
@@ -1479,7 +1476,7 @@ const modelSpec = {
   },
   // DeepSeek's only vision model. The "-exp" is the vendor's own marker for an
   // experimental release, so it is offered for image input but kept out of the
-  // chat default. Live probe: reads images correctly, calls tools, and honors
+  // chat default. It reads images, calls tools, and honors
   // the same V4 thinking controls as the text models — which matters, because
   // it reasons by default and would otherwise spend the whole token budget on
   // a trace and return empty content. Limits mirror deepseek-v4-flash, its base
@@ -1663,15 +1660,15 @@ const modelSpec = {
     "supports_realtime_streaming": true
   },
   // OpenAI retires whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe and
-  // gpt-4o-transcribe-diarize on 2027-02-26 (announced 2026-08-26); all four
-  // were still live on 2026-09-02. gpt-transcribe replaces the first three on
-  // /v1/audio/transcriptions — verified to accept response_format "json" with
+  // gpt-4o-transcribe-diarize on 2027-02-26 (announced 2026-08-26).
+  // gpt-transcribe replaces the first three on /v1/audio/transcriptions — it
+  // accepts response_format "json" with
   // logprobs and a language hint, which is everything this codebase asks of
   // them. It does NOT accept "diarized_json", and gpt-live-transcribe has no
   // batch endpoint at all, so speaker diarization has no successor yet: the
   // diarize entry below carries the sunset date without one, and stays
   // selectable until a replacement exists.
-  // supports_segment_transcription: verified (2026-10-10) to transcribe audio
+  // supports_segment_transcription: transcribes audio
   // appended and committed by the client in a realtime transcription session
   // with turn detection off — one item per commit, usage in seconds. Video
   // Describer's timed transcript relies on exactly that.
@@ -1820,7 +1817,7 @@ const modelSpec = {
   // Gemini Live (BidiGenerateContent). Input 16kHz / output 24kHz;
   // transcription is incremental both ways; 15-minute session cap
   // (reconnect re-seeds from the canon).
-  // Voices: all 30 prebuilt names accepted via Live setup 2026-08-01.
+  // Voices: all 30 prebuilt names are accepted in the Live setup.
   // Gemini 3.8 Live (2026-09-15), the successor of 3.1 Flash Live Preview.
   // Spoken input is transcribed; the reply is audio with its transcript, and
   // function calls work.
@@ -1974,9 +1971,9 @@ const providerDefaults = {
 // change, and the model then picks a value that the API rejects. That is not
 // hypothetical — the OpenAI tool advertised the DALL·E-era sizes 256x256 and
 // 512x512 and the qualities "standard" and "hd" long after DALL·E was removed
-// (2026-05-12), and every one of them answered 400 on a live probe.
+// (2026-05-12), and the API rejects every one of them with 400.
 //
-// Values verified against the live API on 2026-08-21. `seed` is documented in
+// `seed` is documented in
 // OpenAI's image guide but rejected as an unknown parameter, so it is absent.
 const imageGenerationOptions = {
   "openai": {
@@ -1987,7 +1984,7 @@ const imageGenerationOptions = {
              "2048x2048", "2048x1152", "3840x2160", "2160x3840"],
     // Quality is per model: gpt-image-2 rejects `xhigh` ("The model
     // 'gpt-image-2' does not support quality 'xhigh'"), while the 2.5 models
-    // accept it and `max`. Verified against the live API on 2026-09-21.
+    // accept it and `max`.
     // A model listed in providerDefaults.openai.image must appear here, and a
     // model absent from this table is not resolvable — callers stop rather
     // than guess. Parameters other than the ones named here fall through to
@@ -2009,7 +2006,7 @@ const imageGenerationOptions = {
     "input_fidelity": ["low", "high"]
   },
   "xai": {
-    // Verified against the live API on 2026-09-22. These request values are
+    // These request values are
     // shared by the xAI image models, so no per-model table is needed.
     "quality": ["low", "medium", "high", "auto"],
     "aspect_ratio": ["1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2",
@@ -2018,8 +2015,7 @@ const imageGenerationOptions = {
   "gemini": {
     // The conversational image models, which are a different set from
     // providerDefaults.gemini.image (that list drives the Imagen path).
-    // Both verified present in the live model list on 2026-10-17
-    // (gemini-3.1-flash-image is deprecated in favour of Nano Banana 2.1).
+    // gemini-3.1-flash-image is deprecated in favour of Nano Banana 2.1.
     "model": ["gemini-nano-banana-2.1", "gemini-3-pro-image"]
     // aspect_ratio is deliberately absent: the accepted set has not been
     // verified against the API, and turning free-form prose into an enum

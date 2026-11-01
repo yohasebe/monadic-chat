@@ -226,7 +226,7 @@ module Monadic
           }
           # Deterministic sampling helps evaluation consistency, but reasoning
           # models reject a non-default temperature outright (gpt-5.6: "Only
-          # the default (1) value is supported", verified live 2026-07-10).
+          # the default (1) value is supported").
           # Gate on the model spec actually DECLARING a temperature range.
           declares_temp = (Monadic::Utils::ModelSpec.model_has_property?(model, "temperature") rescue false)
           body[:temperature] = 0.0 if declares_temp

@@ -119,7 +119,7 @@ if __FILE__ == $PROGRAM_NAME
 
   has_image = options[:image_path] && !options[:image_path].strip.empty?
 
-  # Model selection by input modality (verified against the live xAI API):
+  # Model selection by input modality:
   #   - image-to-video → grok-imagine-video-1.5 (image-to-video only; native
   #     audio, higher quality). It rejects text-only requests.
   #   - text-to-video  → grok-imagine-video (1.0); v1.5 does not support t2v.

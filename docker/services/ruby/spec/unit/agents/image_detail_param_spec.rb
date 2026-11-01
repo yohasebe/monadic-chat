@@ -3,8 +3,7 @@
 require 'spec_helper'
 
 # analyze_image gained an optional `detail:` fidelity parameter
-# (low/high/auto/original — enum verified against the live OpenAI API
-# 2026-07-10; "original" preserves full resolution). Defaults must stay
+# (low/high/auto/original; "original" preserves full resolution). Defaults must stay
 # unchanged: no detail field is sent unless explicitly requested, and only
 # whitelisted values pass through (typos must not reach the API).
 RSpec.describe 'analyze_image detail parameter' do
@@ -19,7 +18,7 @@ RSpec.describe 'analyze_image detail parameter' do
     expect(agent_src).to include('def image_analysis_agent(message:, image_path:, detail: nil)')
   end
 
-  it 'whitelists the four live-verified values and omits the field otherwise' do
+  it 'whitelists the four accepted values and omits the field otherwise' do
     expect(agent_src).to match(/%w\[low high auto original\]\.include\?\(detail\.to_s\)/)
   end
 

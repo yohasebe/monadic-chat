@@ -3,7 +3,7 @@
 require "spec_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/mistral_helper"
 
-# Two things the live API showed on 2026-10-06:
+# Two things the API does:
 #
 # 1. Leaving reasoning_effort out means different things per model. Medium
 #    3.5 does not reason without it; Z.ai GLM 5.3 reasons at about its

@@ -239,7 +239,6 @@ window.doResetActions = function() {
 ### Patch Files
 
 - `utilities.js` - Core utility functions
-- `utilities_websearch_patch.js` - Web search extensions
 - `websocket.js` - WebSocket communication
 
 ## Internationalization (i18n) System

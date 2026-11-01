@@ -35,11 +35,11 @@ Under the version line, up to five groups in this order, each only when it has i
 ## Items
 
 - One line in the present tense, about what the user sees or does now.
-- An action the user must take (delete files, re-upload, a minimum OS) is in bold, in any group; nothing else is.
+- An action the user must take (delete files, re-upload, a minimum OS) is in bold, in any group: the whole item when the item is the action, otherwise after a colon at its end. Nothing else is.
 - Security items say what is fixed, not how it could be misused, which versions were affected, or how it was found.
 - No causes, no history ("used to", "since"), no internal names (classes, source files, constants), no provider-side internals.
 - Names are the ones users meet: UI labels in backticks as they appear, settings, files under `~/monadic`, app names, MCP tool names, rake tasks.
-- A container to rebuild goes at the end in parentheses: `(rebuild the Python container)`.
+- A container to rebuild goes at the end, in bold parentheses: `**(rebuild the Python container)**`.
 - Products by their marketed names, not API model IDs.
 - Changes that concern only the project's internals are not listed.
 

@@ -10,7 +10,7 @@ By placing files in this directory, you can access those files within Monadic Ch
 
 In apps that can execute code (e.g., Code Interpreter app), you can read files from the Shared Folder. A file at the top of the Shared Folder can be given by its name alone; for a file in a subfolder, give its path relative to the Shared Folder.
 
-During the execution of some processes on the AI agent side (using function calling, for example), intermediate files may be saved in the Shared Folder. It is recommended to periodically check and delete unnecessary files.
+During the execution of some processes on the AI agent side (using function calling, for example), intermediate files may be saved in the Shared Folder.
 
 JupyterLab also starts in `/monadic/data`, so the Shared Folder is available there as well — see [JupyterLab Integration](./jupyterlab.md).
 
@@ -82,7 +82,7 @@ The section is collapsed by default; expand it to view the list of variables and
 - **DrawIO Grapher**: Diagram files (`.drawio`) and previews (PNG)
 - **Web Insight**: Web page screenshots (PNG)
 
-Most files are saved at the top of the shared folder, with file names that include a timestamp or an identifier. Clean up files you no longer need from time to time.
+Most files are saved at the top of the shared folder, with file names that include a timestamp or an identifier. The [Shared Folder panel](../basic-usage/web-interface.md#shared-folder-panel) shows what each file is and moves the ones you no longer need to the trash.
 
 
 ## Monadic Chat Directory Structure
@@ -102,7 +102,7 @@ Monadic Chat creates these folders when it starts, if they do not exist:
 ```
 
 
-The `data` folder is the shared folder, mounted in the Ruby, Python, Selenium, and Extractor containers. Its `apps`, `helpers`, and `services` folders are read-only inside the containers. These subfolders hold your own additions to Monadic Chat. For information on how to develop additional apps, see [Developing Apps](../advanced-topics/develop_apps.md).
+The `data` folder is the shared folder, mounted in the Ruby, Python, Selenium, and Extractor containers. Its `apps`, `helpers`, and `services` folders are read-only inside the containers. These subfolders hold your own additions to Monadic Chat. `apps`, `helpers` and `services` must be real folders: Monadic Chat does not start when one of them is a link. A file in the shared folder that is a link is not read or written, and a link to a folder outside the shared folder is not followed. For information on how to develop additional apps, see [Developing Apps](../advanced-topics/develop_apps.md).
 
 `apps`
 

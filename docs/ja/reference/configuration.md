@@ -2,7 +2,7 @@
 
 このページでは、`~/monadic/config/env` の設定を一覧にします。多くは **Settings** ウィンドウ（**Open → Settings**）にもあり、同じファイルに書かれます。アプリはこのファイルを書くたびに、自分のユーザーアカウントだけが読み書きできる権限にします（Windows では WSL の中で）。手で編集したファイルは、アプリが書くまで元の権限のままです。
 
-値は書いたとおりに使います。値の中の `$VAR`・`${VAR}`・`$(...)` は展開しません。要求の送り先を変える設定は、このファイルからは読みません。プロキシの設定（`https_proxy` など）と、サービスの送り先の `QDRANT_URL`・`EXTRACTOR_URL`・`EMBEDDINGS_URL`、それに名前が `_URL`・`_HOST`・`_ENDPOINT`・`_PROXY`・`_CMD`・`_COMMAND`（または送り先やプログラムを表す同様の語）で終わる設定です。アプリを起動するシェルの環境変数で設定してください。ファイルを指す設定（`SSL_CERT_FILE`・`SSL_CERT_DIR`・`TTS_DICT_PATH`・`HELP_DATA_DUMP`）は、そのファイルが共有フォルダの中にあるときは使いません。
+値は書いたとおりに使います。値の中の `$VAR`・`${VAR}`・`$(...)` は展開しません。要求の送り先、動かすプログラム、読むファイルを決める設定は、このファイルからは読みません。プロキシの設定（`https_proxy` など）、`MCP_SERVER_HOST`、プログラムの環境の変数（`PATH`・`HOME`・`RUBYOPT` など）、それに名前が送り先・プログラム・パスを表す語（`_URL`・`_URI`・`_HOST`・`_ENDPOINT`・`_PROXY`・`_ADDRESS`・`_SOCKET`・`_CMD`・`_COMMAND`・`_BIN`・`_EXEC`・`_PATH`・`_DIR`・`_FILE` など）で終わる設定です。アプリを起動するシェルの環境変数で設定してください。ファイルを指す設定（`SSL_CERT_FILE`・`SSL_CERT_DIR`・`TTS_DICT_PATH`・`HELP_DATA_DUMP`）は読みますが、値が共有フォルダの外にある既存のファイルかフォルダの絶対パスのときだけ使います。ポートの設定（`MCP_SERVER_PORT`・`JUPYTER_PORT`・`*_DEV_PORT`）は 1〜65535 の数でなければなりません。
 
 ## 設定カテゴリー
 
@@ -62,7 +62,7 @@ OPENAI_API_KEY=op://Dev/OpenAI/credential
 
 - **必要なもの**: アプリを動かすコンピュータの 1Password のデスクトップアプリと [1Password CLI](https://developer.1password.com/docs/cli/)（`op`）。デスクトップアプリで **Settings → Developer → Integrate with 1Password CLI** をオンにしておく必要があります。CLI はデスクトップアプリとは別に、コンピュータごとに入れます。ほかのコンピュータから設定が同期されても、CLI は入りません。macOS では `brew install 1password-cli` で入れられます。ほかの OS は [1Password のインストール手順](https://developer.1password.com/docs/cli/get-started/)を参照してください。この設定は macOS・Windows・Linux で共通です。Windows では、先に 1Password で Windows Hello をオンにします。Linux では、先に **Settings → Security → Unlock using system authentication** をオンにします。これには PolKit と、PolKit の認証エージェントが動いていることが必要です。Snap と Flathub で配布されている 1Password は、この連携に対応していません。詳しくは [1Password の手順](https://developer.1password.com/docs/cli/app-integration/)を参照してください。ターミナルで手動でサインインしたときに設定されるセッションの環境変数は、デスクトップから起動したアプリには渡りません。アプリは `PATH` と、一般的なインストール先から `op` を探します。
 - **読み込むとき**: Start を押したときに、すべての参照を 1 回の `op` の呼び出しで読み込みます。1Password の確認は通常 1 回です。この呼び出しが失敗した場合は、どの参照が失敗したかを調べるために 1 つずつ読み直すので、1Password が再び確認を求めることがあります。すべての参照を読み込めたら、値はアプリを終了するまで保持し、Restart やコンテナの再起動では読み直しません。読み込めなかった参照がある場合は、次の Start か Restart で読み直します。設定で参照を変えた場合は、次の Start で読み直します。
-- **値の置き場所**: `~/monadic/config/env` には参照のまま残ります。値はアプリのメモリに置き、メモリ上のマウント（tmpfs）を通して Ruby のコンテナに渡します。ファイル、コンテナの設定、コンテナの環境変数には書かず、ログにも出しません。メモリ上のマウントは Docker の仮想マシンのメモリにあり、そのメモリがディスクにスワップされるかどうかは Docker Desktop の動作によります。
+- **値の置き場所**: `~/monadic/config/env` には参照のまま残ります。値はアプリのメモリに置き、メモリ上のマウント（tmpfs）を通して Ruby のコンテナに渡します。ファイル、コンテナの設定、コンテナの環境変数には書かず、ログにも出しません。メモリ上のマウントは Docker の仮想マシンのメモリにあります。
 - **読み込めなかったとき**: コンソールに、キーの名前と理由（`op` が見つからない、1Password がロックされているか CLI がサインインしていない、確認が取り消されたか 2 分以内に応答がなかった、項目またはフィールドが見つからない）を表示します。そのキーは次の Start まで未設定として扱い、ほかのキーと機能はそのまま使えます。参照の文字列をキーとしてプロバイダに送ることはありません。
 - **アプリより古い Ruby のコンテナ**: 値を使えないため、アプリは値を渡さず、作り直しを促します（**Actions → Build Ruby Container**）。
 - **開発モード**（`rake server:debug`）: サーバがホストで動くため、サーバ自身がすべての参照を 1 回の `op` の呼び出しで読み込みます。`op` は `PATH` から、または `MONADIC_OP_CLI` に書いたパス（このファイルではなくシェルで設定）から探します。この呼び出しが失敗すると、参照のあるキーはすべて未設定になり、コンソールにはキーの名前だけを表示します（理由は表示しません）。

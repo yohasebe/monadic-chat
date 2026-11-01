@@ -111,8 +111,8 @@ module MistralHelper
     requested = requested.to_s.strip.downcase
     rank = MISTRAL_EFFORT_RANK.index(requested)
 
-    # "none" is sent, not left out: Mistral Large 4 reasons when the field is
-    # missing; "none" turns reasoning off.
+    # "none" is sent, not left out, where the model takes it (Medium 3.5
+    # reasons when the field is missing); elsewhere the lowest level is.
     if requested.empty? || requested == "none" || rank.nil?
       return accepts_none ? "none" : above_none.first
     end

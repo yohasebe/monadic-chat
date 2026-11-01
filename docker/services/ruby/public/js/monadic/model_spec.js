@@ -86,6 +86,9 @@ const modelSpec = {
     "skip_in_progress_events": true
   },
   "gpt-5.2-codex": {
+    "deprecated": true,
+    "sunset_date": "2026-07-23",
+    "successor": "gpt-5.6-sol",
     "context_window": [1, 400000],
     "max_output_tokens": [1, 128000],
     "reasoning_effort": [["low", "medium", "high", "xhigh"], "low"],
@@ -1141,8 +1144,9 @@ const modelSpec = {
   },
   // Mistral Large 4 (public preview 2026-10-06): open-weight multimodal MoE
   // (1.05T total, 49B active). The API reports a 524,288-token context
-  // (the model page says 1M). reasoning_effort accepts only "none"/"high"
-  // like Medium 3.5; without it the model does not reason.
+  // (the model page says 1M). reasoning_effort accepts low/medium/high and
+  // rejects "none"; it reasons at every level and returns the reasoning as
+  // structured thinking parts, so "low" is the least reasoning there is.
   "mistral-large-4": {
     "context_window": [1, 524288],
     "max_output_tokens" : [1, 262000],
@@ -1154,7 +1158,7 @@ const modelSpec = {
     "vision_capability": true,
     "supports_structured_output": true,
     "supports_thinking": true,
-    "reasoning_effort": [["none", "high"], "none"]
+    "reasoning_effort": [["low", "medium", "high"], "low"]
   },
   // Z.ai GLM 5.3, hosted by Mistral (third-party open-weight, text only,
   // 1M context, 128k output). reasoning_effort accepts low/high/max and
@@ -1892,7 +1896,7 @@ const modelSpec = {
 const providerDefaults = {
   "openai": {
     "chat": ["gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna", "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.5", "gpt-5.2"],
-    "code": ["gpt-6-sol", "gpt-5.6-sol", "gpt-5.2-codex", "gpt-5.4-mini"],
+    "code": ["gpt-6-sol", "gpt-5.6-sol", "gpt-5.4-mini"],
     "vision": ["gpt-6-luna", "gpt-5.6-luna", "gpt-5.4-mini"],
     "audio_transcription": ["gpt-transcribe"],
     // First entry is the default. The 2.5 models are offered as choices; moving

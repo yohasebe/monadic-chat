@@ -43,6 +43,59 @@ RSpec.describe "Ruby-side writes into the shared folder" do
     end
   end
 
+  # A link to a folder is taken where it really is when that is inside the
+  # shared folder; the folders are then opened one by one without following
+  # a link, so nothing reaches outside it.
+  describe "links on the way to a file" do
+    around do |example|
+      Dir.mktmpdir("outside-") do |outside|
+        @outside = File.realpath(outside)
+        example.run
+      end
+    end
+
+    before { FileUtils.mkdir_p(File.join(@root, "real", "sub")) }
+
+    it "writes and reads through a link to a folder inside the shared folder" do
+      File.symlink(File.join(@root, "real"), File.join(@root, "alias"))
+      guard.write_file!(File.join(@root, "alias", "sub", "note.txt"), "kept")
+      expect(File.read(File.join(@root, "real", "sub", "note.txt"))).to eq("kept")
+      expect(guard.read_bytes!(File.join(@root, "alias", "sub", "note.txt"))).to eq("kept")
+    end
+
+    it "refuses a link to a folder outside, also through a link inside" do
+      File.symlink(@outside, File.join(@root, "away"))
+      File.symlink(File.join(@root, "away"), File.join(@root, "hop"))
+      %w[away hop].each do |name|
+        expect { guard.write_file!(File.join(@root, name, "note.txt"), "x") }
+          .to raise_error(Monadic::Utils::SharedPathGuard::InvalidPath)
+      end
+      expect(Dir.children(@outside)).to be_empty
+    end
+
+    it "refuses a folder replaced by a link outside after the path was resolved" do
+      target = File.join(@root, "real", "sub", "note.txt")
+      allow(guard).to receive(:canonical_path).and_wrap_original do |original, *args|
+        resolved = original.call(*args)
+        unless File.symlink?(File.join(@root, "real"))
+          FileUtils.mv(File.join(@root, "real"), File.join(@root, "moved"))
+          File.symlink(@outside, File.join(@root, "real"))
+        end
+        resolved
+      end
+      expect { guard.write_file!(target, "x") }.to raise_error(Monadic::Utils::SharedPathGuard::InvalidPath)
+      expect(File.symlink?(File.join(@root, "real"))).to be true
+      expect(Dir.children(@outside)).to be_empty
+    end
+
+    it "does not read a file that is a link" do
+      File.write(File.join(@root, "real", "plain.txt"), "plain")
+      File.symlink(File.join(@root, "real", "plain.txt"), File.join(@root, "linked.txt"))
+      expect { guard.read_bytes!(File.join(@root, "linked.txt")) }
+        .to raise_error(Monadic::Utils::SharedPathGuard::InvalidPath)
+    end
+  end
+
   describe "a file the provider names (Claude's file download)" do
     it "keeps only the last part of the name" do
       skip "ClaudeHelper not loaded" unless defined?(ClaudeHelper)

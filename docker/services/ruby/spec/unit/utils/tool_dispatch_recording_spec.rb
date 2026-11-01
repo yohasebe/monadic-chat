@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "../../support/registered_provider_examples"
 %w[openai claude gemini grok mistral cohere deepseek ollama].each do |p|
   require_relative "../../../lib/monadic/adapters/vendors/#{p}_helper"
 end
@@ -11,6 +12,8 @@ RSpec.describe "Recording the offered tools before a chat request" do
   PROVIDERS_FOR_RECORDING = { OpenAIHelper => ["openai", "OPENAI_API_KEY"], ClaudeHelper => ["anthropic", "ANTHROPIC_API_KEY"], GeminiHelper => ["gemini", "GEMINI_API_KEY"],
              GrokHelper => ["xai", "XAI_API_KEY"], MistralHelper => ["mistral", "MISTRAL_API_KEY"], CohereHelper => ["cohere", "COHERE_API_KEY"],
              DeepSeekHelper => ["deepseek", "DEEPSEEK_API_KEY"], OllamaHelper => ["ollama", "OLLAMA_X"] }
+  it_behaves_like 'coverage of registered chat providers', PROVIDERS_FOR_RECORDING.keys.map(&:name)
+
   PROVIDERS_FOR_RECORDING.each do |mod, (prov, key)|
     it mod.name do
       model = Monadic::Utils::ModelSpec.get_provider_models(prov, "chat")&.first || "llama3"

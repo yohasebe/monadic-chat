@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "../../support/registered_provider_examples"
 require "json"
 require_relative "../../../lib/monadic/utils/tool_dispatch_guard"
 require_relative "../../../lib/monadic/utils/tts_text_extractor"
@@ -183,6 +184,8 @@ RSpec.describe "Tool dispatch in the provider helpers" do
              [{ "function" => { "name" => name, "arguments" => args } }], [], 0)
     }]
   }.freeze
+
+  it_behaves_like 'coverage of registered chat providers', RUNNERS.values.map { |helper, _run| helper.name }
 
   RUNNERS.each do |provider, (helper_module, run)|
     context provider do

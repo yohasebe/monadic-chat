@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require_relative '../../support/registered_provider_examples'
 require_relative '../../../lib/monadic/adapters/base_vendor_helper'
 
 # The user message of a turn is recorded once, when the server accepts the
@@ -113,8 +114,9 @@ RSpec.describe BaseVendorHelper, '#record_user_turn!' do
     vendors = Dir[File.expand_path('../../../lib/monadic/adapters/vendors/*_helper.rb', __dir__)]
               .map { |f| File.basename(f, '_helper.rb') } - ['tavily']
 
-    it 'covers the chat providers' do
-      expect(vendors).to include('openai', 'claude', 'gemini', 'grok', 'deepseek', 'cohere', 'mistral', 'ollama')
+    it 'covers exactly the registered chat providers' do
+      registered = RegisteredChatProviders.helpers.map { |name| name.delete_suffix('Helper').downcase }
+      expect(vendors).to match_array(registered)
     end
 
     vendors.each do |vendor|

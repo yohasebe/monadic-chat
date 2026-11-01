@@ -1102,12 +1102,16 @@ module CohereHelper
       # buffer.encode!("UTF-8", "UTF-16")
 
       scanner = StringScanner.new(buffer)
-      pattern = /(\{.*?\})(?=\n|\z)/
+      # One event is one line ending in a newline (JSON escapes the newlines
+      # inside it). An event whose line has not fully arrived stays in the
+      # buffer for the next chunk: a chunk can end anywhere, also right
+      # after a "}" inside the event.
+      pattern = /(\{.*?\})(?=\n)/
       until scanner.eos?
         matched = scanner.scan_until(pattern)
         if matched
           begin
-            json_data = matched.match(pattern)[1]
+            json_data = scanner[1]
             json = JSON.parse(json_data)
 
             Monadic::Utils::ExtraLogger.log_json("Cohere stream chunk", json)

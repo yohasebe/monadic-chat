@@ -1436,25 +1436,6 @@ module MistralHelper
       end
     end
 
-    stored_content = response.dig("choices", 0, "message", "content")
-    if stored_content && !stored_content.to_s.empty?
-      begin
-        session[:messages] << {
-          "role" => "assistant",
-          "text" => stored_content.to_s,
-          "html" => markdown_to_html(stored_content.to_s),
-          "lang" => detect_language(stored_content.to_s),
-          "mid" => SecureRandom.hex(4),
-          "active" => true
-        }
-      rescue StandardError
-        session[:messages] << {
-          "role" => "assistant",
-          "text" => stored_content.to_s
-        }
-      end
-    end
-
     [response]
   end
 

@@ -337,7 +337,7 @@ module OllamaHelper
     end
 
     session[:messages].delete_if do |msg|
-      msg["role"] == "assistant" && msg["content"].to_s == ""
+      msg["role"] == "assistant" && msg["text"].to_s == ""
     end
 
     obj = session[:parameters]

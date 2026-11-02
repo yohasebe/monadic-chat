@@ -3,6 +3,8 @@
 require_relative "../../spec_helper"
 require "json"
 require_relative "../../../lib/monadic/utils/tts_text_extractor"
+require_relative "../../../lib/monadic/utils/websocket"
+require_relative "../../../lib/monadic/workspace"
 
 # Run by spec/unit/adapters/vendors/capability_notes_request_body_spec.rb in a
 # process of its own (no config file, network stopped), not as a unit spec.
@@ -10,8 +12,10 @@ require_relative "../../../lib/monadic/utils/tts_text_extractor"
 # The capability note goes into the system prompt each provider is sent:
 # once in the request for the user's message and once in the request that
 # returns a tool's result, and not at all when the app is not named in the
-# flag. The provider's replies are made up here (a tool call, then text);
-# each request stops at the HTTP client.
+# flag. Sent through the page's WebSocket handler, it is in each request of
+# a conversation once, and never in the recorded chat. The provider's replies
+# are made up here (a tool call, then text); each request stops at the HTTP
+# client.
 RSpec.describe "Capability note in the request body" do
   header = "## What your tools can do now"
   suffix = "Suffix of this app."
@@ -228,6 +232,90 @@ RSpec.describe "Capability note in the request body" do
         expect(bodies.map { |b| system_text(b).scan(suffix).size }).to eq([1, 1])
         expect(Monadic::Utils::ContainerProbe).not_to have_received(:check)
       end
+    end
+  end
+
+  # Two messages sent the way the page sends them: the WebSocket handler
+  # records the user's message and starts the request, and the reply is
+  # recorded when the page asks for it (HTML), before the next message.
+  def run_conversation(mod, provider, key, first_reply, second_reply)
+    model = Monadic::Utils::ModelSpec.get_provider_models(provider, "chat")&.first || "llama3"
+    tools = [tool_definition(reader_tool_name), tool_definition(called_tool)]
+    calls = @tool_calls
+    tool_owner = Module.new { define_method(:look_up_term) { |**| calls << :ran && "term found" } }
+    stub_const("CONFIG", key ? { key => "k" } : {})
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with(Monadic::Utils::CapabilityNotes::FLAG).and_return("NotesApp")
+
+    app = Class.new(MonadicApp) { include mod }.new
+    app.extend(tool_owner)
+    app_settings = { "provider" => provider, "tools" => tools }
+    app.define_singleton_method(:settings) { app_settings }
+    stub_const("APPS", { "NotesApp" => app })
+    allow(app).to receive(:sleep)
+    bodies = []
+    replies = []
+    answer = lambda do |body|
+      bodies << JSON.parse(JSON.generate(body))
+      double(status: HTTP::Response::Status.new(200), body: reply_body(replies.shift))
+    end
+    http = double("http")
+    allow(http).to receive(:timeout).and_return(http)
+    allow(http).to receive(:headers).and_return(http)
+    allow(http).to receive(:post) { |_uri, json: nil, **| answer.call(json) }
+    allow(HTTP).to receive(:headers).and_return(http)
+    allow(HTTP).to receive(:timeout).and_return(http)
+    allow(app).to receive(:post_json_with_retries) { |_http, _uri, body, **| answer.call(body) }
+    if mod == OllamaHelper
+      allow(OllamaHelper).to receive(:find_endpoint).and_return("http://ollama.invalid")
+      allow(app).to receive(:list_models).and_return([model])
+      allow(OllamaHelper).to receive(:fetch_model_capabilities).and_return(nil)
+    end
+
+    host = Class.new { include WebSocketHelper }.new
+    allow(host).to receive(:send_or_broadcast)
+    allow(host).to receive(:initialize_token_counting).and_return(nil)
+    allow(host).to receive(:sts_session_capable?).and_return(false)
+    allow(host).to receive(:detect_language).and_return("en")
+    session = { parameters: {}, chat_id: Monadic::Workspace::Ids.generate(:chat),
+                messages: [{ "role" => "system", "text" => "S", "active" => true }] }
+    page = { "app_name" => "NotesApp", "model" => model, "context_size" => "5", "max_tokens" => "100",
+             "tools" => tools.to_json, "temperature" => "0.5", "system_prompt_suffix" => suffix }
+    queue = Queue.new
+    # The connection's session, as the server sets it when the page connects.
+    Thread.current[:rack_session] = session
+    [["Define it", [send(first_reply, true), send(second_reply, false)]],
+     ["And the next one", [send(second_reply, false)]]].each do |message, turn_replies|
+      replies.push(*turn_replies)
+      thread = host.send(:handle_ws_streaming, nil, page.merge("message" => message), session, queue)
+      host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+    end
+    [bodies, session]
+  ensure
+    Thread.current[:rack_session] = nil
+  end
+
+  providers.each do |mod, (provider, key, first_reply, second_reply)|
+    it "#{mod.name}: through the page's handler, puts the note once in each request of two messages and keeps it out of the chat" do
+      bodies, session = run_conversation(mod, provider, key, first_reply, second_reply)
+      expect(@tool_calls).to eq([:ran])
+      expect(bodies.size).to eq(3)
+      bodies.each do |body|
+        system = system_text(body)
+        expect(system).to start_with("S")
+        expect(system.scan(header).size).to eq(1)
+        expect(system.scan(suffix).size).to eq(1)
+        expect(JSON.generate(body).scan(header).size).to eq(1)
+      end
+      # The second message's request carries the first exchange as history.
+      expect(JSON.generate(bodies.last)).to include("Define it", "And the next one")
+      expect(JSON.generate(bodies.last).scan("Done.").size).to eq(1)
+      expect(session[:messages].map { |m| m["role"] }).to eq(%w[system user assistant user assistant])
+      expect(JSON.generate(session[:messages])).not_to include(header)
+      expect(session[:messages].first["text"]).to eq("S")
+      # The handler runs each message under a request of its own: the
+      # container is asked once for each.
+      expect(Monadic::Utils::ContainerProbe).to have_received(:check).with(:python).twice
     end
   end
 

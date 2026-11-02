@@ -4,6 +4,7 @@ require "set"
 require_relative "provider_capabilities"
 require_relative "tts_provider"
 require_relative "container_probe"
+require_relative "container_dependencies"
 require_relative "tool_key_requirements"
 require_relative "progressive_tool_manager"
 require_relative "secret_references"
@@ -67,9 +68,18 @@ module Monadic
         cached = Thread.current[THREAD_KEY]
         return cached[:result] if request_id && cached && cached[:key] == [request_id, service]
 
-        result = ContainerProbe.check(service)
+        result = with_start(service, ContainerProbe.check(service))
         Thread.current[THREAD_KEY] = { key: [request_id, service], result: result } if request_id
         result
+      end
+
+      # A stopped container the app is starting now (for the app the user
+      # chose) is reported as starting: the tool cannot use it yet, but it
+      # will be there shortly.
+      def with_start(service, result)
+        return result unless result[:state] == :stopped && ContainerDependencies.starting?(service)
+
+        { state: :starting }
       end
 
       def build(settings:, session:, app_name:, config:, probe: ->(service) { ContainerProbe.check(service) },
@@ -132,6 +142,9 @@ module Monadic
                 when :stopped
                   "not ready: the Python container is not running. Do not call #{readers.size > 1 ? 'them' : 'it'}; " \
                   "ask the user to paste the text instead"
+                when :starting
+                  "not ready yet: the Python container is being started. Do not call #{readers.size > 1 ? 'them' : 'it'} " \
+                  "now; tell the user it will be ready shortly and to ask again then"
                 else
                   "could not be checked (#{result[:reason]}). If a call fails, say that the file could not be read " \
                   "and ask the user to paste the text"

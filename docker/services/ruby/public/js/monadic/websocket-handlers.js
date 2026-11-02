@@ -245,7 +245,8 @@ function handleFragmentWithAudio(data, processAudio) {
       }
       // Process regular audio data
       else if (data.audio && typeof processAudio === 'function') {
-        if (!inForeground) {
+        // Not shown, or held in the background by the desktop app.
+        if (!inForeground || (window.BackgroundReply && window.BackgroundReply.isHeld())) {
           return true;
         }
         // The audio processing might vary between environments

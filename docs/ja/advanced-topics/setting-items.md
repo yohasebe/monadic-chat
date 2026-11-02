@@ -121,7 +121,7 @@ end
 これらは MDSL ファイルではなく、**Settings** ウィンドウ（**Open → Settings**）で設定します。項目は General、System、API Keys、Voice & Audio、Services、Install Options、Actions、About です。設定できるものの例：
 
 - 各プロバイダー、ElevenLabs、Tavily の API キー
-- UI の言語、Browser Mode、Launch at Login、Menu Bar Mode
+- UI の言語、Browser Mode、Launch at Login、Menu Bar Mode、Notify When a Reply Arrives in the Background
 - Extra Logging
 - TTS の辞書のファイルと、Auto Speech の大きさの上限
 - MCP サーバーとそのポート

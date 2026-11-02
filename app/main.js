@@ -4,7 +4,7 @@ process.env.ELECTRON_NO_ATTACH_CONSOLE = '1';
 process.env.ELECTRON_ENABLE_LOGGING = '0';
 process.env.ELECTRON_DEBUG_EXCEPTION_LOGGING = '0';
 
-const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme, nativeImage, powerMonitor, clipboard } = require('electron');
+const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme, nativeImage, powerMonitor, clipboard, Notification } = require('electron');
 const updater = require('./updater');
 const { injectUpdateButton } = require('./update-ui');
 // electron-context-menu is ESM-only; loaded dynamically in app.whenReady()
@@ -97,6 +97,43 @@ let menuBarModeActive = false;
 
 // Internal browser window reference and opener
 let webviewWindow = null;
+// Answers that finish while the Web UI window is hidden (background_reply.js).
+const { BackgroundReplyState } = require('./background_reply');
+const backgroundReply = new BackgroundReplyState();
+// Notices shown and not yet dismissed (kept so they are not collected), with
+// the page generation each was made for.
+const backgroundNotices = new Map();
+// Closing, hiding and showing the Web UI window while answers run
+// (background_reply_controller.js); main passes in what touches Electron.
+const { createBackgroundReplyController } = require('./background_reply_controller');
+const backgroundReplyController = createBackgroundReplyController({
+  state: backgroundReply,
+  getWindow: () => webviewWindow,
+  send: (channel, payload) => {
+    if (webviewWindow && !webviewWindow.isDestroyed()) webviewWindow.webContents.send(channel, payload);
+  },
+  apply: ({ muted, throttle }) => {
+    if (!webviewWindow || webviewWindow.isDestroyed()) return;
+    webviewWindow.webContents.setAudioMuted(muted);
+    webviewWindow.webContents.setBackgroundThrottling(throttle);
+  },
+  askToClose: async (win) => {
+    const result = await dialog.showMessageBox(win, {
+      type: 'warning',
+      buttons: [i18n.t('menu.closeWebUI'), i18n.t('dialogs.cancel')],
+      defaultId: 1,
+      cancelId: 1,
+      noLink: true,
+      title: i18n.t('dialogs.backgroundHoldFailedTitle'),
+      message: i18n.t('dialogs.backgroundHoldFailedTitle'),
+      detail: i18n.t('dialogs.backgroundHoldFailedMessage')
+    });
+    return result.response === 0;
+  },
+  notify: (noticeKey, binding) => showBackgroundNotice(noticeKey, binding),
+  closeNotices: () => closeBackgroundNotices(),
+  menuChanged: () => updateContextMenu()
+});
 // noVNC viewer window reference
 let novncWindow = null;
 // State for in-page search to filter invisible matches
@@ -119,7 +156,7 @@ function openWebViewWindow(url, forceReload = false) {
       // Force reload for restart
       webviewWindow.webContents.reload();
     }
-    webviewWindow.focus();
+    showWebViewWindow();
     return;
   }
 
@@ -216,6 +253,11 @@ function openWebViewWindow(url, forceReload = false) {
       const host = origin ? `${origin.hostname}:${origin.port || (origin.protocol === 'https:' ? '443' : '80')}` : '';
       const isLocalAllowed = origin && allowedLocalHosts.has(host);
 
+      // Not while the window is held in the background (closed during an answer).
+      if (allowedPermissions.includes(permission) && backgroundReplyController.blocksMedia()) {
+        callback(false);
+        return;
+      }
       if (allowedPermissions.includes(permission) && isLocalAllowed) {
         console.log(`Approving permission request for: ${permission} from ${host}`);
         callback(true);
@@ -437,10 +479,112 @@ function openWebViewWindow(url, forceReload = false) {
       // Let all other keyboard events pass through to the webview
     }
   });
+  // Closing during an answer hides the window instead, so the answer comes in.
+  webviewWindow.on('close', (event) => {
+    const allowed = backgroundReplyController.onClose({
+      quitting: forceQuit,
+      updating: !!(updater.isInstallInProgress && updater.isInstallInProgress())
+    });
+    if (!allowed) event.preventDefault();
+  });
+  webviewWindow.webContents.on('did-start-navigation', (details) => {
+    if (details && details.isMainFrame && !details.isSameDocument) backgroundReplyController.pageNavigating();
+  });
+  webviewWindow.webContents.on('render-process-gone', () => backgroundReplyController.pageCrashed());
   webviewWindow.on('closed', () => {
     webviewWindow = null;
+    backgroundReplyController.windowClosed();
   });
 }
+
+// Show the Web UI window again: from the tray, a notice, or opening it.
+function showWebViewWindow() {
+  backgroundReplyController.show();
+}
+
+// Close the Web UI window for good, also while an answer is running.
+function closeWebViewWindow() {
+  if (webviewWindow && !webviewWindow.isDestroyed()) webviewWindow.destroy();
+}
+
+function backgroundNoticesEnabled() {
+  try {
+    return (loadSettings() || {}).BACKGROUND_REPLY_NOTIFICATIONS !== 'false';
+  } catch (_) {
+    return true;
+  }
+}
+
+function closeBackgroundNotices() {
+  for (const notice of backgroundNotices.keys()) {
+    try { notice.close(); } catch (_) { /* already gone */ }
+  }
+  backgroundNotices.clear();
+}
+
+// A fixed text only: nothing of the conversation goes into a notice. A
+// click shows the window only if it is the same window and the notice still
+// applies to its page (background_reply_controller.js).
+function showBackgroundNotice(messageKey, binding) {
+  if (!webviewWindow || !backgroundNoticesEnabled() || !Notification.isSupported()) return;
+  const notice = new Notification({ title: 'Monadic Chat', body: i18n.t(`messages.${messageKey}`), silent: false });
+  backgroundNotices.set(notice, { win: webviewWindow, binding });
+  const forget = () => backgroundNotices.delete(notice);
+  notice.on('click', () => {
+    const made = backgroundNotices.get(notice);
+    forget();
+    if (!made || made.win !== webviewWindow || made.win.isDestroyed()) return;
+    if (backgroundReplyController.noticeStillApplies(made.binding)) showWebViewWindow();
+  });
+  notice.on('close', forget);
+  notice.on('failed', forget);
+  notice.show();
+}
+
+// Messages from the Web UI's own top frame only.
+function fromWebViewPage(event) {
+  return !!(webviewWindow && !webviewWindow.isDestroyed() && event.sender === webviewWindow.webContents &&
+    event.senderFrame === event.sender.mainFrame && isAppUrl(event.senderFrame.url));
+}
+
+ipcMain.on('background-reply:ready', (event) => {
+  if (!fromWebViewPage(event)) return;
+  event.sender.send('background-reply:hello', backgroundReplyController.onReady());
+});
+
+// What the page sends is checked for its form here; which page and which
+// operation it answers, in the controller.
+function pageInfo(info, extra = {}) {
+  if (!info || typeof info !== 'object') return null;
+  return Object.assign({
+    generation: info.generation,
+    op: info.op,
+    running: info.running,
+    pending: info.pending,
+    media: info.media === true
+  }, extra);
+}
+
+ipcMain.on('background-reply:report', (event, info) => {
+  if (fromWebViewPage(event)) backgroundReplyController.onReport(pageInfo(info));
+});
+ipcMain.on('background-reply:state', (event, info) => {
+  if (fromWebViewPage(event)) backgroundReplyController.onState(pageInfo(info));
+});
+ipcMain.on('background-reply:held', (event, info) => {
+  if (fromWebViewPage(event)) backgroundReplyController.onHeld(pageInfo(info));
+});
+ipcMain.on('background-reply:released', (event, info) => {
+  if (fromWebViewPage(event)) backgroundReplyController.onReleased(pageInfo(info));
+});
+ipcMain.on('background-reply:finished', (event, info) => {
+  if (!fromWebViewPage(event) || !info || typeof info !== 'object') return;
+  backgroundReplyController.onFinished({
+    generation: info.generation,
+    requestId: typeof info.requestId === 'string' ? info.requestId.slice(0, 64) : '',
+    outcome: ['done', 'no_reply', 'lost'].includes(info.outcome) ? info.outcome : 'no_reply'
+  });
+});
 
 
 let dockerInstalled = false;
@@ -1820,10 +1964,9 @@ function initializeApp() {
           break;
 
         case 'hide-browser':
-          // Hide (background) internal browser window
-          if (webviewWindow && !webviewWindow.isDestroyed()) {
-            webviewWindow.hide();
-          }
+          // Hide (background) internal browser window, the same way closing
+          // it during an answer does.
+          backgroundReplyController.hideRequested();
           break;
 
         default:
@@ -2291,6 +2434,11 @@ function updateContextMenu(disableControls = false) {
           openMainWindow();
         }
       },
+      // The Web UI window kept in the background after it was closed.
+      ...(backgroundReply.hidden ? [
+        { label: i18n.t('menu.showWebUI'), click: () => showWebViewWindow() },
+        { label: i18n.t('menu.closeWebUI'), click: () => closeWebViewWindow() }
+      ] : []),
       {
         label: i18n.t('menu.openBrowser'),
         click: () => {

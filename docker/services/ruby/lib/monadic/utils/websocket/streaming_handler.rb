@@ -258,7 +258,7 @@ module WebSocketHelper
     # fails on any new direct read of the flag).
     if sts_session_capable?(session)
       send_error("This model is voice-only (speech-to-speech). " \
-                 "Please use the microphone to talk with it.", ws_session_id)
+                 "Please use the microphone to talk with it.", ws_session_id, { "not_accepted" => true })
       return nil
     end
 
@@ -312,6 +312,13 @@ module WebSocketHelper
               end
       language = obj["conversation_language"] || "auto"
     end
+
+    # The page is told that this answer is running and, when no answer comes
+    # (an error, Cancel, Reset, a closed connection), that it ended without
+    # one. An answer that comes ends when it is recorded (html_handler).
+    request_id = request_context.request_id
+    reply_running(request_id, ws_session_id)
+    replied = false
 
     thread = Thread.new do
       # Set thread type for identification
@@ -703,7 +710,11 @@ module WebSocketHelper
           # The chat travels with the response: a Reset after this point but
           # before the page asks for it must not land it in the new chat.
           response["_chat_id"] = chat_at_start if response.is_a?(Hash)
-          queue.push(response) unless chat_changed.call
+          response["_request_id"] = request_id if response.is_a?(Hash)
+          unless chat_changed.call
+            queue.push(response)
+            replied = true
+          end
         end
       end
 
@@ -714,7 +725,11 @@ module WebSocketHelper
       streaming_complete = { "type" => "streaming_complete" }.to_json
       send_or_broadcast(streaming_complete, ws_session_id)
       Monadic::Utils::ExtraLogger.log { "[DEBUG] streaming_complete sent successfully" }
+    ensure
+      finish_reply(request_id, "no_reply", ws_session_id) unless replied
     end
+    # Whoever stops the thread can end the answer (reply_state.rb).
+    thread[:reply_request_id] = request_id
     thread  # return the thread for the orchestrator
   end
 end

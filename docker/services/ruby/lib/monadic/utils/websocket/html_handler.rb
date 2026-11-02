@@ -37,11 +37,15 @@ module WebSocketHelper
 
   private def handle_ws_html(connection, obj, session, thread, queue)
     thread&.join
+    # How each answer taken here ended, sent once after all of it is handled.
+    outcomes = {}
     until queue.empty?
       last_one = queue.shift
       # A response made for a chat that has since been reset or left is
       # dropped, not shown in or saved to the chat the page is in now.
       owner = last_one.delete("_chat_id") if last_one.is_a?(Hash)
+      request_id = last_one.delete("_request_id") if last_one.is_a?(Hash)
+      outcomes[request_id] ||= "no_reply" if request_id
       next if owner && owner != session[Monadic::Workspace::Chats::SESSION_KEY]
 
       begin
@@ -233,6 +237,7 @@ module WebSocketHelper
 
         session[:messages] << new_data
         sync_session_state!
+        outcomes[request_id] = "done" if request_id
         # Filter messages by current app_name to prevent cross-app conversation leakage
         params = get_session_params
     current_app_name = obj["app_name"] || params["app_name"]
@@ -317,5 +322,6 @@ module WebSocketHelper
         send_error("something_went_wrong", ws_session_id)
       end
     end
+    outcomes.each { |id, outcome| finish_reply(id, outcome) }
   end
 end

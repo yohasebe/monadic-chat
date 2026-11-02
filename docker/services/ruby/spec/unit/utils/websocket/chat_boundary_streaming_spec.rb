@@ -44,7 +44,8 @@ RSpec.describe "Streaming across a chat change" do
     expect(sent).to include("BEFORE")
     expect(sent).not_to include("AFTER")
     expect(queue).to be_empty
-    expect(JSON.parse(broadcasts.last)["type"]).to eq("streaming_complete")
+    last_two = broadcasts.last(2).map { |m| JSON.parse(m).values_at("type", "outcome") }
+    expect(last_two).to eq([["streaming_complete", nil], ["reply_state", "no_reply"]])
   end
 
   it "delivers a turn whose chat did not change" do

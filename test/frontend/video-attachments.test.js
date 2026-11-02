@@ -210,7 +210,8 @@ describe('sending while disconnected', () => {
     const fs = require('fs');
     const path = require('path');
     const src = fs.readFileSync(path.resolve(__dirname, '../../docker/services/ruby/public/js/monadic.js'), 'utf8');
-    const sends = [...src.matchAll(/const (sendResult|sampleResult) = window\.safeWsSend\(/g)];
+    // A chat message goes through BackgroundReply.sendReply when it is there.
+    const sends = [...src.matchAll(/const (sendResult|sampleResult) = (?:window\.BackgroundReply \? window\.BackgroundReply\.sendReply\(\w+\) : )?window\.safeWsSend\(/g)];
     expect(sends.length).toBe(2);
     sends.forEach((m) => {
       const after = src.slice(m.index);

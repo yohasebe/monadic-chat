@@ -1324,7 +1324,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // explicitly non-idempotent — the wrapper will fail-fast with
         // an alert if the WS is not OPEN, which is the right outcome
         // for a button click that visibly disables the trigger.
-        const aiUserSent = window.safeWsSend(ai_user_query);
+        const aiUserSent = window.BackgroundReply ? window.BackgroundReply.sendReply(ai_user_query) : window.safeWsSend(ai_user_query);
         if (!(aiUserSent && aiUserSent.sent)) {
           // Not sent: nothing will answer this request.
           if (aiUserHandler && typeof aiUserHandler.abandonAIUser === 'function') aiUserHandler.abandonAIUser();
@@ -3244,7 +3244,11 @@ document.addEventListener("DOMContentLoaded", function () {
           // LLM call. Non-idempotent — fail-fast is the right
           // posture even though reconnect_websocket has already
           // re-established the socket above.
-          window.safeWsSend(params);
+          const startResult = window.BackgroundReply ? window.BackgroundReply.sendReply(params) : window.safeWsSend(params);
+          if (!(startResult && startResult.sent)) {
+            if (typeof window.restoreAfterUnsentMessage === 'function') window.restoreAfterUnsentMessage();
+            $show($id("user-panel"));
+          }
         });
       } else {
         $show($id("user-panel"));
@@ -3425,7 +3429,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // queue, alert) is the only safe behavior; the user will see
         // their input still sitting in the message box and can retry
         // once the connection comes back.
-        const sendResult = window.safeWsSend(params);
+        const sendResult = window.BackgroundReply ? window.BackgroundReply.sendReply(params) : window.safeWsSend(params);
         // Not sent: the text, images and attachments stay for the retry.
         if (!(sendResult && sendResult.sent)) {
           restoreAfterUnsentMessage();

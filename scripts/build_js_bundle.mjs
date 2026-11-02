@@ -100,6 +100,7 @@ const FILES = [
   "js/monadic/ws-fragment-handler.js",
   "js/monadic/ws-reconnect-handler.js",
   "js/monadic/ws-visibility-handler.js",
+  "js/monadic/background-reply.js",
   "js/monadic/ws-audio-handler.js",
   "js/monadic/ws-ping.js",
   "js/monadic/ws-tab-id.js",

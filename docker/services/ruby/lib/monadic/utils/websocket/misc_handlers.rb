@@ -80,15 +80,24 @@ module WebSocketHelper
 
     params = obj["contents"]["params"]
     rack_session = Thread.current[:rack_session]
+    # Counted with the answers the page waits for (reply_state.rb), under an
+    # id of the server's own (the page's ids start again on each load).
+    state_id = "ai_user:#{SecureRandom.hex(8)}"
+    reply_running(state_id, ws_session_id)
 
-    Thread.new do
+    worker = Thread.new do
       Thread.current[:websocket_session_id] = ws_session_id
       Thread.current[:rack_session] = rack_session
+      given = false
       # A reply still being written comes first (waited for here, not in the
       # read loop, so a Reset or Cancel meanwhile is still taken).
       reply&.join
-      write_ai_user_suggestion(session, params, notice)
+      given = write_ai_user_suggestion(session, params, notice)
+    ensure
+      finish_reply(state_id, given ? "done" : "no_reply", ws_session_id)
     end
+    worker[:reply_request_id] = state_id
+    worker
   end
 
   private def write_ai_user_suggestion(session, params, notice)
@@ -103,12 +112,15 @@ module WebSocketHelper
       nil
     elsif result["type"] == "error"
       notice.call("type" => "ai_user_error", "content" => result["content"].to_s)
+      false
     else
       notice.call("type" => "ai_user", "content" => result["content"])
       notice.call("type" => "ai_user_finished", "content" => result["content"])
+      true
     end
   rescue StandardError => e
     notice.call("type" => "ai_user_error", "content" => "AI User error: #{e.message}")
+    false
   end
 
   # Whether UPDATE_PARAMS moves the tab to another app (a new chat).
@@ -489,13 +501,15 @@ module WebSocketHelper
   # queued. The page gets the same notice as for Cancel, which gives it its
   # controls back without touching the input box.
   private def stop_running_reply(thread, queue)
-    queue&.clear
-    return unless thread&.alive?
-
-    thread.kill
-    thread.join(REPLY_STOP_WAIT)
-    queue&.clear
-    send_or_broadcast({ "type" => "cancel" }.to_json, Thread.current[:websocket_session_id])
+    drop_queued_replies(queue)
+    if thread&.alive?
+      thread.kill
+      thread.join(REPLY_STOP_WAIT)
+      drop_queued_replies(queue)
+      send_or_broadcast({ "type" => "cancel" }.to_json, Thread.current[:websocket_session_id])
+    end
+    # Also an answer whose thread was stopped before it ran.
+    stop_reply_work(thread)
   end
 
   private def handle_ws_reset(session)

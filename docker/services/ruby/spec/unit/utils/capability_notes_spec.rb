@@ -79,6 +79,13 @@ RSpec.describe Monadic::Utils::CapabilityNotes do
       expect(text).not_to include("fetch_text_from_file:")
     end
 
+    it "says the readers are not ready yet while the app is starting the Python container" do
+      text = note(probe: ->(_s) { { state: :starting } })
+      expect(text).to include("Reading documents with fetch_text_from_office, fetch_text_from_pdf: not ready yet: " \
+                              "the Python container is being started")
+      expect(text).not_to include("paste the text")
+    end
+
     it "keeps an unknown container apart from a stopped one" do
       text = note(probe: ->(_s) { { state: :unknown, reason: "docker did not answer" } })
       expect(text).to include("could not be checked (docker did not answer)")
@@ -126,6 +133,19 @@ RSpec.describe Monadic::Utils::CapabilityNotes do
 
     it "is nil when the flag does not name the app" do
       expect(described_class.for_session(session, config: config, env: {}, speech_keys: speech_keys)).to be_nil
+    end
+
+    it "reports a stopped container as starting only while the app is starting it" do
+      allow(Monadic::Utils::ContainerProbe).to receive(:check).and_return({ state: :stopped })
+      env = { described_class::FLAG => "NotesApp" }
+      Monadic::Utils::ContainerDependencies.mark_starting([:python], true)
+      starting = described_class.for_session(session, request_id: "q_start", config: config, env: env, speech_keys: speech_keys)
+      Monadic::Utils::ContainerDependencies.mark_starting([:python], false)
+      stopped = described_class.for_session(session, request_id: "q_after", config: config, env: env, speech_keys: speech_keys)
+      expect(starting).to include("the Python container is being started")
+      expect(stopped).to include("the Python container is not running")
+    ensure
+      Thread.current[described_class::THREAD_KEY] = nil
     end
 
     it "asks the container once for the same user message" do

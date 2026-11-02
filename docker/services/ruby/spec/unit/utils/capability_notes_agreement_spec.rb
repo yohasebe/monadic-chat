@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 require "json"
-require "open3"
 require "tmpdir"
 require "fileutils"
 require "rbconfig"
 require "shellwords"
+require_relative "../../support/capability_agreement/isolated_run"
 
 # The capability note and the tools it reports on agree. For each setup the
 # note is built the way the app builds it, and each tool is then called
@@ -22,34 +22,25 @@ require "shellwords"
 # command reads the config file (its environment has no credentials), image
 # analysis reads the server's settings, the readers need the Python
 # container. A request is stopped where it would leave the process, so
-# "reached the network" is as far as a call can get here. "Ready" in the
+# "reached the network" is as far as a call can get here (which key it
+# carried is not looked at: the check is whether a key was found). "Ready" in the
 # note means its checks passed, not that the call works: a reader can still
 # fail after a "ready".
+#
+# The cases marked "container" run the same way as if in the container: the
+# container's paths and the file the desktop app delivers resolved
+# 1Password references into are placed in a folder of the check's own
+# (container_paths.rb). This is the container's branch of the code, not a
+# run in a real container.
 RSpec.describe "Capability note and tools agree" do
   support = File.expand_path("../../support/capability_agreement", __dir__)
   time_limit = 300 # seconds for the whole check
-
-  # What the check's process needs to find its gems. It reads no Bundler
-  # config file (BUNDLE_IGNORE_CONFIG): the settings that place and select
-  # the gems are passed as they stand in this process.
-  bundler_env = lambda do
-    env = ENV.to_h.slice("BUNDLE_GEMFILE", "GEM_HOME", "GEM_PATH")
-    if defined?(Bundler)
-      { path: "BUNDLE_PATH", without: "BUNDLE_WITHOUT", with: "BUNDLE_WITH", deployment: "BUNDLE_DEPLOYMENT" }
-        .each do |setting, name|
-          value = Bundler.settings[setting]
-          value = File.expand_path(value, Bundler.root) if setting == :path && value
-          value = Array(value).join(":") if value.is_a?(Array)
-          env[name] = value.to_s unless value.nil? || value.to_s.empty?
-        end
-    end
-    env.merge("BUNDLE_IGNORE_CONFIG" => "1")
-  end
 
   running_ok = { "container" => "running", "reader" => { "status" => 0, "stdout" => "Document body" } }
   file_keys = { "OPENAI_API_KEY" => "fake-openai", "GEMINI_API_KEY" => "fake-gemini",
                 "ELEVENLABS_API_KEY" => "fake-elevenlabs" }
   reference = { "OPENAI_API_KEY" => "op://Vault/Item/field" }
+  container_file = reference.merge("GEMINI_API_KEY" => "fake-gemini")
 
   cases = [
     { "name" => "keys in the config file", "file" => file_keys, "config" => file_keys, "docker" => running_ok },
@@ -71,7 +62,23 @@ RSpec.describe "Capability note and tools agree" do
     { "name" => "container restarting", "file" => file_keys, "config" => file_keys,
       "docker" => running_ok.merge("container" => "restarting") },
     { "name" => "docker not answering", "file" => file_keys, "config" => file_keys,
-      "docker" => running_ok.merge("container" => "no_daemon") }
+      "docker" => running_ok.merge("container" => "no_daemon") },
+    { "name" => "container: reference delivered", "file" => container_file, "config" => {}, "op" => :recording_op,
+      "docker" => running_ok,
+      "container" => { "delivered" => JSON.generate("OPENAI_API_KEY" => "fake-delivered",
+                                                    "ELEVENLABS_API_KEY" => "fake-elevenlabs") } },
+    { "name" => "container: nothing delivered", "file" => container_file, "config" => {}, "op" => :recording_op,
+      "docker" => running_ok, "container" => { "delivered" => nil } },
+    { "name" => "container: delivered file malformed", "file" => container_file, "config" => {},
+      "op" => :recording_op, "docker" => running_ok, "container" => { "delivered" => "{not json" } },
+    { "name" => "container: delivered value empty", "file" => container_file, "config" => {}, "op" => :recording_op,
+      "docker" => running_ok, "container" => { "delivered" => JSON.generate("OPENAI_API_KEY" => "") } },
+    { "name" => "container: reference removed after start", "started" => { "file" => container_file, "op" => :recording_op },
+      "file" => container_file.except("OPENAI_API_KEY"), "config" => {}, "op" => :recording_op, "docker" => running_ok,
+      "container" => { "delivered" => JSON.generate("OPENAI_API_KEY" => "fake-delivered") } },
+    { "name" => "container: reference changed after start", "started" => { "file" => container_file, "op" => :recording_op },
+      "file" => container_file.merge("OPENAI_API_KEY" => "op://Vault/Other/field"), "config" => {}, "op" => :recording_op,
+      "docker" => running_ok, "container" => { "delivered" => JSON.generate("OPENAI_API_KEY" => "fake-delivered") } }
   ]
 
   let(:hosts) do
@@ -92,7 +99,9 @@ RSpec.describe "Capability note and tools agree" do
     data = File.join(home, "monadic", "data")
     config_dir = File.join(home, "monadic", "config")
     bin = File.join(@dir, "bin")
-    FileUtils.mkdir_p([data, config_dir, bin])
+    container_root = File.join(@dir, "container")
+    FileUtils.mkdir_p([data, config_dir, bin, File.join(container_root, "monadic", "data"),
+                       File.join(container_root, "monadic", "config"), File.join(container_root, "run", "monadic-secrets")])
     File.write(File.join(config_dir, "env"), "")
     File.write(File.join(data, "doc.pdf"), "%PDF-1.4\n")
     File.write(File.join(data, "doc.docx"), "PK")
@@ -106,60 +115,29 @@ RSpec.describe "Capability note and tools agree" do
     # Answers `op inject` with a fixed value for every reference.
     fake_op = File.join(bin, "fake-op")
     File.write(fake_op, "#!/bin/sh\nsed -E 's/[{][{] op:[^}]* [}][}]/fake-resolved/'\n")
-    [docker, fake_op].each { |f| File.chmod(0o755, f) }
+    # Notes each time it is started, and resolves nothing.
+    @op_log = File.join(@dir, "op.log")
+    recording_op = File.join(bin, "recording-op")
+    File.write(recording_op, "#!/bin/sh\necho started >> #{Shellwords.escape(@op_log)}\nexit 1\n")
+    [docker, fake_op, recording_op].each { |f| File.chmod(0o755, f) }
 
-    with_op = cases.map { |c| c.merge("op" => c["op"] == :fake_op ? fake_op : "/usr/bin/false") }
+    ops = { fake_op: fake_op, recording_op: recording_op }
+    with_op = cases.map do |c|
+      c = c.merge("op" => ops.fetch(c["op"], "/usr/bin/false"))
+      c["started"] &&= c["started"].merge("op" => ops.fetch(c["started"]["op"], "/usr/bin/false"))
+      c
+    end
     File.write(File.join(@dir, "cases.json"), JSON.generate(with_op))
 
-    env = bundler_env.call.merge(
-      "HOME" => home,
-      "PATH" => [bin, RbConfig::CONFIG["bindir"], "/usr/bin", "/bin"].join(":"),
-      "LANG" => "C.UTF-8",
-      "IN_CONTAINER" => "false",
-      "RUBYLIB" => File.dirname(support),
-      "RUBYOPT" => "-rbundler/setup -rcapability_agreement/no_network",
-      "MONADIC_TEST_NET_EVENTS" => File.join(@dir, "events"),
+    env = CapabilityAgreement::IsolatedRun.env(home: home, bin: bin, events: File.join(@dir, "events"),
+                                               preload: ["container_paths"]).merge(
+      "MONADIC_TEST_CONTAINER_ROOT" => container_root,
       "MONADIC_TEST_DOCKER_LOG" => File.join(@dir, "docker.log"),
       "MONADIC_TEST_DOCKER_STATE" => File.join(@dir, "docker.json")
     )
     results = File.join(@dir, "results.json")
     argv = [RbConfig.ruby, File.join(support, "driver.rb"), File.join(@dir, "cases.json"), results]
-    service_root = File.expand_path("../../..", __dir__)
-    # Set here, outside: the check's process must start without it, and
-    # without the credentials of the shell that runs the specs.
-    outer = "MONADIC_TEST_OUTER_MARKER"
-    marker_before = ENV[outer]
-    ENV[outer] = "outside"
-    clock = -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }
-    deadline = clock.call + time_limit
-    begin
-      Open3.popen3(env, *argv, unsetenv_others: true, pgroup: true, chdir: service_root) do |stdin, out, err, wait|
-        stdin.close
-        output = [out, err].map { |io| Thread.new { io.read } }
-        stop = lambda do
-          Process.kill("KILL", -wait.pid)
-        rescue Errno::ESRCH
-          nil
-        end
-        finished = wait.join(time_limit)
-        stop.call && wait.join(5) unless finished
-        # The output is read until the same deadline, then a short grace: a
-        # process the check started can hold it open after the check ends.
-        # Output still open then counts as not finished.
-        read = output.map { |t| t.join([deadline - clock.call, 5].max) ? t.value.to_s : nil }
-        unless read.all?
-          finished = false
-          stop.call
-          output.each(&:kill)
-        end
-        error = read.last.to_s
-        error = error[-3000..] || error
-        raise "the agreement check did not finish within #{time_limit} seconds:\n#{error}" unless finished
-        raise "the agreement check failed (exit #{wait.value.exitstatus}):\n#{error}" unless wait.value.success?
-      end
-    ensure
-      ENV[outer] = marker_before
-    end
+    CapabilityAgreement::IsolatedRun.run(env, argv, chdir: File.expand_path("../../..", __dir__), time_limit: time_limit)
 
     @results = JSON.parse(File.read(results))
   end
@@ -202,7 +180,7 @@ RSpec.describe "Capability note and tools agree" do
 
     it "saw no connection get past the stops, in any case" do
       phases = @results["cases"].flat_map do |c|
-        [c["setup_events"], c["note_events"], c["reader_events"], c["image"], *c["speech"].values]
+        [c["setup_events"], c["note_events"], c["reader_events"], c["image"], *c["speech"].values].compact
       end
       expect([@results["startup"], *phases].flat_map { |events| events["socket"] }).to be_empty
     end
@@ -212,7 +190,7 @@ RSpec.describe "Capability note and tools agree" do
     end
 
     it "gave docker only the commands the readers should send" do
-      @results["cases"].each do |c|
+      @results["cases"].reject { |c| c["container"] }.each do |c|
         bodies = c["reader_calls"].map do |argv|
           expect(argv.first(6)).to eq(["exec", "-w", "/monadic/data", "monadic-chat-python-container", "bash", "-c"])
           argv[6].split("; ").last
@@ -252,6 +230,39 @@ RSpec.describe "Capability note and tools agree" do
 
       expect(note_line("reference that does not resolve", "Speech")).to include("openai not available")
       expect_speech_refused("reference that does not resolve", "openai")
+    end
+  end
+
+  describe "speech inside the container" do
+    it "uses the value delivered for a reference, in the note and the command" do
+      name = "container: reference delivered"
+      expect(note_line(name, "Speech")).to include("openai ready", "gemini ready", "elevenlabs not available")
+      expect_speech_reached_network(name, "openai")
+      expect_speech_reached_network(name, "gemini")
+      expect_speech_refused(name, "elevenlabs")
+    end
+
+    it "has no key for a reference when nothing usable was delivered" do
+      ["container: nothing delivered", "container: delivered file malformed", "container: delivered value empty"].each do |name|
+        expect(note_line(name, "Speech")).to include("openai not available", "gemini ready")
+        expect_speech_refused(name, "openai")
+        expect_speech_reached_network(name, "gemini")
+      end
+    end
+
+    it "keeps to what was delivered when the config file changes while the server runs" do
+      removed = "container: reference removed after start"
+      expect(note_line(removed, "Speech")).to include("openai not available")
+      expect_speech_refused(removed, "openai")
+      # The delivered values stay until the container starts again.
+      changed = "container: reference changed after start"
+      expect(note_line(changed, "Speech")).to include("openai ready")
+      expect_speech_reached_network(changed, "openai")
+    end
+
+    it "never starts op" do
+      expect(@results["cases"].count { |c| c["container"] }).to eq(6)
+      expect(File.exist?(@op_log)).to be(false)
     end
   end
 

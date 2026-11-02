@@ -122,7 +122,7 @@ end
 These are set in the **Settings** window (**Open → Settings**), not in MDSL files. Its categories are General, System, API Keys, Voice & Audio, Services, Install Options, Actions and About. Among the settings:
 
 - API keys for the providers, ElevenLabs and Tavily
-- UI language, Browser Mode, Launch at Login and Menu Bar Mode
+- UI language, Browser Mode, Launch at Login, Menu Bar Mode and Notify When a Reply Arrives in the Background
 - Extra Logging
 - The TTS dictionary file and the size limit for Auto Speech
 - The MCP server and its port

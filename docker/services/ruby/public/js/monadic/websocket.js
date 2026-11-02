@@ -747,6 +747,8 @@ window.loadedApp = "Chat";
       }
 
       case "audio": {
+        // Held in the background by the desktop app: dropped, not queued.
+        if (window.BackgroundReply && window.BackgroundReply.isHeld()) break;
         const wahAudio = window.WsAudioHandler;
         if (wahAudio && typeof wahAudio.handleAudio === 'function') {
           wahAudio.handleAudio(data);
@@ -757,6 +759,8 @@ window.loadedApp = "Chat";
       // Speech-to-speech audio arrives as ~100ms deltas and is scheduled
       // ahead of time rather than queued; see ws-sts-playback.js.
       case "sts_audio_delta": {
+        // Held in the background by the desktop app: dropped, not scheduled.
+        if (window.BackgroundReply && window.BackgroundReply.isHeld()) break;
         const sts = window.WsStsPlayback;
         if (sts && typeof sts.handleStsAudioDelta === 'function') {
           sts.handleStsAudioDelta(data);
@@ -903,6 +907,7 @@ window.loadedApp = "Chat";
       }
 
       case "error": {
+        if (data["not_accepted"] && window.BackgroundReply) window.BackgroundReply.onRefused();
         const werr = window.WsErrorHandler;
         if (werr && typeof werr.handleError === 'function') {
           werr.handleError(data);
@@ -1121,6 +1126,10 @@ window.loadedApp = "Chat";
         break;
       }
       case "ai_user_error": {
+        // Refused before it started (the server's ai_user_* refusals).
+        if (["ai_user_requires_conversation", "ai_user_busy"].includes(data["content"]) && window.BackgroundReply) {
+          window.BackgroundReply.onRefused();
+        }
         const auh = window.WsAIUserHandler;
         if (auh && typeof auh.handleAIUserError === 'function') {
           auh.handleAIUserError(data);
@@ -1179,6 +1188,11 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "reply_state": {
+        if (window.BackgroundReply) window.BackgroundReply.onReplyState(data);
+        break;
+      }
+
       case "streaming_complete": {
         const wstream = window.WsStreamingHandler;
         if (wstream && typeof wstream.handleStreamingComplete === 'function') {
@@ -1219,6 +1233,8 @@ window.loadedApp = "Chat";
 
   ws.onclose = function (_e) {
     window.initialLoadComplete = false;
+    // Answers still running end here as far as the page can tell.
+    if (window.BackgroundReply) window.BackgroundReply.onConnectionLost();
 
     // CRITICAL: Reset isConnecting flag when connection closes
     // This prevents handleVisibilityChange from being permanently blocked

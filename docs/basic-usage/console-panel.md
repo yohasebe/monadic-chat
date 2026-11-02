@@ -162,6 +162,9 @@ Start Monadic Chat automatically when you log in to your computer.
 **Menu Bar Mode** <br />
 Keep Monadic Chat running in the menu bar instead of showing a console window (macOS).
 
+**Notify When a Reply Arrives in the Background** <br />
+Closing the internal browser window while a reply is being generated hides the window instead of closing it, and the reply keeps coming in. When it arrives, a notification says so; click it, or choose **Show Web UI** in the menu bar (system tray) menu, to bring the window back. The notification never includes the text of the conversation. While the window is hidden, no audio plays and the microphone cannot be used. This also applies to Private conversations: to end one for good, choose **Close Web UI** in the menu bar menu. The window closes as before when no reply is running or the microphone is in use. Turn this setting off to keep the behavior without notifications.
+
 **Extra Logging** <br />
 Select whether to enable additional logging. When enabled, API requests and responses are logged in detail. The log file is saved as `~/monadic/log/extra.log`.
 

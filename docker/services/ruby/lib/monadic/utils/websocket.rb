@@ -28,6 +28,7 @@ require_relative 'websocket/audio_handler'
 require_relative 'websocket/audio_stream_handler'
 require_relative 'websocket/pdf_handler'
 require_relative 'websocket/library_handler'
+require_relative 'websocket/reply_state'
 require_relative 'websocket/streaming_handler'
 require_relative 'websocket/html_handler'
 require_relative 'websocket/misc_handlers'
@@ -226,11 +227,11 @@ module WebSocketHelper
       when "TTS"
           handle_ws_tts(connection, obj, session)
         when "CANCEL"
-          thread&.kill
+          stop_reply_work(thread)
           thread = nil
-          suggestion&.kill
+          stop_reply_work(suggestion)
           suggestion = nil
-          queue.clear
+          drop_queued_replies(queue)
 
           handle_ws_cancel(Thread.current[:websocket_session_id])
         when "PDF_TITLES"
@@ -428,8 +429,8 @@ module WebSocketHelper
       Thread.current[:rack_session] = nil
       Monadic::Utils::Privacy::EgressGuard.for_chat(nil)
 
-      thread&.kill
-      suggestion&.kill
+      stop_reply_work(thread, ws_session_id)
+      stop_reply_work(suggestion, ws_session_id)
     end
   end
 

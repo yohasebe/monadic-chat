@@ -456,7 +456,7 @@ module DeepSeekHelper
                   id = json["id"]
                   texts[id] ||= json
                   choice = texts[id]["choices"][0]
-                  choice["message"] ||= delta.dup
+                  choice["message"] ||= delta.except("content", "reasoning_content")
                   choice["message"]["reasoning_content"] ||= ""
                   choice["message"]["content"] ||= ""
 
@@ -474,7 +474,7 @@ module DeepSeekHelper
                   id = json["id"]
                   texts[id] ||= json
                   choice = texts[id]["choices"][0]
-                  choice["message"] ||= delta.dup
+                  choice["message"] ||= delta.except("content", "reasoning_content")
                   choice["message"]["content"] ||= ""
 
                   fragment = delta["content"].to_s

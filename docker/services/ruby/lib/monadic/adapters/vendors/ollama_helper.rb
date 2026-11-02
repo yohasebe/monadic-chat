@@ -516,8 +516,14 @@ module OllamaHelper
       # When processing tool results, use the function_returns context
       # which includes the full conversation + assistant tool_calls + tool responses
       if obj["function_returns"]
+        # The system message keeps what was added to it above.
+        system_message = body["messages"].find { |m| m["role"] == "system" }
         body["messages"] = obj["function_returns"].compact.map do |msg|
-          { "role" => msg["role"], "content" => msg["content"] || msg["text"] || "" }
+          if msg["role"] == "system" && system_message
+            system_message
+          else
+            { "role" => msg["role"], "content" => msg["content"] || msg["text"] || "" }
+          end
         end
       end
     elsif role == "user"

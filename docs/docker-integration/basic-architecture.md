@@ -29,7 +29,7 @@ Runs Python code, command-line tools, and JupyterLab for the apps.
 
 ### Selenium Container (`monadic-chat-selenium-container`) :id=selenium-container
 Runs a Chromium browser that the apps control to open web pages and take screenshots.
-- **Ports**: 4444 (Selenium), 7900 (browser view through **Open → Open noVNC**), 5900 (VNC)
+- **Ports**: 7900 (browser view through **Open → Open noVNC**). WebDriver (4444) is reached only from the other containers
 - **Used by**: Web Insight, Research Assistant, Auto Forge, Mermaid Grapher, DrawIO Grapher
 
 ### Qdrant Container (`monadic-chat-qdrant-container`) :id=qdrant-container

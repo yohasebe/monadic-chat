@@ -29,7 +29,7 @@ Monadic Chat のサーバーと Web 画面を動かします。どのアプリ�
 
 ### Selenium コンテナ（`monadic-chat-selenium-container`） :id=selenium-container
 アプリが操作する Chromium ブラウザーを動かし、Web ページを開いたりスクリーンショットを撮ったりします。
-- **ポート**：4444（Selenium）、7900（**Open → Open noVNC** でのブラウザーの表示）、5900（VNC）
+- **ポート**：7900（**Open → Open noVNC** でのブラウザーの表示）。WebDriver（4444）には、ほかのコンテナからだけつながります
 - **使うアプリ**：Web Insight、Research Assistant、Auto Forge、Mermaid Grapher、DrawIO Grapher
 
 ### Qdrant コンテナ（`monadic-chat-qdrant-container`） :id=qdrant-container

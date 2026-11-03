@@ -160,7 +160,7 @@ Host-published ports (see each service's `compose.yml` for the authoritative lis
 
 - 4567: Ruby web server
 - 8889: JupyterLab (Python container)
-- 4444 / 5900 / 7900: Selenium Grid / VNC
+- 7900: noVNC (WebDriver 4444 and the VNC server are reached only inside the container network)
 - 11434: Ollama API (native on host, not a container)
 
 Qdrant, embeddings, Privacy, and Extractor expose no host ports; they are

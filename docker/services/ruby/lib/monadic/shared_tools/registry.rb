@@ -372,13 +372,20 @@ module MonadicSharedTools
           },
           {
             name: "start_browser",
-            description: "Start an interactive browser session visible via noVNC and navigate to a URL",
+            description: "Start an interactive browser session and navigate to a URL",
             parameters: [
               {
                 name: :url,
                 type: "string",
                 description: "The URL to open in the browser",
                 required: true
+              },
+              {
+                name: :headless,
+                type: "boolean",
+                description: "false only when the user wants to watch or use the browser themselves " \
+                             "(they see it through noVNC). Default true: no visible window, screenshots only.",
+                required: false
               }
             ]
           },

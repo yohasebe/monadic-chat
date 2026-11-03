@@ -164,12 +164,12 @@ Privacy Filter が有効なセッションで `library_search` が呼ばれた�
 
 ## ドキュメント DB のエクスポート / インポート（Actions メニュー） :id=document-db-export-import
 
-**Actions → Export Document DB** と **Actions → Import Document DB** メニューは qdrant ボリューム全体（保存されたすべての会話・PDF・Knowledge Base エントリ）を対象とします。両メニューとも、実行前に確認ダイアログを表示します。
+**Actions → Export Document DB** と **Actions → Import Document DB** メニューは qdrant ボリューム全体（ナレッジベースに保存したすべての会話・PDF・その他の Knowledge Base エントリ）を対象とします。[会話の履歴](../basic-usage/web-interface.md#chat-history-panel)は含まれません。両メニューとも、実行前に確認ダイアログを表示します。
 
 エクスポートでは次の 2 つから選べます:
 
 - **Encrypt and Export**（デフォルト）: パスフレーズを尋ね、tarball を AES-256-GCM（PBKDF2-SHA256, 600 000 回反復）でエクスポートごとのランダムソルトを使って暗号化し、`monadic-qdrant.tar.gz.enc` を共有フォルダに書き出します。暗号化に成功すると平文の tarball は削除されます。
-- **Export Plain**: 暗号化せずに tarball を直接書き出します。ダイアログでは、保存済み会話 / PDF が Privacy Filter の利用状態によらず平文で含まれることを警告します。
+- **Export Plain**: 暗号化せずに tarball を直接書き出します。ダイアログでは、ナレッジベースに保存した会話 / PDF が Privacy Filter の利用状態によらず平文で含まれることを警告します。
 
 インポートはファイル拡張子を自動判別します: `.tar.gz` はそのまま展開され、`.tar.gz.enc` ではパスフレーズを尋ねて一時平文ファイルに復号した後 qdrant ボリュームのインポートを実行し、最後に一時ファイルを削除します。パスフレーズが間違っていたり改ざんされている場合は復号に失敗し（tarball は中途半端に展開されません）、qdrant ボリュームには手が触れられません。
 

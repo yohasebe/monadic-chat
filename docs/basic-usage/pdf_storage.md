@@ -23,5 +23,5 @@ PDFs imported into one app are not visible in another.
 ## Considerations
 
 - **Data persistence**: Documents are stored in the `monadic-chat-qdrant-data` Docker volume
-- **Backup**: Use **Export Document DB** in the Actions menu to back up your data (encrypted or plain), and **Import Document DB** to restore it
+- **Backup**: Use **Export Document DB** in the Actions menu to back up the Document DB (encrypted or plain), and **Import Document DB** to restore it. The chat history is not included
 - **Container rebuilds**: Export your database before rebuilding containers to prevent data loss

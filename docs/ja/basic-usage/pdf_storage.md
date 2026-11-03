@@ -23,5 +23,5 @@ Web インターフェースの PDF Database パネル（その Local PDF の欄
 ## 注意事項
 
 - **データの永続化**: ドキュメントは `monadic-chat-qdrant-data` Docker ボリュームに保存されます
-- **バックアップ**: Actions メニューの **Export Document DB** でバックアップ（暗号化または平文）、**Import Document DB** で復元できます
+- **バックアップ**: Actions メニューの **Export Document DB** でドキュメント DB をバックアップ（暗号化または平文）、**Import Document DB** で復元できます。会話の履歴は含まれません
 - **コンテナの再構築**: データ損失を防ぐため、コンテナを再構築する前にデータベースをエクスポートしてください

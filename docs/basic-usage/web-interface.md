@@ -163,7 +163,7 @@ Monadic Chat keeps your chats on this computer, in `~/monadic/state`, outside th
 
 What is kept of a chat: the text of its messages, the app, the model and the system prompt, the main settings (such as reasoning effort, context size, web search and the conversation language), and the [Session Context](../advanced-topics/session-context.md). Images, the contents of attached files, thinking and the records of tool calls are not kept. The API keys set in Monadic Chat and 1Password references are removed from what is kept, chat names included. Other secrets written in a chat, such as a password or a key that Monadic Chat does not have, are kept as written: do not paste them into a chat.
 
-Backups of your computer (such as Time Machine) and sync services that hold `~/monadic` copy the history too.
+Backups of your computer (such as Time Machine) and sync services that hold `~/monadic` copy the history too. **Export Document DB** in the Actions menu does not include the history.
 
 The Chat History panel lists the five chats with the latest activity; click one to continue it in this tab. **See all** opens the Chats tab of the window the shared folder uses.
 

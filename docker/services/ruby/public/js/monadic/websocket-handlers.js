@@ -813,31 +813,6 @@ function handleSTTMessage(data) {
  */
 function handleCancelMessage(data) {
   if (data && data.type === 'cancel') {
-    // More comprehensive UI reset to ensure all elements are properly enabled
-    // Reset input field state
-    const msgEl = $id('message');
-    if (msgEl) {
-      msgEl.setAttribute('placeholder', typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : 'Type your message...');
-      msgEl.disabled = false;
-      $show(msgEl);
-    }
-
-    // Re-enable all controls - include AI user button explicitly
-    ['send', 'clear', 'image-file', 'voice', 'doc', 'url', 'ai_user'].forEach(id => {
-      const el = $id(id);
-      if (el) el.disabled = false;
-    });
-    const selectRoleEl = $id('select-role');
-    if (selectRoleEl) selectRoleEl.disabled = false;
-    const aiUserProviderEl = $id('ai_user_provider');
-    if (aiUserProviderEl) aiUserProviderEl.disabled = false;
-
-    // Hide cancel button. It is shown with !important, so plain hiding
-    // would leave it on screen.
-    const cancelEl = $id('cancel_query');
-    if (cancelEl) cancelEl.style.setProperty('display', 'none', 'important');
-    $hide($id('indicator'));
-
     // A reply the server stopped (Reset, another app, an import) leaves its
     // "responding" status behind unless it is replaced here; a reply the
     // user cancelled has set its own status already.
@@ -847,34 +822,81 @@ function handleCancelMessage(data) {
         setAlert(`<i class='fa-solid fa-ban' style='color: #ffc107;'></i> ${canceledText}`, 'warning');
       }
     }
-
-    // Use checkAndHideSpinner to respect Auto Speech mode
-    if (typeof window.checkAndHideSpinner === 'function') {
-      window.checkAndHideSpinner();
-    } else {
-      const spinnerEl = $id('monadic-spinner');
-      $hide(spinnerEl);
-    }
-    
-    // Reset any flags that might be in an inconsistent state
-    if (window.responseStarted !== undefined) {
-      window.responseStarted = false;
-    }
-    if (window.callingFunction !== undefined) {
-      window.callingFunction = false;
-    }
-    if (window.streamingResponse !== undefined) {
-      window.streamingResponse = false;
-    }
-    
-    // Set focus back to input field if function is available
-    if (typeof setInputFocus === 'function') {
-      setInputFocus();
-    }
-    
+    restoreInput();
     return true;
   }
   return false;
+}
+
+/**
+ * A reply cut off by a lost connection: nothing more comes for it, so the
+ * page takes input again. The message sent stays in the conversation.
+ */
+function endInterruptedReply() {
+  if (typeof clearToolStatus === 'function') clearToolStatus();
+  $hide($id('temp-card'));
+  restoreInput();
+  // No speech comes for it either.
+  if (window.spinnerCheckInterval) {
+    clearInterval(window.spinnerCheckInterval);
+    window.spinnerCheckInterval = null;
+  }
+  $hide($id('monadic-spinner'));
+}
+
+// The controls, status and flags back to taking input, after a reply ended
+// without finishing.
+function restoreInput() {
+  const msgEl = $id('message');
+  if (msgEl) {
+    msgEl.setAttribute('placeholder', typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : 'Type your message...');
+    msgEl.disabled = false;
+    $show(msgEl);
+  }
+
+  // Re-enable all controls - include AI user button explicitly
+  ['send', 'clear', 'image-file', 'voice', 'doc', 'url', 'ai_user'].forEach(id => {
+    const el = $id(id);
+    if (el) el.disabled = false;
+  });
+  const selectRoleEl = $id('select-role');
+  if (selectRoleEl) selectRoleEl.disabled = false;
+  const aiUserProviderEl = $id('ai_user_provider');
+  if (aiUserProviderEl) aiUserProviderEl.disabled = false;
+
+  // Hide cancel button. It is shown with !important, so plain hiding
+  // would leave it on screen.
+  const cancelEl = $id('cancel_query');
+  if (cancelEl) cancelEl.style.setProperty('display', 'none', 'important');
+  $hide($id('indicator'));
+
+  // Reset any flags that might be in an inconsistent state
+  if (window.responseStarted !== undefined) {
+    window.responseStarted = false;
+  }
+  if (window.callingFunction !== undefined) {
+    window.callingFunction = false;
+  }
+  if (window.streamingResponse !== undefined) {
+    window.streamingResponse = false;
+  }
+  if (typeof window.setReasoningStreamActive === 'function') {
+    window.setReasoningStreamActive(false);
+  }
+  
+  // Use checkAndHideSpinner to respect Auto Speech mode (after the flags:
+  // while they say a reply runs, it keeps "Thinking" shown)
+  if (typeof window.checkAndHideSpinner === 'function') {
+    window.checkAndHideSpinner();
+  } else {
+    const spinnerEl = $id('monadic-spinner');
+    $hide(spinnerEl);
+  }
+  
+  // Set focus back to input field if function is available
+  if (typeof setInputFocus === 'function') {
+    setInputFocus();
+  }
 }
 
 // Helper function to clear processed audio IDs (call when starting new TTS)
@@ -920,6 +942,7 @@ window.wsHandlers = {
   handleSampleSuccess,
   handleSTTMessage,
   handleCancelMessage,
+  endInterruptedReply,
   clearProcessedAudioIds,
   isAudioProcessed,
   markAudioProcessed,

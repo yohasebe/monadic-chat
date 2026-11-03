@@ -1233,8 +1233,15 @@ window.loadedApp = "Chat";
 
   ws.onclose = function (_e) {
     window.initialLoadComplete = false;
-    // Answers still running end here as far as the page can tell.
-    if (window.BackgroundReply) window.BackgroundReply.onConnectionLost();
+    // Answers still running end here as far as the page can tell, and the
+    // page takes input again: nothing more comes for them.
+    const repliesLost = window.BackgroundReply ? window.BackgroundReply.onConnectionLost() : 0;
+    if (repliesLost > 0) {
+      window._replyInterrupted = true;
+      if (window.wsHandlers && typeof window.wsHandlers.endInterruptedReply === 'function') {
+        window.wsHandlers.endInterruptedReply();
+      }
+    }
 
     // CRITICAL: Reset isConnecting flag when connection closes
     // This prevents handleVisibilityChange from being permanently blocked
@@ -1262,6 +1269,9 @@ window.loadedApp = "Chat";
       // Do not attempt reconnection in silent mode
       try { stopPing(); } catch(_) { console.warn("[WebSocket] Ping stop failed:", _); }
       return;
+    } else if (repliesLost > 0) {
+      const interruptedText = getTranslation('ui.messages.replyInterrupted', 'The connection was lost and the reply ended partway. Send the message again.');
+      setAlert(`<i class='fa-solid fa-server'></i> ${interruptedText}`, "warning");
     } else {
       const lostText = getTranslation('ui.messages.connectionLost', 'Connection lost');
       setAlert(`<i class='fa-solid fa-server'></i> ${lostText}`, "warning");

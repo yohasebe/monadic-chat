@@ -249,6 +249,17 @@ function handlePastMessages(data) {
       : "Connected";
   setAlert(`<i class='fa-solid fa-circle-check'></i> ${connectedText}`, "success");
 
+  // A reply the lost connection cut off is told once the conversation is
+  // back, where it stays until removed.
+  if (window._replyInterrupted) {
+    window._replyInterrupted = false;
+    const interruptedText =
+      typeof webUIi18n !== "undefined" && webUIi18n.initialized
+        ? webUIi18n.t("ui.messages.replyInterrupted")
+        : "The connection was lost and the reply ended partway. Send the message again.";
+    setAlert(interruptedText, "error");
+  }
+
   if (typeof window.updateAIUserButtonState === 'function') {
     window.updateAIUserButtonState(serverMessages);
   }

@@ -166,6 +166,21 @@ describe('ws-message-renderer', () => {
       expect(window.initialLoadComplete).toBe(true);
     });
 
+    it('tells once, in the conversation, that a reply the lost connection cut off ended', () => {
+      window._replyInterrupted = true;
+      handlers.handlePastMessages({ content: [] });
+      handlers.handlePastMessages({ content: [] });
+      const told = global.setAlert.mock.calls.filter(([, type]) => type === 'error');
+      expect(told.length).toBe(1);
+      expect(window._replyInterrupted).toBe(false);
+    });
+
+    it('says nothing more when no reply was cut off', () => {
+      delete window._replyInterrupted;
+      handlers.handlePastMessages({ content: [] });
+      expect(global.setAlert.mock.calls.filter(([, type]) => type === 'error')).toEqual([]);
+    });
+
     it('suppresses auto speech on import', () => {
       handlers.handlePastMessages({ content: [], from_import: true });
 

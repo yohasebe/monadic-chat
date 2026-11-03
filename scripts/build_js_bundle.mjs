@@ -70,6 +70,7 @@ const FILES = [
   "js/monadic/error-handler.js",
   "js/monadic/dom-cache.js",
   "js/monadic/dom-helpers.js",
+  "js/monadic/layout-controller.js",
   "js/monadic/ui-utilities.js",
   "js/monadic/context-panel.js",
   "js/monadic/workflow-viewer.js",

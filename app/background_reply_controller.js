@@ -1,19 +1,18 @@
-// What closing, hiding and showing the Web UI window do while answers run
-// (see background_reply.js for the state it keeps). Everything that touches
+// What closing, hiding and showing the Web UI window do (see
+// background_reply.js for the state it keeps). Everything that touches
 // Electron is passed in, so the order of events can be tested on its own;
 // main.js passes in the window, the page's channel, timers, the dialog and
 // the notices, and checks who sent each message before it gets here.
 //
-// The page is asked before anything is decided, and each request to it
-// carries an operation number its reply must name:
-//   - query:   closing asks for the page's current work (a message sent a
-//              moment ago counts) before the window is closed or hidden;
-//   - hold:    the page stops the microphone and audio; then the window is
-//              hidden;
+// Closing the window hides it, whatever the page is doing: the conversation
+// stays until the user resets it, closes the Web UI from the tray, or quits.
+// Each request to the page carries an operation number its reply must name:
+//   - hold:    the page stops the microphone, Live and audio; then the
+//              window is hidden;
 //   - release: the page drops audio queued meanwhile; then the window is
 //              unmuted. Without a reply it stays muted.
-// A page that does not answer a query or a hold in time keeps the window
-// shown, and the user is asked whether to close it.
+// A page that does not confirm a hold in time keeps the window shown, and
+// the user is asked whether to close it.
 
 const WAIT_MS = 2000;
 
@@ -33,10 +32,8 @@ function createBackgroundReplyController(deps) {
   const waitMs = deps.waitMs || WAIT_MS;
 
   let op = 0;
-  let query = null; // { op, generation, timer }
-  let hold = null; // { op, generation, timer, sent }
+  let hold = null; // { op, generation, timer }
   let release = null; // { op, generation }
-  let closeApproved = false;
 
   function windowAlive() {
     const win = getWindow();
@@ -70,27 +67,15 @@ function createBackgroundReplyController(deps) {
   function cancelHold({ pageStays }) {
     if (!hold) return;
     stopTimer(hold);
-    const sent = hold.sent;
     hold = null;
     state.endHold(false);
-    if (pageStays && sent) releasePage();
-    refresh();
-  }
-
-  // pageStays: the page was told it is being closed and keeps sending
-  // nothing until it is released.
-  function cancelQuery({ pageStays } = { pageStays: false }) {
-    if (!query) return;
-    stopTimer(query);
-    query = null;
-    if (!hold) state.endHold(false);
     if (pageStays) releasePage();
+    refresh();
   }
 
   // The page is going away (navigation, crash, the window closed, quitting):
   // nothing pending applies to it any more.
   function forgetPage() {
-    cancelQuery();
     cancelHold({ pageStays: false });
     release = null;
   }
@@ -106,13 +91,8 @@ function createBackgroundReplyController(deps) {
     if (close && !win.isDestroyed()) win.destroy();
   }
 
-  function closeNow(win) {
-    closeApproved = true;
-    win.close();
-  }
-
   function startHold(win) {
-    hold = { op: nextOp(), generation: state.generation, sent: true };
+    hold = { op: nextOp(), generation: state.generation };
     const mine = hold.op;
     hold.timer = setTimer(() => {
       if (!hold || hold.op !== mine) return;
@@ -124,61 +104,38 @@ function createBackgroundReplyController(deps) {
     send('background-reply:hold', { op: mine });
   }
 
+  function hideWindow() {
+    const win = windowAlive();
+    if (!win || hold || state.hidden) return;
+    // A page that is not ready yet has nothing open to stop; it is held when
+    // it says it is ready.
+    if (state.generation === null) {
+      state.hidden = true;
+      refresh();
+      win.hide();
+      menuChanged();
+      return;
+    }
+    startHold(win);
+  }
+
   return {
     // The window's close event. Returns true to let it close, false to keep
     // it (the caller then prevents the default).
     onClose({ quitting = false, updating = false } = {}) {
-      if (quitting || updating || closeApproved) {
-        closeApproved = false;
+      if (quitting || updating) {
         forgetPage();
         return true;
       }
-      if (query || hold) return false;
-      // A page that is not ready has no answer to keep.
-      if (state.generation === null) return true;
-      const win = windowAlive();
-      if (!win) return true;
-      query = { op: nextOp(), generation: state.generation };
-      const mine = query.op;
-      query.timer = setTimer(() => {
-        if (!query || query.op !== mine) return;
-        cancelQuery({ pageStays: true });
-        notAnswered(win);
-      }, waitMs);
-      // An answer that ends before the page answers is kept for a notice.
-      state.startHold();
-      send('background-reply:query', { op: mine });
+      if (!windowAlive()) return true;
+      hideWindow();
       return false;
     },
 
-    // The page's answer to a query: its work as of now.
-    // Work that ended while the window was being closed keeps the window
-    // too (whatever main knew when the close came: a report may arrive after
-    // it): its end is noticed once the window is hidden.
-    onState(info) {
-      if (!answers(query, info)) return;
-      stopTimer(query);
-      query = null;
-      state.report(info);
-      refresh();
-      const win = windowAlive();
-      if (!win) return;
-      const endedMeanwhile = state.endedWhileHolding() && !state.media;
-      if (state.closeAction() === 'hide' || endedMeanwhile) {
-        startHold(win);
-      } else {
-        state.endHold(false);
-        closeNow(win);
-      }
-    },
-
-    // Hide from the page's own link (monadic://hide-browser): as closing
-    // during an answer, also when nothing runs. Not while the microphone is
-    // in use, nor before the page is ready.
+    // Hide from the page's own link (monadic://hide-browser): the same as
+    // closing.
     hideRequested() {
-      const win = windowAlive();
-      if (!win || query || hold || state.hidden || state.media || state.generation === null) return;
-      startHold(win);
+      if (windowAlive()) hideWindow();
     },
 
     onHeld(info) {
@@ -205,7 +162,6 @@ function createBackgroundReplyController(deps) {
       const win = windowAlive();
       if (!win) return;
       closeNotices();
-      cancelQuery({ pageStays: true });
       cancelHold({ pageStays: true });
       if (state.hidden) {
         state.hidden = false;
@@ -253,7 +209,6 @@ function createBackgroundReplyController(deps) {
 
     windowClosed() {
       forgetPage();
-      closeApproved = false;
       state.reset();
       closeNotices();
       menuChanged();

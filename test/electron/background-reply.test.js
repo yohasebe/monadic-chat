@@ -1,45 +1,18 @@
-// Closing the Web UI window during an answer hides it instead, and the answer's
-// end gets one fixed notice while the window is hidden.
+// The Web UI window hidden by closing it: an answer that ends while it is
+// hidden gets one fixed notice.
 const { BackgroundReplyState, NOTICES } = require('../../app/background_reply');
 
 describe('BackgroundReplyState', () => {
   let state;
   beforeEach(() => { state = new BackgroundReplyState(); });
 
-  describe('closeAction', () => {
-    test('hides the window while an answer is running', () => {
-      state.report({ running: 1, media: false });
-      expect(state.closeAction()).toBe('hide');
-    });
-
-    test('hides the window for a message sent and not yet taken up by the server', () => {
-      state.report({ running: 0, pending: 1, media: false });
-      expect(state.closeAction()).toBe('hide');
-    });
-
-    test('closes as before when nothing is running', () => {
-      state.report({ running: 0, media: false });
-      expect(state.closeAction()).toBe('close');
-    });
-
-    test('closes when the microphone is in use or being opened, even during an answer', () => {
-      state.report({ running: 2, media: true });
-      expect(state.closeAction()).toBe('close');
-    });
-
-    test('closes when quitting or installing an update, even during an answer', () => {
-      state.report({ running: 1, media: false });
-      expect(state.closeAction({ quitting: true })).toBe('close');
-      expect(state.closeAction({ updating: true })).toBe('close');
-    });
-
-    test('takes only a whole positive count and a true media flag from a report', () => {
-      state.report({ running: '3', media: 'yes' });
-      expect(state.running).toBe(0);
-      expect(state.media).toBe(false);
-      state.report({ running: -1, media: true });
-      expect(state.running).toBe(0);
-      expect(state.media).toBe(true);
+  describe('report', () => {
+    test('takes only a whole positive count from a report', () => {
+      state.report({ running: '3', pending: 1.5 });
+      expect([state.running, state.pending]).toEqual([0, 0]);
+      state.report({ running: -1, pending: 2 });
+      expect([state.running, state.pending]).toEqual([0, 2]);
+      expect(state.busy()).toBe(true);
     });
   });
 
@@ -47,11 +20,11 @@ describe('BackgroundReplyState', () => {
     test('accepts only the current page, and none while a page is being replaced', () => {
       const first = state.newGeneration();
       expect(state.accepts(first)).toBe(true);
-      state.report({ running: 1, pending: 1, media: true });
+      state.report({ running: 1, pending: 1 });
       state.hidden = true;
       state.pageGone();
       expect(state.accepts(first)).toBe(false);
-      expect([state.running, state.pending, state.media, state.hidden]).toEqual([0, 0, false, true]);
+      expect([state.running, state.pending, state.hidden]).toEqual([0, 0, true]);
       const second = state.newGeneration();
       expect(second).not.toBe(first);
       expect(state.accepts(first)).toBe(false);
@@ -68,9 +41,9 @@ describe('BackgroundReplyState', () => {
     test('a hidden page runs at full speed only while there is work to receive', () => {
       expect(state.throttlingAllowed()).toBe(true);
       state.hidden = true;
-      state.report({ running: 1, pending: 0, media: false });
+      state.report({ running: 1, pending: 0 });
       expect(state.throttlingAllowed()).toBe(false);
-      state.report({ running: 0, pending: 0, media: false });
+      state.report({ running: 0, pending: 0 });
       expect(state.throttlingAllowed()).toBe(true);
     });
   });
@@ -122,10 +95,10 @@ describe('BackgroundReplyState', () => {
 
     test('a closed window starts from nothing', () => {
       state.hidden = true;
-      state.report({ running: 1, media: true });
+      state.report({ running: 1, pending: 1 });
       state.noticeFor({ requestId: 'r1', outcome: 'done' });
       state.reset();
-      expect([state.running, state.media, state.hidden, state.generation]).toEqual([0, false, false, null]);
+      expect([state.running, state.pending, state.hidden, state.generation]).toEqual([0, 0, false, null]);
       state.hidden = true;
       expect(state.noticeFor({ requestId: 'r1', outcome: 'done' })).toBe(NOTICES.done);
     });

@@ -155,7 +155,7 @@
     "quitConfirmTitle": "Salir de Monadic Chat",
     "quitConfirmMessage": "Los contenedores Docker están en ejecución. ¿Desea detenerlos antes de salir?",
     "backgroundHoldFailedTitle": "No se pudo confirmar que el micrófono se detuvo",
-    "backgroundHoldFailedMessage": "Monadic Chat no pudo confirmar que el micrófono y el audio se detuvieron, así que la Web UI sigue abierta. ¿Cerrarla ahora? Se perderá la respuesta en curso.",
+    "backgroundHoldFailedMessage": "Monadic Chat no pudo confirmar que el micrófono y el audio se detuvieron, así que la Web UI sigue abierta. ¿Cerrarla ahora? Se perderá la conversación que contiene.",
     "stopContainers": "Detener Contenedores",
     "quitDirectly": "Salir Directamente",
     "confirmRemoveDockerData": "Confirmar Eliminación",

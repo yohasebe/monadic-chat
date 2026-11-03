@@ -256,7 +256,7 @@
     "quitConfirmTitle": "Monadic Chat beenden",
     "quitConfirmMessage": "Docker-Container laufen derzeit. Möchten Sie sie vor dem Beenden stoppen?",
     "backgroundHoldFailedTitle": "Stopp des Mikrofons nicht bestätigt",
-    "backgroundHoldFailedMessage": "Monadic Chat konnte nicht bestätigen, dass Mikrofon und Audio gestoppt wurden, daher bleibt die Web UI geöffnet. Jetzt schließen? Eine laufende Antwort geht verloren.",
+    "backgroundHoldFailedMessage": "Monadic Chat konnte nicht bestätigen, dass Mikrofon und Audio gestoppt wurden, daher bleibt die Web UI geöffnet. Jetzt schließen? Die Unterhaltung darin geht verloren.",
     "stopContainers": "Container stoppen",
     "quitDirectly": "Direkt beenden",
     "confirmRemoveDockerData": "Löschen bestätigen",

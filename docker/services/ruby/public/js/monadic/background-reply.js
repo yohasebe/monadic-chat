@@ -1,11 +1,11 @@
 /**
  * background-reply.js
  *
- * Lets an answer finish while the desktop app keeps the Web UI window hidden
- * (closed during an answer). The page tells the app:
+ * The desktop app hides the Web UI window when it is closed, so the
+ * conversation stays and an answer still running comes in. The page tells
+ * the app:
  *   - how many answers are running (the server's "reply_state" messages),
  *     and how many were sent and not yet taken up by the server,
- *   - whether the microphone is in use or being opened,
  *   - how each answer ended ("done", "no_reply", or "lost" when the
  *     connection closed while it ran).
  * When the app holds the page in the background, the microphone is closed
@@ -25,10 +25,6 @@
   var pending = [];
   var pendingSeq = 0;
   var held = false;
-  // Asked by the app whether the window may close: nothing new starts until
-  // the app holds or releases the page.
-  var closing = false;
-  var pendingMedia = 0;
   var streams = new Set();
 
   function bridge() {
@@ -36,19 +32,9 @@
     return api && api.backgroundReply ? api.backgroundReply : null;
   }
 
-  function mediaBusy() {
-    if (pendingMedia > 0) return true;
-    var busy = false;
-    streams.forEach(function(stream) {
-      var live = stream.getTracks().some(function(t) { return t.readyState === 'live'; });
-      if (live) busy = true; else streams.delete(stream);
-    });
-    return busy;
-  }
-
   function report() {
     var b = bridge();
-    if (b) b.report({ running: running.size, pending: pending.length, media: mediaBusy() });
+    if (b) b.report({ running: running.size, pending: pending.length });
   }
 
   // A message that starts work (an answer, an AI User suggestion) was sent.
@@ -132,24 +118,15 @@
     // muted until this is done).
     stopAudio();
     held = false;
-    closing = false;
-  }
-
-  // The work as of now, for the app deciding whether the window may close.
-  // From here on nothing new starts until the app holds or releases the page.
-  function stateForClosing() {
-    closing = true;
-    return { running: running.size, pending: pending.length, media: mediaBusy() };
   }
 
   function maySend() {
-    return !held && !closing;
+    return !held;
   }
 
-  // The one way to send a message that starts work: not while the app is
-  // deciding whether to close the window or keeps it in the background
-  // (reported as not sent, so the text and attachments stay), and counted
-  // once sent.
+  // The one way to send a message that starts work: not while the app keeps
+  // the page in the background (reported as not sent, so the text and
+  // attachments stay), and counted once sent.
   function sendReply(payload, options) {
     if (!maySend()) return { sent: false, held: true };
     var result = window.safeWsSend(payload, options);
@@ -161,47 +138,30 @@
     return new DOMException('The window is in the background', 'NotAllowedError');
   }
 
-  // The microphone: every request for it goes through here, so one that is
-  // still being opened counts as in use, and one that opens after the page
-  // was held is closed at once.
+  // The microphone: every request for it goes through here, so the page
+  // knows what to stop when it is held, and one that opens after the page was
+  // held is closed at once.
   function wrapMedia() {
     var md = navigator.mediaDevices;
     if (!md || typeof md.getUserMedia !== 'function' || md.getUserMedia.__backgroundReply) return;
     var original = md.getUserMedia.bind(md);
     var wrapped = function(constraints) {
-      if (held || closing) return Promise.reject(notAllowed());
-      pendingMedia += 1;
-      report();
+      if (held) return Promise.reject(notAllowed());
       return original(constraints).then(function(stream) {
-        pendingMedia -= 1;
-        if (held || closing) {
+        if (held) {
           stream.getTracks().forEach(function(t) { t.stop(); });
-          report();
           throw notAllowed();
         }
+        // Streams whose tracks have all stopped are not kept.
+        streams.forEach(function(s) {
+          if (!s.getTracks().some(function(t) { return t.readyState === 'live'; })) streams.delete(s);
+        });
         streams.add(stream);
-        report();
         return stream;
-      }, function(err) {
-        pendingMedia -= 1;
-        report();
-        throw err;
       });
     };
     wrapped.__backgroundReply = true;
     md.getUserMedia = wrapped;
-
-    // Stopping a track fires no event; report after it.
-    var proto = window.MediaStreamTrack && window.MediaStreamTrack.prototype;
-    if (proto && typeof proto.stop === 'function' && !proto.stop.__backgroundReply) {
-      var stop = proto.stop;
-      var stopped = function() {
-        stop.apply(this, arguments);
-        report();
-      };
-      stopped.__backgroundReply = true;
-      proto.stop = stopped;
-    }
   }
 
   // Speech the browser speaks itself (Web Speech) is not started while held.
@@ -224,7 +184,6 @@
   if (b) {
     b.onHold(hold);
     b.onRelease(release);
-    if (typeof b.onState === 'function') b.onState(stateForClosing);
   }
 
   window.BackgroundReply = {
@@ -236,7 +195,7 @@
     onConnectionLost: onConnectionLost,
     isHeld: function() { return held; },
     // For tests.
-    _state: function() { return { running: running.size, pending: pending.length, media: mediaBusy(), held: held, closing: closing }; },
+    _state: function() { return { running: running.size, pending: pending.length, held: held }; },
     _hold: hold,
     _release: release
   };

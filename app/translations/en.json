@@ -260,7 +260,7 @@
     "quitConfirmTitle": "Quit Monadic Chat",
     "quitConfirmMessage": "Docker containers are currently running. Do you want to stop them before quitting?",
     "backgroundHoldFailedTitle": "Could Not Confirm the Microphone Stopped",
-    "backgroundHoldFailedMessage": "Monadic Chat could not confirm that the microphone and audio stopped, so the Web UI stays open. Close it now? A reply still in progress will be lost.",
+    "backgroundHoldFailedMessage": "Monadic Chat could not confirm that the microphone and audio stopped, so the Web UI stays open. Close it now? The conversation in it will be lost.",
     "stopContainers": "Stop Containers",
     "quitDirectly": "Quit Directly",
     "confirmRemoveDockerData": "Confirm Removal",

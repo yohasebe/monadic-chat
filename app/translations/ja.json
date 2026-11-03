@@ -260,7 +260,7 @@
     "quitConfirmTitle": "Monadic Chatを終了",
     "quitConfirmMessage": "Dockerコンテナが実行中です。終了前に停止しますか？",
     "backgroundHoldFailedTitle": "マイクの停止を確認できませんでした",
-    "backgroundHoldFailedMessage": "マイクと音声が止まったことを確認できなかったため、Web UI を開いたままにしています。今すぐ閉じますか？作成中の返事は失われます。",
+    "backgroundHoldFailedMessage": "マイクと音声が止まったことを確認できなかったため、Web UI を開いたままにしています。今すぐ閉じますか？画面の会話は失われます。",
     "stopContainers": "コンテナを停止",
     "quitDirectly": "直接終了",
     "confirmRemoveDockerData": "削除の確認",

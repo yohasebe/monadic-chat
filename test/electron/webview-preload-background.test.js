@@ -2,10 +2,9 @@
  * @jest-environment jsdom
  */
 
-// The preload's side of answers that finish while the Web UI is hidden: it
-// replies to a hold or release only when the page did what was asked, names
-// the operation and page generation, and answers a query with the work as
-// of now.
+// The preload's side of the Web UI kept hidden by the app: it replies to a
+// hold or release only when the page did what was asked, and names the
+// operation and page generation.
 
 function loadPreload() {
   const handlers = {};
@@ -32,11 +31,11 @@ describe('webview preload: background reply', () => {
     const p = loadPreload();
     window.dispatchEvent(new Event('DOMContentLoaded'));
     expect(p.last('background-reply:ready')).toBeTruthy();
-    p.api.report({ running: 1, pending: 0, media: false });
+    p.api.report({ running: 1, pending: 0 });
     expect(p.last('background-reply:report')).toBeUndefined(); // no generation yet
     p.emit('background-reply:hello', { generation: 7, held: false });
-    p.api.report({ running: 1, pending: 2, media: false });
-    expect(p.last('background-reply:report')[1]).toEqual({ generation: 7, running: 1, pending: 2, media: false });
+    p.api.report({ running: 1, pending: 2 });
+    expect(p.last('background-reply:report')[1]).toEqual({ generation: 7, running: 1, pending: 2 });
   });
 
   test('confirms a hold only when the page stopped what it had', () => {
@@ -71,44 +70,13 @@ describe('webview preload: background reply', () => {
     expect(hold).toHaveBeenCalledTimes(1);
   });
 
-  test('answers a query with the work as of now, asked of the page', () => {
-    const p = loadPreload();
-    p.emit('background-reply:hello', { generation: 3, held: false });
-    p.api.report({ running: 0, pending: 0, media: false });
-    p.api.onState(() => ({ running: 0, pending: 1, media: false }));
-    p.emit('background-reply:query', { op: 9 });
-    expect(p.last('background-reply:state')[1]).toEqual({ generation: 3, op: 9, running: 0, pending: 1, media: false });
-  });
-
-  test('gives no answer to a query when the page cannot say what it is doing', () => {
-    const p = loadPreload();
-    p.emit('background-reply:hello', { generation: 3, held: false });
-    p.api.report({ running: 0, pending: 0, media: false });
-    p.emit('background-reply:query', { op: 1 }); // not registered
-    p.api.onState(() => { throw new Error('no state'); });
-    p.emit('background-reply:query', { op: 2 });
-    p.api.onState(() => ({ running: '0' }));
-    p.emit('background-reply:query', { op: 3 });
-    expect(p.last('background-reply:state')).toBeUndefined();
-  });
-
-  test('regular reports do not ask the page (which would stop its sending)', () => {
-    const p = loadPreload();
-    p.emit('background-reply:hello', { generation: 3, held: false });
-    const state = jest.fn(() => ({ running: 0, pending: 0, media: false }));
-    p.api.onState(state);
-    p.api.report({ running: 1, pending: 0, media: false });
-    expect(state).not.toHaveBeenCalled();
-  });
-
   test('ignores a request without an operation number', () => {
     const p = loadPreload();
     p.emit('background-reply:hello', { generation: 1, held: false });
     p.api.onHold(() => {});
     p.emit('background-reply:hold', {});
-    p.emit('background-reply:query', { op: 'x' });
+    p.emit('background-reply:hold', { op: 'x' });
     expect(p.last('background-reply:held')).toBeUndefined();
-    expect(p.last('background-reply:state')).toBeUndefined();
   });
 
   test('passes on only the outcomes it knows, with the generation', () => {

@@ -155,7 +155,7 @@
     "quitConfirmTitle": "退出Monadic Chat",
     "quitConfirmMessage": "Docker容器正在运行。退出前是否停止它们？",
     "backgroundHoldFailedTitle": "无法确认麦克风已停止",
-    "backgroundHoldFailedMessage": "Monadic Chat 无法确认麦克风和音频已停止，因此 Web UI 保持打开。现在关闭吗？正在生成的回复将会丢失。",
+    "backgroundHoldFailedMessage": "Monadic Chat 无法确认麦克风和音频已停止，因此 Web UI 保持打开。现在关闭吗？其中的对话将会丢失。",
     "stopContainers": "停止容器",
     "quitDirectly": "直接退出",
     "confirmRemoveDockerData": "确认删除",

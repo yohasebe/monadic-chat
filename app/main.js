@@ -103,7 +103,7 @@ const backgroundReply = new BackgroundReplyState();
 // Notices shown and not yet dismissed (kept so they are not collected), with
 // the page generation each was made for.
 const backgroundNotices = new Map();
-// Closing, hiding and showing the Web UI window while answers run
+// Closing, hiding and showing the Web UI window
 // (background_reply_controller.js); main passes in what touches Electron.
 const { createBackgroundReplyController } = require('./background_reply_controller');
 const backgroundReplyController = createBackgroundReplyController({
@@ -479,7 +479,8 @@ function openWebViewWindow(url, forceReload = false) {
       // Let all other keyboard events pass through to the webview
     }
   });
-  // Closing during an answer hides the window instead, so the answer comes in.
+  // Closing hides the window: the conversation stays, and an answer still
+  // running comes in.
   webviewWindow.on('close', (event) => {
     const allowed = backgroundReplyController.onClose({
       quitting: forceQuit,
@@ -554,22 +555,18 @@ ipcMain.on('background-reply:ready', (event) => {
 
 // What the page sends is checked for its form here; which page and which
 // operation it answers, in the controller.
-function pageInfo(info, extra = {}) {
+function pageInfo(info) {
   if (!info || typeof info !== 'object') return null;
-  return Object.assign({
+  return {
     generation: info.generation,
     op: info.op,
     running: info.running,
-    pending: info.pending,
-    media: info.media === true
-  }, extra);
+    pending: info.pending
+  };
 }
 
 ipcMain.on('background-reply:report', (event, info) => {
   if (fromWebViewPage(event)) backgroundReplyController.onReport(pageInfo(info));
-});
-ipcMain.on('background-reply:state', (event, info) => {
-  if (fromWebViewPage(event)) backgroundReplyController.onState(pageInfo(info));
 });
 ipcMain.on('background-reply:held', (event, info) => {
   if (fromWebViewPage(event)) backgroundReplyController.onHeld(pageInfo(info));
@@ -1965,7 +1962,7 @@ function initializeApp() {
 
         case 'hide-browser':
           // Hide (background) internal browser window, the same way closing
-          // it during an answer does.
+          // it does.
           backgroundReplyController.hideRequested();
           break;
 

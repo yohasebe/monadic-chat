@@ -155,7 +155,7 @@
     "quitConfirmTitle": "Monadic Chat 종료",
     "quitConfirmMessage": "Docker 컨테이너가 실행 중입니다. 종료하기 전에 중지하시겠습니까?",
     "backgroundHoldFailedTitle": "마이크 중지를 확인할 수 없습니다",
-    "backgroundHoldFailedMessage": "Monadic Chat이 마이크와 오디오가 중지되었는지 확인할 수 없어 Web UI를 열어 둡니다. 지금 닫으시겠습니까? 작성 중인 답변은 사라집니다.",
+    "backgroundHoldFailedMessage": "Monadic Chat이 마이크와 오디오가 중지되었는지 확인할 수 없어 Web UI를 열어 둡니다. 지금 닫으시겠습니까? 화면의 대화는 사라집니다.",
     "stopContainers": "컨테이너 중지",
     "quitDirectly": "바로 종료",
     "confirmRemoveDockerData": "삭제 확인",

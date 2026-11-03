@@ -77,10 +77,10 @@ Launch JupyterLab at [http://localhost:8889](http://localhost:8889). See [Jupyte
 Stop JupyterLab.
 
 **Import Document DB** <br />
-Import the entire Document DB (saved conversations, PDFs, and Knowledge Base entries) from a previously exported file in the shared folder. A confirmation dialog warns that importing replaces the current database (**Replace and Import**). The accepted filenames are `monadic-qdrant.tar.gz` (plain) or `monadic-qdrant.tar.gz.enc` (encrypted, prompts for the passphrase used at export time).
+Import the entire Document DB (conversations saved to the Knowledge Base, PDFs, and other Knowledge Base entries) from a previously exported file in the shared folder. The chat history is not part of the Document DB and is not changed. A confirmation dialog warns that importing replaces the current database (**Replace and Import**). The accepted filenames are `monadic-qdrant.tar.gz` (plain) or `monadic-qdrant.tar.gz.enc` (encrypted, prompts for the passphrase used at export time).
 
 **Export Document DB** <br />
-Export the entire Document DB to the shared folder. A confirmation dialog offers two choices: **Encrypt and Export** (default — prompts for a passphrase and writes `monadic-qdrant.tar.gz.enc`) or **Export Plain** (writes `monadic-qdrant.tar.gz` unencrypted, with a strong warning that every saved conversation and PDF travels in cleartext). Use the encrypted form for any export that may leave your machine. For the encryption format and import/decryption behavior, see [Privacy Filter](../advanced-topics/privacy-filter.md#document-db-export-import).
+Export the entire Document DB to the shared folder. A confirmation dialog offers two choices: **Encrypt and Export** (default — prompts for a passphrase and writes `monadic-qdrant.tar.gz.enc`) or **Export Plain** (writes `monadic-qdrant.tar.gz` unencrypted, with a strong warning that every conversation saved to the Knowledge Base and every PDF travels in cleartext). The export does not include the [chat history](web-interface.md#chat-history-panel). Use the encrypted form for any export that may leave your machine. For the encryption format and import/decryption behavior, see [Privacy Filter](../advanced-topics/privacy-filter.md#document-db-export-import).
 
 ### Open Menu
 

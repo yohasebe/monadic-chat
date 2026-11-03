@@ -164,12 +164,12 @@ To re-open an encrypted export, use the **Import** button and enter the passphra
 
 ## Document DB Export and Import (Actions menu) :id=document-db-export-import
 
-The **Actions → Export Document DB** and **Actions → Import Document DB** menu items operate on the entire qdrant volume — every saved conversation, PDF, and Knowledge Base entry. Both items show a confirmation dialog before proceeding.
+The **Actions → Export Document DB** and **Actions → Import Document DB** menu items operate on the entire qdrant volume — every conversation saved to the Knowledge Base, every PDF, and every other Knowledge Base entry. The [chat history](../basic-usage/web-interface.md#chat-history-panel) is not part of it. Both items show a confirmation dialog before proceeding.
 
 For export, you can choose between:
 
 - **Encrypt and Export** (default): prompts for a passphrase, encrypts the tarball with AES-256-GCM (PBKDF2-SHA256, 600 000 iterations) over a per-export salt, and writes `monadic-qdrant.tar.gz.enc` to the shared folder. The plaintext tarball is removed after a successful encryption pass.
-- **Export Plain**: writes the unencrypted tarball directly. The dialog warns that the file contains every saved conversation and PDF in plaintext regardless of whether the Privacy Filter was active when each item was saved.
+- **Export Plain**: writes the unencrypted tarball directly. The dialog warns that the file contains every conversation saved to the Knowledge Base and every PDF in plaintext regardless of whether the Privacy Filter was active when each item was saved.
 
 Import detects the file extension automatically: `.tar.gz` is unpacked directly; `.tar.gz.enc` prompts for the passphrase, decrypts to a temporary plaintext file, runs the qdrant volume import, and removes the temporary file. A wrong passphrase or tampered ciphertext fails decryption (the tarball is never partially unpacked) and the qdrant volume is left untouched.
 

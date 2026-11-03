@@ -399,58 +399,8 @@ document.addEventListener("DOMContentLoaded", async function () {
     applyPrivacyOnClass(enabled);
   });
 
-  // Restore menu visibility state from localStorage on page load
-  // This ensures the menu state persists across zoom operations and page reloads
-  try {
-    const savedMenuHidden = localStorage.getItem('monadic-menu-hidden');
-    if (savedMenuHidden !== null) {
-      // Use setTimeout to ensure DOM elements are ready
-      setTimeout(() => {
-        const toggleBtn = $id("toggle-menu");
-        const menuPanel = $id("menu");
-        const mainPanel = $id("main");
-
-        if (toggleBtn && menuPanel && mainPanel) {
-          const windowWidth = window.innerWidth;
-          const isMobile = windowWidth < 600;
-
-          if (savedMenuHidden === 'true') {
-            // Restore hidden state
-            toggleBtn.classList.add("menu-hidden");
-            toggleBtn.setAttribute("aria-expanded", "false");
-            toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
-
-            if (isMobile) {
-              $hide(menuPanel);
-              $show(mainPanel);
-              document.body.classList.remove("menu-visible");
-            } else {
-              mainPanel.classList.remove("col-md-8");
-              mainPanel.classList.add("col-md-12");
-              $hide(menuPanel);
-            }
-          } else {
-            // Restore visible state
-            toggleBtn.classList.remove("menu-hidden");
-            toggleBtn.setAttribute("aria-expanded", "true");
-            toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
-
-            if (isMobile) {
-              $show(menuPanel);
-              $hide(mainPanel);
-              document.body.classList.add("menu-visible");
-            } else {
-              mainPanel.classList.remove("col-md-12");
-              mainPanel.classList.add("col-md-8");
-              $show(menuPanel);
-            }
-          }
-        }
-      }, 50);
-    }
-  } catch (e) {
-    console.warn('Failed to restore menu state from localStorage on page load:', e);
-  }
+  // Put the columns in the state the user chose (layout-controller.js)
+  setTimeout(() => { if (window.LayoutController) window.LayoutController.apply(); }, 50);
 
   // Restore session state and render saved messages
   // Note: Using sessionStorage (not localStorage) for tab isolation
@@ -1602,64 +1552,15 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      // Restore menu state from localStorage to persist across zoom operations
-      // This ensures the menu visibility state is independent of zoom operations
-      try {
-        const savedMenuHidden = localStorage.getItem('monadic-menu-hidden');
-        if (savedMenuHidden === 'true') {
-          toggleBtn.classList.add("menu-hidden");
-        } else if (savedMenuHidden === 'false') {
-          toggleBtn.classList.remove("menu-hidden");
-        }
-        // If null (not set), keep current class state
-      } catch (e) {
-        console.warn('Failed to restore menu state from localStorage:', e);
+      window.LayoutController.apply();
+
+      if (isMobile) {
+        // Reset any inline styles that might have been applied
+        toggleBtn.style.position = "";
+        toggleBtn.style.top = "";
+        toggleBtn.style.right = "";
+        $show(toggleBtn);
       }
-
-    if (isMobile) {
-      // Mobile layout
-      const isMenuHidden = toggleBtn.classList.contains("menu-hidden");
-
-      if (isMenuHidden) {
-        // Menu should be hidden, main should be visible
-        $hide(menuPanel);
-        $show(mainPanel);
-        mainPanel.classList.remove("col-md-8");
-        mainPanel.classList.add("col-md-12");
-        document.body.classList.remove("menu-visible");
-        // icon stays the same; active style controlled by menu-hidden class
-      } else {
-        // Menu should be visible, main should be hidden
-        $show(menuPanel);
-        $hide(mainPanel);
-        document.body.classList.add("menu-visible");
-      }
-
-      // Reset any inline styles that might have been applied
-      toggleBtn.style.position = "";
-      toggleBtn.style.top = "";
-      toggleBtn.style.right = "";
-      $show(toggleBtn);
-    } else {
-      // Desktop layout
-      document.body.classList.remove("menu-visible");
-
-      if (menuPanel.style.display !== 'none') {
-        // Both panels visible
-        mainPanel.classList.remove("col-md-12");
-        mainPanel.classList.add("col-md-8");
-        $show(mainPanel);
-        $show(menuPanel);
-        toggleBtn.classList.remove("menu-hidden");
-      } else {
-        // Only main panel visible
-        mainPanel.classList.remove("col-md-8");
-        mainPanel.classList.add("col-md-12");
-        $show(mainPanel);
-        $hide(menuPanel);
-        toggleBtn.classList.add("menu-hidden");
-      }
-    }
 
     // Force reflow to ensure proper rendering
     document.body.offsetHeight;
@@ -2891,19 +2792,8 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
     
-    // On mobile, initialize with menu hidden on first load
-    if (window.innerWidth < 600) {
-      // Set proper classes and hide menu on mobile
-      { const el = $id("toggle-menu"); if (el) el.classList.add("menu-hidden"); }
-      $hide($id("menu"));
-      $show($id("main"));
-      document.body.classList.remove("menu-visible");
-      { const el = $id("main"); if (el) { el.classList.remove("col-md-8"); el.classList.add("col-md-12"); } }
-      // Note: Removed inline CSS injection for toggle-menu in document.ready
-    } else {
-      // On desktop, menu is visible by default, so set the appropriate icon and style
-      { const el = $id("toggle-menu"); if (el) el.classList.remove("menu-hidden"); }
-    }
+    // Columns as the user chose, or the default for this width
+    if (window.LayoutController) window.LayoutController.apply();
     
     // Initialize scroll buttons state
     setTimeout(function() {
@@ -2970,20 +2860,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Listen for window resize events
   window.addEventListener("resize", function() {
-    const wasMenuVisible = ($id("menu") && $id("menu").offsetParent !== null);
-    const windowWidth = window.innerWidth;
-    // Check if user explicitly hid the menu (respect user preference)
-    const userHidMenu = StorageHelper.safeGetItem('monadic-menu-hidden') === 'true';
-
-    // Only reposition on mobile
-    if (windowWidth < 600) {
+    if (window.innerWidth < 600) {
       centerNavbarElements();
-    } else if (windowWidth >= 600 && !wasMenuVisible && !userHidMenu) {
-      // We've changed from mobile to desktop view with hidden menu
-      // Restore proper column layout and show menu ONLY if user didn't explicitly hide it
-      { const el = $id("main"); if (el) { el.classList.remove("col-md-12"); el.classList.add("col-md-8"); } }
-      $show($id("menu"));
-      { const el = $id("toggle-menu"); if (el) el.classList.remove("menu-hidden"); }
+    } else if (window.LayoutController) {
+      // Back to a wide window: the columns as the user chose
+      window.LayoutController.apply();
     }
   });
 
@@ -3010,55 +2891,8 @@ document.addEventListener("DOMContentLoaded", function () {
         window.UIConfig.isMobileView() :
         window.innerWidth < 600;
 
-      // Toggle menu visibility and change icon to indicate state
-      const menuVisible = ($menu.offsetParent !== null);
-
-      if (menuVisible) {
-        // Menu is visible, will be hidden
-        $toggleBtn.classList.add("menu-hidden");
-        $toggleBtn.setAttribute("aria-expanded", "false");
-
-        // Save menu state to localStorage to persist across zoom operations
-        if (!StorageHelper.safeSetItem('monadic-menu-hidden', 'true')) {
-          console.warn('Failed to save menu state to localStorage');
-        }
-
-        if (isMobile) {
-          // On mobile: hide menu and show main
-          $hide($menu);
-          $show($main);
-          document.body.classList.remove("menu-visible");
-        } else {
-          // On desktop: normal column behavior
-          $main.classList.remove("col-md-8"); $main.classList.add("col-md-12");
-          $hide($menu);
-        }
-      } else {
-        // Menu is hidden, will be shown
-        $toggleBtn.classList.remove("menu-hidden");
-        $toggleBtn.setAttribute("aria-expanded", "true");
-
-        // Save menu state to localStorage to persist across zoom operations
-        if (!StorageHelper.safeSetItem('monadic-menu-hidden', 'false')) {
-          console.warn('Failed to save menu state to localStorage');
-        }
-
-      if (isMobile) {
-        // On mobile: show menu and hide main completely
-        $show($menu);
-        $hide($main);
-        document.body.classList.add("menu-visible");
-        } else {
-          // On desktop: normal column behavior
-          $main.classList.remove("col-md-12"); $main.classList.add("col-md-8");
-          $show($menu);
-        }
-      }
-      
-      // Update UI state if available
-      if (window.UIConfig && window.UIConfig.STATE) {
-        window.UIConfig.STATE.isMenuVisible = !menuVisible;
-      }
+      // Show or hide the menu, and keep the choice (layout-controller.js)
+      window.LayoutController.toggleMenu();
       
       // Reset scroll position
       window.scrollTo({ top: 0 });

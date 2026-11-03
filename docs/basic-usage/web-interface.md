@@ -16,7 +16,7 @@ In internal browser mode, five buttons appear at the bottom-right corner (hover 
 - **Zoom In**: Increase the page zoom factor
 - **Zoom Out**: Decrease the page zoom factor
 - **Reset Zoom**: Reset page zoom to default
-- **Reset All**: After you confirm, clear the page's stored data (local storage and caches) and reload it, returning to the initial app selection. Cookies, such as the theme and the conversation language, are kept
+- **Reset All**: After you confirm, clear the page's stored data (local storage and caches) and reload it, returning to the initial app selection. Cookies, such as the theme, the conversation language and whether the menu is shown, are kept
 - **Monadic Chat Console**: Show the main console window
 
 ### External Browser Mode :id=external-browser-mode

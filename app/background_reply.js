@@ -1,10 +1,9 @@
 // Answers that finish while the Web UI window is hidden.
 //
-// Closing the Web UI window while an answer is running hides it instead, so
-// the page keeps its connection and receives the answer; the user is told
+// Closing the Web UI window hides it, so the page keeps its conversation and
+// its connection, and an answer still running comes in; the user is told
 // when it has come. What the page reports (webview-preload.js →
 // background-reply.js) is kept here and decides:
-//   - what closing the window does now,
 //   - which notice, if any, an answer that ended gets,
 //   - whether the hidden page may be throttled.
 // Each page load gets a generation; reports from any other are ignored.
@@ -39,16 +38,11 @@ class BackgroundReplyState {
 
   // From closing the window until it is hidden or kept: an answer that
   // ends meanwhile is noticed once the window is hidden (or not at all if it
-  // stays shown). Starting again while holding keeps what was kept.
+  // stays shown).
   startHold() {
     if (this.holding) return;
     this.holding = true;
     this.deferred = [];
-  }
-
-  // Whether an answer ended while holding.
-  endedWhileHolding() {
-    return !!(this.holding && this.deferred && this.deferred.length > 0);
   }
 
   // The notices kept while holding, when the window was hidden.
@@ -67,7 +61,6 @@ class BackgroundReplyState {
     this.generation = null;
     this.running = 0;
     this.pending = 0;
-    this.media = false;
   }
 
   // A page that has loaded and says it is ready.
@@ -82,26 +75,15 @@ class BackgroundReplyState {
     return this.generation !== null && generation === this.generation;
   }
 
-  report({ running, pending, media }) {
+  report({ running, pending }) {
     this.running = count(running);
     this.pending = count(pending);
-    this.media = media === true;
   }
 
   // Work the page waits for: running on the server, or sent and not yet
   // taken up.
   busy() {
     return this.running > 0 || this.pending > 0;
-  }
-
-  // "hide" keeps the window (and its answer) alive out of sight; "close"
-  // lets the window close as before. Quitting and installing an update
-  // always close. The microphone in use, or being opened, closes too: it
-  // must not stay on in a window nobody sees.
-  closeAction({ quitting = false, updating = false } = {}) {
-    if (quitting || updating) return 'close';
-    if (this.busy() && !this.media) return 'hide';
-    return 'close';
   }
 
   // A hidden page runs at full speed only while there is work to receive.

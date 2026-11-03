@@ -10,8 +10,9 @@ function isTrustedOrigin() {
   }
 }
 
-// Answers that finish while the app keeps this window hidden
-// (public/js/monadic/background-reply.js). The page reports what is running
+// This window kept hidden by the app (closing it hides it), and answers
+// that finish meanwhile (public/js/monadic/background-reply.js). The page
+// reports what is running
 // and how each answer ended; the app tells the page when it is held in the
 // background and when it is shown again. Each page load gets a generation
 // from the app (sent back with every report, so an older page's reports are
@@ -19,18 +20,13 @@ function isTrustedOrigin() {
 // registered later. One handler of each kind: a newer one replaces the older.
 let backgroundHeld = false;
 let backgroundGeneration = null;
-let preloadMediaPending = 0;
 let preloadStream = null;
-let lastPageReport = { running: 0, pending: 0, media: false };
-const backgroundHandlers = { hold: null, release: null, state: null };
+let lastPageReport = { running: 0, pending: 0 };
+const backgroundHandlers = { hold: null, release: null };
 const OUTCOMES = new Set(['done', 'no_reply', 'lost']);
 
 function clampCount(value) {
   return Number.isInteger(value) ? Math.max(0, Math.min(value, 1000)) : 0;
-}
-
-function preloadStreamLive() {
-  return !!(preloadStream && preloadStream.getTracks().some(t => t.readyState === 'live'));
 }
 
 function stopPreloadStream() {
@@ -38,37 +34,14 @@ function stopPreloadStream() {
   preloadStream = null;
 }
 
-function preloadMediaBusy() {
-  return preloadMediaPending > 0 || preloadStreamLive();
-}
-
-// The page's last report, for the regular reports.
+// The page's last report.
 function sendBackgroundReport() {
   if (backgroundGeneration === null) return;
   ipcRenderer.send('background-reply:report', {
     generation: backgroundGeneration,
     running: lastPageReport.running,
-    pending: lastPageReport.pending,
-    media: lastPageReport.media || preloadMediaBusy()
+    pending: lastPageReport.pending
   });
-}
-
-// The page's work as of now, asked of the page (which from then on starts
-// nothing new until it is held or released); null when it cannot say.
-function workForClosing() {
-  if (!backgroundHandlers.state) return null;
-  let s;
-  try {
-    s = backgroundHandlers.state();
-  } catch (_) {
-    return null;
-  }
-  if (!s || !Number.isInteger(s.running) || !Number.isInteger(s.pending) || typeof s.media !== 'boolean') return null;
-  return {
-    running: clampCount(s.running),
-    pending: clampCount(s.pending),
-    media: s.media || preloadMediaBusy()
-  };
 }
 
 // True when the microphone and audio are stopped. A page whose handler is
@@ -120,16 +93,6 @@ ipcRenderer.on('background-reply:release', (_event, info) => {
     ipcRenderer.send('background-reply:released', { generation: backgroundGeneration, op });
   }
 });
-// Closing asks for the work as of now (a message sent a moment ago counts).
-// Without an answer from the page there is no reply: the app keeps the
-// window shown and asks the user.
-ipcRenderer.on('background-reply:query', (_event, info) => {
-  const op = operationOf(info);
-  if (op === null || backgroundGeneration === null) return;
-  const work = workForClosing();
-  if (!work) return;
-  ipcRenderer.send('background-reply:state', Object.assign({ generation: backgroundGeneration, op }, work));
-});
 // Once the document is there (its URL is the app's), ask for a generation.
 window.addEventListener('DOMContentLoaded', () => ipcRenderer.send('background-reply:ready'));
 
@@ -137,8 +100,7 @@ const backgroundReply = {
   report: (state) => {
     lastPageReport = {
       running: clampCount(state && state.running),
-      pending: clampCount(state && state.pending),
-      media: !!(state && state.media)
+      pending: clampCount(state && state.pending)
     };
     sendBackgroundReport();
   },
@@ -153,8 +115,7 @@ const backgroundReply = {
     backgroundHandlers.hold = typeof fn === 'function' ? () => fn() : null;
     if (backgroundHeld && backgroundHandlers.hold) backgroundHandlers.hold();
   },
-  onRelease: (fn) => { backgroundHandlers.release = typeof fn === 'function' ? () => fn() : null; },
-  onState: (fn) => { backgroundHandlers.state = typeof fn === 'function' ? () => fn() : null; }
+  onRelease: (fn) => { backgroundHandlers.release = typeof fn === 'function' ? () => fn() : null; }
 };
 
 // Expose API to focus the main Electron window from the webview
@@ -232,23 +193,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
         }
       };
       
-      preloadMediaPending += 1;
-      sendBackgroundReport();
-      let stream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-      } finally {
-        preloadMediaPending -= 1;
-      }
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       // Held while it was being opened: close it at once.
       if (backgroundHeld) {
         if (stream) stream.getTracks().forEach(track => track.stop());
-        sendBackgroundReport();
         return false;
       }
-      // Counted as in use until it is stopped below (or by a hold).
+      // Kept until it is stopped below (or by a hold).
       preloadStream = stream;
-      sendBackgroundReport();
       
       // Clean up the stream after permissions are granted
       if (stream) {
@@ -267,7 +219,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
             track.stop();
           });
           if (preloadStream === stream) preloadStream = null;
-          sendBackgroundReport();
         }, 500);
       }
       console.log('Media permissions granted!');

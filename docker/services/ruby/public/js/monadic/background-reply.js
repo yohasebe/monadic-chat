@@ -76,13 +76,14 @@
     report();
   }
 
+  // Returns how many answers ended with the connection.
   function onConnectionLost() {
     var ids = Array.from(running).concat(pending);
     running.clear();
     pending = [];
-    if (ids.length === 0) { report(); return; }
     ids.forEach(function(id) { finished(id, 'lost'); });
     report();
+    return ids.length;
   }
 
   function stopAudio() {

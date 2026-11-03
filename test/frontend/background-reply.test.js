@@ -81,8 +81,8 @@ describe('BackgroundReply (page)', () => {
 
   test('a closed connection ends every running answer as lost', () => {
     BackgroundReply.onReplyState({ type: 'reply_state', state: 'running', request_id: 'a' });
-    BackgroundReply.onConnectionLost();
-    BackgroundReply.onConnectionLost();
+    expect(BackgroundReply.onConnectionLost()).toBe(1);
+    expect(BackgroundReply.onConnectionLost()).toBe(0);
     expect(bridge.finished.mock.calls).toEqual([[{ requestId: 'a', outcome: 'lost' }]]);
     expect(BackgroundReply._state().running).toBe(0);
   });
@@ -178,5 +178,19 @@ describe('BackgroundReply (page)', () => {
     BackgroundReply.onReplyState({ type: 'reply_state', state: 'running', request_id: 'a' });
     expect(BackgroundReply._state().running).toBe(1);
     expect(bridge.report).not.toHaveBeenCalled();
+  });
+});
+
+// websocket.js is not loaded in these tests: the close handler is pinned in
+// its source.
+describe('the socket close', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const source = fs.readFileSync(path.join(__dirname, '../../docker/services/ruby/public/js/monadic/websocket.js'), 'utf8');
+  const onclose = source.slice(source.indexOf('ws.onclose = function'), source.indexOf('ws.onerror = function'));
+
+  test('gives the page back for input when answers were running, and tells it after reconnecting', () => {
+    expect(onclose).toMatch(/const repliesLost = window\.BackgroundReply \? window\.BackgroundReply\.onConnectionLost\(\) : 0;/);
+    expect(onclose).toMatch(/if \(repliesLost > 0\) \{[\s\S]*window\._replyInterrupted = true;[\s\S]*endInterruptedReply\(\)/);
   });
 });

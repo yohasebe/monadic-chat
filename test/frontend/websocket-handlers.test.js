@@ -753,6 +753,57 @@ describe('WebSocket Handlers', () => {
       delete global.setAlert;
     });
 
+    it('a reply cut off by a lost connection takes input again, with no cancel status', () => {
+      document.getElementById('send').disabled = true;
+      document.getElementById('message').disabled = true;
+      document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
+      document.getElementById('temp-card').style.display = '';
+      window.streamingResponse = true;
+      global.setAlert = jest.fn();
+      handlers.endInterruptedReply();
+      expect(document.getElementById('send').disabled).toBe(false);
+      expect(document.getElementById('message').disabled).toBe(false);
+      expect(document.getElementById('cancel_query').style.getPropertyValue('display')).toBe('none');
+      expect(document.getElementById('temp-card').style.display).toBe('none');
+      expect(window.streamingResponse).toBe(false);
+      expect(global.setAlert).not.toHaveBeenCalled();
+      delete global.setAlert;
+    });
+
+    it('a reply cut off while thinking leaves no spinner: the spinner check sees the flags already reset', () => {
+      const { checkAndHideSpinner } = require('../../docker/services/ruby/public/js/monadic/ws-auto-speech.js');
+      let reasoning = true;
+      window.setReasoningStreamActive = (v) => { reasoning = !!v; };
+      window.isReasoningStreamActive = () => reasoning;
+      window.checkAndHideSpinner = checkAndHideSpinner;
+      window.messages = [{ role: 'user', text: 'q', mid: 'u-1' }];
+      window.streamingResponse = true;
+      const spinner = document.getElementById('monadic-spinner');
+      spinner.style.display = '';
+      handlers.endInterruptedReply();
+      expect(spinner.style.display).toBe('none');
+      expect(reasoning).toBe(false);
+      delete window.setReasoningStreamActive;
+      delete window.isReasoningStreamActive;
+      delete window.checkAndHideSpinner;
+      delete window.messages;
+    });
+
+    it('a cancel with the reply still marked running hides the spinner too', () => {
+      const { checkAndHideSpinner } = require('../../docker/services/ruby/public/js/monadic/ws-auto-speech.js');
+      window.checkAndHideSpinner = checkAndHideSpinner;
+      window.messages = [{ role: 'user', text: 'q', mid: 'u-1' }];
+      window.streamingResponse = true;
+      global.setAlert = jest.fn();
+      const spinner = document.getElementById('monadic-spinner');
+      spinner.style.display = '';
+      handlers.handleCancelMessage({ type: 'cancel' });
+      expect(spinner.style.display).toBe('none');
+      delete window.checkAndHideSpinner;
+      delete window.messages;
+      delete global.setAlert;
+    });
+
     it('should reset placeholder text for message input', () => {
       const data = {
         type: 'cancel'

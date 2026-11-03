@@ -56,6 +56,16 @@ class DockerContainerManager
       end
     end
     
+    # WebDriver listens only inside the container network (no host port),
+    # so the selenium container itself is asked.
+    def selenium_ready?
+      _out, status = Open3.capture2e("docker", "exec", "monadic-chat-selenium-container",
+                                     "curl", "-sf", "http://localhost:4444/wd/hub/status")
+      status.success?
+    rescue StandardError
+      false
+    end
+
     private
     
     def containers_healthy?
@@ -159,11 +169,7 @@ class DockerContainerManager
     end
     
     def selenium_healthy?
-      uri = URI("http://localhost:4444/wd/hub/status")
-      response = Net::HTTP.get_response(uri)
-      response.is_a?(Net::HTTPSuccess)
-    rescue StandardError
-      false
+      selenium_ready?
     end
 
     def python_healthy?

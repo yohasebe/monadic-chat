@@ -27,7 +27,7 @@ The `Jupyter Notebook` app uses JupyterLab to write and execute Jupyter Notebook
 **A**: Check the following:
 
 1. Make sure Docker Desktop is running.
-2. Ensure that the necessary ports (4567, 3100, 8889, 4444, 5900, 7900) are not already in use by other applications.
+2. Ensure that the necessary ports (4567, 3100, 8889, 7900) are not already in use by other applications.
 3. Look at the console output for any error messages.
 4. Try restarting the application, or rebuild the containers from the **Actions** menu (for example **Build All**).
 

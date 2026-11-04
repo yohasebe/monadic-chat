@@ -5,22 +5,31 @@
  * (#menu) is shown next to the conversation (#main), and the classes and
  * visibility that follow from it. Other code asks it (isMenuHidden) and
  * changes it (setMenuHidden, toggleMenu, apply) instead of reading or setting
- * the DOM itself.
+ * the DOM itself; the classes it sets (menu-hidden on #toggle-menu,
+ * body.menu-visible) are what other code may read.
  *
  * What the user chose is a display preference kept in a cookie, like the
  * theme, so resetting the Web UI (which clears the page's storage) keeps it.
  * Until they choose, the menu is shown on wide screens and hidden on narrow
  * ones.
  *
- *   - Narrow (below the mobile breakpoint): the menu and the conversation take
- *     turns; body.menu-visible is set while the menu is shown.
- *   - Wide: the conversation is col-md-8 beside the menu, or col-md-12 alone.
+ *   - Narrow (below Bootstrap's md breakpoint, 768 px): the menu and the
+ *     conversation take turns; body.menu-visible is set while the menu is
+ *     shown.
+ *   - Wide: the conversation is col-md-8 beside the menu, or col-md-12 alone;
+ *     col-md-6 beside it while the work screen pane is shown.
+ *
+ * The side column holds two panes, Settings and the work screen, behind tabs
+ * (#side-pane-tabs). Which one is shown is a display preference too, kept in
+ * its own cookie; it is separate from whether the column is shown.
  */
 (function() {
   'use strict';
 
   var COOKIE_NAME = 'menu-hidden-preference';
+  var PANE_COOKIE_NAME = 'side-pane-preference';
   var COOKIE_DAYS = 30;
+  var PANES = ['settings', 'work'];
 
   function storedChoice() {
     var value = typeof window.getCookie === 'function' ? window.getCookie(COOKIE_NAME) : null;
@@ -33,11 +42,18 @@
     }
   }
 
+  function selectedPane() {
+    var value = typeof window.getCookie === 'function' ? window.getCookie(PANE_COOKIE_NAME) : null;
+    return PANES.indexOf(value) === -1 ? 'settings' : value;
+  }
+
+  // Below Bootstrap's md breakpoint the CSS shows #menu only with
+  // body.menu-visible, so the menu and the conversation take turns there.
   function isNarrow() {
-    if (window.UIConfig && typeof window.UIConfig.isMobileView === 'function') {
-      return window.UIConfig.isMobileView();
+    if (window.UIConfig && typeof window.UIConfig.isTabletView === 'function') {
+      return window.UIConfig.isTabletView();
     }
-    return window.innerWidth < 600;
+    return window.innerWidth < 768;
   }
 
   function isMenuHidden() {
@@ -53,6 +69,8 @@
     if (!toggleBtn || !menu || !main) return;
 
     var hidden = isMenuHidden();
+    var wide = selectedPane() === 'work';
+    applyPanes();
     toggleBtn.classList.toggle('menu-hidden', hidden);
     toggleBtn.setAttribute('aria-expanded', hidden ? 'false' : 'true');
 
@@ -66,8 +84,11 @@
       }
     } else {
       document.body.classList.remove('menu-visible');
-      main.classList.toggle('col-md-8', !hidden);
       main.classList.toggle('col-md-12', hidden);
+      main.classList.toggle('col-md-8', !hidden && !wide);
+      main.classList.toggle('col-md-6', !hidden && wide);
+      menu.classList.toggle('col-md-4', !wide);
+      menu.classList.toggle('col-md-6', wide);
       $show(main);
       $toggle(menu, !hidden);
     }
@@ -75,6 +96,56 @@
     if (window.UIConfig && window.UIConfig.STATE) {
       window.UIConfig.STATE.isMenuVisible = !hidden;
     }
+  }
+
+  // The tabs and panes of the side column, as selectedPane() says.
+  function applyPanes() {
+    var pane = selectedPane();
+    PANES.forEach(function(name) {
+      var tab = document.querySelector('#side-pane-tabs [data-pane="' + name + '"]');
+      var panel = tab ? $id(tab.getAttribute('aria-controls')) : null;
+      var on = name === pane;
+      if (tab) {
+        tab.setAttribute('aria-selected', on ? 'true' : 'false');
+        tab.tabIndex = on ? 0 : -1;
+      }
+      if (panel) panel.hidden = !on;
+    });
+    bindTabs();
+  }
+
+  function setPane(name) {
+    if (PANES.indexOf(name) === -1) return;
+    if (typeof window.setCookie === 'function') {
+      window.setCookie(PANE_COOKIE_NAME, name, COOKIE_DAYS);
+    }
+    apply();
+  }
+
+  // Click selects a tab; the arrow keys, Home and End move between tabs and
+  // Enter or Space selects (the tabs are buttons).
+  var tabsBound = false;
+  function bindTabs() {
+    var list = $id('side-pane-tabs');
+    if (tabsBound || !list) return;
+    tabsBound = true;
+    list.addEventListener('click', function(e) {
+      var tab = e.target.closest('[role="tab"]');
+      if (tab) setPane(tab.getAttribute('data-pane'));
+    });
+    list.addEventListener('keydown', function(e) {
+      var tabs = Array.prototype.slice.call(list.querySelectorAll('[role="tab"]'));
+      var at = tabs.indexOf(document.activeElement);
+      if (at === -1) return;
+      var next = null;
+      if (e.key === 'ArrowRight') next = (at + 1) % tabs.length;
+      else if (e.key === 'ArrowLeft') next = (at - 1 + tabs.length) % tabs.length;
+      else if (e.key === 'Home') next = 0;
+      else if (e.key === 'End') next = tabs.length - 1;
+      if (next === null) return;
+      e.preventDefault();
+      tabs[next].focus();
+    });
   }
 
   function setMenuHidden(hidden) {
@@ -91,7 +162,9 @@
     apply: apply,
     isMenuHidden: isMenuHidden,
     setMenuHidden: setMenuHidden,
-    toggleMenu: toggleMenu
+    toggleMenu: toggleMenu,
+    selectedPane: selectedPane,
+    setPane: setPane
   };
 
   if (typeof module !== 'undefined' && module.exports) {

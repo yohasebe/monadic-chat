@@ -383,8 +383,8 @@ module MonadicSharedTools
               {
                 name: :headless,
                 type: "boolean",
-                description: "false only when the user wants to watch or use the browser themselves " \
-                             "(they see it through noVNC). Default true: no visible window, screenshots only.",
+                description: "Set false only when the user explicitly asks to see the live browser. " \
+                             "Otherwise omit it (default true: no visible window, screenshots only).",
                 required: false
               }
             ]

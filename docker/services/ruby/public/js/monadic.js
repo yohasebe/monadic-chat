@@ -1600,7 +1600,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (isMobile || isMedium) {
       // Check if toggle button has menu-hidden class
       const toggleBtn = $id("toggle-menu");
-      const isMenuHidden = toggleBtn && toggleBtn.classList.contains("menu-hidden");
+      const isMenuHidden = window.LayoutController ? window.LayoutController.isMenuHidden()
+        : (toggleBtn && toggleBtn.classList.contains("menu-hidden"));
 
       if (!isMenuHidden) {
         // Menu is showing, hide scroll buttons

@@ -1270,7 +1270,7 @@ window.loadedApp = "Chat";
       try { stopPing(); } catch(_) { console.warn("[WebSocket] Ping stop failed:", _); }
       return;
     } else if (repliesLost > 0) {
-      const interruptedText = getTranslation('ui.messages.replyInterrupted', 'The connection was lost and the reply ended partway. Send the message again.');
+      const interruptedText = getTranslation('ui.messages.replyInterrupted', 'The connection was lost before the reply was complete. Send the message again.');
       setAlert(`<i class='fa-solid fa-server'></i> ${interruptedText}`, "warning");
     } else {
       const lostText = getTranslation('ui.messages.connectionLost', 'Connection lost');

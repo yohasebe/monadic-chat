@@ -95,7 +95,8 @@ window.shims.uiUtils = {
     // On mobile and medium screens where menu/content are exclusive, check toggle state
     if (isMobile || isMedium) {
       var toggleBtn = $id('toggle-menu');
-      var isMenuHidden = toggleBtn && toggleBtn.classList.contains('menu-hidden');
+      var isMenuHidden = window.LayoutController ? window.LayoutController.isMenuHidden()
+        : (toggleBtn && toggleBtn.classList.contains('menu-hidden'));
 
       if (!isMenuHidden) {
         var topBtn = $id('back_to_top');

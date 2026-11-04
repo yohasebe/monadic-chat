@@ -249,14 +249,15 @@ function handlePastMessages(data) {
       : "Connected";
   setAlert(`<i class='fa-solid fa-circle-check'></i> ${connectedText}`, "success");
 
-  // A reply the lost connection cut off is told once the conversation is
-  // back, where it stays until removed.
+  // A reply the lost connection cut off is told once, when the conversation
+  // is drawn again after reconnecting; the notice is not part of the saved
+  // conversation, so the next redraw of it leaves the notice out.
   if (window._replyInterrupted) {
     window._replyInterrupted = false;
     const interruptedText =
       typeof webUIi18n !== "undefined" && webUIi18n.initialized
         ? webUIi18n.t("ui.messages.replyInterrupted")
-        : "The connection was lost and the reply ended partway. Send the message again.";
+        : "The connection was lost before the reply was complete. Send the message again.";
     setAlert(interruptedText, "error");
   }
 

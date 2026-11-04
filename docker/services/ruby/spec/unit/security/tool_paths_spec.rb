@@ -422,6 +422,12 @@ RSpec.describe 'Tool input boundaries' do
   end
 
   describe 'Python command callers' do
+    # Only the caller's own command is checked, not the slot count before it.
+    before do
+      MonadicSharedTools::BrowserOwner.reset!
+      allow(MonadicSharedTools::BrowserOwner).to receive(:observe).and_return({ sessions: [], max: 3 })
+    end
+
     %i[run_jupyter_cells restart_jupyter_kernel].each do |method|
       it "#{method}: passes notebook names as literal arguments" do
         (shell_names('.ipynb') + ['日本語 folder/space name.ipynb']).each do |name|

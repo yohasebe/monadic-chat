@@ -2,6 +2,7 @@ require 'cgi'
 require 'json'
 require 'fileutils'
 require 'shellwords'
+require_relative '../../lib/monadic/shared_tools/scratch_browser'
 require_relative '../../lib/monadic/utils/shared_path_guard'
 require 'securerandom'
 require_relative '../../lib/monadic/utils/environment'
@@ -27,6 +28,12 @@ module MermaidGrapherTools
   end
 
   def preview_mermaid(code:)
+    if MonadicSharedTools::BrowserOwner.private_work?
+      return format_tool_response(build_preview_payload(
+        success: false, error: "This chat is Private: no preview is made (it would write files and use the browser)."
+      ))
+    end
+
     sanitized_code = sanitize_mermaid_code(code)
 
     # 1. Validate
@@ -42,104 +49,84 @@ module MermaidGrapherTools
     html_path = File.join(shared_volume, html_filename)
     Monadic::Utils::SharedPathGuard.write_file!(html_path, build_mermaid_html(sanitized_code))
 
-    # 3. Browser session management via web_navigator.py
+    # 3. A browser session of its own for this preview (ScratchBrowser)
     file_url = "file:///monadic/data/#{html_filename}"
-
-    if mermaid_session_active?
-      # Navigate existing session
-      nav_output = send_command(
-        command: "web_navigator.py --action navigate --url #{Shellwords.escape(file_url)}",
-        container: "python"
-      )
-      nav_result = parse_mermaid_response(nav_output)
-      unless nav_result[:success]
-        # Session expired — start fresh
-        start_output = send_command(
-          command: "web_navigator.py --action start --url #{Shellwords.escape(file_url)}",
-          container: "python"
-        )
-        start_result = parse_mermaid_response(start_output)
-        return format_tool_response(build_preview_error(start_result)) unless start_result[:success]
-      end
-    else
-      # No active session — start new
-      start_output = send_command(
-        command: "web_navigator.py --action start --url #{Shellwords.escape(file_url)}",
-        container: "python"
-      )
+    MonadicSharedTools::ScratchBrowser.with_session(file_url) do |run, start_output|
       start_result = parse_mermaid_response(start_output)
-      return format_tool_response(build_preview_error(start_result)) unless start_result[:success]
-    end
+      return format_tool_response(build_preview_error(start_result)) unless run && start_result[:success]
 
-    # 4. Wait for Mermaid rendering
-    sleep(3)
+      # 4. Wait for Mermaid rendering
+      sleep(3)
 
-    # 4b. Verify the browser actually rendered a diagram, not Mermaid's error
-    # graphic. Mermaid emits an <svg> even on a parse failure (the "bomb" icon
-    # with aria-roledescription="error"), so a screenshot alone would happily
-    # capture the error screen and report success. This closes the gap where
-    # the lenient static pre-validation passes but the real render fails.
-    err_output = send_command(command: "web_navigator.py --action check_render_error", container: "python")
-    err_result = parse_mermaid_response(err_output)
-    if err_result[:success] && err_result[:render_error]
-      detail = err_result[:error_text].to_s.strip
-      detail = "Mermaid failed to render the diagram." if detail.empty?
-      return format_tool_response(build_preview_payload(
-        success: false,
-        error: "Diagram render error: #{detail}",
-        validated_code: sanitized_code
-      ))
-    end
+      # 4b. Verify the browser actually rendered a diagram, not Mermaid's error
+      # graphic. Mermaid emits an <svg> even on a parse failure (the "bomb" icon
+      # with aria-roledescription="error"), so a screenshot alone would happily
+      # capture the error screen and report success. This closes the gap where
+      # the lenient static pre-validation passes but the real render fails.
+      err_output = run.call(%w[--action check_render_error])
+      err_result = parse_mermaid_response(err_output)
+      if err_result[:success] && err_result[:render_error]
+        detail = err_result[:error_text].to_s.strip
+        detail = "Mermaid failed to render the diagram." if detail.empty?
+        return format_tool_response(build_preview_payload(
+          success: false,
+          error: "Diagram render error: #{detail}",
+          validated_code: sanitized_code
+        ))
+      end
 
-    # 5. Capture full-page screenshot (resizes viewport or tiles for tall content)
-    ss_output = send_command(command: "web_navigator.py --action full_screenshot", container: "python")
-    ss_result = parse_mermaid_response(ss_output)
+      # 5. Capture full-page screenshot (resizes viewport or tiles for tall content)
+      ss_output = run.call(%w[--action full_screenshot])
+      ss_result = parse_mermaid_response(ss_output)
 
-    if ss_result[:success] && ss_result[:tiled] && ss_result[:screenshots]
-      # Tiled mode: multiple overlapping screenshots for tall diagrams
-      image_files = copy_screenshot_tiles(ss_result[:screenshots], "mermaid_preview_#{timestamp}", shared_volume)
-      if image_files.any?
+      if ss_result[:success] && ss_result[:tiled] && ss_result[:screenshots]
+        # Tiled mode: multiple overlapping screenshots for tall diagrams
+        image_files = copy_screenshot_tiles(ss_result[:screenshots], "mermaid_preview_#{timestamp}", shared_volume)
+        if image_files.any?
+          # No gallery_html — Mermaid diagrams are rendered as SVG directly by
+          # the client-side MarkdownRenderer. Instead, inject via _image so the
+          # LLM can verify the rendered diagram without showing it to the user.
+          {
+            success: true,
+            filename: image_files.first,
+            tile_count: image_files.size,
+            message: "Preview captured as #{image_files.size} tiled images. The diagram is rendered as SVG in the chat.",
+            validated_code: sanitized_code,
+            _image: image_files
+          }
+        else
+          format_tool_response(build_preview_payload(
+            success: false,
+            error: "Failed to process tiled screenshots",
+            validated_code: sanitized_code
+          ))
+        end
+      elsif ss_result[:success] && ss_result[:screenshot]
+        # Single image mode: diagram fits in one capture
+        src = File.join(shared_volume, ss_result[:screenshot])
+        dst = File.join(shared_volume, screenshot_filename)
+        (Monadic::Utils::SharedPathGuard.copy_file!(src, dst) rescue nil)
+
         # No gallery_html — Mermaid diagrams are rendered as SVG directly by
         # the client-side MarkdownRenderer. Instead, inject via _image so the
         # LLM can verify the rendered diagram without showing it to the user.
         {
           success: true,
-          filename: image_files.first,
-          tile_count: image_files.size,
-          message: "Preview captured as #{image_files.size} tiled images. The diagram is rendered as SVG in the chat.",
+          filename: screenshot_filename,
+          message: "Preview image saved as '#{screenshot_filename}'. The diagram is rendered as SVG in the chat.",
           validated_code: sanitized_code,
-          _image: image_files
+          _image: screenshot_filename
         }
       else
         format_tool_response(build_preview_payload(
           success: false,
-          error: "Failed to process tiled screenshots",
+          error: ss_result[:error] || "Failed to capture screenshot",
           validated_code: sanitized_code
         ))
       end
-    elsif ss_result[:success] && ss_result[:screenshot]
-      # Single image mode: diagram fits in one capture
-      src = File.join(shared_volume, ss_result[:screenshot])
-      dst = File.join(shared_volume, screenshot_filename)
-      (Monadic::Utils::SharedPathGuard.copy_file!(src, dst) rescue nil)
-
-      # No gallery_html — Mermaid diagrams are rendered as SVG directly by
-      # the client-side MarkdownRenderer. Instead, inject via _image so the
-      # LLM can verify the rendered diagram without showing it to the user.
-      {
-        success: true,
-        filename: screenshot_filename,
-        message: "Preview image saved as '#{screenshot_filename}'. The diagram is rendered as SVG in the chat.",
-        validated_code: sanitized_code,
-        _image: screenshot_filename
-      }
-    else
-      format_tool_response(build_preview_payload(
-        success: false,
-        error: ss_result[:error] || "Failed to capture screenshot",
-        validated_code: sanitized_code
-      ))
     end
+  rescue MonadicSharedTools::BrowserOwner::Refused => e
+    format_tool_response(build_preview_payload(success: false, error: e.message, validated_code: sanitized_code))
   rescue StandardError => e
     format_tool_response(
       build_preview_payload(
@@ -148,22 +135,13 @@ module MermaidGrapherTools
       )
     )
   ensure
-    # Keep the latest HTML (the browser is displaying it); preview images are
-    # read after the tool returns, so only stale ones are removed
-    cleanup_old_mermaid_files(keep_latest: html_filename) if html_filename
-  end
-
-  def stop_mermaid_browser
-    output = send_command(command: "web_navigator.py --action stop", container: "python")
-    result = parse_mermaid_response(output)
-
-    # Clean up all live HTML files
-    cleanup_old_mermaid_files
-
-    format_tool_response({
-      success: true,
-      message: result[:message] || "Mermaid browser session ended."
-    })
+    # Only this preview's page: another preview may still be loading its
+    # own. Preview images are read after the tool returns, so only stale
+    # files are removed.
+    if html_filename
+      remove_preview_page(html_filename)
+      cleanup_old_mermaid_files
+    end
   end
 
   def analyze_mermaid_error(code:, error:)
@@ -269,33 +247,6 @@ module MermaidGrapherTools
     end
   end
 
-  # Check if a web_navigator browser session is active.
-  # Verifies both the session file existence and the Selenium service health
-  # to avoid unnecessary navigate attempts when the container has crashed.
-  def mermaid_session_active?
-    session_file = File.join(Monadic::Utils::Environment.shared_volume, ".browser_session_id")
-    return false unless File.exist?(session_file) && !File.read(session_file).strip.empty?
-
-    # Quick health check — if Selenium is unreachable, clear stale session file
-    unless selenium_service_reachable?
-      (Monadic::Utils::SharedPathGuard.delete_file!(session_file) rescue nil)
-      return false
-    end
-
-    true
-  end
-
-  # Lightweight Selenium service health check (2 s timeout)
-  def selenium_service_reachable?
-    require "net/http"
-    uri = URI("http://selenium_service:4444/status")
-    Net::HTTP.start(uri.host, uri.port, open_timeout: 2, read_timeout: 2) do |http|
-      http.get(uri.path).is_a?(Net::HTTPSuccess)
-    end
-  rescue StandardError
-    false
-  end
-
   # Parse JSON response from web_navigator.py
   def parse_mermaid_response(output)
     json_match = output.to_s.match(/\{.+\}/m)
@@ -343,24 +294,31 @@ module MermaidGrapherTools
     )
   end
 
-  # Preview images younger than this may not have been read yet by the vendor
-  # helper of this or another session, so they are left in place
+  # Preview pages and images younger than this may still be in use by
+  # another preview or check (a page) or not yet read by the vendor helper
+  # of this or another session (an image), so they are left in place
   PREVIEW_IMAGE_MAX_AGE = 600
 
-  # Remove old mermaid_live_*.html files, optionally keeping one, and preview
-  # images older than PREVIEW_IMAGE_MAX_AGE seconds
-  def cleanup_old_mermaid_files(keep_latest: nil)
+  # Remove the pages that previews and checks left behind and the preview
+  # images, older than PREVIEW_IMAGE_MAX_AGE seconds
+  def cleanup_old_mermaid_files
     shared_volume = Monadic::Utils::Environment.shared_volume
-    Dir.glob(File.join(shared_volume, "mermaid_live_*.html")).each do |f|
-      next if keep_latest && File.basename(f) == keep_latest
+    %w[mermaid_live_*.html mermaid_test_*.html mermaid_preview_*.png].each do |pattern|
+      Dir.glob(File.join(shared_volume, pattern)).each do |f|
+        # Another preview may remove its own file meanwhile
+        next if Time.now - File.lstat(f).mtime < PREVIEW_IMAGE_MAX_AGE
 
-      (Monadic::Utils::SharedPathGuard.delete_file!(f) rescue nil)
+        Monadic::Utils::SharedPathGuard.delete_file!(f)
+      rescue StandardError
+        next
+      end
     end
-    Dir.glob(File.join(shared_volume, "mermaid_preview_*.png")).each do |f|
-      next if Time.now - File.lstat(f).mtime < PREVIEW_IMAGE_MAX_AGE
+  end
 
-      (Monadic::Utils::SharedPathGuard.delete_file!(f) rescue nil)
-    end
+  # Removes the page one preview or check wrote, once it is done with it
+  def remove_preview_page(html_filename)
+    path = File.join(Monadic::Utils::Environment.shared_volume, html_filename)
+    (Monadic::Utils::SharedPathGuard.delete_file!(path) rescue nil)
   end
 
   def format_tool_response(payload)
@@ -442,11 +400,10 @@ module MermaidGrapherTools
   def run_full_validation(code, source: nil)
     puts "[DEBUG run_full_validation] Starting validation, source: #{source}" if ENV['DEBUG']
     result = begin
-      if source == :preview_tool
-        # Skip Selenium validation for preview: the live preview itself tests
-        # rendering, and a headless validation session would block the single
-        # Selenium Grid slot that web_navigator needs for the visible preview.
-        puts "[DEBUG run_full_validation] Using static validation for preview (avoids Selenium slot conflict)" if ENV['DEBUG']
+      if source == :preview_tool || MonadicSharedTools::BrowserOwner.private_work?
+        # Static validation only: a preview tests rendering itself, and a
+        # Private chat writes no page and uses no browser.
+        puts "[DEBUG run_full_validation] Using static validation" if ENV['DEBUG']
         build_validation_payload(static_validation(code))
       else
         puts "[DEBUG run_full_validation] Attempting Selenium validation..." if ENV['DEBUG']
@@ -478,8 +435,8 @@ module MermaidGrapherTools
 
   def validate_with_mermaid_cli(code)
     # Use Selenium to validate Mermaid diagram
-    timestamp = Time.now.to_i
-    html_filename = "mermaid_test_#{timestamp}.html"
+    # Unique per call, so concurrent checks never share a file name
+    html_filename = "mermaid_test_#{Time.now.to_i}_#{SecureRandom.hex(4)}.html"
 
     # Determine correct path based on environment
     shared_volume = Monadic::Utils::Environment.shared_volume
@@ -598,12 +555,14 @@ finally:
 "'
     CMD
 
-    result = run_bash_command(command: command)
+    # The check opens a browser session of its own: it takes a slot.
+    result = begin
+      MonadicSharedTools::BrowserOwner.with_job { run_bash_command(command: command) }
+    ensure
+      remove_preview_page(html_filename)
+    end
 
     puts "[DEBUG validate_with_mermaid_cli] Selenium result: #{result.inspect}" if ENV['DEBUG']
-
-    # Clean up HTML file
-    (Monadic::Utils::SharedPathGuard.delete_file!(html_path) rescue nil) if html_path
 
     # Check for Selenium connection errors (raise to trigger fallback)
     if result.is_a?(String) && result.include?("Failed to resolve 'monadic-chat-selenium-container'")

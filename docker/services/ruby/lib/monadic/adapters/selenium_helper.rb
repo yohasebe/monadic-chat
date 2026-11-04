@@ -1,6 +1,7 @@
 require 'shellwords'
 require_relative '../utils/environment'
 require_relative '../utils/shared_path_guard'
+require_relative '../shared_tools/browser_owner'
 
 module MonadicHelper
   def fetch_web_content(url: "")
@@ -14,38 +15,46 @@ module MonadicHelper
 
     result = nil 
 
-    send_command(command: command, container: "python") do |stdout, stderr, status|
-      if status.success?
-        filename = stdout.match(/saved to: (.+\.md)/).to_a[1]
+    # The fetcher opens a browser session of its own: it takes a slot (and
+    # is refused in a Private chat, before the page is saved as a file).
+    begin
+      MonadicSharedTools::BrowserOwner.with_job do
+        send_command(command: command, container: "python") do |stdout, stderr, status|
+          if status.success?
+            filename = stdout.match(/saved to: (.+\.md)/).to_a[1]
 
-        shared_volume = Monadic::Utils::Environment.shared_volume
+            shared_volume = Monadic::Utils::Environment.shared_volume
 
-        filepath = File.join(shared_volume, File.basename(filename))
+            filepath = File.join(shared_volume, File.basename(filename))
 
-        success = false
-        max_retrials.times do
-          # The page is a plain file of the shared folder, read never through a link.
-          if Monadic::Utils::SharedPathGuard.file_stat(filepath)
-            success = true
-            break
-          elsif max_retrials.positive?
-            max_retrials -= 1
-            sleep 2
+            success = false
+            max_retrials.times do
+              # The page is a plain file of the shared folder, read never through a link.
+              if Monadic::Utils::SharedPathGuard.file_stat(filepath)
+                success = true
+                break
+              elsif max_retrials.positive?
+                max_retrials -= 1
+                sleep 2
+              else
+                break
+              end
+            end
+
+            result = begin
+                       raise Errno::ENOENT unless success
+
+                       Monadic::Utils::SharedPathGuard.read_bytes!(filepath).force_encoding("UTF-8")
+                     rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+                       "Error occurred: The #{filename} could not be read."
+                     end
           else
-            break
+            result = "Error occurred: #{stderr}"
           end
         end
-
-        result = begin
-                   raise Errno::ENOENT unless success
-
-                   Monadic::Utils::SharedPathGuard.read_bytes!(filepath).force_encoding("UTF-8")
-                 rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
-                   "Error occurred: The #{filename} could not be read."
-                 end
-      else
-        result = "Error occurred: #{stderr}"
       end
+    rescue MonadicSharedTools::BrowserOwner::Refused => e
+      result = "Error occurred: #{e.message}"
     end
 
     result

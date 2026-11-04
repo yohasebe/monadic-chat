@@ -40,17 +40,15 @@ app "MermaidGrapherOpenAI" do
 
     - `preview_mermaid` returns a screenshot image that you can inspect to verify the rendering
     - The user also sees the diagram as SVG in the chat interface
-    - Subsequent calls update the same browser session with the new diagram
-    - Call `stop_mermaid_browser` when the diagram session is complete
+    - Each call renders the diagram in a browser of its own, which closes before the tool returns
 
     ## Simple Workflow
 
     When creating a diagram, follow these steps exactly ONCE:
     1. Draft the Mermaid code using examples below
-    2. Call `preview_mermaid` with the code (this tool validates AND saves preview, and opens/updates live browser)
+    2. Call `preview_mermaid` with the code (this tool validates the code and captures a preview image)
     3. If tool returns success, present the diagram to user
     4. If tool returns error, fix the code and call `preview_mermaid` again (maximum 2 attempts total)
-    5. When the user is satisfied, call `stop_mermaid_browser` to close the live preview session
 
     IMPORTANT: After `preview_mermaid` succeeds, STOP calling tools and respond to user immediately.
 
@@ -278,9 +276,6 @@ app "MermaidGrapherOpenAI" do
 
     define_tool "preview_mermaid", "Validate and render Mermaid diagram, capturing a screenshot for verification" do
       parameter :code, "string", "Mermaid diagram code to validate and preview", required: true
-    end
-
-    define_tool "stop_mermaid_browser", "Close the live Mermaid preview browser session" do
     end
 
     define_tool "analyze_mermaid_error", "Analyze Mermaid diagram error and provide fix suggestions" do

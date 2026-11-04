@@ -21,12 +21,10 @@ RSpec.describe "MermaidGrapherTools#preview_mermaid preview image retention" do
         { success: true, workflow_status: "validation_passed" }
       end
 
-      def mermaid_session_active?
-        false
-      end
-
       def send_command(command:, container:)
-        if command.include?("--action check_render_error")
+        if command.include?("--action start")
+          '{"success": true, "session_id": "wd-preview"}'
+        elsif command.include?("--action check_render_error")
           '{"success": true, "render_error": false}'
         elsif command.include?("--action full_screenshot")
           File.write(File.join(@shared, "capture.png"), "png")
@@ -39,6 +37,12 @@ RSpec.describe "MermaidGrapherTools#preview_mermaid preview image retention" do
   end
 
   before do
+    # The preview's browser commands go to the same stand-in.
+    owner = MonadicSharedTools::BrowserOwner
+    owner.reset!
+    allow(owner).to receive(:observe).and_return({ sessions: [], max: 3 })
+    stand_in = test_class.new(shared)
+    owner.runner = ->(args, _) { stand_in.send_command(command: "web_navigator.py #{args.join(' ')}", container: "python") }
     allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(shared)
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared)
   end

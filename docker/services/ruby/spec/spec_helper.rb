@@ -220,6 +220,22 @@ RSpec.configure do |config|
     Fiber[key] = before
   end
   
+  # Outside integration and E2E examples, web_navigator.py never reaches
+  # the user's Selenium: it answers that there is none. A spec that needs
+  # Selenium's report sets its own (BrowserOwner.runner, or a stub).
+  config.before(:each) do |example|
+    meta = example.metadata
+    next if meta[:integration] || meta[:e2e] || %i[integration e2e].include?(meta[:type])
+
+    allow(Monadic::Shell).to receive(:exec).and_wrap_original do |original, **kwargs|
+      if Array(kwargs[:argv]).first == 'web_navigator.py'
+        ['{"success": false, "error": "No Selenium in unit specs."}', '', nil]
+      else
+        original.call(**kwargs)
+      end
+    end
+  end
+
   # Start the Docker services for integration and E2E tests, only when the
   # run asks for it: a plain run of spec/unit also selects a few tagged
   # examples, and must not start the user's containers.

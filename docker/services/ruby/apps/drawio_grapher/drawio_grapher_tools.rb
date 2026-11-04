@@ -1,8 +1,10 @@
 require 'nokogiri'
 require 'fileutils'
 require 'shellwords'
+require_relative '../../lib/monadic/shared_tools/scratch_browser'
 require 'cgi'
 require 'json'
+require 'securerandom'
 require_relative '../../lib/monadic/utils/shared_path_guard'
 
 module DrawIOGrapher
@@ -23,6 +25,9 @@ module DrawIOGrapher
   XML
 
   def write_drawio_file(content:, filename: "diagram")
+    if MonadicSharedTools::BrowserOwner.private_work?
+      return "❌ This chat is Private: no diagram file is written and the browser is not used."
+    end
     return "❌ Invalid filename" unless filename.is_a?(String)
 
     # Handle file extension
@@ -51,6 +56,9 @@ module DrawIOGrapher
   end
 
   def preview_drawio(content:, filename: "diagram", session: nil)
+    if MonadicSharedTools::BrowserOwner.private_work?
+      return "❌ This chat is Private: no diagram file is written and the browser is not used."
+    end
     return "❌ Invalid filename" unless filename.is_a?(String)
 
     # 1. Handle file extension
@@ -67,47 +75,28 @@ module DrawIOGrapher
     return save_result if save_result.start_with?("❌")
 
     # 4. Generate preview HTML
-    timestamp = Time.now.to_i
+    # Unique per call, so concurrent previews never share a file name
+    timestamp = "#{Time.now.to_i}_#{SecureRandom.hex(4)}"
     html_filename = "drawio_live_#{timestamp}.html"
     screenshot_filename = "drawio_preview_#{timestamp}.png"
     html_path = Monadic::Utils::SharedPathGuard.resolve_in_shared(html_filename, must_exist: false)
     return "❌ Invalid preview file path" unless html_path
     Monadic::Utils::SharedPathGuard.write_file!(html_path, build_drawio_preview_html(validated_content))
 
-    # 5. Browser session management via web_navigator.py
+    # 5. A browser session of its own for this preview (ScratchBrowser)
     file_url = "file:///monadic/data/#{html_filename}"
-
-    if drawio_session_active?
-      nav_output = send_command(
-        command: "web_navigator.py --action navigate --url #{Shellwords.escape(file_url)}",
-        container: "python"
-      )
-      nav_result = parse_drawio_response(nav_output)
-      unless nav_result[:success]
-        start_output = send_command(
-          command: "web_navigator.py --action start --url #{Shellwords.escape(file_url)}",
-          container: "python"
-        )
-        start_result = parse_drawio_response(start_output)
-        return "❌ Failed to start browser session: #{start_result[:error]}" unless start_result[:success]
-      end
-    else
-      start_output = send_command(
-        command: "web_navigator.py --action start --url #{Shellwords.escape(file_url)}",
-        container: "python"
-      )
+    MonadicSharedTools::ScratchBrowser.with_session(file_url) do |run, start_output|
       start_result = parse_drawio_response(start_output)
-      return "❌ Failed to start browser session: #{start_result[:error]}" unless start_result[:success]
-    end
+      return "❌ Failed to start browser session: #{start_result[:error]}" unless run && start_result[:success]
 
-    # 6. Capture diagram screenshot (waits for SVG to render, resizes to fit)
-    ss_output = send_command(command: "web_navigator.py --action diagram_screenshot", container: "python")
-    ss_result = parse_drawio_response(ss_output)
+      # 6. Capture diagram screenshot (waits for SVG to render, resizes to fit)
+      ss_result = parse_drawio_response(run.call(%w[--action diagram_screenshot]))
 
-    if ss_result[:success] && ss_result[:screenshot]
-      src = Monadic::Utils::SharedPathGuard.resolve_in_shared(ss_result[:screenshot], extensions: %w[.png])
-      dst = Monadic::Utils::SharedPathGuard.resolve_in_shared(screenshot_filename, must_exist: false)
-      Monadic::Utils::SharedPathGuard.copy_file!(src, dst) if src && dst
+      if ss_result[:success] && ss_result[:screenshot]
+        src = Monadic::Utils::SharedPathGuard.resolve_in_shared(ss_result[:screenshot], extensions: %w[.png])
+        dst = Monadic::Utils::SharedPathGuard.resolve_in_shared(screenshot_filename, must_exist: false)
+        Monadic::Utils::SharedPathGuard.copy_file!(src, dst) if src && dst
+      end
     end
 
     result = {
@@ -122,19 +111,16 @@ module DrawIOGrapher
       session[:tool_html_fragments] << gallery_html
     end
     result
+  rescue MonadicSharedTools::BrowserOwner::Refused => e
+    "❌ #{e.message}"
   rescue StandardError => e
     "❌ Preview generation failed"
   ensure
-    cleanup_old_drawio_html_files(keep_latest: html_filename) if html_filename
-  end
-
-  def stop_drawio_browser
-    output = send_command(command: "web_navigator.py --action stop", container: "python")
-    result = parse_drawio_response(output)
-
-    cleanup_old_drawio_html_files
-
-    "DrawIO browser session ended. #{result[:message] || result[:error] || ''}"
+    # Only this preview's page: another preview may still be loading its own
+    if html_filename
+      remove_drawio_preview_page(html_filename)
+      cleanup_old_drawio_html_files
+    end
   end
 
   private
@@ -276,33 +262,6 @@ module DrawIOGrapher
     return MINIMAL_TEMPLATE
   end
 
-  # Check if a web_navigator browser session is active.
-  # Verifies both the session file existence and the Selenium service health
-  # to avoid unnecessary navigate attempts when the container has crashed.
-  def drawio_session_active?
-    session_file = File.join(Monadic::Utils::Environment.shared_volume, ".browser_session_id")
-    return false unless File.exist?(session_file) && !File.read(session_file).strip.empty?
-
-    # Quick health check — if Selenium is unreachable, clear stale session file
-    unless selenium_service_reachable?
-      (Monadic::Utils::SharedPathGuard.delete_file!(session_file) rescue nil)
-      return false
-    end
-
-    true
-  end
-
-  # Lightweight Selenium service health check (2 s timeout)
-  def selenium_service_reachable?
-    require "net/http"
-    uri = URI("http://selenium_service:4444/status")
-    Net::HTTP.start(uri.host, uri.port, open_timeout: 2, read_timeout: 2) do |http|
-      http.get(uri.path).is_a?(Net::HTTPSuccess)
-    end
-  rescue StandardError
-    false
-  end
-
   # Parse JSON response from web_navigator.py
   def parse_drawio_response(output)
     json_match = output.to_s.match(/\{.+\}/m)
@@ -346,13 +305,25 @@ module DrawIOGrapher
     HTML
   end
 
-  # Remove old drawio_live_*.html files, optionally keeping one
-  def cleanup_old_drawio_html_files(keep_latest: nil)
+  # Pages younger than this may still be loading in another preview
+  PREVIEW_PAGE_MAX_AGE = 600
+
+  # Remove the pages previews left behind, older than PREVIEW_PAGE_MAX_AGE
+  def cleanup_old_drawio_html_files
     shared_volume = Monadic::Utils::Environment.shared_volume
     Dir.glob(File.join(shared_volume, "drawio_live_*.html")).each do |f|
-      next if keep_latest && File.basename(f) == keep_latest
+      # Another preview may remove its own page meanwhile
+      next if Time.now - File.lstat(f).mtime < PREVIEW_PAGE_MAX_AGE
 
-      (Monadic::Utils::SharedPathGuard.delete_file!(f) rescue nil)
+      Monadic::Utils::SharedPathGuard.delete_file!(f)
+    rescue StandardError
+      next
     end
+  end
+
+  # Removes the page one preview wrote, once it is done with it
+  def remove_drawio_preview_page(html_filename)
+    path = File.join(Monadic::Utils::Environment.shared_volume, html_filename)
+    (Monadic::Utils::SharedPathGuard.delete_file!(path) rescue nil)
   end
 end

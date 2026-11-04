@@ -32,15 +32,11 @@ RSpec.describe "MermaidGrapherTools#preview_mermaid render-error gating" do
         { success: true, workflow_status: "validation_passed" }
       end
 
-      def mermaid_session_active?
-        false
-      end
-
       # Stand-in for the Docker exec bridge. Returns canned JSON per action.
       def send_command(command:, container:)
         @commands << command
         if command.include?("--action start")
-          '{"success": true}'
+          '{"success": true, "session_id": "wd-preview"}'
         elsif command.include?("--action check_render_error")
           @render_error_json
         elsif command.include?("--action full_screenshot")
@@ -64,6 +60,11 @@ RSpec.describe "MermaidGrapherTools#preview_mermaid render-error gating" do
   let(:code) { "mindmap\n  root((化学))\n    分析化学\n      クロマトグラフィー\n" }
 
   before do
+    # The preview's browser commands go to the same stand-in.
+    owner = MonadicSharedTools::BrowserOwner
+    owner.reset!
+    allow(owner).to receive(:observe).and_return({ sessions: [], max: 3 })
+    owner.runner = ->(args, _) { tools.send_command(command: "web_navigator.py #{args.join(' ')}", container: "python") }
     # Avoid touching the real shared volume / filesystem.
     shared_dir = Dir.mktmpdir
     allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(shared_dir)

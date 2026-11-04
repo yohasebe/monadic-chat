@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'cgi'
+require_relative 'browser_owner'
 
 module MonadicSharedTools
   module WebAutomation
@@ -330,6 +331,9 @@ module MonadicSharedTools
     end
 
     def capture_viewport_screenshots(url:, viewport_width: nil, viewport_height: nil, overlap: nil, preset: nil)
+      if refusal = private_browser_refusal
+        return refusal
+      end
       # Check if Selenium is available
       if error = check_selenium_or_error
         return error
@@ -355,8 +359,12 @@ module MonadicSharedTools
 
       command = cmd_parts.join(" ")
 
-      # Execute capture
-      output = send_command(command: command, container: "python")
+      # Execute capture, in a browser slot of its own
+      output = begin
+        BrowserOwner.with_job { send_command(command: command, container: "python") }
+      rescue BrowserOwner::Refused => e
+        return { success: false, error: e.message }
+      end
 
       # Check if the command succeeded by looking for SUCCESS or ERROR in output
       if output.include?("SUCCESS:")
@@ -494,6 +502,9 @@ module MonadicSharedTools
     end
 
     def start_browser(url:, headless: true)
+      if refusal = private_browser_refusal
+        return refusal
+      end
       if error = check_selenium_or_error
         return error
       end
@@ -510,9 +521,35 @@ module MonadicSharedTools
       # Normalize headless parameter: LLM may send string "false" which is truthy in Ruby
       headless = headless.to_s != "false"
 
-      headless_flag = headless ? "true" : "false"
-      output = send_command(command: "web_navigator.py --action start --url #{Shellwords.escape(url)} --headless #{headless_flag}", container: "python")
-      result = parse_navigator_response(output)
+      chat, epoch = BrowserOwner.current_work
+      return browser_state_error(:no_chat) unless chat
+
+      result = BrowserOwner.op_lock(chat).synchronize do
+        # A new start replaces the chat's browser: the old one is closed first.
+        previous = BrowserOwner.release(chat, epoch)
+        BrowserOwner.close_quietly(previous) if previous
+
+        code = BrowserOwner.begin_start(chat, epoch)
+        next browser_state_error(code) unless code == :ok
+
+        headless_flag = headless ? "true" : "false"
+        command = "web_navigator.py --action start --managed --url #{Shellwords.escape(url)} --headless #{headless_flag}"
+        started = nil
+        kept = false
+        begin
+          started = parse_navigator_response(send_command(command: command, container: "python"))
+        ensure
+          kept = BrowserOwner.finish_start(chat, started && started[:success] ? started[:session_id] : nil, epoch)
+        end
+        next started.merge(success: false, error: started[:error] || "The browser did not start.") unless started[:success] && started[:session_id]
+
+        unless kept
+          # The chat was replaced while the browser started: close what it made.
+          BrowserOwner.close_later(started[:session_id])
+          next browser_state_error(:replaced)
+        end
+        started
+      end
       return result unless result[:success]
 
       # Build response
@@ -552,8 +589,7 @@ module MonadicSharedTools
         return { success: false, error: "Invalid URL format. Please provide a valid HTTP or HTTPS URL." }
       end
 
-      output = send_command(command: "web_navigator.py --action navigate --url #{Shellwords.escape(url)}", container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator("--action navigate --url #{Shellwords.escape(url)}")
       return result unless result[:success]
 
       response = {
@@ -580,8 +616,7 @@ module MonadicSharedTools
         return error
       end
 
-      output = send_command(command: "web_navigator.py --action click --selector #{Shellwords.escape(selector)}", container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator("--action click --selector #{Shellwords.escape(selector)}")
       return result unless result[:success]
 
       response = {
@@ -608,8 +643,7 @@ module MonadicSharedTools
         return error
       end
 
-      output = send_command(command: "web_navigator.py --action type --selector #{Shellwords.escape(selector)} --text #{Shellwords.escape(text)}", container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator("--action type --selector #{Shellwords.escape(selector)} --text #{Shellwords.escape(text)}")
       return result unless result[:success]
 
       response = {
@@ -636,8 +670,7 @@ module MonadicSharedTools
         return error
       end
 
-      output = send_command(command: "web_navigator.py --action screenshot", container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator("--action screenshot")
       return result unless result[:success]
 
       response = {
@@ -663,8 +696,7 @@ module MonadicSharedTools
         return error
       end
 
-      output = send_command(command: "web_navigator.py --action get_page_info", container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator("--action get_page_info")
       return result unless result[:success]
 
       {
@@ -682,8 +714,7 @@ module MonadicSharedTools
         return error
       end
 
-      output = send_command(command: "web_navigator.py --action scroll --direction #{Shellwords.escape(direction)} --amount #{amount.to_i}", container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator("--action scroll --direction #{Shellwords.escape(direction)} --amount #{amount.to_i}")
       return result unless result[:success]
 
       scroll_msg = %w[top bottom].include?(direction) ? "Scrolled to #{direction} of page" : "Scrolled #{direction} by #{amount}px"
@@ -712,11 +743,10 @@ module MonadicSharedTools
         return error
       end
 
-      cmd = "web_navigator.py --action press_key --key #{Shellwords.escape(key)}"
+      cmd = "--action press_key --key #{Shellwords.escape(key)}"
       cmd += " --selector #{Shellwords.escape(selector)}" if selector
 
-      output = send_command(command: cmd, container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator(cmd)
       return result unless result[:success]
 
       response = {
@@ -747,12 +777,11 @@ module MonadicSharedTools
         return error
       end
 
-      cmd = "web_navigator.py --action select --selector #{Shellwords.escape(selector)}"
+      cmd = "--action select --selector #{Shellwords.escape(selector)}"
       cmd += " --value #{Shellwords.escape(value)}" if value
       cmd += " --text #{Shellwords.escape(text)}" if text
 
-      output = send_command(command: cmd, container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator(cmd)
       return result unless result[:success]
 
       response = {
@@ -780,8 +809,7 @@ module MonadicSharedTools
         return error
       end
 
-      output = send_command(command: "web_navigator.py --action back", container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator("--action back")
       return result unless result[:success]
 
       response = {
@@ -808,8 +836,7 @@ module MonadicSharedTools
         return error
       end
 
-      output = send_command(command: "web_navigator.py --action forward", container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator("--action forward")
       return result unless result[:success]
 
       response = {
@@ -837,11 +864,7 @@ module MonadicSharedTools
       end
 
       selectors_json = selectors.take(9).to_json
-      output = send_command(
-        command: "web_navigator.py --action annotate_elements --selectors #{Shellwords.escape(selectors_json)}",
-        container: "python"
-      )
-      result = parse_navigator_response(output)
+      result = run_navigator("--action annotate_elements --selectors #{Shellwords.escape(selectors_json)}")
       return result unless result[:success]
 
       response = {
@@ -861,16 +884,70 @@ module MonadicSharedTools
     end
 
     def stop_browser
-      output = send_command(command: "web_navigator.py --action stop", container: "python")
-      result = parse_navigator_response(output)
+      chat, epoch = BrowserOwner.current_work
+      return browser_state_error(:no_chat) unless chat
 
-      {
-        success: true,
-        message: result[:message] || "Browser session ended."
-      }
+      BrowserOwner.op_lock(chat).synchronize do
+        next browser_state_error(:replaced) if BrowserOwner.replaced?(chat, epoch)
+
+        session_id = BrowserOwner.release(chat, epoch)
+        next { success: true, message: "No browser session is open." } unless session_id
+        next { success: true, message: "Browser session ended." } if BrowserOwner.close_quietly(session_id)
+
+        { success: false, error: "The browser could not be closed now. It is no longer this conversation's, " \
+                                 "and Selenium closes it once it has been unused for a while." }
+      end
     end
 
     private
+
+    # Runs a web_navigator action on the browser this chat owns, naming its
+    # WebDriver session (see BrowserOwner).
+    def run_navigator(action_args)
+      if refusal = private_browser_refusal
+        return refusal
+      end
+
+      chat, epoch = BrowserOwner.current_work
+      return browser_state_error(:no_chat) unless chat
+
+      BrowserOwner.op_lock(chat).synchronize do
+        session_id = BrowserOwner.session_for(chat, epoch)
+        next browser_state_error(BrowserOwner.replaced?(chat, epoch) ? :replaced : :none) unless session_id
+
+        command = "web_navigator.py #{action_args} --managed --session-id #{Shellwords.escape(session_id)}"
+        result = parse_navigator_response(send_command(command: command, container: "python"))
+        # The chat was replaced meanwhile: what the action saw is not its own.
+        next browser_state_error(:replaced) unless BrowserOwner.holds?(chat, session_id, epoch)
+
+        result
+      end
+    end
+
+    BROWSER_STATE_ERRORS = {
+      no_chat: ["browser_no_chat", "The browser tools are used from a chat."],
+      none: ["browser_not_started", "No browser session is open. Call start_browser first."],
+      chats_full: ["browser_chats_full", "Other conversations have every browser a conversation can keep open. " \
+                                         "This action was not run. Retry when one of them has finished."],
+      full: ["browser_full", "No browser is free right now: every browser session is in use. " \
+                             "This action was not run. Retry when one has finished."],
+      unavailable: ["browser_unavailable", "The browser service is not available right now. This action was not run. " \
+                                           "Retry in a moment; if it persists, restart Monadic Chat."],
+      replaced: ["browser_replaced", "This conversation was replaced; its browser is no longer its own. This action was not run."]
+    }.freeze
+
+    def browser_state_error(code)
+      error_code, message = BROWSER_STATE_ERRORS.fetch(code)
+      { success: false, error_code: error_code, error: message }
+    end
+
+    # A Private chat makes no files and keeps nothing, so it does not use the
+    # browser (its pages and screenshots would outlive the chat).
+    def private_browser_refusal
+      return nil unless BrowserOwner.private_work?
+
+      { success: false, error: BrowserOwner::PrivateChat.new.message }
+    end
 
     def parse_navigator_response(output)
       # The output from send_command includes prefix text; find the JSON portion

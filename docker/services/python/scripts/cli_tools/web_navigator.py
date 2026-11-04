@@ -15,6 +15,8 @@ import time
 
 import requests
 
+import browser_display
+
 # Import trim utility (available alongside this script in cli_tools/)
 try:
     from screenshot_utils import trim_screenshot
@@ -249,19 +251,9 @@ def action_start(args):
 
     headless = getattr(args, 'headless', 'true') == 'true'
 
-    # Build Chrome options
-    chrome_args = [
-        "--no-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        f"--window-size={VIEWPORT_WIDTH},{VIEWPORT_HEIGHT}",
-        "--force-device-scale-factor=2",
-        "--high-dpi-support=1",
-        "--hide-scrollbars"
-    ]
-
-    if headless:
-        chrome_args.append("--headless=new")
+    # A visible browser fills the desktop at scale 1 (browser_display.py)
+    chrome_args = browser_display.chrome_args(
+        visible=not headless, width=VIEWPORT_WIDTH, height=VIEWPORT_HEIGHT, scale=2)
 
     caps = {
         "capabilities": {
@@ -280,6 +272,9 @@ def action_start(args):
 
     session_id = r["value"]["sessionId"]
     _save_session(session_id)
+
+    if not headless:
+        _wd(f"/session/{session_id}/window/maximize", method="POST", body={})
 
     # Navigate to URL
     url = args.url or "about:blank"
@@ -303,6 +298,9 @@ def action_start(args):
     # Only include noVNC URL for non-headless mode
     if not headless:
         result["novnc_url"] = "http://localhost:7900"
+        # Where the page is on the desktop the person sees
+        result["display"] = browser_display.display_geometry(
+            lambda script: _execute_js(session_id, script).get("value"))
 
     return result
 

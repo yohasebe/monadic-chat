@@ -75,6 +75,20 @@ RSpec.describe "MonadicSharedTools::WebAutomation" do
       end
     end
 
+    context "with a visible browser that reports where it is" do
+      it "passes the desktop geometry on" do
+        display = { screen: { width: 1920, height: 1080 }, fits_screen: true }
+        app.mock_response = JSON.generate({ success: true, session_id: "s", page_info: {}, display: display })
+        result = app.start_browser(url: "https://example.com", headless: false)
+        expect(result[:display]).to eq(display)
+      end
+
+      it "leaves it out for a headless browser" do
+        result = app.start_browser(url: "https://example.com")
+        expect(result).not_to have_key(:display)
+      end
+    end
+
     context "with string 'false' (LLM may send this)" do
       it "normalizes to headless OFF" do
         app.start_browser(url: "https://example.com", headless: "false")

@@ -527,6 +527,8 @@ module MonadicSharedTools
       else
         response[:message] = "Browser session started (max #{MAX_BROWSER_ACTIONS} actions). Users can watch at: http://localhost:7900"
         response[:novnc_url] = "http://localhost:7900"
+        # Where the page is on the desktop the user sees (browser_display.py)
+        response[:display] = result[:display] if result[:display]
       end
 
       if result[:screenshot]

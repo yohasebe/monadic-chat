@@ -152,7 +152,7 @@ describe('LayoutController', () => {
     expect(menu().classList.contains('col-md-4')).toBe(true);
   });
 
-  test('the work screen pane widens the side column to half, and the choice is kept', () => {
+  test('the work screen pane widens the side column to half', () => {
     setWidth(1280);
     LC.setPane('work');
     expect(pane('work-screen-pane').hidden).toBe(false);
@@ -164,7 +164,21 @@ describe('LayoutController', () => {
     expect(main().classList.contains('col-md-8')).toBe(false);
     expect(menu().classList.contains('col-md-6')).toBe(true);
     expect(menu().classList.contains('col-md-4')).toBe(false);
-    expect(window.getCookie('side-pane-preference')).toBe('work');
+    expect(window.getCookie('side-pane-preference')).toBeNull();
+  });
+
+  test('the page opens on Settings again when it is loaded again, and the old pane cookie is removed', () => {
+    setWidth(1280);
+    LC.setPane('work');
+    document.cookie = 'side-pane-preference=work; path=/';
+    jest.resetModules();
+    require(js('monadic/dom-helpers.js'));
+    require(js('monadic/cookie-utils.js'));
+    LC = require(js('monadic/layout-controller.js'));
+    LC.apply();
+    expect(LC.selectedPane()).toBe('settings');
+    expect(pane('settings-pane').hidden).toBe(false);
+    expect(window.getCookie('side-pane-preference')).toBeNull();
   });
 
   test('hiding the column with the work screen selected gives the conversation the whole width', () => {

@@ -203,7 +203,9 @@
       
       // Check initial menu visibility
       const menu = $id('menu');
-      if (menu) {
+      if (window.LayoutController) {
+        this.set('isMenuVisible', !window.LayoutController.isMenuHidden());
+      } else if (menu) {
         this.set('isMenuVisible', menu.style.display !== 'none');
       }
       

@@ -67,7 +67,8 @@ function adjustScrollButtons() {
     // When menu-hidden class is present, menu is hidden and main is showing
     // When menu-hidden class is absent, menu is showing and main is hidden
     const toggleBtn = $id('toggle-menu');
-    const isMenuHidden = toggleBtn && toggleBtn.classList.contains('menu-hidden');
+    const isMenuHidden = window.LayoutController ? window.LayoutController.isMenuHidden()
+      : (toggleBtn && toggleBtn.classList.contains('menu-hidden'));
 
     if (!isMenuHidden) {
       // Menu is showing (toggle button doesn't have menu-hidden class), hide scroll buttons

@@ -6761,3 +6761,54 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   color: var(--text-primary);
   text-decoration: none;
 }
+
+/* Side column tabs: Settings and the work screen (layout-controller.js).
+   The strip is the same box as #config-summary beside it (background,
+   border, height), so the tops of both columns line up. */
+#config-summary,
+.side-pane-tabs {
+  display: flex;
+  align-items: stretch;
+  min-height: 46px;
+  box-sizing: border-box;
+  padding: var(--spacing-xs);
+}
+#config-summary {
+  padding-right: var(--spacing-lg);
+}
+/* What the summary bar is, in the same box as the selected tab beside it */
+.summary-label,
+.side-pane-tab[aria-selected="true"] {
+  background: var(--bg-panel);
+  border: var(--border-width) solid var(--border-light, #dee2e6);
+  border-radius: var(--border-radius);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.summary-label {
+  display: inline-flex;
+  align-items: center;
+  align-self: stretch;
+  padding: 0 var(--spacing-lg);
+  white-space: nowrap;
+}
+.side-pane-tabs {
+  gap: var(--spacing-xs);
+  background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
+  border: 1px solid var(--border-light, #dee2e6);
+}
+.side-pane-tab {
+  padding: 0 var(--spacing-lg);
+  background: transparent;
+  border: var(--border-width) solid transparent;
+  border-radius: var(--border-radius);
+  color: var(--text-secondary);
+  font-size: var(--font-size-base);
+}
+.side-pane-tab:hover {
+  color: var(--text-primary);
+}
+.side-pane-tab:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}

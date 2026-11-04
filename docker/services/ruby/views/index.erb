@@ -306,9 +306,17 @@
         </div>
       </div>
     </nav>
+    <%# Shown while the AI drives a work screen: what runs and how to stop it. %>
+    <div id="work-run-strip" class="work-run-strip" role="status" hidden></div>
         <div class="container-fluid pt-0 p-3" id="contents">
       <div class="row g-3 mt-0 mb-0 row-no-bottom-margin">
         <div id="menu" class="col-md-4 order-md-2 scrollable">
+          <%# The side column holds two panes; layout-controller.js shows one. %>
+          <div id="side-pane-tabs" class="side-pane-tabs rounded mb-2" role="tablist" aria-label="Side panel" data-i18n-aria-label="ui.sidePane.label">
+            <button type="button" id="side-tab-settings" class="side-pane-tab" role="tab" aria-selected="true" aria-controls="settings-pane" data-pane="settings" data-i18n="ui.sidePane.menu">Menu</button>
+            <button type="button" id="side-tab-work" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="work-screen-pane" data-pane="work" tabindex="-1" data-i18n="ui.sidePane.workScreen">Work screen</button>
+          </div>
+          <div id="settings-pane" role="tabpanel" aria-labelledby="side-tab-settings">
           <div id="monadic-info-panel" class="mb-3 rounded shaded-panel overflow-hidden">
             <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#monadic-info-panel-body" aria-expanded="true">
               <span class="text" data-i18n="ui.monadicChatInfo"><i class="fas fa-message"></i> Monadic Chat Info</span>
@@ -760,6 +768,10 @@
               <!--<span class="text text-secondary"><i class="fa-solid fa-copyright"></i> Yoichiro HASEBE 2025 </span>-->
             </div>
           </div>
+          </div>
+          <div id="work-screen-pane" role="tabpanel" aria-labelledby="side-tab-work" hidden>
+            <div class="rounded shaded-panel p-3 text-secondary" id="work-screen-empty" data-i18n="ui.sidePane.workScreenEmpty">No work screen is currently available.</div>
+          </div>
         </div>
 
         <div id="main" class="col-md-8 order-md-1 scrollable">
@@ -773,8 +785,9 @@
                enterSettingsMode() re-locks it. aria-expanded must match
                #config-body's initial .show state for the chevron rotation CSS
                to render correctly on first paint. -->
-          <div id="config-summary" class="rounded p-2 px-3 shaded-panel mb-2 config-summary-locked" data-bs-target="#config-body" aria-expanded="true" aria-controls="config-body">
-            <div class="d-flex align-items-center">
+          <div id="config-summary" class="rounded shaded-panel mb-2 config-summary-locked" data-bs-target="#config-body" aria-expanded="true" aria-controls="config-body">
+            <div class="d-flex align-items-center flex-grow-1">
+              <span class="summary-label me-3" data-i18n="ui.configSummaryLabel">Current settings</span>
               <span id="summary-app-icon" class="me-2"></span>
               <span id="summary-app-name" class="fw-semibold me-2"></span>
               <span id="summary-model-name" class="text-secondary me-2"></span>

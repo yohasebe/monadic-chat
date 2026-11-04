@@ -20,16 +20,22 @@
  *     col-md-6 beside it while the work screen pane is shown.
  *
  * The side column holds two panes, Settings and the work screen, behind tabs
- * (#side-pane-tabs). Which one is shown is a display preference too, kept in
- * its own cookie; it is separate from whether the column is shown.
+ * (#side-pane-tabs). The page opens on Settings; the pane the user picks is
+ * kept only until the page is loaded again. Which pane is shown is separate
+ * from whether the column is shown.
  */
 (function() {
   'use strict';
 
   var COOKIE_NAME = 'menu-hidden-preference';
-  var PANE_COOKIE_NAME = 'side-pane-preference';
   var COOKIE_DAYS = 30;
   var PANES = ['settings', 'work'];
+  var pane = 'settings';
+
+  // Earlier versions kept the pane in this cookie; it is no longer read.
+  if (typeof window.setCookie === 'function') {
+    window.setCookie('side-pane-preference', '', -1);
+  }
 
   function storedChoice() {
     var value = typeof window.getCookie === 'function' ? window.getCookie(COOKIE_NAME) : null;
@@ -43,8 +49,7 @@
   }
 
   function selectedPane() {
-    var value = typeof window.getCookie === 'function' ? window.getCookie(PANE_COOKIE_NAME) : null;
-    return PANES.indexOf(value) === -1 ? 'settings' : value;
+    return pane;
   }
 
   // Below Bootstrap's md breakpoint the CSS shows #menu only with
@@ -100,7 +105,6 @@
 
   // The tabs and panes of the side column, as selectedPane() says.
   function applyPanes() {
-    var pane = selectedPane();
     PANES.forEach(function(name) {
       var tab = document.querySelector('#side-pane-tabs [data-pane="' + name + '"]');
       var panel = tab ? $id(tab.getAttribute('aria-controls')) : null;
@@ -116,9 +120,7 @@
 
   function setPane(name) {
     if (PANES.indexOf(name) === -1) return;
-    if (typeof window.setCookie === 'function') {
-      window.setCookie(PANE_COOKIE_NAME, name, COOKIE_DAYS);
-    }
+    pane = name;
     apply();
   }
 

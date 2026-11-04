@@ -106,6 +106,8 @@ The lists of apps below name the built-in apps that import each group.
 
 The Selenium container starts with Monadic Chat. If the group is not shown, wait for startup to finish; if the Selenium image is missing, run **Actions → Build All** to download it.
 
+Up to three browser sessions can be open at once (for example a chat's browser beside a diagram preview). When all of them are in use, a request for another is refused after a few seconds instead of waiting.
+
 #### Video Analysis (1 tool)
 **Requires**: an app on OpenAI, Anthropic, Gemini, or xAI, with that provider's API key
 

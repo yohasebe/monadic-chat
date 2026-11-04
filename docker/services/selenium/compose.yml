@@ -10,6 +10,14 @@ services:
     shm_size: 2gb
     environment:
       - SE_VNC_NO_PASSWORD=true
+      # Up to three browser sessions at once (a chat's browser beside a
+      # diagram preview or a page capture). A request with no free session
+      # fails after 10 s instead of waiting; a session unused for 15 minutes
+      # is closed (the app closes unused browsers sooner).
+      - SE_NODE_MAX_SESSIONS=3
+      - SE_NODE_OVERRIDE_MAX_SESSIONS=true
+      - SE_SESSION_REQUEST_TIMEOUT=10
+      - SE_NODE_SESSION_TIMEOUT=900
     volumes:
       # The named-volume line below is inert cruft: the bind mount that
       # follows targets the same container path and wins, so no named

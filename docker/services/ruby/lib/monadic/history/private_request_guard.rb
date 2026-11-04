@@ -42,7 +42,7 @@ module Monadic
         end
         return @app.call(env) unless kind == :private
 
-        scope = Monadic::Utils::Privacy::EgressGuard::Scope.new(chat, chat[Monadic::Workspace::Chats::SESSION_KEY])
+        scope = Monadic::Utils::Privacy::EgressGuard::Scope.of(chat)
         status, headers, body = PrivateWork.within(scope) { @app.call(env) }
         [status, headers, PrivateWork.new(body, scope)]
       end

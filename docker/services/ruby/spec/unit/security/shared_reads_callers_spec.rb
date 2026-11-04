@@ -33,6 +33,11 @@ RSpec.describe "Reads from the shared folder" do
   describe "the page a web fetch saved" do
     let(:helper) { Class.new { include MonadicHelper }.new }
 
+    before do
+      MonadicSharedTools::BrowserOwner.reset!
+      allow(MonadicSharedTools::BrowserOwner).to receive(:observe).and_return({ sessions: [], max: 3 })
+    end
+
     def fetch_saving(name)
       allow(helper).to receive(:sleep)
       allow(helper).to receive(:send_command) do |**_, &block|

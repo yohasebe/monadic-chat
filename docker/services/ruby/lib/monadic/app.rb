@@ -4,6 +4,7 @@ require 'shellwords'
 require 'ostruct'
 require 'timeout'
 require_relative "./utils/string_utils"
+require_relative "./shared_tools/browser_owner"
 require_relative "./utils/environment"
 require_relative "./utils/secret_references"
 require_relative "./utils/shared_path_guard"
@@ -811,7 +812,12 @@ class MonadicApp
 
     require_relative 'shell'
     body = "webpage_fetcher.py --url #{Monadic::Shell.escape(url)} --mode md --keep-unknown --output stdout"
-    stdout, stderr, status = Monadic::Shell.bash(container: :python, body: body)
+    # The fetcher opens a browser session of its own: it takes a slot.
+    stdout, stderr, status = begin
+      MonadicSharedTools::BrowserOwner.with_job { Monadic::Shell.bash(container: :python, body: body) }
+    rescue MonadicSharedTools::BrowserOwner::Refused => e
+      return e.message
+    end
 
     # Wait briefly for filesystem synchronization
     sleep 1

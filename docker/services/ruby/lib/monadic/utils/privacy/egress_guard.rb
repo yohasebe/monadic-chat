@@ -57,11 +57,16 @@ module Monadic
 
         CHAT_KEY = :monadic_chat_session
 
-        # The chat work is done for: the session and the chat it was in when
-        # the work began. Reset and switching apps start a new chat in the
-        # same session; work of the chat that ended (a second opinion still
-        # running) is still checked for that chat's words.
-        Scope = Struct.new(:session, :chat_id)
+        # The chat work is done for: the session, and the chat and its epoch
+        # (Chats.epoch) when the work began. Reset and switching apps start a
+        # new chat in the same session; work of the chat that ended (a second
+        # opinion still running) is still checked for that chat's words.
+        Scope = Struct.new(:session, :chat_id, :epoch) do
+          def self.of(session)
+            chat_id = session[Monadic::Workspace::Chats::SESSION_KEY]
+            new(session, chat_id, Monadic::Workspace::Chats.epoch(chat_id))
+          end
+        end
 
         # The words of chats that have ended, by chat id (the newest kept).
         ENDED_LIMIT = 500
@@ -72,7 +77,7 @@ module Monadic
         # now (threads and fibers started later inherit it). Set when a
         # connection opens and whenever its session starts a chat.
         def for_chat(session)
-          Fiber[CHAT_KEY] = session ? Scope.new(session, session[Monadic::Workspace::Chats::SESSION_KEY]) : nil
+          Fiber[CHAT_KEY] = session ? Scope.of(session) : nil
         end
 
         # A chat's words, kept when it ends. Joined with what was kept before
@@ -347,7 +352,10 @@ module Monadic
           end
           install_websocket!
           Monadic::Workspace::Chats.on_change do |event, session|
-            event == :ending ? chat_ended(session) : for_chat(session)
+            case event
+            when :ending then chat_ended(session)
+            when :started then for_chat(session)
+            end
           end
           @installed = true
         end

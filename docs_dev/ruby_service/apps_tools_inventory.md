@@ -48,7 +48,7 @@ Groups without a note are always visible. A provider list after a group or tool 
 | Coding Assistant | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | `file_operations`, `planning` | `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
 | Concept Visualizer | OpenAI, Claude | `planning` | `generate_concept_diagram`, `list_diagram_examples` |
 | Document Generator | Claude | `planning`, `file_operations` | — |
-| DrawIO Grapher | OpenAI, Claude, Gemini, Grok | `planning` | `preview_drawio`, `write_drawio_file`, `stop_drawio_browser` |
+| DrawIO Grapher | OpenAI, Claude, Gemini, Grok | `planning` | `preview_drawio`, `write_drawio_file` |
 | Image Generator | OpenAI, Gemini, Grok | `planning` | `generate_image_with_gemini` (Gemini), `monadic_load_state`, `generate_image_with_grok` (Grok), `generate_image_with_openai` (OpenAI) |
 | Jupyter Notebook | OpenAI, Claude, Gemini, Grok | `jupyter_operations`, `python_execution`, `file_operations`, `file_reading`, `planning`, `verification` | `monadic_load_state`, `create_and_populate_jupyter_notebook` (Gemini, Grok), `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
 | Language Practice | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | — | — |
@@ -56,7 +56,7 @@ Groups without a note are always visible. A provider list after a group or tool 
 | Live Conversation | OpenAI, Gemini, Grok | — | — |
 | Mail Composer | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | `file_operations` | — |
 | Math Tutor | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek | `python_execution`, `file_reading`, `planning` | `load_learning_progress`, `save_learning_progress`, `add_solved_problem`, `add_concepts`, `add_weak_areas`, `add_learning_notes` |
-| Mermaid Grapher | OpenAI, Claude, Gemini, Grok | `web_search_tools` (conditional), `planning`, `verification` | `validate_mermaid_syntax`, `preview_mermaid`, `stop_mermaid_browser`, `analyze_mermaid_error`, `fetch_mermaid_docs` |
+| Mermaid Grapher | OpenAI, Claude, Gemini, Grok | `web_search_tools` (conditional), `planning`, `verification` | `validate_mermaid_syntax`, `preview_mermaid`, `analyze_mermaid_error`, `fetch_mermaid_docs` |
 | Monadic Chat Help | OpenAI | — | `find_help_topics`, `get_help_document`, `list_help_sections`, `search_help_by_section` |
 | Music Analyst | Gemini | — | `analyze_audio_features`, `critique_audio` |
 | Music Generator | Gemini | `planning` | `generate_music_with_lyria`, `generate_music_with_elevenlabs` |

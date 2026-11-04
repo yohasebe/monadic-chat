@@ -33,13 +33,29 @@ module Monadic
         csrf tracking
       ].freeze
 
-      # Told when a chat ends (its state is about to be dropped) and when a
-      # session's chat id is set, as on_change { |event, session| ... } with
-      # :ending or :started. Something that follows the chat (the check of
-      # what is sent for it) keeps up this way, whoever ends or starts it.
+      # Told when a chat ends (its state is about to be dropped), when a
+      # session's chat id is set, and when the user replaces the chat with
+      # another, as on_change { |event, session| ... } with :ending, :started
+      # or :replaced. Something that follows the chat (the check of what is
+      # sent for it) keeps up this way, whoever ends or starts it. :ending
+      # also comes when a connection drops the state a tab left, which the
+      # tab may then resume; only :replaced means the chat is left for good
+      # (Reset, another app, an import, another chat from the history).
       LISTENERS = []
 
+      # How many times each chat was replaced. Work keeps the epoch its chat
+      # was in when the work began (EgressGuard::Scope), so work of a chat
+      # the user left is told apart from work after the same chat comes
+      # back (a chat continued from the history). Kept for good: one integer
+      # per chat replaced.
+      EPOCHS = Hash.new(0)
+      EPOCHS_LOCK = Mutex.new
+
       module_function
+
+      def epoch(chat_id)
+        EPOCHS_LOCK.synchronize { EPOCHS[chat_id] }
+      end
 
       def on_change(&block)
         LISTENERS << block unless LISTENERS.include?(block)
@@ -67,8 +83,18 @@ module Monadic
       # messages and parameters are left to the caller, which knows whether
       # they are cleared, kept or replaced.
       def begin_new!(session)
+        replacing!(session)
         clear_chat_state!(session)
         start_new!(session)
+      end
+
+      # The user leaves the session's chat for another: the chat's epoch ends.
+      def replacing!(session)
+        chat_id = session[SESSION_KEY]
+        return unless chat_id
+
+        EPOCHS_LOCK.synchronize { EPOCHS[chat_id] += 1 }
+        notify(:replaced, session)
       end
 
       # Drops every key that is not kept for the tab or the connection,

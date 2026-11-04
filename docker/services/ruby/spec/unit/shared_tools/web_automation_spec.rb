@@ -24,16 +24,32 @@ RSpec.describe "MonadicSharedTools::WebAutomation" do
         nil
       end
 
+      attr_accessor :mock_response, :last_command
+
+      private
+
+      # Private, as in MonadicApp.
       def send_command(command:, container:)
         @last_command = command
-        @mock_response || '{"success": true}'
+        @mock_response || '{"success": true, "session_id": "wd-spec"}'
       end
-
-      attr_accessor :mock_response, :last_command
     end
   end
 
   let(:app) { test_class.new }
+
+  # The action tools act on a browser this chat has open (BrowserOwner).
+  before do
+    owner = MonadicSharedTools::BrowserOwner
+    owner.reset!
+    allow(owner).to receive(:current_work).and_return(["chat-spec", 0])
+    allow(owner).to receive(:observe).and_return({ sessions: [], max: 3 })
+    allow(owner).to receive(:start_worker)
+    # BrowserOwner's own commands (the close before a new start)
+    owner.runner = ->(_, _) { '{"success": true}' }
+    owner.begin_start("chat-spec", 0)
+    owner.finish_start("chat-spec", "wd-spec", 0)
+  end
 
   describe "#start_browser headless parameter normalization" do
     before do

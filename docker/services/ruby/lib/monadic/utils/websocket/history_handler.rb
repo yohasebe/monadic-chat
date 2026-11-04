@@ -118,6 +118,7 @@ module WebSocketHelper
   # keeps comes back; the app builds the rest (its tools, pipelines) anew.
   private def put_history_chat(session, chat_id, payload)
     ui_language = session[:parameters] && session[:parameters]['ui_language']
+    Monadic::Workspace::Chats.replacing!(session)
     session[:messages] = []
     session[:parameters] = {}
     Monadic::Workspace::Chats.clear_chat_state!(session)

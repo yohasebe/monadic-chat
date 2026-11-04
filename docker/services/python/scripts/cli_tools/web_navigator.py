@@ -47,6 +47,16 @@ def _wd(path, method="GET", body=None):
     return resp.json()
 
 
+def _session_error(r):
+    """What a failed new-session request tells the caller. Every browser
+    session in use makes the request wait in Selenium's queue until it times
+    out; say so, rather than show WebDriver's text."""
+    if "new session request timed out" in json.dumps(r.get("error", "")).lower():
+        return ("No browser is free right now: every browser session is in use. "
+                "Try again when one of them has finished.")
+    return f"Failed to create session: {r['error']}"
+
+
 def _save_session(session_id):
     """Persist session ID to file."""
     with open(SESSION_FILE, "w") as f:
@@ -268,7 +278,7 @@ def action_start(args):
 
     r = _wd("/session", method="POST", body=caps)
     if "error" in r:
-        return {"success": False, "error": f"Failed to create session: {r['error']}"}
+        return {"success": False, "error": _session_error(r)}
 
     session_id = r["value"]["sessionId"]
     _save_session(session_id)

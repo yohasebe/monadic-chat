@@ -94,7 +94,8 @@ module MonadicHelper
   end
 
 
-  def generate_image_with_grok(prompt: "", aspect_ratio: nil, quality: nil, operation: "generate", images: nil, image_model: nil)
+  def generate_image_with_grok(prompt: "", aspect_ratio: nil, quality: nil, operation: "generate", images: nil, image_model: nil,
+                              out_dir: nil, job_inputs: [])
     require 'json'
 
     parts = ["image_generator_grok.rb", "-p", Shellwords.shellescape(prompt)]
@@ -105,6 +106,10 @@ module MonadicHelper
     if images.is_a?(Array)
       images.each { |img| parts << "-i" << Shellwords.shellescape(img) }
     end
+    # A run for a chat's workbench writes in the job folder the server made
+    # (Monadic::Workbench::JobOutput), not in the shared folder.
+    parts << "--out-dir" << Shellwords.shellescape(out_dir) if out_dir
+    Array(job_inputs).each { |path| parts << "--job-input" << Shellwords.shellescape(path) }
     command = parts.join(' ')
 
     # Use block form to get detailed stdout/stderr/status for better error reporting

@@ -27,7 +27,26 @@ module Monadic
 
       # The reply's own words when it ends with an image on the workbench.
       def reply_text(offered)
-        "`#{offered.name}` is in the work screen. Save it to the shared folder there to keep it."
+        text = "`#{offered.name}` is in the work screen. Save it to the shared folder there to keep it."
+        offered.notice ? "#{offered.notice}\n\n#{text}" : text
+      end
+
+      # Ends a reply whose tool put an image on the workbench, for every
+      # provider: one short line, then the reply is done (each event goes to
+      # emit once). The result names the item, so the message recorded from
+      # it (not one of text written before) is the image's.
+      def end_reply(offered, &emit)
+        text = reply_text(offered)
+        emit&.call({ 'type' => 'fragment', 'content' => text, 'is_first' => true })
+        emit&.call({ 'type' => 'message', 'content' => 'DONE', 'finish_reason' => 'stop' })
+        [{ 'choices' => [{ 'finish_reason' => 'stop',
+                           'message' => { 'content' => text, ITEMS_KEY => [offered.item_id] } }] }]
+      end
+
+      # Whether a provider's results are a reply end_reply made.
+      def ended_reply?(results)
+        message = results.is_a?(Array) && results.dig(0, 'choices', 0, 'message')
+        message.is_a?(Hash) && message.key?(ITEMS_KEY)
       end
 
       # The words of the message that records a save when the image's reply

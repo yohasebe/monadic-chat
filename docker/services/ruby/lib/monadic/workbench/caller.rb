@@ -40,7 +40,9 @@ module Monadic
     # reply's work is done and it ends here (the server runs no other tool
     # of the turn and asks the model nothing more). What happens to the
     # image (an edit, a save, its removal) the user decides later.
-    Offered = Struct.new(:chat_id, :request_id, :item_id, :name, keyword_init: true) do
+    # notice: what the generator said the user should know (a model it used
+    # in place of the one asked for), or nil.
+    Offered = Struct.new(:chat_id, :request_id, :item_id, :name, :notice, keyword_init: true) do
       # Whether this is for the reply running now in session's chat.
       def for?(session)
         request = Monadic::Workspace::RequestContext.current
@@ -49,8 +51,9 @@ module Monadic
 
       # The tool's result as the model's history keeps it.
       def to_s
-        JSON.generate('status' => Offered::STATUS, 'name' => name,
-                      'note' => 'The image is in the work screen; the user may save it to the shared folder there.')
+        JSON.generate({ 'status' => Offered::STATUS, 'name' => name,
+                        'note' => 'The image is in the work screen; the user may save it to the shared folder there.',
+                        'notice' => notice }.compact)
       end
 
       # The result given to each tool call of the turn that was not run.

@@ -1586,6 +1586,27 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(result[:error]).to match(/boom/)
     end
 
+    # The workbench is a chat's: an image made over MCP has no chat and is
+    # saved in the shared folder, as the base helpers do.
+    it "saves directly to the shared folder through the base helpers, never a chat's workbench" do
+      %i[generate_image_with_openai generate_image_with_grok].each do |name|
+        expect(described_class.media_app_host.method(name).parameters.map(&:last)).not_to include(:workbench)
+      end
+      expect(described_class.gemini_media_host.method(:generate_image_with_gemini).parameters.map(&:last))
+        .not_to include(:workbench)
+      commands = []
+      allow_any_instance_of(MonadicApp).to receive(:send_command) do |_, command:, **, &block|
+        commands << command
+        block ? block.call(JSON.generate({ success: true, filename: "x.png" }), "", nil) : "Saved file: /monadic/data/x.png"
+      end
+      %w[openai grok].each do |provider|
+        result = described_class.call("monadic_generate_image", { "prompt" => "x", "provider" => provider })
+        expect(result[:files]).to eq(["x.png"])
+      end
+      expect(commands.size).to eq(2)
+      expect(commands).to all(satisfy { |c| !c.include?("--out-dir") })
+    end
+
     it "requires a prompt" do
       expect { described_class.call("monadic_generate_image", {}) }
         .to raise_error(ArgumentError, /prompt is required/)

@@ -1900,7 +1900,7 @@ module OpenAIHelper
                      content: Monadic::Workbench::Offered.not_executed }
       end
       obj["function_returns"] = context
-      return finish_with_workbench_image(function_return, &block)
+      return Monadic::Workbench::Offer.end_reply(function_return, &block)
     end
 
     inject_openai_vision_images(context, session, pending_tool_images)
@@ -1918,17 +1918,6 @@ module OpenAIHelper
     end
 
     api_request("tool", session, call_depth: session[:call_depth_per_turn], &block)
-  end
-
-  # Ends a reply whose tool put an image on the workbench: one short line,
-  # then the reply is done. The result names the item, so the message
-  # recorded from it (not one of text written before) is the image's.
-  private def finish_with_workbench_image(offered, &block)
-    text = Monadic::Workbench::Offer.reply_text(offered)
-    block&.call({ "type" => "fragment", "content" => text, "is_first" => true })
-    block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-    [{ "choices" => [{ "finish_reason" => "stop",
-                       "message" => { "content" => text, Monadic::Workbench::Offer::ITEMS_KEY => [offered.item_id] } }] }]
   end
 
   # Remove duplicate tool calls and suppress repeated local PDF DB tool calls.

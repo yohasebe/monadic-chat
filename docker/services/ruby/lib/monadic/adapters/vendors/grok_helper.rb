@@ -4,6 +4,7 @@ require 'cgi'
 
 require_relative "../../utils/request_retry"
 require_relative "../../utils/shared_path_guard"
+require_relative "../../workbench/offer"
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/usage_normalizer"
 require_relative "../../utils/error_formatter"
@@ -634,6 +635,7 @@ module GrokHelper
     if method_obj && method_obj.parameters.any? { |_type, name| name == :session }
       argument_hash[:session] = session
     end
+    Monadic::Workbench::Caller.inject!(argument_hash, method_obj, session)
 
     # Execute function
     begin
@@ -694,7 +696,7 @@ module GrokHelper
     end
 
     tool_result = { "call_id" => tool_call["id"], "name" => function_name, "content" => content_str }
-    [tool_result, false]
+    [tool_result, false, function_return]
   end
 
   # Fix HTML-escaped SVG files created by Grok's code generation
@@ -743,9 +745,6 @@ module GrokHelper
       return unless result["success"] && result["filename"]
 
       case function_name
-      when "generate_image_with_grok"
-        obj["current_image_filename"] = result["filename"]
-        session[:grok_last_image] = result["filename"]
       when "generate_video_with_grok_imagine"
         obj["current_video_filename"] = result["filename"]
         session[:grok_last_video_filename] = result["filename"]
@@ -785,16 +784,6 @@ module GrokHelper
       content = content.gsub(/\b#{Regexp.escape(base_name)}_\d{8}_\d{6}\.ipynb\b/i, actual_filename)
       content = content.gsub(%r{http://localhost:8889/lab/tree/#{Regexp.escape(base_name)}_\d{8}_\d{6}\.ipynb}i,
                             "http://localhost:8889/lab/tree/#{actual_filename}")
-    end
-
-    # Fix image filenames
-    if obj["current_image_filename"]
-      actual_image_filename = obj["current_image_filename"]
-      content = content.gsub(/\d{8}-\d{6}\.png/i, actual_image_filename)
-      content = content.gsub(/(?<!\d)\d{10}\.png/i, actual_image_filename)
-      content = content.gsub(/src="\/data\/\d{8}-\d{6}\.png"/i, "src=\"/data/#{actual_image_filename}\"")
-      content = content.gsub(/src="\/data\/\d{10}\.png"/i, "src=\"/data/#{actual_image_filename}\"")
-      content = content.gsub(/\/data\/[a-zA-Z0-9_-]+\.png/, "/data/#{actual_image_filename}")
     end
 
     new_results[0]["choices"][0]["message"]["content"] = content
@@ -1770,9 +1759,23 @@ module GrokHelper
       record_tool_call(session, function_name)
       block&.call({ "type" => "tool_executing", "content" => function_name })
 
-      tool_result, error_stop = invoke_grok_tool_function(app, session, tool_call, function_name, &block)
+      tool_result, error_stop, returned = invoke_grok_tool_function(app, session, tool_call, function_name, &block)
       tool_results << tool_result if tool_result
       next if error_stop
+      next unless returned.is_a?(Monadic::Workbench::Offered) && returned.for?(session)
+
+      # An image was put on the workbench: the reply's work is done. The
+      # turn's other calls are not run (each gets a result), and the reply
+      # ends without asking the model.
+      answered = tool_results.map { |r| r["call_id"] }
+      tools.each do |skipped|
+        next if answered.include?(skipped["id"])
+
+        tool_results << { "call_id" => skipped["id"], "name" => skipped.dig("function", "name"),
+                          "content" => Monadic::Workbench::Offered.not_executed }
+      end
+      (obj["function_returns"] ||= []).concat(tool_results)
+      return Monadic::Workbench::Offer.end_reply(returned, &block)
     end
 
     # Store tool results in session for API request.
@@ -1853,10 +1856,7 @@ module GrokHelper
     tool_calls_check = new_results&.dig(0, "choices", 0, "message", "tool_calls")
 
     is_inadequate = new_results.nil? || new_results.empty? ||
-                    (content_check.empty? && (tool_calls_check.nil? || tool_calls_check.empty?)) ||
-                    (obj["current_image_filename"] && !content_check.include?("<img") &&
-                     !content_check.include?("generated_image") &&
-                     (tool_calls_check.nil? || tool_calls_check.empty?))
+                    (content_check.empty? && (tool_calls_check.nil? || tool_calls_check.empty?))
 
     if is_inadequate
       fallback_content = response_content || "Tools executed successfully."

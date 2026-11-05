@@ -38,6 +38,27 @@ RSpec.describe "ImageGeneratorTools" do
   end
 
   describe "ImageGeneratorGrok" do
+    around do |example|
+      Dir.mktmpdir("grok-tool-") do |directory|
+        @grok_root = File.realpath(directory)
+        Dir.mkdir(File.join(@grok_root, "state"))
+        example.run
+      end
+    end
+
+    before do
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@grok_root)
+      allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(@grok_root)
+      allow(Monadic::Workbench::Store).to receive(:default)
+        .and_return(Monadic::Workbench::Store.new(File.join(@grok_root, "state", "workbench")))
+    end
+
+    # The chat the reply runs for, as the server gives it.
+    def grok_workbench
+      Monadic::Workbench::Caller.new(chat_id: Monadic::Workspace::Ids.generate(:chat), epoch: 0, request_id: "q1",
+                                     session: { messages: [] })
+    end
+
     it "is defined as a class" do
       expect(defined?(ImageGeneratorGrok)).to eq("constant")
     end
@@ -65,11 +86,11 @@ RSpec.describe "ImageGeneratorTools" do
       expect(result).to include("Invalid operation")
     end
 
-    it "returns error when edit has no images and no session" do
+    it "refuses without the reply's chat" do
       app = ImageGeneratorGrok.new
       result = app.generate_image_with_grok(operation: "edit", prompt: "make it blue")
       expect(result).to start_with("❌")
-      expect(result).to include("Image file not found")
+      expect(result).to include("could not be identified")
     end
 
     it "passes quality and an expanded ratio through the app and shell helper" do
@@ -78,7 +99,7 @@ RSpec.describe "ImageGeneratorTools" do
       allow(app).to receive(:send_command) do |**args|
         command = Shellwords.split(args[:command])
       end
-      app.generate_image_with_grok(prompt: "test", quality: "high", aspect_ratio: "21:9")
+      app.generate_image_with_grok(prompt: "test", quality: "high", aspect_ratio: "21:9", workbench: grok_workbench)
       expect(command).not_to be_nil
       expect(command[command.index("-q") + 1]).to eq("high")
       expect(command[command.index("-a") + 1]).to eq("21:9")
@@ -86,7 +107,8 @@ RSpec.describe "ImageGeneratorTools" do
 
     it "rejects invalid aspect_ratio" do
       app = ImageGeneratorGrok.new
-      result = app.generate_image_with_grok(operation: "generate", prompt: "test", aspect_ratio: "99:1")
+      result = app.generate_image_with_grok(operation: "generate", prompt: "test", aspect_ratio: "99:1",
+                                            workbench: grok_workbench)
       expect(result).to start_with("❌")
       expect(result).to include("Invalid aspect_ratio")
     end
@@ -118,63 +140,6 @@ RSpec.describe "ImageGeneratorTools" do
       expect(result).to be_a(String)
       expect(result).to start_with("❌")
       expect(result).to include("Image generation failed")
-    end
-  end
-
-  describe "ImageGeneratorGrok auto-attach" do
-    let(:app) { ImageGeneratorGrok.new }
-    let(:shared_folder) { @shared_folder }
-
-    around do |example|
-      Dir.mktmpdir('image-edit-shared-') do |directory|
-        @shared_folder = File.realpath(directory)
-        example.run
-      end
-    end
-
-    before do
-      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared_folder)
-      allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(shared_folder)
-      allow(app).to receive(:send_command).and_return('{"success":true,"images":[]}')
-    end
-
-    it "auto-attaches last image from monadic_state for edit" do
-      # Create a temp image file (the shared folder may not exist on CI)
-      FileUtils.mkdir_p(shared_folder)
-      test_image = File.join(shared_folder, "test_edit.png")
-      File.write(test_image, "fake image data") unless File.exist?(test_image)
-
-      session = {
-        parameters: { "app_name" => "ImageGeneratorGrok" },
-        messages: [],
-        monadic_state: {
-          "ImageGeneratorGrok" => {
-            "last_images" => { data: ["test_edit.png"], version: 1, updated_at: Time.now.to_s }
-          }
-        }
-      }
-
-      # Capture the generator command without calling the external image API.
-      result = app.generate_image_with_grok(operation: "edit", prompt: "make it blue", session: session)
-      # Should NOT contain "Image file not found" since auto-attach should resolve the image
-      expect(result).not_to include("Image file not found")
-      expect(app).to have_received(:send_command).with(
-        hash_including(command: include(Shellwords.escape(test_image)), container: "ruby")
-      )
-    ensure
-      File.delete(test_image) if test_image && File.exist?(test_image)
-    end
-
-    it "returns error when no image available for edit" do
-      session = {
-        parameters: { "app_name" => "ImageGeneratorGrok" },
-        messages: [],
-        monadic_state: {}
-      }
-
-      result = app.generate_image_with_grok(operation: "edit", prompt: "make it blue", session: session)
-      expect(result).to start_with("❌")
-      expect(result).to include("Image file not found")
     end
   end
 
@@ -228,7 +193,13 @@ RSpec.describe "ImageGeneratorTools" do
                                          request_id: "q1", session: session
                                        ))
       },
-      "ImageGeneratorGrok" => ->(app, session) { app.generate_image_with_grok(operation: "edit", prompt: "add a festival", session: session) }
+      "ImageGeneratorGrok" => lambda { |app, session|
+        app.generate_image_with_grok(operation: "edit", prompt: "add a festival", session: session,
+                                     workbench: Monadic::Workbench::Caller.new(
+                                       chat_id: Monadic::Workspace::Ids.generate(:chat), epoch: 0,
+                                       request_id: "q1", session: session
+                                     ))
+      }
     }.each do |app_name, edit|
       context app_name do
         let(:app) { Object.const_get(app_name).new }
@@ -240,23 +211,6 @@ RSpec.describe "ImageGeneratorTools" do
           expect(files).not_to include("generated_last.png")
         end
 
-        # The OpenAI tool starts from the last image of the workbench instead
-        # (spec/unit/workbench/image_generator_openai_spec.rb).
-        next unless app_name == "ImageGeneratorGrok"
-
-        it "edits the last image it made when nothing was uploaded" do
-          session = session_for(app_name, upload: false)
-          result = nil
-          files = edited_files(app) { result = edit.call(app, session) }
-          expect(result.to_s).not_to include("no implicit conversion")
-          expect(files).to include("generated_last.png")
-        end
-
-        it "says so when there is nothing to edit" do
-          result = edit.call(app, session_for(app_name, upload: false, generated: false))
-          expect(result).to start_with("❌")
-          expect(result).to include("Image file not found")
-        end
       end
     end
   end

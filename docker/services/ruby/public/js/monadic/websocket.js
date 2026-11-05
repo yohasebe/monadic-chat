@@ -883,6 +883,21 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "workbench": {
+        if (window.Workbench) window.Workbench.onView(data);
+        break;
+      }
+
+      case "workbench_result": {
+        if (window.Workbench) window.Workbench.onResult(data);
+        break;
+      }
+
+      case "message_artifacts": {
+        if (window.Workbench) window.Workbench.onArtifacts(data);
+        break;
+      }
+
       case "context_extraction_started": {
         const wsh = window.WsSessionHandler;
         if (wsh && typeof wsh.handleContextExtractionStarted === 'function') {

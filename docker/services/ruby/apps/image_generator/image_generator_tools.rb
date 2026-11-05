@@ -7,6 +7,8 @@ require 'cgi'
 require 'fileutils'
 require_relative "../../lib/monadic/utils/extra_logger"
 require_relative "../../lib/monadic/shared_tools/monadic_session_state"
+require_relative "../../lib/monadic/workbench/offer"
+require_relative "../../lib/monadic/history/policy"
 
 class ImageGeneratorOpenAI < MonadicApp
   include Monadic::SharedTools::MonadicSessionState if defined?(Monadic::SharedTools::MonadicSessionState)
@@ -28,7 +30,6 @@ class ImageGeneratorOpenAI < MonadicApp
   # @param prompt [String] Text description of the desired image
   # @param images [Array<String>] Array of image filenames for editing/variation
   # @param mask [String] Mask image filename for precise editing
-  # @param n [Integer] Number of images to generate (1-4)
   # @param size [String] Image dimensions
   # @param quality [String, nil] Image quality level. The accepted values differ
   #   per model (gpt-image-2 takes auto/low/medium/high; the 2.5 models also
@@ -39,24 +40,35 @@ class ImageGeneratorOpenAI < MonadicApp
   # @param background [String] Background color for transparent images
   # @param output_compression [Integer] Compression level for JPEG (1-100)
   # @param session [Object] Session object (automatically provided)
-  # @return [Hash] Generated image URLs and metadata
+  # @param workbench [Monadic::Workbench::Caller, nil] The chat the reply runs
+  #   for (given by the server, never by the model). The image is put on the
+  #   chat's workbench, where the user may save it to the shared folder.
+  # @return [Monadic::Workbench::Offered, String] The image on the
+  #   workbench, or an error
   def generate_image_with_openai(operation:, model:, prompt: nil, images: nil,
-                                mask: nil, n: 1, size: "1024x1024",
+                                mask: nil, size: "1024x1024",
                                 quality: nil, output_format: "png",
                                 background: nil, output_compression: nil, input_fidelity: nil,
-                                session: nil)
+                                session: nil, workbench: nil)
     # Input validation
     raise ArgumentError, "Invalid operation" unless %w[generate edit].include?(operation)
     raise ArgumentError, "Model is required" if model.to_s.strip.empty?
     raise ArgumentError, "Prompt is required for generate/edit" if %w[generate edit].include?(operation) && prompt.to_s.strip.empty?
+    # Nothing is made without the chat to put it in: never saved elsewhere.
+    return "❌ Image generation failed: the chat this reply is for could not be identified." unless workbench
+
+    policy = Monadic::History::Policy
+    if policy.private?(workbench.session) || policy.known_private?(workbench.chat_id)
+      return "❌ Image generation is not available in a Private chat: nothing of it may be kept."
+    end
 
     shared_folder = Monadic::Utils::Environment.shared_volume
 
-    # Which image to edit is resolved below, in this order: the images the
-    # model named, the user's upload in this turn, then the last image this
-    # app made. (An earlier step attached the last made image first, so an
-    # upload in the same turn was ignored, and it attached it in a form the
-    # checks below could not read, which failed every such edit.)
+    # Which image to edit is resolved below, in this order: the user's
+    # upload in this turn, images of the shared folder the user named, the
+    # image that came last on the workbench, an upload in the last user
+    # message.
+    mask_from_editor = false
     if images.is_a?(Array)
       images = images.filter_map do |img|
         next img unless img.is_a?(Hash)
@@ -65,37 +77,26 @@ class ImageGeneratorOpenAI < MonadicApp
       end
     end
 
-    # Auto-detect mask from session if not provided for edit operation
-    if operation == "edit" && mask.nil? && session && session[:messages]
+    # A mask the user drew in the mask editor comes as an upload named
+    # mask__<image>: the mask and the image it is for are the user's choice,
+    # whatever the model passed.
+    if operation == "edit" && session && session[:messages]
       last_user_msg = session[:messages].reverse.find { |m| m["role"] == "user" }
-      if last_user_msg && last_user_msg["images"]
-        # Find a mask image in the uploaded images
-        mask_image = last_user_msg["images"].find { |img| 
-          name = img["name"] || img["filename"] || img["title"]
-          name && name.to_s.start_with?("mask__")
-        }
-        
-        if mask_image
-          mask_filename = mask_image["name"] || mask_image["filename"] || mask_image["title"]
-          # Set mask parameter
-          mask = mask_filename
-          
-          # If images param is also missing or invalid, set it to the original image derived from mask name
-          # mask__filename.png -> filename.png
-          original_filename = mask_filename.sub(/^mask__/, "")
-          
-          # Only override images if not provided or if we're falling back
-          if images.nil? || images.empty?
-             images = [original_filename]
-          end
-        end
+      mask_image = last_user_msg && Array(last_user_msg["images"]).find do |img|
+        (img["name"] || img["filename"] || img["title"]).to_s.start_with?("mask__")
+      end
+      if mask_image
+        mask = mask_image["name"] || mask_image["filename"] || mask_image["title"]
+        images = [mask.delete_prefix("mask__")]
+        mask_from_editor = true
       end
     end
 
     # Logic to resolve/validate images from session if needed (for edit/variation)
+    board_input = nil
     if %w[edit variation].include?(operation)
       shared_folder = Monadic::Utils::Environment.shared_volume
-      
+
       # Helper to check image existence
       check_image_exists = ->(name) {
         return false if name.nil? || name.empty?
@@ -119,124 +120,77 @@ class ImageGeneratorOpenAI < MonadicApp
         return filename
       }
       
-      # Check if provided images exist locally
-      current_images_valid = images && !images.empty? && check_image_exists.call(images.first)
+      upload_name = ->(img) { img["name"] || img["filename"] || img["title"] }
+      # An upload as a file of the shared folder (written there from its
+      # data when it is not there yet), or nil.
+      take_upload = lambda do |list|
+        upload = Array(list).find { |img| (name = upload_name.call(img)) && !name.to_s.start_with?("mask__") }
+        next nil unless upload
 
-      # If we have a target filename but no file, try to find its data in session history and save it
-      # This handles cases where the image was uploaded in a previous turn or just resolved from mask name
-      if !current_images_valid && images && !images.empty? && session && session[:messages]
-        target_filename = File.basename(images.first)
-        
-        found_image_data = nil
-        # Search backwards through history
-        session[:messages].reverse_each do |msg|
-          next unless msg["images"]
-          image_entry = msg["images"].find { |img| 
-            name = img["name"] || img["filename"] || img["title"]
-            # Robust comparison using basenames
-            name && File.basename(name) == target_filename
-          }
-          if image_entry
-            found_image_data = image_entry["data"]
-            break
-          end
+        name = upload_name.call(upload)
+        if upload["data"].to_s.start_with?("data:image/")
+          saved = save_base64_image.call(upload["data"], name)
+          saved && File.basename(saved)
+        elsif check_image_exists.call(name)
+          name
         end
-        
-        if found_image_data && found_image_data.start_with?("data:image/")
-          saved_name = save_base64_image.call(found_image_data, target_filename)
-          if saved_name
-            # Update images array with the local filename (without path) as save_base64_image returns
-            images = [File.basename(saved_name)]
-            current_images_valid = true
+      end
+      last_user_msg = session && Array(session[:messages]).reverse.find { |m| m["role"] == "user" }
+      user_text = last_user_msg ? last_user_msg["text"].to_s : ""
+      # Names the model gave count only when the user named those images in
+      # their message (or the mask editor did): a name the model chose on
+      # its own never takes the place of the image the user is working on.
+      named = Array(images).map { |n| File.basename(n.to_s) }.reject(&:empty?)
+      user_named = !named.empty? && (mask_from_editor || named.all? { |n| named_in_text?(user_text, n) })
+      images = nil
+      current_images_valid = false
+
+      # 1. An upload in this turn
+      if session && session[:parameters] && (upload = take_upload.call(session[:parameters]["images"]))
+        images = [upload]
+        current_images_valid = true
+      end
+
+      # 2. Images of the shared folder the user named (an upload of an
+      # earlier turn with that name is written there first). Every one is
+      # found, or the edit stops: another image is never edited instead.
+      if !current_images_valid && user_named
+        missing = named.reject do |name|
+          next true if check_image_exists.call(name) && name
+
+          entry = nil
+          Array(session && session[:messages]).reverse_each do |msg|
+            entry = Array(msg["images"]).find { |img| (n = upload_name.call(img)) && File.basename(n) == name }
+            break if entry
           end
+          entry && save_base64_image.call(entry["data"].to_s, name)
+        end
+        return "❌ The image you named was not found: #{missing.join(', ')}" unless missing.empty?
+
+        images = named
+        current_images_valid = true
+      end
+
+      # 3. The image that came last on the workbench (saved or not): its
+      # bytes, checked, go to the generator through the run's input folder
+      if !current_images_valid && workbench
+        latest = Monadic::Workbench::Board.existing(workbench.chat_id)&.latest_image
+        if latest
+          board_input = Monadic::Workbench::Board.for(workbench.chat_id).candidate_input(latest["id"])
+          current_images_valid = true
         end
       end
 
-      # If no valid images provided, try to auto-resolve from session
-      if !current_images_valid
-        # Strategy A: Check session[:parameters]["images"] (Current turn upload)
-        if session && session[:parameters] && session[:parameters]["images"] && !session[:parameters]["images"].empty?
-          valid_upload = session[:parameters]["images"].find { |img| 
-            name = img["name"] || img["filename"] || img["title"]
-            name && !name.to_s.start_with?("mask__")
-          }
-          
-          if valid_upload
-            found_name = valid_upload["name"] || valid_upload["filename"] || valid_upload["title"]
-            
-            if valid_upload["data"] && valid_upload["data"].start_with?("data:image/")
-              saved_name = save_base64_image.call(valid_upload["data"], found_name)
-              if saved_name
-                images = [File.basename(saved_name)]
-                current_images_valid = true
-              end
-            elsif check_image_exists.call(found_name)
-              images = [found_name]
-              current_images_valid = true
-            end
-          end
-        end
-
-        # Strategy B: Check session[:messages] history (Previous turns)
-        if !current_images_valid && session && session[:messages]
-          last_user_msg = session[:messages].reverse.find { |m| m["role"] == "user" }
-          if last_user_msg && last_user_msg["images"] && !last_user_msg["images"].empty?
-            # Filter for valid non-mask images
-            valid_upload = last_user_msg["images"].find { |img| 
-              name = img["name"] || img["filename"] || img["title"]
-              name && !name.to_s.start_with?("mask__")
-            }
-            
-            if valid_upload
-              found_name = valid_upload["name"] || valid_upload["filename"] || valid_upload["title"]
-              
-              # Check if it has base64 data that needs saving
-              if valid_upload["data"] && valid_upload["data"].start_with?("data:image/")
-                saved_name = save_base64_image.call(valid_upload["data"], found_name)
-                if saved_name
-                  images = [File.basename(saved_name)]
-                  current_images_valid = true
-                end
-              elsif check_image_exists.call(found_name)
-                images = [found_name]
-                current_images_valid = true
-              end
-            end
-          end
-        end
-
-        # 2. Check for last generated image if still no valid images found
-        if !current_images_valid && session
-          app_key = session.dig(:parameters, "app_name") || "ImageGeneratorOpenAI"
-          last_images = fetch_last_images_from_session(session, app_key, legacy_prefix: "openai")
-
-          if last_images && !last_images.empty? && check_image_exists.call(last_images.first)
-            images = [last_images.first]
-            current_images_valid = true
-          end
-        end
-        
-        # 3. Final check: if we still don't have valid images, return error JSON
-        unless current_images_valid
-          # Gather debug info about available images in session
-          available_images = []
-          if session && session[:messages]
-            session[:messages].each do |m|
-              if m["images"]
-                m["images"].each do |i|
-                  available_images << (i["name"] || i["filename"] || i["title"] || "unknown")
-                end
-              end
-            end
-          end
-          
-          debug_msg = available_images.empty? ? "No images found in session." : "Available images in session: #{available_images.join(', ')}"
-          target_info = images ? images.first : "none"
-          
-          return "❌ Image file not found for editing. Please upload an image or generate one first. (Target: '#{target_info}'. #{debug_msg})"
-        end
+      # 4. An upload in the last user message
+      if !current_images_valid && last_user_msg && (upload = take_upload.call(last_user_msg["images"]))
+        images = [upload]
+        current_images_valid = true
       end
-      
+
+      unless current_images_valid
+        return "❌ No image to edit: there is no image in the work screen, and none was uploaded or named."
+      end
+
       # Validate mask if present
       if mask
         mask_exists = check_image_exists.call(mask)
@@ -285,7 +239,7 @@ class ImageGeneratorOpenAI < MonadicApp
     end
     
     # Validate images presence after resolution
-    raise ArgumentError, "Images required for edit" if operation == "edit" && (images.nil? || images.empty?)
+    raise ArgumentError, "Images required for edit" if operation == "edit" && Array(images).empty? && board_input.nil?
     
     # Validate background parameter if provided
     if background && !%w[transparent opaque auto].include?(background.to_s)
@@ -310,98 +264,41 @@ class ImageGeneratorOpenAI < MonadicApp
       puts "Warning: No mask parameter provided for edit operation. Mask may not be applied correctly."
     end
 
-    # Call the method from MediaGenerationHelper (via MonadicHelper)
-    result_json = super(operation: operation, model: model, prompt: prompt, images: images,
-          mask: mask, n: n, size: size, quality: quality, output_format: output_format,
-          background: background, output_compression: output_compression, input_fidelity: input_fidelity)
-
-    # Parse result and store filename if successful (for continuous editing)
-    if session
-      begin
-        # Extract JSON from result_json (may have prefix and suffix text like "Command has been executed...")
-        json_str = result_json.to_s
-        if json_str.include?("{") && json_str.include?("}")
-          start_idx = json_str.index("{")
-          end_idx = json_str.rindex("}")
-          json_str = json_str[start_idx..end_idx] if start_idx && end_idx
-        end
-
-        parsed = json_str.is_a?(String) ? JSON.parse(json_str) : json_str
-        filenames = []
-
-        if parsed.is_a?(Hash)
-          if parsed["data"].is_a?(Array) && parsed["data"].first
-            file_path = parsed["data"].first["url"] || parsed["data"].first["b64_json"]
-            if file_path && file_path.include?("/data/")
-              filenames << File.basename(file_path)
-            elsif file_path && !file_path.start_with?("http") && !file_path.start_with?("data:")
-              filenames << File.basename(file_path)
-            end
-          end
-
-          filenames << parsed["filename"] if parsed["filename"]
-
-          if parsed["images"].is_a?(Array)
-            parsed["images"].each do |img|
-              path = img["path"] || img[:path]
-              filenames << File.basename(path.to_s) if path
-            end
-          end
-        end
-
-        filenames.compact!
-        filenames.uniq!
-
-        unless filenames.empty?
-          shared_folder = Monadic::Utils::Environment.shared_volume
-          filenames.each do |fname|
-            next if fname.to_s.empty?
-            dest = File.join(shared_folder, File.basename(fname))
-            src_candidates = [
-              fname,
-              File.join(shared_folder, File.basename(fname))
-            ]
-            # Only a file of the shared folder is copied, never through a link.
-            unless File.exist?(dest) || File.symlink?(dest)
-              src = src_candidates.find { |p| Monadic::Utils::SharedPathGuard.file_stat(p) }
-              (Monadic::Utils::SharedPathGuard.copy_file!(src, dest, replace: false) rescue nil) if src && src != dest
-            end
-          end
-
-          session[:openai_last_image] = filenames.first
-
-          Monadic::Utils::ExtraLogger.log { "OpenAI Image: Saved last generated image to session: #{filenames.first}\n  All filenames: #{filenames.inspect}" }
-
-          # Save to monadic state for follow-up edits
-          app_key = session.dig(:parameters, "app_name") || "ImageGeneratorOpenAI"
-
-          if respond_to?(:monadic_save_state)
-            monadic_save_state(app: app_key, key: "last_images", payload: filenames, session: session)
-          end
-
-          # Legacy compatibility for other code paths
-          session[:openai_last_image_generation] = { images: filenames }
-
-          # Inject .generated_image wrappers into the message so the
-          # frontend lightbox handler attaches regardless of how the LLM
-          # phrases the result. html_handler dedupes against the model's
-          # own text, so this is safe whether or not the LLM also emits
-          # the HTML template from the MDSL system prompt.
-          session[:tool_html_fragments] ||= []
-          filenames.each do |fname|
-            next if fname.to_s.empty?
-            safe_name = CGI.escapeHTML(File.basename(fname).to_s)
-            session[:tool_html_fragments] << "<div class=\"generated_image\"><img src=\"/data/#{safe_name}\" /></div>"
-          end
-        end
-      rescue JSON::ParserError
-        # Ignore JSON parsing errors, just return original result
+    # One image, made in a job folder of the chat's workbench and offered
+    # to the user as a candidate; nothing reaches the shared folder until
+    # the user saves it.
+    job_dir = Monadic::Workbench::JobOutput.make(workbench.chat_id)
+    begin
+      job_inputs = []
+      if board_input
+        ext = board_input[:content_type].split("/").last.sub("jpeg", "jpg")
+        job_inputs << Monadic::Workbench::JobOutput.put_input!(job_dir, "input.#{ext}", board_input[:bytes])
       end
-    end
+      result_json = super(operation: operation, model: model, prompt: prompt, images: images,
+            mask: mask, n: 1, size: size, quality: quality, output_format: output_format,
+            background: background, output_compression: output_compression, input_fidelity: input_fidelity,
+            out_dir: Monadic::Workbench::JobOutput.out_dir(job_dir), job_inputs: job_inputs)
+      return result_json if Monadic::Workbench::JobOutput.files(job_dir).empty?
 
-    result_json
+      derived_from = board_input && { id: board_input[:id], sha256: board_input[:sha256] }
+      return Monadic::Workbench::Offer.image(workbench, job_dir, derived_from: derived_from)
+    rescue Monadic::Workbench::Board::Refused, Monadic::Workbench::ImageCheck::Refused,
+           Monadic::Workbench::JobOutput::Refused => e
+      return "❌ Image generation failed: #{e.message}"
+    ensure
+      Monadic::Workbench::JobOutput.remove(job_dir)
+    end
   rescue StandardError => e
     "❌ Image generation failed: #{e.message}"
+  end
+
+  private
+
+  # Whether text names the file name as a whole, alone or at the end of a
+  # path (not as a part of a longer name, such as "cat.png" in "bobcat.png"
+  # or "cat.png.bak").
+  def named_in_text?(text, name)
+    text.to_s.match?(/(?<![A-Za-z0-9_.\-])#{Regexp.escape(name)}(?![A-Za-z0-9_\-]|\.[A-Za-z0-9])/)
   end
 end
 

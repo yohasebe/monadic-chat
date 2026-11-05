@@ -194,6 +194,17 @@ RSpec.describe Monadic::History do
       )
     end
 
+    it 'keeps of what was saved from the workbench only entries of the checked form' do
+      saved = { 'id' => "r_#{'a' * 20}", 'name' => 'cat.png', 'sha256' => 'b' * 64, 'content_type' => 'image/png',
+                'derived_from' => nil, 'action' => 'saved', 'by' => 'user', 'saved_at' => '2026-01-02T03:04:05Z' }
+      session = session_with('hi')
+      session[:messages] << { 'mid' => 'm2', 'role' => 'assistant', 'text' => 'done',
+                              'artifacts' => [saved, saved.merge('id' => "r_#{'c' * 20}", 'path' => '/x/cat.png')] }
+      message = described_class::Serializer.payload(session)['messages'].last
+      expect(message['artifacts']).to eq([saved])
+      expect(described_class::Serializer.payload(session_with('hi'))['messages'].first).not_to have_key('artifacts')
+    end
+
     it 'keeps nothing for a chat with no user words yet' do
       expect(described_class::Serializer.payload({ messages: [{ 'role' => 'system', 'text' => 'p' }] })).to be_nil
     end

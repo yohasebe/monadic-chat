@@ -109,6 +109,26 @@ describe('WorkScreen', () => {
     return socket;
   }
 
+  test('closes its socket while an image item is selected, and opens again for the browser', () => {
+    const socket = watching();
+    let browser = false;
+    window.Workbench = { showsBrowser: () => browser, select: jest.fn() };
+    WS.refresh();
+    expect(socket.closed).toBe(true);
+    browser = true;
+    WS.refresh();
+    expect(asked).toBe(2);
+    delete window.Workbench;
+  });
+
+  test('shows the browser in the pane when the browser opens', () => {
+    const select = jest.fn();
+    window.Workbench = { showsBrowser: () => false, select: select };
+    WS.onChatEvent({ event: 'browser_opened' });
+    expect(select).toHaveBeenCalledWith('browser');
+    delete window.Workbench;
+  });
+
   test('asks for nothing while the Menu tab is selected', () => {
     expect(asked).toBe(0);
     expect(FakeSocket.all).toHaveLength(0);

@@ -88,8 +88,8 @@ module Monadic
         # Makes a new file with these bytes, settled. A file of that name
         # already there is left as it is (Errno::EEXIST); a file this call
         # made and could not finish is removed.
-        def create_exclusive(path, bytes)
-          file = File.open(path, File::WRONLY | File::CREAT | File::EXCL, 0o600)
+        def create_exclusive(path, bytes, perm: 0o600)
+          file = File.open(path, File::WRONLY | File::CREAT | File::EXCL, perm)
           begin
             file.write(bytes)
             file.flush

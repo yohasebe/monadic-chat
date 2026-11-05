@@ -1,0 +1,87 @@
+# frozen_string_literal: true
+
+require_relative 'board'
+require_relative 'caller'
+require_relative 'job_output'
+
+module Monadic
+  module Workbench
+    # Puts what a generator made for a reply on the chat's workbench and
+    # tells the reply to end (Offered): the image is there for the user to
+    # look at, edit further, save to the shared folder or remove. The image
+    # belongs to the reply's request: when the reply's message is recorded,
+    # it is that message's (Channel.reply_recorded). When the reply ends
+    # without a message (Cancel, an error, a closed connection), the request
+    # is closed: an image it already put on the board stays, and nothing
+    # that arrives from it later is taken.
+    module Offer
+      CLOSED_LIMIT = 500
+      # The key of a reply's final message that names what it put there.
+      ITEMS_KEY = 'workbench_items'
+
+      @closed = {}
+      @in_flight = {}
+      @lock = Mutex.new
+
+      module_function
+
+      # The reply's own words when it ends with an image on the workbench.
+      def reply_text(offered)
+        "`#{offered.name}` is in the work screen. Save it to the shared folder there to keep it."
+      end
+
+      # The words of the message that records a save when the image's reply
+      # recorded no message.
+      def saved_note(name)
+        "Saved to the shared folder: `#{name}`"
+      end
+
+      # The first file the run left in its output folder as the image (a run
+      # for a chat makes one image; others are left out). derived_from: the
+      # image it was made from ({id:, sha256:}).
+      def image(caller, job_dir, derived_from: nil)
+        name = JobOutput.files(job_dir).first or raise Board::Refused, 'the generator made no image'
+        bytes = JobOutput.read(job_dir, name)
+        board = Board.for(caller.chat_id)
+        @lock.synchronize { @in_flight[caller.request_id] = caller.chat_id }
+        item = board.add_candidate(bytes: bytes, epoch: caller.epoch, name: name, derived_from: derived_from,
+                                   origin: { actor: 'agent', source: 'tool', request_id: caller.request_id },
+                                   unless_closed: -> { closed?(caller.request_id) })
+        Offered.new(chat_id: caller.chat_id, request_id: caller.request_id, item_id: item['id'], name: name)
+      end
+
+      # The reply of request_id ended without a message.
+      def close(request_id)
+        return unless request_id
+
+        @lock.synchronize do
+          @closed[request_id] = true
+          @closed.shift while @closed.size > CLOSED_LIMIT
+          @in_flight.delete(request_id)
+        end
+      end
+
+      def closed?(request_id)
+        @lock.synchronize { @closed.key?(request_id) }
+      end
+
+      # The reply of request_id was recorded.
+      def done(request_id)
+        @lock.synchronize { @in_flight.delete(request_id) }
+      end
+
+      # Whether the reply of request_id still runs (its message may come).
+      def in_flight?(request_id)
+        @lock.synchronize { @in_flight.key?(request_id) }
+      end
+
+      # For tests.
+      def reset!
+        @lock.synchronize do
+          @closed.clear
+          @in_flight.clear
+        end
+      end
+    end
+  end
+end

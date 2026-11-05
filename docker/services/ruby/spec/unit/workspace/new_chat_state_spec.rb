@@ -277,7 +277,12 @@ RSpec.describe 'What a new chat keeps from the session' do
         app, = Rack::Builder.parse_file("config.ru")
         tab = "tab-probe"
         conversation = { "parameters" => { "app_name" => "ChatOpenAI" },
-                         "messages" => [{ "role" => "user", "text" => "hello", "mid" => "m1" }],
+                         "messages" => [{ "role" => "user", "text" => "hello", "mid" => "m1",
+                                          "artifacts" => [{ "id" => "r_#{'a' * 20}", "name" => "cat.png", "sha256" => "b" * 64,
+                                                            "content_type" => "image/png", "derived_from" => nil,
+                                                            "action" => "saved", "by" => "user",
+                                                            "saved_at" => "2026-01-02T03:04:05Z" },
+                                                          { "id" => "r_#{'c' * 20}", "name" => "x.png", "path" => "/etc/x" }] }],
                          "session_context" => { "topic" => "imported" } }.to_json
         post = lambda do |tab_id|
           parts = ["--B\r\nContent-Disposition: form-data; name=\"file\"; filename=\"c.json\"\r\n" \
@@ -332,6 +337,7 @@ RSpec.describe 'What a new chat keeps from the session' do
           "ui_language" => live[:parameters]["ui_language"], "context" => live[:monadic_state] && live[:monadic_state][:conversation_context],
           "old_chat" => old_chat, "chat" => live[:chat_id], "stored_chat" => stored[:chat_id],
           "stored_messages" => stored[:messages].map { |m| m["text"] }, "sent" => sent,
+          "artifacts" => live[:messages].first["artifacts"],
           "second_try" => again.map { |m| [m["type"], m["success"]] }, "exported_context" => exported["session_context"],
           "exported_saved" => exported_saved["session_context"], "exported_unknown" => exported_unknown["monadic_state"]
         )
@@ -356,6 +362,8 @@ RSpec.describe 'What a new chat keeps from the session' do
       expect(out['chat']).not_to eq(out['old_chat'])
       expect(out['stored_chat']).to eq(out['chat'])
       expect(out['stored_messages']).to eq(['hello'])
+      # Of what the file says was saved, only entries of the checked form.
+      expect(out['artifacts'].map { |a| a['name'] }).to eq(['cat.png'])
       expect(out['sent']).to include('parameters', 'past_messages', 'context_update', 'import_result')
       expect(out['second_try']).to eq([['import_result', false]]) # a staged import is taken once
       expect(out['exported_context']).to eq('topic' => 'imported')

@@ -6812,6 +6812,61 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   outline: 2px solid var(--color-link);
   outline-offset: 2px;
 }
+/* The workbench in the work screen pane (workbench.js): its items (each
+   image with a remove button) and the one selected */
+.workbench-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+.workbench-item {
+  max-width: 16rem;
+  padding: 2px var(--spacing-sm);
+  text-align: left;
+  background: transparent;
+  border: var(--border-width) solid var(--border-light, #dee2e6);
+  border-radius: var(--border-radius);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workbench-item[aria-selected="true"] {
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.workbench-item:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+.workbench-item-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+.workbench-item-remove {
+  margin-left: 2px;
+  padding: 0 4px;
+  background: transparent;
+  border: 0;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+.workbench-item-remove:hover {
+  color: var(--text-primary);
+}
+.workbench-item-remove:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+.workbench-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border-light, #dee2e6);
+}
+
 /* The chat's browser, as it draws (work-screen.js) */
 .work-screen-image {
   display: block;

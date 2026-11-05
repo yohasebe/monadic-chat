@@ -157,6 +157,11 @@ function handlePastMessages(data) {
         if (discourseEl && assistantCard) {
           discourseEl.appendChild(assistantCard[0] || assistantCard);
         }
+        // What was saved from the workbench, as the message records it (a
+        // message without a record clears what was drawn for its id).
+        if (window.Workbench) {
+          window.Workbench.drawRecord(msg.mid, Array.isArray(msg.artifacts) ? msg.artifacts : []);
+        }
         // Restore a persisted verification verdict, if the message carries one.
         if (msg.verify && typeof window.renderVerifyConfidence === 'function') {
           window.renderVerifyConfidence(Object.assign({ mid: msg.mid }, msg.verify));

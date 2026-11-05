@@ -4,8 +4,9 @@
  * The work screen pane shows the chat's browser as it draws, view only (the
  * server relays its screencast: lib/monadic/work_screen.rb).
  *
- * While the pane can be seen (the Work screen tab is selected, the side
- * column is shown, and the window is visible), the page holds a work screen
+ * While the browser can be seen (the Work screen tab is selected, the side
+ * column is shown, the browser is the item selected in the pane
+ * (workbench.js), and the window is visible), the page holds a work screen
  * socket and is subscribed; when it cannot, the socket is closed. To open
  * one the page asks its chat socket for a pass (WORK_SCREEN_TOKEN) and shows
  * it first.
@@ -15,7 +16,7 @@
  * and sends the next. A stream that ends or waits clears the image at once.
  *
  * When the chat's browser opens, the chat socket says so (browser_opened)
- * and the side column switches to this pane.
+ * and the side column switches to this pane, showing the browser.
  */
 (function() {
   'use strict';
@@ -42,6 +43,7 @@
   function visible() {
     var lc = window.LayoutController;
     if (!lc || lc.selectedPane() !== 'work' || lc.isMenuHidden()) return false;
+    if (window.Workbench && !window.Workbench.showsBrowser()) return false;
     if (document.visibilityState === 'hidden') return false;
     var br = window.BackgroundReply;
     return !(br && typeof br.isHeld === 'function' && br.isHeld());
@@ -186,6 +188,7 @@
   // A message for the work screen on the chat socket.
   function onChatEvent(message) {
     if (message.event !== 'browser_opened') return;
+    if (window.Workbench) window.Workbench.select('browser');
     var lc = window.LayoutController;
     if (lc && lc.selectedPane() !== 'work') {
       lc.setPane('work'); // the layout change refreshes

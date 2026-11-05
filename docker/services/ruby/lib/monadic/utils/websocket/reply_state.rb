@@ -31,6 +31,9 @@ module WebSocketHelper
     end
     return unless first
 
+    # A reply that ends without its message offers nothing more: a candidate
+    # it put on the workbench stops waiting (Monadic::Workbench::Offer).
+    Monadic::Workbench::Offer.close(request_id) if outcome == "no_reply"
     send_or_broadcast({ "type" => "reply_state", "state" => "finished", "outcome" => outcome,
                         "request_id" => request_id }.to_json, ws_session_id)
   end

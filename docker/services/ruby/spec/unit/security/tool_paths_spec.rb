@@ -389,14 +389,59 @@ RSpec.describe 'Tool input boundaries' do
     it 'accepts shared image and mask files and normalizes them before credentials' do
       script = generator('image_generator_openai.rb')
       allow(script).to receive(:image_request_problem).and_return(nil)
-      fixture('日本語 folder/image name.png')
-      fixture('mask.png')
+      png = "\x89PNG\r\n\x1A\n".b + ("x" * 16)
+      fixture('日本語 folder/image name.png', text: png)
+      fixture('mask.png', text: png)
       expect(script).to receive(:get_api_key) { throw :validated }
       result = catch(:validated) do
         script.generate_image(operation: 'edit', images: ['日本語 folder/image name.png'], mask: 'mask.png')
         :rejected
       end
       expect(result).to be_nil
+    end
+
+    it 'reads the images to edit once: a try again sends the same bytes' do
+      script = generator('image_generator_openai.rb')
+      allow(script).to receive(:image_request_problem).and_return(nil)
+      allow(script).to receive(:get_api_key).and_return('test-key')
+      allow(script).to receive(:sleep)
+      path = fixture('edit.png', text: "\x89PNG\r\n\x1A\n".b + 'first')
+      sent = []
+      client = Object.new
+      client.define_singleton_method(:headers) { |*| client }
+      client.define_singleton_method(:post) do |_url, form:|
+        sent << Array(form[:'image[]']).map(&:to_s)
+        # The file changes between the tries.
+        File.binwrite(path, "\x89PNG\r\n\x1A\n".b + "changed #{sent.size}")
+        status = Object.new
+        status.define_singleton_method(:success?) { false }
+        status.define_singleton_method(:to_i) { 503 }
+        Struct.new(:status, :body).new(status, '{"error":{"message":"busy"}}')
+      end
+      allow(Monadic::Utils::HttpClient).to receive(:generation).and_return(client)
+      result = script.generate_image(operation: 'edit', model: 'gpt-image-2', prompt: 'x', images: ['edit.png'])
+      expect(result[:success]).to be(false)
+      expect(sent.size).to be > 1
+      expect(sent.uniq.size).to eq(1)
+    end
+
+    it 'reads an input only from the input folder of its own run' do
+      job_output = Monadic::Workbench::JobOutput
+      Dir.mktmpdir do |state|
+        store = Monadic::Workbench::Store.new(File.join(state, 'workbench'))
+        chat = Monadic::Workspace::Ids.generate(:chat)
+        mine = job_output.make(chat, store: store)
+        other = job_output.make(chat, store: store)
+        path = job_output.put_input!(other, 'input.png', 'bytes', root: store.root)
+        expect(job_output.read_input(path, root: store.root, job: other)).to eq('bytes')
+        expect { job_output.read_input(path, root: store.root, job: mine) }.to raise_error(job_output::Refused)
+        # The script takes inputs only from the run it writes for.
+        allow(Monadic::Workbench::Store).to receive(:default).and_return(store)
+        script = generator('image_generator_openai.rb')
+        result = script.read_inputs(operation: 'edit', out_dir: job_output.out_dir(mine), job_inputs: [path])
+        expect(result).to include(success: false)
+        expect(result[:message]).to include('another run')
+      end
     end
 
     it 'rejects video generator external images and forbidden extensions without reading bytes' do

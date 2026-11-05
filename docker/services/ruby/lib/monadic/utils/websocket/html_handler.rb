@@ -237,6 +237,8 @@ module WebSocketHelper
 
         session[:messages] << new_data
         sync_session_state!
+        workbench_reply_recorded(connection, session, new_data["mid"], request_id,
+                                 content["message"][Monadic::Workbench::Offer::ITEMS_KEY])
         outcomes[request_id] = "done" if request_id
         # Filter messages by current app_name to prevent cross-app conversation leakage
         params = get_session_params

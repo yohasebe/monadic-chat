@@ -20,6 +20,7 @@ require_relative '../privacy/export_cipher'
 # Registry stays in memory only (RD-1); exports are user-driven via UI.
 
 require_relative '../privacy/outbound'
+require_relative '../../workbench/record'
 
 module WebSocketHelper
   PRIVACY_PLACEHOLDER_RE = /\A<<([A-Z_]+)_(\d+)>>\z/
@@ -396,7 +397,7 @@ module WebSocketHelper
   PRIVACY_EXPORT_MESSAGE_KEYS = %w[
     mid role text app_name type lang html active
     thinking tokens images image
-    interrupted tools_used verify
+    interrupted tools_used verify artifacts
   ].freeze
 
   # Reduce messages to the shared-export schema. Anything not named above is
@@ -405,7 +406,11 @@ module WebSocketHelper
   private def privacy_clean_messages(messages)
     messages.map do |m|
       next m unless m.is_a?(Hash)
-      m.select { |k, _| PRIVACY_EXPORT_MESSAGE_KEYS.include?(k.to_s) }
+
+      kept = m.select { |k, _| PRIVACY_EXPORT_MESSAGE_KEYS.include?(k.to_s) }
+      # What was saved from the workbench, in its checked form only.
+      artifacts = Monadic::Workbench::Record.clean(kept.delete('artifacts') || kept.delete(:artifacts))
+      artifacts ? kept.merge('artifacts' => artifacts) : kept
     end
   end
 

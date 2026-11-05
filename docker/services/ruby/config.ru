@@ -47,6 +47,14 @@ set :bind, "0.0.0.0"
 # server. See lib/monadic/utils/local_origin_guard.rb.
 use Monadic::Utils::LocalOriginGuard
 
+# A candidate's image on the workbench, served here so its address (which
+# holds the permission) is not written to the access log. See
+# lib/monadic/workbench/asset_server.rb.
+require_relative "lib/monadic/workbench/asset_server"
+use Monadic::Workbench::AssetServer,
+    live: ->(tab_id) { WebSocketHelper.live_generation(tab_id) },
+    private_chat: ->(chat_id) { Monadic::History::Policy.known_private?(chat_id) }
+
 # A Private chat makes no files: the requests that would make them are
 # refused before anything reads their body (Rack writes file parts to disk
 # while parsing). See lib/monadic/history/private_request_guard.rb.

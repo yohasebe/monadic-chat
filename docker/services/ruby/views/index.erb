@@ -308,13 +308,15 @@
     </nav>
     <%# Shown while the AI drives a work screen: what runs and how to stop it. %>
     <div id="work-run-strip" class="work-run-strip" role="status" hidden></div>
+    <%# Announces a new image on the workbench, and what is done with one (workbench.js). %>
+    <div id="workbench-status" class="visually-hidden" role="status" aria-live="polite"></div>
         <div class="container-fluid pt-0 p-3" id="contents">
       <div class="row g-3 mt-0 mb-0 row-no-bottom-margin">
         <div id="menu" class="col-md-4 order-md-2 scrollable">
           <%# The side column holds two panes; layout-controller.js shows one. %>
           <div id="side-pane-tabs" class="side-pane-tabs rounded mb-2" role="tablist" aria-label="Side panel" data-i18n-aria-label="ui.sidePane.label">
             <button type="button" id="side-tab-settings" class="side-pane-tab" role="tab" aria-selected="true" aria-controls="settings-pane" data-pane="settings" data-i18n="ui.sidePane.menu">Menu</button>
-            <button type="button" id="side-tab-work" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="work-screen-pane" data-pane="work" tabindex="-1" data-i18n="ui.sidePane.workScreen">Work screen</button>
+            <button type="button" id="side-tab-work" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="work-screen-pane" data-pane="work" tabindex="-1"><span data-i18n="ui.sidePane.workScreen">Work screen</span></button>
           </div>
           <div id="settings-pane" role="tabpanel" aria-labelledby="side-tab-settings">
           <div id="monadic-info-panel" class="mb-3 rounded shaded-panel overflow-hidden">
@@ -770,8 +772,13 @@
           </div>
           </div>
           <div id="work-screen-pane" role="tabpanel" aria-labelledby="side-tab-work" hidden>
-            <div class="rounded shaded-panel p-3 text-secondary" id="work-screen-empty" data-i18n="ui.sidePane.workScreenEmpty">No work screen is currently available.</div>
-            <img id="work-screen-image" class="work-screen-image rounded" alt="Work screen" data-i18n-aria-label="ui.sidePane.workScreen" style="display: none;">
+            <%# The workbench's items: the browser and the images offered (workbench.js). %>
+            <div id="workbench-items" class="workbench-items mb-2" role="tablist" aria-label="Work screen items" data-i18n-aria-label="ui.workbench.items" hidden></div>
+            <div id="work-screen-browser">
+              <div class="rounded shaded-panel p-3 text-secondary" id="work-screen-empty" data-i18n="ui.sidePane.workScreenEmpty">No work screen is currently available.</div>
+              <img id="work-screen-image" class="work-screen-image rounded" alt="Work screen" data-i18n-aria-label="ui.sidePane.workScreen" style="display: none;">
+            </div>
+            <div id="workbench-view" class="workbench-view" hidden></div>
           </div>
         </div>
 

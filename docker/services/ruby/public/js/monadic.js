@@ -3410,6 +3410,9 @@ document.addEventListener("DOMContentLoaded", function () {
       if (message.image) {
         message_obj.image = message.image;
       }
+      if (message.artifacts) {
+        message_obj.artifacts = message.artifacts;
+      }
       allMessages.push(message_obj);
     });
 

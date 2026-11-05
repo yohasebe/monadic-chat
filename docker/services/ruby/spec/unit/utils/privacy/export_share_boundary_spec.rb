@@ -126,6 +126,17 @@ RSpec.describe 'Privacy export share boundary' do
       expect(payload['parameters']).to include('app_name', 'model', 'initial_prompt')
     end
 
+    it 'keeps what was saved from the workbench in its checked form only' do
+      saved = { 'id' => "r_#{'a' * 20}", 'name' => 'cat.png', 'sha256' => 'b' * 64, 'content_type' => 'image/png',
+                'derived_from' => nil, 'action' => 'saved', 'by' => 'user', 'saved_at' => '2026-01-02T03:04:05Z' }
+      cleaned = exporter.privacy_clean_messages(
+        [{ 'role' => 'assistant', 'text' => 'done', 'artifacts' => [saved.merge('token' => 'x'), saved] },
+         { 'role' => 'assistant', 'text' => 'none', 'artifacts' => [{ 'path' => '/x' }] }]
+      )
+      expect(cleaned.first['artifacts']).to eq([saved])
+      expect(cleaned.last).not_to have_key('artifacts')
+    end
+
     it 'drops a key nobody vetted for sharing' do
       # The failure this replaces: the old deny list named `_privacy*` only, so
       # vocabulary_map shipped once it was added.

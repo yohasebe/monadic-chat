@@ -75,7 +75,7 @@ AI ユーザー機能のシステムプロンプトを表示・編集します�
 
 ## サイドバーのパネル :id=info-panel
 
-サイドバーには、上から次のパネルがあります。パネルの見出しをクリックすると、たたんだり開いたりできます。
+サイドバーの上には 2 つのタブがあります。**メニュー**には、上から次のパネルがあります。**作業画面**は、下の[作業画面](#work-screen)を参照してください。ページはメニューのタブで開きます。パネルの見出しをクリックすると、たたんだり開いたりできます。
 
 **Monadic Chat Info**<br />
 ホームページと GitHub へのリンク、今の版、**Conversation Language** の選択、**Web Search** と **Math Rendering** の切り替え、今の基本アプリの名前と説明、**Help Data**（Monadic Chat Help アプリが使うヘルプのデータベース。状態とインストールのボタン）、**Available Variables** の一覧。
@@ -121,6 +121,12 @@ System、Light、Dark。
 
 **Speech**<br />
 下の [Speech パネル](#speech-settings-panel)を参照してください。
+
+## 作業画面 :id=work-screen
+
+**作業画面**のタブには、今の会話で AI が使っているブラウザーの画面が、描かれるそのままに映ります。映るのはタブを表示している間で、見るだけです。AI がブラウザーを開くと（たとえば [Web Insight](../apps/analysis-apps.md#web-insight)）、サイドバーはこのタブに切り替わります。
+
+ブラウザーは返事のあとも開いたままで、5 分間使われなければ閉じます。**Reset** でも閉じます。AI がブラウザーを開かずに撮るスクリーンショットは、ここには映りません。
 
 ## Speech パネル :id=speech-settings-panel
 

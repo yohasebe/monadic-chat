@@ -224,19 +224,21 @@ window.isReasoningStreamActive = function() {
 // (window.WsToolStatusUi, also exported as window.updateToolStatus / window.clearToolStatus
 // for back-compat with ws-tool-handler.js which does free-variable lookup).
 
+// The server's WebSocket address: the page's host and port when it is not
+// opened as localhost, ws://localhost:4567 otherwise.
+function monadicSocketBase() {
+  const host = window.location.hostname;
+  if (host && host !== 'localhost' && host !== '127.0.0.1') {
+    return `ws://${host}:${window.location.port || '4567'}`;
+  }
+  return 'ws://localhost:4567';
+}
+window.monadicSocketBase = monadicSocketBase;
+
 function connect_websocket(callback) {
-  // Use current hostname if available, otherwise default to localhost
-  let wsUrl = 'ws://localhost:4567';
+  let wsUrl = monadicSocketBase();
   // Always resolve the tab ID through the getter so it tracks sessionStorage changes.
   const tabId = window.getMonadicTabId ? window.getMonadicTabId() : null;
-
-  // If accessing from a non-localhost address, use that instead
-  if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    const host = window.location.hostname;
-    const port = window.location.port || '4567';
-    wsUrl = `ws://${host}:${port}`;
-    if (window.debugWebSocket) console.log(`[WebSocket] Using hostname from browser: ${wsUrl}`);
-  }
 
   if (tabId) {
     const separator = wsUrl.includes('?') ? '&' : '?';
@@ -302,6 +304,11 @@ window.loadedApp = "Chat";
       // No key goes from the page: the server checks the one it has.
       ui_language: uiLanguage
     }, { silentDrop: true });
+
+    // The work screen opens its socket again with a pass from this one.
+    if (window.WorkScreen) {
+      try { window.WorkScreen.onChatSocketOpen(); } catch (_) {}
+    }
 
     // Library (Knowledge Base) panel: fetch initial inventory + counts
     // once the connection is up. The panel is mounted globally and
@@ -863,6 +870,16 @@ window.loadedApp = "Chat";
       }
 
       case "pong": {
+        break;
+      }
+
+      case "work_screen_token": {
+        if (window.WorkScreen) window.WorkScreen.onPass(data.token);
+        break;
+      }
+
+      case "work_screen": {
+        if (window.WorkScreen) window.WorkScreen.onChatEvent(data);
         break;
       }
 

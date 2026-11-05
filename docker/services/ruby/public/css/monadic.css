@@ -6812,3 +6812,10 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   outline: 2px solid var(--color-link);
   outline-offset: 2px;
 }
+/* The chat's browser, as it draws (work-screen.js) */
+.work-screen-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border-light, #dee2e6);
+}

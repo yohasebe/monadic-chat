@@ -71,7 +71,7 @@ app "WebInsightClaude" do
     2. Use `browser_get_page_info` to discover interactive elements (call ONCE per page)
     3. Perform actions: `browser_click`, `browser_type`, `browser_press_key`, `browser_select`, `browser_scroll`, `browser_navigate`, `browser_back`, `browser_forward`
     4. After each action, examine the returned screenshot and page_info
-    5. Call `stop_browser` when finished
+    5. Leave the browser open when finished: the user can watch the page and ask for more, and it closes by itself after a few minutes unused. Call `stop_browser` only when the user asks to close it
 
     ### Guidelines
     - Before each action, briefly explain what you are about to do

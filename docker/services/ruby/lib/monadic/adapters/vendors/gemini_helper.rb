@@ -21,6 +21,7 @@ require_relative "../../utils/ssl_configuration"
 require_relative "../../utils/extra_logger"
 require_relative "../../utils/progress_broadcaster"
 require_relative "../../utils/tool_key_requirements"
+require_relative "../../workbench/offer"
 
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
@@ -63,7 +64,11 @@ module GeminiHelper
   # Supports optional image inputs (up to 14) for editing/conditioning:
   # images: array of { mime_type: "image/png", data: "<base64>" }
   # If images is nil, will fall back to images attached to the latest user message in session (if provided)
-  def generate_image_with_gemini_native(prompt:, model: nil, aspect_ratio: nil, image_size: nil, images: nil, session: nil)
+  # A run for a chat's workbench (out_dir, Monadic::Workbench::JobOutput)
+  # sends exactly the images it is given and writes the image in out_dir,
+  # leaving the session and the shared folder alone.
+  def generate_image_with_gemini_native(prompt:, model: nil, aspect_ratio: nil, image_size: nil, images: nil, session: nil,
+                                        out_dir: nil)
     model ||= if defined?(Monadic::Utils::ModelSpec)
                 Monadic::Utils::ModelSpec.default_image_model("gemini")
               end
@@ -88,54 +93,8 @@ module GeminiHelper
 
     parts = [{ text: prompt }]
 
-    # Check if user has uploaded new images in session
-    has_uploaded_images = false
-    if session && session[:messages]
-      has_uploaded_images = session[:messages].any? { |msg|
-        msg["role"] == "user" && msg["images"] && msg["images"].any?
-      }
-
-      Monadic::Utils::ExtraLogger.log { "ImageGeneratorGemini: Checking for user-uploaded images\n  has_uploaded_images: #{has_uploaded_images}" }
-    end
-
-    # Auto-attach last generated image (for iterative editing)
-    # ONLY if user hasn't uploaded new images (check both images param and session)
-    if session && session[:gemini3_last_image] && (images.nil? || images.empty?) && !has_uploaded_images
-      image_path = File.join(shared_folder, session[:gemini3_last_image])
-      # Read as a plain file of the shared folder, never through a link.
-      image_data = (Monadic::Utils::SharedPathGuard.read_bytes!(image_path) rescue nil)
-      if image_data
-        # Encode the last generated image
-        image_b64 = Base64.strict_encode64(image_data)
-
-        # Add to images parameter for processing
-        # Use format compatible with existing image processing (data URL format)
-        images ||= []
-        images = [images] unless images.is_a?(Array)
-        mime = case File.extname(session[:gemini3_last_image].to_s).downcase
-               when ".png" then "image/png"
-               when ".jpg", ".jpeg" then "image/jpeg"
-               when ".gif" then "image/gif"
-               when ".webp" then "image/webp"
-               else "image/png"
-               end
-        data_url = "data:#{mime};base64,#{image_b64}"
-        images << {
-          "data" => data_url,
-          "name" => session[:gemini3_last_image]
-        }
-
-        Monadic::Utils::ExtraLogger.log { "ImageGeneratorGemini: Auto-attached last generated image: #{session[:gemini3_last_image]}\n  This makes iterative editing work like 'editing uploaded image'" }
-
-        # Clear after attaching (one-time use)
-        session[:gemini3_last_image] = nil
-        # Don't clear duplicate flag here - it's managed by process_functions
-      else
-        Monadic::Utils::ExtraLogger.log { "ImageGeneratorGemini: Last generated image file not found: #{image_path}" }
-        # Clear the reference since file doesn't exist
-        session[:gemini3_last_image] = nil
-      end
-    end
+    # Only the images given go with a workbench run, none from the session
+    images = Array(images) if out_dir
 
     # Normalize image inputs: prefer explicit images param; fallback to session attachments
     inline_images = []
@@ -278,6 +237,11 @@ module GeminiHelper
               else "png"
               end
         filename = "gemini3_image_#{Time.now.to_i}.#{ext}"
+        if out_dir
+          Monadic::Workbench::JobOutput.write!(out_dir, filename, Base64.decode64(b64))
+          return { success: true, filename: filename, model: model, prompt: prompt }.to_json
+        end
+
         filepath = File.join(shared_folder, filename)
         Monadic::Utils::SharedPathGuard.write_file!(filepath, Base64.decode64(b64))
 
@@ -2736,7 +2700,10 @@ module GeminiHelper
         ) }]
       end
 
-      if result && new_results
+      if Monadic::Workbench::Offer.ended_reply?(new_results)
+        # An image on the workbench ended the reply as it is
+        new_results
+      elsif result && new_results
         assemble_gemini_final_result(
           result: result, new_results: new_results,
           tool_calls: tool_calls, session: session, &block
@@ -3395,7 +3362,8 @@ module GeminiHelper
     }
     
     # Process each tool call
-    tool_calls.each do |tool_call|
+    ended = nil
+    tool_calls.each_with_index do |tool_call, index|
       function_name = tool_call["name"]
       record_tool_call(session, function_name)
       block&.call({ "type" => "tool_executing", "content" => function_name })
@@ -3435,40 +3403,32 @@ module GeminiHelper
           # Check for repeated errors before adding to tool results
           if handle_function_error(session, content, function_name, &block)
             # Stop retrying - add result and skip to loop exit
-            session_params["tool_results"] << {
-              "functionResponse" => {
-                "name" => function_name,
-                "response" => {
-                  "name" => function_name,
-                  "content" => content
-                }
-              },
-              "functionCall" => { "name" => function_name, "args" => tool_call["args"] || {} },
-              "thoughtSignature" => tool_call["_thoughtSignature"],
-              "call_depth" => call_depth
-            }
+            session_params["tool_results"] << gemini_tool_result(tool_call, content, call_depth)
             next
           end
 
-          # Add to tool results and debug
-          session_params["tool_results"] << {
-            "functionResponse" => {
-              "name" => function_name,
-              "response" => {
-                "name" => function_name,
-                "content" => content
-              }
-            },
-            "functionCall" => { "name" => function_name, "args" => tool_call["args"] || {} },
-            "thoughtSignature" => tool_call["_thoughtSignature"],
-            "call_depth" => call_depth  # Track call_depth to prevent duplicates within same turn
-          }
+          session_params["tool_results"] << gemini_tool_result(tool_call, content, call_depth)
 
-          # Tool result added (debug logging removed)
+          if function_return.is_a?(Monadic::Workbench::Offered) && function_return.for?(session)
+            ended = [function_return, index]
+            break
+          end
         end
       rescue StandardError => e
-        handle_gemini_tool_execution_error(e, function_name, argument_hash, session_params, &block)
+        handle_gemini_tool_execution_error(e, tool_call, call_depth, session_params, &block)
       end
+    end
+
+    # An image was put on the workbench: the reply's work is done. The other
+    # calls are not run (each gets its own result, after its own call), and
+    # the reply ends without asking the model. Outside the rescue above: a
+    # failure to send the reply is not a failure of the tool that ran.
+    if ended
+      offered, index = ended
+      tool_calls.drop(index + 1).each do |skipped|
+        session_params["tool_results"] << gemini_tool_result(skipped, Monadic::Workbench::Offered.not_executed, call_depth)
+      end
+      return Monadic::Workbench::Offer.end_reply(offered, &block)
     end
 
     # For Image/Video Generator apps, skip the recursive api_request after successful generation
@@ -3615,6 +3575,18 @@ module GeminiHelper
 
   private
 
+  # A call's result as kept for the next request: the model's own call
+  # (its arguments and thought signature, unchanged) with its response.
+  def gemini_tool_result(tool_call, content, call_depth)
+    name = tool_call["name"]
+    {
+      "functionResponse" => { "name" => name, "response" => { "name" => name, "content" => content } },
+      "functionCall" => { "name" => name, "args" => tool_call["args"] || {} },
+      "thoughtSignature" => tool_call["_thoughtSignature"],
+      "call_depth" => call_depth # Track call_depth to prevent duplicates within same turn
+    }
+  end
+
   # 3a: Parse, symbolize, and prepare tool arguments from a Gemini tool call
   def prepare_gemini_tool_arguments(tool_call, app, function_name, session)
     # Parse arguments from the tool call
@@ -3647,6 +3619,7 @@ module GeminiHelper
     if method_obj && method_obj.parameters.any? { |type, name| name == :session }
       argument_hash[:session] = session
     end
+    Monadic::Workbench::Caller.inject!(argument_hash, method_obj, session)
 
     # Special handling for tavily_search to ensure proper parameter mapping
     if function_name == "tavily_search"
@@ -3676,7 +3649,9 @@ module GeminiHelper
 
   # 3c: Process tool return value for media generators and standard functions
   def handle_media_generation_result(function_name, function_return, session)
-    if GeminiHelper.gemini_video_tool?(function_name)
+    if function_return.is_a?(Monadic::Workbench::Offered)
+      function_return.to_s
+    elsif GeminiHelper.gemini_video_tool?(function_name)
       # The generator's JSON: success with the saved videos, or a message.
       parsed_json = begin
         function_return.is_a?(String) ? JSON.parse(function_return) : function_return
@@ -3691,7 +3666,6 @@ module GeminiHelper
     elsif function_name == "generate_image_with_gemini"
       image_success = false
       error_message = nil
-      generated_filename = nil
 
       begin
         if function_return.is_a?(String)
@@ -3699,12 +3673,6 @@ module GeminiHelper
 
           if parsed_json["success"] && parsed_json["filename"]
             image_success = true
-            generated_filename = parsed_json["filename"]
-
-            session[:gemini3_last_image] = generated_filename
-            session[:gemini3_duplicate_check] = true
-
-            Monadic::Utils::ExtraLogger.log { "ImageGeneratorGemini: Saved last generated image: #{generated_filename}\n  Set duplicate check flag" }
           else
             error_message = parsed_json["error"]
             image_success = false
@@ -3743,7 +3711,10 @@ module GeminiHelper
   end
 
   # 3d: Handle errors during tool function execution
-  def handle_gemini_tool_execution_error(e, function_name, argument_hash, session_params, &block)
+  # The error answers the call that raised it, after that call and its
+  # signature, like any other result.
+  def handle_gemini_tool_execution_error(e, tool_call, call_depth, session_params, &block)
+    function_name = tool_call["name"]
     error_message = Monadic::Utils::ErrorFormatter.tool_error(
       provider: "Gemini",
       tool_name: function_name,
@@ -3751,15 +3722,7 @@ module GeminiHelper
     )
     Monadic::Utils::ExtraLogger.log { "[Gemini] #{error_message}" }
 
-    session_params["tool_results"] << {
-      "functionResponse" => {
-        "name" => function_name,
-        "response" => {
-          "name" => function_name,
-          "content" => error_message
-        }
-      }
-    }
+    session_params["tool_results"] << gemini_tool_result(tool_call, error_message, call_depth)
 
     res = { "type" => "fragment", "content" => "<span class='text-danger'>#{error_message}</span>", "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
     block&.call res
@@ -3979,36 +3942,7 @@ module GeminiHelper
         end
 
         if user_messages_with_images.empty?
-          # Check for last generated image if no uploaded image found
-          if session[:gemini3_last_image]
-             filename = session[:gemini3_last_image]
-             filepath = File.join(shared_folder, filename)
-             # Read as a plain file of the shared folder, never through a link.
-             image_data_binary = (Monadic::Utils::SharedPathGuard.read_bytes!(filepath) rescue nil)
-             if image_data_binary
-               base64_data = Base64.strict_encode64(image_data_binary)
-               
-               # Determine mime type from extension
-               extension = File.extname(filename).downcase
-               mime_type = case extension
-                           when ".png" then "image/png"
-                           when ".jpg", ".jpeg" then "image/jpeg"
-                           when ".webp" then "image/webp"
-                           else "image/png"
-                           end
-               
-               images = [{
-                 "name" => filename,
-                 "data" => "data:#{mime_type};base64,#{base64_data}"
-               }]
-             else
-               # Clear stale reference
-               session[:gemini3_last_image] = nil
-               return { success: false, error: "Previous generated image file not found: #{filename}" }.to_json
-             end
-          else
-            return { success: false, error: "No image found for editing. Please upload an image first or generate one." }.to_json
-          end
+          return { success: false, error: "No image found for editing. Please upload an image first or generate one." }.to_json
         else
           latest_message = user_messages_with_images.last
           images = latest_message["images"]

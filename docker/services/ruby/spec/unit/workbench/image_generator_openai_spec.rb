@@ -128,9 +128,9 @@ RSpec.describe "the OpenAI image tool on the workbench" do
   end
 
   describe "an edit" do
-    def edit(text: "make it brighter", images: nil)
+    def edit(text: "make it brighter", images: nil, mask: nil)
       session[:messages] << { "mid" => "m-u#{session[:messages].size}", "role" => "user", "text" => text }
-      generate(operation: "edit", prompt: text, **(images ? { images: images } : {}))
+      generate(operation: "edit", prompt: text, **(images ? { images: images } : {}), **(mask ? { mask: mask } : {}))
     end
 
     def job_inputs(command)
@@ -209,6 +209,46 @@ RSpec.describe "the OpenAI image tool on the workbench" do
       expect(pairs).to include(["-i", "photo.png"])
       expect(pairs.find { |flag, _| flag == "--mask" }&.last).to end_with("mask__photo.png")
       expect(job_inputs(commands.last)).to be_empty
+    end
+
+    it "keeps a mask drawn in the mask editor with the image uploaded beside it, the model passing no mask" do
+      fake_generator
+      data = "data:image/png;base64,#{Base64.strict_encode64(png(8, 8))}"
+      uploads = [{ "title" => "photo.png", "data" => data, "type" => "image/png" },
+                 { "title" => "mask__photo.png", "data" => data, "type" => "image/png", "is_mask" => true,
+                   "mask_for" => "photo.png" }]
+      session[:parameters]["images"] = uploads
+      session[:messages] << { "mid" => "m-mask", "role" => "user", "text" => "change the sky", "images" => uploads }
+      generate(operation: "edit", prompt: "change the sky")
+      pairs = commands.last.each_cons(2).to_a
+      expect(pairs).to include(["-i", "photo.png"])
+      expect(pairs.find { |flag, _| flag == "--mask" }&.last).to end_with("mask__photo.png")
+    end
+
+    it "stops when an uploaded image cannot be read, rather than edit fewer or another, and leaves out documents" do
+      fake_generator(bytes: png(64, 48, "first"), name: "first.png")
+      generate
+      fake_generator(bytes: png(64, 48, "x"), name: "x.png")
+      commands.clear
+      data = "data:image/png;base64,#{Base64.strict_encode64(png(8, 8))}"
+      session[:parameters]["images"] = [{ "title" => "photo.png", "data" => data, "type" => "image/png" },
+                                        { "title" => "missing.png", "type" => "image/png" }]
+      expect(edit(text: "join them")).to start_with("❌ The image you uploaded could not be read: missing.png")
+      session[:parameters]["images"] = [{ "title" => "missing.png", "type" => "image/png" }]
+      expect(edit(text: "use this")).to start_with("❌ The image you uploaded could not be read: missing.png")
+      expect(commands).to be_empty
+      session[:parameters]["images"] = [{ "title" => "notes.pdf", "data" => "data:application/pdf;base64,AAAA",
+                                          "type" => "application/pdf" }]
+      edit(text: "brighter")
+      expect(job_inputs(commands.last).size).to eq(1)
+    end
+
+    it "refuses a mask for the image in the work screen rather than edit without it" do
+      fake_generator(bytes: png(64, 48, "first"), name: "first.png")
+      generate
+      commands.clear
+      expect(edit(text: "change the sky", mask: "mask__photo.png")).to start_with("❌ A mask applies to an uploaded or named image")
+      expect(commands).to be_empty
     end
 
     it "says there is nothing to edit when the workbench is empty and nothing was uploaded or named" do

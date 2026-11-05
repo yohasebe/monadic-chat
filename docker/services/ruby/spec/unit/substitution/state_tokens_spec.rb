@@ -65,9 +65,9 @@ RSpec.describe "Monadic::Substitution::Vocabulary image/notebook tokens" do
       expect(described.last_generated_image(session)).to eq("cat_2026.png")
     end
 
-    it "falls back to the provider-specific legacy single-image key" do
-      session = { parameters: { "app_name" => "ImageGeneratorGrok" }, grok_last_image: "/monadic/data/grok_img.png" }
-      expect(described.last_generated_image(session)).to eq("grok_img.png")
+    it "no longer reads the session-only single-image key" do
+      session = { parameters: { "app_name" => "ImageGeneratorGemini" }, gemini3_last_image: "/monadic/data/gemini_img.png" }
+      expect(described.last_generated_image(session)).to be_nil
     end
 
     it "returns nil when nothing has been generated" do

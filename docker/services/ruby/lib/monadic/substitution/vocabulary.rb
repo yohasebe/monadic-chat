@@ -246,9 +246,8 @@ module Monadic
       # @return [String, nil] basename of the most recently generated image in
       #   this session, or nil. An image the user saved from the workbench comes
       #   first, as the messages' records say (Monadic::Workbench::Record); then
-      #   the unified monadic_state "last_images" slot for the active app (where
-      #   the image generators that save directly keep it), then the
-      #   provider-specific legacy single-image keys.
+      #   the monadic_state "last_images" slot for the active app, which chats
+      #   made before the workbench carry.
       #
       # Scope (decision): `${LAST_GENERATED_IMAGE}` is opted into (MDSL `use :last_generated_image`)
       # only by the dedicated Image Generator apps, which have the iterative
@@ -273,8 +272,7 @@ module Monadic
           first = data.is_a?(Array) ? data.first : nil
           return File.basename(first.to_s) if first && !first.to_s.empty?
         end
-        legacy = session[:grok_last_image] || session[:gemini3_last_image]
-        legacy && !legacy.to_s.empty? ? File.basename(legacy.to_s) : nil
+        nil
       end
 
       # @param session [Hash]

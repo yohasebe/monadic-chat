@@ -13,26 +13,16 @@ require_relative "../../spec_helper"
 RSpec.describe "session-state token key contract" do
   ruby_root = File.expand_path("../../..", __dir__) # docker/services/ruby
   vocab     = File.read(File.join(ruby_root, "lib/monadic/substitution/vocabulary.rb"))
-  img_tools = File.read(File.join(ruby_root, "apps/image_generator/image_generator_tools.rb"))
   jup_tools = File.read(File.join(ruby_root, "apps/jupyter_notebook/jupyter_notebook_tools.rb"))
 
-  it "keeps the unified monadic_state 'last_images' slot in sync (resolver reads / tools write)" do
-    expect(vocab).to include("last_images"),
-      "vocabulary.rb resolver should read the 'last_images' monadic_state slot"
-    expect(img_tools).to include('key: "last_images"'),
-      "image_generator_tools.rb should still save via monadic_save_state key: \"last_images\""
-  end
-
-  # The OpenAI tool keeps only "last_images" (written when the user saves an
-  # image from the workbench).
-  it "keeps the legacy *_last_image fallback keys in sync (resolver reads / tools write)" do
-    %i[grok gemini3].each do |provider|
-      key = ":#{provider}_last_image"
-      expect(vocab).to include(key),
-        "vocabulary.rb resolver should fall back to session[#{key}]"
-      expect(img_tools).to include(key),
-        "image_generator_tools.rb should still write session[#{key}]"
-    end
+  # The image tools put images on the workbench; a save is recorded on the
+  # chat's messages, which ${LAST_GENERATED_IMAGE} reads.
+  it "keeps the saved-image record in sync (resolver reads / the workbench records)" do
+    record = File.read(File.join(ruby_root, "lib/monadic/workbench/record.rb"))
+    expect(vocab).to include("Record.last_saved_name"),
+      "vocabulary.rb resolver should read the last saved image from the messages' records"
+    expect(record).to include("def last_saved_name"),
+      "record.rb should still define last_saved_name"
   end
 
   it "keeps 'notebook_filename' in sync (resolver reads / Jupyter tools write)" do

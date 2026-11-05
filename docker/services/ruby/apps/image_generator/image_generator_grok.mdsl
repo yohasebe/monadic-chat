@@ -52,41 +52,33 @@ app "ImageGeneratorGrok" do
     1. **New Image Generation:**
        - User describes an image → call generate_image_with_grok(operation: "generate", ...)
        - Pass user's prompt unchanged
-       - The generated image filename is automatically saved for later editing
+       - The image is shown in the work screen. Saving it to the shared folder is the user's choice there; an image does not need to be saved to be edited
 
-    2. **Edit Previous Image:**
-       - User wants to modify the last generated image (e.g., "make it brighter", "add X")
-       - First, call monadic_load_state(app: "ImageGeneratorGrok", key: "last_images") to get the filename
-       - If data exists and not null, call generate_image_with_grok(operation: "edit", images: [filename], ...)
-       - If data is null, tell the user no previous image exists
+    2. **Edit the Last Image:**
+       - User wants to modify the image they are working on (e.g., "make it brighter", "add X")
+       - Call generate_image_with_grok(operation: "edit", ...) without images: the system uses the image that came last in the work screen, saved or not
+       - Never ask the user to upload or save an image to edit it
 
-    3. **Edit Uploaded Image:**
-       - User uploads an image with editing instructions
-       - Call generate_image_with_grok(operation: "edit", ...) directly
-       - The system automatically retrieves uploaded images
-
-    NOTE: You only need to use monadic_load_state for reading. Saving is automatic.
+    3. **Edit an Uploaded or Named Image:**
+       - User uploads an image, or names a file of the shared folder in their message, with editing instructions
+       - Call generate_image_with_grok(operation: "edit", ...); pass images only with the file names the user wrote
+       - The system takes uploaded images itself
 
     PARAMETERS:
     - aspect_ratio and quality: use the values listed in the tool schema
     - Omit quality unless the user requests it (API default: auto)
-    - Up to 5 images can be provided for editing
+    - Up to 5 images can be edited together
+    - Masks are not supported: describe the area to change in words
 
     RESULT DISPLAY:
-    Success (success=true with filename):
-    <div class="prompt" style="margin-bottom: 15px;">
-      <b>Revised Prompt</b>: [revised_prompt from API]
-    </div>
-    <div class="generated_image">
-      <img src="/data/[filename]">
-    </div>
+    A generated image is shown to the user in the work screen; the reply ends
+    there. Do not write image HTML or a /data/ path for an image: it is in the
+    shared folder only if the user saves it there.
 
-    Error (success=false):
-    Display the error message without additional commentary
+    Error: display the error message without additional commentary
 
     RULES:
     - Always call tools for image operations
-    - For edit operations on previous image, ALWAYS call monadic_load_state with app: "ImageGeneratorGrok" first
     - NEVER retry automatically on error
 
     CRITICAL - NO CONTENT FILTERING:
@@ -141,20 +133,11 @@ app "ImageGeneratorGrok" do
       parameter :aspect_ratio, "string", "Aspect ratio. Omit to use the API default.", required: false, enum: Monadic::Utils::ModelSpec.image_options("xai", "aspect_ratio")
       parameter :quality, "string", "Image quality. Omit to use the API default (auto).", required: false, enum: Monadic::Utils::ModelSpec.image_options("xai", "quality")
       parameter :image_model, "string", "Image model to use. Omit for the standard (cheapest) model; pass a later one only when the user asks for higher quality, since they cost more per image. An unavailable model falls back to the standard one.", required: false, enum: Monadic::Utils::ModelSpec.get_provider_models("xai", "image")
-      parameter :images, "array", "Array of image filenames for editing (max 5)", required: false, items: {
+      parameter :images, "array", "File names of the shared folder the user named for editing (max 5). Omit to edit the last image in the work screen", required: false, items: {
         type: "string",
         description: "Image filename"
       }
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
-
-    define_tool "monadic_load_state", "Load monadic session state for this app/key. Use this to retrieve the last generated image filename for editing." do
-      parameter :app, "string", "App name (defaults to current app)", required: false
-      parameter :key, "string", "State key to load", required: true
-      parameter :default, "object", "Default value if state is missing", required: false
-      parameter :session, "object", "Session object (automatically provided)", required: false
-    end
-    # Note: monadic_save_state is called automatically by generate_image_with_grok
-    # Do NOT define it as a tool - LLM should not call it directly
   end
 end

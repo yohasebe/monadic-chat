@@ -807,6 +807,9 @@ function handleAppsMessage(data) {
  * @param {Object} data - Message data with content (parameters object)
  * @returns {string|undefined} Status string for testing: 'skip', 'param_update', 'pending'
  */
+// What proceedWithAppChange keeps from params while a chat is imported.
+const IMPORT_KEPT_PARAMS = ['app_name', 'model', 'initiate_from_assistant', 'auto_speech'];
+
 function handleParametersMessage(data) {
   const apps = window.apps || {};
 
@@ -834,6 +837,15 @@ function handleParametersMessage(data) {
     if (typeof window !== 'undefined') {
       window.isProcessingImport = true;
       window.skipAssistantInitiation = true;
+    }
+    // The chat being taken in (an import, a chat from the history) was made
+    // with these. The app change that follows keeps them while importing
+    // (proceedWithAppChange), so they are the chat's, not the app shown
+    // before; otherwise the app shown before comes back.
+    if (typeof params !== 'undefined' && params) {
+      IMPORT_KEPT_PARAMS.forEach((key) => {
+        if (Object.prototype.hasOwnProperty.call(data["content"], key)) params[key] = data["content"][key];
+      });
     }
   }
 

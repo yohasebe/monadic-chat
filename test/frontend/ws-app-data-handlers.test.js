@@ -617,6 +617,16 @@ describe('ws-app-data-handlers', () => {
       expect(global.setAutoSpeechSuppressed).toHaveBeenCalledWith(true, { reason: 'parameters import' });
     });
 
+    it('takes the imported chat\'s app and model into params, so the app change keeps them', () => {
+      global.params = { app_name: 'ChatOpenAI', model: 'chat-model', auto_speech: true };
+      handlers.handleParametersMessage({
+        content: { app_name: 'ImageGeneratorOpenAI', model: 'image-model', auto_speech: false,
+                   initial_prompt: 'not kept here' },
+        from_import: true
+      });
+      expect(global.params).toEqual({ app_name: 'ImageGeneratorOpenAI', model: 'image-model', auto_speech: false });
+    });
+
     it('stores pending parameters when apps not loaded', () => {
       window.apps = {};
       const data = {

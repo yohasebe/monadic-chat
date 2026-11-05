@@ -38,7 +38,13 @@ module MonadicSharedTools
     # Reports taken again when the slots changed while one was read.
     OBSERVE_TRIES = 3
 
-    Browser = Struct.new(:session, :used_at)
+    # instance: a number of its own for each browser opened, so a browser
+    # started again in the same chat is told apart. window: the WebDriver
+    # window handle the tools act on (Chromium's CDP target id), as the
+    # last tool reported it.
+    Browser = Struct.new(:session, :used_at, :instance, :epoch, :window)
+    # What the work screen may know of a chat's browser.
+    View = Struct.new(:chat, :epoch, :instance, :session, :window)
 
     # A browser session was not opened; the message says why.
     class Refused < StandardError; end
@@ -70,6 +76,7 @@ module MonadicSharedTools
     # Bumped whenever a slot may have been given up, so that an admission
     # decided on an older report reads Selenium again.
     @revision = 0
+    @instances = 0
     # Per chat, kept for good: the lock every caller of the chat waits on.
     @op_locks = {}
     @runner = nil
@@ -163,13 +170,13 @@ module MonadicSharedTools
     # The start ended, with the session it made or nil. True when the chat
     # keeps it; false when the chat was replaced meanwhile (the caller has it
     # closed).
-    def finish_start(chat, session_id, epoch)
+    def finish_start(chat, session_id, epoch, window: nil)
       kept = @lock.synchronize do
         @starting.delete(chat)
         @revision += 1
         next false if session_id.nil? || !live?(chat, epoch)
 
-        @browsers[chat] = Browser.new(session_id, clock)
+        @browsers[chat] = Browser.new(session_id, clock, @instances += 1, epoch, window)
         true
       end
       start_worker if kept
@@ -196,6 +203,26 @@ module MonadicSharedTools
 
         browser.used_at = clock
         true
+      end
+    end
+
+    # The chat's browser as the work screen may see it, or nil. Reading it
+    # does not count as using the browser (the idle close goes on).
+    def view(chat)
+      @lock.synchronize do
+        browser = @browsers[chat]
+        next nil unless browser && live?(chat, browser.epoch)
+
+        View.new(chat, browser.epoch, browser.instance, browser.session, browser.window)
+      end
+    end
+
+    # A tool on the chat's browser reported the window it acts on now; nil
+    # when it could not tell (the work screen then shows nothing).
+    def note_window(chat, session_id, window)
+      @lock.synchronize do
+        browser = @browsers[chat]
+        browser.window = window if browser && browser.session == session_id
       end
     end
 
@@ -370,6 +397,7 @@ module MonadicSharedTools
         @jobs = 0
         @job_sessions.clear
         @revision = 0
+        @instances = 0
         @op_locks.clear
         @runner = nil
       end

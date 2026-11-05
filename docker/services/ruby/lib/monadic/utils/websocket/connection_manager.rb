@@ -196,9 +196,9 @@ module WebSocketHelper
   # the cookie's session is shared by all tabs and is not the chat.
   @@live_sessions = {}
 
-  def self.register_live_session(session_id, session, generation)
+  def self.register_live_session(session_id, session, generation, connection: nil)
     @@session_state_mutex.synchronize do
-      @@live_sessions[session_id] = { session: session, generation: generation }
+      @@live_sessions[session_id] = { session: session, generation: generation, connection: connection }
     end
   end
 
@@ -242,6 +242,41 @@ module WebSocketHelper
     return nil if session_id.nil? || session_id.to_s.empty?
 
     @@session_state_mutex.synchronize { @@live_sessions[session_id.to_s]&.dig(:session) }
+  end
+
+  # The generation of the connection a tab has live now, or nil.
+  def self.live_generation(session_id)
+    return nil if session_id.nil? || session_id.to_s.empty?
+
+    @@session_state_mutex.synchronize { @@live_sessions[session_id.to_s]&.dig(:generation) }
+  end
+
+  # The tabs whose live session is in chat_id.
+  def self.live_tabs_for_chat(chat_id)
+    return [] unless chat_id
+
+    @@session_state_mutex.synchronize do
+      @@live_sessions.select { |_, entry| entry[:session][Monadic::Workspace::Chats::SESSION_KEY] == chat_id }.keys
+    end
+  end
+
+  # Sends message to the connection a tab has live now (not to one it is
+  # reconnecting from), only while the tab is in chat_id. True when written.
+  def self.send_to_live_connection(session_id, message_json, chat_id:)
+    ws = @@session_state_mutex.synchronize do
+      entry = @@live_sessions[session_id.to_s]
+      next nil unless entry && entry[:connection] && entry[:session][Monadic::Workspace::Chats::SESSION_KEY] == chat_id
+
+      entry[:connection]
+    end
+    return false unless ws
+
+    ws.write(message_json)
+    ws.flush
+    true
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] Error sending to the live connection of #{session_id}: #{e.message}" }
+    false
   end
 
   # A conversation read from a file waits here until the tab it was sent

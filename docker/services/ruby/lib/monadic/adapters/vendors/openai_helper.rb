@@ -4,6 +4,7 @@ require_relative "../../utils/request_retry"
 require_relative "../../utils/shared_path_guard"
 require_relative "../../utils/http_client"
 require_relative "../../utils/privacy/outbound"
+require_relative "../../workbench/offer"
 require 'cgi'
 require 'fileutils'
 require 'base64'
@@ -1877,6 +1878,7 @@ module OpenAIHelper
     }
 
     Monadic::Utils::TrialLog.tool_calls(tools, app: obj["app_name"], depth: call_depth)
+    called = tools
     tools = filter_openai_duplicate_tools(tools)
 
     pending_tool_images = nil
@@ -1884,6 +1886,21 @@ module OpenAIHelper
       function_return, function_name, argument_hash, pending_tool_images = invoke_openai_tool_function(
         app, session, obj, tool_call, context, pending_tool_images, &block
       )
+      # An image was put on the workbench: the reply's work is done. The
+      # turn's other calls are not run (each the model made gets a result,
+      # those dropped as duplicates too), and the reply ends without asking
+      # the model.
+      next unless function_return.is_a?(Monadic::Workbench::Offered) && function_return.for?(session)
+
+      answered = context.map { |c| c[:tool_call_id] || c["tool_call_id"] }
+      called.each do |skipped|
+        next if answered.include?(skipped["id"])
+
+        context << { tool_call_id: skipped["id"], role: "tool", name: skipped.dig("function", "name"),
+                     content: Monadic::Workbench::Offered.not_executed }
+      end
+      obj["function_returns"] = context
+      return finish_with_workbench_image(function_return, &block)
     end
 
     inject_openai_vision_images(context, session, pending_tool_images)
@@ -1901,6 +1918,17 @@ module OpenAIHelper
     end
 
     api_request("tool", session, call_depth: session[:call_depth_per_turn], &block)
+  end
+
+  # Ends a reply whose tool put an image on the workbench: one short line,
+  # then the reply is done. The result names the item, so the message
+  # recorded from it (not one of text written before) is the image's.
+  private def finish_with_workbench_image(offered, &block)
+    text = Monadic::Workbench::Offer.reply_text(offered)
+    block&.call({ "type" => "fragment", "content" => text, "is_first" => true })
+    block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
+    [{ "choices" => [{ "finish_reason" => "stop",
+                       "message" => { "content" => text, Monadic::Workbench::Offer::ITEMS_KEY => [offered.item_id] } }] }]
   end
 
   # Remove duplicate tool calls and suppress repeated local PDF DB tool calls.
@@ -2005,6 +2033,7 @@ module OpenAIHelper
         if method_obj && method_obj.parameters.any? { |type, name| name == :session }
           argument_hash[:session] = session
         end
+        Monadic::Workbench::Caller.inject!(argument_hash, method_obj, session)
 
         if argument_hash.empty?
           function_return = APPS[app].public_send(function_name.to_sym)

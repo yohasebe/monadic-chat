@@ -28,6 +28,7 @@ require_relative 'websocket/message_editor'
 require_relative 'websocket/audio_handler'
 require_relative 'websocket/audio_stream_handler'
 require_relative 'websocket/pdf_handler'
+require_relative 'websocket/workbench_handler'
 require_relative 'websocket/library_handler'
 require_relative 'websocket/reply_state'
 require_relative 'websocket/streaming_handler'
@@ -205,6 +206,7 @@ module WebSocketHelper
 
       # Send initial load message immediately after connection
       handle_load_message(connection)
+      send_workbench_view(connection, session, only_existing: true)
 
       begin
         while message_data = connection.read
@@ -270,6 +272,10 @@ module WebSocketHelper
           # The pass for this tab's work screen socket (Monadic::WorkScreen)
           token = Monadic::WorkScreen::Tokens.issue(ws_session_id, session[:_ws_generation])
           send_to_client(connection, { "type" => "work_screen_token", "token" => token })
+        when "WORKBENCH_VIEW"
+          send_workbench_view(connection, session)
+        when "WORKBENCH_ACTION"
+          handle_ws_workbench_action(connection, obj, session)
         when "RESET"
           # A reply still being written belongs to the chat being reset. It
           # is stopped as Cancel stops it, before the session is cleared:
@@ -280,6 +286,8 @@ module WebSocketHelper
           stop_running_reply(suggestion, nil)
           suggestion = nil
           handle_ws_reset(session)
+          # The page's work screen follows the tab into its new chat.
+          send_workbench_view(connection, session)
         when "LOAD"
           # Store ui_language in session parameters if provided
           if obj["ui_language"]
@@ -308,13 +316,15 @@ module WebSocketHelper
         when "UPDATE_PARAMS"
           # Another app starts a new chat: a reply still being written for
           # the previous one is stopped first, as on Reset.
-          if app_change?(obj, session)
+          new_chat = app_change?(obj, session)
+          if new_chat
             stop_running_reply(thread, queue)
             thread = nil
             stop_running_reply(suggestion, nil)
             suggestion = nil
           end
           handle_ws_update_params(connection, obj, session)
+          send_workbench_view(connection, session) if new_chat
         when "IMPORT_APPLY"
           # A conversation read from a file replaces this tab's chat: what
           # is running for the current one is stopped first, as on Reset,
@@ -328,6 +338,7 @@ module WebSocketHelper
             suggestion = nil
           end
           handle_ws_import_apply(connection, obj, session, imported)
+          send_workbench_view(connection, session) if imported
         when "HISTORY_LIST"
           handle_ws_history_list(connection, obj)
         when "HISTORY_RENAME"
@@ -347,6 +358,7 @@ module WebSocketHelper
               suggestion = nil
             end
             handle_ws_history_resume(connection, obj, session, refusal)
+            send_workbench_view(connection, session) if refusal.nil?
           ensure
             WebSocketHelper.release_chat(obj['chat_id'].to_s) if refusal.nil?
           end
@@ -422,6 +434,7 @@ module WebSocketHelper
 
       WebSocketHelper.remove_connection_with_session(connection, ws_session_id)
       WebSocketHelper.unregister_live_session(ws_session_id, session[:_ws_generation]) if session
+      Monadic::Workbench::Channel.connection_closed(ws_session_id, session[:_ws_generation]) if session
       # Nothing stays staged for a tab with no connection left (a newer
       # connection of the same tab keeps what was staged for it).
       WebSocketHelper.drop_imports(ws_session_id) unless WebSocketHelper.live_session(ws_session_id)

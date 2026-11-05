@@ -1,6 +1,7 @@
 # frozen_string_literal: false
 
 require_relative "../utils/privacy/marks"
+require_relative "../workbench/record"
 
 # Session state management routes
 # Export/import conversation state and session data
@@ -334,6 +335,10 @@ post "/load" do
           # silently losing the badges on round-trip).
           message_obj["interrupted"] = true if msg["interrupted"]
           message_obj["tools_used"] = msg["tools_used"] if msg["tools_used"].is_a?(Array)
+          # What the file says was saved from the workbench: a record only,
+          # which grants nothing here.
+          artifacts = Monadic::Workbench::Record.clean(msg["artifacts"])
+          message_obj["artifacts"] = artifacts if artifacts
           message_obj
         end.compact # Remove nil values from invalid messages
 

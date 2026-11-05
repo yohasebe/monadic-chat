@@ -12,6 +12,7 @@ require "fileutils"
 require_relative "../../lib/monadic/utils/ssl_configuration"
 require_relative "../../lib/monadic/utils/error_formatter"
 require_relative "../../lib/monadic/utils/secret_references"
+require_relative "../../lib/monadic/workbench/job_output"
 
 begin
   require_relative "../../lib/monadic/utils/model_spec"
@@ -171,6 +172,15 @@ if __FILE__ == $PROGRAM_NAME
       options[:image_file_ids] << file_id
     end
 
+    opts.on("--out-dir DIR", "Job folder the server made to receive the image (instead of the shared folder)") do |dir|
+      options[:out_dir] = dir
+    end
+
+    opts.on("--job-input PATH", "Image the server put in the job's input folder, to edit (can be given more than once)") do |path|
+      options[:job_inputs] ||= []
+      options[:job_inputs] << path
+    end
+
     opts.on("--verbose", "Enable verbose output") do
       options[:verbose] = true
     end
@@ -184,6 +194,16 @@ if __FILE__ == $PROGRAM_NAME
     exit 1
   end
 
+  # A job folder is checked before anything is asked of the API.
+  if options[:out_dir]
+    begin
+      Monadic::Workbench::JobOutput.checked_dir!(options[:out_dir], part: 'out')
+    rescue Monadic::Workbench::JobOutput::Refused => e
+      puts "ERROR: The output folder is refused: #{e.message}"
+      exit 1
+    end
+  end
+
   # Validate required options based on operation
 
   case options[:operation]
@@ -193,7 +213,7 @@ if __FILE__ == $PROGRAM_NAME
       exit
     end
   when "edit"
-    has_images = options[:images] || options[:image_urls] || options[:image_file_ids]
+    has_images = options[:images] || options[:job_inputs] || options[:image_urls] || options[:image_file_ids]
     unless options[:prompt] && has_images
       puts "ERROR: A prompt and at least one input image are required for edit operation."
       puts "Provide images via -i (file path), --image-url (URL), or --image-file-id (file ID)."
@@ -226,24 +246,46 @@ def read_local_image(path)
   [mime_type, bytes]
 end
 
-def generate_image(options, num_retrials = 3)
-  if (problem = image_request_problem(options))
-    return { operation: options[:operation], model: options[:model],
-             original_prompt: options[:prompt], success: false, message: problem }
-  end
-
-  # Validate all local inputs before reading configuration or contacting an API.
-  options = options.dup
-  paths = Array(options[:images])
-  resolved_images = paths.map do |path|
+# The images to edit and the mask, as bytes: images of the shared folder, and
+# those the server put in this run's input folder (read only from there).
+def read_inputs(options)
+  resolved_images = Array(options[:images]).map do |path|
     Monadic::Utils::SharedPathGuard.resolve_in_shared(path, extensions: Monadic::Utils::SharedPathGuard::IMAGE_EXTENSIONS)
   end
   mask = options[:mask] && Monadic::Utils::SharedPathGuard.resolve_in_shared(options[:mask], extensions: %w[.png])
   if resolved_images.any?(&:nil?) || (options[:mask] && !mask)
     return { operation: options[:operation], success: false, message: "Invalid shared image path or unsupported format" }
   end
-  options[:images] = resolved_images
-  options[:mask] = mask
+
+  job = options[:out_dir] && File.dirname(options[:out_dir])
+  image_data = resolved_images.map { |path| [File.basename(path), *read_local_image(path)] }
+  Array(options[:job_inputs]).each do |path|
+    bytes = Monadic::Workbench::JobOutput.read_input(path, job: job)
+    mime_type = Monadic::Utils::ToolImageUtils.image_media_type(bytes)
+    raise ArgumentError, "#{File.basename(path)} is not a PNG, JPEG, GIF or WebP image" unless mime_type
+
+    image_data << [File.basename(path), mime_type, bytes]
+  end
+  { images: resolved_images, mask: mask, image_data: image_data, mask_data: mask && read_local_image(mask) }
+rescue Monadic::Workbench::JobOutput::Refused, ArgumentError => e
+  { operation: options[:operation], success: false, message: "Invalid input image: #{e.message}" }
+end
+
+def generate_image(options, num_retrials = 3)
+  if (problem = image_request_problem(options))
+    return { operation: options[:operation], model: options[:model],
+             original_prompt: options[:prompt], success: false, message: problem }
+  end
+
+  # Validate all local inputs before reading configuration or contacting an
+  # API, and read them once: a retry sends what the first try read.
+  options = options.dup
+  unless options[:image_data]
+    inputs = read_inputs(options)
+    return inputs if inputs[:success] == false
+
+    options.merge!(inputs)
+  end
 
   api_key = get_api_key
   
@@ -296,8 +338,7 @@ def generate_image(options, num_retrials = 3)
           img_refs << { file_id: file_id }
         end
         # Also include any local files as base64 data URIs
-        (options[:images] || []).each do |img_path|
-          mime_type, bytes = read_local_image(img_path)
+        options[:image_data].each do |_name, mime_type, bytes|
           data = Base64.strict_encode64(bytes)
           img_refs << { image_url: "data:#{mime_type};base64,#{data}" }
         end
@@ -336,14 +377,13 @@ def generate_image(options, num_retrials = 3)
         form[:input_fidelity] = options[:input_fidelity] if options[:input_fidelity]
 
         # Add images with proper MIME types
-        options[:images].each do |img_path|
-          mime_type, bytes = read_local_image(img_path)
+        options[:image_data].each do |name, mime_type, bytes|
           form[:"image[]"] ||= []
 
           image_file = HTTP::FormData::File.new(
             StringIO.new(bytes),
             content_type: mime_type,
-            filename: File.basename(img_path)
+            filename: name
           )
 
           if form[:"image[]"].is_a?(Array)
@@ -355,7 +395,7 @@ def generate_image(options, num_retrials = 3)
 
         # Add mask if provided
         if options[:mask]
-          mime_type, bytes = read_local_image(options[:mask])
+          mime_type, bytes = options[:mask_data]
           form[:mask] = HTTP::FormData::File.new(
             StringIO.new(bytes),
             content_type: mime_type,
@@ -424,8 +464,13 @@ def generate_image(options, num_retrials = 3)
           end
           file_path = File.join(output_dir, filename)
           
-          # The working folder is the shared folder; written never through a link.
-          Monadic::Utils::SharedPathGuard.write_file!(File.join(Monadic::Utils::Environment.data_path, filename), image_data)
+          if options[:out_dir]
+            # A job folder the server made: a new file there, nothing else.
+            Monadic::Workbench::JobOutput.write!(options[:out_dir], filename, image_data)
+          else
+            # The working folder is the shared folder; written never through a link.
+            Monadic::Utils::SharedPathGuard.write_file!(File.join(Monadic::Utils::Environment.data_path, filename), image_data)
+          end
           
           result[:images] << {
             path: file_path,

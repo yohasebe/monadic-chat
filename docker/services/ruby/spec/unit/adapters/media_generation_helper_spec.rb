@@ -111,6 +111,13 @@ RSpec.describe "MonadicHelper media generation shell escaping" do
       )
       expect(helper.last_command).to include(Shellwords.shellescape("file with spaces.png"))
     end
+
+    it "names the job folder to write in, only when given one" do
+      helper.generate_image_with_openai(operation: "generate", model: "m", prompt: "test", out_dir: "/state/a b")
+      expect(helper.last_command).to include("--out-dir #{Shellwords.shellescape('/state/a b')}")
+      helper.generate_image_with_openai(operation: "generate", model: "m", prompt: "test")
+      expect(helper.last_command).not_to include("--out-dir")
+    end
   end
 
   describe "#generate_video_with_grok_imagine" do

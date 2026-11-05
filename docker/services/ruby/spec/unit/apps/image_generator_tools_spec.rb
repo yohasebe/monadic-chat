@@ -184,6 +184,7 @@ RSpec.describe "ImageGeneratorTools" do
     around do |example|
       Dir.mktmpdir("image-edit-target-") do |directory|
         @shared = File.realpath(directory)
+        Dir.mkdir(File.join(@shared, "state"))
         example.run
       end
     end
@@ -214,10 +215,19 @@ RSpec.describe "ImageGeneratorTools" do
     before do
       allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@shared)
       allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(@shared)
+      allow(Monadic::Workbench::Store).to receive(:default)
+        .and_return(Monadic::Workbench::Store.new(File.join(@shared, "state", "workbench")))
     end
 
     {
-      "ImageGeneratorOpenAI" => ->(app, session) { app.generate_image_with_openai(operation: "edit", model: "gpt-image-2", prompt: "add a festival", session: session) },
+      "ImageGeneratorOpenAI" => lambda { |app, session|
+        app.generate_image_with_openai(operation: "edit", model: "gpt-image-2", prompt: "add a festival", session: session,
+                                       # The chat the reply runs for, as the server gives it.
+                                       workbench: Monadic::Workbench::Caller.new(
+                                         chat_id: Monadic::Workspace::Ids.generate(:chat), epoch: 0,
+                                         request_id: "q1", session: session
+                                       ))
+      },
       "ImageGeneratorGrok" => ->(app, session) { app.generate_image_with_grok(operation: "edit", prompt: "add a festival", session: session) }
     }.each do |app_name, edit|
       context app_name do
@@ -229,6 +239,10 @@ RSpec.describe "ImageGeneratorTools" do
           expect(files).to include("my_photo.png")
           expect(files).not_to include("generated_last.png")
         end
+
+        # The OpenAI tool starts from the last image of the workbench instead
+        # (spec/unit/workbench/image_generator_openai_spec.rb).
+        next unless app_name == "ImageGeneratorGrok"
 
         it "edits the last image it made when nothing was uploaded" do
           session = session_for(app_name, upload: false)

@@ -9,7 +9,7 @@ module MonadicHelper
   def generate_image_with_openai(operation:, model:, prompt: nil, images: nil, mask: nil,
                      n: 1, size: "1024x1024", quality: nil,
                      output_format: nil, background: nil, output_compression: nil, input_fidelity: nil,
-                     session: nil)
+                     session: nil, out_dir: nil, job_inputs: [])
     # If images/mask are omitted (e.g., "edit the previous image"), fall back to last stored references
     begin
       refs = session && session[:openai_last_image_generation]
@@ -33,6 +33,10 @@ module MonadicHelper
     parts << "-b #{Shellwords.shellescape(background)}" if background
     parts << "--compression #{output_compression.to_i}" if output_compression && output_compression.to_i > 0
     parts << "--fidelity #{Shellwords.shellescape(input_fidelity)}" if input_fidelity
+    # A run for a chat's workbench writes in the job folder the server made
+    # (Monadic::Workbench::JobOutput), not in the shared folder.
+    parts << "--out-dir #{Shellwords.shellescape(out_dir)}" if out_dir
+    Array(job_inputs).each { |path| parts << "--job-input #{Shellwords.shellescape(path)}" }
 
     # Process image parameters
     if images

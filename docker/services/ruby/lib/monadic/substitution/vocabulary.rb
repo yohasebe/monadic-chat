@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../utils/environment'
+require_relative '../workbench/record'
 require "date"
 
 module Monadic
@@ -243,9 +244,11 @@ module Monadic
 
       # @param session [Hash]
       # @return [String, nil] basename of the most recently generated image in
-      #   this session, or nil. Reads the unified monadic_state "last_images"
-      #   slot for the active app first (where all image generators save), then
-      #   falls back to the provider-specific legacy single-image keys.
+      #   this session, or nil. An image the user saved from the workbench comes
+      #   first, as the messages' records say (Monadic::Workbench::Record); then
+      #   the unified monadic_state "last_images" slot for the active app (where
+      #   the image generators that save directly keep it), then the
+      #   provider-specific legacy single-image keys.
       #
       # Scope (decision): `${LAST_GENERATED_IMAGE}` is opted into (MDSL `use :last_generated_image`)
       # only by the dedicated Image Generator apps, which have the iterative
@@ -257,6 +260,9 @@ module Monadic
       # the semantics of fetch_last_images_from_session used by the edit flow.
       # The key contract here is locked by state_token_keys_contract_spec.rb.
       def last_generated_image(session)
+        saved = Monadic::Workbench::Record.last_saved_name(session[:messages] || session["messages"])
+        return saved if saved
+
         params = session_params(session)
         app_name = params && (params["app_name"] || params[:app_name])
         ms = monadic_state(session)
@@ -267,8 +273,7 @@ module Monadic
           first = data.is_a?(Array) ? data.first : nil
           return File.basename(first.to_s) if first && !first.to_s.empty?
         end
-        legacy = session[:openai_last_image] || session[:grok_last_image] ||
-                 session[:gemini3_last_image]
+        legacy = session[:grok_last_image] || session[:gemini3_last_image]
         legacy && !legacy.to_s.empty? ? File.basename(legacy.to_s) : nil
       end
 

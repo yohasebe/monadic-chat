@@ -23,8 +23,10 @@ RSpec.describe "session-state token key contract" do
       "image_generator_tools.rb should still save via monadic_save_state key: \"last_images\""
   end
 
+  # The OpenAI tool keeps only "last_images" (written when the user saves an
+  # image from the workbench).
   it "keeps the legacy *_last_image fallback keys in sync (resolver reads / tools write)" do
-    %i[openai grok gemini3].each do |provider|
+    %i[grok gemini3].each do |provider|
       key = ":#{provider}_last_image"
       expect(vocab).to include(key),
         "vocabulary.rb resolver should fall back to session[#{key}]"

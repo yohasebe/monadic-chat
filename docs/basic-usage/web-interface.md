@@ -75,7 +75,7 @@ The top bar of the page shows the conversation status and, while it is on, the P
 
 ## Sidebar Panels :id=info-panel
 
-The sidebar holds the following panels, from top to bottom. Click a panel's title to collapse or expand it.
+The sidebar has two tabs at the top: **Menu**, which holds the following panels from top to bottom, and **Work screen** (see [Work Screen](#work-screen) below). The page opens on Menu. Click a panel's title to collapse or expand it.
 
 **Monadic Chat Info**<br />
 Links to the homepage and GitHub, the current version, the **Conversation Language** selector, the **Web Search** and **Math Rendering** switches, the name and description of the current base app, **Help Data** (the help database used by the Monadic Chat Help app: its status and an install button), and the list of **Available Variables**.
@@ -121,6 +121,12 @@ These controls are hidden in [Live Conversation](../apps/chat-apps.md#live-conve
 
 **Speech**<br />
 See [Speech Panel](#speech-settings-panel) below.
+
+## Work Screen :id=work-screen
+
+The **Work screen** tab shows the browser the AI uses in the current conversation, as it draws, while the tab is shown. It is view only. When the AI opens a browser (for example in [Web Insight](../apps/analysis-apps.md#web-insight)), the sidebar switches to this tab.
+
+The browser stays open after the reply and closes after five minutes without use. **Reset** closes it. Screenshots that the AI captures without opening a browser are not shown here.
 
 ## Speech Panel :id=speech-settings-panel
 

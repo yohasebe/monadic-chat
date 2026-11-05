@@ -18,7 +18,9 @@ When you ask the AI to interact with a page, it starts a headless browser sessio
 
 When your instruction is ambiguous (e.g., "click the search button" when multiple candidates exist), the AI can annotate candidate elements with numbered labels on a screenshot and ask you to choose the correct one.
 
-To watch the browser while the AI works, ask the AI to use a visible (non-headless) browser, and open noVNC with **Open > Open noVNC** in the menu bar, or open `http://localhost:7900` in a browser.
+While the AI works in a browser session, the sidebar's **Work screen** tab shows the browser (see [Work Screen](../basic-usage/web-interface.md#work-screen)). The browser stays open after the reply, so you can ask for more on the same page. It closes after five minutes without use, or when you ask the AI to close it.
+
+To operate the browser yourself, ask the AI to use a visible (non-headless) browser, and open noVNC with **Open > Open noVNC** in the menu bar, or open `http://localhost:7900` in a browser.
 
 **Usage Examples:**
 - `"Capture screenshots of https://github.com"` - Takes multiple screenshots

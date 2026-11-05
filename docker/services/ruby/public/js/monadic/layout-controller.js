@@ -22,7 +22,8 @@
  * The side column holds two panes, Settings and the work screen, behind tabs
  * (#side-pane-tabs). The page opens on Settings; the pane the user picks is
  * kept only until the page is loaded again. Which pane is shown is separate
- * from whether the column is shown.
+ * from whether the column is shown. Each apply() dispatches "layoutchange"
+ * on the document (the work screen follows whether it can be seen).
  */
 (function() {
   'use strict';
@@ -101,6 +102,7 @@
     if (window.UIConfig && window.UIConfig.STATE) {
       window.UIConfig.STATE.isMenuVisible = !hidden;
     }
+    $dispatch(document, 'layoutchange');
   }
 
   // The tabs and panes of the side column, as selectedPane() says.

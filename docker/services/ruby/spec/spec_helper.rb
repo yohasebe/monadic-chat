@@ -4,6 +4,7 @@ require 'rspec'
 require 'bundler/setup'
 require 'net/http'
 require 'json'
+require 'tmpdir'
 
 # Load the application
 $LOAD_PATH.unshift File.expand_path('../lib', __dir__)
@@ -235,6 +236,22 @@ RSpec.configure do |config|
       end
     end
   end
+
+  # Outside integration and E2E examples, nothing reaches the state folder of
+  # the computer running the specs (its conversation history, workbench and
+  # attachments): the state folder is one of this run's own. A spec that
+  # stubs state_path itself uses its own folder instead. The history's store
+  # keeps the path it was first made for, so it is made again for each
+  # example.
+  spec_state = Dir.mktmpdir('monadic-spec-state')
+  config.before(:each) do |example|
+    meta = example.metadata
+    next if meta[:integration] || meta[:e2e] || %i[integration e2e].include?(meta[:type])
+
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(spec_state)
+    Monadic::History::Store.instance_variable_set(:@default, nil) if defined?(Monadic::History::Store)
+  end
+  config.after(:suite) { FileUtils.rm_rf(spec_state) }
 
   # Start the Docker services for integration and E2E tests, only when the
   # run asks for it: a plain run of spec/unit also selects a few tagged

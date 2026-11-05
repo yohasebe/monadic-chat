@@ -1219,7 +1219,26 @@ def main():
     }
 
     result = actions[args.action](args)
+    _add_window(args.action, result)
     print(json.dumps(result, ensure_ascii=False))
+
+
+def _add_window(action, result):
+    """Managed, an action on a session reports the window it acts on now,
+    whether or not the action succeeded (the server shows that page on the
+    work screen); None when it cannot be told."""
+    if not MANAGED or action in ("stop", "status"):
+        return
+    sid = result.get("session_id") if action == "start" else REQUESTED_SESSION
+    if not sid:
+        return
+    result["window"] = None
+    try:
+        r = _wd(f"/session/{sid}/window", timeout=5)
+    except Exception:
+        return
+    if "error" not in r and isinstance(r.get("value"), str):
+        result["window"] = r["value"]
 
 
 if __name__ == "__main__":

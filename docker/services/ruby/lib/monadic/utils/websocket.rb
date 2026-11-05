@@ -18,6 +18,7 @@ require_relative 'extra_logger'
 require_relative 'ssl_configuration'
 require_relative 'string_utils'
 require_relative '../shared_tools/monadic_session_state'
+require_relative '../work_screen'
 
 # Load WebSocket sub-modules
 require_relative 'websocket/connection_manager'
@@ -192,7 +193,7 @@ module WebSocketHelper
       end
       Monadic::Workspace::Chats.resume!(session, saved_state && saved_state[:chat_id])
       sync_session_state!
-      WebSocketHelper.register_live_session(ws_session_id, session, session[:_ws_generation])
+      WebSocketHelper.register_live_session(ws_session_id, session, session[:_ws_generation], connection: connection)
 
       Monadic::Utils::ExtraLogger.log { "[WebSocket] Session state: #{saved_state ? 'restored' : 'new'} (#{ws_session_id})" }
 
@@ -265,6 +266,10 @@ module WebSocketHelper
         when "PING"
           # Send PONG only to the connection that sent PING (connection-specific keepalive)
           send_to_client(connection, { "type" => "pong" })
+        when "WORK_SCREEN_TOKEN"
+          # The pass for this tab's work screen socket (Monadic::WorkScreen)
+          token = Monadic::WorkScreen::Tokens.issue(ws_session_id, session[:_ws_generation])
+          send_to_client(connection, { "type" => "work_screen_token", "token" => token })
         when "RESET"
           # A reply still being written belongs to the chat being reset. It
           # is stopped as Cancel stops it, before the session is cleared:

@@ -539,7 +539,8 @@ module MonadicSharedTools
         begin
           started = parse_navigator_response(send_command(command: command, container: "python"))
         ensure
-          kept = BrowserOwner.finish_start(chat, started && started[:success] ? started[:session_id] : nil, epoch)
+          kept = BrowserOwner.finish_start(chat, started && started[:success] ? started[:session_id] : nil, epoch,
+                                           window: started && started[:window])
         end
         next started.merge(success: false, error: started[:error] || "The browser did not start.") unless started[:success] && started[:session_id]
 
@@ -551,6 +552,8 @@ module MonadicSharedTools
         started
       end
       return result unless result[:success]
+
+      Monadic::WorkScreen.browser_opened(chat) if defined?(Monadic::WorkScreen)
 
       # Build response
       response = {
@@ -920,6 +923,7 @@ module MonadicSharedTools
         # The chat was replaced meanwhile: what the action saw is not its own.
         next browser_state_error(:replaced) unless BrowserOwner.holds?(chat, session_id, epoch)
 
+        BrowserOwner.note_window(chat, session_id, result[:window])
         result
       end
     end

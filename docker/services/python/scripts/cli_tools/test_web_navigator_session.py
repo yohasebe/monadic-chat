@@ -156,5 +156,57 @@ class StatusTest(unittest.TestCase):
             self.assertFalse(web_navigator.action_status(None)["success"])
 
 
+class WindowTest(unittest.TestCase):
+    """A managed action reports the window it acts on now."""
+
+    def tearDown(self):
+        web_navigator.MANAGED = False
+        web_navigator.REQUESTED_SESSION = None
+
+    def test_an_action_on_a_named_session_reports_its_window(self):
+        web_navigator.MANAGED = True
+        web_navigator.REQUESTED_SESSION = "s1"
+        result = {"success": True}
+        with mock.patch.object(web_navigator, "_wd", return_value={"value": "TARGET1"}) as wd:
+            web_navigator._add_window("click", result)
+        self.assertEqual(result["window"], "TARGET1")
+        self.assertEqual(wd.call_args.args[0], "/session/s1/window")
+
+    def test_a_start_reports_the_window_of_the_session_it_made(self):
+        web_navigator.MANAGED = True
+        result = {"success": True, "session_id": "new"}
+        with mock.patch.object(web_navigator, "_wd", return_value={"value": "T"}) as wd:
+            web_navigator._add_window("start", result)
+        self.assertEqual(wd.call_args.args[0], "/session/new/window")
+
+    def test_a_failed_action_still_reports_the_window(self):
+        web_navigator.MANAGED = True
+        web_navigator.REQUESTED_SESSION = "s1"
+        result = {"success": False}
+        with mock.patch.object(web_navigator, "_wd", return_value={"value": "T2"}):
+            web_navigator._add_window("click", result)
+        self.assertEqual(result["window"], "T2")
+
+    def test_a_window_that_cannot_be_read_is_reported_unknown(self):
+        web_navigator.MANAGED = True
+        web_navigator.REQUESTED_SESSION = "s1"
+        for answer in [OSError("down"), {"value": {"error": "no such window"}, "error": "x"}]:
+            result = {"success": True}
+            kwargs = {"side_effect": answer} if isinstance(answer, Exception) else {"return_value": answer}
+            with mock.patch.object(web_navigator, "_wd", **kwargs):
+                web_navigator._add_window("click", result)
+            self.assertIn("window", result)
+            self.assertIsNone(result["window"])
+
+    def test_nothing_is_added_unmanaged_for_stop_or_without_a_session(self):
+        for managed, action, result in [(False, "click", {"success": True}),
+                                        (True, "stop", {"success": True}),
+                                        (True, "start", {"success": False})]:
+            web_navigator.MANAGED = managed
+            web_navigator.REQUESTED_SESSION = "s1"
+            with mock.patch.object(web_navigator, "_wd", return_value={"value": "T"}):
+                web_navigator._add_window(action, result)
+            self.assertNotIn("window", result)
+
 if __name__ == "__main__":
     unittest.main()

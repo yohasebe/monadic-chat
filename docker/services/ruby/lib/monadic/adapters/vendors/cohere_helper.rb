@@ -506,8 +506,11 @@ module CohereHelper
     # Add current user message if not a tool call
     if role != "tool"
       suffix_options = is_initial_greeting ? {} : { prompt_suffix: obj["prompt_suffix"] }
+      # What the work screen shows follows the message (the current turn is
+      # sent apart from the context, and only in this round).
+      observed = Monadic::Workbench::Observation.appended(message, observation_for(session, session[:messages].last))
       current_message = Monadic::Utils::SystemPromptInjector.augment_user_message(
-        base_message: message,
+        base_message: observed,
         session: session,
         options: suffix_options
       )

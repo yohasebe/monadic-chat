@@ -2,6 +2,8 @@
 
 require_relative "../../spec_helper"
 require "json"
+require "tmpdir"
+require "fileutils"
 require_relative "../../../lib/monadic/utils/tts_text_extractor"
 require_relative "../../../lib/monadic/utils/websocket"
 require_relative "../../../lib/monadic/workspace"
@@ -316,6 +318,111 @@ RSpec.describe "Capability note in the request body" do
       # The handler runs each message under a request of its own: the
       # container is asked once for each.
       expect(Monadic::Utils::ContainerProbe).to have_received(:check).with(:python).twice
+    end
+  end
+
+  # The work screen observation: two messages sent through the page's
+  # handler with a file open on the workbench and selected in the tab.
+  def run_observed_conversation(mod, provider, key, first_reply, second_reply)
+    dir = Dir.mktmpdir("observation-body-")
+    data = File.join(dir, "data")
+    FileUtils.mkdir_p([data, File.join(dir, "state")])
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(data)
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(File.join(dir, "state"))
+    allow(Monadic::Workbench::Store).to receive(:default).and_return(Monadic::Workbench::Store.new(File.join(dir, "state", "workbench")))
+    Monadic::Workbench::Board.reset!
+    Monadic::Workbench::Board.live = ->(tab) { tab == "tab-1" ? 1 : nil }
+    Thread.current[:websocket_session_id] = "tab-1"
+    chat = Monadic::Workspace::Ids.generate(:chat)
+    File.write(File.join(data, "notes.txt"), "one\ntwo\n")
+    item, = Monadic::Workbench::Board.for(chat).add_file(
+      path: "notes.txt", origin: { actor: :user, source: :panel, tab: "tab-1", generation: 1 },
+      epoch: Monadic::Workspace::Chats.epoch(chat)
+    )
+
+    model = Monadic::Utils::ModelSpec.get_provider_models(provider, "chat")&.first || "llama3"
+    tools = [tool_definition(reader_tool_name), tool_definition(called_tool)]
+    calls = @tool_calls
+    tool_owner = Module.new { define_method(:look_up_term) { |**| calls << :ran && "term found" } }
+    stub_const("CONFIG", key ? { key => "k" } : {})
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with(Monadic::Utils::CapabilityNotes::FLAG).and_return("OtherApp")
+    app = Class.new(MonadicApp) { include mod }.new
+    app.extend(tool_owner)
+    app_settings = { "provider" => provider, "tools" => tools }
+    app.define_singleton_method(:settings) { app_settings }
+    stub_const("APPS", { "NotesApp" => app })
+    allow(app).to receive(:sleep)
+    bodies = []
+    replies = []
+    answer = lambda do |body|
+      bodies << JSON.parse(JSON.generate(body))
+      double(status: HTTP::Response::Status.new(200), body: reply_body(replies.shift))
+    end
+    http = double("http")
+    allow(http).to receive(:timeout).and_return(http)
+    allow(http).to receive(:headers).and_return(http)
+    allow(http).to receive(:post) { |_uri, json: nil, **| answer.call(json) }
+    allow(HTTP).to receive(:headers).and_return(http)
+    allow(HTTP).to receive(:timeout).and_return(http)
+    allow(app).to receive(:post_json_with_retries) { |_http, _uri, body, **| answer.call(body) }
+    if mod == OllamaHelper
+      allow(OllamaHelper).to receive(:find_endpoint).and_return("http://ollama.invalid")
+      allow(app).to receive(:list_models).and_return([model])
+      allow(OllamaHelper).to receive(:fetch_model_capabilities).and_return(nil)
+    end
+
+    host = Class.new { include WebSocketHelper }.new
+    allow(host).to receive(:send_or_broadcast)
+    allow(host).to receive(:initialize_token_counting).and_return(nil)
+    allow(host).to receive(:sts_session_capable?).and_return(false)
+    allow(host).to receive(:detect_language).and_return("en")
+    session = { parameters: {}, chat_id: chat, _ws_generation: 1,
+                messages: [{ "role" => "system", "text" => "S", "active" => true }] }
+    page = { "app_name" => "NotesApp", "model" => model, "context_size" => "5", "max_tokens" => "100",
+             "tools" => tools.to_json, "temperature" => "0.5", "prompt_suffix" => "Answer briefly." }
+    app_settings["prompt_suffix"] = "Answer briefly."
+    shown = { "item_id" => item["id"], "version" => item.dig("file", "sha256"), "range" => nil, "note" => "not_shown" }
+    queue = Queue.new
+    Thread.current[:rack_session] = session
+    [["Define it", [send(first_reply, true), send(second_reply, false)]],
+     ["And the next one", [send(second_reply, false)]]].each do |message, turn_replies|
+      replies.push(*turn_replies)
+      thread = host.send(:handle_ws_streaming, nil, page.merge("message" => message, "workbench_range" => shown), session, queue)
+      host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+    end
+    [bodies, session, item]
+  ensure
+    Thread.current[:rack_session] = nil
+    Thread.current[:websocket_session_id] = nil
+    Monadic::Workbench::Board.reset!
+    FileUtils.rm_rf(dir) if dir
+  end
+
+  observation_tag = "<work_screen_observation>"
+
+  providers.each do |mod, (provider, key, first_reply, second_reply)|
+    it "#{mod.name}: adds what the work screen shows to the user's message once in each request, and keeps it out of the chat" do
+      bodies, session, item = run_observed_conversation(mod, provider, key, first_reply, second_reply)
+      expect(@tool_calls).to eq([:ran])
+      expect(bodies.size).to eq(3)
+      counts = bodies.map { |body| JSON.generate(body).scan(observation_tag).size }
+      # Cohere sends the result of a tool without the user's message.
+      expect(counts).to eq(mod == CohereHelper ? [1, 0, 1] : [1, 1, 1])
+      bodies.each do |body|
+        expect(system_text(body)).not_to include(observation_tag)
+      end
+      first = JSON.generate(bodies.first)
+      expect(first.index(observation_tag)).to be > first.index("Define it")
+      # A suffix the app adds to the message does not take its place.
+      expect(first.scan("Answer briefly.").size).to be <= 1
+      expect(first).to include(item["id"], "not_shown")
+      # The next message's request carries only that message's observation,
+      # after its text.
+      last = JSON.generate(bodies.last)
+      expect(last.index(observation_tag)).to be > last.index("And the next one")
+      expect(JSON.generate(session[:messages])).not_to include("work_screen")
+      expect(session[:parameters]).not_to have_key("workbench_range")
     end
   end
 

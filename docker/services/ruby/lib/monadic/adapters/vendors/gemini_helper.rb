@@ -1804,10 +1804,12 @@ module GeminiHelper
   # Returns :has_pdf, :no_pdf, or an error array for early return
   def prepare_gemini_message_contents(body:, obj:, model_name:, session:, non_system_messages:, &block)
     body["contents"] = non_system_messages.compact.map do |msg|
-      {
-        "role" => translate_role(msg["role"]),
-        "parts" => [{ "text" => msg["text"] }]
-      }
+      parts = [{ "text" => msg["text"] }]
+      # What the work screen shows, as a text part of its own.
+      if (observation = observation_for(session, msg))
+        parts << { "text" => observation }
+      end
+      { "role" => translate_role(msg["role"]), "parts" => parts }
     end
 
     has_pdf_part = false

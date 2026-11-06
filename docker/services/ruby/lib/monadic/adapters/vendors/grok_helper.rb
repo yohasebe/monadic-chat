@@ -333,6 +333,10 @@ module GrokHelper
             }
           end
         end
+        # What the work screen shows, after the message's own parts.
+        if (observation = observation_for(session, msg))
+          message["content"] << { "type" => "text", "text" => observation }
+        end
         message
       end
     end
@@ -411,9 +415,10 @@ module GrokHelper
       if context_messages.dig(-1, "content")
         last_content = context_messages.last["content"]
         if last_content.is_a?(Array)
-          last_content.each do |content_item|
-            content_item["text"] = new_text if content_item["type"] == "text"
-          end
+          # The message's own text (its first text element) takes the
+          # suffix; the work screen observation after it stays.
+          own_text = last_content.find { |content_item| content_item["type"] == "text" }
+          own_text["text"] = new_text if own_text
         elsif last_content.is_a?(String)
           context_messages.last["content"] = new_text
         end

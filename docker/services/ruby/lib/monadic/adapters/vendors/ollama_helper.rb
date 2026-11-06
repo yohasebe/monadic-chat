@@ -491,7 +491,8 @@ module OllamaHelper
 
         message = { "role" => msg["role"], "content" => augmented_text }
       else
-        message = { "role" => msg["role"], "content" => msg["text"] }
+        # What the work screen shows follows the message's text.
+        message = { "role" => msg["role"], "content" => Monadic::Workbench::Observation.appended(msg["text"], observation_for(session, msg)) }
       end
 
       # A user message keeps its images when the request returns tool
@@ -523,7 +524,10 @@ module OllamaHelper
           if msg["role"] == "system" && system_message
             system_message
           else
-            { "role" => msg["role"], "content" => msg["content"] || msg["text"] || "" }
+            # The user's message (a session message here) keeps what the
+            # work screen shows.
+            content = msg["content"] || msg["text"] || ""
+            { "role" => msg["role"], "content" => Monadic::Workbench::Observation.appended(content, observation_for(session, msg)) }
           end
         end
       end

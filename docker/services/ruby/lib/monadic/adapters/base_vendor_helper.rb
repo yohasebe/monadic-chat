@@ -5,6 +5,7 @@ require 'json'
 require_relative "../utils/http_client"
 require_relative "../utils/tool_dispatch_guard"
 require_relative "../workspace/request_context"
+require_relative "../workbench/observation"
 
 # BaseVendorHelper
 # Shared utilities for vendor helpers. Provides macros for common patterns
@@ -229,6 +230,15 @@ module BaseVendorHelper
     Array(session[:messages]).reverse_each.any? do |m|
       m["role"] == "user" && m["request_id"] == request_id && !Array(m["attachments"]).empty?
     end
+  end
+
+  # What the model is told of the work screen with msg, when msg is the
+  # user message the current request was made for (Workbench::Observation),
+  # or nil. A helper adds it to its own copy of that message as it converts
+  # the context (a text element of its own, or after the text), so every
+  # payload it builds, a tool's continuation too, has it once.
+  def observation_for(session, msg)
+    Monadic::Workbench::Observation.text_for(session, msg)
   end
 
   # The messages as the model reads them: a user message's attachments are

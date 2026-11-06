@@ -3,6 +3,8 @@
 require 'json'
 require_relative 'board'
 require_relative '../workspace/chats'
+require_relative '../workspace/request_context'
+require_relative '../history/policy'
 
 module Monadic
   module Workbench
@@ -35,6 +37,31 @@ module Monadic
       attr_reader :data, :chat_id, :epoch, :tab, :generation, :request_id
 
       class << self
+        # What an adapter adds to message (a user message of the session's
+        # chat, as the session keeps it) in what it sends now, or nil. Only
+        # the message the current request was made for (its request_id)
+        # gets it, while the observation still holds for the session's chat
+        # (the same chat and epoch, not Private now). The adapter adds it to
+        # its own copy of the message, never to the session's.
+        def text_for(session, message)
+          observation = Monadic::Workspace::RequestContext.current&.observation
+          return nil unless observation && message.is_a?(Hash) && message['role'] == 'user'
+          return nil unless message['request_id'] && message['request_id'] == observation.request_id
+
+          chat_id = session[Monadic::Workspace::Chats::SESSION_KEY] || session[Monadic::Workspace::Chats::SESSION_KEY.to_s]
+          policy = Monadic::History::Policy
+          private_now = policy.private?(session) || policy.known_private?(chat_id)
+          observation.current?(chat_id: chat_id, private: private_now) ? observation.render : nil
+        end
+
+        # text with the observation after it (a new String), or text when
+        # there is none.
+        def appended(text, observation_text)
+          return text if observation_text.nil?
+
+          text.to_s.empty? ? observation_text.dup : "#{text}\n\n#{observation_text}"
+        end
+
         # The observation for a message the user sent from tab's connection
         # (generation) in the chat, or nil: none for a Private chat, a chat
         # whose workbench is empty, or a connection that is no longer the

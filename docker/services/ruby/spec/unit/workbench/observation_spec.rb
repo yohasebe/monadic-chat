@@ -142,4 +142,37 @@ RSpec.describe Monadic::Workbench::Observation do
     Monadic::Workspace::Chats.replacing!({ chat_id: chat })
     expect(observation.current?(chat_id: chat)).to be(false)
   end
+
+  describe ".text_for" do
+    let(:session) { { chat_id: chat, parameters: {} } }
+
+    def with_request(observation, &block)
+      context = Monadic::Workspace::RequestContext.new(chat_id: chat, request_id: "r_1", observation: observation)
+      Monadic::Workspace::RequestContext.with(context, &block)
+    end
+
+    it "gives the text for the message of the current request only, while it holds for the chat" do
+      open_file("a.txt", "a")
+      observation = observe
+      mine = { "role" => "user", "text" => "hi", "request_id" => "r_1" }
+      with_request(observation) do
+        expect(described_class.text_for(session, mine)).to eq(observation.render)
+        expect(described_class.text_for(session, mine.merge("request_id" => "r_0"))).to be_nil
+        expect(described_class.text_for(session, mine.merge("role" => "assistant"))).to be_nil
+        expect(described_class.text_for(session, mine.except("request_id"))).to be_nil
+        expect(described_class.text_for(session.merge(chat_id: "c_other"), mine)).to be_nil
+        allow(Monadic::History::Policy).to receive(:private?).and_return(true)
+        expect(described_class.text_for(session, mine)).to be_nil
+      end
+      expect(described_class.text_for(session, mine)).to be_nil
+    end
+
+    it "adds the observation after the text, as a new string" do
+      text = +"hello"
+      expect(described_class.appended(text, "OBS")).to eq("hello\n\nOBS")
+      expect(text).to eq("hello")
+      expect(described_class.appended("", "OBS")).to eq("OBS")
+      expect(described_class.appended(text, nil)).to equal(text)
+    end
+  end
 end

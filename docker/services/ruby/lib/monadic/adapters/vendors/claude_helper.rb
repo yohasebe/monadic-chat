@@ -948,8 +948,12 @@ module ClaudeHelper
   # Returns true on success, or an Array (early return) on vision/PDF error.
   private def build_claude_messages(body, context, obj, model, role, session, &block)
     messages = context.compact.map do |msg|
-      content = { "type" => "text", "text" => msg["text"] }
-      { "role" => msg["role"], "content" => [content] }
+      content = [{ "type" => "text", "text" => msg["text"] }]
+      # What the work screen shows, as a text element of its own.
+      if (observation = observation_for(session, msg))
+        content << { "type" => "text", "text" => observation }
+      end
+      { "role" => msg["role"], "content" => content }
     end
 
     if messages.empty? && obj["ai_user"] != "true"

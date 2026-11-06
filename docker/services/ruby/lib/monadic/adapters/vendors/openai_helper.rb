@@ -720,6 +720,10 @@ module OpenAIHelper
           end
         end
       end
+      # What the work screen shows, after the message's own parts.
+      if (observation = observation_for(session, msg))
+        message["content"] << { "type" => "text", "text" => observation }
+      end
       message
     end
 
@@ -813,12 +817,11 @@ module OpenAIHelper
         }
       )
 
+      # The message's own text (its first text element) takes the suffix;
+      # a text element added after it (the work screen observation) stays.
       if augmented_text != last_text.to_s
-        body["messages"].last["content"].each do |content_item|
-          if content_item["type"] == "text"
-            content_item["text"] = augmented_text
-          end
-        end
+        own_text = body["messages"].last["content"].find { |content_item| content_item["type"] == "text" }
+        own_text["text"] = augmented_text if own_text
       end
     end
 

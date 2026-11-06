@@ -610,7 +610,17 @@ describe('Workbench', () => {
       layout.pane = 'work';
       expect(window.Workbench.rangeNow()).toBeNull();
       let shown = { status: 'drawing' };
-      window.WorkbenchPdf = { show: () => ({ shown: () => shown, dispose: () => {}, state: () => ({}) }) };
+      let sheet = null;
+      window.WorkbenchPdf = {
+        show: (box) => {
+          // The bar, then the page, as workbench-pdf.js draws them.
+          sheet = document.createElement('div');
+          sheet.className = 'workbench-pdf-page';
+          sheet.getBoundingClientRect = () => ({ top: 40, bottom: 500, left: 0, right: 400 });
+          box.appendChild(sheet);
+          return { shown: () => shown, dispose: () => {}, state: () => ({}) };
+        }
+      };
       global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(4) }));
       const paper = { id: 'i_p', kind: 'file', actor: 'user', name: 'p.pdf', path: 'p.pdf', preview: 'pdf',
         sha256: 'f'.repeat(64), version: 'f'.repeat(64), status: 'ok' };
@@ -622,6 +632,16 @@ describe('Workbench', () => {
         expect(window.Workbench.rangeNow()).toMatchObject({ range: null, note: 'drawing' });
         shown = { status: 'ready', page: 2, pages: 5, scale: 1.25 };
         expect(window.Workbench.rangeNow()).toMatchObject({ range: { page: 2, pages: 5, scale_percent: 125 }, note: null });
+        // Part of the page in view (the window is 768px high): still that page.
+        sheet.getBoundingClientRect = () => ({ top: 700, bottom: 1200, left: 0, right: 400 });
+        expect(window.Workbench.rangeNow()).toMatchObject({ range: { page: 2 }, note: null });
+        // Only the bar above the page in view.
+        sheet.getBoundingClientRect = () => ({ top: 800, bottom: 1300, left: 0, right: 400 });
+        expect(window.Workbench.rangeNow()).toMatchObject({ range: null, note: 'not_shown' });
+        // None of the PDF in view.
+        document.querySelector('#workbench-view .workbench-pdf').getBoundingClientRect =
+          () => ({ top: 900, bottom: 1400, left: 0, right: 400, height: 500 });
+        expect(window.Workbench.rangeNow()).toMatchObject({ range: null, note: 'not_shown' });
       } finally {
         delete window.WorkbenchPdf;
       }

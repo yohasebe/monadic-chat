@@ -6,6 +6,7 @@ require_relative '../workspace/chats'
 require_relative '../workspace/request_context'
 require_relative '../history/policy'
 require_relative '../utils/privacy/outbound'
+require_relative '../utils/privacy/backend'
 
 module Monadic
   module Workbench
@@ -209,7 +210,9 @@ module Monadic
           @rendered[key] = masked(pipeline, words) unless @rendered.key?(key)
           @rendered[key]
         end
-      rescue Monadic::Utils::Privacy::Outbound::Refused
+      rescue Monadic::Utils::Privacy::Outbound::Refused, Monadic::Utils::Privacy::BackendError
+        # The filter refused or could not mask: nothing of it is sent (the
+        # message itself goes through the filter as before).
         nil
       end
 

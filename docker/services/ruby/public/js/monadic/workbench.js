@@ -692,6 +692,9 @@
     if (kind === 'pdf') {
       const shown = drawn.pdf ? drawn.pdf.shown() : { status: 'loading' };
       if (shown.status !== 'ready') return report(null, shown.status === 'failed' ? 'failed' : 'drawing');
+      // The page itself, not only the bar above it, must be in view.
+      const sheet = drawn.node.querySelector('.workbench-pdf-page');
+      if (!sheet || !visibleRect(sheet)) return report(null, 'not_shown');
       return report({ page: shown.page, pages: shown.pages, scale_percent: Math.round(shown.scale * 100) }, null);
     }
     if (kind === 'audio' || kind === 'video') {

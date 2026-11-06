@@ -439,7 +439,7 @@ RSpec.describe "Capability note in the request body" do
   # A PNG of one pixel.
   pixel = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 
-  providers.slice(OpenAIHelper, ClaudeHelper, GeminiHelper).each do |mod, (provider, key, first_reply, second_reply)|
+  providers.slice(OpenAIHelper, ClaudeHelper, GeminiHelper, OllamaHelper).each do |mod, (provider, key, first_reply, second_reply)|
     it "#{mod.name}: adds what the work screen shows to a message of an image only, recorded under its request" do
       image = { "title" => "dot.png", "type" => "image/png", "data" => "data:image/png;base64,#{pixel}" }
       bodies, session, = run_observed_conversation(mod, provider, key, first_reply, second_reply,
@@ -447,6 +447,8 @@ RSpec.describe "Capability note in the request body" do
       expect(bodies.size).to eq(3)
       expect(bodies.map { |body| JSON.generate(body).scan(observation_tag).size }).to eq([1, 1, 1])
       expect(JSON.generate(bodies.first)).to include(pixel[0, 40])
+      # The request that returns the tool's result keeps the image too.
+      expect(JSON.generate(bodies[1])).to include(pixel[0, 40])
       first_turn = session[:messages].find { |m| m["role"] == "user" }
       expect(first_turn["request_id"]).to match(/\Aq_/)
       expect(JSON.generate(session[:messages])).not_to include("work_screen")

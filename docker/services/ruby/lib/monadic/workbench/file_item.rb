@@ -20,8 +20,9 @@ module Monadic
       # Too many files are being read now; try again.
       class Busy < StandardError; end
 
-      # The kinds the work screen shows (SharedFolderPreview.kind_for).
-      KINDS = %w[image text audio video].freeze
+      # The kinds the work screen shows (SharedFolderPreview.kind_for). A PDF
+      # is served whole to the page, which draws it with pdf.js.
+      KINDS = %w[image text audio video pdf].freeze
       # A file larger than this is not opened on the workbench (each use
       # reads it whole to check its version).
       LIMIT = 64 * 1024 * 1024

@@ -7,8 +7,8 @@
  * buttons beside the item) move along the row. An image shows with its
  * path in the shared folder (every image is kept in the chat's folder
  * there) and "Save as…" (in the desktop app; "Download" in a browser); a
- * file shows as an image, as text with its line numbers, or as audio or
- * video. Each item's tab has a × that takes it off the workbench; the file
+ * file shows as an image, as text with its line numbers, as audio or
+ * video, or as a PDF a page at a time (workbench-pdf.js). Each item's tab has a × that takes it off the workbench; the file
  * stays in the shared folder. An item whose file changed or is gone is not
  * shown: the pane says which (a file can be opened again as it is now).
  *
@@ -291,6 +291,7 @@
     if (item.status === 'ok' && assets[item.id]) {
       show(held, drawnFor(item).node);
     } else if (item.status !== 'ok') {
+      letGo(drawnBody);
       drawnBody = null;
       show(held, element('div', 'alert alert-warning small mb-2', statusText(item.status, item)));
     } else {
@@ -320,6 +321,7 @@
     const resumeAt = same && drawnBody.node && typeof drawnBody.node.currentTime === 'number' ? drawnBody.node.currentTime : 0;
     const drawn = { key: key, url: url, failed: false, node: null };
     drawn.node = body(item, drawn, resumeAt);
+    letGo(drawnBody);
     drawnBody = drawn;
     return drawn;
   }
@@ -363,6 +365,7 @@
       return media;
     }
     if (kind === 'text') return textBody(item, drawn);
+    if (kind === 'pdf') return pdfBody(item, drawn);
     const img = element('img', 'workbench-image rounded');
     img.alt = item.name || '';
     img.addEventListener('error', () => failed(drawn, false));
@@ -370,11 +373,10 @@
     return img;
   }
 
-  // A text file as numbered lines (one element per line, so what is in
-  // view can be told by line).
-  function textBody(item, drawn) {
-    const box = element('div', 'workbench-text');
-    box.setAttribute('tabindex', '0');
+  // Gets the item's address for box: onBody(response) draws what came. A
+  // failure is said in box (busy, changed, gone, expired), and the drawing
+  // is marked failed (a view with a new address draws it again).
+  function fetchInto(box, item, drawn, onBody) {
     fetch(drawn.url, { credentials: 'same-origin', cache: 'no-store' }).then(async (response) => {
       if (!response.ok) {
         drawn.failed = true;
@@ -390,6 +392,19 @@
         askView(response.status === 409 || response.status === 410);
         return;
       }
+      await onBody(response);
+    }).catch(() => {
+      drawn.failed = true;
+      box.replaceChildren(element('div', 'alert alert-warning small mb-0', t('ui.workbench.downloadFailed', 'Could not get the file.')));
+    });
+  }
+
+  // A text file as numbered lines (one element per line, so what is in
+  // view can be told by line).
+  function textBody(item, drawn) {
+    const box = element('div', 'workbench-text');
+    box.setAttribute('tabindex', '0');
+    fetchInto(box, item, drawn, async (response) => {
       const text = await response.text();
       const list = element('ol', 'workbench-lines');
       text.split(/\r\n|\n|\r/).forEach((lineText) => list.appendChild(element('li', null, lineText)));
@@ -397,11 +412,27 @@
       if (response.headers.get('x-workbench-truncated')) {
         box.appendChild(element('div', 'small text-secondary mt-1', t('ui.workbench.truncated', 'Only the beginning of the file is shown.')));
       }
-    }).catch(() => {
-      drawn.failed = true;
-      box.replaceChildren(element('div', 'alert alert-warning small mb-0', t('ui.workbench.downloadFailed', 'Could not get the file.')));
     });
     return box;
+  }
+
+  // A PDF, drawn a page at a time (workbench-pdf.js) from its bytes.
+  function pdfBody(item, drawn) {
+    const box = element('div', 'workbench-pdf');
+    fetchInto(box, item, drawn, async (response) => {
+      const bytes = await response.arrayBuffer();
+      if (drawn.gone) return;
+      if (!window.WorkbenchPdf) throw new Error('pdf.js is not loaded');
+      drawn.pdf = window.WorkbenchPdf.show(box, bytes);
+    });
+    return box;
+  }
+
+  // What was drawn is no longer shown: a PDF lets its document go.
+  function letGo(drawn) {
+    if (!drawn) return;
+    drawn.gone = true;
+    if (drawn.pdf) drawn.pdf.dispose();
   }
 
   // ---- the conversation ----------------------------------------------
@@ -528,6 +559,7 @@
     serverSelected = null;
     opening = null;
     pendingOpen = null;
+    letGo(drawnBody);
     drawnBody = null;
     seen.clear();
     removed.clear();
@@ -674,7 +706,7 @@
     if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || typing()) return;
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     const target = e.target;
-    if (target && target.closest && target.closest('audio, video, .workbench-text')) return;
+    if (target && target.closest && target.closest('audio, video, .workbench-text, .workbench-pdf')) return;
     e.preventDefault();
     step(e.key === 'ArrowLeft' ? -1 : 1);
   }

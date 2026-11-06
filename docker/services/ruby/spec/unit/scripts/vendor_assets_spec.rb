@@ -22,7 +22,10 @@ RSpec.describe 'the pinned vendor asset list' do
   it 'pins every file to a versioned URL and a sha256' do
     expect(assets.size).to be > 40
     assets.each do |type, url, filename, sha|
-      expect(%w[css js font webfont]).to include(type), filename
+      expect(%w[css js font webfont pdfjs]).to include(type), filename
+      # A folder in a name stays under the vendor directory.
+      expect(filename.split('/')).to all(match(/\A[\w.-]+\z/)), filename
+      expect(filename.split('/')).not_to include('..', '.'), filename
       expect(url).to start_with('https://'), filename
       expect(url).not_to include('@latest'), filename
       # A URL that serves whatever is current cannot keep matching a pin.
@@ -35,7 +38,8 @@ RSpec.describe 'the pinned vendor asset list' do
   it 'lists each file vendor_fetch writes, with the generated stylesheet' do
     manifest = bash('vendor_manifest').split("\n").map { |l| l.split("\t") }
     expect(manifest.size).to eq(assets.size + 1)
-    expect(manifest.map(&:first)).to include('css/montserrat.css', 'css/katex.min.css', 'fonts/KaTeX_Main-Regular.woff2')
+    expect(manifest.map(&:first)).to include('css/montserrat.css', 'css/katex.min.css', 'fonts/KaTeX_Main-Regular.woff2',
+                                             'pdfjs/pdf.min.mjs', 'pdfjs/pdf.worker.min.mjs')
     manifest.each { |_path, sha| expect(sha).to match(/\A\h{64}\z/) }
   end
 

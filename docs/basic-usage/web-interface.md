@@ -135,6 +135,8 @@ The work screen also shows files of the shared folder: images, text files (with 
 
 The items stay in a row in the order they came. Move along it with ‹ and › above the item, or with the ← and → keys while the work screen has the focus.
 
+When you send a message, the AI is told what is on the work screen: the name, path and status of each item, the item your tab shows, and what part of it is in view (the lines of a text file, the page of a PDF, the position in audio or video, and how many characters you selected). The contents of the items are not sent this way. In a Private chat nothing is sent.
+
 When the AI shows something new, the work screen shows it, unless you are typing a message or turned off **Show new items in the work screen** in the Interaction panel. What you open yourself is always shown. If the sidebar is hidden, it stays hidden. The work screen keeps up to eight items: when a new one comes, the oldest item is removed from the work screen (its file stays in the shared folder). The item an open page (a web browser tab) is showing, the latest image and an open browser are kept. When every item is kept, remove one with its × before opening another; a browser that opens then is shown once you remove one.
 
 ## Speech Panel :id=speech-settings-panel

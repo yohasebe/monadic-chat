@@ -1175,6 +1175,10 @@ module MistralHelper
           }
         end
 
+        # What the work screen shows, as a text element of its own.
+        if (observation = observation_for(session, msg))
+          content << { "type" => "text", "text" => observation }
+        end
         { "role" => msg["role"], "content" => content }
       elsif msg["role"] == "assistant" && msg["thinking"].to_s.strip != "" &&
             (Monadic::Utils::ModelSpec.supports_thinking?(obj["model"]) rescue false)
@@ -1193,7 +1197,8 @@ module MistralHelper
           ]
         }
       else
-        { "role" => msg["role"], "content" => msg["text"] }
+        # What the work screen shows follows the message's text (a new String).
+        { "role" => msg["role"], "content" => Monadic::Workbench::Observation.appended(msg["text"], observation_for(session, msg)) }
       end
     end
 

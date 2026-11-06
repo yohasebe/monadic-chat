@@ -288,8 +288,10 @@ module DeepSeekHelper
         # PNG, GIF and WebP only. Everything else keeps the plain-string content
         # the text models have always been sent.
         images = msg["role"] == "user" ? deepseek_supported_images(msg["images"]) : []
+        # What the work screen shows follows the message's text.
+        observation = observation_for(session, msg)
         if images.empty?
-          { "role" => msg["role"], "content" => msg["text"] }
+          { "role" => msg["role"], "content" => Monadic::Workbench::Observation.appended(msg["text"], observation) }
         else
           messages_containing_img = true
           content = [{ "type" => "text", "text" => msg["text"] }]
@@ -299,6 +301,7 @@ module DeepSeekHelper
               "image_url" => { "url" => img["data"], "detail" => "high" }
             }
           end
+          content << { "type" => "text", "text" => observation } if observation
           { "role" => msg["role"], "content" => content }
         end
       end

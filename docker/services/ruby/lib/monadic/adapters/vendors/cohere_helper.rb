@@ -503,12 +503,14 @@ module CohereHelper
     # Detect initiate_from_assistant initial greeting
     is_initial_greeting = messages.length == 1 && messages[0]["role"] == "system"
 
-    # Add current user message if not a tool call
-    if role != "tool"
+    # The current user message, sent apart from the context: in the request
+    # that returns a tool's results too (before them), found by its request.
+    current_turn = role == "tool" ? current_request_turn(session) : session[:messages].last
+    if role != "tool" || current_turn
       suffix_options = is_initial_greeting ? {} : { prompt_suffix: obj["prompt_suffix"] }
-      # What the work screen shows follows the message (the current turn is
-      # sent apart from the context, and only in this round).
-      observed = Monadic::Workbench::Observation.appended(message, observation_for(session, session[:messages].last))
+      base = role == "tool" ? model_facing_message(current_turn)["text"].to_s : message
+      # What the work screen shows follows the message.
+      observed = Monadic::Workbench::Observation.appended(base, observation_for(session, current_turn))
       current_message = Monadic::Utils::SystemPromptInjector.augment_user_message(
         base_message: observed,
         session: session,
@@ -527,6 +529,14 @@ module CohereHelper
     end
 
     [messages, messages_containing_img]
+  end
+
+  # The user message the current request was made for, or nil.
+  private def current_request_turn(session)
+    request_id = Monadic::Workspace::RequestContext.current&.request_id
+    return nil unless request_id
+
+    session[:messages].reverse_each.find { |m| m["role"] == "user" && m["request_id"] == request_id }
   end
 
   # Build a single Cohere message with image content. Returns the message hash, or error Array.

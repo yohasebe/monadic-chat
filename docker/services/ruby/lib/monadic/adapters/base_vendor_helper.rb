@@ -227,8 +227,10 @@ module BaseVendorHelper
     request_id = Monadic::Workspace::RequestContext.current&.request_id
     return false unless request_id
 
+    # The server recorded this request's message when it was sent: a
+    # message of attached files only (video or audio, or images and PDFs).
     Array(session[:messages]).reverse_each.any? do |m|
-      m["role"] == "user" && m["request_id"] == request_id && !Array(m["attachments"]).empty?
+      m["role"] == "user" && m["request_id"] == request_id
     end
   end
 

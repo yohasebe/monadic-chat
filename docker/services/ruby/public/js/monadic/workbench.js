@@ -424,6 +424,7 @@
       const list = element('ol', 'workbench-lines');
       textLines(await response.text()).forEach((lineText) => list.appendChild(element('li', null, lineText)));
       box.replaceChildren(list);
+      drawn.loaded = true;
       if (response.headers.get('x-workbench-truncated')) {
         box.appendChild(element('div', 'small text-secondary mt-1', t('ui.workbench.truncated', 'Only the beginning of the file is shown.')));
       }
@@ -600,14 +601,42 @@
     return document.visibilityState !== 'hidden';
   }
 
-  // The lines of a text box in view, as line numbers, measured now: the
-  // line elements are in order, so two binary searches find the first
-  // line that ends below the box's top and the first that starts at or
-  // below its bottom. A line partly in view counts.
-  function linesInView(box) {
+  // The part of el the user can see now: its area inside its border, cut
+  // by every ancestor that clips it (overflow other than visible, such as
+  // the side column scrolled on a narrow screen) and by the window. null
+  // when none of it is.
+  function visibleRect(el) {
+    const own = el.getBoundingClientRect();
+    const inner = (node, rect) => (node.clientHeight > 0
+      ? { top: rect.top + node.clientTop, bottom: rect.top + node.clientTop + node.clientHeight,
+          left: rect.left + node.clientLeft, right: rect.left + node.clientLeft + node.clientWidth }
+      : { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right });
+    const seen = inner(el, own);
+    for (let up = el.parentElement; up && up !== document.body && up !== document.documentElement; up = up.parentElement) {
+      const style = window.getComputedStyle(up);
+      const clips = (value) => ['auto', 'scroll', 'hidden', 'clip'].includes(value);
+      if (!clips(style.overflowX) && !clips(style.overflowY)) continue;
+      const clip = inner(up, up.getBoundingClientRect());
+      seen.top = Math.max(seen.top, clip.top);
+      seen.bottom = Math.min(seen.bottom, clip.bottom);
+      seen.left = Math.max(seen.left, clip.left);
+      seen.right = Math.min(seen.right, clip.right);
+    }
+    seen.top = Math.max(seen.top, 0);
+    seen.bottom = Math.min(seen.bottom, window.innerHeight);
+    seen.left = Math.max(seen.left, 0);
+    seen.right = Math.min(seen.right, window.innerWidth);
+    return seen.bottom > seen.top && seen.right > seen.left ? seen : null;
+  }
+
+  // The lines of a text box in view (frame: what of the box can be seen),
+  // as line numbers, measured now: the line elements are in order, so two
+  // binary searches find the first line that ends below the frame's top and
+  // the first that starts at or below its bottom. A line partly in view
+  // counts.
+  function linesInView(box, frame) {
     const lines = box.querySelectorAll('.workbench-lines > li');
-    const frame = box.getBoundingClientRect();
-    if (lines.length === 0 || frame.height <= 0) return null;
+    if (lines.length === 0) return null;
     const firstWhere = (test) => {
       let lo = 0;
       let hi = lines.length;
@@ -652,9 +681,13 @@
     if (kind === 'image' || kind === 'browser') return report({}, null);
     if (!drawn) return report(null, 'unknown');
     if (drawn.failed || drawn.unshowable) return report(null, 'failed');
+    const frame = visibleRect(drawn.node);
+    if (!frame) return report(null, 'not_shown');
     if (kind === 'text') {
-      const lines = linesInView(drawn.node);
-      return lines ? report(lines, null) : report(null, 'drawing');
+      if (!drawn.loaded) return report(null, 'drawing');
+      const lines = linesInView(drawn.node, frame);
+      // A text with no line, or none of its lines in view.
+      return lines ? report(lines, null) : report(null, 'empty');
     }
     if (kind === 'pdf') {
       const shown = drawn.pdf ? drawn.pdf.shown() : { status: 'loading' };

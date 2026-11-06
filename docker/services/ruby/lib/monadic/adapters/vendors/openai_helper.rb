@@ -790,13 +790,9 @@ module OpenAIHelper
         # Ignore session storage issues
       end
 
-      if last_text.to_s != ""
-        last_text += img_references_text
-      else
-        if context.last && context.last["text"]
-          context.last["text"] += img_references_text
-        end
-      end
+      # The references go into what is sent (the message's own text,
+      # below), never into the session's message.
+      last_text = last_text.to_s + img_references_text
     end
 
     # Detect initiate_from_assistant initial greeting (skip prompt_suffix)
@@ -817,12 +813,11 @@ module OpenAIHelper
         }
       )
 
-      # The message's own text (its first text element) takes the suffix;
-      # a text element added after it (the work screen observation) stays.
-      if augmented_text != last_text.to_s
-        own_text = body["messages"].last["content"].find { |content_item| content_item["type"] == "text" }
-        own_text["text"] = augmented_text if own_text
-      end
+      # The message's own text (its first text element) takes the suffix
+      # (and the image references); a text element added after it (the work
+      # screen observation) stays.
+      own_text = body["messages"].last["content"].find { |content_item| content_item["type"] == "text" }
+      own_text["text"] = augmented_text if own_text && own_text["text"] != augmented_text
     end
 
     # Use unified system prompt injector for dynamic prompt augmentation

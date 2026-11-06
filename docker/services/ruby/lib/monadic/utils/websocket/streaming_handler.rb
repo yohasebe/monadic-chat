@@ -264,7 +264,9 @@ module WebSocketHelper
     # the user sent, and is never kept with the chat's parameters.
     reported_range = obj.delete("workbench_range")
     request_id = Monadic::Workspace::Ids.generate(:request)
-    user_sent = !obj["message"].to_s.empty? || !Array(attachment_refs).empty?
+    # The user's own message: text, or attached files only (video or audio
+    # as attachments, images and PDFs as images).
+    user_sent = !obj["message"].to_s.empty? || !Array(attachment_refs).empty? || !Array(obj["images"]).empty?
     request_context = Monadic::Workspace::RequestContext.new(
       chat_id: chat_at_start, request_id: request_id,
       attachment_ids: earlier_ids + Array(attachment_refs).map { |a| a["attachment_id"] },
@@ -290,8 +292,9 @@ module WebSocketHelper
 
     # Start background token counting for the user message immediately
     message_text = obj["message"].to_s
-    # A message of attached files only is recorded too.
-    if !message_text.empty? || !Array(attachment_refs).empty?
+    # A message of attached files only (video or audio, or images and
+    # PDFs) is recorded too, under its request.
+    if user_sent
       unless message_text.empty?
         # Use o200k_base encoding for most LLMs
         token_count_thread = initialize_token_counting(message_text, "o200k_base")

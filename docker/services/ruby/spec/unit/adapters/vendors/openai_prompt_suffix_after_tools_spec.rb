@@ -43,3 +43,30 @@ RSpec.describe "OpenAI prompt suffix and tool results" do
     end
   end
 end
+
+# The names of the images to edit go into what is sent with the user's
+# message, with or without a suffix and with or without text, and never into
+# the session's message.
+RSpec.describe "OpenAI image references for image generation" do
+  let(:helper) { Class.new(MonadicApp) { include OpenAIHelper }.new }
+
+  def build(text, suffix)
+    turn = { "role" => "user", "text" => text }
+    context = [{ "role" => "system", "text" => "S" }, turn]
+    body = {}
+    helper.send(:build_openai_messages, body, context, {}, { "model" => "gpt-6.1-sol" }, "user",
+                true, ["/data/img_1.png"], true, false, nil, nil, suffix, nil)
+    [body["messages"].last["content"].first["text"], turn]
+  end
+
+  [["with text", "Make it blue", nil], ["with text and a suffix", "Make it blue", "Be brief."],
+   ["with no text", "", nil]].each do |name, text, suffix|
+    it "sends the references #{name}, leaving the session's message as it was" do
+      sent, turn = build(+text, suffix)
+      expect(sent).to include("Attached images:", "img_1.png")
+      expect(sent).to start_with(text) unless text.empty?
+      expect(sent).to include(suffix) if suffix
+      expect(turn["text"]).to eq(text)
+    end
+  end
+end

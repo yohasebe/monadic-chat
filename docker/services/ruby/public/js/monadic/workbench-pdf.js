@@ -57,7 +57,7 @@
   }
 
   function show(box, bytes, onChange) {
-    const state = { page: 1, pages: 0, scale: null, lib: null, doc: null, task: null, disposed: false };
+    const state = { page: 1, pages: 0, scale: null, lib: null, doc: null, task: null, text: null, disposed: false };
     // What is drawn: the drawing it comes from (gen) and its status.
     let gen = 0;
     let drawnNow = { status: 'loading' };
@@ -80,8 +80,7 @@
     bar.append(prev, where, next, smaller, zoom, larger);
     const sheet = element('div', 'workbench-pdf-page');
     const canvas = element('canvas');
-    const layer = element('div', 'textLayer');
-    sheet.append(canvas, layer);
+    sheet.append(canvas);
     box.classList.add('workbench-pdf');
     box.setAttribute('tabindex', '0');
     box.replaceChildren(bar, sheet);
@@ -107,6 +106,9 @@
       settle({ status: 'drawing' });
       const page = await state.doc.getPage(n);
       if (state.disposed || mine !== gen) return;
+      // The text of the page drawn before goes now (and stops being drawn):
+      // each drawing has a text layer of its own.
+      stopText();
       if (!state.scale) {
         const width = page.getViewport({ scale: 1 }).width;
         state.scale = box.clientWidth > 0 && width > 0 ? clamp(box.clientWidth / width) : 1;
@@ -135,10 +137,29 @@
         throw e;
       }
       if (state.disposed || mine !== gen) return;
-      layer.replaceChildren();
-      await new state.lib.TextLayer({ textContentSource: page.streamTextContent(), container: layer, viewport: viewport }).render();
+      // This drawing's text, in a layer of its own, hidden until it is
+      // whole and still the latest; a newer drawing takes it out first.
+      const layer = element('div', 'textLayer');
+      layer.style.visibility = 'hidden';
+      sheet.appendChild(layer);
+      const text = new state.lib.TextLayer({ textContentSource: page.streamTextContent(), container: layer, viewport: viewport });
+      state.text = text;
+      try {
+        await text.render();
+      } catch (e) {
+        if (state.disposed || mine !== gen) return;
+        throw e;
+      }
       if (state.disposed || mine !== gen) return;
+      layer.style.visibility = '';
       settle({ status: 'ready', page: n, pages: state.pages, scale: state.scale });
+    }
+
+    // The text layer drawn last stops and leaves the page.
+    function stopText() {
+      if (state.text && typeof state.text.cancel === 'function') state.text.cancel();
+      state.text = null;
+      sheet.querySelectorAll('.textLayer').forEach((old) => old.remove());
     }
 
     // A drawing that fails is said only while it is the latest.
@@ -201,6 +222,7 @@
       dispose: () => {
         state.disposed = true;
         if (state.task) state.task.cancel();
+        if (state.text && typeof state.text.cancel === 'function') state.text.cancel();
         if (state.doc) state.doc.destroy();
       }
     };

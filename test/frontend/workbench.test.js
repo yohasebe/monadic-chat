@@ -501,6 +501,30 @@ describe('Workbench', () => {
       expect(document.getElementById('workbench-status').textContent).toContain('work screen is full');
     });
 
+    test('numbers lines as the server does', () => {
+      view([]);
+      const cases = [['', []], ['\n', ['']], ['a', ['a']], ['a\n', ['a']], ['a\n\n', ['a', '']],
+        ['a\n\nb', ['a', '', 'b']], ['\n\n', ['', '']]];
+      cases.forEach(([text, lines]) => expect(window.Workbench.textLines(text)).toEqual(lines));
+    });
+
+    test('says a file cannot be shown as text, and asks for nothing again', async () => {
+      const notes = { id: 'i_t', kind: 'file', actor: 'user', name: 'a.txt', path: 'a.txt', preview: 'text',
+        sha256: 'e'.repeat(64), version: 'e'.repeat(64), status: 'ok' };
+      global.fetch = jest.fn(() => Promise.resolve({ ok: false, status: 415 }));
+      try {
+        view([notes], { assets: { i_t: '/workbench/asset/one' } });
+        await new Promise((r) => setTimeout(r, 0));
+        expect(document.querySelector('#workbench-view .workbench-text').textContent).toContain('cannot be shown as text');
+        expect(sent.filter((x) => x.payload.message === 'WORKBENCH_VIEW')).toHaveLength(0);
+        view([notes], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [notes] }, assets: { i_t: '/workbench/asset/two' } });
+        await new Promise((r) => setTimeout(r, 0));
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+      } finally {
+        delete global.fetch;
+      }
+    });
+
     test('says the server was busy when a file could not be opened for that', () => {
       view([]);
       window.Workbench.openFile('a.txt');
@@ -508,6 +532,73 @@ describe('Workbench', () => {
       expect(document.getElementById('workbench-status').textContent).toContain('reading other files');
     });
   });
+  describe('what is in view, sent with a message', () => {
+    const notes = { id: 'i_t', kind: 'file', actor: 'user', name: 'a.txt', path: 'a.txt', preview: 'text',
+      sha256: 'e'.repeat(64), version: 'e'.repeat(64), status: 'ok' };
+    const flush = () => new Promise((r) => setTimeout(r, 0));
+
+    async function showText(lines) {
+      global.fetch = jest.fn(() => Promise.resolve({
+        ok: true, status: 200, text: async () => lines.join('\n'), headers: { get: () => null }
+      }));
+      view([notes], { assets: { i_t: '/workbench/asset/t' } });
+      await flush();
+      // Each line 20px high from the top; the box shows 40px to 100px.
+      const box = document.querySelector('#workbench-view .workbench-text');
+      box.getBoundingClientRect = () => ({ top: 40, bottom: 100, height: 60 });
+      box.querySelectorAll('li').forEach((li, i) => {
+        li.getBoundingClientRect = () => ({ top: i * 20, bottom: i * 20 + 20 });
+      });
+      return box;
+    }
+
+    afterEach(() => { delete global.fetch; });
+
+    test('gives the lines in view of the text shown, with its item and version', async () => {
+      layout.pane = 'work';
+      await showText(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+      expect(window.Workbench.rangeNow()).toEqual({
+        item_id: 'i_t', version: 'e'.repeat(64), range: { first_line: 3, last_line: 5 }, note: null, selection_chars: 0
+      });
+    });
+
+    test('says the item is not shown when the pane is not, and counts only a selection inside the item', async () => {
+      layout.pane = 'work';
+      const box = await showText(['héllo 😀 world', 'b']);
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(box.querySelector('li'));
+      selection.removeAllRanges();
+      selection.addRange(range);
+      expect(window.Workbench.rangeNow().selection_chars).toBe(13);
+      range.selectNodeContents(document.getElementById('message'));
+      selection.removeAllRanges();
+      selection.addRange(range);
+      expect(window.Workbench.rangeNow().selection_chars).toBe(0);
+      layout.pane = 'settings';
+      expect(window.Workbench.rangeNow()).toMatchObject({ range: null, note: 'not_shown' });
+    });
+
+    test('gives a PDF page only once it is drawn, and nothing with no item selected', async () => {
+      layout.pane = 'work';
+      expect(window.Workbench.rangeNow()).toBeNull();
+      let shown = { status: 'drawing' };
+      window.WorkbenchPdf = { show: () => ({ shown: () => shown, dispose: () => {}, state: () => ({}) }) };
+      global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(4) }));
+      const paper = { id: 'i_p', kind: 'file', actor: 'user', name: 'p.pdf', path: 'p.pdf', preview: 'pdf',
+        sha256: 'f'.repeat(64), version: 'f'.repeat(64), status: 'ok' };
+      try {
+        view([paper], { assets: { i_p: '/workbench/asset/p' } });
+        await flush();
+        expect(window.Workbench.rangeNow()).toMatchObject({ range: null, note: 'drawing' });
+        shown = { status: 'ready', page: 2, pages: 5, scale: 1.25 };
+        expect(window.Workbench.rangeNow()).toMatchObject({ range: { page: 2, pages: 5, scale_percent: 125 }, note: null });
+      } finally {
+        delete window.WorkbenchPdf;
+      }
+    });
+  });
+
   describe('the preference to show new items', () => {
     let jar;
 

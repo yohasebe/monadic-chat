@@ -26,8 +26,6 @@ module Monadic
       # A file larger than this is not opened on the workbench (each use
       # reads it whole to check its version).
       LIMIT = 64 * 1024 * 1024
-      # What a text item serves of the file: its beginning, as the panel.
-      TEXT_LIMIT = Monadic::Workspace::SharedFolderPreview::TEXT_LIMIT
       # Files read and hashed at once, how long a read waits for its turn
       # (by default), and how many may wait.
       READS = 2
@@ -84,13 +82,16 @@ module Monadic
       def entry_for(path, wait: READ_WAIT)
         relative = normalize(path)
         read = read_whole(relative, wait: wait)
+        # A text item must be text where it is shown.
+        Monadic::Workspace::SharedFolderPreview.text_view(read[:bytes]) if read[:kind] == 'text'
         {
           'path' => relative, 'name' => File.basename(relative), 'preview' => read[:kind],
           'content_type' => content_type(relative, read[:kind]), 'sha256' => read[:sha256],
           'size' => read[:bytes].bytesize, 'mtime_ns' => nanoseconds(read[:stat].mtime), 'ino' => read[:stat].ino
         }
       rescue Monadic::Workspace::SharedFolderPreview::Invalid,
-             Monadic::Workspace::SharedFolderPreview::Unavailable => e
+             Monadic::Workspace::SharedFolderPreview::Unavailable,
+             Monadic::Workspace::SharedFolderPreview::NotText => e
         raise Refused, e.message
       end
 

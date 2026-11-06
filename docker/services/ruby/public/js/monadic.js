@@ -3264,7 +3264,12 @@ document.addEventListener("DOMContentLoaded", function () {
         // queue, alert) is the only safe behavior; the user will see
         // their input still sitting in the message box and can retry
         // once the connection comes back.
-        const sendResult = window.BackgroundReply ? window.BackgroundReply.sendReply(params) : window.safeWsSend(params);
+        // What the work screen shows now goes with the message only (the
+        // server checks it against this tab's selection); params, which
+        // the page keeps, does not take it.
+        const shown = window.Workbench && typeof window.Workbench.rangeNow === 'function' ? window.Workbench.rangeNow() : null;
+        const outgoing = shown ? Object.assign({}, params, { workbench_range: shown }) : params;
+        const sendResult = window.BackgroundReply ? window.BackgroundReply.sendReply(outgoing) : window.safeWsSend(outgoing);
         // Not sent: the text, images and attachments stay for the retry.
         if (!(sendResult && sendResult.sent)) {
           restoreAfterUnsentMessage();

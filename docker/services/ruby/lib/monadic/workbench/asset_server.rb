@@ -22,9 +22,10 @@ module Monadic
     # found". For a token that holds, the image is read from the chat's
     # folder (Artifact), the file from the shared folder (FileItem): one
     # that is no longer the version given is answered 409 (changed) or 410
-    # (gone), so the page can say which. A text file is served from its
-    # beginning (FileItem::TEXT_LIMIT, x-workbench-truncated when cut). A
-    # single byte range is served from the checked bytes (audio, video).
+    # (gone), so the page can say which. A text file is served as it is
+    # shown (SharedFolderPreview.text_view: its beginning, as UTF-8 with
+    # "\n" line ends; x-workbench-truncated when cut), or 415 when that is
+    # not text. A single byte range is served from the checked bytes (audio, video).
     class AssetServer
       PREFIX = '/workbench/asset/'
       HEADERS = {
@@ -87,10 +88,7 @@ module Monadic
         entry = read[:entry]
         bytes = read[:bytes]
         headers = HEADERS.merge('content-type' => entry['content_type'])
-        if entry['preview'] == 'text'
-          headers['x-workbench-truncated'] = '1' if bytes.bytesize > FileItem::TEXT_LIMIT
-          bytes = bytes.byteslice(0, FileItem::TEXT_LIMIT)
-        end
+        bytes = text_shown(board, view, bytes, headers) if entry['preview'] == 'text'
         status, bytes = ranged(env, headers, bytes) if %w[audio video].include?(entry['preview'])
         headers['content-length'] = bytes.bytesize.to_s
         [status || 200, headers, env['REQUEST_METHOD'] == 'HEAD' ? [] : [bytes]]
@@ -102,8 +100,23 @@ module Monadic
         plain(410, 'Gone')
       rescue FileItem::Busy
         plain(503, 'Busy')
+      rescue Monadic::Workspace::SharedFolderPreview::NotText
+        # The same version cannot be shown as text: not a change of the file.
+        plain(415, 'Not text')
       rescue Artifact::NotAllowed
         plain(404, 'Not found')
+      end
+
+      # What a text item shows of its file (SharedFolderPreview.text_view),
+      # as UTF-8 bytes; the board keeps how many lines that is for this
+      # version (what the page says it shows is checked against it).
+      def text_shown(board, view, bytes, headers)
+        shown = Monadic::Workspace::SharedFolderPreview.text_view(bytes)
+        board.note_text(view.item_id, sha256: view.sha256,
+                                      lines: Monadic::Workspace::SharedFolderPreview.text_lines(shown[:text]).size,
+                                      truncated: shown[:truncated])
+        headers['x-workbench-truncated'] = '1' if shown[:truncated]
+        shown[:text].b
       end
 
       # One range of bytes (Range: bytes=a-b, a-, -n), 206; the whole, 200;

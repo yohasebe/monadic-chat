@@ -2,6 +2,8 @@
 
 require_relative '../../workspace'
 require_relative '../privacy/outbound'
+require_relative '../../workbench/channel'
+require_relative '../../workbench/observation'
 
 require_relative '../tts_provider'
 
@@ -202,6 +204,22 @@ module WebSocketHelper
     fields
   end
 
+  # What the model is told of the work screen with a message the user sent
+  # from this connection (Workbench::Observation), or nil. A failure here
+  # never keeps the message from being sent.
+  private def workbench_observation(session, chat_id, request_id, reported)
+    return nil unless Monadic::Workspace::Ids.valid?(:chat, chat_id)
+
+    Monadic::Workbench::Observation.for_request(
+      chat_id: chat_id, tab: Thread.current[:websocket_session_id], generation: session[:_ws_generation],
+      request_id: request_id, reported: reported,
+      private: Monadic::Workbench::Channel.private_chat?(session, chat_id)
+    )
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[Workbench] No observation for the message: #{e.class}: #{e.message}" }
+    nil
+  end
+
   private def handle_ws_streaming(connection, obj, session, queue)
     # Get session ID for targeted broadcasting throughout streaming
     ws_session_id = Thread.current[:websocket_session_id]
@@ -241,10 +259,17 @@ module WebSocketHelper
     earlier_ids = Array(session[:messages]).flat_map do |m|
       m["role"] == "user" ? Array(m["attachments"]).map { |a| a["attachment_id"] } : []
     end
+    # What the page said it shows on the work screen comes with the message
+    # (workbench_range): it goes into what the model is told with a message
+    # the user sent, and is never kept with the chat's parameters.
+    reported_range = obj.delete("workbench_range")
+    request_id = Monadic::Workspace::Ids.generate(:request)
+    user_sent = !obj["message"].to_s.empty? || !Array(attachment_refs).empty?
     request_context = Monadic::Workspace::RequestContext.new(
-      chat_id: chat_at_start,
+      chat_id: chat_at_start, request_id: request_id,
       attachment_ids: earlier_ids + Array(attachment_refs).map { |a| a["attachment_id"] },
-      tab: ws_session_id, generation: session[:_ws_generation]
+      tab: ws_session_id, generation: session[:_ws_generation],
+      observation: (user_sent ? workbench_observation(session, chat_at_start, request_id, reported_range) : nil)
     )
 
     session[:parameters].merge! obj

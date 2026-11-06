@@ -21,13 +21,17 @@ module Monadic
 
       # tab, generation: the tab and connection the message came from (the
       # workbench selects there what the answer shows), or nil.
-      attr_reader :request_id, :chat_id, :attachment_ids, :tab, :generation
+      # observation: what the model is told of the work screen with this
+      # message (Workbench::Observation, frozen), or nil.
+      attr_reader :request_id, :chat_id, :attachment_ids, :tab, :generation, :observation
 
-      def initialize(chat_id:, attachment_ids: [], request_id: Ids.generate(:request), tab: nil, generation: nil)
+      def initialize(chat_id:, attachment_ids: [], request_id: Ids.generate(:request), tab: nil, generation: nil,
+                     observation: nil)
         @request_id = request_id
         @chat_id = chat_id
         @tab = tab&.to_s
         @generation = generation
+        @observation = observation
         @attachment_ids = Set.new(attachment_ids).freeze
         freeze
       end

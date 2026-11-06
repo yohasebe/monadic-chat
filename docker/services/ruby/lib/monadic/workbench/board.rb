@@ -108,6 +108,9 @@ module Monadic
         # What a use of a file found (FileItem.read): changed or missing for
         # the version given, until the file is opened again.
         @verdicts = {}
+        # What a text item shows of its version (note_text): its lines and
+        # whether it is cut short.
+        @texts = {}
       end
 
       def private?
@@ -125,6 +128,27 @@ module Monadic
           revision: data['revision'],
           items: data['items'].values.map { |item| public_item(item) }
         }
+      end
+
+      # What a message from the tab's connection (generation) tells of the
+      # board (Observation): the items as a view shows them, the one the
+      # connection selected, and what the server served of it as text, read
+      # together under the lock (the statuses are then read from the files).
+      # nil for a connection that is no longer the tab's.
+      def observe(tab:, generation:)
+        data, selected, text = @lock.synchronize do
+          next nil unless live?(tab, generation)
+
+          held = @selected[tab.to_s]
+          id = held && held[:generation] == generation && @data['items'].key?(held[:item_id]) ? held[:item_id] : nil
+          shown = id && @texts[id]
+          version = id && @data.dig('items', id, 'file', 'sha256')
+          [deep_dup(@data), id, shown && shown[:sha256] == version ? shown.slice(:lines, :truncated) : nil]
+        end
+        return nil unless data
+
+        { epoch: Monadic::Workspace::Chats.epoch(@chat_id), selected: selected, text: text,
+          items: data['items'].values.map { |item| public_item(item) } }
       end
 
       # Places a generator's image in the chat's folder and puts it on the
@@ -256,6 +280,24 @@ module Monadic
           next unless @data.dig('items', item_id, 'file', 'sha256') == sha256
 
           @verdicts[item_id] = { sha256: sha256, status: status }
+        end
+      end
+
+      # The text item item_id shows lines lines of the version sha256
+      # (truncated: only its beginning), as served.
+      def note_text(item_id, sha256:, lines:, truncated:)
+        @lock.synchronize do
+          next unless @data.dig('items', item_id, 'file', 'sha256') == sha256
+
+          @texts[item_id] = { sha256: sha256, lines: lines, truncated: truncated }
+        end
+      end
+
+      # What note_text kept for the item's version, or nil (not served yet).
+      def text_shown(item_id, sha256:)
+        @lock.synchronize do
+          shown = @texts[item_id]
+          shown && shown[:sha256] == sha256 ? shown.slice(:lines, :truncated) : nil
         end
       end
 

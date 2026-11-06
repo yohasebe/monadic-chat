@@ -9,7 +9,7 @@ const path = require('path');
 const js = (f) => path.join(__dirname, '../../docker/services/ruby/public/js', f);
 const flush = async () => { for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0)); };
 
-function fakeLibrary({ pages = 3, width = 600, height = 800, fails = false } = {}) {
+function fakeLibrary({ pages = 3, width = 600, height = 800, fails = false, failPage = null, held = {} } = {}) {
   const lib = {
     calls: { documents: [], renders: [], layers: [], destroyed: 0 },
     GlobalWorkerOptions: {},
@@ -29,6 +29,9 @@ function fakeLibrary({ pages = 3, width = 600, height = 800, fails = false } = {
           getViewport: ({ scale }) => ({ width: width * scale, height: height * scale, scale }),
           render: (params) => {
             lib.calls.renders.push(Object.assign({ page: n }, params));
+            if (n === failPage) return { promise: Promise.reject(new Error('bad page')), cancel: () => {} };
+            // A page held is drawn when the test lets it go (held[n]()).
+            if (held[n] === null) return { promise: new Promise((resolve, reject) => { held[n] = { resolve, reject }; }), cancel: () => {} };
             return { promise: Promise.resolve(), cancel: () => {} };
           },
           streamTextContent: () => ({ page: n })
@@ -111,6 +114,45 @@ describe('WorkbenchPdf', () => {
     await flush();
     expect(lib.calls.destroyed).toBe(1);
     expect(lib.calls.renders).toHaveLength(0);
+  });
+
+  test('says what is drawn only once a page and its text layer are drawn', async () => {
+    const changes = [];
+    const lib = fakeLibrary();
+    window.WorkbenchPdf.loader = () => Promise.resolve(lib);
+    const handle = window.WorkbenchPdf.show(box, new ArrayBuffer(8), (shown) => changes.push(shown.status));
+    expect(handle.shown()).toEqual({ status: 'loading' });
+    await flush();
+    expect(handle.shown()).toEqual({ status: 'ready', page: 1, pages: 3, scale: 1 });
+    box.querySelector('.workbench-pdf-next').click();
+    expect(handle.state().page).toBe(2);
+    expect(handle.shown()).toEqual({ status: 'drawing' });
+    await flush();
+    expect(handle.shown()).toMatchObject({ status: 'ready', page: 2 });
+    expect(changes).toEqual(['drawing', 'ready', 'drawing', 'ready']);
+  });
+
+  test('does not say a page failed for a drawing a newer one replaced', async () => {
+    const held = { 2: null };
+    const lib = fakeLibrary({ held: held });
+    const handle = showWith(lib);
+    await flush();
+    box.querySelector('.workbench-pdf-next').click();
+    await flush();
+    box.querySelector('.workbench-pdf-next').click();
+    await flush();
+    expect(handle.shown()).toMatchObject({ status: 'ready', page: 3 });
+    held[2].reject(new Error('late failure'));
+    await flush();
+    expect(handle.shown()).toMatchObject({ status: 'ready', page: 3 });
+  });
+
+  test('says a page failed', async () => {
+    const other = showWith(fakeLibrary({ failPage: 2 }));
+    await flush();
+    box.querySelector('.workbench-pdf-next').click();
+    await flush();
+    expect(other.shown()).toEqual({ status: 'failed' });
   });
 
   test('says so when the PDF cannot be read', async () => {

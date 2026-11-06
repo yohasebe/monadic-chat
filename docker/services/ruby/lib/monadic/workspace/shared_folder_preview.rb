@@ -112,9 +112,8 @@ module Monadic
         raise Unavailable, 'this system cannot tell where an open file is'
       end
 
-      # The first TEXT_LIMIT bytes of a text file, as UTF-8 (bytes that are
-      # not UTF-8 become U+FFFD; a character cut at the limit is left out).
-      # NotText when what was read holds a NUL byte.
+      # The first TEXT_LIMIT bytes of a text file, as text_view shows them.
+      # NotText when what is shown holds a NUL byte.
       def read_text(relative)
         io, stat, = open_file(relative, kinds: %w[text])
         begin
@@ -122,14 +121,34 @@ module Monadic
         ensure
           io.close
         end
-        truncated = data.bytesize > TEXT_LIMIT
-        data = data.byteslice(0, TEXT_LIMIT) if truncated
+        text_view(data).merge(file_bytes: stat.size)
+      end
+
+      # Text as it is shown, from the bytes of a file: the first limit bytes
+      # (a UTF-8 character the limit cut short is left out), as UTF-8 (bytes
+      # that are not UTF-8 become U+FFFD), without a leading byte order
+      # mark, with every line end as "\n". NotText when the bytes shown hold
+      # a NUL byte. The file's version (its sha256) is of the raw bytes, not
+      # of this text. Returns { text:, truncated:, shown_bytes: } (the bytes
+      # of the file the text comes from).
+      def text_view(bytes, limit: TEXT_LIMIT)
+        truncated = bytes.bytesize > limit
+        data = (truncated ? bytes.byteslice(0, limit) : bytes).b
         raise NotText, 'the file is not text' if data.include?("\0")
 
         data = drop_cut_character(data) if truncated
-        shown = data.bytesize
-        { text: data.force_encoding('UTF-8').scrub("�"), truncated: truncated,
-          file_bytes: stat.size, shown_bytes: shown }
+        text = data.dup.force_encoding('UTF-8').scrub("\uFFFD").delete_prefix("\uFEFF").gsub(/\r\n?/, "\n")
+        { text: text, truncated: truncated, shown_bytes: data.bytesize }
+      end
+
+      # The lines of a text_view text, numbered from 1 by their place: no
+      # line in empty text; a "\n" ends the line before it, so a final "\n"
+      # adds no line. The page makes its lines the same way (workbench.js).
+      def text_lines(text)
+        return [] if text.empty?
+
+        body = text.end_with?("\n") ? text[0...-1] : text
+        body.empty? ? [''] : body.split("\n", -1)
       end
 
       # Leaves out a UTF-8 character the limit cut short at the end.

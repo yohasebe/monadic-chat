@@ -272,12 +272,37 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
     end
 
     it "serves the beginning of a long text and says it was cut" do
-      stub_const("Monadic::Workbench::FileItem::TEXT_LIMIT", 4)
+      stub_const("Monadic::Workspace::SharedFolderPreview::TEXT_LIMIT", 4)
       write("long.txt", "abcdefgh")
       status, headers, body = fetch_asset(address("long.txt"))
       expect(status).to eq(200)
       expect(body.join).to eq("abcd")
       expect(headers).to include("content-type" => "text/plain; charset=utf-8", "x-workbench-truncated" => "1")
+    end
+
+    it "serves text as it is shown, and keeps how many lines that is for the version" do
+      raw = "\xEF\xBB\xBFone\r\ntwo\rthree\n\n".b
+      write("notes.txt", raw)
+      url = address("notes.txt")
+      status, headers, body = fetch_asset(url)
+      expect(status).to eq(200)
+      expect(body.join).to eq("one\ntwo\nthree\n\n")
+      expect(headers["content-length"]).to eq(body.join.bytesize.to_s)
+      item = board.snapshot[:items].first
+      expect(item[:sha256]).to eq(Digest::SHA256.hexdigest(raw))
+      expect(board.text_shown(item[:id], sha256: item[:sha256])).to eq(lines: 4, truncated: false)
+      expect(board.text_shown(item[:id], sha256: "0" * 64)).to be_nil
+    end
+
+    it "refuses text that is not text when opened, and answers 415 (not a change) when the same version is not text where shown" do
+      write("bin.txt", "ab\0cd")
+      expect { open_file("bin.txt") }.to raise_error(Monadic::Workbench::Board::Refused, /not text/)
+      stub_const("Monadic::Workspace::SharedFolderPreview::TEXT_LIMIT", 2)
+      write("late.txt", "ab\0cd")
+      url = address("late.txt")
+      stub_const("Monadic::Workspace::SharedFolderPreview::TEXT_LIMIT", 8)
+      expect(fetch_asset(url).first).to eq(415)
+      expect(board.snapshot[:items].find { |i| i[:name] == "late.txt" }[:status]).to eq("ok")
     end
 
     it "serves a range of audio or video from the checked bytes" do

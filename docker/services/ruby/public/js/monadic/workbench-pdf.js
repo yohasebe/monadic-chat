@@ -11,9 +11,12 @@
  * MAX_PIXELS; on a high-density screen the page is drawn sharper within
  * that.
  *
- * WorkbenchPdf.show(box, bytes) draws into box and returns a handle:
- * state() (page, pages, scale) and dispose() (stops drawing and lets the
- * document go).
+ * WorkbenchPdf.show(box, bytes, onChange) draws into box and returns a
+ * handle: state() (the page and scale asked for), shown() (what is drawn
+ * now: { status: 'ready', page, pages, scale } once a page and its text
+ * layer are drawn, otherwise { status: 'loading' | 'drawing' | 'failed' }),
+ * and dispose() (stops drawing and lets the document go). onChange is
+ * called whenever shown() changes.
  */
 (function (window) {
   'use strict';
@@ -53,8 +56,15 @@
     return loading;
   }
 
-  function show(box, bytes) {
+  function show(box, bytes, onChange) {
     const state = { page: 1, pages: 0, scale: null, lib: null, doc: null, task: null, disposed: false };
+    // What is drawn: the drawing it comes from (gen) and its status.
+    let gen = 0;
+    let drawnNow = { status: 'loading' };
+    function settle(next) {
+      drawnNow = next;
+      if (typeof onChange === 'function' && !state.disposed) onChange(drawnNow);
+    }
     const bar = element('div', 'workbench-pdf-bar d-flex align-items-center gap-2 mb-2');
     const prev = element('button', 'btn btn-sm btn-outline-secondary workbench-pdf-prev', '‹');
     const next = element('button', 'btn btn-sm btn-outline-secondary workbench-pdf-next', '›');
@@ -78,6 +88,7 @@
 
     function fail() {
       if (state.disposed) return;
+      settle({ status: 'failed' });
       box.replaceChildren(element('div', 'alert alert-warning small mb-0', t('ui.workbench.pdfFailed', 'The PDF could not be shown.')));
     }
 
@@ -92,8 +103,10 @@
 
     async function draw() {
       const n = state.page;
+      const mine = ++gen;
+      settle({ status: 'drawing' });
       const page = await state.doc.getPage(n);
-      if (state.disposed || n !== state.page) return;
+      if (state.disposed || mine !== gen) return;
       if (!state.scale) {
         const width = page.getViewport({ scale: 1 }).width;
         state.scale = box.clientWidth > 0 && width > 0 ? clamp(box.clientWidth / width) : 1;
@@ -121,13 +134,18 @@
         if (e && e.name === 'RenderingCancelledException') return;
         throw e;
       }
-      if (state.disposed || n !== state.page || state.task !== task) return;
+      if (state.disposed || mine !== gen) return;
       layer.replaceChildren();
       await new state.lib.TextLayer({ textContentSource: page.streamTextContent(), container: layer, viewport: viewport }).render();
+      if (state.disposed || mine !== gen) return;
+      settle({ status: 'ready', page: n, pages: state.pages, scale: state.scale });
     }
 
+    // A drawing that fails is said only while it is the latest.
     function redraw() {
-      draw().catch(fail);
+      const drawing = draw();
+      const mine = gen;
+      drawing.catch(() => { if (mine === gen) fail(); });
     }
 
     function turn(delta) {
@@ -173,11 +191,13 @@
       }
       state.doc = doc;
       state.pages = doc.numPages;
-      return draw();
+      redraw();
+      return null;
     }).catch(fail);
 
     return {
       state: () => ({ page: state.page, pages: state.pages, scale: state.scale }),
+      shown: () => Object.assign({}, drawnNow),
       dispose: () => {
         state.disposed = true;
         if (state.task) state.task.cancel();

@@ -287,4 +287,32 @@ RSpec.describe Monadic::Workspace::SharedFolderPreview do
       end
     end
   end
+
+  describe '.text_view and .text_lines' do
+    it 'shows text as UTF-8 with "\n" line ends and no byte order mark, keeping the bytes it came from' do
+      view = described_class.text_view("\xEF\xBB\xBFa\r\nb\rc\xFF".b)
+      expect(view).to eq(text: "a\nb\nc\uFFFD", truncated: false, shown_bytes: 10)
+      expect(view[:text].encoding).to eq(Encoding::UTF_8)
+    end
+
+    it 'cuts at the limit without splitting a character, and leaves a character only the limit cut out' do
+      view = described_class.text_view('aé'.b, limit: 2)
+      expect(view).to eq(text: 'a', truncated: true, shown_bytes: 1)
+      # An invalid byte at the end of a file that is not cut stays as U+FFFD.
+      expect(described_class.text_view("a\xC3".b, limit: 4)[:text]).to eq("a\uFFFD")
+      expect(described_class.text_view('abcd'.b, limit: 4)).to include(text: 'abcd', truncated: false)
+    end
+
+    it 'refuses a NUL in what is shown only' do
+      expect { described_class.text_view("ab\0".b) }.to raise_error(described_class::NotText)
+      expect(described_class.text_view("ab\0".b, limit: 2)).to include(text: 'ab', truncated: true)
+    end
+
+    it 'numbers lines the same way the page does' do
+      {
+        '' => [], "\n" => [''], 'a' => ['a'], "a\n" => ['a'], "a\n\n" => ['a', ''],
+        "a\n\nb" => ['a', '', 'b'], "\n\n" => ['', '']
+      }.each { |text, lines| expect(described_class.text_lines(text)).to eq(lines), text.inspect }
+    end
+  end
 end

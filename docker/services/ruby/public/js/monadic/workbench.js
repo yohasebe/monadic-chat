@@ -378,6 +378,13 @@
   // is marked failed (a view with a new address draws it again).
   function fetchInto(box, item, drawn, onBody) {
     fetch(drawn.url, { credentials: 'same-origin', cache: 'no-store' }).then(async (response) => {
+      if (response.status === 415) {
+        // The same version is not text where it is shown: asking again
+        // gives the same.
+        drawn.unshowable = true;
+        box.replaceChildren(element('div', 'alert alert-warning small mb-0', t('ui.workbench.notText', 'This file cannot be shown as text.')));
+        return;
+      }
       if (!response.ok) {
         drawn.failed = true;
         if (response.status === 503) {
@@ -399,15 +406,23 @@
     });
   }
 
+  // The lines of a text the server served (already with "\n" line ends),
+  // numbered from 1 by their place, as the server numbers them
+  // (SharedFolderPreview.text_lines): none in empty text; a "\n" ends the
+  // line before it, so a final "\n" adds no line.
+  function textLines(text) {
+    if (text === '') return [];
+    return (text.endsWith('\n') ? text.slice(0, -1) : text).split('\n');
+  }
+
   // A text file as numbered lines (one element per line, so what is in
   // view can be told by line).
   function textBody(item, drawn) {
     const box = element('div', 'workbench-text');
     box.setAttribute('tabindex', '0');
     fetchInto(box, item, drawn, async (response) => {
-      const text = await response.text();
       const list = element('ol', 'workbench-lines');
-      text.split(/\r\n|\n|\r/).forEach((lineText) => list.appendChild(element('li', null, lineText)));
+      textLines(await response.text()).forEach((lineText) => list.appendChild(element('li', null, lineText)));
       box.replaceChildren(list);
       if (response.headers.get('x-workbench-truncated')) {
         box.appendChild(element('div', 'small text-secondary mt-1', t('ui.workbench.truncated', 'Only the beginning of the file is shown.')));
@@ -573,6 +588,85 @@
     (Array.isArray(messages) ? messages : []).forEach((m) => {
       if (m && m.mid && Array.isArray(m.artifacts)) records.set(m.mid, m.artifacts);
     });
+  }
+
+  // ---- what is in view (sent with a message) -------------------------
+
+  const SELECTION_LIMIT = 100000;
+
+  function paneShown() {
+    const lc = window.LayoutController;
+    if (lc && (lc.isMenuHidden() || lc.selectedPane() !== 'work')) return false;
+    return document.visibilityState !== 'hidden';
+  }
+
+  // The lines of a text box in view, as line numbers, measured now: the
+  // line elements are in order, so two binary searches find the first
+  // line that ends below the box's top and the first that starts at or
+  // below its bottom. A line partly in view counts.
+  function linesInView(box) {
+    const lines = box.querySelectorAll('.workbench-lines > li');
+    const frame = box.getBoundingClientRect();
+    if (lines.length === 0 || frame.height <= 0) return null;
+    const firstWhere = (test) => {
+      let lo = 0;
+      let hi = lines.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (test(lines[mid].getBoundingClientRect())) hi = mid;
+        else lo = mid + 1;
+      }
+      return lo;
+    };
+    const first = firstWhere((r) => r.bottom > frame.top);
+    const after = firstWhere((r) => r.top >= frame.bottom);
+    return first < after ? { first_line: first + 1, last_line: after } : null;
+  }
+
+  // Characters (not UTF-16 units) the user selected inside node, at most
+  // SELECTION_LIMIT; none for a selection elsewhere (the message box, the
+  // conversation).
+  function selectedChars(node) {
+    const selection = typeof window.getSelection === 'function' ? window.getSelection() : null;
+    if (!node || !selection || selection.isCollapsed) return 0;
+    if (!node.contains(selection.anchorNode) || !node.contains(selection.focusNode)) return 0;
+    return Math.min(Array.from(selection.toString()).length, SELECTION_LIMIT);
+  }
+
+  // What the pane shows of the selected item now, sent with a message
+  // (workbench_range): the item and its version, the range in view (or
+  // null and why: not_shown, drawing, failed, unknown), and how many
+  // characters are selected in it. The server takes it only for the item
+  // this tab has selected, at that version. null with nothing selected.
+  function rangeNow() {
+    const item = selected ? itemById(selected) : null;
+    if (!item) return null;
+    const version = item.version || item.sha256 || '';
+    const drawn = drawnBody && drawnBody.key === `${item.id}|${version}` ? drawnBody : null;
+    const kind = item.kind === 'file' ? item.preview : item.kind;
+    const report = (range, note) => ({
+      item_id: item.id, version: version, range: range, note: note,
+      selection_chars: drawn ? selectedChars(drawn.node) : 0
+    });
+    if (!paneShown()) return report(null, 'not_shown');
+    if (kind === 'image' || kind === 'browser') return report({}, null);
+    if (!drawn) return report(null, 'unknown');
+    if (drawn.failed || drawn.unshowable) return report(null, 'failed');
+    if (kind === 'text') {
+      const lines = linesInView(drawn.node);
+      return lines ? report(lines, null) : report(null, 'drawing');
+    }
+    if (kind === 'pdf') {
+      const shown = drawn.pdf ? drawn.pdf.shown() : { status: 'loading' };
+      if (shown.status !== 'ready') return report(null, shown.status === 'failed' ? 'failed' : 'drawing');
+      return report({ page: shown.page, pages: shown.pages, scale_percent: Math.round(shown.scale * 100) }, null);
+    }
+    if (kind === 'audio' || kind === 'video') {
+      const media = drawn.node;
+      const duration = Number.isFinite(media.duration) ? Math.round(media.duration) : null;
+      return report({ position_seconds: Math.floor(media.currentTime || 0), duration_seconds: duration }, null);
+    }
+    return report(null, 'unknown');
   }
 
   // ---- the user's preference -----------------------------------------
@@ -769,7 +863,7 @@
   }
 
   window.Workbench = {
-    onView, onResult, onDownload, onOpened, onSelected, drawRecord, select, openFile, step,
+    onView, onResult, onDownload, onOpened, onSelected, drawRecord, select, openFile, step, textLines, rangeNow,
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),
     // Whether the pane shows the browser (the relay runs only then).

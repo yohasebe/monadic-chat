@@ -408,9 +408,10 @@ module GrokHelper
                          context_messages[0]["role"] == "system" &&
                          context_messages[1]["role"] == "user" &&
                          session[:messages].length <= 1
-    last_message_is_tool = context_messages.last && context_messages.last["role"] == "tool"
-
-    if last_text != "" && prompt_suffix.to_s != "" && !is_initial_greeting && !last_message_is_tool
+    # Only the request for the user's message ends with it: the one that
+    # returns a tool's results ends with them, or with a screenshot taken
+    # after them (a message of its own, not the user's).
+    if last_text != "" && prompt_suffix.to_s != "" && !is_initial_greeting && role != "tool"
       new_text = last_text + "\n\n" + prompt_suffix.strip
       if context_messages.dig(-1, "content")
         last_content = context_messages.last["content"]

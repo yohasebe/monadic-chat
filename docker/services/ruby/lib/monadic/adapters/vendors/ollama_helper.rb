@@ -525,9 +525,13 @@ module OllamaHelper
             system_message
           else
             # The user's message (a session message here) keeps what the
-            # work screen shows.
+            # work screen shows, and its images.
             content = msg["content"] || msg["text"] || ""
-            { "role" => msg["role"], "content" => Monadic::Workbench::Observation.appended(content, observation_for(session, msg)) }
+            entry = { "role" => msg["role"], "content" => Monadic::Workbench::Observation.appended(content, observation_for(session, msg)) }
+            if msg["role"] == "user" && msg["images"].is_a?(Array) && !msg["images"].empty?
+              entry["images"] = msg["images"].filter_map { |img| img["data"].to_s.split(",")[1] }
+            end
+            entry
           end
         end
       end
@@ -711,11 +715,13 @@ module OllamaHelper
         return [res]
       end
 
-      # Build context from current session messages for tool result re-invocation
+      # Build context from current session messages for tool result
+      # re-invocation, as the model reads them (a user message's attachments
+      # described after its text, as in the request for the message).
       context_size = obj["context_size"].to_i
       context = [session[:messages].first]
       if session[:messages].size > 1
-        context += session[:messages][1..].last(context_size)
+        context += model_facing_context(session[:messages][1..].last(context_size))
       end
 
       # Add assistant message with tool_calls to context

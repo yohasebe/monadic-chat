@@ -218,6 +218,24 @@ RSpec.describe Monadic::Workbench::Observation do
       expect(observe.render_for(session_with(words, nil))).to be_nil
     end
 
+    it "sends none of it when the filter's backend fails, with or without marked words" do
+      failing = Class.new do
+        def before_send_to_llm(_message) = raise(Monadic::Utils::Privacy::BackendError, "the backend is down")
+        def registry_state = { terms: [] }
+      end.new
+      [words, []].each do |marked|
+        expect(observe.render_for(session_with(marked, failing))).to be_nil
+      end
+    end
+
+    it "masks again when a word is marked during the request" do
+      session = session_with([], pipeline([], masks: false))
+      observation = observe
+      expect(observation.render_for(session)).to include("group/private")
+      session[:monadic_state][:privacy][:terms] << { text: "group/private" }
+      expect(observation.render_for(session)).to be_nil
+    end
+
     it "masks once for the request, however many payloads add it" do
       pipe = pipeline(words)
       allow(pipe).to receive(:before_send_to_llm).and_call_original

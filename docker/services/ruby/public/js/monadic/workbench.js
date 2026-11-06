@@ -1,9 +1,9 @@
 /**
  * The workbench in the work screen pane, and its trace in the conversation.
  *
- * The pane lists the items of the chat's workbench (the browser, each
- * image the assistant made, each file of the shared folder opened there) in
- * the order they came, and shows the one selected; ← and → (and the
+ * The pane lists the items of the chat's workbench (the chat's browser,
+ * each image the assistant made, each file of the shared folder opened
+ * there) in the order they came, and shows the one selected; ← and → (and the
  * buttons beside the item) move along the row. An image shows with its
  * path in the shared folder (every image is kept in the chat's folder
  * there) and "Save as…" (in the desktop app; "Download" in a browser); a
@@ -37,13 +37,13 @@
 (function (window) {
   'use strict';
 
-  const BROWSER = 'browser';
   const RETRY_VIEW_MS = 30000;
 
   let board = null;
   let approvals = {};
   let assets = {};
-  let selected = BROWSER;
+  // The item this tab shows, or null (nothing selected).
+  let selected = null;
   // Images already seen (a new one is brought forward once).
   const seen = new Set();
   // Images removed from here (not put away by the board to make room).
@@ -58,6 +58,11 @@
   let serverSelected = null;
   // A file the user asked to open: the pane is shown when it comes.
   let opening = null;
+  // An item the user opened, shown as soon as the board has it.
+  let pendingOpen = null;
+  // What the pane drew for the item shown, kept while it is the same item
+  // at the same version (media keep playing, text keeps its scroll).
+  let drawnBody = null;
 
   function t(key, fallback) {
     return typeof webUIi18n !== 'undefined' ? webUIi18n.t(key) : fallback;
@@ -114,7 +119,7 @@
 
   // The items in the row, in the order they came.
   function rowItems() {
-    return items().filter((item) => item.kind === 'image' || item.kind === 'file');
+    return items().filter((item) => ['image', 'file', 'browser'].includes(item.kind));
   }
 
   // ---- the pane ------------------------------------------------------
@@ -163,6 +168,10 @@
     return button(saveLabel(), className, () => download(artifactId));
   }
 
+  function label(item) {
+    return item.kind === 'browser' ? t('ui.workbench.browser', 'Browser') : (item.name || '');
+  }
+
   function tab(id, label) {
     const wrap = element('span', 'workbench-item-wrap');
     const el = element('button', 'workbench-item');
@@ -171,7 +180,8 @@
     el.setAttribute('aria-selected', id === selected ? 'true' : 'false');
     el.dataset.item = id;
     el.title = label;
-    el.appendChild(element('span', 'workbench-item-name', id === BROWSER ? label : shortName(label)));
+    const shownItem = itemById(id);
+    el.appendChild(element('span', 'workbench-item-name', shownItem && shownItem.kind === 'browser' ? label : shortName(label)));
     el.addEventListener('click', () => select(id));
     wrap.appendChild(el);
     const item = itemById(id);
@@ -196,8 +206,7 @@
     const shown = rowItems();
     list.hidden = shown.length === 0;
     if (list.hidden) return;
-    list.appendChild(tab(BROWSER, t('ui.workbench.browser', 'Browser')));
-    shown.forEach((item) => list.appendChild(tab(item.id, item.name || '')));
+    shown.forEach((item) => list.appendChild(tab(item.id, label(item))));
   }
 
   // The board as it is now, with new addresses (an address is
@@ -209,20 +218,51 @@
     window.safeWsSend({ message: 'WORKBENCH_VIEW' }, { idempotent: true, silentDrop: true });
   }
 
+  // Whether the item is the chat's browser, open (the relay shows it).
+  function liveBrowser(item) {
+    return !!item && item.kind === 'browser' && item.status === 'open';
+  }
+
+  // ‹ n / m › above what is shown, for any item.
+  function stepperHost() {
+    let host = $id('workbench-stepper');
+    const area = $id('work-screen-browser');
+    if (!host && area && area.parentNode) {
+      host = element('div', 'workbench-stepper-host');
+      host.id = 'workbench-stepper';
+      area.parentNode.insertBefore(host, area);
+    }
+    return host;
+  }
+
   function drawView() {
     const browserArea = $id('work-screen-browser');
     const view = $id('workbench-view');
-    const item = selected === BROWSER ? null : itemById(selected);
-    if (browserArea) browserArea.hidden = !!item;
+    const item = selected ? itemById(selected) : null;
+    const live = liveBrowser(item);
+    // Nothing selected: the area says there is nothing to show.
+    if (browserArea) browserArea.hidden = !!item && !live;
+    const host = stepperHost();
+    if (host) {
+      host.replaceChildren();
+      host.hidden = !item;
+      if (item) host.appendChild(stepper(item));
+    }
     if (!view) return;
-    view.hidden = !item;
+    view.hidden = !item || live;
     view.replaceChildren();
-    if (!item) return;
+    if (!item || live) return;
     view.dataset.item = item.id;
-    view.appendChild(stepper(item));
+    if (item.kind === 'browser') {
+      view.appendChild(element('div', 'alert alert-secondary small mb-2', t('ui.workbench.browserClosed', 'This browser was closed.')));
+      return;
+    }
     if (item.status === 'ok' && assets[item.id]) {
-      view.appendChild(body(item));
+      const key = `${item.id}|${item.version || item.sha256 || ''}`;
+      if (!drawnBody || drawnBody.key !== key) drawnBody = { key: key, node: body(item) };
+      view.appendChild(drawnBody.node);
     } else if (item.status !== 'ok') {
+      drawnBody = null;
       view.appendChild(element('div', 'alert alert-warning small mb-2', statusText(item.status, item)));
     }
     const line = element('div', 'small text-secondary mt-2');
@@ -360,7 +400,7 @@
   }
 
   function select(id) {
-    selected = id === BROWSER || itemById(id) ? id : BROWSER;
+    selected = id && itemById(id) ? id : null;
     tellSelected();
     draw();
     refreshRelay();
@@ -369,7 +409,7 @@
   // The server keeps what this tab shows (it keeps that item on the board).
   function tellSelected() {
     if (typeof window.safeWsSend !== 'function' || !board) return;
-    window.safeWsSend({ message: 'WORKBENCH_SELECT', item_id: selected === BROWSER ? null : selected },
+    window.safeWsSend({ message: 'WORKBENCH_SELECT', item_id: selected },
       { idempotent: true, silentDrop: true });
   }
 
@@ -405,7 +445,12 @@
   // column is, unless the user is typing (then only the announcement says
   // so).
   function bringForward(item) {
-    if (typing()) return;
+    // The user is typing: the pane stays, and the server is told what this
+    // tab still shows.
+    if (typing()) {
+      tellSelected();
+      return;
+    }
     selected = item.id;
     const lc = window.LayoutController;
     if (lc && !lc.isMenuHidden() && lc.selectedPane() !== 'work') lc.setPane('work');
@@ -415,9 +460,11 @@
     board = null;
     approvals = {};
     assets = {};
-    selected = BROWSER;
+    selected = null;
     serverSelected = null;
     opening = null;
+    pendingOpen = null;
+    drawnBody = null;
     seen.clear();
     removed.clear();
     operations.clear();
@@ -445,7 +492,7 @@
     approvals = data.approvals || {};
     assets = data.assets || {};
     const news = [];
-    if (selected !== BROWSER && !itemById(selected)) selected = BROWSER;
+    if (selected && !itemById(selected)) selected = null;
     const arrived = rowItems().filter((item) => !seen.has(item.id));
     arrived.forEach((item) => seen.add(item.id));
     const held = data.selected || null;
@@ -459,6 +506,21 @@
     // What the server selected for this tab (an item made or opened for
     // it) is brought forward once.
     if (told && held && held !== selected && itemById(held) && !data.initial) bringForward(itemById(held));
+    // What the user opened is shown, whatever the server's selection said.
+    if (pendingOpen && itemById(pendingOpen)) {
+      showOpened(pendingOpen);
+      pendingOpen = null;
+    }
+    // A connection's first board: the server knows nothing of this tab yet.
+    // What the page still shows is told again; otherwise the chat's open
+    // browser is shown, as before.
+    if (data.initial) {
+      if (!selected) {
+        const open = rowItems().find(liveBrowser);
+        if (open) selected = open.id;
+      }
+      if (selected) tellSelected();
+    }
     // Images the board put away to make room (not removed here).
     if (before.some((id) => !itemById(id) && !removed.has(id))) {
       news.push(t('ui.workbench.putAway', 'An older item was removed from the work screen.'));
@@ -489,12 +551,19 @@
       return;
     }
     if (asked && data.item_id) {
-      const lc = window.LayoutController;
-      if (lc) {
-        if (lc.isMenuHidden()) lc.setMenuHidden(false);
-        if (lc.selectedPane() !== 'work') lc.setPane('work');
-      }
+      if (itemById(data.item_id)) showOpened(data.item_id);
+      else pendingOpen = data.item_id;
     }
+  }
+
+  // The user asked for this item: it is selected and the column shown.
+  function showOpened(id) {
+    const lc = window.LayoutController;
+    if (lc) {
+      if (lc.isMenuHidden()) lc.setMenuHidden(false);
+      if (lc.selectedPane() !== 'work') lc.setPane('work');
+    }
+    select(id);
   }
 
   // The server's answer to what this tab selected: a refused selection
@@ -502,7 +571,7 @@
   function onSelected(data) {
     if (!data || data.status !== 'refused') return;
     serverSelected = data.item_id || null;
-    selected = data.item_id && itemById(data.item_id) ? data.item_id : BROWSER;
+    selected = data.item_id && itemById(data.item_id) ? data.item_id : null;
     draw();
     refreshRelay();
   }
@@ -579,6 +648,6 @@
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),
     // Whether the pane shows the browser (the relay runs only then).
-    showsBrowser: () => selected === BROWSER
+    showsBrowser: () => liveBrowser(selected ? itemById(selected) : null)
   };
 })(window);

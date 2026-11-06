@@ -31,6 +31,8 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
 
   before do
     Monadic::Workbench::Board.reset!
+    # A selection counts for the connection a tab has now.
+    Monadic::Workbench::Board.live = live
     Monadic::Workbench::Approvals.reset!
     Monadic::Workbench::ViewTokens.reset!
     allow(Monadic::Workbench::Store).to receive(:default).and_return(store)
@@ -156,6 +158,8 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
     end
 
     it "refuses to add when every item is kept, and the user can still take one off" do
+      (1..limit).each { |i| live_tabs["tab-#{i}"] = 1 }
+      live_tabs["tab-x"] = 1
       items = (1..limit).map do |i|
         write("f#{i}.txt", i.to_s)
         open_file("f#{i}.txt", tab: "tab-#{i}").first
@@ -316,4 +320,163 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
       end
     end
   end
+  describe "the chat's browser" do
+    let(:owner) { MonadicSharedTools::BrowserOwner }
+    let(:open_instance) { [1] }
+
+    before do
+      require_relative "../../../lib/monadic/shared_tools/browser_owner"
+      allow(owner).to receive(:view) do |c|
+        next nil unless c == chat && open_instance.first
+
+        MonadicSharedTools::BrowserOwner::View.new(chat, epoch, open_instance.first, "s-1", "w-1")
+      end
+    end
+
+    def opened(instance = 1, tab: "tab-1")
+      board.add_browser(instance: instance, origin: { actor: :agent, source: :browser, tab: tab, generation: 1 }, epoch: epoch)
+    end
+
+    it "is an item while open and after it closed, selected for the tab that opened it, and never saved" do
+      item = opened
+      expect(board.selected(tab: "tab-1", generation: 1)).to eq(item["id"])
+      expect(board.snapshot[:items].first).to include(kind: "browser", status: "open", version: "browser:1")
+      expect(opened["id"]).to eq(item["id"])
+      expect(board.snapshot[:items].size).to eq(1)
+      open_instance[0] = nil
+      expect(board.snapshot[:items].first[:status]).to eq("closed")
+      write("a.txt", "a")
+      open_file("a.txt")
+      saved = JSON.parse(File.read(Dir.glob(File.join(@state, "workbench", "**", "*.json")).first))
+      expect(saved["items"].values.map { |i| i["kind"] }).to eq(["file"])
+    end
+
+    it "is not put back after the user took it off, and a new browser is a new item" do
+      item = opened
+      status, = board.accept(item_id: item["id"], action: "remove", operation_id: "op-00000001", epoch: epoch,
+                             sha256: "browser:1")
+      expect(status).to eq(:accepted)
+      expect(opened).to be_nil
+      expect(board.snapshot[:items]).to be_empty
+      open_instance[0] = 2
+      expect(opened(2)["browser"]).to eq("instance" => 2)
+    end
+
+    it "is kept while open when the board makes room, and can go once closed" do
+      item = opened(1, tab: "tab-x")
+      board.select(tab: "tab-x", generation: 1, item_id: nil)
+      (1..Monadic::Workbench::Board::ITEM_LIMIT).each do |i|
+        write("f#{i}.txt", i.to_s)
+        open_file("f#{i}.txt")
+      end
+      expect(board.snapshot[:items].map { |i| i[:id] }).to include(item["id"])
+      open_instance[0] = nil
+      write("g.txt", "g")
+      open_file("g.txt")
+      expect(board.snapshot[:items].map { |i| i[:id] }).not_to include(item["id"])
+    end
+
+    it "gives the browser a token to remove it, and no address" do
+      item = opened
+      message = channel.view(session, tab: "tab-1", generation: 1, live: live)
+      expect(message["approvals"]).to have_key(item["id"])
+      expect(message["assets"]).not_to have_key(item["id"])
+      expect(message["selected"]).to eq(item["id"])
+    end
+
+    it "is put on the board when the browser opens, for the tab of the message that opened it" do
+      require_relative "../../../lib/monadic/work_screen"
+      # No tab is connected: nothing is sent.
+      if defined?(WebSocketHelper)
+        allow(WebSocketHelper).to receive(:live_tabs_for_chat).and_return([])
+      else
+        stub_const("WebSocketHelper", Module.new { def self.live_tabs_for_chat(*) = [] })
+      end
+      request = Monadic::Workspace::RequestContext.new(chat_id: chat, tab: "tab-2", generation: 1)
+      Monadic::Workspace::RequestContext.with(request) { Monadic::WorkScreen.browser_opened(chat) }
+      item = board.snapshot[:items].first
+      expect(item).to include(kind: "browser", status: "open")
+      expect(board.selected(tab: "tab-2", generation: 1)).to eq(item[:id])
+      expect(board.selected(tab: "tab-1", generation: 1)).to be_nil
+    end
+  end
+  describe "connections, versions and load" do
+    it "lets no work of an older connection select over the tab's newer one" do
+      write("a.txt", "a")
+      write("b.txt", "b")
+      live_tabs["tab-1"] = 2
+      mine, = board.add_file(path: "a.txt", origin: { actor: :user, tab: "tab-1", generation: 2 }, epoch: epoch)
+      board.add_file(path: "b.txt", origin: { actor: :agent, tab: "tab-1", generation: 1 }, epoch: epoch)
+      expect(board.selected(tab: "tab-1", generation: 2)).to eq(mine["id"])
+      expect { board.add_file(path: "b.txt", origin: { actor: :user, tab: "tab-1", generation: 1 }, epoch: epoch) }
+        .to raise_error(Monadic::Workbench::Board::Refused, "not_allowed")
+    end
+
+    it "drops what a connection selected in a chat it left" do
+      write("a.txt", "a")
+      item, = open_file("a.txt")
+      Thread.current[:websocket_session_id] = "tab-1"
+      begin
+        Monadic::Workspace::Chats.replacing!({ chat_id: chat, _ws_generation: 1 })
+      ensure
+        Thread.current[:websocket_session_id] = nil
+      end
+      expect(board.selected(tab: "tab-1", generation: 1)).to be_nil
+      expect(board.snapshot[:items].map { |i| i[:id] }).to eq([item["id"]])
+    end
+
+    it "is shown again when the same bytes were saved again and the user opens it" do
+      full = write("a.txt", "abc")
+      item, = open_file("a.txt")
+      File.utime(Time.now + 60, Time.now + 60, full)
+      expect(board.snapshot[:items].first[:status]).to eq("changed")
+      again, added = open_file("a.txt")
+      expect(added).to be(false)
+      expect(again["id"]).to eq(item["id"])
+      expect(board.snapshot[:items].first[:status]).to eq("ok")
+    end
+
+    it "says changed when serving found other bytes behind the same stat, or a file grown past the limit" do
+      server = Monadic::Workbench::AssetServer.new(->(_env) { [200, {}, []] }, live: live, private_chat: ->(_c) { false })
+      full = write("a.txt", "abc")
+      item_id = channel.open_file({ "path" => "a.txt" }, session, tab: "tab-1", generation: 1, live: live)["item_id"]
+      url = channel.view(session, tab: "tab-1", generation: 1, live: live)["assets"][item_id]
+      mtime = File.mtime(full)
+      File.binwrite(full, "xyz")
+      File.utime(mtime, mtime, full)
+      env = { "PATH_INFO" => url, "REQUEST_METHOD" => "GET", "HTTP_SEC_FETCH_SITE" => "same-origin" }
+      expect(server.call(env).first).to eq(409)
+      after = channel.view(session, tab: "tab-1", generation: 1, live: live)
+      expect(after["board"][:items].first[:status]).to eq("changed")
+      expect(after["assets"]).not_to have_key(item_id)
+
+      write("b.txt", "b")
+      other = channel.open_file({ "path" => "b.txt" }, session, tab: "tab-1", generation: 1, live: live)["item_id"]
+      url = channel.view(session, tab: "tab-1", generation: 1, live: live)["assets"][other]
+      stub_const("Monadic::Workbench::FileItem::LIMIT", 2)
+      write("b.txt", "bigger")
+      expect(server.call(env.merge("PATH_INFO" => url)).first).to eq(409)
+    end
+
+    it "reads a few files at once and tells the others to try again" do
+      stub_const("Monadic::Workbench::FileItem::READS", 1)
+      stub_const("Monadic::Workbench::FileItem::READ_WAIT", 0.05)
+      inside = Queue.new
+      leave = Queue.new
+      holder = Thread.new { Monadic::Workbench::FileItem.turn { inside << true; leave.pop } }
+      inside.pop
+      expect { Monadic::Workbench::FileItem.turn { :never } }.to raise_error(Monadic::Workbench::FileItem::Busy)
+      leave << true
+      holder.join
+      expect(Monadic::Workbench::FileItem.turn { :now }).to eq(:now)
+    end
+
+    it "tells the chat's other tabs when a file is opened" do
+      write("a.txt", "a")
+      expect(channel).to receive(:changed).with(chat).once
+      channel.open_file({ "path" => "a.txt" }, session, tab: "tab-1", generation: 1, live: live)
+      channel.open_file({ "path" => "a.txt" }, session, tab: "tab-1", generation: 1, live: live)
+    end
+  end
 end
+

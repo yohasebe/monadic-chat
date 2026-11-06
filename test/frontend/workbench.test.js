@@ -29,7 +29,7 @@ describe('Workbench', () => {
 
   function item(overrides = {}) {
     return Object.assign({
-      id: 'i_1', kind: 'image', mid: 'm-1', artifact_id: 'r_1', name: '20261106-091233_cat.png', path: PATH,
+      id: 'i_1', kind: 'image', actor: 'agent', mid: 'm-1', artifact_id: 'r_1', name: '20261106-091233_cat.png', path: PATH,
       sha256: 'a'.repeat(64), status: 'ok'
     }, overrides);
   }
@@ -42,7 +42,9 @@ describe('Workbench', () => {
     window.Workbench.onView(Object.assign({
       board: { board_id: 'b1', chat_id: 'c_1', revision: 1, items: items },
       approvals: Object.fromEntries(items.map((i) => [i.id, `tok-${i.id}`])),
-      assets: Object.fromEntries(items.filter((i) => i.status === 'ok').map((i) => [i.id, `/workbench/asset/${i.id}`]))
+      assets: Object.fromEntries(items.filter((i) => i.status === 'ok').map((i) => [i.id, `/workbench/asset/${i.id}`])),
+      // What the server holds for this tab: the item made for it last.
+      selected: items.length ? items[items.length - 1].id : null
     }, extra));
   }
 
@@ -198,7 +200,7 @@ describe('Workbench', () => {
     expect(el.querySelector('.workbench-save')).not.toBeNull();
     expect(window.Workbench.showsBrowser()).toBe(true);
     expect(document.getElementById('workbench-items').hidden).toBe(true);
-    expect(document.getElementById('workbench-status').textContent).not.toContain('older image');
+    expect(document.getElementById('workbench-status').textContent).not.toContain('older item');
   });
 
   test('says so when the board put an older image away to make room', () => {
@@ -206,7 +208,7 @@ describe('Workbench', () => {
     document.getElementById('workbench-status').textContent = '';
     const next = item({ id: 'i_2', artifact_id: 'r_2', sha256: 'b'.repeat(64) });
     view([next], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [next] } });
-    expect(document.getElementById('workbench-status').textContent).toContain('older image');
+    expect(document.getElementById('workbench-status').textContent).toContain('older item');
   });
 
   test('opens the image in the pane from its line, showing the column the user hid', () => {
@@ -269,4 +271,88 @@ describe('Workbench', () => {
     window.Workbench.onResult({ status: 'accepted', action: 'remove', item_id: 'i_1' });
     expect(window.setAlert).toHaveBeenCalledTimes(1);
   });
+  describe('files and the row', () => {
+    function file(overrides = {}) {
+      return Object.assign({
+        id: 'i_f', kind: 'file', actor: 'user', mid: null, name: 'notes.txt', path: 'reports/notes.txt',
+        preview: 'text', sha256: 'c'.repeat(64), status: 'ok'
+      }, overrides);
+    }
+
+    afterEach(() => { delete global.fetch; });
+
+    test('shows a text file as numbered lines, and says when only its beginning is shown', async () => {
+      global.fetch = jest.fn(() => Promise.resolve({
+        ok: true, status: 200, text: () => Promise.resolve('one\ntwo'),
+        headers: { get: (h) => (h === 'x-workbench-truncated' ? '1' : null) }
+      }));
+      view([file()]);
+      await new Promise((r) => setTimeout(r, 0));
+      const lines = document.querySelectorAll('#workbench-view .workbench-lines li');
+      expect(Array.from(lines).map((l) => l.textContent)).toEqual(['one', 'two']);
+      expect(document.getElementById('workbench-view').textContent).toContain('Only the beginning');
+    });
+
+    test('moves along the row with its buttons and the arrow keys, telling the server what the tab shows', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      document.body.insertAdjacentHTML('beforeend', '<div id="work-screen-pane" tabindex="0"></div>');
+      jest.resetModules();
+      require(js('monadic/workbench.js'));
+      view([item(), file()]);
+      expect(window.Workbench.showsBrowser()).toBe(false);
+      sent.length = 0;
+      document.querySelector('#workbench-view .workbench-prev').click();
+      expect(sent.map((s) => s.payload)).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
+      expect(document.querySelector('#workbench-view img')).not.toBeNull();
+      const pane = document.getElementById('work-screen-pane');
+      pane.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      expect(sent[sent.length - 1].payload).toEqual({ message: 'WORKBENCH_SELECT', item_id: 'i_f' });
+      expect(document.querySelector('#workbench-view .workbench-next').disabled).toBe(true);
+    });
+
+    test('brings forward only what the server selected for this tab, once', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      view([file()], { selected: null });
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+      expect(window.Workbench.showsBrowser()).toBe(true);
+      view([file()], { selected: 'i_f', board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [file()] } });
+      expect(window.Workbench.showsBrowser()).toBe(false);
+      window.Workbench.select('browser');
+      view([file()], { selected: 'i_f', board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [file()] } });
+      expect(window.Workbench.showsBrowser()).toBe(true);
+    });
+
+    test('opens a file the user asked for, showing the column, or says why not', () => {
+      layout.hidden = true;
+      window.Workbench.openFile('reports/notes.txt');
+      expect(sent[0].payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'reports/notes.txt' });
+      window.Workbench.onOpened({ type: 'workbench_opened', item_id: 'i_f', path: 'reports/notes.txt', added: true });
+      expect(window.LayoutController.setMenuHidden).toHaveBeenCalledWith(false);
+      expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
+      window.Workbench.openFile('x.pdf');
+      window.Workbench.onOpened({ type: 'workbench_opened', status: 'refused', reason: 'the file cannot be previewed' });
+      expect(document.getElementById('workbench-status').textContent).toContain('cannot be previewed');
+    });
+
+    test('takes what the server holds when a selection is refused, and asks for the board when it changed', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      view([item(), file()], { selected: null });
+      window.Workbench.select('i_f');
+      window.Workbench.onSelected({ type: 'workbench_selected', status: 'refused', item_id: 'i_1' });
+      expect(document.querySelector('#workbench-view img')).not.toBeNull();
+      sent.length = 0;
+      window.Workbench.onChanged();
+      expect(sent[0].payload).toEqual({ message: 'WORKBENCH_VIEW' });
+    });
+
+    test('says a file changed after it was opened, and offers to open it as it is now', () => {
+      view([file({ status: 'changed' })]);
+      const pane = document.getElementById('workbench-view');
+      expect(pane.textContent).toContain('after it was opened here');
+      sent.length = 0;
+      Array.from(pane.querySelectorAll('button')).find((b) => b.textContent.includes('as it is now')).click();
+      expect(sent[0].payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'reports/notes.txt' });
+    });
+  });
 });
+

@@ -3,8 +3,9 @@
 require_relative '../../workbench/channel'
 
 # The workbench over the main socket (Monadic::Workbench::Channel): the
-# view a page is sent, the user's removal of an image from the board, and
-# the address to save a copy of an image, always for this connection's tab,
+# view a page is sent, the user's removal of an item from the board, a file
+# the user opens on it, the item a tab selects, and the address to save a
+# copy of an image, always for this connection's tab,
 # generation and chat, and sent back to this connection only. All of it
 # runs in the connection's own loop, one message after another.
 module WebSocketHelper
@@ -44,6 +45,20 @@ module WebSocketHelper
     end
     workbench_deliver(connection).call(result)
     send_workbench_view(connection, session)
+  end
+
+  # A file the user opens on the workbench: the result, then the board.
+  def handle_ws_workbench_open(connection, obj, session)
+    result = workbench_timed('open') do
+      Monadic::Workbench::Channel.open_file(obj, session, **workbench_connection(session), live: WORKBENCH_LIVE)
+    end
+    workbench_deliver(connection).call(result)
+    send_workbench_view(connection, session) unless result['status'] == 'refused'
+  end
+
+  def handle_ws_workbench_select(connection, obj, session)
+    result = Monadic::Workbench::Channel.select(obj, session, **workbench_connection(session), live: WORKBENCH_LIVE)
+    workbench_deliver(connection).call(result)
   end
 
   def handle_ws_workbench_download(connection, obj, session)

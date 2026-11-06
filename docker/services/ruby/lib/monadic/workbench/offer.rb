@@ -64,7 +64,7 @@ module Monadic
         @lock.synchronize { @in_flight[caller.request_id] = caller.chat_id }
         item = board.add_image(bytes: bytes, epoch: caller.epoch, name: name, run: File.basename(job_dir),
                                app_name: params['app_name'], derived_from: derived_from,
-                               origin: { actor: 'agent', source: 'tool', request_id: caller.request_id },
+                               origin: caller.origin,
                                unless_closed: -> { closed?(caller.request_id) })
         entry = item['artifact'].slice(*Record::FIELDS)
         Offered.new(chat_id: caller.chat_id, request_id: caller.request_id, item_id: item['id'],

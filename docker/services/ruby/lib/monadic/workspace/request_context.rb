@@ -19,11 +19,15 @@ module Monadic
     class RequestContext
       THREAD_KEY = :monadic_request_context
 
-      attr_reader :request_id, :chat_id, :attachment_ids
+      # tab, generation: the tab and connection the message came from (the
+      # workbench selects there what the answer shows), or nil.
+      attr_reader :request_id, :chat_id, :attachment_ids, :tab, :generation
 
-      def initialize(chat_id:, attachment_ids: [], request_id: Ids.generate(:request))
+      def initialize(chat_id:, attachment_ids: [], request_id: Ids.generate(:request), tab: nil, generation: nil)
         @request_id = request_id
         @chat_id = chat_id
+        @tab = tab&.to_s
+        @generation = generation
         @attachment_ids = Set.new(attachment_ids).freeze
         freeze
       end

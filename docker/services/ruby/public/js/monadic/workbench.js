@@ -1,14 +1,20 @@
 /**
  * The workbench in the work screen pane, and its trace in the conversation.
  *
- * The pane lists the items of the chat's workbench (the browser, and each
- * image the assistant made) and shows the one selected: for an image, the
- * image, its path in the shared folder (every image is kept in the chat's
- * folder there), and "Save as…" (in the desktop app; "Download" in a
- * browser) to save a copy elsewhere. Each image's tab has a × that takes
- * it off the workbench; the file stays in the shared folder. An image
- * whose file changed or is gone since it was made is not shown: the pane
- * says which.
+ * The pane lists the items of the chat's workbench (the browser, each
+ * image the assistant made, each file of the shared folder opened there) in
+ * the order they came, and shows the one selected; ← and → (and the
+ * buttons beside the item) move along the row. An image shows with its
+ * path in the shared folder (every image is kept in the chat's folder
+ * there) and "Save as…" (in the desktop app; "Download" in a browser); a
+ * file shows as an image, as text with its line numbers, or as audio or
+ * video. Each item's tab has a × that takes it off the workbench; the file
+ * stays in the shared folder. An item whose file changed or is gone is not
+ * shown: the pane says which (a file can be opened again as it is now).
+ *
+ * The server keeps which item each tab has selected: the page tells it
+ * (WORKBENCH_SELECT), and a view says what the server holds for this tab
+ * (`selected`), which is how an item made for this tab is brought forward.
  *
  * The conversation shows only text: under the message that made an image,
  * one line with its path (which shows the image in the pane while it is on
@@ -48,6 +54,10 @@
   // a reconnect) is the same operation on the server.
   const operations = new Map();
   let askedViewAt = 0;
+  // What the server last said this tab has selected.
+  let serverSelected = null;
+  // A file the user asked to open: the pane is shown when it comes.
+  let opening = null;
 
   function t(key, fallback) {
     return typeof webUIi18n !== 'undefined' ? webUIi18n.t(key) : fallback;
@@ -93,10 +103,18 @@
     return window.electronAPI ? t('ui.workbench.saveAs', 'Save as…') : t('ui.workbench.download', 'Download');
   }
 
-  function statusText(status) {
+  function statusText(status, item) {
+    if (status === 'changed' && item && item.kind === 'file') {
+      return t('ui.workbench.fileChanged', 'This file changed in the shared folder after it was opened here.');
+    }
     if (status === 'changed') return t('ui.workbench.changed', 'This file changed in the shared folder after it was made.');
     if (status === 'missing') return t('ui.workbench.missing', 'This file is no longer in the shared folder.');
     return '';
+  }
+
+  // The items in the row, in the order they came.
+  function rowItems() {
+    return items().filter((item) => item.kind === 'image' || item.kind === 'file');
   }
 
   // ---- the pane ------------------------------------------------------
@@ -175,7 +193,7 @@
     const list = $id('workbench-items');
     if (!list) return;
     list.replaceChildren();
-    const shown = items().filter((item) => item.kind === 'image');
+    const shown = rowItems();
     list.hidden = shown.length === 0;
     if (list.hidden) return;
     list.appendChild(tab(BROWSER, t('ui.workbench.browser', 'Browser')));
@@ -201,14 +219,11 @@
     view.replaceChildren();
     if (!item) return;
     view.dataset.item = item.id;
+    view.appendChild(stepper(item));
     if (item.status === 'ok' && assets[item.id]) {
-      const img = element('img', 'workbench-image rounded');
-      img.alt = item.name || '';
-      img.addEventListener('error', () => askView(false));
-      img.src = assets[item.id];
-      view.appendChild(img);
+      view.appendChild(body(item));
     } else if (item.status !== 'ok') {
-      view.appendChild(element('div', 'alert alert-warning small mb-2', statusText(item.status)));
+      view.appendChild(element('div', 'alert alert-warning small mb-2', statusText(item.status, item)));
     }
     const line = element('div', 'small text-secondary mt-2');
     line.appendChild(element('code', null, item.path || item.name || ''));
@@ -216,6 +231,75 @@
     if (item.status === 'ok' && item.artifact_id) {
       view.appendChild(saveButton(item.artifact_id, 'btn-primary mt-2'));
     }
+    if (item.kind === 'file' && item.status === 'changed') {
+      view.appendChild(button(t('ui.workbench.reopen', 'Open it as it is now'), 'btn-secondary mt-2',
+        () => openFile(item.path)));
+    }
+  }
+
+  // ‹ n / m › for the row.
+  function stepper(item) {
+    const row = rowItems();
+    const at = row.findIndex((i) => i.id === item.id);
+    const bar = element('div', 'workbench-stepper d-flex align-items-center gap-2 mb-2');
+    const prev = button('‹', 'btn-outline-secondary workbench-prev', () => step(-1));
+    prev.setAttribute('aria-label', t('ui.workbench.prev', 'Previous item'));
+    prev.disabled = at <= 0;
+    const next = button('›', 'btn-outline-secondary workbench-next', () => step(1));
+    next.setAttribute('aria-label', t('ui.workbench.next', 'Next item'));
+    next.disabled = at < 0 || at >= row.length - 1;
+    bar.appendChild(prev);
+    bar.appendChild(element('span', 'small text-secondary', `${at + 1} / ${row.length}`));
+    bar.appendChild(next);
+    return bar;
+  }
+
+  // What the item's address holds, drawn for its kind.
+  function body(item) {
+    const url = assets[item.id];
+    const kind = item.kind === 'file' ? item.preview : 'image';
+    if (kind === 'audio' || kind === 'video') {
+      const media = element(kind, `workbench-${kind}`);
+      media.controls = true;
+      media.preload = 'metadata';
+      media.addEventListener('error', () => askView(false));
+      media.src = url;
+      return media;
+    }
+    if (kind === 'text') return textBody(item, url);
+    const img = element('img', 'workbench-image rounded');
+    img.alt = item.name || '';
+    img.addEventListener('error', () => askView(false));
+    img.src = url;
+    return img;
+  }
+
+  // A text file as numbered lines (one element per line, so what is in
+  // view can be told by line).
+  function textBody(item, url) {
+    const box = element('div', 'workbench-text');
+    box.setAttribute('tabindex', '0');
+    const shownFor = item.id;
+    fetch(url, { credentials: 'same-origin', cache: 'no-store' }).then(async (response) => {
+      if (selected !== shownFor) return;
+      if (!response.ok) {
+        box.replaceChildren(element('div', 'alert alert-warning small mb-0',
+          response.status === 409 ? statusText('changed', item) : response.status === 410 ? statusText('missing') :
+            t('ui.workbench.expired', 'The link expired. Try again.')));
+        if (response.status === 409 || response.status === 410) askView(true);
+        return;
+      }
+      const text = await response.text();
+      const list = element('ol', 'workbench-lines');
+      text.split(/\r\n|\n|\r/).forEach((lineText) => list.appendChild(element('li', null, lineText)));
+      box.replaceChildren(list);
+      if (response.headers.get('x-workbench-truncated')) {
+        box.appendChild(element('div', 'small text-secondary mt-1', t('ui.workbench.truncated', 'Only the beginning of the file is shown.')));
+      }
+    }).catch(() => {
+      box.replaceChildren(element('div', 'alert alert-warning small mb-0', t('ui.workbench.downloadFailed', 'Could not get the file.')));
+    });
+    return box;
   }
 
   // ---- the conversation ----------------------------------------------
@@ -250,7 +334,7 @@
         line.appendChild(element('code', null, String(entry.path)));
       }
       if (item && item.status !== 'ok') {
-        line.appendChild(document.createTextNode(` — ${statusText(item.status)}`));
+        line.appendChild(document.createTextNode(` — ${statusText(item.status, item)}`));
       } else {
         line.appendChild(document.createTextNode(' '));
         line.appendChild(saveButton(entry.id, 'btn-link p-0 align-baseline workbench-save'));
@@ -277,8 +361,33 @@
 
   function select(id) {
     selected = id === BROWSER || itemById(id) ? id : BROWSER;
+    tellSelected();
     draw();
     refreshRelay();
+  }
+
+  // The server keeps what this tab shows (it keeps that item on the board).
+  function tellSelected() {
+    if (typeof window.safeWsSend !== 'function' || !board) return;
+    window.safeWsSend({ message: 'WORKBENCH_SELECT', item_id: selected === BROWSER ? null : selected },
+      { idempotent: true, silentDrop: true });
+  }
+
+  // One step along the row (from the browser, to the first item).
+  function step(delta) {
+    const row = rowItems();
+    if (row.length === 0) return;
+    const at = row.findIndex((item) => item.id === selected);
+    const next = at < 0 ? 0 : Math.min(Math.max(at + delta, 0), row.length - 1);
+    if (row[next].id !== selected) select(row[next].id);
+  }
+
+  // A file of the shared folder the user opens here (path as the Shared
+  // Folder panel names it).
+  function openFile(path) {
+    if (!path || typeof window.safeWsSend !== 'function') return;
+    opening = path;
+    window.safeWsSend({ message: 'WORKBENCH_OPEN', path: String(path) });
   }
 
   // From a line in the conversation: the user asked for it, so the side
@@ -307,6 +416,8 @@
     approvals = {};
     assets = {};
     selected = BROWSER;
+    serverSelected = null;
+    opening = null;
     seen.clear();
     removed.clear();
     operations.clear();
@@ -335,17 +446,22 @@
     assets = data.assets || {};
     const news = [];
     if (selected !== BROWSER && !itemById(selected)) selected = BROWSER;
-    const arrived = items().filter((item) => item.kind === 'image' && !seen.has(item.id));
+    const arrived = rowItems().filter((item) => !seen.has(item.id));
     arrived.forEach((item) => seen.add(item.id));
+    const held = data.selected || null;
+    const told = held !== serverSelected;
+    serverSelected = held;
     // The board a connection is sent first (a reload, a reconnect) brings
     // nothing forward: none of it is new to the user.
-    if (arrived.length > 0 && !data.initial) {
-      news.push(t('ui.workbench.announceNew', 'A new image is in the work screen.'));
-      bringForward(arrived[arrived.length - 1]);
+    if (arrived.some((item) => item.actor === 'agent') && !data.initial) {
+      news.push(t('ui.workbench.announceNew', 'Something new is in the work screen.'));
     }
+    // What the server selected for this tab (an item made or opened for
+    // it) is brought forward once.
+    if (told && held && held !== selected && itemById(held) && !data.initial) bringForward(itemById(held));
     // Images the board put away to make room (not removed here).
     if (before.some((id) => !itemById(id) && !removed.has(id))) {
-      news.push(t('ui.workbench.putAway', 'An older image was removed from the work screen.'));
+      news.push(t('ui.workbench.putAway', 'An older item was removed from the work screen.'));
     }
     if (news.length > 0) announce(news.join(' '));
     draw();
@@ -360,6 +476,51 @@
       return;
     }
     if (data.status === 'refused') warn(t('ui.workbench.refused', 'This was not accepted.'));
+  }
+
+  // A file the user asked to open: it is shown (the column too), or the
+  // reason is given.
+  function onOpened(data) {
+    if (!data) return;
+    const asked = opening;
+    opening = null;
+    if (data.status === 'refused') {
+      warn(`${t('ui.workbench.notOpened', 'The file was not opened in the work screen')}: ${data.reason || ''}`);
+      return;
+    }
+    if (asked && data.item_id) {
+      const lc = window.LayoutController;
+      if (lc) {
+        if (lc.isMenuHidden()) lc.setMenuHidden(false);
+        if (lc.selectedPane() !== 'work') lc.setPane('work');
+      }
+    }
+  }
+
+  // The server's answer to what this tab selected: a refused selection
+  // takes what the server holds.
+  function onSelected(data) {
+    if (!data || data.status !== 'refused') return;
+    serverSelected = data.item_id || null;
+    selected = data.item_id && itemById(data.item_id) ? data.item_id : BROWSER;
+    draw();
+    refreshRelay();
+  }
+
+  // ← and → in the pane (not while typing) move along the row.
+  function onKey(e) {
+    if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || typing()) return;
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const target = e.target;
+    if (target && target.closest && target.closest('audio, video, .workbench-text')) return;
+    e.preventDefault();
+    step(e.key === 'ArrowLeft' ? -1 : 1);
+  }
+
+  if (typeof document !== 'undefined') {
+    const attach = () => { const pane = $id('work-screen-pane'); if (pane) pane.addEventListener('keydown', onKey); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', attach);
+    else attach();
   }
 
   // The address to save an image from: the file is fetched here and handed
@@ -414,7 +575,9 @@
   }
 
   window.Workbench = {
-    onView, onResult, onDownload, drawRecord, select,
+    onView, onResult, onDownload, onOpened, onSelected, drawRecord, select, openFile, step,
+    // Something changed on the board elsewhere (a tool showed a file).
+    onChanged: () => askView(true),
     // Whether the pane shows the browser (the relay runs only then).
     showsBrowser: () => selected === BROWSER
   };

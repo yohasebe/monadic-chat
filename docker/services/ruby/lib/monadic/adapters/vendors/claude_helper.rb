@@ -15,6 +15,7 @@ require_relative "../../utils/system_prompt_injector"
 require_relative "../../utils/extra_logger"
 require_relative "../base_vendor_helper"
 require_relative "../../monadic_performance"
+require_relative "../../workbench/caller"
 
 module ClaudeHelper
   include BaseVendorHelper
@@ -1836,6 +1837,7 @@ module ClaudeHelper
     if method_obj && method_obj.parameters.any? { |type, name| name == :session }
       argument_hash[:session] = session
     end
+    Monadic::Workbench::Caller.inject!(argument_hash, method_obj, session)
 
     if (refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, tool_name))
       # Run only the tools offered to the model in the latest request.

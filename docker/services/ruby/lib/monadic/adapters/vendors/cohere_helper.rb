@@ -12,6 +12,7 @@ require_relative "../../utils/model_spec"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/extra_logger"
 require_relative "../../shared_tools/tavily_definitions"
+require_relative "../../workbench/caller"
 
 module CohereHelper
   include BaseVendorHelper
@@ -1352,6 +1353,7 @@ module CohereHelper
     if method_obj && method_obj.parameters.any? { |_type, name| name == :session }
       argument_hash[:session] = session
     end
+    Monadic::Workbench::Caller.inject!(argument_hash, method_obj, session)
 
     # Execute function and capture result
     begin

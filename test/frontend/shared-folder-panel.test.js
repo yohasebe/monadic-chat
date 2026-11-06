@@ -593,7 +593,8 @@ describe('shared folder panel: preview, choosing all, age and copying', () => {
       <button id="shared-folder-trash"></button>
       <div id="shared-folder-status" style="display:none"></div>
       <div id="shared-folder-preview" style="display:none"><span id="shared-folder-preview-name"></span>
-        <span id="shared-folder-preview-count"></span><button id="shared-folder-preview-close"></button>
+        <span id="shared-folder-preview-count"></span><button id="shared-folder-preview-workbench" style="display:none"></button>
+        <button id="shared-folder-preview-close"></button>
         <button id="shared-folder-preview-prev"></button><div id="shared-folder-preview-body"></div>
         <button id="shared-folder-preview-next"></button></div>
       <button id="shared-folder-select-all"></button>
@@ -642,6 +643,26 @@ describe('shared folder panel: preview, choosing all, age and copying', () => {
     expect(body.querySelector('pre')).toBeNull();
     expect(body.querySelector('img').getAttribute('src')).toBe('/api/shared_folder/file?path=dir%2Fb+c.png');
     expect(pending[1].opts.signal.aborted).toBe(true);
+  });
+
+  it('sends a file it can show to the work screen, closing the preview and the panel', async () => {
+    const hide = jest.fn();
+    window.bootstrap.Modal.getOrCreateInstance = () => ({ show() {}, hide });
+    window.Workbench = { openFile: jest.fn() };
+    try {
+      await shown([entry('dir/b c.png', { name: 'b c.png', preview: 'image' }), entry('b.pdf', { preview: 'pdf' })]);
+      const button = document.getElementById('shared-folder-preview-workbench');
+      panel.openPreview(entry('b.pdf', { preview: 'pdf' }));
+      expect(button.style.display).toBe('none');
+      panel.openPreview(entry('dir/b c.png', { name: 'b c.png', preview: 'image' }));
+      expect(button.style.display).toBe('');
+      button.click();
+      expect(window.Workbench.openFile).toHaveBeenCalledWith('dir/b c.png');
+      expect(document.getElementById('shared-folder-preview').style.display).toBe('none');
+      expect(hide).toHaveBeenCalled();
+    } finally {
+      delete window.Workbench;
+    }
   });
 
   it('plays nothing on its own, and stops the media when closed', async () => {

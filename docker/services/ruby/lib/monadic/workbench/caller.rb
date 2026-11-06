@@ -16,14 +16,20 @@ module Monadic
     # A tool that takes a workbench: argument gets one; a model cannot give
     # it (an argument of that name is dropped). nil when the reply has no
     # such context: the tool then refuses rather than save elsewhere.
-    Caller = Struct.new(:chat_id, :epoch, :request_id, :session, keyword_init: true) do
+    Caller = Struct.new(:chat_id, :epoch, :request_id, :session, :tab, :generation, keyword_init: true) do
       def self.current(session)
         scope = Fiber[Monadic::Utils::Privacy::EgressGuard::CHAT_KEY] if defined?(Monadic::Utils::Privacy::EgressGuard)
         request = Monadic::Workspace::RequestContext.current
         return nil unless scope&.chat_id && scope.epoch && request && request.chat_id == scope.chat_id
         return nil unless session && session[Monadic::Workspace::Chats::SESSION_KEY] == scope.chat_id
 
-        new(chat_id: scope.chat_id, epoch: scope.epoch, request_id: request.request_id, session: session)
+        new(chat_id: scope.chat_id, epoch: scope.epoch, request_id: request.request_id, session: session,
+            tab: request.tab, generation: request.generation)
+      end
+
+      # Who made an item on the workbench, for Board (the tab selects it).
+      def origin
+        { actor: 'agent', source: 'tool', request_id: request_id, tab: tab, generation: generation }
       end
 
       # Gives the tool method its caller when it takes one.

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'json'
 require_relative 'board'
 require_relative 'approvals'
 require_relative 'view_tokens'
@@ -13,9 +14,11 @@ require_relative '../history/policy'
 module Monadic
   module Workbench
     # What the main socket does for the workbench: the view a tab's page is
-    # sent (the board with this connection's tokens), the user's removal of
-    # an image from the board (WORKBENCH_ACTION), and an address to save a
-    # copy of an image elsewhere (WORKBENCH_DOWNLOAD). A tab's connection
+    # sent (the board with this connection's tokens and what the tab has
+    # selected), the user's removal of an item from the board
+    # (WORKBENCH_ACTION), a file of the shared folder the user opens on it
+    # (WORKBENCH_OPEN), the item the tab selects (WORKBENCH_SELECT), and an
+    # address to save a copy of an image elsewhere (WORKBENCH_DOWNLOAD). A tab's connection
     # calls these with its own session, tab id and generation; nothing here
     # trusts what the page says about the chat, the epoch or the image: the
     # server's token and the ledger hold them.
@@ -37,7 +40,8 @@ module Monadic
         unless board
           return nil if only_existing
 
-          return { 'type' => 'workbench', 'board' => empty_board(chat_id), 'approvals' => {}, 'assets' => {} }
+          return { 'type' => 'workbench', 'board' => empty_board(chat_id), 'approvals' => {}, 'assets' => {},
+                   'selected' => nil }
         end
 
         snapshot = board.snapshot
@@ -48,13 +52,15 @@ module Monadic
 
           binding = { tab: tab, generation: generation, chat_id: chat_id, epoch: snapshot[:epoch] }
           approvals[item[:id]] = Approvals.issue(**binding, item_id: item[:id], sha256: item[:sha256])
-          next if board.private? || item[:status] != 'ok'
+          next if item[:status] != 'ok'
 
-          assets[item[:id]] = AssetServer::PREFIX +
-                              ViewTokens.issue(**binding, artifact_id: item[:artifact_id], sha256: item[:sha256])
+          source = item[:kind] == 'file' ? { item_id: item[:id] } : { artifact_id: item[:artifact_id] }
+          next if board.private? && !source[:item_id]
+
+          assets[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256])
         end
         { 'type' => 'workbench', 'board' => snapshot, 'approvals' => approvals, 'assets' => assets,
-          'initial' => only_existing }
+          'selected' => board.selected(tab: tab, generation: generation), 'initial' => only_existing }
       end
 
       # The user's removal of an image from the board, sent with the token
@@ -77,6 +83,37 @@ module Monadic
           'status' => status.to_s, 'action' => operation['action'], 'state' => operation['state'] }
       rescue Board::Refused => e
         refusal(operation_id, e.message)
+      end
+
+      # The user opens a file of the shared folder (path, as the Shared
+      # Folder panel names it) on the workbench, from this tab: it is
+      # added (or, at the same version, found) and this tab selects it.
+      def open_file(obj, session, tab:, generation:, live:)
+        path = obj['path']
+        return open_refusal(path, 'not_allowed') unless live.call(tab) == generation
+
+        chat_id = chat_id_of(session) or return open_refusal(path, 'not_allowed')
+        board = Board.for(chat_id, private: private_chat?(session, chat_id))
+        item, added = board.add_file(path: path, origin: { actor: :user, source: :panel, tab: tab, generation: generation },
+                                     epoch: Monadic::Workspace::Chats.epoch(chat_id))
+        { 'type' => 'workbench_opened', 'path' => item.dig('file', 'path'), 'item_id' => item['id'], 'added' => added }
+      rescue Board::Refused => e
+        open_refusal(path, e.message)
+      end
+
+      # The item this tab's page shows now (or nil for none). The page is
+      # told what was taken: an item no longer on the board is refused.
+      def select(obj, session, tab:, generation:, live:)
+        item_id = obj['item_id']
+        return select_result(nil, 'not_allowed') unless live.call(tab) == generation
+
+        chat_id = chat_id_of(session) or return select_result(nil, 'not_allowed')
+        board = Board.existing(chat_id, private: private_chat?(session, chat_id))
+        return select_result(nil, item_id ? 'no such item' : nil) unless board
+
+        select_result(board.select(tab: tab, generation: generation, item_id: item_id), nil)
+      rescue Board::Refused => e
+        select_result(board&.selected(tab: tab, generation: generation), e.message)
       end
 
       # An address from which this connection's page saves a copy of an
@@ -114,11 +151,25 @@ module Monadic
         attached
       end
 
+      # Something on the chat's board changed outside a page's request (a
+      # tool showed a file): the chat's tabs are told, and each asks for
+      # its view (WORKBENCH_VIEW) on its own connection.
+      def changed(chat_id)
+        return unless defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:live_tabs_for_chat)
+
+        message = JSON.generate(type: 'workbench_changed')
+        WebSocketHelper.live_tabs_for_chat(chat_id).each do |tab|
+          WebSocketHelper.send_to_live_connection(tab, message, chat_id: chat_id)
+        end
+      end
+
       # The connection closed: its tokens stop working (the tab gets new
       # ones when it comes back).
-      def connection_closed(tab, generation)
+      def connection_closed(tab, generation, session = nil)
         Approvals.drop_connection(tab, generation)
         ViewTokens.drop_connection(tab, generation)
+        chat_id = session && chat_id_of(session)
+        Board.existing(chat_id)&.drop_selection(tab, generation) if Monadic::Workspace::Ids.valid?(:chat, chat_id)
       end
 
       # The user left the chat: its tokens stop working.
@@ -144,6 +195,15 @@ module Monadic
 
       def refusal(operation_id, reason)
         { 'type' => 'workbench_result', 'operation_id' => operation_id, 'status' => 'refused', 'reason' => reason }
+      end
+
+      def open_refusal(path, reason)
+        { 'type' => 'workbench_opened', 'path' => path, 'status' => 'refused', 'reason' => reason }
+      end
+
+      def select_result(item_id, reason)
+        { 'type' => 'workbench_selected', 'item_id' => item_id, 'status' => reason ? 'refused' : 'accepted',
+          'reason' => reason }.compact
       end
 
       def download_refusal(artifact_id, reason)

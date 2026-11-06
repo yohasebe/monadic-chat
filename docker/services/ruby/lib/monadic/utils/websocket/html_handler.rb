@@ -183,6 +183,11 @@ module WebSocketHelper
           new_data["privacy_known_entities"] = privacy_known_entities
         end
 
+        # What the reply made (an image placed in the chat's folder), as the
+        # message keeps it (Monadic::Workbench::Record).
+        made = content["message"] && Monadic::Workbench::Record.clean(content["message"][Monadic::Workbench::Offer::ARTIFACTS_KEY])
+        new_data["artifacts"] = made if made
+
         # Forward the vocabulary token -> resolved-path map for the frontend's
         # decoration / hover / reveal-in-explorer layer.
         vocabulary_map = content["message"] && content["message"]["vocabulary_map"]

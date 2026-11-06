@@ -52,11 +52,11 @@ app "ImageGeneratorGrok" do
     1. **New Image Generation:**
        - User describes an image → call generate_image_with_grok(operation: "generate", ...)
        - Pass user's prompt unchanged
-       - The image is shown in the work screen. Saving it to the shared folder is the user's choice there; an image does not need to be saved to be edited
+       - The image is shown in the work screen and kept in this chat's folder of the shared folder (the tool result gives its path)
 
     2. **Edit the Last Image:**
        - User wants to modify the image they are working on (e.g., "make it brighter", "add X")
-       - Call generate_image_with_grok(operation: "edit", ...) without images: the system uses the image that came last in the work screen, saved or not
+       - Call generate_image_with_grok(operation: "edit", ...) without images: the system uses the image that came last in the work screen
        - Never ask the user to upload or save an image to edit it
 
     3. **Edit an Uploaded or Named Image:**
@@ -72,8 +72,8 @@ app "ImageGeneratorGrok" do
 
     RESULT DISPLAY:
     A generated image is shown to the user in the work screen; the reply ends
-    there. Do not write image HTML or a /data/ path for an image: it is in the
-    shared folder only if the user saves it there.
+    there. Do not write image HTML or a /data/ path for an image: the work screen
+    shows it, and the reply line gives its path in the shared folder.
 
     Error: display the error message without additional commentary
 
@@ -133,7 +133,7 @@ app "ImageGeneratorGrok" do
       parameter :aspect_ratio, "string", "Aspect ratio. Omit to use the API default.", required: false, enum: Monadic::Utils::ModelSpec.image_options("xai", "aspect_ratio")
       parameter :quality, "string", "Image quality. Omit to use the API default (auto).", required: false, enum: Monadic::Utils::ModelSpec.image_options("xai", "quality")
       parameter :image_model, "string", "Image model to use. Omit for the standard (cheapest) model; pass a later one only when the user asks for higher quality, since they cost more per image. An unavailable model falls back to the standard one.", required: false, enum: Monadic::Utils::ModelSpec.get_provider_models("xai", "image")
-      parameter :images, "array", "File names of the shared folder the user named for editing (max 5). Omit to edit the last image in the work screen", required: false, items: {
+      parameter :images, "array", "Paths in the shared folder (a file name, or a path such as conversations/.../artifacts/x.png) the user named for editing (max 5). Omit to edit the last image in the work screen", required: false, items: {
         type: "string",
         description: "Image filename"
       }

@@ -39,11 +39,11 @@ app "ImageGeneratorGemini" do
     1. **New Image Generation:**
        - User describes an image → call generate_image_with_gemini(operation: "generate", ...)
        - Pass user's prompt unchanged
-       - The image is shown in the work screen. Saving it to the shared folder is the user's choice there; an image does not need to be saved to be edited
+       - The image is shown in the work screen and kept in this chat's folder of the shared folder (the tool result gives its path)
 
     2. **Edit the Last Image:**
        - User wants to modify the image they are working on (e.g., "make it brighter", "add X")
-       - Call generate_image_with_gemini(operation: "edit", ...) without images: the system uses the image that came last in the work screen, saved or not
+       - Call generate_image_with_gemini(operation: "edit", ...) without images: the system uses the image that came last in the work screen
        - Never ask the user to upload or save an image to edit it
 
     3. **Edit an Uploaded or Named Image (also as a reference):**
@@ -74,8 +74,8 @@ app "ImageGeneratorGemini" do
 
     RESULT DISPLAY:
     A generated image is shown to the user in the work screen; the reply ends
-    there. Do not write image HTML or a /data/ path for an image: it is in the
-    shared folder only if the user saves it there.
+    there. Do not write image HTML or a /data/ path for an image: the work screen
+    shows it, and the reply line gives its path in the shared folder.
 
     Error: display the error message without additional commentary
 
@@ -142,7 +142,7 @@ app "ImageGeneratorGemini" do
       parameter :model, "string", "Image generation model: 'gemini-nano-banana-2.1' (Flash / Nano Banana 2.1 — fast, creative) or 'gemini-3-pro-image' (Pro / Nano Banana Pro — high quality, better identity preservation)", required: true, enum: Monadic::Utils::ModelSpec.image_options("gemini", "model")
       parameter :aspect_ratio, "string", "Optional aspect ratio (e.g., 16:9, 1:1, 4:5)", required: false
       parameter :image_size, "string", "Optional resolution (1K, 2K, 4K)", required: false
-      parameter :images, "array", "File names of the shared folder the user named for editing (max 14). Omit to edit the last image in the work screen", required: false, items: {
+      parameter :images, "array", "Paths in the shared folder (a file name, or a path such as conversations/.../artifacts/x.png) the user named for editing (max 14). Omit to edit the last image in the work screen", required: false, items: {
         type: "string",
         description: "Image filename"
       }

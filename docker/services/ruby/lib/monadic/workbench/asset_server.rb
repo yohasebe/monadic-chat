@@ -1,21 +1,24 @@
 # frozen_string_literal: true
 
-require 'digest'
-require_relative 'board'
+require_relative 'artifact'
 require_relative 'view_tokens'
 require_relative '../workspace/chats'
 
 module Monadic
   module Workbench
-    # Serves a candidate's image to the page at /workbench/asset/<token>
-    # (ViewTokens), ahead of the application so that the request is not
-    # written to the access log: the token in the address is the permission.
+    # Serves an image of the workbench to the page at
+    # /workbench/asset/<token> (ViewTokens), ahead of the application so
+    # that the request is not written to the access log: the token in the
+    # address is the permission. A :download token serves it as a file to
+    # save (Content-Disposition: attachment).
     #
     # Only a GET or HEAD sent by a page of this server (Sec-Fetch-Site:
     # same-origin) is served, and only while the token's tab still has the
-    # connection it was given to, its chat is at the same epoch and not
-    # Private, and the item's candidate has the sha256 named.
-    # Anything else gets the same "not found".
+    # connection it was given to and its chat is at the same epoch and not
+    # Private. Anything else gets the same "not found". For a token that
+    # holds, the image is read from the chat's folder (Artifact): a file
+    # that is no longer the one recorded is answered 409 (changed) or 410
+    # (gone), so the page can say which.
     class AssetServer
       PREFIX = '/workbench/asset/'
       HEADERS = {
@@ -28,11 +31,10 @@ module Monadic
 
       # live: the generation of the connection a tab has now (or nil).
       # private_chat: whether a chat is Private.
-      def initialize(app, live:, private_chat:, store: nil)
+      def initialize(app, live:, private_chat:)
         @app = app
         @live = live
         @private_chat = private_chat
-        @store = store
       end
 
       def call(env)
@@ -41,35 +43,44 @@ module Monadic
 
         serve(env, path.delete_prefix(PREFIX))
       rescue StandardError
-        not_found
+        plain(404, 'Not found')
       end
 
       private
 
       def serve(env, token)
-        return not_found unless %w[GET HEAD].include?(env['REQUEST_METHOD'])
-        return not_found unless env['HTTP_SEC_FETCH_SITE'] == 'same-origin'
+        return plain(404, 'Not found') unless %w[GET HEAD].include?(env['REQUEST_METHOD'])
+        return plain(404, 'Not found') unless env['HTTP_SEC_FETCH_SITE'] == 'same-origin'
 
-        view = ViewTokens.view(token) or return not_found
-        return not_found unless @live.call(view.tab) == view.generation
-        return not_found unless view.epoch == Monadic::Workspace::Chats.epoch(view.chat_id)
-        return not_found if @private_chat.call(view.chat_id)
+        view = ViewTokens.view(token) or return plain(404, 'Not found')
+        return plain(404, 'Not found') unless @live.call(view.tab) == view.generation
+        return plain(404, 'Not found') unless view.epoch == Monadic::Workspace::Chats.epoch(view.chat_id)
+        return plain(404, 'Not found') if @private_chat.call(view.chat_id)
 
-        board = Board.existing(view.chat_id, **(@store ? { store: @store } : {})) or return not_found
-        return not_found if board.private?
+        read = Artifact.read(view.artifact_id, chat_id: view.chat_id)
+        return plain(409, 'Changed') unless read[:record][:sha256] == view.sha256
 
-        candidate = board.item(view.item_id)&.dig('candidate')
-        return not_found unless candidate && candidate['sha256'] == view.sha256
-
-        bytes = board.read(candidate['path'])
-        return not_found unless Digest::SHA256.hexdigest(bytes) == view.sha256
-
-        headers = HEADERS.merge('content-type' => candidate['content_type'], 'content-length' => bytes.bytesize.to_s)
+        bytes = read[:bytes]
+        headers = HEADERS.merge('content-type' => read[:record][:content_type], 'content-length' => bytes.bytesize.to_s)
+        headers['content-disposition'] = attachment(File.basename(read[:record][:copy_path])) if view.purpose == :download
         [200, headers, env['REQUEST_METHOD'] == 'HEAD' ? [] : [bytes]]
+      rescue Artifact::Changed
+        plain(409, 'Changed')
+      rescue Artifact::Missing
+        plain(410, 'Gone')
+      rescue Artifact::NotAllowed
+        plain(404, 'Not found')
       end
 
-      def not_found
-        [404, HEADERS.merge('content-type' => 'text/plain', 'content-length' => '9'), ['Not found']]
+      # The name is an image name of the ledger (ASCII letters, digits, _ -
+      # and one dot), so it needs no quoting beyond the encoded form.
+      def attachment(name)
+        encoded = name.bytes.map { |b| b.chr.match?(/[A-Za-z0-9._-]/) ? b.chr : format('%%%02X', b) }.join
+        "attachment; filename=\"#{encoded}\"; filename*=UTF-8''#{encoded}"
+      end
+
+      def plain(status, text)
+        [status, HEADERS.merge('content-type' => 'text/plain', 'content-length' => text.bytesize.to_s), [text]]
       end
     end
   end

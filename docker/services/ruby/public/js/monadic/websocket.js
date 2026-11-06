@@ -893,8 +893,8 @@ window.loadedApp = "Chat";
         break;
       }
 
-      case "message_artifacts": {
-        if (window.Workbench) window.Workbench.onArtifacts(data);
+      case "workbench_download": {
+        if (window.Workbench) window.Workbench.onDownload(data);
         break;
       }
 

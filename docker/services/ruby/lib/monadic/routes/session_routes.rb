@@ -335,7 +335,7 @@ post "/load" do
           # silently losing the badges on round-trip).
           message_obj["interrupted"] = true if msg["interrupted"]
           message_obj["tools_used"] = msg["tools_used"] if msg["tools_used"].is_a?(Array)
-          # What the file says was saved from the workbench: a record only,
+          # What the file says the reply made: a record only,
           # which grants nothing here.
           artifacts = Monadic::Workbench::Record.clean(msg["artifacts"])
           message_obj["artifacts"] = artifacts if artifacts

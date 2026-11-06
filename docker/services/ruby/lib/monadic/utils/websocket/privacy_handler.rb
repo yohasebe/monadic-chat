@@ -408,7 +408,7 @@ module WebSocketHelper
       next m unless m.is_a?(Hash)
 
       kept = m.select { |k, _| PRIVACY_EXPORT_MESSAGE_KEYS.include?(k.to_s) }
-      # What was saved from the workbench, in its checked form only.
+      # What the reply made (the workbench's record), in its checked form only.
       artifacts = Monadic::Workbench::Record.clean(kept.delete('artifacts') || kept.delete(:artifacts))
       artifacts ? kept.merge('artifacts' => artifacts) : kept
     end

@@ -15,14 +15,14 @@ RSpec.describe "session-state token key contract" do
   vocab     = File.read(File.join(ruby_root, "lib/monadic/substitution/vocabulary.rb"))
   jup_tools = File.read(File.join(ruby_root, "apps/jupyter_notebook/jupyter_notebook_tools.rb"))
 
-  # The image tools put images on the workbench; a save is recorded on the
-  # chat's messages, which ${LAST_GENERATED_IMAGE} reads.
-  it "keeps the saved-image record in sync (resolver reads / the workbench records)" do
+  # The image tools place images in the chat's folder; what a reply made is
+  # recorded on its message, which ${LAST_GENERATED_IMAGE} reads.
+  it "keeps the made-image record in sync (resolver reads / the workbench records)" do
     record = File.read(File.join(ruby_root, "lib/monadic/workbench/record.rb"))
-    expect(vocab).to include("Record.last_saved_name"),
-      "vocabulary.rb resolver should read the last saved image from the messages' records"
-    expect(record).to include("def last_saved_name"),
-      "record.rb should still define last_saved_name"
+    expect(vocab).to include("Record.last_path"),
+      "vocabulary.rb resolver should read the last made image from the messages' records"
+    expect(record).to include("def last_path"),
+      "record.rb should still define last_path"
   end
 
   it "keeps 'notebook_filename' in sync (resolver reads / Jupyter tools write)" do

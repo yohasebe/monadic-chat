@@ -97,12 +97,13 @@ module Monadic
       # is a String or an IO (an upload, copied as it streams); with a block
       # and no content, the block writes to the file. Returns the file's
       # path. Raises InvalidPath when the path is not one the server
-      # may write.
-      def write_file!(path, content = nil, mode: "w", perm: nil, replace: true, sync_dir: false, &writer)
+      # may write. strict: a path the ledger records, reached with no link
+      # on the way (shared_parts!).
+      def write_file!(path, content = nil, mode: "w", perm: nil, replace: true, sync_dir: false, strict: false, &writer)
         raise ArgumentError, "mode must be one of #{WRITE_MODES.join(', ')}" unless WRITE_MODES.include?(mode)
         raise ArgumentError, "an append always goes to the file that is there" if mode.start_with?("a") && !replace
         writer ||= ->(file) { content.respond_to?(:read) ? IO.copy_stream(content, file) : file.write(content) }
-        in_parent!(path) do |dir, name, full|
+        in_parent!(path, strict: strict) do |dir, name, full|
           if mode.start_with?("a")
             file = SharedFs.open_append(dir, name, perm: perm || 0o644)
             begin
@@ -156,9 +157,9 @@ module Monadic
 
       # Yields a plain file of the shared folder open for reading, never
       # through a link and never a FIFO or a device; returns what the block
-      # returns.
-      def read_file!(path)
-        in_parent!(path) do |dir, name, _full|
+      # returns. strict: as for write_file!.
+      def read_file!(path, strict: false)
+        in_parent!(path, strict: strict) do |dir, name, _full|
           file = SharedFs.open_read(dir, name)
           begin
             yield file
@@ -172,8 +173,8 @@ module Monadic
       # when it is larger than limit. With a limit no more than limit + 1
       # bytes are read, so a file that grows after the size check is refused
       # too.
-      def read_bytes!(path, limit: nil)
-        read_file!(path) do |file|
+      def read_bytes!(path, limit: nil, strict: false)
+        read_file!(path, strict: strict) do |file|
           next file.read unless limit
           next nil if file.stat.size > limit
 

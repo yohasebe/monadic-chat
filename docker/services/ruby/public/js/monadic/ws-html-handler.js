@@ -211,6 +211,11 @@ function _handleAssistantRole(data, html, moreComing) {
   const discourseEl = $id('discourse');
   const turnNumber = discourseEl ? discourseEl.querySelectorAll('.card:not(#temp-card) .role-assistant').length + 1 : 1;
   window.appendCard("assistant", window.assistantBadge(data["content"]), html, data["content"]["lang"], data["content"]["mid"], true, [], turnNumber);
+  // What the reply made (an image placed in the chat's folder), as the
+  // message records it.
+  if (window.Workbench && Array.isArray(data["content"]["artifacts"])) {
+    window.Workbench.drawRecord(data["content"]["mid"], data["content"]["artifacts"]);
+  }
 
   if (moreComing) {
     // Keep input disabled and streaming state active

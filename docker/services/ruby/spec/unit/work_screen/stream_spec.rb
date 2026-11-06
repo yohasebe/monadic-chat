@@ -150,7 +150,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
   it 'sends nothing to a page without a pass' do
     Sync do |task|
       runner = task.async { stream.run }
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       sleep 0.3
       runner.stop
     end
@@ -159,7 +159,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
 
   it 'refuses a pass issued on a connection that is no longer the tab\'s live one' do
     token = Monadic::WorkScreen::Tokens.issue('tab-1', 6)
-    watching(token: token) { socket.say(type: 'subscribe'); sleep 0.05 }
+    watching(token: token) { socket.say(type: 'subscribe', browser: 1); sleep 0.05 }
     expect(socket.sent).to be_empty
   end
 
@@ -171,7 +171,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
 
   it 'shows the chat\'s browser: the page as it is first, then one frame at a time' do
     watching do
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').size == 1 }
       expect(socket.of('state').last).to include('state' => 'live', 'browser' => 1)
       expect(socket.of('frame').first['data']).to eq('FIRST')
@@ -191,7 +191,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
 
   it 'scales the first still to the screencast size' do
     watching do
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').any? }
     end
     shot = cdps.first.commands.find { |c| c[0] == 'Page.captureScreenshot' }
@@ -200,7 +200,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
 
   it 'ignores a consumed notice for another stream or frame' do
     watching do
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').size == 1 }
       first = socket.of('frame').first
       cdps.first.frame('A')
@@ -213,7 +213,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
 
   it 'ends when the chat is replaced (Reset)' do
     watching do
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').any? }
       Monadic::Workspace::Chats.replacing!(session)
       wait_until { socket.of('state').last['state'] == 'ended' }
@@ -224,7 +224,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
 
   it 'ends when the browser closes' do
     watching do
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').any? }
       owner.release('chat-1', owner.epoch('chat-1'))
       wait_until { socket.of('state').last['state'] == 'ended' }
@@ -234,7 +234,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
 
   it 'follows the window the tools act on, as a new stream' do
     watching do
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').any? }
       owner.note_window('chat-1', 'wd-1', 'W2')
       wait_until { cdps.size == 2 && socket.of('state').count { |s| s['state'] == 'live' } == 2 }
@@ -246,7 +246,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
 
   it 'stops on unsubscribe and closes CDP' do
     watching do
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').any? }
       socket.say(type: 'unsubscribe')
       wait_until { socket.of('state').last['state'] == 'idle' }
@@ -256,23 +256,48 @@ RSpec.describe Monadic::WorkScreen::Stream do
 
   it 'waits when the chat has no browser' do
     owner.release('chat-1', owner.epoch('chat-1'))
-    watching { socket.say(type: 'subscribe'); wait_until { socket.of('state').any? } }
+    watching { socket.say(type: 'subscribe', browser: 1); wait_until { socket.of('state').any? } }
     expect(socket.of('state').last).to include('state' => 'waiting', 'reason' => 'no_browser')
     expect(cdps).to be_empty
   end
 
+  it 'shows only the browser the page selected, not another browser of the chat' do
+    epoch = owner.epoch('chat-1')
+    owner.release('chat-1', epoch)
+    owner.begin_start('chat-1', epoch)
+    owner.finish_start('chat-1', 'wd-2', epoch, window: 'W2')
+    watching { socket.say(type: 'subscribe', browser: 1); wait_until { socket.of('state').any? } }
+    expect(socket.of('state').last).to include('state' => 'ended', 'reason' => 'browser_closed', 'browser' => 1)
+    expect(cdps).to be_empty
+  end
+
+  it 'asks Selenium whether the browser is gone when its connection ends' do
+    allow(owner).to receive(:confirm_gone_later)
+    failing = described_class.new(socket, connector: ->(_url) { raise Monadic::WorkScreen::Cdp::Error, 'refused' })
+    Sync do |task|
+      runner = task.async { failing.run }
+      socket.say(type: 'auth', token: Monadic::WorkScreen::Tokens.issue('tab-1', 7))
+      socket.say(type: 'subscribe', browser: 1)
+      wait_until { socket.of('state').any? }
+      runner.stop
+    end
+    expect(owner).to have_received(:confirm_gone_later).with('chat-1', 'wd-1')
+  end
+
   it 'shows nothing where Selenium cannot be reached (development)' do
     allow(Monadic::WorkScreen).to receive(:available?).and_return(false)
-    watching { socket.say(type: 'subscribe'); wait_until { socket.of('state').any? } }
+    watching { socket.say(type: 'subscribe', browser: 1); wait_until { socket.of('state').any? } }
     expect(socket.of('state').last).to include('state' => 'ended', 'reason' => 'unavailable')
     expect(cdps).to be_empty
   end
 
   it "takes only the page's own messages, with their own fields" do
     check = ->(message) { stream.send(:valid?, message) }
-    expect(check.call('type' => 'subscribe')).to be(true)
+    expect(check.call('type' => 'subscribe', 'browser' => 1)).to be(true)
+    expect(check.call('type' => 'subscribe')).to be(false)
+    expect(check.call('type' => 'subscribe', 'browser' => '1')).to be(false)
     expect(check.call('type' => 'frame-consumed', 'stream' => 1, 'n' => 2)).to be(true)
-    expect(check.call('type' => 'subscribe', 'url' => 'x')).to be(false)
+    expect(check.call('type' => 'subscribe', 'browser' => 1, 'url' => 'x')).to be(false)
     expect(check.call('type' => 'Runtime.evaluate')).to be(false)
     expect(check.call('type' => 'frame-consumed', 'stream' => '1', 'n' => 2)).to be(false)
     expect(check.call('type' => 'frame-consumed', 'stream' => -1, 'n' => 2)).to be(false)
@@ -307,7 +332,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
     owner.finish_start('chat-1', 'wd-1', epoch, window: 'W1')
     now = opened + MonadicSharedTools::BrowserOwner::IDLE_LIMIT + 1
     watching do
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').any? }
       owner.reap(now: now)
       wait_until { socket.of('state').last['state'] == 'ended' }
@@ -317,7 +342,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
 
   it 'does not move to another browser that started while it changed windows' do
     watching do
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').any? }
       # While the old window's connection closes, the chat starts a new browser.
       cdps.first.on_close = lambda do
@@ -335,7 +360,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
 
   it 'does not move to the chat a Reset made while it changed windows' do
     watching do
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').any? }
       cdps.first.on_close = -> { Monadic::Workspace::Chats.replacing!(session) }
       owner.note_window('chat-1', 'wd-1', 'W2')
@@ -347,7 +372,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
 
   it 'shows nothing while the window the tools act on is not known, and goes on once it is' do
     watching do
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').any? }
       owner.note_window('chat-1', 'wd-1', nil)
       wait_until { socket.of('state').last['state'] == 'waiting' }
@@ -362,7 +387,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
   it 'answers unsubscribe once the browser connection is closed' do
     closed_at_idle = nil
     watching do
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').any? }
       cdps.first.on_close = -> { sleep 0.3 }
       socket.say(type: 'unsubscribe')
@@ -376,7 +401,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
     Sync do |task|
       runner = task.async { stream.run }
       socket.say(type: 'auth', token: Monadic::WorkScreen::Tokens.issue('tab-1', 7))
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').any? }
       cdps.first.on_close = -> { sleep 0.3 }
       socket.say(type: 'unsubscribe')
@@ -389,7 +414,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
   it 'keeps checking while the page does not read, and closes its socket' do
     stub_const("#{described_class}::WRITE_LIMIT", 0.5)
     watching do
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').any? }
       socket.stall!
       cdps.first.frame('A')
@@ -411,7 +436,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
   it 'gives a tab one work screen socket: a newer one closes the older' do
     other = FakeSocket.new
     watching do
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').any? }
       Async do
         described_class.new(other, connector: ->(url) { FakeCdp.new(url).tap { |c| cdps << c } }).run
@@ -425,7 +450,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
 
   it 'ends on a second auth' do
     watching do
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').any? }
       socket.say(type: 'auth', token: Monadic::WorkScreen::Tokens.issue('tab-1', 7))
       wait_until { cdps.first.closed? }
@@ -437,7 +462,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
     Sync do |task|
       runner = task.async { failing.run }
       socket.say(type: 'auth', token: Monadic::WorkScreen::Tokens.issue('tab-1', 7))
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('state').any? }
       runner.stop
     end
@@ -446,7 +471,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
 
   it 'shows only frames of the page it attached to' do
     watching do
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').size == 1 }
       first = socket.of('frame').first
       cdps.first.frame('OTHER', 'S-elsewhere')
@@ -459,7 +484,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
   it 'ends as slow when the page does not draw a frame in time' do
     stub_const("#{described_class}::CONSUME_LIMIT", 0.3)
     watching do
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { socket.of('frame').any? }
       wait_until { socket.of('state').last['state'] == 'ended' }
       expect(socket.of('state').last['reason']).to eq('slow')
@@ -534,7 +559,7 @@ RSpec.describe Monadic::WorkScreen::Stream do
     # The page stops reading while the first frame is queued behind the live state.
     def frame_queued_behind_a_stall
       socket.stall!
-      socket.say(type: 'subscribe')
+      socket.say(type: 'subscribe', browser: 1)
       wait_until { cdps.any? && cdps.first.commands.any? { |c| c[0] == 'Page.startScreencast' } }
       sleep 0.3
     end

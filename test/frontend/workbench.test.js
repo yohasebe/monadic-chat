@@ -34,6 +34,14 @@ describe('Workbench', () => {
     }, overrides);
   }
 
+  // What was sent, without the number each selection carries.
+  function payloads() {
+    return sent.map((x) => {
+      const { seq, ...rest } = x.payload;
+      return rest;
+    });
+  }
+
   // The item the pane shows, or null.
   function shown() {
     const pane = document.getElementById('workbench-view');
@@ -308,11 +316,11 @@ describe('Workbench', () => {
       expect(shown()).not.toBeNull();
       sent.length = 0;
       document.querySelector('#workbench-stepper .workbench-prev').click();
-      expect(sent.map((s) => s.payload)).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
+      expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
       expect(document.querySelector('#workbench-view img')).not.toBeNull();
       const pane = document.getElementById('work-screen-pane');
       pane.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-      expect(sent[sent.length - 1].payload).toEqual({ message: 'WORKBENCH_SELECT', item_id: 'i_f' });
+      expect(payloads().pop()).toEqual({ message: 'WORKBENCH_SELECT', item_id: 'i_f' });
       expect(document.querySelector('#workbench-stepper .workbench-next').disabled).toBe(true);
     });
 
@@ -341,7 +349,7 @@ describe('Workbench', () => {
       expect(window.LayoutController.setMenuHidden).toHaveBeenCalledWith(false);
       expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
       expect(shown()).toBe('i_f');
-      expect(sent.map((x) => x.payload)).toContainEqual({ message: 'WORKBENCH_SELECT', item_id: 'i_f' });
+      expect(payloads()).toContainEqual({ message: 'WORKBENCH_SELECT', item_id: 'i_f' });
       window.Workbench.openFile('x.pdf');
       window.Workbench.onOpened({ type: 'workbench_opened', status: 'refused', reason: 'the file cannot be previewed' });
       expect(document.getElementById('workbench-status').textContent).toContain('cannot be previewed');
@@ -387,7 +395,7 @@ describe('Workbench', () => {
       view([item(), browser()], { initial: true, selected: null });
       expect(window.Workbench.showsBrowser()).toBe(true);
       expect(window.LayoutController.setPane).not.toHaveBeenCalled();
-      expect(sent.map((x) => x.payload)).toContainEqual({ message: 'WORKBENCH_SELECT', item_id: 'i_b' });
+      expect(payloads()).toContainEqual({ message: 'WORKBENCH_SELECT', item_id: 'i_b' });
     });
 
     test('with nothing selected, shows the empty area and no stepper', () => {
@@ -405,7 +413,7 @@ describe('Workbench', () => {
       const next = item({ id: 'i_2', artifact_id: 'r_2', sha256: 'b'.repeat(64) });
       view([item(), next], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item(), next] }, selected: 'i_2' });
       expect(shown()).toBe('i_1');
-      expect(sent.map((x) => x.payload)).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
+      expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
     });
 
     test('keeps the media element of the item shown when the board comes again', () => {
@@ -421,7 +429,83 @@ describe('Workbench', () => {
       view([item()]);
       sent.length = 0;
       view([item()], { initial: true, selected: null, board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] } });
-      expect(sent.map((x) => x.payload)).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
+      expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
+    });
+  });
+  describe('answers and failures', () => {
+    const lastSeq = () => sent.filter((x) => x.payload.message === 'WORKBENCH_SELECT').pop().payload.seq;
+
+    test('brings forward an item the server selects again after the page kept another', () => {
+      view([item()]);
+      document.getElementById('message').focus();
+      const next = item({ id: 'i_2', artifact_id: 'r_2', sha256: 'b'.repeat(64) });
+      const both = { board_id: 'b1', chat_id: 'c_1', items: [item(), next] };
+      view([item(), next], { board: Object.assign({ revision: 2 }, both), selected: 'i_2' });
+      expect(shown()).toBe('i_1');
+      // The server took what the page still shows.
+      window.Workbench.onSelected({ type: 'workbench_selected', status: 'accepted', item_id: 'i_1', seq: lastSeq() });
+      document.getElementById('message').blur();
+      view([item(), next], { board: Object.assign({ revision: 3 }, both), selected: 'i_2' });
+      expect(shown()).toBe('i_2');
+    });
+
+    test('takes no answer to an older selection', () => {
+      const next = item({ id: 'i_2', artifact_id: 'r_2', sha256: 'b'.repeat(64) });
+      view([item(), next], { selected: 'i_2' });
+      window.Workbench.select('i_1');
+      const older = lastSeq();
+      window.Workbench.select('i_2');
+      window.Workbench.onSelected({ type: 'workbench_selected', status: 'refused', item_id: null, seq: older });
+      expect(shown()).toBe('i_2');
+    });
+
+    test('gets a text again from a new address after the server was busy, and says it was busy', async () => {
+      const notes = { id: 'i_t', kind: 'file', actor: 'user', name: 'a.txt', path: 'a.txt', preview: 'text',
+        sha256: 'e'.repeat(64), version: 'e'.repeat(64), status: 'ok' };
+      const answers = [{ ok: false, status: 503 }, { ok: true, status: 200, text: async () => 'one\ntwo', headers: { get: () => null } }];
+      const asked = [];
+      global.fetch = jest.fn((url) => { asked.push(url); return Promise.resolve(answers.shift()); });
+      try {
+        view([notes], { assets: { i_t: '/workbench/asset/one' } });
+        await new Promise((r) => setTimeout(r, 0));
+        expect(document.querySelector('#workbench-view .workbench-text').textContent).toContain('reading other files');
+        view([notes], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [notes] }, assets: { i_t: '/workbench/asset/two' } });
+        await new Promise((r) => setTimeout(r, 0));
+        expect(asked).toEqual(['/workbench/asset/one', '/workbench/asset/two']);
+        expect(document.querySelectorAll('#workbench-view .workbench-lines li')).toHaveLength(2);
+      } finally {
+        delete global.fetch;
+      }
+    });
+
+    test('draws media again from a new address once it failed, and leaves it connected otherwise', () => {
+      const clip = { id: 'i_a', kind: 'file', actor: 'user', name: 'a.mp3', path: 'a.mp3', preview: 'audio',
+        sha256: 'd'.repeat(64), version: 'd'.repeat(64), status: 'ok' };
+      view([clip], { assets: { i_a: '/workbench/asset/one' } });
+      const first = document.querySelector('#workbench-view audio');
+      const held = first.parentNode;
+      view([clip], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [clip] }, assets: { i_a: '/workbench/asset/two' } });
+      expect(document.querySelector('#workbench-view audio')).toBe(first);
+      expect(first.parentNode).toBe(held);
+      first.dispatchEvent(new Event('error'));
+      view([clip], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [clip] }, assets: { i_a: '/workbench/asset/three' } });
+      const again = document.querySelector('#workbench-view audio');
+      expect(again).not.toBe(first);
+      expect(again.getAttribute('src')).toBe('/workbench/asset/three');
+    });
+
+    test('names the browser it shows for the relay, and says when the browser could not be put on', () => {
+      view([{ id: 'i_b', kind: 'browser', actor: 'agent', instance: 3, version: 'browser:3', status: 'open' }]);
+      expect(window.Workbench.shownBrowser()).toBe(3);
+      window.Workbench.onBrowserFull();
+      expect(document.getElementById('workbench-status').textContent).toContain('work screen is full');
+    });
+
+    test('says the server was busy when a file could not be opened for that', () => {
+      view([]);
+      window.Workbench.openFile('a.txt');
+      window.Workbench.onOpened({ type: 'workbench_opened', status: 'refused', reason: 'busy' });
+      expect(document.getElementById('workbench-status').textContent).toContain('reading other files');
     });
   });
   describe('the preference to show new items', () => {

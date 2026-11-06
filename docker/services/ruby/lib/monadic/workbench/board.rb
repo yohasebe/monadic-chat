@@ -183,9 +183,11 @@ module Monadic
       # Shared Folder panel, :agent from a tool), and the tab and connection
       # it was opened for (tab:, generation:), which then selects it.
       # Returns [item, added]. Refused at another epoch, for a file the work
-      # screen does not show, or when every item is kept (room_for_one!).
-      def add_file(path:, origin:, epoch:)
-        entry = FileItem.entry_for(path)
+      # screen does not show, or when every item is kept (room_for_one!);
+      # FileItem::Busy when no turn to read it came within wait.
+      # wait: seconds to wait for a turn to read the file (FileItem.turn).
+      def add_file(path:, origin:, epoch:, wait: FileItem::READ_WAIT)
+        entry = FileItem.entry_for(path, wait: wait)
         change do |data|
           check_epoch!(epoch)
           raise Refused, 'not_allowed' if origin[:actor].to_s == 'user' && !live?(origin[:tab], origin[:generation])
@@ -259,8 +261,11 @@ module Monadic
 
       # The tab's connection (generation) selects item_id, or nothing (nil).
       # Refused for an item that is not on the board. Returns item_id.
+      # Refused too when the connection is no longer the tab's (live?): an
+      # older connection does not replace what a newer one selected.
       def select(tab:, generation:, item_id:)
         @lock.synchronize do
+          raise Refused, 'not_allowed' unless live?(tab, generation)
           raise Refused, 'no such item' if item_id && !@data['items'].key?(item_id)
 
           @selected[tab.to_s] = { generation: generation, item_id: item_id }
@@ -269,11 +274,13 @@ module Monadic
       end
 
       # What the tab's connection has selected (an item still on the board),
-      # or nil.
+      # or nil (also for a connection that is no longer the tab's).
       def selected(tab:, generation:)
         @lock.synchronize do
           held = @selected[tab.to_s]
-          held && held[:generation] == generation && @data['items'].key?(held[:item_id]) ? held[:item_id] : nil
+          next nil unless held && held[:generation] == generation && live?(tab, generation)
+
+          @data['items'].key?(held[:item_id]) ? held[:item_id] : nil
         end
       end
 
@@ -344,6 +351,7 @@ module Monadic
           data['operations'].shift while data['operations'].size > REMOVED_LIMIT
           take_off!(data, item, operation_id)
           @browsers_off << item.dig('browser', 'instance') if item['kind'] == 'browser'
+          put_back_browser!(data)
           [:accepted, deep_dup(operation)]
         end
       end
@@ -428,6 +436,20 @@ module Monadic
         take_off!(data, oldest, 'room')
       end
 
+      # The chat's open browser, when it is not on the board (it opened
+      # while every item was kept) and the user did not take it off, is put
+      # on in the room just made.
+      def put_back_browser!(data)
+        view = defined?(MonadicSharedTools::BrowserOwner) && MonadicSharedTools::BrowserOwner.view(@chat_id)
+        return unless view && view.epoch == Monadic::Workspace::Chats.epoch(@chat_id)
+        return if @browsers_off.include?(view.instance) || data['items'].size >= ITEM_LIMIT
+        return if data['items'].values.any? { |item| item.dig('browser', 'instance') == view.instance }
+
+        item_id = "i_#{SecureRandom.hex(10)}"
+        data['items'][item_id] = { 'id' => item_id, 'kind' => 'browser', 'origin' => { 'actor' => 'agent', 'source' => 'browser' },
+                                   'mid' => nil, 'browser' => { 'instance' => view.instance } }
+      end
+
       # The item's content entry: the image's record or the file's version.
       def content_of(item)
         item['artifact'] || item['file']
@@ -479,7 +501,7 @@ module Monadic
         return public_file(item) if item['kind'] == 'file'
         if item['kind'] == 'browser'
           return { id: item['id'], kind: 'browser', actor: item.dig('origin', 'actor'), mid: item['mid'],
-                   version: version_of(item), status: browser_status(item) }
+                   instance: item.dig('browser', 'instance'), version: version_of(item), status: browser_status(item) }
         end
 
         entry = item['artifact'] || {}

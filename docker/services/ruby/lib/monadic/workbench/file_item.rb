@@ -27,25 +27,38 @@ module Monadic
       LIMIT = 64 * 1024 * 1024
       # What a text item serves of the file: its beginning, as the panel.
       TEXT_LIMIT = Monadic::Workspace::SharedFolderPreview::TEXT_LIMIT
-      # Files read whole at once, and how long a read waits for its turn.
+      # Files read and hashed at once, how long a read waits for its turn
+      # (by default), and how many may wait.
       READS = 2
       READ_WAIT = 15
+      WAITING = 8
 
       @reading = 0
+      @waiting = 0
       @reading_lock = Mutex.new
       @reading_done = ConditionVariable.new
 
       class << self
-        # Runs the block as one of READS reads at most; Busy after READ_WAIT
-        # seconds without a turn.
-        def turn
-          deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + READ_WAIT
+        # Runs the block as one of READS at most. Busy at once when WAITING
+        # are waiting already, or after wait seconds without a turn. A turn
+        # (or a place in the wait) is given back however the block ends.
+        def turn(wait: READ_WAIT)
+          deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + wait
           @reading_lock.synchronize do
-            while @reading >= READS
-              left = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
-              raise Busy, 'the work screen is reading other files; try again' if left <= 0
+            if @reading >= READS
+              raise Busy, 'the work screen is reading other files; try again' if @waiting >= WAITING
 
-              @reading_done.wait(@reading_lock, left)
+              @waiting += 1
+              begin
+                while @reading >= READS
+                  left = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+                  raise Busy, 'the work screen is reading other files; try again' if left <= 0
+
+                  @reading_done.wait(@reading_lock, left)
+                end
+              ensure
+                @waiting -= 1
+              end
             end
             @reading += 1
           end
@@ -66,13 +79,13 @@ module Monadic
       # its entry for an item: path (normalized), name, preview kind,
       # content type, sha256, size and the stat seen (to tell a change
       # cheaply in a view). Refused for anything the work screen does not
-      # show.
-      def entry_for(path)
+      # show; Busy when no turn to read it came within wait seconds.
+      def entry_for(path, wait: READ_WAIT)
         relative = normalize(path)
-        read = read_whole(relative)
+        read = read_whole(relative, wait: wait)
         {
           'path' => relative, 'name' => File.basename(relative), 'preview' => read[:kind],
-          'content_type' => content_type(relative, read[:kind]), 'sha256' => Digest::SHA256.hexdigest(read[:bytes]),
+          'content_type' => content_type(relative, read[:kind]), 'sha256' => read[:sha256],
           'size' => read[:bytes].bytesize, 'mtime_ns' => nanoseconds(read[:stat].mtime), 'ino' => read[:stat].ino
         }
       rescue Monadic::Workspace::SharedFolderPreview::Invalid,
@@ -83,10 +96,10 @@ module Monadic
       # The bytes of the item's file, read now and checked against entry's
       # version.
       def read(entry)
-        bytes = read_whole(entry['path'])[:bytes]
-        raise Artifact::Changed, 'the file changed after it was opened' unless Digest::SHA256.hexdigest(bytes) == entry['sha256']
+        read = read_whole(entry['path'])
+        raise Artifact::Changed, 'the file changed after it was opened' unless read[:sha256] == entry['sha256']
 
-        bytes
+        read[:bytes]
       rescue Monadic::Workspace::SharedFolderPreview::Invalid => e
         raise Artifact::Missing, 'the file is no longer in the shared folder' if e.message == 'the file is not there'
 
@@ -131,9 +144,13 @@ module Monadic
         kind == 'text' ? 'text/plain; charset=utf-8' : Monadic::Workspace::SharedFolderPreview.mime_for(relative)
       end
 
-      # The whole file (up to LIMIT) with its kind and stat.
-      def read_whole(relative)
-        turn { read_now(relative) }
+      # The whole file (up to LIMIT) with its kind, stat and sha256, read
+      # and hashed in one turn.
+      def read_whole(relative, wait: READ_WAIT)
+        turn(wait: wait) do
+          read = read_now(relative)
+          read.merge(sha256: Digest::SHA256.hexdigest(read[:bytes]))
+        end
       end
 
       def read_now(relative)

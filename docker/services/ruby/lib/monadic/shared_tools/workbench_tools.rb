@@ -29,6 +29,8 @@ module MonadicSharedTools
                       'note' => 'The file is shown in the work screen as it is now. It was not copied.' })
     rescue Monadic::Workbench::Board::Refused => e
       refused(e.message)
+    rescue Monadic::Workbench::FileItem::Busy
+      refused('the work screen is reading other files now; try again in a moment')
     end
 
     private

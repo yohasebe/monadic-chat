@@ -15,9 +15,13 @@
  * to the stream shown; the server is told once it is drawn (frame-consumed),
  * and sends the next. A stream that ends or waits clears the image at once.
  *
+ * The page subscribes to the browser the pane shows (its instance): the
+ * server relays that browser only, and a state or frame of another is not
+ * taken. When the pane moves to another browser, the page subscribes again.
+ *
  * When the chat's browser opens, it becomes an item of the workbench, which
  * brings it forward for the tab that opened it; the chat socket also says
- * so (browser_opened), and the relay starts again.
+ * so (browser_opened).
  */
 (function() {
   'use strict';
@@ -33,6 +37,8 @@
   var reopenTimer = null;
   var unavailable = false;
   var stream = null;
+  // The browser this socket subscribed to (its instance), or null.
+  var subscribed = null;
   // Bumped whenever what is shown is cleared: a frame decoded for an older
   // view is not drawn.
   var view = 0;
@@ -84,10 +90,28 @@
     if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
   }
 
-  // Brings the socket in line with whether the pane can be seen.
+  function shownBrowser() {
+    return window.Workbench && typeof window.Workbench.shownBrowser === 'function' ? window.Workbench.shownBrowser() : null;
+  }
+
+  // Subscribes to the browser the pane shows now.
+  function subscribe() {
+    var browser = shownBrowser();
+    if (browser === null || !socket || socket.readyState !== WebSocket.OPEN) return;
+    subscribed = browser;
+    stream = null;
+    send({ type: 'subscribe', browser: browser });
+  }
+
+  // Brings the socket in line with whether the pane can be seen, and with
+  // the browser it shows.
   function refresh() {
     if (visible()) {
       if (!socket && !unavailable) askPass();
+      else if (socket && subscribed !== shownBrowser()) {
+        showEmpty();
+        subscribe();
+      }
     } else {
       close();
     }
@@ -106,8 +130,9 @@
     var conn = new WebSocket(socketUrl());
     socket = conn;
     conn.onopen = function() {
+      if (conn !== socket) return;
       conn.send(JSON.stringify({ type: 'auth', token: token }));
-      conn.send(JSON.stringify({ type: 'subscribe' }));
+      subscribe();
     };
     conn.onmessage = function(event) {
       if (conn !== socket) return;
@@ -120,6 +145,7 @@
       if (conn !== socket) return;
       socket = null;
       stream = null;
+      subscribed = null;
       showEmpty();
       if (visible() && !unavailable) reopenLater();
     };
@@ -141,11 +167,14 @@
     var conn = socket;
     socket = null;
     stream = null;
+    subscribed = null;
     if (conn) conn.close();
     showEmpty();
   }
 
   function onState(message) {
+    // A state of a browser this socket no longer watches.
+    if (typeof message.browser === 'number' && message.browser !== subscribed) return;
     if (message.state === 'live') {
       // Attached; nothing is drawn yet.
       stream = message.stream;
@@ -165,12 +194,12 @@
       close();
       refresh();
     } else if (RESUBSCRIBE.indexOf(message.reason) !== -1) {
-      send({ type: 'subscribe' });
+      subscribe();
     }
   }
 
   function onFrame(message) {
-    if (message.stream !== stream || typeof message.data !== 'string') return;
+    if (message.stream !== stream || message.browser !== subscribed || typeof message.data !== 'string') return;
     var shown = view;
     var conn = socket;
     var decoded = new Image();
@@ -190,12 +219,15 @@
     });
   }
 
-  // A message for the work screen on the chat socket.
-  // The browser is an item of the workbench, brought forward there for the
-  // tab that opened it (workbench.js); here the relay starts again.
+  // A message for the work screen on the chat socket. The browser is an
+  // item of the workbench, brought forward there for the tab that opened
+  // it (workbench.js), which then subscribes to it; when the work screen
+  // was full, the user is told.
   function onChatEvent(message) {
     if (message.event !== 'browser_opened') return;
-    send({ type: 'subscribe' });
+    if (message.workbench === 'full' && window.Workbench && typeof window.Workbench.onBrowserFull === 'function') {
+      window.Workbench.onBrowserFull();
+    }
     refresh();
   }
 

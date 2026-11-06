@@ -29,6 +29,10 @@ module MonadicSharedTools
   # (Chats.epoch): work begun in an earlier epoch (current_work, kept from
   # when the work began) opens, uses and closes nothing, even when the chat
   # id comes back (history Continue).
+  #
+  # Whenever a chat stops holding its browser (closed, replaced, idle, or
+  # found gone from Selenium), the listeners (on_closed) are told, outside
+  # the lock.
   module BrowserOwner
     IDLE_LIMIT = 300
     TICK = 30
@@ -80,6 +84,7 @@ module MonadicSharedTools
     # Per chat, kept for good: the lock every caller of the chat waits on.
     @op_locks = {}
     @runner = nil
+    @closed_listeners = []
     @queue = Queue.new
     @worker = nil
     @last_reap = 0
@@ -233,13 +238,56 @@ module MonadicSharedTools
     # The chat gives its browser up: its session, for the caller to close,
     # or nil (none, or the work is of an earlier epoch).
     def release(chat, epoch)
-      @lock.synchronize do
+      session = @lock.synchronize do
         next nil unless live?(chat, epoch)
 
-        session = @browsers.delete(chat)&.session
-        @revision += 1 if session
-        session
+        released = @browsers.delete(chat)&.session
+        @revision += 1 if released
+        released
       end
+      closed(chat) if session
+      session
+    end
+
+    # listener.call(chat) whenever chat stops holding its browser.
+    def on_closed(&listener)
+      @lock.synchronize { @closed_listeners << listener }
+    end
+
+    # Tells the listeners (outside the lock); a listener that fails does
+    # not keep the others from being told.
+    def closed(chat)
+      listeners = @lock.synchronize { @closed_listeners.dup }
+      listeners.each do |listener|
+        listener.call(chat)
+      rescue StandardError
+        nil
+      end
+    end
+
+    # The chat's browser (session_id) was found gone (its CDP connection
+    # ended). When Selenium reports it no longer has that session, the chat
+    # stops holding it; when Selenium cannot be asked, or still has it, or
+    # the chat now holds another browser, nothing changes. True when the
+    # chat let it go.
+    def confirm_gone(chat, session_id)
+      observed = observe
+      return false unless observed && !observed[:sessions].include?(session_id)
+
+      forgotten = @lock.synchronize do
+        next false unless @browsers[chat]&.session == session_id
+
+        @browsers.delete(chat)
+        @revision += 1
+        true
+      end
+      closed(chat) if forgotten
+      forgotten
+    end
+
+    # confirm_gone on a thread of its own (asking Selenium takes time).
+    def confirm_gone_later(chat, session_id)
+      Thread.new { confirm_gone(chat, session_id) }.report_on_exception = false
     end
 
     # A short job: yields name_session, within a slot of its own, or raises
@@ -282,7 +330,10 @@ module MonadicSharedTools
         @revision += 1
         @browsers.delete(chat)
       end
-      close_later(browser.session) if browser
+      return unless browser
+
+      close_later(browser.session)
+      closed(chat)
     end
 
     # Closes a session now. True when it is closed or was already gone.
@@ -312,9 +363,12 @@ module MonadicSharedTools
           now - browser.used_at >= IDLE_LIMIT && !@op_locks[chat]&.locked?
         end.keys
         @revision += 1 unless chats.empty?
-        chats.map { |chat| @browsers.delete(chat).session }
+        chats.to_h { |chat| [chat, @browsers.delete(chat).session] }
       end
-      idle.each { |session_id| close_quietly(session_id) }
+      idle.each do |chat, session_id|
+        closed(chat)
+        close_quietly(session_id)
+      end
     end
 
     def start_worker

@@ -15,8 +15,9 @@ module Monadic
     # The page first shows its pass (Tokens); nothing is sent before that.
     # A tab has one work screen socket at a time: a newer one closes the
     # older. On subscribe the stream is bound to the tab's live connection,
-    # the chat it is in then, the chat's epoch, the browser instance and the
-    # window the tools act on, and is checked against them again every
+    # the chat it is in then, the chat's epoch, the browser instance the
+    # page selected (a subscribe names it; another browser of the chat is
+    # not shown in its place) and the window the tools act on, and is checked against them again every
     # CHECK seconds and before each frame. When only the window changed, the
     # same browser is shown again on its new window (or waited for while the
     # window is not known); any other change ends the stream, with the
@@ -90,7 +91,7 @@ module Monadic
         self.class.claim(@grant.tab, self)
         while (message = read_message)
           case message['type']
-          when 'subscribe' then start_stream
+          when 'subscribe' then start_stream(message['browser'])
           when 'unsubscribe' then stop_stream(notify: 'idle')
           when 'frame-consumed' then consumed(message)
           else break # a second auth
@@ -133,7 +134,7 @@ module Monadic
 
       FIELDS = {
         'auth' => %w[token],
-        'subscribe' => [],
+        'subscribe' => %w[browser],
         'unsubscribe' => [],
         'frame-consumed' => %w[stream n]
       }.freeze
@@ -145,6 +146,7 @@ module Monadic
 
         case message['type']
         when 'auth' then message['token'].is_a?(String)
+        when 'subscribe' then message['browser'].is_a?(Integer) && message['browser'].between?(1, 2**31)
         when 'frame-consumed'
           message.values_at('stream', 'n').all? { |v| v.is_a?(Integer) && v.between?(0, 2**31) }
         else true
@@ -157,7 +159,8 @@ module Monadic
         @outstanding = nil
       end
 
-      def start_stream
+      # instance: the browser the page selected.
+      def start_stream(instance)
         stop_stream
         unless WorkScreen.available?
           send_state('ended', reason: 'unavailable')
@@ -165,6 +168,8 @@ module Monadic
         end
         binding = bind
         return send_state('waiting', reason: 'no_browser') unless binding
+        # The chat's browser is another one now: the one selected closed.
+        return send_state('ended', reason: 'browser_closed', browser: instance) unless binding.instance == instance
 
         @task = Async { watch(binding) }
       end
@@ -230,6 +235,9 @@ module Monadic
           end
 
           send_state('ended', reason: reason.to_s, binding: binding)
+          # The browser may have closed without a close here (Selenium was
+          # restarted): the chat stops holding it once Selenium says so.
+          MonadicSharedTools::BrowserOwner.confirm_gone_later(binding.chat, binding.session) if reason == :browser_gone
           break
         end
       end
@@ -350,10 +358,10 @@ module Monadic
 
       # stream: given for a live state, which is then sent only while that
       # stream holds (as a frame is).
-      def send_state(state, reason: nil, binding: nil, stream: nil)
+      def send_state(state, reason: nil, binding: nil, stream: nil, browser: nil)
         message = { type: 'state', state: state }
         message[:reason] = reason if reason
-        message[:browser] = binding.instance if binding
+        message[:browser] = binding ? binding.instance : browser if binding || browser
         message[:stream] = @stream if binding
         write(message, stream: stream, binding: stream && binding)
       end

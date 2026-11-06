@@ -48,6 +48,8 @@ describe('WorkScreen', () => {
   let LC;
   let WS;
   let asked;
+  // The browser the workbench pane shows (its instance), or null.
+  let shownBrowser;
   // What each loading of the module listens to on the document, taken off
   // after the test (the document outlives the module).
   const listeners = [];
@@ -82,6 +84,8 @@ describe('WorkScreen', () => {
     delete window.BackgroundReply;
     delete window.monadicSocketBase;
     asked = 0;
+    shownBrowser = 1;
+    window.Workbench = { showsBrowser: () => shownBrowser !== null, shownBrowser: () => shownBrowser, onChanged: jest.fn() };
     window.safeWsSend = jest.fn((message) => { if (message.message === 'WORK_SCREEN_TOKEN') asked += 1; });
     require(js('monadic/dom-helpers.js'));
     require(js('monadic/cookie-utils.js'));
@@ -91,6 +95,7 @@ describe('WorkScreen', () => {
   });
 
   afterEach(() => {
+    delete window.Workbench;
     listeners.splice(0).forEach(([type, fn]) => document.removeEventListener(type, fn));
     document.addEventListener = realAdd;
   });
@@ -111,29 +116,28 @@ describe('WorkScreen', () => {
 
   test('closes its socket while an image item is selected, and opens again for the browser', () => {
     const socket = watching();
-    let browser = false;
-    window.Workbench = { showsBrowser: () => browser, select: jest.fn() };
+    shownBrowser = null;
     WS.refresh();
     expect(socket.closed).toBe(true);
-    browser = true;
+    shownBrowser = 1;
     WS.refresh();
     expect(asked).toBe(2);
-    delete window.Workbench;
   });
 
   test('leaves bringing the browser forward to the workbench when it opens, and tells it when a stream ends', () => {
     const select = jest.fn();
-    const onChanged = jest.fn();
-    window.Workbench = { showsBrowser: () => true, select: select, onChanged: onChanged };
-    try {
-      WS.onChatEvent({ event: 'browser_opened' });
-      expect(select).not.toHaveBeenCalled();
-      const socket = watching();
-      socket.receive({ type: 'state', state: 'ended', reason: 'closed' });
-      expect(onChanged).toHaveBeenCalled();
-    } finally {
-      delete window.Workbench;
-    }
+    window.Workbench.select = select;
+    WS.onChatEvent({ event: 'browser_opened' });
+    expect(select).not.toHaveBeenCalled();
+    const socket = watching();
+    socket.receive({ type: 'state', state: 'ended', reason: 'closed' });
+    expect(window.Workbench.onChanged).toHaveBeenCalled();
+  });
+
+  test('tells the workbench when the browser opened while the work screen was full', () => {
+    window.Workbench.onBrowserFull = jest.fn();
+    WS.onChatEvent({ type: 'work_screen', event: 'browser_opened', browser: 1, workbench: 'full' });
+    expect(window.Workbench.onBrowserFull).toHaveBeenCalled();
   });
 
   test('asks for nothing while the Menu tab is selected', () => {
@@ -148,7 +152,7 @@ describe('WorkScreen', () => {
     const socket = FakeSocket.all[0];
     expect(socket.url).toBe('ws://localhost:4567/work-screen');
     socket.open();
-    expect(socket.sent).toEqual([{ type: 'auth', token: 'b'.repeat(32) }, { type: 'subscribe' }]);
+    expect(socket.sent).toEqual([{ type: 'auth', token: 'b'.repeat(32) }, { type: 'subscribe', browser: 1 }]);
   });
 
   test('uses the chat socket\'s host and port', () => {
@@ -232,10 +236,27 @@ describe('WorkScreen', () => {
     expect(asked).toBe(0);
   });
 
-  test('subscribes again when a browser opens while the pane is shown', () => {
+  test('subscribes to the browser the pane moves to, and only then', () => {
     const socket = watching();
     WS.onChatEvent({ type: 'work_screen', event: 'browser_opened', browser: 2 });
-    expect(socket.of('subscribe')).toHaveLength(2);
+    expect(socket.of('subscribe')).toEqual([{ type: 'subscribe', browser: 1 }]);
+    shownBrowser = 2;
+    WS.refresh();
+    expect(socket.of('subscribe')).toEqual([{ type: 'subscribe', browser: 1 }, { type: 'subscribe', browser: 2 }]);
+  });
+
+  test('takes no state or frame of a browser it no longer watches', () => {
+    const socket = watching();
+    shownBrowser = 2;
+    WS.refresh();
+    socket.receive({ type: 'state', state: 'live', browser: 1, stream: 3 });
+    socket.receive({ type: 'frame', browser: 1, stream: 3, n: 1, data: 'QUJD' });
+    expect(FakeImage.pending).toHaveLength(0);
+    socket.receive({ type: 'state', state: 'live', browser: 2, stream: 4 });
+    socket.receive({ type: 'frame', browser: 1, stream: 4, n: 2, data: 'QUJD' });
+    expect(FakeImage.pending).toHaveLength(0);
+    socket.receive({ type: 'frame', browser: 2, stream: 4, n: 3, data: 'QUJD' });
+    expect(FakeImage.pending).toHaveLength(1);
   });
 
   test('says it is unavailable, and asks no more, where the server has no work screen', () => {

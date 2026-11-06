@@ -232,6 +232,70 @@ RSpec.describe MonadicSharedTools::BrowserOwner do
     end
   end
 
+  describe 'telling that a chat no longer holds its browser' do
+    let(:told) { [] }
+
+    around do |example|
+      listeners = owner.instance_variable_get(:@closed_listeners)
+      owner.instance_variable_set(:@closed_listeners, [])
+      example.run
+    ensure
+      owner.instance_variable_set(:@closed_listeners, listeners)
+    end
+
+    before do
+      allow(owner).to receive(:close).and_return(true)
+      allow(owner).to receive(:close_later)
+      owner.on_closed { |chat| told << chat }
+    end
+
+    it 'tells on an explicit close, a Reset and an idle close, once each' do
+      epoch = open_browser('a', 'wd-a')
+      owner.release('a', epoch)
+      owner.release('a', epoch)
+      open_browser('b', 'wd-b')
+      replace('b')
+      open_browser('c', 'wd-c')
+      owner.reap(now: owner.clock + described_class::IDLE_LIMIT + 1)
+      expect(told).to eq(%w[a b c])
+    end
+
+    it 'tells the other listeners when one fails' do
+      owner.instance_variable_get(:@closed_listeners).unshift(->(_chat) { raise 'broken' })
+      owner.release('a', open_browser('a', 'wd-a'))
+      expect(told).to eq(%w[a])
+    end
+
+    it "lets a browser go when Selenium no longer has its session (Selenium was restarted)" do
+      epoch = open_browser('a', 'wd-a')
+      status[:sessions] = []
+      expect(owner.confirm_gone('a', 'wd-a')).to be(true)
+      expect(owner.session_for('a', epoch)).to be_nil
+      expect(told).to eq(%w[a])
+    end
+
+    it 'keeps the browser when Selenium cannot be asked or still has the session' do
+      epoch = open_browser('a', 'wd-a')
+      allow(owner).to receive(:observe).and_return(nil)
+      expect(owner.confirm_gone('a', 'wd-a')).to be(false)
+      allow(owner).to receive(:observe) { status.dup }
+      expect(owner.confirm_gone('a', 'wd-a')).to be(false)
+      expect(owner.session_for('a', epoch)).to eq('wd-a')
+      expect(told).to be_empty
+    end
+
+    it 'keeps a newer browser of the chat when an older one is found gone' do
+      epoch = open_browser('a', 'wd-a')
+      owner.release('a', epoch)
+      open_browser('a', 'wd-b')
+      told.clear
+      status[:sessions] = ['wd-b']
+      expect(owner.confirm_gone('a', 'wd-a')).to be(false)
+      expect(owner.session_for('a', epoch)).to eq('wd-b')
+      expect(told).to be_empty
+    end
+  end
+
   describe '.observe' do
     before { allow(owner).to receive(:observe).and_call_original }
 

@@ -135,7 +135,7 @@ The work screen also shows files of the shared folder: images, text files (with 
 
 The items stay in a row in the order they came. Move along it with ‹ and › above the item, or with the ← and → keys while the work screen has the focus.
 
-When the AI shows something new, the work screen shows it, unless you are typing a message or turned off **Show new items in the work screen** in the Interaction panel. What you open yourself is always shown. If the sidebar is hidden, it stays hidden. The work screen keeps up to eight items: when a new one comes, the oldest item is removed from the work screen (its file stays in the shared folder). The item an open page (a web browser tab) is showing and the latest image are kept. When every item is kept, remove one with its × before opening another.
+When the AI shows something new, the work screen shows it, unless you are typing a message or turned off **Show new items in the work screen** in the Interaction panel. What you open yourself is always shown. If the sidebar is hidden, it stays hidden. The work screen keeps up to eight items: when a new one comes, the oldest item is removed from the work screen (its file stays in the shared folder). The item an open page (a web browser tab) is showing, the latest image and an open browser are kept. When every item is kept, remove one with its × before opening another; a browser that opens then is shown once you remove one.
 
 ## Speech Panel :id=speech-settings-panel
 

@@ -553,7 +553,7 @@ module MonadicSharedTools
       end
       return result unless result[:success]
 
-      Monadic::WorkScreen.browser_opened(chat) if defined?(Monadic::WorkScreen)
+      placed = Monadic::WorkScreen.browser_opened(chat) if defined?(Monadic::WorkScreen)
 
       # Build response
       response = {
@@ -561,6 +561,7 @@ module MonadicSharedTools
         page_info: result[:page_info],
         actions_remaining: MAX_BROWSER_ACTIONS
       }
+      response[:work_screen] = Monadic::WorkScreen::FULL_NOTE if placed == :full
 
       if headless
         response[:message] = "Browser session started in headless mode (max #{MAX_BROWSER_ACTIONS} actions). Screenshots are returned as images."

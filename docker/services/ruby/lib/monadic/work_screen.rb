@@ -32,22 +32,33 @@ module Monadic
       "ws://#{SELENIUM}/session/#{session_id}/se/cdp"
     end
 
+    # Said to the tool that opened the browser when it is not on the work
+    # screen.
+    FULL_NOTE = 'The work screen is full, so this browser is not shown there. ' \
+                'Once the user removes an item from the work screen, it is shown.'
+
     # The chat's browser has just opened: it is put on the chat's workbench
     # (the tab whose message opened it selects it), and the pages of the
-    # tabs in that chat are told.
+    # tabs in that chat are told. Returns :full when every item of the
+    # workbench is kept (the browser is put on once the user removes one),
+    # otherwise nil.
     def browser_opened(chat)
       view = MonadicSharedTools::BrowserOwner.view(chat)
       return unless view
 
-      put_on_workbench(chat, view)
+      placed = put_on_workbench(chat, view)
 
-      message = JSON.generate(type: 'work_screen', event: 'browser_opened', browser: view.instance)
+      event = { type: 'work_screen', event: 'browser_opened', browser: view.instance }
+      event[:workbench] = 'full' if placed == :full
+      message = JSON.generate(event)
       WebSocketHelper.live_tabs_for_chat(chat).each do |tab|
         WebSocketHelper.send_to_live_connection(tab, message, chat_id: chat)
       end
+      placed == :full ? :full : nil
     end
 
-    # A failure here never keeps the pages from being told.
+    # A failure here never keeps the pages from being told. :full when the
+    # workbench had no room.
     def put_on_workbench(chat, view)
       return unless Monadic::Workspace::Ids.valid?(:chat, chat)
 
@@ -59,6 +70,10 @@ module Monadic
       end
       Monadic::Workbench::Board.for(chat).add_browser(instance: view.instance, origin: origin, epoch: view.epoch)
       Monadic::Workbench::Channel.changed(chat)
+      :placed
+    rescue Monadic::Workbench::Board::Refused => e
+      Monadic::Utils::ExtraLogger.log { "[WorkScreen] The browser is not on the workbench: #{e.message}" }
+      e.message.start_with?('the work screen is full') ? :full : nil
     rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[WorkScreen] The browser is not on the workbench: #{e.class}: #{e.message}" }
     end
@@ -96,4 +111,10 @@ module Monadic
       end
     end
   end
+end
+
+# A chat that stops holding its browser: its pages ask for the workbench
+# again, where the browser's item now says it closed.
+MonadicSharedTools::BrowserOwner.on_closed do |chat|
+  Monadic::Workbench::Channel.changed(chat) if Monadic::Workspace::Ids.valid?(:chat, chat)
 end

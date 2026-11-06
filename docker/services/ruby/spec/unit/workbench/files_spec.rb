@@ -177,7 +177,14 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
       item, = open_file("a.txt")
       expect { board.select(tab: "tab-1", generation: 1, item_id: "i_nothing") }
         .to raise_error(Monadic::Workbench::Board::Refused)
+      expect { board.select(tab: "tab-1", generation: 2, item_id: item["id"]) }
+        .to raise_error(Monadic::Workbench::Board::Refused, "not_allowed")
+      live_tabs["tab-1"] = 2
       board.select(tab: "tab-1", generation: 2, item_id: item["id"])
+      # The older connection, answered late, does not replace it.
+      expect { board.select(tab: "tab-1", generation: 1, item_id: nil) }
+        .to raise_error(Monadic::Workbench::Board::Refused, "not_allowed")
+      expect(board.selected(tab: "tab-1", generation: 1)).to be_nil
       board.drop_selection("tab-1", 1)
       expect(board.selected(tab: "tab-1", generation: 2)).to eq(item["id"])
       board.drop_selection("tab-1", 2)
@@ -363,6 +370,7 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
     end
 
     it "is kept while open when the board makes room, and can go once closed" do
+      live_tabs["tab-x"] = 1
       item = opened(1, tab: "tab-x")
       board.select(tab: "tab-x", generation: 1, item_id: nil)
       (1..Monadic::Workbench::Board::ITEM_LIMIT).each do |i|
@@ -399,8 +407,97 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
       expect(board.selected(tab: "tab-2", generation: 1)).to eq(item[:id])
       expect(board.selected(tab: "tab-1", generation: 1)).to be_nil
     end
+
+    it "says so when the work screen is full, and puts the browser on once the user removes an item" do
+      require_relative "../../../lib/monadic/work_screen"
+      sent = []
+      if defined?(WebSocketHelper)
+        allow(WebSocketHelper).to receive(:live_tabs_for_chat).and_return(["tab-1"])
+        allow(WebSocketHelper).to receive(:send_to_live_connection) { |_tab, message, **| sent << JSON.parse(message) }
+      else
+        stub_const("WebSocketHelper", Module.new do
+          define_singleton_method(:live_tabs_for_chat) { |*| ["tab-1"] }
+          define_singleton_method(:send_to_live_connection) { |_tab, message, **| sent << JSON.parse(message) }
+        end)
+      end
+      # Every item is kept: each is what a tab of its own has selected.
+      files = (1..Monadic::Workbench::Board::ITEM_LIMIT).map do |i|
+        live_tabs["tab-k#{i}"] = 1
+        write("k#{i}.txt", i.to_s)
+        open_file("k#{i}.txt", tab: "tab-k#{i}").first
+      end
+      expect(Monadic::WorkScreen.browser_opened(chat)).to eq(:full)
+      expect(sent.find { |m| m["event"] == "browser_opened" }).to include("workbench" => "full")
+      expect(board.snapshot[:items].map { |i| i[:kind] }).not_to include("browser")
+
+      board.accept(item_id: files.first["id"], action: "remove", operation_id: "op-00000002", epoch: epoch,
+                   sha256: files.first.dig("file", "sha256"))
+      expect(board.snapshot[:items].last).to include(kind: "browser", instance: 1, status: "open")
+    end
+
+    it "is not put back by a removal once the user took it off" do
+      item = opened
+      board.accept(item_id: item["id"], action: "remove", operation_id: "op-00000003", epoch: epoch, sha256: "browser:1")
+      write("a.txt", "a")
+      file, = open_file("a.txt")
+      board.accept(item_id: file["id"], action: "remove", operation_id: "op-00000004", epoch: epoch,
+                   sha256: file.dig("file", "sha256"))
+      expect(board.snapshot[:items]).to be_empty
+    end
   end
+
   describe "connections, versions and load" do
+    it "tells the page at once when other files are being read, keeping the connection" do
+      stub_const("Monadic::Workbench::FileItem::READS", 1)
+      write("a.txt", "a")
+      inside = Queue.new
+      leave = Queue.new
+      holder = Thread.new { Monadic::Workbench::FileItem.turn { inside << true; leave.pop } }
+      inside.pop
+      begin
+        started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        result = channel.open_file({ "path" => "a.txt" }, session, tab: "tab-1", generation: 1, live: live)
+        expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 1
+        expect(result).to include("type" => "workbench_opened", "status" => "refused", "reason" => "busy")
+      ensure
+        leave << true
+        holder.join
+      end
+    end
+
+    it "lets only a few wait for a turn, and gives a turn back when a waiter is stopped" do
+      stub_const("Monadic::Workbench::FileItem::READS", 1)
+      stub_const("Monadic::Workbench::FileItem::WAITING", 1)
+      inside = Queue.new
+      leave = Queue.new
+      holder = Thread.new { Monadic::Workbench::FileItem.turn { inside << true; leave.pop } }
+      inside.pop
+      waiter = Thread.new { Monadic::Workbench::FileItem.turn(wait: 30) { :late } }
+      begin
+        sleep 0.05 until waiter.status == "sleep"
+        started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        expect { Monadic::Workbench::FileItem.turn(wait: 2) { :never } }.to raise_error(Monadic::Workbench::FileItem::Busy)
+        expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 1
+      ensure
+        waiter.kill
+        waiter.join
+        leave << true
+        holder.join
+      end
+      expect(Monadic::Workbench::FileItem.turn(wait: 0) { :now }).to eq(:now)
+      expect(Monadic::Workbench::FileItem.instance_variable_get(:@waiting)).to eq(0)
+      expect(Monadic::Workbench::FileItem.instance_variable_get(:@reading)).to eq(0)
+    end
+
+    it "answers a selection with the page's number for it" do
+      write("a.txt", "a")
+      item, = open_file("a.txt")
+      accepted = channel.select({ "item_id" => item["id"], "seq" => 7 }, session, tab: "tab-1", generation: 1, live: live)
+      expect(accepted).to include("status" => "accepted", "item_id" => item["id"], "seq" => 7)
+      refused = channel.select({ "item_id" => "i_nothing", "seq" => 8 }, session, tab: "tab-1", generation: 1, live: live)
+      expect(refused).to include("status" => "refused", "item_id" => item["id"], "seq" => 8)
+    end
+
     it "lets no work of an older connection select over the tab's newer one" do
       write("a.txt", "a")
       write("b.txt", "b")
@@ -471,9 +568,9 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
       expect(Monadic::Workbench::FileItem.turn { :now }).to eq(:now)
     end
 
-    it "tells the chat's other tabs when a file is opened" do
+    it "tells the chat's other tabs when a file is opened, and when it is opened again" do
       write("a.txt", "a")
-      expect(channel).to receive(:changed).with(chat).once
+      expect(channel).to receive(:changed).with(chat).twice
       channel.open_file({ "path" => "a.txt" }, session, tab: "tab-1", generation: 1, live: live)
       channel.open_file({ "path" => "a.txt" }, session, tab: "tab-1", generation: 1, live: live)
     end

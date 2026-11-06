@@ -61,8 +61,14 @@
   // An item the user opened, shown as soon as the board has it.
   let pendingOpen = null;
   // What the pane drew for the item shown, kept while it is the same item
-  // at the same version (media keep playing, text keeps its scroll).
+  // at the same version (media keep playing, text keeps its scroll): its
+  // key (item and version), node, the address it was drawn from, and
+  // whether getting it failed (then a view with a new address draws it
+  // again).
   let drawnBody = null;
+  // The number of this tab's latest selection told to the server: an
+  // answer to an older one is not taken.
+  let selectSeq = 0;
 
   function t(key, fallback) {
     return typeof webUIi18n !== 'undefined' ? webUIi18n.t(key) : fallback;
@@ -223,6 +229,27 @@
     return !!item && item.kind === 'browser' && item.status === 'open';
   }
 
+  // The pane's two parts: what the item holds (left in place while it is
+  // the same, so media stay connected) and what is said about it.
+  function viewParts(view) {
+    let held = view.querySelector(':scope > .workbench-body');
+    let info = view.querySelector(':scope > .workbench-info');
+    if (!held || !info) {
+      held = element('div', 'workbench-body');
+      info = element('div', 'workbench-info');
+      view.replaceChildren(held, info);
+    }
+    return { held, info };
+  }
+
+  function show(part, node) {
+    if (node) {
+      if (part.childNodes.length !== 1 || part.firstChild !== node) part.replaceChildren(node);
+    } else {
+      part.replaceChildren();
+    }
+  }
+
   // ‹ n / m › above what is shown, for any item.
   function stepperHost() {
     let host = $id('workbench-stepper');
@@ -250,31 +277,51 @@
     }
     if (!view) return;
     view.hidden = !item || live;
-    view.replaceChildren();
-    if (!item || live) return;
+    if (!item || live) {
+      view.replaceChildren();
+      return;
+    }
     view.dataset.item = item.id;
+    const { held, info } = viewParts(view);
+    info.replaceChildren();
     if (item.kind === 'browser') {
-      view.appendChild(element('div', 'alert alert-secondary small mb-2', t('ui.workbench.browserClosed', 'This browser was closed.')));
+      show(held, element('div', 'alert alert-secondary small mb-2', t('ui.workbench.browserClosed', 'This browser was closed.')));
       return;
     }
     if (item.status === 'ok' && assets[item.id]) {
-      const key = `${item.id}|${item.version || item.sha256 || ''}`;
-      if (!drawnBody || drawnBody.key !== key) drawnBody = { key: key, node: body(item) };
-      view.appendChild(drawnBody.node);
+      show(held, drawnFor(item).node);
     } else if (item.status !== 'ok') {
       drawnBody = null;
-      view.appendChild(element('div', 'alert alert-warning small mb-2', statusText(item.status, item)));
+      show(held, element('div', 'alert alert-warning small mb-2', statusText(item.status, item)));
+    } else {
+      show(held, null);
     }
     const line = element('div', 'small text-secondary mt-2');
     line.appendChild(element('code', null, item.path || item.name || ''));
-    view.appendChild(line);
+    info.appendChild(line);
     if (item.status === 'ok' && item.artifact_id) {
-      view.appendChild(saveButton(item.artifact_id, 'btn-primary mt-2'));
+      info.appendChild(saveButton(item.artifact_id, 'btn-primary mt-2'));
     }
     if (item.kind === 'file' && item.status === 'changed') {
-      view.appendChild(button(t('ui.workbench.reopen', 'Open it as it is now'), 'btn-secondary mt-2',
+      info.appendChild(button(t('ui.workbench.reopen', 'Open it as it is now'), 'btn-secondary mt-2',
         () => openFile(item.path)));
     }
+  }
+
+  // What is drawn for the item: kept while it is the same item at the same
+  // version, drawn again from the new address once getting it failed (an
+  // address that expired, a busy server, a reconnect). Media go on from
+  // where they were.
+  function drawnFor(item) {
+    const key = `${item.id}|${item.version || item.sha256 || ''}`;
+    const url = assets[item.id];
+    const same = drawnBody && drawnBody.key === key;
+    if (same && !(drawnBody.failed && drawnBody.url !== url)) return drawnBody;
+    const resumeAt = same && drawnBody.node && typeof drawnBody.node.currentTime === 'number' ? drawnBody.node.currentTime : 0;
+    const drawn = { key: key, url: url, failed: false, node: null };
+    drawn.node = body(item, drawn, resumeAt);
+    drawnBody = drawn;
+    return drawn;
   }
 
   // ‹ n / m › for the row.
@@ -294,39 +341,53 @@
     return bar;
   }
 
-  // What the item's address holds, drawn for its kind.
-  function body(item) {
-    const url = assets[item.id];
+  // Getting what was drawn failed: a view gives a new address, and the
+  // next draw uses it.
+  function failed(drawn, now) {
+    drawn.failed = true;
+    askView(now);
+  }
+
+  // What the item's address holds, drawn for its kind (drawn: its record,
+  // told when getting it fails; resumeAt: where media go on from).
+  function body(item, drawn, resumeAt) {
+    const url = drawn.url;
     const kind = item.kind === 'file' ? item.preview : 'image';
     if (kind === 'audio' || kind === 'video') {
       const media = element(kind, `workbench-${kind}`);
       media.controls = true;
       media.preload = 'metadata';
-      media.addEventListener('error', () => askView(false));
+      media.addEventListener('error', () => failed(drawn, false));
+      if (resumeAt > 0) media.addEventListener('loadedmetadata', () => { media.currentTime = resumeAt; }, { once: true });
       media.src = url;
       return media;
     }
-    if (kind === 'text') return textBody(item, url);
+    if (kind === 'text') return textBody(item, drawn);
     const img = element('img', 'workbench-image rounded');
     img.alt = item.name || '';
-    img.addEventListener('error', () => askView(false));
+    img.addEventListener('error', () => failed(drawn, false));
     img.src = url;
     return img;
   }
 
   // A text file as numbered lines (one element per line, so what is in
   // view can be told by line).
-  function textBody(item, url) {
+  function textBody(item, drawn) {
     const box = element('div', 'workbench-text');
     box.setAttribute('tabindex', '0');
-    const shownFor = item.id;
-    fetch(url, { credentials: 'same-origin', cache: 'no-store' }).then(async (response) => {
-      if (selected !== shownFor) return;
+    fetch(drawn.url, { credentials: 'same-origin', cache: 'no-store' }).then(async (response) => {
       if (!response.ok) {
+        drawn.failed = true;
+        if (response.status === 503) {
+          // Busy: the user asks again.
+          box.replaceChildren(element('div', 'alert alert-warning small mb-2', t('ui.workbench.busy', 'The work screen is reading other files. Try again in a moment.')),
+            button(t('ui.workbench.retry', 'Try again'), 'btn-secondary', () => askView(true)));
+          return;
+        }
         box.replaceChildren(element('div', 'alert alert-warning small mb-0',
           response.status === 409 ? statusText('changed', item) : response.status === 410 ? statusText('missing') :
             t('ui.workbench.expired', 'The link expired. Try again.')));
-        if (response.status === 409 || response.status === 410) askView(true);
+        askView(response.status === 409 || response.status === 410);
         return;
       }
       const text = await response.text();
@@ -337,6 +398,7 @@
         box.appendChild(element('div', 'small text-secondary mt-1', t('ui.workbench.truncated', 'Only the beginning of the file is shown.')));
       }
     }).catch(() => {
+      drawn.failed = true;
       box.replaceChildren(element('div', 'alert alert-warning small mb-0', t('ui.workbench.downloadFailed', 'Could not get the file.')));
     });
     return box;
@@ -409,7 +471,8 @@
   // The server keeps what this tab shows (it keeps that item on the board).
   function tellSelected() {
     if (typeof window.safeWsSend !== 'function' || !board) return;
-    window.safeWsSend({ message: 'WORKBENCH_SELECT', item_id: selected },
+    selectSeq += 1;
+    window.safeWsSend({ message: 'WORKBENCH_SELECT', item_id: selected, seq: selectSeq },
       { idempotent: true, silentDrop: true });
   }
 
@@ -574,7 +637,8 @@
     const asked = opening;
     opening = null;
     if (data.status === 'refused') {
-      warn(`${t('ui.workbench.notOpened', 'The file was not opened in the work screen')}: ${data.reason || ''}`);
+      const reason = data.reason === 'busy' ? t('ui.workbench.busy', 'The work screen is reading other files. Try again in a moment.') : (data.reason || '');
+      warn(`${t('ui.workbench.notOpened', 'The file was not opened in the work screen')}: ${reason}`);
       return;
     }
     if (asked && data.item_id) {
@@ -593,11 +657,13 @@
     select(id);
   }
 
-  // The server's answer to what this tab selected: a refused selection
-  // takes what the server holds.
+  // The server's answer to this tab's latest selection: what it holds now
+  // (so that the next item it selects for this tab is told apart), and for
+  // a refused selection, what is shown.
   function onSelected(data) {
-    if (!data || data.status !== 'refused') return;
+    if (!data || (typeof data.seq === 'number' && data.seq !== selectSeq)) return;
     serverSelected = data.item_id || null;
+    if (data.status !== 'refused') return;
     selected = data.item_id && itemById(data.item_id) ? data.item_id : null;
     draw();
     refreshRelay();
@@ -675,6 +741,14 @@
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),
     // Whether the pane shows the browser (the relay runs only then).
-    showsBrowser: () => liveBrowser(selected ? itemById(selected) : null)
+    showsBrowser: () => liveBrowser(selected ? itemById(selected) : null),
+    // The browser the pane shows (its instance, which the relay names), or
+    // null.
+    shownBrowser: () => {
+      const item = selected ? itemById(selected) : null;
+      return liveBrowser(item) && Number.isInteger(item.instance) ? item.instance : null;
+    },
+    // The chat's browser opened while the work screen was full.
+    onBrowserFull: () => warn(t('ui.workbench.browserFull', 'The browser opened, but the work screen is full. Remove an item to show it there.'))
   };
 })(window);

@@ -88,6 +88,8 @@ module Monadic
       # The user opens a file of the shared folder (path, as the Shared
       # Folder panel names it) on the workbench, from this tab: it is
       # added (or, at the same version, found) and this tab selects it.
+      # The connection does not wait for a turn to read the file: when
+      # other files are being read, the page is told (busy) at once.
       def open_file(obj, session, tab:, generation:, live:)
         path = obj['path']
         return open_refusal(path, 'not_allowed') unless live.call(tab) == generation
@@ -95,26 +97,32 @@ module Monadic
         chat_id = chat_id_of(session) or return open_refusal(path, 'not_allowed')
         board = Board.for(chat_id, private: private_chat?(session, chat_id))
         item, added = board.add_file(path: path, origin: { actor: :user, source: :panel, tab: tab, generation: generation },
-                                     epoch: Monadic::Workspace::Chats.epoch(chat_id))
-        changed(chat_id) if added
+                                     epoch: Monadic::Workspace::Chats.epoch(chat_id), wait: 0)
+        # Added, or found again (what it says of the file may have changed).
+        changed(chat_id)
         { 'type' => 'workbench_opened', 'path' => item.dig('file', 'path'), 'item_id' => item['id'], 'added' => added }
       rescue Board::Refused => e
         open_refusal(path, e.message)
+      rescue FileItem::Busy
+        open_refusal(path, 'busy')
       end
 
       # The item this tab's page shows now (or nil for none). The page is
-      # told what was taken: an item no longer on the board is refused.
+      # told what was taken: an item no longer on the board is refused. The
+      # answer carries the page's number for the selection (seq), so that
+      # the page can tell the answer to its latest one.
       def select(obj, session, tab:, generation:, live:)
         item_id = obj['item_id']
-        return select_result(nil, 'not_allowed') unless live.call(tab) == generation
+        seq = obj['seq'].is_a?(Integer) ? obj['seq'] : nil
+        return select_result(nil, 'not_allowed', seq) unless live.call(tab) == generation
 
-        chat_id = chat_id_of(session) or return select_result(nil, 'not_allowed')
+        chat_id = chat_id_of(session) or return select_result(nil, 'not_allowed', seq)
         board = Board.existing(chat_id, private: private_chat?(session, chat_id))
-        return select_result(nil, item_id ? 'no such item' : nil) unless board
+        return select_result(nil, item_id ? 'no such item' : nil, seq) unless board
 
-        select_result(board.select(tab: tab, generation: generation, item_id: item_id), nil)
+        select_result(board.select(tab: tab, generation: generation, item_id: item_id), nil, seq)
       rescue Board::Refused => e
-        select_result(board&.selected(tab: tab, generation: generation), e.message)
+        select_result(board&.selected(tab: tab, generation: generation), e.message, seq)
       end
 
       # An address from which this connection's page saves a copy of an
@@ -209,9 +217,9 @@ module Monadic
         { 'type' => 'workbench_opened', 'path' => path, 'status' => 'refused', 'reason' => reason }
       end
 
-      def select_result(item_id, reason)
+      def select_result(item_id, reason, seq = nil)
         { 'type' => 'workbench_selected', 'item_id' => item_id, 'status' => reason ? 'refused' : 'accepted',
-          'reason' => reason }.compact
+          'reason' => reason, 'seq' => seq }.compact
       end
 
       def download_refusal(artifact_id, reason)

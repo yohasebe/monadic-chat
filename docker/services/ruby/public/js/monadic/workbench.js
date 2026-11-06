@@ -445,9 +445,10 @@
   // column is, unless the user is typing (then only the announcement says
   // so).
   function bringForward(item) {
-    // The user is typing: the pane stays, and the server is told what this
-    // tab still shows.
-    if (typing()) {
+    // The user is typing, or turned this off: the pane stays (the
+    // announcement says what came), and the server is told what this tab
+    // still shows.
+    if (typing() || !autoSwitch()) {
       tellSelected();
       return;
     }
@@ -477,6 +478,32 @@
     (Array.isArray(messages) ? messages : []).forEach((m) => {
       if (m && m.mid && Array.isArray(m.artifacts)) records.set(m.mid, m.artifacts);
     });
+  }
+
+  // ---- the user's preference -----------------------------------------
+
+  // Whether a new item brings the work screen forward. A display
+  // preference kept in a cookie (like whether the side column is hidden),
+  // so resetting the Web UI keeps it. On unless the user turned it off.
+  const AUTO_SWITCH_COOKIE = 'work-screen-auto-switch';
+
+  function autoSwitch() {
+    const value = typeof window.getCookie === 'function' ? window.getCookie(AUTO_SWITCH_COOKIE) : null;
+    return value !== 'false';
+  }
+
+  function attachAutoSwitch() {
+    const box = $id('work-screen-auto-switch');
+    if (!box) return;
+    box.checked = autoSwitch();
+    box.addEventListener('change', () => {
+      if (typeof window.setCookie === 'function') window.setCookie(AUTO_SWITCH_COOKIE, box.checked ? 'true' : 'false', 365);
+    });
+  }
+
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', attachAutoSwitch);
+    else attachAutoSwitch();
   }
 
   // ---- messages from the server --------------------------------------

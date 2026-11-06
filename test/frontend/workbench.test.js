@@ -424,5 +424,42 @@ describe('Workbench', () => {
       expect(sent.map((x) => x.payload)).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
     });
   });
+  describe('the preference to show new items', () => {
+    let jar;
+
+    beforeEach(() => {
+      jar = {};
+      window.getCookie = (name) => (name in jar ? jar[name] : null);
+      window.setCookie = jest.fn((name, value) => { jar[name] = value; });
+    });
+
+    afterEach(() => {
+      delete window.getCookie;
+      delete window.setCookie;
+    });
+
+    test('when turned off, a new item does not take the pane, but what the user opens does', () => {
+      jar['work-screen-auto-switch'] = 'false';
+      view([item()]);
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+      expect(shown()).toBeNull();
+      expect(document.getElementById('workbench-status').textContent).not.toBe('');
+      window.Workbench.openFile('reports/notes.txt');
+      window.Workbench.onOpened({ type: 'workbench_opened', item_id: 'i_1', path: PATH, added: false });
+      expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
+      expect(shown()).toBe('i_1');
+    });
+
+    test('is kept from the switch in the menu', () => {
+      document.body.insertAdjacentHTML('beforeend', '<input type="checkbox" id="work-screen-auto-switch" checked>');
+      jest.resetModules();
+      require(js('monadic/workbench.js'));
+      const box = document.getElementById('work-screen-auto-switch');
+      expect(box.checked).toBe(true);
+      box.checked = false;
+      box.dispatchEvent(new Event('change'));
+      expect(window.setCookie).toHaveBeenCalledWith('work-screen-auto-switch', 'false', 365);
+    });
+  });
 });
 

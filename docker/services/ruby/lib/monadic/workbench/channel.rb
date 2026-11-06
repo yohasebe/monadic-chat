@@ -3,11 +3,9 @@
 require_relative 'board'
 require_relative 'approvals'
 require_relative 'view_tokens'
-require_relative 'saver'
-require_relative 'record'
+require_relative 'artifact'
 require_relative 'asset_server'
 require_relative 'offer'
-require 'securerandom'
 require_relative '../workspace/chats'
 require_relative '../workspace/ids'
 require_relative '../history/policy'
@@ -15,23 +13,22 @@ require_relative '../history/policy'
 module Monadic
   module Workbench
     # What the main socket does for the workbench: the view a tab's page is
-    # sent (the board with this connection's tokens), the user's operation
-    # on an image (WORKBENCH_ACTION: save it to the shared folder, or remove
-    # it from the board), and the record of a save in the message the image
-    # belongs to. A tab's connection calls these with its own session, tab
-    # id and generation; nothing here trusts what the page says about the
-    # chat, the epoch or the image: the server's token holds them.
+    # sent (the board with this connection's tokens), the user's removal of
+    # an image from the board (WORKBENCH_ACTION), and an address to save a
+    # copy of an image elsewhere (WORKBENCH_DOWNLOAD). A tab's connection
+    # calls these with its own session, tab id and generation; nothing here
+    # trusts what the page says about the chat, the epoch or the image: the
+    # server's token and the ledger hold them.
     module Channel
       module_function
 
       # The message for the tab's page: the board's snapshot, a token for
-      # each image (to save or remove it, on this connection), and an
-      # address for each image. A chat without a board gets an empty one,
-      # or nil with only_existing (a connection's first view, marked
-      # initial: what it shows is not new to the user). live gives the
-      # generation of the
-      # connection a tab has now: a connection a newer one replaced is sent
-      # nothing.
+      # each image (to remove it, on this connection), and an address for
+      # each image whose file is the one recorded. A chat without a board
+      # gets an empty one, or nil with only_existing (a connection's first
+      # view, marked initial: what it shows is not new to the user). live
+      # gives the generation of the connection a tab has now: a connection a
+      # newer one replaced is sent nothing.
       def view(session, tab:, generation:, live:, only_existing: false)
         return nil unless live.call(tab) == generation
 
@@ -49,19 +46,22 @@ module Monadic
         snapshot[:items].each do |item|
           next unless item[:sha256]
 
-          binding = { tab: tab, generation: generation, chat_id: chat_id, epoch: snapshot[:epoch], item_id: item[:id],
-                      sha256: item[:sha256] }
-          approvals[item[:id]] = Approvals.issue(**binding)
-          assets[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding) unless board.private?
+          binding = { tab: tab, generation: generation, chat_id: chat_id, epoch: snapshot[:epoch] }
+          approvals[item[:id]] = Approvals.issue(**binding, item_id: item[:id], sha256: item[:sha256])
+          next if board.private? || item[:status] != 'ok'
+
+          assets[item[:id]] = AssetServer::PREFIX +
+                              ViewTokens.issue(**binding, artifact_id: item[:artifact_id], sha256: item[:sha256])
         end
         { 'type' => 'workbench', 'board' => snapshot, 'approvals' => approvals, 'assets' => assets,
           'initial' => only_existing }
       end
 
-      # The user's operation on an image (save or remove), sent with the
-      # token this connection was given for it, while it is still the tab's
-      # connection (live, as for view). Returns the result for the page.
-      def act(obj, session, tab:, generation:, recorder:, live:)
+      # The user's removal of an image from the board, sent with the token
+      # this connection was given for it, while it is still the tab's
+      # connection (live, as for view). The file stays in the shared folder.
+      # Returns the result for the page.
+      def act(obj, session, tab:, generation:, live:)
         operation_id = obj['operation_id']
         return refusal(operation_id, 'not_allowed') unless live.call(tab) == generation
 
@@ -73,65 +73,32 @@ module Monadic
         board = Board.for(chat_id, private: private_chat?(session, chat_id))
         status, operation = board.accept(item_id: grant.item_id, action: obj['action'], operation_id: operation_id,
                                          epoch: grant.epoch, sha256: grant.sha256)
-        operation = Saver.run(board, operation['id'], recorder: recorder) if operation['action'] == 'save'
         { 'type' => 'workbench_result', 'operation_id' => operation['id'], 'item_id' => operation['item_id'],
-          'status' => status.to_s, 'action' => operation['action'], 'state' => operation['state'],
-          'name' => operation['final_name'] }
+          'status' => status.to_s, 'action' => operation['action'], 'state' => operation['state'] }
       rescue Board::Refused => e
         refusal(operation_id, e.message)
-      rescue Saver::Failed, SystemCallError => e
-        # Not saved: the same operation sent again goes on from the step
-        # that failed.
-        Monadic::Utils::ExtraLogger.log { "[Workbench] Save stopped: #{e.class}: #{e.message}" }
-        { 'type' => 'workbench_result', 'operation_id' => operation_id, 'item_id' => obj['item_id'],
-          'action' => obj['action'], 'status' => 'incomplete' }
       end
 
-      # Records a saved image in the message it belongs to, when the
-      # session is in the operation's chat. An image whose reply is still
-      # running waits for that reply's message; one whose reply recorded no
-      # message (it was cancelled, or the server restarted) gets a short
-      # message of its own that records the save. A save is recorded in one
-      # message only. False while it waits (another chat is open, or the
-      # reply still runs): the save stays unfinished, and so does the image
-      # (it cannot be removed meanwhile). sync keeps the tab's state and the
-      # history up to date; deliver sends the page the record (or the new
-      # message).
-      def recorder_for(session, sync:, deliver:)
-        lambda do |board:, operation:, artifact:|
-          next false unless chat_id_of(session) == board.chat_id && !private_chat?(session, board.chat_id)
+      # An address from which this connection's page saves a copy of an
+      # image of the chat (on the board or not: a message's record names it
+      # too), for a short time. Refused for another chat's image, a Private
+      # chat, or a connection a newer one replaced. Whether the file is
+      # still the one recorded is checked when the page asks for it.
+      def download(obj, session, tab:, generation:, live:)
+        artifact_id = obj['artifact_id']
+        return download_refusal(artifact_id, 'not_allowed') unless live.call(tab) == generation
 
-          messages = (session[:messages] ||= [])
-          next true if messages.any? { |m| m.is_a?(Hash) && Array(m['artifacts']).any? { |e| e['id'] == artifact[:id] } }
+        chat_id = chat_id_of(session)
+        return download_refusal(artifact_id, 'not_allowed') if !chat_id || private_chat?(session, chat_id)
 
-          entry = Record.entry(artifact_id: artifact[:id], name: artifact[:name], sha256: artifact[:sha256],
-                               content_type: artifact[:content_type], derived_from: artifact[:derived_from],
-                               saved_at: artifact[:saved_at])
-          item = board.item(operation['item_id'])
-          mid = operation['mid'] || item&.dig('mid')
-          message = mid && messages.find { |m| m.is_a?(Hash) && (m['mid'] || m[:mid]) == mid }
-          if message
-            Record.add!(message, entry)
-            sync.call
-            deliver.call({ 'type' => 'message_artifacts', 'chat_id' => board.chat_id, 'mid' => mid,
-                           'artifacts' => message['artifacts'] })
-          elsif Offer.in_flight?(item&.dig('origin', 'request_id'))
-            next false
-          else
-            note = saved_note(session, entry)
-            messages << note
-            board.attach_note(operation['item_id'], note['mid']) if item
-            sync.call
-            deliver.call({ 'type' => 'html', 'content' => note })
-          end
-          true
-        end
-      end
-
-      def saved_note(session, entry)
-        params = session[:parameters] || session['parameters'] || {}
-        { 'mid' => SecureRandom.hex(4), 'role' => 'assistant', 'text' => Offer.saved_note(entry['name']),
-          'lang' => 'en', 'app_name' => params['app_name'], 'active' => true, 'artifacts' => [entry] }
+        record = Artifact.record_of(artifact_id, chat_id: chat_id)
+        token = ViewTokens.issue(tab: tab, generation: generation, chat_id: chat_id,
+                                 epoch: Monadic::Workspace::Chats.epoch(chat_id), artifact_id: artifact_id,
+                                 sha256: record[:sha256], purpose: :download)
+        { 'type' => 'workbench_download', 'artifact_id' => artifact_id, 'url' => AssetServer::PREFIX + token,
+          'name' => File.basename(record[:copy_path]) }
+      rescue Artifact::NotAllowed
+        download_refusal(artifact_id, 'not_allowed')
       end
 
       # The reply of request_id was recorded as the message mid in the
@@ -143,38 +110,8 @@ module Monadic
         chat_id = chat_id_of(session)
         board = Monadic::Workspace::Ids.valid?(:chat, chat_id) && Board.existing(chat_id)
         attached = board ? !board.attach_reply(request_id, mid, item_ids).empty? : false
-        # The reply is done once what it made has its message: a save
-        # waiting for it is then recorded there, never in a note.
         Offer.done(request_id)
         attached
-      end
-
-      # Settles the session's chat's board (finish_unfinished). True when a
-      # save was left unfinished (the board may have changed).
-      def settle(session, recorder:)
-        chat_id = chat_id_of(session)
-        return false unless Monadic::Workspace::Ids.valid?(:chat, chat_id)
-
-        board = Board.existing(chat_id, private: private_chat?(session, chat_id)) or return false
-        unfinished = !board.unfinished_operations.empty?
-        finish_unfinished(board, recorder)
-        unfinished
-      end
-
-      # Takes on what a restart or a closed chat left unfinished, and gives
-      # back to a message the record of each save the board holds (the
-      # history may have missed one, as when its write failed, and an image
-      # may have got its message after it was saved): the board is what
-      # says what was saved.
-      def finish_unfinished(board, recorder)
-        board.unfinished_operations.each do |operation|
-          Saver.run(board, operation['id'], recorder: recorder)
-        rescue Saver::Failed, SystemCallError => e
-          Monadic::Utils::ExtraLogger.log { "[Workbench] Unfinished save left: #{e.class}: #{e.message}" }
-        end
-        board.recorded_operations.each do |operation|
-          recorder.call(board: board, operation: operation, artifact: Saver.artifact_of(board, operation))
-        end
       end
 
       # The connection closed: its tokens stop working (the tab gets new
@@ -207,6 +144,10 @@ module Monadic
 
       def refusal(operation_id, reason)
         { 'type' => 'workbench_result', 'operation_id' => operation_id, 'status' => 'refused', 'reason' => reason }
+      end
+
+      def download_refusal(artifact_id, reason)
+        { 'type' => 'workbench_download', 'artifact_id' => artifact_id, 'status' => 'refused', 'reason' => reason }
       end
     end
   end

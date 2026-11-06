@@ -6,9 +6,9 @@ require "tmpdir"
 require_relative "../../../lib/monadic/utils/websocket"
 require_relative "../../../lib/monadic/workspace"
 
-# A reply that offered a candidate ends with its message recorded: the
-# candidate becomes that message's and the page is sent the board with the
-# token that answers it. The real streaming and HTML handlers; the provider
+# A reply that put an image on the workbench ends with its message
+# recorded: the image becomes that message's, the message records what the
+# reply made, and the page is sent the board with the token for it. The real streaming and HTML handlers; the provider
 # call is played by a fake app that offers a candidate as the tool does.
 RSpec.describe "the workbench when a reply is recorded" do
   def png
@@ -48,6 +48,7 @@ RSpec.describe "the workbench when a reply is recorded" do
     WebSocketHelper.unregister_live_session("tab-1", 1)
     Thread.current[:rack_session] = nil
     Thread.current[:websocket_session_id] = nil
+    Monadic::Workspace::Ledger.clear_unsettled!
     FileUtils.rm_rf(root)
   end
 
@@ -59,10 +60,7 @@ RSpec.describe "the workbench when a reply is recorded" do
                                                 session: session)
         job = Monadic::Workbench::JobOutput.make(session[:chat_id], store: store)
         Monadic::Workbench::JobOutput.write!(Monadic::Workbench::JobOutput.out_dir(job), "cat.png", bytes, root: store.root)
-        offered = Monadic::Workbench::Offer.image(caller, job)
-        [{ "choices" => [{ "message" => { "content" => Monadic::Workbench::Offer.reply_text(offered),
-                                          Monadic::Workbench::Offer::ITEMS_KEY => [offered.item_id] },
-                           "finish_reason" => "stop" }] }]
+        Monadic::Workbench::Offer.end_reply(Monadic::Workbench::Offer.image(caller, job))
       end
       app.define_singleton_method(:settings) { {} }
     end
@@ -79,22 +77,20 @@ RSpec.describe "the workbench when a reply is recorded" do
     expect(item[:mid]).to eq(message["mid"])
     view = broadcasts.find { |m| m["type"] == "workbench" }
     expect(view["approvals"].keys).to eq([item[:id]])
+    expect(message["artifacts"]).to eq([board.item(item[:id])["artifact"].slice(*Monadic::Workbench::Record::FIELDS)])
+    expect(broadcasts.find { |m| m["type"] == "html" }.dig("content", "artifacts")).to eq(message["artifacts"])
   end
 
-  it "saves when the page asks, in the connection's turn, and tells the page" do
+  it "gives the page an address to save a copy of what the message records, in the connection's turn" do
     stub_const("APPS", { "FakeApp" => offering_app(store, png) })
     thread = host.send(:handle_ws_streaming, nil, { "message" => "a cat", "app_name" => "FakeApp" }, session, queue)
     host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
-    view = broadcasts.find { |m| m["type"] == "workbench" }
-    item = view["board"]["items"].first
-    host.send(:handle_ws_workbench_action, nil,
-              { "item_id" => item["id"], "action" => "save", "token" => view["approvals"][item["id"]],
-                "operation_id" => "op-00000001" },
-              session)
-    expect(broadcasts.find { |m| m["type"] == "workbench_result" }).to include("state" => "recorded", "name" => "cat.png")
-    expect(broadcasts.find { |m| m["type"] == "message_artifacts" }).to include("mid" => session[:messages].last["mid"])
-    expect(File.binread(File.join(shared, "cat.png"))).to eq(png)
-    expect(session[:messages].last["artifacts"].first["name"]).to eq("cat.png")
+    entry = session[:messages].last["artifacts"].first
+    host.send(:handle_ws_workbench_download, nil, { "artifact_id" => entry["id"] }, session)
+    answer = broadcasts.find { |m| m["type"] == "workbench_download" }
+    expect(answer).to include("artifact_id" => entry["id"], "name" => entry["name"])
+    expect(answer["url"]).to start_with(Monadic::Workbench::AssetServer::PREFIX)
+    expect(File.binread(File.join(shared, entry["path"]))).to eq(png)
   end
 
   it "keeps the image of a reply that ends without its message, and closes that reply" do

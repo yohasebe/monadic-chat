@@ -261,6 +261,51 @@ module Monadic
         end
       end
 
+      # An image a chat's generator made, placed as name in the artifacts/
+      # folder of the chat's workspace (looked up here, not taken from the
+      # caller). A run is recorded once: the record of a run that has one is
+      # returned as it is ([record, false]) when it is of the same chat,
+      # reply and bytes (Conflict otherwise); a new one gives [record, true].
+      def register_image(artifact_id:, chat_id:, name:, size:, sha256:, content_type:, width:, height:, run:,
+                         request_id:, derived_from: nil, created_at: Time.now)
+        raise ArgumentError, 'invalid artifact id' unless Ids.valid?(:artifact, artifact_id)
+
+        write do |data|
+          found = data['artifacts'].find { |_, r| r['kind'] == LedgerSchema::IMAGE_KIND && r['run'] == run }
+          if found
+            same = found[1].values_at('chat_id', 'request_id', 'sha256') == [chat_id, request_id, sha256]
+            raise Conflict, 'the run is recorded for another image' unless same
+
+            next [found[1].transform_keys(&:to_sym).merge(artifact_id: found[0]), false]
+          end
+          raise Conflict, 'artifact id already registered' if data['artifacts'].key?(artifact_id)
+
+          workspace_id = data['chats'].dig(chat_id, 'workspace_id')
+          workspace = workspace_id && data['workspaces'][workspace_id]
+          raise Conflict, 'the chat has no folder in the ledger' unless workspace.is_a?(Hash)
+
+          data['artifacts'][artifact_id] = {
+            'owner' => 'chat', 'chat_id' => chat_id, 'workspace_id' => workspace_id,
+            'kind' => LedgerSchema::IMAGE_KIND,
+            'copy_path' => "#{workspace['relative_dir']}/artifacts/#{name}",
+            'size' => size, 'sha256' => sha256, 'content_type' => content_type, 'width' => width, 'height' => height,
+            'run' => run, 'request_id' => request_id,
+            'derived_from' => derived_from && { 'artifact_id' => derived_from[:artifact_id], 'sha256' => derived_from[:sha256] },
+            'status' => 'ready',
+            'created_at' => created_at.utc.iso8601
+          }.compact
+          [data['artifacts'][artifact_id].transform_keys(&:to_sym).merge(artifact_id: artifact_id), true]
+        end
+      end
+
+      # The image recorded for a run, or nil.
+      def image_for_run(run)
+        read do |data|
+          found = data['artifacts'].find { |_, r| r['kind'] == LedgerSchema::IMAGE_KIND && r['run'] == run }
+          found && found[1].transform_keys(&:to_sym).merge(artifact_id: found[0])
+        end
+      end
+
       def artifact(artifact_id)
         read do |data|
           record = data['artifacts'][artifact_id]

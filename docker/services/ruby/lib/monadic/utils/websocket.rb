@@ -276,6 +276,8 @@ module WebSocketHelper
           send_workbench_view(connection, session)
         when "WORKBENCH_ACTION"
           handle_ws_workbench_action(connection, obj, session)
+        when "WORKBENCH_DOWNLOAD"
+          handle_ws_workbench_download(connection, obj, session)
         when "RESET"
           # A reply still being written belongs to the chat being reset. It
           # is stopped as Cancel stops it, before the session is cleared:

@@ -243,11 +243,11 @@ module Monadic
       end
 
       # @param session [Hash]
-      # @return [String, nil] basename of the most recently generated image in
-      #   this session, or nil. An image the user saved from the workbench comes
-      #   first, as the messages' records say (Monadic::Workbench::Record); then
-      #   the monadic_state "last_images" slot for the active app, which chats
-      #   made before the workbench carry.
+      # @return [String, nil] the most recently generated image in this
+      #   session, or nil. An image a reply made comes first, by its path in the
+      #   shared folder as the messages' records say (Monadic::Workbench::Record);
+      #   then the basename in the monadic_state "last_images" slot for the
+      #   active app, which chats made before the workbench carry.
       #
       # Scope (decision): `${LAST_GENERATED_IMAGE}` is opted into (MDSL `use :last_generated_image`)
       # only by the dedicated Image Generator apps, which have the iterative
@@ -259,8 +259,8 @@ module Monadic
       # the semantics of fetch_last_images_from_session used by the edit flow.
       # The key contract here is locked by state_token_keys_contract_spec.rb.
       def last_generated_image(session)
-        saved = Monadic::Workbench::Record.last_saved_name(session[:messages] || session["messages"])
-        return saved if saved
+        made = Monadic::Workbench::Record.last_path(session[:messages] || session["messages"])
+        return made if made
 
         params = session_params(session)
         app_name = params && (params["app_name"] || params[:app_name])

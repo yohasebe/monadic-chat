@@ -37,9 +37,13 @@ RSpec.describe "the Gemini image tool on the workbench" do
     allow(Monadic::Workbench::Store).to receive(:default).and_return(store)
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared)
     allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(shared)
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(File.join(root, "state"))
   end
 
-  after { FileUtils.rm_rf(root) }
+  after do
+    Monadic::Workspace::Ledger.clear_unsettled!
+    FileUtils.rm_rf(root)
+  end
 
   # The provider call: records what it was given and writes what it is
   # given into the run's out folder, as the helper does.
@@ -75,7 +79,7 @@ RSpec.describe "the Gemini image tool on the workbench" do
     generate(operation: "edit", prompt: text, **extra)
   end
 
-  it "puts one image on the workbench, sending no image for a new one and writing nothing in the shared folder" do
+  it "places one image in the chat's folder, sending no image for a new one" do
     session[:messages] << { "role" => "user", "text" => "old", "images" => [{ "title" => "old.png",
                                                                              "data" => "data:image/png;base64,AAAA" }] }
     fake_native
@@ -83,7 +87,8 @@ RSpec.describe "the Gemini image tool on the workbench" do
     expect(result).to be_a(Monadic::Workbench::Offered)
     expect(runs.last[:images]).to eq([])
     expect(runs.last).not_to have_key(:session)
-    expect(Dir.children(shared)).to be_empty
+    expect(File.file?(File.join(shared, result.path))).to be(true)
+    expect(Dir.children(shared)).to eq(["conversations"])
     expect(Dir.children(File.join(store.chat_dir(chat), "jobs"))).to be_empty
   end
 
@@ -102,8 +107,8 @@ RSpec.describe "the Gemini image tool on the workbench" do
     fake_native(bytes: png(64, 48, "second"), name: "second.png")
     second = edit
     expect(runs.last[:images].map { |i| decoded(i) }).to eq([png(64, 48, "first")])
-    item = Monadic::Workbench::Board.for(chat, store: store).item(second.item_id)
-    expect(item.dig("candidate", "derived_from", "id")).to eq(first.item_id)
+    board = Monadic::Workbench::Board.for(chat, store: store)
+    expect(board.item(second.item_id).dig("artifact", "derived_from")).to eq(board.item(first.item_id).dig("artifact", "id"))
   end
 
   it "edits the images the user named or uploaded, every one, and not an older upload" do
@@ -258,7 +263,7 @@ RSpec.describe "the Gemini image tool on the workbench" do
     end
 
     it "goes on as before when the result is not this reply's" do
-      other = Monadic::Workbench::Offered.new(chat_id: chat, request_id: "another", item_id: "i_x", name: "x.png")
+      other = Monadic::Workbench::Offered.new(chat_id: chat, request_id: "another", item_id: "i_x", path: "x.png")
       allow(app).to receive(:generate_image_with_gemini).and_return(other)
       reply = in_reply do
         host.process_functions("ImageGeneratorGemini", session,

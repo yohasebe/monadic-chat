@@ -6,13 +6,13 @@ Generate and edit images from natural-language descriptions using provider image
 
 Generate images from text descriptions, and edit images you upload or images generated earlier in the conversation. Image Generator is available with OpenAI, Google Gemini, and xAI (Grok).
 
-A generated image is shown in the [work screen](../basic-usage/web-interface.md#work-screen), and the reply shows one line with its name. The image stays there while you go on: ask for changes, and the last image in the work screen is edited. **Save to the shared folder** puts an image in the shared folder, and the reply then lists it as saved; an image you have not saved is not in the shared folder.
+A generated image is saved in the chat's folder (`conversations/` in the shared folder) and shown in the [work screen](../basic-usage/web-interface.md#work-screen); the reply shows one line with its path in the shared folder. The image stays in the work screen while you go on: ask for changes, and the last image in the work screen is edited. **Save as…** (**Download** in a web browser) saves a copy anywhere you choose. If an image's file is changed, moved or deleted in the shared folder, the work screen says so, and that image is no longer shown, edited or saved.
 
 Image generation is not available in a Private chat.
 
 ## Image Editing
 
-To edit an image, describe the changes you want in natural language. If you do not say which image to edit, the last image in the work screen is edited, saved or not. An image you upload with the request, or a file of the shared folder you name in it, is edited instead. Image editing is supported by OpenAI, Google Gemini, and xAI (Grok).
+To edit an image, describe the changes you want in natural language. If you do not say which image to edit, the last image in the work screen is edited. An image you upload with the request, or a file of the shared folder you name in it (by its name, or by its path such as `conversations/…/artifacts/…png`), is edited instead. Image editing is supported by OpenAI, Google Gemini, and xAI (Grok).
 
 For example, after generating an image, you can say:
 - "Make the sky a sunset orange"

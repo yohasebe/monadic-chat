@@ -203,7 +203,8 @@ RSpec.describe Monadic::Workspace::LedgerSchema do
         'an outside artifact with a null workspace' => ->(d) { d['artifacts'][outside]['workspace_id'] = nil },
         'a root not set aside' => ->(d) { d['artifacts'][outside]['root'] = 'conversations' },
         'a job id of the wrong kind' => ->(d) { d['artifacts'][id]['job_id'] = made[:workspace] },
-        'an unknown kind' => ->(d) { d['artifacts'][id]['kind'] = 'image' },
+        'an unknown kind' => ->(d) { d['artifacts'][id]['kind'] = 'picture' },
+        'a run of the image kind' => ->(d) { d['artifacts'][id]['kind'] = 'image' },
         'a copy in another job' => ->(d) { d['artifacts'][id]['copy_path'] = "#{made[:dir]}/artifacts/#{ids.generate(:job)}/transcript.vtt" },
         'a copy one level down' => ->(d) { d['artifacts'][id]['copy_path'] = "#{made[:dir]}/artifacts/#{job}/x/transcript.vtt" },
         'a copy spelled another way' => ->(d) { d['artifacts'][id]['copy_path'] = "#{made[:dir]}/artifacts/./#{job}/transcript.vtt" },
@@ -223,6 +224,70 @@ RSpec.describe Monadic::Workspace::LedgerSchema do
         error = error_of
         expect(error).to be_a(ledger_class::Shape), label
         [made[:chat], made[:workspace], id, job].each { |secret| expect(error.message).not_to include(secret) }
+      end
+    end
+  end
+
+  describe 'images' do
+    let(:run) { "j_#{'a' * 20}" }
+    let(:request) { ids.generate(:request) }
+
+    def image(made, name: '20261106-091233_cat.png', run_id: run, **over)
+      record, made_now = ledger.register_image(
+        **{ artifact_id: ids.generate(:artifact), chat_id: made[:chat], name: name, size: 5, sha256: 'b' * 64,
+            content_type: 'image/png', width: 8, height: 6, run: run_id, request_id: request }.merge(over)
+      )
+      [record, made_now]
+    end
+
+    it "records one in its chat's artifacts folder, taking the folder from the ledger, once per run" do
+      made = filled
+      record, made_now = image(made)
+      expect(made_now).to be(true)
+      expect(record).to include(owner: 'chat', chat_id: made[:chat], workspace_id: made[:workspace], kind: 'image',
+                                copy_path: "#{made[:dir]}/artifacts/20261106-091233_cat.png", run: run, status: 'ready')
+      expect(record).not_to include(:job_id)
+      again, made_again = image(made, name: '20261106-091240_cat.png')
+      expect(made_again).to be(false)
+      expect(again[:artifact_id]).to eq(record[:artifact_id])
+      derived, = image(made, run_id: "j_#{'b' * 20}", derived_from: { artifact_id: record[:artifact_id], sha256: 'b' * 64 })
+      expect(derived[:derived_from]).to eq('artifact_id' => record[:artifact_id], 'sha256' => 'b' * 64)
+    end
+
+    it 'refuses a chat without a folder, and a name or type out of form, saving nothing' do
+      made = filled
+      before = File.read(path)
+      expect { image({ chat: ids.generate(:chat) }) }.to raise_error(ledger_class::Conflict)
+      ['cat.png', '../20261106-091233_cat.png', '20261106-091233_.cat.png', '20261106-091233_cat.gif', 'x/20261106-091233_cat.png']
+        .each { |name| expect { image(made, name: name) }.to raise_error(ledger_class::Shape), name }
+      expect { image(made, content_type: 'image/jpeg') }.to raise_error(ledger_class::Shape)
+      expect(File.read(path)).to eq(before)
+    end
+
+    it 'refuses an image out of form, naming the field and no id' do
+      made = filled
+      record, = image(made)
+      id = record[:artifact_id]
+      breaks = {
+        'an image outside any chat' => ->(d) { d['artifacts'][id].merge!('owner' => 'outside', 'root' => 'transcriptions') },
+        'an image with a job' => ->(d) { d['artifacts'][id]['job_id'] = ids.generate(:job) },
+        'a copy in another chat\'s folder' => ->(d) { d['artifacts'][id]['copy_path'] = 'conversations/other/artifacts/20261106-091233_cat.png' },
+        'a copy one level down' => ->(d) { d['artifacts'][id]['copy_path'] = "#{made[:dir]}/artifacts/x/20261106-091233_cat.png" },
+        'a type that is not the name\'s' => ->(d) { d['artifacts'][id]['content_type'] = 'image/webp' },
+        'no width' => ->(d) { d['artifacts'][id].delete('width') },
+        'a height of zero' => ->(d) { d['artifacts'][id]['height'] = 0 },
+        'a run that is not one' => ->(d) { d['artifacts'][id]['run'] = '../j' },
+        'a request that is not one' => ->(d) { d['artifacts'][id]['request_id'] = made[:chat] },
+        'a source that is not an image' => ->(d) { d['artifacts'][id]['derived_from'] = { 'artifact_id' => 'x', 'sha256' => 'b' * 64 } },
+        'no sha256' => ->(d) { d['artifacts'][id].delete('sha256') }
+      }
+      original = File.read(path)
+      breaks.each do |label, change|
+        File.write(path, original)
+        edit { |data| change.call(data) }
+        error = error_of
+        expect(error).to be_a(ledger_class::Shape), label
+        [made[:chat], made[:workspace], id].each { |secret| expect(error.message).not_to include(secret) }
       end
     end
   end

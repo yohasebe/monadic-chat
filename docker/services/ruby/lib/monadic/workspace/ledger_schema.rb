@@ -24,6 +24,15 @@ module Monadic
       # What the server makes, by kind, and the name it has (the same in the
       # state folder and in the run folder's copy).
       ARTIFACT_KINDS = { 'subtitle_vtt' => 'transcript.vtt', 'subtitle_srt' => 'transcript.srt' }.freeze
+      # An image a chat's generator made, kept only in the chat's folder
+      # (artifacts/<name>): no job, no copy in the state folder. Its name is
+      # <time>_<generator's name>.<ext>, and its type is that of the
+      # extension.
+      IMAGE_KIND = 'image'
+      IMAGE_TYPES = { 'png' => 'image/png', 'jpg' => 'image/jpeg', 'webp' => 'image/webp' }.freeze
+      IMAGE_NAME = /\A\d{8}-\d{6}_[A-Za-z0-9][A-Za-z0-9_-]{0,90}\.(png|jpg|webp)\z/
+      # The workbench's run that made the image (Monadic::Workbench::JobOutput).
+      RUN = /\Aj_[a-f0-9]{20}\z/
       ARTIFACT_STATES = %w[ready].freeze
       # Folders of the shared folder that hold runs asked for from outside
       # any chat (the MCP server).
@@ -183,6 +192,8 @@ module Monadic
         ids!(data['artifacts'], :artifact, 'artifacts')
         data['artifacts'].each_value do |record|
           base = artifact_base(data, record)
+          next image!(record, base) if record['kind'] == IMAGE_KIND
+
           raise Shape, 'artifacts.job_id is not a job id' unless Ids.valid?(:job, record['job_id'])
 
           name = ARTIFACT_KINDS[record['kind']]
@@ -202,6 +213,37 @@ module Monadic
       # chat) with the source's sha256, carries the source's size and sha256,
       # and has a name of its own that no other publication has. One source
       # has at most one publication pending or ready.
+      # An image: of a chat, at artifacts/<name> of its folder, with the
+      # type of its extension, its size, sha256 and dimensions, the run and
+      # request that made it, and (for an edit) the image it was made from.
+      def image!(record, base)
+        raise Shape, 'an image belongs to a chat' unless record['owner'] == 'chat'
+        raise Shape, 'an image has no job' if record.key?('job_id')
+
+        name = record['copy_path'].to_s.delete_prefix("#{base}/artifacts/")
+        ext = name[IMAGE_NAME, 1]
+        unless ext && record['copy_path'] == "#{base}/artifacts/#{name}"
+          raise Shape, 'artifacts.copy_path is not an image of its chat folder'
+        end
+        raise Shape, 'artifacts.content_type is not that of the name' unless record['content_type'] == IMAGE_TYPES[ext]
+
+        %w[width height].each do |side|
+          raise Shape, "artifacts.#{side} is not a size" unless record[side].is_a?(Integer) && record[side].positive?
+        end
+        raise Shape, 'artifacts.run is not a run' unless record['run'].is_a?(String) && RUN.match?(record['run'])
+        raise Shape, 'artifacts.request_id is not a request id' unless Ids.valid?(:request, record['request_id'])
+
+        derived = record['derived_from']
+        unless derived.nil? || (derived.is_a?(Hash) && Ids.valid?(:artifact, derived['artifact_id']) &&
+                                derived['sha256'].is_a?(String) && SHA256.match?(derived['sha256']))
+          raise Shape, 'artifacts.derived_from is not an image'
+        end
+        contents!(record, 'artifacts', required: true)
+        raise Shape, 'artifacts.status is unknown' unless ARTIFACT_STATES.include?(record['status'])
+
+        time!(record['created_at'], 'artifacts.created_at')
+      end
+
       def publications!(data)
         ids!(data['publications'], :publication, 'publications')
         names = {}

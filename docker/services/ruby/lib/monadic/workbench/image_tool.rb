@@ -19,7 +19,7 @@ module Monadic
     # image an edit starts from, and a run of a generator whose image goes
     # to the chat's workbench. Calls no provider API.
     module ImageTool
-      # The edit's images: names of the shared folder (and a mask), or the
+      # The edit's images: paths in the shared folder (and a mask), or the
       # bytes of a board image (board_input).
       Source = Struct.new(:images, :mask, :board_input, keyword_init: true)
 
@@ -46,15 +46,19 @@ module Monadic
       # in this turn (with the mask the user drew for one of them in the
       # mask editor, an upload named mask__<image>); a mask drawn in the
       # last user message, with that message's uploads; images of the
-      # shared folder the user named in their message; the image that came
-      # last on the workbench (saved or not); the uploads in the last user
-      # message. Every image of the chosen kind is found, or the edit stops:
+      # shared folder the user named in their message (a name at the top of
+      # the shared folder, or a path in it such as an image of a chat
+      # folder); the image that came last on the workbench (read from the
+      # shared folder and checked: one that changed or is gone stops the
+      # edit); the uploads in the last user message. Every image of the chosen kind is found, or the edit stops:
       # nothing else is edited in its place. Names the model passed count
       # only as the user's own words name them. Raises NoSource when there
       # is nothing to edit.
       def edit_source(session:, workbench:, images:, mask: nil)
-        named = Array(images).filter_map { |img| upload_name(img) || (img.is_a?(String) ? img : nil) }
-                             .map { |n| File.basename(n.to_s) }.reject(&:empty?)
+        named = Array(images).filter_map do |img|
+          upload = upload_name(img)
+          upload ? File.basename(upload.to_s) : (img.is_a?(String) ? shared_name(img) : nil)
+        end.reject(&:empty?)
         last_user = Array(session && session[:messages]).reverse.find { |m| m['role'] == 'user' }
         user_text = last_user ? last_user['text'].to_s : ''
         last_uploads = last_user && last_user['images']
@@ -64,7 +68,7 @@ module Monadic
         return upload_source(session, last_uploads, mask) if Array(last_uploads).any? { |u| mask_upload?(u) }
 
         if !named.empty? && named.all? { |n| named_in_text?(user_text, n) }
-          missing = named.reject { |name| shared_image?(name) || restore_upload(session, name) }
+          missing = named.reject { |name| shared_image?(name) || (!name.include?('/') && restore_upload(session, name)) }
           raise NoSource, "❌ The image you named was not found: #{missing.join(', ')}" unless missing.empty?
 
           return Source.new(images: named, mask: mask)
@@ -74,7 +78,11 @@ module Monadic
         if latest
           raise NoSource, '❌ A mask applies to an uploaded or named image, not to the image in the work screen.' if mask
 
-          return Source.new(board_input: Board.for(workbench.chat_id).candidate_input(latest['id']))
+          begin
+            return Source.new(board_input: Board.for(workbench.chat_id).image_input(latest['id']))
+          rescue Board::Refused => e
+            raise NoSource, "❌ #{e.message.sub(/\A./, &:upcase)}: it is not edited, and no other image is used in its place."
+          end
         end
 
         source = upload_source(session, last_uploads, mask)
@@ -131,8 +139,9 @@ module Monadic
         kept && shared_image?(kept) ? File.basename(kept) : nil
       end
 
-      # Runs a generator for the reply's chat in a job folder of its own and
-      # puts the image it made on the workbench (Offer): the block gets the
+      # Runs a generator for the reply's chat in a job folder of its own,
+      # places the image it made in the chat's folder and puts it on the
+      # workbench (Offer): the block gets the
       # job's out/ folder and the paths of its inputs (the board image an
       # edit starts from, given through in/), and returns what the generator
       # said. Returns the Offered image, or what the generator said when it
@@ -148,8 +157,11 @@ module Monadic
           said = yield JobOutput.out_dir(job), inputs
           return said if JobOutput.files(job).empty?
 
-          derived_from = board_input && { id: board_input[:id], sha256: board_input[:sha256] }
+          derived_from = board_input && { artifact_id: board_input[:artifact_id], sha256: board_input[:sha256] }
           Offer.image(workbench, job, derived_from: derived_from).tap { |offered| offered.notice = notice_in(said) }
+        rescue Board::PlacedOnly => e
+          # Not a failed generation: the image is in the shared folder.
+          "The image was saved in the shared folder as `#{e.path}`, but it is not shown in the work screen: #{e.message}"
         rescue Board::Refused, ImageCheck::Refused, JobOutput::Refused => e
           "❌ Image generation failed: #{e.message}"
         ensure
@@ -166,11 +178,13 @@ module Monadic
       # read once as a plain file (never through a link) and an image by its
       # leading bytes. Raises NoSource otherwise.
       def shared_input(name)
-        path = File.join(shared_folder, File.basename(name.to_s))
-        bytes = Monadic::Utils::SharedPathGuard.read_bytes!(path, limit: ImageCheck::MAX_BYTES)
-        image_input(bytes, File.basename(name.to_s))
+        relative = shared_name(name)
+        raise NoSource, "❌ The image you named could not be read: #{name}" if relative.empty?
+
+        bytes = Monadic::Utils::SharedPathGuard.read_bytes!(File.join(shared_folder, relative), limit: ImageCheck::MAX_BYTES)
+        image_input(bytes, relative)
       rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
-        raise NoSource, "❌ The image you named could not be read: #{File.basename(name.to_s)}"
+        raise NoSource, "❌ The image you named could not be read: #{relative}"
       end
 
       # An input the server gave a run (JobOutput.put_input!), for a provider
@@ -216,8 +230,21 @@ module Monadic
         Monadic::Utils::Environment.shared_volume
       end
 
+      # A name the user gave for a file of the shared folder, as a path in
+      # it: at the top (a name), or below (conversations/.../x.png); /data/
+      # in front is taken off. "" for a name that cannot be one.
+      def shared_name(name)
+        text = name.to_s.strip.delete_prefix('/data/')
+        return '' if text.empty? || text.start_with?('/') || text.include?("\0") || text.split('/').include?('..')
+
+        text
+      end
+
+      # Whether a plain file of the shared folder has this name (shared_name),
+      # reached with no link.
       def shared_image?(name)
-        File.exist?(File.join(shared_folder, File.basename(name.to_s)))
+        relative = shared_name(name)
+        !relative.empty? && !Monadic::Utils::SharedPathGuard.file_stat(File.join(shared_folder, relative)).nil?
       end
 
       # An upload's data written as a file of the shared folder, never

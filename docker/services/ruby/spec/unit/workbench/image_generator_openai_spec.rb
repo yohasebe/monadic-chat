@@ -34,9 +34,17 @@ RSpec.describe "the OpenAI image tool on the workbench" do
     allow(Monadic::Workbench::Store).to receive(:default).and_return(store)
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared)
     allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(shared)
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(File.join(root, "state"))
   end
 
-  after { FileUtils.rm_rf(root) }
+  after do
+    Monadic::Workspace::Ledger.clear_unsettled!
+    FileUtils.rm_rf(root)
+  end
+
+  def item_of(offered)
+    Monadic::Workbench::Board.for(chat, store: store).item(offered.item_id)
+  end
 
   # A generator that reads the inputs the server gave it and writes what it
   # is given into the out folder named in its command, as the script does.
@@ -93,19 +101,22 @@ RSpec.describe "the OpenAI image tool on the workbench" do
   end
 
   describe "a generation" do
-    it "puts one image on the workbench, writing nothing in the shared folder, and ends the reply" do
+    it "places one image in the chat's folder, puts it on the workbench, and ends the reply" do
       fake_generator
       result = generate
       expect(result).to be_a(Monadic::Workbench::Offered)
       expect(result.for?(session)).to be(false) # outside the reply
       in_reply { expect(result.for?(session)).to be(true) }
       expect(commands.last.each_cons(2).to_a).to include(["-n", "1"])
-      item = Monadic::Workbench::Board.for(chat, store: store).item(result.item_id)
-      expect(item.dig("candidate", "name")).to eq("generate_gpt-image-2_1_0.png")
+      item = item_of(result)
+      expect(item.dig("artifact", "name")).to end_with("_generate_gpt-image-2_1_0.png")
       expect(item.dig("origin", "request_id")).to eq(request.request_id)
-      expect(Dir.children(shared)).to be_empty
+      expect(result.path).to eq(item.dig("artifact", "path"))
+      expect(result.path).to start_with("conversations/").and include("_image-generator-open-ai_")
+      expect(File.binread(File.join(shared, result.path))).to eq(png(64, 48))
+      expect(Dir.children(shared)).to eq(["conversations"])
       expect(Dir.children(File.join(store.chat_dir(chat), "jobs"))).to be_empty
-      expect(result.to_s).to include(Monadic::Workbench::Offered::STATUS)
+      expect(result.to_s).to include(Monadic::Workbench::Offered::STATUS, result.path)
     end
 
     it "refuses without the reply's chat, and in a Private chat, before running anything" do
@@ -137,7 +148,7 @@ RSpec.describe "the OpenAI image tool on the workbench" do
       command.each_cons(2).select { |flag, _| flag == "--job-input" }.map(&:last)
     end
 
-    it "starts from the image that came last on the workbench, saved or not, given through the run's input folder" do
+    it "starts from the image that came last on the workbench, read from the shared folder and given through the run's input folder" do
       fake_generator(bytes: png(64, 48, "first"), name: "first.png")
       first = generate
       fake_generator(bytes: png(64, 48, "second"), name: "second.png")
@@ -146,10 +157,30 @@ RSpec.describe "the OpenAI image tool on the workbench" do
       expect(inputs.size).to eq(1)
       expect(inputs.first).to include("/jobs/j_").and end_with("/in/input.png")
       expect(seen_inputs.last).to eq(png(64, 48, "first"))
-      item = Monadic::Workbench::Board.for(chat, store: store).item(second.item_id)
-      expect(item.dig("candidate", "derived_from")).to eq("id" => first.item_id,
-                                                          "sha256" => Digest::SHA256.hexdigest(png(64, 48, "first")))
-      expect(Dir.children(shared)).to be_empty
+      expect(item_of(second).dig("artifact", "derived_from")).to eq(item_of(first).dig("artifact", "id"))
+      expect(Dir.children(shared)).to eq(["conversations"])
+    end
+
+    it "stops when the image that came last changed in the shared folder, and edits no other image" do
+      fake_generator(bytes: png(64, 48, "first"), name: "first.png")
+      generate
+      fake_generator(bytes: png(64, 48, "second"), name: "second.png")
+      second = generate
+      File.binwrite(File.join(shared, second.path), png(64, 48, "changed"))
+      count = commands.size
+      expect(edit).to start_with("❌").and include("changed")
+      expect(commands.size).to eq(count)
+    end
+
+    it "takes an image of a chat folder the user named by its path" do
+      fake_generator(bytes: png(64, 48, "first"), name: "first.png")
+      first = generate
+      fake_generator(bytes: png(64, 48, "x"), name: "x.png")
+      edit(text: "make #{first.path} brighter", images: [first.path])
+      expect(commands.last.each_cons(2).to_a).to include(["-i", first.path])
+      expect(job_inputs(commands.last)).to be_empty
+      expect(edit(text: "make conversations/none/artifacts/x.png brighter", images: ["conversations/none/artifacts/x.png"]))
+        .to start_with("❌")
     end
 
     it "never takes the input for what the generator made" do
@@ -308,7 +339,7 @@ RSpec.describe "the OpenAI image tool on the workbench" do
     end
 
     it "goes on as before when the result is not this reply's" do
-      other = Monadic::Workbench::Offered.new(chat_id: chat, request_id: "another", item_id: "i_x", name: "x.png")
+      other = Monadic::Workbench::Offered.new(chat_id: chat, request_id: "another", item_id: "i_x", path: "x.png")
       allow(app).to receive(:generate_image_with_openai).and_return(other)
       reply = in_reply do
         host.send(:process_functions, "ImageGeneratorOpenAI", session,
@@ -320,15 +351,7 @@ RSpec.describe "the OpenAI image tool on the workbench" do
   end
 
   describe "the reply's message" do
-    let(:recorder) do
-      Monadic::Workbench::Channel.recorder_for(session, sync: -> {}, deliver: ->(_) {})
-    end
-
-    def view
-      Monadic::Workbench::Channel.view(session, tab: "tab-1", generation: 1, live: ->(_) { 1 })
-    end
-
-    it "is the one that names the image; a save is recorded there and becomes the last saved image" do
+    it "is the one that names the image, and records what the reply made, which becomes the last generated image" do
       session[:monadic_state] = { "ImageGeneratorOpenAI" => { "last_images" => { data: ["older.png"] } } }
       fake_generator
       offered = generate
@@ -338,15 +361,15 @@ RSpec.describe "the OpenAI image tool on the workbench" do
       expect(Monadic::Workbench::Channel.reply_recorded(session, "m-0", request.request_id, nil)).to be(false)
       expect(Monadic::Workbench::Channel.reply_recorded(session, "m-0", request.request_id, ["i_other"])).to be(false)
       expect(Monadic::Workbench::Channel.reply_recorded(session, "m-1", request.request_id, [offered.item_id])).to be(true)
-      result = Monadic::Workbench::Channel.act(
-        { "item_id" => offered.item_id, "action" => "save", "token" => view["approvals"][offered.item_id],
-          "operation_id" => "op-00000001" },
-        session, tab: "tab-1", generation: 1, recorder: recorder, live: ->(_) { 1 }
-      )
-      expect(result).to include("state" => "recorded", "name" => "generate_gpt-image-2_1_0.png")
-      expect(session[:messages].last["artifacts"].first["name"]).to eq("generate_gpt-image-2_1_0.png")
-      # ${LAST_GENERATED_IMAGE} names the file saved last, from the record.
-      expect(Monadic::Substitution::Vocabulary.last_generated_image(session)).to eq("generate_gpt-image-2_1_0.png")
+      ended = Monadic::Workbench::Offer.end_reply(offered)
+      message = ended.dig(0, "choices", 0, "message")
+      made = Monadic::Workbench::Record.clean(message[Monadic::Workbench::Offer::ARTIFACTS_KEY])
+      expect(made).to eq([offered.entry])
+      expect(made.first).to include("id" => item_of(offered).dig("artifact", "id"), "path" => offered.path)
+      expect(message["content"]).to include(offered.path)
+      session[:messages].last["artifacts"] = made
+      # ${LAST_GENERATED_IMAGE} names the image made last, from the record.
+      expect(Monadic::Substitution::Vocabulary.last_generated_image(session)).to eq(offered.path)
     end
 
     it "leaves an image of the chat the tab left without a message" do

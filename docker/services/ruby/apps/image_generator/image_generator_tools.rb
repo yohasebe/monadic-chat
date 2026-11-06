@@ -40,8 +40,8 @@ class ImageGeneratorOpenAI < MonadicApp
   # @param output_compression [Integer] Compression level for JPEG (1-100)
   # @param session [Object] Session object (automatically provided)
   # @param workbench [Monadic::Workbench::Caller, nil] The chat the reply runs
-  #   for (given by the server, never by the model). The image is put on the
-  #   chat's workbench, where the user may save it to the shared folder.
+  #   for (given by the server, never by the model). The image is placed in
+  #   the chat's folder of the shared folder and shown on its workbench.
   # @return [Monadic::Workbench::Offered, String] The image on the
   #   workbench, or an error
   def generate_image_with_openai(operation:, model:, prompt: nil, images: nil,
@@ -93,8 +93,8 @@ class ImageGeneratorOpenAI < MonadicApp
       end
     end
 
-    # One image, made in a job folder of the chat's workbench; nothing
-    # reaches the shared folder until the user saves it.
+    # One image, made in a job folder of the chat's workbench, then placed
+    # in the chat's folder of the shared folder.
     Monadic::Workbench::ImageTool.run_job(workbench, board_input: board_input) do |out_dir, inputs|
       super(operation: operation, model: model, prompt: prompt, images: images,
             mask: mask, n: 1, size: size, quality: quality, output_format: output_format,
@@ -123,8 +123,8 @@ class ImageGeneratorGrok < MonadicApp
   # @param images [Array<String>] Array of image filenames for editing (max 5)
   # @param session [Object] Session object (automatically provided)
   # @param workbench [Monadic::Workbench::Caller, nil] The chat the reply runs
-  #   for (given by the server, never by the model). The image is put on the
-  #   chat's workbench, where the user may save it to the shared folder.
+  #   for (given by the server, never by the model). The image is placed in
+  #   the chat's folder of the shared folder and shown on its workbench.
   # @return [Monadic::Workbench::Offered, String] The image on the
   #   workbench, or an error
   def generate_image_with_grok(operation: "generate", prompt:, aspect_ratio: nil, quality: nil, images: nil, image_model: nil,
@@ -176,10 +176,10 @@ class ImageGeneratorGrok < MonadicApp
     end
 
     shared_folder = Monadic::Utils::Environment.shared_volume
-    resolved_images = Array(images).map { |img| File.join(shared_folder, File.basename(img)) }
+    resolved_images = Array(images).map { |img| File.join(shared_folder, Monadic::Workbench::ImageTool.shared_name(img)) }
 
-    # One image, made in a job folder of the chat's workbench; nothing
-    # reaches the shared folder until the user saves it.
+    # One image, made in a job folder of the chat's workbench, then placed
+    # in the chat's folder of the shared folder.
     Monadic::Workbench::ImageTool.run_job(workbench, board_input: board_input) do |out_dir, inputs|
       super(prompt: prompt, aspect_ratio: aspect_ratio, quality: quality, operation: operation,
             images: resolved_images.empty? ? nil : resolved_images, image_model: image_model,
@@ -201,14 +201,14 @@ class ImageGeneratorGemini < MonadicApp
   end
 
   # Generate or edit images using Gemini 3 Image (Nano Banana Flash / Pro).
-  # The image goes to the chat's workbench (Monadic::Workbench::ImageTool);
-  # nothing reaches the shared folder until the user saves it.
+  # The image is placed in the chat's folder of the shared folder and shown
+  # on its workbench (Monadic::Workbench::ImageTool).
   # @param operation [String] "generate" or "edit"
   # @param prompt [String] Text description of the desired image or editing instructions
   # @param model [String] Image model id: "gemini-nano-banana-2.1" or "gemini-3-pro-image"
   # @param aspect_ratio [String] Optional aspect ratio (e.g., 16:9, 1:1, 4:5)
   # @param image_size [String] Optional resolution (1K, 2K, 4K)
-  # @param images [Array<String>] Shared-folder file names the user named for an edit
+  # @param images [Array<String>] Shared-folder paths the user named for an edit
   # @param session [Object] Session object (automatically provided)
   # @param workbench [Monadic::Workbench::Caller] The reply's chat (given by the server)
   # @return [Monadic::Workbench::Offered, String] The image on the workbench, or why there is none

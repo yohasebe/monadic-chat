@@ -34,9 +34,13 @@ RSpec.describe "the Grok image tool on the workbench" do
     allow(Monadic::Workbench::Store).to receive(:default).and_return(store)
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared)
     allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(shared)
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(File.join(root, "state"))
   end
 
-  after { FileUtils.rm_rf(root) }
+  after do
+    Monadic::Workspace::Ledger.clear_unsettled!
+    FileUtils.rm_rf(root)
+  end
 
   # A generator that reads the inputs the server gave it and writes what it
   # is given into the out folder named in its command, as the script does.
@@ -79,12 +83,14 @@ RSpec.describe "the Grok image tool on the workbench" do
     command.each_cons(2).select { |flag, _| flag == "--job-input" }.map(&:last)
   end
 
-  it "puts one image on the workbench, writing nothing in the shared folder" do
+  it "places one image in the chat's folder and puts it on the workbench" do
     fake_generator
     result = generate
     expect(result).to be_a(Monadic::Workbench::Offered)
     expect(commands.last).to include("--out-dir")
-    expect(Dir.children(shared)).to be_empty
+    expect(result.path).to match(%r{\Aconversations/.+/artifacts/\d{8}-\d{6}_grok_image_1\.png\z})
+    expect(File.binread(File.join(shared, result.path))).to eq(png(64, 48))
+    expect(Dir.children(shared)).to eq(["conversations"])
     expect(Dir.children(File.join(store.chat_dir(chat), "jobs"))).to be_empty
   end
 
@@ -119,9 +125,9 @@ RSpec.describe "the Grok image tool on the workbench" do
     second = edit
     expect(job_inputs(commands.last).size).to eq(1)
     expect(seen_inputs.last).to eq(png(64, 48, "first"))
-    item = Monadic::Workbench::Board.for(chat, store: store).item(second.item_id)
-    expect(item.dig("candidate", "derived_from", "id")).to eq(first.item_id)
-    expect(Dir.children(shared)).to be_empty
+    board = Monadic::Workbench::Board.for(chat, store: store)
+    expect(board.item(second.item_id).dig("artifact", "derived_from")).to eq(board.item(first.item_id).dig("artifact", "id"))
+    expect(Dir.children(shared)).to eq(["conversations"])
   end
 
   it "gives the generator's error back when it made nothing" do
@@ -217,7 +223,7 @@ RSpec.describe "the Grok image tool on the workbench" do
     end
 
     it "does not end this reply with an image that is not this reply's" do
-      other = Monadic::Workbench::Offered.new(chat_id: chat, request_id: "another", item_id: "i_x", name: "x.png")
+      other = Monadic::Workbench::Offered.new(chat_id: chat, request_id: "another", item_id: "i_x", path: "x.png")
       allow(app).to receive(:generate_image_with_grok).and_return(other)
       reply = in_reply do
         host.send(:process_functions, "ImageGeneratorGrok", session,

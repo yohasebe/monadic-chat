@@ -12,9 +12,16 @@ RSpec.describe "the workbench over the main socket (channel, asset server)" do
       "\x00" * 4 + salt.b
   end
 
-  let(:state) { Dir.mktmpdir }
-  let(:shared) { Dir.mktmpdir }
-  let(:store) { Monadic::Workbench::Store.new(File.join(state, "workbench")) }
+  around do |example|
+    Dir.mktmpdir("workbench-channel-spec") do |dir|
+      @data = File.join(dir, "data")
+      @state = File.join(dir, "state")
+      FileUtils.mkdir_p([@data, @state])
+      example.run
+    end
+  end
+
+  let(:store) { Monadic::Workbench::Store.new(File.join(@state, "workbench")) }
   let(:chat) { Monadic::Workspace::Ids.generate(:chat) }
   let(:session) do
     { chat_id: chat, _ws_generation: 1,
@@ -22,11 +29,6 @@ RSpec.describe "the workbench over the main socket (channel, asset server)" do
                  { "mid" => "m-1", "role" => "assistant", "text" => "Here it is." }] }
   end
   let(:tab) { "tab-1" }
-  let(:synced) { [] }
-  let(:delivered) { [] }
-  let(:recorder) do
-    Monadic::Workbench::Channel.recorder_for(session, sync: -> { synced << true }, deliver: ->(m) { delivered << m })
-  end
   let(:channel) { Monadic::Workbench::Channel }
   # The generation of each tab's connection now.
   let(:live_tabs) { { "tab-1" => 1 } }
@@ -37,33 +39,41 @@ RSpec.describe "the workbench over the main socket (channel, asset server)" do
     Monadic::Workbench::Approvals.reset!
     Monadic::Workbench::ViewTokens.reset!
     allow(Monadic::Workbench::Store).to receive(:default).and_return(store)
-    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared)
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data)
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(@state)
   end
 
-  after do
-    FileUtils.rm_rf(state)
-    FileUtils.rm_rf(shared)
-  end
+  after { Monadic::Workspace::Ledger.clear_unsettled! }
 
   def board
     Monadic::Workbench::Board.for(chat, store: store)
   end
 
-  def candidate(name = "cat.png", salt = "")
-    item = board.add_candidate(bytes: png(64, 48, salt), epoch: Monadic::Workspace::Chats.epoch(chat),
-                               origin: { actor: :agent, request_id: "q-#{name}" }, name: name)
+  def image(name = "cat.png", salt = "", for_chat: chat)
+    request = Monadic::Workspace::Ids.generate(:request)
+    on = Monadic::Workbench::Board.for(for_chat, store: store)
+    item = on.add_image(bytes: png(64, 48, salt), epoch: Monadic::Workspace::Chats.epoch(for_chat), name: name,
+                        origin: { actor: :agent, request_id: request }, run: "j_#{SecureRandom.hex(10)}", app_name: "Image Generator")
     # The reply that offered it was recorded as the message m-1.
-    board.attach_reply("q-#{name}", "m-1", [item["id"]])
+    on.attach_reply(request, "m-1", [item["id"]])
     item
+  end
+
+  def file_of(item)
+    File.join(@data, item.dig("artifact", "path"))
   end
 
   def view(generation: 1, on_tab: tab)
     channel.view(session, tab: on_tab, generation: generation, live: live)
   end
 
-  def answer(item, token, action: "save", operation_id: "op-00000001", generation: 1, on_tab: tab)
-    obj = { "item_id" => item["id"], "action" => action, "token" => token, "operation_id" => operation_id }
-    channel.act(obj, session, tab: on_tab, generation: generation, recorder: recorder, live: live)
+  def remove(item, token, operation_id: "op-00000001", generation: 1, on_tab: tab)
+    obj = { "item_id" => item["id"], "action" => "remove", "token" => token, "operation_id" => operation_id }
+    channel.act(obj, session, tab: on_tab, generation: generation, live: live)
+  end
+
+  def download(artifact_id, generation: 1, on_tab: tab)
+    channel.download({ "artifact_id" => artifact_id }, session, tab: on_tab, generation: generation, live: live)
   end
 
   describe "the view" do
@@ -75,212 +85,106 @@ RSpec.describe "the workbench over the main socket (channel, asset server)" do
       expect(store.exists?(chat)).to be(false)
     end
 
-    it "gives every image a token for this connection and an address" do
-      item = candidate
+    it "gives every image a token for this connection, an address, and where it is in the shared folder" do
+      item = image
       message = view
       expect(message["approvals"].keys).to eq([item["id"]])
       expect(message["assets"][item["id"]]).to start_with("/workbench/asset/")
+      expect(message["board"][:items].first).to include(path: item.dig("artifact", "path"), status: "ok")
       expect(message["board"].to_s).not_to include(message["approvals"][item["id"]])
+      expect(message["board"].to_s).not_to include(@data)
       expect(view["approvals"]).to eq(message["approvals"])
       live_tabs[tab] = 2
       expect(view(generation: 2)["approvals"]).not_to eq(message["approvals"])
     end
+
+    it "gives no address for an image whose file changed or is gone, and says which" do
+      changed = image("a.png", "1")
+      gone = image("b.png", "2")
+      File.binwrite(file_of(changed), png(64, 48, "other"))
+      File.unlink(file_of(gone))
+      message = view
+      expect(message["assets"]).to be_empty
+      expect(message["board"][:items].map { |i| i[:status] }).to eq(%w[changed missing])
+    end
   end
 
-  describe "the answer" do
-    it "saves the candidate, records it in the message that asked and tells the page" do
-      item = candidate
-      result = answer(item, view["approvals"][item["id"]])
-      expect(result).to include("status" => "accepted", "state" => "recorded", "name" => "cat.png")
-      expect(File.binread(File.join(shared, "cat.png"))).to eq(png(64, 48))
-      expect(File.stat(File.join(shared, "cat.png")).mode & 0o044).to eq(0o044)
-      record = session[:messages].last["artifacts"]
-      expect(record.size).to eq(1)
-      expect(record.first).to include("name" => "cat.png", "sha256" => Digest::SHA256.hexdigest(png(64, 48)),
-                                      "content_type" => "image/png", "action" => "saved", "by" => "user")
-      expect(Monadic::Workbench::Record.clean(record)).to eq(record)
-      expect(synced).not_to be_empty
-      expect(delivered.last).to include("type" => "message_artifacts", "mid" => "m-1", "chat_id" => chat)
-    end
-
-    it "gives the same answer sent again the same result and saves once" do
-      item = candidate
+  describe "removing an image" do
+    it "takes it off the board, keeps its file, and answers a removal sent again" do
+      item = image
       token = view["approvals"][item["id"]]
-      answer(item, token)
-      again = answer(item, token)
-      expect(again).to include("status" => "same", "state" => "recorded")
-      expect(Dir.children(shared).grep(/\.png\z/)).to eq(["cat.png"])
-      expect(session[:messages].last["artifacts"].size).to eq(1)
+      expect(remove(item, token)).to include("status" => "accepted", "action" => "remove", "item_id" => item["id"])
+      expect(board.item(item["id"])).to be_nil
+      expect(File.file?(file_of(item))).to be(true)
+      # The same operation again (its result was lost) is told it was done.
+      expect(remove(item, token)).to include("status" => "same")
     end
 
-    it "refuses a token of another tab, another connection, or none" do
-      item = candidate
-      token = view["approvals"][item["id"]]
-      expect(answer(item, token, on_tab: "tab-2")).to include("status" => "refused", "reason" => "not_allowed")
-      expect(answer(item, token, generation: 2)).to include("status" => "refused")
-      expect(answer(item, nil)).to include("status" => "refused")
-      expect(Dir.children(shared)).to be_empty
-    end
-
-    it "refuses a token sent for another item than its own" do
-      first = candidate("a.png", "1")
+    it "refuses a token of another tab, another connection, another item, or none" do
+      first = image("a.png", "1")
       token = view["approvals"][first["id"]]
-      second = candidate("b.png", "2")
-      expect(answer(second, token)).to include("status" => "refused", "reason" => "not_allowed")
-      expect(Dir.children(shared)).to be_empty
+      second = image("b.png", "2")
+      expect(remove(first, token, on_tab: "tab-2")).to include("status" => "refused", "reason" => "not_allowed")
+      expect(remove(first, token, generation: 2)).to include("status" => "refused")
+      expect(remove(first, nil)).to include("status" => "refused")
+      expect(remove(second, token)).to include("status" => "refused", "reason" => "not_allowed")
+      expect(board.snapshot[:items].size).to eq(2)
     end
 
     it "forgets the tokens of a closed connection and of a replaced chat" do
-      item = candidate
+      item = image
       message = view
-      token = message["approvals"][item["id"]]
       address = message["assets"][item["id"]].delete_prefix(Monadic::Workbench::AssetServer::PREFIX)
       channel.connection_closed(tab, 1)
       expect(Monadic::Workbench::ViewTokens.view(address)).to be_nil
+      expect(remove(item, message["approvals"][item["id"]])).to include("status" => "refused")
       live_tabs[tab] = 2
       message = view(generation: 2)
       Monadic::Workspace::Chats.replacing!(session)
       expect(Monadic::Workbench::Approvals.grant(message["approvals"][item["id"]], tab: tab, generation: 2)).to be_nil
       expect(Monadic::Workbench::ViewTokens.view(message["assets"][item["id"]].delete_prefix("/workbench/asset/"))).to be_nil
-      expect(token).not_to be_nil
     end
 
-    it "refuses the old connection once a newer one is the tab's, before the old one closes" do
-      item = candidate
+    it "refuses the old connection once a newer one is the tab's, and a token of the chat the tab left" do
+      item = image
       token = view["approvals"][item["id"]]
       live_tabs[tab] = 2
-      expect(answer(item, token)).to include("status" => "refused", "reason" => "not_allowed")
+      expect(remove(item, token)).to include("status" => "refused", "reason" => "not_allowed")
       expect(view).to be_nil
-      expect(Dir.children(shared)).to be_empty
-    end
-
-    it "refuses a token of the chat the tab left for another" do
-      item = candidate
-      token = view["approvals"][item["id"]]
+      live_tabs[tab] = 1
       session[:chat_id] = Monadic::Workspace::Ids.generate(:chat)
-      expect(answer(item, token)).to include("status" => "refused", "reason" => "not_allowed")
+      expect(remove(item, token)).to include("status" => "refused", "reason" => "not_allowed")
     end
 
-    it "leaves alone a replaced chat whose id this server did not issue" do
+    it "leaves alone a replaced chat whose id this server did not issue, and writes nothing when one is replaced" do
       expect { Monadic::Workspace::Chats.replacing!({ chat_id: "chat-a" }) }.not_to raise_error
-    end
-
-    it "writes nothing when a chat is replaced" do
-      item = candidate
-      answer(item, view["approvals"][item["id"]])
+      image
       revision = board.snapshot[:revision]
       Monadic::Workspace::Chats.replacing!(session)
       expect(board.snapshot[:revision]).to eq(revision)
     end
-
-    it "refuses a token whose connection closed; the image stays, for the tab's next connection" do
-      item = candidate
-      token = view["approvals"][item["id"]]
-      channel.connection_closed(tab, 1)
-      expect(answer(item, token)).to include("status" => "refused")
-      expect(board.item(item["id"])).not_to be_nil
-      live_tabs[tab] = 2
-      expect(answer(item, view(generation: 2)["approvals"][item["id"]], generation: 2)).to include("state" => "recorded")
-    end
-
-    it "refuses a token of a chat the user replaced" do
-      item = candidate
-      token = view["approvals"][item["id"]]
-      Monadic::Workspace::Chats.replacing!(session)
-      expect(answer(item, token)).to include("status" => "refused")
-      expect(Dir.children(shared)).to be_empty
-    end
-
-    it "removes an image from the board with its bytes, and answers a removal sent again" do
-      item = candidate
-      bytes_dir = File.dirname(board.path(item.dig("candidate", "path")))
-      token = view["approvals"][item["id"]]
-      result = answer(item, token, action: "remove")
-      expect(result).to include("status" => "accepted", "action" => "remove", "item_id" => item["id"])
-      # The same operation again (its result was lost) is told it was done.
-      expect(answer(item, token, action: "remove")).to include("status" => "same", "action" => "remove")
-      expect(board.item(item["id"])).to be_nil
-      expect(Dir.exist?(bytes_dir)).to be(false)
-      expect(session[:messages].last).not_to have_key("artifacts")
-    end
-
-    it "reports a save that stopped; the same answer again finishes it" do
-      item = candidate
-      token = view["approvals"][item["id"]]
-      allow(File).to receive(:link).and_raise(Errno::EACCES)
-      expect(answer(item, token)).to include("status" => "incomplete")
-      allow(File).to receive(:link).and_call_original
-      expect(answer(item, token)).to include("status" => "same", "state" => "recorded")
-      expect(Dir.children(shared).grep(/\.png\z/)).to eq(["cat.png"])
-    end
   end
 
-  describe "the record" do
-    it "waits while the chat is not this session's, and is made when the chat is open again" do
-      item = candidate
-      token = view["approvals"][item["id"]]
-      other = { chat_id: Monadic::Workspace::Ids.generate(:chat), messages: [] }
-      away = channel.recorder_for(other, sync: -> {}, deliver: ->(_) {})
-      result = channel.act({ "item_id" => item["id"], "action" => "save", "token" => token, "operation_id" => "op-00000001" },
-                           session, tab: tab, generation: 1, recorder: away, live: live)
-      expect(result).to include("state" => "shared_copied")
-      expect(session[:messages].last).not_to have_key("artifacts")
-      expect(channel.settle(session, recorder: recorder)).to be(true)
-      expect(board.operation("op-00000001")["state"]).to eq("recorded")
-      expect(session[:messages].last["artifacts"].size).to eq(1)
+  describe "an address to save a copy" do
+    it "is given for an image of the chat, also once it is off the board" do
+      item = image
+      remove(item, view["approvals"][item["id"]])
+      result = download(item.dig("artifact", "id"))
+      expect(result).to include("type" => "workbench_download", "artifact_id" => item.dig("artifact", "id"),
+                                "name" => item.dig("artifact", "name"))
+      expect(result["url"]).to start_with("/workbench/asset/")
     end
 
-    it "gives a message back the record of a save its history missed, once" do
-      item = candidate
-      answer(item, view["approvals"][item["id"]])
-      session[:messages].last.delete("artifacts")
-      synced.clear
-      delivered.clear
-      expect(channel.settle(session, recorder: recorder)).to be(false)
-      expect(session[:messages].last["artifacts"].map { |a| a["name"] }).to eq(["cat.png"])
-      expect(delivered.map { |m| m["type"] }).to eq(["message_artifacts"])
-      channel.settle(session, recorder: recorder)
-      expect(session[:messages].last["artifacts"].size).to eq(1)
-      expect(synced.size).to eq(1)
-    end
-
-    it "waits for the message of an image whose reply still runs, and records the save there once it comes" do
-      item = board.add_candidate(bytes: png(64, 48), epoch: Monadic::Workspace::Chats.epoch(chat),
-                                 origin: { actor: :agent, request_id: "q-running" }, name: "cat.png")
-      allow(Monadic::Workbench::Offer).to receive(:in_flight?).with("q-running").and_return(true)
-      token = view["approvals"][item["id"]]
-      expect(answer(item, token)).to include("state" => "shared_copied")
-      expect(session[:messages].map { |m| m["artifacts"] }.compact).to be_empty
-      # It cannot be removed while its save waits for the message.
-      expect(answer(item, token, action: "remove", operation_id: "op-00000002")).to include("status" => "refused")
-      channel.settle(session, recorder: recorder)
-      expect(session[:messages].count { |m| m["artifacts"] }).to eq(0)
-      board.attach_reply("q-running", "m-1", [item["id"]])
-      allow(Monadic::Workbench::Offer).to receive(:in_flight?).with("q-running").and_return(false)
-      channel.settle(session, recorder: recorder)
-      expect(session[:messages].last["artifacts"].map { |a| a["name"] }).to eq(["cat.png"])
-      expect(session[:messages].count { |m| m["artifacts"] }).to eq(1)
-      expect(board.operation("op-00000001")["state"]).to eq("recorded")
-    end
-
-    it "records the save of an image whose reply recorded no message in a short message of its own, once" do
-      item = board.add_candidate(bytes: png(64, 48), epoch: Monadic::Workspace::Chats.epoch(chat),
-                                 origin: { actor: :agent, request_id: "q-stopped" }, name: "cat.png")
-      answer(item, view["approvals"][item["id"]])
-      note = session[:messages].last
-      expect(note).to include("role" => "assistant", "text" => Monadic::Workbench::Offer.saved_note("cat.png"))
-      expect(note["artifacts"].map { |a| a["name"] }).to eq(["cat.png"])
-      expect(delivered.last).to include("type" => "html")
-      expect(board.item(item["id"])["mid"]).to eq(note["mid"])
-      channel.settle(session, recorder: recorder)
-      expect(session[:messages].count { |m| m["artifacts"] }).to eq(1)
-    end
-
-    it "keeps nothing in the record of a Private chat" do
-      allow(Monadic::History::Policy).to receive(:known_private?).with(chat).and_return(true)
-      called = recorder.call(board: board, operation: { "mid" => "m-1" }, artifact: { id: "r_#{'0' * 20}" })
-      expect(called).to be(false)
-      expect(session[:messages].last).not_to have_key("artifacts")
+    it "is refused for another chat's image, an id that is not one, a Private chat, or an old connection" do
+      theirs = image("a.png", "1", for_chat: Monadic::Workspace::Ids.generate(:chat))
+      expect(download(theirs.dig("artifact", "id"))).to include("status" => "refused")
+      expect(download("../x")).to include("status" => "refused")
+      mine = image
+      live_tabs[tab] = 2
+      expect(download(mine.dig("artifact", "id"))).to include("status" => "refused")
+      live_tabs[tab] = 1
+      allow(Monadic::History::Policy).to receive(:known_private?).and_return(true)
+      expect(download(mine.dig("artifact", "id"))).to include("status" => "refused")
     end
   end
 
@@ -288,26 +192,35 @@ RSpec.describe "the workbench over the main socket (channel, asset server)" do
     let(:private_chats) { [] }
     let(:app) { ->(_env) { [200, {}, ["app"]] } }
     let(:server) do
-      Monadic::Workbench::AssetServer.new(app, live: live, private_chat: ->(c) { private_chats.include?(c) },
-                                               store: store)
+      Monadic::Workbench::AssetServer.new(app, live: live, private_chat: ->(c) { private_chats.include?(c) })
     end
 
     def fetch_asset(path, site: "same-origin", method: "GET")
       server.call({ "PATH_INFO" => path, "REQUEST_METHOD" => method, "HTTP_SEC_FETCH_SITE" => site })
     end
 
-    it "serves the candidate's bytes to a page of this server, kept from caches and other sites" do
-      item = candidate
+    it "serves the image's bytes to a page of this server, kept from caches and other sites" do
+      item = image
       status, headers, body = fetch_asset(view["assets"][item["id"]])
       expect(status).to eq(200)
       expect(body.join).to eq(png(64, 48))
       expect(headers).to include("content-type" => "image/png", "cache-control" => "no-store",
                                  "x-content-type-options" => "nosniff",
                                  "cross-origin-resource-policy" => "same-origin", "referrer-policy" => "no-referrer")
+      expect(headers).not_to have_key("content-disposition")
+    end
+
+    it "serves a download as a file to save under the image's name" do
+      item = image
+      status, headers, body = fetch_asset(download(item.dig("artifact", "id"))["url"])
+      name = item.dig("artifact", "name")
+      expect(status).to eq(200)
+      expect(body.join).to eq(png(64, 48))
+      expect(headers["content-disposition"]).to eq("attachment; filename=\"#{name}\"; filename*=UTF-8''#{name}")
     end
 
     it "gives the same not-found to other sites, other methods, unknown and expired tokens" do
-      item = candidate
+      item = image
       address = view["assets"][item["id"]]
       expect(fetch_asset(address, site: "cross-site").first).to eq(404)
       expect(fetch_asset(address, site: nil).first).to eq(404)
@@ -319,7 +232,7 @@ RSpec.describe "the workbench over the main socket (channel, asset server)" do
     end
 
     it "stops serving when the tab's connection changed, the chat was replaced or is Private" do
-      item = candidate
+      item = image
       address = view["assets"][item["id"]]
       live_tabs[tab] = 2
       expect(fetch_asset(address).first).to eq(404)
@@ -332,25 +245,43 @@ RSpec.describe "the workbench over the main socket (channel, asset server)" do
       expect(fetch_asset(address).first).to eq(404)
     end
 
-    it "does not serve a token given at an earlier epoch of the chat" do
-      item = candidate
-      token = Monadic::Workbench::ViewTokens.issue(tab: tab, generation: 1, chat_id: chat,
-                                                   epoch: Monadic::Workspace::Chats.epoch(chat) - 1, item_id: item["id"],
-                                                   sha256: item.dig("candidate", "sha256"))
-      expect(fetch_asset("/workbench/asset/#{token}").first).to eq(404)
+    it "does not serve a token given at an earlier epoch, or for an image of another chat" do
+      item = image
+      issue = lambda do |**over|
+        token = Monadic::Workbench::ViewTokens.issue(
+          **{ tab: tab, generation: 1, chat_id: chat, epoch: Monadic::Workspace::Chats.epoch(chat),
+              artifact_id: item.dig("artifact", "id"), sha256: item.dig("artifact", "sha256") }.merge(over)
+        )
+        "/workbench/asset/#{token}"
+      end
+      expect(fetch_asset(issue.call(epoch: Monadic::Workspace::Chats.epoch(chat) - 1)).first).to eq(404)
+      other = Monadic::Workspace::Ids.generate(:chat)
+      expect(fetch_asset(issue.call(chat_id: other, epoch: Monadic::Workspace::Chats.epoch(other))).first).to eq(404)
     end
 
-    it "does not serve bytes that changed on disk" do
-      item = candidate
+    it "answers changed or gone for a file that is no longer the one recorded, and serves no other version" do
+      item = image
       address = view["assets"][item["id"]]
-      path = board.path(item.dig("candidate", "path"))
-      File.chmod(0o600, path)
-      File.binwrite(path, png(64, 48, "x"))
-      expect(fetch_asset(address).first).to eq(404)
+      File.binwrite(file_of(item), png(64, 48, "x"))
+      expect(fetch_asset(address).first).to eq(409)
+      File.unlink(file_of(item))
+      expect(fetch_asset(address).first).to eq(410)
+      expect(fetch_asset(address).last.join).not_to include("PNG")
     end
 
     it "leaves every other address to the application" do
       expect(fetch_asset("/workbench/other").last).to eq(["app"])
+    end
+  end
+
+  describe "the reply's message" do
+    it "becomes the message of what the reply put on the board, once" do
+      request = Monadic::Workspace::Ids.generate(:request)
+      item = board.add_image(bytes: png(64, 48), epoch: Monadic::Workspace::Chats.epoch(chat), name: "cat.png",
+                             origin: { actor: :agent, request_id: request }, run: "j_#{SecureRandom.hex(10)}", app_name: "x")
+      expect(channel.reply_recorded(session, "m-2", request, [item["id"]])).to be(true)
+      expect(board.item(item["id"])["mid"]).to eq("m-2")
+      expect(channel.reply_recorded(session, "m-3", request, [item["id"]])).to be(false)
     end
   end
 end

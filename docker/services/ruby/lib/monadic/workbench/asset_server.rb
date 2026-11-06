@@ -95,9 +95,13 @@ module Monadic
         headers['content-length'] = bytes.bytesize.to_s
         [status || 200, headers, env['REQUEST_METHOD'] == 'HEAD' ? [] : [bytes]]
       rescue Artifact::Changed
+        board&.mark(view.item_id, sha256: view.sha256, status: 'changed')
         plain(409, 'Changed')
       rescue Artifact::Missing
+        board&.mark(view.item_id, sha256: view.sha256, status: 'missing')
         plain(410, 'Gone')
+      rescue FileItem::Busy
+        plain(503, 'Busy')
       rescue Artifact::NotAllowed
         plain(404, 'Not found')
       end

@@ -17,6 +17,8 @@ module Monadic
     # the user opens it again for that.
     module FileItem
       class Refused < StandardError; end
+      # Too many files are being read now; try again.
+      class Busy < StandardError; end
 
       # The kinds the work screen shows (SharedFolderPreview.kind_for).
       KINDS = %w[image text audio video].freeze
@@ -25,6 +27,38 @@ module Monadic
       LIMIT = 64 * 1024 * 1024
       # What a text item serves of the file: its beginning, as the panel.
       TEXT_LIMIT = Monadic::Workspace::SharedFolderPreview::TEXT_LIMIT
+      # Files read whole at once, and how long a read waits for its turn.
+      READS = 2
+      READ_WAIT = 15
+
+      @reading = 0
+      @reading_lock = Mutex.new
+      @reading_done = ConditionVariable.new
+
+      class << self
+        # Runs the block as one of READS reads at most; Busy after READ_WAIT
+        # seconds without a turn.
+        def turn
+          deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + READ_WAIT
+          @reading_lock.synchronize do
+            while @reading >= READS
+              left = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+              raise Busy, 'the work screen is reading other files; try again' if left <= 0
+
+              @reading_done.wait(@reading_lock, left)
+            end
+            @reading += 1
+          end
+          begin
+            yield
+          ensure
+            @reading_lock.synchronize do
+              @reading -= 1
+              @reading_done.signal
+            end
+          end
+        end
+      end
 
       module_function
 
@@ -57,7 +91,9 @@ module Monadic
         raise Artifact::Missing, 'the file is no longer in the shared folder' if e.message == 'the file is not there'
 
         raise Artifact::Changed, 'the file changed after it was opened'
-      rescue Monadic::Workspace::SharedFolderPreview::Unavailable, SystemCallError, IOError
+      rescue Refused, Monadic::Workspace::SharedFolderPreview::Unavailable, SystemCallError, IOError
+        # Grown past the limit, or no longer a file that can be shown: not
+        # the version opened.
         raise Artifact::Changed, 'the file changed after it was opened'
       end
 
@@ -97,6 +133,10 @@ module Monadic
 
       # The whole file (up to LIMIT) with its kind and stat.
       def read_whole(relative)
+        turn { read_now(relative) }
+      end
+
+      def read_now(relative)
         io, stat, kind = Monadic::Workspace::SharedFolderPreview.open_file(relative, kinds: KINDS)
         begin
           raise Refused, 'the file is too large for the work screen' if stat.size > LIMIT

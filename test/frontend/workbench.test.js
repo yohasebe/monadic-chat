@@ -34,6 +34,12 @@ describe('Workbench', () => {
     }, overrides);
   }
 
+  // The item the pane shows, or null.
+  function shown() {
+    const pane = document.getElementById('workbench-view');
+    return pane && !pane.hidden ? pane.dataset.item : null;
+  }
+
   function entry(overrides = {}) {
     return Object.assign({ id: 'r_1', path: PATH, name: '20261106-091233_cat.png' }, overrides);
   }
@@ -86,7 +92,7 @@ describe('Workbench', () => {
     expect(pane.querySelector('code').textContent).toBe(PATH);
     expect(pane.querySelector('.btn-primary').textContent).toBe('Download');
     expect(document.getElementById('work-screen-browser').hidden).toBe(true);
-    expect(window.Workbench.showsBrowser()).toBe(false);
+    expect(shown()).not.toBeNull();
     expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
     expect(document.getElementById('workbench-status').textContent).not.toBe('');
     expect(el.querySelector('img')).toBeNull();
@@ -118,7 +124,7 @@ describe('Workbench', () => {
     card('m-1');
     view([item()], { initial: true });
     expect(window.LayoutController.setPane).not.toHaveBeenCalled();
-    expect(window.Workbench.showsBrowser()).toBe(true);
+    expect(shown()).toBeNull();
   });
 
   test('does not open a column the user hid, nor take the pane while the user types', () => {
@@ -128,11 +134,11 @@ describe('Workbench', () => {
     expect(window.LayoutController.setPane).not.toHaveBeenCalled();
 
     layout.hidden = false;
-    window.Workbench.select('browser');
+    window.Workbench.select(null);
     document.getElementById('message').focus();
     view([item(), item({ id: 'i_2', artifact_id: 'r_2', name: 'dog.png', sha256: 'b'.repeat(64) })]);
     expect(window.LayoutController.setPane).not.toHaveBeenCalled();
-    expect(window.Workbench.showsBrowser()).toBe(true);
+    expect(shown()).toBeNull();
   });
 
   test('asks for an address to save the image by its record, from the pane and from the line', () => {
@@ -198,7 +204,7 @@ describe('Workbench', () => {
     expect(el.querySelector('.workbench-note code').textContent).toBe(PATH);
     expect(el.querySelector('.workbench-open')).toBeNull();
     expect(el.querySelector('.workbench-save')).not.toBeNull();
-    expect(window.Workbench.showsBrowser()).toBe(true);
+    expect(shown()).toBeNull();
     expect(document.getElementById('workbench-items').hidden).toBe(true);
     expect(document.getElementById('workbench-status').textContent).not.toContain('older item');
   });
@@ -215,13 +221,13 @@ describe('Workbench', () => {
     const el = card('m-1');
     window.Workbench.drawRecord('m-1', [entry()]);
     view([item()]);
-    window.Workbench.select('browser');
+    window.Workbench.select(null);
     layout.hidden = true;
     layout.pane = 'settings';
     el.querySelector('.workbench-open').click();
     expect(window.LayoutController.setMenuHidden).toHaveBeenCalledWith(false);
     expect(layout.pane).toBe('work');
-    expect(window.Workbench.showsBrowser()).toBe(false);
+    expect(shown()).not.toBeNull();
   });
 
   test('names a long image by its start and end in the list, with the whole name on hover', () => {
@@ -235,7 +241,7 @@ describe('Workbench', () => {
     const el = card('m-1');
     view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 5, items: [item()] } });
     view([], { board: { board_id: 'b1', chat_id: 'c_1', revision: 4, items: [] }, approvals: {}, assets: {} });
-    expect(window.Workbench.showsBrowser()).toBe(false);
+    expect(shown()).not.toBeNull();
     window.Workbench.drawRecord('m-1', [entry()]);
     expect(el.querySelector('.workbench-note')).not.toBeNull();
     messages = [{ mid: 'm-1', role: 'assistant', text: 'other' }];
@@ -299,27 +305,27 @@ describe('Workbench', () => {
       jest.resetModules();
       require(js('monadic/workbench.js'));
       view([item(), file()]);
-      expect(window.Workbench.showsBrowser()).toBe(false);
+      expect(shown()).not.toBeNull();
       sent.length = 0;
-      document.querySelector('#workbench-view .workbench-prev').click();
+      document.querySelector('#workbench-stepper .workbench-prev').click();
       expect(sent.map((s) => s.payload)).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
       expect(document.querySelector('#workbench-view img')).not.toBeNull();
       const pane = document.getElementById('work-screen-pane');
       pane.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
       expect(sent[sent.length - 1].payload).toEqual({ message: 'WORKBENCH_SELECT', item_id: 'i_f' });
-      expect(document.querySelector('#workbench-view .workbench-next').disabled).toBe(true);
+      expect(document.querySelector('#workbench-stepper .workbench-next').disabled).toBe(true);
     });
 
     test('brings forward only what the server selected for this tab, once', () => {
       global.fetch = jest.fn(() => new Promise(() => {}));
       view([file()], { selected: null });
       expect(window.LayoutController.setPane).not.toHaveBeenCalled();
-      expect(window.Workbench.showsBrowser()).toBe(true);
+      expect(shown()).toBeNull();
       view([file()], { selected: 'i_f', board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [file()] } });
-      expect(window.Workbench.showsBrowser()).toBe(false);
-      window.Workbench.select('browser');
+      expect(shown()).not.toBeNull();
+      window.Workbench.select(null);
       view([file()], { selected: 'i_f', board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [file()] } });
-      expect(window.Workbench.showsBrowser()).toBe(true);
+      expect(shown()).toBeNull();
     });
 
     test('opens a file the user asked for, showing the column, or says why not', () => {
@@ -327,8 +333,15 @@ describe('Workbench', () => {
       window.Workbench.openFile('reports/notes.txt');
       expect(sent[0].payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'reports/notes.txt' });
       window.Workbench.onOpened({ type: 'workbench_opened', item_id: 'i_f', path: 'reports/notes.txt', added: true });
+      // Shown when the board has it, even while the user types and whatever
+      // the server's selection was before.
+      document.getElementById('message').focus();
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      view([item(), file()], { selected: 'i_1' });
       expect(window.LayoutController.setMenuHidden).toHaveBeenCalledWith(false);
       expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
+      expect(shown()).toBe('i_f');
+      expect(sent.map((x) => x.payload)).toContainEqual({ message: 'WORKBENCH_SELECT', item_id: 'i_f' });
       window.Workbench.openFile('x.pdf');
       window.Workbench.onOpened({ type: 'workbench_opened', status: 'refused', reason: 'the file cannot be previewed' });
       expect(document.getElementById('workbench-status').textContent).toContain('cannot be previewed');
@@ -352,6 +365,63 @@ describe('Workbench', () => {
       sent.length = 0;
       Array.from(pane.querySelectorAll('button')).find((b) => b.textContent.includes('as it is now')).click();
       expect(sent[0].payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'reports/notes.txt' });
+    });
+  });
+  describe('the browser as an item', () => {
+    function browser(overrides = {}) {
+      return Object.assign({ id: 'i_b', kind: 'browser', actor: 'agent', version: 'browser:1', status: 'open' }, overrides);
+    }
+
+    test('shows the relay area for the open browser, and says when it was closed', () => {
+      view([browser()]);
+      expect(window.Workbench.showsBrowser()).toBe(true);
+      expect(document.getElementById('work-screen-browser').hidden).toBe(false);
+      expect(document.querySelector('#workbench-items .workbench-item').textContent).toBe('Browser');
+      view([browser({ status: 'closed' })], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [browser({ status: 'closed' })] } });
+      expect(window.Workbench.showsBrowser()).toBe(false);
+      expect(document.getElementById('work-screen-browser').hidden).toBe(true);
+      expect(document.getElementById('workbench-view').textContent).toContain('closed');
+    });
+
+    test('a page loaded again shows the open browser without taking the pane', () => {
+      view([item(), browser()], { initial: true, selected: null });
+      expect(window.Workbench.showsBrowser()).toBe(true);
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+      expect(sent.map((x) => x.payload)).toContainEqual({ message: 'WORKBENCH_SELECT', item_id: 'i_b' });
+    });
+
+    test('with nothing selected, shows the empty area and no stepper', () => {
+      view([item()], { selected: null });
+      expect(shown()).toBeNull();
+      expect(document.getElementById('work-screen-browser').hidden).toBe(false);
+      expect(document.getElementById('workbench-stepper').hidden).toBe(true);
+    });
+  });
+  describe('keeping the page and the server in step', () => {
+    test('tells the server what the pane still shows when an item arrives while the user types', () => {
+      view([item()]);
+      document.getElementById('message').focus();
+      sent.length = 0;
+      const next = item({ id: 'i_2', artifact_id: 'r_2', sha256: 'b'.repeat(64) });
+      view([item(), next], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item(), next] }, selected: 'i_2' });
+      expect(shown()).toBe('i_1');
+      expect(sent.map((x) => x.payload)).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
+    });
+
+    test('keeps the media element of the item shown when the board comes again', () => {
+      const clip = { id: 'i_a', kind: 'file', actor: 'user', name: 'a.mp3', path: 'a.mp3', preview: 'audio',
+        sha256: 'd'.repeat(64), version: 'd'.repeat(64), status: 'ok' };
+      view([clip]);
+      const first = document.querySelector('#workbench-view audio');
+      view([clip], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [clip] } });
+      expect(document.querySelector('#workbench-view audio')).toBe(first);
+    });
+
+    test('tells a new connection what the page still shows', () => {
+      view([item()]);
+      sent.length = 0;
+      view([item()], { initial: true, selected: null, board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] } });
+      expect(sent.map((x) => x.payload)).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
     });
   });
 });

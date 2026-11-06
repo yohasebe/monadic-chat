@@ -12,6 +12,7 @@ module WebSocketHelper
   # The generation of the connection a tab has now: an operation or a view
   # goes only to that connection, not to one a newer connection replaced.
   WORKBENCH_LIVE = ->(tab) { WebSocketHelper.live_generation(tab) }
+  Monadic::Workbench::Board.live = WORKBENCH_LIVE
 
   # only_existing: nothing is sent for a chat without a board (a page that
   # has not asked).

@@ -21,6 +21,10 @@ module Monadic
     # outlives a restart. A Private chat keeps nothing: it makes no image,
     # and the files it opens are held in memory only.
     #
+    # The chat's browser is an item too, while it is open and after it
+    # closed (until the user takes it off); it is held in memory only (a
+    # browser does not outlive the server).
+    #
     # Which item each tab has selected is held in memory, for the
     # connection that said so (select), and goes with it.
     #
@@ -78,10 +82,16 @@ module Monadic
           @boards_lock.synchronize { @boards.delete(chat_id) }
         end
 
-        # For tests.
+        # For tests (the socket layer's live check goes too).
         def reset!
           @boards_lock.synchronize { @boards.clear }
+          @live = nil
         end
+
+        # The generation of the connection a tab has now (set by the socket
+        # layer). A selection counts only for that connection; without it
+        # (tests, no socket) every selection counts.
+        attr_accessor :live
       end
 
       attr_reader :chat_id
@@ -93,6 +103,11 @@ module Monadic
         @lock = Mutex.new
         @data = (private ? nil : store.load(chat_id)) || fresh
         @selected = {}
+        # Browsers the user took off: the same browser is not put back.
+        @browsers_off = []
+        # What a use of a file found (FileItem.read): changed or missing for
+        # the version given, until the file is opened again.
+        @verdicts = {}
       end
 
       def private?
@@ -173,10 +188,16 @@ module Monadic
         entry = FileItem.entry_for(path)
         change do |data|
           check_epoch!(epoch)
+          raise Refused, 'not_allowed' if origin[:actor].to_s == 'user' && !live?(origin[:tab], origin[:generation])
+
           found = data['items'].values.find do |item|
             item['kind'] == 'file' && item.dig('file', 'path') == entry['path'] && item.dig('file', 'sha256') == entry['sha256']
           end
           if found
+            # The same bytes, maybe saved again: what is seen of the file now
+            # is taken, and what a use found before is dropped.
+            found['file'] = entry
+            @verdicts.delete(found['id'])
             select_for_origin(origin, found['id'])
             next [deep_dup(found), false]
           end
@@ -192,6 +213,30 @@ module Monadic
         raise Refused, e.message
       end
 
+      # The chat's browser (instance: BrowserOwner's number for it) opened:
+      # it is put on the board, and the tab of origin selects it. The same
+      # browser again is selected, not added; one the user took off is not
+      # put back (nil). Returns the item or nil.
+      def add_browser(instance:, origin:, epoch:)
+        change do |data|
+          check_epoch!(epoch)
+          next nil if @browsers_off.include?(instance)
+
+          found = data['items'].values.find { |item| item['kind'] == 'browser' && item.dig('browser', 'instance') == instance }
+          if found
+            select_for_origin(origin, found['id'])
+            next deep_dup(found)
+          end
+
+          room_for_one!(data)
+          item_id = "i_#{SecureRandom.hex(10)}"
+          data['items'][item_id] = { 'id' => item_id, 'kind' => 'browser', 'origin' => kept_origin(origin), 'mid' => nil,
+                                     'browser' => { 'instance' => instance } }
+          select_for_origin(origin, item_id)
+          deep_dup(data['items'][item_id])
+        end
+      end
+
       # The bytes of a file item, read now and checked against its version
       # (FileItem.read), with its entry. sha256: the version the asker was
       # given (a token); another version is Artifact::Changed.
@@ -200,6 +245,16 @@ module Monadic
         raise Artifact::Changed, 'the file changed after it was opened' unless entry['sha256'] == sha256
 
         { entry: entry, bytes: FileItem.read(entry) }
+      end
+
+      # A use of the file item found it changed or missing (status) at the
+      # version sha256: views say so until it is opened again.
+      def mark(item_id, sha256:, status:)
+        @lock.synchronize do
+          next unless @data.dig('items', item_id, 'file', 'sha256') == sha256
+
+          @verdicts[item_id] = { sha256: sha256, status: status }
+        end
       end
 
       # The tab's connection (generation) selects item_id, or nothing (nil).
@@ -281,13 +336,14 @@ module Monadic
           raise Refused, 'this image was removed' if data['removed'].key?(item_id)
 
           item = data['items'][item_id] or raise Refused, 'no such image'
-          raise Refused, 'this item changed' unless content_of(item)&.dig('sha256') == sha256
+          raise Refused, 'this item changed' unless version_of(item) == sha256
 
           operation = { 'id' => operation_id, 'action' => action, 'item_id' => item_id, 'sha256' => sha256,
                         'state' => 'removed', 'accepted_at' => Time.now.utc.iso8601 }
           data['operations'][operation_id] = operation
           data['operations'].shift while data['operations'].size > REMOVED_LIMIT
           take_off!(data, item, operation_id)
+          @browsers_off << item.dig('browser', 'instance') if item['kind'] == 'browser'
           [:accepted, deep_dup(operation)]
         end
       end
@@ -312,7 +368,7 @@ module Monadic
             working = deep_dup(@data)
             result = yield working
             working['revision'] += 1
-            @store.save(@chat_id, working) unless @private
+            @store.save(@chat_id, kept_data(working)) unless @private
             @data = working
             result
           end
@@ -362,9 +418,10 @@ module Monadic
       def room_for_one!(data)
         return if data['items'].size < ITEM_LIMIT
 
-        kept = @selected.values.map { |held| held[:item_id] }
+        kept = @selected.select { |tab, held| live?(tab, held[:generation]) }.values.map { |held| held[:item_id] }
         latest = data['items'].values.reverse.find { |item| item['artifact'] }
         kept << latest['id'] if latest
+        kept.concat(data['items'].values.select { |item| browser_status(item) == 'open' }.map { |item| item['id'] })
         oldest = data['items'].values.find { |item| !kept.include?(item['id']) }
         raise Refused, 'the work screen is full: remove an item first' unless oldest
 
@@ -376,6 +433,27 @@ module Monadic
         item['artifact'] || item['file']
       end
 
+      # What an operation's token names of the item: the sha256 of an image
+      # or a file, the instance of a browser.
+      def version_of(item)
+        item['kind'] == 'browser' ? "browser:#{item.dig('browser', 'instance')}" : content_of(item)&.dig('sha256')
+      end
+
+      # open while the chat's browser is this item's, closed after.
+      def browser_status(item)
+        return nil unless item['kind'] == 'browser'
+
+        view = defined?(MonadicSharedTools::BrowserOwner) && MonadicSharedTools::BrowserOwner.view(@chat_id)
+        view && view.instance == item.dig('browser', 'instance') ? 'open' : 'closed'
+      end
+
+      # The board as the manifest keeps it: without browsers.
+      def kept_data(data)
+        kept = data.dup
+        kept['items'] = data['items'].reject { |_, item| item['kind'] == 'browser' }
+        kept
+      end
+
       # The origin as the manifest keeps it (no tab or connection).
       def kept_origin(origin)
         stringify(origin.to_h.slice(*ORIGIN_KEYS))
@@ -385,22 +463,41 @@ module Monadic
       # lock).
       def select_for_origin(origin, item_id)
         tab = origin[:tab]
-        return unless tab
+        return unless tab && live?(tab, origin[:generation])
 
         @selected[tab.to_s] = { generation: origin[:generation], item_id: item_id }
       end
 
+      # Whether generation is the connection tab has now (a work that began
+      # on an older connection selects nothing).
+      def live?(tab, generation)
+        live = self.class.live
+        live.nil? || (!tab.nil? && live.call(tab.to_s) == generation)
+      end
+
       def public_item(item)
         return public_file(item) if item['kind'] == 'file'
+        if item['kind'] == 'browser'
+          return { id: item['id'], kind: 'browser', actor: item.dig('origin', 'actor'), mid: item['mid'],
+                   version: version_of(item), status: browser_status(item) }
+        end
 
         entry = item['artifact'] || {}
         {
           id: item['id'], kind: item['kind'], actor: item.dig('origin', 'actor'), mid: item['mid'],
           artifact_id: entry['id'], name: entry['name'], path: entry['path'], content_type: entry['content_type'],
           width: entry['width'], height: entry['height'], sha256: entry['sha256'],
-          derived_from: entry['derived_from'],
+          derived_from: entry['derived_from'], version: entry['sha256'],
           status: entry['id'] ? Artifact.status(entry['id'], chat_id: @chat_id).to_s : 'missing'
         }
+      end
+
+      # What a use found (mark) for this version, or what the file's stat says.
+      def file_status(item)
+        verdict = @verdicts[item['id']]
+        return verdict[:status] if verdict && verdict[:sha256] == item.dig('file', 'sha256')
+
+        FileItem.status(item['file'])
       end
 
       def public_file(item)
@@ -408,7 +505,7 @@ module Monadic
         {
           id: item['id'], kind: 'file', actor: item.dig('origin', 'actor'), mid: item['mid'],
           name: entry['name'], path: entry['path'], preview: entry['preview'], content_type: entry['content_type'],
-          size: entry['size'], sha256: entry['sha256'], status: FileItem.status(entry)
+          size: entry['size'], sha256: entry['sha256'], version: entry['sha256'], status: file_status(item)
         }
       end
 

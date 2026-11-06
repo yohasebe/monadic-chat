@@ -667,6 +667,9 @@ module DeepSeekHelper
       end
     end
 
+    # A model the spec says cannot call tools is offered none of the app's.
+    app_tools = [] if Monadic::Utils::ModelSpec.get_model_property(obj["model"], "tool_capability") == false
+
     DebugHelper.debug("DeepSeek app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
     DebugHelper.debug("DeepSeek app_tools from settings: #{app_tools.inspect}", category: :api, level: :debug)
     DebugHelper.debug("DeepSeek websearch enabled: #{websearch}", category: :api, level: :debug)

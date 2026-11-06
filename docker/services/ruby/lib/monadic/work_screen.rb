@@ -4,6 +4,8 @@ require 'json'
 require_relative 'utils/environment'
 require_relative 'shared_tools/browser_owner'
 require_relative 'workspace/chats'
+require_relative 'workspace/request_context'
+require_relative 'workbench/channel'
 require_relative 'work_screen/tokens'
 require_relative 'work_screen/cdp'
 require_relative 'work_screen/stream'
@@ -30,16 +32,35 @@ module Monadic
       "ws://#{SELENIUM}/session/#{session_id}/se/cdp"
     end
 
-    # The chat's browser has just opened: the pages of the tabs in that chat
-    # are told (they show the work screen).
+    # The chat's browser has just opened: it is put on the chat's workbench
+    # (the tab whose message opened it selects it), and the pages of the
+    # tabs in that chat are told.
     def browser_opened(chat)
       view = MonadicSharedTools::BrowserOwner.view(chat)
       return unless view
+
+      put_on_workbench(chat, view)
 
       message = JSON.generate(type: 'work_screen', event: 'browser_opened', browser: view.instance)
       WebSocketHelper.live_tabs_for_chat(chat).each do |tab|
         WebSocketHelper.send_to_live_connection(tab, message, chat_id: chat)
       end
+    end
+
+    # A failure here never keeps the pages from being told.
+    def put_on_workbench(chat, view)
+      return unless Monadic::Workspace::Ids.valid?(:chat, chat)
+
+      request = Monadic::Workspace::RequestContext.current
+      origin = { actor: 'agent', source: 'browser', request_id: request&.request_id }
+      if request && request.chat_id == chat
+        origin[:tab] = request.tab
+        origin[:generation] = request.generation
+      end
+      Monadic::Workbench::Board.for(chat).add_browser(instance: view.instance, origin: origin, epoch: view.epoch)
+      Monadic::Workbench::Channel.changed(chat)
+    rescue StandardError => e
+      Monadic::Utils::ExtraLogger.log { "[WorkScreen] The browser is not on the workbench: #{e.class}: #{e.message}" }
     end
 
     # The work screen socket of a request (the route upgrades it).

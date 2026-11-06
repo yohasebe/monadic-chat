@@ -15,8 +15,9 @@
  * to the stream shown; the server is told once it is drawn (frame-consumed),
  * and sends the next. A stream that ends or waits clears the image at once.
  *
- * When the chat's browser opens, the chat socket says so (browser_opened)
- * and the side column switches to this pane, showing the browser.
+ * When the chat's browser opens, it becomes an item of the workbench, which
+ * brings it forward for the tab that opened it; the chat socket also says
+ * so (browser_opened), and the relay starts again.
  */
 (function() {
   'use strict';
@@ -153,6 +154,10 @@
     }
     stream = null;
     if (message.state === 'ended' && message.reason === 'unavailable') unavailable = true;
+    // The browser may have closed: the workbench says so.
+    if (message.state === 'ended' && window.Workbench && typeof window.Workbench.onChanged === 'function') {
+      window.Workbench.onChanged();
+    }
     showEmpty();
     if (message.state !== 'ended') return;
     if (message.reason === 'connection') {
@@ -186,16 +191,12 @@
   }
 
   // A message for the work screen on the chat socket.
+  // The browser is an item of the workbench, brought forward there for the
+  // tab that opened it (workbench.js); here the relay starts again.
   function onChatEvent(message) {
     if (message.event !== 'browser_opened') return;
-    if (window.Workbench) window.Workbench.select('browser');
-    var lc = window.LayoutController;
-    if (lc && lc.selectedPane() !== 'work') {
-      lc.setPane('work'); // the layout change refreshes
-    } else {
-      send({ type: 'subscribe' });
-      refresh();
-    }
+    send({ type: 'subscribe' });
+    refresh();
   }
 
   document.addEventListener('layoutchange', refresh);

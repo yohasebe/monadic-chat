@@ -48,11 +48,11 @@ module Monadic
         approvals = {}
         assets = {}
         snapshot[:items].each do |item|
-          next unless item[:sha256]
+          next unless item[:version]
 
           binding = { tab: tab, generation: generation, chat_id: chat_id, epoch: snapshot[:epoch] }
-          approvals[item[:id]] = Approvals.issue(**binding, item_id: item[:id], sha256: item[:sha256])
-          next if item[:status] != 'ok'
+          approvals[item[:id]] = Approvals.issue(**binding, item_id: item[:id], sha256: item[:version])
+          next if item[:status] != 'ok' || !item[:sha256]
 
           source = item[:kind] == 'file' ? { item_id: item[:id] } : { artifact_id: item[:artifact_id] }
           next if board.private? && !source[:item_id]
@@ -96,6 +96,7 @@ module Monadic
         board = Board.for(chat_id, private: private_chat?(session, chat_id))
         item, added = board.add_file(path: path, origin: { actor: :user, source: :panel, tab: tab, generation: generation },
                                      epoch: Monadic::Workspace::Chats.epoch(chat_id))
+        changed(chat_id) if added
         { 'type' => 'workbench_opened', 'path' => item.dig('file', 'path'), 'item_id' => item['id'], 'added' => added }
       rescue Board::Refused => e
         open_refusal(path, e.message)
@@ -180,6 +181,13 @@ module Monadic
         ViewTokens.drop_chat(chat_id)
       end
 
+      # The tab's connection left chat_id: what it selected there goes.
+      def selection_left(chat_id, tab, generation)
+        return unless tab && Monadic::Workspace::Ids.valid?(:chat, chat_id)
+
+        Board.existing(chat_id)&.drop_selection(tab, generation)
+      end
+
       def chat_id_of(session)
         session[Monadic::Workspace::Chats::SESSION_KEY] || session[Monadic::Workspace::Chats::SESSION_KEY.to_s]
       end
@@ -213,9 +221,12 @@ module Monadic
   end
 end
 
-# A chat the user replaced: the tokens given for its workbench stop working.
+# A chat the user replaced: the tokens given for its workbench stop working,
+# and what the connection that left it selected there no longer counts.
 Monadic::Workspace::Chats.on_change do |event, session|
   if event == :replaced
-    Monadic::Workbench::Channel.chat_replaced(Monadic::Workbench::Channel.chat_id_of(session))
+    chat_id = Monadic::Workbench::Channel.chat_id_of(session)
+    Monadic::Workbench::Channel.chat_replaced(chat_id)
+    Monadic::Workbench::Channel.selection_left(chat_id, Thread.current[:websocket_session_id], session[:_ws_generation])
   end
 end

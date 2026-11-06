@@ -121,12 +121,19 @@ describe('WorkScreen', () => {
     delete window.Workbench;
   });
 
-  test('shows the browser in the pane when the browser opens', () => {
+  test('leaves bringing the browser forward to the workbench when it opens, and tells it when a stream ends', () => {
     const select = jest.fn();
-    window.Workbench = { showsBrowser: () => false, select: select };
-    WS.onChatEvent({ event: 'browser_opened' });
-    expect(select).toHaveBeenCalledWith('browser');
-    delete window.Workbench;
+    const onChanged = jest.fn();
+    window.Workbench = { showsBrowser: () => true, select: select, onChanged: onChanged };
+    try {
+      WS.onChatEvent({ event: 'browser_opened' });
+      expect(select).not.toHaveBeenCalled();
+      const socket = watching();
+      socket.receive({ type: 'state', state: 'ended', reason: 'closed' });
+      expect(onChanged).toHaveBeenCalled();
+    } finally {
+      delete window.Workbench;
+    }
   });
 
   test('asks for nothing while the Menu tab is selected', () => {
@@ -219,10 +226,10 @@ describe('WorkScreen', () => {
     expect(socket.closed).toBe(false);
   });
 
-  test('switches to the Work screen tab when the chat\'s browser opens', () => {
+  test('does not switch the pane itself when the chat\'s browser opens', () => {
     WS.onChatEvent({ type: 'work_screen', event: 'browser_opened', browser: 1 });
-    expect(LC.selectedPane()).toBe('work');
-    expect(asked).toBe(1);
+    expect(LC.selectedPane()).toBe('settings');
+    expect(asked).toBe(0);
   });
 
   test('subscribes again when a browser opens while the pane is shown', () => {

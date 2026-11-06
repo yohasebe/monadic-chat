@@ -6,6 +6,7 @@ require_relative "../../monadic_performance"
 require_relative "../base_vendor_helper"
 require_relative "../../utils/extra_logger"
 require_relative "../../shared_tools/tavily_definitions"
+require_relative "../../workbench/caller"
 
 module OllamaHelper
   include BaseVendorHelper
@@ -810,6 +811,7 @@ module OllamaHelper
       if method_obj && method_obj.parameters.any? { |type, name| name == :session }
         converted[:session] = session
       end
+      Monadic::Workbench::Caller.inject!(converted, method_obj, session)
 
       begin
         refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)

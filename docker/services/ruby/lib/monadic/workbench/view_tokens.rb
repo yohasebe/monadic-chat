@@ -7,7 +7,8 @@ module Monadic
     # The short-lived tokens in the address of an image of the workbench
     # (/workbench/asset/<token>). An HTTP request does not carry the tab's
     # connection, so the address itself is the permission: each token names
-    # one image (its ledger id and sha256) and what it is for (:view, shown
+    # one image (its ledger id) or one file item of the board (its item id),
+    # with the version it is for (sha256), and what it is for (:view, shown
     # in the page, or :download, saved as a file), for the tab and
     # connection generation it was given to, in one chat at one epoch, and
     # works for TTL seconds. The page asks for new ones over the main socket.
@@ -19,7 +20,7 @@ module Monadic
 
       PURPOSES = %i[view download].freeze
 
-      View = Struct.new(:tab, :generation, :chat_id, :epoch, :artifact_id, :sha256, :purpose, :expires_at,
+      View = Struct.new(:tab, :generation, :chat_id, :epoch, :artifact_id, :item_id, :sha256, :purpose, :expires_at,
                         keyword_init: true)
 
       @views = {}
@@ -27,12 +28,13 @@ module Monadic
 
       module_function
 
-      def issue(tab:, generation:, chat_id:, epoch:, artifact_id:, sha256:, purpose: :view, now: clock)
+      def issue(tab:, generation:, chat_id:, epoch:, sha256:, artifact_id: nil, item_id: nil, purpose: :view, now: clock)
         raise ArgumentError, 'unknown purpose' unless PURPOSES.include?(purpose)
+        raise ArgumentError, 'a token names one image or one file' unless [artifact_id, item_id].compact.size == 1
 
         token = SecureRandom.hex(16)
         view = View.new(tab: tab.to_s, generation: generation, chat_id: chat_id, epoch: epoch, artifact_id: artifact_id,
-                        sha256: sha256, purpose: purpose, expires_at: now + TTL)
+                        item_id: item_id, sha256: sha256, purpose: purpose, expires_at: now + TTL)
         @lock.synchronize do
           @views.delete_if { |_, v| v.expires_at <= now }
           @views.delete(@views.keys.first) while @views.size >= LIMIT

@@ -14,6 +14,7 @@ require_relative "../base_vendor_helper"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/extra_logger"
 require_relative "../../shared_tools/tavily_definitions"
+require_relative "../../workbench/caller"
 
 module MistralHelper
   include BaseVendorHelper
@@ -1260,6 +1261,7 @@ module MistralHelper
     if method_obj && method_obj.parameters.any? { |_type, name| name == :session }
       args_hash[:session] = session
     end
+    Monadic::Workbench::Caller.inject!(args_hash, method_obj, session)
 
     # Call the function
     begin

@@ -8,6 +8,7 @@ end
 require_relative 'utils/provider_model_cache'
 require_relative 'shared_tools/registry'
 require_relative 'shared_tools/file_operations'
+require_relative 'shared_tools/workbench_tools'
 require_relative 'shared_tools/python_execution'
 require_relative 'shared_tools/web_search_tools'
 require_relative 'shared_tools/app_creation'
@@ -251,6 +252,20 @@ module MonadicDSL
     (state.settings[:imported_tool_groups] || []).any? { |g| g[:name] == :file_operations }
   end
 
+  def self.workbench_already_imported?(state)
+    (state.settings[:imported_tool_groups] || []).any? { |g| g[:name] == :workbench }
+  end
+
+  # Every app can show a file of the shared folder in the work screen
+  # (show_on_workbench): it calls no provider's API, so it is offered
+  # whatever the provider. Non-tool-capable models never receive it.
+  def self.inject_workbench!(state)
+    provider = state.settings[:provider].to_s.downcase.to_sym
+    tool_config = ToolConfiguration.new(state, provider)
+    tool_config.import_shared_tools(:workbench, visibility: "always")
+    state.settings[:tools] = merge_tools_for_provider(provider, state.settings[:tools], tool_config.to_h)
+  end
+
   # After the user's MDSL block runs, ensure shared-folder read/write is wired
   # into EVERY app so `${SHARED}` is actionable everywhere — file
   # interaction (editing local images, supplying source text, saving
@@ -347,6 +362,14 @@ module MonadicDSL
         inject_file_operations!(state)
       rescue StandardError => e
         puts "[DSL] file_operations auto-inject skipped for #{state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+      end
+    end
+
+    unless workbench_already_imported?(state)
+      begin
+        inject_workbench!(state)
+      rescue StandardError => e
+        puts "[DSL] workbench auto-inject skipped for #{state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
       end
     end
 

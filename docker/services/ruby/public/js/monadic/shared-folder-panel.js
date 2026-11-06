@@ -740,6 +740,20 @@
   // without closing the panel.
   let previewing = null;
 
+  // The kinds the work screen shows (FileItem::KINDS on the server).
+  const WORKBENCH_KINDS = ['image', 'text', 'audio', 'video'];
+
+  // The file being previewed goes to the work screen: the preview and the
+  // panel close, and the work screen shows it when the server has it.
+  function openInWorkbench() {
+    if (!previewing || !window.Workbench) return;
+    const path = previewing.path;
+    closePreview();
+    const modal = $id('sharedFolderModal');
+    if (modal && window.bootstrap) window.bootstrap.Modal.getOrCreateInstance(modal).hide();
+    window.Workbench.openFile(path);
+  }
+
   function previewable() {
     return state.items.filter(function (i) { return !!i.preview; });
   }
@@ -811,6 +825,7 @@
       if (close && typeof close.focus === 'function') close.focus({ preventScroll: true });
     }
     renderPreviewNav();
+    $toggle($id('shared-folder-preview-workbench'), WORKBENCH_KINDS.indexOf(item.preview) >= 0 && !!window.Workbench);
     const fail = function (message) {
       if (mine !== previewGeneration) return;
       body.replaceChildren(el('div', { className: 'small text-secondary', text: t('previewFailed', 'The file cannot be shown') + (message ? ': ' + message : '') }));
@@ -1230,6 +1245,7 @@
     // Not closed while entries are being moved.
     $on($id('sharedFolderModal'), 'hide.bs.modal', function (e) { if (trashing) e.preventDefault(); });
     $on($id('shared-folder-preview-close'), 'click', closePreview);
+    $on($id('shared-folder-preview-workbench'), 'click', openInWorkbench);
     $on($id('shared-folder-preview-prev'), 'click', function () { stepPreview(-1); });
     $on($id('shared-folder-preview-next'), 'click', function () { stepPreview(1); });
     // A click on the dimmed panel around the preview closes it.

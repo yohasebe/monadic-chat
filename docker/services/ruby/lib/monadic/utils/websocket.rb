@@ -278,6 +278,10 @@ module WebSocketHelper
           handle_ws_workbench_action(connection, obj, session)
         when "WORKBENCH_DOWNLOAD"
           handle_ws_workbench_download(connection, obj, session)
+        when "WORKBENCH_OPEN"
+          handle_ws_workbench_open(connection, obj, session)
+        when "WORKBENCH_SELECT"
+          handle_ws_workbench_select(connection, obj, session)
         when "RESET"
           # A reply still being written belongs to the chat being reset. It
           # is stopped as Cancel stops it, before the session is cleared:
@@ -436,7 +440,7 @@ module WebSocketHelper
 
       WebSocketHelper.remove_connection_with_session(connection, ws_session_id)
       WebSocketHelper.unregister_live_session(ws_session_id, session[:_ws_generation]) if session
-      Monadic::Workbench::Channel.connection_closed(ws_session_id, session[:_ws_generation]) if session
+      Monadic::Workbench::Channel.connection_closed(ws_session_id, session[:_ws_generation], session) if session
       # Nothing stays staged for a tab with no connection left (a newer
       # connection of the same tab keeps what was staged for it).
       WebSocketHelper.drop_imports(ws_session_id) unless WebSocketHelper.live_session(ws_session_id)

@@ -243,7 +243,8 @@ module WebSocketHelper
     end
     request_context = Monadic::Workspace::RequestContext.new(
       chat_id: chat_at_start,
-      attachment_ids: earlier_ids + Array(attachment_refs).map { |a| a["attachment_id"] }
+      attachment_ids: earlier_ids + Array(attachment_refs).map { |a| a["attachment_id"] },
+      tab: ws_session_id, generation: session[:_ws_generation]
     )
 
     session[:parameters].merge! obj

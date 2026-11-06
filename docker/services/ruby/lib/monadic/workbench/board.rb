@@ -6,17 +6,23 @@ require 'time'
 require_relative 'store'
 require_relative 'image_check'
 require_relative 'artifact'
+require_relative 'file_item'
 require_relative '../workspace/chats'
 
 module Monadic
   module Workbench
-    # A chat's workbench: the images on it, in the order they arrived. Each
-    # image is a file of the chat's folder in the shared folder, recorded in
-    # the ledger (Artifact); an item holds that record's id and what the
-    # page shows, never the bytes. Removing an image takes it off the board
-    # only: the file stays. Kept in the chat's manifest (Store) so it
-    # outlives a restart. A Private chat has no board that holds anything:
-    # nothing of it may be kept.
+    # A chat's workbench: what is on it, in the order it arrived (the page
+    # shows it as a row to move through). An image a generator made is a
+    # file of the chat's folder in the shared folder, recorded in the ledger
+    # (Artifact); a file someone opened is a reference to a file of the
+    # shared folder and the version it had (FileItem). An item holds what
+    # the page shows, never the bytes. Removing an item takes it off the
+    # board only: the file stays. Kept in the chat's manifest (Store) so it
+    # outlives a restart. A Private chat keeps nothing: it makes no image,
+    # and the files it opens are held in memory only.
+    #
+    # Which item each tab has selected is held in memory, for the
+    # connection that said so (select), and goes with it.
     #
     # Every change happens under the board's lock and is saved before the
     # lock is let go, so of two operations on one image (two tabs, a resend)
@@ -27,6 +33,8 @@ module Monadic
     # current epoch.
     class Board
       ITEM_LIMIT = 8
+      # What an origin keeps in the manifest (not the tab or connection).
+      ORIGIN_KEYS = %i[actor source request_id].freeze
       ACTIONS = %w[remove].freeze
       # Removed items remembered, so that a removal sent again is answered.
       REMOVED_LIMIT = 50
@@ -84,6 +92,7 @@ module Monadic
         @store = store
         @lock = Mutex.new
         @data = (private ? nil : store.load(chat_id)) || fresh
+        @selected = {}
       end
 
       def private?
@@ -127,6 +136,7 @@ module Monadic
           raise Refused, 'the reply was stopped' if unless_closed&.call
 
           if (placed = placed_item(data, run, origin[:request_id], bytes))
+            select_for_origin(origin, placed['id'])
             next placed
           end
 
@@ -135,9 +145,10 @@ module Monadic
                                    run: run, request_id: origin[:request_id], derived_from: derived_from)
           item_id = "i_#{SecureRandom.hex(10)}"
           data['items'][item_id] = {
-            'id' => item_id, 'kind' => 'image', 'origin' => stringify(origin), 'mid' => nil,
+            'id' => item_id, 'kind' => 'image', 'origin' => kept_origin(origin), 'mid' => nil,
             'artifact' => stringify(Artifact.entry(record).merge('width' => record[:width], 'height' => record[:height]))
           }
+          select_for_origin(origin, item_id)
           deep_dup(data['items'][item_id])
         end
       rescue Artifact::NotPlaced => e
@@ -149,6 +160,73 @@ module Monadic
 
         raise PlacedOnly.new("the work screen could not take the image (#{e.class.name.split('::').last})",
                              path: record[:copy_path])
+      end
+
+      # Opens a file of the shared folder on the board (FileItem): the same
+      # file at the same version, when the board has it, is selected rather
+      # than added again. origin: who opened it (actor :user from the
+      # Shared Folder panel, :agent from a tool), and the tab and connection
+      # it was opened for (tab:, generation:), which then selects it.
+      # Returns [item, added]. Refused at another epoch, for a file the work
+      # screen does not show, or when every item is kept (room_for_one!).
+      def add_file(path:, origin:, epoch:)
+        entry = FileItem.entry_for(path)
+        change do |data|
+          check_epoch!(epoch)
+          found = data['items'].values.find do |item|
+            item['kind'] == 'file' && item.dig('file', 'path') == entry['path'] && item.dig('file', 'sha256') == entry['sha256']
+          end
+          if found
+            select_for_origin(origin, found['id'])
+            next [deep_dup(found), false]
+          end
+
+          room_for_one!(data)
+          item_id = "i_#{SecureRandom.hex(10)}"
+          data['items'][item_id] = { 'id' => item_id, 'kind' => 'file', 'origin' => kept_origin(origin), 'mid' => nil,
+                                     'file' => entry }
+          select_for_origin(origin, item_id)
+          [deep_dup(data['items'][item_id]), true]
+        end
+      rescue FileItem::Refused => e
+        raise Refused, e.message
+      end
+
+      # The bytes of a file item, read now and checked against its version
+      # (FileItem.read), with its entry. sha256: the version the asker was
+      # given (a token); another version is Artifact::Changed.
+      def file_read(item_id, sha256:)
+        entry = @lock.synchronize { deep_dup(@data.dig('items', item_id, 'file')) } or raise Artifact::NotAllowed, 'no such file'
+        raise Artifact::Changed, 'the file changed after it was opened' unless entry['sha256'] == sha256
+
+        { entry: entry, bytes: FileItem.read(entry) }
+      end
+
+      # The tab's connection (generation) selects item_id, or nothing (nil).
+      # Refused for an item that is not on the board. Returns item_id.
+      def select(tab:, generation:, item_id:)
+        @lock.synchronize do
+          raise Refused, 'no such item' if item_id && !@data['items'].key?(item_id)
+
+          @selected[tab.to_s] = { generation: generation, item_id: item_id }
+          item_id
+        end
+      end
+
+      # What the tab's connection has selected (an item still on the board),
+      # or nil.
+      def selected(tab:, generation:)
+        @lock.synchronize do
+          held = @selected[tab.to_s]
+          held && held[:generation] == generation && @data['items'].key?(held[:item_id]) ? held[:item_id] : nil
+        end
+      end
+
+      # The connection closed: what it selected is no longer kept for it.
+      def drop_selection(tab, generation)
+        @lock.synchronize do
+          @selected.delete(tab.to_s) if @selected.dig(tab.to_s, :generation) == generation
+        end
       end
 
       # The image that arrived on the board last, or nil.
@@ -203,7 +281,7 @@ module Monadic
           raise Refused, 'this image was removed' if data['removed'].key?(item_id)
 
           item = data['items'][item_id] or raise Refused, 'no such image'
-          raise Refused, 'this image changed' unless item.dig('artifact', 'sha256') == sha256
+          raise Refused, 'this item changed' unless content_of(item)&.dig('sha256') == sha256
 
           operation = { 'id' => operation_id, 'action' => action, 'item_id' => item_id, 'sha256' => sha256,
                         'state' => 'removed', 'accepted_at' => Time.now.utc.iso8601 }
@@ -277,15 +355,44 @@ module Monadic
         deep_dup(item)
       end
 
-      # Room for one more image: the oldest image is taken off the board
-      # (its file stays in the shared folder).
+      # Room for one more item: the oldest item that is not kept is taken
+      # off the board (its file stays in the shared folder). Kept: an item
+      # a tab's connection has selected, and the latest image (what an edit
+      # starts from). Refused when every item is kept.
       def room_for_one!(data)
         return if data['items'].size < ITEM_LIMIT
 
-        take_off!(data, data['items'].values.first, 'room')
+        kept = @selected.values.map { |held| held[:item_id] }
+        latest = data['items'].values.reverse.find { |item| item['artifact'] }
+        kept << latest['id'] if latest
+        oldest = data['items'].values.find { |item| !kept.include?(item['id']) }
+        raise Refused, 'the work screen is full: remove an item first' unless oldest
+
+        take_off!(data, oldest, 'room')
+      end
+
+      # The item's content entry: the image's record or the file's version.
+      def content_of(item)
+        item['artifact'] || item['file']
+      end
+
+      # The origin as the manifest keeps it (no tab or connection).
+      def kept_origin(origin)
+        stringify(origin.to_h.slice(*ORIGIN_KEYS))
+      end
+
+      # The tab an item was made for selects it (inside change, under the
+      # lock).
+      def select_for_origin(origin, item_id)
+        tab = origin[:tab]
+        return unless tab
+
+        @selected[tab.to_s] = { generation: origin[:generation], item_id: item_id }
       end
 
       def public_item(item)
+        return public_file(item) if item['kind'] == 'file'
+
         entry = item['artifact'] || {}
         {
           id: item['id'], kind: item['kind'], actor: item.dig('origin', 'actor'), mid: item['mid'],
@@ -293,6 +400,15 @@ module Monadic
           width: entry['width'], height: entry['height'], sha256: entry['sha256'],
           derived_from: entry['derived_from'],
           status: entry['id'] ? Artifact.status(entry['id'], chat_id: @chat_id).to_s : 'missing'
+        }
+      end
+
+      def public_file(item)
+        entry = item['file']
+        {
+          id: item['id'], kind: 'file', actor: item.dig('origin', 'actor'), mid: item['mid'],
+          name: entry['name'], path: entry['path'], preview: entry['preview'], content_type: entry['content_type'],
+          size: entry['size'], sha256: entry['sha256'], status: FileItem.status(entry)
         }
       end
 

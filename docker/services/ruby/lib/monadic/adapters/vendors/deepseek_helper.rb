@@ -9,6 +9,7 @@ require_relative "../base_vendor_helper"
 require_relative "../../shared_tools/tavily_definitions"
 require 'strscan'
 require 'securerandom'
+require_relative "../../workbench/caller"
 
 module DeepSeekHelper
   include BaseVendorHelper
@@ -1233,6 +1234,7 @@ module DeepSeekHelper
     if method_obj && method_obj.parameters.any? { |_type, name| name == :session }
       converted[:session] = session
     end
+    Monadic::Workbench::Caller.inject!(converted, method_obj, session)
 
     # Consumption-point gate for the Web Search UI toggle. The schema gate hides
     # web-search tools when the toggle is off, but DeepSeek's model can still

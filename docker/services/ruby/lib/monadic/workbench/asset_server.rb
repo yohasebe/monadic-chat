@@ -1,12 +1,14 @@
 # frozen_string_literal: true
 
 require_relative 'artifact'
+require_relative 'board'
 require_relative 'view_tokens'
 require_relative '../workspace/chats'
+require_relative '../workspace/shared_folder_preview'
 
 module Monadic
   module Workbench
-    # Serves an image of the workbench to the page at
+    # Serves an image or a file of the workbench to the page at
     # /workbench/asset/<token> (ViewTokens), ahead of the application so
     # that the request is not written to the access log: the token in the
     # address is the permission. A :download token serves it as a file to
@@ -15,10 +17,14 @@ module Monadic
     # Only a GET or HEAD sent by a page of this server (Sec-Fetch-Site:
     # same-origin) is served, and only while the token's tab still has the
     # connection it was given to and its chat is at the same epoch and not
-    # Private. Anything else gets the same "not found". For a token that
-    # holds, the image is read from the chat's folder (Artifact): a file
-    # that is no longer the one recorded is answered 409 (changed) or 410
-    # (gone), so the page can say which.
+    # Private (a file item of a Private chat is served: it is the user's
+    # file and only this tab sees it). Anything else gets the same "not
+    # found". For a token that holds, the image is read from the chat's
+    # folder (Artifact), the file from the shared folder (FileItem): one
+    # that is no longer the version given is answered 409 (changed) or 410
+    # (gone), so the page can say which. A text file is served from its
+    # beginning (FileItem::TEXT_LIMIT, x-workbench-truncated when cut). A
+    # single byte range is served from the checked bytes (audio, video).
     class AssetServer
       PREFIX = '/workbench/asset/'
       HEADERS = {
@@ -55,6 +61,7 @@ module Monadic
         view = ViewTokens.view(token) or return plain(404, 'Not found')
         return plain(404, 'Not found') unless @live.call(view.tab) == view.generation
         return plain(404, 'Not found') unless view.epoch == Monadic::Workspace::Chats.epoch(view.chat_id)
+        return serve_file(env, view) if view.item_id
         return plain(404, 'Not found') if @private_chat.call(view.chat_id)
 
         read = Artifact.read(view.artifact_id, chat_id: view.chat_id)
@@ -70,6 +77,45 @@ module Monadic
         plain(410, 'Gone')
       rescue Artifact::NotAllowed
         plain(404, 'Not found')
+      end
+
+      def serve_file(env, view)
+        return plain(404, 'Not found') unless view.purpose == :view
+
+        board = Board.existing(view.chat_id, private: @private_chat.call(view.chat_id)) or return plain(404, 'Not found')
+        read = board.file_read(view.item_id, sha256: view.sha256)
+        entry = read[:entry]
+        bytes = read[:bytes]
+        headers = HEADERS.merge('content-type' => entry['content_type'])
+        if entry['preview'] == 'text'
+          headers['x-workbench-truncated'] = '1' if bytes.bytesize > FileItem::TEXT_LIMIT
+          bytes = bytes.byteslice(0, FileItem::TEXT_LIMIT)
+        end
+        status, bytes = ranged(env, headers, bytes) if %w[audio video].include?(entry['preview'])
+        headers['content-length'] = bytes.bytesize.to_s
+        [status || 200, headers, env['REQUEST_METHOD'] == 'HEAD' ? [] : [bytes]]
+      rescue Artifact::Changed
+        plain(409, 'Changed')
+      rescue Artifact::Missing
+        plain(410, 'Gone')
+      rescue Artifact::NotAllowed
+        plain(404, 'Not found')
+      end
+
+      # One range of bytes (Range: bytes=a-b, a-, -n), 206; the whole, 200;
+      # a range outside the bytes, 416.
+      def ranged(env, headers, bytes)
+        headers['accept-ranges'] = 'bytes'
+        range = Monadic::Workspace::SharedFolderPreview.range_for(env['HTTP_RANGE'], bytes.bytesize)
+        return [200, bytes] unless range
+        if range == :unsatisfiable
+          headers['content-range'] = "bytes */#{bytes.bytesize}"
+          return [416, '']
+        end
+
+        first, last = range
+        headers['content-range'] = "bytes #{first}-#{last}/#{bytes.bytesize}"
+        [206, bytes.byteslice(first, last - first + 1)]
       end
 
       # The name is an image name of the ledger (ASCII letters, digits, _ -

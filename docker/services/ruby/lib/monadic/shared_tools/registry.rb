@@ -77,6 +77,27 @@ module MonadicSharedTools
         default_hint: "Call request_tool(\"file_operations\") when you need to read, write, or list files in the shared folder."
       },
 
+      workbench: {
+        module_name: 'MonadicSharedTools::WorkbenchTools',
+        tools: [
+          {
+            name: "show_on_workbench",
+            description: "Show a file of the shared folder to the user in the work screen beside the chat " \
+                         "(an image, a text file, audio or video). The file is shown as it is now; it is not copied. " \
+                         "Use it when the user should look at the file while you talk about it.",
+            parameters: [
+              {
+                name: :path,
+                type: "string",
+                description: "Path of the file relative to the shared folder (e.g. 'reports/chart.png')",
+                required: true
+              }
+            ]
+          }
+        ],
+        default_hint: "Call request_tool(\"workbench\") to show a file of the shared folder in the work screen."
+      },
+
       python_execution: {
         module_name: 'MonadicSharedTools::PythonExecution',
         tools: [

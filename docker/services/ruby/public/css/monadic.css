@@ -6867,6 +6867,34 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   border: 1px solid var(--border-light, #dee2e6);
 }
 
+.workbench-video {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+}
+.workbench-audio {
+  display: block;
+  width: 100%;
+}
+.workbench-text {
+  max-height: 70vh;
+  overflow: auto;
+  border: 1px solid var(--border-light, #dee2e6);
+  border-radius: var(--border-radius);
+  background: var(--bg-panel);
+}
+.workbench-lines {
+  margin: 0;
+  padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-sm) 3.5em;
+  font-family: var(--font-family-monospace, monospace);
+  font-size: var(--font-size-sm);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.workbench-lines li::marker {
+  color: var(--text-secondary);
+}
+
 /* The chat's browser, as it draws (work-screen.js) */
 .work-screen-image {
   display: block;

@@ -645,15 +645,20 @@ describe('shared folder panel: preview, choosing all, age and copying', () => {
     expect(pending[1].opts.signal.aborted).toBe(true);
   });
 
-  it('sends a file it can show to the work screen, closing the preview and the panel', async () => {
+  it('sends a file it can show (a PDF too) to the work screen, closing the preview and the panel', async () => {
     const hide = jest.fn();
     window.bootstrap.Modal.getOrCreateInstance = () => ({ show() {}, hide });
     window.Workbench = { openFile: jest.fn() };
     try {
       await shown([entry('dir/b c.png', { name: 'b c.png', preview: 'image' }), entry('b.pdf', { preview: 'pdf' })]);
       const button = document.getElementById('shared-folder-preview-workbench');
-      panel.openPreview(entry('b.pdf', { preview: 'pdf' }));
+      const workbench = window.Workbench;
+      delete window.Workbench;
+      panel.openPreview(entry('dir/b c.png', { name: 'b c.png', preview: 'image' }));
       expect(button.style.display).toBe('none');
+      window.Workbench = workbench;
+      panel.openPreview(entry('b.pdf', { preview: 'pdf' }));
+      expect(button.style.display).toBe('');
       panel.openPreview(entry('dir/b c.png', { name: 'b c.png', preview: 'image' }));
       expect(button.style.display).toBe('');
       button.click();

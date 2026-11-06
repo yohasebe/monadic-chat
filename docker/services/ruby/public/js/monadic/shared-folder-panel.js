@@ -741,7 +741,7 @@
   let previewing = null;
 
   // The kinds the work screen shows (FileItem::KINDS on the server).
-  const WORKBENCH_KINDS = ['image', 'text', 'audio', 'video'];
+  const WORKBENCH_KINDS = ['image', 'text', 'audio', 'video', 'pdf'];
 
   // The file being previewed goes to the work screen: the preview and the
   // panel close, and the work screen shows it when the server has it.

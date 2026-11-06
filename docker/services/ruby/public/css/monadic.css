@@ -6895,6 +6895,89 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   color: var(--text-secondary);
 }
 
+/* A PDF, a page at a time (workbench-pdf.js) */
+.workbench-pdf {
+  max-height: 75vh;
+  overflow: auto;
+  outline-offset: 2px;
+}
+.workbench-pdf-page {
+  position: relative;
+  width: max-content;
+  margin: 0 auto;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--border-light, #dee2e6);
+}
+.workbench-pdf-page canvas {
+  display: block;
+}
+
+/* pdf.js's text layer, over the page (the rules follow pdf.js's
+   web/pdf_viewer.css, Apache License 2.0) */
+.workbench-pdf-page .textLayer {
+  color-scheme: only light;
+  position: absolute;
+  text-align: initial;
+  inset: 0;
+  overflow: clip;
+  opacity: 1;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  caret-color: CanvasText;
+  z-index: 0;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+.workbench-pdf-page .textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+}
+.workbench-pdf-page .textLayer > :not(.markedContent),
+.workbench-pdf-page .textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.workbench-pdf-page .textLayer .markedContent {
+  display: contents;
+}
+.workbench-pdf-page .textLayer span[role="img"] {
+  user-select: none;
+  cursor: default;
+}
+.workbench-pdf-page .textLayer ::selection {
+  background: rgba(0 0 255 / 0.25);
+  background: color-mix(in srgb, AccentColor, transparent 50%);
+  color: transparent;
+}
+.workbench-pdf-page .textLayer br::selection {
+  background: transparent;
+}
+.workbench-pdf-page .textLayer .endOfContent {
+  display: block;
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  cursor: default;
+  user-select: none;
+}
+.workbench-pdf-page .textLayer.selecting .endOfContent {
+  top: 0;
+}
+
 /* The chat's browser, as it draws (work-screen.js) */
 .work-screen-image {
   display: block;

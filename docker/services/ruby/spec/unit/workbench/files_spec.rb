@@ -111,14 +111,30 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
       expect(newer["id"]).not_to eq(item["id"])
     end
 
+    it "opens a PDF, which its address serves whole, at the version opened" do
+      pdf = "%PDF-1.4\n" + ("x" * 64)
+      write("docs/paper.pdf", pdf)
+      item_id = channel.open_file({ "path" => "docs/paper.pdf" }, session, tab: "tab-1", generation: 1, live: live)["item_id"]
+      message = channel.view(session, tab: "tab-1", generation: 1, live: live)
+      expect(message["board"][:items].first).to include(kind: "file", preview: "pdf", content_type: "application/pdf")
+      server = Monadic::Workbench::AssetServer.new(->(_env) { [200, {}, []] }, live: live, private_chat: ->(_c) { false })
+      env = { "PATH_INFO" => message["assets"][item_id], "REQUEST_METHOD" => "GET", "HTTP_SEC_FETCH_SITE" => "same-origin",
+              "HTTP_RANGE" => "bytes=0-3" }
+      status, headers, body = server.call(env)
+      expect(status).to eq(200)
+      expect(headers).to include("content-type" => "application/pdf")
+      expect(headers).not_to have_key("accept-ranges")
+      expect(body.join).to eq(pdf)
+    end
+
     it "refuses a path out of the shared folder, through a link, a kind it does not show, or a file too large" do
-      write("doc.pdf", "%PDF-1.4")
+      write("archive.zip", "PK")
       write("real/a.txt", "a")
       File.symlink(File.join(@data, "real"), File.join(@data, "linked"))
       outside = File.join(File.dirname(@data), "outside.txt")
       File.binwrite(outside, "secret")
       File.symlink(outside, File.join(@data, "out.txt"))
-      ["../outside.txt", "/etc/hosts", "linked/a.txt", "out.txt", "doc.pdf", "", "a\0b.txt"].each do |path|
+      ["../outside.txt", "/etc/hosts", "linked/a.txt", "out.txt", "archive.zip", "", "a\0b.txt"].each do |path|
         expect { open_file(path) }.to raise_error(Monadic::Workbench::Board::Refused), path.inspect
       end
       stub_const("Monadic::Workbench::FileItem::LIMIT", 2)

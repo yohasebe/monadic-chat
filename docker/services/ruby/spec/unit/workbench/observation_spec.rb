@@ -175,4 +175,56 @@ RSpec.describe Monadic::Workbench::Observation do
       expect(described_class.appended(text, nil)).to equal(text)
     end
   end
+
+  describe "through the chat's Privacy Filter" do
+    # A pipeline that masks the words it is given, as the chat's would.
+    def pipeline(words, masks: true)
+      Class.new do
+        define_method(:before_send_to_llm) do |message|
+          text = message.text.dup
+          words.each_with_index { |w, i| text = text.gsub(w.to_json[1..-2], "<<SECRET_#{i + 1}>>") } if masks
+          Struct.new(:text).new(text)
+        end
+        define_method(:registry_state) { { terms: words.map { |w| { text: w } } } }
+      end.new
+    end
+
+    def session_with(words, pipe)
+      { chat_id: chat, parameters: {}, _privacy_session_enabled: !pipe.nil?, _privacy_pipeline: pipe,
+        monadic_state: { privacy: { terms: words.map { |w| { text: w } } } } }
+    end
+
+    let(:words) { ['group/private', 'say "x"', 'C:\\secret'] }
+
+    before do
+      FileUtils.mkdir_p(File.join(@data, "group"))
+      open_file("group/private.txt", "a")
+      open_file('say "x".txt', "b")
+    end
+
+    it "sends the observation masked, with no marked word left for the last check to find" do
+      session = session_with(words, pipeline(words))
+      text = observe.render_for(session)
+      # (A path cannot hold a backslash; the word is marked all the same.)
+      expect(text).to include("<<SECRET_1>>", "<<SECRET_2>>")
+      ["group/private", "group\\/private", 'say \\"x\\"', 'say "x"'].each { |form| expect(text).not_to include(form) }
+      body = { "messages" => [{ "role" => "user", "content" => [{ "type" => "text", "text" => text }] }] }
+      expect { Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, body) }.not_to raise_error
+    end
+
+    it "sends none of it when a marked word would be left, or when masking is not available" do
+      expect(observe.render_for(session_with(words, pipeline(words, masks: false)))).to be_nil
+      # Words marked while the filter is off: nothing of the chat is sent.
+      expect(observe.render_for(session_with(words, nil))).to be_nil
+    end
+
+    it "masks once for the request, however many payloads add it" do
+      pipe = pipeline(words)
+      allow(pipe).to receive(:before_send_to_llm).and_call_original
+      observation = observe
+      session = session_with(words, pipe)
+      2.times { observation.render_for(session) }
+      expect(pipe).to have_received(:before_send_to_llm).once
+    end
+  end
 end

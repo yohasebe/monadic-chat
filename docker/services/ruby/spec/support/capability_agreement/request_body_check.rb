@@ -323,7 +323,8 @@ RSpec.describe "Capability note in the request body" do
 
   # The work screen observation: two messages sent through the page's
   # handler with a file open on the workbench and selected in the tab.
-  def run_observed_conversation(mod, provider, key, first_reply, second_reply)
+  def run_observed_conversation(mod, provider, key, first_reply, second_reply, first_message: "Define it", images: nil,
+                                vision: false)
     dir = Dir.mktmpdir("observation-body-")
     data = File.join(dir, "data")
     FileUtils.mkdir_p([data, File.join(dir, "state")])
@@ -340,7 +341,9 @@ RSpec.describe "Capability note in the request body" do
       epoch: Monadic::Workspace::Chats.epoch(chat)
     )
 
-    model = Monadic::Utils::ModelSpec.get_provider_models(provider, "chat")&.first || "llama3"
+    models = Monadic::Utils::ModelSpec.get_provider_models(provider, "chat") || []
+    model = (vision ? models.find { |m| Monadic::Utils::ModelSpec.get_model_property(m, "vision_capability") } : models.first) ||
+            "llama3"
     tools = [tool_definition(reader_tool_name), tool_definition(called_tool)]
     calls = @tool_calls
     tool_owner = Module.new { define_method(:look_up_term) { |**| calls << :ran && "term found" } }
@@ -382,13 +385,17 @@ RSpec.describe "Capability note in the request body" do
     page = { "app_name" => "NotesApp", "model" => model, "context_size" => "5", "max_tokens" => "100",
              "tools" => tools.to_json, "temperature" => "0.5", "prompt_suffix" => "Answer briefly." }
     app_settings["prompt_suffix"] = "Answer briefly."
+    # As the page says of a model that takes images.
+    page["vision_capability"] = true if vision
     shown = { "item_id" => item["id"], "version" => item.dig("file", "sha256"), "range" => nil, "note" => "not_shown" }
     queue = Queue.new
     Thread.current[:rack_session] = session
-    [["Define it", [send(first_reply, true), send(second_reply, false)]],
-     ["And the next one", [send(second_reply, false)]]].each do |message, turn_replies|
+    [[first_message, images, [send(first_reply, true), send(second_reply, false)]],
+     ["And the next one", nil, [send(second_reply, false)]]].each do |message, sent_images, turn_replies|
       replies.push(*turn_replies)
-      thread = host.send(:handle_ws_streaming, nil, page.merge("message" => message, "workbench_range" => shown), session, queue)
+      sent = page.merge("message" => message, "workbench_range" => shown)
+      sent["images"] = sent_images if sent_images
+      thread = host.send(:handle_ws_streaming, nil, sent, session, queue)
       host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
     end
     [bodies, session, item]
@@ -407,8 +414,11 @@ RSpec.describe "Capability note in the request body" do
       expect(@tool_calls).to eq([:ran])
       expect(bodies.size).to eq(3)
       counts = bodies.map { |body| JSON.generate(body).scan(observation_tag).size }
-      # Cohere sends the result of a tool without the user's message.
-      expect(counts).to eq(mod == CohereHelper ? [1, 0, 1] : [1, 1, 1])
+      expect(counts).to eq([1, 1, 1])
+      # The request that returns the tool's result keeps the user's message
+      # before the result.
+      after_tool = JSON.generate(bodies[1])
+      expect(after_tool.index("Define it")).to be < after_tool.index("term found")
       bodies.each do |body|
         expect(system_text(body)).not_to include(observation_tag)
       end
@@ -423,6 +433,23 @@ RSpec.describe "Capability note in the request body" do
       expect(last.index(observation_tag)).to be > last.index("And the next one")
       expect(JSON.generate(session[:messages])).not_to include("work_screen")
       expect(session[:parameters]).not_to have_key("workbench_range")
+    end
+  end
+
+  # A PNG of one pixel.
+  pixel = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+
+  providers.slice(OpenAIHelper, ClaudeHelper, GeminiHelper).each do |mod, (provider, key, first_reply, second_reply)|
+    it "#{mod.name}: adds what the work screen shows to a message of an image only, recorded under its request" do
+      image = { "title" => "dot.png", "type" => "image/png", "data" => "data:image/png;base64,#{pixel}" }
+      bodies, session, = run_observed_conversation(mod, provider, key, first_reply, second_reply,
+                                                   first_message: "", images: [image], vision: true)
+      expect(bodies.size).to eq(3)
+      expect(bodies.map { |body| JSON.generate(body).scan(observation_tag).size }).to eq([1, 1, 1])
+      expect(JSON.generate(bodies.first)).to include(pixel[0, 40])
+      first_turn = session[:messages].find { |m| m["role"] == "user" }
+      expect(first_turn["request_id"]).to match(/\Aq_/)
+      expect(JSON.generate(session[:messages])).not_to include("work_screen")
     end
   end
 

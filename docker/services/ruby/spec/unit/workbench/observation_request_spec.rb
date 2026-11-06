@@ -80,6 +80,12 @@ RSpec.describe "The work screen observation of a message" do
     expect(session[:messages].find { |m| m["role"] == "user" }["text"]).to eq("what is this?")
   end
 
+  it "makes the observation for a message of images only" do
+    opened
+    image = { "title" => "a.png", "type" => "image/png", "data" => "data:image/png;base64,iVBORw0KGgo=" }
+    expect(send_message({ "message" => "", "images" => [image] }).observation).not_to be_nil
+  end
+
   it "makes none for a send that is not the user's message, or in a Private chat" do
     opened
     expect(send_message({ "message" => "" }).observation).to be_nil

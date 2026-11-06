@@ -9,14 +9,32 @@ const path = require('path');
 const js = (f) => path.join(__dirname, '../../docker/services/ruby/public/js', f);
 const flush = async () => { for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0)); };
 
-function fakeLibrary({ pages = 3, width = 600, height = 800, fails = false, failPage = null, held = {} } = {}) {
+function fakeLibrary({ pages = 3, width = 600, height = 800, fails = false, failPage = null, held = {}, heldText = {} } = {}) {
   const lib = {
     calls: { documents: [], renders: [], layers: [], destroyed: 0 },
     GlobalWorkerOptions: {},
     AnnotationMode: { DISABLE: 0, ENABLE: 1 },
+    // Writes "PAGE n" into its container; a page whose text is held
+    // (heldText[n] === null) writes when the test lets it go.
     TextLayer: class {
-      constructor(options) { lib.calls.layers.push(options); }
-      render() { return Promise.resolve(); }
+      constructor(options) {
+        this.options = options;
+        lib.calls.layers.push(options);
+      }
+      render() {
+        const n = this.options.textContentSource.page;
+        const write = () => {
+          const span = document.createElement('span');
+          span.textContent = heldText[n] === undefined ? `PAGE ${n}` : `OLD PAGE ${n}`;
+          this.options.container.appendChild(span);
+        };
+        if (heldText[n] !== null) {
+          write();
+          return Promise.resolve();
+        }
+        return new Promise((resolve) => { heldText[n] = () => { write(); resolve(); }; });
+      }
+      cancel() { lib.calls.cancelled = (lib.calls.cancelled || 0) + 1; }
     },
     getDocument(options) {
       lib.calls.documents.push(options);
@@ -73,6 +91,7 @@ describe('WorkbenchPdf', () => {
     expect(lib.calls.renders).toHaveLength(1);
     expect(lib.calls.renders[0]).toMatchObject({ page: 1, annotationMode: lib.AnnotationMode.DISABLE });
     expect(lib.calls.layers[0].container).toBe(box.querySelector('.textLayer'));
+    expect(box.querySelector('.textLayer').style.visibility).toBe('');
     expect(box.querySelector('.workbench-pdf-where').textContent).toBe('1 / 3');
     expect(handle.state()).toMatchObject({ page: 1, pages: 3 });
   });
@@ -145,6 +164,21 @@ describe('WorkbenchPdf', () => {
     held[2].reject(new Error('late failure'));
     await flush();
     expect(handle.shown()).toMatchObject({ status: 'ready', page: 3 });
+  });
+
+  test('shows only the text of the page drawn last, and stops the text of the page before', async () => {
+    const heldText = { 1: null };
+    const lib = fakeLibrary({ heldText: heldText });
+    const handle = showWith(lib);
+    await flush();
+    box.querySelector('.workbench-pdf-next').click();
+    await flush();
+    expect(handle.shown()).toMatchObject({ status: 'ready', page: 2 });
+    heldText[1]();
+    await flush();
+    const shownText = Array.from(box.querySelectorAll('.textLayer')).map((layer) => layer.textContent);
+    expect(shownText).toEqual(['PAGE 2']);
+    expect(lib.calls.cancelled).toBe(1);
   });
 
   test('says a page failed', async () => {

@@ -3149,7 +3149,10 @@ document.addEventListener("DOMContentLoaded", function () {
     if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
       return;
     }
-    const hasAttachment = typeof window.hasVideoAttachments === 'function' && window.hasVideoAttachments();
+    // A message of attached files only (video or audio, images or PDFs) is
+    // sent too.
+    const hasAttachment = (typeof window.hasVideoAttachments === 'function' && window.hasVideoAttachments()) ||
+      (typeof images !== 'undefined' && Array.isArray(images) && images.length > 0);
     if (message.value === "" && !hasAttachment) {
       return;
     }

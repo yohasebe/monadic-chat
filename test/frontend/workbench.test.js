@@ -545,7 +545,7 @@ describe('Workbench', () => {
       await flush();
       // Each line 20px high from the top; the box shows 40px to 100px.
       const box = document.querySelector('#workbench-view .workbench-text');
-      box.getBoundingClientRect = () => ({ top: 40, bottom: 100, height: 60 });
+      box.getBoundingClientRect = () => ({ top: 40, bottom: 100, left: 0, right: 400, height: 60 });
       box.querySelectorAll('li').forEach((li, i) => {
         li.getBoundingClientRect = () => ({ top: i * 20, bottom: i * 20 + 20 });
       });
@@ -579,6 +579,33 @@ describe('Workbench', () => {
       expect(window.Workbench.rangeNow()).toMatchObject({ range: null, note: 'not_shown' });
     });
 
+    test('counts only what an ancestor that scrolls leaves in view, and says when none of the item is', async () => {
+      layout.pane = 'work';
+      const box = await showText(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+      // The side column scrolled: its own top is at 70px.
+      const column = document.getElementById('workbench-view');
+      column.style.overflowY = 'auto';
+      column.getBoundingClientRect = () => ({ top: 70, bottom: 1000, left: 0, right: 500 });
+      box.getBoundingClientRect = () => ({ top: 40, bottom: 100, left: 0, right: 400, height: 60 });
+      expect(window.Workbench.rangeNow().range).toEqual({ first_line: 4, last_line: 5 });
+      column.getBoundingClientRect = () => ({ top: 120, bottom: 1000, left: 0, right: 500 });
+      expect(window.Workbench.rangeNow()).toMatchObject({ range: null, note: 'not_shown' });
+    });
+
+    test('says a text is empty once drawn with no line, and drawing before', async () => {
+      layout.pane = 'work';
+      let release;
+      global.fetch = jest.fn(() => new Promise((resolve) => { release = resolve; }));
+      view([notes], { assets: { i_t: '/workbench/asset/t' } });
+      const box = document.querySelector('#workbench-view .workbench-text');
+      box.getBoundingClientRect = () => ({ top: 40, bottom: 100, left: 0, right: 400, height: 60 });
+      expect(window.Workbench.rangeNow()).toMatchObject({ range: null, note: 'drawing' });
+      release({ ok: true, status: 200, text: async () => '', headers: { get: () => null } });
+      await flush();
+      await flush();
+      expect(window.Workbench.rangeNow()).toMatchObject({ range: null, note: 'empty' });
+    });
+
     test('gives a PDF page only once it is drawn, and nothing with no item selected', async () => {
       layout.pane = 'work';
       expect(window.Workbench.rangeNow()).toBeNull();
@@ -590,6 +617,8 @@ describe('Workbench', () => {
       try {
         view([paper], { assets: { i_p: '/workbench/asset/p' } });
         await flush();
+        document.querySelector('#workbench-view .workbench-pdf').getBoundingClientRect =
+          () => ({ top: 0, bottom: 500, left: 0, right: 400, height: 500 });
         expect(window.Workbench.rangeNow()).toMatchObject({ range: null, note: 'drawing' });
         shown = { status: 'ready', page: 2, pages: 5, scale: 1.25 };
         expect(window.Workbench.rangeNow()).toMatchObject({ range: { page: 2, pages: 5, scale_percent: 125 }, note: null });

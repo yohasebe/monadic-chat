@@ -3,6 +3,7 @@
 require_relative '../../workbench/channel'
 require_relative '../../workbench/look'
 require_relative '../../workbench/look/record'
+require_relative '../../workbench/show'
 
 # The workbench over the main socket (Monadic::Workbench::Channel): the
 # view a page is sent, the user's removal of an item from the board, a file
@@ -48,11 +49,27 @@ module WebSocketHelper
 
   # The looks of the reply to request_id (Look::Ledger#records), let go
   # as the reply is recorded; nil when it looked at nothing.
+  # What the user showed with the message (and how far it went) is kept on
+  # the user's message, once, from the same take.
   def workbench_looks_of_reply(session, request_id)
     ledger = request_id && Monadic::Workbench::Look::Ledger.take(request_id)
     return nil unless ledger && ledger.chat_id == session[Monadic::Workspace::Chats::SESSION_KEY]
 
-    Monadic::Workbench::Look::Record.clean(ledger.records)
+    workbench_shown_settled(session, request_id, ledger)
+    Monadic::Workbench::Look::Record.clean(ledger.records(origin: "tool"))
+  end
+
+  # The user's message of request_id gets the records of what the user
+  # showed with it, as far as it went now. Returns the turn changed, or nil.
+  def workbench_shown_settled(session, request_id, ledger)
+    shown = Monadic::Workbench::Look::Record.clean(ledger.records(origin: "user"))
+    return nil unless shown
+
+    turn = Array(session[:messages]).find { |m| m.is_a?(Hash) && m["role"] == "user" && m["request_id"] == request_id }
+    return nil unless turn
+
+    turn["workbench_shown"] = shown
+    turn
   end
 
   # A reply ended without its message: what it looked at in the work
@@ -62,15 +79,18 @@ module WebSocketHelper
   # that session is in another chat now.
   def workbench_looks_without_reply(request_id, ws_session_id)
     ledger = Monadic::Workbench::Look::Ledger.take(request_id)
-    records = Monadic::Workbench::Look::Record.clean(ledger&.records)
     session = ledger&.session
-    return unless records && session && session[Monadic::Workspace::Chats::SESSION_KEY] == ledger.chat_id
+    return unless session && session[Monadic::Workspace::Chats::SESSION_KEY] == ledger.chat_id
 
+    shown_turn = workbench_shown_settled(session, request_id, ledger)
+    records = Monadic::Workbench::Look::Record.clean(ledger.records(origin: "tool"))
     turn = Array(session[:messages]).find { |m| m.is_a?(Hash) && m["role"] == "user" && m["request_id"] == request_id }
-    return unless turn
+    return unless turn && (records || shown_turn)
 
-    turn["workbench_looks"] = records
-    send_or_broadcast({ "type" => "workbench_looks", "mid" => turn["mid"], "looks" => records }.to_json, ws_session_id)
+    if records
+      turn["workbench_looks"] = records
+      send_or_broadcast({ "type" => "workbench_looks", "mid" => turn["mid"], "looks" => records }.to_json, ws_session_id)
+    end
     # Saved now, as any change of the chat is (the tab's connection and the
     # history's rules decide), not left for the next one: the reply may
     # have ended with the connection.
@@ -105,6 +125,29 @@ module WebSocketHelper
     end
     workbench_deliver(connection).call(result)
     send_workbench_view(connection, session) unless result['status'] == 'refused'
+  end
+
+  # "Show to the assistant" pressed on this connection's page: accepted
+  # (the page is told when what it shows is ready) or refused at once.
+  def handle_ws_workbench_show(connection, obj, session)
+    tab, generation = workbench_connection(session).values_at(:tab, :generation)
+    chat_id = session[Monadic::Workspace::Chats::SESSION_KEY]
+    deliver = lambda do |message|
+      WebSocketHelper.send_to_connection(tab, generation, message.to_json, chat_id: chat_id)
+    end
+    accepted = Monadic::Workbench::Show.press(
+      session: session, tab: tab, generation: generation, op_id: obj['op_id'].to_s, item_id: obj['item_id'],
+      version: obj['version'], serial: obj['serial'], deliver: deliver
+    )
+    return if accepted == true
+
+    workbench_deliver(connection).call({ 'type' => 'workbench_shown', 'op_id' => obj['op_id'].to_s,
+                                         'status' => 'refused', 'reason' => accepted })
+  end
+
+  def handle_ws_workbench_show_remove(obj, session)
+    tab, generation = workbench_connection(session).values_at(:tab, :generation)
+    Monadic::Workbench::Show.remove(tab: tab, generation: generation, op_id: obj['op_id'].to_s)
   end
 
   def handle_ws_workbench_select(connection, obj, session)

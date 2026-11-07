@@ -203,6 +203,7 @@ module WebSocketHelper
     # What the work screen was asked through the tab's older connection is
     # not answered now.
     Monadic::Workbench::Capture.revoke_tab(session_id, except_generation: generation) if defined?(Monadic::Workbench::Capture)
+    Monadic::Workbench::Shown.revoke_tab(session_id, except_generation: generation) if defined?(Monadic::Workbench::Shown)
   end
 
   # Only the connection that registered it removes it, so an old

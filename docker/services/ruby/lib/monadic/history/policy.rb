@@ -46,6 +46,8 @@ module Monadic
         remember(chat_id)
         # What the work screen was asked for this chat is not taken now.
         Monadic::Workbench::Capture.revoke_chat(chat_id) if chat_id && defined?(Monadic::Workbench::Capture)
+        # Nothing it was about to show from the work screen is shown now.
+        Monadic::Workbench::Shown.revoke_chat(chat_id) if chat_id && defined?(Monadic::Workbench::Shown)
       end
 
       # The chat is a normal one again: only for a chat that has not begun

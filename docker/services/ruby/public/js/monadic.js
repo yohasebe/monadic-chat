@@ -3421,6 +3421,9 @@ document.addEventListener("DOMContentLoaded", function () {
       if (message.artifacts) {
         message_obj.artifacts = message.artifacts;
       }
+      if (message.workbench_shown) {
+        message_obj.workbench_shown = message.workbench_shown;
+      }
       if (message.workbench_looks) {
         message_obj.workbench_looks = message.workbench_looks;
       }

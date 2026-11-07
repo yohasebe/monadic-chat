@@ -333,11 +333,14 @@ module GrokHelper
             }
           end
         end
-        # What the work screen shows, after the message's own parts.
+        # What the work screen shows, after the message's own parts, and
+        # what the user showed from it.
         if (observation = observation_for(session, msg))
           message["content"] << { "type" => "text", "text" => observation }
         end
-        message
+        chat_message_with_shown(message, workbench_shown_parts(session, msg)) do |image|
+          { "type" => "image_url", "image_url" => { "url" => image.data_url, "detail" => "high" } }
+        end
       end
     end
 

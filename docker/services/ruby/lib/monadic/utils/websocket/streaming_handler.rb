@@ -4,6 +4,9 @@ require_relative '../../workspace'
 require_relative '../privacy/outbound'
 require_relative '../../workbench/channel'
 require_relative '../../workbench/observation'
+require_relative '../../workbench/show'
+require_relative '../../workbench/look/availability'
+require_relative '../../workbench/look/record'
 
 require_relative '../tts_provider'
 
@@ -220,6 +223,78 @@ module WebSocketHelper
     nil
   end
 
+  # What the user showed with the message (ids of Workbench::Shown), handed
+  # all at once to the request's looks (as the user's): hand gets what was
+  # handed (:handed, as it is handed), that the request's looks have it
+  # (:ledger) and what the user's message records (:records). false when the
+  # message is not accepted (the page is told why); what was handed is then
+  # given back by the caller (give_back_workbench_shown).
+  private def hand_workbench_shown(session, chat_id, request_id, ids, obj, hand)
+    tab = Thread.current[:websocket_session_id]
+    generation = session[:_ws_generation]
+    provider = workbench_provider(session, obj)
+    model = obj["model"] || session.dig(:parameters, "model")
+    epoch = Monadic::Workspace::Chats.epoch(chat_id)
+    if Monadic::History::Policy.private?(session) || Monadic::History::Policy.known_private?(chat_id)
+      raise Monadic::Workbench::Shown::Refused.new("private", "nothing is shown from the work screen in a Private chat")
+    end
+
+    images = Monadic::Workbench::Look::Availability.vision?(provider, model)
+    Thread.handle_interrupt(Object => :never) do
+      hand[:handed] = Monadic::Workbench::Shown.take_all(
+        tab: tab, generation: generation, chat_id: chat_id, epoch: epoch, snapshot_ids: ids, images: images
+      )
+    end
+    hand[:ledger] = true
+    ledger = Monadic::Workbench::Look::Ledger.for(chat_id, epoch, request_id, session: session, tab: tab)
+    hand[:handed].each { |entry| ledger.add(entry.seen) }
+    hand[:records] = Monadic::Workbench::Look::Record.clean(ledger.records(origin: "user")) || []
+    true
+  rescue Monadic::Workbench::Shown::Refused, Monadic::Workbench::Look::Refused => e
+    workbench_shown_refused(e, tab)
+    false
+  end
+
+  # Records the user's message (the block) as what was handed is taken for
+  # good, at once: false when any of it ended meanwhile (taken back,
+  # Private, Reset, expired), and then the message is not recorded.
+  private def record_with_workbench_shown(hand, ws_session_id)
+    Thread.handle_interrupt(Object => :never) do
+      Monadic::Workbench::Shown.commit(hand[:handed])
+      yield
+      hand[:done] = true
+    end
+    true
+  rescue Monadic::Workbench::Shown::Refused => e
+    workbench_shown_refused(e, ws_session_id)
+    false
+  end
+
+  # The message was not accepted: the request's looks are let go and what
+  # was handed is ready again (unless it ended meanwhile).
+  private def give_back_workbench_shown(hand, request_id)
+    Thread.handle_interrupt(Object => :never) do
+      Monadic::Workbench::Look::Ledger.take(request_id) if hand[:ledger]
+      Monadic::Workbench::Shown.give_back(hand[:handed]) if hand[:handed]
+    end
+  end
+
+  private def workbench_shown_refused(error, tab)
+    send_error("What you showed from the work screen was not sent (#{error.reason}): #{error.message}.", tab,
+               { "not_accepted" => true, "workbench_shown" => error.reason })
+  end
+
+  # The standard name of the provider of the session's app (as the
+  # adapters name it).
+  private def workbench_provider(session, obj)
+    app_name = obj["app_name"] || session.dig(:parameters, "app_name")
+    app = defined?(APPS) ? APPS[app_name] : nil
+    configured = app.respond_to?(:settings) ? app.settings["provider"] : nil
+    return nil unless configured
+
+    defined?(MonadicDSL::ProviderConfig) ? MonadicDSL::ProviderConfig.new(configured).standard_key : configured.to_s.downcase
+  end
+
   private def handle_ws_streaming(connection, obj, session, queue)
     # Get session ID for targeted broadcasting throughout streaming
     ws_session_id = Thread.current[:websocket_session_id]
@@ -263,6 +338,10 @@ module WebSocketHelper
     # (workbench_range): it goes into what the model is told with a message
     # the user sent, and is never kept with the chat's parameters.
     reported_range = obj.delete("workbench_range")
+    # What the user showed from the work screen ("Show to the assistant"):
+    # ids of what is held for this connection, taken below, never kept with
+    # the chat's parameters nor mixed with the message's images.
+    shown_ids = obj.delete("workbench_shown")
     request_id = Monadic::Workspace::Ids.generate(:request)
     # The user's own message: text, or attached files only (video or audio
     # as attachments, images and PDFs as images).
@@ -290,35 +369,55 @@ module WebSocketHelper
       return nil
     end
 
-    # Start background token counting for the user message immediately
-    message_text = obj["message"].to_s
-    # A message of attached files only (video or audio, or images and
-    # PDFs) is recorded too, under its request.
-    if user_sent
-      unless message_text.empty?
-        # Use o200k_base encoding for most LLMs
-        token_count_thread = initialize_token_counting(message_text, "o200k_base")
-        Thread.current[:token_count_thread] = token_count_thread
+    # What the user showed goes to the request with the message, all of it
+    # or none: it is handed over now and taken for good only as the user's
+    # message is recorded (hand[:done]); anything that stops the message
+    # before that gives it back.
+    hand = {}
+    begin
+      if shown_ids
+        return nil unless hand_workbench_shown(session, chat_at_start, request_context.request_id, shown_ids, obj, hand)
+
+        user_sent = true
       end
 
-      # Add user message to session for context extraction
-      params = get_session_params
-      user_message_data = {
-        "mid" => SecureRandom.hex(4),
-        "role" => "user",
-        "text" => message_text,
-        "app_name" => params["app_name"],
-        "active" => true
-      }.merge(user_turn_fields(request_id: request_context.request_id, chat_id: chat_at_start,
-                               app_name: params["app_name"], attachment_refs: attachment_refs))
-      session[:messages] << user_message_data
-      sync_session_state!
+      # Start background token counting for the user message immediately
+      message_text = obj["message"].to_s
+      # A message of attached files only (video or audio, or images and
+      # PDFs) is recorded too, under its request.
+      if user_sent
+        unless message_text.empty?
+          # Use o200k_base encoding for most LLMs
+          token_count_thread = initialize_token_counting(message_text, "o200k_base")
+          Thread.current[:token_count_thread] = token_count_thread
+        end
 
-      # Privacy Filter auto-detect: lock the session language from the
-      # user's actual typed text (pre-vendor, no placeholder contamination).
-      # No-op when conversation_language != "auto" or already locked.
-      require_relative '../privacy/language_detector'
-      Monadic::Utils::Privacy::LanguageDetector.detect_and_lock!(message_text, session)
+        # Add user message to session for context extraction
+        params = get_session_params
+        user_message_data = {
+          "mid" => SecureRandom.hex(4),
+          "role" => "user",
+          "text" => message_text,
+          "app_name" => params["app_name"],
+          "active" => true
+        }.merge(user_turn_fields(request_id: request_context.request_id, chat_id: chat_at_start,
+                                 app_name: params["app_name"], attachment_refs: attachment_refs))
+        user_message_data["workbench_shown"] = hand[:records] if hand[:records]
+        if hand[:handed]
+          return nil unless record_with_workbench_shown(hand, ws_session_id) { session[:messages] << user_message_data }
+        else
+          session[:messages] << user_message_data
+        end
+        sync_session_state!
+
+        # Privacy Filter auto-detect: lock the session language from the
+        # user's actual typed text (pre-vendor, no placeholder contamination).
+        # No-op when conversation_language != "auto" or already locked.
+        require_relative '../privacy/language_detector'
+        Monadic::Utils::Privacy::LanguageDetector.detect_and_lock!(message_text, session)
+      end
+    ensure
+      give_back_workbench_shown(hand, request_context.request_id) unless hand[:done]
     end
 
     # Extract TTS parameters if auto_speech is enabled
@@ -760,5 +859,11 @@ module WebSocketHelper
     # Whoever stops the thread can end the answer (reply_state.rb).
     thread[:reply_request_id] = request_id
     thread  # return the thread for the orchestrator
+  ensure
+    # A message recorded with what the user showed belongs to its request
+    # from then on: when its reply's worker did not start (the worker ends
+    # the request otherwise), it ends here without an answer, so what it
+    # showed is let go and how far it went is kept on the message.
+    finish_reply(request_context.request_id, "no_reply", ws_session_id) if hand&.dig(:done) && thread.nil?
   end
 end

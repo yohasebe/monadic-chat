@@ -513,6 +513,10 @@ module WebSocketHelper
   end
 
   private def handle_ws_reset(session)
+    # What the tab was about to show the assistant in the chat being reset
+    # is let go.
+    reset_chat = session[Monadic::Workspace::Chats::SESSION_KEY]
+    Monadic::Workbench::Shown.revoke_chat(reset_chat) if reset_chat && defined?(Monadic::Workbench::Shown)
     # A live speech-to-speech bridge must not survive Reset: it would keep
     # the upstream socket (and billing) alive against a cleared canon, and
     # keep speaking into a conversation that no longer exists.

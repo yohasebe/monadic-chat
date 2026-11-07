@@ -32,10 +32,12 @@ module Monadic
       SNAPSHOT_ID = /\A[A-Za-z0-9_-]{22}\z/
 
       class Refused < StandardError
-        attr_reader :reason
+        attr_reader :reason, :ids
 
-        def initialize(reason, message)
+        # ids: the snapshot ids that are why (others may still be shown).
+        def initialize(reason, message, ids: nil)
           @reason = reason
+          @ids = ids
           super(message)
         end
       end
@@ -136,7 +138,10 @@ module Monadic
             entries = ids.map do |id|
               @entries.values.find { |e| e.snapshot_id == id && e.tab == tab.to_s && e.generation == generation }
             end
-            raise Refused.new('expired', 'something the message shows is no longer held; show it again') if entries.any? { |e| e.nil? || e.state != 'ready' }
+            gone = ids.each_index.reject { |at| entries[at]&.state == 'ready' }.map { |at| ids[at] }
+            unless gone.empty?
+              raise Refused.new('expired', 'something the message shows is no longer held; show it again', ids: gone)
+            end
             unless entries.all? { |e| e.chat_id == chat_id && e.epoch == epoch }
               raise Refused.new('changed', 'something the message shows was taken in another chat')
             end
@@ -154,10 +159,12 @@ module Monadic
         def commit(handed)
           @lock.synchronize do
             entries = handed.map { |copy| @entries[[copy.tab, copy.generation, copy.op_id]] }
-            unless entries.zip(handed).all? do |entry, copy|
+            gone = entries.zip(handed).reject do |entry, copy|
               entry && entry.snapshot_id == copy.snapshot_id && entry.state == 'handing' && entry.expires_at > clock
             end
-              raise Refused.new('expired', 'something the message shows is no longer held; show it again')
+            unless gone.empty?
+              raise Refused.new('expired', 'something the message shows is no longer held; show it again',
+                                ids: gone.map { |_entry, copy| copy.snapshot_id })
             end
 
             entries.each { |entry| end!(entry, 'taken') }

@@ -42,6 +42,9 @@
   // Bumped whenever what is shown is cleared: a frame decoded for an older
   // view is not drawn.
   var view = 0;
+  // The frame drawn now: the JPEG's base64, for the browser, stream and
+  // view it was drawn in (what "Show to the assistant" fixes), or null.
+  var drawn = null;
 
   function t(key, fallback) {
     return typeof webUIi18n !== 'undefined' ? webUIi18n.t(key) : fallback;
@@ -65,6 +68,7 @@
   // Shows a message in place of the image (key under ui.sidePane).
   function showMessage(key, fallback) {
     view += 1;
+    drawn = null;
     var image = $id('work-screen-image');
     if (image) {
       image.removeAttribute('src');
@@ -100,6 +104,7 @@
     if (browser === null || !socket || socket.readyState !== WebSocket.OPEN) return;
     subscribed = browser;
     stream = null;
+    drawn = null;
     send({ type: 'subscribe', browser: browser });
   }
 
@@ -168,6 +173,7 @@
     socket = null;
     stream = null;
     subscribed = null;
+    drawn = null;
     if (conn) conn.close();
     showEmpty();
   }
@@ -212,6 +218,7 @@
       image.src = decoded.src;
       $show(image);
       $hide(note);
+      drawn = { browser: subscribed, stream: message.stream, view: shown, data: message.data };
       send({ type: 'frame-consumed', stream: message.stream, n: message.n });
     }).catch(function() {
       // An image that does not decode is not drawn; the next one is sent
@@ -234,7 +241,16 @@
   document.addEventListener('layoutchange', refresh);
   document.addEventListener('visibilitychange', refresh);
 
+  // The frame on the screen now ({ browser, data }), or null: only the one
+  // drawn in this view, for the stream and browser shown, while it can be
+  // seen.
+  function drawnFrame() {
+    if (!drawn || drawn.view !== view || drawn.stream !== stream || drawn.browser !== subscribed || !visible()) return null;
+    return { browser: drawn.browser, data: drawn.data };
+  }
+
   window.WorkScreen = {
+    drawnFrame: drawnFrame,
     refresh: refresh,
     onPass: onPass,
     onChatEvent: onChatEvent,

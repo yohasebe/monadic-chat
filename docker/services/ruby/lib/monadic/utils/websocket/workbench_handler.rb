@@ -55,8 +55,16 @@ module WebSocketHelper
     ledger = request_id && Monadic::Workbench::Look::Ledger.take(request_id)
     return nil unless ledger && ledger.chat_id == session[Monadic::Workspace::Chats::SESSION_KEY]
 
-    workbench_shown_settled(session, request_id, ledger)
+    turn = workbench_shown_settled(session, request_id, ledger)
+    workbench_shown_told(turn, ledger.chat_id, Thread.current[:websocket_session_id]) if turn
     Monadic::Workbench::Look::Record.clean(ledger.records(origin: "tool"))
+  end
+
+  # The page is told how far what the user showed went (its message's
+  # records), for the chat it belongs to.
+  def workbench_shown_told(turn, chat_id, ws_session_id)
+    send_or_broadcast({ "type" => "workbench_shown_records", "mid" => turn["mid"], "chat_id" => chat_id,
+                        "shown" => turn["workbench_shown"] }.to_json, ws_session_id)
   end
 
   # The user's message of request_id gets the records of what the user
@@ -83,6 +91,7 @@ module WebSocketHelper
     return unless session && session[Monadic::Workspace::Chats::SESSION_KEY] == ledger.chat_id
 
     shown_turn = workbench_shown_settled(session, request_id, ledger)
+    workbench_shown_told(shown_turn, ledger.chat_id, ws_session_id) if shown_turn
     records = Monadic::Workbench::Look::Record.clean(ledger.records(origin: "tool"))
     turn = Array(session[:messages]).find { |m| m.is_a?(Hash) && m["role"] == "user" && m["request_id"] == request_id }
     return unless turn && (records || shown_turn)

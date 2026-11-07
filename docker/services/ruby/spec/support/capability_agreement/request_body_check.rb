@@ -338,7 +338,7 @@ RSpec.describe "Capability note in the request body" do
   # handler with a file open on the workbench and selected in the tab.
   def run_observed_conversation(mod, provider, key, first_reply, second_reply, first_message: "Define it", images: nil,
                                 vision: false, shown_file: ["notes.txt", "one\ntwo\n"], look: false,
-                                takes_images: true, chain: nil, private_after_tool: false)
+                                takes_images: true, chain: nil, private_after_tool: false, browser: false)
     dir = Dir.mktmpdir("observation-body-")
     data = File.join(dir, "data")
     FileUtils.mkdir_p([data, File.join(dir, "state")])
@@ -350,10 +350,18 @@ RSpec.describe "Capability note in the request body" do
     Thread.current[:websocket_session_id] = "tab-1"
     chat = Monadic::Workspace::Ids.generate(:chat)
     File.binwrite(File.join(data, shown_file[0]), shown_file[1])
-    item, = Monadic::Workbench::Board.for(chat).add_file(
-      path: shown_file[0], origin: { actor: :user, source: :panel, tab: "tab-1", generation: 1 },
-      epoch: Monadic::Workspace::Chats.epoch(chat)
-    )
+    item, = if browser
+              # The chat's browser, selected in the tab (its picture is the test's).
+              Monadic::Workbench::Board.for(chat).add_browser(
+                instance: "inst-1", origin: { actor: :agent, source: :browser, tab: "tab-1", generation: 1 },
+                epoch: Monadic::Workspace::Chats.epoch(chat)
+              )
+            else
+              Monadic::Workbench::Board.for(chat).add_file(
+                path: shown_file[0], origin: { actor: :user, source: :panel, tab: "tab-1", generation: 1 },
+                epoch: Monadic::Workspace::Chats.epoch(chat)
+              )
+            end
 
     models = Monadic::Utils::ModelSpec.get_provider_models(provider, "chat") || []
     model = (vision ? models.find { |m| Monadic::Utils::ModelSpec.get_model_property(m, "vision_capability") } : models.first) ||
@@ -558,6 +566,33 @@ RSpec.describe "Capability note in the request body" do
       expect(all_logs).not_to include(pixel[0, 40])
       expect(all_logs).not_to include(page_text)
       expect(all_logs).not_to include(selected)
+    end
+  end
+
+  # A look at the chat's browser gives a picture of its viewport: it goes
+  # in the request that returns the tool's result, once, and the chat keeps
+  # the page's title and address without its query.
+  providers.each do |mod, (provider, key, first_reply, second_reply)|
+    it "#{mod.name}: gives the model a picture of the browser it looked at, once" do
+      @called_tool = "look_at_workbench"
+      allow(Monadic::WorkScreen).to receive(:available?).and_return(true)
+      allow(MonadicSharedTools::BrowserOwner).to receive(:view) do |chat|
+        MonadicSharedTools::BrowserOwner::View.new(chat, Monadic::Workspace::Chats.epoch(chat), "inst-1", "sess-1", "W1")
+      end
+      allow_any_instance_of(Monadic::WorkScreen::BrowserBinding).to receive(:broken).and_return(nil)
+      allow(Monadic::WorkScreen::Snapshot).to receive(:take).and_return(
+        { png: Base64.decode64(pixel), url: "https://example.com/page?token=SECRET", title: "Example page",
+          crop: { "x" => 0, "y" => 0, "width" => 10, "height" => 10, "sent_width" => 1, "sent_height" => 1 } }
+      )
+      bodies, session, = run_observed_conversation(mod, provider, key, first_reply, second_reply, look: true,
+                                                                                                  vision: true, browser: true)
+      expect(bodies.size).to eq(3)
+      expect(bodies.map { |b| JSON.generate(b).scan(pixel[0, 40]).size }).to eq([0, 1, 0])
+      expect(JSON.generate(bodies[1])).to include("https://example.com/page")
+      expect(JSON.generate(bodies)).not_to include("SECRET")
+      reply = session[:messages].find { |m| m["role"] == "assistant" }
+      expect(reply["workbench_looks"]).to match([a_hash_including("kind" => "browser", "source" => "workbench_browser",
+                                                                   "name" => "Example page", "state" => "sent")])
     end
   end
 

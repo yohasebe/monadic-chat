@@ -5,6 +5,8 @@ require 'async'
 require 'async/queue'
 require_relative 'tokens'
 require_relative 'cdp'
+require_relative 'browser_binding'
+require_relative 'viewport'
 require_relative '../shared_tools/browser_owner'
 require_relative '../workspace/chats'
 
@@ -45,7 +47,7 @@ module Monadic
       MAX_WIDTH = 1280
       MAX_HEIGHT = 900
 
-      Binding = Struct.new(:tab, :generation, :chat, :epoch, :instance, :session, :window)
+      Binding = BrowserBinding
 
       @viewers = {}
       @viewers_lock = Mutex.new
@@ -207,16 +209,7 @@ module Monadic
       # Why binding no longer holds (:connection, :chat, :replaced,
       # :browser_closed, or :window when only the window changed), or nil.
       def check(binding, view = MonadicSharedTools::BrowserOwner.view(binding.chat))
-        return :connection unless WebSocketHelper.live_generation(binding.tab) == binding.generation
-
-        session = WebSocketHelper.live_session(binding.tab)
-        return :chat unless session && session[Monadic::Workspace::Chats::SESSION_KEY] == binding.chat
-        return :replaced unless Monadic::Workspace::Chats.epoch(binding.chat) == binding.epoch
-        return :browser_closed unless view && view.epoch == binding.epoch && view.instance == binding.instance &&
-                                      view.session == binding.session
-        return :window unless view.window == binding.window
-
-        nil
+        binding.broken(view)
       end
 
       # Shows the browser while the binding holds. When only the window
@@ -330,30 +323,21 @@ module Monadic
 
       # A still of the page as it is, at the screencast's size: a page that
       # does not repaint sends no screencast frame.
+      # No still when the viewport is not known: the screencast's frames
+      # come instead.
       def first_frame(cdp, target)
-        metrics = cdp.command('Page.getLayoutMetrics', {}, session_id: target, timeout: 5)
-        css = metrics['cssVisualViewport'] || {}
-        scale = scale_for(metrics, css)
+        view = Viewport.read(cdp.command('Page.getLayoutMetrics', {}, session_id: target, timeout: 5))
+        return nil unless view
+
+        # No larger than the screencast's frames.
+        scale = Viewport.scale(view, max_width: MAX_WIDTH, max_height: MAX_HEIGHT).clamp(0.1, 1.0)
         shot = cdp.command('Page.captureScreenshot',
                            { format: 'jpeg', quality: 60,
-                             clip: { x: css['pageX'].to_f, y: css['pageY'].to_f, width: css['clientWidth'].to_f,
-                                     height: css['clientHeight'].to_f, scale: scale } },
+                             clip: { x: view[:x], y: view[:y], width: view[:width], height: view[:height], scale: scale } },
                            session_id: target, timeout: 5)
         image(shot['data'])
       rescue Cdp::Error
         nil
-      end
-
-      # The scale that gives an image no larger than the screencast's.
-      def scale_for(metrics, css)
-        width = css['clientWidth'].to_f
-        height = css['clientHeight'].to_f
-        return 1.0 unless width.positive? && height.positive?
-
-        device = metrics.dig('contentSize', 'width').to_f
-        page = metrics.dig('cssContentSize', 'width').to_f
-        ratio = page.positive? && device.positive? ? device / page : 1.0
-        [1.0, MAX_WIDTH / width / ratio, MAX_HEIGHT / height / ratio].min.clamp(0.1, 1.0)
       end
 
       # stream: given for a live state, which is then sent only while that

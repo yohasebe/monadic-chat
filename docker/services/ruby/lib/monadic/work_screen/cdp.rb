@@ -21,6 +21,8 @@ module Monadic
     # connection that ends for any reason is released once.
     class Cdp
       class Error < StandardError; end
+      # A connection or a command that did not answer in its time.
+      class Timeout < Error; end
 
       EVENT_LIMIT = 16
       # A message larger than this ends the connection.
@@ -28,15 +30,21 @@ module Monadic
       CONNECT_LIMIT = 10
       SEND_LIMIT = 2
       CLOSE_LIMIT = 2
+      # Seconds a close may take once the socket is closed (abort_transport).
+      ABORT_LIMIT = 0.1
       FRAME = 'Page.screencastFrame'
 
-      def self.open(url)
-        cdp = new
-        cdp.connect(url)
+      # connect_limit: seconds the connection may take to open. close_by:
+      # the monotonic time by which the connection, however it ends, is
+      # closed (nil: CLOSE_LIMIT from when it ends).
+      def self.open(url, connect_limit: CONNECT_LIMIT, close_by: nil)
+        cdp = new(close_by: close_by)
+        cdp.connect(url, limit: connect_limit)
         cdp
       end
 
-      def initialize
+      def initialize(close_by: nil)
+        @close_by = close_by
         @next_id = 0
         @waiting = {}
         @events = Async::Queue.new
@@ -45,11 +53,14 @@ module Monadic
         @sending = Async::Semaphore.new(1)
       end
 
-      def connect(url)
-        Async::Task.current.with_timeout(CONNECT_LIMIT) do
+      def connect(url, limit: CONNECT_LIMIT)
+        Async::Task.current.with_timeout(limit) do
           @connection = Async::WebSocket::Client.connect(Async::HTTP::Endpoint.parse(url))
         end
         @reader = Async { read_all }
+      rescue Async::TimeoutError
+        close
+        raise Timeout, 'connect timed out'
       rescue StandardError => e
         close
         raise Error, "connect failed (#{e.class})"
@@ -72,7 +83,7 @@ module Monadic
 
         answer['result'] || {}
       rescue Async::TimeoutError
-        raise Error, "#{method} timed out"
+        raise Timeout, "#{method} timed out"
       ensure
         @waiting.delete(id) if id
       end
@@ -107,8 +118,10 @@ module Monadic
         @closed
       end
 
-      def close
-        release
+      # limit: seconds the close may take; past them (or with none) the
+      # transport is closed without the closing handshake.
+      def close(limit: nil)
+        release(limit)
       end
 
       private
@@ -167,19 +180,47 @@ module Monadic
 
       # Closes the transport and wakes every waiter, once, however the
       # connection ended.
-      def release
+      # limit: seconds the closing may take (nil: CLOSE_LIMIT); never past
+      # close_by.
+      def release(limit = nil)
         return if @closed
 
         @closed = true
+        limit ||= CLOSE_LIMIT
+        limit = [limit, @close_by - Process.clock_gettime(Process::CLOCK_MONOTONIC)].min if @close_by
         begin
-          Async::Task.current.with_timeout(CLOSE_LIMIT) { @connection&.close }
+          raise Async::TimeoutError unless limit.positive?
+
+          Async::Task.current.with_timeout(limit) { @connection&.close }
         rescue StandardError
-          nil
+          abort_transport
         ensure
           @reader&.stop unless @reader.equal?(Async::Task.current)
           wake_all
         end
       end
+
+      # Closes the connection's socket at once: no closing frame and no
+      # flush of what is still to be written (either may be what does not
+      # finish). Client.connect gives the connection inside a decorator that
+      # also owns its HTTP client; the connection's framer holds the stream
+      # (the one value read from a gem's insides: Framer has no reader for
+      # it), whose io is the socket. Once the socket is closed, nothing is
+      # waited on to be sent; what the decorator's close still does (the
+      # connection, then its client) is given ABORT_LIMIT at most.
+      def abort_transport
+        return unless @connection
+
+        raw = @connection.respond_to?(:__getobj__) ? @connection.__getobj__ : @connection
+        framer = raw.respond_to?(:framer) ? raw.framer : nil
+        stream = framer&.instance_variable_get(:@stream)
+        socket = stream.respond_to?(:io) ? stream.io : nil
+        socket&.close
+        Async::Task.current.with_timeout(ABORT_LIMIT) { @connection.close } if socket
+      rescue StandardError
+        nil
+      end
+
 
       # Nothing waits for a reply or an event that will not come.
       def wake_all

@@ -56,8 +56,10 @@
   // a reconnect) is the same operation on the server.
   const operations = new Map();
   let askedViewAt = 0;
-  // What the server last said this tab has selected.
+  // What the server last said this tab has selected, and the number of
+  // that selection (a capture names it).
   let serverSelected = null;
+  let serverSerial = null;
   // A file the user asked to open: the pane is shown when it comes.
   let opening = null;
   // An item the user opened, shown as soon as the board has it.
@@ -71,6 +73,8 @@
   // The number of this tab's latest selection told to the server: an
   // answer to an older one is not taken.
   let selectSeq = 0;
+  // The latest selection the server answered (selectSeq when none waits).
+  let answeredSeq = 0;
 
   function t(key, fallback) {
     return typeof webUIi18n !== 'undefined' ? webUIi18n.t(key) : fallback;
@@ -624,6 +628,7 @@
     assets = {};
     selected = null;
     serverSelected = null;
+    serverSerial = null;
     opening = null;
     pendingOpen = null;
     letGo(drawnBody);
@@ -759,6 +764,48 @@
     return report(null, 'unknown');
   }
 
+  // ---- what the server asks the work screen (a look) ------------------
+
+  // The answer to a capture (workbench_capture): what the pane shows now of
+  // the item asked for, only while it is the selection the server has for
+  // this tab (by its number) and no selection of this page is waiting for
+  // the server's answer. Only what was asked for (wants) is given.
+  function captureAnswer(data) {
+    if (answeredSeq !== selectSeq) return { range: null, note: 'changing' };
+    const item = selected ? itemById(selected) : null;
+    const version = item ? (item.version || item.sha256 || '') : '';
+    if (!item || item.id !== data.item_id || version !== data.version || serverSelected !== selected ||
+        serverSerial !== data.serial) {
+      return { range: null, note: 'selection_changed' };
+    }
+    const now = rangeNow();
+    if (!now || now.item_id !== data.item_id || now.version !== data.version) {
+      return { range: null, note: 'selection_changed' };
+    }
+    const wants = Array.isArray(data.wants) ? data.wants : [];
+    const lines = now.range && Number.isInteger(now.range.first_line) && Number.isInteger(now.range.last_line);
+    if (wants.includes('range') && lines) {
+      return { range: { first_line: now.range.first_line, last_line: now.range.last_line }, note: null };
+    }
+    return { range: null, note: now.note || 'unknown' };
+  }
+
+  // Answers a capture by HTTP, to the address only this connection was
+  // given (its id), so that the answer does not wait behind the socket.
+  function onCapture(data) {
+    if (!data || typeof data.id !== 'string' || typeof fetch !== 'function') return;
+    let answer;
+    try {
+      answer = captureAnswer(data);
+    } catch (_) {
+      answer = { range: null, note: 'failed' };
+    }
+    fetch(`/workbench/capture/${encodeURIComponent(data.id)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(answer),
+      credentials: 'same-origin', cache: 'no-store', redirect: 'error'
+    }).catch(() => {});
+  }
+
   // ---- the user's preference -----------------------------------------
 
   // Whether a new item brings the work screen forward. A display
@@ -804,6 +851,7 @@
     const held = data.selected || null;
     const told = held !== serverSelected;
     serverSelected = held;
+    serverSerial = typeof data.selection_serial === 'number' ? data.selection_serial : null;
     // The board a connection is sent first (a reload, a reconnect) brings
     // nothing forward: none of it is new to the user.
     if (arrived.some((item) => item.actor === 'agent') && !data.initial) {
@@ -878,7 +926,9 @@
   // a refused selection, what is shown.
   function onSelected(data) {
     if (!data || (typeof data.seq === 'number' && data.seq !== selectSeq)) return;
+    if (typeof data.seq === 'number') answeredSeq = data.seq;
     serverSelected = data.item_id || null;
+    serverSerial = typeof data.serial === 'number' ? data.serial : null;
     if (data.status !== 'refused') return;
     selected = data.item_id && itemById(data.item_id) ? data.item_id : null;
     draw();
@@ -953,7 +1003,7 @@
   }
 
   window.Workbench = {
-    onView, onResult, onDownload, onOpened, onSelected, drawRecord, drawLooks, select, openFile, step, textLines, rangeNow,
+    onView, onResult, onDownload, onOpened, onSelected, onCapture, drawRecord, drawLooks, select, openFile, step, textLines, rangeNow,
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),
     // Whether the pane shows the browser (the relay runs only then).

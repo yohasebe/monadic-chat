@@ -31,6 +31,8 @@ module WebSocketHelper
     end
     return unless first
 
+    # What it asked the work screen is not taken now.
+    Monadic::Workbench::Capture.revoke_request(request_id) if defined?(Monadic::Workbench::Capture)
     # A reply that ends without its message offers nothing more: a candidate
     # it put on the workbench stops waiting (Monadic::Workbench::Offer).
     Monadic::Workbench::Offer.close(request_id) if outcome == "no_reply"

@@ -59,8 +59,9 @@ module Monadic
 
           assets[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256])
         end
+        selected, serial = board.selection(tab: tab, generation: generation)
         { 'type' => 'workbench', 'board' => snapshot, 'approvals' => approvals, 'assets' => assets,
-          'selected' => board.selected(tab: tab, generation: generation), 'initial' => only_existing }
+          'selected' => selected, 'selection_serial' => serial, 'initial' => only_existing }
       end
 
       # The user's removal of an image from the board, sent with the token
@@ -114,15 +115,15 @@ module Monadic
       def select(obj, session, tab:, generation:, live:)
         item_id = obj['item_id']
         seq = obj['seq'].is_a?(Integer) ? obj['seq'] : nil
-        return select_result(nil, 'not_allowed', seq) unless live.call(tab) == generation
+        return select_result(nil, nil, 'not_allowed', seq) unless live.call(tab) == generation
 
-        chat_id = chat_id_of(session) or return select_result(nil, 'not_allowed', seq)
+        chat_id = chat_id_of(session) or return select_result(nil, nil, 'not_allowed', seq)
         board = Board.existing(chat_id, private: private_chat?(session, chat_id))
-        return select_result(nil, item_id ? 'no such item' : nil, seq) unless board
+        return select_result(nil, nil, item_id ? 'no such item' : nil, seq) unless board
 
-        select_result(board.select(tab: tab, generation: generation, item_id: item_id), nil, seq)
+        select_result(*board.choose(tab: tab, generation: generation, item_id: item_id), nil, seq)
       rescue Board::Refused => e
-        select_result(board&.selected(tab: tab, generation: generation), e.message, seq)
+        select_result(*(board ? board.selection(tab: tab, generation: generation) : [nil, nil]), e.message, seq)
       end
 
       # An address from which this connection's page saves a copy of an
@@ -217,9 +218,10 @@ module Monadic
         { 'type' => 'workbench_opened', 'path' => path, 'status' => 'refused', 'reason' => reason }
       end
 
-      def select_result(item_id, reason, seq = nil)
-        { 'type' => 'workbench_selected', 'item_id' => item_id, 'status' => reason ? 'refused' : 'accepted',
-          'reason' => reason, 'seq' => seq }.compact
+      # serial: the number of the tab's selection now (Board#selection).
+      def select_result(item_id, serial, reason, seq = nil)
+        { 'type' => 'workbench_selected', 'item_id' => item_id, 'serial' => serial,
+          'status' => reason ? 'refused' : 'accepted', 'reason' => reason, 'seq' => seq }.compact
       end
 
       def download_refusal(artifact_id, reason)

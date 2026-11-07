@@ -42,7 +42,10 @@ module Monadic
 
       def mark_private!(session)
         session[SESSION_KEY] = PRIVATE
-        remember(session[Monadic::Workspace::Chats::SESSION_KEY] || session[Monadic::Workspace::Chats::SESSION_KEY.to_s])
+        chat_id = session[Monadic::Workspace::Chats::SESSION_KEY] || session[Monadic::Workspace::Chats::SESSION_KEY.to_s]
+        remember(chat_id)
+        # What the work screen was asked for this chat is not taken now.
+        Monadic::Workbench::Capture.revoke_chat(chat_id) if chat_id && defined?(Monadic::Workbench::Capture)
       end
 
       # The chat is a normal one again: only for a chat that has not begun

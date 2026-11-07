@@ -616,6 +616,67 @@ describe('Workbench', () => {
       expect(window.Workbench.rangeNow()).toMatchObject({ range: null, note: 'not_shown' });
     });
 
+    describe('answering what the server asks (a look)', () => {
+      const asked = (extra = {}) => Object.assign({
+        type: 'workbench_capture', id: 'cap-1', item_id: 'i_t', version: 'e'.repeat(64), serial: 7, wants: ['range']
+      }, extra);
+
+      // The answer the page posted, and where.
+      async function answer(request) {
+        const posted = jest.fn(() => Promise.resolve({ status: 204 }));
+        global.fetch = posted;
+        window.Workbench.onCapture(request);
+        await flush();
+        expect(posted).toHaveBeenCalledTimes(1);
+        const [url, init] = posted.mock.calls[0];
+        return { url, init, body: JSON.parse(init.body) };
+      }
+
+      async function showAsSelected(lines) {
+        layout.pane = 'work';
+        const box = await showText(lines);
+        view([notes], { assets: { i_t: '/workbench/asset/t' }, selected: 'i_t', selection_serial: 7,
+          board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [notes] } });
+        return box;
+      }
+
+      test('gives the lines in view of the item asked for, by POST to the address of the request only', async () => {
+        await showAsSelected(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+        const { url, init, body } = await answer(asked());
+        expect(url).toBe('/workbench/capture/cap-1');
+        expect(init).toMatchObject({ method: 'POST', credentials: 'same-origin', cache: 'no-store', redirect: 'error' });
+        expect(body).toEqual({ range: { first_line: 3, last_line: 5 }, note: null });
+      });
+
+      test('says the selection is changing while one of its selections waits for the server, and answers after', async () => {
+        await showAsSelected(['a', 'b', 'c', 'd']);
+        window.Workbench.select('i_t');
+        expect((await answer(asked())).body).toEqual({ range: null, note: 'changing' });
+        const seq = sent.filter((x) => x.payload.message === 'WORKBENCH_SELECT').pop().payload.seq;
+        window.Workbench.onSelected({ type: 'workbench_selected', status: 'accepted', item_id: 'i_t', serial: 9, seq: seq });
+        expect((await answer(asked())).body.note).toBe('selection_changed');
+        expect((await answer(asked({ serial: 9 }))).body.range).toEqual({ first_line: 3, last_line: 4 });
+      });
+
+      test('a refused selection also ends the wait', async () => {
+        await showAsSelected(['a', 'b', 'c', 'd']);
+        window.Workbench.select('i_t');
+        const seq = sent.filter((x) => x.payload.message === 'WORKBENCH_SELECT').pop().payload.seq;
+        window.Workbench.onSelected({ type: 'workbench_selected', status: 'refused', item_id: 'i_t', serial: 7, seq: seq });
+        expect((await answer(asked())).body.range).toEqual({ first_line: 3, last_line: 4 });
+      });
+
+      test('gives nothing for another item, version or selection, and says why it has no lines', async () => {
+        await showAsSelected(['a', 'b', 'c', 'd']);
+        for (const other of [{ item_id: 'i_x' }, { version: 'f'.repeat(64) }, { serial: 6 }]) {
+          expect((await answer(asked(other))).body).toEqual({ range: null, note: 'selection_changed' });
+        }
+        layout.pane = 'settings';
+        expect((await answer(asked())).body).toEqual({ range: null, note: 'not_shown' });
+        expect((await answer(asked({ wants: [] }))).body.range).toBeNull();
+      });
+    });
+
     test('says a text is empty once drawn with no line, and drawing before', async () => {
       layout.pane = 'work';
       let release;

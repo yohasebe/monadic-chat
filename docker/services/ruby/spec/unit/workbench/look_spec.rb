@@ -45,6 +45,13 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
 
   after { Monadic::Workspace::Ledger.clear_unsettled! }
 
+  around do |example|
+    transport = Monadic::Workbench::Capture.transport
+    example.run
+  ensure
+    Monadic::Workbench::Capture.transport = transport
+  end
+
   def write(path, bytes)
     full = File.join(@data, path)
     FileUtils.mkdir_p(File.dirname(full))
@@ -156,9 +163,14 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
       expect(Monadic::Workbench::Look::Record.clean(ledger.records).first).to include("image_sha256", "source", "item_id")
     end
 
-    it "does not widen the visible lines of a text file to the whole file" do
+    it "does not widen the visible lines of a text file to the whole file when the page does not say them" do
       write("notes.txt", "one\n")
       open_file("notes.txt")
+      Monadic::Workbench::Capture.transport = lambda do |_tab, _generation, _chat, json|
+        id = JSON.parse(json)["id"]
+        Thread.new { Monadic::Workbench::Capture.reading(id) { { "range" => nil, "note" => "unknown" } } }
+        true
+      end
       expect(look.run(caller_for, scope: "visible")).to start_with("❌").and include("(range_unknown)")
       expect(ledger).to be_nil.or(satisfy { |l| l.records.empty? })
     end

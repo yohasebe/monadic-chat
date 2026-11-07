@@ -200,6 +200,9 @@ module WebSocketHelper
     @@session_state_mutex.synchronize do
       @@live_sessions[session_id] = { session: session, generation: generation, connection: connection }
     end
+    # What the work screen was asked through the tab's older connection is
+    # not answered now.
+    Monadic::Workbench::Capture.revoke_tab(session_id, except_generation: generation) if defined?(Monadic::Workbench::Capture)
   end
 
   # Only the connection that registered it removes it, so an old
@@ -276,6 +279,26 @@ module WebSocketHelper
     true
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] Error sending to the live connection of #{session_id}: #{e.message}" }
+    false
+  end
+
+  # Sends message to the tab's connection of generation only (not to one
+  # that replaced it), while the tab is in chat_id. True when written.
+  def self.send_to_connection(session_id, generation, message_json, chat_id:)
+    ws = @@session_state_mutex.synchronize do
+      entry = @@live_sessions[session_id.to_s]
+      next nil unless entry && entry[:connection] && entry[:generation] == generation &&
+                      entry[:session][Monadic::Workspace::Chats::SESSION_KEY] == chat_id
+
+      entry[:connection]
+    end
+    return false unless ws
+
+    ws.write(message_json)
+    ws.flush
+    true
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] Error sending to a connection of #{session_id}: #{e.class}" }
     false
   end
 

@@ -915,6 +915,11 @@ window.loadedApp = "Chat";
 
       // A reply ended without its message: what it looked at in the work
       // screen is drawn on the user's message.
+      case "workbench_capture": {
+        if (window.Workbench && typeof window.Workbench.onCapture === 'function') window.Workbench.onCapture(data);
+        break;
+      }
+
       case "workbench_looks": {
         if (window.Workbench && typeof window.Workbench.drawLooks === 'function' && Array.isArray(data.looks)) {
           window.Workbench.drawLooks(data.mid, data.looks);

@@ -437,6 +437,8 @@ module WebSocketHelper
       # outlive the client connection (the STT bridge dies with its writer;
       # the STS bridge is long-lived by design, so it needs an explicit stop).
       teardown_sts_session(session) if session
+      # What the work screen was asked through this connection is not taken.
+      Monadic::Workbench::Capture.revoke_tab(ws_session_id, generation: session[:_ws_generation]) if session
 
       WebSocketHelper.remove_connection_with_session(connection, ws_session_id)
       WebSocketHelper.unregister_live_session(ws_session_id, session[:_ws_generation]) if session

@@ -15,6 +15,10 @@ module WebSocketHelper
   # goes only to that connection, not to one a newer connection replaced.
   WORKBENCH_LIVE = ->(tab) { WebSocketHelper.live_generation(tab) }
   Monadic::Workbench::Board.live = WORKBENCH_LIVE
+  # A look asks the page of the tab's connection what its work screen shows.
+  Monadic::Workbench::Capture.transport = lambda do |tab, generation, chat_id, json|
+    WebSocketHelper.send_to_connection(tab, generation, json, chat_id: chat_id)
+  end
 
   # only_existing: nothing is sent for a chat without a board (a page that
   # has not asked).

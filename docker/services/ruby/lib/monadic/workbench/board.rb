@@ -103,6 +103,10 @@ module Monadic
         @lock = Mutex.new
         @data = (private ? nil : store.load(chat_id)) || fresh
         @selected = {}
+        # Each selection a tab's connection makes (select, select_for_origin)
+        # takes the next number, kept with it: a capture asked for one
+        # selection is not answered for a later one of the same item.
+        @selection_serial = 0
         # Browsers the user took off: the same browser is not put back.
         @browsers_off = []
         # What a use of a file found (FileItem.read): changed or missing for
@@ -306,12 +310,27 @@ module Monadic
       # Refused too when the connection is no longer the tab's (live?): an
       # older connection does not replace what a newer one selected.
       def select(tab:, generation:, item_id:)
+        choose(tab: tab, generation: generation, item_id: item_id).first
+      end
+
+      # select, and the number this selection took: [item_id, serial].
+      def choose(tab:, generation:, item_id:)
         @lock.synchronize do
           raise Refused, 'not_allowed' unless live?(tab, generation)
           raise Refused, 'no such item' if item_id && !@data['items'].key?(item_id)
 
-          @selected[tab.to_s] = { generation: generation, item_id: item_id }
-          item_id
+          [item_id, selected!(tab, generation, item_id)[:serial]]
+        end
+      end
+
+      # What the tab's connection has selected and the number of that
+      # selection: [item_id or nil, serial or nil].
+      def selection(tab:, generation:)
+        @lock.synchronize do
+          held = @selected[tab.to_s]
+          next [nil, nil] unless held && held[:generation] == generation && live?(tab, generation)
+
+          [@data['items'].key?(held[:item_id]) ? held[:item_id] : nil, held[:serial]]
         end
       end
 
@@ -326,9 +345,12 @@ module Monadic
         end
       end
 
-      # The item the tab's connection has selected, copied as it is now (its
-      # version included), for a look; nil when nothing is selected, and
-      # :connection_gone when the connection is no longer the tab's.
+      # What a look reads: the item the tab's connection has selected,
+      # copied as it is now (its version included), and the number of that
+      # selection. nil when nothing is selected, and :connection_gone when
+      # the connection is no longer the tab's.
+      Target = Struct.new(:item, :serial)
+
       def look_target(tab:, generation:)
         @lock.synchronize do
           next :connection_gone unless tab && generation && live?(tab, generation)
@@ -337,17 +359,17 @@ module Monadic
           next nil unless held && held[:generation] == generation
 
           item = @data['items'][held[:item_id]]
-          item && deep_dup(item)
+          item && Target.new(deep_dup(item), held[:serial])
         end
       end
 
       # Whether the tab's connection still has item (look_target) selected,
-      # at the same version.
-      def still_selected?(tab:, generation:, item:)
+      # at the same version, and (given serial) by the same selection.
+      def still_selected?(tab:, generation:, item:, serial: nil)
         @lock.synchronize do
           held = @selected[tab.to_s]
           now = held && held[:generation] == generation && live?(tab, generation) && @data['items'][held[:item_id]]
-          now && now['id'] == item['id'] && version_of(now) == version_of(item)
+          now && now['id'] == item['id'] && version_of(now) == version_of(item) && (serial.nil? || held[:serial] == serial)
         end
       end
 
@@ -554,7 +576,14 @@ module Monadic
         tab = origin[:tab]
         return unless tab && live?(tab, origin[:generation])
 
-        @selected[tab.to_s] = { generation: origin[:generation], item_id: item_id }
+        selected!(tab, origin[:generation], item_id)
+      end
+
+      # The tab's connection selects item_id (under the lock), as a new
+      # selection.
+      def selected!(tab, generation, item_id)
+        @selection_serial += 1
+        @selected[tab.to_s] = { generation: generation, item_id: item_id, serial: @selection_serial }
       end
 
       # Whether generation is the connection tab has now (a work that began

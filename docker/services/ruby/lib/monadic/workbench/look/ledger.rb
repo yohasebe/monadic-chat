@@ -237,6 +237,7 @@ module Monadic
             id = seen[:id] || "look_#{SecureRandom.hex(8)}"
             lines = if seen[:first_line]
                       { first: seen[:first_line], last: seen[:last_line], total: seen[:total_lines],
+                        asked_first: seen[:asked_first], asked_last: seen[:asked_last],
                         partial: seen[:partial_line] || nil }.compact
                     end
             @observations << Observation.new(

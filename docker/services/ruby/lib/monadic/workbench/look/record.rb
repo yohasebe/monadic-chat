@@ -46,7 +46,8 @@ module Monadic
           lines = entry['lines']
           if lines.is_a?(Hash)
             lines = lines.transform_keys(&:to_s)
-            picked = lines.slice('first', 'last', 'total').select { |_, v| v.is_a?(Integer) && v >= 0 }
+            picked = lines.slice('first', 'last', 'total', 'asked_first', 'asked_last')
+                          .select { |_, v| v.is_a?(Integer) && v >= 0 }
             picked['partial'] = true if lines['partial'] == true && !picked.empty?
             out['lines'] = picked unless picked.empty?
           end

@@ -174,6 +174,24 @@ describe('WorkScreen', () => {
     expect(socket.of('frame-consumed')).toEqual([{ type: 'frame-consumed', stream: 1, n: 4 }]);
   });
 
+  test('gives the frame on the screen for "Show to the assistant", not one still decoding, and none once cleared', async () => {
+    const socket = watching();
+    expect(WS.drawnFrame()).toBeNull();
+    socket.receive({ type: 'frame', browser: 1, stream: 1, n: 1, data: 'QUFB' });
+    FakeImage.pending[0].finish();
+    await flush();
+    expect(WS.drawnFrame()).toEqual({ browser: 1, data: 'QUFB' });
+    // The next frame is decoding: the one on the screen is still given.
+    socket.receive({ type: 'frame', browser: 1, stream: 1, n: 2, data: 'QkJC' });
+    expect(WS.drawnFrame()).toEqual({ browser: 1, data: 'QUFB' });
+    // The stream ended: the screen is cleared, and an old decode finishing
+    // late does not bring a frame back.
+    socket.receive({ type: 'state', state: 'ended', reason: 'browser_closed', browser: 1, stream: 1 });
+    FakeImage.pending[1].finish();
+    await flush();
+    expect(WS.drawnFrame()).toBeNull();
+  });
+
   test('does not draw a frame of another stream', () => {
     const socket = watching(2);
     socket.receive({ type: 'frame', browser: 1, stream: 1, n: 1, data: 'QUJD' });

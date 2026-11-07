@@ -3149,10 +3149,23 @@ document.addEventListener("DOMContentLoaded", function () {
     if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
       return;
     }
+    // What the user showed from the work screen goes only when all of it
+    // is ready, and only with the user's own message: checked before
+    // anything of the send happens.
+    const shownCheck = window.Workbench && typeof window.Workbench.shownForSend === 'function'
+      ? window.Workbench.shownForSend() : { ids: [] };
+    if (shownCheck.blocked) {
+      setAlert(shownCheck.message, "warning");
+      return;
+    }
+    if (shownCheck.ids.length > 0 && ($id("select-role") || {}).value !== "user") {
+      setAlert(typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.workbench.shownUserOnly') : 'What you show goes only with your own message.', "warning");
+      return;
+    }
     // A message of attached files only (video or audio, images or PDFs) is
-    // sent too.
+    // sent too, and one of what the user showed only.
     const hasAttachment = (typeof window.hasVideoAttachments === 'function' && window.hasVideoAttachments()) ||
-      (typeof images !== 'undefined' && Array.isArray(images) && images.length > 0);
+      (typeof images !== 'undefined' && Array.isArray(images) && images.length > 0) || shownCheck.ids.length > 0;
     if (message.value === "" && !hasAttachment) {
       return;
     }
@@ -3184,7 +3197,10 @@ document.addEventListener("DOMContentLoaded", function () {
       text: typedText || '',
       role: ($id("select-role") || {}).value || 'user',
       attachments: typeof window.snapshotVideoAttachments === 'function' ? window.snapshotVideoAttachments() : [],
-      images: typeof window.snapshotImages === 'function' ? window.snapshotImages() : []
+      images: typeof window.snapshotImages === 'function' ? window.snapshotImages() : [],
+      // What was shown, as its chips (no content): given back only when
+      // the server did not accept the message.
+      shown: shownCheck.ids.length > 0 ? shownCheck : null
     };
 
     // Mark that user has interacted with this tab (for app change confirmation)
@@ -3272,6 +3288,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // the page keeps, does not take it.
         const shown = window.Workbench && typeof window.Workbench.rangeNow === 'function' ? window.Workbench.rangeNow() : null;
         const outgoing = shown ? Object.assign({}, params, { workbench_range: shown }) : params;
+        if (shownCheck.ids.length > 0) outgoing.workbench_shown = shownCheck.ids;
         const sendResult = window.BackgroundReply ? window.BackgroundReply.sendReply(outgoing) : window.safeWsSend(outgoing);
         // Not sent: the text, images and attachments stay for the retry.
         if (!(sendResult && sendResult.sent)) {
@@ -3281,6 +3298,8 @@ document.addEventListener("DOMContentLoaded", function () {
         if (typeof window.clearVideoAttachments === 'function') {
           window.clearVideoAttachments();
         }
+        // What was shown went with the message: its chips leave the input.
+        if (shownCheck.ids.length > 0 && window.Workbench) window.Workbench.shownSent(shownCheck.ids);
         // Lock the Privacy Filter toggle once the first message of the
         // session has been sent. The locked state is also enforced by the
         // backend (Pipeline is cached in session[:_privacy_pipeline]).

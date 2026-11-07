@@ -280,8 +280,9 @@ module WebSocketHelper
   end
 
   private def workbench_shown_refused(error, tab)
-    send_error("What you showed from the work screen was not sent (#{error.reason}): #{error.message}.", tab,
-               { "not_accepted" => true, "workbench_shown" => error.reason })
+    extra = { "not_accepted" => true, "workbench_shown" => error.reason }
+    extra["workbench_shown_ids"] = error.ids if error.respond_to?(:ids) && error.ids
+    send_error("What you showed from the work screen was not sent (#{error.reason}): #{error.message}.", tab, extra)
   end
 
   # The standard name of the provider of the session's app (as the

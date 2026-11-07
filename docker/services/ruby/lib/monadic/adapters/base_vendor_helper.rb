@@ -212,6 +212,8 @@ module BaseVendorHelper
       # What the server fixed when it accepted the send stays as it was.
       existing.merge!(content.except(*USER_TURN_SERVER_FIELDS))
       content["attachments"] = existing["attachments"] if existing["attachments"]
+      # What the user showed from the work screen, as the message records it.
+      content["workbench_shown"] = existing["workbench_shown"] if existing["workbench_shown"]
     else
       content["request_id"] = request_id if request_id
       session[:messages] << content
@@ -219,7 +221,7 @@ module BaseVendorHelper
     block&.call res
   end
 
-  USER_TURN_SERVER_FIELDS = %w[request_id attachments request_snapshot].freeze
+  USER_TURN_SERVER_FIELDS = %w[request_id attachments request_snapshot workbench_shown].freeze
 
   # Whether this send has a user turn to record and show: typed text, or
   # files attached to the message of the current request with no text.

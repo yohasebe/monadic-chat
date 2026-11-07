@@ -263,6 +263,9 @@ window.loadedApp = "Chat";
   }
 
   ws.onopen = function () {
+    // A new connection: what this page was about to show belonged to the
+    // one before (the server let it go).
+    if (window.Workbench && typeof window.Workbench.dropShown === 'function') window.Workbench.dropShown();
     if (window.debugWebSocket) console.log(`[WebSocket] Connection established successfully to ${wsUrl}`);
     // A connection means the server is back, so an intentional stop is over.
     // The cookie that marks it survives a page reload; left in place it kept
@@ -915,6 +918,16 @@ window.loadedApp = "Chat";
 
       // A reply ended without its message: what it looked at in the work
       // screen is drawn on the user's message.
+      case "workbench_shown": {
+        if (window.Workbench && typeof window.Workbench.onShown === 'function') window.Workbench.onShown(data);
+        break;
+      }
+
+      case "workbench_shown_records": {
+        if (window.Workbench && typeof window.Workbench.onShownRecords === 'function') window.Workbench.onShownRecords(data);
+        break;
+      }
+
       case "workbench_capture": {
         if (window.Workbench && typeof window.Workbench.onCapture === 'function') window.Workbench.onCapture(data);
         break;

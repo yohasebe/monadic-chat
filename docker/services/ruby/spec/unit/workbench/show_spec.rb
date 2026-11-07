@@ -310,7 +310,7 @@ RSpec.describe "showing the assistant what the work screen shows" do
       good = ready_snapshot
       records, = take([good, "x" * 22])
       expect(records).to be_nil
-      expect(errors.last.last).to include("not_accepted" => true)
+      expect(errors.last.last).to include("not_accepted" => true, "workbench_shown_ids" => ["x" * 22])
       records, = take([good])
       expect(records.size).to eq(1)
     end
@@ -435,9 +435,13 @@ RSpec.describe "showing the assistant what the work screen shows" do
                  version: "a" * 64, scope: "visible", image: image, origin: "user")
       ledger.add(id: "look_#{'b' * 16}", item_id: "i_2", kind: "text", name: "looked.txt", path: "looked.txt",
                  version: "b" * 64, scope: "whole", text: "t")
+      told = []
+      allow(host).to receive(:send_or_broadcast) { |message, *_| told << JSON.parse(message) }
       reply = host.send(:workbench_looks_of_reply, session, request_id)
       expect(reply.map { |r| r["name"] }).to eq(["looked.txt"])
       expect(session[:messages].first["workbench_shown"].map { |r| r["name"] }).to eq(["shown.png"])
+      expect(told).to include(a_hash_including("type" => "workbench_shown_records", "mid" => "u1", "chat_id" => chat,
+                                               "shown" => session[:messages].first["workbench_shown"]))
       expect(Monadic::Workbench::Look::Ledger.of_request(chat, request_id)).to be_nil
     end
 

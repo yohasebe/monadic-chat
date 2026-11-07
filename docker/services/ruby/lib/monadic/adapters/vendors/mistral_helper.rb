@@ -503,13 +503,13 @@ module MistralHelper
     end
 
     # Log extra information if enabled
-    Monadic::Utils::ExtraLogger.log { "Processing Mistral query (Call depth: #{call_depth})\n#{JSON.pretty_generate(body)}" }
+    Monadic::Utils::ExtraLogger.log { "Processing Mistral query (Call depth: #{call_depth})\n#{JSON.pretty_generate(workbench_loggable(body))}" }
 
     begin
-      Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
-      res = http.timeout(connect: open_timeout,
-                        write: write_timeout,
-                        read: read_timeout).post(target_uri, json: body)
+      offer_tools!(body, session, app, provider: "mistral", model: body["model"])
+      res = post_with_workbench_looks(session, provider: "mistral", model: body["model"]) do
+        http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout).post(target_uri, json: body)
+      end
 
       unless res.status.success?
         Monadic::Utils::ExtraLogger.log { "[Mistral] HTTP #{res.status} body: #{res.body.to_s[0,500]}" }
@@ -1213,13 +1213,13 @@ module MistralHelper
     if role == "tool"
       body["messages"] << obj["tool_calls_message"] if obj["tool_calls_message"]
 
-      obj["function_returns"].each do |resp|
+      returns = obj["function_returns"].map do |resp|
         resp_role = resp[:role] || resp["role"] || "tool"
         if resp_role == "user"
-          body["messages"] << { "role" => "user", "content" => resp[:content] || resp["content"] }
+          { "role" => "user", "content" => resp[:content] || resp["content"] }
         else
           content = resp[:content] || resp["content"] || "No result returned"
-          body["messages"] << {
+          {
             "role" => "tool",
             "content" => content.to_s,
             "tool_call_id" => resp[:tool_call_id] || resp["tool_call_id"],
@@ -1227,6 +1227,10 @@ module MistralHelper
           }
         end
       end
+      # Each look's image follows the results, in a message of its own.
+      body["messages"].concat(with_workbench_looks(returns, session, tool_id: method(:chat_tool_call_id)) do |looks|
+        chat_look_message(looks)
+      end)
     end
 
     true
@@ -1315,6 +1319,8 @@ module MistralHelper
       rescue StandardError
       end
     end
+
+    bind_workbench_look(function_return, tool_call["id"])
 
     # Check for repeated errors
     if handle_function_error(session, function_return, function_name, &block)

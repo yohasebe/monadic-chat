@@ -129,6 +129,11 @@ function handlePastMessages(data) {
         if (discourseEl && userCard) {
           discourseEl.appendChild(userCard);
         }
+        // What a reply that ended without its message looked at in the
+        // work screen, as the user's message records it.
+        if (window.Workbench && typeof window.Workbench.drawLooks === 'function' && Array.isArray(msg.workbench_looks)) {
+          window.Workbench.drawLooks(msg.mid, msg.workbench_looks);
+        }
         break;
       }
       case "assistant": {
@@ -161,6 +166,9 @@ function handlePastMessages(data) {
         // without a record clears what was drawn for its id).
         if (window.Workbench) {
           window.Workbench.drawRecord(msg.mid, Array.isArray(msg.artifacts) ? msg.artifacts : []);
+          if (typeof window.Workbench.drawLooks === 'function') {
+            window.Workbench.drawLooks(msg.mid, Array.isArray(msg.workbench_looks) ? msg.workbench_looks : []);
+          }
         }
         // Restore a persisted verification verdict, if the message carries one.
         if (msg.verify && typeof window.renderVerifyConfidence === 'function') {

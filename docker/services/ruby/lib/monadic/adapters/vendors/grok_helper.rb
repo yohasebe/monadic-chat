@@ -363,13 +363,17 @@ module GrokHelper
         }
       end
 
-      obj["function_returns"].each do |result|
-        context_messages << {
+      tool_messages = obj["function_returns"].map do |result|
+        {
           "role" => "tool",
           "content" => result["content"] || result[:content],
           "tool_call_id" => result["call_id"] || result["tool_call_id"] || result[:call_id] || result[:tool_call_id]
         }
       end
+      # Each look's image follows the results, in a message of its own.
+      context_messages.concat(with_workbench_looks(tool_messages, session, tool_id: method(:chat_tool_call_id)) do |looks|
+        chat_look_message(looks)
+      end)
 
       # Inject pending tool images
       if session[:pending_tool_images]&.any?
@@ -503,9 +507,10 @@ module GrokHelper
     # Words the user marked: masked wherever they are in the body, or nothing is sent.
     protect_marked_words!(body, session, app_settings)
 
-    Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
-    res = post_json_with_retries(http, target_uri, body,
-                                 max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
+    offer_tools!(body, session, app, provider: "grok", model: body["model"])
+    # Each post of the body is checked for what it holds of the work screen.
+    res = post_json_with_retries(http, target_uri, body, max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY,
+                                 looks: { session: session, provider: "grok", model: body["model"] })
 
     unless res.status.success?
       error_data = JSON.parse(res.body) rescue { "message" => res.body.to_s, "status" => res.status }
@@ -667,7 +672,7 @@ module GrokHelper
       # Store image/video filenames
       store_grok_media_filename(function_name, function_return, obj, session)
 
-      Monadic::Utils::ExtraLogger.log { "Tool executed: #{function_name}, result: #{function_return.to_s[0..200]}..." }
+      Monadic::Utils::ExtraLogger.log { "Tool executed: #{function_name}, result: #{workbench_loggable(function_return).to_s[0..200]}..." }
 
       Monadic::Utils::TtsTextExtractor.extract_tts_text(
         app: app, function_name: function_name,
@@ -679,6 +684,8 @@ module GrokHelper
         provider: "xAI", tool_name: function_name, message: e.message
       )
     end
+
+    bind_workbench_look(function_return, tool_call["id"])
 
     # Check for repeated errors
     if handle_function_error(session, function_return, function_name, &block)
@@ -1267,7 +1274,7 @@ module GrokHelper
   end
 
   def process_responses_api_data(app:, session:, query:, res:, call_depth:, &block)
-    Monadic::Utils::ExtraLogger.log_json("Processing Grok Responses API query (Call depth: #{call_depth})", query)
+    Monadic::Utils::ExtraLogger.log_json("Processing Grok Responses API query (Call depth: #{call_depth})", workbench_loggable(query))
 
     obj = session[:parameters]
     if obj.nil?

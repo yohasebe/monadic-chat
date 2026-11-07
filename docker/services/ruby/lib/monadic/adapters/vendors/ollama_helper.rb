@@ -520,8 +520,16 @@ module OllamaHelper
       if obj["function_returns"]
         # The system message keeps what was added to it above.
         system_message = body["messages"].find { |m| m["role"] == "system" }
-        body["messages"] = obj["function_returns"].compact.map do |msg|
-          if msg["role"] == "system" && system_message
+        returns = with_workbench_looks(obj["function_returns"].compact, session,
+                                       tool_id: ->(m) { m["role"] == "tool" ? m["_look_call"] : nil }) do |looks|
+          parts = looks.map { |l| workbench_look_parts(l) }
+          { "_look_message" => true, "role" => "user", "content" => parts.map { |p| p[:text] }.join("\n"),
+            "images" => parts.filter_map { |p| p[:image]&.base64 } }
+        end
+        body["messages"] = returns.map do |msg|
+          if msg["_look_message"]
+            msg.except("_look_message")
+          elsif msg["role"] == "system" && system_message
             system_message
           else
             # The user's message (a session message here) keeps what the
@@ -576,10 +584,10 @@ module OllamaHelper
         end
         target_uri = "#{current_endpoint}/chat"
 
-        Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
-        res = http.timeout(connect: open_timeout,
-                           write: write_timeout,
-                           read: read_timeout).post(target_uri, json: body)
+        offer_tools!(body, session, app, provider: "ollama", model: body["model"])
+        res = post_with_workbench_looks(session, provider: "ollama", model: body["model"]) do
+          http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout).post(target_uri, json: body)
+        end
         if res.status.success?
           last_error = nil
           break
@@ -857,10 +865,15 @@ module OllamaHelper
         next
       end
 
+      # Ollama's tool calls carry no id: the look a result is (if any) is
+      # known by one made here, kept beside the result and never sent.
+      look_call = function_return.is_a?(Monadic::Workbench::Look::Result) ? "call_#{SecureRandom.hex(6)}" : nil
+      bind_workbench_look(function_return, look_call) if look_call
       context << {
         "role" => "tool",
-        "content" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
-      }
+        "content" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s,
+        "_look_call" => look_call
+      }.compact
     end
 
     obj["function_returns"] = context

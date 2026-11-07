@@ -1065,9 +1065,10 @@ module ClaudeHelper
       }
     end
 
-    Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
-    res = post_json_with_retries(http, target_uri, body,
-                                 max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
+    offer_tools!(body, session, app, provider: "claude", model: body["model"])
+    # Each post of the body is checked for what it holds of the work screen.
+    res = post_json_with_retries(http, target_uri, body, max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY,
+                                 looks: { session: session, provider: "claude", model: body["model"] })
 
     unless res.status.success?
       error_report = (JSON.parse(res.body)["error"] rescue nil) || {}
@@ -1139,7 +1140,7 @@ module ClaudeHelper
     current_call_depth = session[:call_depth_per_turn] || 0
     num_retrial = 0
 
-    Monadic::Utils::ExtraLogger.log { "\n=== Claude API Request Started ===\nRole: #{role}\nApp: #{session[:parameters]["app_name"]}\nSession parameters: #{session[:parameters].inspect}" }
+    Monadic::Utils::ExtraLogger.log { "\n=== Claude API Request Started ===\nRole: #{role}\nApp: #{session[:parameters]["app_name"]}\nSession parameters: #{workbench_loggable(session[:parameters]).inspect}" }
 
     api_key = CONFIG["ANTHROPIC_API_KEY"]
     obj = session[:parameters]
@@ -1239,7 +1240,7 @@ module ClaudeHelper
 
     # Handle tool role: add function_returns to messages
     if role == "tool"
-      body["messages"] += obj["function_returns"]
+      body["messages"] += claude_messages_with_looks(obj["function_returns"], session)
     end
 
     # Force text-only response when force-stop is active
@@ -1292,7 +1293,7 @@ module ClaudeHelper
   end
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
-    Monadic::Utils::ExtraLogger.log_json("Processing query (Call depth: #{call_depth})", query)
+    Monadic::Utils::ExtraLogger.log_json("Processing query (Call depth: #{call_depth})", workbench_loggable(query))
 
     # Processing JSON data for app: #{app}, call depth: #{call_depth}
 
@@ -1859,7 +1860,7 @@ module ClaudeHelper
           tool_return = app_instance.public_send(tool_name.to_sym, **argument_hash)
         end
 
-        Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{tool_name} returned: #{tool_return.to_s[0..500]}" }
+        Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{tool_name} returned: #{workbench_loggable(tool_return).to_s[0..500]}" }
 
         send_verification_notification(session, &block) if tool_name == "report_verification"
 
@@ -1907,7 +1908,8 @@ module ClaudeHelper
       end
     end
 
-    Monadic::Utils::ExtraLogger.log { "Tool return: #{tool_return.to_s[0..200]}..." }
+    Monadic::Utils::ExtraLogger.log { "Tool return: #{workbench_loggable(tool_return).to_s[0..200]}..." }
+    bind_workbench_look(tool_return, tool_call["id"])
 
     tool_result_entry = {
       type: "tool_result",
@@ -1944,6 +1946,38 @@ module ClaudeHelper
     end
 
     [tool_result_entry, false]
+  end
+
+  # The tool results of the reply (function_returns), with the image of
+  # each look placed in the tool_result it answers, after its text. Copies:
+  # function_returns keeps the text only.
+  private def claude_messages_with_looks(messages, session)
+    ids = []
+    copied = messages.map do |message|
+      content = message[:content] || message["content"]
+      next message unless content.is_a?(Array)
+
+      blocks = content.map do |block|
+        type = block[:type] || block["type"]
+        id = block[:tool_use_id] || block["tool_use_id"]
+        ids << id.to_s if type.to_s == "tool_result" && id
+        looks = type.to_s == "tool_result" && id ? workbench_looks_to_place(session, [id.to_s]) : []
+        next block if looks.empty?
+
+        text = block[:content] || block["content"]
+        parts = text.is_a?(Array) ? text.dup : [{ type: "text", text: text.to_s }]
+        looks.each do |look|
+          parts << { type: "text", text: look.caption.to_s }
+          parts << { type: "image",
+                     source: { type: "base64", media_type: look.image.content_type, data: look.image.base64 } }
+        end
+        block.merge((block.key?(:content) ? :content : "content") => parts)
+      end
+      message.merge((message.key?(:content) ? :content : "content") => blocks)
+    end
+    ledger = workbench_look_ledger
+    workbench_looks_prepared(ledger.answering(ids)) if ledger
+    copied
   end
 
   private def handle_claude_jupyter_fallback(obj, session, &block)

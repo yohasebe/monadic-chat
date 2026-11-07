@@ -7,6 +7,9 @@ require "fileutils"
 require_relative "../../../lib/monadic/utils/tts_text_extractor"
 require_relative "../../../lib/monadic/utils/websocket"
 require_relative "../../../lib/monadic/workspace"
+require_relative "../../../lib/monadic/shared_tools/workbench_tools"
+require_relative "../../../lib/monadic/workbench/look/availability"
+require "base64"
 
 # Run by spec/unit/adapters/vendors/capability_notes_request_body_spec.rb in a
 # process of its own (no config file, network stopped), not as a unit spec.
@@ -62,7 +65,10 @@ RSpec.describe "Capability note in the request body" do
     else ""
     end
   end
-  define_method(:called_tool) { called_tool }
+  # The tool the made-up replies call (a test may name another).
+  define_method(:called_tool) { @called_tool || called_tool }
+  # The arguments the made-up replies give the tool they call.
+  def called_args = (@tool_args || {})[called_tool] || {}
 
   def sse(events, named: false)
     events.map { |e| (named ? "event: #{e['type']}\n" : "") + "data: #{JSON.generate(e)}\n\n" }.join
@@ -70,7 +76,8 @@ RSpec.describe "Capability note in the request body" do
 
   def responses_stream(call)
     if call
-      item = { "type" => "function_call", "id" => "fc1", "call_id" => "c1", "name" => called_tool, "arguments" => "{}" }
+      item = { "type" => "function_call", "id" => "fc_#{called_tool}", "call_id" => "c_#{called_tool}", "name" => called_tool,
+               "arguments" => JSON.generate(called_args) }
       return sse([{ "type" => "response.output_item.added", "item" => item.merge("arguments" => "") },
                   { "type" => "response.output_item.done", "item" => item },
                   { "type" => "response.completed", "response" => { "id" => "r1", "output" => [item] } }], named: true)
@@ -80,14 +87,19 @@ RSpec.describe "Capability note in the request body" do
          { "type" => "response.completed", "response" => { "id" => "r2" } }], named: true)
   end
 
-  def responses_reply(_call)
+  def responses_reply(call)
+    if call
+      item = { "type" => "function_call", "id" => "fc_#{called_tool}", "call_id" => "c_#{called_tool}", "name" => called_tool,
+               "arguments" => JSON.generate(called_args) }
+      return JSON.generate({ "output" => [item] })
+    end
     JSON.generate({ "output" => [{ "type" => "message", "content" => [{ "type" => "output_text", "text" => "Done." }] }] })
   end
 
   def chat_stream(call)
     delta = if call
-              { "tool_calls" => [{ "index" => 0, "id" => "c1", "type" => "function",
-                                   "function" => { "name" => called_tool, "arguments" => "{}" } }] }
+              { "tool_calls" => [{ "index" => 0, "id" => "c_#{called_tool}", "type" => "function",
+                                   "function" => { "name" => called_tool, "arguments" => JSON.generate(called_args) } }] }
             else
               { "content" => "Done." }
             end
@@ -98,8 +110,8 @@ RSpec.describe "Capability note in the request body" do
 
   def claude_stream(call)
     block, delta = if call
-                     [{ "type" => "tool_use", "id" => "t1", "name" => called_tool, "input" => {} },
-                      { "type" => "input_json_delta", "partial_json" => "{}" }]
+                     [{ "type" => "tool_use", "id" => "t_#{called_tool}", "name" => called_tool, "input" => {} },
+                      { "type" => "input_json_delta", "partial_json" => JSON.generate(called_args) }]
                    else
                      [{ "type" => "text", "text" => "" }, { "type" => "text_delta", "text" => "Done." }]
                    end
@@ -113,7 +125,7 @@ RSpec.describe "Capability note in the request body" do
   end
 
   def gemini_stream(call)
-    part = call ? { "functionCall" => { "name" => called_tool, "args" => {} } } : { "text" => "Done." }
+    part = call ? { "functionCall" => { "name" => called_tool, "args" => called_args } } : { "text" => "Done." }
     "[#{JSON.pretty_generate({ 'candidates' => [{ 'content' => { 'role' => 'model', 'parts' => [part] },
                                                   'finishReason' => 'STOP' }] })}\n]"
   end
@@ -122,9 +134,10 @@ RSpec.describe "Capability note in the request body" do
     events = [{ "type" => "message-start", "delta" => { "message" => { "role" => "assistant" } } }]
     events += if call
                 [{ "type" => "tool-call-start",
-                   "delta" => { "message" => { "tool_calls" => { "id" => "c1", "type" => "function",
+                   "delta" => { "message" => { "tool_calls" => { "id" => "c_#{called_tool}", "type" => "function",
                                                                  "function" => { "name" => called_tool, "arguments" => "" } } } } },
-                 { "type" => "tool-call-delta", "delta" => { "message" => { "tool_calls" => { "function" => { "arguments" => "{}" } } } } },
+                 { "type" => "tool-call-delta",
+                   "delta" => { "message" => { "tool_calls" => { "function" => { "arguments" => JSON.generate(called_args) } } } } },
                  { "type" => "tool-call-end" },
                  { "type" => "message-end", "delta" => { "finish_reason" => "TOOL_CALL" } }]
               else
@@ -136,7 +149,7 @@ RSpec.describe "Capability note in the request body" do
 
   def ollama_stream(call)
     message = if call
-                { "role" => "assistant", "content" => "", "tool_calls" => [{ "function" => { "name" => called_tool, "arguments" => {} } }] }
+                { "role" => "assistant", "content" => "", "tool_calls" => [{ "function" => { "name" => called_tool, "arguments" => called_args } }] }
               else
                 { "role" => "assistant", "content" => "Done." }
               end
@@ -169,7 +182,7 @@ RSpec.describe "Capability note in the request body" do
     replies = []
     answer = lambda do |body|
       bodies << JSON.parse(JSON.generate(body))
-      double(status: HTTP::Response::Status.new(200), body: reply_body(replies.shift))
+      double(status: HTTP::Response::Status.new(200), body: reply_body(replies.shift), headers: {})
     end
     http = double("http")
     allow(http).to receive(:timeout).and_return(http)
@@ -259,7 +272,7 @@ RSpec.describe "Capability note in the request body" do
     replies = []
     answer = lambda do |body|
       bodies << JSON.parse(JSON.generate(body))
-      double(status: HTTP::Response::Status.new(200), body: reply_body(replies.shift))
+      double(status: HTTP::Response::Status.new(200), body: reply_body(replies.shift), headers: {})
     end
     http = double("http")
     allow(http).to receive(:timeout).and_return(http)
@@ -324,7 +337,8 @@ RSpec.describe "Capability note in the request body" do
   # The work screen observation: two messages sent through the page's
   # handler with a file open on the workbench and selected in the tab.
   def run_observed_conversation(mod, provider, key, first_reply, second_reply, first_message: "Define it", images: nil,
-                                vision: false)
+                                vision: false, shown_file: ["notes.txt", "one\ntwo\n"], look: false,
+                                takes_images: true, chain: nil, private_after_tool: false)
     dir = Dir.mktmpdir("observation-body-")
     data = File.join(dir, "data")
     FileUtils.mkdir_p([data, File.join(dir, "state")])
@@ -335,23 +349,33 @@ RSpec.describe "Capability note in the request body" do
     Monadic::Workbench::Board.live = ->(tab) { tab == "tab-1" ? 1 : nil }
     Thread.current[:websocket_session_id] = "tab-1"
     chat = Monadic::Workspace::Ids.generate(:chat)
-    File.write(File.join(data, "notes.txt"), "one\ntwo\n")
+    File.binwrite(File.join(data, shown_file[0]), shown_file[1])
     item, = Monadic::Workbench::Board.for(chat).add_file(
-      path: "notes.txt", origin: { actor: :user, source: :panel, tab: "tab-1", generation: 1 },
+      path: shown_file[0], origin: { actor: :user, source: :panel, tab: "tab-1", generation: 1 },
       epoch: Monadic::Workspace::Chats.epoch(chat)
     )
 
     models = Monadic::Utils::ModelSpec.get_provider_models(provider, "chat") || []
     model = (vision ? models.find { |m| Monadic::Utils::ModelSpec.get_model_property(m, "vision_capability") } : models.first) ||
             "llama3"
-    tools = [tool_definition(reader_tool_name), tool_definition(called_tool)]
+    names = [reader_tool_name, *(chain || [called_tool]), *(look ? ["look_at_workbench"] : [])].uniq
+    tools = names.map { |name| tool_definition(name) }
     calls = @tool_calls
-    tool_owner = Module.new { define_method(:look_up_term) { |**| calls << :ran && "term found" } }
+    # The chat the tool runs in (it may turn Private while the reply goes on).
+    held = {}
+    tool_owner = Module.new do
+      define_method(:look_up_term) do |**|
+        calls << :ran
+        held[:session][Monadic::History::Policy::SESSION_KEY] = Monadic::History::Policy::PRIVATE if private_after_tool
+        "term found"
+      end
+    end
     stub_const("CONFIG", key ? { key => "k" } : {})
     allow(ENV).to receive(:[]).and_call_original
     allow(ENV).to receive(:[]).with(Monadic::Utils::CapabilityNotes::FLAG).and_return("OtherApp")
     app = Class.new(MonadicApp) { include mod }.new
     app.extend(tool_owner)
+    app.extend(MonadicSharedTools::WorkbenchTools) if look
     app_settings = { "provider" => provider, "tools" => tools }
     app.define_singleton_method(:settings) { app_settings }
     stub_const("APPS", { "NotesApp" => app })
@@ -360,7 +384,7 @@ RSpec.describe "Capability note in the request body" do
     replies = []
     answer = lambda do |body|
       bodies << JSON.parse(JSON.generate(body))
-      double(status: HTTP::Response::Status.new(200), body: reply_body(replies.shift))
+      double(status: HTTP::Response::Status.new(200), body: reply_body(replies.shift), headers: {})
     end
     http = double("http")
     allow(http).to receive(:timeout).and_return(http)
@@ -368,11 +392,15 @@ RSpec.describe "Capability note in the request body" do
     allow(http).to receive(:post) { |_uri, json: nil, **| answer.call(json) }
     allow(HTTP).to receive(:headers).and_return(http)
     allow(HTTP).to receive(:timeout).and_return(http)
-    allow(app).to receive(:post_json_with_retries) { |_http, _uri, body, **| answer.call(body) }
+    # The real retry loop posts through the fake client: each post is checked
+    # for what it holds of the work screen.
     if mod == OllamaHelper
       allow(OllamaHelper).to receive(:find_endpoint).and_return("http://ollama.invalid")
       allow(app).to receive(:list_models).and_return([model])
-      allow(OllamaHelper).to receive(:fetch_model_capabilities).and_return(nil)
+      # The local server's own report of the model: it takes images when
+      # the test asks for a model that does.
+      allow(OllamaHelper).to receive(:fetch_model_capabilities)
+        .and_return(look && takes_images ? { capabilities: %w[tools vision] } : nil)
     end
 
     host = Class.new { include WebSocketHelper }.new
@@ -382,6 +410,7 @@ RSpec.describe "Capability note in the request body" do
     allow(host).to receive(:detect_language).and_return("en")
     session = { parameters: {}, chat_id: chat, _ws_generation: 1,
                 messages: [{ "role" => "system", "text" => "S", "active" => true }] }
+    held[:session] = session
     page = { "app_name" => "NotesApp", "model" => model, "context_size" => "5", "max_tokens" => "100",
              "tools" => tools.to_json, "temperature" => "0.5", "prompt_suffix" => "Answer briefly." }
     app_settings["prompt_suffix"] = "Answer briefly."
@@ -390,7 +419,17 @@ RSpec.describe "Capability note in the request body" do
     shown = { "item_id" => item["id"], "version" => item.dig("file", "sha256"), "range" => nil, "note" => "not_shown" }
     queue = Queue.new
     Thread.current[:rack_session] = session
-    [[first_message, images, [send(first_reply, true), send(second_reply, false)]],
+    # As when the page's connection opens: its work is the chat's.
+    Monadic::Utils::Privacy::EgressGuard.for_chat(session)
+    # The tools the first message's reply calls, one request each, then
+    # its answer.
+    first_turn = (chain || [called_tool]).each_with_index.map do |name, at|
+      @called_tool = name
+      # A request after a tool's result is answered as the provider answers
+      # those (Grok: not streamed).
+      send(at.zero? ? first_reply : second_reply, true)
+    end
+    [[first_message, images, first_turn + [send(second_reply, false)]],
      ["And the next one", nil, [send(second_reply, false)]]].each do |message, sent_images, turn_replies|
       replies.push(*turn_replies)
       sent = page.merge("message" => message, "workbench_range" => shown)
@@ -400,6 +439,7 @@ RSpec.describe "Capability note in the request body" do
     end
     [bodies, session, item]
   ensure
+    Monadic::Utils::Privacy::EgressGuard.for_chat(nil)
     Thread.current[:rack_session] = nil
     Thread.current[:websocket_session_id] = nil
     Monadic::Workbench::Board.reset!
@@ -407,6 +447,104 @@ RSpec.describe "Capability note in the request body" do
   end
 
   observation_tag = "<work_screen_observation>"
+
+  # A PNG of one pixel.
+  pixel = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+
+  # The model looks at the image selected in the work screen: the image
+  # goes in the request that returns the tool's result, after it, and in no
+  # other request; the chat keeps a record of the look and no bytes.
+  providers.each do |mod, (provider, key, first_reply, second_reply)|
+    it "#{mod.name}: gives the model the image it looked at, after the result, once" do
+      @called_tool = "look_at_workbench"
+      bodies, session, item = run_observed_conversation(mod, provider, key, first_reply, second_reply,
+                                                        shown_file: ["shot.png", Base64.decode64(pixel)],
+                                                        look: true, vision: true)
+      expect(JSON.generate(bodies.first)).to include("look_at_workbench")
+      expect(bodies.size).to eq(3)
+      expect(bodies.map { |b| JSON.generate(b).scan(pixel[0, 40]).size }).to eq([0, 1, 0])
+      after_tool = JSON.generate(bodies[1])
+      expect(after_tool.index(pixel[0, 40])).to be > after_tool.index("observation_id")
+      expect(after_tool).to include(item.dig("file", "sha256")[0, 12])
+      expect(JSON.generate(session[:messages])).not_to include(pixel[0, 40])
+      reply = session[:messages].find { |m| m["role"] == "assistant" }
+      expect(reply["workbench_looks"]).to match([a_hash_including("kind" => "image", "name" => "shot.png", "state" => "sent")])
+      expect(JSON.generate(session[:parameters])).not_to include(pixel[0, 40])
+    end
+  end
+
+  providers.each do |mod, (provider, key, first_reply, second_reply)|
+    it "#{mod.name}: keeps the image it looked at in the next request of the reply, after another tool" do
+      logs = []
+      allow(Monadic::Utils::ExtraLogger).to receive(:enabled?).and_return(true)
+      allow(Monadic::Utils::ExtraLogger).to receive(:log) { |msg = nil, &blk| logs << (blk ? blk.call : msg).to_s }
+      allow(Monadic::Utils::ExtraLogger).to receive(:log_json) { |label, data| logs << "#{label} #{JSON.generate(data)}" }
+      allow(DebugHelper).to receive(:debug) { |msg, **| logs << msg.to_s }
+      bodies, session, = run_observed_conversation(mod, provider, key, first_reply, second_reply,
+                                                   shown_file: ["shot.png", Base64.decode64(pixel)], look: true,
+                                                   vision: true, chain: ["look_at_workbench", called_tool])
+      expect(@tool_calls).to eq([:ran])
+      expect(bodies.size).to eq(4)
+      expect(bodies.map { |b| JSON.generate(b).scan(pixel[0, 40]).size }).to eq([0, 1, 1, 0])
+      expect(JSON.generate(bodies[2])).to include("term found")
+      reply = session[:messages].find { |m| m["role"] == "assistant" }
+      expect(reply["workbench_looks"]).to match([a_hash_including("state" => "sent")])
+      # Nor does its image reach a log.
+      expect(logs.join("\n")).not_to include(pixel[0, 40])
+    end
+  end
+
+  # The chat turns Private after the image went to the model, while the
+  # reply goes on: no later request of the reply is sent with it, whatever
+  # its text says of the look.
+  providers.each do |mod, (provider, key, first_reply, second_reply)|
+    it "#{mod.name}: sends no later request of the reply holding the image once the chat is Private" do
+      bodies, session, = run_observed_conversation(mod, provider, key, first_reply, second_reply,
+                                                   shown_file: ["shot.png", Base64.decode64(pixel)], look: true,
+                                                   vision: true, chain: ["look_at_workbench", called_tool],
+                                                   private_after_tool: true)
+      expect(@tool_calls.first).to eq(:ran)
+      expect(bodies.map { |b| JSON.generate(b).scan(pixel[0, 40]).size }.first(2)).to eq([0, 1])
+      expect(bodies.drop(2).map { |b| JSON.generate(b) }).to all(satisfy { |text| !text.include?(pixel[0, 40]) })
+      looks = session[:messages].filter_map { |m| m["workbench_looks"] }.flatten
+      expect(looks).to match([a_hash_including("state" => "sent")])
+    end
+  end
+
+  # What a look read reaches no log: the logs of a whole conversation (an
+  # image look, a text look, another tool, the answer, the next message)
+  # name the looks and hold none of what they read.
+  providers.each do |mod, (provider, key, first_reply, second_reply)|
+    it "#{mod.name}: writes nothing a look read to the logs" do
+      logs = []
+      allow(Monadic::Utils::ExtraLogger).to receive(:enabled?).and_return(true)
+      allow(Monadic::Utils::ExtraLogger).to receive(:log) { |msg = nil, &blk| logs << (blk ? blk.call : msg).to_s }
+      allow(Monadic::Utils::ExtraLogger).to receive(:log_json) { |label, data| logs << "#{label} #{JSON.generate(data)}" }
+      allow(DebugHelper).to receive(:debug) { |msg, **| logs << msg.to_s }
+      @tool_args = { "look_at_workbench" => { "scope" => "whole" } }
+      secret = "SECRET-LOOK-TEXT-#{SecureRandom.hex(4)}"
+      bodies, = run_observed_conversation(mod, provider, key, first_reply, second_reply,
+                                          shown_file: ["notes.txt", "#{secret}\n"], look: true, vision: true,
+                                          chain: ["look_at_workbench", called_tool])
+      expect(JSON.generate(bodies[1])).to include(secret)
+      expect(logs).not_to be_empty
+      expect(logs.join("\n")).not_to include(secret)
+    end
+  end
+
+  providers.each do |mod, (provider, key, first_reply, second_reply)|
+    it "#{mod.name}: does not offer the look to a model not known to take images, and does not run it when called" do
+      @called_tool = "look_at_workbench"
+      allow(Monadic::Utils::ModelSpec).to receive(:get_model_property).and_call_original
+      allow(Monadic::Utils::ModelSpec).to receive(:get_model_property).with(anything, "vision_capability").and_return(nil)
+      bodies, session, = run_observed_conversation(mod, provider, key, first_reply, second_reply,
+                                                   shown_file: ["shot.png", Base64.decode64(pixel)], look: true,
+                                                   takes_images: false)
+      expect(JSON.generate(bodies.first)).not_to include("look_at_workbench")
+      expect(bodies.map { |b| JSON.generate(b) }.join).not_to include(pixel[0, 40])
+      expect(session[:messages].map { |m| m["workbench_looks"] }.compact).to be_empty
+    end
+  end
 
   providers.each do |mod, (provider, key, first_reply, second_reply)|
     it "#{mod.name}: adds what the work screen shows to the user's message once in each request, and keeps it out of the chat" do
@@ -436,10 +574,7 @@ RSpec.describe "Capability note in the request body" do
     end
   end
 
-  # A PNG of one pixel.
-  pixel = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-
-  providers.slice(OpenAIHelper, ClaudeHelper, GeminiHelper, OllamaHelper).each do |mod, (provider, key, first_reply, second_reply)|
+  providers.slice(OpenAIHelper, ClaudeHelper, GeminiHelper, OllamaHelper, CohereHelper).each do |mod, (provider, key, first_reply, second_reply)|
     it "#{mod.name}: adds what the work screen shows to a message of an image only, recorded under its request" do
       image = { "title" => "dot.png", "type" => "image/png", "data" => "data:image/png;base64,#{pixel}" }
       bodies, session, = run_observed_conversation(mod, provider, key, first_reply, second_reply,

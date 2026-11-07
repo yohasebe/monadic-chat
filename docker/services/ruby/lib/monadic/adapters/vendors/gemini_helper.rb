@@ -1358,6 +1358,22 @@ module GeminiHelper
         }
       end
 
+      # Each look's image follows the results, in a user turn of its own
+      # that names the observation (Gemini's calls carry no id).
+      look_calls = obj["tool_results"].filter_map { |r| r["_look_call"] }
+      looks = workbench_looks_to_place(session, look_calls)
+      if looks.any?
+        body["contents"] << {
+          "role" => "user",
+          "parts" => looks.flat_map do |look|
+            [{ "text" => look.caption.to_s },
+             { "inlineData" => { "mimeType" => look.image.content_type, "data" => look.image.base64 } }]
+          end
+        }
+      end
+      ledger = workbench_look_ledger
+      workbench_looks_prepared(ledger.answering(look_calls)) if ledger
+
       # Inject screenshot image(s) as user message for vision-capable models
       # Supports multiple images for tiled screenshots
       # Dedup: skip images already injected in this turn to prevent verify→regenerate loops
@@ -2224,6 +2240,10 @@ module GeminiHelper
     # Words the user marked: masked wherever they are in the body, or nothing is sent.
     protect_marked_words!(body, session, app_settings)
 
+    # The tools as the model is offered them; what depends on them is
+    # settled after.
+    offer_tools!(body, session, app, provider: "gemini", model: obj["model"])
+
     # Final safety check: Remove toolConfig if no function_declarations exist
     has_any_function_declarations = body["tools"]&.any? { |tool|
       tool.is_a?(Hash) && tool["function_declarations"]&.any?
@@ -2235,13 +2255,13 @@ module GeminiHelper
 
     res = nil
 
-    Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
     Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Sending POST to #{target_uri[0..80]}... body contents_count=#{body["contents"]&.length}" }
     MAX_RETRIES.times do |attempt|
       Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Attempt #{attempt + 1}/#{MAX_RETRIES}" } if attempt > 0
-      res = http.timeout(connect: open_timeout,
-                         write: write_timeout,
-                         read: read_timeout).post(target_uri, json: Monadic::Utils::GeminiRequest.without_storage(body))
+      res = post_with_workbench_looks(session, provider: "gemini", model: obj["model"]) do
+        http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout)
+            .post(target_uri, json: Monadic::Utils::GeminiRequest.without_storage(body))
+      end
       if res.status.success?
         Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Response status: #{res.status}" }
         break
@@ -2344,7 +2364,7 @@ module GeminiHelper
   public
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
-    Monadic::Utils::ExtraLogger.log_json("Processing query (Call depth: #{call_depth})", query)
+    Monadic::Utils::ExtraLogger.log_json("Processing query (Call depth: #{call_depth})", workbench_loggable(query))
     
     # For media generator apps, we'll need special processing to remove code blocks
     is_media_generator = app.to_s.include?("image_generator") || 
@@ -3386,7 +3406,7 @@ module GeminiHelper
         else
           invoke_gemini_tool_function(app, function_name, argument_hash)
         end
-        Monadic::Utils::ExtraLogger.log { "[process_functions] #{function_name} returned #{function_return.to_s[0..200]}" }
+        Monadic::Utils::ExtraLogger.log { "[process_functions] #{function_name} returned #{workbench_loggable(function_return).to_s[0..200]}" }
 
         send_verification_notification(session, &block) if function_name == "report_verification"
 
@@ -3409,7 +3429,14 @@ module GeminiHelper
             next
           end
 
-          session_params["tool_results"] << gemini_tool_result(tool_call, content, call_depth)
+          result = gemini_tool_result(tool_call, content, call_depth)
+          # A look is known by an id made here (Gemini's calls carry none),
+          # kept beside the result and never sent.
+          if function_return.is_a?(Monadic::Workbench::Look::Result)
+            result["_look_call"] = "call_#{SecureRandom.hex(6)}"
+            bind_workbench_look(function_return, result["_look_call"])
+          end
+          session_params["tool_results"] << result
 
           if function_return.is_a?(Monadic::Workbench::Offered) && function_return.for?(session)
             ended = [function_return, index]
@@ -3644,14 +3671,14 @@ module GeminiHelper
       raise NoMethodError, "Function '#{function_name}' not found in app or helper"
     end
 
-    Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{function_name} returned: #{function_return.to_s[0..500]}" }
+    Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{function_name} returned: #{workbench_loggable(function_return).to_s[0..500]}" }
 
     function_return
   end
 
   # 3c: Process tool return value for media generators and standard functions
   def handle_media_generation_result(function_name, function_return, session)
-    if function_return.is_a?(Monadic::Workbench::Offered)
+    if function_return.is_a?(Monadic::Workbench::Offered) || function_return.is_a?(Monadic::Workbench::Look::Result)
       function_return.to_s
     elsif GeminiHelper.gemini_video_tool?(function_name)
       # The generator's JSON: success with the saved videos, or a message.

@@ -50,6 +50,8 @@
   const removed = new Set();
   // What each message records as made, as last drawn.
   const records = new Map();
+  // What each message records its reply looked at (mid → list).
+  const looks = new Map();
   // One operation id per removal, so the same removal sent again (a retry,
   // a reconnect) is the same operation on the server.
   const operations = new Map();
@@ -496,6 +498,55 @@
     records.forEach((_entries, mid) => drawNote(mid));
   }
 
+  const LOOK_STATES = {
+    sent: ['lookSent', 'Sent to the AI provider from the work screen'],
+    embedded: ['lookEmbedded', 'Put in a request to the assistant (not confirmed as sent)'],
+    unknown: ['lookUnknown', 'Sent to the AI provider; whether it arrived is not known'],
+    unsent: ['lookUnsent', 'Read from the work screen, not sent to the assistant'],
+    refused: ['lookRefused', "Not taken by the assistant's provider"],
+    acquired: ['lookAcquired', 'Read from the work screen, not sent yet']
+  };
+
+  // One line for each look of the reply: how far it went, what it was
+  // (the name, the version, the lines), from the message's record.
+  function drawLooks(mid, list) {
+    const card = mid ? $id(mid) : null;
+    const text = card ? card.querySelector('.card-text') : null;
+    const entries = Array.isArray(list) ? list.filter((e) => e && LOOK_STATES[e.state] && e.name) : [];
+    if (entries.length === 0) looks.delete(mid); else looks.set(mid, entries);
+    if (!text) return;
+    let el = text.querySelector(':scope > .workbench-look-note');
+    if (entries.length === 0) {
+      if (el) el.remove();
+      return;
+    }
+    if (!el) {
+      el = element('div', 'workbench-look-note small text-secondary mt-2');
+      text.appendChild(el);
+    }
+    el.replaceChildren();
+    entries.forEach((entry) => {
+      const [key, fallback] = LOOK_STATES[entry.state];
+      const line = element('div', 'workbench-look-line');
+      line.appendChild(element('i', 'fa-solid fa-eye me-1'));
+      line.appendChild(document.createTextNode(`${t(`ui.workbench.${key}`, fallback)}: `));
+      line.appendChild(element('code', null, String(entry.name)));
+      const details = [];
+      if (entry.version) details.push(String(entry.version).slice(0, 12));
+      const lines = entry.lines;
+      if (lines && Number.isInteger(lines.first) && Number.isInteger(lines.last)) {
+        details.push(t('ui.workbench.lookLines', 'lines {first}–{last}')
+          .replace('{first}', String(lines.first)).replace('{last}', String(lines.last)));
+      }
+      if (entry.truncated || (lines && lines.partial)) details.push(t('ui.workbench.lookCut', 'cut short'));
+      if (entry.empty) details.push(t('ui.workbench.lookEmpty', 'empty'));
+      const at = entry.at ? new Date(entry.at) : null;
+      if (at && !Number.isNaN(at.getTime())) details.push(at.toLocaleTimeString());
+      if (details.length) line.appendChild(document.createTextNode(` (${details.join(', ')})`));
+      el.appendChild(line);
+    });
+  }
+
   function draw() {
     drawList();
     drawView();
@@ -586,8 +637,11 @@
     document.querySelectorAll('.workbench-note').forEach((el) => el.remove());
     const messages = window.SessionState && typeof window.SessionState.getMessages === 'function'
       ? window.SessionState.getMessages() : [];
+    looks.clear();
+    document.querySelectorAll('.workbench-look-note').forEach((el) => el.remove());
     (Array.isArray(messages) ? messages : []).forEach((m) => {
       if (m && m.mid && Array.isArray(m.artifacts)) records.set(m.mid, m.artifacts);
+      if (m && m.mid && Array.isArray(m.workbench_looks)) drawLooks(m.mid, m.workbench_looks);
     });
   }
 
@@ -899,7 +953,7 @@
   }
 
   window.Workbench = {
-    onView, onResult, onDownload, onOpened, onSelected, drawRecord, select, openFile, step, textLines, rangeNow,
+    onView, onResult, onDownload, onOpened, onSelected, drawRecord, drawLooks, select, openFile, step, textLines, rangeNow,
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),
     // Whether the pane shows the browser (the relay runs only then).

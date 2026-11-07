@@ -517,8 +517,10 @@ module CohereHelper
         options: suffix_options
       )
 
-      latest_msg = session[:messages].last
-      if latest_msg && latest_msg["images"] && latest_msg["images"].any? && role == "user"
+      # The message's images go with it, in the request that returns a
+      # tool's results too.
+      latest_msg = role == "tool" ? current_turn : session[:messages].last
+      if latest_msg && latest_msg["images"] && latest_msg["images"].any? && %w[user tool].include?(role)
         messages_containing_img = true
         result = build_cohere_image_message(latest_msg, obj, "user", text_override: current_message, &block)
         return result if result.is_a?(Array) # error response
@@ -756,14 +758,12 @@ module CohereHelper
     end
 
     res = nil
-    Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
+    offer_tools!(body, session, app, provider: "cohere", model: body["model"])
     MAX_RETRIES.times do |i|
       begin
-        res = http.timeout(
-          connect: open_timeout,
-          write: write_timeout,
-          read: read_timeout
-        ).post(target_uri, json: body)
+        res = post_with_workbench_looks(session, provider: "cohere", model: body["model"]) do
+          http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout).post(target_uri, json: body)
+        end
         break if res.status.success?
         if CONFIG["EXTRA_LOGGING"]
           body_preview = begin
@@ -862,6 +862,7 @@ module CohereHelper
                   "lang" => detect_language(obj["message"]),
                   "app_name" => obj["app_name"]
                 } }
+        res["content"]["images"] = obj["images"] if obj["images"].is_a?(Array)
         record_user_turn!(session, res, &block)
       end
     end
@@ -884,6 +885,9 @@ module CohereHelper
     end
     session[:messages].each { |msg| msg["active"] = false }
     context = session[:messages][0...-1].last(context_size).each { |msg| msg["active"] = true }
+    # The current message is sent apart from the context, its images too.
+    current = role == "tool" ? current_request_turn(session) : session[:messages].last
+    current["active"] = true if current
     strip_inactive_image_data(session)
 
     # Build messages
@@ -913,7 +917,15 @@ module CohereHelper
 
     # Include tool results for tool responses
     if role == "tool" && obj["tool_results"]
-      messages = messages + obj["tool_results"]
+      # Each look's image follows the results, in a message of its own.
+      messages += with_workbench_looks(obj["tool_results"], session, tool_id: method(:chat_tool_call_id)) do |looks|
+        { "role" => "user",
+          "content" => looks.flat_map do |look|
+            parts = workbench_look_parts(look)
+            [{ "type" => "text", "text" => parts[:text] },
+             (parts[:image] && { "type" => "image", "image" => parts[:image].data_url })].compact
+          end }
+      end
       Monadic::Utils::ExtraLogger.log { "Cohere: Added #{obj["tool_results"].size} tool result messages to conversation" }
     end
 
@@ -1080,7 +1092,7 @@ module CohereHelper
   # Process streaming JSON response data
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
     Monadic::Utils::ExtraLogger.log { "Processing query (Call depth: #{call_depth})" }
-    Monadic::Utils::ExtraLogger.log_json("Query", query)
+    Monadic::Utils::ExtraLogger.log_json("Query", workbench_loggable(query))
 
     # Store the request parameters for constructing the final response
     obj = session[:parameters]
@@ -1409,6 +1421,8 @@ module CohereHelper
       }
       return [error_entry, true]
     end
+
+    bind_workbench_look(function_return, tool_call_id)
 
     # Store gallery_html for server-side injection
     if function_return.is_a?(Hash) && function_return[:gallery_html]

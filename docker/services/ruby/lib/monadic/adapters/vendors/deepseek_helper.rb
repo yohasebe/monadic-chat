@@ -123,7 +123,7 @@ module DeepSeekHelper
     target_uri = "#{API_ENDPOINT}/chat/completions"
     
     # Debug the full request body
-    DebugHelper.debug("DeepSeek API request body: #{JSON.pretty_generate(body)}", category: :api, level: :debug)
+    DebugHelper.debug("DeepSeek API request body: #{JSON.pretty_generate(workbench_loggable(body))}", category: :api, level: :debug)
     
     http = HTTP.headers(headers)
     
@@ -326,7 +326,8 @@ module DeepSeekHelper
                           session[:messages].length <= 2
 
     if role == "tool"
-      body["messages"] += obj["function_returns"]
+      body["messages"] += with_workbench_looks(obj["function_returns"], session,
+                                               tool_id: method(:chat_tool_call_id)) { |looks| chat_look_message(looks) }
     elsif role == "user" && !is_initial_greeting
       if (suffix = APPS[app].settings["prompt_suffix"])
         append_deepseek_prompt_suffix(body["messages"].last, suffix)
@@ -376,7 +377,7 @@ module DeepSeekHelper
   end
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
-    Monadic::Utils::ExtraLogger.log { "Processing query (Call depth: #{call_depth})\n#{JSON.pretty_generate(query)}" }
+    Monadic::Utils::ExtraLogger.log { "Processing query (Call depth: #{call_depth})\n#{JSON.pretty_generate(workbench_loggable(query))}" }
 
     obj = session[:parameters]
 
@@ -1175,7 +1176,7 @@ module DeepSeekHelper
     target_uri = "#{API_ENDPOINT}/chat/completions"
     headers["Accept"] = "text/event-stream"
 
-    DebugHelper.debug("DeepSeek streaming API final body: #{JSON.pretty_generate(body)}", category: :api, level: :debug)
+    DebugHelper.debug("DeepSeek streaming API final body: #{JSON.pretty_generate(workbench_loggable(body))}", category: :api, level: :debug)
 
     res = { "type" => "wait", "content" => "<i class='fas fa-spinner fa-pulse'></i> THINKING" }
     block&.call res
@@ -1196,9 +1197,10 @@ module DeepSeekHelper
       body.delete("tool_choice")
     end
 
-    Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
-    res = post_json_with_retries(http, target_uri, body,
-                                 max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
+    offer_tools!(body, session, app, provider: "deepseek", model: body["model"])
+    # Each post of the body is checked for what it holds of the work screen.
+    res = post_json_with_retries(http, target_uri, body, max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY,
+                                 looks: { session: session, provider: "deepseek", model: body["model"] })
 
     unless res.status.success?
       # A proxy or gateway can answer with a body that is not JSON.
@@ -1282,6 +1284,7 @@ module DeepSeekHelper
       session[:tool_html_fragments] << function_return[:gallery_html]
     end
 
+    bind_workbench_look(function_return, tool_call["id"])
     content_value = function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
     entry = {
       "role" => "tool",

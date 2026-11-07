@@ -109,6 +109,30 @@ describe('Workbench', () => {
     expect(note.querySelector('.workbench-save').textContent).toBe('Download');
   });
 
+  test('says on the message what the reply looked at in the work screen and how far it went', () => {
+    const el = card('m-1');
+    window.Workbench.drawLooks('m-1', [
+      { id: 'look_1', kind: 'image', name: 'shot.png', state: 'sent', version: 'abcdef123456' },
+      { id: 'look_2', kind: 'text', name: '<b>n</b>.txt', state: 'unknown', lines: { first: 1, last: 3, partial: true }, truncated: true },
+      { id: 'look_4', kind: 'text', name: 'e.txt', state: 'sent', empty: true },
+      { id: 'look_3', kind: 'image', name: 'x.png', state: 'made-up' }
+    ]);
+    const lines = el.querySelectorAll('.workbench-look-line');
+    expect(lines.length).toBe(3);
+    expect(lines[0].textContent).toContain('Sent to the AI provider');
+    expect(lines[0].textContent).toContain('shot.png');
+    expect(lines[0].textContent).toContain('abcdef123456');
+    expect(lines[1].textContent).toContain('whether it arrived is not known');
+    expect(lines[1].textContent).toContain('lines 1–3');
+    expect(lines[1].textContent).toContain('cut short');
+    expect(lines[2].textContent).toContain('empty');
+    // A name is shown as text, never as markup.
+    expect(lines[1].querySelector('code').textContent).toBe('<b>n</b>.txt');
+    expect(lines[1].querySelector('b')).toBeNull();
+    window.Workbench.drawLooks('m-1', []);
+    expect(el.querySelector('.workbench-look-note')).toBeNull();
+  });
+
   test('says Save as… in the desktop app', () => {
     window.electronAPI = {};
     view([item()]);

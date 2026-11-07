@@ -4,6 +4,7 @@ require 'json'
 require_relative '../workbench/board'
 require_relative '../workbench/caller'
 require_relative '../workbench/channel'
+require_relative '../workbench/look'
 require_relative '../history/policy'
 
 module MonadicSharedTools
@@ -31,6 +32,13 @@ module MonadicSharedTools
       refused(e.message)
     rescue Monadic::Workbench::FileItem::Busy
       refused('the work screen is reading other files now; try again in a moment')
+    end
+
+    # What the asking tab has selected in the work screen, read now
+    # (Monadic::Workbench::Look): a Look::Result whose image, if any, the
+    # provider's helper places after the result, or a refusal.
+    def look_at_workbench(scope: 'visible', workbench: nil)
+      Monadic::Workbench::Look.run(workbench, scope: scope)
     end
 
     private

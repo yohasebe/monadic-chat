@@ -3,6 +3,7 @@
 require 'json'
 require_relative '../utils/secret_redactor'
 require_relative '../workbench/record'
+require_relative '../workbench/look/record'
 
 module Monadic
   module History
@@ -77,6 +78,8 @@ module Monadic
         out['attachments'] = refs unless refs.empty?
         artifacts = Monadic::Workbench::Record.clean(raw['artifacts'] || raw[:artifacts])
         out['artifacts'] = artifacts if artifacts
+        looks = Monadic::Workbench::Look::Record.clean(raw['workbench_looks'] || raw[:workbench_looks])
+        out['workbench_looks'] = looks if looks
         out
       end
 

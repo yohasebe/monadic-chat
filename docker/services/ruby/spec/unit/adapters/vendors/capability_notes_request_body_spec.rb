@@ -40,7 +40,7 @@ RSpec.describe "Capability note in the request body, in a process of its own" do
   it "passes every example of the check" do
     failed = @report["examples"].reject { |e| e["status"] == "passed" }
     expect(failed.map { |e| "#{e['full_description']}: #{e.dig('exception', 'message')}" }).to be_empty
-    expect(@report.dig("summary", "example_count")).to eq(37)
+    expect(@report.dig("summary", "example_count")).to eq(78)
     expect(@report.dig("summary", "errors_outside_of_examples_count")).to eq(0)
   end
 

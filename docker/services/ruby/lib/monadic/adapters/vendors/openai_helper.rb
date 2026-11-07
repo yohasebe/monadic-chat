@@ -737,7 +737,14 @@ module OpenAIHelper
     end
 
     if role == "tool"
-      body["messages"] += obj["function_returns"]
+      body["messages"] += with_workbench_looks(obj["function_returns"], session, tool_id: method(:chat_tool_call_id)) do |looks|
+        { role: "user",
+          content: looks.flat_map do |look|
+            parts = workbench_look_parts(look)
+            [{ "type" => "text", "text" => parts[:text] },
+             (parts[:image] && { "type" => "image_url", "image_url" => { "url" => parts[:image].data_url, "detail" => "high" } })].compact
+          end }
+      end
       body.delete("tool_choice") if body["tool_choice"]
     end
 
@@ -1232,8 +1239,10 @@ module OpenAIHelper
         }
       end
 
-      Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
-      res = http.timeout(**timeout_settings).post(target_uri, json: body)
+      offer_tools!(body, session, app, provider: "openai", model: body["model"])
+      res = post_with_workbench_looks(session, provider: "openai", model: body["model"]) do
+        http.timeout(**timeout_settings).post(target_uri, json: body)
+      end
       break if res.status.success?
 
       sleep RETRY_DELAY
@@ -1576,7 +1585,7 @@ module OpenAIHelper
   end
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
-    Monadic::Utils::ExtraLogger.log_json("Processing query (Call depth: #{call_depth})", query)
+    Monadic::Utils::ExtraLogger.log_json("Processing query (Call depth: #{call_depth})", workbench_loggable(query))
 
     obj = session[:parameters]
     # Determine reasoning model solely via model_spec
@@ -2028,7 +2037,8 @@ module OpenAIHelper
           function_return = APPS[app].public_send(function_name.to_sym, **argument_hash)
         end
 
-        Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{function_name} returned: #{function_return.to_s[0..500]}" }
+        Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{function_name} returned: #{workbench_loggable(function_return).to_s[0..500]}" }
+        bind_workbench_look(function_return, tool_call["id"])
 
         send_verification_notification(session, &block) if function_name == "report_verification"
 
@@ -2273,7 +2283,7 @@ module OpenAIHelper
   end
 
   def process_responses_api_data(app:, session:, query:, res:, call_depth:, &block)
-    Monadic::Utils::ExtraLogger.log_json("Processing responses API query (Call depth: #{call_depth})", query)
+    Monadic::Utils::ExtraLogger.log_json("Processing responses API query (Call depth: #{call_depth})", workbench_loggable(query))
 
     obj = session[:parameters]
     buffer = String.new

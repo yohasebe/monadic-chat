@@ -913,6 +913,15 @@ window.loadedApp = "Chat";
         break;
       }
 
+      // A reply ended without its message: what it looked at in the work
+      // screen is drawn on the user's message.
+      case "workbench_looks": {
+        if (window.Workbench && typeof window.Workbench.drawLooks === 'function' && Array.isArray(data.looks)) {
+          window.Workbench.drawLooks(data.mid, data.looks);
+        }
+        break;
+      }
+
       case "context_extraction_started": {
         const wsh = window.WsSessionHandler;
         if (wsh && typeof wsh.handleContextExtractionStarted === 'function') {

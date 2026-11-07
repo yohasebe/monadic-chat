@@ -188,6 +188,11 @@ module WebSocketHelper
         made = content["message"] && Monadic::Workbench::Record.clean(content["message"][Monadic::Workbench::Offer::ARTIFACTS_KEY])
         new_data["artifacts"] = made if made
 
+        # What the reply looked at in the work screen (Workbench::Look), as
+        # the message keeps it: no bytes, no text.
+        looked = workbench_looks_of_reply(session, request_id)
+        new_data["workbench_looks"] = looked if looked
+
         # Forward the vocabulary token -> resolved-path map for the frontend's
         # decoration / hover / reveal-in-explorer layer.
         vocabulary_map = content["message"] && content["message"]["vocabulary_map"]

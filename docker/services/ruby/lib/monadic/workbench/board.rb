@@ -326,6 +326,31 @@ module Monadic
         end
       end
 
+      # The item the tab's connection has selected, copied as it is now (its
+      # version included), for a look; nil when nothing is selected, and
+      # :connection_gone when the connection is no longer the tab's.
+      def look_target(tab:, generation:)
+        @lock.synchronize do
+          next :connection_gone unless tab && generation && live?(tab, generation)
+
+          held = @selected[tab.to_s]
+          next nil unless held && held[:generation] == generation
+
+          item = @data['items'][held[:item_id]]
+          item && deep_dup(item)
+        end
+      end
+
+      # Whether the tab's connection still has item (look_target) selected,
+      # at the same version.
+      def still_selected?(tab:, generation:, item:)
+        @lock.synchronize do
+          held = @selected[tab.to_s]
+          now = held && held[:generation] == generation && live?(tab, generation) && @data['items'][held[:item_id]]
+          now && now['id'] == item['id'] && version_of(now) == version_of(item)
+        end
+      end
+
       # The connection closed: what it selected is no longer kept for it.
       def drop_selection(tab, generation)
         @lock.synchronize do

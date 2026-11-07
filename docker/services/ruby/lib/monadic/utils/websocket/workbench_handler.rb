@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require_relative '../../workbench/channel'
+require_relative '../../workbench/look'
+require_relative '../../workbench/look/record'
 
 # The workbench over the main socket (Monadic::Workbench::Channel): the
 # view a page is sent, the user's removal of an item from the board, a file
@@ -38,6 +40,50 @@ module WebSocketHelper
     send_workbench_view(connection, session)
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[Workbench] Board not sent after the reply: #{e.class}: #{e.message}" }
+  end
+
+  # The looks of the reply to request_id (Look::Ledger#records), let go
+  # as the reply is recorded; nil when it looked at nothing.
+  def workbench_looks_of_reply(session, request_id)
+    ledger = request_id && Monadic::Workbench::Look::Ledger.take(request_id)
+    return nil unless ledger && ledger.chat_id == session[Monadic::Workspace::Chats::SESSION_KEY]
+
+    Monadic::Workbench::Look::Record.clean(ledger.records)
+  end
+
+  # A reply ended without its message: what it looked at in the work
+  # screen (and how far that went) is kept on the user's message of the
+  # request, in the session the looks were made for (the thread that ends
+  # the reply may have none), and the page draws it there. Nothing when
+  # that session is in another chat now.
+  def workbench_looks_without_reply(request_id, ws_session_id)
+    ledger = Monadic::Workbench::Look::Ledger.take(request_id)
+    records = Monadic::Workbench::Look::Record.clean(ledger&.records)
+    session = ledger&.session
+    return unless records && session && session[Monadic::Workspace::Chats::SESSION_KEY] == ledger.chat_id
+
+    turn = Array(session[:messages]).find { |m| m.is_a?(Hash) && m["role"] == "user" && m["request_id"] == request_id }
+    return unless turn
+
+    turn["workbench_looks"] = records
+    send_or_broadcast({ "type" => "workbench_looks", "mid" => turn["mid"], "looks" => records }.to_json, ws_session_id)
+    # Saved now, as any change of the chat is (the tab's connection and the
+    # history's rules decide), not left for the next one: the reply may
+    # have ended with the connection.
+    saved_as(session, ledger.tab || ws_session_id) { sync_session_state! }
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[Workbench] Looks not kept after the reply: #{e.class}: #{e.message}" }
+  end
+
+  # Runs the block as the work of session's tab (what sync_session_state!
+  # reads), from a thread that may be another's.
+  def saved_as(session, tab)
+    was = [Thread.current[:rack_session], Thread.current[:websocket_session_id]]
+    Thread.current[:rack_session] = session
+    Thread.current[:websocket_session_id] = tab
+    yield
+  ensure
+    Thread.current[:rack_session], Thread.current[:websocket_session_id] = was
   end
 
   def handle_ws_workbench_action(connection, obj, session)

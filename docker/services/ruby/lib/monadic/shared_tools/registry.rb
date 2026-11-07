@@ -93,6 +93,22 @@ module MonadicSharedTools
                 required: true
               }
             ]
+          },
+          {
+            name: "look_at_workbench",
+            description: "Look at what the user has selected in the work screen beside the chat, as it is now. " \
+                         "An image is given to you after the tool's result; a text file is given as text. " \
+                         "scope 'visible' is what the user sees (for an image, the whole image); " \
+                         "scope 'whole' is the whole item, within limits (for text, from its beginning). " \
+                         "Use it when the user refers to what they are looking at. Looking is not the user's approval of anything.",
+            parameters: [
+              {
+                name: :scope,
+                type: "string",
+                description: "'visible' (default) or 'whole'",
+                required: false
+              }
+            ]
           }
         ],
         default_hint: "Call request_tool(\"workbench\") to show a file of the shared folder in the work screen."

@@ -6,6 +6,8 @@ require_relative "../utils/http_client"
 require_relative "../utils/tool_dispatch_guard"
 require_relative "../workspace/request_context"
 require_relative "../workbench/observation"
+require_relative "../workbench/look"
+require_relative "../workbench/look/availability"
 
 # BaseVendorHelper
 # Shared utilities for vendor helpers. Provides macros for common patterns
@@ -241,6 +243,177 @@ module BaseVendorHelper
   # payload it builds, a tool's continuation too, has it once.
   def observation_for(session, msg)
     Monadic::Workbench::Observation.text_for(session, msg)
+  end
+
+  # The tools of the request about to be sent, as the model is offered
+  # them: look_at_workbench only where its image can reach this model
+  # (Look::Availability). Recorded for ToolDispatchGuard after the filter,
+  # so a call of a tool that was left out is refused.
+  def offer_tools!(body, session, app, provider:, model:)
+    if body["tools"]
+      body["tools"] = Monadic::Workbench::Look::Availability.filter(body["tools"], session: session,
+                                                                     provider: provider, model: model)
+      # Nothing is left to offer: no tools and no choice among them.
+      if body["tools"].is_a?(Array) && body["tools"].empty?
+        body.delete("tools")
+        body.delete("tool_choice")
+      end
+    end
+    Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
+  end
+
+  # A tool's result that is a look (Look::Result) answers tool_call_id: its
+  # image goes after that call's result in each request of the reply.
+  def bind_workbench_look(function_return, tool_call_id)
+    return unless function_return.is_a?(Monadic::Workbench::Look::Result)
+
+    ledger = workbench_look_ledger
+    ledger&.bind(function_return.observation_id, tool_call_id)
+  end
+
+  # The request's looks (Look::Ledger), made at any epoch: a request
+  # being built or sent after a Reset still names what it holds, and its
+  # post refuses it (post_with_workbench_looks).
+  def workbench_look_ledger
+    request = Monadic::Workspace::RequestContext.current
+    request && Monadic::Workbench::Look::Ledger.of_request(request.chat_id, request.request_id)
+  end
+
+  # messages (a request's copy) with, after each run of tool results, one
+  # user message holding the images of the looks those results answer, and
+  # after the last run one holding the looks whose results are not in
+  # messages (a helper that sends only the last round's results); the
+  # block makes such a message in the provider's shape from the
+  # observations (workbench_look_parts). tool_id gives a message's tool
+  # call id, or nil for any other message. The request then holds every
+  # look it names (workbench_looks_prepared).
+  def with_workbench_looks(messages, session, tool_id:)
+    ledger = workbench_look_ledger
+    return messages unless ledger
+
+    out = []
+    run = []
+    all = []
+    flush = lambda do
+      looks = ledger.images_for(run)
+      out << yield(looks) if looks.any?
+      run = []
+    end
+    messages.each do |message|
+      id = tool_id.call(message)
+      flush.call if id.nil? && run.any?
+      out << message
+      if id
+        run << id.to_s
+        all << id.to_s
+      end
+    end
+    flush.call if run.any?
+    left = ledger.left_out(all)
+    out << yield(left) if left.any?
+    workbench_looks_prepared(ledger.answering(all) + left)
+    out
+  end
+
+  # The looks with an image that answer tool_call_ids, to be placed in the
+  # request being built.
+  def workbench_looks_to_place(session, tool_call_ids)
+    ledger = workbench_look_ledger
+    ledger && tool_call_ids.any? ? ledger.images_for(tool_call_ids) : []
+  end
+
+  # The request being built holds looks (their text results, their
+  # images): each post of the request from now on is checked with them and
+  # settles them (post_with_workbench_looks). This thread keeps the ledger
+  # for those posts.
+  def workbench_looks_prepared(looks)
+    ledger = workbench_look_ledger
+    return unless ledger
+
+    ledger.prepare(looks.map(&:id).uniq)
+    Monadic::Workbench::Look::Ledger.hold_here(ledger)
+  end
+
+  # What a request holds of a look in a message of its own: the caption
+  # and the image, or (for a look whose result the request does not hold)
+  # its result as text. Both passed the chat's Privacy Filter when the
+  # look was made.
+  def workbench_look_parts(look)
+    return { text: look.caption.to_s, image: look.image } if look.image
+
+    { text: "A result of #{Monadic::Workbench::Look::TOOL} from an earlier step of this reply: #{look.result}",
+      image: nil }
+  end
+
+  # Posts one request (the block: one HTTP post of body) after checking
+  # the looks the request holds: every look a helper put in a request of
+  # this reply (Ledger#held), not what the body's text names (a Privacy
+  # Filter may have masked that), so that a copy of a body, a retry or a
+  # body sent again is checked each time it is posted: the looks were not
+  # let go, the session is still in the chat of the request, at its epoch,
+  # not Private, and the model takes images when one is held. Otherwise
+  # nothing is sent (Look::Withheld) and they are unsent. Then how far they
+  # went is recorded (Look::Attempt).
+  def post_with_workbench_looks(session, provider:, model:, &)
+    ledger = workbench_look_ledger || workbench_look_ledger_held_here
+    ids = ledger ? ledger.held : []
+    return yield if ids.empty?
+
+    Monadic::Workbench::Look::Attempt.new(ledger, ids).send!(session, provider: provider, model: model, &)
+  end
+
+  # The ledger this thread kept for the request (one that was let go
+  # since), or nil.
+  def workbench_look_ledger_held_here
+    request = Monadic::Workspace::RequestContext.current
+    request && Monadic::Workbench::Look::Ledger.held_here(request.chat_id, request.request_id)
+  end
+
+  # value as a log may show it: what a look of the work screen read is
+  # named, not written. Found by its shape, so that it is named in a later
+  # request too: a tool result of a look (it says "status":"looked"), and
+  # an image's data (a data URL, or the base64 data of Claude's, Gemini's
+  # and Ollama's image parts). Anything else is left as it is.
+  LOOK_RESULT = /\\?"status\\?"\s*:\s*\\?"looked\\?"/
+  IMAGE_DATA_URL = %r{data:image/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+}i
+  IMAGE_DATA_KEYS = %w[data images].freeze
+
+  def workbench_loggable(value, key = nil)
+    case value
+    when Monadic::Workbench::Look::Result
+      "[#{Monadic::Workbench::Look::TOOL} result #{value.observation_id}]"
+    when String
+      if value.match?(LOOK_RESULT)
+        id = value[Monadic::Workbench::Look::Ledger::ID]
+        "[#{Monadic::Workbench::Look::TOOL} result #{id}]"
+      elsif IMAGE_DATA_KEYS.include?(key.to_s) && value.length >= 64 && value.match?(%r{\A[A-Za-z0-9+/=\s]+\z})
+        "[image data, #{value.length} characters]"
+      else
+        value.gsub(IMAGE_DATA_URL) { |url| "[image data URL, #{url.length} characters]" }
+      end
+    when Hash then value.to_h { |k, v| [k, workbench_loggable(v, k)] }
+    when Array then value.map { |v| workbench_loggable(v, key) }
+    else value
+    end
+  end
+
+  # A tool result's call id in the Chat Completions shape (role "tool"),
+  # or nil for any other message.
+  def chat_tool_call_id(message)
+    role = message[:role] || message["role"]
+    role.to_s == "tool" ? (message[:tool_call_id] || message["tool_call_id"]) : nil
+  end
+
+  # A user message, in the Chat Completions shape, of looks
+  # (workbench_look_parts): each image after the text that says which
+  # observation it is.
+  def chat_look_message(looks)
+    { "role" => "user",
+      "content" => looks.flat_map do |look|
+        parts = workbench_look_parts(look)
+        [{ "type" => "text", "text" => parts[:text] },
+         (parts[:image] && { "type" => "image_url", "image_url" => { "url" => parts[:image].data_url } })].compact
+      end }
   end
 
   # The messages as the model reads them: a user message's attachments are
@@ -520,15 +693,20 @@ module BaseVendorHelper
   # controls which exceptions count as "retry" (default: none — exceptions
   # propagate, matching the majority of call sites). Pass e.g.
   # [HTTP::Error, HTTP::TimeoutError] where the original loop swallowed them.
-  def post_json_with_retries(http, target_uri, body, max_retries:, retry_delay:, rescue_errors: [])
+  # looks: { session:, provider:, model: } when the body may hold looks of
+  # the work screen: each post of it is checked (post_with_workbench_looks).
+  def post_json_with_retries(http, target_uri, body, max_retries:, retry_delay:, rescue_errors: [], looks: nil)
     response = nil
     max_retries.times do
       begin
-        response = http.timeout(connect: open_timeout,
-                                write: write_timeout,
-                                read: read_timeout).post(target_uri, json: body)
+        post = -> { http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout).post(target_uri, json: body) }
+        response = if looks
+                     post_with_workbench_looks(looks[:session], provider: looks[:provider], model: looks[:model], &post)
+                   else
+                     post.call
+                   end
         break if response && response.status && response.status.success?
-      rescue Monadic::Utils::Privacy::Outbound::Refused
+      rescue Monadic::Utils::Privacy::Outbound::Refused, Monadic::Workbench::Look::Withheld
         raise # nothing was sent, and trying again would not change that
       rescue *rescue_errors
         # Transient request failure — retry after the delay below.

@@ -10,9 +10,13 @@ module Monadic
       module Record
         LIMIT = 8
         STATES = %w[acquired embedded sent unsent refused unknown].freeze
-        KINDS = %w[image text].freeze
+        KINDS = %w[image text pdf].freeze
+        PARTS = %w[image page_text selection].freeze
+        CROP = %w[x y width height sent_width sent_height].freeze
+        # Why a part of a look could not be had (Look::Pdf).
+        PART_NOTES = %w[none not_in_view drawing redrawn failed too_large busy pdf_text_unavailable].freeze
         SCOPES = %w[visible whole].freeze
-        SOURCES = %w[workbench_image workbench_file].freeze
+        SOURCES = %w[workbench_image workbench_file workbench_capture].freeze
         TEXT_FIELDS = { 'id' => 40, 'item_id' => 40, 'name' => 255, 'path' => 1024, 'at' => 40 }.freeze
         HASH = /\A[0-9a-f]{64}\z/
 
@@ -50,6 +54,23 @@ module Monadic
                           .select { |_, v| v.is_a?(Integer) && v >= 0 }
             picked['partial'] = true if lines['partial'] == true && !picked.empty?
             out['lines'] = picked unless picked.empty?
+          end
+          pages = entry['pages']
+          if pages.is_a?(Hash)
+            picked = pages.transform_keys(&:to_s).slice('first', 'last', 'total').select { |_, v| v.is_a?(Integer) && v >= 0 }
+            out['pages'] = picked unless picked.empty?
+          end
+          parts = entry['parts']
+          if parts.is_a?(Hash)
+            picked = parts.transform_keys(&:to_s).slice(*PARTS).select { |_, v| v == true || PART_NOTES.include?(v) }
+            out['parts'] = picked unless picked.empty?
+          end
+          cuts = entry['cuts']
+          out['cuts'] = (cuts & PARTS) if cuts.is_a?(Array) && (cuts & PARTS).any?
+          crop = entry['crop']
+          if crop.is_a?(Hash)
+            picked = crop.transform_keys(&:to_s).slice(*CROP).select { |_, v| v.is_a?(Numeric) && v.finite? && v >= 0 }
+            out['crop'] = picked if picked.size == CROP.size
           end
           out
         end

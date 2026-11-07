@@ -133,6 +133,26 @@ describe('Workbench', () => {
     expect(el.querySelector('.workbench-look-note')).toBeNull();
   });
 
+  test('says which pages of a PDF a look read and which of its parts it gave', () => {
+    const el = card('m-1');
+    window.Workbench.drawLooks('m-1', [
+      { id: 'look_1', kind: 'pdf', name: 'p.pdf', state: 'sent', pages: { first: 2, last: 2, total: 9 },
+        parts: { image: true, page_text: 'pdf_text_unavailable', selection: true } },
+      { id: 'look_2', kind: 'pdf', name: 'q.pdf', state: 'sent', pages: { first: 1, last: 100, total: 140 },
+        parts: { page_text: true }, truncated: true },
+      { id: 'look_3', kind: 'pdf', name: 'r.pdf', state: 'sent', pages: { first: 1, last: 1 }, empty: true }
+    ]);
+    const lines = el.querySelectorAll('.workbench-look-line');
+    expect(lines[0].textContent).toContain('page 2');
+    expect(lines[0].textContent).toContain('image of the part in view');
+    expect(lines[0].textContent).toContain('selected text');
+    expect(lines[0].textContent).not.toContain('text of the page');
+    expect(lines[1].textContent).toContain('pages 1–100 of 140');
+    expect(lines[1].textContent).toContain('cut short');
+    expect(lines[2].textContent).toContain('no text extracted');
+    expect(lines[2].textContent).not.toContain('empty');
+  });
+
   test('says Save as… in the desktop app', () => {
     window.electronAPI = {};
     view([item()]);
@@ -689,6 +709,121 @@ describe('Workbench', () => {
       await flush();
       await flush();
       expect(window.Workbench.rangeNow()).toMatchObject({ range: null, note: 'empty' });
+    });
+
+    describe('answering a capture of a PDF', () => {
+      const paper = { id: 'i_p', kind: 'file', actor: 'user', name: 'p.pdf', path: 'p.pdf', preview: 'pdf',
+        sha256: 'f'.repeat(64), version: 'f'.repeat(64), status: 'ok' };
+      let shown;
+      let canvas;
+      let layer;
+      let drawImage;
+      let encoded;
+
+      beforeEach(async () => {
+        layout.pane = 'work';
+        shown = { status: 'ready', page: 2, pages: 5, scale: 1, drawing: 4 };
+        // The canvas is drawn at twice the screen's pixels: 800 × 1000 for
+        // 400 × 500 on screen, its top 100px above the window.
+        canvas = document.createElement('canvas');
+        canvas.width = 800;
+        canvas.height = 1000;
+        canvas.getBoundingClientRect = () => ({ top: -100, bottom: 400, left: 0, right: 400, width: 400, height: 500 });
+        layer = document.createElement('div');
+        layer.className = 'textLayer';
+        layer.innerHTML = '<span>chosen words</span>';
+        drawImage = jest.fn();
+        encoded = () => 'data:image/png;base64,QUJD';
+        jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({ drawImage }));
+        jest.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(() => encoded());
+        window.WorkbenchPdf = {
+          show: (box) => {
+            const sheet = document.createElement('div');
+            sheet.className = 'workbench-pdf-page';
+            sheet.getBoundingClientRect = () => ({ top: -100, bottom: 400, left: 0, right: 400 });
+            sheet.append(canvas, layer);
+            box.appendChild(sheet);
+            return { shown: () => shown, canvas: () => canvas, textLayer: () => layer, dispose: () => {}, state: () => ({}) };
+          }
+        };
+        global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(4) }));
+        view([paper], { assets: { i_p: '/workbench/asset/p' }, selected: 'i_p', selection_serial: 3 });
+        await flush();
+        document.querySelector('#workbench-view .workbench-pdf').getBoundingClientRect =
+          () => ({ top: 0, bottom: 500, left: 0, right: 400, height: 500 });
+      });
+
+      afterEach(() => {
+        delete window.WorkbenchPdf;
+        jest.restoreAllMocks();
+      });
+
+      async function answer(wants = ['range', 'image', 'selection']) {
+        const posted = jest.fn(() => Promise.resolve({ status: 204 }));
+        global.fetch = posted;
+        window.Workbench.onCapture({ type: 'workbench_capture', id: 'cap-p', item_id: 'i_p', version: 'f'.repeat(64),
+          serial: 3, wants: wants });
+        await flush();
+        return JSON.parse(posted.mock.calls[0][1].body);
+      }
+
+      function select(node) {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+      }
+
+      test('cuts the part of the page in view in the canvas\'s own pixels, and gives the text selected in it', async () => {
+        select(layer.querySelector('span'));
+        const body = await answer();
+        // In view: the page from 100px below its top, 400 × 400 on screen.
+        expect(drawImage).toHaveBeenCalledWith(canvas, 0, 200, 800, 800, 0, 0, 800, 800);
+        expect(body).toEqual({
+          range: { page: 2, pages: 5 }, note: null, image: 'QUJD',
+          crop: { x: 0, y: 200, width: 800, height: 800, sent_width: 800, sent_height: 800 },
+          selection_text: 'chosen words', selection_cut: false
+        });
+      });
+
+      test('draws a large part no larger than it sends', async () => {
+        canvas.width = 4000;
+        canvas.height = 5000;
+        const body = await answer(['range', 'image']);
+        expect(body.crop).toMatchObject({ width: 4000, height: 4000, sent_width: 2048, sent_height: 2048 });
+        expect(drawImage).toHaveBeenCalledWith(canvas, 0, 1000, 4000, 4000, 0, 0, 2048, 2048);
+        // Wider than high: the long side is held to 2048, the pixels too.
+        canvas.width = 8000;
+        canvas.height = 2500;
+        canvas.getBoundingClientRect = () => ({ top: 0, bottom: 125, left: 0, right: 400, width: 400, height: 125 });
+        const wide = (await answer(['range', 'image'])).crop;
+        expect(wide).toMatchObject({ width: 8000, height: 2500, sent_width: 2048, sent_height: 640 });
+        expect(wide.sent_width * wide.sent_height).toBeLessThanOrEqual(4194304);
+      });
+
+      test('gives no image when the page was drawn again meanwhile, nor a selection outside the PDF', async () => {
+        encoded = () => {
+          shown = Object.assign({}, shown, { drawing: 5 });
+          return 'data:image/png;base64,QUJD';
+        };
+        select(document.getElementById('message'));
+        const body = await answer();
+        expect(body).toEqual({ range: { page: 2, pages: 5 }, note: null, image_note: 'redrawn' });
+      });
+
+      test('says when none of the page is in view, and gives only what was asked for', async () => {
+        canvas.getBoundingClientRect = () => ({ top: 900, bottom: 1400, left: 0, right: 400, width: 400, height: 500 });
+        expect((await answer()).image_note).toBe('not_in_view');
+        expect(await answer(['range'])).toEqual({ range: { page: 2, pages: 5 }, note: null });
+      });
+
+      test('cuts a long selection', async () => {
+        layer.innerHTML = `<span>${'x'.repeat(8005)}</span>`;
+        select(layer.querySelector('span'));
+        const body = await answer(['range', 'selection']);
+        expect(body.selection_text.length).toBe(8000);
+        expect(body.selection_cut).toBe(true);
+      });
     });
 
     test('gives a PDF page only once it is drawn, and nothing with no item selected', async () => {

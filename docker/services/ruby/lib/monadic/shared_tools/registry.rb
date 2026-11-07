@@ -99,7 +99,9 @@ module MonadicSharedTools
             description: "Look at what the user has selected in the work screen beside the chat, as it is now. " \
                          "An image is given to you after the tool's result; a text file is given as text. " \
                          "scope 'visible' is what the user sees (for an image, the whole image; for text, the lines in view " \
-                         "and a few around them); scope 'whole' is the whole item, within limits (for text, from its beginning). " \
+                         "and a few around them; for a PDF, an image of the part of the page in view as the user's tab draws it, " \
+                         "the text of that page and any text the user selected in it); scope 'whole' is the whole item, " \
+                         "within limits (for text, from its beginning; for a PDF, the text of its first pages, not their look). " \
                          "Use it when the user refers to what they are looking at. Looking is not the user's approval of anything.",
             parameters: [
               {

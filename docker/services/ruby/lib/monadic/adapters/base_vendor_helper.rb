@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'delegate'
 
 require_relative "../utils/http_client"
 require_relative "../utils/tool_dispatch_guard"
@@ -310,7 +311,7 @@ module BaseVendorHelper
     end
     flush.call if run.any?
     left = ledger.left_out(all)
-    out << yield(left) if left.any?
+    out << yield(left.map { |look| EarlierLook.new(look) }) if left.any?
     workbench_looks_prepared(ledger.answering(all) + left)
     out
   end
@@ -334,15 +335,30 @@ module BaseVendorHelper
     Monadic::Workbench::Look::Ledger.hold_here(ledger)
   end
 
-  # What a request holds of a look in a message of its own: the caption
-  # and the image, or (for a look whose result the request does not hold)
-  # its result as text. Both passed the chat's Privacy Filter when the
-  # look was made.
-  def workbench_look_parts(look)
-    return { text: look.caption.to_s, image: look.image } if look.image
+  # A look whose result the request being built does not hold (an
+  # earlier round's, left out by a helper that sends only the last
+  # round's results): its message gives the result too.
+  class EarlierLook < SimpleDelegator
+    def earlier?
+      true
+    end
+  end
 
-    { text: "A result of #{Monadic::Workbench::Look::TOOL} from an earlier step of this reply: #{look.result}",
-      image: nil }
+  # What a request holds of a look in a message of its own: the caption
+  # and the image, and for a look whose result the request does not hold
+  # (EarlierLook) its result as text, also with an image when the look
+  # read text too (a PDF's page). All of it passed the chat's Privacy
+  # Filter when the look was made.
+  def workbench_look_parts(look)
+    earlier = look.respond_to?(:earlier?) && look.earlier?
+    result = "A result of #{Monadic::Workbench::Look::TOOL} from an earlier step of this reply: #{look.result}"
+    if look.image
+      text = look.caption.to_s
+      text += "\n#{result}" if earlier && look.text_chars.to_i.positive?
+      return { text: text, image: look.image }
+    end
+
+    { text: result, image: nil }
   end
 
   # Posts one request (the block: one HTTP post of body) after checking

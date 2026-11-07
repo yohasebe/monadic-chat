@@ -142,12 +142,16 @@ describe('WorkbenchPdf', () => {
     const handle = window.WorkbenchPdf.show(box, new ArrayBuffer(8), (shown) => changes.push(shown.status));
     expect(handle.shown()).toEqual({ status: 'loading' });
     await flush();
-    expect(handle.shown()).toEqual({ status: 'ready', page: 1, pages: 3, scale: 1 });
+    const first = handle.shown();
+    expect(first).toEqual({ status: 'ready', page: 1, pages: 3, scale: 1, drawing: expect.any(Number) });
+    expect(handle.canvas()).toBe(box.querySelector('canvas'));
+    expect(handle.textLayer()).toBe(box.querySelector('.textLayer'));
     box.querySelector('.workbench-pdf-next').click();
     expect(handle.state().page).toBe(2);
     expect(handle.shown()).toEqual({ status: 'drawing' });
     await flush();
     expect(handle.shown()).toMatchObject({ status: 'ready', page: 2 });
+    expect(handle.shown().drawing).toBeGreaterThan(first.drawing);
     expect(changes).toEqual(['drawing', 'ready', 'drawing', 'ready']);
   });
 

@@ -27,8 +27,10 @@ module Monadic
       # Captures waiting at once, and answers being read at once.
       PENDING = 8
       READING = 8
-      # Bytes of an answer.
+      # Bytes of an answer: of what is not an image, and of an image's
+      # base64 (asked only when the capture wants an image).
       BODY_LIMIT = 256 * 1024
+      IMAGE_LIMIT = 5 * 1024 * 1024
       ID = /\A[A-Za-z0-9_-]{43}\z/
 
       class Failed < StandardError
@@ -42,8 +44,14 @@ module Monadic
 
       # One request: the tab's connection it was written to, the request it
       # is for, and what came of it (an answer, or why there is none).
-      Pending = Struct.new(:id, :tab, :generation, :chat_id, :request_id, :deadline, :reading, :answer, :failure,
-                           keyword_init: true)
+      Pending = Struct.new(:id, :tab, :generation, :chat_id, :request_id, :deadline, :wants, :body_limit, :reading,
+                           :answer, :failure, keyword_init: true)
+
+      # What an answer may hold, by what was asked for (wants); anything
+      # else is left out.
+      FIELDS = {
+        nil => %w[range note], 'image' => %w[image image_note crop], 'selection' => %w[selection_text selection_cut]
+      }.freeze
 
       @pending = {}
       @reading = 0
@@ -64,7 +72,8 @@ module Monadic
         def request(tab:, generation:, chat_id:, request_id:, item_id:, version:, serial:, wants:, deadline:, valid:)
           now = clock
           ends = [deadline, now + WAIT].min
-          pending = register(tab, generation, chat_id, request_id, ends)
+          limit = wants.include?('image') ? IMAGE_LIMIT + BODY_LIMIT : BODY_LIMIT
+          pending = register(tab, generation, chat_id, request_id, ends, wants, limit)
           payload = { 'type' => 'workbench_capture', 'id' => pending.id, 'item_id' => item_id, 'version' => version,
                       'serial' => serial, 'wants' => wants, 'wait_ms' => ((ends - now) * 1000).floor }
           unless transport&.call(tab, generation, chat_id, JSON.generate(payload))
@@ -75,16 +84,17 @@ module Monadic
           drop(pending) if pending
         end
 
-        # Reads the answer to id (CaptureServer): the block, given the
-        # capture's deadline, reads it (a Hash, or nil when it could not).
-        # nil when id is not waiting for an answer, one is being read for
-        # it, or READING answers are being read; otherwise whether the
+        # Reads the answer to id (CaptureServer), of length bytes: the block,
+        # given the capture's deadline, reads it (a Hash, or nil when it
+        # could not). nil when id is not waiting for an answer, the answer
+        # is longer than the capture takes, one is being read for it, or
+        # READING answers are being read; otherwise whether the
         # answer read was taken. The room to read is held until the block
         # ends, also when the capture ended meanwhile, and given back once
         # (not stopped in between).
-        def reading(id)
+        def reading(id, length)
           Thread.handle_interrupt(Object => :never) do
-            deadline = start_reading(id)
+            deadline = start_reading(id, length)
             return nil unless deadline
 
             begin
@@ -132,13 +142,14 @@ module Monadic
           Process.clock_gettime(Process::CLOCK_MONOTONIC)
         end
 
-        def register(tab, generation, chat_id, request_id, deadline)
+        def register(tab, generation, chat_id, request_id, deadline, wants, body_limit)
           @lock.synchronize do
             raise Failed.new('busy', 'the work screen is being asked by too many replies now') if @pending.size >= PENDING
 
             id = SecureRandom.urlsafe_base64(32)
             @pending[id] = Pending.new(id: id, tab: tab.to_s, generation: generation, chat_id: chat_id,
-                                       request_id: request_id, deadline: deadline, reading: false)
+                                       request_id: request_id, deadline: deadline, wants: wants, body_limit: body_limit,
+                                       reading: false)
           end
         end
 
@@ -192,10 +203,11 @@ module Monadic
           @lock.synchronize { @pending.delete(pending.id) }
         end
 
-        def start_reading(id)
+        def start_reading(id, length)
           @lock.synchronize do
             pending = @pending[id]
             next nil unless pending && pending.answer.nil? && pending.failure.nil? && !pending.reading
+            next nil if length > pending.body_limit
             next nil if @reading >= READING || pending.deadline <= clock
 
             pending.reading = true
@@ -204,8 +216,12 @@ module Monadic
           end
         end
 
-        # The answer read for id is taken when the capture still waits.
+        # The answer read for id is taken when the capture still waits: of
+        # it, only what was asked for, an image's base64 of at most
+        # IMAGE_LIMIT and the rest of at most BODY_LIMIT.
         def take(id, answer)
+          wants = @lock.synchronize { @pending[id]&.wants }
+          answer = kept(answer, wants) if wants
           @lock.synchronize do
             pending = @pending[id]
             next false unless answer.is_a?(Hash) && pending && pending.answer.nil? && pending.failure.nil? &&
@@ -215,6 +231,20 @@ module Monadic
             @changed.broadcast
             true
           end
+        end
+
+        def kept(answer, wants)
+          return nil unless answer.is_a?(Hash)
+
+          fields = FIELDS[nil] + wants.flat_map { |want| FIELDS.fetch(want, []) }
+          answer = answer.slice(*fields)
+          image = answer['image']
+          return nil unless image.nil? || (image.is_a?(String) && image.bytesize <= IMAGE_LIMIT)
+          return nil if JSON.generate(answer.except('image')).bytesize > BODY_LIMIT
+
+          answer
+        rescue JSON::GeneratorError
+          nil
         end
 
         def end_reading(id)

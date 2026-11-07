@@ -215,6 +215,14 @@ module Monadic
           bytes = board.file_read(item['id'], sha256: file['sha256'])[:bytes]
           seen(item, 'image', file['name'], file['path'], file['sha256'],
                image: ImageValue.checked(bytes, source: 'workbench_file'))
+        when 'pdf'
+          bytes = -> { board.file_read(item['id'], sha256: file['sha256'])[:bytes] }
+          content = if scope == 'visible'
+                      Pdf.visible(selection, caller, deadline, still(board, selection, caller), bytes)
+                    else
+                      Pdf.whole(bytes.call, deadline)
+                    end
+          seen(item, 'pdf', file['name'], file['path'], file['sha256'], **content)
         when 'text'
           lines = scope == 'visible' ? lines_in_view(board, selection, caller, deadline) : nil
           bytes = board.file_read(item['id'], sha256: file['sha256'])[:bytes]
@@ -240,12 +248,19 @@ module Monadic
       # What the page of the caller's tab shows of the selected text now
       # (Capture): { first:, last: } of the lines in view, or empty: true
       # for a text with no line. Refused when the page does not say.
+      # Whether a capture for the caller may still be taken: the chat and
+      # the selection are the ones it was asked for.
+      def still(board, selection, caller)
+        lambda do
+          current?(caller) &&
+            board.still_selected?(tab: caller.tab, generation: caller.generation, item: selection.item,
+                                  serial: selection.serial)
+        end
+      end
+
       def lines_in_view(board, selection, caller, deadline)
         item = selection.item
-        valid = lambda do
-          current?(caller) &&
-            board.still_selected?(tab: caller.tab, generation: caller.generation, item: item, serial: selection.serial)
-        end
+        valid = still(board, selection, caller)
         answer = Capture.request(tab: caller.tab, generation: caller.generation, chat_id: caller.chat_id,
                                  request_id: caller.request_id, item_id: item['id'],
                                  version: item.dig('file', 'sha256'), serial: selection.serial, wants: ['range'],
@@ -346,7 +361,9 @@ module Monadic
         out = { 'status' => 'looked', 'observation_id' => id, 'scope' => scope,
                 'item' => { 'kind' => seen[:kind], 'name' => seen[:name], 'path' => seen[:path],
                             'version' => seen[:version].to_s[0, 12] } }
-        if seen[:image]
+        if seen[:kind] == 'pdf'
+          out.merge!(pdf_result(seen))
+        elsif seen[:image]
           out['image'] = 'The image is attached after this result.'
         else
           out['lines'] = { 'first' => seen[:first_line], 'last' => seen[:last_line], 'total' => seen[:total_lines],
@@ -360,11 +377,33 @@ module Monadic
         JSON.generate(out)
       end
 
+      # What a look at a PDF gives the model: its pages, what each part
+      # is, and the text of the page or pages. The image is what the tab
+      # drew of the page, not the PDF itself.
+      def pdf_result(seen)
+        out = { 'pages' => seen[:pages].transform_keys(&:to_s), 'parts' => seen[:parts] }
+        if seen[:image]
+          out['image'] = 'The part of the page in view, as the tab drew it, is attached after this result.'
+        end
+        if seen[:parts]['page_text'] == true
+          out['page_text'] = seen[:text]
+          out['page_text_cut'] = true if seen[:cuts].to_a.include?('page_text')
+        end
+        out['empty'] = true if seen[:empty]
+        out['truncated'] = seen[:truncated]
+        if seen[:selection]
+          out['selected_text'] = seen[:selection]
+          out['selected_text_cut'] = true if seen[:selection_cut]
+        end
+        out
+      end
+
       # The text before a look's image in a request: which observation it
       # is, as data (the name is the user's file name, not an instruction).
       def caption_text(id, seen)
-        "The image below is what #{TOOL} looked at: " +
-          JSON.generate({ 'observation_id' => id, 'name' => seen[:name], 'version' => seen[:version].to_s[0, 12] })
+        about = { 'observation_id' => id, 'name' => seen[:name], 'version' => seen[:version].to_s[0, 12] }
+        about['page'] = seen.dig(:pages, :first) if seen[:kind] == 'pdf'
+        "The image below is what #{TOOL} looked at: #{JSON.generate(about)}"
       end
     end
   end
@@ -372,3 +411,4 @@ end
 
 require_relative 'look/ledger'
 require_relative 'look/attempt'
+require_relative 'look/pdf'

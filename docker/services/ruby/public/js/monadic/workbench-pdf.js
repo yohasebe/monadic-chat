@@ -13,10 +13,12 @@
  *
  * WorkbenchPdf.show(box, bytes, onChange) draws into box and returns a
  * handle: state() (the page and scale asked for), shown() (what is drawn
- * now: { status: 'ready', page, pages, scale } once a page and its text
- * layer are drawn, otherwise { status: 'loading' | 'drawing' | 'failed' }),
- * and dispose() (stops drawing and lets the document go). onChange is
- * called whenever shown() changes.
+ * now: { status: 'ready', page, pages, scale, drawing } once a page and its
+ * text layer are drawn, drawing being the number of that drawing,
+ * otherwise { status: 'loading' | 'drawing' | 'failed' }), canvas() and
+ * textLayer() (the page's canvas and its text layer, as drawn now), and
+ * dispose() (stops drawing and lets the document go). onChange is called
+ * whenever shown() changes.
  */
 (function (window) {
   'use strict';
@@ -152,7 +154,7 @@
       }
       if (state.disposed || mine !== gen) return;
       layer.style.visibility = '';
-      settle({ status: 'ready', page: n, pages: state.pages, scale: state.scale });
+      settle({ status: 'ready', page: n, pages: state.pages, scale: state.scale, drawing: mine });
     }
 
     // The text layer drawn last stops and leaves the page.
@@ -219,6 +221,8 @@
     return {
       state: () => ({ page: state.page, pages: state.pages, scale: state.scale }),
       shown: () => Object.assign({}, drawnNow),
+      canvas: () => canvas,
+      textLayer: () => sheet.querySelector('.textLayer'),
       dispose: () => {
         state.disposed = true;
         if (state.task) state.task.cancel();

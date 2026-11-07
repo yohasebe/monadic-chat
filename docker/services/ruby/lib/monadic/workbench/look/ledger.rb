@@ -44,7 +44,7 @@ module Monadic
 
         Observation = Struct.new(:id, :tool_call_id, :item_id, :kind, :name, :path, :version, :scope, :at, :image,
                                  :result, :caption, :text_chars, :lines, :truncated, :empty, :state, :image_sha256,
-                                 :source, keyword_init: true)
+                                 :source, :pages, :parts, :cuts, :crop, keyword_init: true)
 
         @ledgers = {}
         # The image bytes all ledgers hold, reserved before an image is kept
@@ -229,7 +229,9 @@ module Monadic
               raise Refused.new('too_large', 'this reply has looked at too many images')
             end
 
-            chars = seen[:text].to_s.length
+            # The characters it gives: of its text and of the text the user
+            # selected, also with an image.
+            chars = seen[:text].to_s.length + seen[:selection].to_s.length
             if @observations.sum { |o| o.text_chars.to_i } + chars > TEXT_CHARS
               raise Refused.new('too_large', 'this reply has looked at too much text')
             end
@@ -243,9 +245,10 @@ module Monadic
             @observations << Observation.new(
               id: id, item_id: seen[:item_id], kind: seen[:kind], name: seen[:name], path: seen[:path],
               version: seen[:version], scope: seen[:scope], at: Time.now.utc.iso8601, image: image,
-              result: seen[:result], caption: seen[:caption], text_chars: image ? nil : chars, lines: lines,
+              result: seen[:result], caption: seen[:caption], text_chars: chars, lines: lines,
               truncated: seen[:truncated], empty: seen[:empty], state: 'acquired',
-              image_sha256: image&.sha256, source: image&.source || seen[:source]
+              image_sha256: image&.sha256, source: image&.source || seen[:source], pages: seen[:pages], parts: seen[:parts],
+              cuts: seen[:cuts].nil? || seen[:cuts].empty? ? nil : seen[:cuts], crop: seen[:crop]
             )
             @reserved += bytes
             id
@@ -348,8 +351,9 @@ module Monadic
               { 'id' => o.id, 'item_id' => o.item_id, 'kind' => o.kind, 'name' => o.name, 'path' => o.path,
                 'version' => o.version, 'image_sha256' => o.image_sha256, 'source' => o.source,
                 'scope' => o.scope, 'at' => o.at, 'lines' => o.lines&.transform_keys(&:to_s),
-                'truncated' => o.truncated, 'empty' => o.empty, 'image' => o.kind == 'image',
-                'state' => o.state }.compact
+                'truncated' => o.truncated, 'empty' => o.empty, 'image' => !o.image_sha256.nil?,
+                'pages' => o.pages&.transform_keys(&:to_s)&.compact, 'parts' => o.parts, 'cuts' => o.cuts,
+                'crop' => o.crop, 'state' => o.state }.compact
             end
           end
         end

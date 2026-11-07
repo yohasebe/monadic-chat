@@ -76,7 +76,7 @@ RSpec.describe "asking the page what the work screen shows" do
       asked << request
       Thread.new do
         answer = answering.call(request)
-        capture.reading(request["id"]) { answer } if answer
+        capture.reading(request["id"], 2) { answer } if answer
       end
       true
     end
@@ -201,7 +201,7 @@ RSpec.describe "asking the page what the work screen shows" do
       stub_const("Monadic::Workbench::Capture::WAIT", 0.3)
       page { nil }
       expect(look.run(caller_for, scope: "visible")).to include("(capture_timeout)")
-      expect(capture.reading(asked.pop(timeout: 5)["id"]) { {} }).to be_nil
+      expect(capture.reading(asked.pop(timeout: 5)["id"], 2) { {} }).to be_nil
       expect(capture.waiting).to eq(0)
     end
 
@@ -228,9 +228,9 @@ RSpec.describe "asking the page what the work screen shows" do
       waiting = ask
       id = asked.pop(timeout: 5)["id"]
       inner = nil
-      expect(capture.reading(id) { |deadline| inner = capture.reading(id) { {} }; deadline.is_a?(Float) && { "range" => nil } }).to be(true)
+      expect(capture.reading(id, 2) { |deadline| inner = capture.reading(id, 2) { {} }; deadline.is_a?(Float) && { "range" => nil } }).to be(true)
       expect(inner).to be_nil
-      expect(capture.reading(id) { { "range" => nil } }).to be_nil
+      expect(capture.reading(id, 2) { { "range" => nil } }).to be_nil
       expect(waiting.value).to eq({ "range" => nil })
     end
 
@@ -245,7 +245,7 @@ RSpec.describe "asking the page what the work screen shows" do
         id = asked.pop(timeout: 5)["id"]
         change.call(capture, chat, request_id)
         expect(waiting.join(1)&.value).to eq("cancelled")
-        expect(capture.reading(id) { {} }).to be_nil
+        expect(capture.reading(id, 2) { {} }).to be_nil
       end
     end
 
@@ -269,8 +269,8 @@ RSpec.describe "asking the page what the work screen shows" do
       id = asked.pop(timeout: 5)["id"]
       capture.revoke_tab("tab-2")
       capture.revoke_tab("tab-1", except_generation: 1)
-      expect(capture.reading(id) { { "ok" => true } }).to be(true)
-      expect(waiting.value).to eq({ "ok" => true })
+      expect(capture.reading(id, 2) { { "note" => "ok" } }).to be(true)
+      expect(waiting.value).to eq({ "note" => "ok" })
     end
 
     it "stops waiting when what it was asked for no longer holds" do
@@ -298,7 +298,7 @@ RSpec.describe "asking the page what the work screen shows" do
         ask
         id = asked.pop(timeout: 5)["id"]
         Thread.new do
-          capture.reading(id) do
+          capture.reading(id, 2) do
             started << true
             go_on.pop
             { "range" => nil }
@@ -310,10 +310,10 @@ RSpec.describe "asking the page what the work screen shows" do
       sleep 0.05 while capture.waiting.positive?
       late = ask
       id = asked.pop(timeout: 5)["id"]
-      expect(capture.reading(id) { { "range" => nil } }).to be_nil
+      expect(capture.reading(id, 2) { { "range" => nil } }).to be_nil
       2.times { go_on << true }
       expect(readers.map { |r| r.join(5)&.value }).to eq([false, false])
-      expect(capture.reading(id) { { "range" => nil } }).to be(true)
+      expect(capture.reading(id, 2) { { "range" => nil } }).to be(true)
       expect(late.value).to eq({ "range" => nil })
     end
 
@@ -321,22 +321,22 @@ RSpec.describe "asking the page what the work screen shows" do
       stub_const("Monadic::Workbench::Capture::READING", 1)
       waiting = ask
       id = asked.pop(timeout: 5)["id"]
-      expect { capture.reading(id) { raise IOError, "gone" } }.to raise_error(IOError)
+      expect { capture.reading(id, 2) { raise IOError, "gone" } }.to raise_error(IOError)
       started = Queue.new
-      stopped = Thread.new { capture.reading(id) { started << true; sleep } }
+      stopped = Thread.new { capture.reading(id, 2) { started << true; sleep } }
       started.pop(timeout: 5)
       stopped.kill
       stopped.join(5)
-      expect(capture.reading(id) { { "range" => nil } }).to be(true)
+      expect(capture.reading(id, 2) { { "range" => nil } }).to be(true)
       expect(waiting.value).to eq({ "range" => nil })
     end
 
     it "does not take an answer that is not an object" do
       waiting = ask
       id = asked.pop(timeout: 5)["id"]
-      expect(capture.reading(id) { nil }).to be(false)
-      expect(capture.reading(id) { [1] }).to be(false)
-      expect(capture.reading(id) { { "range" => nil } }).to be(true)
+      expect(capture.reading(id, 2) { nil }).to be(false)
+      expect(capture.reading(id, 2) { [1] }).to be(false)
+      expect(capture.reading(id, 2) { { "range" => nil } }).to be(true)
       expect(waiting.value).to eq({ "range" => nil })
     end
   end
@@ -396,6 +396,24 @@ RSpec.describe "asking the page what the work screen shows" do
       expect(post("../#{id}", body).status).to eq(404)
       expect(post(id, body).status).to eq(204)
       thread.join
+    end
+
+    it "takes a longer answer only from a capture that asked for an image" do
+      id, thread = waiting_id
+      big = JSON.generate({ "image" => "x" * capture::BODY_LIMIT })
+      expect(post(id, big).status).to eq(404)
+      expect(post(id, '{"range":null}').status).to eq(204)
+      thread.join
+      imaged = Thread.new do
+        capture.request(tab: "tab-1", generation: 1, chat_id: chat, request_id: request_id, item_id: "i", version: "v",
+                        serial: 1, wants: %w[range image], deadline: Process.clock_gettime(Process::CLOCK_MONOTONIC) + 5,
+                        valid: -> { true })
+      end
+      id = asked.pop(timeout: 5)["id"]
+      expect(post(id, big).status).to eq(204)
+      expect(imaged.value.keys).to eq(["image"])
+      too_big = JSON.generate({ "pad" => "x" * (capture::IMAGE_LIMIT + capture::BODY_LIMIT) })
+      expect(post("y" * 43, too_big).status).to eq(404)
     end
 
     it "passes other paths on" do

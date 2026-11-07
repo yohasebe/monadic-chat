@@ -59,9 +59,7 @@ module Monadic
       # JSON or a record read back: nothing a model, a page or an import
       # gives can become one. Its text forms name it without its bytes.
       class ImageValue
-        # The base64 text sent for an image, at most (as for the shared
-        # folder's tool images, ToolImageUtils).
-        MAX_BASE64 = 5 * 1024 * 1024
+        MAX_BASE64 = ImageCheck::MAX_BASE64
 
         attr_reader :bytes, :content_type, :sha256, :width, :height, :source
 
@@ -136,7 +134,8 @@ module Monadic
         ledger = Ledger.for(caller.chat_id, caller.epoch, caller.request_id, session: caller.session, tab: caller.tab)
         ledger.one_at_a_time do
           seen = read(board, selection, scope, caller: caller, deadline: deadline)
-          unless board.still_selected?(tab: caller.tab, generation: caller.generation, item: item, serial: selection.serial)
+          unless board.still_selected?(tab: caller.tab, generation: caller.generation, item: item, serial: selection.serial) &&
+                 (seen[:holds].nil? || seen[:holds].call)
             raise Refused.new('selection_changed', 'the work screen shows something else now; nothing was looked at')
           end
           raise Refused.new('cancelled', 'the reply was stopped') unless current?(caller)
@@ -207,7 +206,14 @@ module Monadic
           return seen(item, 'image', entry['name'], entry['path'], read[:record][:sha256],
                       image: ImageValue.checked(read[:bytes], source: 'workbench_image'))
         end
-        raise Refused.new('browser_unavailable', 'the browser cannot be looked at yet') if item['browser']
+        if item['browser']
+          content = Browser.look(item, caller, deadline)
+          # The title and the address are the page's words: they pass the
+          # chat's Privacy Filter before they are kept or said.
+          name = filtered(caller.session, content[:name])
+          path = filtered(caller.session, content[:path])
+          return seen(item, 'browser', name, path, nil, **content.except(:name, :path))
+        end
 
         file = item['file'] or raise Refused.new('unsupported_kind', 'this item cannot be looked at')
         case file['preview']
@@ -360,9 +366,13 @@ module Monadic
       def result_text(id, seen, scope)
         out = { 'status' => 'looked', 'observation_id' => id, 'scope' => scope,
                 'item' => { 'kind' => seen[:kind], 'name' => seen[:name], 'path' => seen[:path],
-                            'version' => seen[:version].to_s[0, 12] } }
+                            'version' => seen[:version]&.[](0, 12) }.compact }
         if seen[:kind] == 'pdf'
           out.merge!(pdf_result(seen))
+        elsif seen[:kind] == 'browser'
+          # The title and the address are what the browser said near the
+          # moment of the picture.
+          out['image'] = "A picture of the browser's viewport, taken now, is attached after this result."
         elsif seen[:image]
           out['image'] = 'The image is attached after this result.'
         else
@@ -401,7 +411,7 @@ module Monadic
       # The text before a look's image in a request: which observation it
       # is, as data (the name is the user's file name, not an instruction).
       def caption_text(id, seen)
-        about = { 'observation_id' => id, 'name' => seen[:name], 'version' => seen[:version].to_s[0, 12] }
+        about = { 'observation_id' => id, 'name' => seen[:name], 'version' => seen[:version]&.[](0, 12) }.compact
         about['page'] = seen.dig(:pages, :first) if seen[:kind] == 'pdf'
         "The image below is what #{TOOL} looked at: #{JSON.generate(about)}"
       end
@@ -412,3 +422,4 @@ end
 require_relative 'look/ledger'
 require_relative 'look/attempt'
 require_relative 'look/pdf'
+require_relative 'look/browser'

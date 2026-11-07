@@ -13,6 +13,9 @@ module Monadic
       MAX_BYTES = 25 * 1024 * 1024
       MAX_SIDE = 8192
       MAX_PIXELS = 40_000_000
+      # The base64 text sent for an image, at most (as for the shared
+      # folder's tool images, ToolImageUtils).
+      MAX_BASE64 = 5 * 1024 * 1024
       TYPES = %w[image/png image/jpeg image/webp].freeze
 
       class Refused < StandardError; end

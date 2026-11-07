@@ -47,6 +47,11 @@ RSpec.describe Monadic::WorkScreen::Stream do
     attr_reader :commands, :notices, :url
     attr_accessor :on_close
 
+    # What Page.getLayoutMetrics answers (nil: a 1280 × 761 viewport).
+    class << self
+      attr_accessor :metrics
+    end
+
     def initialize(url)
       @url = url
       @commands = []
@@ -63,8 +68,9 @@ RSpec.describe Monadic::WorkScreen::Stream do
       case method
       when 'Target.attachToTarget' then { 'sessionId' => "S-#{params[:targetId]}" }
       when 'Page.getLayoutMetrics'
-        { 'cssVisualViewport' => { 'pageX' => 0, 'pageY' => 0, 'clientWidth' => 1280, 'clientHeight' => 761 },
-          'contentSize' => { 'width' => 2560 }, 'cssContentSize' => { 'width' => 1280 } }
+        self.class.metrics ||
+          { 'cssVisualViewport' => { 'pageX' => 0, 'pageY' => 0, 'clientWidth' => 1280, 'clientHeight' => 761 },
+            'contentSize' => { 'width' => 2560 }, 'cssContentSize' => { 'width' => 1280 } }
       when 'Page.captureScreenshot' then { 'data' => 'FIRST' }
       else {}
       end
@@ -187,6 +193,20 @@ RSpec.describe Monadic::WorkScreen::Stream do
       wait_until { socket.of('frame').size == 2 }
       expect(socket.of('frame').last['data']).to eq('B') # only the newest is kept
     end
+  end
+
+  it 'takes no first still when the viewport is not known, and shows the screencast\'s frames' do
+    FakeCdp.metrics = {}
+    watching do
+      socket.say(type: 'subscribe', browser: 1)
+      wait_until { socket.of('state').any? { |s| s['state'] == 'live' } }
+      cdps.first.frame('A')
+      wait_until { socket.of('frame').size == 1 }
+      expect(socket.of('frame').first['data']).to eq('A')
+    end
+    expect(cdps.first.commands.map(&:first)).not_to include('Page.captureScreenshot')
+  ensure
+    FakeCdp.metrics = nil
   end
 
   it 'scales the first still to the screencast size' do

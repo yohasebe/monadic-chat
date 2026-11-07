@@ -10,13 +10,13 @@ module Monadic
       module Record
         LIMIT = 8
         STATES = %w[acquired embedded sent unsent refused unknown].freeze
-        KINDS = %w[image text pdf].freeze
+        KINDS = %w[image text pdf browser].freeze
         PARTS = %w[image page_text selection].freeze
         CROP = %w[x y width height sent_width sent_height].freeze
         # Why a part of a look could not be had (Look::Pdf).
         PART_NOTES = %w[none not_in_view drawing redrawn failed too_large busy pdf_text_unavailable].freeze
         SCOPES = %w[visible whole].freeze
-        SOURCES = %w[workbench_image workbench_file workbench_capture].freeze
+        SOURCES = %w[workbench_image workbench_file workbench_capture workbench_browser].freeze
         TEXT_FIELDS = { 'id' => 40, 'item_id' => 40, 'name' => 255, 'path' => 1024, 'at' => 40 }.freeze
         HASH = /\A[0-9a-f]{64}\z/
 

@@ -542,8 +542,22 @@
         details.push(t('ui.workbench.lookLines', 'lines {first}–{last}')
           .replace('{first}', String(lines.first)).replace('{last}', String(lines.last)));
       }
+      const pages = entry.kind === 'pdf' ? entry.pages : null;
+      if (pages && Number.isInteger(pages.first)) {
+        details.push(pages.first === pages.last
+          ? t('ui.workbench.lookPage', 'page {page}').replace('{page}', String(pages.first))
+          : t('ui.workbench.lookPages', 'pages {first}–{last} of {total}').replace('{first}', String(pages.first))
+            .replace('{last}', String(pages.last)).replace('{total}', Number.isInteger(pages.total) ? String(pages.total) : '?'));
+      }
+      const parts = entry.kind === 'pdf' && entry.parts ? entry.parts : {};
+      [['image', 'lookImage', 'image of the part in view'], ['page_text', 'lookPageText', 'text of the page'],
+        ['selection', 'lookSelection', 'selected text']].forEach(([part, key, fallback]) => {
+        if (parts[part] === true) details.push(t(`ui.workbench.${key}`, fallback));
+      });
       if (entry.truncated || (lines && lines.partial)) details.push(t('ui.workbench.lookCut', 'cut short'));
-      if (entry.empty) details.push(t('ui.workbench.lookEmpty', 'empty'));
+      if (entry.empty) {
+        details.push(entry.kind === 'pdf' ? t('ui.workbench.lookNoText', 'no text extracted') : t('ui.workbench.lookEmpty', 'empty'));
+      }
       const at = entry.at ? new Date(entry.at) : null;
       if (at && !Number.isNaN(at.getTime())) details.push(at.toLocaleTimeString());
       if (details.length) line.appendChild(document.createTextNode(` (${details.join(', ')})`));
@@ -766,6 +780,87 @@
 
   // ---- what the server asks the work screen (a look) ------------------
 
+  // What is cut from a PDF's page, at most (as the server takes it).
+  const CUT_SIDE = 2048;
+  const CUT_PIXELS = 4194304;
+  const CUT_BASE64 = 5 * 1024 * 1024;
+  const SELECTED_TEXT_LIMIT = 8000;
+
+  // The text the user selected inside node (a PDF's text layer), at most
+  // SELECTED_TEXT_LIMIT characters: [text, cut], or [null, false].
+  function selectedText(node) {
+    const selection = typeof window.getSelection === 'function' ? window.getSelection() : null;
+    if (!node || !selection || selection.isCollapsed) return [null, false];
+    if (!node.contains(selection.anchorNode) || !node.contains(selection.focusNode)) return [null, false];
+    const chars = Array.from(selection.toString());
+    if (chars.length === 0) return [null, false];
+    return [chars.slice(0, SELECTED_TEXT_LIMIT).join(''), chars.length > SELECTED_TEXT_LIMIT];
+  }
+
+  // The part of a PDF page's canvas in view, cut and drawn at most
+  // CUT_SIDE × CUT_PIXELS (into a canvas of that size, not a larger one
+  // made smaller), as PNG base64 with the part of the canvas it is (in the
+  // canvas's own pixels: the canvas may be drawn at another ratio than the
+  // screen's), or why there is none. Taken from the drawing named; a newer
+  // drawing meanwhile spoils it.
+  function cutPage(handle, drawing) {
+    const canvas = handle.canvas();
+    const frame = canvas ? visibleRect(canvas) : null;
+    if (!frame) return { image_note: 'not_in_view' };
+    const rect = canvas.getBoundingClientRect();
+    if (!(rect.width > 0 && rect.height > 0)) return { image_note: 'not_in_view' };
+    const sx = canvas.width / rect.width;
+    const sy = canvas.height / rect.height;
+    const x = (frame.left - rect.left) * sx;
+    const y = (frame.top - rect.top) * sy;
+    const w = (frame.right - frame.left) * sx;
+    const h = (frame.bottom - frame.top) * sy;
+    if (![x, y, w, h].every(Number.isFinite) || w <= 0 || h <= 0) return { image_note: 'not_in_view' };
+    const fit = Math.min(1, CUT_SIDE / Math.max(w, h), Math.sqrt(CUT_PIXELS / (w * h)));
+    const width = Math.max(1, Math.floor(w * fit));
+    const height = Math.max(1, Math.floor(h * fit));
+    const cut = document.createElement('canvas');
+    cut.width = width;
+    cut.height = height;
+    const context = cut.getContext('2d');
+    if (!context) return { image_note: 'failed' };
+    context.drawImage(canvas, x, y, w, h, 0, 0, width, height);
+    const url = cut.toDataURL('image/png');
+    if (handle.shown().drawing !== drawing) return { image_note: 'redrawn' };
+    const comma = url.indexOf(',');
+    if (!url.startsWith('data:image/png;base64,') || comma < 0) return { image_note: 'failed' };
+    const image = url.slice(comma + 1);
+    if (image.length > CUT_BASE64) return { image_note: 'too_large' };
+    const round = (v) => Math.round(v * 100) / 100;
+    return { image: image, crop: { x: round(x), y: round(y), width: round(w), height: round(h), sent_width: width, sent_height: height } };
+  }
+
+  // A capture of a PDF: the page in view and, as asked, the part of it in
+  // view and the text selected in it, all from the drawing shown now.
+  function pdfAnswer(data, drawn) {
+    const handle = drawn.pdf;
+    const shown = handle.shown();
+    const wants = Array.isArray(data.wants) ? data.wants : [];
+    const out = { range: { page: shown.page, pages: shown.pages }, note: null };
+    if (wants.includes('selection')) {
+      const [text, cut] = selectedText(handle.textLayer());
+      if (text) {
+        out.selection_text = text;
+        out.selection_cut = cut;
+      }
+    }
+    if (wants.includes('image')) {
+      let part;
+      try {
+        part = cutPage(handle, shown.drawing);
+      } catch (_) {
+        part = { image_note: 'failed' };
+      }
+      Object.assign(out, part);
+    }
+    return out;
+  }
+
   // The answer to a capture (workbench_capture): what the pane shows now of
   // the item asked for, only while it is the selection the server has for
   // this tab (by its number) and no selection of this page is waiting for
@@ -783,6 +878,8 @@
       return { range: null, note: 'selection_changed' };
     }
     const wants = Array.isArray(data.wants) ? data.wants : [];
+    const drawn = drawnBody && drawnBody.key === `${data.item_id}|${data.version}` ? drawnBody : null;
+    if (drawn && drawn.pdf && now.range && Number.isInteger(now.range.page)) return pdfAnswer(data, drawn);
     const lines = now.range && Number.isInteger(now.range.first_line) && Number.isInteger(now.range.last_line);
     if (wants.includes('range') && lines) {
       return { range: { first_line: now.range.first_line, last_line: now.range.last_line }, note: null };

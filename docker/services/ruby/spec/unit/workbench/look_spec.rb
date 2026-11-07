@@ -168,7 +168,7 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
       open_file("notes.txt")
       Monadic::Workbench::Capture.transport = lambda do |_tab, _generation, _chat, json|
         id = JSON.parse(json)["id"]
-        Thread.new { Monadic::Workbench::Capture.reading(id) { { "range" => nil, "note" => "unknown" } } }
+        Thread.new { Monadic::Workbench::Capture.reading(id, 2) { { "range" => nil, "note" => "unknown" } } }
         true
       end
       expect(look.run(caller_for, scope: "visible")).to start_with("❌").and include("(range_unknown)")
@@ -586,11 +586,17 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
       kept = Monadic::Workbench::Look::Record.clean(
         [{ "id" => "look_1", "kind" => "image", "state" => "sent", "name" => "a\nb.png", "bytes" => "AAAA",
            "image" => true, "lines" => { "first" => 1, "x" => 2 } },
-         { "id" => "look_2", "kind" => "pdf", "state" => "sent" },
+         { "id" => "look_2", "kind" => "audio", "state" => "sent" },
+         { "id" => "look_3", "kind" => "pdf", "state" => "sent", "image" => true, "source" => "workbench_capture",
+           "pages" => { "first" => 2, "last" => 2, "total" => 9, "x" => 1 },
+           "parts" => { "image" => true, "page_text" => "pdf_text_unavailable", "selection" => "words", "other" => true } },
          "junk"]
       )
       expect(kept).to eq([{ "id" => "look_1", "kind" => "image", "state" => "sent", "name" => "a b.png", "image" => true,
-                            "lines" => { "first" => 1 } }])
+                            "lines" => { "first" => 1 } },
+                          { "id" => "look_3", "kind" => "pdf", "state" => "sent", "image" => true, "source" => "workbench_capture",
+                            "pages" => { "first" => 2, "last" => 2, "total" => 9 },
+                            "parts" => { "image" => true, "page_text" => "pdf_text_unavailable" } }])
       expect(Monadic::Workbench::Look::Record.clean("x")).to be_nil
     end
   end

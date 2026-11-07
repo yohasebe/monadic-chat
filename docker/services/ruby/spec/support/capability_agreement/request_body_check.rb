@@ -511,6 +511,56 @@ RSpec.describe "Capability note in the request body" do
     end
   end
 
+  # A look at a PDF gives the part of the page in view (an image the tab
+  # cut), the page's text and the selected text together: each request of
+  # the reply after it holds the image and the texts, once, and no log
+  # holds any of them.
+  providers.each do |mod, (provider, key, first_reply, second_reply)|
+    it "#{mod.name}: keeps a PDF look's image and texts in the requests of the reply after it, and out of the logs" do
+      logs = []
+      allow(Monadic::Utils::ExtraLogger).to receive(:enabled?).and_return(true)
+      allow(Monadic::Utils::ExtraLogger).to receive(:log) { |msg = nil, &blk| logs << (blk ? blk.call : msg).to_s }
+      allow(Monadic::Utils::ExtraLogger).to receive(:log_json) { |label, data| logs << "#{label} #{JSON.generate(data)}" }
+      allow(DebugHelper).to receive(:debug) { |msg, **| logs << msg.to_s }
+      page_text = "PAGE-TEXT-#{SecureRandom.hex(4)}"
+      selected = "SELECTED-#{SecureRandom.hex(4)}"
+      allow(Monadic::Workbench::PdfText).to receive(:extract).and_return(
+        Monadic::Workbench::PdfText::Pages.new(pages: [{ page: 1, text: page_text, cut: false }], total_pages: 1,
+                                               stopped_at: nil)
+      )
+      capture = Monadic::Workbench::Capture
+      transport = capture.transport
+      capture.transport = lambda do |_tab, _generation, _chat, json|
+        id = JSON.parse(json)["id"]
+        answer = { "range" => { "page" => 1, "pages" => 1 }, "note" => nil, "image" => pixel,
+                   "crop" => { "x" => 0, "y" => 0, "width" => 10, "height" => 10, "sent_width" => 1, "sent_height" => 1 },
+                   "selection_text" => selected }
+        Thread.new { capture.reading(id, 2) { answer } }
+        true
+      end
+      begin
+        bodies, session, = run_observed_conversation(mod, provider, key, first_reply, second_reply,
+                                                     shown_file: ["paper.pdf", "%PDF-1.4\n%%EOF\n"], look: true,
+                                                     vision: true, chain: ["look_at_workbench", called_tool])
+      ensure
+        capture.transport = transport
+      end
+      expect(bodies.size).to eq(4)
+      texts = bodies.map { |b| JSON.generate(b) }
+      expect(texts.map { |t| t.scan(pixel[0, 40]).size }).to eq([0, 1, 1, 0])
+      expect(texts[1]).to include(page_text, selected)
+      expect(texts[2]).to include(page_text, selected)
+      reply = session[:messages].find { |m| m["role"] == "assistant" }
+      expect(reply["workbench_looks"]).to match([a_hash_including("kind" => "pdf", "image" => true, "state" => "sent",
+                                                                   "source" => "workbench_capture")])
+      expect(JSON.generate(session[:messages])).not_to include(page_text, selected)
+      all_logs = logs.join("\n")
+      expect(all_logs).not_to include(pixel[0, 40])
+      expect(all_logs).not_to include(page_text)
+      expect(all_logs).not_to include(selected)
+    end
+  end
+
   # What a look read reaches no log: the logs of a whole conversation (an
   # image look, a text look, another tool, the answer, the next message)
   # name the looks and hold none of what they read.

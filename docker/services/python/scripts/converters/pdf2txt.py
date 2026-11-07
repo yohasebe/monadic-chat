@@ -25,6 +25,29 @@ from typing import Iterator, List
 # so they cannot interleave with our JSON output.
 warnings.filterwarnings("ignore")
 
+# Reading a PDF from stdin (--stdin): bytes the caller already checked,
+# never a path. The process's address space is limited first, before the
+# PDF library is loaded and the input is read.
+STDIN_MAX_BYTES = 64 * 1024 * 1024
+
+
+def _limit_memory(argv: List[str]) -> None:
+    import resource
+
+    try:
+        megabytes = int(argv[argv.index("--max-memory-mb") + 1])
+        if megabytes <= 0:
+            raise ValueError
+        limit = megabytes * 1024 * 1024
+        resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+    except (ValueError, IndexError, OSError):
+        print("Error: the memory limit could not be set", file=sys.stderr)
+        sys.exit(2)
+
+
+if __name__ == "__main__" and "--stdin" in sys.argv[1:]:
+    _limit_memory(sys.argv[1:])
+
 import pdfplumber  # noqa: E402
 
 
@@ -184,7 +207,71 @@ def export_as_text(pdf_path: str, output_format: str, all_pages: bool, show_prog
         raise
 
 
+def extract_from_stdin(first: int, last: int, max_chars: int) -> None:
+    """Writes the text of pages first..last of the PDF read from stdin, one
+    JSON line per page ({"page", "text", "cut"}), then a last line
+    {"done": true, "total_pages", "stopped_at"}. last stops at the PDF's
+    last page; first past it fails. At most max_chars characters (code
+    points) in all: the page reaching it is cut ("cut": true) and the pages
+    after it are not given ("stopped_at": the next page). A page with no
+    text gives "". Nothing is written to a file."""
+    import io
+
+    data = sys.stdin.buffer.read(STDIN_MAX_BYTES + 1)
+    if len(data) > STDIN_MAX_BYTES:
+        raise ValueError("the PDF is too large")
+    if not data.startswith(b"%PDF-"):
+        raise ValueError("the input is not a PDF")
+    pdf = pdfplumber.open(io.BytesIO(data))
+    try:
+        total = len(pdf.pages)
+        if first > total:
+            raise ValueError("the first page asked for is past the last page")
+        left = max_chars
+        stopped_at = None
+        for number in range(first, min(last, total) + 1):
+            if left <= 0:
+                stopped_at = number
+                break
+            page = pdf.pages[number - 1]
+            try:
+                text = page.extract_text() or ""
+            finally:
+                page.close()
+            cut = len(text) > left
+            text = text[:left]
+            left -= len(text)
+            print(json.dumps({"page": number, "text": text, "cut": cut}, ensure_ascii=False), flush=True)
+        print(json.dumps({"done": True, "total_pages": total, "stopped_at": stopped_at}), flush=True)
+    finally:
+        pdf.close()
+
+
+def stdin_main(argv: List[str]) -> None:
+    parser = argparse.ArgumentParser(description="Extract the text of pages of a PDF read from stdin, as JSON lines.")
+    parser.add_argument("--stdin", action="store_true", required=True)
+    parser.add_argument("--first-page", type=int, required=True)
+    parser.add_argument("--last-page", type=int, required=True)
+    parser.add_argument("--max-chars", type=int, required=True)
+    parser.add_argument("--max-memory-mb", type=int, required=True)
+    args = parser.parse_args(argv)
+    if args.first_page < 1 or args.last_page < args.first_page or args.max_chars < 1:
+        print("Error: invalid page range or limit", file=sys.stderr)
+        sys.exit(2)
+    try:
+        extract_from_stdin(args.first_page, args.last_page, args.max_chars)
+    except MemoryError:
+        print("Error: out of memory", file=sys.stderr)
+        sys.exit(3)
+    except Exception as e:
+        print(f"Error: {type(e).__name__}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main() -> None:
+    if "--stdin" in sys.argv[1:]:
+        stdin_main(sys.argv[1:])
+        return
     parser = argparse.ArgumentParser(
         description="Extract text from a PDF file and output as JSON."
     )

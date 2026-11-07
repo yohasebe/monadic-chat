@@ -120,6 +120,200 @@ module Monadic
 
     STOP_TIMEOUT = 5 # seconds; the reply waits a little longer (REPLY_STOP_WAIT)
 
+    # As STOP_MARKED, then says how many marked processes are left.
+    STOP_AND_COUNT = <<~'SH'
+      mark="MONADIC_RUN_ID=$1"
+      nl='
+      '
+      signal_marked() {
+        n=0
+        for d in /proc/[0-9]*; do
+          case "$nl$(tr '\000' '\n' < "$d/environ" 2>/dev/null)$nl" in
+            *"$nl$mark$nl"*) n=$((n + 1)); [ -n "$1" ] && kill -s "$1" "${d#/proc/}" 2>/dev/null ;;
+          esac
+        done
+      }
+      signal_marked TERM
+      sleep 0.5
+      signal_marked KILL
+      sleep 0.2
+      signal_marked ''
+      echo "left=$n"
+    SH
+
+    # Stops what run_id started in the container name and says whether it
+    # is known to be gone: the count of marked processes left came back as
+    # 0, or the container is not running (nothing runs in it). false when
+    # that could not be told within timeout (the container did not answer,
+    # or answered something else).
+    def stop_and_confirm(name, run_id, timeout: STOP_TIMEOUT)
+      return false unless run_id.to_s.match?(/\A\h{32}\z/) && timeout.positive?
+
+      done = run_until(['docker', 'exec', name, 'sh', '-c', STOP_AND_COUNT, 'sh', run_id], clock + timeout)
+      return false unless done
+
+      out, err, status = done
+      return true if status.success? && out.strip == 'left=0'
+
+      !status.success? && not_running?(err, name)
+    rescue StandardError
+      false
+    end
+
+    # Whether docker's daemon said that the container name is not running
+    # or not there (nothing runs in it). Anything else (the daemon not
+    # answering, a refused socket, another container) is not that.
+    def not_running?(err, name)
+      container = /(?:#{Regexp.escape(name)}|\h{12,64})/
+      err.to_s.each_line.any? do |line|
+        line.match?(/\AError response from daemon: (?:container #{container} is not running|No such container: #{Regexp.escape(name)})\s*\z/)
+      end
+    end
+
+    # Runs argv until deadline (monotonic seconds), all of it: the command,
+    # reading its output and stopping it (also when this thread is stopped:
+    # popen3 waits for the command before it returns). [stdout, stderr,
+    # status] when it ended in time; nil when it was stopped.
+    def run_until(argv, deadline)
+      Open3.popen3(*argv, pgroup: true) do |input, out, err, wait|
+        ended = false
+        begin
+          input.close
+          readers = [out, err].map { |io| Thread.new { read_all(io) } }
+          if wait.join([deadline - clock, 0].max) && readers.all? { |t| t.join([deadline - clock, 0].max) }
+            ended = true
+            next [readers[0].value, readers[1].value, wait.value]
+          end
+
+          nil
+        ensure
+          unless ended
+            begin
+              Process.kill('KILL', -wait.pid)
+            rescue Errno::ESRCH, Errno::EPERM
+              nil
+            end
+            [out, err].each { |io| io.close unless io.closed? }
+            readers&.each(&:kill)
+          end
+        end
+      end
+    end
+
+    # What exec_stream gives back. stdout and stderr hold at most their
+    # limits; failure is nil, :deadline (it did not end in time) or
+    # :too_large (it wrote more than a limit).
+    Streamed = Struct.new(:stdout, :stderr, :status, :failure, keyword_init: true)
+
+    # Runs argv in the container with bytes on its stdin, writing them and
+    # reading its stdout and stderr at the same time, each up to its limit,
+    # until deadline (monotonic seconds). Nothing of it is logged (it may
+    # carry a chat's file). The run is marked (run_id): when it does not
+    # end by itself (too late, too much output, an error, the thread
+    # stopped), the local process group is stopped and so is what it
+    # started in the container, and stopped (a lambda) is told once whether
+    # that is known to be gone. A run that ends by itself with status 0 is
+    # gone; any other is stopped and checked (within STOP_TIMEOUT for all
+    # of the stopping: the threads, the pipes and the check).
+    def exec_stream(container:, argv:, stdin:, deadline:, stdout_limit:, stderr_limit:, run_id:, stopped:)
+      raise ArgumentError, 'argv must be a non-empty array' unless argv.is_a?(Array) && !argv.empty?
+      raise ArgumentError, 'run_id must be 32 hex digits' unless run_id.to_s.match?(/\A\h{32}\z/)
+
+      name = resolve_container(container)
+      docker_argv = ['docker', 'exec', '-i', '-w', SHARED_VOLUME, '-e', "#{RUN_ID_VAR}=#{run_id}", name, *argv.map(&:to_s)]
+      ended = false
+      Open3.popen3(*docker_argv, pgroup: true) do |input, out, err, wait|
+        threads = []
+        begin
+          threads << Thread.new { write_all(input, stdin) }
+          stdout = Bounded.new(stdout_limit)
+          stderr = Bounded.new(stderr_limit)
+          threads << Thread.new { stdout.read_from(out) }
+          threads << Thread.new { stderr.read_from(err) }
+          failure = nil
+          until wait.join([[deadline - clock, 0].max, 0.05].min)
+            failure = :too_large if stdout.over? || stderr.over?
+            failure ||= :deadline if clock >= deadline
+            break if failure
+          end
+          # Ended by itself: what it wrote is read to its end (the pipes close).
+          if failure.nil?
+            failure = :deadline unless threads[1..].all? { |t| t.join([deadline - clock, 0].max) }
+            failure ||= :too_large if stdout.over? || stderr.over?
+          end
+          ended = failure.nil?
+          Streamed.new(stdout: stdout.text, stderr: stderr.text, status: ended ? wait.value : nil, failure: failure)
+        ensure
+          ended &&= wait.value.success?
+          gone = Thread.handle_interrupt(Object => :never) { stop_run(name, run_id, wait, [input, out, err], threads, ended) }
+          stopped.call(gone)
+        end
+      end
+    end
+
+    # After exec_stream: a run that did not end well is stopped here and in
+    # the container, its pipes closed and its threads ended, within
+    # STOP_TIMEOUT. Whether it is known to be gone.
+    def stop_run(name, run_id, wait, pipes, threads, ended)
+      until_at = clock + STOP_TIMEOUT
+      stop_group(wait.pid) unless ended
+      pipes.each { |io| io.close unless io.closed? }
+      threads.each do |t|
+        next if t.join([[until_at - clock, 0].max, READ_GRACE].min)
+
+        t.kill
+        t.join([[until_at - clock, 0].max, READ_GRACE].min)
+      end
+      return false if threads.any?(&:alive?)
+      return true if ended
+
+      stop_and_confirm(name, run_id, timeout: until_at - clock)
+    end
+
+    # Bytes read from a pipe, up to a limit (more is noted, not kept).
+    class Bounded
+      def initialize(limit)
+        @limit = limit
+        @data = +''.b
+        @over = false
+        @lock = Mutex.new
+      end
+
+      def read_from(io)
+        loop do
+          chunk = io.readpartial(65_536)
+          @lock.synchronize do
+            room = @limit - @data.bytesize
+            @over = true if chunk.bytesize > room
+            @data << chunk.byteslice(0, [room, 0].max)
+          end
+          break if over?
+        end
+      rescue IOError
+        nil
+      end
+
+      def over?
+        @lock.synchronize { @over }
+      end
+
+      def text
+        @lock.synchronize { @data.dup.force_encoding(Encoding::UTF_8) }
+      end
+    end
+
+    def write_all(io, bytes)
+      io.write(bytes)
+    rescue IOError, SystemCallError
+      nil # the run ended or was stopped; that is told by its end
+    ensure
+      io.close unless io.closed?
+    end
+
+    def clock
+      Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    end
+
     # Run a `bash -c BODY` inside a container. The body is passed as a
     # single argv element, so the docker / outer-shell layer cannot
     # mis-quote it; the only escaping concern is *inside* the body, and

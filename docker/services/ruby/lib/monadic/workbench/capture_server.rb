@@ -46,9 +46,9 @@ module Monadic
         return not_found unless id.match?(Capture::ID) && json?(env['CONTENT_TYPE'])
 
         length = env['CONTENT_LENGTH'].to_s
-        return not_found unless length.match?(/\A\d{1,7}\z/) && length.to_i <= Capture::BODY_LIMIT
+        return not_found unless length.match?(/\A\d{1,8}\z/) && length.to_i <= Capture::IMAGE_LIMIT + Capture::BODY_LIMIT
 
-        taken = Capture.reading(id) do |deadline|
+        taken = Capture.reading(id, length.to_i) do |deadline|
           body = read(env['rack.input'], length.to_i, deadline)
           body && parse(body)
         end

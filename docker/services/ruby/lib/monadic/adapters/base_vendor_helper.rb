@@ -344,6 +344,45 @@ module BaseVendorHelper
     end
   end
 
+  # What the user showed from the work screen with msg ("Show to the
+  # assistant"), for the user message the current request was made for
+  # (its request_id), in the order it was shown: [{ text:, image: }], the
+  # text being what says what it is and what it gives (both passed the
+  # chat's Privacy Filter when it was taken), the image or nil. A helper
+  # adds them to its own copy of the message, each time it builds it; the
+  # request then holds them (workbench_looks_prepared).
+  def workbench_shown_parts(session, msg)
+    return [] unless msg.is_a?(Hash) && (msg["role"] || msg[:role]).to_s == "user"
+
+    request = Monadic::Workspace::RequestContext.current
+    return [] unless request && (msg["request_id"] || msg[:request_id]) == request.request_id
+
+    ledger = workbench_look_ledger || workbench_look_ledger_held_here
+    shown = ledger ? ledger.shown : []
+    return [] if shown.empty?
+
+    workbench_looks_prepared(shown) unless ledger.closed?
+    shown.select { |look| look.result || look.image }.map do |look|
+      { text: "#{look.caption}\n#{look.result}", image: look.image }
+    end
+  end
+
+  # message (a user message in the Chat Completions shape, its content a
+  # String or a list of parts) with what the user showed (parts of
+  # workbench_shown_parts) after its own content; the block makes the
+  # provider's image part. A new message; message itself is not changed.
+  def chat_message_with_shown(message, parts)
+    return message if parts.empty?
+
+    content = message["content"]
+    content = content.is_a?(Array) ? content.dup : [{ "type" => "text", "text" => content.to_s }]
+    parts.each do |part|
+      content << { "type" => "text", "text" => part[:text] }
+      content << yield(part[:image]) if part[:image]
+    end
+    message.merge("content" => content)
+  end
+
   # What a request holds of a look in a message of its own: the caption
   # and the image, and for a look whose result the request does not hold
   # (EarlierLook) its result as text, also with an image when the look
@@ -390,7 +429,7 @@ module BaseVendorHelper
   # request too: a tool result of a look (it says "status":"looked"), and
   # an image's data (a data URL, or the base64 data of Claude's, Gemini's
   # and Ollama's image parts). Anything else is left as it is.
-  LOOK_RESULT = /\\?"status\\?"\s*:\s*\\?"looked\\?"/
+  LOOK_RESULT = /\\?"status\\?"\s*:\s*\\?"(?:looked|shown)\\?"/
   IMAGE_DATA_URL = %r{data:image/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+}i
   IMAGE_DATA_KEYS = %w[data images].freeze
 

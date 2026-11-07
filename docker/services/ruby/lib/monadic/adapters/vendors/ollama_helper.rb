@@ -503,7 +503,7 @@ module OllamaHelper
         end
         messages_containing_img = true
       end
-      message
+      ollama_message_with_shown(message, workbench_shown_parts(session, msg))
     end
 
     # Handle initiate_from_assistant case where only system message exists
@@ -539,7 +539,7 @@ module OllamaHelper
             if msg["role"] == "user" && msg["images"].is_a?(Array) && !msg["images"].empty?
               entry["images"] = msg["images"].filter_map { |img| img["data"].to_s.split(",")[1] }
             end
-            entry
+            ollama_message_with_shown(entry, workbench_shown_parts(session, msg))
           end
         end
       end
@@ -972,5 +972,15 @@ module OllamaHelper
         nil
       end
     end.compact
+  end
+
+  # message (an Ollama chat message: text content and base64 images) with
+  # what the user showed from the work screen after its own.
+  def ollama_message_with_shown(message, parts)
+    return message if parts.empty?
+
+    images = Array(message["images"]) + parts.filter_map { |part| part[:image]&.base64 }
+    message.merge("content" => [message["content"].to_s, *parts.map { |part| part[:text] }].reject(&:empty?).join("\n\n"),
+                  "images" => images.empty? ? nil : images).compact
   end
 end

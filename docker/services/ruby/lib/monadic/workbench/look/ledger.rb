@@ -44,7 +44,11 @@ module Monadic
 
         Observation = Struct.new(:id, :tool_call_id, :item_id, :kind, :name, :path, :version, :scope, :at, :image,
                                  :result, :caption, :text_chars, :lines, :truncated, :empty, :state, :image_sha256,
-                                 :source, :pages, :parts, :cuts, :crop, keyword_init: true)
+                                 :source, :pages, :parts, :cuts, :crop, :origin, keyword_init: true)
+        # Who made an observation: a look the model asked for (tool), or what
+        # the user showed with the message (user; it goes with the user's
+        # message, never after a tool's result).
+        ORIGINS = %w[tool user].freeze
 
         @ledgers = {}
         # The image bytes all ledgers hold, reserved before an image is kept
@@ -244,11 +248,12 @@ module Monadic
                     end
             @observations << Observation.new(
               id: id, item_id: seen[:item_id], kind: seen[:kind], name: seen[:name], path: seen[:path],
-              version: seen[:version], scope: seen[:scope], at: Time.now.utc.iso8601, image: image,
+              version: seen[:version], scope: seen[:scope], at: seen[:at] || Time.now.utc.iso8601, image: image,
               result: seen[:result], caption: seen[:caption], text_chars: chars, lines: lines,
               truncated: seen[:truncated], empty: seen[:empty], state: 'acquired',
               image_sha256: image&.sha256, source: image&.source || seen[:source], pages: seen[:pages], parts: seen[:parts],
-              cuts: seen[:cuts].nil? || seen[:cuts].empty? ? nil : seen[:cuts], crop: seen[:crop]
+              cuts: seen[:cuts].nil? || seen[:cuts].empty? ? nil : seen[:cuts], crop: seen[:crop],
+              origin: seen[:origin] == 'user' ? 'user' : 'tool'
             )
             @reserved += bytes
             id
@@ -329,7 +334,8 @@ module Monadic
             released = @lock.synchronize do
               @closed_at ||= Process.clock_gettime(Process::CLOCK_MONOTONIC)
               @observations.each do |o|
-                o.state = 'unsent' if o.state == 'embedded'
+                # Put in no request that was posted, or in none at all.
+                o.state = 'unsent' if %w[embedded acquired].include?(o.state)
                 o.image = nil
                 o.result = nil
                 o.caption = nil
@@ -345,9 +351,15 @@ module Monadic
         # What the reply's message keeps of the looks: what each was (the
         # whole version, the image's own sha256 and where it came from), no
         # bytes and no text.
-        def records
+        # What the user showed with the message, in the order it was shown.
+        def shown
+          @lock.synchronize { @observations.select { |o| o.origin == 'user' } }
+        end
+
+        # The records of the observations of origin (all when nil).
+        def records(origin: nil)
           @lock.synchronize do
-            @observations.map do |o|
+            @observations.select { |o| origin.nil? || o.origin == origin }.map do |o|
               { 'id' => o.id, 'item_id' => o.item_id, 'kind' => o.kind, 'name' => o.name, 'path' => o.path,
                 'version' => o.version, 'image_sha256' => o.image_sha256, 'source' => o.source,
                 'scope' => o.scope, 'at' => o.at, 'lines' => o.lines&.transform_keys(&:to_s),

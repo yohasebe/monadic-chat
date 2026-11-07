@@ -1102,9 +1102,8 @@ module MistralHelper
     # against an imported/edge session that carries an orphaned tool message
     # (Mistral rejects a role:"tool" not paired with a preceding assistant
     # tool_calls turn). It does NOT drop live tool results.
-    body["messages"] = context.reject do |msg|
-                         msg["role"] == "tool"
-                       end.map do |msg|
+    sources = context.reject { |msg| msg["role"] == "tool" }
+    body["messages"] = sources.map do |msg|
       if msg["role"] == "system" && !system_message_modified
         system_message_modified = true
 
@@ -1199,6 +1198,13 @@ module MistralHelper
       else
         # What the work screen shows follows the message's text (a new String).
         { "role" => msg["role"], "content" => Monadic::Workbench::Observation.appended(msg["text"], observation_for(session, msg)) }
+      end
+    end
+    # What the user showed from the work screen, after all of a message's
+    # own content (each message above is built from its source in order).
+    body["messages"] = body["messages"].each_with_index.map do |message, at|
+      chat_message_with_shown(message, workbench_shown_parts(session, sources[at])) do |image|
+        { "type" => "image_url", "image_url" => image.data_url }
       end
     end
 

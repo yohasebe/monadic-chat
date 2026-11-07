@@ -1825,6 +1825,11 @@ module GeminiHelper
       if (observation = observation_for(session, msg))
         parts << { "text" => observation }
       end
+      # What the user showed from it.
+      workbench_shown_parts(session, msg).each do |part|
+        parts << { "text" => part[:text] }
+        parts << { "inlineData" => { "mimeType" => part[:image].content_type, "data" => part[:image].base64 } } if part[:image]
+      end
       { "role" => translate_role(msg["role"]), "parts" => parts }
     end
 

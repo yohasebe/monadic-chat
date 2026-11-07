@@ -16,7 +16,7 @@ module Monadic
         # Why a part of a look could not be had (Look::Pdf).
         PART_NOTES = %w[none not_in_view drawing redrawn failed too_large busy pdf_text_unavailable].freeze
         SCOPES = %w[visible whole].freeze
-        SOURCES = %w[workbench_image workbench_file workbench_capture workbench_browser].freeze
+        SOURCES = %w[workbench_image workbench_file workbench_capture workbench_browser workbench_relay].freeze
         TEXT_FIELDS = { 'id' => 40, 'item_id' => 40, 'name' => 255, 'path' => 1024, 'at' => 40 }.freeze
         HASH = /\A[0-9a-f]{64}\z/
 

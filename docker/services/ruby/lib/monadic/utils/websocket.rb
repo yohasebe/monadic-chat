@@ -282,6 +282,10 @@ module WebSocketHelper
           handle_ws_workbench_open(connection, obj, session)
         when "WORKBENCH_SELECT"
           handle_ws_workbench_select(connection, obj, session)
+        when "WORKBENCH_SHOW"
+          handle_ws_workbench_show(connection, obj, session)
+        when "WORKBENCH_SHOW_REMOVE"
+          handle_ws_workbench_show_remove(obj, session)
         when "RESET"
           # A reply still being written belongs to the chat being reset. It
           # is stopped as Cancel stops it, before the session is cleared:
@@ -438,7 +442,11 @@ module WebSocketHelper
       # the STS bridge is long-lived by design, so it needs an explicit stop).
       teardown_sts_session(session) if session
       # What the work screen was asked through this connection is not taken.
-      Monadic::Workbench::Capture.revoke_tab(ws_session_id, generation: session[:_ws_generation]) if session
+      if session
+        Monadic::Workbench::Capture.revoke_tab(ws_session_id, generation: session[:_ws_generation])
+        # What this connection was about to show the assistant is let go.
+        Monadic::Workbench::Shown.revoke_tab(ws_session_id, generation: session[:_ws_generation])
+      end
 
       WebSocketHelper.remove_connection_with_session(connection, ws_session_id)
       WebSocketHelper.unregister_live_session(ws_session_id, session[:_ws_generation]) if session

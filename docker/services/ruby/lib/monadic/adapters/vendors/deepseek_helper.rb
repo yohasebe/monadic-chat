@@ -290,7 +290,9 @@ module DeepSeekHelper
         images = msg["role"] == "user" ? deepseek_supported_images(msg["images"]) : []
         # What the work screen shows follows the message's text.
         observation = observation_for(session, msg)
-        if images.empty?
+        # What the user showed from it, after all of the message's own.
+        shown = workbench_shown_parts(session, msg)
+        built = if images.empty?
           { "role" => msg["role"], "content" => Monadic::Workbench::Observation.appended(msg["text"], observation) }
         else
           messages_containing_img = true
@@ -303,6 +305,9 @@ module DeepSeekHelper
           end
           content << { "type" => "text", "text" => observation } if observation
           { "role" => msg["role"], "content" => content }
+        end
+        chat_message_with_shown(built, shown) do |image|
+          { "type" => "image_url", "image_url" => { "url" => image.data_url, "detail" => "high" } }
         end
       end
     end

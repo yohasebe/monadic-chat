@@ -16,7 +16,9 @@ module Monadic
     # A tool that takes a workbench: argument gets one; a model cannot give
     # it (an argument of that name is dropped). nil when the reply has no
     # such context: the tool then refuses rather than save elsewhere.
-    Caller = Struct.new(:chat_id, :epoch, :request_id, :session, :tab, :generation, keyword_init: true) do
+    # op: the press of "Show to the assistant" this is done for (the page
+    # answers from what it fixed at the press), or nil for a look.
+    Caller = Struct.new(:chat_id, :epoch, :request_id, :session, :tab, :generation, :op, keyword_init: true) do
       def self.current(session)
         scope = Fiber[Monadic::Utils::Privacy::EgressGuard::CHAT_KEY] if defined?(Monadic::Utils::Privacy::EgressGuard)
         request = Monadic::Workspace::RequestContext.current

@@ -7,6 +7,7 @@ require 'securerandom'
 require 'time'
 require_relative 'board'
 require_relative 'capture'
+require_relative 'shown'
 require_relative 'image_check'
 require_relative 'artifact'
 require_relative 'file_item'
@@ -255,9 +256,17 @@ module Monadic
       # (Capture): { first:, last: } of the lines in view, or empty: true
       # for a text with no line. Refused when the page does not say.
       # Whether a capture for the caller may still be taken: the chat and
-      # the selection are the ones it was asked for.
+      # the selection are the ones it was asked for. For a press of "Show
+      # to the assistant" (caller.op) what the page fixed at the press is
+      # taken whatever the tab selects now; its connection must still be
+      # the tab's.
       def still(board, selection, caller)
         lambda do
+          if caller.op
+            alive = Shown.state(tab: caller.tab, generation: caller.generation, op_id: caller.op) == 'preparing'
+            next alive && current?(caller) && (Board.live.nil? || Board.live.call(caller.tab) == caller.generation)
+          end
+
           current?(caller) &&
             board.still_selected?(tab: caller.tab, generation: caller.generation, item: selection.item,
                                   serial: selection.serial)
@@ -270,7 +279,7 @@ module Monadic
         answer = Capture.request(tab: caller.tab, generation: caller.generation, chat_id: caller.chat_id,
                                  request_id: caller.request_id, item_id: item['id'],
                                  version: item.dig('file', 'sha256'), serial: selection.serial, wants: ['range'],
-                                 deadline: deadline, valid: valid)
+                                 deadline: deadline, valid: valid, op: caller.op)
         range = answer['range']
         if range.is_a?(Hash)
           first = range['first_line']
@@ -363,8 +372,9 @@ module Monadic
 
       # The tool's result for the model: what was looked at, and the text
       # (or that the image follows).
-      def result_text(id, seen, scope)
-        out = { 'status' => 'looked', 'observation_id' => id, 'scope' => scope,
+      # status: looked (a look), or shown (what the user showed).
+      def result_text(id, seen, scope, status: 'looked')
+        out = { 'status' => status, 'observation_id' => id, 'scope' => scope,
                 'item' => { 'kind' => seen[:kind], 'name' => seen[:name], 'path' => seen[:path],
                             'version' => seen[:version]&.[](0, 12) }.compact }
         if seen[:kind] == 'pdf'

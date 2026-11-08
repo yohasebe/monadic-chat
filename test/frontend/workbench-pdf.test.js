@@ -2,14 +2,17 @@
  * @jest-environment jsdom
  */
 // A PDF in the work screen: pdf.js (a fake here, recording what it is
-// asked) draws one page at a time with its text layer, nothing in the PDF
-// acts, and a document no longer shown is let go.
+// asked, in the shape of the pinned one: getDocument returns a loading task
+// with its promise and destroy, and the document has no destroy) draws one
+// page at a time with its text layer, nothing in the PDF acts, and a
+// document no longer shown is let go through its loading task.
 const path = require('path');
 
 const js = (f) => path.join(__dirname, '../../docker/services/ruby/public/js', f);
 const flush = async () => { for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0)); };
 
-function fakeLibrary({ pages = 3, width = 600, height = 800, fails = false, failPage = null, held = {}, heldText = {} } = {}) {
+function fakeLibrary({ pages = 3, width = 600, height = 800, fails = false, failPage = null, held = {}, heldText = {},
+  heldDoc = null, destroyFails = null } = {}) {
   const lib = {
     calls: { documents: [], renders: [], layers: [], destroyed: 0 },
     GlobalWorkerOptions: {},
@@ -38,10 +41,15 @@ function fakeLibrary({ pages = 3, width = 600, height = 800, fails = false, fail
     },
     getDocument(options) {
       lib.calls.documents.push(options);
-      if (fails) return { promise: Promise.reject(new Error('Invalid PDF')) };
+      // destroy: 'reject' returns a rejected promise, 'throw' throws.
+      const destroy = () => {
+        lib.calls.destroyed += 1;
+        if (destroyFails === 'throw') throw new Error('destroy failed');
+        return destroyFails === 'reject' ? Promise.reject(new Error('destroy failed')) : Promise.resolve();
+      };
+      if (fails) return { promise: Promise.reject(new Error('Invalid PDF')), destroy };
       const doc = {
         numPages: pages,
-        destroy: () => { lib.calls.destroyed += 1; },
         getPage: (n) => Promise.resolve({
           number: n,
           getViewport: ({ scale }) => ({ width: width * scale, height: height * scale, scale }),
@@ -55,7 +63,9 @@ function fakeLibrary({ pages = 3, width = 600, height = 800, fails = false, fail
           streamTextContent: () => ({ page: n })
         })
       };
-      return { promise: Promise.resolve(doc) };
+      // A document held arrives when the test lets it go (heldDoc.arrive()).
+      if (heldDoc) return { promise: new Promise((resolve) => { heldDoc.arrive = () => resolve(doc); }), destroy };
+      return { promise: Promise.resolve(doc), destroy };
     }
   };
   return lib;
@@ -127,12 +137,68 @@ describe('WorkbenchPdf', () => {
     expect(canvas.width * canvas.height).toBeLessThanOrEqual(4096 * 4096);
   });
 
-  test('lets the document go when it is no longer shown, even when it comes after', async () => {
-    const lib = fakeLibrary();
-    showWith(lib).dispose();
-    await flush();
-    expect(lib.calls.destroyed).toBe(1);
-    expect(lib.calls.renders).toHaveLength(0);
+  describe('lets the document go when it is no longer shown', () => {
+    test('before pdf.js is loaded: the document is never asked for', async () => {
+      const lib = fakeLibrary();
+      let arrive;
+      window.WorkbenchPdf.loader = () => new Promise((resolve) => { arrive = () => resolve(lib); });
+      const handle = window.WorkbenchPdf.show(box, new ArrayBuffer(8));
+      handle.dispose();
+      arrive();
+      await flush();
+      expect(lib.calls.documents).toHaveLength(0);
+      expect(lib.calls.destroyed).toBe(0);
+      expect(box.textContent).not.toContain('could not be shown');
+    });
+
+    test('while the document loads: its loading task goes, and what arrives later draws nothing', async () => {
+      const heldDoc = {};
+      const lib = fakeLibrary({ heldDoc: heldDoc });
+      const handle = showWith(lib);
+      await flush();
+      handle.dispose();
+      expect(lib.calls.destroyed).toBe(1);
+      heldDoc.arrive();
+      await flush();
+      expect(lib.calls.renders).toHaveLength(0);
+      expect(box.textContent).not.toContain('could not be shown');
+    });
+
+    test('while a page draws: the drawing stops, and its end changes nothing', async () => {
+      const held = { 1: null };
+      const lib = fakeLibrary({ held: held });
+      const changes = [];
+      window.WorkbenchPdf.loader = () => Promise.resolve(lib);
+      const handle = window.WorkbenchPdf.show(box, new ArrayBuffer(8), (shown) => changes.push(shown.status));
+      await flush();
+      handle.dispose();
+      expect(lib.calls.destroyed).toBe(1);
+      held[1].resolve();
+      await flush();
+      expect(changes).toEqual(['drawing']);
+      expect(box.querySelector('.textLayer')).toBeNull();
+    });
+
+    test('once, however often it is asked', async () => {
+      const lib = fakeLibrary();
+      const handle = showWith(lib);
+      await flush();
+      handle.dispose();
+      handle.dispose();
+      expect(lib.calls.destroyed).toBe(1);
+    });
+
+    test.each(['reject', 'throw'])('when letting it go fails (%s), the next PDF is still drawn', async (how) => {
+      // pdf.js is loaded once for the page: the next PDF uses the same one.
+      const lib = fakeLibrary({ destroyFails: how });
+      const handle = showWith(lib);
+      await flush();
+      expect(() => handle.dispose()).not.toThrow();
+      const next = showWith(lib);
+      await flush();
+      expect(lib.calls.documents).toHaveLength(2);
+      expect(next.shown()).toMatchObject({ status: 'ready', page: 1, pages: 3 });
+    });
   });
 
   test('says what is drawn only once a page and its text layer are drawn', async () => {

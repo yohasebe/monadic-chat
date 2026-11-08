@@ -10,14 +10,22 @@ require "rbconfig"
 # Runs the app with a probe script (a Ruby program that loads config.ru,
 # serves it and drives it) in a child process of its own group, with its own
 # HOME and a time limit. Returns what the script printed on its "PROBE "
-# line, and whether anything of the group was left afterwards.
+# line, and whether anything of the group was left afterwards. With home:
+# that HOME is used (and kept), so that a second run finds what the first
+# left there, as the app does after a restart.
 module AppProbe
   APP_ROOT = File.expand_path("../..", __dir__)
 
-  def run_app_probe(script, limit: 180)
-    Dir.mktmpdir("app-probe-home") do |home|
+  def run_app_probe(script, limit: 180, home: nil)
+    return probe_in(script, limit, home) if home
+
+    Dir.mktmpdir("app-probe-home") { |made| probe_in(script, limit, made) }
+  end
+
+  def probe_in(script, limit, home)
+    begin
       tmp = File.join(home, "tmp")
-      Dir.mkdir(tmp)
+      FileUtils.mkdir_p(tmp)
       FileUtils.mkdir_p(File.join(home, "monadic", "data"))
       FileUtils.mkdir_p(File.join(home, "monadic", "config"))
       File.write(File.join(home, "monadic", "config", "env"), "OPENAI_API_KEY=sk-test-not-used\n")
@@ -30,7 +38,8 @@ module AppProbe
         stdin.close
         pgid = Process.getpgid(wait.pid)
         begin
-          Timeout.timeout(limit) { out << io.read }
+          # Line by line, so that a run that stops partway shows how far it got.
+          Timeout.timeout(limit) { io.each_line { |line| out << line } }
         rescue Timeout::Error
           Process.kill("TERM", -pgid) rescue nil
           sleep 1

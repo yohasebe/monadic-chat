@@ -29,11 +29,12 @@ RSpec.describe "The Python container's PATH" do
     stub_const("MonadicApp::USER_SCRIPT_DIR", scripts)
 
     sent = nil
-    allow(MonadicApp).to receive(:capture_command) { |cmd, **| sent = cmd; ["", "", 0] }
+    ran_in = nil
+    allow(MonadicApp).to receive(:capture_command) { |cmd, container: nil, **| sent = cmd; ran_in = container; ["", "", 0] }
     MonadicApp.new.send(:send_command, command: "command -v ls own_tool", container: "python")
 
-    bash_command = Shellwords.split(sent).last # docker exec ... bash -c <this>
-    out, = Open3.capture2("bash", "-c", bash_command)
+    expect(ran_in).to eq(:python)
+    out, = Open3.capture2("bash", "-c", sent) # the body run with bash -c in the container
     found = out.split("\n")
     expect(found.first).not_to start_with(scripts) # the real ls
     expect(found.last).to eq(File.join(scripts, "own_tool"))

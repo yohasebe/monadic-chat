@@ -346,6 +346,8 @@ class MonadicApp
 
     command_env = {}
     command_chdir = nil
+    # The container the command runs in (nil: on this side).
+    run_in = nil
     case container.to_s
     when "ruby"
       # This runs in the Ruby process's own environment, which can read the
@@ -365,7 +367,6 @@ class MonadicApp
       command_chdir = ruby_side[:chdir]
       command_env = ruby_side_env.merge("PATH" => ruby_side[:path])
     when "python"
-      container = "monadic-chat-python-container"
       # Add all Python script directories to PATH. The user's scripts in the
       # shared folder come last, after the system's: code a model runs can
       # write there, and a python3 or bash it left must not stand in for the
@@ -378,21 +379,20 @@ class MonadicApp
         "/monadic/scripts/converters",
         "/monadic/scripts/music"
       ].join(":")
-      # Build the bash command that will be executed inside the container
-      # Note: We don't escape the command here because it will be properly escaped
-      # when passed to bash -c via Shellwords.escape(bash_command)
-      bash_command = "find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null; export PATH=\"#{python_script_dirs}:${PATH}:#{USER_SCRIPT_DIR}\"; #{command}"
-      system_command = <<~DOCKER.strip
-        docker exec -w #{SHARED_VOL} #{container} bash -c #{Shellwords.escape(bash_command)}
-      DOCKER
+      # The bash body run in the container (passed to bash -c as one
+      # argument by Monadic::Shell).
+      system_command = "find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null; export PATH=\"#{python_script_dirs}:${PATH}:#{USER_SCRIPT_DIR}\"; #{command}"
+      run_in = :python
     else
-      container = "monadic-chat-#{container}-container"
-      # Build the bash command that will be executed inside the container
-      # Note: Command is not escaped here, will be properly escaped when passed to bash -c
-      bash_command = "find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null; #{command}"
-      system_command = <<~DOCKER.strip
-        docker exec -w #{SHARED_VOL} #{container} bash -c #{Shellwords.escape(bash_command)}
-      DOCKER
+      # Another container of Monadic Chat: the bash body runs there.
+      run_in = Monadic::Shell::CONTAINERS.key?(container.to_s.to_sym) ? container.to_s.to_sym : nil
+      unless run_in
+        refused = "Unknown container: #{container}"
+        return yield("", refused, OpenStruct.new(success?: false)) if block_given?
+
+        return "Error occurred: #{refused}"
+      end
+      system_command = "find #{USER_SCRIPT_DIR} -type f -exec chmod +x {} + 2>/dev/null; #{command}"
     end
 
     # Use longer timeout for media generation (videos, images, and TTS can take several minutes)
@@ -414,7 +414,8 @@ class MonadicApp
                     else
                       120  # 2 minutes default
                     end
-    stdout, stderr, status = self.capture_command(system_command, timeout: timeout_value, env: command_env, chdir: command_chdir)
+    stdout, stderr, status = self.capture_command(system_command, timeout: timeout_value, env: command_env, chdir: command_chdir,
+                                                                  container: run_in)
     # What a command prints goes on to tool results and the model: the output
     # keeps everything but known secret values; the error text is redacted.
     stdout = Monadic::Utils::SecretRedactor.redact_values(stdout)
@@ -514,8 +515,6 @@ class MonadicApp
         files_dir = File.expand_path(File.join(Dir.home, "monadic", "data"))
       end
 
-      container = "monadic-chat-python-container"
-
       # Generate unique filename with timestamp and random suffix
       timestamp = Time.now.strftime("%Y%m%d_%H%M%S")
       unique_id = SecureRandom.hex(4)
@@ -533,10 +532,9 @@ class MonadicApp
       # The content digest of each file before execution
       local_files1 = shared_file_digests(files_dir)
 
-      # Execute the code in the container with longer timeout for complex operations
-      docker_command = ["docker", "exec", "-w", SHARED_VOL, container, *command_argv, filename]
-
-    stdout, stderr, status = self.capture_command(docker_command, timeout: 180)  # 3 minutes for code execution
+      # Run the code in the Python container (3 minutes at most). Stopped
+      # (Cancel) or over its time, it stops there too.
+      stdout, stderr, status = self.capture_command([*command_argv, filename], timeout: 180, container: :python)
 
       # Wait briefly for filesystem synchronization
       sleep COMMAND_DELAY
@@ -601,14 +599,17 @@ class MonadicApp
         error_details = "Error executing #{command} code"
         error_details += " (attempt #{retries + 1} of #{max_retries})" if retries > 0
         error_details += ": #{error_msg}"
-        
+
+        # Code that ran over its time would only run over again.
+        raise CodeTimedOut, error_details if status.respond_to?(:timed_out?) && status.timed_out?
+
         raise StandardError, error_details
       end
     rescue StandardError => e
       # Each attempt writes its own code file
       remove_code_file(created) if created && !keep_file
       created = nil
-      if retries < max_retries
+      if retries < max_retries && !e.is_a?(CodeTimedOut)
         retries += 1
         sleep(retry_delay)
         retry
@@ -630,8 +631,8 @@ class MonadicApp
     Time.now.to_s
   end
 
-  def capture_command(command, timeout: 120, env: {}, chdir: nil)
-    self.class.capture_command(command, timeout: timeout, env: env, chdir: chdir)
+  def capture_command(command, timeout: 120, env: {}, chdir: nil, container: nil)
+    self.class.capture_command(command, timeout: timeout, env: env, chdir: chdir, container: container)
   end
 
   # The scripts that come with Monadic Chat and run on the Ruby side.
@@ -694,46 +695,37 @@ class MonadicApp
   # Not tools: called only from the implementations of declared tools.
   private :send_command, :send_code, :capture_command, :ruby_side_command, :ruby_side_path, :ruby_side_env
 
-  def self.capture_command(command, timeout: 120, env: {}, chdir: nil)  # Default 120 seconds timeout
-    unless command
-      return ["Error: command is required.", nil, 1]
-    end
+  # A run that went over its time: a failed status that says so, told
+  # apart from a command that failed by itself (it is not run again).
+  TIMED_OUT = OpenStruct.new(success?: false, timed_out?: true).freeze
 
-    begin
-      require 'timeout'
-      stdout, stderr, status = nil, nil, nil
+  # Code that ran over its time (send_code does not run it again).
+  class CodeTimedOut < StandardError; end
 
-      Timeout::timeout(timeout) do
-        # An Array runs without a shell, each element one argument
-        opts = chdir ? { chdir: chdir } : {}
-        stdout, stderr, status = command.is_a?(Array) ? Open3.capture3(env, *command, **opts) : Open3.capture3(env, command, **opts)
+  # Runs a command and gives back [stdout, stderr, status]. With container:
+  # it runs in that container (an Array as argv, a String as a bash body);
+  # without, on this side (an Array as argv, a String through sh, with env
+  # and chdir). It runs through Monadic::Shell: stopped when the calling
+  # thread is (Cancel) or when it runs over timeout, and then what it
+  # started stops too, here and (as far as Docker answers) in the
+  # container. A timeout comes back as TIMED_OUT with the reason as its
+  # error text. The command log is written by Monadic::Shell.
+  def self.capture_command(command, timeout: 120, env: {}, chdir: nil, container: nil)
+    return ["Error: command is required.", nil, 1] unless command
+
+    require_relative 'shell'
+    if container
+      if command.is_a?(Array)
+        Monadic::Shell.exec(container: container, argv: command, workdir: SHARED_VOL, env: env, timeout: timeout)
+      else
+        Monadic::Shell.bash(container: container, body: command, workdir: SHARED_VOL, env: env, timeout: timeout)
       end
-    rescue Timeout::Error
-      error_msg = "Command timed out after #{timeout} seconds. This may happen with complex syntax trees or when using high reasoning effort settings. Consider simplifying the input or reducing reasoning_effort."
-      return ["", error_msg, OpenStruct.new(success?: false)]
+    else
+      argv = command.is_a?(Array) ? command : ["/bin/sh", "-c", command]
+      Monadic::Shell.run(argv: argv, env: env, chdir: chdir, timeout: timeout)
     end
-
-    # Log command input and output (best-effort: a missing or read-only
-    # log directory must not turn a successful command into a failure).
-    # Nothing of a Private chat's work: its commands carry the chat.
-    private_work = defined?(Monadic::History::Policy) && Monadic::History::Policy.current_work_private?
-    begin
-      unless private_work
-        Monadic::Utils::Environment.rotate_log(COMMAND_LOG_FILE)
-        File.open(COMMAND_LOG_FILE, "a") do |f|
-          f.puts "Time: #{Time.now}"
-          redact = Monadic::Utils::SecretRedactor.method(:redact)
-          f.puts "Command: #{redact.call(command.is_a?(Array) ? Shellwords.join(command) : command)}"
-          f.puts "Error: #{redact.call(stderr)}" if stderr.strip.length.positive?
-          f.puts "Output: #{redact.call(stdout)}"
-          f.puts "-----------------------------------"
-        end
-      end
-    rescue StandardError
-      # best-effort
-    end
-
-    [stdout, stderr, status]
+  rescue Monadic::Shell::TimedOut
+    ["", "Command timed out after #{timeout} seconds. This may happen with complex syntax trees or when using high reasoning effort settings. Consider simplifying the input or reducing reasoning_effort.", TIMED_OUT]
   end
 
   def self.doc2markdown(filename)

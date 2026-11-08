@@ -289,6 +289,111 @@ RSpec.describe "the OpenAI image tool on the workbench" do
     end
   end
 
+  describe "an edit of the image the user's tab selects in the work screen" do
+    # The message came from tab t1's connection 1.
+    let(:request) { Monadic::Workspace::RequestContext.new(chat_id: chat, tab: "t1", generation: 1) }
+    let(:board) { Monadic::Workbench::Board.for(chat, store: store) }
+
+    before { Monadic::Workbench::Board.live = ->(tab) { tab == "t1" ? 1 : 2 } }
+    after { Monadic::Workbench::Board.live = nil }
+
+    def edit(text: "make it brighter", mask: nil)
+      session[:messages] << { "mid" => "m-u#{session[:messages].size}", "role" => "user", "text" => text }
+      generate(operation: "edit", prompt: text, **(mask ? { mask: mask } : {}))
+    end
+
+    def two_images
+      fake_generator(bytes: png(64, 48, "first"), name: "first.png")
+      first = generate
+      fake_generator(bytes: png(64, 48, "second"), name: "second.png")
+      second = generate
+      [first, second]
+    end
+
+    # A file of the shared folder opened on the work screen from tab t1.
+    def opened(name, bytes)
+      File.binwrite(File.join(shared, name), bytes)
+      item, = board.add_file(path: name, origin: { actor: :user, source: :panel, tab: "t1", generation: 1 },
+                             epoch: Monadic::Workspace::Chats.epoch(chat), wait: 0)
+      item
+    end
+
+    it "starts from the generated image selected, not the one that came last" do
+      first, = two_images
+      board.select(tab: "t1", generation: 1, item_id: first.item_id)
+      fake_generator(bytes: png(64, 48, "edited"), name: "edited.png")
+      edited = edit
+      expect(seen_inputs.last).to eq(png(64, 48, "first"))
+      expect(item_of(edited).dig("artifact", "derived_from")).to eq(item_of(first).dig("artifact", "id"))
+    end
+
+    it "starts from an image of the shared folder selected, with the bytes read then, and keeps no derived_from" do
+      two_images
+      photo = opened("photo.png", png(32, 32, "photo"))
+      board.select(tab: "t1", generation: 1, item_id: photo["id"])
+      # The file changes after the run's input was made: the run edits what was read.
+      allow(app).to receive(:send_command) do |command:, **|
+        commands << Shellwords.split(command)
+        File.binwrite(File.join(shared, "photo.png"), png(32, 32, "replaced"))
+        commands.last.each_cons(2) { |flag, value| seen_inputs << Monadic::Workbench::JobOutput.read_input(value) if flag == "--job-input" }
+        out_dir = commands.last[commands.last.index("--out-dir") + 1]
+        Monadic::Workbench::JobOutput.write!(out_dir, "edited.png", png(64, 48, "edited"))
+        '{"success": true}'
+      end
+      edited = edit
+      expect(seen_inputs.last).to eq(png(32, 32, "photo"))
+      expect(item_of(edited).dig("artifact", "derived_from")).to be_nil
+    end
+
+    it "starts from the image that came last when the tab selects nothing, or something that is not an image" do
+      two_images
+      board.select(tab: "t1", generation: 1, item_id: nil)
+      fake_generator(bytes: png(64, 48, "edited"), name: "edited.png")
+      edit
+      expect(seen_inputs.last).to eq(png(64, 48, "second"))
+      # The edited image came last now; a text file selected is not an image.
+      notes = opened("notes.txt", "one\ntwo\n")
+      board.select(tab: "t1", generation: 1, item_id: notes["id"])
+      edit
+      expect(seen_inputs.last).to eq(png(64, 48, "edited"))
+    end
+
+    it "does not use what another tab selects" do
+      first, = two_images
+      board.select(tab: "t2", generation: 2, item_id: first.item_id)
+      fake_generator(bytes: png(64, 48, "edited"), name: "edited.png")
+      edit
+      expect(seen_inputs.last).to eq(png(64, 48, "second"))
+    end
+
+    it "stops when the image selected is gone, and edits no other image" do
+      two_images
+      photo = opened("photo.png", png(32, 32, "photo"))
+      board.select(tab: "t1", generation: 1, item_id: photo["id"])
+      File.delete(File.join(shared, "photo.png"))
+      commands.clear
+      expect(edit).to start_with("❌ The image selected in the work screen cannot be edited")
+      expect(commands).to be_empty
+    end
+
+    it "stops when the selection changes while the image is read" do
+      first, = two_images
+      board.select(tab: "t1", generation: 1, item_id: first.item_id)
+      allow_any_instance_of(Monadic::Workbench::Board).to receive(:still_selected?).and_return(false)
+      commands.clear
+      expect(edit).to start_with("❌ The image selected in the work screen changed while it was read")
+      expect(commands).to be_empty
+    end
+
+    it "refuses a mask for the image selected rather than edit without it" do
+      first, = two_images
+      board.select(tab: "t1", generation: 1, item_id: first.item_id)
+      commands.clear
+      expect(edit(text: "change the sky", mask: "mask__photo.png")).to start_with("❌ A mask applies to an uploaded or named image")
+      expect(commands).to be_empty
+    end
+  end
+
   describe "the reply" do
     let(:host) do
       Class.new(MonadicApp) { include OpenAIHelper }.new.tap do |h|

@@ -111,7 +111,10 @@ RSpec.describe "Ruby-side commands" do
 
     before do
       calls = recorded
-      allow(MonadicApp).to receive(:capture_command) do |command, timeout:, env:, chdir: nil|
+      allow(MonadicApp).to receive(:capture_command) do |command, timeout:, env:, chdir: nil, container: nil|
+        # Ruby-side commands run on this side, never in a container.
+        raise "a Ruby-side command was sent to #{container}" if container
+
         calls << [command, env, chdir]
         ["", "", OpenStruct.new(success?: true)]
       end

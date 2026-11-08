@@ -28,20 +28,22 @@ module Monadic
       # The message for the tab's page: the board's snapshot, a token for
       # each image (to remove it, on this connection), and an address for
       # each image whose file is the one recorded. A chat without a board
-      # gets an empty one, or nil with only_existing (a connection's first
-      # view, marked initial: what it shows is not new to the user). live
+      # gets an empty one; initial (a connection's first view) marks the view
+      # so: what it shows is not new to the user. live
       # gives the generation of the connection a tab has now: a connection a
       # newer one replaced is sent nothing.
-      def view(session, tab:, generation:, live:, only_existing: false)
+      def view(session, tab:, generation:, live:, initial: false)
         return nil unless live.call(tab) == generation
 
         chat_id = chat_id_of(session) or return nil
         board = Board.existing(chat_id, private: private_chat?(session, chat_id))
+        # A chat without a board gets an empty one (no board is made for
+        # it). A connection's first view says so too: a page that still
+        # shows another chat's board (the app restarted and this tab's chat
+        # is new) lets it go.
         unless board
-          return nil if only_existing
-
           return { 'type' => 'workbench', 'board' => empty_board(chat_id), 'approvals' => {}, 'assets' => {},
-                   'selected' => nil }
+                   'selected' => nil, 'initial' => initial }
         end
 
         snapshot = board.snapshot
@@ -61,7 +63,7 @@ module Monadic
         end
         selected, serial = board.selection(tab: tab, generation: generation)
         { 'type' => 'workbench', 'board' => snapshot, 'approvals' => approvals, 'assets' => assets,
-          'selected' => selected, 'selection_serial' => serial, 'initial' => only_existing }
+          'selected' => selected, 'selection_serial' => serial, 'initial' => initial }
       end
 
       # The user's removal of an image from the board, sent with the token

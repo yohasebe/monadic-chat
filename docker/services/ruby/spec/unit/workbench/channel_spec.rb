@@ -81,7 +81,14 @@ RSpec.describe "the workbench over the main socket (channel, asset server)" do
       message = view
       expect(message["board"][:items]).to eq([])
       expect(message["approvals"]).to eq({})
-      expect(channel.view(session, tab: tab, generation: 1, live: live, only_existing: true)).to be_nil
+      expect(store.exists?(chat)).to be(false)
+    end
+
+    it "says so also in a connection's first view, marked initial, so that a page lets another chat's board go" do
+      first = channel.view(session, tab: tab, generation: 1, live: live, initial: true)
+      expect(first["board"][:chat_id]).to eq(chat)
+      expect(first["board"][:items]).to eq([])
+      expect(first["initial"]).to be(true)
       expect(store.exists?(chat)).to be(false)
     end
 

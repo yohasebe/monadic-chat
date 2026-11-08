@@ -53,9 +53,9 @@ RSpec.describe "tool arguments never reach a shell" do
       allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@dir)
       recorded = calls
       data = @dir
-      allow(app).to receive(:capture_command) do |command, **|
+      allow(app).to receive(:capture_command) do |command, container: nil, **|
         # The code file is in the shared folder while it runs
-        recorded << [command, File.exist?(File.join(data, command.last.to_s))]
+        recorded << [command, File.exist?(File.join(data, command.last.to_s)), container]
         ["", "stop here", OpenStruct.new(success?: false)]
       end
     end
@@ -76,13 +76,13 @@ RSpec.describe "tool arguments never reach a shell" do
       expect(calls).to be_empty
     end
 
-    it "runs docker with an argv array, the command split into its own arguments" do
+    it "runs the code in the Python container with an argv array, the command split into its own arguments" do
       result = app.send(:send_code, code: "print(1)", command: "python3 -u", extension: "py", max_retries: 0)
       expect(calls.size).to eq(1), "send_code returned #{result.inspect} before running docker"
-      exec, present = calls.first
+      exec, present, container = calls.first
+      expect(container).to eq(:python)
       expect(exec).to be_an(Array)
-      expect(exec[0..4]).to eq(["docker", "exec", "-w", "/monadic/data", "monadic-chat-python-container"])
-      expect(exec[5..6]).to eq(%w[python3 -u])
+      expect(exec[0..1]).to eq(%w[python3 -u])
       expect(exec.last).to match(/\Acode_\d{8}_\d{6}_[0-9a-f]{8}\.py\z/)
       expect(present).to be(true)
       expect(Dir.glob(File.join(@dir, "code_*"))).to be_empty

@@ -73,16 +73,26 @@ module Monadic
     def exec(container:, argv:, workdir: SHARED_VOLUME, env: {}, timeout: nil)
       raise ArgumentError, 'argv must be a non-empty array' unless argv.is_a?(Array) && !argv.empty?
       name = resolve_container(container)
-      docker_argv = ['docker', 'exec', '-w', workdir]
-      env.each_pair { |k, v| docker_argv.concat(['-e', "#{k}=#{v}"]) }
+      options = ['-w', workdir]
+      env.each_pair { |k, v| options.concat(['-e', "#{k}=#{v}"]) }
       # A run with a time limit is marked, so that stopping it also stops
-      # what it started in the container (see stop_in_container).
+      # what it started in the container (see stop_in_container). The log
+      # shows the command as asked, without the mark.
       run_id = SecureRandom.hex(16) if timeout
-      docker_argv.concat(['-e', "#{RUN_ID_VAR}=#{run_id}"]) if run_id
-      docker_argv << name
-      docker_argv.concat(argv.map(&:to_s))
+      mark = run_id ? ['-e', "#{RUN_ID_VAR}=#{run_id}"] : []
+      command = argv.map(&:to_s)
       on_stop = run_id && -> { stop_in_container(name, run_id) }
-      capture(docker_argv, timeout: timeout, on_stop: on_stop)
+      capture(['docker', 'exec', *options, *mark, name, *command], timeout: timeout, on_stop: on_stop,
+                                                                     log_as: ['docker', 'exec', *options, name, *command])
+    end
+
+    # Runs argv on this side (not in a container), with env and chdir, the
+    # same way: with a timeout it is stopped once it runs over (TimedOut),
+    # and stopped with its whole process group when the calling thread is.
+    def run(argv:, env: {}, chdir: nil, timeout: nil)
+      raise ArgumentError, 'argv must be a non-empty array' unless argv.is_a?(Array) && !argv.empty?
+
+      capture(argv.map(&:to_s), timeout: timeout, env: env, chdir: chdir)
     end
 
     RUN_ID_VAR = 'MONADIC_RUN_ID'
@@ -368,10 +378,12 @@ module Monadic
       return unless log_path
       # Nothing of a Private chat's work: its commands carry the chat.
       return if defined?(Monadic::History::Policy) && Monadic::History::Policy.current_work_private?
+      Monadic::Utils::Environment.rotate_log(log_path) if defined?(Monadic::Utils::Environment) &&
+                                                         Monadic::Utils::Environment.respond_to?(:rotate_log)
       File.open(log_path, 'a') do |f|
         f.puts "Time: #{Time.now}"
         redact = Monadic::Utils::SecretRedactor.method(:redact)
-        f.puts "Command: #{redact.call(argv.join(' '))}"
+        f.puts "Command: #{redact.call(Shellwords.join(argv.map(&:to_s)))}"
         f.puts "Error: #{redact.call(stderr)}" if stderr.to_s.strip.length.positive?
         f.puts "Output: #{redact.call(stdout)}"
         f.puts '-----------------------------------'
@@ -395,17 +407,26 @@ module Monadic
     # whole group is stopped, so a child it started cannot keep the output
     # open and hold the caller past the limit. Stopping `docker exec` ends the
     # client, not necessarily the process it started in the container.
-    def capture(argv, timeout: nil, on_stop: nil)
-      stdout, stderr, status = timeout ? capture_with_timeout(argv, timeout, on_stop: on_stop) : Open3.capture3(*argv)
-      log_invocation(argv, stdout, stderr)
+    # env and chdir apply to the command on this side; log_as is what the
+    # command log shows (argv when not given).
+    def capture(argv, timeout: nil, on_stop: nil, env: {}, chdir: nil, log_as: nil)
+      options = chdir ? { chdir: chdir } : {}
+      # An environment is passed only when there is one (Open3 takes it first).
+      leading = env.empty? ? [] : [env]
+      stdout, stderr, status = if timeout
+                                 capture_with_timeout(argv, timeout, on_stop: on_stop, leading: leading, options: options)
+                               else
+                                 Open3.capture3(*leading, *argv, **options)
+                               end
+      log_invocation(log_as || argv, stdout, stderr)
       [stdout, stderr, status]
     end
 
     READ_GRACE = 2 # seconds to collect output once the command has ended or been stopped
 
-    def capture_with_timeout(argv, timeout, on_stop: nil)
+    def capture_with_timeout(argv, timeout, on_stop: nil, leading: [], options: {})
       deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
-      Open3.popen3(*argv, pgroup: true) do |stdin, out, err, wait|
+      Open3.popen3(*leading, *argv, pgroup: true, **options) do |stdin, out, err, wait|
         result = run_to_end_or_stop(argv, timeout, deadline, stdin, out, err, wait)
         done = true
         result

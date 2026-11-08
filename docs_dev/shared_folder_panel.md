@@ -68,7 +68,7 @@ An entry may be moved to the trash (`capabilities.trash`) when it is a file or f
 
 ## Preview
 
-`Monadic::Workspace::SharedFolderPreview` (`lib/monadic/workspace/shared_folder_preview.rb`) holds the extension table (`MEDIA`, `TEXT`); the listing gives each file its `preview` kind from it, and the routes check the kind again. HTML, SVG and XML are text: they are never sent as their own type.
+`Monadic::Workspace::SharedFolderPreview` (`lib/monadic/workspace/shared_folder_preview.rb`) holds the extension table (`MEDIA`, `TEXT`); the listing gives each file its `preview` kind from it, and the routes check the kind again. HTML, SVG and XML are text: they are never sent as their own type. `RENDER` names the text files the work screen draws (see `docs_dev/workbench_rendering.md`); they are still served as text.
 
 - `GET /api/shared_folder/text`: the first `TEXT_LIMIT` bytes as UTF-8 JSON (`text`, `truncated`, `file_bytes`, `shown_bytes`); a NUL byte in what was read gives 415. The page puts the text in a `<pre>` with `textContent`.
 - `GET /api/shared_folder/file`: images, audio, video and PDFs, with one byte range (`bytes=a-b`, `a-`, `-n`; another unit, several ranges or an invalid one send the whole file; past the end gives 416). Media other than PDF get `Content-Security-Policy: sandbox; default-src 'none'`; a PDF gets `frame-ancestors 'self'` and `X-Frame-Options: SAMEORIGIN` (the browser's viewer does not open in a sandbox).

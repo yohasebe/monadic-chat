@@ -220,6 +220,10 @@ function _handleAssistantRole(data, html, moreComing) {
   if (window.Workbench && typeof window.Workbench.drawLooks === 'function' && Array.isArray(data["content"]["workbench_looks"])) {
     window.Workbench.drawLooks(data["content"]["mid"], data["content"]["workbench_looks"]);
   }
+  // What the reply showed in the work screen, as the message records it.
+  if (window.Workbench && typeof window.Workbench.drawShown === 'function' && Array.isArray(data["content"]["workbench_shown"])) {
+    window.Workbench.drawShown(data["content"]["mid"], data["content"]["workbench_shown"]);
+  }
 
   if (moreComing) {
     // Keep input disabled and streaming state active

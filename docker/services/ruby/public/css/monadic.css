@@ -6935,6 +6935,60 @@ body.side-pane-resizing {
   color: var(--text-secondary);
 }
 
+/* A text file drawn (workbench-render.js): Markdown, a table, an image
+   made from SVG, a diagram or a chart, a page in a frame */
+.workbench-rendered {
+  max-height: 70vh;
+  overflow: auto;
+  outline-offset: 2px;
+  border: var(--border-width) solid var(--border-light);
+  border-radius: var(--border-radius);
+  background: var(--bg-panel);
+  padding: var(--spacing-sm);
+}
+.workbench-rendered .workbench-markdown > :last-child {
+  margin-bottom: 0;
+}
+.workbench-rendered .workbench-markdown img {
+  max-width: 100%;
+}
+.workbench-rendered .workbench-markdown pre {
+  background: var(--bg-body);
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius);
+  overflow: auto;
+}
+/* Drawings keep their own colors: they are drawn on white as made. */
+.workbench-rendered img.workbench-svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  background: #fff;
+}
+.workbench-table-wrap {
+  overflow: auto;
+}
+.workbench-table {
+  margin-bottom: 0;
+  font-size: var(--font-size-sm);
+}
+.workbench-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-panel);
+}
+.workbench-rendered:has(> .workbench-page) {
+  padding: 0;
+}
+.workbench-page {
+  display: block;
+  width: 100%;
+  height: 65vh;
+  border: 0;
+  background: #fff;
+}
+
 /* A PDF, a page at a time (workbench-pdf.js) */
 .workbench-pdf {
   max-height: 75vh;

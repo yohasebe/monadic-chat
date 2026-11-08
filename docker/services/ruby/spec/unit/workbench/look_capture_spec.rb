@@ -172,8 +172,8 @@ RSpec.describe "asking the page what the work screen shows" do
 
     it "says why when the page does not give the lines" do
       open_text(lines_text(3))
-      { "not_shown" => "not_shown", "drawing" => "drawing", "changing" => "selection_changed",
-        "failed" => "range_unknown" }.each do |note, reason|
+      { "not_shown" => "not_shown", "drawing" => "drawing", "rendered" => "rendered",
+        "changing" => "selection_changed", "failed" => "range_unknown" }.each do |note, reason|
         page { { "range" => nil, "note" => note } }
         expect(look.run(caller_for, scope: "visible")).to include("(#{reason})")
       end

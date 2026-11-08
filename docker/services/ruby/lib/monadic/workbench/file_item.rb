@@ -19,6 +19,8 @@ module Monadic
       class Refused < StandardError; end
       # Too many files are being read now; try again.
       class Busy < StandardError; end
+      # Larger now than a use takes (read's limit): nothing was read.
+      class TooLarge < StandardError; end
 
       # The kinds the work screen shows (SharedFolderPreview.kind_for). A PDF
       # is served whole to the page, which draws it with pdf.js.
@@ -96,9 +98,11 @@ module Monadic
       end
 
       # The bytes of the item's file, read now and checked against entry's
-      # version.
-      def read(entry)
-        read = read_whole(entry['path'])
+      # version. limit: the most bytes this use takes (LIMIT by default); a
+      # file larger than that now is TooLarge, told from the open file's
+      # stat before anything is read.
+      def read(entry, limit: LIMIT)
+        read = read_whole(entry['path'], limit: limit)
         raise Artifact::Changed, 'the file changed after it was opened' unless read[:sha256] == entry['sha256']
 
         read[:bytes]
@@ -106,6 +110,8 @@ module Monadic
         raise Artifact::Missing, 'the file is no longer in the shared folder' if e.message == 'the file is not there'
 
         raise Artifact::Changed, 'the file changed after it was opened'
+      rescue TooLarge
+        raise
       rescue Refused, Monadic::Workspace::SharedFolderPreview::Unavailable, SystemCallError, IOError
         # Grown past the limit, or no longer a file that can be shown: not
         # the version opened.
@@ -148,20 +154,22 @@ module Monadic
 
       # The whole file (up to LIMIT) with its kind, stat and sha256, read
       # and hashed in one turn.
-      def read_whole(relative, wait: READ_WAIT)
+      def read_whole(relative, wait: READ_WAIT, limit: LIMIT)
         turn(wait: wait) do
-          read = read_now(relative)
+          read = read_now(relative, limit: limit)
           read.merge(sha256: Digest::SHA256.hexdigest(read[:bytes]))
         end
       end
 
-      def read_now(relative)
+      def read_now(relative, limit: LIMIT)
         io, stat, kind = Monadic::Workspace::SharedFolderPreview.open_file(relative, kinds: KINDS)
         begin
           raise Refused, 'the file is too large for the work screen' if stat.size > LIMIT
+          raise TooLarge, 'the file is too large for this use' if stat.size > limit
 
-          bytes = io.read(LIMIT + 1) || +''
+          bytes = io.read(limit + 1) || +''
           raise Refused, 'the file is too large for the work screen' if bytes.bytesize > LIMIT
+          raise TooLarge, 'the file is too large for this use' if bytes.bytesize > limit
         ensure
           io.close
         end

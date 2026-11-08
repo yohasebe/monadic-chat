@@ -176,6 +176,7 @@ module Monadic
         names = []
         truncated = false
         Dir.each_child(dir) do |name|
+          next if Monadic::Utils::SharedFs.being_written?(name)
           if names.size >= MAX_NAMES
             truncated = true
             break

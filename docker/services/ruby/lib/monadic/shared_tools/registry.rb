@@ -95,6 +95,31 @@ module MonadicSharedTools
             ]
           },
           {
+            name: "put_on_workbench",
+            description: "Write a text you made as a new file in this chat's folder and show it in the work screen " \
+                         "beside the chat, in one step. The work screen draws it by its extension: .md (Markdown), " \
+                         ".mmd (a Mermaid diagram), .csv or .tsv (a table, first row as the header), .svg, " \
+                         ".html (a static page: no scripts run, links do not open, only data: images load), " \
+                         ".vl.json (a Vega-Lite chart: put the data in data.values; no url, no images, no params); " \
+                         ".json and .txt are shown as text. Use it for tables, diagrams, charts, long documents and " \
+                         "content to compare side by side; keep short answers in the chat. The result gives the path; " \
+                         "the same name and content again in one reply give the same file.",
+            parameters: [
+              {
+                name: :name,
+                type: "string",
+                description: "File name only, with its extension (e.g. 'sales.vl.json'); a taken name gets a number",
+                required: true
+              },
+              {
+                name: :content,
+                type: "string",
+                description: "The file's text (UTF-8, at most 2 MB)",
+                required: true
+              }
+            ]
+          },
+          {
             name: "look_at_workbench",
             description: "Look at what the user has selected in the work screen beside the chat, as it is now. " \
                          "An image is given to you after the tool's result; a text file is given as text. " \
@@ -117,7 +142,7 @@ module MonadicSharedTools
             ]
           }
         ],
-        default_hint: "Call request_tool(\"workbench\") to show a file of the shared folder in the work screen."
+        default_hint: "Call request_tool(\"workbench\") to show a file or a text you made in the work screen."
       },
 
       python_execution: {

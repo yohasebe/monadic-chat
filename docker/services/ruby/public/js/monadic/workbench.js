@@ -8,7 +8,9 @@
  * path in the shared folder (every image is kept in the chat's folder
  * there) and "Save as…" (in the desktop app; "Download" in a browser); a
  * file shows as an image, as text with its line numbers, as audio or
- * video, or as a PDF a page at a time (workbench-pdf.js). Each item's tab has a × that takes it off the workbench; the file
+ * video, or as a PDF a page at a time (workbench-pdf.js). A text file of a
+ * kind the work screen draws (Markdown, a table, SVG, a page, a diagram, a
+ * chart: workbench-render.js) is drawn, with a switch to its lines. Each item's tab has a × that takes it off the workbench; the file
  * stays in the shared folder. An item whose file changed or is gone is not
  * shown: the pane says which (a file can be opened again as it is now).
  *
@@ -20,6 +22,8 @@
  * one line with its path (which shows the image in the pane while it is on
  * the workbench) and its "Save as…". The line comes from the message's
  * record (`artifacts`), so it stays after the image leaves the workbench.
+ * Under a reply that showed files in the work screen, one line per file
+ * (`workbench_shown`), which shows that version again.
  *
  * The server sends the board (`workbench`: the items, a token per image
  * for this connection, and an address for each image), the result of a
@@ -42,6 +46,15 @@
   let board = null;
   let approvals = {};
   let assets = {};
+  // The address of the whole text of each item the work screen can draw.
+  let renders = {};
+  // How each drawable text item is shown, by item and version: 'drawn'
+  // (the default) or 'source' (its numbered lines).
+  const modes = new Map();
+  // Where each drawing was scrolled to (by what drawKey names), so that a
+  // switch between drawn and source, or back from another item, keeps it.
+  const scrolls = new Map();
+  const SCROLLS_KEPT = 50;
   // The item this tab shows, or null (nothing selected).
   let selected = null;
   // Images already seen (a new one is brought forward once).
@@ -52,6 +65,8 @@
   const records = new Map();
   // What each message records its reply looked at (mid → list).
   const looks = new Map();
+  // What each message records its reply showed on the work screen.
+  const shownRecords = new Map();
   // One operation id per removal, so the same removal sent again (a retry,
   // a reconnect) is the same operation on the server.
   const operations = new Map();
@@ -322,7 +337,7 @@
   // address that expired, a busy server, a reconnect). Media go on from
   // where they were.
   function drawnFor(item) {
-    const key = `${item.id}|${item.version || item.sha256 || ''}`;
+    const key = drawKey(item);
     const url = assets[item.id];
     const same = drawnBody && drawnBody.key === key;
     if (same && !(drawnBody.failed && drawnBody.url !== url)) return drawnBody;
@@ -332,6 +347,35 @@
     letGo(drawnBody);
     drawnBody = drawn;
     return drawn;
+  }
+
+  // Whether the item is a text file the work screen can draw.
+  function drawable(item) {
+    return !!(item && item.kind === 'file' && item.preview === 'text' && item.render && renders[item.id] &&
+      window.WorkbenchRender);
+  }
+
+  function versionKey(item) {
+    return `${item.id}|${item.version || item.sha256 || ''}`;
+  }
+
+  // How the item is shown now: 'drawn' or 'source' for a drawable text.
+  function modeOf(item) {
+    if (!drawable(item)) return null;
+    return modes.get(versionKey(item)) || 'drawn';
+  }
+
+  // What is drawn is kept while the item, its version and how it is shown
+  // stay the same.
+  function drawKey(item) {
+    const mode = modeOf(item);
+    return mode ? `${versionKey(item)}|${mode}` : versionKey(item);
+  }
+
+  function setMode(item, mode) {
+    if (modeOf(item) === mode) return;
+    modes.set(versionKey(item), mode);
+    drawView();
   }
 
   // ‹ n / m › for the row.
@@ -373,6 +417,7 @@
       media.src = url;
       return media;
     }
+    if (kind === 'text' && drawable(item)) return drawableBody(item, drawn);
     if (kind === 'text') return textBody(item, drawn);
     if (kind === 'pdf') return pdfBody(item, drawn);
     const img = element('img', 'workbench-image rounded');
@@ -387,6 +432,7 @@
   // is marked failed (a view with a new address draws it again).
   function fetchInto(box, item, drawn, onBody) {
     fetch(drawn.url, { credentials: 'same-origin', cache: 'no-store' }).then(async (response) => {
+      if (drawn.onStatus && drawn.onStatus(response.status)) return;
       if (response.status === 415) {
         // The same version is not text where it is shown: asking again
         // gives the same.
@@ -434,11 +480,76 @@
       textLines(await response.text()).forEach((lineText) => list.appendChild(element('li', null, lineText)));
       box.replaceChildren(list);
       drawn.loaded = true;
+      restoreScroll(drawn, box);
       if (response.headers.get('x-workbench-truncated')) {
         box.appendChild(element('div', 'small text-secondary mt-1', t('ui.workbench.truncated', 'Only the beginning of the file is shown.')));
       }
     });
     return box;
+  }
+
+  // A text the work screen can draw (WorkbenchRender): drawn, or as its
+  // numbered lines, with a switch between the two above it. What is drawn
+  // comes from the whole text (the render address); the lines from the
+  // text view, as for any text. A drawing that fails says why and offers
+  // the lines.
+  function drawableBody(item, drawn) {
+    const mode = modeOf(item);
+    drawn.mode = mode;
+    const wrap = element('div', 'workbench-drawable');
+    const bar = element('div', 'btn-group btn-group-sm workbench-mode mb-2');
+    bar.setAttribute('role', 'group');
+    bar.setAttribute('aria-label', t('ui.workbench.viewAs', 'Show the file'));
+    [['drawn', t('ui.workbench.viewDrawn', 'Drawn')], ['source', t('ui.workbench.viewSource', 'Source')]].forEach(([value, label]) => {
+      const choice = button(label, value === mode ? 'btn-secondary' : 'btn-outline-secondary', () => setMode(item, value));
+      choice.setAttribute('aria-pressed', value === mode ? 'true' : 'false');
+      choice.dataset.mode = value;
+      bar.appendChild(choice);
+    });
+    wrap.appendChild(bar);
+    if (mode === 'source') {
+      wrap.appendChild(textBody(item, drawn));
+      return wrap;
+    }
+    const box = element('div', 'workbench-rendered');
+    box.setAttribute('tabindex', '0');
+    wrap.appendChild(box);
+    // Getting the whole text: a failure marks the drawing (a view with new
+    // addresses draws it again); a file too large to draw (413) offers its
+    // lines instead.
+    const source = {
+      url: renders[item.id],
+      get failed() { return drawn.failed; },
+      set failed(value) { drawn.failed = value; },
+      get unshowable() { return drawn.unshowable; },
+      set unshowable(value) { drawn.unshowable = value; },
+      onStatus: (status) => {
+        if (status !== 413) return false;
+        drawn.unshowable = true;
+        box.replaceChildren(element('div', 'alert alert-secondary small mb-2', t('ui.workbench.renderTooLarge', 'This file is too large to draw.')),
+          button(t('ui.workbench.viewSource', 'Source'), 'btn-secondary', () => setMode(item, 'source')));
+        return true;
+      }
+    };
+    fetchInto(box, item, source, async (response) => {
+      const text = await response.text();
+      if (drawn.gone) return;
+      drawn.render = window.WorkbenchRender.draw(box, item.render, text, { name: item.name });
+      try {
+        await drawn.render.done;
+        if (!drawn.gone) {
+          drawn.loaded = true;
+          restoreScroll(drawn, box);
+        }
+      } catch (e) {
+        if (drawn.gone) return;
+        drawn.unshowable = true;
+        box.replaceChildren(element('div', 'alert alert-warning small mb-2',
+          `${t('ui.workbench.renderFailed', 'This file could not be drawn.')} ${e && e.message ? e.message : ''}`.trim()),
+        button(t('ui.workbench.viewSource', 'Source'), 'btn-secondary', () => setMode(item, 'source')));
+      }
+    });
+    return wrap;
   }
 
   // A PDF, drawn a page at a time (workbench-pdf.js) from its bytes.
@@ -453,11 +564,32 @@
     return box;
   }
 
-  // What was drawn is no longer shown: a PDF lets its document go.
+  // The part of a drawing that scrolls (a text's lines or a drawn file).
+  function scroller(drawn) {
+    const node = drawn && drawn.node;
+    if (!node || !node.matches) return null;
+    return node.matches('.workbench-text, .workbench-rendered') ? node : node.querySelector('.workbench-rendered, .workbench-text');
+  }
+
+  // Back where the drawing was left, once its content is in.
+  function restoreScroll(drawn, box) {
+    const top = scrolls.get(drawn.key);
+    if (top && box) box.scrollTop = top;
+  }
+
+  // What was drawn is no longer shown: where it was scrolled to is kept; a
+  // PDF lets its document go.
   function letGo(drawn) {
     if (!drawn) return;
+    const box = !drawn.gone && drawn.loaded ? scroller(drawn) : null;
+    if (box) {
+      scrolls.delete(drawn.key);
+      scrolls.set(drawn.key, box.scrollTop);
+      while (scrolls.size > SCROLLS_KEPT) scrolls.delete(scrolls.keys().next().value);
+    }
     drawn.gone = true;
     if (drawn.pdf) drawn.pdf.dispose();
+    if (drawn.render) drawn.render.dispose();
   }
 
   // ---- the conversation ----------------------------------------------
@@ -612,10 +744,13 @@
 
   // A file of the shared folder the user opens here (path as the Shared
   // Folder panel names it).
-  function openFile(path) {
+  function openFile(path, sha256) {
     if (!path || typeof window.safeWsSend !== 'function') return;
     opening = path;
-    window.safeWsSend({ message: 'WORKBENCH_OPEN', path: String(path) });
+    const message = { message: 'WORKBENCH_OPEN', path: String(path) };
+    // The version a message's record names: only that one opens.
+    if (sha256) message.sha256 = String(sha256);
+    window.safeWsSend(message);
   }
 
   // From a line in the conversation: the user asked for it, so the side
@@ -649,6 +784,9 @@
     board = null;
     approvals = {};
     assets = {};
+    renders = {};
+    modes.clear();
+    scrolls.clear();
     selected = null;
     serverSelected = null;
     serverSerial = null;
@@ -667,8 +805,11 @@
       ? window.SessionState.getMessages() : [];
     looks.clear();
     document.querySelectorAll('.workbench-look-note').forEach((el) => el.remove());
+    shownRecords.clear();
+    document.querySelectorAll('.workbench-shown-note').forEach((el) => el.remove());
     (Array.isArray(messages) ? messages : []).forEach((m) => {
       if (m && m.mid && Array.isArray(m.artifacts)) records.set(m.mid, m.artifacts);
+      if (m && m.mid && Array.isArray(m.workbench_shown)) drawShown(m.mid, m.workbench_shown);
       if (m && m.mid && Array.isArray(m.workbench_looks)) drawLooks(m.mid, m.workbench_looks);
     });
   }
@@ -753,7 +894,7 @@
     const item = selected ? itemById(selected) : null;
     if (!item) return null;
     const version = item.version || item.sha256 || '';
-    const drawn = drawnBody && drawnBody.key === `${item.id}|${version}` ? drawnBody : null;
+    const drawn = drawnBody && drawnBody.key === drawKey(item) ? drawnBody : null;
     const kind = item.kind === 'file' ? item.preview : item.kind;
     const report = (range, note) => ({
       item_id: item.id, version: version, range: range, note: note,
@@ -765,6 +906,8 @@
     if (drawn.failed || drawn.unshowable) return report(null, 'failed');
     const frame = visibleRect(drawn.node);
     if (!frame) return report(null, 'not_shown');
+    // Drawn, the text's lines are not what is in view.
+    if (kind === 'text' && drawn.mode === 'drawn') return report(null, 'rendered');
     if (kind === 'text') {
       if (!drawn.loaded) return report(null, 'drawing');
       const lines = linesInView(drawn.node, frame);
@@ -950,6 +1093,7 @@
     board = next;
     approvals = data.approvals || {};
     assets = data.assets || {};
+    renders = data.renders || {};
     const news = [];
     if (selected && !itemById(selected)) selected = null;
     const arrived = rowItems().filter((item) => !seen.has(item.id));
@@ -1007,7 +1151,8 @@
     const asked = opening;
     opening = null;
     if (data.status === 'refused') {
-      const reason = data.reason === 'busy' ? t('ui.workbench.busy', 'The work screen is reading other files. Try again in a moment.') : (data.reason || '');
+      const reason = data.reason === 'busy' ? t('ui.workbench.busy', 'The work screen is reading other files. Try again in a moment.')
+        : data.reason === 'changed' ? t('ui.workbench.changedSinceShown', 'The file changed after it was shown.') : (data.reason || '');
       warn(`${t('ui.workbench.notOpened', 'The file was not opened in the work screen')}: ${reason}`);
       return;
     }
@@ -1046,7 +1191,7 @@
     if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || typing()) return;
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     const target = e.target;
-    if (target && target.closest && target.closest('audio, video, .workbench-text, .workbench-pdf')) return;
+    if (target && target.closest && target.closest('audio, video, .workbench-text, .workbench-pdf, .workbench-rendered')) return;
     e.preventDefault();
     step(e.key === 'ArrowLeft' ? -1 : 1);
   }
@@ -1100,6 +1245,45 @@
     }
   }
 
+  // What a message records its reply showed on the work screen: one line
+  // per file. The line selects the item when the board has that version;
+  // otherwise it opens that version, which the server checks.
+  function drawShown(mid, list) {
+    if (!mid) return;
+    const entries = (Array.isArray(list) ? list : []).filter((e) => e && typeof e.path === 'string' && typeof e.sha256 === 'string');
+    if (entries.length === 0) shownRecords.delete(mid);
+    else shownRecords.set(mid, entries);
+    const card = $id(mid);
+    const text = card ? card.querySelector('.card-text') : null;
+    if (!text) return;
+    let el = text.querySelector(':scope > .workbench-shown-note');
+    if (entries.length === 0) {
+      if (el) el.remove();
+      return;
+    }
+    if (!el) {
+      el = element('div', 'workbench-shown-note small text-secondary mt-2');
+      text.appendChild(el);
+    }
+    el.replaceChildren();
+    entries.forEach((entry) => {
+      const line = element('div', 'workbench-note-line');
+      line.appendChild(element('i', 'fa-solid fa-display me-1'));
+      line.appendChild(document.createTextNode(`${t('ui.workbench.shownOn', 'Shown in the work screen')}: `));
+      const open = element('button', 'btn btn-link btn-sm p-0 align-baseline workbench-shown-open');
+      open.type = 'button';
+      open.title = t('ui.workbench.open', 'Show in the work screen');
+      open.appendChild(element('code', null, String(entry.name || entry.path)));
+      open.addEventListener('click', () => {
+        const item = items().find((i) => i.kind === 'file' && i.path === entry.path && i.sha256 === entry.sha256);
+        if (item) openItem(item.id);
+        else openFile(entry.path, entry.sha256);
+      });
+      line.appendChild(open);
+      el.appendChild(line);
+    });
+  }
+
   // What a message records as made (with the message).
   function drawRecord(mid, artifacts) {
     if (!mid || !Array.isArray(artifacts)) return;
@@ -1109,7 +1293,8 @@
   }
 
   window.Workbench = {
-    onView, onResult, onDownload, onOpened, onSelected, onCapture, drawRecord, drawLooks, select, openFile, step, textLines, rangeNow,
+    onView, onResult, onDownload, onOpened, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
+    textLines, rangeNow,
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),
     // Whether the pane shows the browser (the relay runs only then).

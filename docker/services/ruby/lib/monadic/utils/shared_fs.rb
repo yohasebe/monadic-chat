@@ -86,6 +86,14 @@ module Monadic
       # the file is in place. Once the file is in place the call succeeds:
       # removing the temporary name is tidying, and its failure (or the name
       # already gone) never hides what happened.
+      # The name write_new gives a file while it is written: a listing
+      # leaves it out (it is not a file of the user's yet).
+      TEMP_NAME = /\A\..{1,64}\.\h{16}\.tmp\z/m
+
+      def being_written?(name)
+        TEMP_NAME.match?(name)
+      end
+
       def write_new(dir, name, perm:, replace: true, sync_dir: false)
         check_name!(name)
         temp = ".#{name[0, 64]}.#{SecureRandom.hex(8)}.tmp"

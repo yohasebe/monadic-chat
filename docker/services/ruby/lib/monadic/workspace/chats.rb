@@ -57,6 +57,14 @@ module Monadic
         EPOCHS_LOCK.synchronize { EPOCHS[chat_id] }
       end
 
+      # Runs the block (a decision only: nothing is written or sent in it)
+      # while chat_id is at epoch, under the lock that ends an epoch: either
+      # the chat was left first and the block is not run (nil), or the
+      # block's decision comes first and leaving waits for it.
+      def admit_in_epoch(chat_id, epoch)
+        EPOCHS_LOCK.synchronize { EPOCHS[chat_id] == epoch ? yield : nil }
+      end
+
       def on_change(&block)
         LISTENERS << block unless LISTENERS.include?(block)
       end

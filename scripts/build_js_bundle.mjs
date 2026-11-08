@@ -104,6 +104,7 @@ const FILES = [
   "js/monadic/background-reply.js",
   "js/monadic/work-screen.js",
   "js/monadic/workbench-pdf.js",
+  "js/monadic/workbench-render.js",
   "js/monadic/workbench.js",
   "js/monadic/ws-audio-handler.js",
   "js/monadic/ws-ping.js",

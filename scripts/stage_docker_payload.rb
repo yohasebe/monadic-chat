@@ -166,13 +166,15 @@ end
 
 # Generated at build time, required at run time, each named: the vendor files
 # assets_list.sh pins, the link KaTeX's stylesheet reaches its fonts through,
-# the two bundles and the help database. Other files in the vendor directory
+# the bundles (with the chart worker's licenses) and the help database. Other files in the vendor directory
 # (left there by an older fetch) do not ship.
 PINNED_VENDOR = BuildProducts.pinned_vendor(ROOT)
 REQUIRED_BUILD_PRODUCTS = [
   *PINNED_VENDOR.keys,
   BuildProducts::FONT_LINK,
   BuildProducts::MAXGRAPH,
+  BuildProducts::VEGA_WORKER,
+  BuildProducts::VEGA_LICENSES,
   BuildProducts::JS_BUNDLE,
   'docker/services/ruby/help_data/help_db.json'
 ].freeze

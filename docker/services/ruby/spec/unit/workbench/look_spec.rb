@@ -130,6 +130,17 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
                                               "lines" => { "first" => 1, "last" => 3, "total" => 3 })
     end
 
+    it "says the text of a file the work screen can draw is its source, not the drawing" do
+      write("notes.md", "# Title\n")
+      open_file("notes.md")
+      body = JSON.parse(look.run(caller_for, scope: "whole").to_s)
+      expect(body["text"]).to eq("# Title\n")
+      expect(body["source_text"]).to match(/source text .* not what the drawing looks like/)
+      write("plain.txt", "x\n")
+      open_file("plain.txt")
+      expect(JSON.parse(look.run(caller_for, scope: "whole").to_s)).not_to have_key("source_text")
+    end
+
     it "cuts long text and says so, without a total" do
       write("long.txt", "line\n" * 20_000)
       open_file("long.txt")

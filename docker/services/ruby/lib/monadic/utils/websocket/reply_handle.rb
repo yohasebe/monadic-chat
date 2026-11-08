@@ -169,6 +169,14 @@ module WebSocketHelper
       end
     end
 
+    # A file the answer writes (put_on_workbench): allowed while it is
+    # running and not cancelled, decided once here. A Cancel that comes
+    # after does not undo it: the file is written whole (the writer holds
+    # off the stop) and stays. Only the decision is made under the lock.
+    def admit_write
+      @lock.synchronize { !@cancelled && @phase == :running }
+    end
+
     def end!
       late = @lock.synchronize do
         @phase = :ended

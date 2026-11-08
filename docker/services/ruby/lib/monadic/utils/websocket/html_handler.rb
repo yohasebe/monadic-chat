@@ -8,6 +8,7 @@
 require_relative '../tts_instruction_extractor'
 require_relative '../../workspace'
 require_relative '../tts_marker_vocabulary'
+require_relative '../../workbench/shown'
 
 module WebSocketHelper
   # Maximum number of tool HTML fragments kept per response cycle.
@@ -194,6 +195,11 @@ module WebSocketHelper
           # the message keeps it: no bytes, no text.
           looked = workbench_looks_of_reply(session, request_id)
           new_data["workbench_looks"] = looked if looked
+
+          # The files the reply showed on the work screen (Workbench::Shown),
+          # given to this message before it is sent and kept.
+          shown = request_id && Monadic::Workbench::Shown.clean(Monadic::Workbench::Shown.seal(request_id))
+          new_data["workbench_shown"] = shown if shown
 
           # Forward the vocabulary token -> resolved-path map for the frontend's
           # decoration / hover / reveal-in-explorer layer.

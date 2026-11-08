@@ -66,6 +66,50 @@ RSpec.describe "the workbench when a reply is recorded" do
     end
   end
 
+  # A provider call that shows a file of the shared folder as the tool
+  # does, then answers with text (or with nothing).
+  def showing_app(path, answer: "Here it is")
+    Object.new.tap do |app|
+      app.define_singleton_method(:api_request) do |_role, session, &_block|
+        request = Monadic::Workspace::RequestContext.current
+        caller = Monadic::Workbench::Caller.new(chat_id: session[:chat_id], epoch: 0, request_id: request.request_id,
+                                                session: session, tab: request.tab, generation: request.generation)
+        Class.new { include MonadicSharedTools::WorkbenchTools }.new.show_on_workbench(path: path, workbench: caller)
+        answer ? [{ "choices" => [{ "message" => { "content" => answer }, "finish_reason" => "stop" }] }] : []
+      end
+      app.define_singleton_method(:settings) { {} }
+    end
+  end
+
+  it "gives the files the reply showed to its message before it is sent" do
+    require_relative "../../../lib/monadic/shared_tools/workbench_tools"
+    File.write(File.join(shared, "plan.md"), "# Plan")
+    stub_const("APPS", { "FakeApp" => showing_app("plan.md") })
+    thread = host.send(:handle_ws_streaming, nil, { "message" => "show", "app_name" => "FakeApp" }, session, queue)
+    host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+    thread.join(5)
+    message = session[:messages].last
+    expect(message["workbench_shown"]).to match([a_hash_including("path" => "plan.md", "render" => "markdown")])
+    sent = broadcasts.find { |m| m["type"] == "html" }
+    expect(sent["content"]["workbench_shown"]).to eq(message["workbench_shown"])
+  end
+
+  it "keeps nothing of a reply that ended without a message for the next one" do
+    require_relative "../../../lib/monadic/shared_tools/workbench_tools"
+    File.write(File.join(shared, "plan.md"), "# Plan")
+    stub_const("APPS", { "FakeApp" => showing_app("plan.md", answer: nil) })
+    thread = host.send(:handle_ws_streaming, nil, { "message" => "show", "app_name" => "FakeApp" }, session, queue)
+    thread.join(5)
+    request_id = session[:messages].find { |m| m["role"] == "user" }["request_id"]
+    expect(Monadic::Workbench::Shown.seal(request_id)).to eq([])
+    stub_const("APPS", { "FakeApp" => showing_app("missing.md", answer: "No file") })
+    thread = host.send(:handle_ws_streaming, nil, { "message" => "again", "app_name" => "FakeApp" }, session, queue)
+    host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+    thread.join(5)
+    expect(session[:messages].last).to include("text" => a_string_including("No file"))
+    expect(session[:messages].last).not_to have_key("workbench_shown")
+  end
+
   it "gives the image to the reply's message and sends the page a token for it" do
     stub_const("APPS", { "FakeApp" => offering_app(store, png) })
     thread = host.send(:handle_ws_streaming, nil, { "message" => "a cat", "app_name" => "FakeApp" }, session, queue)

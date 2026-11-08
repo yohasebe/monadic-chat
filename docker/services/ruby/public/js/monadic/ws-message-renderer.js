@@ -169,6 +169,9 @@ function handlePastMessages(data) {
           if (typeof window.Workbench.drawLooks === 'function') {
             window.Workbench.drawLooks(msg.mid, Array.isArray(msg.workbench_looks) ? msg.workbench_looks : []);
           }
+          if (typeof window.Workbench.drawShown === 'function') {
+            window.Workbench.drawShown(msg.mid, Array.isArray(msg.workbench_shown) ? msg.workbench_shown : []);
+          }
         }
         // Restore a persisted verification verdict, if the message carries one.
         if (msg.verify && typeof window.renderVerifyConfidence === 'function') {

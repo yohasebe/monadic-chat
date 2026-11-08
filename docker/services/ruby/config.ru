@@ -55,6 +55,11 @@ use Monadic::Workbench::AssetServer,
     live: ->(tab_id) { WebSocketHelper.live_generation(tab_id) },
     private_chat: ->(chat_id) { Monadic::History::Policy.known_private?(chat_id) }
 
+# The work screen's worker scripts load nothing and run no text as code.
+# See lib/monadic/workbench/worker_policy.rb.
+require_relative "lib/monadic/workbench/worker_policy"
+use Monadic::Workbench::WorkerPolicy
+
 # A page's answer to what the server asked its work screen (a look),
 # taken here so that its address (which holds the permission) is not
 # written to the access log. See lib/monadic/workbench/capture_server.rb.

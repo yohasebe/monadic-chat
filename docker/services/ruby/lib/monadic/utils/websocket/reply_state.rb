@@ -33,6 +33,12 @@ module WebSocketHelper
 
     # Each step is tried even when one before it failed: what the request
     # holds is let go and the page is told in any case.
+    ending_step("shown") do
+      # What it showed on the work screen and wrote there is not added to
+      # later (a message that took it already has it).
+      Monadic::Workbench::Shown.close(request_id) if defined?(Monadic::Workbench::Shown)
+      Monadic::Workbench::Put.release(request_id) if defined?(Monadic::Workbench::Put)
+    end
     ending_step("capture") do
       # What it asked the work screen is not taken now.
       Monadic::Workbench::Capture.revoke_request(request_id) if defined?(Monadic::Workbench::Capture)

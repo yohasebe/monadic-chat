@@ -625,6 +625,12 @@ window.loadedApp = "Chat";
     if (window.debugWebSocket) {
       console.log(`[WS-SWITCH] About to process message type: ${data["type"]}`);
     }
+    // Speech for an answer started before the last Cancel is not played, nor
+    // its progress or end shown.
+    if (window.BackgroundReply && typeof window.BackgroundReply.refusesSpeech === 'function' &&
+        window.BackgroundReply.refusesSpeech(data)) {
+      return;
+    }
     switch (data["type"]) {
       case "fragment_with_audio": {
         const wah = window.WsAudioHandler;
@@ -1267,6 +1273,13 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "reply_cancel": {
+        if (window.BackgroundReply && typeof window.BackgroundReply.onReplyToken === 'function') {
+          window.BackgroundReply.onReplyToken(ws, data);
+        }
+        break;
+      }
+
       case "streaming_complete": {
         const wstream = window.WsStreamingHandler;
         if (wstream && typeof wstream.handleStreamingComplete === 'function') {
@@ -1276,6 +1289,10 @@ window.loadedApp = "Chat";
       }
 
       case "cancel": {
+        // The answer was stopped: its stop token goes.
+        if (window.BackgroundReply && typeof window.BackgroundReply.forgetStopToken === 'function') {
+          window.BackgroundReply.forgetStopToken();
+        }
         const wcancel = window.WsErrorHandler;
         if (wcancel && typeof wcancel.handleCancel === 'function') {
           wcancel.handleCancel(data);

@@ -63,7 +63,7 @@ RSpec.describe "The work screen observation of a message" do
     allow(host).to receive(:sts_session_capable?).and_return(false)
     allow(host).to receive(:send_error)
     thread = host.send(:handle_ws_streaming, nil, obj.merge("app_name" => "FakeApp"), session, Queue.new)
-    raise "the answer did not finish" if thread && thread.join(10).nil?
+    raise "the answer did not finish" if thread && wait_for_answer_made(thread).nil?
 
     seen.last
   end

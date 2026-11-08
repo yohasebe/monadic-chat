@@ -15,17 +15,39 @@
  *
  * Outside the desktop app (no window.electronAPI.backgroundReply) the page
  * only keeps the counts.
+ *
+ * It also keeps the token the server gives for stopping the answer running
+ * now ("reply_cancel"): while the server waits for that answer it reads the
+ * Cancel sent on the connection only after it, so Cancel first asks for the
+ * stop at /reply/cancel/<token>. The token is good for the socket it came on
+ * and the answer it names only, and goes when the answer finished, was
+ * cancelled or reset, or the connection closed.
+ *
+ * Speech made for an answer names it ("reply_speech"). The page takes it
+ * only for an answer sent since the user last pressed Cancel: Cancel revokes
+ * all before it, also one the server takes up only after it, so what still
+ * comes for such an answer (audio, Web Speech, its progress and end) is
+ * dropped, while speech for an answer sent after it and manual playback
+ * (named for no answer) are taken.
  */
 (function() {
   'use strict';
 
   var running = new Set();
   // Sent, and not yet taken up by the server ("running") or refused: the
-  // places that send a message that starts work call expectReply().
+  // places that send a message that starts work call expectReply(). Each
+  // holds whether its speech is to be taken: not once Cancel was pressed
+  // after it was sent, even if the server takes it up only after that.
   var pending = [];
   var pendingSeq = 0;
   var held = false;
   var streams = new Set();
+  var stopToken = null;
+  // The answers whose speech is taken: those sent since the last Cancel (or
+  // taken up with nothing sent from this page), the latest few; speech for
+  // one older than that is dropped too.
+  var speechFor = [];
+  var SPEECH_KEPT = 16;
 
   function bridge() {
     var api = window.electronAPI;
@@ -42,13 +64,15 @@
   // closes; not for a time.
   function expectReply() {
     pendingSeq += 1;
-    pending.push('sent:' + pendingSeq);
+    pending.push({ id: 'sent:' + pendingSeq, speech: true });
     report();
   }
 
-  // The server answers messages in the order they came.
+  // The server answers messages in the order they came: the one taken up
+  // is the first sent. Returns whether its speech is to be taken.
   function takenUp() {
-    pending.shift();
+    var sent = pending.shift();
+    return !sent || sent.speech;
   }
 
   function finished(requestId, outcome) {
@@ -60,9 +84,11 @@
     if (!data || typeof data.request_id !== 'string') return;
     if (data.state === 'running') {
       running.add(data.request_id);
-      takenUp();
+      if (takenUp() && speechFor.indexOf(data.request_id) === -1) speechFor.push(data.request_id);
+      if (speechFor.length > SPEECH_KEPT) speechFor = speechFor.slice(-SPEECH_KEPT);
       report();
     } else if (data.state === 'finished' && running.delete(data.request_id)) {
+      if (stopToken && stopToken.requestId === data.request_id) stopToken = null;
       finished(data.request_id, data.outcome === 'done' ? 'done' : 'no_reply');
       report();
     }
@@ -71,14 +97,49 @@
   // A message the server did not take (busy, attachments refused, a
   // voice-only model, ...): it ends without a reply.
   function onRefused() {
-    var id = pending.shift();
-    if (id) finished(id, 'no_reply');
+    var sent = pending.shift();
+    if (sent) finished(sent.id, 'no_reply');
     report();
+  }
+
+  // The token for stopping an answer, from the socket it came on (one that
+  // has already finished is not taken).
+  function onReplyToken(socket, data) {
+    if (!data || typeof data.request_id !== 'string' || typeof data.token !== 'string') return;
+    if (!running.has(data.request_id)) return;
+    stopToken = { socket: socket, requestId: data.request_id, token: data.token };
+  }
+
+  // Asks the server to stop the answer running now, by HTTP, when its token
+  // came on the socket the page uses now. What comes of it is not waited
+  // for: the Cancel sent on the connection follows anyway.
+  function stopAnswer(socket) {
+    speechFor = [];
+    pending.forEach(function(sent) { sent.speech = false; });
+    var given = stopToken;
+    stopToken = null;
+    if (!given || given.socket !== socket || typeof fetch !== 'function') return false;
+    fetch('/reply/cancel/' + encodeURIComponent(given.token), {
+      method: 'POST', credentials: 'same-origin', cache: 'no-store', keepalive: true
+    }).catch(function() { /* the Cancel on the connection still stops it */ });
+    return true;
+  }
+
+  // Whether a message is speech for an answer whose speech is not taken.
+  function refusesSpeech(data) {
+    return !!data && typeof data.reply_speech === 'string' && speechFor.indexOf(data.reply_speech) === -1;
+  }
+
+  // The answer was stopped another way (the server said it was cancelled,
+  // or the chat was reset): its token goes.
+  function forgetStopToken() {
+    stopToken = null;
   }
 
   // Returns how many answers ended with the connection.
   function onConnectionLost() {
-    var ids = Array.from(running).concat(pending);
+    stopToken = null;
+    var ids = Array.from(running).concat(pending.map(function(sent) { return sent.id; }));
     running.clear();
     pending = [];
     ids.forEach(function(id) { finished(id, 'lost'); });
@@ -192,6 +253,10 @@
     sendReply: sendReply,
     maySend: maySend,
     onReplyState: onReplyState,
+    onReplyToken: onReplyToken,
+    stopAnswer: stopAnswer,
+    forgetStopToken: forgetStopToken,
+    refusesSpeech: refusesSpeech,
     onRefused: onRefused,
     onConnectionLost: onConnectionLost,
     isHeld: function() { return held; },

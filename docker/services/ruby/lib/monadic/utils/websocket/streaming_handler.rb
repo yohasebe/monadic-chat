@@ -446,10 +446,19 @@ module WebSocketHelper
     # (an error, Cancel, Reset, a closed connection), that it ended without
     # one. An answer that comes ends when it is recorded (html_handler).
     request_id = request_context.request_id
+    # The answer's handle (who ends it, and how it is stopped) and the token
+    # its page can stop it with by HTTP while the read loop waits for it
+    # (ReplyCancelServer), sent to this connection only.
+    handle, token = Replies.open(request_id: request_id, chat_id: chat_at_start, tab: ws_session_id,
+                                 generation: session[:_ws_generation])
     reply_running(request_id, ws_session_id)
+    give_reply_token(ws_session_id, session[:_ws_generation], chat_at_start, request_id, token) if token
     replied = false
 
     thread = Thread.new do
+      # Nothing is done for an answer cancelled before it began.
+      next unless handle.begin!
+
       # Set thread type for identification
       Thread.current[:type] = :tts
       # The request this answer runs under, fixed for all of it.
@@ -659,7 +668,7 @@ module WebSocketHelper
             Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, tts_text_as_sent(text, provider)) if respond_to?(:tts_text_as_sent, true)
           rescue Monadic::Utils::Privacy::Outbound::Refused
             text = ""
-            send_tts_withheld(ws_session_id)
+            send_tts_withheld(ws_session_id, request_id)
           end
         end
 
@@ -691,21 +700,26 @@ module WebSocketHelper
 
         # Only process if there's actual text
         if text.strip != ""
-          start_tts_playback(
-            text: text,
-            provider: provider,
-            voice: voice,
-            speed: speed,
-            response_format: response_format,
-            language: language,
-            ws_session_id: ws_session_id,
-            instructions: tts_instructions
-          )
+          start_reply_speech(handle) do
+            start_tts_playback(
+              text: text,
+              provider: provider,
+              voice: voice,
+              speed: speed,
+              response_format: response_format,
+              language: language,
+              ws_session_id: ws_session_id,
+              instructions: tts_instructions,
+              reply_speech: request_id
+            )
+          end
         end
       end
 
       Monadic::Utils::ExtraLogger.log { "[DEBUG] Processing #{responses&.length || 0} responses\n[DEBUG] responses.nil?=#{responses.nil?}, responses.empty?=#{responses&.empty?}" }
 
+      # What the answer made, put in the queue all at once below.
+      answers = []
       responses.each do |response|
         # if response is not a hash, skip with error message
         unless response.is_a?(Hash)
@@ -840,9 +854,17 @@ module WebSocketHelper
           # before the page asks for it must not land it in the new chat.
           response["_chat_id"] = chat_at_start if response.is_a?(Hash)
           response["_request_id"] = request_id if response.is_a?(Hash)
-          unless chat_changed.call
-            queue.push(response)
-            replied = true
+          answers << response unless chat_changed.call
+        end
+      end
+
+      # All of what it made goes to the queue as one, unless the answer was
+      # cancelled first (then none of it). Nothing made: it ends without one.
+      unless answers.empty?
+        Thread.handle_interrupt(Object => :never) do
+          replied = handle.answer! do
+            queue.push({ "_answer" => true, "_request_id" => request_id, "_chat_id" => chat_at_start,
+                         "responses" => answers })
           end
         end
       end
@@ -854,17 +876,81 @@ module WebSocketHelper
       streaming_complete = { "type" => "streaming_complete" }.to_json
       send_or_broadcast(streaming_complete, ws_session_id)
       Monadic::Utils::ExtraLogger.log { "[DEBUG] streaming_complete sent successfully" }
+
+      # The worker stays until its answer is taken to be recorded (the HTML
+      # handler ends it then) or is cancelled (it ends it itself, below).
+      handle.await_handoff if replied
     ensure
-      finish_reply(request_id, "no_reply", ws_session_id) unless replied
+      # Whatever stopped it (an error, Cancel, a stop), the end is the
+      # worker's unless its answer was taken to be recorded; once begun,
+      # the end is given whole.
+      Thread.handle_interrupt(Object => :never) do
+        if handle.worker_owns_end!
+          finish_reply(request_id, "no_reply", ws_session_id)
+          handle.end!
+        end
+      end
     end
-    # Whoever stops the thread can end the answer (reply_state.rb).
     thread[:reply_request_id] = request_id
+    thread[:reply_handle] = handle
+    handle.attach(thread)
     thread  # return the thread for the orchestrator
   ensure
-    # A message recorded with what the user showed belongs to its request
-    # from then on: when its reply's worker did not start (the worker ends
-    # the request otherwise), it ends here without an answer, so what it
-    # showed is let go and how far it went is kept on the message.
-    finish_reply(request_context.request_id, "no_reply", ws_session_id) if hand&.dig(:done) && thread.nil?
+    # When the worker was not made (it ends the request otherwise), the
+    # request ends here without an answer: an answer accepted, and a message
+    # recorded with what the user showed (it belongs to its request from
+    # then on, so what it showed is let go and how far it went is kept on
+    # the message).
+    if thread.nil? && (handle || hand&.dig(:done))
+      finish_reply(request_context.request_id, "no_reply", ws_session_id)
+      handle&.end!
+    end
+    # A worker made and not yet attached (an error came between): the
+    # answer is cancelled first, so the worker ends at its gate and gives
+    # the end itself, never beginning.
+    if thread && handle && !handle.attached?
+      Replies.cancel(handle)
+      handle.attach(thread)
+    end
+  end
+
+  # The token the page stops an answer with by HTTP, given to the
+  # connection the answer runs for only (never another tab's or a later
+  # connection's).
+  private def give_reply_token(tab, generation, chat_id, request_id, token)
+    WebSocketHelper.send_to_connection(tab, generation,
+                                       { "type" => "reply_cancel", "request_id" => request_id, "token" => token }.to_json,
+                                       chat_id: chat_id)
+  rescue StandardError
+    nil
+  end
+
+  # Speech for an answer, started with the answer: held by its handle so a
+  # Cancel stops it, and not started at all once the answer was cancelled.
+  # The thread that starts it waits until it is held, and is never killed
+  # (it may be writing to the page) nor waited for: it keeps the speech it
+  # made where a stop finds it, then stops that speech itself when the
+  # answer was cancelled meanwhile. A thread takes the interrupt mask of the
+  # one that makes it, so the starter lifts it: the speech it makes can be
+  # stopped.
+  private def start_reply_speech(handle)
+    Thread.handle_interrupt(Object => :never) do
+      gate = Queue.new
+      starter = Thread.new do
+        Thread.handle_interrupt(Object => :immediate) do
+          next unless gate.pop
+          next if handle.cancelled?
+
+          Thread.current[:tts_thread] = yield
+          Replies.stop_speech(Thread.current[:tts_thread]) if handle.cancelled?
+        rescue StandardError => e
+          Monadic::Utils::ExtraLogger.log { "[TTS] speech for an answer was not started: #{e.class}" }
+        end
+      end
+      gate << handle.adopt(starter)
+    rescue StandardError => e
+      gate << false
+      Monadic::Utils::ExtraLogger.log { "[TTS] speech for an answer was not started: #{e.class}" }
+    end
   end
 end

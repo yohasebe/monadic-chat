@@ -274,7 +274,7 @@ RSpec.describe "Attachments of a request" do
       allow(host).to receive(:sts_session_capable?).and_return(false)
       allow(host).to receive(:send_error) { |msg, _id = nil, extra = {}| broadcasts << { "type" => "error", "content" => msg }.merge(extra).to_json }
       thread = host.send(:handle_ws_streaming, nil, obj.merge("app_name" => "FakeApp"), session, queue)
-      raise "the answer did not finish" if thread && thread.join(10).nil?
+      raise "the answer did not finish" if thread && wait_for_answer_made(thread).nil?
 
       thread
     end

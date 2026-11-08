@@ -2191,6 +2191,10 @@ document.addEventListener("DOMContentLoaded", function () {
       if (window.WsAIUserHandler && typeof window.WsAIUserHandler.abandonAIUser === 'function') {
         window.WsAIUserHandler.abandonAIUser();
       }
+      // The answer the chat ends with is stopped by the RESET: its stop token goes.
+      if (window.BackgroundReply && typeof window.BackgroundReply.forgetStopToken === 'function') {
+        window.BackgroundReply.forgetStopToken();
+      }
       // Send server-side RESET to clear session
       window.safeWsSend({ message: "RESET" });
     }
@@ -2256,6 +2260,10 @@ document.addEventListener("DOMContentLoaded", function () {
     // An AI User suggestion still being written is for the chat that ends.
     if (window.WsAIUserHandler && typeof window.WsAIUserHandler.abandonAIUser === 'function') {
       window.WsAIUserHandler.abandonAIUser();
+    }
+    // The answer the chat ends with is stopped by the RESET: its stop token goes.
+    if (window.BackgroundReply && typeof window.BackgroundReply.forgetStopToken === 'function') {
+      window.BackgroundReply.forgetStopToken();
     }
     // Send server-side RESET to clear session
     window.safeWsSend({ message: "RESET" });
@@ -3129,7 +3137,11 @@ document.addEventListener("DOMContentLoaded", function () {
     { const el = $id("ai_user"); if (el) el.disabled = false; }
     { const el = $id("select-role"); if (el) el.disabled = false; }
 
-    // Send cancel message to server
+    // Stop the answer by HTTP first (the server reads the Cancel below only
+    // after an answer it waits for), then send the Cancel as always.
+    if (window.BackgroundReply && typeof window.BackgroundReply.stopAnswer === 'function') {
+      window.BackgroundReply.stopAnswer(window.ws);
+    }
     window.safeWsSend({ message: "CANCEL" });
     
     // Reset UI completely

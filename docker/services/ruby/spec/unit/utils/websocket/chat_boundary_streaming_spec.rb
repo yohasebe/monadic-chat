@@ -34,7 +34,7 @@ RSpec.describe "Streaming across a chat change" do
     allow(host).to receive(:initialize_token_counting).and_return(nil)
     allow(host).to receive(:sts_session_capable?).and_return(false)
     thread = host.send(:handle_ws_streaming, nil, { "message" => "describe the video", "app_name" => "FakeApp" }, session, queue)
-    thread&.join
+    wait_for_answer_made(thread)
   end
 
   it "drops what arrives after a Reset, records nothing, and still ends the turn on the page" do

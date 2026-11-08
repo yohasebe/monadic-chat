@@ -3,6 +3,7 @@
 require 'json'
 require 'timeout'
 require_relative 'capture'
+require_relative '../utils/capability_request'
 
 module Monadic
   module Workbench
@@ -18,13 +19,6 @@ module Monadic
     # answer was handed over, not that the look kept it.
     class CaptureServer
       PREFIX = '/workbench/capture/'
-      HEADERS = {
-        'cache-control' => 'no-store',
-        'x-content-type-options' => 'nosniff',
-        'cross-origin-resource-policy' => 'same-origin',
-        'referrer-policy' => 'no-referrer',
-        'content-security-policy' => "default-src 'none'"
-      }.freeze
 
       def initialize(app)
         @app = app
@@ -42,7 +36,7 @@ module Monadic
       private
 
       def take(env, id)
-        return not_found unless env['REQUEST_METHOD'] == 'POST' && env['HTTP_SEC_FETCH_SITE'] == 'same-origin'
+        return not_found unless Monadic::Utils::CapabilityRequest.same_origin_post?(env)
         return not_found unless id.match?(Capture::ID) && json?(env['CONTENT_TYPE'])
 
         length = env['CONTENT_LENGTH'].to_s
@@ -52,7 +46,7 @@ module Monadic
           body = read(env['rack.input'], length.to_i, deadline)
           body && parse(body)
         end
-        taken ? [204, HEADERS.dup, []] : not_found
+        taken ? Monadic::Utils::CapabilityRequest.taken : not_found
       end
 
       def json?(type)
@@ -78,8 +72,7 @@ module Monadic
       end
 
       def not_found
-        text = 'Not found'
-        [404, HEADERS.merge('content-type' => 'text/plain', 'content-length' => text.bytesize.to_s), [text]]
+        Monadic::Utils::CapabilityRequest.not_found
       end
     end
   end

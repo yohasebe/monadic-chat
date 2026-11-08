@@ -171,6 +171,8 @@ require_relative 'support/docker_container_manager'
 require_relative 'support/shared_folder_test_files'
 require_relative 'support/text_response_assertions'
 require_relative 'support/generator_script_loader'
+require_relative 'support/reply_wait'
+require_relative 'support/app_probe'
 
 # Load summary formatter (for compact summaries and artifacts)
 begin

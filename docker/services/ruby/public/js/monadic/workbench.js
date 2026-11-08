@@ -194,7 +194,8 @@
     el.title = label;
     const shownItem = itemById(id);
     el.appendChild(element('span', 'workbench-item-name', shownItem && shownItem.kind === 'browser' ? label : shortName(label)));
-    el.addEventListener('click', () => select(id));
+    // The item shown already stays as it is (nothing is drawn again).
+    el.addEventListener('click', () => { if (id !== selected) select(id); });
     wrap.appendChild(el);
     const item = itemById(id);
     if (item && approvals[item.id]) {
@@ -278,8 +279,9 @@
     const host = stepperHost();
     if (host) {
       host.replaceChildren();
-      host.hidden = !item;
-      if (item) host.appendChild(stepper(item));
+      // Only when there is another item to step to.
+      host.hidden = !item || rowItems().length < 2;
+      if (!host.hidden) host.appendChild(stepper(item));
     }
     if (!view) return;
     view.hidden = !item || live;
@@ -344,7 +346,8 @@
     next.setAttribute('aria-label', t('ui.workbench.next', 'Next item'));
     next.disabled = at < 0 || at >= row.length - 1;
     bar.appendChild(prev);
-    bar.appendChild(element('span', 'small text-secondary', `${at + 1} / ${row.length}`));
+    bar.appendChild(element('span', 'small text-secondary workbench-item-where',
+      t('ui.workbench.itemOf', 'Item {n} of {total}').replace('{n}', String(at + 1)).replace('{total}', String(row.length))));
     bar.appendChild(next);
     return bar;
   }

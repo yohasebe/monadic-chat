@@ -388,6 +388,28 @@ describe('Workbench', () => {
       expect(document.querySelector('#workbench-stepper .workbench-next').disabled).toBe(true);
     });
 
+    test('names the stepper as the items, and shows it only with another item to step to', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      view([item()]);
+      expect(shown()).not.toBeNull();
+      expect(document.getElementById('workbench-stepper').hidden).toBe(true);
+      view([item(), file()]);
+      expect(document.getElementById('workbench-stepper').hidden).toBe(false);
+      expect(document.querySelector('#workbench-stepper .workbench-item-where').textContent).toBe('Item 2 of 2');
+    });
+
+    test('leaves the item shown as it is when its own tab is pressed again', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      view([item(), file()]);
+      const before = shown();
+      sent.length = 0;
+      document.querySelector('.workbench-item[data-item="i_f"]').click();
+      expect(payloads()).toEqual([]);
+      expect(shown()).toBe(before);
+      document.querySelector('.workbench-item[data-item="i_1"]').click();
+      expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
+    });
+
     test('brings forward only what the server selected for this tab, once', () => {
       global.fetch = jest.fn(() => new Promise(() => {}));
       view([file()], { selected: null });

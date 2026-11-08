@@ -45,15 +45,20 @@ describe('shared folder page', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.resetModules();
+    // As on the page, the pagers are in the window; another list on the
+    // page with the same class names is not the window's.
     document.body.innerHTML = `
-      <div id="sharedFolderModal"></div>
+      <div id="sharedFolderModal">
       <div id="shared-folder-path"></div><span id="shared-folder-info"></span>
       <div id="shared-folder-status" style="display:none"></div>
       <table><tbody id="shared-folder-tbody"></tbody></table>
       <div id="shared-folder-pager-top" class="sf-pager"><button class="sf-prev"></button><span class="sf-page-label"></span>
         <button class="sf-next"></button><select class="sf-per-page"><option>100</option><option>200</option><option>500</option></select></div>
       <div id="shared-folder-pager" class="sf-pager"><button class="sf-prev"></button><span class="sf-page-label"></span>
-        <button class="sf-next"></button></div>`;
+        <button class="sf-next"></button></div>
+      </div>
+      <div id="elsewhere" class="sf-pager" style="display:none"><button class="sf-prev"></button><span class="sf-page-label"></span>
+        <button class="sf-next"></button><select class="sf-per-page"><option>100</option></select></div>`;
     global.$id = (id) => document.getElementById(id);
     global.$on = (node, ev, fn) => node && node.addEventListener(ev, fn);
     window.bootstrap = { Modal: { getOrCreateInstance: () => ({ show() {} }) } };
@@ -118,6 +123,79 @@ describe('shared folder page', () => {
     expect(pending[2].url).toContain('path=&');
   });
 
+  it('offers to clear the search and filters when they leave nothing, and marks a narrowed kind', async () => {
+    document.body.insertAdjacentHTML('beforeend',
+      '<input id="shared-folder-search"><select id="shared-folder-filter"><option value=""></option><option value="generated"></option></select>' +
+      '<select id="shared-folder-age"><option value=""></option></select>');
+    jest.resetModules();
+    panel = require('../../docker/services/ruby/public/js/monadic/shared-folder-panel.js');
+    const kind = document.getElementById('shared-folder-filter');
+    kind.value = 'generated';
+    kind.dispatchEvent(new Event('change'));
+    respond(pending.length - 1, Object.assign(listing('', []), { total: 5 }));
+    await flush();
+    expect(kind.classList.contains('sf-filter-on')).toBe(true);
+    const status = document.getElementById('shared-folder-status');
+    expect(status.textContent).toContain('No items match');
+    status.querySelector('.sf-clear-filters').click();
+    expect(kind.value).toBe('');
+    expect(pending[pending.length - 1].url).not.toContain('classes=');
+    respond(pending.length - 1, listing('', [{ name: 'a', path: 'a', kind: 'file', size_status: 'complete', bytes: 1 }]));
+    await flush();
+    expect(kind.classList.contains('sf-filter-on')).toBe(false);
+    expect(status.style.display).toBe('none');
+  });
+
+  it('says an empty folder is empty, with nothing to clear', async () => {
+    panel.load('');
+    respond(0, listing('', []));
+    await flush();
+    const status = document.getElementById('shared-folder-status');
+    expect(status.textContent).toContain('empty');
+    expect(status.querySelector('.sf-clear-filters')).toBeNull();
+  });
+
+  it('leaves alone a list elsewhere on the page that uses the same class names', async () => {
+    panel.load('');
+    respond(0, listing('', Array.from({ length: 150 }, (_, i) => ({ name: `f${i}`, path: `f${i}`, kind: 'file', size_status: 'complete', bytes: 1 }))));
+    await flush();
+    expect(document.getElementById('elsewhere').style.display).toBe('none');
+    expect(document.querySelector('#elsewhere .sf-page-label').textContent).toBe('');
+    document.querySelector('#elsewhere .sf-next').click();
+    expect(pending).toHaveLength(1);
+  });
+
+  it('opens on a folder and a name search from the Shared folder pane, with no other filter', async () => {
+    document.getElementById('sharedFolderModal').insertAdjacentHTML('beforeend',
+      '<input id="shared-folder-search"><select id="shared-folder-filter"><option value=""></option><option value="generated"></option></select>');
+    jest.resetModules();
+    panel = require('../../docker/services/ruby/public/js/monadic/shared-folder-panel.js');
+    panel._view({ cls: 'generated' });
+    panel.open({ path: 'box', q: 'notes' });
+    expect(pending[pending.length - 1].url).toContain('path=box');
+    expect(pending[pending.length - 1].url).toContain('q=notes');
+    expect(pending[pending.length - 1].url).not.toContain('classes');
+    expect(document.getElementById('shared-folder-search').value).toBe('notes');
+    expect(document.getElementById('shared-folder-filter').value).toBe('');
+  });
+
+  it('opens a file the work screen shows from its row, closing the window', async () => {
+    const hide = jest.fn();
+    window.bootstrap = { Modal: { getOrCreateInstance: () => ({ show() {}, hide }) } };
+    global.bootstrap = window.bootstrap;
+    window.Workbench = { openFile: jest.fn() };
+    panel.load('');
+    respond(0, listing('', [{ name: 'a.pdf', path: 'a.pdf', kind: 'file', preview: 'pdf', size_status: 'complete', bytes: 1 },
+      { name: 'b.zip', path: 'b.zip', kind: 'file', preview: null, size_status: 'complete', bytes: 1 }]));
+    await flush();
+    const buttons = document.querySelectorAll('#shared-folder-tbody [data-action="work-screen"]');
+    expect(buttons).toHaveLength(1);
+    buttons[0].click();
+    expect(window.Workbench.openFile).toHaveBeenCalledWith('a.pdf');
+    expect(hide).toHaveBeenCalled();
+    delete window.Workbench;
+  });
+
   it('hides the pagers when one short page holds everything', async () => {
     panel.load('');
     respond(0, listing('', [{ name: 'a', path: 'a', kind: 'file', size_status: 'complete', bytes: 1 }]));
@@ -172,11 +250,11 @@ describe('shared folder page', () => {
     expect(pending[0].url).toContain('per_page=100');
     respond(0, Object.assign(listing('', [{ name: 'a', path: 'a', kind: 'file', size_status: 'complete', bytes: 1 }]), { matched: 250, total: 250, per_page: 100 }));
     await flush();
-    const labels = Array.from(document.querySelectorAll('.sf-page-label')).map((l) => l.textContent);
+    const labels = Array.from(document.querySelectorAll('#sharedFolderModal .sf-page-label')).map((l) => l.textContent);
     expect(labels).toHaveLength(2);
     expect(labels[0]).toBe(labels[1]); // above and below show the same page
     expect(labels[0]).toContain('250');
-    document.querySelectorAll('.sf-prev').forEach((b) => expect(b.disabled).toBe(true));
+    document.querySelectorAll('#sharedFolderModal .sf-prev').forEach((b) => expect(b.disabled).toBe(true));
     document.querySelector('#shared-folder-pager .sf-next').click(); // the one below works too
     expect(pending[1].url).toContain('page=2');
     expect(pending[1].url).toContain('sort=size');

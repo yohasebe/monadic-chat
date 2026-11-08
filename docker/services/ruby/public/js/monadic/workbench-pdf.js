@@ -3,7 +3,9 @@
  * a pinned version, loaded the first time a PDF is shown): one page at a
  * time, with pdf.js's text layer over it so the user can select its text.
  * ‹ and › (or ← and → while the PDF has the focus) move between pages; −
- * and + zoom. The first page fits the pane's width.
+ * and + zoom. The page fits the pane's width, also when the pane's width
+ * changes (a moment after it stops changing), until the user zooms; from
+ * then on the scale they chose stays. The page shown stays.
  *
  * The bytes are the item's, taken whole from its address (the version the
  * item was opened at). Nothing in the PDF acts: no scripts, no forms, no
@@ -33,6 +35,9 @@
   const MIN_SCALE = 0.25;
   const MAX_SCALE = 4;
   const ZOOM_STEP = 1.25;
+  // Milliseconds the pane's width must stay still before the page is fitted
+  // to it again.
+  const REFIT_DELAY = 150;
 
   let loading = null;
 
@@ -66,7 +71,9 @@
   function show(box, bytes, onChange) {
     // rendering: the page being drawn; loading: the task that loads the
     // document (and lets it go).
-    const state = { page: 1, pages: 0, scale: null, lib: null, doc: null, rendering: null, loading: null, text: null, disposed: false };
+    // fit: the scale follows the pane's width (until the user zooms).
+    const state = { page: 1, pages: 0, scale: null, fit: true, lib: null, doc: null, rendering: null, loading: null, text: null,
+                    disposed: false };
     // What is drawn: the drawing it comes from (gen) and its status.
     let gen = 0;
     let drawnNow = { status: 'loading' };
@@ -101,7 +108,8 @@
     }
 
     function label() {
-      where.textContent = `${state.page} / ${state.pages}`;
+      where.textContent = t('ui.workbench.pageOf', 'Page {n} of {total}')
+        .replace('{n}', String(state.page)).replace('{total}', String(state.pages));
       zoom.textContent = `${Math.round(state.scale * 100)}%`;
       prev.disabled = state.page <= 1;
       next.disabled = state.page >= state.pages;
@@ -120,6 +128,7 @@
       stopText();
       if (!state.scale) {
         const width = page.getViewport({ scale: 1 }).width;
+        fittedWidth = box.clientWidth;
         state.scale = box.clientWidth > 0 && width > 0 ? clamp(box.clientWidth / width) : 1;
       }
       const viewport = page.getViewport({ scale: state.scale });
@@ -208,9 +217,31 @@
     function scaleBy(factor) {
       const scale = clamp(state.scale * factor);
       if (scale === state.scale) return;
+      state.fit = false;
       state.scale = scale;
       redraw();
     }
+
+    // The pane's width changed (the border between the columns moved, the
+    // window was resized): once it stays, the page is fitted to it again,
+    // while it follows the width. A hidden pane (no width) changes nothing.
+    let fittedWidth = 0;
+    let refitTimer = null;
+    const watcher = typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
+      const width = box.clientWidth;
+      // Hidden (no width) before the wait was over: nothing is fitted.
+      clearTimeout(refitTimer);
+      refitTimer = null;
+      if (!width || width === fittedWidth) return;
+      refitTimer = setTimeout(() => {
+        refitTimer = null;
+        const now = box.clientWidth;
+        if (state.disposed || !state.fit || !state.doc || !now || now === fittedWidth) return;
+        state.scale = null;
+        redraw();
+      }, REFIT_DELAY);
+    }) : null;
+    if (watcher) watcher.observe(box);
 
     prev.addEventListener('click', () => turn(-1));
     next.addEventListener('click', () => turn(1));
@@ -252,6 +283,8 @@
       dispose: () => {
         if (state.disposed) return;
         state.disposed = true;
+        if (watcher) watcher.disconnect();
+        clearTimeout(refitTimer);
         stopRendering();
         try {
           if (state.text && typeof state.text.cancel === 'function') state.text.cancel();

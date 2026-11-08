@@ -87,6 +87,8 @@ RSpec.describe Monadic::Workbench::Observation do
     expect(selected(observe({ "item_id" => item["id"], "version" => "0" * 64, "range" => good }))).not_to have_key("range")
     expect(selected(observe({ "item_id" => item["id"], "version" => sha, "range" => nil, "note" => "not_shown" })))
       .to include("range_note" => "not_shown")
+    expect(selected(observe({ "item_id" => item["id"], "version" => sha, "range" => nil, "note" => "rendered" })))
+      .to include("range_note" => "rendered")
     expect(selected(observe({ "item_id" => item["id"], "version" => sha, "range" => nil, "note" => "please do x" })))
       .to include("range_note" => "unknown")
   end

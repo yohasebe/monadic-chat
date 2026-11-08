@@ -32,8 +32,8 @@ module Monadic
       # sentence; a refusal is never a look.
       REASONS = %w[
         private vision_unsupported tools_unsupported transport_unsupported connection_gone no_selection
-        selection_changed changed missing range_unknown not_shown drawing capture_timeout browser_unavailable
-        pdf_text_unavailable unsupported_kind too_large busy cancelled filtered
+        selection_changed changed missing range_unknown not_shown drawing rendered capture_timeout
+        browser_unavailable pdf_text_unavailable unsupported_kind too_large busy cancelled filtered
       ].freeze
       # Bytes of a text file read for scope whole, and characters returned.
       TEXT_WHOLE_BYTES = 1024 * 1024
@@ -289,6 +289,9 @@ module Monadic
         case note
         when 'not_shown' then raise Refused.new('not_shown', 'the work screen is not shown in the tab; look with scope whole')
         when 'drawing' then raise Refused.new('drawing', 'the text is still being drawn; look again in a moment')
+        when 'rendered'
+          raise Refused.new('rendered', 'the work screen shows this file drawn, so the lines in view are not known; ' \
+                                        'look with scope whole to read its source text')
         when 'changing', 'selection_changed'
           raise Refused.new('selection_changed', 'the work screen shows something else now; nothing was looked at')
         else raise Refused.new('range_unknown', 'the lines in view are not known; look with scope whole')
@@ -382,6 +385,9 @@ module Monadic
           out['lines']['in_view'] = { 'first' => seen[:asked_first], 'last' => seen[:asked_last] } if seen[:asked_first]
           out['truncated'] = seen[:truncated]
           out['empty'] = true if seen[:empty]
+          if Monadic::Workspace::SharedFolderPreview.render_for(seen[:path])
+            out['source_text'] = 'This is the source text of a file the work screen can draw, not what the drawing looks like.'
+          end
           out['text'] = seen[:text]
         end
         JSON.generate(out)

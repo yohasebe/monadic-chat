@@ -8,7 +8,6 @@
 # where: state, log, config, system-temp, shared-root, build-time, test-only
 docker/services/ruby/lib/monadic.rb | FileUtils.mkdir_p(File.dirname(legacy_volume_marker)) | log | notice marker in the log folder
 docker/services/ruby/lib/monadic.rb | File.write(legacy_volume_marker | log | notice marker in the log folder
-docker/services/ruby/lib/monadic/app.rb | File.open(COMMAND_LOG_FILE | log | command log
 docker/services/ruby/lib/monadic/shell.rb | File.open(log_path | log | command log
 docker/services/ruby/lib/monadic/workspace/artifacts.rb | Dir.mkdir(root, 0o700) | state | folder of kept artifacts (state folder)
 docker/services/ruby/lib/monadic/workspace/publications.rb | Dir.mkdir(root, 0o700) | state | folder of publications (state folder)
@@ -74,10 +73,7 @@ docker/services/ruby/lib/monadic/history/store.rb | File.open(@path, File::WRONL
 docker/services/ruby/lib/monadic/history/store.rb | File.chmod(0o600, file) if File.exist?(file) | state | keeps the history and its companion files owner-only (state folder)
 docker/services/ruby/lib/monadic/utils/trial_log.rb | File.open(File.join(folder, FILE_NAME), File::WRONLY | File::APPEND | File::CREAT, 0o600) | log | measurement log in the folder MONADIC_TRIAL_LOG names (shell only; refused inside the shared folder)
 docker/services/ruby/lib/monadic/workbench/store.rb | File.unlink(temp) rescue nil | state | workbench manifest's temporary copy that could not be put in place (state folder)
-docker/services/ruby/lib/monadic/workbench/store.rb | FileUtils.rm_rf(File.join(dir, candidate_id)) | state | removes a candidate's folder of the workbench (state folder)
 docker/services/ruby/lib/monadic/workbench/store.rb | Dir.mkdir(dir, 0o700) | state | workbench folders, made new (state folder)
-docker/services/ruby/lib/monadic/workbench/saver.rb | File.link(temp, target) | shared-root | saved image: a hard link fails rather than replace
-docker/services/ruby/lib/monadic/workbench/saver.rb | File.unlink(temp) if ours?(temp, File.join(root, operation['final_name'])) | shared-root | saved image: its own temporary name at the root, the same file as the saved one
 docker/services/ruby/lib/monadic/workbench/job_output.rb | Dir.mkdir(dir, 0o700) | state | a generator's job folder in the workbench, made new (state folder)
 docker/services/ruby/lib/monadic/workbench/job_output.rb | FileUtils.rm_rf(checked_dir!(dir, root: root)) | state | removes a checked job folder of the workbench (state folder)
 docker/services/ruby/lib/monadic/workbench/job_output.rb | PARTS.each { |part| Dir.mkdir(File.join(dir, part), 0o700) } | state | a generator job's in/ and out/ folders, made new (state folder)

@@ -957,5 +957,148 @@ describe('Workbench', () => {
       expect(window.setCookie).toHaveBeenCalledWith('work-screen-auto-switch', 'false', 365);
     });
   });
+  describe('a text file the work screen draws', () => {
+    let drawn;
+
+    function doc(overrides = {}) {
+      return Object.assign({
+        id: 'i_d', kind: 'file', actor: 'agent', mid: null, name: 'plan.md', path: 'conversations/c/workbench/plan.md',
+        preview: 'text', render: 'markdown', sha256: 'd'.repeat(64), version: 'd'.repeat(64), status: 'ok'
+      }, overrides);
+    }
+
+    function viewDoc(items, renders) {
+      view(items, { renders: renders || Object.fromEntries(items.map((i) => [i.id, `/workbench/asset/render-${i.id}`])) });
+    }
+
+    const settle = () => new Promise((r) => setTimeout(r, 0));
+
+    beforeEach(() => {
+      drawn = [];
+      window.WorkbenchRender = {
+        draw: jest.fn((box, kind, text, opts) => {
+          const handle = { done: Promise.resolve(), dispose: jest.fn() };
+          box.textContent = `drawn ${kind}: ${text}`;
+          drawn.push({ kind, text, opts, handle });
+          return handle;
+        })
+      };
+      global.fetch = jest.fn((url) => Promise.resolve({
+        ok: true, status: 200, text: () => Promise.resolve(url.includes('render-') ? '# Plan' : '# Plan\nline two'),
+        headers: { get: () => null }
+      }));
+    });
+
+    afterEach(() => {
+      delete global.fetch;
+      delete window.WorkbenchRender;
+    });
+
+    test('draws it from its whole text, with a switch to its lines, and says its lines are not in view', async () => {
+      layout.pane = 'work';
+      viewDoc([doc()]);
+      await settle();
+      expect(global.fetch).toHaveBeenCalledWith('/workbench/asset/render-i_d', expect.anything());
+      expect(drawn.map((d) => [d.kind, d.text, d.opts.name])).toEqual([['markdown', '# Plan', 'plan.md']]);
+      const choices = document.querySelectorAll('#workbench-view .workbench-mode button');
+      expect(Array.from(choices).map((b) => [b.dataset.mode, b.getAttribute('aria-pressed')]))
+        .toEqual([['drawn', 'true'], ['source', 'false']]);
+      document.querySelector('#workbench-view .workbench-drawable').getBoundingClientRect =
+        () => ({ top: 0, bottom: 100, left: 0, right: 100, width: 100, height: 100 });
+      expect(window.Workbench.rangeNow()).toMatchObject({ item_id: 'i_d', range: null, note: 'rendered' });
+    });
+
+    test('shows its numbered lines when switched, from the text view, and draws it again when switched back', async () => {
+      viewDoc([doc()]);
+      await settle();
+      document.querySelector('#workbench-view .workbench-mode button[data-mode="source"]').click();
+      await settle();
+      expect(global.fetch).toHaveBeenLastCalledWith('/workbench/asset/i_d', expect.anything());
+      const lines = document.querySelectorAll('#workbench-view .workbench-lines li');
+      expect(Array.from(lines).map((l) => l.textContent)).toEqual(['# Plan', 'line two']);
+      expect(drawn[0].handle.dispose).toHaveBeenCalled();
+      document.querySelector('#workbench-view .workbench-mode button[data-mode="drawn"]').click();
+      await settle();
+      expect(drawn).toHaveLength(2);
+    });
+
+    test('keeps how each version is shown: a new version is drawn', async () => {
+      viewDoc([doc()]);
+      await settle();
+      document.querySelector('#workbench-view .workbench-mode button[data-mode="source"]').click();
+      await settle();
+      viewDoc([doc({ sha256: 'e'.repeat(64), version: 'e'.repeat(64) })]);
+      await settle();
+      expect(document.querySelector('#workbench-view .workbench-mode button[aria-pressed="true"]').dataset.mode).toBe('drawn');
+    });
+
+    test('keeps where the drawing and the lines were scrolled to, each, when switched between them', async () => {
+      viewDoc([doc()]);
+      await settle();
+      const pane = () => document.getElementById('workbench-view');
+      pane().querySelector('.workbench-rendered').scrollTop = 120;
+      pane().querySelector('.workbench-mode button[data-mode="source"]').click();
+      await settle();
+      pane().querySelector('.workbench-text').scrollTop = 40;
+      pane().querySelector('.workbench-mode button[data-mode="drawn"]').click();
+      await settle();
+      expect(pane().querySelector('.workbench-rendered').scrollTop).toBe(120);
+      pane().querySelector('.workbench-mode button[data-mode="source"]').click();
+      await settle();
+      expect(pane().querySelector('.workbench-text').scrollTop).toBe(40);
+    });
+
+    test('offers its lines when it is too large to draw, or when drawing it failed', async () => {
+      global.fetch = jest.fn(() => Promise.resolve({ ok: false, status: 413 }));
+      viewDoc([doc()]);
+      await settle();
+      const pane = document.getElementById('workbench-view');
+      expect(pane.textContent).toContain('too large to draw');
+      expect(window.WorkbenchRender.draw).not.toHaveBeenCalled();
+      global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve('x'), headers: { get: () => null } }));
+      window.WorkbenchRender.draw = jest.fn(() => ({ done: Promise.reject(new Error('bad spec')), dispose: jest.fn() }));
+      viewDoc([doc({ id: 'i_e' })]);
+      await settle();
+      await settle();
+      expect(pane.textContent).toContain('could not be drawn');
+      expect(pane.textContent).toContain('bad spec');
+      pane.querySelector('.alert ~ button').click();
+      await settle();
+      expect(pane.querySelector('.workbench-lines')).not.toBeNull();
+    });
+
+    test('shows a text as lines when the server gives no address to draw it', async () => {
+      viewDoc([doc()], {});
+      await settle();
+      expect(window.WorkbenchRender.draw).not.toHaveBeenCalled();
+      expect(document.querySelector('#workbench-view .workbench-mode')).toBeNull();
+      expect(document.querySelector('#workbench-view .workbench-lines')).not.toBeNull();
+    });
+
+    test('says on the message which files the reply showed, and shows that version from the line', async () => {
+      const el = card('m-1');
+      viewDoc([doc()]);
+      await settle();
+      window.Workbench.drawShown('m-1', [
+        { path: 'conversations/c/workbench/plan.md', name: 'plan.md', sha256: 'd'.repeat(64), preview: 'text', render: 'markdown' },
+        { path: 'old.md', name: '<b>old</b>.md', sha256: 'f'.repeat(64), preview: 'text' },
+        { path: 'bad' }
+      ]);
+      const lines = el.querySelectorAll('.workbench-shown-note .workbench-note-line');
+      expect(lines).toHaveLength(2);
+      expect(lines[1].querySelector('code').textContent).toBe('<b>old</b>.md');
+      expect(lines[1].querySelector('b')).toBeNull();
+      sent.length = 0;
+      lines[0].querySelector('button').click();
+      expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_d' }]);
+      sent.length = 0;
+      lines[1].querySelector('button').click();
+      expect(payloads()).toEqual([{ message: 'WORKBENCH_OPEN', path: 'old.md', sha256: 'f'.repeat(64) }]);
+      window.Workbench.onOpened({ type: 'workbench_opened', path: 'old.md', status: 'refused', reason: 'changed' });
+      expect(window.setAlert).toHaveBeenCalledWith(expect.stringContaining('changed after it was shown'), 'warning');
+      window.Workbench.drawShown('m-1', []);
+      expect(el.querySelector('.workbench-shown-note')).toBeNull();
+    });
+  });
 });
 

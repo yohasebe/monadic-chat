@@ -244,6 +244,21 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
     end
   end
 
+  describe "opening the version a message names" do
+    it "opens the file at that version, and refuses another version without adding it" do
+      write("plan.md", "one")
+      sha = Digest::SHA256.hexdigest("one")
+      opened = channel.open_file({ "path" => "plan.md", "sha256" => sha }, session, tab: "tab-1", generation: 1, live: live)
+      expect(opened).to include("type" => "workbench_opened", "path" => "plan.md")
+      write("plan.md", "two")
+      refused = channel.open_file({ "path" => "plan.md", "sha256" => sha }, session, tab: "tab-1", generation: 1, live: live)
+      expect(refused).to include("status" => "refused", "reason" => "changed")
+      expect(board.snapshot[:items].map { |i| i[:sha256] }).not_to include(Digest::SHA256.hexdigest("two"))
+      bad = channel.open_file({ "path" => "plan.md", "sha256" => "x" }, session, tab: "tab-1", generation: 1, live: live)
+      expect(bad).to include("status" => "refused", "reason" => "not_allowed")
+    end
+  end
+
   describe "the asset server" do
     let(:private_chats) { [] }
     let(:server) do
@@ -313,6 +328,87 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
       expect(body.join).to eq("234")
       expect(headers).to include("content-range" => "bytes 2-4/10", "accept-ranges" => "bytes")
       expect(fetch_asset(url, range: "bytes=20-").first).to eq(416)
+    end
+
+    def render_address(path)
+      item_id = channel.open_file({ "path" => path }, session, tab: "tab-1", generation: 1, live: live)["item_id"]
+      channel.view(session, tab: "tab-1", generation: 1, live: live)["renders"][item_id]
+    end
+
+    describe "the whole of a file the page draws" do
+      it "is offered only for the kinds the work screen draws, named by the extension" do
+        write("notes.md", "# Title")
+        write("plain.txt", "text")
+        write("chart.vl.json", "{}")
+        write("data.json", "{}")
+        expect(render_address("notes.md")).to start_with(Monadic::Workbench::AssetServer::PREFIX)
+        expect(render_address("chart.vl.json")).to be_a(String)
+        expect(render_address("plain.txt")).to be_nil
+        expect(render_address("data.json")).to be_nil
+        items = board.snapshot[:items].to_h { |i| [i[:name], i[:render]] }
+        expect(items).to eq("notes.md" => "markdown", "plain.txt" => nil, "chart.vl.json" => "vega_lite", "data.json" => nil)
+      end
+
+      it "serves the whole text, uncut, as plain text, and leaves the lines the text view noted" do
+        stub_const("Monadic::Workspace::SharedFolderPreview::TEXT_LIMIT", 4)
+        write("table.csv", "\xEF\xBB\xBFa,b\r\n1,2\r\n".b)
+        url = render_address("table.csv")
+        item = board.snapshot[:items].first
+        board.note_text(item[:id], sha256: item[:sha256], lines: 1, truncated: true)
+        status, headers, body = fetch_asset(url)
+        expect(status).to eq(200)
+        expect(body.join.force_encoding("UTF-8")).to eq("a,b\n1,2\n")
+        expect(headers).to include("content-type" => "text/plain; charset=utf-8", "x-content-type-options" => "nosniff",
+                                   "content-security-policy" => "default-src 'none'")
+        expect(headers).not_to include("x-workbench-truncated")
+        expect(board.text_shown(item[:id], sha256: item[:sha256])).to eq(lines: 1, truncated: true)
+      end
+
+      it "refuses a file over the limit before reading it, and bytes that are not UTF-8" do
+        stub_const("Monadic::Workspace::SharedFolderPreview::RENDER_LIMIT", 8)
+        write("big.md", "123456789")
+        item_id = channel.open_file({ "path" => "big.md" }, session, tab: "tab-1", generation: 1, live: live)["item_id"]
+        expect(channel.view(session, tab: "tab-1", generation: 1, live: live)["renders"]).not_to have_key(item_id)
+        stub_const("Monadic::Workspace::SharedFolderPreview::RENDER_LIMIT", 100)
+        url = channel.view(session, tab: "tab-1", generation: 1, live: live)["renders"][item_id]
+        stub_const("Monadic::Workspace::SharedFolderPreview::RENDER_LIMIT", 8)
+        expect(Monadic::Workbench::FileItem).not_to receive(:read)
+        expect(fetch_asset(url).first).to eq(413)
+      end
+
+      it "refuses a file that grew past the limit after it was opened, reading at most the limit" do
+        stub_const("Monadic::Workspace::SharedFolderPreview::RENDER_LIMIT", 8)
+        full = write("grown.md", "small")
+        url = render_address("grown.md")
+        File.binwrite(full, "x" * 100)
+        read_sizes = []
+        allow_any_instance_of(File).to receive(:read).and_wrap_original do |original, *args|
+          read_sizes << args.first
+          original.call(*args)
+        end
+        expect(fetch_asset(url).first).to eq(413)
+        expect(read_sizes).to be_empty
+      end
+
+      it "answers 415 for bytes that are not UTF-8, and 409 and 410 as the view does" do
+        write("bad.md", "ok \xFF".b)
+        expect(fetch_asset(render_address("bad.md")).first).to eq(415)
+        full = write("a.md", "a")
+        url = render_address("a.md")
+        File.binwrite(full, "b")
+        expect(fetch_asset(url).first).to eq(409)
+        File.delete(full)
+        expect(fetch_asset(url).first).to eq(410)
+      end
+
+      it "is not served by a token for viewing the item, nor a view by a token for drawing" do
+        write("notes.md", "# Title")
+        item_id = channel.open_file({ "path" => "notes.md" }, session, tab: "tab-1", generation: 1, live: live)["item_id"]
+        view = channel.view(session, tab: "tab-1", generation: 1, live: live)
+        expect(view["assets"][item_id]).not_to eq(view["renders"][item_id])
+        render_token = view["renders"][item_id].delete_prefix(Monadic::Workbench::AssetServer::PREFIX)
+        expect(Monadic::Workbench::ViewTokens.view(render_token).purpose).to eq(:render)
+      end
     end
 
     it "answers 409 for a file that changed and 410 for one that is gone" do

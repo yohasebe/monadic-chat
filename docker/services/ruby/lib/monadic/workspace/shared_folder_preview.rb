@@ -15,6 +15,7 @@ module Monadic
       class Invalid < StandardError; end
       class NotText < StandardError; end
       class Unavailable < StandardError; end
+      class TooLarge < StandardError; end
 
       TEXT_LIMIT = 256 * 1024 # bytes of a text file shown
       CHUNK = 64 * 1024
@@ -29,9 +30,20 @@ module Monadic
         'pdf' => %w[pdf application/pdf]
       }.freeze
 
-      # Shown as text, never rendered: HTML, SVG and XML included.
-      TEXT = %w[txt md markdown csv tsv json jsonl log yml yaml toml ini xml html htm svg
+      # Shown as text. The work screen can also draw some of them
+      # (render_for); nothing here runs what a file holds.
+      TEXT = %w[txt md markdown csv tsv json jsonl log yml yaml toml ini xml html htm svg mmd mermaid
                 rb py js ts sh r tex bib srt vtt css sql].freeze
+
+      # What the work screen draws a text file as, by its extension.
+      RENDER = {
+        'md' => 'markdown', 'markdown' => 'markdown', 'mmd' => 'diagram', 'mermaid' => 'diagram',
+        'csv' => 'table', 'tsv' => 'table', 'svg' => 'svg', 'html' => 'html', 'htm' => 'html'
+      }.freeze
+      # Extensions of two parts, looked at before the last part alone.
+      RENDER_COMPOUND = { '.vl.json' => 'vega_lite', '.vega-lite.json' => 'vega_lite' }.freeze
+      # Bytes of a file the work screen draws: a larger one is shown as text.
+      RENDER_LIMIT = 8 * 1024 * 1024
 
       F_GETPATH = 50 # fcntl(2) on macOS
       MAXPATHLEN = 1024
@@ -40,6 +52,16 @@ module Monadic
 
       def extension(name)
         File.extname(name.to_s).delete_prefix('.').downcase
+      end
+
+      # What a text file is drawn as ("markdown", "diagram", "table", "svg",
+      # "html", "vega_lite"), or nil when it is shown as text only.
+      def render_for(name)
+        base = File.basename(name.to_s).downcase
+        RENDER_COMPOUND.each { |suffix, render| return render if base.end_with?(suffix) && base.size > suffix.size }
+        return nil unless kind_for(base) == 'text'
+
+        RENDER[extension(base)]
       end
 
       # "image", "audio", "video", "pdf", "text" or nil.
@@ -139,6 +161,19 @@ module Monadic
         data = drop_cut_character(data) if truncated
         text = data.dup.force_encoding('UTF-8').scrub("\uFFFD").delete_prefix("\uFEFF").gsub(/\r\n?/, "\n")
         { text: text, truncated: truncated, shown_bytes: data.bytesize }
+      end
+
+      # The whole of a file the work screen draws, as text: the bytes must
+      # be UTF-8 (a leading byte order mark is left out) without a NUL, at
+      # most RENDER_LIMIT; line ends become "\n". NotText otherwise; a
+      # larger file is TooLarge. Nothing is cut: what is drawn is the whole.
+      def render_text(bytes)
+        raise TooLarge, 'the file is too large to draw' if bytes.bytesize > RENDER_LIMIT
+
+        text = bytes.b.delete_prefix("\xEF\xBB\xBF".b).force_encoding('UTF-8')
+        raise NotText, 'the file is not text' if !text.valid_encoding? || text.include?("\0")
+
+        text.gsub(/\r\n?/, "\n")
       end
 
       # The lines of a text_view text, numbered from 1 by their place: no

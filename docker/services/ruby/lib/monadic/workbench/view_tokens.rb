@@ -9,7 +9,8 @@ module Monadic
     # connection, so the address itself is the permission: each token names
     # one image (its ledger id) or one file item of the board (its item id),
     # with the version it is for (sha256), and what it is for (:view, shown
-    # in the page, or :download, saved as a file), for the tab and
+    # in the page; :render, the whole of a text file the page draws; or
+    # :download, saved as a file), for the tab and
     # connection generation it was given to, in one chat at one epoch, and
     # works for TTL seconds. The page asks for new ones over the main socket.
     # Kept in memory only (as are the tokens that remove an image,
@@ -18,7 +19,7 @@ module Monadic
       TTL = 300
       LIMIT = 512
 
-      PURPOSES = %i[view download].freeze
+      PURPOSES = %i[view render download].freeze
 
       View = Struct.new(:tab, :generation, :chat_id, :epoch, :artifact_id, :item_id, :sha256, :purpose, :expires_at,
                         keyword_init: true)

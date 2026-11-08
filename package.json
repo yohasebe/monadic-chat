@@ -24,6 +24,7 @@
     "test:docs-parity": "ruby scripts/lint/check_docs_parity.rb",
     "test:translations-duplicates": "ruby scripts/lint/check_duplicate_translation_keys.rb",
     "lint:app-docs-sync": "ruby scripts/lint/check_app_docs_sync.rb",
+    "build:vega": "node scripts/vega/build.mjs",
     "build:maxgraph": "esbuild node_modules/@maxgraph/core/lib/esm/index.js --bundle --format=iife --global-name=maxgraph --outfile=docker/services/ruby/public/vendor/js/maxgraph.bundle.js --minify",
     "build:js": "node scripts/build_js_bundle.mjs",
     "build:js:verify": "node scripts/build_js_bundle.mjs --verify",
@@ -50,6 +51,10 @@
     "jest-environment-jsdom": "^30.2.0",
     "jsdom": "^24.0.0",
     "puppeteer": "^25.9.0",
+    "vega": "6.4.0",
+    "vega-expression": "6.2.2",
+    "vega-interpreter": "2.3.2",
+    "vega-lite": "6.5.0",
     "ws": "^8.20.1"
   },
   "build": {

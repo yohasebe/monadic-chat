@@ -43,12 +43,13 @@ module Monadic
         # is new) lets it go.
         unless board
           return { 'type' => 'workbench', 'board' => empty_board(chat_id), 'approvals' => {}, 'assets' => {},
-                   'selected' => nil, 'initial' => initial }
+                   'renders' => {}, 'selected' => nil, 'initial' => initial }
         end
 
         snapshot = board.snapshot
         approvals = {}
         assets = {}
+        renders = {}
         snapshot[:items].each do |item|
           next unless item[:version]
 
@@ -60,10 +61,14 @@ module Monadic
           next if board.private? && !source[:item_id]
 
           assets[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256])
+          next unless item[:render] && item[:size].to_i <= Monadic::Workspace::SharedFolderPreview::RENDER_LIMIT
+
+          renders[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256],
+                                                                                         purpose: :render)
         end
         selected, serial = board.selection(tab: tab, generation: generation)
         { 'type' => 'workbench', 'board' => snapshot, 'approvals' => approvals, 'assets' => assets,
-          'selected' => selected, 'selection_serial' => serial, 'initial' => initial }
+          'renders' => renders, 'selected' => selected, 'selection_serial' => serial, 'initial' => initial }
       end
 
       # The user's removal of an image from the board, sent with the token
@@ -89,7 +94,8 @@ module Monadic
       end
 
       # The user opens a file of the shared folder (path, as the Shared
-      # Folder panel names it) on the workbench, from this tab: it is
+      # Folder panel names it; sha256, the version a message's record names,
+      # when opened from it) on the workbench, from this tab: it is
       # added (or, at the same version, found) and this tab selects it.
       # The connection does not wait for a turn to read the file: when
       # other files are being read, the page is told (busy) at once.
@@ -98,9 +104,13 @@ module Monadic
         return open_refusal(path, 'not_allowed') unless live.call(tab) == generation
 
         chat_id = chat_id_of(session) or return open_refusal(path, 'not_allowed')
+        # A message's record names the version it showed: only that one opens.
+        sha256 = obj['sha256']
+        return open_refusal(path, 'not_allowed') unless sha256.nil? || (sha256.is_a?(String) && sha256.match?(/\A\h{64}\z/))
+
         board = Board.for(chat_id, private: private_chat?(session, chat_id))
         item, added = board.add_file(path: path, origin: { actor: :user, source: :panel, tab: tab, generation: generation },
-                                     epoch: Monadic::Workspace::Chats.epoch(chat_id), wait: 0)
+                                     epoch: Monadic::Workspace::Chats.epoch(chat_id), wait: 0, sha256: sha256)
         # Added, or found again (what it says of the file may have changed).
         changed(chat_id)
         { 'type' => 'workbench_opened', 'path' => item.dig('file', 'path'), 'item_id' => item['id'], 'added' => added }

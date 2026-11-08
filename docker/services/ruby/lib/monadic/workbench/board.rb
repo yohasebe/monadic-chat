@@ -214,8 +214,12 @@ module Monadic
       # screen does not show, or when every item is kept (room_for_one!);
       # FileItem::Busy when no turn to read it came within wait.
       # wait: seconds to wait for a turn to read the file (FileItem.turn).
-      def add_file(path:, origin:, epoch:, wait: FileItem::READ_WAIT)
+      # sha256: the version asked for (a message's record names it): another
+      # version, as read now, is refused ('changed') and not added.
+      def add_file(path:, origin:, epoch:, wait: FileItem::READ_WAIT, sha256: nil)
         entry = FileItem.entry_for(path, wait: wait)
+        raise Refused, 'changed' if sha256 && entry['sha256'] != sha256
+
         change do |data|
           check_epoch!(epoch)
           raise Refused, 'not_allowed' if origin[:actor].to_s == 'user' && !live?(origin[:tab], origin[:generation])
@@ -270,11 +274,18 @@ module Monadic
       # The bytes of a file item, read now and checked against its version
       # (FileItem.read), with its entry. sha256: the version the asker was
       # given (a token); another version is Artifact::Changed.
-      def file_read(item_id, sha256:)
+      # limit: the most bytes this use takes (FileItem.read).
+      def file_read(item_id, sha256:, limit: FileItem::LIMIT)
+        entry = file_entry(item_id, sha256: sha256)
+        { entry: entry, bytes: FileItem.read(entry, limit: limit) }
+      end
+
+      # The file item's entry at the version sha256, without reading the file.
+      def file_entry(item_id, sha256:)
         entry = @lock.synchronize { deep_dup(@data.dig('items', item_id, 'file')) } or raise Artifact::NotAllowed, 'no such file'
         raise Artifact::Changed, 'the file changed after it was opened' unless entry['sha256'] == sha256
 
-        { entry: entry, bytes: FileItem.read(entry) }
+        entry
       end
 
       # A use of the file item found it changed or missing (status) at the
@@ -623,7 +634,8 @@ module Monadic
         {
           id: item['id'], kind: 'file', actor: item.dig('origin', 'actor'), mid: item['mid'],
           name: entry['name'], path: entry['path'], preview: entry['preview'], content_type: entry['content_type'],
-          size: entry['size'], sha256: entry['sha256'], version: entry['sha256'], status: file_status(item)
+          size: entry['size'], sha256: entry['sha256'], version: entry['sha256'], status: file_status(item),
+          render: Monadic::Workspace::SharedFolderPreview.render_for(entry['path'])
         }
       end
 

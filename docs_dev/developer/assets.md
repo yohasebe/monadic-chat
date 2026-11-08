@@ -29,6 +29,8 @@ The web UI serves third-party libraries from `/vendor` so that it works offline.
 
 maxGraph has no browser build to download. `npm run build:maxgraph` builds `vendor/js/maxgraph.bundle.js` from the locked `@maxgraph/core`.
 
+The work screen's chart worker is built the same way: `npm run build:vega` builds `vendor/vega/vega-worker.mjs` and `vendor/vega/LICENSES.txt` from `scripts/vega/` and the locked `vega`, `vega-lite`, `vega-interpreter` and `vega-expression` (see `docs_dev/workbench_rendering.md`).
+
 ## Docker Integration
 
 The Ruby image copies `public/` from the app payload, which already holds the vendor files, and then runs `download_assets.sh`. The hashes match, so an image build needs no network for them. The files served in production are the ones in the payload.

@@ -81,9 +81,11 @@ module Monadic
       end
 
       def serve_file(env, view)
-        return plain(404, 'Not found') unless view.purpose == :view
+        return plain(404, 'Not found') unless %i[view render].include?(view.purpose)
 
         board = Board.existing(view.chat_id, private: @private_chat.call(view.chat_id)) or return plain(404, 'Not found')
+        return serve_render(env, board, view) if view.purpose == :render
+
         read = board.file_read(view.item_id, sha256: view.sha256)
         entry = read[:entry]
         bytes = read[:bytes]
@@ -105,6 +107,29 @@ module Monadic
         plain(415, 'Not text')
       rescue Artifact::NotAllowed
         plain(404, 'Not found')
+      end
+
+      # The whole of a text file the page draws (SharedFolderPreview.render_for
+      # names which, from the path the board holds), as text, never cut. A
+      # file larger than the limit (as opened, or as it is now) is refused
+      # before it is read (413), and again by the bytes read; bytes that are
+      # not UTF-8 are 415. Served as text: nothing runs here. The lines a
+      # text item shows (note_text) stay as the text view gave them.
+      def serve_render(env, board, view)
+        entry = board.file_entry(view.item_id, sha256: view.sha256)
+        return plain(404, 'Not found') unless Monadic::Workspace::SharedFolderPreview.render_for(entry['path'])
+        return plain(413, 'Too large') if entry['size'].to_i > Monadic::Workspace::SharedFolderPreview::RENDER_LIMIT
+
+        limit = Monadic::Workspace::SharedFolderPreview::RENDER_LIMIT
+        text = Monadic::Workspace::SharedFolderPreview.render_text(board.file_read(view.item_id, sha256: view.sha256,
+                                                                                  limit: limit)[:bytes])
+        bytes = text.b
+        headers = HEADERS.merge('content-type' => 'text/plain; charset=utf-8', 'content-length' => bytes.bytesize.to_s)
+        [200, headers, env['REQUEST_METHOD'] == 'HEAD' ? [] : [bytes]]
+      rescue Monadic::Workspace::SharedFolderPreview::TooLarge, FileItem::TooLarge
+        plain(413, 'Too large')
+      rescue Monadic::Workspace::SharedFolderPreview::NotText
+        plain(415, 'Not text')
       end
 
       # What a text item shows of its file (SharedFolderPreview.text_view),

@@ -84,6 +84,9 @@ namespace :build do
     # maxGraph has no browser build to download; this makes it from the locked
     # @maxgraph/core, and verify_bundle_payload.rb builds it again to compare.
     sh "npm run build:maxgraph"
+    # The work screen's chart worker, from the locked Vega packages; checked
+    # the same way.
+    sh "npm run build:vega"
     # Assemble the payload that ships inside the app from an allow list.
     # electron-builder points at build/app-payload, so whatever is not staged
     # here cannot reach a release — the deny-list filter this replaces shipped

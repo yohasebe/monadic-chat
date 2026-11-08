@@ -69,7 +69,8 @@ module Monadic
           last = given.last && given.last[:page]
           cut = !got.stopped_at.nil? || given.any? { |p| p[:cut] } || got.total_pages > WHOLE_PAGES
           { text: text, parts: { 'page_text' => true }, pages: { first: 1, last: last, total: got.total_pages },
-            cuts: cut ? ['page_text'] : [], truncated: cut, empty: given.all? { |p| p[:text].empty? } }
+            cuts: cut ? ['page_text'] : [], truncated: cut, empty: given.all? { |p| p[:text].empty? },
+            stopped: got.timed_out ? 'time' : nil }
         rescue PdfText::Unavailable => e
           raise Refused.new(REASONS.include?(e.reason) ? e.reason : 'pdf_text_unavailable', e.message)
         end

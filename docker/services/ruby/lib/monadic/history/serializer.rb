@@ -79,6 +79,8 @@ module Monadic
           picked unless picked.empty?
         end
         out['attachments'] = refs unless refs.empty?
+        # A user message whose reply was stopped (StoppedReplies): true only.
+        out['reply_stopped'] = true if out['role'] == 'user' && (raw['reply_stopped'] || raw[:reply_stopped]) == true
         artifacts = Monadic::Workbench::Record.clean(raw['artifacts'] || raw[:artifacts])
         out['artifacts'] = artifacts if artifacts
         looks = Monadic::Workbench::Look::Record.clean(raw['workbench_looks'] || raw[:workbench_looks])

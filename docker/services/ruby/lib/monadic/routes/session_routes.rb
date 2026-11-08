@@ -336,6 +336,8 @@ post "/load" do
           # silently losing the badges on round-trip).
           message_obj["interrupted"] = true if msg["interrupted"]
           message_obj["tools_used"] = msg["tools_used"] if msg["tools_used"].is_a?(Array)
+          # A user message whose reply was stopped: true only.
+          message_obj["reply_stopped"] = true if message_obj["role"] == "user" && msg["reply_stopped"] == true
           # What the file says the reply made: a record only,
           # which grants nothing here.
           artifacts = Monadic::Workbench::Record.clean(msg["artifacts"])

@@ -549,7 +549,7 @@ module MonadicSharedTools
           BrowserOwner.close_later(started[:session_id])
           next browser_state_error(:replaced)
         end
-        started
+        started.merge(browser_chat: chat, browser_instance: browser_instance_of(chat))
       end
       return result unless result[:success]
 
@@ -572,11 +572,7 @@ module MonadicSharedTools
         response[:display] = result[:display] if result[:display]
       end
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -603,11 +599,7 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -630,11 +622,7 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -657,11 +645,7 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -683,11 +667,7 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -730,11 +710,7 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -760,11 +736,7 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -796,11 +768,7 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -823,11 +791,7 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -850,11 +814,7 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -878,11 +838,7 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -925,7 +881,7 @@ module MonadicSharedTools
         next browser_state_error(:replaced) unless BrowserOwner.holds?(chat, session_id, epoch)
 
         BrowserOwner.note_window(chat, session_id, result[:window])
-        result
+        result[:success] ? result.merge(browser_chat: chat, browser_instance: browser_instance_of(chat)) : result
       end
     end
 
@@ -967,6 +923,48 @@ module MonadicSharedTools
       rescue JSON::ParserError => e
         { success: false, error: "Failed to parse navigator response: #{e.message}" }
       end
+    end
+
+    SELECTED_NOTE = "This browser is selected on the work screen in the user's tab; " \
+                    'this screenshot is not included in the chat.'
+
+    # The screenshot an action took: the model always gets it. The chat
+    # shows it too, unless the tab the request came from has the browser
+    # the action ran on selected on its work screen (decided now; later
+    # changes of the selection do not change what was sent).
+    def attach_screenshot!(response, result)
+      shot = result[:screenshot]
+      return unless shot
+
+      response[:screenshot] = shot
+      response[:_image] = shot
+      if browser_selected_in_tab?(result[:browser_chat], result[:browser_instance])
+        response[:work_screen] = SELECTED_NOTE
+      else
+        response[:gallery_html] = create_screenshot_gallery([shot])
+      end
+    end
+
+    def browser_selected_in_tab?(chat, instance)
+      return false unless chat && instance && defined?(Monadic::Workbench::Board)
+
+      request = Monadic::Workspace::RequestContext.current
+      return false unless request && request.chat_id == chat && request.tab && request.generation
+
+      board = Monadic::Workbench::Board.existing(chat) or return false
+      target = board.look_target(tab: request.tab, generation: request.generation)
+      return false unless target.is_a?(Monadic::Workbench::Board::Target)
+
+      target.item['kind'] == 'browser' && target.item.dig('browser', 'instance') == instance
+    rescue StandardError => e
+      Monadic::Utils::ExtraLogger.log { "[WebAutomation] The work screen's selection was not read: #{e.class}" }
+      false
+    end
+
+    # The browser chat holds now, as BrowserOwner numbers it; read under
+    # the chat's op_lock, so it is the one the action ran on.
+    def browser_instance_of(chat)
+      BrowserOwner.view(chat)&.instance
     end
 
     def create_screenshot_gallery(screenshots)

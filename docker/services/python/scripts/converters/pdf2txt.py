@@ -208,8 +208,9 @@ def export_as_text(pdf_path: str, output_format: str, all_pages: bool, show_prog
 
 
 def extract_from_stdin(first: int, last: int, max_chars: int) -> None:
-    """Writes the text of pages first..last of the PDF read from stdin, one
-    JSON line per page ({"page", "text", "cut"}), then a last line
+    """Writes the text of pages first..last of the PDF read from stdin: a
+    first line {"total_pages"}, one JSON line per page ({"page", "text",
+    "cut"}), each written as it is read, then a last line
     {"done": true, "total_pages", "stopped_at"}. last stops at the PDF's
     last page; first past it fails. At most max_chars characters (code
     points) in all: the page reaching it is cut ("cut": true) and the pages
@@ -227,6 +228,8 @@ def extract_from_stdin(first: int, last: int, max_chars: int) -> None:
         total = len(pdf.pages)
         if first > total:
             raise ValueError("the first page asked for is past the last page")
+        # Known before any page, so that pages read before a stop can be used.
+        print(json.dumps({"total_pages": total}), flush=True)
         left = max_chars
         stopped_at = None
         for number in range(first, min(last, total) + 1):

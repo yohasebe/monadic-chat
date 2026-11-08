@@ -3,6 +3,7 @@
 require_relative "../utils/system_defaults"
 require_relative "../utils/privacy/outbound"
 require_relative "../utils/error_formatter"
+require_relative "../workspace/stopped_replies"
 
 # AI User Agent
 # Handles the generation of simulated user responses in conversations
@@ -12,6 +13,9 @@ module AIUserAgent
   # @param params [Hash] Parameters for AI User generation
   # @return [Hash] The result of AI User generation
   def process_ai_user(session, params)
+    # Replies stopped before (a new connection of the tab too) are marked
+    # on their messages first.
+    Monadic::Workspace::StoppedReplies.apply!(session)
     # Check for required parameters and provide fallback
     provider = params["ai_user_provider"]
     if provider.nil? || provider.empty?
@@ -188,6 +192,8 @@ module AIUserAgent
     messages.each do |m|
       role = m["role"] == "user" ? "User" : "Assistant"
       content = extract_content(m["text"], monadic)
+      # A message whose reply was stopped says so (StoppedReplies).
+      content = Monadic::Workspace::StoppedReplies.with_note(m, content)
       text = text.dup << "#{role}: #{content}\n\n"
     end
     text

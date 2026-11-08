@@ -153,6 +153,26 @@ describe('Workbench', () => {
     expect(lines[2].textContent).not.toContain('empty');
   });
 
+  test('says a PDF text that stopped because the time ran out apart from one cut short', () => {
+    const el = card('m-1');
+    // Records as a message, or a history read back, gives them.
+    window.Workbench.drawLooks('m-1', [
+      { id: 'look_1', kind: 'pdf', name: 'slow.pdf', state: 'sent', pages: { first: 1, last: 2, total: 40 },
+        parts: { page_text: true }, cuts: ['page_text'], truncated: true, stopped: 'time' },
+      { id: 'look_2', kind: 'pdf', name: 'long.pdf', state: 'sent', pages: { first: 1, last: 2, total: 40 },
+        parts: { page_text: true }, cuts: ['page_text'], truncated: true },
+      { id: 'look_3', kind: 'text', name: 'n.txt', state: 'sent', lines: { first: 1, last: 3 }, truncated: true, stopped: 'time' }
+    ]);
+    const lines = el.querySelectorAll('.workbench-look-line');
+    expect(lines[0].textContent).toContain('pages 1–2 of 40');
+    expect(lines[0].textContent).toContain('stopped: out of time');
+    expect(lines[0].textContent).not.toContain('cut short');
+    expect(lines[1].textContent).toContain('cut short');
+    expect(lines[1].textContent).not.toContain('out of time');
+    expect(lines[2].textContent).toContain('cut short');
+    expect(lines[2].textContent).not.toContain('out of time');
+  });
+
   test('says Save as… in the desktop app', () => {
     window.electronAPI = {};
     view([item()]);

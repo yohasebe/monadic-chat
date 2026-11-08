@@ -16,6 +16,9 @@ module Monadic
         # Why a part of a look could not be had (Look::Pdf).
         PART_NOTES = %w[none not_in_view drawing redrawn failed too_large busy pdf_text_unavailable].freeze
         SCOPES = %w[visible whole].freeze
+        # Why a PDF's text stops before the pages asked for, when it is not
+        # the characters (Look::Pdf): the time ran out.
+        STOPPED = %w[time].freeze
         SOURCES = %w[workbench_image workbench_file workbench_capture workbench_browser workbench_relay].freeze
         TEXT_FIELDS = { 'id' => 40, 'item_id' => 40, 'name' => 255, 'path' => 1024, 'at' => 40 }.freeze
         HASH = /\A[0-9a-f]{64}\z/
@@ -67,12 +70,23 @@ module Monadic
           end
           cuts = entry['cuts']
           out['cuts'] = (cuts & PARTS) if cuts.is_a?(Array) && (cuts & PARTS).any?
+          out['stopped'] = entry['stopped'] if STOPPED.include?(entry['stopped']) && stopped_fits?(out)
           crop = entry['crop']
           if crop.is_a?(Hash)
             picked = crop.transform_keys(&:to_s).slice(*CROP).select { |_, v| v.is_a?(Numeric) && v.finite? && v >= 0 }
             out['crop'] = picked if picked.size == CROP.size
           end
           out
+        end
+
+        # A stop is kept with a PDF's record only as one: its pages' text
+        # was had, cut, and stops before the PDF's last page.
+        def stopped_fits?(out)
+          pages = out['pages'] || {}
+          out['kind'] == 'pdf' && out['truncated'] == true && out['cuts'].to_a.include?('page_text') &&
+            out.dig('parts', 'page_text') == true &&
+            [pages['first'], pages['last'], pages['total']].all?(Integer) &&
+            pages['first'] >= 1 && pages['first'] <= pages['last'] && pages['last'] < pages['total']
         end
       end
     end

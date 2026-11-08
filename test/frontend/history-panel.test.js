@@ -1,10 +1,10 @@
 /**
  * @jest-environment jsdom
  */
-// The chat history in the sidebar and in the window it shares with the
-// shared folder, on the page's own markup: names are set as text, an open
-// chat is neither continued nor removed from here, a Private chat is
-// replaced only after a question, and nothing shows while no history is kept.
+// The History tab of the side column, on the page's own markup: names are
+// set as text, an open chat is neither continued nor removed from here, a
+// Private chat is replaced only after a question tied to that chat, and the
+// tab is there only while a history is kept.
 const fs = require('fs');
 const path = require('path');
 
@@ -39,12 +39,15 @@ describe('chat history words', () => {
   });
 });
 
-describe('chat history', () => {
+describe('History tab', () => {
   let sent;
-  let modal;
+  let pane;
+  let narrow;
 
   function load() {
     jest.resetModules();
+    require('../../docker/services/ruby/public/js/monadic/dom-helpers.js');
+    require('../../docker/services/ruby/public/js/monadic/row-menu.js');
     require('../../docker/services/ruby/public/js/monadic/history-panel.js');
   }
 
@@ -56,79 +59,85 @@ describe('chat history', () => {
     chat_id: 'c_aaaaaaaaaaaaaaaa', title_user: null, heading_first: 'Plan a trip', heading_recent: 'The slides',
     app_name: 'ChatOpenAI', message_count: 4, last_activity_at: '2026-10-24T10:00:00Z', open: false
   }, over);
+  const rows = () => Array.from(document.querySelectorAll('#history-list .history-row'));
+  const show = () => { pane = 'history'; document.dispatchEvent(new Event('layoutchange')); };
+  const leave = () => { pane = 'settings'; document.dispatchEvent(new Event('layoutchange')); };
+  const menuItem = (label) => Array.from(document.querySelectorAll('.row-menu .dropdown-item')).find((b) => b.textContent.includes(label));
+  const status = () => document.getElementById('history-status');
 
   beforeEach(() => {
     jest.useFakeTimers();
-    document.body.innerHTML = cut('<div id="history-panel"', '<div id="shared-folder-panel"') +
-      cut('<div class="modal fade" id="sharedFolderModal"', '<div class="modal fade" id="libraryBrowseModal"');
-    global.$id = (id) => document.getElementById(id);
-    global.$on = (node, ev, fn) => node && node.addEventListener(ev, fn);
-    global.$show = (node) => { if (node) node.style.display = ''; };
-    global.$hide = (node) => { if (node) node.style.display = 'none'; };
-    global.$toggle = (node, on) => (on ? global.$show(node) : global.$hide(node));
-    modal = document.getElementById('sharedFolderModal');
-    // As Bootstrap does, the window is marked shown only after its fade.
-    const instance = { show() { setTimeout(() => modal.classList.add('show'), 150); }, hide() { modal.classList.remove('show'); } };
-    window.bootstrap = { Modal: { getOrCreateInstance: () => instance } };
-    global.bootstrap = window.bootstrap;
+    document.body.innerHTML = '<div id="side-pane-tabs"><button id="side-tab-history" hidden></button></div>' +
+      cut('<%# The kept chats', '<%# The border between the columns');
+    pane = 'settings';
+    narrow = false;
+    window.LayoutController = {
+      selectedPane: () => pane, isMenuHidden: () => false,
+      setPane: jest.fn((p) => { pane = p; }), setMenuHidden: jest.fn()
+    };
+    window.UIConfig = { isTabletView: () => narrow };
     sent = [];
     window.safeWsSend = (payload) => { sent.push(payload); return { sent: true }; };
     load();
   });
 
   afterEach(() => {
+    if (window.RowMenu) window.RowMenu.close();
     jest.useRealTimers();
     delete window.HistoryPanel;
   });
 
-  it('stays hidden while the server keeps no history', () => {
+  it('shows the tab only while the server keeps a history, and leaves it when it stops', () => {
     list([], { enabled: false });
-    expect(document.getElementById('history-panel').style.display).toBe('none');
-    expect(document.getElementById('manage-tabs').style.display).toBe('none');
-    list([item()]);
-    expect(document.getElementById('history-panel').style.display).toBe('');
+    expect(document.getElementById('side-tab-history').hidden).toBe(true);
+    list([]);
+    expect(document.getElementById('side-tab-history').hidden).toBe(false);
+    show();
+    list([], { enabled: false });
+    expect(window.LayoutController.setPane).toHaveBeenCalledWith('settings');
   });
 
-  it('sets names and headings as text, and continues a chat from the sidebar', () => {
+  it('asks for the chats when the tab comes into view', () => {
+    show();
+    expect(sent).toContainEqual({ message: 'HISTORY_LIST', query: '', offset: 0 });
+  });
+
+  it('sets names and headings as text, and continues a chat with a click', () => {
+    show();
     list([item({ title_user: '<img src=x onerror=alert(1)>' })]);
-    const recent = document.getElementById('history-recent');
-    expect(recent.querySelector('img')).toBeNull();
-    expect(recent.textContent).toContain('<img src=x onerror=alert(1)>');
-    recent.querySelector('button').click();
+    const list_ = document.getElementById('history-list');
+    expect(list_.querySelector('img')).toBeNull();
+    expect(list_.textContent).toContain('<img src=x onerror=alert(1)>');
+    rows()[0].querySelector('.history-name').click();
     expect(sent).toContainEqual({ message: 'HISTORY_RESUME', chat_id: 'c_aaaaaaaaaaaaaaaa' });
   });
 
-  it('shows the chats tab, and neither continues nor removes a chat open in a tab', () => {
-    list([]);
-    window.HistoryPanel.open();
-    expect(document.getElementById('history-chats-body').style.display).toBe('');
-    expect(document.getElementById('shared-folder-files-body').style.display).toBe('none');
-    list([item({ open: true }), item({ chat_id: 'c_bbbbbbbbbbbbbbbb' })]);
-    const rows = document.querySelectorAll('#history-tbody tr');
-    expect(rows).toHaveLength(2);
-    const buttons = (row) => Array.from(row.querySelectorAll('button'));
-    expect(buttons(rows[0]).map((b) => b.disabled)).toEqual([true, false, true]);
-    expect(buttons(rows[1]).map((b) => b.disabled)).toEqual([false, false, false]);
+  it('neither continues nor removes a chat open in a tab', () => {
+    show();
+    list([item({ open: true })]);
+    expect(rows()[0].querySelector('.history-name').disabled).toBe(true);
+    rows()[0].querySelector('.sfp-row-menu').click();
+    expect(menuItem('Continue').disabled).toBe(true);
+    expect(menuItem('Remove').disabled).toBe(true);
   });
 
   it('removes a chat only after it is asked again', () => {
-    list([]);
-    window.HistoryPanel.open();
+    show();
     list([item()]);
-    const remove = () => Array.from(document.querySelectorAll('#history-tbody button')).pop();
-    remove().click();
+    rows()[0].querySelector('.sfp-row-menu').click();
+    menuItem('Remove').click();
     expect(sent.some((m) => m.message === 'HISTORY_DELETE')).toBe(false);
-    document.querySelector('#history-tbody .btn-danger').click();
+    rows()[0].querySelector('.btn-danger').click();
     expect(sent).toContainEqual({ message: 'HISTORY_DELETE', chat_id: 'c_aaaaaaaaaaaaaaaa' });
   });
 
   it('names a chat with Enter, not while text is still being composed', () => {
-    list([]);
-    window.HistoryPanel.open();
+    show();
     list([item()]);
-    document.querySelectorAll('#history-tbody button')[1].click();
+    rows()[0].querySelector('.sfp-row-menu').click();
+    menuItem('Name').click();
     jest.runOnlyPendingTimers();
-    const input = document.querySelector('#history-tbody input');
+    const input = document.querySelector('#history-list input');
     input.value = 'Trip';
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true }));
     expect(sent.some((m) => m.message === 'HISTORY_RENAME')).toBe(false);
@@ -136,35 +145,122 @@ describe('chat history', () => {
     expect(sent).toContainEqual({ message: 'HISTORY_RENAME', chat_id: 'c_aaaaaaaaaaaaaaaa', title: 'Trip' });
   });
 
-  it('asks before a Private chat here is replaced, and sends the answer', () => {
-    list([]);
+  it('asks before a Private chat here is replaced, keeps the question while lists arrive, and sends the answer for that chat', () => {
+    show();
+    list([item()]);
+    rows()[0].querySelector('.history-name').click();
     window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
-    jest.advanceTimersByTime(200);
-    expect(modal.classList.contains('show')).toBe(true);
-    const status = document.getElementById('history-status');
-    expect(status.style.display).toBe('');
-    status.querySelector('.btn-warning').click();
+    expect(status().hidden).toBe(false);
+    list([item(), item({ chat_id: 'c_bbbbbbbbbbbbbbbb' })]);
+    expect(status().hidden).toBe(false);
+    status().querySelector('.btn-warning').click();
     expect(sent).toContainEqual({ message: 'HISTORY_RESUME', chat_id: 'c_aaaaaaaaaaaaaaaa', confirm: true });
   });
 
-  it('keeps the question about the Private chat while lists arrive', () => {
-    list([]);
+  it('takes the question back when the tab is left, and a late answer does not bring it back', () => {
+    show();
+    list([item()]);
+    rows()[0].querySelector('.history-name').click();
     window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
-    jest.advanceTimersByTime(200);
-    expect(sent.some((m) => m.message === 'HISTORY_LIST')).toBe(true);
+    leave();
+    expect(status().hidden).toBe(true);
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
+    show();
     list([item()]);
-    const status = document.getElementById('history-status');
-    expect(status.style.display).toBe('');
-    status.querySelector('.btn-secondary').click();
-    expect(status.style.display).toBe('none');
-    list([item()]);
-    expect(status.style.display).toBe('none');
+    expect(status().hidden).toBe(true);
+    expect(sent.some((m) => m.confirm)).toBe(false);
   });
 
-  it('closes the window when the chat is continued here', () => {
-    list([]);
-    window.HistoryPanel.open();
+  it('asks nothing for a request given up on by leaving the tab, also once the tab is back', () => {
+    show();
+    list([item()]);
+    rows()[0].querySelector('.history-name').click();
+    leave();
+    show();
+    list([item()]);
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
+    expect(status().hidden).toBe(true);
+  });
+
+  it('asks only about the chat the standing request is for', () => {
+    show();
+    list([item(), item({ chat_id: 'c_bbbbbbbbbbbbbbbb' })]);
+    rows()[1].querySelector('.history-name').click();
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
+    expect(status().hidden).toBe(true);
+  });
+
+  it('continues one chat at a time: a second click waits for the first answer, and the question is asked for the request that stands', () => {
+    show();
+    list([item(), item({ chat_id: 'c_bbbbbbbbbbbbbbbb' })]);
+    rows()[0].querySelector('.history-name').click();
+    rows()[1].querySelector('.history-name').click();
+    expect(sent.filter((m) => m.message === 'HISTORY_RESUME')).toHaveLength(1);
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
+    expect(status().hidden).toBe(false);
+    status().querySelector('.btn-secondary').click();
+    rows()[1].querySelector('.history-name').click();
+    expect(sent.filter((m) => m.message === 'HISTORY_RESUME').pop()).toEqual({ message: 'HISTORY_RESUME', chat_id: 'c_bbbbbbbbbbbbbbbb' });
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_bbbbbbbbbbbbbbbb', success: false, error: 'history_private_here' });
+    expect(status().hidden).toBe(false);
+  });
+
+  it('does not let a late answer to a request given up on stand for the same chat asked again', () => {
+    show();
+    list([item()]);
+    rows()[0].querySelector('.history-name').click();
+    leave();
+    show();
+    list([item()]);
+    rows()[0].querySelector('.history-name').click();
+    expect(sent.filter((m) => m.message === 'HISTORY_RESUME')).toHaveLength(1);
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
+    expect(status().hidden).toBe(true);
+    rows()[0].querySelector('.history-name').click();
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
+    expect(status().hidden).toBe(false);
+  });
+
+  it('keeps waiting for an answer however long it takes, and lets the next request go on a new connection', () => {
+    show();
+    list([item()]);
+    rows()[0].querySelector('.history-name').click();
+    leave();
+    show();
+    list([item()]);
+    jest.advanceTimersByTime(60000);
+    rows()[0].querySelector('.history-name').click();
+    expect(sent.filter((m) => m.message === 'HISTORY_RESUME')).toHaveLength(1);
+    // The old answer, late: it is the one given up on, and asks nothing.
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
+    expect(status().hidden).toBe(true);
+    rows()[0].querySelector('.history-name').click();
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
+    expect(status().hidden).toBe(false);
+    // An answer lost with its connection: a new connection lets the next go.
+    status().querySelector('.btn-secondary').click();
+    rows()[0].querySelector('.history-name').click();
+    window.HistoryPanel.connectionOpened();
+    rows()[0].querySelector('.history-name').click();
+    expect(sent.filter((m) => m.message === 'HISTORY_RESUME')).toHaveLength(4);
+  });
+
+  it('lets the next request go after a failure, which may name no chat', () => {
+    show();
+    list([item()]);
+    rows()[0].querySelector('.history-name').click();
+    window.HistoryPanel.onMessage({ type: 'history_resumed', success: false, error: 'history_failed' });
+    expect(status().textContent).toContain('did not work');
+    rows()[0].querySelector('.history-name').click();
+    expect(sent.filter((m) => m.message === 'HISTORY_RESUME')).toHaveLength(2);
+  });
+
+  it('shows the conversation after a chat is continued on a narrow screen', () => {
+    show();
     window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: true });
-    expect(modal.classList.contains('show')).toBe(false);
+    expect(window.LayoutController.setMenuHidden).not.toHaveBeenCalled();
+    narrow = true;
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: true });
+    expect(window.LayoutController.setMenuHidden).toHaveBeenCalledWith(true);
   });
 });

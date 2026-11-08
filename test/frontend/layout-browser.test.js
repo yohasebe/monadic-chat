@@ -29,7 +29,7 @@ describe('The columns in a browser', () => {
     near(r.before.menu.width, row * 0.4, 2);
     expect(r.before.handle.shown).toBe(true);
     expect(r.before.handleOff).toBeLessThanOrEqual(1);
-    expect(r.before.tabsCut).toEqual([0, 0, 0]);
+    expect(r.before.tabsCut).toEqual([0, 0, 0, 0]);
   });
 
   test('keeps both bars at the top of their columns, side by side, while the columns scroll', () => {
@@ -37,6 +37,14 @@ describe('The columns in a browser', () => {
     near(r.scrolled.summary.top, r.before.summary.top);
     near(r.scrolled.tabs.top, r.before.tabs.top);
     near(r.scrolled.summary.top, r.scrolled.tabs.top);
+    // At the top edge of the column, with no space above them.
+    near(r.scrolled.summary.top, r.scrolled.main.top);
+    near(r.scrolled.tabs.top, r.scrolled.menu.top);
+  });
+
+  test('lists the shared folder names from the start of their rows', () => {
+    expect(r.files.nameIndent).toBeGreaterThanOrEqual(0);
+    expect(r.files.nameIndent).toBeLessThanOrEqual(40);
   });
 
   test('keeps a long line from widening the conversation', () => {
@@ -70,12 +78,25 @@ describe('The columns in a browser', () => {
   });
 
   test('never makes the side column too narrow for its tabs, nor the conversation too narrow', () => {
-    expect(r.narrowest.tabsCut).toEqual([0, 0, 0]);
+    expect(r.narrowest.tabsCut).toEqual([0, 0, 0, 0]);
     expect(r.narrowest.handleOff).toBeLessThanOrEqual(1);
     // The side column at least 24rem, the conversation at least 22rem.
     expect(r.narrowest.menu.width).toBeGreaterThanOrEqual(24 * r.narrowest.rem - 1);
     expect(r.widest.main.width).toBeGreaterThanOrEqual(22 * r.widest.rem - 1);
     expect(r.widest.handleOff).toBeLessThanOrEqual(1);
+  });
+
+  test('fits the Files tab in the narrowest side column: its search row, its selection band, nothing sticking out', () => {
+    expect(r.narrowest.findCut).toBe(0);
+    expect(r.narrowest.paneCut).toBe(0);
+  });
+
+  test('opens a row\'s menu inside the window and over everything, also for the last row', () => {
+    expect(r.menu.left).toBeGreaterThanOrEqual(0);
+    expect(r.menu.right).toBeLessThanOrEqual(r.menu.w);
+    expect(r.menu.top).toBeGreaterThanOrEqual(0);
+    expect(r.menu.bottom).toBeLessThanOrEqual(r.menu.h);
+    expect(r.menu.onTop).toBe(true);
   });
 
   test('says the width as drawn, and moves from it with one key press', () => {

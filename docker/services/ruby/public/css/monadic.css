@@ -4009,223 +4009,6 @@ img.base64-image,
   color: #f59e0b;
 }
 
-/* Shared Folder panel: the toolbar and the preview sit on the panel
-   colour, the table head stays in view, rows show hover and choice. */
-#sharedFolderModal {
-  --sf-selected-bg: #dbe7f7;
-  --sf-selected-border: #8fb0dd;
-}
-#sharedFolderModal .sf-band {
-  background-color: var(--bg-panel);
-  border: 1px solid var(--border-secondary);
-  border-radius: var(--border-radius-large);
-  padding: var(--spacing-sm) var(--spacing-md);
-}
-#sharedFolderModal .sf-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-primary);
-  font-weight: 600;
-  font-size: 0.85em;
-}
-#shared-folder-tbody tr > td {
-  transition: background-color 0.1s ease;
-}
-#shared-folder-tbody tr:hover > td {
-  background-color: var(--bg-hover);
-}
-#shared-folder-tbody tr.sf-selected > td {
-  background-color: var(--sf-selected-bg);
-}
-#shared-folder-tbody tr.sf-selected > td:first-child {
-  box-shadow: inset 3px 0 0 var(--sf-selected-border);
-}
-#shared-folder-tbody:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent-blue) 60%, transparent);
-  outline-offset: 2px;
-}
-/* The keyboard's row, while the list has the focus. */
-#shared-folder-tbody:focus tr.sf-cursor > td {
-  border-top: 1px dashed var(--sf-selected-border);
-  border-bottom: 1px dashed var(--sf-selected-border);
-}
-#sharedFolderModal .sf-kind-folder,
-.shared-files-pane .sf-kind-folder { color: var(--accent-amber); }
-#sharedFolderModal .sf-kind-media,
-.shared-files-pane .sf-kind-media { color: var(--accent-blue); }
-#sharedFolderModal .sf-kind-pdf,
-.shared-files-pane .sf-kind-pdf { color: var(--accent-red); }
-#sharedFolderModal .sf-kind-other,
-.shared-files-pane .sf-kind-other { color: var(--text-secondary); }
-#sharedFolderModal .modal-content {
-  position: relative;
-  /* The window keeps its height while the list is narrowed (a short list
-     does not shrink it), within the screen, so its header and footer stay
-     in view and the body scrolls. */
-  min-height: min(70vh, calc(100vh - 2 * var(--bs-modal-margin, 1.75rem)));
-}
-/* A kind or an age other than all of them. */
-#sharedFolderModal .sf-filter-on {
-  border-color: var(--focus-outline);
-  box-shadow: 0 0 0 1px var(--focus-outline);
-}
-#sharedFolderModal .sf-folder-link {
-  color: inherit;
-  text-decoration: none;
-}
-#sharedFolderModal .sf-folder-link:hover {
-  color: var(--accent-blue);
-  text-decoration: underline;
-}
-/* Not d-flex: its !important would keep a hidden pager in view. */
-#sharedFolderModal .sf-pager {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-/* Buttons take the Web UI's categories (grey moves around and acts on a
-   row, blue chooses, red moves to the Trash); next to each other they are
-   one height, whether they hold an icon, a count or words. */
-#sharedFolderModal .btn-sm {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.3rem;
-  min-height: calc(1.5em + 0.5rem + 2px);
-}
-#sharedFolderModal .sf-preview-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-xl);
-  background-color: rgba(0, 0, 0, 0.45);
-  border-radius: inherit;
-}
-/* The cards laid over the panel: the preview and the spinner while moving. */
-#sharedFolderModal .sf-preview-card,
-#sharedFolderModal .sf-busy-card {
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-secondary);
-  border-radius: var(--border-radius-large);
-  box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.3);
-}
-#sharedFolderModal .sf-preview-card {
-  width: 100%;
-  max-height: 100%;
-  overflow: auto;
-  padding: var(--spacing-md) var(--spacing-lg);
-}
-/* Long names wrap. On a narrow window only the table scrolls sideways
-   (there the head of the table no longer stays in view, as the box that
-   scrolls is then the table's own). */
-@media (max-width: 767.98px) {
-  #sharedFolderModal .sf-table-wrap {
-    overflow-x: auto;
-  }
-}
-#shared-folder-tbody td:first-child {
-  overflow-wrap: anywhere;
-  min-width: 12rem;
-}
-#sharedFolderModal .sf-preview-card pre { text-align: left; }
-/* Two bands: what is listed (search and filters), then what to do with it.
-   Each wraps as a whole group on a narrow panel; the width kept for what is
-   selected never shrinks, so the buttons beside it do not move. */
-#sharedFolderModal .sf-conditions,
-#sharedFolderModal .sf-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-#sharedFolderModal .sf-conditions .form-control,
-#sharedFolderModal .sf-conditions .form-select {
-  flex: 0 1 auto;
-}
-#sharedFolderModal .sf-choice-info {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  flex: 0 0 15rem;
-  min-width: 0;
-}
-#sharedFolderModal .sf-choice-info #shared-folder-selection {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-#sharedFolderModal .sf-actions .btn-sm {
-  white-space: nowrap;
-}
-#sharedFolderModal .sf-status {
-  color: var(--text-secondary);
-  padding: var(--spacing-xs) var(--spacing-sm);
-}
-#sharedFolderModal .sf-status.sf-status-warn {
-  color: var(--text-primary);
-  background-color: color-mix(in srgb, var(--btn-warning) 18%, transparent);
-  border: 1px solid color-mix(in srgb, var(--btn-warning) 45%, transparent);
-  border-radius: var(--border-radius);
-}
-#sharedFolderModal .sf-busy-card {
-  padding: var(--spacing-md) 1.25rem;
-}
-
-/* Chat history: the latest chats in the sidebar, and the Chats tab of the
-   window it shares with the shared folder. */
-.history-recent-item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: 0;
-  padding: var(--spacing-xs) 0.375rem;
-  border-radius: var(--border-radius);
-  color: var(--text-primary);
-}
-.history-recent-item:hover,
-.history-recent-item:focus-visible {
-  background-color: var(--bg-hover);
-}
-.history-recent-item.is-open {
-  cursor: default;
-  color: var(--text-secondary);
-}
-.history-recent-name,
-.history-recent-topic {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.history-recent-name {
-  font-size: 0.875rem;
-}
-.history-recent-topic {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-#sharedFolderModal .manage-tabs {
-  border-bottom: 0;
-}
-#sharedFolderModal .history-name-cell {
-  min-width: 14rem;
-}
-#sharedFolderModal .history-name,
-#sharedFolderModal .history-topic {
-  overflow-wrap: anywhere;
-}
-#sharedFolderModal .history-open-badge {
-  background-color: var(--chip-neutral-bg);
-  border: 1px solid var(--chip-neutral-border);
-  color: var(--chip-neutral-color);
-  font-weight: normal;
-}
 
   /* A Private chat makes no files: what would make them is hidden (the
      server refuses it too). Set by WsPrivacyHandler. */
@@ -4242,26 +4025,6 @@ img.base64-image,
 /* ============================================ */
 @layer dark-theme {
 
-/* Shared Folder panel: hover and choice survive the dark table rule
-   (which clears cell backgrounds), with colours of the dark palette. */
-.dark-theme #sharedFolderModal {
-  --sf-selected-bg: #243a5a;
-  --sf-selected-border: #4a7bbf;
-}
-.dark-theme #shared-folder-tbody tr:hover > td {
-  background-color: var(--bg-hover);
-}
-.dark-theme #shared-folder-tbody tr.sf-selected > td {
-  background-color: var(--sf-selected-bg);
-}
-.dark-theme #sharedFolderModal .sf-table thead th {
-  background-color: var(--bg-secondary);
-}
-.dark-theme #sharedFolderModal .manage-tabs .nav-link.active {
-  background-color: var(--bg-secondary);
-  border-color: var(--border-primary) var(--border-primary) transparent;
-  color: var(--text-primary);
-}
 
 
 /* ============================================== */
@@ -6011,66 +5774,6 @@ i.fas.fa-bolt,
 }
 
 
-/* Shared Folder panel: the same categories as elsewhere (grey, blue,
-   red) in quieter tones. Kept here, after the hover rules above, since a
-   later layer wins over any selector in an earlier one. */
-#sharedFolderModal .btn-secondary {
-  background-color: #8a939e;
-  border-color: #8a939e;
-  color: #ffffff;
-}
-#sharedFolderModal .btn-primary {
-  background-color: #4a72b0;
-  border-color: #4a72b0;
-  color: #ffffff;
-}
-#sharedFolderModal .btn-danger {
-  background-color: #bf625e;
-  border-color: #bf625e;
-  color: #ffffff;
-}
-#sharedFolderModal .btn-secondary:hover:not(:disabled),
-#sharedFolderModal .btn-secondary:active {
-  background-color: #77818c;
-  border-color: #77818c;
-}
-#sharedFolderModal .btn-primary:hover:not(:disabled),
-#sharedFolderModal .btn-primary:active {
-  background-color: #43699f;
-  border-color: #43699f;
-}
-#sharedFolderModal .btn-danger:hover:not(:disabled),
-#sharedFolderModal .btn-danger:active {
-  background-color: #a9524e;
-  border-color: #a9524e;
-}
-.dark-theme #sharedFolderModal .btn-secondary {
-  background-color: #525c69;
-  border-color: #525c69;
-  color: #e5e7eb;
-}
-.dark-theme #sharedFolderModal .btn-primary {
-  background-color: #3f669f;
-  border-color: #3f669f;
-  color: #eef2f8;
-}
-.dark-theme #sharedFolderModal .btn-danger {
-  background-color: #9c4f4b;
-  border-color: #9c4f4b;
-  color: #f6eceb;
-}
-.dark-theme #sharedFolderModal .btn-secondary:hover:not(:disabled) {
-  background-color: #5f6a78;
-  border-color: #5f6a78;
-}
-.dark-theme #sharedFolderModal .btn-primary:hover:not(:disabled) {
-  background-color: #446ca6;
-  border-color: #446ca6;
-}
-.dark-theme #sharedFolderModal .btn-danger:hover:not(:disabled) {
-  background-color: #ab5955;
-  border-color: #ab5955;
-}
 
 } /* end @layer responsive */
 
@@ -6806,14 +6509,19 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
     max-width: none;
     min-width: 0;
   }
-  /* The bars at the top of each column stay there while the column scrolls
-     under them; the shadow covers the column's top padding above the bar. */
+  /* The bars at the top of each column stay there, at its top edge, while
+     the column scrolls under them; what scrolls does not show in the space
+     below a bar (its margin, covered by the shadow). */
+  #contents > .row > #menu,
+  #contents > .row > #main {
+    padding-top: 0;
+  }
   #config-summary,
   #side-pane-tabs {
     position: sticky;
     top: 0;
     z-index: 6;
-    box-shadow: 0 -10px 0 var(--bg-body);
+    box-shadow: 0 var(--spacing-sm) 0 var(--bg-body);
   }
 }
 
@@ -6861,9 +6569,13 @@ body.side-pane-resizing {
   }
 }
 
-/* The Shared folder pane (shared-files-pane.js): one folder as a list,
-   the same box as the other panels of the side column. */
-.shared-files-pane .sfp-bar {
+/* The Files and History tabs of the side column (shared-folder-panel.js,
+   history-panel.js): a list in the box of the other panels, with what is
+   done with it in bands above it and in small menus (row-menu.js). */
+.shared-files-pane .sfp-bar,
+.shared-files-pane .sfp-find,
+.shared-files-pane .sfp-band,
+.shared-files-pane .sfp-foot {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
@@ -6875,14 +6587,66 @@ body.side-pane-resizing {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--font-size-sm);
+}
+.shared-files-pane .sfp-where a {
   color: var(--text-secondary);
+  text-decoration: none;
+}
+.shared-files-pane .sfp-where a:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+.shared-files-pane .sfp-find input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.shared-files-pane .sfp-find select {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 0;
+}
+.shared-files-pane .sfp-find .btn {
+  flex: 0 0 auto;
+}
+/* The filter button while a kind or an age narrows the list. */
+.shared-files-pane .sfp-on {
+  box-shadow: 0 0 0 2px var(--focus-outline);
+}
+.shared-files-pane .sfp-band {
+  flex-wrap: wrap;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
+  border: var(--border-width) solid var(--border-light);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+}
+.shared-files-pane .sfp-band-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.shared-files-pane .sfp-band-note {
+  flex: 1 0 100%;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
 }
 .shared-files-pane .sfp-status {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
 }
+.shared-files-pane .sfp-status[hidden] {
+  display: none;
+}
 .shared-files-pane .sfp-status.sfp-status-warn {
-  color: var(--status-error);
+  color: var(--text-primary);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: color-mix(in srgb, var(--btn-warning) 18%, transparent);
+  border-radius: var(--border-radius);
+}
+.shared-files-pane .sfp-status-close {
+  font-size: var(--font-size-xs);
 }
 .shared-files-pane .sfp-list {
   list-style: none;
@@ -6895,21 +6659,54 @@ body.side-pane-resizing {
 .shared-files-pane .sfp-list:empty {
   display: none;
 }
+.shared-files-pane .sfp-list:focus-visible {
+  outline: 2px solid var(--focus-outline);
+  outline-offset: 1px;
+}
 .shared-files-pane .sfp-row {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
-  padding: var(--spacing-xs) var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-xs) var(--spacing-xs) var(--spacing-sm);
   border-top: var(--border-width) solid var(--border-light);
 }
 .shared-files-pane .sfp-row:first-child {
   border-top: 0;
+}
+.shared-files-pane .sfp-row.sfp-selected {
+  background: color-mix(in srgb, var(--focus-outline) 14%, var(--bg-panel));
+}
+.shared-files-pane .sfp-list:focus .sfp-row.sfp-cursor {
+  box-shadow: inset 2px 0 0 var(--focus-outline);
+}
+/* The box before a row: faint until the row is hovered, selected or the
+   list has the focus, and always there (no hover on a touch screen). */
+.shared-files-pane .sfp-check {
+  flex: 0 0 auto;
+  width: 1.5rem;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--text-secondary);
+  opacity: 0.45;
+}
+.shared-files-pane .sfp-check-none {
+  display: inline-block;
+}
+.shared-files-pane .sfp-row:hover .sfp-check,
+.shared-files-pane .sfp-row.sfp-selected .sfp-check,
+.shared-files-pane .sfp-list:focus .sfp-check {
+  opacity: 1;
+}
+.shared-files-pane .sfp-row.sfp-selected .sfp-check {
+  color: var(--focus-outline);
 }
 .shared-files-pane .sfp-name {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: var(--spacing-sm);
   padding: var(--spacing-xs);
   background: none;
@@ -6922,7 +6719,9 @@ body.side-pane-resizing {
 .shared-files-pane .sfp-name:hover:not(:disabled) {
   background: var(--bg-hover);
 }
-.shared-files-pane .sfp-name:focus-visible {
+.shared-files-pane .sfp-name:focus-visible,
+.shared-files-pane .sfp-check:focus-visible,
+.shared-files-pane .sfp-row-menu:focus-visible {
   outline: 2px solid var(--focus-outline);
   outline-offset: 1px;
 }
@@ -6930,10 +6729,63 @@ body.side-pane-resizing {
   color: var(--text-secondary);
   cursor: default;
 }
-.shared-files-pane .sfp-label {
+.shared-files-pane .sfp-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+.shared-files-pane .sfp-label,
+.shared-files-pane .sfp-meta {
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.shared-files-pane .sfp-meta {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+.shared-files-pane .sfp-row-menu {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  border: 0;
+}
+.shared-files-pane .sfp-row-menu:hover,
+.shared-files-pane .sfp-row-menu[aria-expanded="true"] {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+.shared-files-pane .sfp-foot {
+  justify-content: space-between;
+}
+.shared-files-pane .sfp-info {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+.shared-files-pane .sf-kind-folder { color: var(--accent-amber); }
+.shared-files-pane .sf-kind-media { color: var(--accent-blue); }
+.shared-files-pane .sf-kind-pdf { color: var(--accent-red); }
+.shared-files-pane .sf-kind-other { color: var(--text-secondary); }
+.history-pane .history-open-badge {
+  flex: 0 0 auto;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.history-pane .history-confirm-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* The small menus (row-menu.js): Bootstrap's dropdown, placed by its
+   button over everything. */
+.row-menu {
+  z-index: 1080;
+  min-width: 12rem;
+}
+.row-menu-panel {
+  padding: var(--spacing-sm) var(--spacing-md);
+  min-width: 15rem;
 }
 
 /* Side column tabs: Settings and the work screen (layout-controller.js).

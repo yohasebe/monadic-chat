@@ -271,6 +271,9 @@ window.loadedApp = "Chat";
       window.silentReconnectMode = false;
       document.cookie = 'silent_reconnect=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     } catch (_) { console.warn("[WebSocket] Silent reconnect cleanup failed:", _); }
+    // Answers go to the connection that asked: what was asked over the one
+    // before gets none now.
+    if (window.HistoryPanel && typeof window.HistoryPanel.connectionOpened === 'function') window.HistoryPanel.connectionOpened();
     // Update state if available
     if (window.UIState) {
       window.UIState.set('wsConnected', true);

@@ -1,53 +1,71 @@
-// The shared folder page: what the shared folder holds, one folder at a
-// time, with each entry's size, what it is, and whether it must be kept or
-// is in use; searched, sorted and filtered on the server. In the desktop
-// app an entry can be shown in the file manager, and entries the server
-// allows can be moved to the system's trash. Names come from the folder, so
-// they are always set as text.
+// The Files tab of the side column: what the shared folder holds, one
+// folder at a time, searched, sorted and filtered on the server. Each row
+// says when the entry was last modified, its size, what it is, and whether
+// it must be kept or is in use. A file the work screen shows opens there;
+// a folder opens in the list. Entries can be selected (the box before each
+// row, Shift and Cmd/Ctrl as in a file manager) to copy their paths for a
+// chat or, in the desktop app, to move to the system's trash; the menu of
+// a row (⋯) does the same for that row. Names come from the folder, so they
+// are always set as text.
 (function () {
   'use strict';
 
-  const SIZE_POLLS = 15;      // times to ask again for one folder's size
-  const SIZES_PER_ASK = 200;  // folders per request (the server's limit)
-  const PAGE_SIZES = [100, 200, 500];
-  const PAGE_SIZE_KEY = 'monadic-shared-folder-page-size';
-  const FILES_ONLY_KEY = 'monadic-shared-folder-files-only';
+  const PER_PAGE = 50;          // entries asked for at a time ("Show more")
+  const READ_AGAIN_PAGES = 10;  // pages read again at most (500 entries)
+  const SIZE_POLLS = 15;        // times to ask again for one folder's size
+  const SIZES_PER_ASK = 200;    // folders per request (the server's limit)
   const SIZE_POLL_MS = 2000;
+  const SEARCH_DELAY = 300;
+  const SORTS = ['name', 'modified', 'size'];
+  const SORT_KEY = 'monadic-shared-files-sort';
+  const FILES_ONLY_KEY = 'monadic-shared-folder-files-only';
+  const TRASH_PER_REQUEST = 20000; // the desktop app's limit (MAX_TRASH)
+  // The kinds the work screen shows (FileItem::KINDS on the server).
+  const WORKBENCH_KINDS = ['image', 'text', 'audio', 'video', 'pdf'];
 
-  let state = { path: '', page: 1, items: [], total: 0, matched: 0, truncated: false, rootId: null, rootIdProblem: null };
+  // pages: how many PER_PAGE pages the list holds (the next is pages + 1).
+  // shown: the search, filters and order the list holds was read with
+  // (more of it is added only while they are the same).
+  let state = { path: '', pages: 0, items: [], total: 0, matched: 0, truncated: false, rootId: null, rootIdProblem: null,
+                chatRoot: null, shown: null };
+  // The entries shown, by path.
+  let shownByPath = new Map();
   // What the list is narrowed and ordered by (kept while moving between folders).
-  let view = { q: '', sort: 'name', cls: '', age: '', perPage: savedPageSize() };
+  let view = { q: '', sort: savedSort(), cls: '', age: '' };
 
-  function savedPageSize() {
+  function savedSort() {
     try {
-      const n = Number(window.localStorage && window.localStorage.getItem(PAGE_SIZE_KEY));
-      if (PAGE_SIZES.indexOf(n) >= 0) return n;
-    } catch (_) { /* no storage here */ }
-    return 200;
+      const value = window.localStorage && window.localStorage.getItem(SORT_KEY);
+      return SORTS.indexOf(value) >= 0 ? value : 'name';
+    } catch (_) {
+      return 'name';
+    }
   }
 
-  // What is known of chosen entries that may not be on the page shown
-  // (their kind and size, for the total): from the pages seen and from
-  // "choose all".
+  // What is known of selected entries that may not be shown (their kind
+  // and size, for the total): from the rows seen and from "select all that
+  // can be moved".
   let known = new Map();
-  // Paths chosen for the trash, in the folder shown now.
+  // Paths selected, in the folder shown now. movable: those the server said
+  // may be moved to the trash ("select all that can be moved"), when they
+  // are not shown.
   let selected = new Set();
-  // Bumped whenever the choice is changed by hand, so a slow "choose all"
-  // does not bring back what was cleared or changed after it was asked.
+  let movable = new Set();
+  // Bumped whenever the selection is changed by hand, so a slow "select all
+  // that can be moved" does not bring back what was cleared after it was asked.
   let choiceGeneration = 0;
   let matchingBusy = false;
-  const TRASH_PER_REQUEST = 20000; // the desktop app's limit (MAX_TRASH)
 
-  // Each load, refresh or close starts a new generation; a response or a
-  // timer of an older one is dropped, so the page never goes back to a
-  // folder it has left, and nothing keeps running once it is closed.
+  // Each load, refresh or hide starts a new generation; a response or a
+  // timer of an older one is dropped, so the list never goes back to a
+  // folder it has left, and nothing keeps running while the tab is hidden.
   let generation = 0;
   let controller = null;
   let timer = null;
   // path => times its size was asked for. A Map, so a folder named like an
   // object's own property (constructor, __proto__) counts from 0 too.
   let asked = new Map();
-  let isOpen = false;
+  let visible = false;
   let resortDue = false;      // a size came in while the list is in size order
 
   function nextGeneration() {
@@ -67,17 +85,6 @@
       }
     } catch (_) { /* fall back */ }
     return fallback;
-  }
-
-  // The window's own parts (another list on the page uses its own names).
-  function modalAll(selector) {
-    const modal = $id('sharedFolderModal');
-    return modal ? modal.querySelectorAll(selector) : [];
-  }
-
-  function modalOne(selector) {
-    const modal = $id('sharedFolderModal');
-    return modal ? modal.querySelector(selector) : null;
   }
 
   function el(tag, opts, children) {
@@ -148,6 +155,18 @@
     folder_id: ['keptFolderId', 'Identifies this shared folder to the desktop app']
   };
 
+  // The kinds of entry the filter narrows to, as on the server.
+  const FILTER_KINDS = [
+    ['test_file', 'testFile', 'Made by a test run'],
+    ['test_candidate', 'testCandidate', 'Possibly left by a test run'],
+    ['intermediate_candidate', 'intermediate', 'Possibly a working file'],
+    ['generated', 'generated', 'Generated file'],
+    ['public_copy', 'publicCopy', 'Copy for playback'],
+    ['other', 'other', 'Other']
+  ];
+  const FILTER_AGES = [['30', 'age30', 'Not modified in 30 days'], ['90', 'age90', 'Not modified in 90 days'],
+    ['365', 'age365', 'Not modified in 365 days']];
+
   function protectedText(code) {
     const label = PROTECTED_LABELS[code];
     return label ? t(label[0], label[1]) : t('kept', 'Kept by Monadic Chat');
@@ -170,191 +189,23 @@
               window.electronAPI && typeof window.electronAPI.revealSharedEntry === 'function');
   }
 
+  function trashAvailable() {
+    return !!(state.rootId && window.electronAPI && typeof window.electronAPI.trashSharedEntries === 'function');
+  }
+
   function canTrash(item) {
-    return !!(item.capabilities && item.capabilities.trash && state.rootId &&
-              window.electronAPI && typeof window.electronAPI.trashSharedEntries === 'function');
+    return !!(item.capabilities && item.capabilities.trash && trashAvailable());
   }
 
-  // Choosing rows as in a file manager: a click chooses the row alone,
-  // Cmd/Ctrl+click adds or removes it, Shift+click adds the rows from the
-  // last one clicked, and pressing on a row and moving the mouse over
-  // others chooses the rows passed (with Cmd/Ctrl, added to the choice).
-  // Double-click or Enter opens: a folder is entered, a file previewed.
-  // Rows that may not go are never chosen. Arrow keys move the choice
-  // (Shift extends it), Cmd/Ctrl+A chooses all shown, Esc clears it.
-  let drag = null;      // { from, last, base, x, y } while the button is held
-  let anchor = null;    // index of the row last clicked
-  let cursor = null;    // index of the row the keyboard is on
-
-  function rowAt(index) {
-    const body = $id('shared-folder-tbody');
-    return body ? body.children[index] || null : null;
+  // Any file or folder can be selected (to copy its path); what may go to
+  // the trash is decided per entry.
+  function canSelect(item) {
+    return !!item && (item.kind === 'file' || item.kind === 'folder');
   }
 
-  function paintRow(index) {
-    const tr = rowAt(index);
-    const item = state.items[index];
-    if (!tr || !item) return;
-    const on = selected.has(item.path);
-    tr.classList.toggle('sf-selected', on);
-    tr.setAttribute('aria-selected', on ? 'true' : 'false');
-  }
-
-  // The row the keyboard is on, shown apart from what is selected (a row
-  // that cannot be selected can still be the current one).
-  function paintCursor() {
-    const body = $id('shared-folder-tbody');
-    if (!body) return;
-    Array.prototype.forEach.call(body.children, function (tr, n) {
-      const on = n === cursor;
-      tr.classList.toggle('sf-cursor', on);
-      if (on) tr.setAttribute('aria-current', 'true'); else tr.removeAttribute('aria-current');
-    });
-  }
-
-  function setPicked(index, value) {
-    const item = state.items[index];
-    if (!item || !canTrash(item)) return;
-    choiceGeneration += 1;
-    if (value) selected.add(item.path); else selected.delete(item.path);
-    paintRow(index);
-  }
-
-  function setRange(from, to, value) {
-    for (let i = Math.min(from, to); i <= Math.max(from, to); i += 1) setPicked(i, value);
-  }
-
-  function clearPicked() {
-    choiceGeneration += 1;
-    const before = Array.from(selected);
-    selected = new Set();
-    before.forEach(function (p) { paintRow(state.items.findIndex(function (i) { return i.path === p; })); });
-  }
-
-  // The choice as it was, then the rows from..to added (a drag shows the
-  // rows passed now, not every row it went over on the way).
-  function chooseSpan(base, from, to) {
-    clearPicked();
-    base.forEach(function (p) { selected.add(p); });
-    state.items.forEach(function (_i, n) { paintRow(n); });
-    setRange(from, to, true);
-  }
-
-  function rowIndexOf(target) {
-    const body = $id('shared-folder-tbody');
-    const tr = target && target.closest ? target.closest('tr') : null;
-    return body && tr && tr.parentNode === body ? Array.prototype.indexOf.call(body.children, tr) : -1;
-  }
-
-  // Buttons in a row (copy, show in file manager) keep their own clicks.
-  function onControl(target) {
-    return !!(target && target.closest && target.closest('button, a, input, select, textarea'));
-  }
-
-  function onRowDown(e) {
-    if (e.button !== 0 || onControl(e.target)) return;
-    const index = rowIndexOf(e.target);
-    if (index < 0) return;
-    e.preventDefault(); // no text selection while dragging
-    const body = $id('shared-folder-tbody');
-    if (body && typeof body.focus === 'function') body.focus({ preventScroll: true });
-    const add = e.metaKey || e.ctrlKey;
-    const item = state.items[index];
-    if (e.shiftKey && anchor !== null && anchor < state.items.length) {
-      setRange(anchor, index, true);
-    } else if (add) {
-      setPicked(index, !selected.has(item.path));
-      anchor = index;
-    } else {
-      clearPicked();
-      setPicked(index, true);
-      anchor = index;
-    }
-    cursor = index;
-    drag = { from: index, last: index, base: add ? Array.from(selected) : [], x: e.clientX, y: e.clientY };
-    renderTrashControls();
-  }
-
-  // Only a move of the mouse itself extends the drag: when the page moves
-  // under a still pointer (a line of the toolbar appears), the browser
-  // reports a move too, at the same place, and no row is passed over.
-  function onRowMove(e) {
-    if (!drag) return;
-    if (typeof e.buttons === 'number' && !(e.buttons & 1)) { drag = null; return; } // released outside
-    if (e.clientX === drag.x && e.clientY === drag.y) return;
-    drag.x = e.clientX;
-    drag.y = e.clientY;
-    const index = rowIndexOf(e.target);
-    if (index < 0 || index === drag.last) return;
-    chooseSpan(drag.base, drag.from, index);
-    drag.last = index;
-    cursor = index;
-    renderTrashControls();
-  }
-
-  function goUp() {
-    if (state.path) load(state.path.split('/').slice(0, -1).join('/'));
-  }
-
-  // Nothing stays chosen, on this page or any other.
-  function clearSelection() {
-    clearPicked();
-    anchor = null;
-    cursor = null;
-    renderTrashControls();
-  }
-
-  function openItem(item) {
-    if (!item) return;
-    if (item.kind === 'folder') load(item.path);
-    else if (item.preview) openPreview(item);
-  }
-
-  function onRowDouble(e) {
-    if (onControl(e.target)) return;
-    openItem(state.items[rowIndexOf(e.target)]);
-  }
-
-  function onRowKey(e) {
-    // A button or link in a row keeps its own keys; the preview has its own.
-    if (previewing || (e.target !== e.currentTarget && onControl(e.target))) return;
-    const count = state.items.length;
-    if (!count) return;
-    if (e.key === 'Escape' && selected.size) {
-      e.preventDefault();
-      e.stopPropagation(); // the dialog stays open
-      clearPicked();
-      renderTrashControls();
-    } else if (e.key === 'Enter') {
-      if (cursor !== null) { e.preventDefault(); openItem(state.items[cursor]); }
-    } else if (e.key === ' ') {
-      const item = cursor !== null ? state.items[cursor] : null;
-      if (item && item.preview) { e.preventDefault(); openPreview(item); }
-    } else if ((e.metaKey || e.ctrlKey) && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-      // As in a file manager: Cmd/Ctrl+Down opens, Cmd/Ctrl+Up goes up.
-      e.preventDefault();
-      if (e.key === 'ArrowUp') goUp();
-      else openItem(cursor !== null ? state.items[cursor] : null);
-    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      const next = cursor === null ? 0 : Math.max(0, Math.min(count - 1, cursor + (e.key === 'ArrowDown' ? 1 : -1)));
-      if (e.shiftKey) {
-        // The range from the row it started on, kept with what is chosen on
-        // other pages; with no start on this page, the row reached starts one.
-        const shownPaths = new Set(state.items.map(function (i) { return i.path; }));
-        const elsewhere = Array.from(selected).filter(function (p) { return !shownPaths.has(p); });
-        if (anchor === null) anchor = next;
-        chooseSpan(elsewhere, anchor, next);
-      } else {
-        clearPicked();
-        setPicked(next, true);
-        anchor = next;
-      }
-      cursor = next;
-      const tr = rowAt(next);
-      if (tr && typeof tr.scrollIntoView === 'function') tr.scrollIntoView({ block: 'nearest' });
-      renderTrashControls();
-    }
+  // Whether the work screen can show a listed entry (and the page has one).
+  function workScreenShows(item) {
+    return !!(item && item.kind === 'file' && WORKBENCH_KINDS.indexOf(item.preview) >= 0 && window.Workbench);
   }
 
   // The icon for an entry's kind, coloured by what it holds.
@@ -372,220 +223,168 @@
     }
   }
 
-  function row(item) {
-    const tr = document.createElement('tr');
-    tr.dataset.path = item.path;
-
-    if (canTrash(item)) tr.style.cursor = 'pointer';
-    tr.title = item.kind === 'folder' || item.preview ? t('openHint', 'Double-click to open') : '';
-    if (selected.has(item.path)) tr.classList.add('sf-selected');
-    tr.setAttribute('aria-selected', selected.has(item.path) ? 'true' : 'false');
-
-    const nameCell = el('td');
-    nameCell.appendChild(icon(kindIcon(item) + ' me-2'));
-    if (item.kind === 'folder') {
-      // The name opens the folder; the rest of the row chooses it.
-      const link = el('a', { className: 'sf-folder-link', text: item.name, title: t('openFolder', 'Open the folder') });
-      link.href = '#';
-      link.addEventListener('click', function (e) { e.preventDefault(); load(item.path); });
-      nameCell.appendChild(link);
-    } else {
-      nameCell.appendChild(el('span', { text: item.name }));
+  // When the entry was last modified, and its size.
+  function metaText(item) {
+    const parts = [];
+    const at = item.modified_at ? new Date(item.modified_at) : null;
+    if (at && !Number.isNaN(at.getTime())) {
+      parts.push(at.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
     }
-    if (item.kind === 'link') nameCell.appendChild(el('span', { className: 'ms-2 small text-secondary', text: t('linkNotFollowed', '(link, not followed)') }));
-    tr.appendChild(nameCell);
-
-    const what = el('td', { className: 'small' }, [el('span', { text: whatItIs(item) })]);
-    if (item.protected_reason) {
-      what.appendChild(el('div', { className: 'small text-secondary' }, [icon('fa-solid fa-lock me-1'), el('span', { text: protectedText(item.protected_reason) })]));
-    }
-    if (item.busy_reason) {
-      what.appendChild(el('span', { className: 'badge bg-info text-dark ms-1', text: t('inUse', 'in use') }));
-    }
-    tr.appendChild(what);
-
-    tr.appendChild(el('td', { className: 'small text-nowrap text-end', text: sizeText(item) }));
-    tr.appendChild(el('td', { className: 'small text-nowrap', text: item.modified_at ? new Date(item.modified_at).toLocaleString() : '' }));
-
-    const actions = el('td', { className: 'text-end text-nowrap' });
-    if (workScreenShows(item)) {
-      const openName = t('openInWorkScreenOf', 'Open {name} in the work screen').replace('{name}', item.name);
-      const open = el('button', { className: 'btn btn-sm btn-secondary me-1', type: 'button', title: openName }, [icon('fa-solid fa-display')]);
-      open.setAttribute('aria-label', openName);
-      open.dataset.action = 'work-screen';
-      open.addEventListener('click', function () { openRowInWorkbench(item); });
-      actions.appendChild(open);
-    }
-    if ((item.kind === 'file' || item.kind === 'folder') && state.chatRoot) {
-      const copyName = t('copyPathOf', 'Copy the path of {name} to use in a chat').replace('{name}', item.name);
-      const copy = el('button', { className: 'btn btn-sm btn-secondary me-1', type: 'button', title: copyName }, [icon('fa-regular fa-copy')]);
-      copy.setAttribute('aria-label', copyName);
-      copy.dataset.action = 'copy';
-      copy.addEventListener('click', function () { copyPath(item, copy); });
-      actions.appendChild(copy);
-    }
-    if (canReveal(item)) {
-      const revealName = t('revealOf', 'Show {name} in the file manager').replace('{name}', item.name);
-      const btn = el('button', { className: 'btn btn-sm btn-secondary', type: 'button', title: revealName }, [icon('fa-regular fa-folder-open')]);
-      btn.setAttribute('aria-label', revealName);
-      btn.dataset.action = 'reveal';
-      btn.addEventListener('click', function () { reveal(item); });
-      actions.appendChild(btn);
-    }
-    tr.appendChild(actions);
-    return tr;
+    const size = sizeText(item);
+    if (size) parts.push(size);
+    return parts.join(' · ');
   }
 
-  function render() {
-    const body = $id('shared-folder-tbody');
-    if (!body) return;
-    // A button in a row that had the focus gets it back in the new rows
-    // (the list is drawn anew when sizes come in).
-    const focused = document.activeElement;
-    const keep = focused && body.contains(focused) && focused.dataset && focused.dataset.action && focused.closest('tr')
-      ? { path: focused.closest('tr').dataset.path, action: focused.dataset.action } : null;
-    body.replaceChildren();
-    state.items.forEach(function (item) { body.appendChild(row(item)); });
-    if (keep) {
-      const again = Array.prototype.find.call(body.children, function (tr) { return tr.dataset.path === keep.path; });
-      const target = again && again.querySelector('[data-action="' + keep.action + '"]');
-      if (target) target.focus({ preventScroll: true });
-      else body.focus({ preventScroll: true });
-    }
+  // ---- selecting -------------------------------------------------------
+  // The box before a row selects it (Shift: the rows from the last one
+  // selected). On the name, a click opens the entry; with Cmd/Ctrl it
+  // selects, with Shift it selects a range. The list's keys: ↑ ↓ move,
+  // Shift+↑ ↓ extend, Enter opens, Space selects, Cmd/Ctrl+A selects all
+  // shown, the Menu key (or Shift+F10) opens the row's menu, Esc clears (a
+  // menu open is closed first, by the menu).
+  let anchor = null;    // index of the row a range starts from
+  let cursor = null;    // index of the row the keyboard is on
 
-    const up = $id('shared-folder-up');
-    if (up) up.style.display = state.path ? '' : 'none';
-
-    const crumbs = $id('shared-folder-path');
-    if (crumbs) {
-      crumbs.replaceChildren();
-      const top = el('a', { text: t('top', 'Shared folder') });
-      top.href = '#';
-      top.addEventListener('click', function (e) { e.preventDefault(); load(''); });
-      crumbs.appendChild(top);
-      let soFar = [];
-      state.path.split('/').filter(Boolean).forEach(function (part) {
-        soFar = soFar.concat(part);
-        const target = soFar.join('/');
-        crumbs.appendChild(el('span', { className: 'mx-1 text-secondary', text: '/' }));
-        const link = el('a', { text: part });
-        link.href = '#';
-        link.addEventListener('click', function (e) { e.preventDefault(); load(target); });
-        crumbs.appendChild(link);
-      });
-    }
-
-    const info = $id('shared-folder-info');
-    if (info) {
-      let text = t('count', 'Items') + ': ' + (state.matched !== state.total ? state.matched + ' / ' + state.total : state.total);
-      if (state.truncated) text += ' — ' + t('truncated', 'Only the first items read are shown (the folder holds more).');
-      if (!state.rootId && state.rootIdProblem) text += ' — ' + t('noFolderId', 'Items cannot be shown in the file manager: this shared folder could not be identified');
-      info.textContent = text;
-    }
-    renderPager();
-    renderTrashControls();
+  function rowAt(index) {
+    const list = $id('sfp-list');
+    return list ? list.children[index] || null : null;
   }
 
-  function pageCount() {
-    return Math.max(1, Math.ceil((state.matched || 0) / (state.perPage || view.perPage)));
+  function paintRow(index) {
+    const li = rowAt(index);
+    const item = state.items[index];
+    if (!li || !item) return;
+    const on = selected.has(item.path);
+    li.classList.toggle('sfp-selected', on);
+    const box = li.querySelector('.sfp-check');
+    if (box) {
+      box.setAttribute('aria-checked', on ? 'true' : 'false');
+      const glyph = box.querySelector('i');
+      if (glyph) glyph.className = on ? 'fa-solid fa-square-check' : 'fa-regular fa-square';
+    }
   }
 
-  // The pagers above and below the list show the same page.
-  function renderPager() {
-    const pages = pageCount();
-    const page = Math.min(state.page || 1, pages);
-    const per = state.perPage || view.perPage;
-    const first = state.matched ? (page - 1) * per + 1 : 0;
-    const last = Math.min(page * per, state.matched || 0);
-    const text = t('pageOf', 'Page {page} of {pages} ({first}–{last} of {count})')
-      .replace('{page}', String(page)).replace('{pages}', String(pages))
-      .replace('{first}', String(first)).replace('{last}', String(last)).replace('{count}', String(state.matched || 0));
-    const shown = state.matched > PAGE_SIZES[0] || pages > 1;
-    modalAll('.sf-pager').forEach(function (pager) {
-      pager.style.display = shown ? '' : 'none';
-      const label = pager.querySelector('.sf-page-label');
-      if (label) label.textContent = text;
-      const prev = pager.querySelector('.sf-prev');
-      if (prev) prev.disabled = page <= 1;
-      const next = pager.querySelector('.sf-next');
-      if (next) next.disabled = page >= pages;
-      const size = pager.querySelector('.sf-per-page');
-      if (size) size.value = String(view.perPage);
+  // The row the keyboard is on: its name is the one element of the list
+  // the Tab key reaches (the first row's while none is), and the arrows
+  // move the focus from name to name.
+  function paintCursor() {
+    const list = $id('sfp-list');
+    if (!list) return;
+    const at = cursor === null ? 0 : cursor;
+    Array.prototype.forEach.call(list.children, function (li, n) {
+      const on = n === cursor;
+      li.classList.toggle('sfp-cursor', on);
+      if (on) li.setAttribute('aria-current', 'true'); else li.removeAttribute('aria-current');
+      const name = li.querySelector('.sfp-name');
+      if (name) name.tabIndex = n === at ? 0 : -1;
     });
+    list.tabIndex = list.children.length ? -1 : 0;
   }
 
-  function goToPage(page) {
-    const target = Math.max(1, Math.min(page, pageCount()));
-    if (target !== state.page) load(state.path, { page: target });
+  function focusRow(index) {
+    const li = rowAt(index);
+    const name = li && li.querySelector('.sfp-name');
+    if (name && typeof name.focus === 'function') name.focus({ preventScroll: false });
   }
 
-  function trashAvailable() {
-    return !!(state.rootId && window.electronAPI && typeof window.electronAPI.trashSharedEntries === 'function');
+  // The focus back on the row of path (drawn anew), or on the list.
+  function focusPath(p) {
+    const n = state.items.findIndex(function (i) { return i.path === p; });
+    if (n >= 0) { cursor = n; paintCursor(); focusRow(n); return; }
+    const list = $id('sfp-list');
+    if (list && typeof list.focus === 'function') list.focus({ preventScroll: true });
   }
 
-  function renderTrashControls() {
-    const available = trashAvailable();
-    // The band of actions is there only where entries can be moved to the
-    // Trash (the desktop app). Its buttons are disabled, never hidden, when
-    // they have nothing to act on, so none of them moves.
+  function setPicked(index, value) {
+    const item = state.items[index];
+    if (!canSelect(item)) return;
+    choiceGeneration += 1;
+    if (value) selected.add(item.path); else { selected.delete(item.path); movable.delete(item.path); }
+    paintRow(index);
+  }
+
+  function setRange(from, to, value) {
+    for (let i = Math.min(from, to); i <= Math.max(from, to); i += 1) setPicked(i, value);
+  }
+
+  function clearPicked() {
+    choiceGeneration += 1;
+    selected = new Set();
+    movable = new Set();
+    state.items.forEach(function (_i, n) { paintRow(n); });
+  }
+
+  // Click on the box (or Cmd/Ctrl on the name): one row in or out; Shift:
+  // the rows from the start of the range.
+  function pick(index, shift) {
+    const item = state.items[index];
+    if (!canSelect(item)) return;
+    if (shift && anchor !== null && anchor < state.items.length) {
+      setRange(anchor, index, true);
+    } else {
+      setPicked(index, !selected.has(item.path));
+      anchor = index;
+    }
+    cursor = index;
     paintCursor();
-    const band = $id('shared-folder-actions');
-    if (band) band.style.display = available ? '' : 'none';
-    const busy = trashing || matchingBusy;
-    const choosable = choosableShown();
-    const tests = $id('shared-folder-select-tests');
-    if (tests) tests.disabled = busy || !state.items.some(function (i) { return i.classification === 'test_file' && canTrash(i); });
-    const all = $id('shared-folder-select-all');
-    if (all) {
-      const every = choosable.length > 0 && choosable.every(function (i) { return selected.has(i.path); });
-      all.disabled = busy || choosable.length === 0;
-      all.setAttribute('aria-pressed', every ? 'true' : 'false');
-      all.classList.toggle('active', every);
-    }
-    const matching = $id('shared-folder-select-matching');
-    if (matching) {
-      matching.disabled = busy || !(state.matched > state.items.length);
-      matching.title = t('selectMatchingTitle', 'Every item matching the search and filters, on every page ({count})').replace('{count}', String(state.matched || 0));
-    }
-    const btn = $id('shared-folder-trash');
-    if (btn) {
-      btn.disabled = selected.size === 0 || trashing;
-      const glyph = btn.querySelector('i');
-      if (glyph) glyph.className = trashing ? 'fa-solid fa-spinner fa-spin' : 'fa-regular fa-trash-can';
-      const name = t('trashSelected', 'Move to Trash') + (selected.size ? ' (' + selected.size + ')' : '');
-      btn.title = name;
-      btn.setAttribute('aria-label', name);
-    }
-
-    const summary = $id('shared-folder-selection');
-    if (summary) {
-      const chosen = Array.from(selected).map(function (p) { return known.get(p) || { path: p }; });
-      let bytes = 0;
-      let partial = false;
-      chosen.forEach(function (i) {
-        if (typeof i.bytes === 'number') bytes += i.bytes;
-        if (typeof i.bytes !== 'number' || (i.kind === 'folder' && i.size_status !== 'complete')) partial = true;
-      });
-      summary.style.visibility = chosen.length ? 'visible' : 'hidden';
-      const clear = $id('shared-folder-clear-selection');
-      if (clear) clear.style.visibility = chosen.length ? 'visible' : 'hidden';
-      summary.textContent = t('selectionSummary', 'Selected: {count}, {size} in all')
-        .replace('{count}', String(chosen.length)).replace('{size}', (partial ? '≥ ' : '') + formatBytes(bytes));
-    }
+    renderBands();
   }
 
-  // Every entry that matches the search and filters and may go, on every
-  // page (asked of the server; the desktop app asks again before moving).
+  function clearSelection() {
+    clearPicked();
+    anchor = null;
+    renderBands();
+  }
+
+  // The search, a filter or the order changed: what was selected may no
+  // longer be shown, so nothing stays selected.
+  function clearChoice() {
+    choiceGeneration += 1;
+    selected = new Set();
+    movable = new Set();
+    anchor = null;
+    cursor = null;
+  }
+
+  // "Skip folders": selecting all (shown, all that can be moved, Cmd/Ctrl+A)
+  // takes files only. A folder can still be selected by itself.
+  function filesOnly() {
+    try { return window.localStorage.getItem(FILES_ONLY_KEY) === 'true'; } catch (_) { return false; }
+  }
+
+  function setFilesOnly(on) {
+    try { window.localStorage.setItem(FILES_ONLY_KEY, String(!!on)); } catch (_) { /* no storage here */ }
+  }
+
+  function selectAllShown() {
+    choiceGeneration += 1;
+    const files = filesOnly();
+    const choosable = state.items.filter(function (i) { return canSelect(i) && !(files && i.kind === 'folder'); });
+    const every = choosable.length > 0 && choosable.every(function (i) { return selected.has(i.path); });
+    choosable.forEach(function (i) { if (every) selected.delete(i.path); else selected.add(i.path); });
+    render();
+  }
+
+  function selectTests() {
+    choiceGeneration += 1;
+    state.items.forEach(function (i) { if (i.classification === 'test_file' && canTrash(i)) selected.add(i.path); });
+    render();
+  }
+
+  // Every entry that matches the search and filters and may be moved to the
+  // trash, shown or not (asked of the server; the desktop app asks again
+  // before moving).
   async function selectMatching() {
     if (matchingBusy) return;
     const mine = generation;
     const choice = choiceGeneration;
-    const params = new URLSearchParams(query(state.path, 1).split('?')[1]);
+    const params = new URLSearchParams(query(state.path, 1, PER_PAGE).split('?')[1]);
     params.delete('page');
+    params.delete('per_page');
     params.delete('sort');
     try {
       matchingBusy = true;
-      renderTrashControls();
+      renderBands();
       const data = await getJson('/api/shared_folder/matching?' + params.toString());
       if (mine !== generation || choice !== choiceGeneration) return;
       const files = filesOnly();
@@ -593,6 +392,7 @@
         if (files && i.kind === 'folder') return;
         known.set(i.path, i);
         selected.add(i.path);
+        movable.add(i.path);
       });
       if (data.truncated) showError(t('truncated', 'Only the first items read are shown (the folder holds more).'));
       render();
@@ -601,69 +401,37 @@
       showError(t('loadFailed', 'The shared folder could not be read') + ': ' + e.message);
     } finally {
       matchingBusy = false;
-      renderTrashControls();
+      renderBands();
     }
   }
 
-  // The search, a filter or the age changed: what was chosen may no longer
-  // be shown, so nothing stays chosen.
-  function clearChoice() {
-    choiceGeneration += 1;
-    selected = new Set();
-    anchor = null;
-    cursor = null;
+  // The selected entries that may be moved to the trash: those shown that
+  // the server allows, and those it said so of when they were selected all.
+  function trashTargets() {
+    if (!trashAvailable()) return [];
+    return Array.from(selected).filter(function (p) {
+      // What the list says now, else what it said when the entry was last
+      // listed, else what "select all that can be moved" said.
+      const item = shownByPath.get(p) || known.get(p);
+      return item && item.capabilities ? canTrash(item) : movable.has(p);
+    });
   }
 
-  // Every entry shown that may go is chosen, or none when all already are.
-  // "Leave out folders": choosing all (shown, every page, Cmd/Ctrl+A)
-  // takes files only. A folder can still be chosen by itself.
-  function filesOnly() {
-    const box = $id('shared-folder-files-only');
-    return !!(box && box.checked);
+  // ---- opening ---------------------------------------------------------
+
+  function openItem(item, index) {
+    if (!item) return;
+    if (item.kind === 'folder') {
+      load(item.path);
+    } else if (workScreenShows(item)) {
+      window.Workbench.openFile(item.path);
+    } else if (index !== undefined) {
+      pick(index, false);
+    }
   }
 
-  function choosableShown() {
-    const files = filesOnly();
-    return state.items.filter(function (i) { return canTrash(i) && !(files && i.kind === 'folder'); });
-  }
-
-  // Cmd/Ctrl+A anywhere in the panel chooses every entry shown (files only
-  // with "Leave out folders"), as in a file manager, instead of selecting
-  // the text of the page; in a field it selects the field's text as usual.
-  // In the desktop app the Edit menu's "Select All" has the same keys and
-  // runs as well, selecting the text of the page just after; that text
-  // selection is taken back for a moment after the keys were handled here.
-  let dropTextSelectionUntil = 0;
-
-  function dropTextSelection() {
-    const sel = typeof window.getSelection === 'function' ? window.getSelection() : null;
-    if (sel && sel.rangeCount) sel.removeAllRanges();
-  }
-
-  function onPanelKey(e) {
-    if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || (e.key !== 'a' && e.key !== 'A')) return;
-    if (!filesShown()) return;
-    if (previewing || trashing || editable(e.target)) return;
-    e.preventDefault();
-    const files = filesOnly();
-    state.items.forEach(function (i, n) { if (!(files && i.kind === 'folder')) setPicked(n, true); });
-    renderTrashControls();
-    dropTextSelectionUntil = Date.now() + 500;
-    dropTextSelection();
-    setTimeout(dropTextSelection, 0);
-  }
-
-  function onSelectionChange() {
-    if (Date.now() > dropTextSelectionUntil || editable(document.activeElement)) return;
-    dropTextSelection();
-  }
-
-  function selectAllShown() {
-    choiceGeneration += 1;
-    const choosable = choosableShown();
-    const every = choosable.length > 0 && choosable.every(function (i) { return selected.has(i.path); });
-    choosable.forEach(function (i) { if (every) selected.delete(i.path); else selected.add(i.path); });
-    render();
+  function goUp() {
+    if (state.path) load(state.path.split('/').slice(0, -1).join('/'));
   }
 
   // The path a chat's tools use for the entry (the container's view of the
@@ -672,9 +440,10 @@
     return state.chatRoot ? state.chatRoot + '/' + item.path : null;
   }
 
-  async function copyPath(item, button) {
-    const text = chatPath(item);
-    if (!text) return;
+  // Copies the paths (one per line); says so only once the clipboard has them.
+  async function copyPaths(paths, button) {
+    const text = paths.map(function (p) { return chatPath({ path: p }); }).filter(Boolean).join('\n');
+    if (!text) return false;
     let ok = false;
     try {
       if (window.electronAPI && typeof window.electronAPI.writeClipboard === 'function') {
@@ -688,227 +457,397 @@
     }
     if (!ok) {
       showError(t('copyFailed', 'The path could not be copied') + ': ' + text);
-      return;
+      return false;
     }
     clearWarning();
-    if (button) {
-      // A brief check mark, in the button's own colour (no green flash).
-      const before = button.title;
+    setStatus('info', [icon('fa-solid fa-check me-1'),
+      (paths.length > 1 ? t('copiedCount', 'Copied {count} paths') : t('copied', 'Copied')).replace('{count}', String(paths.length))]);
+    if (button && button.isConnected) {
       const glyph = button.querySelector('i');
-      button.title = t('copied', 'Copied') + ': ' + text;
       if (glyph) glyph.className = 'fa-solid fa-check';
-      setTimeout(function () { if (glyph) glyph.className = 'fa-regular fa-copy'; button.title = before; }, 1500);
+      setTimeout(function () { if (glyph) glyph.className = 'fa-regular fa-copy'; }, 1500);
+    }
+    return true;
+  }
+
+  async function reveal(item) {
+    try {
+      const result = await window.electronAPI.revealSharedEntry(state.rootId, item.path);
+      if (!result || !result.ok) showError(t('revealFailed', 'Could not show it') + ': ' + ((result && result.error) || ''));
+    } catch (e) {
+      showError(t('revealFailed', 'Could not show it') + ': ' + e.message);
     }
   }
 
-  // The preview shown above the list. Each one opened (or a close) starts a
-  // new generation, so a slow answer for an earlier file is not shown.
-  let previewGeneration = 0;
-  let previewController = null;
-
-  function fileUrl(item) {
-    return '/api/shared_folder/file?' + new URLSearchParams({ path: item.path }).toString();
+  // The menu of a row.
+  function rowMenu(item, button) {
+    if (!window.RowMenu) return;
+    const entries = [];
+    if (item.kind === 'folder') {
+      entries.push({ label: t('openFolder', 'Open the folder'), icon: 'fa-regular fa-folder-open', action: function () { load(item.path); } });
+    } else if (workScreenShows(item)) {
+      entries.push({ label: t('openInWorkScreen', 'Open in the work screen'), icon: 'fa-solid fa-display',
+        action: function () { window.Workbench.openFile(item.path); } });
+    }
+    if (state.chatRoot) {
+      entries.push({ label: t('copyPath', 'Copy the path for a chat'), icon: 'fa-regular fa-copy',
+        action: function () { copyPaths([item.path]); } });
+    }
+    if (canReveal(item)) {
+      entries.push({ label: t('reveal', 'Show in the file manager'), icon: 'fa-regular fa-folder-open', action: function () { reveal(item); } });
+    }
+    if (trashAvailable()) {
+      const allowed = canTrash(item);
+      entries.push('divider');
+      entries.push({ label: t('trashOne', 'Move to Trash'), icon: 'fa-regular fa-trash-can', danger: true, disabled: !allowed || trashing,
+        title: allowed ? '' : (item.protected_reason ? protectedText(item.protected_reason) : t('cannotTrash', 'This cannot be moved to the Trash')),
+        action: function () { trashPaths([item.path]); } });
+    }
+    window.RowMenu.open(button, entries, { restore: function () { focusPath(item.path); } });
   }
 
-  // While the preview is shown the rest of the panel takes no focus and no
-  // keys (inert); the focus goes back where it was when it closes.
-  let previewReturnFocus = null;
+  // The menu of selecting all.
+  function selectMenu(button) {
+    if (!window.RowMenu) return;
+    const files = filesOnly();
+    window.RowMenu.open(button, [
+      { label: t('selectAll', 'Select all shown'), icon: 'fa-regular fa-square-check', action: selectAllShown,
+        disabled: state.items.length === 0 },
+      { label: t('selectMatching', 'Select all that can be moved to the Trash'), icon: 'fa-solid fa-list-check',
+        action: selectMatching, disabled: !trashAvailable() || matchingBusy || trashing },
+      { label: t('selectTests', 'Select test files'), icon: 'fa-solid fa-vial', action: selectTests,
+        disabled: !state.items.some(function (i) { return i.classification === 'test_file' && canTrash(i); }) },
+      'divider',
+      { label: (files ? '✓ ' : '') + t('filesOnly', 'Skip folders when selecting all'), icon: 'fa-regular fa-folder',
+        action: function () { setFilesOnly(!files); } }
+    ]);
+  }
 
-  function setBackgroundInert(on, boxId) {
-    const box = $id(boxId || 'shared-folder-preview');
-    const content = box && box.parentNode;
-    if (!content) return;
-    Array.prototype.forEach.call(content.children, function (child) {
-      if (child === box) return;
-      if (on) child.setAttribute('inert', ''); else child.removeAttribute('inert');
+  // The filters (what kind, how old), changed at once.
+  function filterPanel(button) {
+    if (!window.RowMenu) return;
+    const form = el('form', { className: 'sfp-filter-form' });
+    form.addEventListener('submit', function (e) { e.preventDefault(); });
+    const kind = el('select', { className: 'form-select form-select-sm' });
+    kind.id = 'sfp-filter-kind';
+    kind.appendChild(el('option', { text: t('filterAll', 'All items') }));
+    kind.lastChild.value = '';
+    FILTER_KINDS.forEach(function (k) { const o = el('option', { text: t(k[1], k[2]) }); o.value = k[0]; kind.appendChild(o); });
+    kind.value = view.cls;
+    const age = el('select', { className: 'form-select form-select-sm' });
+    age.id = 'sfp-filter-age';
+    age.appendChild(el('option', { text: t('ageAll', 'Modified any time') }));
+    age.lastChild.value = '';
+    FILTER_AGES.forEach(function (a) { const o = el('option', { text: t(a[1], a[2]) }); o.value = a[0]; age.appendChild(o); });
+    age.value = view.age;
+    const kindLabel = el('label', { className: 'form-label small mb-1', text: t('kindLabel', 'Kind') });
+    kindLabel.htmlFor = kind.id;
+    const ageLabel = el('label', { className: 'form-label small mb-1 mt-2', text: t('ageLabel', 'Last modified') });
+    ageLabel.htmlFor = age.id;
+    form.append(kindLabel, kind, ageLabel, age);
+    kind.addEventListener('change', function () { view.cls = kind.value; clearChoice(); load(state.path); });
+    age.addEventListener('change', function () { view.age = age.value; clearChoice(); load(state.path); });
+    window.RowMenu.openPanel(button, form);
+  }
+
+  // ---- drawing ---------------------------------------------------------
+
+  function row(item, index) {
+    const li = el('li', { className: 'sfp-row' });
+    li.dataset.path = item.path;
+    const label = item.name;
+    if (canSelect(item)) {
+      const box = el('button', { className: 'sfp-check', type: 'button' }, [icon('fa-regular fa-square')]);
+      box.setAttribute('role', 'checkbox');
+      box.setAttribute('aria-checked', 'false');
+      box.setAttribute('aria-label', t('selectOne', 'Select {name}').replace('{name}', label));
+      box.tabIndex = -1;
+      box.addEventListener('click', function (e) { pick(index, e.shiftKey); });
+      li.appendChild(box);
+    } else {
+      li.appendChild(el('span', { className: 'sfp-check sfp-check-none' }));
+    }
+
+    const name = el('button', { className: 'sfp-name', type: 'button' });
+    name.tabIndex = -1;
+    name.appendChild(icon(kindIcon(item) + ' sfp-icon'));
+    const text = el('span', { className: 'sfp-text' });
+    text.appendChild(el('span', { className: 'sfp-label', text: label }));
+    const meta = metaText(item);
+    if (meta) text.appendChild(el('span', { className: 'sfp-meta', text: meta }));
+    const what = el('span', { className: 'sfp-meta sfp-what', text: whatItIs(item) });
+    if (item.protected_reason) {
+      what.appendChild(document.createTextNode(' · '));
+      what.appendChild(icon('fa-solid fa-lock me-1'));
+      what.appendChild(document.createTextNode(protectedText(item.protected_reason)));
+    }
+    if (item.busy_reason) what.appendChild(el('span', { className: 'badge bg-info text-dark ms-1', text: t('inUse', 'in use') }));
+    if (item.kind === 'link') what.appendChild(document.createTextNode(' ' + t('linkNotFollowed', '(link, not followed)')));
+    text.appendChild(what);
+    name.appendChild(text);
+    if (item.kind === 'folder') name.title = t('openFolder', 'Open the folder');
+    else if (workScreenShows(item)) name.title = t('openInWorkScreen', 'Open in the work screen');
+    name.addEventListener('click', function (e) {
+      if (e.metaKey || e.ctrlKey || e.shiftKey) { pick(index, e.shiftKey); return; }
+      cursor = index;
+      openItem(item, index);
     });
+    name.addEventListener('focus', function () { if (cursor !== index) { cursor = index; paintCursor(); } });
+    li.appendChild(name);
+
+    const more = el('button', { className: 'btn btn-sm sfp-row-menu', type: 'button' }, [icon('fa-solid fa-ellipsis')]);
+    more.setAttribute('aria-label', t('actionsOf', 'Actions for {name}').replace('{name}', label));
+    more.setAttribute('aria-haspopup', 'menu');
+    more.setAttribute('aria-expanded', 'false');
+    more.tabIndex = -1;
+    more.addEventListener('click', function () { cursor = index; paintCursor(); rowMenu(item, more); });
+    li.appendChild(more);
+    return li;
   }
 
-  // opts.stepping: another file follows at once, so the overlay, the keys
-  // and the focus stay as they are.
-  function closePreview(opts) {
-    const stepping = !!(opts && opts.stepping);
-    previewGeneration += 1;
-    if (previewController) previewController.abort();
-    previewController = null;
-    const box = $id('shared-folder-preview');
-    const body = $id('shared-folder-preview-body');
-    if (body) {
-      body.querySelectorAll('audio, video').forEach(function (m) {
-        try { m.pause(); } catch (_) { /* not playing */ }
-        m.removeAttribute('src');
-        try { m.load(); } catch (_) { /* nothing loaded */ }
+  function render() {
+    const list = $id('sfp-list');
+    if (!list) return;
+    // The focus stays where it was when the list is drawn anew (sizes coming
+    // in): on the same entry's name, or on the list.
+    const focused = document.activeElement;
+    const hadFocus = focused === list || list.contains(focused);
+    const focusedLi = hadFocus && focused !== list && focused.closest ? focused.closest('.sfp-row') : null;
+    const focusedPath = focusedLi ? focusedLi.dataset.path : null;
+    list.replaceChildren.apply(list, state.items.map(row));
+    state.items.forEach(function (_i, n) { paintRow(n); });
+    paintCursor();
+    if (hadFocus) focusPath(focusedPath);
+
+    const up = $id('sfp-up');
+    if (up) up.disabled = !state.path;
+    renderCrumbs();
+
+    const info = $id('sfp-info');
+    if (info) {
+      let text = t('count', 'Items') + ': ' + (state.matched !== state.total ? state.matched + ' / ' + state.total : state.total);
+      if (state.truncated) text += ' — ' + t('truncated', 'Only the first items read are shown (the folder holds more).');
+      if (!state.rootId && state.rootIdProblem) text += ' — ' + t('noFolderId', 'Items cannot be shown in the file manager: this shared folder could not be identified');
+      info.textContent = text;
+    }
+    const more = $id('sfp-more');
+    if (more) more.hidden = !hasMore();
+    renderBands();
+  }
+
+  function renderCrumbs() {
+    const crumbs = $id('sfp-where');
+    if (!crumbs) return;
+    crumbs.replaceChildren();
+    const top = el('a', { text: t('top', 'Shared folder') });
+    top.href = '#';
+    top.addEventListener('click', function (e) { e.preventDefault(); load(''); });
+    crumbs.appendChild(top);
+    let soFar = [];
+    state.path.split('/').filter(Boolean).forEach(function (part) {
+      soFar = soFar.concat(part);
+      const target = soFar.join('/');
+      crumbs.appendChild(el('span', { className: 'mx-1 text-secondary', text: '/' }));
+      const link = el('a', { text: part });
+      link.href = '#';
+      link.addEventListener('click', function (e) { e.preventDefault(); load(target); });
+      crumbs.appendChild(link);
+    });
+    crumbs.title = state.path || t('top', 'Shared folder');
+  }
+
+  function filterLabel() {
+    const parts = [];
+    if (view.q) parts.push('“' + view.q + '”');
+    const kind = FILTER_KINDS.find(function (k) { return k[0] === view.cls; });
+    if (kind) parts.push(t(kind[1], kind[2]));
+    const age = FILTER_AGES.find(function (a) { return a[0] === view.age; });
+    if (age) parts.push(t(age[1], age[2]));
+    return parts.join(' · ');
+  }
+
+  // The bands above the list: what it is narrowed by, and what is selected.
+  function renderBands() {
+    paintCursor();
+    const filtering = $id('sfp-filtering');
+    const narrowed = !!(view.cls || view.age);
+    if (filtering) {
+      filtering.hidden = !(narrowed || view.q);
+      const text = $id('sfp-filtering-text');
+      if (text) text.textContent = t('filteringBy', 'Narrowed by: {what}').replace('{what}', filterLabel());
+    }
+    const filterBtn = $id('sfp-filter-toggle');
+    if (filterBtn) filterBtn.classList.toggle('sfp-on', narrowed);
+
+    const band = $id('sfp-selection');
+    if (!band) return;
+    const count = selected.size;
+    band.hidden = count === 0;
+    const summary = $id('sfp-selection-text');
+    if (summary) {
+      let bytes = 0;
+      let partial = false;
+      Array.from(selected).forEach(function (p) {
+        const i = known.get(p) || { path: p };
+        if (typeof i.bytes === 'number') bytes += i.bytes;
+        if (typeof i.bytes !== 'number' || (i.kind === 'folder' && i.size_status !== 'complete')) partial = true;
       });
-      body.replaceChildren();
+      summary.textContent = t('selectionSummary', 'Selected: {count}, {size} in all')
+        .replace('{count}', String(count)).replace('{size}', (partial ? '≥ ' : '') + formatBytes(bytes));
     }
-    if (stepping) return;
-    if (box) box.style.display = 'none';
-    if (previewing) {
-      previewing = null;
-      document.removeEventListener('keydown', onPreviewKey, true);
-      setBackgroundInert(false);
-      const back = previewReturnFocus && previewReturnFocus.isConnected ? previewReturnFocus : $id('shared-folder-tbody');
-      previewReturnFocus = null;
-      if (back && typeof back.focus === 'function') back.focus({ preventScroll: true });
+    const copy = $id('sfp-copy');
+    if (copy) copy.disabled = count === 0 || !state.chatRoot;
+    const trash = $id('sfp-trash');
+    if (trash) {
+      trash.hidden = !trashAvailable();
+      const go = trashTargets().length;
+      trash.disabled = go === 0 || trashing;
+      const glyph = trash.querySelector('i');
+      if (glyph) glyph.className = trashing ? 'fa-solid fa-spinner fa-spin' : 'fa-regular fa-trash-can';
+      const label = $id('sfp-trash-label');
+      if (label) label.textContent = String(go);
+      const name = t('trashCount', 'Move {count} to Trash').replace('{count}', String(go));
+      trash.title = name;
+      trash.setAttribute('aria-label', name);
+      const why = $id('sfp-trash-why');
+      if (why) {
+        why.hidden = !trashAvailable() || go === count || count === 0;
+        why.textContent = t('trashSkippedWhy', '{count} of the selected cannot be moved to the Trash (kept by Monadic Chat or in use).')
+          .replace('{count}', String(count - go));
+      }
     }
   }
 
-  // The preview is laid over the panel, so it is in view wherever the file
-  // is in the list. The arrows go to the files before and after it on the
-  // page that can be previewed; Esc (or Space, as in Quick Look) closes it
-  // without closing the panel.
-  let previewing = null;
-
-  // The kinds the work screen shows (FileItem::KINDS on the server).
-  const WORKBENCH_KINDS = ['image', 'text', 'audio', 'video', 'pdf'];
-
-  // Whether the work screen can show a listed entry (and the page has one).
-  function workScreenShows(item) {
-    return !!(item && item.kind === 'file' && WORKBENCH_KINDS.indexOf(item.preview) >= 0 && window.Workbench);
-  }
-
-  // A file goes to the work screen from a row of the window: the window
-  // closes, and the work screen shows it when the server has it.
-  function openRowInWorkbench(item) {
-    closePreview();
-    const modal = $id('sharedFolderModal');
-    if (modal && window.bootstrap) window.bootstrap.Modal.getOrCreateInstance(modal).hide();
-    window.Workbench.openFile(item.path);
-  }
-
-  // The file being previewed goes to the work screen: the preview and the
-  // panel close, and the work screen shows it when the server has it.
-  function openInWorkbench() {
-    if (!previewing || !window.Workbench) return;
-    const path = previewing.path;
-    closePreview();
-    const modal = $id('sharedFolderModal');
-    if (modal && window.bootstrap) window.bootstrap.Modal.getOrCreateInstance(modal).hide();
-    window.Workbench.openFile(path);
-  }
-
-  function previewable() {
-    return state.items.filter(function (i) { return !!i.preview; });
-  }
-
-  function stepPreview(by) {
-    if (!previewing) return;
-    const list = previewable();
-    const at = list.findIndex(function (i) { return i.path === previewing.path; });
-    const next = list[at + by];
-    if (!next) return;
-    const index = state.items.indexOf(next);
-    // The row follows, as when the arrow keys move in the list.
-    clearPicked();
-    setPicked(index, true);
-    anchor = index;
-    cursor = index;
-    const tr = rowAt(index);
-    if (tr && typeof tr.scrollIntoView === 'function') tr.scrollIntoView({ block: 'nearest' });
-    renderTrashControls();
-    openPreview(next);
-  }
+  // ---- the list's keys ---------------------------------------------------
 
   function editable(target) {
-    return !!(target && (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable));
+    return !!(target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)));
   }
 
-  function onPreviewKey(e) {
-    if (!previewing) return;
-    if (e.key === 'Escape' || e.key === ' ') {
-      if (e.key === ' ' && (editable(e.target) || (e.target && e.target.closest && e.target.closest('button, audio, video')))) return;
+  function onListKey(e) {
+    if (editable(e.target) || (window.RowMenu && window.RowMenu.isOpen())) return;
+    const count = state.items.length;
+    if (!count) return;
+    // The box and the ⋯ of a row keep their own Enter and Space.
+    const onOwnButton = !!(e.target && e.target.closest && e.target.closest('.sfp-check, .sfp-row-menu'));
+    if (onOwnButton && (e.key === 'Enter' || e.key === ' ')) return;
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && (e.key === 'a' || e.key === 'A')) {
       e.preventDefault();
-      e.stopPropagation(); // the panel stays open
-      closePreview();
-    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-      if (editable(e.target) || (e.target && e.target.closest && e.target.closest('audio, video'))) return; // their own keys
+      const files = filesOnly();
+      state.items.forEach(function (i, n) { if (!(files && i.kind === 'folder')) setPicked(n, true); });
+      renderBands();
+    } else if (e.key === 'Escape') {
+      if (!selected.size) return;
       e.preventDefault();
-      e.stopPropagation();
-      stepPreview(e.key === 'ArrowLeft' ? -1 : 1);
-    }
-  }
-
-  function renderPreviewNav() {
-    const list = previewable();
-    const at = previewing ? list.findIndex(function (i) { return i.path === previewing.path; }) : -1;
-    const prev = $id('shared-folder-preview-prev');
-    if (prev) prev.disabled = at <= 0;
-    const next = $id('shared-folder-preview-next');
-    if (next) next.disabled = at < 0 || at >= list.length - 1;
-    const count = $id('shared-folder-preview-count');
-    if (count) count.textContent = at >= 0 ? (at + 1) + ' / ' + list.length : '';
-  }
-
-  async function openPreview(item) {
-    const stepping = !!previewing;
-    closePreview({ stepping: stepping });
-    const mine = previewGeneration;
-    const box = $id('shared-folder-preview');
-    const body = $id('shared-folder-preview-body');
-    const title = $id('shared-folder-preview-name');
-    if (!box || !body) return;
-    if (title) title.textContent = item.path;
-    box.style.display = '';
-    previewing = item;
-    if (!stepping) {
-      previewReturnFocus = document.activeElement;
-      document.addEventListener('keydown', onPreviewKey, true);
-      setBackgroundInert(true);
-      const close = $id('shared-folder-preview-close');
-      if (close && typeof close.focus === 'function') close.focus({ preventScroll: true });
-    }
-    renderPreviewNav();
-    $toggle($id('shared-folder-preview-workbench'), WORKBENCH_KINDS.indexOf(item.preview) >= 0 && !!window.Workbench);
-    const fail = function (message) {
-      if (mine !== previewGeneration) return;
-      body.replaceChildren(el('div', { className: 'small text-secondary', text: t('previewFailed', 'The file cannot be shown') + (message ? ': ' + message : '') }));
-    };
-    if (item.preview === 'text') {
-      previewController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-      try {
-        const res = await fetch('/api/shared_folder/text?' + new URLSearchParams({ path: item.path }).toString(),
-          { signal: previewController ? previewController.signal : undefined });
-        const data = await res.json();
-        if (mine !== previewGeneration) return;
-        if (!res.ok || !data.success) { fail(data && data.error); return; }
-        const pre = el('pre', { className: 'small mb-0 p-2 border rounded', text: data.text });
-        pre.style.maxHeight = '68vh';
-        pre.style.overflow = 'auto';
-        pre.style.whiteSpace = 'pre-wrap';
-        pre.style.wordBreak = 'break-word';
-        body.replaceChildren(pre);
-        if (data.truncated) {
-          body.appendChild(el('div', { className: 'small text-secondary mt-1', text: t('previewTruncated', 'Only the beginning is shown') + ' (' + formatBytes(data.shown_bytes) + ' / ' + formatBytes(data.file_bytes) + ')' }));
-        }
-      } catch (e) {
-        if (e && e.name === 'AbortError') return;
-        fail(e && e.message);
+      clearSelection();
+    } else if (e.key === 'Enter') {
+      if (cursor === null) return;
+      e.preventDefault();
+      openItem(state.items[cursor], cursor);
+    } else if (e.key === ' ') {
+      if (cursor === null) return;
+      e.preventDefault();
+      pick(cursor, e.shiftKey);
+    } else if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+      // The menu of the row the keyboard is on.
+      if (cursor === null) return;
+      e.preventDefault();
+      const button = rowAt(cursor) && rowAt(cursor).querySelector('.sfp-row-menu');
+      if (button) rowMenu(state.items[cursor], button);
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const next = cursor === null ? 0 : Math.max(0, Math.min(count - 1, cursor + (e.key === 'ArrowDown' ? 1 : -1)));
+      if (e.shiftKey) {
+        if (anchor === null) anchor = cursor === null ? next : cursor;
+        setRange(anchor, next, true);
+      } else {
+        anchor = next;
       }
-      return;
+      cursor = next;
+      renderBands();
+      focusRow(next);
     }
-    let node;
-    if (item.preview === 'image') {
-      node = el('img', { className: 'img-fluid border rounded' });
-      node.style.maxHeight = '68vh';
-      node.alt = item.name;
-    } else if (item.preview === 'audio' || item.preview === 'video') {
-      node = el(item.preview);
-      node.controls = true;
-      node.preload = 'metadata';
-      if (item.preview === 'video') { node.style.maxWidth = '100%'; node.style.maxHeight = '68vh'; }
-      else node.style.width = '100%';
-    } else if (item.preview === 'pdf') {
-      node = el('iframe', { className: 'border rounded w-100' });
-      node.style.height = '70vh';
-      node.title = item.name;
-    } else {
-      fail('');
-      return;
-    }
-    node.addEventListener('error', function () { fail(''); });
-    node.src = fileUrl(item);
-    body.replaceChildren(node);
   }
+
+  // ---- status ----------------------------------------------------------
+
+  // The one place for what is going on (loading, nothing to show, errors,
+  // what copying or moving to the Trash did). kind: 'info' or 'warn'; no
+  // content clears it. keep: it stays until closed (×) or the next one.
+  function setStatus(kind, content, keep) {
+    const box = $id('sfp-status');
+    if (!box) return;
+    const parts = (Array.isArray(content) ? content : [content]).filter(function (c) { return c !== null && c !== undefined && c !== ''; })
+      .map(function (c) { return typeof c === 'string' ? document.createTextNode(c) : c; });
+    box.replaceChildren.apply(box, parts);
+    if (parts.length && keep) {
+      const close = el('button', { className: 'btn-close sfp-status-close ms-auto', type: 'button' });
+      close.setAttribute('aria-label', t('dismiss', 'Dismiss'));
+      close.addEventListener('click', function () { setStatus('info', null); showListState(); });
+      box.appendChild(close);
+    }
+    box.classList.toggle('sfp-status-warn', kind === 'warn');
+    box.dataset.kept = parts.length && keep ? 'true' : '';
+    box.hidden = parts.length === 0;
+  }
+
+  function showError(message) {
+    setStatus('warn', message || null, true);
+  }
+
+  // An earlier error goes once the same kind of action works.
+  function clearWarning() {
+    const box = $id('sfp-status');
+    if (box && box.classList.contains('sfp-status-warn')) setStatus('info', null);
+  }
+
+  // Nothing listed: an empty folder, or nothing matching the search and
+  // filters (then they can be cleared from here). A kept result stays.
+  function showListState() {
+    const box = $id('sfp-status');
+    if (box && box.dataset.kept === 'true') return;
+    if (state.items.length) { setStatus('info', null); return; }
+    if (state.total > 0) {
+      const clear = el('button', { className: 'btn btn-sm btn-secondary ms-2 sf-clear-filters', type: 'button',
+        text: t('clearFilters', 'Clear the search and filters') });
+      clear.addEventListener('click', clearFilters);
+      setStatus('info', [t('noMatch', 'No items match the search and filters'), (view.q || view.cls || view.age) ? clear : null]);
+    } else {
+      setStatus('info', t('emptyFolder', 'This folder is empty'));
+    }
+  }
+
+  function clearFilters() {
+    view.q = '';
+    view.cls = '';
+    view.age = '';
+    const box = $id('sfp-search');
+    if (box) box.value = '';
+    clearChoice();
+    load(state.path);
+  }
+
+  let loadingTimer = null;
+
+  function loadingStarted() {
+    clearTimeout(loadingTimer);
+    const list = $id('sfp-list');
+    if (list) list.setAttribute('aria-busy', 'true');
+    loadingTimer = setTimeout(function () {
+      const box = $id('sfp-status');
+      if (box && box.dataset.kept === 'true') return;
+      setStatus('info', [icon('fa-solid fa-spinner fa-spin me-1'), t('loading', 'Loading…')]);
+    }, 250);
+  }
+
+  function loadingEnded() {
+    clearTimeout(loadingTimer);
+    loadingTimer = null;
+    const list = $id('sfp-list');
+    if (list) list.removeAttribute('aria-busy');
+  }
+
+  // ---- reading ---------------------------------------------------------
 
   function tabParam(params) {
     const id = (typeof window.getMonadicTabId === 'function') ? window.getMonadicTabId() : null;
@@ -932,87 +871,6 @@
     return '/api/shared_folder/sizes?' + tabParam(params).toString();
   }
 
-  // The one place for what is going on (loading, nothing to show, errors,
-  // what moving to the Trash did). kind: 'info' or 'warn'; no content clears it.
-  function setStatus(kind, content) {
-    const box = $id('shared-folder-status');
-    if (!box) return;
-    const parts = (Array.isArray(content) ? content : [content]).filter(function (c) { return c !== null && c !== undefined && c !== ''; })
-      .map(function (c) { return typeof c === 'string' ? document.createTextNode(c) : c; });
-    box.replaceChildren.apply(box, parts);
-    box.classList.toggle('sf-status-warn', kind === 'warn');
-    box.style.display = parts.length ? '' : 'none';
-  }
-
-  function showError(message) {
-    setStatus('warn', message || null);
-  }
-
-  // An earlier error goes once the same kind of action works.
-  function clearWarning() {
-    const box = $id('shared-folder-status');
-    if (box && box.classList.contains('sf-status-warn')) setStatus('info', null);
-  }
-
-  // Shown only when loading takes a moment, so a quick answer does not flash.
-  let loadingTimer = null;
-
-  function loadingStarted() {
-    clearTimeout(loadingTimer);
-    const table = $id('shared-folder-tbody');
-    if (table) table.setAttribute('aria-busy', 'true');
-    loadingTimer = setTimeout(function () {
-      setStatus('info', [icon('fa-solid fa-spinner fa-spin me-1'), t('loading', 'Loading…')]);
-    }, 250);
-  }
-
-  function loadingEnded() {
-    clearTimeout(loadingTimer);
-    loadingTimer = null;
-    const table = $id('shared-folder-tbody');
-    if (table) table.removeAttribute('aria-busy');
-  }
-
-  // Nothing listed: an empty folder, or nothing matching the search and
-  // filters (then they can be cleared from here).
-  function showListState() {
-    markFilters();
-    if (state.items.length) { setStatus('info', null); return; }
-    if (state.total > 0) {
-      const clear = el('button', { className: 'btn btn-sm btn-secondary ms-2 sf-clear-filters', type: 'button',
-        text: t('clearFilters', 'Clear the search and filters') });
-      clear.addEventListener('click', clearFilters);
-      setStatus('info', [t('noMatch', 'No items match the search and filters'), filtering() ? clear : null]);
-    } else {
-      setStatus('info', t('emptyFolder', 'This folder is empty'));
-    }
-  }
-
-  function filtering() {
-    return !!(view.q || view.cls || view.age);
-  }
-
-  // A kind or an age other than all of them is marked, so a narrowed list
-  // is not taken for the whole folder.
-  function markFilters() {
-    [['shared-folder-filter', view.cls], ['shared-folder-age', view.age]].forEach(function (pair) {
-      const box = $id(pair[0]);
-      if (box) box.classList.toggle('sf-filter-on', !!pair[1]);
-    });
-  }
-
-  function clearFilters() {
-    view.q = '';
-    view.cls = '';
-    view.age = '';
-    [['shared-folder-search', ''], ['shared-folder-filter', ''], ['shared-folder-age', '']].forEach(function (pair) {
-      const box = $id(pair[0]);
-      if (box) box.value = pair[1];
-    });
-    clearChoice();
-    load(state.path);
-  }
-
   async function getJson(url) {
     const resp = await fetch(url, controller ? { signal: controller.signal } : undefined);
     const data = await resp.json();
@@ -1020,52 +878,70 @@
     return data;
   }
 
-  // Only name order is the same from one request to the next; in another
-  // order (or with a kind chosen) a size or a date can move an entry across
-  // pages, so the list is asked for again from the top instead.
-  // One page of a folder (the first unless opts.page). opts.keep: the same
-  // folder again, keeping the size counts asked so far.
+  function viewKey(path) {
+    return JSON.stringify([path, view.q, view.sort, view.cls, view.age]);
+  }
+
+  function hasMore() {
+    return state.pages * PER_PAGE < (state.matched || 0);
+  }
+
+  // The search as the box has it now (a pause not over yet included).
+  function searchNow() {
+    if (!searchTimer) return;
+    clearTimeout(searchTimer);
+    searchTimer = null;
+    const box = $id('sfp-search');
+    const q = box ? (box.value || '').trim() : view.q;
+    if (q !== view.q) { view.q = q; clearChoice(); }
+  }
+
+  // The first page of path. opts.more: the next PER_PAGE entries added to
+  // the list. opts.again: the same folder read again from its start, as far
+  // as it was shown (at most READ_AGAIN_PAGES pages), keeping the size
+  // counts asked so far; the next "Show more" goes on from there.
   async function load(path, opts) {
     opts = opts || {};
-    // A search still waiting for the pause goes with this request.
-    if (searchTimer) {
-      clearTimeout(searchTimer);
-      searchTimer = null;
-      const box = $id('shared-folder-search');
-      const q = box ? (box.value || '').trim() : view.q;
-      if (q !== view.q) { view.q = q; clearChoice(); }
-    }
+    searchNow();
+    // More of a list read with other conditions (a search typed since, or
+    // one that could not be read) is the new list from its start instead.
+    if (opts.more && state.shown !== viewKey(path)) opts = {};
+    if (opts.more && !hasMore()) return;
     const mine = nextGeneration();
-    if (path !== state.path) closePreview(); // leaving the folder: stop what plays now
-    if (!opts.keep) asked = new Map();
+    // A refresh asks again for the sizes not counted yet; reading again by
+    // itself (sizes in, a move to the Trash) keeps what was asked.
+    if ((!opts.again && !opts.more) || opts.retry) asked = new Map();
     resortDue = false;
     loadingStarted();
+    const pagesNow = opts.again ? Math.max(1, Math.min(state.pages, READ_AGAIN_PAGES)) : 1;
+    const page = opts.more ? state.pages + 1 : 1;
+    const perPage = opts.more ? PER_PAGE : pagesNow * PER_PAGE;
     try {
-      const data = await getJson(query(path, opts.page || 1, view.perPage));
+      const data = await getJson(query(path, page, perPage));
       if (mine !== generation) return;
-      if (data.path !== state.path) { clearChoice(); known = new Map(); closePreview(); }
-      // The keyboard's place and the start of a Shift range are rows; on
-      // another page or order they are found again by path, or dropped.
+      if (data.path !== state.path) { clearChoice(); known = new Map(); }
+      // The keyboard's place and the start of a range are rows; in another
+      // order they are found again by path, or dropped.
       const anchorPath = anchor !== null && state.items[anchor] ? state.items[anchor].path : null;
       const cursorPath = cursor !== null && state.items[cursor] ? state.items[cursor].path : null;
-      drag = null;
-      // A page that is gone now (entries removed elsewhere): the last one.
-      if (data.items.length === 0 && data.matched > 0 && data.page > 1) {
-        const last = Math.max(1, Math.ceil(data.matched / (data.per_page || view.perPage)));
-        if (last < data.page) { load(path, { page: last, keep: opts.keep }); return; }
+      let items = data.items || [];
+      if (opts.more) {
+        const seen = new Set(state.items.map(function (i) { return i.path; }));
+        items = state.items.concat(items.filter(function (i) { return !seen.has(i.path); }));
       }
-      state = { path: data.path, page: data.page, perPage: data.per_page, items: data.items, total: data.total,
-                matched: data.matched === undefined ? data.total : data.matched, truncated: !!data.truncated,
-                rootId: data.root_id || null, rootIdProblem: data.root_id_problem || null,
-                chatRoot: data.chat_root || null };
-      if (opts.keep) {
+      if (opts.again) {
         // A folder already asked about as often as it may be stays shown as
         // not counted yet, as before the list was asked for again.
-        state.items = state.items.map(function (i) {
+        items = items.map(function (i) {
           return i.size_status === 'pending' && (asked.get(i.path) || 0) >= SIZE_POLLS
             ? Object.assign({}, i, { size_status: 'not_counted' }) : i;
         });
       }
+      state = { path: data.path, pages: opts.more ? state.pages + 1 : pagesNow, items: items, total: data.total,
+                matched: data.matched === undefined ? data.total : data.matched, truncated: !!data.truncated,
+                rootId: data.root_id || null, rootIdProblem: data.root_id_problem || null, chatRoot: data.chat_root || null,
+                shown: viewKey(data.path) };
+      shownByPath = new Map(state.items.map(function (i) { return [i.path, i]; }));
       state.items.forEach(function (i) { known.set(i.path, i); });
       const at = function (p) { const n = p === null ? -1 : state.items.findIndex(function (i) { return i.path === p; }); return n < 0 ? null : n; };
       anchor = at(anchorPath);
@@ -1082,23 +958,23 @@
   }
 
   // Folder sizes are counted on the server in the background; ask again,
-  // for the sizes only, while some are still being counted. Each folder is
-  // asked about at most SIZE_POLLS times (a page added later gets its own
-  // turns), and one that is still counting after that is shown as not
-  // counted yet, to be refreshed.
+  // for the sizes only, while some are still being counted and the tab is
+  // shown. Each folder is asked about at most SIZE_POLLS times, and one
+  // that is still counting after that is shown as not counted yet, to be
+  // refreshed.
   function scheduleSizes(mine) {
-    if (!isOpen || mine !== generation) return;
+    if (!visible || mine !== generation) return;
     const waiting = state.items
       .filter(function (i) { return i.size_status === 'pending' && (asked.get(i.path) || 0) < SIZE_POLLS; })
       .sort(function (a, b) { return (asked.get(a.path) || 0) - (asked.get(b.path) || 0); })
       .slice(0, SIZES_PER_ASK)
       .map(function (i) { return i.path; });
     if (waiting.length === 0) {
-      // Every count is in: in size order, the list is asked for again once
-      // so that the order shown is the order of the sizes.
+      // Every count is in: in size order, the list is read again from its
+      // start so that the order shown is the order of the sizes.
       if (resortDue && view.sort === 'size') {
         resortDue = false;
-        load(state.path, { page: state.page, keep: true });
+        load(state.path, { again: true });
       }
       return;
     }
@@ -1113,6 +989,7 @@
           if (size && size.size_status !== i.size_status) resortDue = true;
           const updated = size ? Object.assign({}, i, size) : i;
           known.set(updated.path, updated);
+          shownByPath.set(updated.path, updated);
           return updated;
         });
       } catch (_) {
@@ -1127,34 +1004,25 @@
     }, SIZE_POLL_MS);
   }
 
-  function selectTests() {
-    choiceGeneration += 1;
-    state.items.forEach(function (i) { if (i.classification === 'test_file' && canTrash(i)) selected.add(i.path); });
-    render();
-  }
-
-  // Moves the chosen entries to the system's trash, through the desktop app,
-  // which asks first in a dialog of its own and then asks the server again
-  // for each one. One run at a time; the run keeps the folder it started
-  // in, and the list is asked for again only if that folder is still shown.
-  // What did not move stays chosen, to try again.
+  // ---- moving to the Trash ---------------------------------------------
+  // Through the desktop app, which asks first in a dialog of its own and
+  // then asks the server again for each one. One run at a time; the run
+  // keeps the folder it started in, and the list is read again only if that
+  // folder is still shown. What did not move stays selected, to try again.
+  // The result stays above the list until closed, also if the tab is left.
   let trashing = false;
 
-  async function trashSelected() {
-    if (trashing) return;
-    closePreview(); // what it shows may be moved
-    const paths = Array.from(selected);
-    if (paths.length === 0 || !trashAvailable()) return;
+  async function trashPaths(paths) {
+    if (trashing || paths.length === 0 || !trashAvailable()) return;
     const rootId = state.rootId;
     const startPath = state.path;
-    const wasOpen = isOpen;
+    const startGeneration = generation;
     const moved = [];
     const failed = [];
     let notTried = 0;
     let cancelled = false;
     trashing = true;
-    renderTrashControls();
-    showBusy(true);
+    renderBands();
     try {
       for (let i = 0; i < paths.length; i += TRASH_PER_REQUEST) {
         const chunk = paths.slice(i, i + TRASH_PER_REQUEST);
@@ -1176,41 +1044,30 @@
       }
     } finally {
       trashing = false;
-      showBusy(false);
     }
-    // Said no before anything was moved: the list and the choice stay as they are.
-    if (cancelled && moved.length === 0 && failed.length === 0) { renderTrashControls(); return; }
-    choiceGeneration += 1;
-    moved.forEach(function (p) { selected.delete(p); known.delete(p); });
-    // The list again only while the panel shows the folder the run started in.
-    if (isOpen === wasOpen && state.path === startPath && state.rootId === rootId) {
-      await load(state.path, { page: state.page });
-    } else {
-      renderTrashControls();
+    // Said no before anything was moved: the list and the selection stay as they are.
+    if (cancelled && moved.length === 0 && failed.length === 0) { renderBands(); return; }
+    const sameFolder = state.path === startPath && state.rootId === rootId;
+    if (sameFolder) {
+      choiceGeneration += 1;
+      moved.forEach(function (p) { selected.delete(p); movable.delete(p); known.delete(p); });
     }
     showTrashResult(moved.length, failed, notTried);
+    // The list again only while the tab is shown with the folder the run
+    // started in and nothing else was asked for meanwhile (a folder opened,
+    // a search); otherwise it is read when the tab is shown next.
+    if (sameFolder && visible && generation === startGeneration) await load(state.path, { again: true });
+    else renderBands();
   }
 
-  // While entries are moved (the desktop app's dialog included) the panel
-  // shows a spinner over everything and takes no other action, and it
-  // cannot be closed; the focus goes back to the list afterwards.
-  function showBusy(on) {
-    const box = $id('shared-folder-busy');
-    if (!box) return;
-    box.style.display = on ? '' : 'none';
-    setBackgroundInert(on, 'shared-folder-busy');
-    if (on) {
-      if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur();
-    } else {
-      const list = $id('shared-folder-tbody');
-      if (list && typeof list.focus === 'function') list.focus({ preventScroll: true });
-    }
+  function trashSelected() {
+    return trashPaths(trashTargets());
   }
 
   // The count moved, and every entry that was not, in a list that opens.
   function showTrashResult(movedCount, failed, notTried) {
     if (!failed.length && !notTried) {
-      setStatus('info', [icon('fa-solid fa-check me-1'), t('trashDone', 'Moved to the Trash') + ': ' + movedCount]);
+      setStatus('info', [icon('fa-solid fa-check me-1'), t('trashDone', 'Moved to the Trash') + ': ' + movedCount], true);
       return;
     }
     const summary = t('trashSummary', 'Moved: {moved}, not moved: {failed}, not tried: {notTried}')
@@ -1223,129 +1080,77 @@
       list.style.overflow = 'auto';
       parts.push(el('details', {}, [el('summary', { text: t('trashFailed', 'Not moved to the Trash') + ' (' + failed.length + ')' }), list]));
     }
-    setStatus('warn', parts);
+    setStatus('warn', [el('div', {}, parts)], true);
   }
 
-  async function reveal(item) {
-    try {
-      const result = await window.electronAPI.revealSharedEntry(state.rootId, item.path);
-      if (!result || !result.ok) showError(t('revealFailed', 'Could not show it') + ': ' + ((result && result.error) || ''));
-    } catch (e) {
-      showError(t('revealFailed', 'Could not show it') + ': ' + e.message);
+  // ---- the tab ---------------------------------------------------------
+
+  // The tab is read when it comes into view (not on every layout change:
+  // dragging the border between the columns sends many); what is still on
+  // its way stops while it is hidden.
+  function onLayout() {
+    const lc = window.LayoutController;
+    const now = !!(lc && lc.selectedPane() === 'files' && !lc.isMenuHidden());
+    if (now && !visible) {
+      visible = true;
+      // A search typed before the tab was left is taken as it is now.
+      const box = $id('sfp-search');
+      const q = box ? (box.value || '').trim() : view.q;
+      if (q !== view.q) { view.q = q; clearChoice(); }
+      load(state.path, { again: state.pages > 0 && state.shown === viewKey(state.path) });
+    } else if (!now && visible) {
+      visible = false;
+      clearTimeout(searchTimer);
+      searchTimer = null;
+      if (window.RowMenu) window.RowMenu.close();
+      nextGeneration();
+      loadingEnded();
     }
-  }
-
-  // Opens the window on the top folder, or (from the Shared folder pane)
-  // on opts.path with the name search opts.q and no other filter, so what
-  // it lists is what the pane listed.
-  function open(opts) {
-    const modalEl = $id('sharedFolderModal');
-    if (!modalEl || !window.bootstrap) return;
-    if (window.HistoryPanel) window.HistoryPanel.showPane('files');
-    isOpen = true;
-    bootstrap.Modal.getOrCreateInstance(modalEl).show();
-    if (opts && typeof opts === 'object' && !(typeof Event !== 'undefined' && opts instanceof Event)) {
-      view.q = typeof opts.q === 'string' ? opts.q.trim() : '';
-      view.cls = '';
-      view.age = '';
-      [['shared-folder-search', view.q], ['shared-folder-filter', ''], ['shared-folder-age', '']].forEach(function (pair) {
-        const box = $id(pair[0]);
-        if (box) box.value = pair[1];
-      });
-      clearChoice();
-      load(typeof opts.path === 'string' ? opts.path : '');
-      return;
-    }
-    load('');
-  }
-
-  // The panel shares its window with the chat history; the files are read
-  // when their tab is first shown there.
-  function onPaneShown(e) {
-    const modalEl = $id('sharedFolderModal');
-    if (!e.detail || e.detail.pane !== 'files' || isOpen || !modalEl || !modalEl.classList.contains('show')) return;
-    isOpen = true;
-    load('');
-  }
-
-  function filesShown() {
-    const body = $id('shared-folder-files-body');
-    return !body || body.style.display !== 'none';
   }
 
   let searchTimer = null;
 
   function init() {
-    $on($id('shared-folder-browse'), 'click', open);
     // The box is read when the pause is over, not when a key is typed: with
     // an input method the last event can carry text that is no longer there.
-    const search = $id('shared-folder-search');
+    const search = $id('sfp-search');
     const searchSoon = function (e) {
       clearTimeout(searchTimer);
       searchTimer = null;
       if (e && e.isComposing) return;
       searchTimer = setTimeout(function () {
         searchTimer = null;
-        view.q = (search.value || '').trim();
+        const q = (search.value || '').trim();
+        if (q === view.q) return;
+        view.q = q;
         clearChoice();
         load(state.path);
-      }, 300);
+      }, SEARCH_DELAY);
     };
     $on(search, 'input', searchSoon);
     $on(search, 'compositionend', searchSoon);
     $on(search, 'search', searchSoon); // Esc in the box empties it without an input event
-    $on($id('shared-folder-sort'), 'change', function (e) { view.sort = e.target.value; load(state.path); });
-    $on($id('shared-folder-filter'), 'change', function (e) { view.cls = e.target.value; clearChoice(); load(state.path); });
-    $on($id('shared-folder-age'), 'change', function (e) { view.age = e.target.value; clearChoice(); load(state.path); });
-    $on($id('shared-folder-select-matching'), 'click', selectMatching);
-    $on($id('shared-folder-clear-selection'), 'click', clearSelection);
-    $on($id('shared-folder-up'), 'click', goUp);
-    modalAll('.sf-pager').forEach(function (pager) {
-      $on(pager.querySelector('.sf-prev'), 'click', function () { goToPage((state.page || 1) - 1); });
-      $on(pager.querySelector('.sf-next'), 'click', function () { goToPage((state.page || 1) + 1); });
-    });
-    $on(modalOne('.sf-per-page'), 'change', function (e) {
-      const n = Number(e.target.value);
-      if (PAGE_SIZES.indexOf(n) < 0) return;
-      view.perPage = n;
-      try { window.localStorage.setItem(PAGE_SIZE_KEY, String(n)); } catch (_) { /* no storage here */ }
-      load(state.path);
-    });
-    $on($id('shared-folder-select-all'), 'click', selectAllShown);
-    const filesBox = $id('shared-folder-files-only');
-    if (filesBox) {
-      try { filesBox.checked = window.localStorage.getItem(FILES_ONLY_KEY) === 'true'; } catch (_) { /* no storage here */ }
-      $on(filesBox, 'change', function () {
-        try { window.localStorage.setItem(FILES_ONLY_KEY, String(filesBox.checked)); } catch (_) { /* no storage here */ }
-        renderTrashControls();
+    const order = $id('sfp-sort');
+    if (order) {
+      order.value = view.sort;
+      $on(order, 'change', function () {
+        if (SORTS.indexOf(order.value) < 0) return;
+        view.sort = order.value;
+        try { window.localStorage.setItem(SORT_KEY, view.sort); } catch (_) { /* no storage here */ }
+        load(state.path);
       });
     }
-    $on($id('sharedFolderModal'), 'keydown', onPanelKey);
-    document.addEventListener('monadic:manage-pane', onPaneShown);
-    document.addEventListener('selectionchange', onSelectionChange);
-    // Not closed while entries are being moved.
-    $on($id('sharedFolderModal'), 'hide.bs.modal', function (e) { if (trashing) e.preventDefault(); });
-    $on($id('shared-folder-preview-close'), 'click', closePreview);
-    $on($id('shared-folder-preview-workbench'), 'click', openInWorkbench);
-    $on($id('shared-folder-preview-prev'), 'click', function () { stepPreview(-1); });
-    $on($id('shared-folder-preview-next'), 'click', function () { stepPreview(1); });
-    // A click on the dimmed panel around the preview closes it.
-    $on($id('shared-folder-preview'), 'mousedown', function (e) { if (e.target === e.currentTarget) closePreview(); });
-    $on($id('shared-folder-select-tests'), 'click', selectTests);
-    $on($id('shared-folder-trash'), 'click', function () { if (selected.size) trashSelected(); });
-    $on($id('shared-folder-refresh'), 'click', function () { load(state.path, { page: state.page, keep: true }); });
-    $on($id('shared-folder-tbody'), 'mousedown', onRowDown);
-    $on($id('shared-folder-tbody'), 'mousemove', onRowMove);
-    $on($id('shared-folder-tbody'), 'dblclick', onRowDouble);
-    $on($id('shared-folder-tbody'), 'keydown', onRowKey);
-    document.addEventListener('mouseup', function () { drag = null; });
-    $on($id('sharedFolderModal'), 'hidden.bs.modal', function () {
-      isOpen = false;
-      clearTimeout(searchTimer);
-      searchTimer = null;
-      nextGeneration(); // drops what is still on its way
-      closePreview();
-    });
+    $on($id('sfp-up'), 'click', goUp);
+    $on($id('sfp-refresh'), 'click', function () { load(state.path, { again: state.pages > 0, retry: true }); });
+    $on($id('sfp-more'), 'click', function () { load(state.path, { more: true }); });
+    $on($id('sfp-filter-toggle'), 'click', function (e) { filterPanel(e.currentTarget); });
+    $on($id('sfp-filtering-clear'), 'click', clearFilters);
+    $on($id('sfp-select-menu'), 'click', function (e) { selectMenu(e.currentTarget); });
+    $on($id('sfp-copy'), 'click', function (e) { copyPaths(Array.from(selected), e.currentTarget); });
+    $on($id('sfp-trash'), 'click', trashSelected);
+    $on($id('sfp-clear-selection'), 'click', clearSelection);
+    $on($id('sfp-list'), 'keydown', onListKey);
+    document.addEventListener('layoutchange', onLayout);
   }
 
   if (typeof document !== 'undefined') {
@@ -1353,14 +1158,16 @@
     else init();
   }
 
+  const api = { load: load, workScreenShows: workScreenShows, kindIcon: kindIcon, sizeText: sizeText };
+  if (typeof window !== 'undefined') window.SharedFolderPanel = api;
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { formatBytes: formatBytes, sizeText: sizeText, whatItIs: whatItIs, query: query, sizesQuery: sizesQuery,
-      open: open, load: load, workScreenShows: workScreenShows, goToPage: goToPage, selectMatching: selectMatching, selectTests: selectTests, trashSelected: trashSelected,
-      openPreview: openPreview, closePreview: closePreview, selectAllShown: selectAllShown, clearSelection: clearSelection, goUp: goUp, chatPath: chatPath, copyPath: copyPath,
+    module.exports = Object.assign({}, api, {
+      formatBytes: formatBytes, whatItIs: whatItIs, query: query, sizesQuery: sizesQuery, selectMatching: selectMatching,
+      selectTests: selectTests, selectAllShown: selectAllShown, clearSelection: clearSelection, trashSelected: trashSelected,
+      goUp: goUp, chatPath: chatPath, copyPaths: copyPaths, trashTargets: trashTargets,
       _state: function () { return state; }, _selected: function () { return selected; },
-      _view: function (v) { if (v) view = Object.assign(view, v); return view; } };
-  }
-  if (typeof window !== 'undefined') {
-    window.SharedFolderPanel = { open: open, load: load, workScreenShows: workScreenShows, kindIcon: kindIcon };
+      _view: function (v) { if (v) view = Object.assign(view, v); return view; },
+      _visible: function (v) { visible = v; }
+    });
   }
 })();

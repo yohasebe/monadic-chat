@@ -338,6 +338,18 @@ RSpec.describe 'What the handlers write to the history' do
       expect(store.get(kept[:chat_id])['owner_tab']).to eq(tab_a)
     end
 
+    it 'names the chat asked about when continuing it fails, and only the kind of failure' do
+      kept = chat_session(marker, generation: 1)
+      sync(kept)
+      other_tab = "tab-#{SecureRandom.hex(4)}"
+      here = empty_tab_session(other_tab)
+      allow(host).to receive(:put_history_chat).and_raise(RuntimeError, "words of #{marker}")
+      reply = resume_in(other_tab, here, kept[:chat_id])
+      expect(reply).to eq('type' => 'history_resumed', 'success' => false, 'error' => 'history_failed',
+                          'chat_id' => kept[:chat_id])
+      expect(reply.to_s).not_to include(marker)
+    end
+
     it 'does not take a chat that is not kept, so what runs here goes on' do
       here = empty_tab_session(tab)
       missing = { 'chat_id' => Monadic::Workspace::Ids.generate(:chat) }

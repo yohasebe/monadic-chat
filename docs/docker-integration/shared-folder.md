@@ -82,7 +82,7 @@ The section is collapsed by default; expand it to view the list of variables and
 - **DrawIO Grapher**: Diagram files (`.drawio`) and previews (PNG)
 - **Web Insight**: Web page screenshots (PNG)
 
-Most files are saved at the top of the shared folder, with file names that include a timestamp or an identifier. The [Shared Folder panel](../basic-usage/web-interface.md#shared-folder-panel) shows what each file is and moves the ones you no longer need to the trash.
+Most files are saved at the top of the shared folder, with file names that include a timestamp or an identifier. The [Files tab](../basic-usage/web-interface.md#shared-folder-panel) shows what each file is and moves the ones you no longer need to the trash.
 
 
 ## Monadic Chat Directory Structure

@@ -111,7 +111,9 @@ module WebSocketHelper
     send_chat_to_page(connection, session, restored: true)
     send_to_client(connection, reply.merge('success' => true))
   rescue StandardError => e
-    send_history_error(connection, 'history_resumed', e)
+    # The chat asked about goes with the failure, so the page knows which
+    # request ended.
+    send_history_error(connection, 'history_resumed', e, 'chat_id' => history_chat_id(obj))
   end
 
   # The kept chat in place of the tab's current one. Only what the history
@@ -144,8 +146,9 @@ module WebSocketHelper
   end
 
   # The kind of failure only: the message could carry a conversation's words.
-  private def send_history_error(connection, type, error)
+  # extra: what the reply names besides (the chat a request was about).
+  private def send_history_error(connection, type, error, extra = {})
     Monadic::Utils::ExtraLogger.log { "[History] #{type} failed: #{error.class}" }
-    send_to_client(connection, { 'type' => type, 'success' => false, 'error' => 'history_failed' })
+    send_to_client(connection, { 'type' => type, 'success' => false, 'error' => 'history_failed' }.merge(extra))
   end
 end

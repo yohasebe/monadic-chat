@@ -150,6 +150,41 @@ function isAppUrl(value) {
     return false;
   }
 }
+
+// The policy the app window adds to every response of the app's server.
+const APP_CSP = [
+  "default-src 'self' http://localhost:4567 http://127.0.0.1:4567",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: http://localhost:4567 http://127.0.0.1:4567",
+  "style-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567 https://fonts.googleapis.com",
+  "style-src-elem 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567 https://fonts.googleapis.com",
+  "font-src 'self' data: http://localhost:4567 http://127.0.0.1:4567 https://fonts.gstatic.com",
+  "img-src 'self' data: blob: http://localhost:4567 http://127.0.0.1:4567",
+  "connect-src 'self' ws://localhost:4567 ws://127.0.0.1:4567 http://localhost:4567 http://127.0.0.1:4567 https://paulrosen.github.io",
+  "media-src 'self' data: blob: http://localhost:4567 http://127.0.0.1:4567",
+  "worker-src 'self' blob: http://localhost:4567 http://127.0.0.1:4567",
+  "child-src 'self' blob: http://localhost:4567 http://127.0.0.1:4567",
+  "object-src 'none'"
+].join('; ');
+
+// The headers of a response of the app's server with the app's policy
+// added. A policy the server sent is kept beside it (every policy of a
+// response applies, so a response the server locked down, such as a
+// worker or a file served in a sandbox, stays as the server made it).
+// Other responses are left as they are.
+function withAppPolicy(headers, url) {
+  if (!isAppUrl(url)) return headers;
+  const out = {};
+  const sent = [];
+  Object.keys(headers || {}).forEach((name) => {
+    if (name.toLowerCase() === 'content-security-policy') {
+      [].concat(headers[name]).forEach((value) => { if (value) sent.push(String(value)); });
+    } else {
+      out[name] = headers[name];
+    }
+  });
+  out['Content-Security-Policy'] = [...sent, APP_CSP];
+  return out;
+}
 function openWebViewWindow(url, forceReload = false) {
   if (webviewWindow && !webviewWindow.isDestroyed()) {
     if (forceReload) {
@@ -171,40 +206,17 @@ function openWebViewWindow(url, forceReload = false) {
   // writing the local origin in here would let any page loaded in this
   // window pass as the app.
 
-  // Modify CSP headers to allow localhost resources
+  // The app's policy on every response of the app's server, beside any the
+  // server sent (withAppPolicy).
   customSession.webRequest.onHeadersReceived(
     { urls: ['http://localhost:4567/*', 'http://127.0.0.1:4567/*'] },
     (details, callback) => {
-      const responseHeaders = { ...details.responseHeaders };
-
+      let responseHeaders = details.responseHeaders;
       try {
-        const targetUrl = new URL(details.url);
-        const host = `${targetUrl.hostname}:${targetUrl.port || '80'}`;
-        if (allowedLocalHosts.has(host)) {
-          // Remove restrictive CSP if present and replace with a locked-down localhost policy
-          delete responseHeaders['content-security-policy'];
-          delete responseHeaders['Content-Security-Policy'];
-
-          const csp = [
-            "default-src 'self' http://localhost:4567 http://127.0.0.1:4567",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: http://localhost:4567 http://127.0.0.1:4567",
-            "style-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567 https://fonts.googleapis.com",
-            "style-src-elem 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567 https://fonts.googleapis.com",
-            "font-src 'self' data: http://localhost:4567 http://127.0.0.1:4567 https://fonts.gstatic.com",
-            "img-src 'self' data: blob: http://localhost:4567 http://127.0.0.1:4567",
-            "connect-src 'self' ws://localhost:4567 ws://127.0.0.1:4567 http://localhost:4567 http://127.0.0.1:4567 https://paulrosen.github.io",
-            "media-src 'self' data: blob: http://localhost:4567 http://127.0.0.1:4567",
-            "worker-src 'self' blob: http://localhost:4567 http://127.0.0.1:4567",
-            "child-src 'self' blob: http://localhost:4567 http://127.0.0.1:4567",
-            "object-src 'none'"
-          ].join('; ');
-
-          responseHeaders['Content-Security-Policy'] = [csp];
-        }
+        responseHeaders = withAppPolicy(details.responseHeaders, details.url);
       } catch (e) {
         console.warn('Failed to apply CSP for response', e);
       }
-
       callback({ responseHeaders });
     }
   );

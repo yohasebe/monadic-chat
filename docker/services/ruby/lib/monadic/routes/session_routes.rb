@@ -344,8 +344,6 @@ post "/load" do
           message_obj["artifacts"] = artifacts if artifacts
           looks = Monadic::Workbench::Look::Record.clean(msg["workbench_looks"])
           message_obj["workbench_looks"] = looks if looks
-          shown = Monadic::Workbench::Look::Record.clean(msg["workbench_shown"])
-          message_obj["workbench_shown"] = shown if shown
           message_obj
         end.compact # Remove nil values from invalid messages
 

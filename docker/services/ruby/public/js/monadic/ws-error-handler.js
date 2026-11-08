@@ -15,16 +15,6 @@
  * Resets all streaming state, translates error messages, and restores UI.
  * @param {Object} data - Message data with content (string or object with key/details)
  */
-// Whether the user's message of card showed something from the work screen
-// (its record in the conversation, or on its card).
-function showedFromWorkScreen(card) {
-  const list = window.SessionState && typeof window.SessionState.getMessages === 'function'
-    ? window.SessionState.getMessages() : (Array.isArray(window.messages) ? window.messages : []);
-  const message = list.find((m) => m && m.mid === card.id);
-  if (message && Array.isArray(message.workbench_shown) && message.workbench_shown.length > 0) return true;
-  return !!card.querySelector('.workbench-shown-note');
-}
-
 function handleError(data) {
   // A send refused because an answer is still running: give the text and
   // the attachments back, and leave that answer's display as it is.
@@ -34,10 +24,6 @@ function handleError(data) {
     if (busyMsgEl && pending) busyMsgEl.value = pending.text;
     if (pending && typeof window.restoreImages === 'function') window.restoreImages(pending.images);
     if (pending && typeof window.restoreVideoAttachments === 'function') window.restoreVideoAttachments(pending.attachments);
-    // Not accepted: what it showed comes back too.
-    if (pending && pending.shown && window.Workbench && typeof window.Workbench.restoreShown === 'function') {
-      window.Workbench.restoreShown(pending.shown, data.workbench_shown_ids);
-    }
     window.pendingSend = null;
     setAlert(getTranslation('ui.messages.answerStillRunning', 'The previous answer is still running. Send again when it has finished, or stop it first.'), 'warning');
     return;
@@ -177,16 +163,11 @@ function handleError(data) {
     } else {
       // For non-AI User errors, remove user message that caused error. A
       // message the server did not accept was never shown, so the last
-      // card is an earlier one and stays. A message that showed something
-      // from the work screen stays once accepted, whatever error comes
-      // later: what it showed is the request's, and its record says how
-      // far it went.
-      const pendingShown = window.pendingSend && window.pendingSend.shown;
-      const keptWithShown = !data.not_accepted && !!pendingShown;
+      // card is an earlier one and stays.
       if (!data.not_accepted) {
         const discourseCards = document.querySelectorAll("#discourse .card");
         const lastCard = discourseCards.length > 0 ? discourseCards[discourseCards.length - 1] : null;
-        if (lastCard && lastCard.querySelector(".user-color") && !showedFromWorkScreen(lastCard)) {
+        if (lastCard && lastCard.querySelector(".user-color")) {
           deleteMessage(lastCard.id);
         }
       }
@@ -196,16 +177,9 @@ function handleError(data) {
       const params = window.params || {};
       const pending = window.pendingSend;
       const errMsgEl = $id("message");
-      if (!keptWithShown) {
-        if (errMsgEl) errMsgEl.value = pending ? pending.text : (params["message"] || '');
-        if (pending && typeof window.restoreImages === 'function') window.restoreImages(pending.images);
-        if (pending && typeof window.restoreVideoAttachments === 'function') window.restoreVideoAttachments(pending.attachments);
-      }
-      // What was shown comes back only when the message was not accepted
-      // (once accepted, the message has it).
-      if (pending && pending.shown && data.not_accepted && window.Workbench && typeof window.Workbench.restoreShown === 'function') {
-        window.Workbench.restoreShown(pending.shown, data.workbench_shown_ids);
-      }
+      if (errMsgEl) errMsgEl.value = pending ? pending.text : (params["message"] || '');
+      if (pending && typeof window.restoreImages === 'function') window.restoreImages(pending.images);
+      if (pending && typeof window.restoreVideoAttachments === 'function') window.restoreVideoAttachments(pending.attachments);
       // A sample keeps its role, so the retry is not sent as a user message.
       const errRoleEl = $id("select-role");
       if (pending && pending.role && errRoleEl && errRoleEl.value !== pending.role) {

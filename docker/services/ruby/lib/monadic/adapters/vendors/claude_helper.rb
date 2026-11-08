@@ -953,15 +953,6 @@ module ClaudeHelper
       if (observation = observation_for(session, msg))
         content << { "type" => "text", "text" => observation }
       end
-      # What the user showed from it.
-      workbench_shown_parts(session, msg).each do |part|
-        content << { "type" => "text", "text" => part[:text] }
-        next unless part[:image]
-
-        content << { "type" => "image",
-                     "source" => { "type" => "base64", "media_type" => part[:image].content_type,
-                                   "data" => part[:image].base64 } }
-      end
       { "role" => msg["role"], "content" => content }
     end
 

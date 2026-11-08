@@ -30,13 +30,10 @@ module Monadic
       module_function
 
       # The payload for a chat, or nil when there is nothing to keep yet
-      # (no user message with words, attached files or what the user showed
-      # from the work screen).
+      # (no user message with words or attached files).
       def payload(session)
         messages = Array(value_of(session, :messages)).filter_map { |m| message(m) }
-        return nil unless messages.any? do |m|
-          m['role'] == 'user' && (!m['text'].to_s.strip.empty? || m['attachments'] || m['workbench_shown'])
-        end
+        return nil unless messages.any? { |m| m['role'] == 'user' && (!m['text'].to_s.strip.empty? || m['attachments']) }
 
         data = {
           'format_version' => FORMAT_VERSION,
@@ -85,10 +82,6 @@ module Monadic
         out['artifacts'] = artifacts if artifacts
         looks = Monadic::Workbench::Look::Record.clean(raw['workbench_looks'] || raw[:workbench_looks])
         out['workbench_looks'] = looks if looks
-        # What the user showed: its records only (what it was, how far it
-        # went), never what it gave.
-        shown = Monadic::Workbench::Look::Record.clean(raw['workbench_shown'] || raw[:workbench_shown])
-        out['workbench_shown'] = shown if shown
         out
       end
 

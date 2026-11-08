@@ -44,11 +44,7 @@ module Monadic
 
         Observation = Struct.new(:id, :tool_call_id, :item_id, :kind, :name, :path, :version, :scope, :at, :image,
                                  :result, :caption, :text_chars, :lines, :truncated, :empty, :state, :image_sha256,
-                                 :source, :pages, :parts, :cuts, :stopped, :crop, :origin, keyword_init: true)
-        # Who made an observation: a look the model asked for (tool), or what
-        # the user showed with the message (user; it goes with the user's
-        # message, never after a tool's result).
-        ORIGINS = %w[tool user].freeze
+                                 :source, :pages, :parts, :cuts, :stopped, :crop, keyword_init: true)
 
         @ledgers = {}
         # The image bytes all ledgers hold, reserved before an image is kept
@@ -248,12 +244,11 @@ module Monadic
                     end
             @observations << Observation.new(
               id: id, item_id: seen[:item_id], kind: seen[:kind], name: seen[:name], path: seen[:path],
-              version: seen[:version], scope: seen[:scope], at: seen[:at] || Time.now.utc.iso8601, image: image,
+              version: seen[:version], scope: seen[:scope], at: Time.now.utc.iso8601, image: image,
               result: seen[:result], caption: seen[:caption], text_chars: chars, lines: lines,
               truncated: seen[:truncated], empty: seen[:empty], state: 'acquired',
               image_sha256: image&.sha256, source: image&.source || seen[:source], pages: seen[:pages], parts: seen[:parts],
-              cuts: seen[:cuts].nil? || seen[:cuts].empty? ? nil : seen[:cuts], stopped: seen[:stopped], crop: seen[:crop],
-              origin: seen[:origin] == 'user' ? 'user' : 'tool'
+              cuts: seen[:cuts].nil? || seen[:cuts].empty? ? nil : seen[:cuts], stopped: seen[:stopped], crop: seen[:crop]
             )
             @reserved += bytes
             id
@@ -351,15 +346,9 @@ module Monadic
         # What the reply's message keeps of the looks: what each was (the
         # whole version, the image's own sha256 and where it came from), no
         # bytes and no text.
-        # What the user showed with the message, in the order it was shown.
-        def shown
-          @lock.synchronize { @observations.select { |o| o.origin == 'user' } }
-        end
-
-        # The records of the observations of origin (all when nil).
-        def records(origin: nil)
+        def records
           @lock.synchronize do
-            @observations.select { |o| origin.nil? || o.origin == origin }.map do |o|
+            @observations.map do |o|
               { 'id' => o.id, 'item_id' => o.item_id, 'kind' => o.kind, 'name' => o.name, 'path' => o.path,
                 'version' => o.version, 'image_sha256' => o.image_sha256, 'source' => o.source,
                 'scope' => o.scope, 'at' => o.at, 'lines' => o.lines&.transform_keys(&:to_s),

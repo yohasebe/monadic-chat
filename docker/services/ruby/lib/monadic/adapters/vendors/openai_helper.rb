@@ -720,14 +720,11 @@ module OpenAIHelper
           end
         end
       end
-      # What the work screen shows, after the message's own parts, and
-      # what the user showed from it.
+      # What the work screen shows, after the message's own parts.
       if (observation = observation_for(session, msg))
         message["content"] << { "type" => "text", "text" => observation }
       end
-      chat_message_with_shown(message, workbench_shown_parts(session, msg)) do |image|
-        { "type" => "image_url", "image_url" => { "url" => image.data_url, "detail" => "high" } }
-      end
+      message
     end
 
     # "system" role must be replaced with "developer" for reasoning models.

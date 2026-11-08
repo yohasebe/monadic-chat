@@ -50,10 +50,8 @@
   const removed = new Set();
   // What each message records as made, as last drawn.
   const records = new Map();
-  // What each message records its reply looked at (mid → list), and what
-  // the user showed with it.
+  // What each message records its reply looked at (mid → list).
   const looks = new Map();
-  const shownRecords = new Map();
   // One operation id per removal, so the same removal sent again (a retry,
   // a reconnect) is the same operation on the server.
   const operations = new Map();
@@ -348,11 +346,6 @@
     bar.appendChild(prev);
     bar.appendChild(element('span', 'small text-secondary', `${at + 1} / ${row.length}`));
     bar.appendChild(next);
-    // What the user sees of the item, attached to the message being written.
-    const showButton = button(t('ui.workbench.showButton', 'Show to the assistant'), 'btn-outline-primary ms-auto workbench-show',
-      showToAssistant);
-    showButton.disabled = !showKind(item) || privateChat();
-    bar.appendChild(showButton);
     return bar;
   }
 
@@ -521,34 +514,21 @@
   // One line for each look of the reply: how far it went, what it was
   // (the name, the version, the lines), from the message's record.
   function drawLooks(mid, list) {
-    drawLookLines(mid, list, looks, 'workbench-look-note', null);
-  }
-
-  // The same for what the user showed with the message ("Show to the
-  // assistant"): the message keeps only these records, never what was
-  // shown.
-  function drawShown(mid, list) {
-    drawLookLines(mid, list, shownRecords, 'workbench-shown-note',
-      t('ui.workbench.shownHeading', 'Shown to the assistant from the work screen (the content is not kept):'));
-  }
-
-  function drawLookLines(mid, list, store, noteClass, heading) {
     const card = mid ? $id(mid) : null;
     const text = card ? card.querySelector('.card-text') : null;
     const entries = Array.isArray(list) ? list.filter((e) => e && LOOK_STATES[e.state] && e.name) : [];
-    if (entries.length === 0) store.delete(mid); else store.set(mid, entries);
+    if (entries.length === 0) looks.delete(mid); else looks.set(mid, entries);
     if (!text) return;
-    let el = text.querySelector(`:scope > .${noteClass}`);
+    let el = text.querySelector(':scope > .workbench-look-note');
     if (entries.length === 0) {
       if (el) el.remove();
       return;
     }
     if (!el) {
-      el = element('div', `${noteClass} small text-secondary mt-2`);
+      el = element('div', 'workbench-look-note small text-secondary mt-2');
       text.appendChild(el);
     }
     el.replaceChildren();
-    if (heading) el.appendChild(element('div', 'workbench-shown-heading', heading));
     entries.forEach((entry) => {
       const [key, fallback] = LOOK_STATES[entry.state];
       const line = element('div', 'workbench-look-line');
@@ -673,8 +653,6 @@
     pendingOpen = null;
     letGo(drawnBody);
     drawnBody = null;
-    dropShown();
-    dropShownRecords();
     seen.clear();
     removed.clear();
     operations.clear();
@@ -894,9 +872,6 @@
   // this tab (by its number) and no selection of this page is waiting for
   // the server's answer. Only what was asked for (wants) is given.
   function captureAnswer(data) {
-    // A press of "Show to the assistant" is answered from what was fixed
-    // at the press, never from what the pane shows now.
-    if (data.op) return frozenAnswer(data);
     if (answeredSeq !== selectSeq) return { range: null, note: 'changing' };
     const item = selected ? itemById(selected) : null;
     const version = item ? (item.version || item.sha256 || '') : '';
@@ -932,306 +907,6 @@
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(answer),
       credentials: 'same-origin', cache: 'no-store', redirect: 'error'
     }).catch(() => {});
-  }
-
-  // ---- "Show to the assistant" ---------------------------------------
-
-  // What this page holds of the presses it made: their state (preparing,
-  // ready, refused, expired), what was fixed at the press (answer: values,
-  // not the pane), and once ready the server's id and record. Held for
-  // this chat and connection (era) only.
-  const SHOWN_LIMIT = 8;
-  const SHOWN_CHARS = 24 * 1024 * 1024;
-  const shown = new Map();
-  let era = 0;
-  const FROZEN_FIELDS = {
-    range: ['range', 'note'], image: ['image', 'image_note', 'crop'], selection: ['selection_text', 'selection_cut'],
-    relay: ['relay', 'relay_browser']
-  };
-
-  function privateChat() {
-    const handler = window.WsPrivacyHandler;
-    return !!(handler && typeof handler.isChatPrivate === 'function' && handler.isChatPrivate());
-  }
-
-  // The kind a press of the item shows, or null.
-  function showKind(item) {
-    if (!item) return null;
-    if (item.kind === 'image') return 'image';
-    if (item.kind === 'browser') return liveBrowser(item) ? 'browser' : null;
-    if (item.kind !== 'file') return null;
-    return ['image', 'text', 'pdf'].includes(item.preview) ? item.preview : null;
-  }
-
-  // A press's id: 16 hex digits, random.
-  function newOp() {
-    return window.crypto.randomUUID().replace(/-/g, '').slice(0, 16);
-  }
-
-  // What the press fixes now, for the item of kind: the answer the server
-  // will be given, or null when there is nothing to fix (the browser's
-  // frame is not on the screen).
-  function freeze(item, kind) {
-    if (kind === 'image') return {};
-    if (kind === 'browser') {
-      const frame = window.WorkScreen && typeof window.WorkScreen.drawnFrame === 'function' ? window.WorkScreen.drawnFrame() : null;
-      if (!frame || frame.browser !== item.instance) return null;
-      return { relay: frame.data, relay_browser: frame.browser };
-    }
-    const version = item.version || item.sha256 || '';
-    const asked = { item_id: item.id, version: version, serial: serverSerial, wants: ['range', 'image', 'selection'] };
-    const drawn = drawnBody && drawnBody.key === `${item.id}|${version}` ? drawnBody : null;
-    if (kind === 'pdf' && drawn && drawn.pdf) {
-      const now = rangeNow();
-      if (now && now.range && Number.isInteger(now.range.page)) return pdfAnswer(asked, drawn);
-      return { range: null, note: (now && now.note) || 'unknown' };
-    }
-    const now = rangeNow();
-    if (now && now.range && Number.isInteger(now.range.first_line)) {
-      return { range: { first_line: now.range.first_line, last_line: now.range.last_line }, note: null };
-    }
-    return { range: null, note: (now && now.note) || 'unknown' };
-  }
-
-  function heldChars() {
-    let chars = 0;
-    shown.forEach((entry) => {
-      if (entry.answer) chars += String(entry.answer.image || '').length + String(entry.answer.relay || '').length;
-    });
-    return chars;
-  }
-
-  // The user pressed "Show to the assistant" on the selected item.
-  function showToAssistant() {
-    const item = selected ? itemById(selected) : null;
-    const kind = showKind(item);
-    if (!item || !kind) return;
-    if (privateChat()) {
-      warn(t('ui.workbench.shownPrivate', 'Nothing is shown from the work screen in a Private chat.'));
-      return;
-    }
-    if (answeredSeq !== selectSeq || serverSelected !== selected) {
-      warn(t('ui.workbench.shownChanging', 'The work screen is changing. Try again in a moment.'));
-      return;
-    }
-    const answer = freeze(item, kind);
-    if (!answer) {
-      warn(t('ui.workbench.shownNoFrame', 'The browser is not shown on the work screen.'));
-      return;
-    }
-    const held = Array.from(shown.values()).filter((e) => e.state === 'preparing' || e.state === 'ready');
-    const chars = String(answer.image || '').length + String(answer.relay || '').length;
-    if (held.length >= SHOWN_LIMIT || heldChars() + chars > SHOWN_CHARS) {
-      warn(t('ui.workbench.shownFull', 'This message already shows as much as it can.'));
-      return;
-    }
-    const op = newOp();
-    const version = item.version || item.sha256 || '';
-    shown.set(op, {
-      op: op, item_id: item.id, version: version, serial: serverSerial, kind: kind,
-      name: kind === 'browser' ? t('ui.workbench.browser', 'Browser') : (item.name || item.path || ''),
-      at: new Date(), era: era, chatId: board ? board.chat_id : null, answer: answer, state: 'preparing'
-    });
-    const sent = typeof window.safeWsSend === 'function'
-      ? window.safeWsSend({ message: 'WORKBENCH_SHOW', op_id: op, item_id: item.id, version: version, serial: serverSerial })
-      : null;
-    if (!(sent && sent.sent)) {
-      shown.delete(op);
-      warn(t('ui.workbench.shownNotSent', 'It could not be shown. Try again.'));
-    }
-    drawShownChips();
-  }
-
-  // The answer to a capture for a press: what was fixed then, for the
-  // item, version and selection it was fixed for, of what is asked; or a
-  // failure (never what the pane shows now).
-  function frozenAnswer(data) {
-    const entry = shown.get(data.op);
-    if (!entry || entry.state !== 'preparing' || entry.era !== era || !entry.answer || entry.item_id !== data.item_id ||
-        entry.version !== data.version || entry.serial !== data.serial) {
-      return { range: null, note: 'failed' };
-    }
-    const wants = ['range'].concat(Array.isArray(data.wants) ? data.wants : []);
-    const out = {};
-    wants.forEach((want) => {
-      (FROZEN_FIELDS[want] || []).forEach((field) => {
-        if (entry.answer[field] !== undefined) out[field] = entry.answer[field];
-      });
-    });
-    if (!('range' in out)) out.range = null;
-    return out;
-  }
-
-  // The server's word on a press: ready (with its id and record) or
-  // refused. Only for a press this page still has, being prepared: a press
-  // taken back is not made again by a late word.
-  function onShown(data) {
-    const entry = data && shown.get(data.op_id);
-    if (!entry || entry.state !== 'preparing') return;
-    entry.answer = null;
-    if (data.status === 'ready' && typeof data.snapshot_id === 'string') {
-      entry.state = 'ready';
-      entry.snapshotId = data.snapshot_id;
-      entry.record = data.record || {};
-      entry.expiresAt = Date.now() + Math.max(0, Number(data.expires_in) || 0) * 1000;
-    } else {
-      entry.state = 'refused';
-      entry.reason = data.reason || '';
-      setTimeout(() => {
-        if (shown.get(data.op_id) === entry) {
-          shown.delete(data.op_id);
-          drawShownChips();
-        }
-      }, 4000);
-    }
-    drawShownChips();
-  }
-
-  // The user took a press back (×): the server lets it go too.
-  function removeShown(op) {
-    const entry = shown.get(op);
-    if (!entry) return;
-    if ((entry.state === 'preparing' || entry.state === 'ready') && typeof window.safeWsSend === 'function') {
-      window.safeWsSend({ message: 'WORKBENCH_SHOW_REMOVE', op_id: op }, { silentDrop: true });
-    }
-    shown.delete(op);
-    drawShownChips();
-  }
-
-  // What a message being sent shows: { ids, chips } of what is ready, or
-  // { blocked, message } when something is still being prepared or can no
-  // longer be sent (nothing is left out without a word).
-  function shownForSend() {
-    const now = Date.now();
-    shown.forEach((entry) => {
-      if (entry.state === 'ready' && entry.expiresAt <= now) entry.state = 'expired';
-    });
-    const live = Array.from(shown.values()).filter((e) => e.state !== 'refused');
-    if (live.some((e) => e.state === 'preparing')) {
-      drawShownChips();
-      return { blocked: true, message: t('ui.workbench.shownWait', 'Wait until what you show is ready.') };
-    }
-    if (live.some((e) => e.state === 'expired')) {
-      drawShownChips();
-      return { blocked: true, message: t('ui.workbench.shownExpiredSend', 'Remove what can no longer be shown, or show it again.') };
-    }
-    return {
-      ids: live.map((e) => e.snapshotId),
-      chips: live.map((e) => ({ op: e.op, name: e.name, kind: e.kind, at: e.at, snapshotId: e.snapshotId,
-        expiresAt: e.expiresAt, record: e.record })),
-      era: era, chatId: board ? board.chat_id : null
-    };
-  }
-
-  // The message went with them: the chips leave the input (the server
-  // keeps them with the message; nothing is taken back).
-  function shownSent(ids) {
-    shown.forEach((entry, op) => { if (ids.includes(entry.snapshotId)) shown.delete(op); });
-    drawShownChips();
-  }
-
-  // The message was not accepted: what it showed is back on the input,
-  // in this chat and connection only; those the server named are expired.
-  function restoreShown(pending, expiredIds) {
-    if (!pending || !Array.isArray(pending.chips) || pending.era !== era) return;
-    if (pending.chatId !== (board ? board.chat_id : null)) return;
-    const named = Array.isArray(expiredIds) ? expiredIds : [];
-    const now = Date.now();
-    pending.chips.forEach((chip) => {
-      if (shown.has(chip.op)) return;
-      const expired = named.includes(chip.snapshotId) || chip.expiresAt <= now;
-      shown.set(chip.op, Object.assign({}, chip, { state: expired ? 'expired' : 'ready', era: era, answer: null }));
-    });
-    drawShownChips();
-  }
-
-  // The records of what a message showed, as far as they went: kept with
-  // the message the page holds, and drawn on its card.
-  // A message's records that came before the message did (mid → list),
-  // for this chat: taken when the message comes (shownFor).
-  const settledShown = new Map();
-
-  function sessionMessages() {
-    return window.SessionState && typeof window.SessionState.getMessages === 'function'
-      ? window.SessionState.getMessages() : (Array.isArray(window.messages) ? window.messages : []);
-  }
-
-  function onShownRecords(data) {
-    if (!data || !Array.isArray(data.shown) || !data.mid) return;
-    if (data.chat_id && board && data.chat_id !== board.chat_id) return;
-    const message = sessionMessages().find((m) => m && m.mid === data.mid);
-    if (message) {
-      message.workbench_shown = data.shown;
-    } else {
-      settledShown.set(data.mid, data.shown);
-    }
-    drawShown(data.mid, data.shown);
-  }
-
-  // The records a message coming now keeps: the settled ones that came
-  // before it, or its own (never ones less settled than what came).
-  function shownFor(mid, list) {
-    const settled = settledShown.get(mid);
-    if (settled) {
-      settledShown.delete(mid);
-      return settled;
-    }
-    return Array.isArray(list) ? list : null;
-  }
-
-  const SHOWN_STATES = {
-    preparing: ['shownPreparing', 'Preparing…'],
-    ready: ['shownReady', 'Ready'],
-    refused: ['shownRefused', 'Not shown'],
-    expired: ['shownExpired', 'No longer held — show it again']
-  };
-  const SHOWN_ICONS = { image: 'fa-image', text: 'fa-file-lines', pdf: 'fa-file-pdf', browser: 'fa-globe' };
-
-  // The chips above the message box, one per press.
-  function drawShownChips() {
-    const input = $id('message');
-    const wrapper = input ? input.closest('.message-input-wrapper') : null;
-    if (!wrapper) return;
-    let box = $id('workbench-shown-chips');
-    if (!box) {
-      box = element('div', 'workbench-shown-chips d-flex flex-wrap gap-1 mb-1');
-      box.id = 'workbench-shown-chips';
-      wrapper.parentNode.insertBefore(box, wrapper);
-    }
-    box.replaceChildren();
-    box.hidden = shown.size === 0;
-    shown.forEach((entry, op) => {
-      const chip = element('span', `workbench-shown-chip badge text-bg-light border is-${entry.state}`);
-      chip.appendChild(element('i', `fa-solid ${SHOWN_ICONS[entry.kind] || 'fa-eye'} me-1`));
-      chip.appendChild(element('span', 'workbench-shown-name', entry.name));
-      if (entry.at instanceof Date) {
-        chip.appendChild(element('span', 'workbench-shown-at ms-1 text-secondary', entry.at.toLocaleTimeString()));
-      }
-      const [key, fallback] = SHOWN_STATES[entry.state] || SHOWN_STATES.preparing;
-      let state = t(`ui.workbench.${key}`, fallback);
-      if (entry.state === 'refused' && entry.reason) state += ` (${entry.reason})`;
-      chip.appendChild(element('span', 'workbench-shown-state ms-1 text-secondary', state));
-      const remove = element('button', 'btn-close btn-close-sm ms-1');
-      remove.type = 'button';
-      remove.setAttribute('aria-label', t('ui.workbench.shownRemove', 'Remove'));
-      remove.addEventListener('click', () => removeShown(op));
-      chip.appendChild(remove);
-      box.appendChild(chip);
-    });
-  }
-
-  // The chat or the connection changed: what this page was about to show
-  // goes (the server lets it go too).
-  function dropShown() {
-    era += 1;
-    shown.clear();
-    drawShownChips();
-  }
-
-  // The chat changed: what was kept for its messages goes.
-  function dropShownRecords() {
-    settledShown.clear();
-    shownRecords.clear();
   }
 
   // ---- the user's preference -----------------------------------------
@@ -1431,9 +1106,7 @@
   }
 
   window.Workbench = {
-    onView, onResult, onDownload, onOpened, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
-    textLines, rangeNow, showToAssistant, onShown, removeShown, shownForSend, shownSent, restoreShown, onShownRecords, shownFor,
-    dropShown,
+    onView, onResult, onDownload, onOpened, onSelected, onCapture, drawRecord, drawLooks, select, openFile, step, textLines, rangeNow,
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),
     // Whether the pane shows the browser (the relay runs only then).

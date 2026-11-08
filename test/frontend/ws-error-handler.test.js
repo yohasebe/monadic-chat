@@ -208,51 +208,6 @@ describe('ws-error-handler', () => {
       discourse.innerHTML = '';
     });
 
-    describe('a message that showed something from the work screen', () => {
-      const shownSend = () => ({ text: '', attachments: [], images: [], shown: { ids: ['s'.repeat(22)], chips: [], era: 0, chatId: 'c' } });
-
-      beforeEach(() => { window.Workbench = { restoreShown: jest.fn() }; });
-      afterEach(() => { delete window.Workbench; });
-
-      it('gets what it showed back when it was refused because an answer is still running', () => {
-        window.pendingSend = shownSend();
-        handlers.handleError({ content: 'answer_still_running', not_accepted: true, busy: true });
-        expect(window.Workbench.restoreShown).toHaveBeenCalledWith(expect.objectContaining({ ids: ['s'.repeat(22)] }), undefined);
-      });
-
-      it('gets what it showed back when it was not accepted, with the ids the server named', () => {
-        window.pendingSend = shownSend();
-        handlers.handleError({ content: 'not sent', not_accepted: true, workbench_shown_ids: ['s'.repeat(22)] });
-        expect(window.Workbench.restoreShown).toHaveBeenCalledWith(expect.anything(), ['s'.repeat(22)]);
-      });
-
-      it('stays in the conversation when errors come after it was accepted, and gives nothing back', () => {
-        const discourse = document.getElementById('discourse');
-        discourse.innerHTML = '<div class="card" id="u-shown"><span class="user-color">User</span></div>';
-        const held = window.SessionState;
-        window.SessionState = { getMessages: () => [{ mid: 'u-shown', role: 'user', text: '',
-          workbench_shown: [{ id: 'look_1', name: 'a.txt', kind: 'text', state: 'unsent' }] }] };
-        window.pendingSend = shownSend();
-        document.getElementById('message').value = '';
-        handlers.handleError({ content: 'The provider failed.' });
-        // A later error (an empty voice input) once nothing is pending.
-        handlers.handleError({ content: 'text_input_empty' });
-        expect(global.deleteMessage).not.toHaveBeenCalled();
-        expect(window.Workbench.restoreShown).not.toHaveBeenCalled();
-        window.SessionState = held;
-        discourse.innerHTML = '';
-      });
-
-      it('does not keep another message because what is pending showed something', () => {
-        const discourse = document.getElementById('discourse');
-        discourse.innerHTML = '<div class="card" id="u-plain"><span class="user-color">User</span></div>';
-        window.pendingSend = shownSend();
-        handlers.handleError({ content: 'The provider failed.' });
-        expect(global.deleteMessage).toHaveBeenCalledWith('u-plain');
-        discourse.innerHTML = '';
-      });
-    });
-
     it('restores message value from params for non-AI-User errors', () => {
       window.params = { message: 'my original message' };
       handlers.handleError({ content: 'error' });

@@ -134,10 +134,6 @@ function handlePastMessages(data) {
         if (window.Workbench && typeof window.Workbench.drawLooks === 'function' && Array.isArray(msg.workbench_looks)) {
           window.Workbench.drawLooks(msg.mid, msg.workbench_looks);
         }
-        // What the user showed from the work screen, as the message records it.
-        if (window.Workbench && typeof window.Workbench.drawShown === 'function' && Array.isArray(msg.workbench_shown)) {
-          window.Workbench.drawShown(msg.mid, msg.workbench_shown);
-        }
         break;
       }
       case "assistant": {

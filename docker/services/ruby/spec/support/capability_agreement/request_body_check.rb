@@ -338,8 +338,7 @@ RSpec.describe "Capability note in the request body" do
   # handler with a file open on the workbench and selected in the tab.
   def run_observed_conversation(mod, provider, key, first_reply, second_reply, first_message: "Define it", images: nil,
                                 vision: false, shown_file: ["notes.txt", "one\ntwo\n"], look: false,
-                                takes_images: true, chain: nil, private_after_tool: false, browser: false,
-                                showing: nil)
+                                takes_images: true, chain: nil, private_after_tool: false, browser: false)
     dir = Dir.mktmpdir("observation-body-")
     data = File.join(dir, "data")
     FileUtils.mkdir_p([data, File.join(dir, "state")])
@@ -438,15 +437,11 @@ RSpec.describe "Capability note in the request body" do
       # those (Grok: not streamed).
       send(at.zero? ? first_reply : second_reply, true)
     end
-    # What the user showed from the work screen with the first message
-    # (held for this connection as a press of "Show to the assistant" would).
-    shown_ids = showing&.call(chat, session)
     [[first_message, images, first_turn + [send(second_reply, false)]],
-     ["And the next one", nil, [send(second_reply, false)]]].each_with_index do |(message, sent_images, turn_replies), at|
+     ["And the next one", nil, [send(second_reply, false)]]].each do |message, sent_images, turn_replies|
       replies.push(*turn_replies)
       sent = page.merge("message" => message, "workbench_range" => shown)
       sent["images"] = sent_images if sent_images
-      sent["workbench_shown"] = shown_ids if shown_ids && at.zero?
       thread = host.send(:handle_ws_streaming, nil, sent, session, queue)
       host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
     end
@@ -598,106 +593,6 @@ RSpec.describe "Capability note in the request body" do
       reply = session[:messages].find { |m| m["role"] == "assistant" }
       expect(reply["workbench_looks"]).to match([a_hash_including("kind" => "browser", "source" => "workbench_browser",
                                                                    "name" => "Example page", "state" => "sent")])
-    end
-  end
-
-  # What the user showed with a message goes with that message in each
-  # request of its reply (after another tool too), once, and not with the
-  # next message; the user's message keeps its record; no log holds it.
-  providers.each do |mod, (provider, key, first_reply, second_reply)|
-    it "#{mod.name}: gives the model what the user showed with the message, in each request of its reply" do
-      logs = []
-      allow(Monadic::Utils::ExtraLogger).to receive(:enabled?).and_return(true)
-      allow(Monadic::Utils::ExtraLogger).to receive(:log) { |msg = nil, &blk| logs << (blk ? blk.call : msg).to_s }
-      allow(Monadic::Utils::ExtraLogger).to receive(:log_json) { |label, data| logs << "#{label} #{JSON.generate(data)}" }
-      allow(DebugHelper).to receive(:debug) { |msg, **| logs << msg.to_s }
-      allow(Monadic::Workbench::Look::Availability).to receive(:vision?).and_return(true)
-      words = "SHOWN-TEXT-#{SecureRandom.hex(4)}"
-      showing = lambda do |chat, _session|
-        shown = Monadic::Workbench::Shown
-        op_id = SecureRandom.hex(8)
-        epoch = Monadic::Workspace::Chats.epoch(chat)
-        shown.start(tab: "tab-1", generation: 1, chat_id: chat, epoch: epoch, op_id: op_id)
-        image = Monadic::Workbench::Look::ImageValue.checked(Base64.decode64(pixel), source: "workbench_file")
-        id = "look_#{SecureRandom.hex(8)}"
-        seen = { item_id: "i_1", kind: "image", name: "shown.png", path: "shown.png", version: "a" * 64, image: image,
-                 id: id, scope: "visible", origin: "user",
-                 result: JSON.generate({ "status" => "shown", "observation_id" => id, "text" => words }),
-                 caption: "What the user showed you: #{id}" }
-        [shown.finish(tab: "tab-1", generation: 1, op_id: op_id, seen: seen).snapshot_id]
-      end
-      bodies, session, = run_observed_conversation(mod, provider, key, first_reply, second_reply, vision: true,
-                                                                                                  showing: showing)
-      texts = bodies.map { |b| JSON.generate(b) }
-      expect(texts.size).to eq(3)
-      expect(texts.map { |t| t.scan(pixel[0, 40]).size }).to eq([1, 1, 0])
-      expect(texts.map { |t| t.scan(words).size }).to eq([1, 1, 0])
-      user = session[:messages].find { |m| m["role"] == "user" && m["workbench_shown"] }
-      expect(user["workbench_shown"]).to match([a_hash_including("name" => "shown.png", "state" => "sent")])
-      expect(user["text"]).not_to include(words)
-      expect(session[:parameters]).not_to have_key("workbench_shown")
-      expect(JSON.generate(session[:messages])).not_to include(pixel[0, 40], words)
-      all_logs = logs.join("\n")
-      expect(all_logs).not_to include(pixel[0, 40])
-      expect(all_logs).not_to include(words)
-    end
-  end
-
-  # What the user showed with no words of their own goes to the model all
-  # the same, taken as a press takes it (the page answers from what it fixed
-  # at the press): the lines in view of a text, and the part of a PDF's
-  # page in view with the page's text and the selected text.
-  {
-    "text" => { file: ["notes.txt", "SHOWN-LINE-ONE\nSHOWN-LINE-TWO\n"],
-                answer: { "range" => { "first_line" => 1, "last_line" => 2 }, "note" => nil },
-                expect: %w[SHOWN-LINE-ONE SHOWN-LINE-TWO] },
-    "pdf" => { file: ["paper.pdf", "%PDF-1.4\n%%EOF\n"],
-               answer: { "range" => { "page" => 1, "pages" => 1 }, "note" => nil, "selection_text" => "SHOWN-SELECTED",
-                         "crop" => { "x" => 0, "y" => 0, "width" => 10, "height" => 10, "sent_width" => 1, "sent_height" => 1 } },
-               expect: %w[SHOWN-PAGE-TEXT SHOWN-SELECTED] }
-  }.each do |kind, setup|
-    providers.each do |mod, (provider, key, first_reply, second_reply)|
-      it "#{mod.name}: gives the model the #{kind} the user showed with no words of their own" do
-        allow(Monadic::Workbench::Look::Availability).to receive(:vision?).and_return(true)
-        allow(Monadic::Workbench::PdfText).to receive(:extract).and_return(
-          Monadic::Workbench::PdfText::Pages.new(pages: [{ page: 1, text: "SHOWN-PAGE-TEXT", cut: false }], total_pages: 1,
-                                                 stopped_at: nil)
-        )
-        answer = setup[:answer].dup
-        answer["image"] = pixel if kind == "pdf"
-        capture = Monadic::Workbench::Capture
-        transport = capture.transport
-        capture.transport = lambda do |_tab, _generation, _chat, json|
-          id = JSON.parse(json)["id"]
-          Thread.new { capture.reading(id, 2) { answer } }
-          true
-        end
-        showing = lambda do |chat, session|
-          told = Queue.new
-          item_id, = Monadic::Workbench::Board.for(chat).selection(tab: "tab-1", generation: 1)
-          item = Monadic::Workbench::Board.for(chat).item(item_id)
-          serial = Monadic::Workbench::Board.for(chat).selection(tab: "tab-1", generation: 1).last
-          Monadic::Workbench::Show.press(session: session, tab: "tab-1", generation: 1, op_id: SecureRandom.hex(8),
-                                         item_id: item_id, version: item.dig("file", "sha256"), serial: serial,
-                                         deliver: ->(message) { told << message })
-          [told.pop(timeout: 10).fetch("snapshot_id")]
-        end
-        begin
-          bodies, session, = run_observed_conversation(mod, provider, key, first_reply, second_reply, vision: true,
-                                                                                                      first_message: "",
-                                                                                                      shown_file: setup[:file],
-                                                                                                      showing: showing)
-        ensure
-          capture.transport = transport
-        end
-        first = JSON.generate(bodies.first)
-        setup[:expect].each { |words| expect(first).to include(words) }
-        expect(first.scan(pixel[0, 40]).size).to eq(kind == "pdf" ? 1 : 0)
-        expect(JSON.generate(bodies.last)).not_to include(setup[:expect].first)
-        user = session[:messages].find { |m| m["role"] == "user" && m["workbench_shown"] }
-        expect(user["text"]).to eq("")
-        expect(user["workbench_shown"]).to match([a_hash_including("kind" => kind, "state" => "sent")])
-      end
     end
   end
 

@@ -222,14 +222,6 @@ function handleUser(data) {
   if (Array.isArray(data["content"]["attachments"])) {
     message_obj.attachments = data["content"]["attachments"];
   }
-  // What the user showed, as the message records it (a settled record that
-  // came first is kept).
-  const shownRecords = window.Workbench && typeof window.Workbench.shownFor === 'function'
-    ? window.Workbench.shownFor(data["content"]["mid"], data["content"]["workbench_shown"])
-    : data["content"]["workbench_shown"];
-  if (Array.isArray(shownRecords)) {
-    message_obj.workbench_shown = shownRecords;
-  }
   window.SessionState.addMessage(message_obj);
 
   // Format content for display
@@ -247,10 +239,6 @@ function handleUser(data) {
   }
   if (typeof window.addAttachmentsToCard === 'function') {
     window.addAttachmentsToCard($id(data["content"]["mid"]), data["content"]["attachments"]);
-  }
-  // What the user showed from the work screen, as the message records it.
-  if (window.Workbench && typeof window.Workbench.drawShown === 'function' && Array.isArray(shownRecords)) {
-    window.Workbench.drawShown(data["content"]["mid"], shownRecords);
   }
 
   // Scroll down immediately after showing user message

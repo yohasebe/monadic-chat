@@ -50,8 +50,7 @@ module Monadic
       # What an answer may hold, by what was asked for (wants); anything
       # else is left out.
       FIELDS = {
-        nil => %w[range note], 'image' => %w[image image_note crop], 'selection' => %w[selection_text selection_cut],
-        'relay' => %w[relay relay_browser]
+        nil => %w[range note], 'image' => %w[image image_note crop], 'selection' => %w[selection_text selection_cut]
       }.freeze
 
       @pending = {}
@@ -70,17 +69,13 @@ module Monadic
         # until deadline (monotonic seconds) or WAIT, checking every
         # RECHECK that valid still holds. Returns the answer (a Hash) or
         # raises Failed.
-        # op: the press the page answers for from what it fixed then (Show),
-        # or nil for what it shows now.
-        def request(tab:, generation:, chat_id:, request_id:, item_id:, version:, serial:, wants:, deadline:, valid:,
-                    op: nil)
+        def request(tab:, generation:, chat_id:, request_id:, item_id:, version:, serial:, wants:, deadline:, valid:)
           now = clock
           ends = [deadline, now + WAIT].min
-          limit = wants.intersect?(%w[image relay]) ? IMAGE_LIMIT + BODY_LIMIT : BODY_LIMIT
+          limit = wants.include?('image') ? IMAGE_LIMIT + BODY_LIMIT : BODY_LIMIT
           pending = register(tab, generation, chat_id, request_id, ends, wants, limit)
           payload = { 'type' => 'workbench_capture', 'id' => pending.id, 'item_id' => item_id, 'version' => version,
                       'serial' => serial, 'wants' => wants, 'wait_ms' => ((ends - now) * 1000).floor }
-          payload['op'] = op if op
           unless transport&.call(tab, generation, chat_id, JSON.generate(payload))
             settle(pending, failure: ['connection_gone', "the tab's page could not be asked"])
           end
@@ -243,9 +238,9 @@ module Monadic
 
           fields = FIELDS[nil] + wants.flat_map { |want| FIELDS.fetch(want, []) }
           answer = answer.slice(*fields)
-          images = answer.values_at('image', 'relay').compact
-          return nil unless images.size <= 1 && images.all? { |i| i.is_a?(String) && i.bytesize <= IMAGE_LIMIT }
-          return nil if JSON.generate(answer.except('image', 'relay')).bytesize > BODY_LIMIT
+          image = answer['image']
+          return nil unless image.nil? || (image.is_a?(String) && image.bytesize <= IMAGE_LIMIT)
+          return nil if JSON.generate(answer.except('image')).bytesize > BODY_LIMIT
 
           answer
         rescue JSON::GeneratorError

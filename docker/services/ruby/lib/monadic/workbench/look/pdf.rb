@@ -34,8 +34,7 @@ module Monadic
           answer = Capture.request(tab: caller.tab, generation: caller.generation, chat_id: caller.chat_id,
                                    request_id: caller.request_id, item_id: item['id'],
                                    version: item.dig('file', 'sha256'), serial: selection.serial,
-                                   wants: %w[range image selection], deadline: deadline, valid: valid,
-                                   op: caller.op)
+                                   wants: %w[range image selection], deadline: deadline, valid: valid)
           page, pages = page_of(answer)
           selection_text, selection_cut = selection_of(answer)
           image, image_note, crop = image_of(answer)

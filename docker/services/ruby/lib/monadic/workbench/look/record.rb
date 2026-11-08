@@ -19,7 +19,7 @@ module Monadic
         # Why a PDF's text stops before the pages asked for, when it is not
         # the characters (Look::Pdf): the time ran out.
         STOPPED = %w[time].freeze
-        SOURCES = %w[workbench_image workbench_file workbench_capture workbench_browser workbench_relay].freeze
+        SOURCES = %w[workbench_image workbench_file workbench_capture workbench_browser].freeze
         TEXT_FIELDS = { 'id' => 40, 'item_id' => 40, 'name' => 255, 'path' => 1024, 'at' => 40 }.freeze
         HASH = /\A[0-9a-f]{64}\z/
 

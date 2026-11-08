@@ -524,12 +524,9 @@ module CohereHelper
         messages_containing_img = true
         result = build_cohere_image_message(latest_msg, obj, "user", text_override: current_message, &block)
         return result if result.is_a?(Array) # error response
+        messages << result
       else
-        result = { "role" => "user", "content" => current_message }
-      end
-      # What the user showed from the work screen, after the message's own.
-      messages << chat_message_with_shown(result, workbench_shown_parts(session, current_turn)) do |image|
-        { "type" => "image", "image" => image.data_url }
+        messages << { "role" => "user", "content" => current_message }
       end
     end
 

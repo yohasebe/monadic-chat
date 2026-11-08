@@ -82,7 +82,7 @@ JupyterLab も `/monadic/data` で起動するので、JupyterLab からも共�
 - **DrawIO Grapher**：図のファイル（`.drawio`）とプレビュー（PNG）
 - **Web Insight**：Web ページのスクリーンショット（PNG）
 
-ほとんどのファイルは、タイムスタンプや識別子を含む名前で、共有フォルダのいちばん上に保存されます。[共有フォルダパネル](../basic-usage/web-interface.md#shared-folder-panel)で、各ファイルが何かを確かめ、要らなくなったものをごみ箱に移せます。
+ほとんどのファイルは、タイムスタンプや識別子を含む名前で、共有フォルダのいちばん上に保存されます。[ファイルのタブ](../basic-usage/web-interface.md#shared-folder-panel)で、各ファイルが何かを確かめ、要らなくなったものをごみ箱に移せます。
 
 
 ## Monadic Chat のディレクトリ構造

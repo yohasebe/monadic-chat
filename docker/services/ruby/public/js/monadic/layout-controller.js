@@ -22,8 +22,9 @@
  *     is alone. The width is the CSS variable --side-pane-width on the row,
  *     which the CSS uses only at 768 px and wider.
  *
- * The side column holds three panes, Settings, the work screen and the
- * shared folder (shared-files-pane.js), behind tabs
+ * The side column holds four panes, Settings, the work screen, the shared
+ * folder's files (shared-folder-panel.js) and the kept chats
+ * (history-panel.js, shown while the server keeps them), behind tabs
  * (#side-pane-tabs). The page opens on Settings; the pane the user picks is
  * kept only until the page is loaded again. Which pane is shown is separate
  * from whether the column is shown. Each apply() dispatches "layoutchange"
@@ -34,7 +35,7 @@
 
   var COOKIE_NAME = 'menu-hidden-preference';
   var COOKIE_DAYS = 30;
-  var PANES = ['settings', 'work', 'files'];
+  var PANES = ['settings', 'work', 'files', 'history'];
   var pane = 'settings';
   // The side column's width, in % of the row: the user's (by dragging or
   // with the keys on the border), kept per browser.
@@ -281,7 +282,7 @@
       if (tab) setPane(tab.getAttribute('data-pane'));
     });
     list.addEventListener('keydown', function(e) {
-      var tabs = Array.prototype.slice.call(list.querySelectorAll('[role="tab"]'));
+      var tabs = Array.prototype.slice.call(list.querySelectorAll('[role="tab"]:not([hidden])'));
       var at = tabs.indexOf(document.activeElement);
       if (at === -1) return;
       var next = null;

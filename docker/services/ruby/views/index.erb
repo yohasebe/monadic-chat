@@ -313,11 +313,12 @@
         <div class="container-fluid pt-0 p-3" id="contents">
       <div class="row g-3 mt-0 mb-0 row-no-bottom-margin">
         <div id="menu" class="order-md-2 scrollable">
-          <%# The side column holds three panes; layout-controller.js shows one. %>
+          <%# The side column holds four panes; layout-controller.js shows one. History is shown while the server keeps one. %>
           <div id="side-pane-tabs" class="side-pane-tabs rounded mb-2" role="tablist" aria-label="Side panel" data-i18n-aria-label="ui.sidePane.label">
             <button type="button" id="side-tab-settings" class="side-pane-tab" role="tab" aria-selected="true" aria-controls="settings-pane" data-pane="settings" data-i18n="ui.sidePane.menu">Menu</button>
             <button type="button" id="side-tab-work" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="work-screen-pane" data-pane="work" tabindex="-1"><span data-i18n="ui.sidePane.workScreen">Work screen</span></button>
-            <button type="button" id="side-tab-files" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="shared-files-pane" data-pane="files" tabindex="-1"><span data-i18n="ui.sidePane.files">Shared folder</span></button>
+            <button type="button" id="side-tab-files" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="shared-files-pane" data-pane="files" tabindex="-1"><span data-i18n="ui.sidePane.files">Files</span></button>
+            <button type="button" id="side-tab-history" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="history-pane" data-pane="history" tabindex="-1" hidden><span data-i18n="ui.sidePane.history">History</span></button>
           </div>
           <div id="settings-pane" role="tabpanel" aria-labelledby="side-tab-settings">
           <div id="monadic-info-panel" class="mb-3 rounded shaded-panel overflow-hidden">
@@ -440,26 +441,6 @@
               <div class="mt-2" id="pdf-titles"></div>
             </div>
             </div><!-- end #pdf-panel-body -->
-          </div>
-
-          <!-- The conversation history: shown once the server says it keeps one. -->
-          <div id="history-panel" class="mb-3 rounded shaded-panel overflow-hidden" style="display:none">
-            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#history-panel-body" aria-expanded="true">
-              <span class="text"><i class="fa-solid fa-clock-rotate-left"></i> <span data-i18n="ui.historyPanel.panelTitle">Chat History</span></span>
-            </h5>
-            <div id="history-panel-body" class="collapse show px-3 pb-3">
-              <ul id="history-recent" class="list-unstyled mb-2 history-recent"></ul>
-              <button id="history-browse" type="button" class="btn btn-sm btn-secondary text-nowrap" title="See every kept chat" data-i18n-title="ui.historyPanel.browseHint"><i class="fa-solid fa-table-list"></i> <span data-i18n="ui.historyPanel.browse">See all</span></button>
-            </div>
-          </div>
-
-          <div id="shared-folder-panel" class="mb-3 rounded shaded-panel overflow-hidden">
-            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#shared-folder-panel-body" aria-expanded="true">
-              <span class="text"><i class="fa-regular fa-folder-open"></i> <span data-i18n="ui.sharedFolderPanel.panelTitle">Shared Folder</span></span>
-            </h5>
-            <div id="shared-folder-panel-body" class="collapse show px-3 pb-3">
-              <button id="shared-folder-browse" type="button" class="btn btn-sm btn-secondary text-nowrap" title="See what the shared folder holds" data-i18n-title="ui.sharedFolderPanel.browseHint"><i class="fa-solid fa-table-list"></i> <span data-i18n="ui.sharedFolderPanel.browse">Browse</span></button>
-            </div>
           </div>
 
           <div id="library-panel" class="mb-3 rounded shaded-panel overflow-hidden">
@@ -786,18 +767,53 @@
             </div>
             <div id="workbench-view" class="workbench-view" hidden></div>
           </div>
-          <%# One folder of the shared folder at a time (shared-files-pane.js); the Shared Folder window manages it. %>
+          <%# The shared folder, one folder at a time (shared-folder-panel.js); everything done with it is here. %>
           <div id="shared-files-pane" class="shared-files-pane" role="tabpanel" aria-labelledby="side-tab-files" hidden>
             <div class="sfp-bar mb-2">
-              <button type="button" class="btn btn-sm btn-secondary" id="sfp-up" title="Up one folder" aria-label="Up one folder" data-i18n-title="ui.sharedFilesPane.up" data-i18n-aria-label="ui.sharedFilesPane.up" disabled><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
-              <span id="sfp-where" class="sfp-where" data-i18n="ui.sharedFilesPane.top">Shared folder</span>
-              <button type="button" class="btn btn-sm btn-secondary" id="sfp-refresh" title="Refresh" aria-label="Refresh" data-i18n-title="ui.sharedFilesPane.refresh" data-i18n-aria-label="ui.sharedFilesPane.refresh"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>
-              <button type="button" class="btn btn-sm btn-secondary" id="sfp-all" data-i18n="ui.sharedFilesPane.showAll">Show all</button>
+              <button type="button" class="btn btn-sm btn-secondary" id="sfp-up" title="Up one folder" aria-label="Up one folder" data-i18n-title="ui.sharedFolderPanel.up" data-i18n-aria-label="ui.sharedFolderPanel.up" disabled><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
+              <nav id="sfp-where" class="sfp-where" aria-label="Folder" data-i18n-aria-label="ui.sharedFolderPanel.folderLabel"></nav>
+              <button type="button" class="btn btn-sm btn-secondary" id="sfp-refresh" title="Refresh" aria-label="Refresh" data-i18n-title="ui.sharedFolderPanel.refresh" data-i18n-aria-label="ui.sharedFolderPanel.refresh"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>
             </div>
-            <input type="search" class="form-control form-control-sm mb-2" id="sfp-search" placeholder="Search names" aria-label="Search names" data-i18n-placeholder="ui.sharedFilesPane.search" data-i18n-aria-label="ui.sharedFilesPane.search">
+            <div class="sfp-find mb-2">
+              <input type="search" class="form-control form-control-sm" id="sfp-search" placeholder="Search names" aria-label="Search names" data-i18n-placeholder="ui.sharedFolderPanel.searchPlaceholder" data-i18n-aria-label="ui.sharedFolderPanel.searchPlaceholder">
+              <select class="form-select form-select-sm" id="sfp-sort" aria-label="Order" data-i18n-aria-label="ui.sharedFolderPanel.orderLabel">
+                <option value="name" data-i18n="ui.sharedFolderPanel.sortName">By name</option>
+                <option value="modified" data-i18n="ui.sharedFolderPanel.sortModified">Newest first</option>
+                <option value="size" data-i18n="ui.sharedFolderPanel.sortSize">Largest first</option>
+              </select>
+              <button type="button" class="btn btn-sm btn-secondary" id="sfp-filter-toggle" title="Filter" aria-label="Filter" aria-haspopup="dialog" aria-expanded="false" data-i18n-title="ui.sharedFolderPanel.filterToggle" data-i18n-aria-label="ui.sharedFolderPanel.filterToggle"><i class="fa-solid fa-filter" aria-hidden="true"></i></button>
+              <button type="button" class="btn btn-sm btn-secondary" id="sfp-select-menu" title="Select" aria-label="Select" aria-haspopup="menu" aria-expanded="false" data-i18n-title="ui.sharedFolderPanel.selectMenu" data-i18n-aria-label="ui.sharedFolderPanel.selectMenu"><i class="fa-regular fa-square-check" aria-hidden="true"></i></button>
+            </div>
+            <div id="sfp-filtering" class="sfp-band sfp-filtering mb-2" hidden>
+              <span id="sfp-filtering-text" class="sfp-band-text"></span>
+              <button type="button" class="btn btn-sm btn-secondary" id="sfp-filtering-clear" data-i18n="ui.sharedFolderPanel.clearFiltersShort">Clear</button>
+            </div>
+            <div id="sfp-selection" class="sfp-band sfp-selection mb-2" hidden>
+              <span id="sfp-selection-text" class="sfp-band-text"></span>
+              <button type="button" class="btn btn-sm btn-secondary" id="sfp-copy" title="Copy the paths for a chat" aria-label="Copy the paths for a chat" data-i18n-title="ui.sharedFolderPanel.copyPaths" data-i18n-aria-label="ui.sharedFolderPanel.copyPaths"><i class="fa-regular fa-copy" aria-hidden="true"></i></button>
+              <button type="button" class="btn btn-sm btn-danger" id="sfp-trash" aria-describedby="sfp-trash-why" hidden><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span id="sfp-trash-label"></span></button>
+              <button type="button" class="btn btn-sm btn-secondary" id="sfp-clear-selection" title="Clear selection" aria-label="Clear selection" data-i18n-title="ui.sharedFolderPanel.clearSelection" data-i18n-aria-label="ui.sharedFolderPanel.clearSelection"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+              <span id="sfp-trash-why" class="sfp-band-note" hidden></span>
+            </div>
             <div id="sfp-status" class="sfp-status mb-2" role="status" aria-live="polite" hidden></div>
-            <ul id="sfp-list" class="sfp-list mb-2" aria-label="Files" data-i18n-aria-label="ui.sharedFilesPane.list"></ul>
-            <button type="button" class="btn btn-sm btn-secondary" id="sfp-more" data-i18n="ui.sharedFilesPane.more" hidden>Show more</button>
+            <ul id="sfp-list" class="sfp-list mb-2" tabindex="0" aria-label="Files" data-i18n-aria-label="ui.sharedFolderPanel.listLabel"></ul>
+            <div class="sfp-foot">
+              <span id="sfp-info" class="sfp-info"></span>
+              <button type="button" class="btn btn-sm btn-secondary" id="sfp-more" data-i18n="ui.sharedFolderPanel.more" hidden>Show more</button>
+            </div>
+          </div>
+          <%# The kept chats (history-panel.js). %>
+          <div id="history-pane" class="shared-files-pane history-pane" role="tabpanel" aria-labelledby="side-tab-history" hidden>
+            <div class="sfp-find mb-2">
+              <input type="search" class="form-control form-control-sm" id="history-search" placeholder="Search names and words" aria-label="Search names and words" data-i18n-placeholder="ui.historyPanel.searchPlaceholder" data-i18n-aria-label="ui.historyPanel.searchPlaceholder">
+              <button type="button" class="btn btn-sm btn-secondary" id="history-refresh" title="Refresh" aria-label="Refresh" data-i18n-title="ui.historyPanel.refresh" data-i18n-aria-label="ui.historyPanel.refresh"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>
+            </div>
+            <div id="history-status" class="sfp-status mb-2" role="status" aria-live="polite" hidden></div>
+            <ul id="history-list" class="sfp-list mb-2" aria-label="Chats" data-i18n-aria-label="ui.historyPanel.listLabel"></ul>
+            <div class="sfp-foot">
+              <span id="history-info" class="sfp-info"></span>
+              <button type="button" class="btn btn-sm btn-secondary" id="history-more" data-i18n="ui.historyPanel.more" hidden>Show more</button>
+            </div>
           </div>
         </div>
 
@@ -1342,152 +1358,6 @@
           <div class="modal-footer">
             <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
             <button type="button" id="library-save-confirm" class="btn btn-sm btn-primary text-nowrap"><i class="fas fa-bookmark"></i> <span id="library-save-confirm-text" data-i18n="ui.libSaveButton">Save</span></button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal: the Shared Folder panel -->
-    <div class="modal fade" id="sharedFolderModal" tabindex="-1" aria-labelledby="sharedFolderModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="sharedFolderModalLabel">
-              <span class="manage-title" data-pane="files"><i class="fa-regular fa-folder-open"></i> <span data-i18n="ui.sharedFolderPanel.modalTitle">Shared Folder</span></span>
-              <span class="manage-title" data-pane="chats" style="display:none"><i class="fa-solid fa-clock-rotate-left"></i> <span data-i18n="ui.historyPanel.modalTitle">Chat History</span></span>
-            </h5>
-            <!-- Chats and files in one place; the tabs appear when the history is kept. -->
-            <ul class="nav nav-tabs ms-3 me-auto manage-tabs" id="manage-tabs" role="tablist" style="display:none">
-              <li class="nav-item" role="presentation"><button class="nav-link" type="button" role="tab" id="manage-tab-chats" data-pane="chats" aria-selected="false" aria-controls="history-chats-body" data-i18n="ui.historyPanel.tabChats">Chats</button></li>
-              <li class="nav-item" role="presentation"><button class="nav-link active" type="button" role="tab" id="manage-tab-files" data-pane="files" aria-selected="true" aria-controls="shared-folder-files-body" data-i18n="ui.historyPanel.tabFiles">Files</button></li>
-            </ul>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body" id="history-chats-body" role="tabpanel" aria-labelledby="manage-tab-chats" style="display:none">
-            <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
-              <input type="search" class="form-control form-control-sm" style="max-width: 20rem" id="history-search" placeholder="Search names and words" data-i18n-placeholder="ui.historyPanel.searchPlaceholder" aria-label="Search names and words" data-i18n-aria-label="ui.historyPanel.searchPlaceholder">
-              <span id="history-info" class="small text-secondary me-auto"></span>
-              <button type="button" class="btn btn-sm btn-secondary" id="history-refresh" title="Refresh" data-i18n-title="ui.historyPanel.refresh"><i class="fa-solid fa-rotate"></i></button>
-            </div>
-            <p class="small text-secondary mb-2" data-i18n="ui.historyPanel.note">Chats are kept on this computer, in Monadic Chat's state folder. Private chats are not kept. Removing a chat here removes it from the history only.</p>
-            <!-- One place for what is going on: loading, nothing to show, errors, and questions before an action. -->
-            <div id="history-status" class="sf-status small mb-2" role="status" aria-live="polite" style="display:none"></div>
-            <div class="sf-table-wrap">
-            <table class="table table-sm align-middle sf-table history-table">
-              <thead>
-                <tr>
-                  <th data-i18n="ui.historyPanel.colChat">Chat</th>
-                  <th data-i18n="ui.historyPanel.colApp">App</th>
-                  <th class="text-end" data-i18n="ui.historyPanel.colMessages">Messages</th>
-                  <th data-i18n="ui.historyPanel.colActivity">Last activity</th>
-                  <th><span class="visually-hidden" data-i18n="ui.historyPanel.colActions">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody id="history-tbody"></tbody>
-            </table>
-            </div>
-            <button type="button" class="btn btn-sm btn-secondary mt-2" id="history-more" style="display:none" data-i18n="ui.historyPanel.more">Show more</button>
-          </div>
-          <div class="modal-body" id="shared-folder-files-body" role="tabpanel" aria-labelledby="manage-tab-files">
-            <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
-              <button type="button" class="btn btn-sm btn-secondary" id="shared-folder-up" style="display:none" title="Up one folder" data-i18n-title="ui.sharedFolderPanel.up"><i class="fa-solid fa-arrow-up"></i></button>
-              <div id="shared-folder-path" class="me-auto"></div>
-              <span id="shared-folder-info" class="small text-secondary"></span>
-              <button type="button" class="btn btn-sm btn-secondary" id="shared-folder-refresh" title="Refresh" data-i18n-title="ui.sharedFolderPanel.refresh"><i class="fa-solid fa-rotate"></i></button>
-            </div>
-            <p class="small text-secondary mb-2" data-i18n="ui.sharedFolderPanel.note">What an entry is comes from Monadic Chat's record where it has one, and otherwise only from its name. Sizes of folders are counted in the background.</p>
-            <!-- What is listed: search and filters. -->
-            <div class="sf-band sf-conditions mb-2">
-              <input type="search" class="form-control form-control-sm" style="max-width: 14rem" id="shared-folder-search" placeholder="Search names" data-i18n-placeholder="ui.sharedFolderPanel.searchPlaceholder" aria-label="Search names" data-i18n-aria-label="ui.sharedFolderPanel.searchPlaceholder">
-              <select class="form-select form-select-sm" style="max-width: 12rem" id="shared-folder-sort" aria-label="Order" data-i18n-aria-label="ui.sharedFolderPanel.orderLabel">
-                <option value="name" data-i18n="ui.sharedFolderPanel.sortName">By name</option>
-                <option value="size" data-i18n="ui.sharedFolderPanel.sortSize">Largest first</option>
-                <option value="modified" data-i18n="ui.sharedFolderPanel.sortModified">Newest first</option>
-              </select>
-              <select class="form-select form-select-sm" style="max-width: 16rem" id="shared-folder-filter" aria-label="Kind" data-i18n-aria-label="ui.sharedFolderPanel.kindLabel">
-                <option value="" data-i18n="ui.sharedFolderPanel.filterAll">All items</option>
-                <option value="test_file" data-i18n="ui.sharedFolderPanel.testFile">Made by a test run</option>
-                <option value="test_candidate" data-i18n="ui.sharedFolderPanel.testCandidate">Possibly left by a test run</option>
-                <option value="intermediate_candidate" data-i18n="ui.sharedFolderPanel.intermediate">Possibly a working file</option>
-                <option value="generated" data-i18n="ui.sharedFolderPanel.generated">Generated file</option>
-                <option value="public_copy" data-i18n="ui.sharedFolderPanel.publicCopy">Copy for playback</option>
-                <option value="other" data-i18n="ui.sharedFolderPanel.other">Other</option>
-              </select>
-              <select class="form-select form-select-sm" style="max-width: 13rem" id="shared-folder-age" aria-label="Last modified" data-i18n-aria-label="ui.sharedFolderPanel.ageLabel">
-                <option value="" data-i18n="ui.sharedFolderPanel.ageAll">Modified any time</option>
-                <option value="30" data-i18n="ui.sharedFolderPanel.age30">Not modified in 30 days</option>
-                <option value="90" data-i18n="ui.sharedFolderPanel.age90">Not modified in 90 days</option>
-                <option value="365" data-i18n="ui.sharedFolderPanel.age365">Not modified in 365 days</option>
-              </select>
-            </div>
-            <!-- What to do with the list: selecting and moving to the Trash. The buttons are disabled, never hidden,
-                 when they have nothing to act on, and what is selected is shown in a width of its own, so nothing moves. -->
-            <div class="sf-band sf-actions mb-2" id="shared-folder-actions" style="display:none">
-              <div class="form-check mb-0 text-nowrap" title="Selecting all (shown or on all pages, or Cmd/Ctrl+A) leaves out folders; a folder can still be selected by itself" data-i18n-title="ui.sharedFolderPanel.filesOnlyTitle">
-                <input class="form-check-input" type="checkbox" id="shared-folder-files-only">
-                <label class="form-check-label small" for="shared-folder-files-only" data-i18n="ui.sharedFolderPanel.filesOnly">Skip folders when selecting all</label>
-              </div>
-              <button type="button" class="btn btn-sm btn-primary" id="shared-folder-select-all" aria-pressed="false" data-i18n="ui.sharedFolderPanel.selectAll">Select all shown</button>
-              <button type="button" class="btn btn-sm btn-primary" id="shared-folder-select-matching" data-i18n="ui.sharedFolderPanel.selectMatching">Select on all pages</button>
-              <button type="button" class="btn btn-sm btn-primary" id="shared-folder-select-tests" data-i18n="ui.sharedFolderPanel.selectTests">Select test files</button>
-              <button type="button" class="btn btn-sm btn-danger" id="shared-folder-trash" disabled title="Move to Trash" aria-label="Move to Trash" data-i18n-title="ui.sharedFolderPanel.trashSelected" data-i18n-aria-label="ui.sharedFolderPanel.trashSelected"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
-              <div class="sf-choice-info">
-                <span id="shared-folder-selection" class="small text-secondary text-nowrap" style="visibility:hidden"></span>
-                <button type="button" class="btn btn-sm btn-secondary" id="shared-folder-clear-selection" style="visibility:hidden" title="Clear selection" aria-label="Clear selection" data-i18n-title="ui.sharedFolderPanel.clearSelection" data-i18n-aria-label="ui.sharedFolderPanel.clearSelection"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
-              </div>
-            </div>
-            <!-- One place for what is going on: loading, nothing to show, errors, and what moving to the Trash did. -->
-            <div id="shared-folder-status" class="sf-status small mb-2" role="status" aria-live="polite" style="display:none"></div>
-            <div id="shared-folder-pager-top" class="sf-pager mb-2" style="display:none">
-              <button type="button" class="btn btn-sm btn-secondary sf-prev" title="Previous page" data-i18n-title="ui.sharedFolderPanel.prevPage"><i class="fa-solid fa-chevron-left"></i></button>
-              <span class="small text-secondary sf-page-label"></span>
-              <button type="button" class="btn btn-sm btn-secondary sf-next" title="Next page" data-i18n-title="ui.sharedFolderPanel.nextPage"><i class="fa-solid fa-chevron-right"></i></button>
-              <select class="form-select form-select-sm ms-auto sf-per-page" style="max-width: 9rem" aria-label="Items per page" data-i18n-aria-label="ui.sharedFolderPanel.perPage" data-i18n-title="ui.sharedFolderPanel.perPage" title="Items per page">
-                <option value="100">100</option>
-                <option value="200">200</option>
-                <option value="500">500</option>
-              </select>
-            </div>
-            <div class="sf-table-wrap">
-            <table class="table table-sm align-middle sf-table">
-              <thead>
-                <tr>
-                  <th data-i18n="ui.sharedFolderPanel.colName">Name</th>
-                  <th data-i18n="ui.sharedFolderPanel.colWhat">What it is</th>
-                  <th class="text-end" data-i18n="ui.sharedFolderPanel.colSize">Size</th>
-                  <th data-i18n="ui.sharedFolderPanel.colModified">Modified</th>
-                  <th><span class="visually-hidden" data-i18n="ui.sharedFolderPanel.colActions">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody id="shared-folder-tbody" tabindex="0"></tbody>
-            </table>
-            </div>
-            <div id="shared-folder-pager" class="sf-pager mt-2" style="display:none">
-              <button type="button" class="btn btn-sm btn-secondary sf-prev" title="Previous page" data-i18n-title="ui.sharedFolderPanel.prevPage"><i class="fa-solid fa-chevron-left"></i></button>
-              <span class="small text-secondary sf-page-label"></span>
-              <button type="button" class="btn btn-sm btn-secondary sf-next" title="Next page" data-i18n-title="ui.sharedFolderPanel.nextPage"><i class="fa-solid fa-chevron-right"></i></button>
-            </div>
-          </div>
-          <div id="shared-folder-preview" class="sf-preview-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="shared-folder-preview-name">
-            <div class="sf-preview-card">
-              <div class="d-flex align-items-center gap-2 mb-2">
-                <span id="shared-folder-preview-name" class="small fw-semibold text-break me-auto"></span>
-                <span id="shared-folder-preview-count" class="small text-secondary"></span>
-                <button type="button" class="btn btn-sm btn-primary text-nowrap" id="shared-folder-preview-workbench" style="display:none"><i class="fa-solid fa-table-columns"></i> <span data-i18n="ui.workbench.openInWorkScreen">Open in the work screen</span></button>
-                <button type="button" class="btn-close" id="shared-folder-preview-close" aria-label="Close the preview" data-i18n-aria-label="ui.sharedFolderPanel.previewClose" data-i18n-title="ui.sharedFolderPanel.previewClose" title="Close the preview"></button>
-              </div>
-              <div class="d-flex align-items-center gap-2">
-                <button type="button" class="btn btn-sm btn-secondary" id="shared-folder-preview-prev" title="Previous file" data-i18n-title="ui.sharedFolderPanel.previewPrev"><i class="fa-solid fa-chevron-left"></i></button>
-                <div id="shared-folder-preview-body" class="flex-grow-1 text-center" style="min-width: 0"></div>
-                <button type="button" class="btn btn-sm btn-secondary" id="shared-folder-preview-next" title="Next file" data-i18n-title="ui.sharedFolderPanel.previewNext"><i class="fa-solid fa-chevron-right"></i></button>
-              </div>
-              <div class="small text-secondary mt-2 text-center" data-i18n="ui.sharedFolderPanel.previewKeys">← → to move, Esc to close</div>
-            </div>
-          </div>
-          <div id="shared-folder-busy" class="sf-preview-overlay" style="display:none" role="status" aria-live="polite">
-            <div class="sf-busy-card">
-              <i class="fa-solid fa-spinner fa-spin me-2"></i><span data-i18n="ui.sharedFolderPanel.trashing">Moving to the Trash…</span>
-            </div>
           </div>
         </div>
       </div>

@@ -102,7 +102,7 @@ describe('WorkbenchPdf', () => {
     expect(lib.calls.renders[0]).toMatchObject({ page: 1, annotationMode: lib.AnnotationMode.DISABLE });
     expect(lib.calls.layers[0].container).toBe(box.querySelector('.textLayer'));
     expect(box.querySelector('.textLayer').style.visibility).toBe('');
-    expect(box.querySelector('.workbench-pdf-where').textContent).toBe('1 / 3');
+    expect(box.querySelector('.workbench-pdf-where').textContent).toBe('Page 1 of 3');
     expect(handle.state()).toMatchObject({ page: 1, pages: 3 });
   });
 
@@ -263,6 +263,88 @@ describe('WorkbenchPdf', () => {
     showWith(fakeLibrary({ fails: true }));
     await flush();
     expect(box.textContent).toContain('could not be shown');
+  });
+
+  describe('following the pane\'s width', () => {
+    let watched;
+    let width;
+    beforeEach(() => {
+      watched = [];
+      width = 600;
+      Object.defineProperty(box, 'clientWidth', { configurable: true, get: () => width });
+      global.ResizeObserver = class {
+        constructor(callback) { this.callback = callback; watched.push(this); }
+        observe() {}
+        disconnect() { this.gone = true; }
+      };
+      jest.resetModules();
+      require(js('monadic/workbench-pdf.js'));
+    });
+    afterEach(() => {
+      delete global.ResizeObserver;
+      jest.useRealTimers();
+    });
+    const resized = (to) => { width = to; watched.forEach((w) => w.callback([])); };
+    const settleTimers = async (ms) => { jest.advanceTimersByTime(ms); jest.useRealTimers(); await flush(); };
+
+    test('fits the page shown to the new width once it stays, keeping the page', async () => {
+      const lib = fakeLibrary({ width: 600 });
+      const handle = showWith(lib);
+      await flush();
+      expect(handle.state().scale).toBe(1);
+      box.querySelector('.workbench-pdf-next').click();
+      await flush();
+      jest.useFakeTimers();
+      resized(400);
+      resized(300);
+      jest.advanceTimersByTime(100);
+      expect(lib.calls.renders).toHaveLength(2);
+      await settleTimers(100);
+      expect(lib.calls.renders).toHaveLength(3);
+      expect(handle.state()).toMatchObject({ page: 2, scale: 0.5 });
+    });
+
+    test('keeps the scale the user zoomed to', async () => {
+      const lib = fakeLibrary({ width: 600 });
+      const handle = showWith(lib);
+      await flush();
+      box.querySelector('.workbench-pdf-in').click();
+      await flush();
+      const zoomed = handle.state().scale;
+      jest.useFakeTimers();
+      resized(300);
+      await settleTimers(500);
+      expect(handle.state().scale).toBe(zoomed);
+      expect(lib.calls.renders).toHaveLength(2);
+    });
+
+    test('fits nothing when the pane is hidden before the wait is over', async () => {
+      const lib = fakeLibrary({ width: 600 });
+      showWith(lib);
+      await flush();
+      jest.useFakeTimers();
+      resized(300);
+      jest.advanceTimersByTime(50);
+      resized(0);
+      await settleTimers(500);
+      expect(lib.calls.renders).toHaveLength(1);
+    });
+
+    test('changes nothing for a hidden pane, and stops watching once let go', async () => {
+      const lib = fakeLibrary({ width: 600 });
+      const handle = showWith(lib);
+      await flush();
+      jest.useFakeTimers();
+      resized(0);
+      await settleTimers(500);
+      expect(lib.calls.renders).toHaveLength(1);
+      handle.dispose();
+      expect(watched[0].gone).toBe(true);
+      jest.useFakeTimers();
+      resized(300);
+      await settleTimers(500);
+      expect(lib.calls.renders).toHaveLength(1);
+    });
   });
 });
 

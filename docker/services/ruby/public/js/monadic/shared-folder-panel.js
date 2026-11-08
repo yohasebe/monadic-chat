@@ -69,6 +69,17 @@
     return fallback;
   }
 
+  // The window's own parts (another list on the page uses its own names).
+  function modalAll(selector) {
+    const modal = $id('sharedFolderModal');
+    return modal ? modal.querySelectorAll(selector) : [];
+  }
+
+  function modalOne(selector) {
+    const modal = $id('sharedFolderModal');
+    return modal ? modal.querySelector(selector) : null;
+  }
+
   function el(tag, opts, children) {
     const node = document.createElement(tag);
     if (opts) {
@@ -397,6 +408,14 @@
     tr.appendChild(el('td', { className: 'small text-nowrap', text: item.modified_at ? new Date(item.modified_at).toLocaleString() : '' }));
 
     const actions = el('td', { className: 'text-end text-nowrap' });
+    if (workScreenShows(item)) {
+      const openName = t('openInWorkScreenOf', 'Open {name} in the work screen').replace('{name}', item.name);
+      const open = el('button', { className: 'btn btn-sm btn-secondary me-1', type: 'button', title: openName }, [icon('fa-solid fa-display')]);
+      open.setAttribute('aria-label', openName);
+      open.dataset.action = 'work-screen';
+      open.addEventListener('click', function () { openRowInWorkbench(item); });
+      actions.appendChild(open);
+    }
     if ((item.kind === 'file' || item.kind === 'folder') && state.chatRoot) {
       const copyName = t('copyPathOf', 'Copy the path of {name} to use in a chat').replace('{name}', item.name);
       const copy = el('button', { className: 'btn btn-sm btn-secondary me-1', type: 'button', title: copyName }, [icon('fa-regular fa-copy')]);
@@ -482,7 +501,7 @@
       .replace('{page}', String(page)).replace('{pages}', String(pages))
       .replace('{first}', String(first)).replace('{last}', String(last)).replace('{count}', String(state.matched || 0));
     const shown = state.matched > PAGE_SIZES[0] || pages > 1;
-    document.querySelectorAll('.sf-pager').forEach(function (pager) {
+    modalAll('.sf-pager').forEach(function (pager) {
       pager.style.display = shown ? '' : 'none';
       const label = pager.querySelector('.sf-page-label');
       if (label) label.textContent = text;
@@ -743,6 +762,20 @@
   // The kinds the work screen shows (FileItem::KINDS on the server).
   const WORKBENCH_KINDS = ['image', 'text', 'audio', 'video', 'pdf'];
 
+  // Whether the work screen can show a listed entry (and the page has one).
+  function workScreenShows(item) {
+    return !!(item && item.kind === 'file' && WORKBENCH_KINDS.indexOf(item.preview) >= 0 && window.Workbench);
+  }
+
+  // A file goes to the work screen from a row of the window: the window
+  // closes, and the work screen shows it when the server has it.
+  function openRowInWorkbench(item) {
+    closePreview();
+    const modal = $id('sharedFolderModal');
+    if (modal && window.bootstrap) window.bootstrap.Modal.getOrCreateInstance(modal).hide();
+    window.Workbench.openFile(item.path);
+  }
+
   // The file being previewed goes to the work screen: the preview and the
   // panel close, and the work screen shows it when the server has it.
   function openInWorkbench() {
@@ -940,11 +973,44 @@
     if (table) table.removeAttribute('aria-busy');
   }
 
-  // Nothing listed: an empty folder, or nothing matching the search and filters.
+  // Nothing listed: an empty folder, or nothing matching the search and
+  // filters (then they can be cleared from here).
   function showListState() {
+    markFilters();
     if (state.items.length) { setStatus('info', null); return; }
-    if (state.total > 0) setStatus('info', t('noMatch', 'No items match the search and filters'));
-    else setStatus('info', t('emptyFolder', 'This folder is empty'));
+    if (state.total > 0) {
+      const clear = el('button', { className: 'btn btn-sm btn-secondary ms-2 sf-clear-filters', type: 'button',
+        text: t('clearFilters', 'Clear the search and filters') });
+      clear.addEventListener('click', clearFilters);
+      setStatus('info', [t('noMatch', 'No items match the search and filters'), filtering() ? clear : null]);
+    } else {
+      setStatus('info', t('emptyFolder', 'This folder is empty'));
+    }
+  }
+
+  function filtering() {
+    return !!(view.q || view.cls || view.age);
+  }
+
+  // A kind or an age other than all of them is marked, so a narrowed list
+  // is not taken for the whole folder.
+  function markFilters() {
+    [['shared-folder-filter', view.cls], ['shared-folder-age', view.age]].forEach(function (pair) {
+      const box = $id(pair[0]);
+      if (box) box.classList.toggle('sf-filter-on', !!pair[1]);
+    });
+  }
+
+  function clearFilters() {
+    view.q = '';
+    view.cls = '';
+    view.age = '';
+    [['shared-folder-search', ''], ['shared-folder-filter', ''], ['shared-folder-age', '']].forEach(function (pair) {
+      const box = $id(pair[0]);
+      if (box) box.value = pair[1];
+    });
+    clearChoice();
+    load(state.path);
   }
 
   async function getJson(url) {
@@ -1169,12 +1235,27 @@
     }
   }
 
-  function open() {
+  // Opens the window on the top folder, or (from the Shared folder pane)
+  // on opts.path with the name search opts.q and no other filter, so what
+  // it lists is what the pane listed.
+  function open(opts) {
     const modalEl = $id('sharedFolderModal');
     if (!modalEl || !window.bootstrap) return;
     if (window.HistoryPanel) window.HistoryPanel.showPane('files');
     isOpen = true;
     bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    if (opts && typeof opts === 'object' && !(typeof Event !== 'undefined' && opts instanceof Event)) {
+      view.q = typeof opts.q === 'string' ? opts.q.trim() : '';
+      view.cls = '';
+      view.age = '';
+      [['shared-folder-search', view.q], ['shared-folder-filter', ''], ['shared-folder-age', '']].forEach(function (pair) {
+        const box = $id(pair[0]);
+        if (box) box.value = pair[1];
+      });
+      clearChoice();
+      load(typeof opts.path === 'string' ? opts.path : '');
+      return;
+    }
     load('');
   }
 
@@ -1219,11 +1300,11 @@
     $on($id('shared-folder-select-matching'), 'click', selectMatching);
     $on($id('shared-folder-clear-selection'), 'click', clearSelection);
     $on($id('shared-folder-up'), 'click', goUp);
-    document.querySelectorAll('.sf-pager').forEach(function (pager) {
+    modalAll('.sf-pager').forEach(function (pager) {
       $on(pager.querySelector('.sf-prev'), 'click', function () { goToPage((state.page || 1) - 1); });
       $on(pager.querySelector('.sf-next'), 'click', function () { goToPage((state.page || 1) + 1); });
     });
-    $on(document.querySelector('.sf-per-page'), 'change', function (e) {
+    $on(modalOne('.sf-per-page'), 'change', function (e) {
       const n = Number(e.target.value);
       if (PAGE_SIZES.indexOf(n) < 0) return;
       view.perPage = n;
@@ -1274,10 +1355,12 @@
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = { formatBytes: formatBytes, sizeText: sizeText, whatItIs: whatItIs, query: query, sizesQuery: sizesQuery,
-      open: open, load: load, goToPage: goToPage, selectMatching: selectMatching, selectTests: selectTests, trashSelected: trashSelected,
+      open: open, load: load, workScreenShows: workScreenShows, goToPage: goToPage, selectMatching: selectMatching, selectTests: selectTests, trashSelected: trashSelected,
       openPreview: openPreview, closePreview: closePreview, selectAllShown: selectAllShown, clearSelection: clearSelection, goUp: goUp, chatPath: chatPath, copyPath: copyPath,
       _state: function () { return state; }, _selected: function () { return selected; },
       _view: function (v) { if (v) view = Object.assign(view, v); return view; } };
   }
-  if (typeof window !== 'undefined') window.SharedFolderPanel = { open: open, load: load };
+  if (typeof window !== 'undefined') {
+    window.SharedFolderPanel = { open: open, load: load, workScreenShows: workScreenShows, kindIcon: kindIcon };
+  }
 })();

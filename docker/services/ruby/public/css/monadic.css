@@ -4019,7 +4019,7 @@ img.base64-image,
   background-color: var(--bg-panel);
   border: 1px solid var(--border-secondary);
   border-radius: var(--border-radius-large);
-  padding: 0.5rem 0.75rem;
+  padding: var(--spacing-sm) var(--spacing-md);
 }
 #sharedFolderModal .sf-table thead th {
   position: sticky;
@@ -4051,11 +4051,26 @@ img.base64-image,
   border-top: 1px dashed var(--sf-selected-border);
   border-bottom: 1px dashed var(--sf-selected-border);
 }
-#sharedFolderModal .sf-kind-folder { color: var(--accent-amber); }
-#sharedFolderModal .sf-kind-media { color: var(--accent-blue); }
-#sharedFolderModal .sf-kind-pdf { color: var(--accent-red); }
-#sharedFolderModal .sf-kind-other { color: var(--text-secondary); }
-#sharedFolderModal .modal-content { position: relative; }
+#sharedFolderModal .sf-kind-folder,
+.shared-files-pane .sf-kind-folder { color: var(--accent-amber); }
+#sharedFolderModal .sf-kind-media,
+.shared-files-pane .sf-kind-media { color: var(--accent-blue); }
+#sharedFolderModal .sf-kind-pdf,
+.shared-files-pane .sf-kind-pdf { color: var(--accent-red); }
+#sharedFolderModal .sf-kind-other,
+.shared-files-pane .sf-kind-other { color: var(--text-secondary); }
+#sharedFolderModal .modal-content {
+  position: relative;
+  /* The window keeps its height while the list is narrowed (a short list
+     does not shrink it), within the screen, so its header and footer stay
+     in view and the body scrolls. */
+  min-height: min(70vh, calc(100vh - 2 * var(--bs-modal-margin, 1.75rem)));
+}
+/* A kind or an age other than all of them. */
+#sharedFolderModal .sf-filter-on {
+  border-color: var(--focus-outline);
+  box-shadow: 0 0 0 1px var(--focus-outline);
+}
 #sharedFolderModal .sf-folder-link {
   color: inherit;
   text-decoration: none;
@@ -4069,7 +4084,7 @@ img.base64-image,
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--spacing-sm);
 }
 /* Buttons take the Web UI's categories (grey moves around and acts on a
    row, blue chooses, red moves to the Trash); next to each other they are
@@ -4088,7 +4103,7 @@ img.base64-image,
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem;
+  padding: var(--spacing-xl);
   background-color: rgba(0, 0, 0, 0.45);
   border-radius: inherit;
 }
@@ -4104,7 +4119,7 @@ img.base64-image,
   width: 100%;
   max-height: 100%;
   overflow: auto;
-  padding: 0.75rem 1rem;
+  padding: var(--spacing-md) var(--spacing-lg);
 }
 /* Long names wrap. On a narrow window only the table scrolls sideways
    (there the head of the table no longer stays in view, as the box that
@@ -4127,7 +4142,7 @@ img.base64-image,
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--spacing-sm);
 }
 #sharedFolderModal .sf-conditions .form-control,
 #sharedFolderModal .sf-conditions .form-select {
@@ -4136,7 +4151,7 @@ img.base64-image,
 #sharedFolderModal .sf-choice-info {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--spacing-xs);
   flex: 0 0 15rem;
   min-width: 0;
 }
@@ -4149,7 +4164,7 @@ img.base64-image,
 }
 #sharedFolderModal .sf-status {
   color: var(--text-secondary);
-  padding: 0.25rem 0.5rem;
+  padding: var(--spacing-xs) var(--spacing-sm);
 }
 #sharedFolderModal .sf-status.sf-status-warn {
   color: var(--text-primary);
@@ -4158,7 +4173,7 @@ img.base64-image,
   border-radius: var(--border-radius);
 }
 #sharedFolderModal .sf-busy-card {
-  padding: 0.75rem 1.25rem;
+  padding: var(--spacing-md) 1.25rem;
 }
 
 /* Chat history: the latest chats in the sidebar, and the Chats tab of the
@@ -4169,7 +4184,7 @@ img.base64-image,
   text-align: left;
   background: none;
   border: 0;
-  padding: 0.25rem 0.375rem;
+  padding: var(--spacing-xs) 0.375rem;
   border-radius: var(--border-radius);
   color: var(--text-primary);
 }
@@ -5903,8 +5918,7 @@ i.fas.fa-bolt,
 
 @media (max-width: 767px) {
   /* CRITICAL: Maintain scrollable area on mobile with minimal bottom padding */
-  #main.scrollable,
-  .col-md-8.order-md-1.scrollable {
+  #main.scrollable {
     max-height: calc(100vh - 65px);
     overflow-y: auto;
     padding-bottom: 20px;
@@ -6118,7 +6132,7 @@ i.fas.fa-bolt,
 #config-summary {
   background: var(--bg-hover, #e9ecef);
   background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
-  border: 1px solid var(--border-light, #dee2e6);
+  border: var(--border-width) solid var(--border-light);
   transition: background-color 0.15s ease;
   user-select: none;
   cursor: pointer;
@@ -6762,6 +6776,166 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   text-decoration: none;
 }
 
+/* The two columns side by side (768 px and wider): the side column is
+   --side-pane-width of the row, the same for each of its panes, and the
+   conversation takes the rest; layout-controller.js sets the width from the
+   user's choice (#side-pane-splitter). The side column is never narrower
+   than its three tabs need (24rem) and leaves the conversation at least
+   22rem (--side-pane-basis, also where the border is drawn). Narrower than
+   768 px, the columns take turns at the full width, as Bootstrap's row
+   gives them. min-width: 0 keeps long content (a name, a table, a PDF) from
+   widening a column; it scrolls inside. */
+@media (min-width: 768px) {
+  #contents > .row {
+    --side-pane-width: 40%;
+    --side-pane-basis: min(max(var(--side-pane-width), 24rem), calc(100% - 22rem));
+    position: relative;
+    flex-wrap: nowrap;
+  }
+  #contents > .row > #menu {
+    order: 2;
+    flex: 0 0 var(--side-pane-basis);
+    width: var(--side-pane-basis);
+    max-width: var(--side-pane-basis);
+    min-width: 0;
+  }
+  #contents > .row > #main {
+    order: 1;
+    flex: 1 1 0;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+  }
+  /* The bars at the top of each column stay there while the column scrolls
+     under them; the shadow covers the column's top padding above the bar. */
+  #config-summary,
+  #side-pane-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    box-shadow: 0 -10px 0 var(--bg-body);
+  }
+}
+
+/* The border between the columns, dragged to set the side column's width:
+   in the row (not in a column that scrolls), over the gutter between the
+   columns. Hidden while the side column is, and below 768 px. */
+#side-pane-splitter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: var(--side-pane-basis);
+  width: var(--spacing-sm);
+  transform: translateX(50%);
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 7;
+}
+#side-pane-splitter::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: var(--border-width);
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+#side-pane-splitter:hover::after,
+#side-pane-splitter:focus-visible::after,
+body.side-pane-resizing #side-pane-splitter::after {
+  background: var(--focus-outline);
+  width: 3px;
+  transform: translateX(-1px);
+}
+#side-pane-splitter:focus-visible {
+  outline: none;
+}
+body.side-pane-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+@media (max-width: 767.98px) {
+  #side-pane-splitter {
+    display: none;
+  }
+}
+
+/* The Shared folder pane (shared-files-pane.js): one folder as a list,
+   the same box as the other panels of the side column. */
+.shared-files-pane .sfp-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+.shared-files-pane .sfp-where {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+.shared-files-pane .sfp-status {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+.shared-files-pane .sfp-status.sfp-status-warn {
+  color: var(--status-error);
+}
+.shared-files-pane .sfp-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background: var(--bg-panel);
+  border: var(--border-width) solid var(--border-light);
+  border-radius: var(--border-radius);
+}
+.shared-files-pane .sfp-list:empty {
+  display: none;
+}
+.shared-files-pane .sfp-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-top: var(--border-width) solid var(--border-light);
+}
+.shared-files-pane .sfp-row:first-child {
+  border-top: 0;
+}
+.shared-files-pane .sfp-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs);
+  background: none;
+  border: 0;
+  border-radius: var(--border-radius);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  text-align: left;
+}
+.shared-files-pane .sfp-name:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+.shared-files-pane .sfp-name:focus-visible {
+  outline: 2px solid var(--focus-outline);
+  outline-offset: 1px;
+}
+.shared-files-pane .sfp-name:disabled {
+  color: var(--text-secondary);
+  cursor: default;
+}
+.shared-files-pane .sfp-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Side column tabs: Settings and the work screen (layout-controller.js).
    The strip is the same box as #config-summary beside it (background,
    border, height), so the tops of both columns line up. */
@@ -6780,7 +6954,7 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 .summary-label,
 .side-pane-tab[aria-selected="true"] {
   background: var(--bg-panel);
-  border: var(--border-width) solid var(--border-light, #dee2e6);
+  border: var(--border-width) solid var(--border-light);
   border-radius: var(--border-radius);
   color: var(--text-primary);
   font-weight: 600;
@@ -6795,10 +6969,15 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 .side-pane-tabs {
   gap: var(--spacing-xs);
   background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
-  border: 1px solid var(--border-light, #dee2e6);
+  border: var(--border-width) solid var(--border-light);
 }
 .side-pane-tab {
-  padding: 0 var(--spacing-lg);
+  padding: 0 var(--spacing-md);
+  /* One line; a label longer than the column allows ends in an ellipsis. */
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   background: transparent;
   border: var(--border-width) solid transparent;
   border-radius: var(--border-radius);
@@ -6818,13 +6997,18 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-xs);
+  /* The same strip as the side column's tabs above it. */
+  padding: var(--spacing-xs);
+  background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
+  border: var(--border-width) solid var(--border-light);
+  border-radius: var(--border-radius);
 }
 .workbench-item {
   max-width: 16rem;
-  padding: 2px var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-md);
   text-align: left;
   background: transparent;
-  border: var(--border-width) solid var(--border-light, #dee2e6);
+  border: var(--border-width) solid transparent;
   border-radius: var(--border-radius);
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
@@ -6832,8 +7016,12 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.workbench-item:hover {
+  color: var(--text-primary);
+}
 .workbench-item[aria-selected="true"] {
   background: var(--bg-panel);
+  border-color: var(--border-light);
   color: var(--text-primary);
   font-weight: 600;
 }
@@ -6846,8 +7034,8 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   align-items: center;
 }
 .workbench-item-remove {
-  margin-left: 2px;
-  padding: 0 4px;
+  margin-left: var(--border-width);
+  padding: 0 var(--spacing-xs);
   background: transparent;
   border: 0;
   color: var(--text-secondary);
@@ -6864,7 +7052,7 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   display: block;
   width: 100%;
   height: auto;
-  border: 1px solid var(--border-light, #dee2e6);
+  border: var(--border-width) solid var(--border-light);
 }
 
 .workbench-video {
@@ -6879,7 +7067,7 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 .workbench-text {
   max-height: 70vh;
   overflow: auto;
-  border: 1px solid var(--border-light, #dee2e6);
+  border: var(--border-width) solid var(--border-light);
   border-radius: var(--border-radius);
   background: var(--bg-panel);
 }
@@ -6906,7 +7094,7 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   width: max-content;
   margin: 0 auto;
   background: #fff;
-  box-shadow: 0 0 0 1px var(--border-light, #dee2e6);
+  box-shadow: 0 0 0 1px var(--border-light);
 }
 .workbench-pdf-page canvas {
   display: block;
@@ -6983,5 +7171,5 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   display: block;
   width: 100%;
   height: auto;
-  border: 1px solid var(--border-light, #dee2e6);
+  border: var(--border-width) solid var(--border-light);
 }

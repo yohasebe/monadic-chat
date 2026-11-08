@@ -312,11 +312,12 @@
     <div id="workbench-status" class="visually-hidden" role="status" aria-live="polite"></div>
         <div class="container-fluid pt-0 p-3" id="contents">
       <div class="row g-3 mt-0 mb-0 row-no-bottom-margin">
-        <div id="menu" class="col-md-4 order-md-2 scrollable">
-          <%# The side column holds two panes; layout-controller.js shows one. %>
+        <div id="menu" class="order-md-2 scrollable">
+          <%# The side column holds three panes; layout-controller.js shows one. %>
           <div id="side-pane-tabs" class="side-pane-tabs rounded mb-2" role="tablist" aria-label="Side panel" data-i18n-aria-label="ui.sidePane.label">
             <button type="button" id="side-tab-settings" class="side-pane-tab" role="tab" aria-selected="true" aria-controls="settings-pane" data-pane="settings" data-i18n="ui.sidePane.menu">Menu</button>
             <button type="button" id="side-tab-work" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="work-screen-pane" data-pane="work" tabindex="-1"><span data-i18n="ui.sidePane.workScreen">Work screen</span></button>
+            <button type="button" id="side-tab-files" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="shared-files-pane" data-pane="files" tabindex="-1"><span data-i18n="ui.sidePane.files">Shared folder</span></button>
           </div>
           <div id="settings-pane" role="tabpanel" aria-labelledby="side-tab-settings">
           <div id="monadic-info-panel" class="mb-3 rounded shaded-panel overflow-hidden">
@@ -785,10 +786,24 @@
             </div>
             <div id="workbench-view" class="workbench-view" hidden></div>
           </div>
+          <%# One folder of the shared folder at a time (shared-files-pane.js); the Shared Folder window manages it. %>
+          <div id="shared-files-pane" class="shared-files-pane" role="tabpanel" aria-labelledby="side-tab-files" hidden>
+            <div class="sfp-bar mb-2">
+              <button type="button" class="btn btn-sm btn-secondary" id="sfp-up" title="Up one folder" aria-label="Up one folder" data-i18n-title="ui.sharedFilesPane.up" data-i18n-aria-label="ui.sharedFilesPane.up" disabled><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
+              <span id="sfp-where" class="sfp-where" data-i18n="ui.sharedFilesPane.top">Shared folder</span>
+              <button type="button" class="btn btn-sm btn-secondary" id="sfp-refresh" title="Refresh" aria-label="Refresh" data-i18n-title="ui.sharedFilesPane.refresh" data-i18n-aria-label="ui.sharedFilesPane.refresh"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>
+              <button type="button" class="btn btn-sm btn-secondary" id="sfp-all" data-i18n="ui.sharedFilesPane.showAll">Show all</button>
+            </div>
+            <input type="search" class="form-control form-control-sm mb-2" id="sfp-search" placeholder="Search names" aria-label="Search names" data-i18n-placeholder="ui.sharedFilesPane.search" data-i18n-aria-label="ui.sharedFilesPane.search">
+            <div id="sfp-status" class="sfp-status mb-2" role="status" aria-live="polite" hidden></div>
+            <ul id="sfp-list" class="sfp-list mb-2" aria-label="Files" data-i18n-aria-label="ui.sharedFilesPane.list"></ul>
+            <button type="button" class="btn btn-sm btn-secondary" id="sfp-more" data-i18n="ui.sharedFilesPane.more" hidden>Show more</button>
+          </div>
         </div>
 
-        <div id="main" class="col-md-8 order-md-1 scrollable">
-          <div id="config-wrapper">
+        <%# The border between the columns; layout-controller.js sets the side column's width from it. %>
+        <div id="side-pane-splitter" role="separator" aria-orientation="vertical" aria-controls="menu" tabindex="0" aria-valuemin="25" aria-valuemax="60" aria-valuenow="40" aria-label="Width of the side panel" data-i18n-aria-label="ui.sidePane.resize" hidden></div>
+        <div id="main" class="order-md-1 scrollable">
           <!-- Config Summary Bar: persistent header that mirrors current settings.
                Click to toggle Box A (#config-body) collapse — but only during a
                session: before one starts the settings ARE the screen, so
@@ -797,7 +812,9 @@
                chevron hidden); enterConversationMode() unlocks it and
                enterSettingsMode() re-locks it. aria-expanded must match
                #config-body's initial .show state for the chevron rotation CSS
-               to render correctly on first paint. -->
+               to render correctly on first paint. It sits outside #config-wrapper,
+               directly in the scrolling column, so it stays at the top of the column
+               (sticky) while the settings and the conversation scroll. -->
           <div id="config-summary" class="rounded shaded-panel mb-2 config-summary-locked" data-bs-target="#config-body" aria-expanded="true" aria-controls="config-body">
             <div class="d-flex align-items-center flex-grow-1">
               <span class="summary-label me-3" data-i18n="ui.configSummaryLabel">Current settings</span>
@@ -808,6 +825,7 @@
               <i class="fas fa-chevron-down config-collapse-icon ms-auto"></i>
             </div>
           </div>
+          <div id="config-wrapper">
 
           <div id="config-body" class="collapse show">
           <div id="config" class="rounded p-3 shaded-panel">

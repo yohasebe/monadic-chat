@@ -159,7 +159,8 @@ RSpec.describe Monadic::Shell do
     end
 
     it 'passes the timeout from exec to the command it runs' do
-      expect(described_class).to receive(:capture).with(array_including('docker', 'exec', 'true'), timeout: 5, on_stop: Proc)
+      expect(described_class).to receive(:capture).with(array_including('docker', 'exec', 'true'), timeout: 5, on_stop: Proc,
+                                                                                                  log_as: array_including('docker', 'exec', 'true'))
         .and_return(['', '', double(success?: true)])
       described_class.exec(container: :python, argv: ['true'], timeout: 5)
     end

@@ -2,7 +2,9 @@
 
 # Stands in for the docker CLI in the capability agreement check. Knows three
 # commands for the Python container: the running-state query, `exec ... true`
-# and `exec ... bash -c BODY`. Anything else exits 99 whatever the state.
+# and `exec ... bash -c BODY` (an exec may carry the run's mark,
+# `-e MONADIC_RUN_ID=<32 hex>`, as a run with a time limit does). Anything
+# else exits 99 whatever the state.
 # Every call is logged (one JSON array per line) to MONADIC_TEST_DOCKER_LOG;
 # the spec checks each BODY against the command the reader should send. BODY
 # is never run.
@@ -17,7 +19,12 @@ state = JSON.parse(File.read(ENV.fetch("MONADIC_TEST_DOCKER_STATE")))
 container = state.fetch("container")
 name = "monadic-chat-python-container"
 
-kind = case ARGV
+# The run's mark is taken out before the command is matched.
+args = ARGV.dup
+mark = args.index { |a| a.match?(/\AMONADIC_RUN_ID=\h{32}\z/) }
+args.slice!(mark - 1, 2) if mark && args[mark - 1] == "-e"
+
+kind = case args
        in ["inspect", "-f", "{{.State.Running}}", ^name] then :inspect
        in ["exec", "-w", "/monadic/data", ^name, "true"] then :exec_true
        in ["exec", "-w", "/monadic/data", ^name, "bash", "-c", String] then :exec_bash

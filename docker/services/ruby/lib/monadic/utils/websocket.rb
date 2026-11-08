@@ -207,7 +207,7 @@ module WebSocketHelper
 
       # Send initial load message immediately after connection
       handle_load_message(connection)
-      send_workbench_view(connection, session, only_existing: true)
+      send_workbench_view(connection, session, initial: true)
 
       begin
         while message_data = connection.read

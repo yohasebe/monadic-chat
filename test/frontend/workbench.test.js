@@ -475,6 +475,16 @@ describe('Workbench', () => {
       view([item()], { initial: true, selected: null, board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] } });
       expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
     });
+
+    test('lets a board go when a new connection is in another chat with an empty work screen (the app restarted)', () => {
+      view([item()]);
+      expect(shown()).toBe('i_1');
+      sent.length = 0;
+      view([], { initial: true, selected: null, board: { board_id: null, chat_id: 'c_2', revision: 0, items: [] } });
+      expect(shown()).toBeNull();
+      expect(document.getElementById('workbench-view').hidden).toBe(true);
+      expect(payloads()).toEqual([]);
+    });
   });
   describe('answers and failures', () => {
     const lastSeq = () => sent.filter((x) => x.payload.message === 'WORKBENCH_SELECT').pop().payload.seq;

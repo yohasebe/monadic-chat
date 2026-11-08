@@ -191,7 +191,12 @@ RSpec.describe "Capability note and tools agree" do
 
     it "gave docker only the commands the readers should send" do
       @results["cases"].reject { |c| c["container"] }.each do |c|
-        bodies = c["reader_calls"].map do |argv|
+        bodies = c["reader_calls"].map do |sent|
+          # A reader runs with a time limit, so its run is marked (and can be stopped).
+          argv = sent.dup
+          mark = argv.index { |a| a.start_with?("MONADIC_RUN_ID=") }
+          expect(mark).not_to be_nil
+          argv.slice!(mark - 1, 2)
           expect(argv.first(6)).to eq(["exec", "-w", "/monadic/data", "monadic-chat-python-container", "bash", "-c"])
           argv[6].split("; ").last
         end

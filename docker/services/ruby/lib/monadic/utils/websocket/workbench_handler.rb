@@ -21,15 +21,16 @@ module WebSocketHelper
     WebSocketHelper.send_to_connection(tab, generation, json, chat_id: chat_id)
   end
 
-  # only_existing: nothing is sent for a chat without a board (a page that
-  # has not asked).
-  def send_workbench_view(connection, session, only_existing: false)
+  # initial: the connection's first view (marked so: what it shows is not
+  # new to the user). It is sent also for a chat without a board, so that a
+  # page still showing another chat's board lets it go.
+  def send_workbench_view(connection, session, initial: false)
     tab, generation = workbench_connection(session).values_at(:tab, :generation)
     return unless WORKBENCH_LIVE.call(tab) == generation
 
     view = workbench_timed('view') do
       Monadic::Workbench::Channel.view(session, **workbench_connection(session), live: WORKBENCH_LIVE,
-                                                only_existing: only_existing)
+                                                initial: initial)
     end
     workbench_deliver(connection).call(view) if view
   rescue Monadic::Workbench::Store::Unreadable => e

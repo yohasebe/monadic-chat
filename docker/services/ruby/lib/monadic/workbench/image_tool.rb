@@ -48,9 +48,11 @@ module Monadic
       # last user message, with that message's uploads; images of the
       # shared folder the user named in their message (a name at the top of
       # the shared folder, or a path in it such as an image of a chat
-      # folder); the image that came last on the workbench (read from the
-      # shared folder and checked: one that changed or is gone stops the
-      # edit); the uploads in the last user message. Every image of the chosen kind is found, or the edit stops:
+      # folder); the image the asking tab has selected on the workbench (a
+      # generated one, or an image of the shared folder opened there); the
+      # image that came last on the workbench (read from the shared folder
+      # and checked: one that changed or is gone stops the edit); the
+      # uploads in the last user message. Every image of the chosen kind is found, or the edit stops:
       # nothing else is edited in its place. Names the model passed count
       # only as the user's own words name them. Raises NoSource when there
       # is nothing to edit.
@@ -74,6 +76,9 @@ module Monadic
           return Source.new(images: named, mask: mask)
         end
 
+        selected = selected_image(workbench, mask)
+        return selected if selected
+
         latest = workbench && Board.existing(workbench.chat_id)&.latest_image
         if latest
           raise NoSource, '❌ A mask applies to an uploaded or named image, not to the image in the work screen.' if mask
@@ -89,6 +94,38 @@ module Monadic
         return source if source
 
         raise NoSource, '❌ No image to edit: there is no image in the work screen, and none was uploaded or named.'
+      end
+
+      # The image the caller's tab has selected on the work screen, as the
+      # input of a run (its bytes, read now and checked): a generated image,
+      # or an image of the shared folder opened there. nil when the tab
+      # selects nothing, something that is not an image, or its connection
+      # is gone: the latest image is used then, as before. An image that was
+      # selected and then is gone, changed or no longer selected while it is
+      # read stops the edit: no other image is used in its place.
+      def selected_image(workbench, mask)
+        board = workbench && Board.existing(workbench.chat_id)
+        target = board&.look_target(tab: workbench.tab, generation: workbench.generation)
+        return nil unless target.is_a?(Board::Target)
+
+        item = target.item
+        file_image = item['kind'] == 'file' && item.dig('file', 'preview') == 'image'
+        return nil unless item['artifact'] || file_image
+        raise NoSource, '❌ A mask applies to an uploaded or named image, not to the image in the work screen.' if mask
+
+        input = if item['artifact']
+                  board.image_input(item['id'])
+                else
+                  read = board.file_read(item['id'], sha256: item.dig('file', 'sha256'))
+                  image_input(read[:bytes], item.dig('file', 'path')).merge(id: item['id'], name: item.dig('file', 'name'))
+                end
+        unless board.still_selected?(tab: workbench.tab, generation: workbench.generation, item: item, serial: target.serial)
+          raise NoSource, '❌ The image selected in the work screen changed while it was read: it is not edited.'
+        end
+
+        Source.new(board_input: input)
+      rescue Board::Refused, Artifact::Missing, Artifact::Changed, Artifact::NotAllowed, FileItem::Busy => e
+        raise NoSource, "❌ The image selected in the work screen cannot be edited (#{e.message}): no other image is used in its place."
       end
 
       # The images of a list of uploads, as files of the shared folder, with
@@ -157,7 +194,9 @@ module Monadic
           said = yield JobOutput.out_dir(job), inputs
           return said if JobOutput.files(job).empty?
 
-          derived_from = board_input && { artifact_id: board_input[:artifact_id], sha256: board_input[:sha256] }
+          # An edit of a generated image keeps where it came from; one of a
+          # file of the shared folder does not (as with a named file).
+          derived_from = board_input&.dig(:artifact_id) && { artifact_id: board_input[:artifact_id], sha256: board_input[:sha256] }
           Offer.image(workbench, job, derived_from: derived_from).tap { |offered| offered.notice = notice_in(said) }
         rescue Board::PlacedOnly => e
           # Not a failed generation: the image is in the shared folder.

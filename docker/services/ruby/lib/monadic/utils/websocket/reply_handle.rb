@@ -274,10 +274,22 @@ module WebSocketHelper
       # Cancels the answer and stops what it runs, without waiting.
       def cancel(handle)
         thread, children = handle.cancel!
+        # The stop is known from now on to whatever next builds a request
+        # for the chat (a new connection of the tab too), before the worker
+        # has ended; a failure to note it never keeps the answer running.
+        note_stopped(handle)
         thread&.kill
         Monadic::Workbench::Capture.revoke_request(handle.request_id) if defined?(Monadic::Workbench::Capture)
         children.each { |child| stop_child(child) }
         nil
+      end
+
+      def note_stopped(handle)
+        return unless handle.cancelled? && defined?(Monadic::Workspace::StoppedReplies)
+
+        Monadic::Workspace::StoppedReplies.record(handle.chat_id, handle.request_id)
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[Reply] the stop was not noted: #{e.class}" }
       end
 
       # Cancels the answer and waits until it has ended: what comes next in

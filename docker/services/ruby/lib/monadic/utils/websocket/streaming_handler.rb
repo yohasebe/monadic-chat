@@ -306,6 +306,11 @@ module WebSocketHelper
     chat_at_start = session[Monadic::Workspace::Chats::SESSION_KEY]
     chat_changed = -> { session[Monadic::Workspace::Chats::SESSION_KEY] != chat_at_start }
 
+    # Replies of this chat stopped before (also for another connection of
+    # the tab) are marked on their messages before anything is built from
+    # them; they are kept with the chat as it is next saved.
+    Monadic::Workspace::StoppedReplies.apply!(session)
+
     # Words the user marked for the Privacy Filter are taken out of the
     # message (and kept for the chat) before it is recorded or sent; a
     # message that cannot be sent masked is not sent at all.
@@ -886,6 +891,10 @@ module WebSocketHelper
       # the end is given whole.
       Thread.handle_interrupt(Object => :never) do
         if handle.worker_owns_end!
+          # A stopped reply (noted when it was stopped): its message is
+          # marked in this connection's chat and saved if the connection is
+          # still the tab's; a failure here never keeps the end from coming.
+          ending_step("stopped") { mark_stopped_turn(session, ws_session_id) } if handle.cancelled?
           finish_reply(request_id, "no_reply", ws_session_id)
           handle.end!
         end
@@ -933,6 +942,12 @@ module WebSocketHelper
   # answer was cancelled meanwhile. A thread takes the interrupt mask of the
   # one that makes it, so the starter lifts it: the speech it makes can be
   # stopped.
+  private def mark_stopped_turn(session, ws_session_id)
+    return unless Monadic::Workspace::StoppedReplies.apply!(session)
+
+    saved_as(session, ws_session_id) { sync_session_state! }
+  end
+
   private def start_reply_speech(handle)
     Thread.handle_interrupt(Object => :never) do
       gate = Queue.new

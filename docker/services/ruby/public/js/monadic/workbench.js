@@ -574,7 +574,13 @@
         ['selection', 'lookSelection', 'selected text']].forEach(([part, key, fallback]) => {
         if (parts[part] === true) details.push(t(`ui.workbench.${key}`, fallback));
       });
-      if (entry.truncated || (lines && lines.partial)) details.push(t('ui.workbench.lookCut', 'cut short'));
+      // A PDF's text that stops because the time ran out says so; any other
+      // cut is "cut short".
+      if (entry.kind === 'pdf' && entry.stopped === 'time') {
+        details.push(t('ui.workbench.lookStoppedTime', 'stopped: out of time'));
+      } else if (entry.truncated || (lines && lines.partial)) {
+        details.push(t('ui.workbench.lookCut', 'cut short'));
+      }
       if (entry.empty) {
         details.push(entry.kind === 'pdf' ? t('ui.workbench.lookNoText', 'no text extracted') : t('ui.workbench.lookEmpty', 'empty'));
       }

@@ -408,6 +408,9 @@ module Monadic
         if seen[:parts]['page_text'] == true
           out['page_text'] = seen[:text]
           out['page_text_cut'] = true if seen[:cuts].to_a.include?('page_text')
+          # The time ran out after the pages given (pages.last); the rest
+          # was not read.
+          out['page_text_stopped'] = seen[:stopped] if seen[:stopped]
         end
         out['empty'] = true if seen[:empty]
         out['truncated'] = seen[:truncated]

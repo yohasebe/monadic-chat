@@ -37,6 +37,9 @@ RSpec.describe Monadic::Workbench::PdfText do
         case "$mode" in
           ok) cat "$FAKE_DIR/out" ;;
           slow) sleep 30 ;;
+          partial) cat "$FAKE_DIR/out"; sleep 30 ;;
+          exit124) cat "$FAKE_DIR/out"; exit 124 ;;
+          exit137) cat "$FAKE_DIR/out"; exit 137 ;;
           flood) yes aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ;;
           down) echo "Error response from daemon: container monadic-chat-python-container is not running" >&2; exit 1 ;;
           fail) echo "Error: ValueError" >&2; exit 1 ;;
@@ -60,7 +63,11 @@ RSpec.describe Monadic::Workbench::PdfText do
     File.write(File.join(@dir, "out"), out.to_s)
   end
 
-  def lines(*objects)
+  # The lines a run writes: the number of pages first (that of the last
+  # line, or total), unless the first object is that line already.
+  def lines(*objects, total: nil)
+    total ||= objects.find { |o| o.key?(:done) }&.dig(:total_pages)
+    objects = [{ total_pages: total }, *objects] if total && objects.first&.keys != [:total_pages]
     objects.map { |o| JSON.generate(o) }.join("\n") + "\n"
   end
 
@@ -80,7 +87,7 @@ RSpec.describe Monadic::Workbench::PdfText do
     expect(got.total_pages).to eq(9)
     expect(File.binread(File.join(@dir, "stdin"))).to eq("%PDF-1.4 bytes")
     run = calls.first
-    expect(run).to include("exec -i", "MONADIC_RUN_ID=", "monadic-chat-python-container", "timeout -s KILL 15 python3",
+    expect(run).to include("exec -i", "MONADIC_RUN_ID=", "monadic-chat-python-container", "timeout -k 2 15 python3",
                            "--stdin --first-page 2 --last-page 3 --max-chars 64000 --max-memory-mb 768")
     expect(run).not_to include("%PDF")
     expect(pdf_text.busy).to eq([0, 0])
@@ -199,6 +206,7 @@ RSpec.describe Monadic::Workbench::PdfText do
   end
 
   {
+    "no line with the number of pages" => JSON.generate({ done: true, total_pages: 1, stopped_at: nil }),
     "a last line that is true" => "true",
     "a last line that is null" => "null",
     "a last line that is a number" => "3",
@@ -210,6 +218,7 @@ RSpec.describe Monadic::Workbench::PdfText do
                                    JSON.generate({ done: true, total_pages: 1, stopped_at: nil })
   }.each do |what, out|
     it "takes nothing when what came back has #{what}" do
+      out = "#{JSON.generate({ total_pages: 1 })}\n#{out}" unless what.start_with?("no line")
       runs("ok", "#{out}\n")
       expect { pdf_text.extract("%PDF", first: 1, last: 1, deadline: soon) }
         .to raise_error(described_class::Unavailable) { |e| expect(e.reason).to eq("pdf_text_unavailable") }
@@ -221,7 +230,12 @@ RSpec.describe Monadic::Workbench::PdfText do
                          { done: true, total_pages: 3, stopped_at: nil }],
     "pages out of order" => [{ page: 2, text: "b", cut: false }, { page: 1, text: "a", cut: false },
                              { done: true, total_pages: 2, stopped_at: nil }],
-    "no last line" => [{ page: 1, text: "a", cut: false }, { page: 2, text: "b", cut: false }],
+    "no last line" => [{ total_pages: 2 }, { page: 1, text: "a", cut: false }, { page: 2, text: "b", cut: false }],
+    "two lines with the number of pages" => [{ total_pages: 2 }, { total_pages: 2 }, { page: 1, text: "a", cut: false },
+                                             { done: true, total_pages: 2, stopped_at: nil }],
+    "another number of pages at the end" => [{ total_pages: 3 }, { page: 1, text: "a", cut: false },
+                                             { done: true, total_pages: 2, stopped_at: nil }],
+    "a key it does not know" => [{ page: 1, text: "a", cut: false, more: 1 }, { done: true, total_pages: 1, stopped_at: nil }],
     "more after the last line" => [{ page: 1, text: "a", cut: false }, { done: true, total_pages: 1, stopped_at: nil },
                                    { page: 2, text: "b", cut: false }],
     "a text that is not text" => [{ page: 1, text: 5, cut: false }, { done: true, total_pages: 1, stopped_at: nil }],
@@ -293,5 +307,78 @@ RSpec.describe Monadic::Workbench::PdfText do
     expect(reading).not_to be_alive
     expect(File.read(File.join(@dir, "calls"))).to match(/exec monadic-chat-python-container sh -c /)
     expect(pdf_text.busy).to eq([0, 0])
+  end
+
+  describe "a run out of time" do
+    let(:page) { ->(n, text = "p#{n}", cut = false) { { page: n, text: text, cut: cut } } }
+
+    it "gives the whole pages written before the deadline, and says the time ran out" do
+      # The last line is cut in the middle of a character.
+      written = lines(page[1], page[2, "€"], total: 9).b + JSON.generate(page[3, "€€"]).b[0, 20]
+      runs("partial", written)
+      got = pdf_text.extract("%PDF", first: 1, last: 5, deadline: soon(0.5))
+      expect(got.pages.map { |p| p[:page] }).to eq([1, 2])
+      expect(got.pages.last[:text]).to eq("€")
+      expect(got).to have_attributes(total_pages: 9, stopped_at: 3, timed_out: true)
+      expect(pdf_text.busy).to eq([0, 0])
+    end
+
+    it "takes the watchdog's status in the container as out of time" do
+      runs("exit124", lines(page[1], total: 4))
+      expect(pdf_text.extract("%PDF", first: 1, last: 4, deadline: soon))
+        .to have_attributes(stopped_at: 2, timed_out: true)
+    end
+
+    it "takes any other end, as a kill, as no text whatever it wrote" do
+      runs("exit137", lines(page[1], { done: true, total_pages: 1, stopped_at: nil }))
+      expect { pdf_text.extract("%PDF", first: 1, last: 1, deadline: soon) }
+        .to raise_error(described_class::Unavailable, /could not be read/)
+    end
+
+    it "gives no text when no page was written in time" do
+      runs("exit124", lines(total: 4))
+      expect { pdf_text.extract("%PDF", first: 1, last: 4, deadline: soon) }
+        .to raise_error(described_class::Unavailable, /too long/)
+    end
+
+    it "gives every page asked for as a whole run does, keeping the last page's cut" do
+      runs("exit124", lines(page[1], page[2, "x", true], total: 2))
+      got = pdf_text.extract("%PDF", first: 1, last: 5, deadline: soon)
+      expect(got).to have_attributes(stopped_at: nil, timed_out: false)
+      expect(got.pages.last[:cut]).to be(true)
+    end
+
+    it "says the characters ran out, not the time, when the last page written was cut" do
+      runs("exit124", lines(page[1, "x", true], total: 4))
+      expect(pdf_text.extract("%PDF", first: 1, last: 4, deadline: soon))
+        .to have_attributes(stopped_at: 2, timed_out: false)
+    end
+
+    it "checks a run that said it was done as a whole run" do
+      runs("exit124", lines(page[1], page[2], { done: true, total_pages: 2, stopped_at: nil }))
+      expect(pdf_text.extract("%PDF", first: 1, last: 2, deadline: soon)).to have_attributes(stopped_at: nil, timed_out: false)
+      runs("exit124", lines(page[1], { done: true, total_pages: 2, stopped_at: nil }))
+      expect { pdf_text.extract("%PDF", first: 1, last: 2, deadline: soon) }.to raise_error(described_class::Unavailable)
+    end
+
+    {
+      "a broken whole line" => ->(l) { l + "{\"page\": 2,\n" },
+      "pages past the PDF's last" => ->(_) { "#{JSON.generate({ total_pages: 1 })}\n#{JSON.generate({ page: 1, text: "a", cut: false })}\n" \
+                                             "#{JSON.generate({ page: 2, text: "b", cut: false })}\n" },
+      "no line with the number of pages" => ->(_) { "#{JSON.generate({ page: 1, text: "a", cut: false })}\n" }
+    }.each do |what, make|
+      it "takes nothing for #{what}" do
+        runs("exit124", make.call(lines(page[1], total: 3)))
+        expect { pdf_text.extract("%PDF", first: 1, last: 3, deadline: soon) }
+          .to raise_error(described_class::Unavailable) { |e| expect(e.reason).to eq("pdf_text_unavailable") }
+      end
+    end
+
+    it "is told by a status the script never ends with of its own" do
+      script = File.read(File.expand_path("../../../../python/scripts/converters/pdf2txt.py", __dir__))
+      codes = script.scan(/sys\.exit\((\d+)\)/).flatten.map(&:to_i)
+      expect(codes).not_to be_empty
+      expect(codes).not_to include(described_class::WATCHDOG)
+    end
   end
 end

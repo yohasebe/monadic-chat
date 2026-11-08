@@ -562,4 +562,152 @@ RSpec.describe "Stopping an answer" do
       expect(prefetch.join(5)).not_to be_nil
     end
   end
+
+  # A stopped reply's message is marked for the model (StoppedReplies): the
+  # stop is noted as it takes, before the worker has ended, so a new
+  # connection of the tab that builds the next request finds it.
+  describe "the message of a stopped reply" do
+    let(:stopped) { Monadic::Workspace::StoppedReplies }
+
+    before { stopped.reset! }
+
+    def user_turn(of = session)
+      of[:messages].find { |m| m["role"] == "user" }
+    end
+
+    it "is noted when Cancel takes, before the worker ends, and a new connection's copy is marked from it" do
+      began = Queue.new
+      release = Queue.new
+      in_ensure = Queue.new
+      go_on = Queue.new
+      allow(host).to receive(:mark_stopped_turn) do
+        in_ensure << true
+        go_on.pop
+      end
+      thread = start_turn(held_app(began: began, release: release))
+      began.pop
+      # The copy a new connection of the tab restores: the message unmarked.
+      restored = Marshal.load(Marshal.dump(session.except(:messages))).merge(messages: Marshal.load(Marshal.dump(session[:messages])))
+      request_id = thread[:reply_request_id]
+      WebSocketHelper::Replies.cancel(thread[:reply_handle])
+      in_ensure.pop
+      # The worker is held before marking and before its end.
+      expect(stopped.recorded?(session[:chat_id], request_id)).to be(true)
+      expect(thread[:reply_handle]).not_to be_ended
+      expect(stopped.apply!(restored)).to be(true)
+      expect(user_turn(restored)["reply_stopped"]).to be(true)
+      go_on << true
+      expect(thread.join(5)).not_to be_nil
+      expect(ends(sent)).to eq(["no_reply"])
+    end
+
+    it "is marked in the connection's own chat when the worker ends" do
+      began = Queue.new
+      release = Queue.new
+      thread = start_turn(held_app(began: began, release: release))
+      began.pop
+      status, = http_cancel(tokens.first["token"])
+      expect(status).to eq(204)
+      expect(thread.join(5)).not_to be_nil
+      expect(user_turn["reply_stopped"]).to be(true)
+      expect(user_turn["text"]).to eq("Hi")
+    end
+
+    it "still ends the reply when marking fails" do
+      began = Queue.new
+      release = Queue.new
+      allow(host).to receive(:mark_stopped_turn).and_raise(IOError, "state not saved")
+      thread = start_turn(held_app(began: began, release: release))
+      began.pop
+      WebSocketHelper::Replies.cancel(thread[:reply_handle])
+      expect(thread.join(5)).not_to be_nil
+      expect(thread[:reply_handle]).to be_ended
+      expect(ends(sent)).to eq(["no_reply"])
+      expect(stopped.recorded?(session[:chat_id], thread[:reply_request_id])).to be(true)
+    end
+
+    it "is not marked when the reply ends with an error" do
+      app = Object.new.tap do |a|
+        a.define_singleton_method(:api_request) { |*_| raise IOError, "provider down" }
+        a.define_singleton_method(:settings) { {} }
+      end
+      allow(host).to receive(:send_error)
+      thread = start_turn(app)
+      thread.report_on_exception = false if thread
+      begin
+        thread&.join(5)
+      rescue IOError
+        nil
+      end
+      expect(user_turn).not_to have_key("reply_stopped")
+      expect(stopped.recorded?(session[:chat_id], thread && thread[:reply_request_id])).to be(false)
+    end
+
+    # A provider call that keeps what the conversation was when it was made.
+    def seeing_app(seen, also: nil)
+      Object.new.tap do |app|
+        app.define_singleton_method(:api_request) do |_role, sess, &_block|
+          seen << Marshal.load(Marshal.dump(sess[:messages]))
+          also&.call(sess)
+          [{ "choices" => [{ "message" => { "content" => "OK" }, "finish_reason" => "stop" }] }]
+        end
+        app.define_singleton_method(:settings) { {} }
+      end
+    end
+
+    # A whole turn on sess: its answer made and recorded.
+    def turn_on(sess, app, text)
+      stub_const("APPS", { "FakeApp" => app })
+      Thread.current[:rack_session] = sess
+      thread = host.send(:handle_ws_streaming, nil, { "message" => text, "app_name" => "FakeApp" }, sess, queue)
+      wait_for_answer_made(thread)
+      host.send(:handle_ws_html, nil, {}, sess, thread, queue)
+      thread.join(5)
+    end
+
+    it "is marked for the next request of a new connection before the provider is called" do
+      began = Queue.new
+      release = Queue.new
+      allow(host).to receive(:mark_stopped_turn)
+      thread = start_turn(held_app(began: began, release: release))
+      began.pop
+      restored = session.except(:messages).merge(messages: Marshal.load(Marshal.dump(session[:messages])), _ws_generation: 2)
+      WebSocketHelper::Replies.cancel(thread[:reply_handle])
+      thread.join(5)
+      seen = []
+      turn_on(restored, seeing_app(seen), "Hello")
+      stopped_turn, current = seen.first.select { |m| m["role"] == "user" }
+      expect(stopped_turn).to include("text" => "Hi", "reply_stopped" => true)
+      expect(current).to include("text" => "Hello")
+      expect(current).not_to have_key("reply_stopped")
+    end
+
+    it "reaches the request after when the stop is noted only after the next one began, and drops its compaction" do
+      seen = []
+      turn_on(session, seeing_app(seen), "Hi")
+      stopped_id = user_turn["request_id"]
+      # The next request (B) is built and compacts what it has, before the
+      # stop of the first is noted.
+      turn_on(session, seeing_app(seen, also: ->(sess) { sess[:grok_compaction] = { "blob" => {} } }), "Hello")
+      stopped.record(session[:chat_id], stopped_id)
+      turn_on(session, seeing_app(seen), "Again")
+      expect(seen[1].find { |m| m["request_id"] == stopped_id }).not_to have_key("reply_stopped")
+      expect(seen[2].find { |m| m["request_id"] == stopped_id }).to include("reply_stopped" => true)
+      expect(session).not_to have_key(:grok_compaction)
+    end
+
+    it "is not marked when Cancel comes after the answer was taken to be recorded" do
+      began = Queue.new
+      release = Queue.new
+      thread = start_turn(held_app(began: began, release: release))
+      began.pop
+      release << true
+      wait_for_answer_made(thread)
+      handle = thread[:reply_handle]
+      expect(handle.take_for_saving).to be(true)
+      WebSocketHelper::Replies.cancel(handle)
+      expect(stopped.recorded?(session[:chat_id], handle.request_id)).to be(false)
+      expect(user_turn).not_to have_key("reply_stopped")
+    end
+  end
 end

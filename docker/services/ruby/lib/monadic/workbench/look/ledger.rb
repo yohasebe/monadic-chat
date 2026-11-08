@@ -44,7 +44,7 @@ module Monadic
 
         Observation = Struct.new(:id, :tool_call_id, :item_id, :kind, :name, :path, :version, :scope, :at, :image,
                                  :result, :caption, :text_chars, :lines, :truncated, :empty, :state, :image_sha256,
-                                 :source, :pages, :parts, :cuts, :crop, :origin, keyword_init: true)
+                                 :source, :pages, :parts, :cuts, :stopped, :crop, :origin, keyword_init: true)
         # Who made an observation: a look the model asked for (tool), or what
         # the user showed with the message (user; it goes with the user's
         # message, never after a tool's result).
@@ -252,7 +252,7 @@ module Monadic
               result: seen[:result], caption: seen[:caption], text_chars: chars, lines: lines,
               truncated: seen[:truncated], empty: seen[:empty], state: 'acquired',
               image_sha256: image&.sha256, source: image&.source || seen[:source], pages: seen[:pages], parts: seen[:parts],
-              cuts: seen[:cuts].nil? || seen[:cuts].empty? ? nil : seen[:cuts], crop: seen[:crop],
+              cuts: seen[:cuts].nil? || seen[:cuts].empty? ? nil : seen[:cuts], stopped: seen[:stopped], crop: seen[:crop],
               origin: seen[:origin] == 'user' ? 'user' : 'tool'
             )
             @reserved += bytes
@@ -365,6 +365,7 @@ module Monadic
                 'scope' => o.scope, 'at' => o.at, 'lines' => o.lines&.transform_keys(&:to_s),
                 'truncated' => o.truncated, 'empty' => o.empty, 'image' => !o.image_sha256.nil?,
                 'pages' => o.pages&.transform_keys(&:to_s)&.compact, 'parts' => o.parts, 'cuts' => o.cuts,
+                'stopped' => o.stopped,
                 'crop' => o.crop, 'state' => o.state }.compact
             end
           end

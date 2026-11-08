@@ -6,6 +6,7 @@ require 'delegate'
 require_relative "../utils/http_client"
 require_relative "../utils/tool_dispatch_guard"
 require_relative "../workspace/request_context"
+require_relative "../workspace/stopped_replies"
 require_relative "../workbench/observation"
 require_relative "../workbench/look"
 require_relative "../workbench/look/availability"
@@ -484,6 +485,14 @@ module BaseVendorHelper
   def model_facing_message(msg)
     return msg unless msg.is_a?(Hash) && msg["role"] == "user"
 
+    described = model_facing_attachments(msg)
+    return described unless Monadic::Workspace::StoppedReplies.note_for(msg)
+
+    # A message whose reply was stopped says so after all of it.
+    described.merge("text" => Monadic::Workspace::StoppedReplies.with_note(msg, described["text"]))
+  end
+
+  def model_facing_attachments(msg)
     text = msg["text"].to_s
     lines = Array(msg["attachments"]).filter_map do |ref|
       next unless ref.is_a?(Hash)

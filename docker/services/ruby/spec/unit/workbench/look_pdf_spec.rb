@@ -273,5 +273,56 @@ RSpec.describe "looking at a PDF on the work screen" do
       allow(pdf_text).to receive(:extract).and_raise(pdf_text::Unavailable.new("pdf_text_unavailable", "not running"))
       expect(look.run(caller_for, scope: "whole")).to include("(pdf_text_unavailable)")
     end
+
+    it "says the time ran out after the pages given, in the result and in the record that stays" do
+      open_pdf
+      allow(pdf_text).to receive(:extract).and_return(
+        pdf_text::Pages.new(pages: [{ page: 1, text: "one", cut: false }, { page: 2, text: "two", cut: false }],
+                            total_pages: 40, stopped_at: 3, timed_out: true)
+      )
+      out = result(look.run(caller_for, scope: "whole"))
+      expect(out).to include("pages" => { "first" => 1, "last" => 2, "total" => 40 }, "page_text_stopped" => "time",
+                             "page_text_cut" => true, "truncated" => true)
+      taken = Monadic::Workbench::Look::Ledger.take(request_id)
+      record = Monadic::Workbench::Look::Record.clean(taken.records).first
+      expect(record).to include("stopped" => "time", "cuts" => ["page_text"], "truncated" => true)
+      # As a history or an import reads it back.
+      expect(Monadic::Workbench::Look::Record.clean(JSON.parse(JSON.generate([record]))).first).to include("stopped" => "time")
+    end
+
+    it "says nothing of the time when the characters ran out" do
+      open_pdf
+      allow(pdf_text).to receive(:extract).and_return(texts([1, "one"], total: 40, stopped_at: 2))
+      out = result(look.run(caller_for, scope: "whole"))
+      expect(out).not_to have_key("page_text_stopped")
+      record = Monadic::Workbench::Look::Record.clean(Monadic::Workbench::Look::Ledger.take(request_id).records).first
+      expect(record).not_to have_key("stopped")
+    end
+  end
+
+  describe "the record of a stop" do
+    let(:record) do
+      { "id" => "look_1", "kind" => "pdf", "state" => "sent", "pages" => { "first" => 1, "last" => 2, "total" => 40 },
+        "parts" => { "page_text" => true }, "cuts" => ["page_text"], "truncated" => true, "stopped" => "time" }
+    end
+
+    it "keeps a stop that agrees with the pages read" do
+      expect(Monadic::Workbench::Look::Record.clean([record]).first).to include("stopped" => "time")
+    end
+
+    {
+      "another reason" => { "stopped" => "chars" },
+      "another kind" => { "kind" => "text" },
+      "no text of the pages had" => { "parts" => { "page_text" => "failed" } },
+      "no pages" => { "pages" => nil },
+      "pages up to the last" => { "pages" => { "first" => 1, "last" => 40, "total" => 40 } },
+      "not cut" => { "truncated" => false }
+    }.each do |what, change|
+      it "leaves the stop out, keeping the rest, for #{what}" do
+        kept = Monadic::Workbench::Look::Record.clean([record.merge(change)]).first
+        expect(kept).not_to be_nil
+        expect(kept).not_to have_key("stopped")
+      end
+    end
   end
 end

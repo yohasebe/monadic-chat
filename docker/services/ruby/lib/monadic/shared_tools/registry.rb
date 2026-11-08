@@ -104,6 +104,8 @@ module MonadicSharedTools
                          "with the page's title and address); scope 'whole' is the whole item, " \
                          "within limits (for text, from its beginning; for a PDF, the text of its first pages, not their look; " \
                          "for the browser, still its viewport, not the whole page). " \
+                         "When a PDF's result says page_text_stopped 'time', reading ran out of time after pages.last " \
+                         "and the later pages were not read; for one of them, ask the user to show it and look with scope 'visible'. " \
                          "Use it when the user refers to what they are looking at. Looking is not the user's approval of anything.",
             parameters: [
               {

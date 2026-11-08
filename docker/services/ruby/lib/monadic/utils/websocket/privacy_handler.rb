@@ -409,6 +409,8 @@ module WebSocketHelper
       next m unless m.is_a?(Hash)
 
       kept = m.select { |k, _| PRIVACY_EXPORT_MESSAGE_KEYS.include?(k.to_s) }
+      # A user message whose reply was stopped: true only.
+      kept['reply_stopped'] = true if m['role'] == 'user' && m['reply_stopped'] == true
       # What the reply made (the workbench's record), in its checked form only.
       artifacts = Monadic::Workbench::Record.clean(kept.delete('artifacts') || kept.delete(:artifacts))
       kept = kept.merge('artifacts' => artifacts) if artifacts

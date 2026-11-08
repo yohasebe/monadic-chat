@@ -89,9 +89,15 @@ module WebSocketHelper
       Thread.current[:websocket_session_id] = ws_session_id
       Thread.current[:rack_session] = rack_session
       given = false
-      # A reply still being written comes first (waited for here, not in the
-      # read loop, so a Reset or Cancel meanwhile is still taken).
-      reply&.join
+      # A reply still being written comes first, recorded (waited for here,
+      # not in the read loop, so a Reset or Cancel meanwhile is still taken).
+      # Nothing is suggested for an answer that was cancelled.
+      if (answer = reply && reply[:reply_handle])
+        answer.wait_ended
+        next if answer.cancelled?
+      else
+        reply&.join
+      end
       given = write_ai_user_suggestion(session, params, notice)
     ensure
       finish_reply(state_id, given ? "done" : "no_reply", ws_session_id)
@@ -493,7 +499,8 @@ module WebSocketHelper
   end
 
   # Seconds for a stopped reply's own clean-up: stopping a command it runs
-  # (Monadic::Shell::STOP_TIMEOUT plus the group's grace) fits within it.
+  # (Monadic::Shell::STOP_TIMEOUT plus the group's grace) fits within it. An
+  # answer still stopping past it is noted (ReplyHandle#wait_ended).
   REPLY_STOP_WAIT = 15
 
   # Stops a reply that is still being written, waits briefly for its clean-up
@@ -501,6 +508,17 @@ module WebSocketHelper
   # queued. The page gets the same notice as for Cancel, which gives it its
   # controls back without touching the input box.
   private def stop_running_reply(thread, queue)
+    # An answer is cancelled and waited for until its worker ended it (the
+    # wait has no limit: what comes next in the chat must not overlap with
+    # what it still writes; a stop past REPLY_STOP_WAIT is noted).
+    if (handle = thread && thread[:reply_handle])
+      running = !handle.ended?
+      Replies.stop_and_settle(handle)
+      drop_queued_replies(queue)
+      send_or_broadcast({ "type" => "cancel" }.to_json, Thread.current[:websocket_session_id]) if running
+      return
+    end
+
     drop_queued_replies(queue)
     if thread&.alive?
       thread.kill

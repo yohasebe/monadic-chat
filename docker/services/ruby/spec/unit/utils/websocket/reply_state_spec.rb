@@ -83,7 +83,7 @@ RSpec.describe "Reply state sent to the page" do
 
   it "ends with no_reply once when the chat changes after the answer was queued" do
     thread = start_turn(fake_app)
-    thread.join
+    wait_for_answer_made(thread)
     session[:chat_id] = Monadic::Workspace::Ids.generate(:chat)
     finish_turn(thread)
     expect(states.map { |s| [s["state"], s["outcome"]] }).to eq([["running", nil], ["finished", "no_reply"]])
@@ -91,7 +91,7 @@ RSpec.describe "Reply state sent to the page" do
 
   it "ends with no_reply when Cancel or Reset drops an answer still waiting in the queue" do
     thread = start_turn(fake_app)
-    thread.join
+    wait_for_answer_made(thread)
     host.send(:stop_running_reply, thread, queue)
     expect(queue).to be_empty
     expect(states.map { |s| [s["state"], s["outcome"]] }).to eq([["running", nil], ["finished", "no_reply"]])

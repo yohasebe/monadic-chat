@@ -31,6 +31,7 @@ require_relative 'websocket/pdf_handler'
 require_relative 'websocket/workbench_handler'
 require_relative 'websocket/library_handler'
 require_relative 'websocket/reply_state'
+require_relative 'websocket/reply_handle'
 require_relative 'websocket/streaming_handler'
 require_relative 'websocket/html_handler'
 require_relative 'websocket/misc_handlers'
@@ -420,7 +421,7 @@ module WebSocketHelper
           # One answer at a time: a send that arrives while one is running
           # is not accepted (busy: the page gives the text and attachments
           # back and leaves the running answer as it is).
-          if thread&.alive?
+          if reply_busy?(thread)
             send_error("answer_still_running", ws_session_id, { "not_accepted" => true, "busy" => true })
             next
           end
@@ -455,6 +456,14 @@ module WebSocketHelper
       # connection of the same tab keeps what was staged for it).
       WebSocketHelper.drop_imports(ws_session_id) unless WebSocketHelper.live_session(ws_session_id)
 
+      # What this connection was running ends before its session is saved:
+      # its tokens go, the answer is stopped and waited for until its worker
+      # ended it, then the suggestion, then answers it had not taken.
+      Replies.forget_tokens(ws_session_id, session[:_ws_generation]) if session
+      stop_reply_work(thread, ws_session_id)
+      stop_reply_work(suggestion, ws_session_id)
+      drop_queued_replies(queue, ws_session_id)
+
       Monadic::Utils::ExtraLogger.log { "[WebSocket] Connection closed for session #{ws_session_id}" }
 
       sync_session_state!
@@ -462,9 +471,6 @@ module WebSocketHelper
       Thread.current[:websocket_session_id] = nil
       Thread.current[:rack_session] = nil
       Monadic::Utils::Privacy::EgressGuard.for_chat(nil)
-
-      stop_reply_work(thread, ws_session_id)
-      stop_reply_work(suggestion, ws_session_id)
     end
   end
 

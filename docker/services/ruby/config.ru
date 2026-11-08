@@ -61,6 +61,12 @@ use Monadic::Workbench::AssetServer,
 require_relative "lib/monadic/workbench/capture_server"
 use Monadic::Workbench::CaptureServer
 
+# A page stopping its answer while the tab's connection waits for it, taken
+# here so that its address (which holds the permission) is not written to
+# the access log. See lib/monadic/utils/reply_cancel_server.rb.
+require_relative "lib/monadic/utils/reply_cancel_server"
+use Monadic::Utils::ReplyCancelServer
+
 # A Private chat makes no files: the requests that would make them are
 # refused before anything reads their body (Rack writes file parts to disk
 # while parsing). See lib/monadic/history/private_request_guard.rb.

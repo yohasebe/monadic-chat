@@ -96,7 +96,7 @@ RSpec.describe "the workbench when a reply is recorded" do
   it "keeps the image of a reply that ends without its message, and closes that reply" do
     stub_const("APPS", { "FakeApp" => offering_app(store, png) })
     thread = host.send(:handle_ws_streaming, nil, { "message" => "a cat", "app_name" => "FakeApp" }, session, queue)
-    thread.join
+    wait_for_answer_made(thread)
     host.send(:stop_reply_work, thread)
     item = Monadic::Workbench::Board.for(session[:chat_id]).snapshot[:items].first
     expect(item[:mid]).to be_nil

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require_relative 'word_table'
 
 module Monadic
   module Utils
@@ -111,16 +112,15 @@ module Monadic
           false
         end
 
-        JSON_DEPTH = 5
+        JSON_DEPTH = WordTable::JSON_DEPTH
 
         # A string that is JSON (an object, an array or a string value), as
-        # what it decodes to; nil when it is not JSON.
+        # what it decodes to; nil when it is not JSON (WordTable.json_value).
+        # JSON nested too deeply to be read is Refused.
         def json_value(text)
-          return nil unless text.lstrip.start_with?('{', '[', '"')
-
-          JSON.parse(text)
-        rescue JSON::ParserError
-          nil
+          WordTable.json_value(text)
+        rescue WordTable::TooLarge => e
+          raise Refused, e.message
         end
 
         # Every string a request body holds, hash keys included, except data

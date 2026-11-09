@@ -414,6 +414,13 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
         .to raise_error(Monadic::Utils::Privacy::Outbound::Refused)
     end
 
+    it 'refuses JSON nested too deeply to be read, rather than reading it as text' do
+      words = { monadic_state: { privacy: { terms: [{ text: 'Bob', type: 'PERSON' }] } } }
+      deep = "#{'[' * 101}\"\\u0042ob\"#{']' * 101}"
+      expect { Monadic::Utils::Privacy::Outbound.check_no_marked_words!(words, { 'arguments' => deep }) }
+        .to raise_error(Monadic::Utils::Privacy::Outbound::Refused)
+    end
+
     it 'sends nothing for the chat when the filter is off' do
       allow(helper).to receive(:privacy_pipeline_for).and_return(nil)
       expect { helper.protect_marked_words!({ 'messages' => [] }, session, {}) }

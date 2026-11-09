@@ -146,6 +146,132 @@ RSpec.describe Monadic::Utils::Privacy::WordTable do
     end
   end
 
+  describe "a snapshot (what one request is changed with)" do
+    before do
+      table.confirm!("Ada Lovelace", "PERSON")
+      table.confirm!("Acme", "ORGANIZATION")
+    end
+
+    it "holds the words and the revision of the moment it was taken" do
+      snap = table.snapshot
+      table.confirm!("Grace", "PERSON")
+      table.disable!("Acme")
+      expect(snap.revision).to be < table.revision
+      expect(snap.raw("Grace at Acme")).to eq("Grace at <<ORGANIZATION_1>>")
+      expect(table.snapshot.raw("Grace at Acme")).to eq("<<PERSON_2>> at Acme")
+    end
+
+    it "sends a model's text again with the chat's placeholders, not as text, and words found since hidden too" do
+      sent = table.apply("Ada Lovelace at Acme")
+      table.confirm!("London", "LOCATION")
+      snap = table.snapshot
+      expect(snap.from_model("#{sent} in London")).to eq("<<PERSON_1>> at <<ORGANIZATION_1>> in <<LOCATION_1>>")
+      # Applied once more, the same: nothing becomes text.
+      expect(snap.from_model(snap.from_model(sent))).to eq(sent)
+      # A placeholder the chat did not give is kept as text.
+      expect(snap.from_model("<<PERSON_9>>")).to eq("\u2039\u2039PERSON_9\u203A\u203A")
+    end
+
+    it "sends a word taken off as it is, from the next request" do
+      sent = table.apply("Acme")
+      table.disable!("Acme")
+      expect(table.snapshot.from_model(sent)).to eq("Acme")
+    end
+
+    describe "changing a tool's data" do
+      let(:snap) { table.snapshot }
+
+      it "changes every string, the values of name and id too, and strings of JSON inside, keeping keys" do
+        result = {
+          "name" => "Ada Lovelace", "id" => "Acme-1", "type" => "Acme",
+          "rows" => [{ "text" => "Ada Lovelace at Acme", "n" => 3, "ok" => true, "none" => nil }],
+          "saved" => JSON.generate({ "who" => "Ada Lovelace" })
+        }
+        out = snap.data(result)
+        expect(out["name"]).to eq("<<PERSON_1>>")
+        expect(out["id"]).to eq("<<ORGANIZATION_1>>-1")
+        expect(out["type"]).to eq("<<ORGANIZATION_1>>")
+        expect(out["rows"]).to eq([{ "text" => "<<PERSON_1>> at <<ORGANIZATION_1>>", "n" => 3, "ok" => true, "none" => nil }])
+        expect(JSON.parse(out["saved"])).to eq("who" => "<<PERSON_1>>")
+        expect(result["rows"][0]["text"]).to eq("Ada Lovelace at Acme")
+      end
+
+      it "changes a word inside a hash under any key" do
+        expect(snap.data({ "name" => { "text" => "Acme" } })).to eq("name" => { "text" => "<<ORGANIZATION_1>>" })
+      end
+
+      it "changes a string that is JSON as what it decodes to" do
+        table.confirm!("O\"Brien\\x", "PERSON")
+        snap = table.snapshot
+        expect(JSON.parse(snap.data('"\\u0041cme"'))).to eq("<<ORGANIZATION_1>>")
+        expect(JSON.parse(snap.data(JSON.generate("see O\"Brien\\x")))).to eq("see <<PERSON_2>>")
+        expect(JSON.parse(snap.data(JSON.generate({ "q" => JSON.generate("Acme") })))).to eq("q" => JSON.generate("<<ORGANIZATION_1>>"))
+      end
+
+      it "reads a model's tool call back before sending it again (origin :model)" do
+        args = JSON.generate({ "query" => "<<PERSON_1>> biography" })
+        expect(JSON.parse(snap.data(args, origin: :model))).to eq("query" => "<<PERSON_1>> biography")
+        expect(JSON.parse(snap.data(args))).to eq("query" => "\u2039\u2039PERSON_1\u203A\u203A biography")
+        expect(JSON.parse(snap.data(JSON.generate("<<PERSON_1>>"), origin: :model))).to eq("<<PERSON_1>>")
+      end
+
+      it "refuses a key that holds a word, without saying the word" do
+        expect { snap.data({ "rows" => [{ "Acme" => 1 }] }) }.to raise_error(described_class::Unreplaceable) { |e|
+          expect(e.message).not_to include("Acme")
+          expect(e.place).to eq("an object key")
+          expect(e.path).to eq(["rows", 0])
+        }
+      end
+
+      it "refuses JSON nested too deeply, data nested too deeply, and what JSON cannot hold" do
+        deep = "Acme"
+        6.times { deep = JSON.generate([deep]) }
+        expect { snap.data(deep) }.to raise_error(described_class::TooLarge, /JSON too deeply/)
+        nested = "x"
+        (described_class::MAX_NESTING + 1).times { nested = [nested] }
+        expect { snap.data(nested) }.to raise_error(described_class::TooLarge, /nested too deeply/)
+        looped = []
+        looped << looped
+        expect { snap.data(looped) }.to raise_error(described_class::TooLarge)
+        at_limit = "#{"[" * described_class::MAX_NESTING}\"\\u0041cme\"#{"]" * described_class::MAX_NESTING}"
+        expect(snap.data(at_limit)).to include("<<ORGANIZATION_1>>")
+        over_limit = "[#{at_limit}]"
+        expect { snap.data(over_limit) }.to raise_error(described_class::TooLarge)
+        beyond_parser = "#{"[" * 101}\"\\u0041cme\"#{"]" * 101}"
+        expect { snap.data(beyond_parser) }.to raise_error(described_class::TooLarge)
+        expect { described_class.json_value(beyond_parser) }.to raise_error(described_class::TooLarge)
+        expect { snap.data({ "at" => Time.now }) }.to raise_error(ArgumentError)
+        [Float::NAN, Float::INFINITY].each { |n| expect { snap.data([n]) }.to raise_error(ArgumentError) }
+        expect(snap.data([1.5])).to eq([1.5])
+        expect { snap.data("x", origin: :assistant) }.to raise_error(ArgumentError)
+      end
+
+      it "counts every string and key as given, before decoding it" do
+        stub_const("#{described_class}::MAX_CHARS", 10)
+        expect { snap.data(%w[Acme Acme Acme]) }.to raise_error(described_class::TooLarge, /characters/)
+        expect { snap.data({ "x" * 11 => 1 }) }.to raise_error(described_class::TooLarge, /characters/)
+        expect { snap.data("#{" " * 11}{}") }.to raise_error(described_class::TooLarge, /characters/)
+        budget = described_class::Budget.new
+        snap.raw("Acme Acme", budget)
+        expect { snap.from_model("Acme", budget) }.to raise_error(described_class::TooLarge, /characters/)
+      end
+
+      it "refuses more values and more replacements than it takes" do
+        stub_const("#{described_class}::MAX_NODES", 3)
+        expect { snap.data([1, 2, 3]) }.to raise_error(described_class::TooLarge, /values/)
+        stub_const("#{described_class}::MAX_SPANS", 3)
+        expect { snap.data("Acme " * 4) }.to raise_error(described_class::TooLarge, /words/)
+        expect(snap.data("Acme " * 3)).to eq("<<ORGANIZATION_1>> " * 3)
+      end
+    end
+
+    it "is frozen, with what it holds" do
+      snap = table.snapshot
+      expect(snap).to be_frozen
+      expect { snap.instance_variable_get(:@mapping)["PERSON_1"][:word] = "Eve" }.to raise_error(FrozenError)
+    end
+  end
+
   describe "keeping what it holds its own" do
     it "is not changed through the words given to it, the ids it gives, its lists or to_h" do
       word = +"Ada"

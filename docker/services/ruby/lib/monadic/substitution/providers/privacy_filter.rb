@@ -5,6 +5,7 @@ require_relative '../../utils/privacy/backend'
 require_relative '../../utils/privacy/presidio_backend'
 require_relative '../../utils/privacy/registry'
 require_relative '../../utils/privacy/types'
+require_relative '../../utils/privacy/word_table'
 # language_detector is required lazily inside #resolve_languages to break the
 # pipeline <-> language_detector require cycle (language_detector requires the
 # Privacy::Pipeline alias, which requires this file).
@@ -47,8 +48,9 @@ module Monadic
         # RESTORE_RE only widens what we accept *back* from the model so a
         # lightly mangled token still restores instead of leaking the broken
         # token to the user. The captured TYPE_N rebuilds the clean registry
-        # key, so the corruption never reaches the UI.
-        RESTORE_RE = /<<[\s?]*([A-Z_]+)_(\d+)[\s?]*>>/
+        # key, so the corruption never reaches the UI. (The same rule as the
+        # chat's word table reads back with.)
+        RESTORE_RE = Monadic::Utils::Privacy::WordTable::RESTORE_RE
 
         # The registry key a RESTORE_RE match stands for: the clean
         # "<<TYPE_N>>", however the model mangled the token around it.

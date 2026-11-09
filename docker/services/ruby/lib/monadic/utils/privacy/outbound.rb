@@ -2,6 +2,7 @@
 
 require 'json'
 require_relative 'word_table'
+require_relative 'words'
 
 module Monadic
   module Utils
@@ -43,24 +44,35 @@ module Monadic
           nil
         end
 
-        # Whether the user marked words to mask in this chat. They stay
+        # Whether the chat has words to hide (its word table's active words,
+        # or the words marked for the Privacy Filter). Marked words stay
         # protected after the Privacy Filter is turned off: nothing is sent
         # for the chat until it is on again (or the chat is reset).
         def marked_terms?(session)
-          return false unless session.respond_to?(:key?)
+          !terms_of(session).empty?
+        end
+
+        # The chat's words to hide: the active words of its word table when
+        # it has one (Words), otherwise the words marked for the Privacy
+        # Filter. Everything that checks what is sent reads them here.
+        def terms_of(session)
+          return [] unless session.respond_to?(:key?)
+          return Words.active_of(session) if Words.marked?(session)
+
+          legacy_terms(session)
+        end
+
+        # The words marked for the Privacy Filter (monadic_state's privacy
+        # terms).
+        def legacy_terms(session)
+          return [] unless session.respond_to?(:key?)
 
           state = session[:monadic_state]
           privacy = state.is_a?(Hash) ? (state[:privacy] || state['privacy']) : nil
           terms = privacy.is_a?(Hash) ? (privacy[:terms] || privacy['terms']) : nil
-          terms.is_a?(Array) && !terms.empty?
-        end
+          return [] unless terms.is_a?(Array)
 
-        def terms_of(session)
-          return [] unless marked_terms?(session)
-
-          state = session[:monadic_state]
-          privacy = state[:privacy] || state['privacy']
-          (privacy[:terms] || privacy['terms']).map { |t| t[:text] || t['text'] }.compact
+          terms.map { |t| t.is_a?(Hash) ? (t[:text] || t['text']) : nil }.compact
         end
 
         PLACEHOLDER = /<<[A-Z_]+_\d+>>/

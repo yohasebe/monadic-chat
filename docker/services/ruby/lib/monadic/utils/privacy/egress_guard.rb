@@ -5,6 +5,7 @@ require 'json'
 require 'stringio'
 require 'uri'
 require_relative 'outbound'
+require_relative 'words'
 require_relative '../../workspace/chats'
 
 module Monadic
@@ -86,7 +87,13 @@ module Monadic
           id = session[Monadic::Workspace::Chats::SESSION_KEY]
           return unless id
 
-          list = Outbound.terms_of(session)
+          list = begin
+            Outbound.terms_of(session)
+          rescue Outbound::Refused
+            # The chat's words are not known (its word table is not here):
+            # nothing is kept, so what is still sent for it is refused.
+            return
+          end
           @ended_lock.synchronize do
             @ended[id] = ((@ended.delete(id) || []) | list).freeze
             @ended.shift while @ended.size > ENDED_LIMIT
@@ -126,6 +133,8 @@ module Monadic
         # string that is JSON is read as what it decodes to.
         def check!(host, *parts)
           return if local_host?(host)
+
+          Words.check_sending!
 
           list = words
           return if list.empty?

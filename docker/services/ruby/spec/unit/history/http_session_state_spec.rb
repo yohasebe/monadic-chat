@@ -50,6 +50,69 @@ RSpec.describe 'HTTP session checks' do
     expect(request.first).to eq(200)
   end
 
+  describe 'a chat that hides its words with a word table' do
+    let(:words) { Monadic::Utils::Privacy::Words }
+    let(:guard) { Monadic::Utils::Privacy::EgressGuard }
+
+    after { words::LOCK.synchronize { words::TABLES.clear } }
+
+    it 'is not Private, and what is sent for it is checked against its words' do
+      session = { Monadic::Workspace::Chats::SESSION_KEY => chat_id }
+      words.start!(session).confirm!('Ada', 'PERSON')
+      save(words::MARK_KEY => session[words::MARK_KEY])
+
+      state = WebSocketHelper.fetch_http_session_state(tab)
+      expect(state[:chat_state][:monadic_state][:privacy][:terms]).to eq([])
+      checked = nil
+      status, = request do |_env|
+        checked = begin
+          guard.check!('api.example.com', 'about Ada')
+          :sent
+        rescue Monadic::Utils::Privacy::Outbound::Refused
+          :refused
+        end
+        [200, {}, []]
+      end
+      expect(status).to eq(200)
+      expect(checked).to eq(:refused)
+      expect(policy.private?(state[:chat_state].merge(Monadic::Workspace::Chats::SESSION_KEY => chat_id))).to be(false)
+      expect(policy.known_private?(chat_id)).to be(false)
+    end
+
+    # A chat of its own, with a table, saved with what is given beside its
+    # mark; whether a request from its tab may send ordinary text out.
+    def sent_through_request(beside = {}, drop_table: false)
+      id = Monadic::Workspace::Ids.generate(:chat)
+      session = { Monadic::Workspace::Chats::SESSION_KEY => id }
+      words.start!(session)
+      words::LOCK.synchronize { words::TABLES.delete(id) } if drop_table
+      WebSocketHelper.update_session_state(tab, messages: [], parameters: { 'app_name' => 'Chat' }, chat_id: id,
+                                                chat_state: beside.merge(words::MARK_KEY => id))
+      result = nil
+      request('/elsewhere') do |_env|
+        result = begin
+          guard.check!('api.example.com', 'ordinary text')
+          :sent
+        rescue Monadic::Utils::Privacy::Outbound::Refused
+          :refused
+        end
+        [200, {}, []]
+      end
+      [result, policy.known_private?(id)]
+    end
+
+    it 'sends nothing for it when it also holds the Privacy Filter\'s state, or its table is gone' do
+      expect(sent_through_request).to eq([:sent, false])
+      [{ _privacy_session_enabled: true },
+       { _privacy_pipeline: Object.new },
+       { monadic_state: { privacy: { registry: { '<<PERSON_1>>' => 'Bob' } } } }].each do |legacy|
+        expect(sent_through_request(legacy).first).to eq(:refused), legacy.keys.inspect
+      end
+      # Not Private: refused because its words are not known.
+      expect(sent_through_request(drop_table: true)).to eq([:refused, false])
+    end
+  end
+
   [
     { _history_policy: 'private' },
     { _privacy_session_enabled: true },

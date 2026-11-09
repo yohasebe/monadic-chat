@@ -5,6 +5,7 @@
 # and progress broadcasting.
 
 require 'set'
+require_relative '../privacy/words'
 
 module WebSocketHelper
   # ============= Connection Tracking =============
@@ -181,12 +182,21 @@ module WebSocketHelper
       chat = (state[:chat_state] || {}).merge(Monadic::Workspace::Chats::SESSION_KEY => state[:chat_id])
       policy = Monadic::History::Policy
       private = policy.private?(chat) || policy.known_private?(state[:chat_id])
-      terms = Monadic::Utils::Privacy::Outbound.terms_of(chat).map { |text| { text: text.dup } }
+      # The words marked for the Privacy Filter, as the chat keeps them; a
+      # chat with a word table keeps its mark instead (its words are read
+      # from the table, and are not the Privacy Filter's).
+      words = Monadic::Utils::Privacy::Words
+      terms = Monadic::Utils::Privacy::Outbound.legacy_terms(chat).map { |text| { text: text.dup } }
+      chat_state = { policy::SESSION_KEY => private ? policy::PRIVATE : nil,
+                     monadic_state: { privacy: { terms: terms } } }
+      if words.marked?(chat)
+        chat_state[words::MARK_KEY] = chat[words::MARK_KEY].dup
+        chat_state[words::MIXED_KEY] = true if words.legacy_state?(chat)
+      end
       {
         chat_id: state[:chat_id]&.dup,
         parameters: { 'app_name' => state.dig(:parameters, 'app_name')&.dup },
-        chat_state: { policy::SESSION_KEY => private ? policy::PRIVATE : nil,
-                      monadic_state: { privacy: { terms: terms } } }
+        chat_state: chat_state
       }
     end
   end

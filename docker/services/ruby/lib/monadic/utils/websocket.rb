@@ -602,7 +602,11 @@ module WebSocketHelper
     # Words the user marked keep speech-to-speech closed, on or off: the
     # voice session would be given the conversation as written.
     require_relative 'privacy/outbound'
-    return true if Monadic::Utils::Privacy::Outbound.marked_terms?(session)
+    begin
+      return true if Monadic::Utils::Privacy::Outbound.marked_terms?(session)
+    rescue Monadic::Utils::Privacy::Outbound::Refused
+      return true
+    end
     return false unless session[:_privacy_session_enabled] == true
 
     params = session[:parameters] || session["parameters"]

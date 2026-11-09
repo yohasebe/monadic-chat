@@ -1,0 +1,236 @@
+# frozen_string_literal: true
+
+require 'spec_helper'
+require 'json'
+require 'monadic/library'
+require_relative '../../../../lib/monadic/utils/privacy/words'
+require_relative '../../../../lib/monadic/utils/privacy/egress_guard'
+require_relative '../../../../lib/monadic/utils/websocket'
+
+RSpec.describe Monadic::Utils::Privacy::Words do
+  let(:outbound) { Monadic::Utils::Privacy::Outbound }
+  let(:chats) { Monadic::Workspace::Chats }
+
+  def new_chat
+    { parameters: { 'app_name' => 'ChatOpenAI' } }.tap { |s| chats.start_new!(s) }
+  end
+
+  after { described_class::LOCK.synchronize { described_class::TABLES.clear } }
+
+  describe "a chat's table" do
+    it 'is the same table for every copy of the chat, and another for another chat' do
+      session = new_chat
+      table = described_class.start!(session)
+      table.confirm!('Ada', 'PERSON')
+
+      # As a tab is kept while it reconnects: each value copied on its own.
+      copy = WebSocketHelper.deep_clone_each(chats.chat_state(session)).merge(chats::SESSION_KEY => session[chats::SESSION_KEY])
+      expect(described_class.table(copy)).to be(table)
+      described_class.table(copy).confirm!('Eve', 'PERSON')
+      expect(table.revision).to eq(2)
+      expect(outbound.terms_of(session)).to eq(%w[Ada Eve])
+
+      other = new_chat
+      expect(described_class.table(other)).to be_nil
+      expect(described_class.start!(other)).not_to be(table)
+    end
+
+    it 'is the one the chat has when a copy made before it was started starts it again' do
+      session = new_chat
+      early = session.dup
+      table = described_class.start!(session)
+      table.confirm!('Ada', 'PERSON')
+      expect(described_class.start!(early)).to be(table)
+      expect(outbound.terms_of(session)).to eq(['Ada'])
+    end
+
+    it 'is refused for a mark that is there but is not an id of the chat' do
+      [nil, 42, ''].each do |value|
+        session = new_chat.merge(described_class::MARK_KEY => value)
+        expect { described_class.table(session) }.to raise_error(outbound::Refused), value.inspect
+        expect { outbound.terms_of(session) }.to raise_error(outbound::Refused), value.inspect
+      end
+      expect(described_class.table(new_chat)).to be_nil
+    end
+
+    it 'keeps the tables used last, and a chat whose table was dropped sends nothing' do
+      stub_const("#{described_class}::LIMIT", 2)
+      first = new_chat
+      second = new_chat
+      described_class.start!(first)
+      described_class.start!(second)
+      described_class.table(first)
+      described_class.start!(new_chat)
+      expect(described_class.table(first)).to be_a(Monadic::Utils::Privacy::WordTable)
+      expect { described_class.table(second) }.to raise_error(outbound::Refused, /not available/)
+    end
+
+    it 'is gone with the chat when a new chat begins' do
+      session = new_chat
+      described_class.start!(session)
+      chats.begin_new!(session)
+      expect(described_class.table(session)).to be_nil
+    end
+
+    it 'sends nothing for a chat whose table is not here, or not its own' do
+      session = new_chat
+      described_class.start!(session)
+      described_class::LOCK.synchronize { described_class::TABLES.clear }
+      expect { described_class.table(session) }.to raise_error(outbound::Refused, /not available/)
+      expect { outbound.terms_of(session) }.to raise_error(outbound::Refused)
+
+      session[described_class::MARK_KEY] = 'chat_another'
+      expect { described_class.table(session) }.to raise_error(outbound::Refused, /not this chat's/)
+    end
+
+    it "sends nothing for a chat that also holds the Privacy Filter's words or masking" do
+      [{ _privacy_session_enabled: true },
+       { _privacy_pipeline: Object.new },
+       { monadic_state: { privacy: { terms: [{ text: 'Bob', type: 'PERSON' }] } } },
+       { monadic_state: { privacy: { registry: { '<<PERSON_1>>' => 'Bob' } } } }].each do |legacy|
+        session = new_chat
+        expect { described_class.start!(session.merge(legacy)) }.to raise_error(outbound::Refused), legacy.inspect
+        described_class.start!(session)
+        expect { described_class.table(session.merge(legacy)) }.to raise_error(outbound::Refused, /two ways/), legacy.inspect
+      end
+      off = new_chat.merge(_privacy_session_enabled: false)
+      expect(described_class.start!(off)).to be_a(Monadic::Utils::Privacy::WordTable)
+    end
+
+    it "is what the checks read as the chat's words, and the Privacy Filter's terms otherwise" do
+      session = new_chat
+      expect(outbound.marked_terms?(session)).to be(false)
+      described_class.start!(session).confirm!('Ada', 'PERSON')
+      expect(outbound.marked_terms?(session)).to be(true)
+      expect { outbound.check_no_marked_words!(session, { 'text' => 'Ada' }) }.to raise_error(outbound::Refused)
+
+      legacy = { monadic_state: { privacy: { terms: [{ text: 'Bob', type: 'PERSON' }] } } }
+      expect(outbound.terms_of(legacy)).to eq(['Bob'])
+    end
+  end
+
+  describe 'sending a request made with a snapshot' do
+    let(:guard) { Monadic::Utils::Privacy::EgressGuard }
+
+    it 'sends each attempt only while the table is still the snapshot\'s' do
+      session = new_chat
+      table = described_class.start!(session)
+      table.confirm!('Ada', 'PERSON')
+      snapshot = table.snapshot
+      attempts = []
+      described_class.sending(table, snapshot) do
+        attempts << :first
+        described_class.check_sending!
+        table.confirm!('Eve', 'PERSON')
+        expect { described_class.check_sending! }.to raise_error(outbound::Refused, /changed/)
+        expect { guard.check!('api.openai.com') }.to raise_error(outbound::Refused, /changed/)
+        # A host on this machine is not checked.
+        expect { guard.check!('localhost') }.not_to raise_error
+      end
+      expect(attempts).to eq([:first])
+      # Outside the block, nothing is checked.
+      expect { described_class.check_sending! }.not_to raise_error
+    end
+  end
+
+  describe 'marks a chat with a table receives' do
+    let(:host) do
+      Class.new { include WebSocketHelper }.new.tap do |h|
+        allow(h).to receive(:send_or_broadcast)
+        allow(h).to receive(:sync_session_state!)
+      end
+    end
+
+    it 'takes them into the table, with or without the Privacy Filter' do
+      session = new_chat
+      table = described_class.start!(session)
+      expect(host.take_privacy_marks('Ask ⟦Ada⟧ at ⟦Acme|org⟧', session, 'tab')).to eq('Ask Ada at Acme')
+      expect(table.active_words.map { |e| [e[:word], e[:type]] }).to eq([%w[Ada PERSON], %w[Acme ORGANIZATION]])
+      expect(host.take_privacy_marks('plain text', session, 'tab')).to eq('plain text')
+    end
+
+    it 'takes none of them when one cannot be taken' do
+      errors = []
+      allow(host).to receive(:send_error) { |msg, *| errors << msg }
+      session = new_chat
+      table = described_class.start!(session)
+      stub_const('Monadic::Utils::Privacy::WordTable::MAX_WORDS', 1)
+      expect(host.take_privacy_marks('⟦Ada⟧ ⟦Eve⟧', session, 'tab')).to be_nil
+      expect(table.active_words).to be_empty
+      expect(table.revision).to eq(0)
+      expect(errors.size).to eq(1)
+    end
+  end
+
+  describe 'suggesting a title' do
+    let(:sent) { [] }
+    let(:reply) { ['<<PERSON_1>> and the "Acme" deal, a long account of a meeting held over several days'] }
+    let(:instance) do
+      bodies = sent
+      replies = reply
+      Class.new do
+        define_method(:settings) { { 'group' => 'OpenAI', 'display_name' => 'Chat' } }
+        define_method(:send_query) do |body, model:|
+          Monadic::Utils::Privacy::Words.check_sending!
+          bodies << body
+          replies.first
+        end
+      end.new
+    end
+    let(:session) { new_chat }
+    let(:table) { described_class.start!(session).tap { |t| t.confirm!('Ada Augusta Lovelace', 'PERSON') } }
+
+    before do
+      stub_const('APPS', { 'ChatOpenAI' => instance })
+      stub_const('CONFIG', { 'OPENAI_API_KEY' => 'sk-test' })
+      allow(::SystemDefaults).to receive(:get_default_model).with('openai').and_return('gpt-test')
+    end
+
+    def suggest(messages)
+      Monadic::Library::TitleSuggester.suggest(messages: messages, app_name: 'ChatOpenAI', session: session, words: table)
+    end
+
+    it 'sends the messages with the words hidden, and gives the title with them put back, then cut' do
+      title = suggest([{ 'role' => 'user', 'text' => 'Ada Augusta Lovelace wrote <<PERSON_1>> in her notes.' }])
+      prompt = sent.last['messages'].last['content'].to_s
+      expect(prompt).to include('<<PERSON_1>> wrote ‹‹PERSON_1›› in her notes.')
+      expect(prompt).not_to include('Ada Augusta Lovelace')
+      # The placeholder is shorter than the word: the title is cut after the
+      # word is put back, so it is within the limit and holds the whole word.
+      expect(title).to start_with('Ada Augusta Lovelace and the')
+      expect(title.length).to be <= Monadic::Library::TitleSuggester::MAX_LENGTH
+    end
+
+    it 'sends nothing when the table changes while the request is sent' do
+      changing = Class.new do
+        define_method(:settings) { { 'group' => 'OpenAI', 'display_name' => 'Chat' } }
+        define_method(:send_query) do |_body, model:|
+          Monadic::Utils::Privacy::Words.table(Thread.current[:words_spec_session]).confirm!('Eve', 'PERSON')
+          Monadic::Utils::Privacy::Words.check_sending!
+          'never'
+        end
+      end.new
+      stub_const('APPS', { 'ChatOpenAI' => changing })
+      Thread.current[:words_spec_session] = session
+      table
+      expect(suggest([{ 'role' => 'user', 'text' => 'Ada Augusta Lovelace' }])).to be_nil
+    ensure
+      Thread.current[:words_spec_session] = nil
+    end
+
+    it "sends nothing when the app's own text holds a word" do
+      table.confirm!('Suggest', 'PERSON')
+      expect(suggest([{ 'role' => 'user', 'text' => 'hello' }])).to be_nil
+      expect(sent).to be_empty
+    end
+  end
+
+  describe 'the end of a chat whose table is not here' do
+    it 'keeps nothing for it, and does not stop the chat from ending' do
+      session = new_chat
+      described_class.start!(session)
+      described_class::LOCK.synchronize { described_class::TABLES.clear }
+      expect { Monadic::Utils::Privacy::EgressGuard.chat_ended(session) }.not_to raise_error
+    end
+  end
+end

@@ -59,6 +59,8 @@ module Monadic
         # What is read back from a model as a placeholder: the clean form,
         # and spaces or "?" a model put inside the brackets.
         RESTORE_RE = /<<[\s?]*([A-Z_]+)_(\d+)[\s?]*>>/
+        # A placeholder exactly as it is given.
+        EXACT_RE = /<<([A-Z][A-Z_]{0,39})_([1-9]\d{0,5})>>/
         LITERAL_OPEN = "‹‹"
         LITERAL_CLOSE = "››"
         # What one snapshot takes in one request: characters read (each
@@ -422,6 +424,17 @@ module Monadic
             raise ArgumentError, "origin is :raw or :model, not #{origin.inspect}" unless %i[raw model].include?(origin)
 
             walk(object, origin, budget, [], 0, 0)
+          end
+
+          # The chat's placeholders in their exact form (<<TYPE_N>>, as given)
+          # put back as their words; any other form, and a placeholder the
+          # chat did not give, stays. For a value a tool acts on (a path),
+          # where a form a model bent is not taken for a word.
+          def restore_exact(text)
+            text.to_s.gsub(EXACT_RE) do
+              entry = @mapping["#{Regexp.last_match(1)}_#{Regexp.last_match(2)}"]
+              entry ? entry[:word] : Regexp.last_match(0)
+            end
           end
 
           # Whether text holds an active word, as written.

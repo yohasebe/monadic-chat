@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../utils/privacy/outbound'
+require_relative '../utils/privacy/words'
 require_relative '../utils/error_formatter'
 
 require_relative '../utils/system_defaults'
@@ -61,10 +62,16 @@ module Monadic
       #   re-introducing PII that the user has chosen to mask in the
       #   primary chat path.
       # @return [String, nil] a normalised title, or nil on any failure.
-      def suggest(messages:, app_name:, pipeline: nil, session: nil)
+      #
+      # @param words [Privacy::WordTable, nil] the chat's word table, for a
+      #   chat that hides its words with one (then pipeline is not used):
+      #   the messages are sent with its words hidden, and the title comes
+      #   back with them put back.
+      def suggest(messages:, app_name:, pipeline: nil, session: nil, words: nil)
         provider = derive_provider(app_name)
         return nil unless provider
         return nil unless api_key_present?(provider)
+        return suggest_hiding(messages, provider, words, session) if words
 
         prep_messages = pipeline ? mask_messages(messages, pipeline) : messages
         prompt = build_prompt(prep_messages)
@@ -89,6 +96,59 @@ module Monadic
       rescue StandardError => e
         warn "[TitleSuggester] #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG['EXTRA_LOGGING']
         nil
+      end
+
+      # The title asked for with the chat's words hidden: the messages (as
+      # the user and the app wrote them, or as replies were put back) are
+      # changed with one snapshot of the table, made again once if the table
+      # changed meanwhile, and sent only while the table is still that
+      # snapshot's (each attempt is checked). The reply's placeholders are
+      # put back with the same snapshot before the title is cut to length.
+      def suggest_hiding(messages, provider, table, session)
+        chat_pair = find_chat_app(provider)
+        return nil unless chat_pair
+        _, app_instance = chat_pair
+
+        model = ::SystemDefaults.get_default_model(provider)
+        return nil if model.to_s.empty?
+
+        snapshot, body = nil
+        2.times do
+          snapshot = table.snapshot
+          prompt = build_prompt(hide_messages(messages, snapshot))
+          return nil unless prompt
+
+          body = build_request_body(prompt, model, provider)
+          break if table.revision == snapshot.revision
+
+          body = nil
+        end
+        raise Monadic::Utils::Privacy::Outbound::Refused, 'the words to hide kept changing; nothing was sent' unless body
+
+        Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, body) if session
+        raw = Monadic::Utils::Privacy::Words.sending(table, snapshot) { app_instance.send_query(body, model: model) }
+        return nil if Monadic::Utils::ErrorFormatter.error_reply?(raw)
+
+        raw.is_a?(String) ? normalize(snapshot.restore(raw)) : nil
+      rescue StandardError => e
+        warn "[TitleSuggester] #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG['EXTRA_LOGGING']
+        nil
+      end
+
+      # Each message's text as sent: what a user, the app or a reply put back
+      # wrote, changed by the snapshot (one budget for all of them).
+      def hide_messages(messages, snapshot)
+        return messages unless messages.is_a?(Array)
+
+        budget = Monadic::Utils::Privacy::WordTable::Budget.new
+        messages.map do |m|
+          next m unless m.is_a?(Hash)
+
+          text = (m['text'] || m[:text]).to_s
+          next m if text.empty?
+
+          m.merge('text' => snapshot.raw(text, budget))
+        end
       end
 
       # Internal: pre-mask each message so the title-suggestion LLM call

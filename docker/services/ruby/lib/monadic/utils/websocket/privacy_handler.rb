@@ -642,12 +642,26 @@ module WebSocketHelper
     require_relative '../privacy/marks'
     require_relative '../privacy/registry'
     require_relative '../privacy/outbound'
+    require_relative '../privacy/words'
     marks = Monadic::Utils::Privacy::Marks
     begin
       clean, terms = marks.extract(text.to_s)
     rescue marks::Invalid => e
       send_error("The words marked with \u27E6 \u27E7 could not be read: #{e.message}. Nothing was sent.", ws_session_id, { "not_accepted" => true }.merge(refusal))
       return nil
+    end
+
+    # A chat with a word table takes its marks into the table: the words are
+    # hidden there, with or without the Privacy Filter.
+    if Monadic::Utils::Privacy::Words.marked?(session)
+      begin
+        table = Monadic::Utils::Privacy::Words.table(session)
+        table.confirm_all!(terms.map { |t| [t[:text], t[:type]] }) if terms.any?
+      rescue Monadic::Utils::Privacy::Outbound::Refused, Monadic::Utils::Privacy::WordTable::Invalid => e
+        send_error("#{e.message}. Nothing was sent.", ws_session_id, { "not_accepted" => true }.merge(refusal))
+        return nil
+      end
+      return clean
     end
 
     if (terms.any? || Monadic::Utils::Privacy::Outbound.marked_terms?(session)) && !privacy_on_for_chat?(session)

@@ -130,22 +130,21 @@ module Monadic
         def confirm!(word, type)
           word = own(checked_word(word))
           type = own(checked_type(type))
+          @lock.synchronize { confirm_locked(word, type) }
+        end
+
+        # Several words confirmed at once ([[word, type], ...]): all of them,
+        # or none when one cannot be (the table is as it was).
+        def confirm_all!(pairs)
+          pairs = pairs.map { |word, type| [own(checked_word(word)), own(checked_type(type))] }
           @lock.synchronize do
-            current = @active[word]
-            if current
-              next current[:id] if current[:type] == type
-
-              @active[word] = current.merge(type: type)
-              @revision += 1
-              next current[:id]
+            saved = [@mapping.dup, @active.dup, @high.dup, @kept.dup, @revision]
+            begin
+              pairs.map { |word, type| confirm_locked(word, type) }
+            rescue Invalid
+              @mapping, @active, @high, @kept, @revision = saved
+              raise
             end
-            raise Invalid, "at most #{MAX_WORDS} words" if @active.size >= MAX_WORDS
-
-            id = id_for_word(word) || new_id(word, type)
-            @active[word] = { id: id, type: type }
-            @kept.delete(word)
-            @revision += 1
-            id
           end
         end
 
@@ -325,6 +324,25 @@ module Monadic
           @high[type] += 1
           id = own("#{type}_#{@high[type]}")
           @mapping[id] = { word: word, type: type }.freeze
+          id
+        end
+
+        # Under the lock: confirm! of a checked word and type.
+        def confirm_locked(word, type)
+          current = @active[word]
+          if current
+            return current[:id] if current[:type] == type
+
+            @active[word] = current.merge(type: type)
+            @revision += 1
+            return current[:id]
+          end
+          raise Invalid, "at most #{MAX_WORDS} words" if @active.size >= MAX_WORDS
+
+          id = id_for_word(word) || new_id(word, type)
+          @active[word] = { id: id, type: type }
+          @kept.delete(word)
+          @revision += 1
           id
         end
 

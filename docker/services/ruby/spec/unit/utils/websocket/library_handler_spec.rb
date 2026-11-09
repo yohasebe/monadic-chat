@@ -245,7 +245,7 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       # because no pipeline is set up in this fixture) and the chat itself
       # (whose marked words the request is checked for).
       allow(Monadic::Library::TitleSuggester).to receive(:suggest)
-        .with(messages: messages, app_name: 'ChatOpenAI', pipeline: nil, session: session)
+        .with(messages: messages, app_name: 'ChatOpenAI', pipeline: nil, session: session, words: nil)
         .and_return('Friendly hello')
 
       host.send(:handle_ws_library_suggest_title, connection,
@@ -265,7 +265,7 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       }
       messages = [{ 'role' => 'user', 'text' => 'Hi' }]
       expect(Monadic::Library::TitleSuggester).to receive(:suggest)
-        .with(messages: messages, app_name: 'ChatOpenAI', pipeline: pipeline, session: session)
+        .with(messages: messages, app_name: 'ChatOpenAI', pipeline: pipeline, session: session, words: nil)
         .and_return('Masked title')
 
       host.send(:handle_ws_library_suggest_title, connection,

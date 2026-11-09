@@ -40,7 +40,10 @@ module Monadic
           return refuse('private_chat', 403) if kind == :private
           return refuse('tab_unknown', 409) if kind == :unknown
         end
-        return @app.call(env) unless kind == :private
+        # A chat that hides its words with a word table is not Private, but
+        # what is sent for it is checked against its words, as for its
+        # connection.
+        return @app.call(env) unless kind == :private || Monadic::Utils::Privacy::Words.marked?(chat)
 
         scope = Monadic::Utils::Privacy::EgressGuard::Scope.of(chat)
         status, headers, body = PrivateWork.within(scope) { @app.call(env) }

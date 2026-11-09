@@ -6,9 +6,9 @@ Apps that turn descriptions and data into diagrams — Mermaid and Draw.io chart
 
 ![Mermaid Grapher app icon](../assets/icons/diagram-draft.png ':size=40')
 
-Visualize your data with [Mermaid.js](https://mermaid.js.org/) diagrams. Provide your data or instructions, and the AI writes the Mermaid code and the diagram is shown in the chat.
+Visualize your data with [Mermaid.js](https://mermaid.js.org/) diagrams. Provide your data or instructions, and the AI writes the Mermaid code and shows the diagram in the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat. The diagram is a `.mmd` file in the chat's folder of the shared folder; the reply names its path, and a line under the reply shows it again. **Drawn** and **Source** switch between the diagram and its code. In a Private chat, which keeps no files, the diagram is shown in the chat instead.
 
-In the chat, a diagram is shown as an image with **Download SVG**; the switch above it shows the Mermaid code. Settings written inside a diagram (`%%{init: …}%%` or front matter) are not used: the diagram is not drawn, and the reason is shown. Mermaid code in a reply of any other app is drawn the same way.
+In the chat, a diagram is shown as an image with **Download SVG**; the switch above it shows the Mermaid code. Settings written inside a diagram (`%%{init: …}%%` or front matter) are not used: the diagram is not drawn, and the reason is shown. Mermaid code in a reply of any app is drawn this way.
 
 **Key Features:**
 - **Diagram type selection**: The AI chooses a diagram type that suits your data (flowchart, sequence, class, state, ER, Gantt, pie, Sankey, mindmap, and others)

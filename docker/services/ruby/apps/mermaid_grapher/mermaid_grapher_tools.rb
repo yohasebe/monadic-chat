@@ -107,13 +107,12 @@ module MermaidGrapherTools
         dst = File.join(shared_volume, screenshot_filename)
         (Monadic::Utils::SharedPathGuard.copy_file!(src, dst) rescue nil)
 
-        # No gallery_html — Mermaid diagrams are rendered as SVG directly by
-        # the client-side MarkdownRenderer. Instead, inject via _image so the
-        # LLM can verify the rendered diagram without showing it to the user.
+        # No gallery_html: the screenshot is for the model to check the
+        # drawing (_image), not shown to the user.
         {
           success: true,
           filename: screenshot_filename,
-          message: "Preview image saved as '#{screenshot_filename}'. The diagram is rendered as SVG in the chat.",
+          message: "The diagram passed the preview; the image of it follows for you to check.",
           validated_code: sanitized_code,
           _image: screenshot_filename
         }

@@ -183,6 +183,42 @@ RSpec.describe Monadic::Utils::Privacy::Words do
     end
   end
 
+  describe "a tool's arguments" do
+    it 'puts back only the exact placeholders of the places a tool reads, while a reply is read' do
+      table = described_class.start!(new_chat)
+      table.confirm!('Ada', 'PERSON')
+      snapshot = table.snapshot
+      table.confirm!('Eve', 'PERSON')
+      args = { filepath: '<<PERSON_1>>/<< PERSON_1 >>/<<PERSON_2>>/<<PERSON_9>>.txt' }
+      expect(described_class.tool_arguments('read_file_from_shared_folder', args)).to eq(args)
+      described_class.answering(snapshot) do
+        expect(described_class.tool_arguments('read_file_from_shared_folder', args))
+          .to eq(filepath: 'Ada/<< PERSON_1 >>/<<PERSON_2>>/<<PERSON_9>>.txt')
+        expect(described_class.tool_arguments('list_files_in_shared_folder', { 'directory' => '<<PERSON_1>>' }))
+          .to eq('directory' => 'Ada')
+        written = { filepath: '<<PERSON_1>>.txt', content: '<<PERSON_1>>' }
+        expect(described_class.tool_arguments('write_file_to_shared_folder', written)).to eq(written)
+        expect(described_class.tool_arguments('run_code', { code: '<<PERSON_1>>' })).to eq(code: '<<PERSON_1>>')
+        expect(described_class.tool_arguments('show_on_workbench', { path: 42 })).to eq(path: 42)
+      end
+    end
+
+    it 'puts back both names a PDF reading tool takes its file by, and only for that tool' do
+      table = described_class.start!(new_chat)
+      table.confirm!('Ada', 'PERSON')
+      described_class.answering(table.snapshot) do
+        expect(described_class.tool_arguments('fetch_text_from_pdf', { file: '<<PERSON_1>>.pdf' }))
+          .to eq(file: 'Ada.pdf')
+        expect(described_class.tool_arguments('fetch_text_from_pdf', { pdf: '<<PERSON_1>>.pdf' }))
+          .to eq(pdf: 'Ada.pdf')
+        expect(described_class.tool_arguments('fetch_text_from_office', { pdf: '<<PERSON_1>>.pdf' }))
+          .to eq(pdf: '<<PERSON_1>>.pdf')
+        expect(described_class.tool_arguments('fetch_text_from_file', { pdf: '<<PERSON_1>>.pdf' }))
+          .to eq(pdf: '<<PERSON_1>>.pdf')
+      end
+    end
+  end
+
   describe 'marks a chat with a table receives' do
     let(:host) do
       Class.new { include WebSocketHelper }.new.tap do |h|

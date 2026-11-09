@@ -141,6 +141,50 @@ module Monadic
           snapshot ? snapshot.restore(text) : text
         end
 
+        # The snapshot of the request whose reply is being read (the tool
+        # calls in it), set while the reply is read.
+        ANSWERING_KEY = :monadic_word_table_answering
+
+        def answering(snapshot)
+          return yield if snapshot.nil?
+
+          before = Fiber[ANSWERING_KEY]
+          begin
+            Fiber[ANSWERING_KEY] = snapshot
+            yield
+          ensure
+            Fiber[ANSWERING_KEY] = before
+          end
+        end
+
+        # The arguments of a tool a model called that are given to the tool
+        # with the chat's words put back: places on this machine the tool
+        # reads (a file or folder of the shared folder, a file shown on the
+        # work screen). Every other argument stays as the model wrote it,
+        # placeholders and all: what a tool writes, sends, searches for, runs
+        # or draws.
+        RESTORED_ARGUMENTS = {
+          'read_file_from_shared_folder' => %w[filepath],
+          'list_files_in_shared_folder' => %w[directory],
+          'fetch_text_from_file' => %w[file],
+          'fetch_text_from_pdf' => %w[file pdf],
+          'fetch_text_from_office' => %w[file],
+          'show_on_workbench' => %w[path]
+        }.freeze
+
+        # A tool call's arguments (keys as symbols or strings) as the tool is
+        # given them: the RESTORED_ARGUMENTS of the tool with the exact
+        # placeholders of the request being answered put back.
+        def tool_arguments(name, arguments)
+          snapshot = Fiber[ANSWERING_KEY]
+          keys = RESTORED_ARGUMENTS[name.to_s]
+          return arguments unless snapshot && keys && arguments.is_a?(Hash)
+
+          arguments.to_h do |key, value|
+            keys.include?(key.to_s) && value.is_a?(String) ? [key, snapshot.restore_exact(value)] : [key, value]
+          end
+        end
+
         # Called before each attempt to send to an outside host.
         def check_sending!
           table, revision = Fiber[SENDING_KEY]

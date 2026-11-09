@@ -5,6 +5,7 @@ require "json"
 require_relative "../../../../lib/monadic/adapters/vendors/openai_helper"
 require_relative "../../../../lib/monadic/utils/privacy/words"
 require_relative "../../../../lib/monadic/utils/websocket"
+require_relative "../../../../lib/monadic/utils/tts_text_extractor"
 
 # An OpenAI chat that hides its words with a word table: what is sent, and
 # what is not.
@@ -186,6 +187,78 @@ RSpec.describe "An OpenAI chat with a word table" do
       table.confirm!("Eve", "PERSON")
       GC.start(full_mark: true, immediate_sweep: true)
       expect(words.restore_reply(reply, "<<PERSON_1>> <<PERSON_2>>")).to eq("Ada Lovelace <<PERSON_2>>")
+    end
+
+    describe "a round of tool calls" do
+      let(:tool_app) do
+        Class.new(MonadicApp) do
+          attr_reader :read
+
+          def settings
+            { "tools" => %w[read_file_from_shared_folder write_file_to_shared_folder].map do |name|
+              { "type" => "function",
+                "function" => { "name" => name, "parameters" => { "type" => "object", "properties" => {} } } }
+            end }
+          end
+
+          def read_file_from_shared_folder(filepath:)
+            (@read ||= []) << filepath
+            "Notes by Ada Lovelace"
+          end
+
+          def write_file_to_shared_folder(filepath:, content:, mode: "write")
+            (@read ||= []) << [filepath, content, mode]
+            "written"
+          end
+        end.new
+      end
+
+      def stream(events)
+        body = events.map { |e| "event: #{e['type']}\ndata: #{JSON.generate(e)}\n\n" }.join
+        Object.new.tap { |b| b.define_singleton_method(:each) { |&blk| blk.call(body) } }
+      end
+
+      def calling(name, arguments)
+        item = { "type" => "function_call", "id" => "fc_1", "call_id" => "call_1", "name" => name, "arguments" => arguments }
+        [{ "type" => "response.created", "response" => { "id" => "r1", "model" => model } },
+         { "type" => "response.output_item.added", "item" => item.merge("arguments" => "") },
+         { "type" => "response.output_item.done", "item" => item },
+         { "type" => "response.completed", "response" => { "id" => "r1", "model" => model, "status" => "completed" } }]
+      end
+
+      def answering(text)
+        [{ "type" => "response.created", "response" => { "id" => "r2", "model" => model } },
+         { "type" => "response.output_text.delta", "item_id" => "m1", "delta" => text },
+         { "type" => "response.output_text.done", "item_id" => "m1", "text" => text },
+         { "type" => "response.completed", "response" => { "id" => "r2", "model" => model, "status" => "completed" } }]
+      end
+
+      def run_round(name, arguments)
+        stub_const("APPS", { "SpecApp" => tool_app })
+        replies = [calling(name, arguments), answering("<<PERSON_1>> kept notes.")]
+        chain_posting do |_uri, json:|
+          words.check_sending!
+          sent << JSON.parse(JSON.generate(json))
+          double("res", status: HTTP::Response::Status.new(200), body: stream(replies.shift), code: 200, headers: {})
+        end
+        chat.api_request("user", session) { |_| }
+      end
+
+      it "gives a tool that reads the shared folder the words of its path, and hides what it gives back" do
+        result = run_round("read_file_from_shared_folder", JSON.generate("filepath" => "<<PERSON_1>> notes.txt"))
+        expect(tool_app.read).to eq(["Ada Lovelace notes.txt"])
+        expect(sent.size).to eq(2)
+        expect(JSON.generate(sent)).not_to include("Ada Lovelace")
+        expect(JSON.generate(sent.last)).to include("Notes by <<PERSON_1>>")
+        reply = Array(result).last
+        expect(words.restore_reply(reply, reply.dig("choices", 0, "message", "content"))).to eq("Ada Lovelace kept notes.")
+      end
+
+      it "gives a tool that writes the placeholders as the model wrote them" do
+        run_round("write_file_to_shared_folder",
+                  JSON.generate("filepath" => "<<PERSON_1>>.txt", "content" => "About <<PERSON_1>>"))
+        expect(tool_app.read).to eq([["<<PERSON_1>>.txt", "About <<PERSON_1>>", "write"]])
+      end
     end
 
     it "sends no attempt after the table changed, and reports that nothing was sent" do

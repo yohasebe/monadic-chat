@@ -311,7 +311,8 @@ module WebSocketHelper
       "content_base64" => Base64.strict_encode64(content),
       "mime" => "application/json"
     })
-  rescue Monadic::Utils::Privacy::ExportCipher::IntegrityError, Monadic::Utils::Privacy::ExportCipher::DecryptionError, ArgumentError => e
+  rescue Monadic::Utils::Privacy::ExportCipher::IntegrityError, Monadic::Utils::Privacy::ExportCipher::DecryptionError, ArgumentError,
+         Monadic::Utils::Privacy::Outbound::Refused => e
     send_to_client(connection, {
       "type" => "privacy_export_error",
       "error" => "export_failed",

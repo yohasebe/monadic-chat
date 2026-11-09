@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'json'
+
 module Monadic
   module Utils
     module Privacy
@@ -49,8 +51,47 @@ module Monadic
         RESTORE_RE = /<<[\s?]*([A-Z_]+)_(\d+)[\s?]*>>/
         LITERAL_OPEN = "‹‹"
         LITERAL_CLOSE = "››"
+        # What one snapshot takes in one request: characters read (each
+        # string and key once, as given), the places a word is found, the
+        # depth of JSON inside strings, and the depth and number of the
+        # arrays, hashes and values a piece of data holds.
+        MAX_CHARS = 8_000_000
+        MAX_SPANS = 100_000
+        JSON_DEPTH = 5
+        MAX_NESTING = 64
+        MAX_NODES = 200_000
 
         class Invalid < StandardError; end
+        # More than one snapshot takes in one value.
+        class TooLarge < StandardError; end
+
+        # An active word in a key of the data: a key is not changed (the tool
+        # reading the data relies on it), so the request is not sent. The
+        # message and the place say what kind of part it is, never the word;
+        # path (the keys and indexes down to the hash holding it) is for the
+        # user's own screen.
+        class Unreplaceable < StandardError
+          attr_reader :place, :path
+
+          def initialize(place, path = [])
+            @place = place
+            @path = path.freeze
+            super("a word to hide is in #{place} of the request, which cannot be changed")
+          end
+        end
+
+        # A string that is JSON (a tool's arguments, a value saved as JSON),
+        # decoded; nil for any other string. JSON nested deeper than
+        # MAX_NESTING is TooLarge, never taken for text that is not JSON.
+        def self.json_value(text)
+          return nil unless text.lstrip.start_with?('{', '[', '"')
+
+          JSON.parse(text, max_nesting: MAX_NESTING)
+        rescue JSON::NestingError
+          raise TooLarge, 'JSON nested too deeply to be read'
+        rescue JSON::ParserError
+          nil
+        end
 
         # Words that overlap in part in a text (pairs of the words).
         class Overlap < StandardError
@@ -110,31 +151,23 @@ module Monadic
           @lock.synchronize { @active.map { |word, entry| { word: word, id: entry[:id], type: entry[:type] }.freeze }.freeze }
         end
 
-        # The text as sent: each active word replaced by its placeholder, and
-        # anything that looks like a placeholder kept as text. Overlap when
-        # two active words overlap in part.
-        def apply(text)
-          active = @lock.synchronize { @active.transform_values { |e| e[:id] } }
-          literal = escape_literals(text.to_s)
-          spans = chosen_spans(literal, active)
-          out = +''
-          at = 0
-          spans.each do |first, last, word|
-            out << literal[at...first] << "<<#{active[word]}>>"
-            at = last
+        # The active words and the placeholders as they are now, with the
+        # revision they are of, taken at once: what a request is prepared
+        # with, and checked against the table just before it is sent.
+        def snapshot
+          @lock.synchronize do
+            Snapshot.new(@revision, @active.transform_values { |e| e[:id] }.freeze, @mapping.dup.freeze)
           end
-          out << literal[at..]
         end
 
-        # The text with each placeholder of this chat put back as its word,
-        # once (a word is not looked into again). A placeholder this chat did
-        # not give stays as it is.
+        # The text as sent (Snapshot#raw, as the table is now).
+        def apply(text)
+          snapshot.raw(text)
+        end
+
+        # The text with the chat's placeholders put back (Snapshot#restore).
         def restore(text)
-          mapping = @lock.synchronize { @mapping.dup }
-          text.to_s.gsub(RESTORE_RE) do
-            entry = mapping["#{Regexp.last_match(1)}_#{Regexp.last_match(2)}"]
-            entry ? entry[:word] : Regexp.last_match(0)
-          end
+          snapshot.restore(text)
         end
 
         def to_h
@@ -182,7 +215,7 @@ module Monadic
             type = own(checked_type(entry['type']))
             raise Invalid, 'a placeholder of another type' unless match[1] == type
 
-            @mapping[own(id.to_s)] = { word: word, type: type }
+            @mapping[own(id.to_s)] = { word: word, type: type }.freeze
           end
           words = @mapping.values.map { |e| e[:word] }
           raise Invalid, 'a word with two placeholders' unless words.uniq.size == words.size
@@ -240,7 +273,7 @@ module Monadic
 
           @high[type] += 1
           id = own("#{type}_#{@high[type]}")
-          @mapping[id] = { word: word, type: type }
+          @mapping[id] = { word: word, type: type }.freeze
           id
         end
 
@@ -248,41 +281,188 @@ module Monadic
         def own(text)
           text.dup.freeze
         end
+        # One revision of the table, frozen: what a request is changed with.
+        #
+        # A request is changed part by part, by the one who builds it: text
+        # the user or the app wrote with raw, text a model wrote with
+        # from_model, a tool's arguments or result with data. The rest of a
+        # request (its form, the system prompt's settings, attachments) is
+        # not passed here; the last check before sending reads it all.
+        class Snapshot
+          attr_reader :revision
 
-        def escape_literals(text)
-          text.gsub(RESTORE_RE) { "#{LITERAL_OPEN}#{Regexp.last_match(0)[2...-2]}#{LITERAL_CLOSE}" }
+          def initialize(revision, active, mapping)
+            @revision = revision
+            @active = active
+            @mapping = mapping
+            freeze
+          end
+
+          # Text the user or the app wrote, as sent: each active word replaced
+          # by its placeholder; anything that looks like a placeholder kept
+          # as text. Overlap when two words overlap in part.
+          def raw(text, budget = Budget.new)
+            text = text.to_s
+            budget.take_chars(text.length)
+            replaced(text, budget)
+          end
+
+          # Text a model wrote (a reply, a tool call's arguments), which holds
+          # the chat's placeholders already: they are read back first, so
+          # that they are sent again as placeholders of the words still
+          # active, and not kept as text.
+          def from_model(text, budget = Budget.new)
+            text = text.to_s
+            budget.take_chars(text.length)
+            replaced(restore(text), budget)
+          end
+
+          # The chat's placeholders put back as their words, once (a word is
+          # not looked into again). A placeholder the chat did not give stays.
+          def restore(text)
+            text.to_s.gsub(RESTORE_RE) do
+              entry = @mapping["#{Regexp.last_match(1)}_#{Regexp.last_match(2)}"]
+              entry ? entry[:word] : Regexp.last_match(0)
+            end
+          end
+
+          # A tool's arguments or result, or other data a request carries
+          # (strings, arrays, hashes, numbers, true, false, nil, as JSON
+          # gives them): every string changed, by raw (origin :raw) or
+          # from_model (origin :model), the values of keys such as name or
+          # id too, since here they are someone's data. A string that is
+          # JSON (an object, an array or a string) is decoded, changed and
+          # encoded again. Keys are not changed; one that holds an active
+          # word is Unreplaceable. Not for a provider's request as a whole:
+          # its form and attachments are not data to change.
+          def data(object, origin: :raw, budget: Budget.new)
+            raise ArgumentError, "origin is :raw or :model, not #{origin.inspect}" unless %i[raw model].include?(origin)
+
+            walk(object, origin, budget, [], 0, 0)
+          end
+
+          # Whether text holds an active word, as written.
+          def holds_word?(text)
+            @active.each_key.any? { |word| text.include?(word) }
+          end
+
+          private
+
+          # What raw and from_model give for text already counted: literal
+          # placeholders kept as text, then each active word replaced.
+          def replaced(text, budget)
+            literal = escape_literals(text)
+            spans = chosen_spans(literal, budget)
+            out = +''
+            at = 0
+            spans.each do |first, last, word|
+              out << literal[at...first] << "<<#{@active[word]}>>"
+              at = last
+            end
+            out << literal[at..]
+          end
+
+          # path: the keys and indexes down to here; nesting: arrays and
+          # hashes around this value; decoded: how many times it was JSON
+          # inside a string. Each string and key is counted once, as given
+          # (what JSON decodes to is never longer than its text).
+          def walk(object, origin, budget, path, nesting, decoded)
+            budget.take_node
+            raise TooLarge, 'data nested too deeply to be changed' if nesting > MAX_NESTING
+
+            case object
+            when String
+              budget.take_chars(object.length) if decoded.zero?
+              inner = WordTable.json_value(object)
+              if inner.nil?
+                text = origin == :model ? restore(object) : object
+                replaced(text, budget)
+              else
+                raise TooLarge, 'a value is nested as JSON too deeply to be changed' if decoded >= JSON_DEPTH
+
+                JSON.generate(walk(inner, origin, budget, path, nesting, decoded + 1))
+              end
+            when Array
+              object.each_with_index.map { |v, i| walk(v, origin, budget, path + [i], nesting + 1, decoded) }
+            when Hash
+              object.to_h do |key, v|
+                raise ArgumentError, 'a key of data is text' unless key.is_a?(String) || key.is_a?(Symbol)
+
+                budget.take_chars(key.length) if decoded.zero?
+                raise Unreplaceable.new('an object key', path) if holds_word?(key.to_s)
+
+                [key, walk(v, origin, budget, path + [key.to_s], nesting + 1, decoded)]
+              end
+            when Integer, true, false, nil then object
+            when Float
+              raise ArgumentError, 'data holds a number JSON does not' unless object.finite?
+
+              object
+            else raise ArgumentError, "data holds a #{object.class}, which JSON does not"
+            end
+          end
+
+          def escape_literals(text)
+            text.gsub(RESTORE_RE) { "#{LITERAL_OPEN}#{Regexp.last_match(0)[2...-2]}#{LITERAL_CLOSE}" }
+          end
+
+          # Where each active word is replaced: [first, last, word], in order.
+          # A span inside another is left to the other; spans that overlap in
+          # part are Overlap.
+          def chosen_spans(text, budget)
+            spans = []
+            @active.each_key do |word|
+              from = 0
+              while (i = text.index(word, from))
+                budget.take_span
+                spans << [i, i + word.length, word]
+                from = i + 1
+              end
+            end
+            spans.sort_by! { |first, last, _| [first, -last] }
+            chosen = []
+            overlaps = []
+            spans.each do |span|
+              held = chosen.last
+              if held && span[0] < held[1]
+                # Inside the span before it, or the same word again (read left
+                # to right, as a replacement does).
+                next if span[1] <= held[1] || span[2] == held[2]
+
+                overlaps << [held[2], span[2]]
+                next
+              end
+              chosen << span
+            end
+            raise Overlap, overlaps.uniq unless overlaps.empty?
+
+            chosen
+          end
         end
 
-        # Where each active word is replaced: [first, last, word], in order.
-        # A span inside another is left to the other; spans that overlap in
-        # part are Overlap.
-        def chosen_spans(text, active)
-          spans = []
-          active.each_key do |word|
-            from = 0
-            while (i = text.index(word, from))
-              spans << [i, i + word.length, word]
-              from = i + 1
-            end
+        # What one snapshot may take in one request, counted as it goes: one
+        # Budget is shared by every part of the request.
+        class Budget
+          def initialize
+            @chars = 0
+            @spans = 0
+            @nodes = 0
           end
-          spans.sort_by! { |first, last, _| [first, -last] }
-          chosen = []
-          overlaps = []
-          spans.each do |span|
-            held = chosen.last
-            if held && span[0] < held[1]
-              # Inside the span before it, or the same word again (read left
-              # to right, as a replacement does).
-              next if span[1] <= held[1] || span[2] == held[2]
 
-              overlaps << [held[2], span[2]]
-              next
-            end
-            chosen << span
+          def take_chars(count)
+            @chars += count
+            raise TooLarge, "more than #{MAX_CHARS} characters to change" if @chars > MAX_CHARS
           end
-          raise Overlap, overlaps.uniq unless overlaps.empty?
 
-          chosen
+          def take_span
+            @spans += 1
+            raise TooLarge, "more than #{MAX_SPANS} words to replace" if @spans > MAX_SPANS
+          end
+
+          def take_node
+            @nodes += 1
+            raise TooLarge, "more than #{MAX_NODES} values to change" if @nodes > MAX_NODES
+          end
         end
       end
     end

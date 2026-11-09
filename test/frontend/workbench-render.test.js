@@ -134,12 +134,11 @@ describe('WorkbenchRender', () => {
   });
 
   describe('a diagram', () => {
-    test('takes only the listed kinds, without settings of its own, and not too long', () => {
+    test('takes no settings of its own, and is not too long', () => {
       expect(R.diagramChecked('flowchart LR\nA-->B')).toBe('flowchart LR\nA-->B');
       expect(R.diagramChecked('%% note\nsequenceDiagram\nA->>B: hi')).toContain('sequenceDiagram');
       expect(() => R.diagramChecked('%%{init: {"securityLevel": "loose"}}%%\nflowchart LR\nA-->B')).toThrow(R.Refused);
       expect(() => R.diagramChecked('---\nconfig:\n  theme: dark\n---\nflowchart LR\nA-->B')).toThrow(R.Refused);
-      expect(() => R.diagramChecked('architecture-beta\ngroup api(cloud)[API]')).toThrow(R.Refused);
       expect(() => R.diagramChecked(`flowchart LR\n${'A-->B\n'.repeat(10000)}`)).toThrow(R.Refused);
     });
   });

@@ -11,10 +11,13 @@ import puppeteer from 'puppeteer';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(here, '../../../docker/services/ruby/public');
+const FORMATS = fs.readFileSync(path.join(here, '../../../docker/services/ruby/lib/monadic/render_formats.json'), 'utf8');
 const PAGE = '<!doctype html><meta charset="utf-8"><div id="box" style="width:700px;height:500px"></div>'
+  + `<script type="application/json" id="render-formats">${FORMATS}</script>`
   + '<script src="/vendor/js/purify.min.js"></script><script src="/vendor/js/markdown-it.min.js"></script>'
-  + '<script src="/js/monadic/text-utils.js"></script><script src="/js/monadic/workbench-render.js"></script>';
-const FILES = ['/vendor/js/purify.min.js', '/vendor/js/markdown-it.min.js', '/vendor/js/mermaid.min.js', '/js/monadic/text-utils.js',
+  + '<script src="/js/monadic/text-utils.js"></script><script src="/js/monadic/workbench-render.js"></script>'
+  + '<script src="/js/monadic/render-registry.js"></script>';
+const FILES = ['/js/monadic/render-registry.js', '/vendor/js/purify.min.js', '/vendor/js/markdown-it.min.js', '/vendor/js/mermaid.min.js', '/js/monadic/text-utils.js',
   '/js/monadic/workbench-render.js', '/vendor/vega/vega-worker.mjs'];
 
 const probes = [];
@@ -120,6 +123,9 @@ try {
     await run('diagramFlow', 'diagram', 'flowchart LR\n  A[開始] --> B{判定}\n  B -->|はい| C[終わり<br>二行目]');
     await run('diagramSequence', 'diagram', 'sequenceDiagram\n  Alice->>Bob: Hello\n  Bob-->>Alice: Hi');
     await run('diagramClass', 'diagram', 'classDiagram\n  Animal <|-- Duck');
+    await run('diagramSankey', 'diagram', 'sankey-beta\nA,B,10\nA,C,5');
+    await run('diagramGit', 'diagram', 'gitGraph\n  commit\n  branch dev\n  commit');
+    await run('diagramUnknown', 'diagram', 'notADiagram\nA-->B');
     await run('diagramSettings', 'diagram', '%%{init: {"securityLevel": "loose"}}%%\nflowchart LR\nA-->B');
 
     const bar = { data: { values: [{ a: 'A', b: 28 }, { a: 'B', b: 55 }] }, mark: 'bar',
@@ -160,6 +166,43 @@ try {
     await run('filterPlain', 'vega_lite', filtered({ and: [{ field: 'x', range: [0, 30] }, { not: { field: 'x', oneOf: [1, 2] } }] }));
     await run('chartBracketFacet', 'vega_lite', JSON.stringify({ data: { values: Array.from({ length: 13 }, (_, i) => ({ a: { b: i }, x: i })) },
       mark: 'point', encoding: { row: { field: "a['b']", type: 'nominal' }, x: { field: 'x', type: 'quantitative' } } }));
+
+    // A diagram in a chat card, the way the chat draws it (render-registry.js),
+    // with the input that made strict Mermaid load an image while drawing.
+    const chat = document.createElement('div');
+    chat.className = 'card-text';
+    chat.innerHTML = '<div class="mermaid-code"><pre></pre></div><div class="mermaid-code"><pre></pre></div>';
+    chat.querySelectorAll('pre')[0].textContent = 'flowchart LR\n  A[\u201Cstart\u201D] --> B[\u7D42\u308F\u308A]';
+    chat.querySelectorAll('pre')[1].textContent = `flowchart LR\nA["<image src='${P('chat-image')}'>"]`;
+    document.body.appendChild(chat);
+    Renderers.apply(chat);
+    Renderers.apply(chat);
+    const chatImages = async () => {
+      for (let i = 0; i < 100; i += 1) {
+        const imgs = Array.from(chat.querySelectorAll('.render-wrap img.workbench-svg'));
+        if (imgs.length === 2 && imgs.every((img) => img.complete && img.naturalWidth > 0)) return imgs;
+        await wait(100);
+      }
+      return Array.from(chat.querySelectorAll('.render-wrap img.workbench-svg'));
+    };
+    const imgs = await chatImages();
+    result.chat = {
+      images: imgs.map((img) => img.naturalWidth),
+      wraps: chat.querySelectorAll('.render-wrap').length,
+      downloads: chat.querySelectorAll('.render-actions button').length
+    };
+    const chatUrl = imgs[0] && imgs[0].src;
+    // What a copy of the card (the PDF export) prints, taken before the card goes.
+    const own = Renderers.selfContainedSrc(chat.querySelector('.mermaid-code'));
+    chat.remove();
+    await wait(200);
+    result.chat.releasedWithCard = chatUrl ? await fetch(chatUrl).then(() => false, () => true) : null;
+    result.chat.ownImageWidth = own ? await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img.naturalWidth);
+      img.onerror = () => resolve(0);
+      img.src = own;
+    }) : null;
 
     await wait(1500);
     result.title = document.title;

@@ -10,27 +10,8 @@
  */
 
 describe('sanitizeMermaidSource', () => {
-  /**
-   * Replicates the sanitizeMermaidSource function from websocket.js (lines 1012-1029).
-   * This is a pure text transformation function with no side effects.
-   */
-  function sanitizeMermaidSource(text) {
-    if (!text) {
-      return text;
-    }
-
-    return text
-      .replace(/\r\n/g, '\n')
-      .replace(/\\n/g, '\n')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/[\u2010-\u2015\u2212\uFF0D]/g, '-')
-      .replace(/[\u2018\u2019\u2032\uFF07]/g, "'")
-      .replace(/[\u201C\u201D\u2033\uFF02]/g, '"');
-  }
+  // The function the chat draws Mermaid with (render-registry.js).
+  const { sanitizeMermaidSource } = require('../../docker/services/ruby/public/js/monadic/render-registry.js');
 
   it('returns falsy input unchanged', () => {
     expect(sanitizeMermaidSource(null)).toBeNull();

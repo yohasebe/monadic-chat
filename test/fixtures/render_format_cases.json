@@ -1,0 +1,18 @@
+[
+  { "name": "notes.md", "id": "markdown" },
+  { "name": "README.MARKDOWN", "id": "markdown" },
+  { "name": "flow.mmd", "id": "diagram" },
+  { "name": "flow.Mermaid", "id": "diagram" },
+  { "name": "data.csv", "id": "table" },
+  { "name": "data.TSV", "id": "table" },
+  { "name": "logo.svg", "id": "svg" },
+  { "name": "page.html", "id": "html" },
+  { "name": "page.htm", "id": "html" },
+  { "name": "reports/sales.vl.json", "id": "vega_lite" },
+  { "name": "Sales.Vega-Lite.JSON", "id": "vega_lite" },
+  { "name": ".vl.json", "id": null },
+  { "name": "data.json", "id": null },
+  { "name": "notes.txt", "id": null },
+  { "name": "no-extension", "id": null },
+  { "name": ".md", "id": null }
+]

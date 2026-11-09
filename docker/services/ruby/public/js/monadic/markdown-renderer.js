@@ -13,9 +13,6 @@
   // markdown-it instance (will be initialized when markdown-it is loaded)
   let md = null;
 
-  // Track if Mermaid has been initialized
-  let mermaidInitialized = false;
-
   // Canonical escapeHtml lives in text-utils.js (window.escapeHtml), loaded
   // earlier in the bundle. This delegate also escapes single quotes —
   // harmless in the <pre> text contexts used below (renders identically).
@@ -108,31 +105,6 @@
         }
         return defaultLinkOpen(tokens, idx, options, env, self);
       };
-    },
-
-    /**
-     * Initialize Mermaid with configuration
-     * @private
-     */
-    _initMermaid: function() {
-      if (mermaidInitialized) {
-        return Promise.resolve();
-      }
-
-      // Lazy-load Mermaid on first use (~2.5 MB deferred from initial load)
-      return (window.LazyLoader ? window.LazyLoader.mermaid() : Promise.resolve()).then(function () {
-        if (mermaidInitialized || typeof window.mermaid === 'undefined') return;
-        try {
-          window.mermaid.initialize({
-            startOnLoad: false,  // We manually control rendering
-            securityLevel: 'strict',
-            theme: 'default'
-          });
-          mermaidInitialized = true;
-        } catch (err) {
-          console.error('Failed to initialize Mermaid:', err);
-        }
-      });
     },
 
     // ===== Main Entry Point =====
@@ -859,10 +831,6 @@
         return;
       }
 
-      // Initialize Mermaid lazily (loaded on first use, ~2.5 MB deferred)
-      var self = this;
-      self._initMermaid();
-
       // 1. highlight.js
       if (window.SyntaxHighlight) {
         scheduleTask(() => {
@@ -914,32 +882,15 @@
         }
       }
 
-      // 4. Mermaid / applyMermaid (lazy-loaded, ~2.5 MB deferred)
-      if (typeof window.applyMermaid === 'function') {
+      // 4. The kinds the page draws (Mermaid diagrams): render-registry.js
+      if (window.Renderers) {
         scheduleTask(() => {
           try {
-            window.applyMermaid(container);
+            window.Renderers.apply(container);
           } catch (err) {
-            console.error('applyMermaid failed:', err);
+            console.error('Drawing failed:', err);
           }
         });
-      } else {
-        const mermaidElements = container.querySelectorAll('.mermaid:not([data-processed]), .mermaid-code:not([data-processed])');
-        if (mermaidElements.length > 0) {
-          scheduleTask(() => {
-            self._initMermaid().then(() => {
-              if (!window.mermaid) return;
-              try {
-                mermaidElements.forEach(el => el.setAttribute('data-processed', 'true'));
-                window.mermaid.run({ nodes: Array.from(mermaidElements) }).catch(err => {
-                  console.error('[MarkdownRenderer] Mermaid run() failed:', err);
-                });
-              } catch (err) {
-                console.error('Mermaid rendering failed:', err);
-              }
-            }).catch(err => console.error('Failed to load Mermaid:', err));
-          });
-        }
       }
 
       // 5. DrawIO / applyDrawIO

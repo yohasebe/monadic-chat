@@ -62,7 +62,7 @@
       const cardEl = document.getElementById(mid);
       const cardText = cardEl && cardEl.querySelector('.card-text');
       if (cardText) {
-        return { html: cardText.innerHTML, complete: true };
+        return { html: withOwnDrawings(cardText), complete: true };
       }
     }
     if (message.html) {
@@ -72,6 +72,16 @@
       return { html: renderMarkdownSafe(message.text || message.content), complete: false };
     }
     return { html: '', complete: false };
+  }
+
+  /**
+   * The card's HTML with each drawing (a diagram whose image belongs to the
+   * card) as an image of its own, or as its source when it is not drawn
+   * (still drawing, or failed), so that the print does not depend on the
+   * card staying on the page (Renderers.printable).
+   */
+  function withOwnDrawings(cardText) {
+    return window.Renderers ? window.Renderers.printable(cardText).innerHTML : cardText.innerHTML;
   }
 
   /**

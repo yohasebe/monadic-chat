@@ -80,6 +80,8 @@ docker/services/ruby/bin/{assets_list.sh,check_model_sync,monadic_dev}
 docker/services/ruby/docs/context_management_configuration.md
 docker/services/ruby/help_data/.gitkeep
 docker/services/ruby/lib/**/*.{rb,rake}
+# The kinds of content the page draws, read by the server and given to the page.
+docker/services/ruby/lib/monadic/render_formats.json
 docker/services/ruby/public/**/*.{js,css,svg,ico,html}
 docker/services/ruby/schema/*.json
 docker/services/ruby/scripts/**/*.{rb,sh}
@@ -95,6 +97,8 @@ docker/services/ruby/spec/unit/scripts/generators/*.rb.disabled
 
 # --- Frontend tests ---------------------------------------------------------
 test/**/*.{js,mjs}
+# Cases both test suites read (the Ruby and the page side of one table).
+test/fixtures/*.json
 
 # --- Documentation ----------------------------------------------------------
 # Outside docs/ and docs_dev/, Markdown is allowed only as a README or by

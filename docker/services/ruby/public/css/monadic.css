@@ -6935,6 +6935,16 @@ body.side-pane-resizing {
   color: var(--text-secondary);
 }
 
+/* A diagram in a chat card, drawn as an image (render-registry.js); it is
+   drawn on white as made */
+.render-wrap img.workbench-svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: #fff;
+  border-radius: var(--border-radius);
+}
+
 /* A text file drawn (workbench-render.js): Markdown, a table, an image
    made from SVG, a diagram or a chart, a page in a frame */
 .workbench-rendered {

@@ -34,11 +34,15 @@ describe('WorkbenchRender in a browser', () => {
   });
 
   test('draws the diagrams taken, in Japanese too, and refuses settings inside one', () => {
-    ['diagramFlow', 'diagramSequence', 'diagramClass'].forEach((name) => {
+    ['diagramFlow', 'diagramSequence', 'diagramClass', 'diagramSankey'].forEach((name) => {
       expect(r.drawn[name]).toEqual({ width: expect.any(Number), height: expect.any(Number) });
       expect(r.drawn[name].width).toBeGreaterThan(0);
     });
     expect(r.refused.diagramSettings).toMatch(/^refused/);
+    // Which kinds there are is Mermaid's to say.
+    expect(r.drawn.diagramSankey.width).toBeGreaterThan(0);
+    expect(r.drawn.diagramGit.width).toBeGreaterThan(0);
+    expect(r.refused.diagramUnknown).toMatch(/^refused: .*[Nn]o diagram type/);
   });
 
   test('draws charts from inline values, and refuses addresses, images, a second fold, too many views, signals and other functions', () => {
@@ -64,6 +68,16 @@ describe('WorkbenchRender in a browser', () => {
     expect(r.drawn.markdown.width).toBeGreaterThan(0);
     expect(r.drawn.svg.width).toBeGreaterThan(0);
     expect(r.releasedAfterDispose).toBe(true);
+  });
+
+  test('draws the diagrams of a chat card once, as images, and lets them go with the card', () => {
+    expect(r.chat.wraps).toBe(2);
+    expect(r.chat.images).toHaveLength(2);
+    r.chat.images.forEach((width) => expect(width).toBeGreaterThan(0));
+    expect(r.chat.downloads).toBe(2);
+    expect(r.chat.releasedWithCard).toBe(true);
+    // An image of its own (the PDF export's) still draws once the card is gone.
+    expect(r.chat.ownImageWidth).toBeGreaterThan(0);
   });
 
   test('leaves no error on the page', () => {

@@ -172,7 +172,7 @@ features do
   easy_submit true        # Enable submitting messages with Enter key (without clicking Send)
   math true               # Enable mathematical notation rendering using KaTeX
   abc true                # Enable ABC music notation rendering and playback
-  mermaid true            # Enable Mermaid diagram rendering for flowcharts and diagrams
+  mermaid true            # Tell the model how to write Mermaid diagrams (they are drawn in every app)
   websearch true          # Enable web search
   library_save false      # No saving to the Knowledge Base (default true)
   library_search false    # No Knowledge Base retrieval (default true; needs library_save)

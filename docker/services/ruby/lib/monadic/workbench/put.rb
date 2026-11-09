@@ -6,6 +6,7 @@ require_relative 'shown'
 require_relative '../workspace/chats'
 require_relative '../workspace/folders'
 require_relative '../workspace/shared_folder_preview'
+require_relative '../render_formats'
 require_relative '../history/policy'
 require_relative '../utils/shared_path_guard'
 require_relative '../utils/websocket/reply_handle'
@@ -34,9 +35,10 @@ module Monadic
       NAME_BYTES = 100
       NAME_TRIES = 99
       DIRNAME = 'workbench'
-      # Extensions of two parts, looked at before the last part alone.
-      COMPOUND = %w[.vl.json .vega-lite.json].freeze
-      EXTENSIONS = %w[md markdown mmd mermaid csv tsv svg html htm json txt].freeze
+      # The extensions the work screen draws (Monadic::RenderFormats), and
+      # text shown as it is. Extensions of two parts are looked at first.
+      COMPOUND = Monadic::RenderFormats.compound_extensions.map { |ext| ".#{ext}" }.freeze
+      EXTENSIONS = (Monadic::RenderFormats.extensions + %w[json txt]).uniq.freeze
 
       # Replies ended, oldest first: a late call for one of them finds no
       # place to record what it wrote.

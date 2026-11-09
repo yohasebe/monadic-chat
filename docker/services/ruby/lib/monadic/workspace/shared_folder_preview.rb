@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../render_formats'
+
 module Monadic
   module Workspace
     # Files of the shared folder as the Shared Folder panel previews them.
@@ -35,13 +37,6 @@ module Monadic
       TEXT = %w[txt md markdown csv tsv json jsonl log yml yaml toml ini xml html htm svg mmd mermaid
                 rb py js ts sh r tex bib srt vtt css sql].freeze
 
-      # What the work screen draws a text file as, by its extension.
-      RENDER = {
-        'md' => 'markdown', 'markdown' => 'markdown', 'mmd' => 'diagram', 'mermaid' => 'diagram',
-        'csv' => 'table', 'tsv' => 'table', 'svg' => 'svg', 'html' => 'html', 'htm' => 'html'
-      }.freeze
-      # Extensions of two parts, looked at before the last part alone.
-      RENDER_COMPOUND = { '.vl.json' => 'vega_lite', '.vega-lite.json' => 'vega_lite' }.freeze
       # Bytes of a file the work screen draws: a larger one is shown as text.
       RENDER_LIMIT = 8 * 1024 * 1024
 
@@ -56,12 +51,9 @@ module Monadic
 
       # What a text file is drawn as ("markdown", "diagram", "table", "svg",
       # "html", "vega_lite"), or nil when it is shown as text only.
+      # (Monadic::RenderFormats, the table the page draws by.)
       def render_for(name)
-        base = File.basename(name.to_s).downcase
-        RENDER_COMPOUND.each { |suffix, render| return render if base.end_with?(suffix) && base.size > suffix.size }
-        return nil unless kind_for(base) == 'text'
-
-        RENDER[extension(base)]
+        kind_for(name) == 'text' ? Monadic::RenderFormats.for_name(name) : nil
       end
 
       # "image", "audio", "video", "pdf", "text" or nil.

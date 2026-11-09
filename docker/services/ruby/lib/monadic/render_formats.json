@@ -1,0 +1,8 @@
+[
+  { "id": "markdown", "fences": [], "extensions": ["md", "markdown"], "compound_extensions": [] },
+  { "id": "diagram", "fences": ["mermaid"], "extensions": ["mmd", "mermaid"], "compound_extensions": [] },
+  { "id": "table", "fences": [], "extensions": ["csv", "tsv"], "compound_extensions": [] },
+  { "id": "svg", "fences": [], "extensions": ["svg"], "compound_extensions": [] },
+  { "id": "html", "fences": [], "extensions": ["html", "htm"], "compound_extensions": [] },
+  { "id": "vega_lite", "fences": [], "extensions": [], "compound_extensions": ["vl.json", "vega-lite.json"] }
+]

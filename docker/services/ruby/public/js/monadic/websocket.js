@@ -147,7 +147,6 @@ window.defaultApp = DEFAULT_APP;
 // isElementInViewport now in ws-content-renderer.js
 const isElementInViewport = window.isElementInViewport;
 
-const applyMermaid = window.applyMermaid;
 const applyDrawIO = window.applyDrawIO;
 
 // ABC notation, toggle, and source-code helpers now in ws-content-renderer.js

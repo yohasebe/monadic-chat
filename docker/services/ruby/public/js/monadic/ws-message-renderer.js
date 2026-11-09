@@ -426,8 +426,9 @@ function handleEditSuccess(data) {
       applyToggle(cardEl);
     }
 
-    if (toBool(p["mermaid"])) {
-      applyMermaid(cardEl);
+    // Diagrams are drawn for every app (render-registry.js).
+    if (window.Renderers) {
+      window.Renderers.apply(cardEl);
     }
 
     if (typeof applyDrawIO === 'function') {
@@ -535,8 +536,9 @@ function handleDisplaySample(data) {
     applyToggle(lastCard);
   }
 
-  if (toBool(p["mermaid"])) {
-    applyMermaid(lastCard);
+  // Diagrams are drawn for every app (render-registry.js).
+  if (window.Renderers) {
+    window.Renderers.apply(lastCard);
   }
 
   if (typeof applyDrawIO === 'function') {

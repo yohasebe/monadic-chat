@@ -31,7 +31,6 @@ beforeEach(() => {
   global.setAutoSpeechSuppressed = jest.fn();
   global.isAutoSpeechSuppressed = jest.fn().mockReturnValue(false);
   global.applyToggle = jest.fn();
-  global.applyMermaid = jest.fn();
   global.applyDrawIO = jest.fn();
   global.applyMath = jest.fn();
   global.applyAbc = jest.fn();

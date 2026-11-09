@@ -22,7 +22,7 @@
  *   chart that takes too long ends with the worker.
  *
  * draw(box, kind, text) shows the drawing in box and returns a handle:
- * { done: Promise, dispose() }. done settles once the drawing is shown or
+ * { done: Promise, svg(), dispose() }. done settles once the drawing is shown or
  * failed (then box says why); after dispose nothing more is put in box.
  */
 (function (window) {
@@ -39,7 +39,6 @@
   const CHART_WAIT_MS = 10000;
   const MERMAID_PATH = '/vendor/js/mermaid.min.js';
   const VEGA_WORKER_PATH = '/vendor/vega/vega-worker.mjs';
-  const DIAGRAM_TYPES = /^(?:flowchart|graph|sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram|gantt|pie|journey|mindmap|timeline|quadrantChart|xychart-beta)\b/;
   const PAGE_POLICY = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; " +
     "base-uri 'none'; form-action 'none'";
   const FRAME_POLICY = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'none'; " +
@@ -339,8 +338,8 @@
     if (/^\s*---/.test(source) || source.includes('%%{')) {
       throw new Refused(t('diagramSettings', 'Settings inside a diagram are not taken.'));
     }
-    const first = source.split('\n').map((line) => line.trim()).find((line) => line && !line.startsWith('%%'));
-    if (!first || !DIAGRAM_TYPES.test(first)) throw new Refused(t('diagramType', 'This kind of diagram is not drawn here.'));
+    // Which kinds of diagram there are is Mermaid's to say (it tells when it
+    // knows none), in the frame.
     return source;
   }
 
@@ -537,11 +536,15 @@
   function draw(box, kind, text, options) {
     const ext = (options && options.name ? String(options.name).toLowerCase() : '');
     let disposed = false;
+    let lastSvg = null;
     const shown = [];
     const live = () => !disposed;
     const showing = (svg) => {
       if (disposed) return null;
-      return showSvg(box, svg, live).then((url) => { shown.push(url); });
+      return showSvg(box, svg, live).then((url) => {
+        shown.push(url);
+        lastSvg = svg;
+      });
     };
     let work;
     try {
@@ -561,6 +564,8 @@
     });
     return {
       done: done,
+      // The SVG text shown, once drawn (an SVG, a diagram or a chart).
+      svg: () => (disposed ? null : lastSvg),
       dispose() {
         disposed = true;
         shown.forEach(release);

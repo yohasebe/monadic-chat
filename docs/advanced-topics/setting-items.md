@@ -74,7 +74,7 @@ All settings in the features block are optional:
   - `true` - Image generation and editing
   - `"upload_only"` - Image upload only (no generation/editing)
   - `false` - Disabled (default)
-- `mermaid` - Enable Mermaid diagram rendering
+- `mermaid` - Tell the model how to write Mermaid diagrams, and show the badge (Mermaid diagrams are drawn in every app)
 - `abc` - Enable ABC music notation
 - `math` - Enable LaTeX math rendering
 

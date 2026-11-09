@@ -66,6 +66,66 @@ RSpec.describe Monadic::Utils::Privacy::WordTable do
     end
   end
 
+  describe "words kept as they are" do
+    it "keeps a candidate taken off out of the candidates, without changing what is sent" do
+      before = table.revision
+      expect(table.keep!("Apple")).to be(true)
+      expect(table.keep!("Apple")).to be(false)
+      expect(table.standing("Apple")).to eq(:kept)
+      expect(table.standing("Pear")).to be_nil
+      expect(table.revision).to eq(before)
+      expect(table.apply("Apple")).to eq("Apple")
+    end
+
+    it "keeps a word taken off the list, and hides it again once marked" do
+      table.confirm!("Ada", "PERSON")
+      expect(table.standing("Ada")).to eq(:hidden)
+      table.disable!("Ada")
+      expect(table.standing("Ada")).to eq(:kept)
+      expect(table.kept_words).to eq(["Ada"])
+      expect(table.confirm!("Ada", "PERSON")).to eq("PERSON_1")
+      expect(table.standing("Ada")).to eq(:hidden)
+      expect(table.kept_words).to be_empty
+    end
+
+    it "takes off a hidden word when it is kept, as disable! does" do
+      table.confirm!("Ada", "PERSON")
+      before = table.revision
+      expect(table.keep!("Ada")).to be(true)
+      expect(table.revision).to eq(before + 1)
+      expect(table.apply("Ada")).to eq("Ada")
+      expect(table.restore("<<PERSON_1>>")).to eq("Ada")
+    end
+
+    it "puts a kept word back among the candidates" do
+      table.keep!("Apple")
+      expect(table.unkeep!("Apple")).to be(true)
+      expect(table.unkeep!("Apple")).to be(false)
+      expect(table.standing("Apple")).to be_nil
+    end
+
+    it "keeps at most MAX_KEPT words, changing nothing when full" do
+      stub_const("#{described_class}::MAX_KEPT", 1)
+      table.keep!("Apple")
+      table.confirm!("Ada", "PERSON")
+      expect { table.keep!("Pear") }.to raise_error(described_class::Invalid, /kept/)
+      expect { table.disable!("Ada") }.to raise_error(described_class::Invalid, /kept/)
+      expect(table.standing("Ada")).to eq(:hidden)
+    end
+
+    it "keeps the words with the table, and refuses a word both hidden and kept" do
+      table.confirm!("Ada", "PERSON")
+      table.keep!("Apple")
+      again = described_class.from_h(JSON.parse(JSON.generate(table.to_h)))
+      expect(again.kept_words).to eq(["Apple"])
+      bad = table.to_h.merge("kept" => %w[Apple Ada])
+      expect { described_class.from_h(bad) }.to raise_error(described_class::Invalid, /both/)
+      expect { described_class.from_h(table.to_h.merge("kept" => %w[Apple Apple])) }.to raise_error(described_class::Invalid)
+      expect { described_class.from_h(table.to_h.merge("kept" => ["a\nb"])) }.to raise_error(described_class::Invalid)
+      expect { described_class.from_h(table.to_h.except("kept")) }.to raise_error(described_class::Invalid)
+    end
+  end
+
   describe "applying the words to a text" do
     before do
       table.confirm!("Ada Lovelace", "PERSON")
@@ -305,7 +365,7 @@ RSpec.describe Monadic::Utils::Privacy::WordTable do
 
   describe "numbers" do
     it "refuses to give a number past the last, before changing anything" do
-      data = { "schema" => 1, "mapping" => {}, "active" => [], "high" => { "PERSON" => described_class::MAX_NUMBER },
+      data = { "schema" => 1, "mapping" => {}, "active" => [], "kept" => [], "high" => { "PERSON" => described_class::MAX_NUMBER },
                "revision" => 0 }
       full = described_class.from_h(data)
       expect { full.confirm!("Ada", "PERSON") }.to raise_error(described_class::Invalid, /no number left/)

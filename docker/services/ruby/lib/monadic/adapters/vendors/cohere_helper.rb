@@ -16,6 +16,7 @@ require_relative "../../workbench/caller"
 
 module CohereHelper
   include BaseVendorHelper
+  prepend Monadic::Utils::Privacy::Words::Requests
   include InteractionUtils
   include MonadicPerformance
   include FunctionCallErrorHandler
@@ -1371,7 +1372,7 @@ module CohereHelper
 
     # Expand vocabulary ${TOKEN}s before the tool runs; before :session
     # injection so the session object is never walked. No-op without vocabulary.
-    argument_hash = expand_tool_args_for_vocabulary(argument_hash, session, APPS[app]&.settings)
+    argument_hash = tool_arguments_given(function_name, argument_hash, session, APPS[app]&.settings)
 
     # Inject session for tools that need it
     method_obj = APPS[app].method(function_name.to_sym) rescue nil

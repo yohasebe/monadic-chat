@@ -183,15 +183,66 @@ RSpec.describe Monadic::Utils::Privacy::Words do
     end
   end
 
+  describe 'a request and the reading of its reply' do
+    it "notes the replies with the snapshot of the request that got them, a round of tool calls with its own" do
+      table = described_class.start!(new_chat)
+      table.confirm!('Ada', 'PERSON')
+      outer = table.snapshot
+      table.confirm!('Eve', 'PERSON')
+      inner = table.snapshot
+      table.confirm!('Bob', 'PERSON')
+      final = { 'text' => 'final' }
+      own = { 'text' => 'own' }
+
+      replies = described_class.request do
+        described_class.sent_with(outer)
+        expect(described_class.tool_arguments('read_file_from_shared_folder', { filepath: '<<PERSON_2>>' }))
+          .to eq(filepath: '<<PERSON_2>>')
+        round = described_class.request do
+          described_class.sent_with(inner)
+          expect(described_class.tool_arguments('read_file_from_shared_folder', { filepath: '<<PERSON_2>>' }))
+            .to eq(filepath: 'Eve')
+          [final]
+        end
+        expect(described_class.tool_arguments('read_file_from_shared_folder', { filepath: '<<PERSON_2>>' }))
+          .to eq(filepath: '<<PERSON_2>>')
+        round + [own]
+      end
+
+      text = '<<PERSON_1>> <<PERSON_2>> <<PERSON_3>>'
+      expect(replies).to eq([final, own])
+      expect(described_class.restore_reply(final, text)).to eq('Ada Eve <<PERSON_3>>')
+      expect(described_class.restore_reply(own, text)).to eq('Ada <<PERSON_2>> <<PERSON_3>>')
+      expect(described_class.tool_arguments('read_file_from_shared_folder', { filepath: '<<PERSON_1>>' }))
+        .to eq(filepath: '<<PERSON_1>>')
+    end
+
+    it 'leaves the request around it as it was when the block fails, and notes nothing outside one' do
+      table = described_class.start!(new_chat)
+      table.confirm!('Ada', 'PERSON')
+      described_class.sent_with(table.snapshot)
+      expect(described_class.tool_arguments('read_file_from_shared_folder', { filepath: '<<PERSON_1>>' }))
+        .to eq(filepath: '<<PERSON_1>>')
+      described_class.request do
+        described_class.sent_with(table.snapshot)
+        expect { described_class.request { raise ArgumentError } }.to raise_error(ArgumentError)
+        expect(described_class.tool_arguments('read_file_from_shared_folder', { filepath: '<<PERSON_1>>' }))
+          .to eq(filepath: 'Ada')
+        nil
+      end
+    end
+  end
+
   describe "a tool's arguments" do
-    it 'puts back only the exact placeholders of the places a tool reads, while a reply is read' do
+    it 'puts back only the exact placeholders of the places a tool reads, with the snapshot of the request being answered' do
       table = described_class.start!(new_chat)
       table.confirm!('Ada', 'PERSON')
       snapshot = table.snapshot
       table.confirm!('Eve', 'PERSON')
       args = { filepath: '<<PERSON_1>>/<< PERSON_1 >>/<<PERSON_2>>/<<PERSON_9>>.txt' }
       expect(described_class.tool_arguments('read_file_from_shared_folder', args)).to eq(args)
-      described_class.answering(snapshot) do
+      described_class.request do
+        described_class.sent_with(snapshot)
         expect(described_class.tool_arguments('read_file_from_shared_folder', args))
           .to eq(filepath: 'Ada/<< PERSON_1 >>/<<PERSON_2>>/<<PERSON_9>>.txt')
         expect(described_class.tool_arguments('list_files_in_shared_folder', { 'directory' => '<<PERSON_1>>' }))
@@ -206,7 +257,8 @@ RSpec.describe Monadic::Utils::Privacy::Words do
     it 'puts back both names a PDF reading tool takes its file by, and only for that tool' do
       table = described_class.start!(new_chat)
       table.confirm!('Ada', 'PERSON')
-      described_class.answering(table.snapshot) do
+      described_class.request do
+        described_class.sent_with(table.snapshot)
         expect(described_class.tool_arguments('fetch_text_from_pdf', { file: '<<PERSON_1>>.pdf' }))
           .to eq(file: 'Ada.pdf')
         expect(described_class.tool_arguments('fetch_text_from_pdf', { pdf: '<<PERSON_1>>.pdf' }))

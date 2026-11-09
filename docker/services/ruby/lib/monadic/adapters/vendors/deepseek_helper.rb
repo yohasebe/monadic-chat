@@ -13,6 +13,7 @@ require_relative "../../workbench/caller"
 
 module DeepSeekHelper
   include BaseVendorHelper
+  prepend Monadic::Utils::Privacy::Words::Requests
   include InteractionUtils
   include FunctionCallErrorHandler
   MAX_FUNC_CALLS = 20
@@ -1005,11 +1006,13 @@ module DeepSeekHelper
     if clean_content && !clean_content.empty?
       request_id = SecureRandom.hex(4)
       app_name = session[:parameters]["app_name"] || obj["app_name"]
+      # Kept as a reply is: the chat's words put back.
+      kept = Monadic::Utils::Privacy::Words.put_back(clean_content)
       assistant_message = {
         "role" => "assistant",
-        "text" => clean_content,
-        "html" => markdown_to_html(clean_content, math: true),
-        "lang" => detect_language(clean_content),
+        "text" => kept,
+        "html" => markdown_to_html(kept, math: true),
+        "lang" => detect_language(kept),
         "mid" => request_id,
         "active" => true,
         "app_name" => app_name
@@ -1078,11 +1081,13 @@ module DeepSeekHelper
         if content_before_tools && !content_before_tools.to_s.strip.empty?
           request_id = SecureRandom.hex(4)
           app_name = session[:parameters]["app_name"] || obj["app_name"]
+          # Kept as a reply is: the chat's words put back.
+          kept = Monadic::Utils::Privacy::Words.put_back(content_before_tools.to_s)
           assistant_message = {
             "role" => "assistant",
-            "text" => content_before_tools.to_s,
-            "html" => markdown_to_html(content_before_tools.to_s, math: true),
-            "lang" => detect_language(content_before_tools.to_s),
+            "text" => kept,
+            "html" => markdown_to_html(kept, math: true),
+            "lang" => detect_language(kept),
             "mid" => request_id,
             "active" => true,
             "app_name" => app_name
@@ -1186,11 +1191,17 @@ module DeepSeekHelper
     # Privacy Filter: mask user-message PII before sending to DeepSeek. No-op
     # when the app does not declare `privacy do; enabled true; end` in MDSL.
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-    if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
-      body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+    # A chat with a word table hides its words with it (each attempt below
+    # is sent only while the table is unchanged); otherwise the Privacy
+    # Filter's masking and marked words apply.
+    hiding = hide_words_in_request!(body, session)
+    unless hiding
+      if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
+        body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+      end
+      # Words the user marked: masked wherever they are in the body, or nothing is sent.
+      protect_marked_words!(body, session, app_settings)
     end
-    # Words the user marked: masked wherever they are in the body, or nothing is sent.
-    protect_marked_words!(body, session, app_settings)
 
     if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
       body.delete("tools")
@@ -1199,8 +1210,10 @@ module DeepSeekHelper
 
     offer_tools!(body, session, app, provider: "deepseek", model: body["model"])
     # Each post of the body is checked for what it holds of the work screen.
-    res = post_json_with_retries(http, target_uri, body, max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY,
-                                 looks: { session: session, provider: "deepseek", model: body["model"] })
+    res = Monadic::Utils::Privacy::Words.sending(hiding&.first, hiding&.last) do
+      post_json_with_retries(http, target_uri, body, max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY,
+                             looks: { session: session, provider: "deepseek", model: body["model"] })
+    end
 
     unless res.status.success?
       # A proxy or gateway can answer with a body that is not JSON.
@@ -1236,7 +1249,7 @@ module DeepSeekHelper
 
     # Expand vocabulary ${TOKEN}s before the tool runs; before :session
     # injection so the session object is never walked. No-op without vocabulary.
-    converted = expand_tool_args_for_vocabulary(converted, session, APPS[app]&.settings)
+    converted = tool_arguments_given(function_name, converted, session, APPS[app]&.settings)
 
     method_obj = APPS[app].method(function_name.to_sym) rescue nil
     if method_obj && method_obj.parameters.any? { |_type, name| name == :session }

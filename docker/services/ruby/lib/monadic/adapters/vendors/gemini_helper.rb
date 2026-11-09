@@ -51,6 +51,7 @@ end
 #
 module GeminiHelper
   include BaseVendorHelper
+  prepend Monadic::Utils::Privacy::Words::Requests
   include InteractionUtils
   include ErrorPatternDetector
   include FunctionCallErrorHandler
@@ -3640,7 +3641,7 @@ module GeminiHelper
     # Expand vocabulary ${TOKEN}s (e.g. ${SHARED}) before the tool runs; before
     # :session injection so the session object is never walked. No-op without
     # a vocabulary block.
-    argument_hash = expand_tool_args_for_vocabulary(argument_hash, session, APPS[app]&.settings)
+    argument_hash = tool_arguments_given(function_name, argument_hash, session, APPS[app]&.settings)
 
     # Inject session for tools that need it (e.g., monadic state tools, image generators)
     # Check if the method accepts a :session parameter and inject it if so

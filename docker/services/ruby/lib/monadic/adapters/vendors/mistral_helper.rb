@@ -18,6 +18,7 @@ require_relative "../../workbench/caller"
 
 module MistralHelper
   include BaseVendorHelper
+  prepend Monadic::Utils::Privacy::Words::Requests
   include InteractionUtils
   include MonadicPerformance
   include FunctionCallErrorHandler
@@ -488,11 +489,17 @@ module MistralHelper
     # Privacy Filter: mask user-message PII before sending to Mistral. No-op
     # when the app does not declare `privacy do; enabled true; end` in MDSL.
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-    if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
-      body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+    # A chat with a word table hides its words with it (each attempt below
+    # is sent only while the table is unchanged); otherwise the Privacy
+    # Filter's masking and marked words apply.
+    hiding = hide_words_in_request!(body, session)
+    unless hiding
+      if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
+        body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+      end
+      # Words the user marked: masked wherever they are in the body, or nothing is sent.
+      protect_marked_words!(body, session, app_settings)
     end
-    # Words the user marked: masked wherever they are in the body, or nothing is sent.
-    protect_marked_words!(body, session, app_settings)
 
     # Force text-only response when force-stop is active (e.g., after parallel dispatch
     # or verification sets call_depth_per_turn = FORCE_STOP_DEPTH). Prevents the model from attempting
@@ -505,59 +512,62 @@ module MistralHelper
     # Log extra information if enabled
     Monadic::Utils::ExtraLogger.log { "Processing Mistral query (Call depth: #{call_depth})\n#{JSON.pretty_generate(workbench_loggable(body))}" }
 
-    begin
-      offer_tools!(body, session, app, provider: "mistral", model: body["model"])
-      res = post_with_workbench_looks(session, provider: "mistral", model: body["model"]) do
-        http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout).post(target_uri, json: body)
-      end
-
-      unless res.status.success?
-        Monadic::Utils::ExtraLogger.log { "[Mistral] HTTP #{res.status} body: #{res.body.to_s[0,500]}" }
-        error_text = nil
-        err_json = nil
-        begin
-          err_json = JSON.parse(res.body.to_s)
-        rescue JSON::ParserError
-          error_text = res.body.to_s
+    res = nil
+    Monadic::Utils::Privacy::Words.sending(hiding&.first, hiding&.last) do
+      begin
+        offer_tools!(body, session, app, provider: "mistral", model: body["model"])
+        res = post_with_workbench_looks(session, provider: "mistral", model: body["model"]) do
+          http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout).post(target_uri, json: body)
         end
 
-        message = if err_json
-                    err_json["message"] || err_json["error"] || err_json["detail"]
-                  else
-                    error_text
-                  end
-        message ||= "Unknown API error"
+        unless res.status.success?
+          Monadic::Utils::ExtraLogger.log { "[Mistral] HTTP #{res.status} body: #{res.body.to_s[0,500]}" }
+          error_text = nil
+          err_json = nil
+          begin
+            err_json = JSON.parse(res.body.to_s)
+          rescue JSON::ParserError
+            error_text = res.body.to_s
+          end
 
-        if res.status.code.to_i == 401 && message.downcase.include?("api key")
-          error_message = Monadic::Utils::ErrorFormatter.api_key_error(
-            provider: "Mistral",
-            env_var: "MISTRAL_API_KEY"
-          )
+          message = if err_json
+                      err_json["message"] || err_json["error"] || err_json["detail"]
+                    else
+                      error_text
+                    end
+          message ||= "Unknown API error"
+
+          if res.status.code.to_i == 401 && message.downcase.include?("api key")
+            error_message = Monadic::Utils::ErrorFormatter.api_key_error(
+              provider: "Mistral",
+              env_var: "MISTRAL_API_KEY"
+            )
+          else
+            error_message = Monadic::Utils::ErrorFormatter.api_error(
+              provider: "Mistral",
+              message: message,
+              code: res.status.code
+            )
+          end
+          res = { "type" => "error", "content" => error_message }
+          block&.call res
+          return [res]
+        end
+      rescue HTTP::Error, HTTP::TimeoutError => e
+        if num_retrial < MAX_RETRIES
+          num_retrial += 1
+          sleep RETRY_DELAY
+          retry
         else
-          error_message = Monadic::Utils::ErrorFormatter.api_error(
+          error_message = Monadic::Utils::ErrorFormatter.network_error(
             provider: "Mistral",
-            message: message,
-            code: res.status.code
+            message: "Request timed out",
+            timeout: true
           )
+          res = { "type" => "error", "content" => error_message }
+          block&.call res
+          return [res]
         end
-        res = { "type" => "error", "content" => error_message }
-        block&.call res
-        return [res]
-      end
-    rescue HTTP::Error, HTTP::TimeoutError => e
-      if num_retrial < MAX_RETRIES
-        num_retrial += 1
-        sleep RETRY_DELAY
-        retry
-      else
-        error_message = Monadic::Utils::ErrorFormatter.network_error(
-          provider: "Mistral",
-          message: "Request timed out",
-          timeout: true
-        )
-        res = { "type" => "error", "content" => error_message }
-        block&.call res
-        return [res]
       end
     end
 
@@ -1263,7 +1273,7 @@ module MistralHelper
 
     # Expand vocabulary ${TOKEN}s before the tool runs; before :session
     # injection so the session object is never walked. No-op without vocabulary.
-    args_hash = expand_tool_args_for_vocabulary(args_hash, session, APPS[app]&.settings)
+    args_hash = tool_arguments_given(function_name, args_hash, session, APPS[app]&.settings)
 
     # Inject session for tools that need it
     method_obj = APPS[app].method(function_name.to_sym) rescue nil

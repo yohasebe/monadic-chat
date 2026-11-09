@@ -10,6 +10,7 @@ require_relative "../../workbench/caller"
 
 module OllamaHelper
   include BaseVendorHelper
+  prepend Monadic::Utils::Privacy::Words::Requests
   include MonadicPerformance
   include FunctionCallErrorHandler
   define_timeouts "OLLAMA", open: 5, read: 600, write: 60
@@ -564,40 +565,48 @@ module OllamaHelper
     # when the app does not declare `privacy do; enabled true; end` in MDSL.
     # Ollama uses the OpenAI-compatible chat shape (body["messages"]).
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-    if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
-      body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+    # A chat with a word table hides its words with it (each attempt below
+    # is sent only while the table is unchanged); otherwise the Privacy
+    # Filter's masking and marked words apply.
+    hiding = hide_words_in_request!(body, session)
+    unless hiding
+      if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
+        body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+      end
+      # Words the user marked: masked wherever they are in the body, or nothing is sent.
+      protect_marked_words!(body, session, app_settings)
     end
-    # Words the user marked: masked wherever they are in the body, or nothing is sent.
-    protect_marked_words!(body, session, app_settings)
 
     res = nil
     last_error = nil
-    MAX_RETRIES.times do |attempt|
-      begin
-        # Re-resolve endpoint on each retry (cache may have been cleared)
-        current_endpoint = OllamaHelper.find_endpoint
-        unless current_endpoint
-          last_error = StandardError.new("Ollama endpoint not found")
-          Monadic::Utils::ExtraLogger.log { "[Ollama] Endpoint not found on attempt #{attempt + 1}/#{MAX_RETRIES}" }
-          sleep RETRY_DELAY
-          next
-        end
-        target_uri = "#{current_endpoint}/chat"
+    Monadic::Utils::Privacy::Words.sending(hiding&.first, hiding&.last) do
+      MAX_RETRIES.times do |attempt|
+        begin
+          # Re-resolve endpoint on each retry (cache may have been cleared)
+          current_endpoint = OllamaHelper.find_endpoint
+          unless current_endpoint
+            last_error = StandardError.new("Ollama endpoint not found")
+            Monadic::Utils::ExtraLogger.log { "[Ollama] Endpoint not found on attempt #{attempt + 1}/#{MAX_RETRIES}" }
+            sleep RETRY_DELAY
+            next
+          end
+          target_uri = "#{current_endpoint}/chat"
 
-        offer_tools!(body, session, app, provider: "ollama", model: body["model"])
-        res = post_with_workbench_looks(session, provider: "ollama", model: body["model"]) do
-          http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout).post(target_uri, json: body)
+          offer_tools!(body, session, app, provider: "ollama", model: body["model"])
+          res = post_with_workbench_looks(session, provider: "ollama", model: body["model"]) do
+            http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout).post(target_uri, json: body)
+          end
+          if res.status.success?
+            last_error = nil
+            break
+          end
+          sleep RETRY_DELAY
+        rescue HTTP::Error, HTTP::TimeoutError => e
+          last_error = e
+          Monadic::Utils::ExtraLogger.log { "[Ollama] Connection attempt #{attempt + 1}/#{MAX_RETRIES} failed: #{e.message}" }
+          OllamaHelper.reset_endpoint_cache
+          sleep RETRY_DELAY
         end
-        if res.status.success?
-          last_error = nil
-          break
-        end
-        sleep RETRY_DELAY
-      rescue HTTP::Error, HTTP::TimeoutError => e
-        last_error = e
-        Monadic::Utils::ExtraLogger.log { "[Ollama] Connection attempt #{attempt + 1}/#{MAX_RETRIES} failed: #{e.message}" }
-        OllamaHelper.reset_endpoint_cache
-        sleep RETRY_DELAY
       end
     end
 
@@ -822,7 +831,7 @@ module OllamaHelper
 
       # Expand vocabulary ${TOKEN}s before the tool runs; before :session
       # injection so the session object is never walked. No-op without vocabulary.
-      converted = expand_tool_args_for_vocabulary(converted, session, APPS[app]&.settings)
+      converted = tool_arguments_given(function_name, converted, session, APPS[app]&.settings)
 
       # Inject session for tools that need it
       method_obj = APPS[app].method(function_name.to_sym) rescue nil

@@ -27,6 +27,7 @@ require_relative "../../monadic_performance"
 require_relative "../../dsl/configurations"
 module OpenAIHelper
   include BaseVendorHelper
+  prepend Monadic::Utils::Privacy::Words::Requests
   include InteractionUtils
   include ErrorPatternDetector
   include FunctionCallErrorHandler
@@ -1272,12 +1273,7 @@ module OpenAIHelper
       return [res]
     end
 
-    # Tool calls in the reply are read as answering this request.
-    replies = Monadic::Utils::Privacy::Words.answering(hiding&.last) do
-      openai_replies(res, body, obj, app, session, use_responses_api, original_user_model, current_call_depth, &block)
-    end
-    # The reply is put back with the words this request was sent with.
-    Monadic::Utils::Privacy::Words.note_reply(replies, hiding&.last)
+    openai_replies(res, body, obj, app, session, use_responses_api, original_user_model, current_call_depth, &block)
   end
 
   # The replies to a successful request (execute_openai_api_call).
@@ -2041,10 +2037,7 @@ module OpenAIHelper
         # Expand vocabulary ${TOKEN}s (e.g. ${SHARED}) to real paths before the
         # tool runs. Done before :session injection so the session object is
         # never walked. No-op when the app declares no vocabulary.
-        argument_hash = expand_tool_args_for_vocabulary(argument_hash, session, APPS[app]&.settings)
-        # A chat with a word table: the arguments for places the tool reads
-        # are given with the chat's words put back; the rest stay hidden.
-        argument_hash = Monadic::Utils::Privacy::Words.tool_arguments(function_name, argument_hash)
+        argument_hash = tool_arguments_given(function_name, argument_hash, session, APPS[app]&.settings)
 
         method_obj = APPS[app].method(function_name.to_sym) rescue nil
         if method_obj && method_obj.parameters.any? { |type, name| name == :session }

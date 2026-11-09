@@ -5,6 +5,7 @@ require 'delegate'
 
 require_relative "../utils/http_client"
 require_relative "../utils/tool_dispatch_guard"
+require_relative "../utils/privacy/words"
 require_relative "../workspace/request_context"
 require_relative "../workspace/stopped_replies"
 require_relative "../workbench/observation"
@@ -547,6 +548,14 @@ module BaseVendorHelper
     pipeline.process_tool_invoke(nil, args)
   end
 
+  # A tool call's arguments as the tool is given them: owned `${TOKEN}`s
+  # expanded, then, in a chat with a word table, the chat's words put back
+  # in the places the tool reads (Privacy::Words.tool_arguments); every
+  # other argument stays as the model wrote it.
+  def tool_arguments_given(function_name, args, session, app_settings)
+    Monadic::Utils::Privacy::Words.tool_arguments(function_name, expand_tool_args_for_vocabulary(args, session, app_settings))
+  end
+
   # Decorate owned `${TOKEN}`s in finalized display text (keeps the symbol,
   # wraps it in <code> with a hover title of the resolved value). Display-only —
   # never apply to the TTS buffer.
@@ -695,7 +704,6 @@ module BaseVendorHelper
   # attachments, are left as they are (a word in them stops the request).
   # [table, snapshot] for Words.sending, or nil for a chat without a table.
   def hide_words_in_request!(body, session)
-    require_relative '../utils/privacy/words'
     privacy = Monadic::Utils::Privacy
     table = privacy::Words.table(session)
     return nil unless table
@@ -710,6 +718,7 @@ module BaseVendorHelper
 
       body.merge!(hidden)
       privacy::Outbound.check_no_marked_words!(session, body)
+      privacy::Words.sent_with(snapshot)
       return [table, snapshot]
     end
     raise privacy::Outbound::Refused, 'the words to hide kept changing; nothing was sent'
@@ -739,6 +748,9 @@ module BaseVendorHelper
       calls = item[key.("tool_calls")]
       origin = role == "assistant" && calls.is_a?(Array) ? :model : :raw
       out = item.merge(key.("content") => hide_words_in_content(item[key.("content")], snapshot, budget, origin))
+      # A model's reasoning, kept as the model wrote it (DeepSeek's).
+      reasoning = item[key.("reasoning_content")]
+      out[key.("reasoning_content")] = snapshot.from_model(reasoning, budget) if reasoning.is_a?(String)
       if calls.is_a?(Array)
         out[key.("tool_calls")] = calls.map do |call|
           function = call.is_a?(Hash) ? (call[:function] || call["function"]) : nil
@@ -756,13 +768,21 @@ module BaseVendorHelper
   end
 
   # A message's content: a string, or parts whose text parts are changed
-  # (images and files are left as they are). origin: :raw or :model.
+  # (images and files are left as they are). origin: :raw or :model. A
+  # thinking part (Mistral's) holds text parts of the model's reasoning,
+  # kept as the model wrote it.
   def hide_words_in_content(content, snapshot, budget, origin = :raw)
     change = ->(text) { origin == :model ? snapshot.from_model(text, budget) : snapshot.raw(text, budget) }
     return change.(content) if content.is_a?(String)
     return content unless content.is_a?(Array)
 
     content.map do |part|
+      if part.is_a?(Hash) && (part[:type] || part["type"]).to_s == "thinking"
+        thinking_key = part.key?(:thinking) ? :thinking : "thinking"
+        next part unless part[thinking_key].is_a?(Array)
+
+        next part.merge(thinking_key => hide_words_in_content(part[thinking_key], snapshot, budget, :model))
+      end
       next part unless part.is_a?(Hash) && %w[text input_text output_text].include?((part[:type] || part["type"]).to_s)
 
       text_key = part.key?(:text) ? :text : "text"

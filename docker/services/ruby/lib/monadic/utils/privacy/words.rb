@@ -141,19 +141,48 @@ module Monadic
           snapshot ? snapshot.restore(text) : text
         end
 
-        # The snapshot of the request whose reply is being read (the tool
-        # calls in it), set while the reply is read.
-        ANSWERING_KEY = :monadic_word_table_answering
+        # A request to a model and the reading of its reply, run in the
+        # block (a vendor's api_request, through Requests): once the
+        # request's body is hidden, the snapshot it was hidden with
+        # (sent_with). While the reply is read and the tools it calls are
+        # run, tool_arguments puts back that snapshot's words, and the
+        # replies the block returns are noted with it (note_reply). The
+        # request of a round of tool calls is a request of its own.
+        REQUEST_KEY = :monadic_word_table_request
+        Request = Struct.new(:snapshot)
 
-        def answering(snapshot)
-          return yield if snapshot.nil?
-
-          before = Fiber[ANSWERING_KEY]
+        def request
+          before = Fiber[REQUEST_KEY]
+          frame = Request.new
           begin
-            Fiber[ANSWERING_KEY] = snapshot
-            yield
+            Fiber[REQUEST_KEY] = frame
+            replies = yield
           ensure
-            Fiber[ANSWERING_KEY] = before
+            Fiber[REQUEST_KEY] = before
+          end
+          note_reply(replies, frame.snapshot)
+        end
+
+        # The request being made was hidden with snapshot.
+        def sent_with(snapshot)
+          frame = Fiber[REQUEST_KEY]
+          frame.snapshot = snapshot if frame
+        end
+
+        # Text a model wrote in reply to the request being made, kept as the
+        # chat keeps replies: with the placeholders the request was sent
+        # with put back (as it is outside a request, or before it is hidden).
+        def put_back(text)
+          snapshot = Fiber[REQUEST_KEY]&.snapshot
+          snapshot ? snapshot.restore(text) : text
+        end
+
+        # Prepended to a vendor's helper: each api_request is a request.
+        # It takes what every helper's api_request takes, and passes on the
+        # keywords some add (Grok's disable_streaming:).
+        module Requests
+          def api_request(role, session, call_depth: 0, **options, &block)
+            Words.request { super(role, session, call_depth: call_depth, **options, &block) }
           end
         end
 
@@ -174,9 +203,9 @@ module Monadic
 
         # A tool call's arguments (keys as symbols or strings) as the tool is
         # given them: the RESTORED_ARGUMENTS of the tool with the exact
-        # placeholders of the request being answered put back.
+        # placeholders of the request whose reply called it put back.
         def tool_arguments(name, arguments)
-          snapshot = Fiber[ANSWERING_KEY]
+          snapshot = Fiber[REQUEST_KEY]&.snapshot
           keys = RESTORED_ARGUMENTS[name.to_s]
           return arguments unless snapshot && keys && arguments.is_a?(Hash)
 

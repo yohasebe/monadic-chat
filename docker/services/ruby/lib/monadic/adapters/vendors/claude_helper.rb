@@ -19,6 +19,7 @@ require_relative "../../workbench/caller"
 
 module ClaudeHelper
   include BaseVendorHelper
+  prepend Monadic::Utils::Privacy::Words::Requests
   include InteractionUtils
   include ErrorPatternDetector
   include FunctionCallErrorHandler
@@ -1835,7 +1836,7 @@ module ClaudeHelper
     # Expand vocabulary ${TOKEN}s (e.g. ${SHARED}) before the tool runs; before
     # :session injection so the session object is never walked. No-op without
     # a vocabulary block.
-    argument_hash = expand_tool_args_for_vocabulary(argument_hash, session, app_instance&.settings)
+    argument_hash = tool_arguments_given(tool_name, argument_hash, session, app_instance&.settings)
 
     # Inject session for tools that need it (e.g., monadic state tools)
     method_obj = app_instance.method(tool_name.to_sym) rescue nil

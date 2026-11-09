@@ -16,8 +16,10 @@ module Monadic
       #   is no longer hidden, and its placeholder still reads back;
       # - numbers come from the highest given per type, never again for
       #   another word, however the active words change;
-      # - the revision grows with every change, so that what was prepared
-      #   under one set of words can be told from what is current.
+      # - the revision grows with every change to what is sent (a word
+      #   hidden or no longer hidden, a type changed), so that what was
+      #   prepared under one set of words can be told from what is current;
+      #   the words kept as they are change nothing sent, and not it.
       #
       # A word is found as written (case and form as they are; no
       # normalization). A word inside a longer one is left to the longer;
@@ -30,6 +32,13 @@ module Monadic
       # model sees ‹‹TYPE_N››, and so does a reply that repeats it (the
       # history keeps what the user wrote).
       #
+      # The table also holds the words the user chose not to hide (a
+      # candidate taken off, a word taken off the list): a search for
+      # candidates leaves them out, until the user marks one again or puts
+      # it back. They change nothing that is sent, and are never sent; a
+      # kept word does not keep a shorter active word inside it from being
+      # hidden.
+      #
       # What it keeps is its own: words and types are copied in, and what it
       # gives out (ids, lists, to_h) is frozen or a copy, so nothing outside
       # changes the table.
@@ -38,6 +47,7 @@ module Monadic
       class WordTable
         SCHEMA = 1
         MAX_WORDS = 200
+        MAX_KEPT = 500
         MAX_WORD_CHARS = 200
         MAX_PLACEHOLDERS = 2000
         MAX_TYPES = 100
@@ -109,6 +119,7 @@ module Monadic
           @mapping = {}    # "PERSON_1" => { word:, type: }
           @active = {}     # word => { id:, type: }
           @high = Hash.new(0)
+          @kept = {}       # word => true: not hidden, not offered again
           @revision = 0
           @lock = Mutex.new
         end
@@ -132,18 +143,47 @@ module Monadic
 
             id = id_for_word(word) || new_id(word, type)
             @active[word] = { id: id, type: type }
+            @kept.delete(word)
             @revision += 1
             id
           end
         end
 
-        # The word is no longer hidden. Its placeholder still reads back.
+        # The word is no longer hidden, and is kept as it is (not offered
+        # again as a candidate). Its placeholder still reads back.
         def disable!(word)
-          @lock.synchronize do
-            next false unless @active.delete(word)
+          @lock.synchronize { @active.key?(word) && drop_active(word) }
+        end
 
-            @revision += 1
+        # A candidate the user took off: not hidden, and not offered again.
+        # A word hidden until now is taken off as by disable!.
+        def keep!(word)
+          word = own(checked_word(word))
+          @lock.synchronize do
+            next drop_active(word) if @active.key?(word)
+            next false if @kept.key?(word)
+
+            take_kept(word)
             true
+          end
+        end
+
+        # A word kept as it is put back: it can be offered as a candidate again.
+        def unkeep!(word)
+          @lock.synchronize { !@kept.delete(word).nil? }
+        end
+
+        def kept_words
+          @lock.synchronize { @kept.keys.freeze }
+        end
+
+        # What the user said of a word found as a candidate: :hidden (it is
+        # marked), :kept (taken off; leave it out), or nil (not said).
+        def standing(word)
+          @lock.synchronize do
+            if @active.key?(word) then :hidden
+            elsif @kept.key?(word) then :kept
+            end
           end
         end
 
@@ -177,6 +217,7 @@ module Monadic
               'mapping' => @mapping.to_h { |id, e| [id.dup, { 'word' => e[:word].dup, 'type' => e[:type].dup }] },
               'active' => @active.map { |word, e| { 'word' => word.dup, 'id' => e[:id].dup, 'type' => e[:type].dup } },
               'high' => @high.to_h { |type, n| [type.dup, n] },
+              'kept' => @kept.keys.map(&:dup),
               'revision' => @revision
             }
           end
@@ -199,13 +240,16 @@ module Monadic
           mapping = data['mapping']
           active = data['active']
           high = data['high']
+          kept = data['kept']
           revision = data['revision']
-          unless mapping.is_a?(Hash) && active.is_a?(Array) && high.is_a?(Hash) && revision.is_a?(Integer) && revision >= 0
+          unless mapping.is_a?(Hash) && active.is_a?(Array) && high.is_a?(Hash) && kept.is_a?(Array) &&
+                 revision.is_a?(Integer) && revision >= 0
             raise Invalid, 'not a word table'
           end
           raise Invalid, 'too many placeholders' if mapping.size > MAX_PLACEHOLDERS
           raise Invalid, 'too many words' if active.size > MAX_WORDS
           raise Invalid, 'too many types' if high.size > MAX_TYPES
+          raise Invalid, 'too many words kept as they are' if kept.size > MAX_KEPT
 
           mapping.each do |id, entry|
             match = ID_RE.match(id.to_s) or raise Invalid, 'a placeholder of another form'
@@ -242,6 +286,13 @@ module Monadic
           ids = @active.values.map { |e| e[:id] }
           raise Invalid, 'a placeholder for two active words' unless ids.uniq.size == ids.size
 
+          kept.each do |word|
+            word = own(checked_word(word))
+            raise Invalid, 'a word both hidden and kept as it is' if @active.key?(word)
+            raise Invalid, 'a word kept twice' if @kept.key?(word)
+
+            @kept[word] = true
+          end
           @revision = revision
         end
 
@@ -275,6 +326,20 @@ module Monadic
           id = own("#{type}_#{@high[type]}")
           @mapping[id] = { word: word, type: type }.freeze
           id
+        end
+
+        # Under the lock: the active word taken off and kept as it is.
+        def drop_active(word)
+          take_kept(word)
+          @active.delete(word)
+          @revision += 1
+          true
+        end
+
+        def take_kept(word)
+          raise Invalid, "at most #{MAX_KEPT} words kept as they are" if @kept.size >= MAX_KEPT
+
+          @kept[word] = true
         end
 
         # A frozen copy of a string, the table's own.

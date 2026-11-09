@@ -1199,16 +1199,22 @@ module OpenAIHelper
     # Privacy Filter: mask user-message PII before sending to OpenAI. No-op
     # when the app does not declare `privacy do; enabled true; end` in MDSL.
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-    if privacy_enabled_for?(app_settings, session)
-      if body["messages"].is_a?(Array)
-        body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+    # A chat with a word table hides its words with it (each attempt below
+    # is sent only while the table is unchanged); otherwise the Privacy
+    # Filter's masking and marked words apply.
+    hiding = hide_words_in_request!(body, session)
+    unless hiding
+      if privacy_enabled_for?(app_settings, session)
+        if body["messages"].is_a?(Array)
+          body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+        end
+        if body["input"].is_a?(Array)
+          body["input"] = apply_privacy_to_messages(body["input"], session, app_settings)
+        end
       end
-      if body["input"].is_a?(Array)
-        body["input"] = apply_privacy_to_messages(body["input"], session, app_settings)
-      end
+      # Words the user marked: masked wherever they are in the body, or nothing is sent.
+      protect_marked_words!(body, session, app_settings)
     end
-    # Words the user marked: masked wherever they are in the body, or nothing is sent.
-    protect_marked_words!(body, session, app_settings)
 
     DebugHelper.debug("OpenAI API endpoint: #{target_uri}", category: :api, level: :debug)
     DebugHelper.debug("Using Responses API: #{use_responses_api}", category: :api, level: :debug)
@@ -1222,30 +1228,32 @@ module OpenAIHelper
                       end
 
     res = nil
-    MAX_RETRIES.times do
-      if use_responses_api
-        Monadic::Utils::ExtraLogger.log {
-          if body["input"]&.any? { |msg| msg["content"]&.is_a?(Array) && msg["content"].any? { |c| c["type"] == "input_file" || c["type"] == "file" } }
-            lines = ["DEBUG: Sending to Responses API with PDF content:", "Body structure: #{body.keys}"]
-            body["input"].each_with_index do |msg, idx|
-              if msg["content"].is_a?(Array)
-                msg["content"].each do |item|
-                  lines << "  Input[#{idx}] content type: #{item['type']}"
+    Monadic::Utils::Privacy::Words.sending(hiding&.first, hiding&.last) do
+      MAX_RETRIES.times do
+        if use_responses_api
+          Monadic::Utils::ExtraLogger.log {
+            if body["input"]&.any? { |msg| msg["content"]&.is_a?(Array) && msg["content"].any? { |c| c["type"] == "input_file" || c["type"] == "file" } }
+              lines = ["DEBUG: Sending to Responses API with PDF content:", "Body structure: #{body.keys}"]
+              body["input"].each_with_index do |msg, idx|
+                if msg["content"].is_a?(Array)
+                  msg["content"].each do |item|
+                    lines << "  Input[#{idx}] content type: #{item['type']}"
+                  end
                 end
               end
+              lines.join("\n")
             end
-            lines.join("\n")
-          end
-        }
-      end
+          }
+        end
 
-      offer_tools!(body, session, app, provider: "openai", model: body["model"])
-      res = post_with_workbench_looks(session, provider: "openai", model: body["model"]) do
-        http.timeout(**timeout_settings).post(target_uri, json: body)
-      end
-      break if res.status.success?
+        offer_tools!(body, session, app, provider: "openai", model: body["model"])
+        res = post_with_workbench_looks(session, provider: "openai", model: body["model"]) do
+          http.timeout(**timeout_settings).post(target_uri, json: body)
+        end
+        break if res.status.success?
 
-      sleep RETRY_DELAY
+        sleep RETRY_DELAY
+      end
     end
 
     unless res&.status&.success?
@@ -1264,6 +1272,13 @@ module OpenAIHelper
       return [res]
     end
 
+    replies = openai_replies(res, body, obj, app, session, use_responses_api, original_user_model, current_call_depth, &block)
+    # The reply is put back with the words this request was sent with.
+    Monadic::Utils::Privacy::Words.note_reply(replies, hiding&.last)
+  end
+
+  # The replies to a successful request (execute_openai_api_call).
+  private def openai_replies(res, body, obj, app, session, use_responses_api, original_user_model, current_call_depth, &block)
     if !body["stream"]
       obj = JSON.parse(res.body)
 

@@ -93,12 +93,52 @@ module Monadic
         # to send it (a retry included) is checked against the table first
         # (check_sending!). When the table changed after the snapshot was
         # taken, nothing is sent.
+        # Without a table (nil), the block is only run (what an outer send
+        # set stays).
         def sending(table, snapshot)
+          return yield if table.nil?
+
           before = Fiber[SENDING_KEY]
-          Fiber[SENDING_KEY] = [table, snapshot.revision].freeze
-          yield
-        ensure
-          Fiber[SENDING_KEY] = before
+          begin
+            Fiber[SENDING_KEY] = [table, snapshot.revision].freeze
+            yield
+          ensure
+            Fiber[SENDING_KEY] = before
+          end
+        end
+
+        # The snapshot of the request each reply answers, held by the reply
+        # object itself until the reply is put back, so that it is put back
+        # with the words that request was sent with (a placeholder given
+        # after it was sent is not one of them). While a reply is held, the
+        # first snapshot noted for it is kept: in a round of tool calls, the
+        # request that got the reply notes it before the rounds around it
+        # return the same reply. At most REPLY_LIMIT are held, the oldest
+        # dropped first (a reply never put back: an error, a reply not
+        # shown); a reply noted again after it was dropped is held with the
+        # later snapshot, which puts back no more than the words it knew.
+        REPLY_LIMIT = 256
+        REPLIES = {}.compare_by_identity
+
+        def note_reply(replies, snapshot)
+          return replies unless snapshot
+
+          Array(replies).each do |reply|
+            next unless reply.is_a?(Hash)
+
+            LOCK.synchronize do
+              REPLIES[reply] ||= snapshot
+              REPLIES.shift while REPLIES.size > REPLY_LIMIT
+            end
+          end
+          replies
+        end
+
+        # The reply's text with the chat's placeholders put back, as the
+        # request it answers was sent; as it is when that is not known.
+        def restore_reply(reply, text)
+          snapshot = LOCK.synchronize { REPLIES.delete(reply) }
+          snapshot ? snapshot.restore(text) : text
         end
 
         # Called before each attempt to send to an outside host.

@@ -683,6 +683,93 @@ module BaseVendorHelper
     body
   end
 
+  # A chat that hides its words with a word table (Privacy::Words): the
+  # conversation of an OpenAI-shaped request (body["messages"], or
+  # body["input"] of the Responses API) changed with one snapshot of the
+  # table, made again once if the table changed meanwhile, then the whole
+  # body checked. What the user and the app wrote, and replies as the chat
+  # keeps them (put back), are raw text. What a model wrote in a round of
+  # tool calls (an assistant message with tool_calls, or a Responses item
+  # of type "message"; the stored conversation has neither) and the tool
+  # calls themselves are the model's; a tool's result is data. System and developer messages, and
+  # attachments, are left as they are (a word in them stops the request).
+  # [table, snapshot] for Words.sending, or nil for a chat without a table.
+  def hide_words_in_request!(body, session)
+    require_relative '../utils/privacy/words'
+    privacy = Monadic::Utils::Privacy
+    table = privacy::Words.table(session)
+    return nil unless table
+
+    keys = %w[messages input].select { |key| body[key].is_a?(Array) }
+    original = keys.to_h { |key| [key, body[key]] }
+    2.times do
+      snapshot = table.snapshot
+      budget = privacy::WordTable::Budget.new
+      hidden = original.transform_values { |items| items.map { |item| hide_words_in_item(item, snapshot, budget) } }
+      next unless table.revision == snapshot.revision
+
+      body.merge!(hidden)
+      privacy::Outbound.check_no_marked_words!(session, body)
+      return [table, snapshot]
+    end
+    raise privacy::Outbound::Refused, 'the words to hide kept changing; nothing was sent'
+  end
+
+  # One message or item of an OpenAI-shaped conversation, as sent.
+  def hide_words_in_item(item, snapshot, budget)
+    return item unless item.is_a?(Hash)
+
+    key = ->(name) { item.key?(name.to_sym) ? name.to_sym : name }
+    role = (item[:role] || item["role"]).to_s
+    type = (item[:type] || item["type"]).to_s
+    case type
+    when "function_call"
+      return item.merge(key.("arguments") => snapshot.data(item[key.("arguments")], origin: :model, budget: budget))
+    when "function_call_output"
+      return item.merge(key.("output") => snapshot.data(item[key.("output")], budget: budget))
+    when "message"
+      return item unless role == "assistant"
+
+      return item.merge(key.("content") => hide_words_in_content(item[key.("content")], snapshot, budget, :model))
+    end
+    case role
+    when "tool"
+      item.merge(key.("content") => snapshot.data(item[key.("content")], budget: budget))
+    when "user", "assistant"
+      calls = item[key.("tool_calls")]
+      origin = role == "assistant" && calls.is_a?(Array) ? :model : :raw
+      out = item.merge(key.("content") => hide_words_in_content(item[key.("content")], snapshot, budget, origin))
+      if calls.is_a?(Array)
+        out[key.("tool_calls")] = calls.map do |call|
+          function = call.is_a?(Hash) ? (call[:function] || call["function"]) : nil
+          next call unless function.is_a?(Hash)
+
+          fkey = function.key?(:arguments) ? :arguments : "arguments"
+          call.merge((call.key?(:function) ? :function : "function") =>
+                       function.merge(fkey => snapshot.data(function[fkey], origin: :model, budget: budget)))
+        end
+      end
+      out
+    else
+      item
+    end
+  end
+
+  # A message's content: a string, or parts whose text parts are changed
+  # (images and files are left as they are). origin: :raw or :model.
+  def hide_words_in_content(content, snapshot, budget, origin = :raw)
+    change = ->(text) { origin == :model ? snapshot.from_model(text, budget) : snapshot.raw(text, budget) }
+    return change.(content) if content.is_a?(String)
+    return content unless content.is_a?(Array)
+
+    content.map do |part|
+      next part unless part.is_a?(Hash) && %w[text input_text output_text].include?((part[:type] || part["type"]).to_s)
+
+      text_key = part.key?(:text) ? :text : "text"
+      part[text_key].is_a?(String) ? part.merge(text_key => change.(part[text_key])) : part
+    end
+  end
+
   # Every string in a tool's result masked, the structure kept: a string
   # that is JSON is read, masked value by value and written again (so its
   # escapes stay valid); keys are left as they are.

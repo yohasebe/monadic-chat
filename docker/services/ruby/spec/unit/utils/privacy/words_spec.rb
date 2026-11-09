@@ -133,6 +133,56 @@ RSpec.describe Monadic::Utils::Privacy::Words do
     end
   end
 
+  describe 'sending without a table inside a send with one' do
+    it 'keeps the outer check, whether the inner block ends or raises' do
+      session = new_chat
+      table = described_class.start!(session)
+      described_class.sending(table, table.snapshot) do
+        described_class.sending(nil, nil) { :done }
+        begin
+          described_class.sending(nil, nil) { raise ArgumentError }
+        rescue ArgumentError
+          nil
+        end
+        table.confirm!('Eve', 'PERSON')
+        expect { described_class.check_sending! }.to raise_error(outbound::Refused)
+      end
+    end
+  end
+
+  describe 'putting a reply back' do
+    after { described_class::LOCK.synchronize { described_class::REPLIES.clear } }
+
+    # Notes a reply as answered with a snapshot that nothing else holds.
+    def noted_reply(table)
+      { 'choices' => [] }.tap { |reply| described_class.note_reply([reply], table.snapshot) }
+    end
+
+    it 'uses the words the request it answers was sent with, whatever was collected meanwhile' do
+      table = described_class.start!(new_chat)
+      table.confirm!('Ada', 'PERSON')
+      reply = noted_reply(table)
+      table.confirm!('Eve', 'PERSON')
+      GC.start(full_mark: true, immediate_sweep: true)
+      described_class.note_reply([reply], table.snapshot)
+      expect(described_class.restore_reply(reply, '<<PERSON_1>> and <<PERSON_2>>')).to eq('Ada and <<PERSON_2>>')
+      # Put back once: the reply is not held after it.
+      expect(described_class.restore_reply(reply, '<<PERSON_1>>')).to eq('<<PERSON_1>>')
+      expect(described_class.restore_reply({ 'choices' => [] }, '<<PERSON_1>>')).to eq('<<PERSON_1>>')
+      expect(described_class.note_reply([reply], nil)).to eq([reply])
+    end
+
+    it 'holds at most REPLY_LIMIT replies, dropping the oldest' do
+      stub_const("#{described_class}::REPLY_LIMIT", 2)
+      table = described_class.start!(new_chat)
+      table.confirm!('Ada', 'PERSON')
+      first, second, third = Array.new(3) { noted_reply(table) }
+      expect(described_class.restore_reply(first, '<<PERSON_1>>')).to eq('<<PERSON_1>>')
+      expect(described_class.restore_reply(second, '<<PERSON_1>>')).to eq('Ada')
+      expect(described_class.restore_reply(third, '<<PERSON_1>>')).to eq('Ada')
+    end
+  end
+
   describe 'marks a chat with a table receives' do
     let(:host) do
       Class.new { include WebSocketHelper }.new.tap do |h|

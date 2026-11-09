@@ -691,7 +691,10 @@ module WebSocketHelper
           # is finalized. Buffer remains masked so the post-completion TTS path
           # above can still apply sanitize_for_tts independently.
           known_entities = nil
-          if session[:_privacy_pipeline]
+          if Monadic::Utils::Privacy::Words.marked?(session)
+            # A chat with a word table: the chat's placeholders put back.
+            raw_content = Monadic::Utils::Privacy::Words.restore_reply(response, raw_content)
+          elsif session[:_privacy_pipeline]
             pipeline = session[:_privacy_pipeline]
             restored_response = pipeline.after_receive_from_llm(raw_content)
             raw_content = restored_response.text

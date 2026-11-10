@@ -1,6 +1,7 @@
 # frozen_string_literal: false
 
 require_relative "../utils/privacy/marks"
+require_relative "../utils/privacy/words"
 require_relative "../workbench/record"
 require_relative "../workbench/look/record"
 require_relative "../workbench/shown"
@@ -383,10 +384,17 @@ post "/load" do
           imported[:_privacy_session_enabled] = true
         end
 
+        # The chat goes on hiding its words with the file's table, under the
+        # new chat's own id (the tab takes it with the import).
+        word_table = Monadic::Utils::Privacy::Words.file_table(privacy_terms_source, imported)
+        imported[:word_table] = word_table if word_table
+
         Monadic::Utils::ExtraLogger.log { "JSON import: #{imported[:messages].size} messages read for app '#{json_data['parameters']['app_name']}'" }
         token = WebSocketHelper.stage_import(tab_id, imported)
 
         { success: true, app_name: json_data['parameters']['app_name'], import_token: token }.to_json
+      rescue Monadic::Utils::Privacy::WordTable::Invalid => e
+        error_json("Import error: the file's word table could not be read: #{e.message}")
       rescue Monadic::Utils::Privacy::Marks::Invalid => e
         error_json("Import error: words marked with \u27E6 \u27E7 in the file could not be read: #{e.message}")
       rescue JSON::ParserError => e

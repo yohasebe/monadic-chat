@@ -128,6 +128,7 @@ module WebSocketHelper
     # changed until now is kept with the chat.
     Monadic::Workspace::Chats.renew_epoch!(chat_id)
     Monadic::Workspace::Chats.resume!(session, chat_id)
+    Monadic::Utils::Privacy::Words.restore!(session, payload.key?('word_table') ? payload['word_table'] || {} : nil)
 
     params = (payload['parameters'] || {}).merge('initiate_from_assistant' => false, 'auto_speech' => false)
     params['ui_language'] ||= ui_language if ui_language

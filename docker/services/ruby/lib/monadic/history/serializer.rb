@@ -2,6 +2,7 @@
 
 require 'json'
 require_relative '../utils/secret_redactor'
+require_relative '../utils/privacy/words'
 require_relative '../workbench/record'
 require_relative '../workbench/shown'
 require_relative '../workbench/look/record'
@@ -40,7 +41,8 @@ module Monadic
           'format_version' => FORMAT_VERSION,
           'messages' => messages,
           'parameters' => pick(value_of(session, :parameters), PARAMETER_FIELDS),
-          'session_context' => session_context(session)
+          'session_context' => session_context(session),
+          'word_table' => Monadic::Utils::Privacy::Words.marked?(session) ? {} : nil
         }.compact
         Monadic::Utils::SecretRedactor.redact_deep(data)
       end
@@ -95,6 +97,24 @@ module Monadic
       # nested record) is left out, and sizes are capped.
       def session_context(session)
         saved_context(Monadic::Workspace::ChatContext.read(session), context_schema(session))
+      end
+
+      # What is saved for a table with a word to hide that holds a known
+      # secret: the history does not say the secret, and a table without the
+      # word would no longer hide it, so it reads as no table (the chat, taken
+      # back, sends nothing).
+      WITHHELD_TABLE = { 'withheld' => true }.freeze
+
+      # A word table as the history keeps it. A word no longer hidden that
+      # holds a known secret is left out.
+      def saved_words(table)
+        values = Monadic::Utils::SecretRedactor.secret_values
+        plain = ->(word) { Monadic::Utils::SecretRedactor.redact_values(word, values) == word }
+        return WITHHELD_TABLE unless table['active'].all? { |entry| plain.call(entry['word']) }
+
+        table.merge('mapping' => table['mapping'].select { |_, entry| plain.call(entry['word']) },
+                    'active' => table['active'].select { |entry| plain.call(entry['word']) },
+                    'kept' => table['kept'].select(&plain))
       end
 
       # A context as the history keeps it (see session_context), with known

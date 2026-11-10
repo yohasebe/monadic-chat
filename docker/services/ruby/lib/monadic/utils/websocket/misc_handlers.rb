@@ -159,6 +159,7 @@ module WebSocketHelper
     session[:messages].clear
     session[:parameters].clear
     Monadic::Workspace::Chats.begin_new!(session)
+    Monadic::Utils::Privacy::Words.restore!(session, imported.delete(:word_table))
     context = imported[:monadic_state].is_a?(Hash) ? imported[:monadic_state].delete(:conversation_context) : nil
     imported.each { |key, value| session[key] = value }
     Monadic::Workspace::ChatContext.restore!(session, context)

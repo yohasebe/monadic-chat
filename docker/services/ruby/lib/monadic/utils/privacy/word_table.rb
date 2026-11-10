@@ -224,6 +224,11 @@ module Monadic
           end
         end
 
+        # A placeholder as it is written in a text.
+        def self.placeholder(id)
+          "<<#{id}>>"
+        end
+
         # A table from what to_h gave (from the history or an imported file),
         # checked: its form, sizes, that every active word has its own
         # placeholder of the mapping, and numbers no lower than those given.
@@ -452,7 +457,7 @@ module Monadic
             out = +''
             at = 0
             spans.each do |first, last, word|
-              out << literal[at...first] << "<<#{@active[word]}>>"
+              out << literal[at...first] << WordTable.placeholder(@active[word])
               at = last
             end
             out << literal[at..]

@@ -83,6 +83,57 @@ module Monadic
           table
         end
 
+        # The chat's table as it is kept in the chat's saved conversation or
+        # in a file (WordTable#to_h), or nil when no table is held for it.
+        def saved(chat_id)
+          LOCK.synchronize { TABLES[chat_id] }&.to_h
+        end
+
+        # The chat in session is one taken back (from the history, from a
+        # file) that hides its words with a table: the table held for it, or
+        # else the one given (saved). The chat has the mark from here on
+        # whether or not what was given can be read: a chat whose table
+        # cannot be read sends nothing. Nothing is done for a chat with
+        # neither (nil given): it never had a table.
+        def restore!(session, saved)
+          chat_id = Monadic::Workspace::Chats.current(session)
+          held = LOCK.synchronize { TABLES.key?(chat_id) }
+          return if saved.nil? && !held
+
+          table = held ? nil : readable(saved)
+          LOCK.synchronize do
+            if table && !TABLES.key?(chat_id)
+              TABLES[chat_id] = table
+              TABLES.shift while TABLES.size > LIMIT
+            end
+          end
+          session[MARK_KEY] = chat_id
+        end
+
+        def readable(saved)
+          WordTable.from_h(saved)
+        rescue WordTable::Invalid
+          nil
+        end
+
+        # The table of a file being imported, as restore! takes it, or nil
+        # when the file has none. Invalid when it cannot be read, or when the
+        # file also holds what the Privacy Filter hides by (imported is what
+        # was read of it so far).
+        def file_table(file, imported)
+          return nil unless file.is_a?(Hash) && file.key?('word_table')
+          raise WordTable::Invalid, 'the file holds words hidden in two ways' if legacy_state?(imported)
+
+          WordTable.from_h(file['word_table'])
+          file['word_table']
+        end
+
+        # What a file shared without its table says for each active word:
+        # placeholder => word, as a Privacy Filter registry is.
+        def masking(table)
+          table.active_words.to_h { |entry| [WordTable.placeholder(entry[:id]), entry[:word]] }
+        end
+
         # The active words of the chat's table (none for a chat without one).
         def active_of(session)
           table = table(session)

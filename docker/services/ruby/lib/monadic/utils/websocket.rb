@@ -605,8 +605,11 @@ module WebSocketHelper
   private def sts_privacy_active?(session)
     return false unless session.respond_to?(:[])
     # Words the user marked keep speech-to-speech closed, on or off: the
-    # voice session would be given the conversation as written.
+    # voice session would be given the conversation as written. So does a
+    # chat that hides its words with a word table (the voice is not hidden).
     require_relative 'privacy/outbound'
+    return true if Monadic::Utils::Privacy::Words.marked?(session)
+
     begin
       return true if Monadic::Utils::Privacy::Outbound.marked_terms?(session)
     rescue Monadic::Utils::Privacy::Outbound::Refused
@@ -633,12 +636,16 @@ module WebSocketHelper
     return if session[:_sts_privacy_notice_sent]
 
     session[:_sts_privacy_notice_sent] = true
+    reason = if Monadic::Utils::Privacy::Words.marked?(session)
+               "is unavailable in a conversation that hides its words. " \
+                 "Start a new conversation or choose a model without speech-to-speech support to use voice input."
+             else
+               "is unavailable while the Privacy Filter is on. " \
+                 "Disable the Privacy Filter or choose a model without speech-to-speech support to use voice input."
+             end
     send_to_client(connection, {
       "type" => "error",
-      "content" => "Speech-to-speech mode sends raw audio directly to the provider " \
-                   "and is unavailable while the Privacy Filter is on. " \
-                   "Disable the Privacy Filter or choose a model without " \
-                   "speech-to-speech support to use voice input."
+      "content" => "Speech-to-speech mode sends raw audio directly to the provider and #{reason}"
     })
   end
 

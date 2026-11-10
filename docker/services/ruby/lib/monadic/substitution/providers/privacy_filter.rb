@@ -2,6 +2,7 @@
 
 require_relative '../provider'
 require_relative '../../utils/privacy/backend'
+require_relative '../../utils/privacy/outbound'
 require_relative '../../utils/privacy/presidio_backend'
 require_relative '../../utils/privacy/registry'
 require_relative '../../utils/privacy/types'
@@ -173,11 +174,10 @@ module Monadic
 
           labels = reg.filter_map do |placeholder, original|
             m = placeholder.match(/\A<<([A-Z_]+)_(\d+)>>\z/)
-            [original.to_s, "#{m[1].tr('_', ' ')} #{m[2]}"] if m
+            [original.to_s, Monadic::Utils::Privacy::Outbound.spoken_label(m[1], m[2])] if m
           end
           # Overlapping strings are replaced as one, so no part of one is read
           # out because another was replaced first.
-          require_relative '../../utils/privacy/outbound'
           Monadic::Utils::Privacy::Outbound.replace_union(restored_text, labels + marked)
         end
 

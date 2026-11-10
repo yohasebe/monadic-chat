@@ -213,6 +213,27 @@ module Monadic
           raise Outbound::Refused, 'the words to hide kept changing; nothing was sent'
         end
 
+        # Text as it is read out by a speech service: each hidden word read as
+        # its placeholder's type and number, whether the text holds the
+        # placeholder (as a model wrote it) or the word (a reply put back).
+        def spoken(table, text)
+          label = ->(_) { Outbound.spoken_label(Regexp.last_match(1), Regexp.last_match(2)) }
+          read = text.to_s.gsub(WordTable::RESTORE_RE, &label)
+          table.snapshot.raw(read).gsub(WordTable::RESTORE_RE, &label)
+        end
+
+        # What came back for texts hidden with snapshot (hide_texts), with the
+        # placeholders put back in every string it holds (keys stay as they
+        # are).
+        def restore_all(snapshot, value)
+          case value
+          when String then snapshot.restore(value)
+          when Array then value.map { |item| restore_all(snapshot, item) }
+          when Hash then value.transform_values { |item| restore_all(snapshot, item) }
+          else value
+          end
+        end
+
         # Text a model wrote in reply to the request being made, kept as the
         # chat keeps replies: with the placeholders the request was sent
         # with put back (as it is outside a request, or before it is hidden).
@@ -231,18 +252,20 @@ module Monadic
         end
 
         # The arguments of a tool a model called that are given to the tool
-        # with the chat's words put back: places on this machine the tool
-        # reads (a file or folder of the shared folder, a file shown on the
-        # work screen). Every other argument stays as the model wrote it,
-        # placeholders and all: what a tool writes, sends, searches for, runs
-        # or draws.
+        # with the chat's words put back: what the tool reads on this machine
+        # (a file or folder of the shared folder, a file shown on the work
+        # screen, the Knowledge Base it searches, whose passages keep the
+        # words as saved). Every other argument stays as the model wrote it,
+        # placeholders and all: what a tool writes, sends, searches for
+        # elsewhere, runs or draws.
         RESTORED_ARGUMENTS = {
           'read_file_from_shared_folder' => %w[filepath],
           'list_files_in_shared_folder' => %w[directory],
           'fetch_text_from_file' => %w[file],
           'fetch_text_from_pdf' => %w[file pdf],
           'fetch_text_from_office' => %w[file],
-          'show_on_workbench' => %w[path]
+          'show_on_workbench' => %w[path],
+          'library_search' => %w[query]
         }.freeze
 
         # A tool call's arguments (keys as symbols or strings) as the tool is

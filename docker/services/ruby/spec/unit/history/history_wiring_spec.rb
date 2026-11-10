@@ -263,7 +263,12 @@ RSpec.describe 'What the handlers write to the history' do
       session = chat_session('a question', generation: WebSocketHelper.claim_session_state(tab))
       sync(session)
       allow(Monadic::History::Serializer).to receive(:session_context).and_wrap_original do |original, chat|
-        original.call(chat).tap { change(session, 'later') if chat.key?(:messages) && !@changed && (@changed = true) }
+        original.call(chat).tap do
+          next if !chat.key?(:messages) || @changed
+
+          @changed = true
+          change(session, 'later')
+        end
       end
       change(session, 'first')
       sync(session)
@@ -457,7 +462,7 @@ RSpec.describe 'What the handlers write to the history' do
       other_tab = "tab-#{SecureRandom.hex(4)}"
       here = empty_tab_session(other_tab)
       allow(Monadic::History).to receive(:keep_context).and_wrap_original do |original, *args, **options|
-        if options[:held] && !@continued
+        if options[:held] && args.first == kept[:chat_id] && !@continued
           @continued = true
           resume_in(other_tab, here, kept[:chat_id])
           context.update(here) { |c| context.add_texts(c, 'topics', ['next'], 2) }
@@ -487,14 +492,19 @@ RSpec.describe 'What the handlers write to the history' do
       saving = Queue.new
       go_on = Queue.new
       allow(Monadic::History).to receive(:keep_context).and_wrap_original do |original, *args, **options|
-        if options[:held]
+        # Only the let go of this chat waits (a tab's state dropped meanwhile
+        # lets go of other chats too).
+        if options[:held] && Thread.current[:letting_go] == kept[:chat_id]
           saving << true
-          go_on.pop
+          go_on.pop(timeout: 5)
         end
         original.call(*args, **options)
       end
-      retiring = Thread.new { context.retire(kept[:chat_id], chats.epoch(kept[:chat_id])) }
-      saving.pop
+      retiring = Thread.new do
+        Thread.current[:letting_go] = kept[:chat_id]
+        context.retire(kept[:chat_id], chats.epoch(kept[:chat_id]))
+      end
+      saving.pop(timeout: 5) or raise 'the chat was not let go of'
       finish = lambda do
         next unless retiring.alive?
 

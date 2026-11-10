@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 require_relative '../privacy/outbound'
+require_relative '../privacy/words'
 
 # Confidence-via-agreement "Verify" handler. The Verify button on an assistant
 # message re-asks the original question to a diverse cross-provider panel and
@@ -61,11 +62,20 @@ module WebSocketHelper
 
     review_answer = ai["text"].to_s
 
-    # The panel is other models: with the Privacy Filter on, they get the
+    # The panel is other models. A chat that hides its words with a word
+    # table sends the conversation (as the chat keeps it, with the words)
+    # hidden with one snapshot of the table, and what the panel says is put
+    # back with it. Otherwise, with the Privacy Filter on, they get the
     # conversation masked as the chat's model did, or nothing at all.
+    words = Monadic::Utils::Privacy::Words
+    snapshot = nil
     begin
-      pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(rack_session)
-      if pipeline
+      table = words.table(rack_session)
+      if table
+        snapshot, texts = words.hide_texts(table, panel_messages.map { |m| m["content"] } + [review_answer])
+        review_answer = texts.pop
+        panel_messages = panel_messages.zip(texts).map { |m, text| m.merge("content" => text) }
+      elsif (pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(rack_session))
         outbound = Monadic::Utils::Privacy::Outbound
         panel_messages = panel_messages.map { |m| m.merge("content" => outbound.mask(m["content"], pipeline, m["role"])) }
         review_answer = outbound.mask(review_answer, pipeline, "assistant")
@@ -73,7 +83,7 @@ module WebSocketHelper
       # Words the user marked: nothing is sent while one is still there.
       Monadic::Utils::Privacy::Outbound.check_no_marked_words!(rack_session, { "messages" => panel_messages, "review" => review_answer })
     rescue StandardError => e
-      return send_to_client(connection, verify_error(mid, "Not verified: the Privacy Filter could not mask the conversation (#{e.message})"))
+      return send_to_client(connection, verify_error(mid, "Not verified: nothing was sent (#{e.message})"))
     end
 
     # Let the UI show a spinner immediately while the panel runs.
@@ -90,10 +100,13 @@ module WebSocketHelper
         # still fabricates, that surfaces as a panel outlier rather than being
         # masked. (Within-provider self-consistency keeps its own temperature
         # via the panel selector, since that mode needs sampling variety.)
-        result = Monadic::MCP::Conduit.call(
-          "monadic_confidence",
-          { "messages" => panel_messages, "review_answer" => review_answer }
-        )
+        result = words.sending(table, snapshot) do
+          Monadic::MCP::Conduit.call(
+            "monadic_confidence",
+            { "messages" => panel_messages, "review_answer" => review_answer }
+          )
+        end
+        result = words.restore_all(snapshot, result) if snapshot
         send_or_broadcast(result.merge(type: "verify_confidence", mid: mid).to_json, ws_session_id)
         persist_verify_result(rack_session, mid, result)
       rescue StandardError => e

@@ -113,8 +113,10 @@ module MonadicSharedTools
         # Words the user marked: each passage (its text, title, source) is
         # checked while its values are still values of their own (a JSON value in it is read as what it decodes
         # to), before it is joined into the text; none is returned if one
-        # holds a marked word in any form.
-        if Monadic::Utils::Privacy::Outbound.marked_terms?(resolved_session)
+        # holds a marked word in any form. A chat that hides its words with a
+        # word table hides them in what a tool returns as it sends it.
+        words = Monadic::Utils::Privacy::Words
+        if !words.marked?(resolved_session) && Monadic::Utils::Privacy::Outbound.marked_terms?(resolved_session)
           hits.each { |hit| Monadic::Utils::Privacy::Outbound.check_no_marked_words!(resolved_session, hit) }
         end
         out = MonadicSharedTools::LibrarySearch.format_results(query, hits)

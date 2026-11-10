@@ -560,25 +560,30 @@ module WebSocketHelper
         # Clear session tts_text after use to avoid reusing on next request
         session.delete(:tts_text) if tts_text_from_target
 
-        # Privacy Filter: replace any "<<TYPE_N>>" placeholder with "TYPE N" so
-        # TTS reads a sanitized form instead of speaking the bracket symbols.
-        # Idempotent for non-privacy sessions (no-op when no placeholders).
-        if session[:_privacy_pipeline]
-          text = session[:_privacy_pipeline].sanitize_for_tts(text)
-        end
-        # Words the user marked: replaced by their type if the reply holds
-        # one, and nothing is spoken if one is still there.
-        if Monadic::Utils::Privacy::Outbound.marked_terms?(session)
-          pipeline = session[:_privacy_pipeline]
-          text = pipeline.sanitize_restored_for_tts(text) if pipeline.respond_to?(:sanitize_restored_for_tts)
-          begin
+        # A chat that hides its words with a word table reads each as its
+        # type and number (Words.spoken). Privacy Filter: replace any
+        # "<<TYPE_N>>" placeholder with "TYPE N" so TTS reads a sanitized
+        # form instead of speaking the bracket symbols (no-op when no
+        # placeholders).
+        words = Monadic::Utils::Privacy::Words
+        begin
+          if words.marked?(session)
+            text = words.spoken(words.table(session), text)
+          elsif session[:_privacy_pipeline]
+            text = session[:_privacy_pipeline].sanitize_for_tts(text)
+          end
+          # Words the user marked: replaced by their type if the reply holds
+          # one, and nothing is spoken if one is still there.
+          if Monadic::Utils::Privacy::Outbound.marked_terms?(session)
+            pipeline = session[:_privacy_pipeline]
+            text = pipeline.sanitize_restored_for_tts(text) if pipeline.respond_to?(:sanitize_restored_for_tts)
             Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, text)
             # As the TTS service would receive it (dictionary, provider markers).
             Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, tts_text_as_sent(text, provider)) if respond_to?(:tts_text_as_sent, true)
-          rescue Monadic::Utils::Privacy::Outbound::Refused
-            text = ""
-            send_tts_withheld(ws_session_id, request_id)
           end
+        rescue Monadic::Utils::Privacy::Outbound::Refused
+          text = ""
+          send_tts_withheld(ws_session_id, request_id)
         end
 
         Monadic::Utils::ExtraLogger.log { "[DEBUG] POST-COMPLETION TTS: Using #{tts_text_from_target ? 'tts_target extracted text' : 'buffer.join'}" }

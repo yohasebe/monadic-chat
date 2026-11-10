@@ -196,6 +196,12 @@ module Monadic
           end
         end
 
+        # How a hidden word is read out: by its placeholder's type and number
+        # ("<<PERSON_1>>" as "PERSON 1").
+        def spoken_label(type, number)
+          "#{type.tr('_', ' ')} #{number}"
+        end
+
         # text with each of the originals replaced by its label, where the
         # occurrences overlap replaced as one (the label of the longest
         # original there), so no character of an original is left out because

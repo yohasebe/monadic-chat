@@ -217,6 +217,16 @@ RSpec.describe Monadic::Utils::Privacy::Words do
         .to eq(filepath: '<<PERSON_1>>')
     end
 
+    it "gives the Knowledge Base search its query with the chat's words, and nothing else of the call" do
+      table = described_class.start!(new_chat)
+      table.confirm!('Ada', 'PERSON')
+      described_class.request do
+        described_class.sent_with(table.snapshot)
+        expect(described_class.tool_arguments('library_search', { 'query' => 'notes of <<PERSON_1>>', 'source' => '<<PERSON_1>>' }))
+          .to eq('query' => 'notes of Ada', 'source' => '<<PERSON_1>>')
+      end
+    end
+
     it 'notes a reply returned on its own, not in an Array' do
       table = described_class.start!(new_chat)
       table.confirm!('Ada', 'PERSON')

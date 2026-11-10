@@ -51,11 +51,13 @@ module Monadic
     # Writes the chat's Session Context as it is now into the chat's saved
     # conversation, when there is one: the context changes apart from the
     # messages (an extraction ends after the reply was saved).
-    # held: what gives the context to save (nil when there is none), when
-    # it is not the one the chat holds now.
-    def keep_context(chat_id, schema: nil, held: nil, store: Store.default)
+    # session: the chat's (for its context schema), or nil. held: what gives
+    # the context to save (nil when there is none), when it is not the one
+    # the chat holds now.
+    def keep_context(chat_id, session: nil, held: nil, store: Store.default)
       return nil unless enabled? && chat_id && !Policy.known_private?(chat_id)
 
+      schema = Serializer.context_schema(session || {})
       store.update_context(chat_id, -> { context_now(chat_id, schema, held) })
     rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[History] context not saved: #{e.class}" } if defined?(Monadic::Utils::ExtraLogger)

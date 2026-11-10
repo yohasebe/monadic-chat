@@ -11,10 +11,8 @@ RSpec.describe SecondOpinionAgent do
   
   let(:agent) { test_class.new }
 
-  # Dogfood regression (2026-06-10): the orchestrator LLM re-typed the
-  # evaluator model name from memory and fabricated an outdated one. The
-  # identity now rides inside the comments (which the system prompt requires
-  # to be relayed as given), so there is nothing left to re-type.
+  # The evaluator's identity is part of the comments, which the system
+  # prompt requires to be relayed as given.
   describe "#append_evaluator_line" do
     it "embeds the exact evaluator model and provider at the end of the comments" do
       result = agent.append_evaluator_line("Solid analysis.", "claude", "claude-sonnet-4-6")

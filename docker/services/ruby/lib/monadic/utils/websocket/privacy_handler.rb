@@ -201,6 +201,7 @@ module WebSocketHelper
       return
     end
 
+    word_table = Monadic::Utils::Privacy::Words.table(session)
     pipeline = session[:_privacy_pipeline]
     state = pipeline.respond_to?(:registry_state) ? pipeline.registry_state : nil
     # The chat's own privacy state when no pipeline is built yet (a tab that
@@ -221,7 +222,11 @@ module WebSocketHelper
     # words are masked too, with placeholders of their own when the model
     # never saw them. A restored file keeps the marked words, so the
     # imported chat goes on masking them.
-    remask = privacy_registry_with_terms(registry, terms)
+    # A chat that hides its words with a table is masked by its active words;
+    # only a restored file carries the table, so a shared one cannot be
+    # turned back.
+    remask = word_table ? Monadic::Utils::Privacy::Words.masking(word_table) : privacy_registry_with_terms(registry, terms)
+    table_to_export = word_table && content_kind == "restored" ? word_table.to_h : nil
     if content_kind == "masked" && !remask.empty?
       messages = privacy_remask_messages(messages, remask)
       parameters = privacy_remask_parameters(parameters, remask)
@@ -281,6 +286,7 @@ module WebSocketHelper
         "parameters" => parameters
       }
       payload["terms"] = terms_to_export unless terms_to_export.empty?
+      payload["word_table"] = table_to_export if table_to_export
       payload["marks_parsed"] = true
       payload["monadic_state"] = monadic_state if monadic_state
       payload.merge!(session_context)
@@ -293,6 +299,7 @@ module WebSocketHelper
       payload = { "parameters" => parameters, "messages" => messages }
       payload["registry"] = registry_to_export unless registry_to_export.empty?
       payload["terms"] = terms_to_export unless terms_to_export.empty?
+      payload["word_table"] = table_to_export if table_to_export
       payload["marks_parsed"] = true
       payload["monadic_state"] = monadic_state if monadic_state
       payload.merge!(session_context)

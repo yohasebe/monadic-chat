@@ -45,7 +45,8 @@ module Monadic
       store.save(chat_id, payload, tab: tab, generation: generation,
                                    app_name: params['app_name'], model: params['model'],
                                    headings: Serializer.headings(payload), search_text: Serializer.search_text(payload),
-                                   context: -> { context_now(chat_id, schema) })
+                                   context: -> { context_now(chat_id, schema) },
+                                   word_table: -> { word_table_now(chat_id) })
     end
 
     # Writes the chat's Session Context as it is now into the chat's saved
@@ -72,6 +73,13 @@ module Monadic
     def context_now(chat_id, schema, held = nil)
       context = held ? held.call : Monadic::Workspace::ChatContext.read({ Monadic::Workspace::Chats::SESSION_KEY => chat_id })
       context.nil? ? :absent : Serializer.saved_context(context, schema)
+    end
+
+    # The chat's word table as it is saved, read inside the transaction of
+    # the save as the context is, or :absent when no table is held for it.
+    def word_table_now(chat_id)
+      table = Monadic::Utils::Privacy::Words.saved(chat_id)
+      table ? Serializer.saved_words(table) : :absent
     end
 
     # The list as the page shows it, with whether each chat is open in a tab

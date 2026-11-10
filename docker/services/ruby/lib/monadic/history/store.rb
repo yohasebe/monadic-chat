@@ -73,8 +73,9 @@ module Monadic
       # Session Context as it is now: it is saved in place of the payload's
       # (which was read before), and :absent keeps what was saved (the chat's
       # context is no longer held: what was saved last is its latest).
+      # `word_table` is read the same way.
       def save(chat_id, payload, tab: nil, generation: nil, app_name: nil, model: nil, headings: [nil, nil],
-               search_text: nil, context: nil, now: Time.now)
+               search_text: nil, context: nil, word_table: nil, now: Time.now)
         count = payload['messages'].length
         stamp = now.utc.iso8601
         synchronize do |db|
@@ -84,7 +85,9 @@ module Monadic
             row = db.get_first_row('SELECT revision, generation, owner_tab, message_count, last_activity_at, payload FROM history_chats WHERE chat_id = ?', [chat_id])
             next nil if row && !writer?(row, tab, generation)
 
-            payload = with_context(payload, context.call, row && JSON.parse(row['payload'])) if context
+            saved = row && JSON.parse(row['payload'])
+            payload = with_context(payload, context.call, saved) if context
+            payload = with_word_table(payload, word_table.call, saved) if word_table
             json = JSON.generate(payload)
             if row
 
@@ -243,6 +246,14 @@ module Monadic
       def with_context(payload, context, saved)
         context = (saved || payload)['session_context'] if context == :absent
         context.nil? ? payload.except('session_context') : payload.merge('session_context' => context)
+      end
+
+      # The payload with the word table given (:absent: the one saved, or
+      # else the payload's own). The key says the chat hides its words with
+      # a table, also when what it holds cannot be read as one.
+      def with_word_table(payload, table, saved)
+        table = saved&.key?('word_table') ? saved['word_table'] || {} : payload['word_table'] if table == :absent
+        table.nil? ? payload : payload.merge('word_table' => table)
       end
 
       # A tab writes the chat it has (a row from before tabs were recorded

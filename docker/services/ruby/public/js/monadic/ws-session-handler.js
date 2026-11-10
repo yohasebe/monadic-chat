@@ -3,7 +3,8 @@
  *
  * Handles session-level WebSocket messages that don't involve
  * streaming state or audio playback:
- * - context_extraction_started / context_update: Context panel lifecycle
+ * - chat_context / context_extraction_started / context_extraction_ended /
+ *   context_update: Context panel lifecycle
  * - language_updated: Conversation language changes with RTL support
  * - processing_status / system_info: System message display
  * - stt: Speech-to-text completion
@@ -19,32 +20,46 @@
 
 /**
  * Handle "context_extraction_started" WebSocket message.
- * Shows loading state in the context panel.
- * @param {Object} _data - Message data (unused)
+ * Shows loading state in the context panel while the chat's extraction runs.
+ * @param {Object} data - Message data with chat and job
  */
-function handleContextExtractionStarted(_data) {
+function handleContextExtractionStarted(data) {
   if (typeof ContextPanel !== "undefined") {
-    ContextPanel.showLoading();
+    ContextPanel.extractionStarted(data);
     if (window.debugWebSocket) console.log("[WS] Context extraction started");
   }
 }
 
 /**
+ * Handle "context_extraction_ended" WebSocket message (an extraction that
+ * gave no context).
+ * @param {Object} data - Message data with chat and job
+ */
+function handleContextExtractionEnded(data) {
+  if (typeof ContextPanel !== "undefined") ContextPanel.extractionEnded(data);
+}
+
+/**
  * Handle "context_update" WebSocket message.
- * Updates context panel with extracted data and optional schema.
- * @param {Object} data - Message data with context and optional schema
+ * Updates context panel with the chat's context (not one of another chat,
+ * nor one older than shown).
+ * @param {Object} data - Message data with chat, version, context and optional schema
  */
 function handleContextUpdate(data) {
+  if (typeof ContextPanel === "undefined" || !data || ContextPanel.chat === null || data.chat !== ContextPanel.chat) return;
   if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
     WorkflowViewer.setStage('context');
   }
-  if (typeof ContextPanel !== "undefined") {
-    ContextPanel.hideLoading();
-    if (data.context) {
-      ContextPanel.updateContext(data.context, data.schema || null);
-      if (window.debugWebSocket) console.log("[WS] Context panel updated:", data.context, "schema:", data.schema);
-    }
-  }
+  ContextPanel.contextChanged(data);
+  if (window.debugWebSocket) console.log("[WS] Context panel updated:", data.context, "schema:", data.schema);
+}
+
+/**
+ * Handle "chat_context" WebSocket message: the chat the tab is in, with its context.
+ * @param {Object} data - Message data with chat, version, context, schema and switch
+ */
+function handleChatContext(data) {
+  if (typeof ContextPanel !== "undefined") ContextPanel.chatEntered(data);
 }
 
 /**
@@ -447,7 +462,9 @@ function handleSampleSuccess(data) {
 // Export for browser environment
 window.WsSessionHandler = {
   handleContextExtractionStarted,
+  handleContextExtractionEnded,
   handleContextUpdate,
+  handleChatContext,
   handleLanguageUpdated,
   handleProcessingStatus,
   handleSystemInfo,

@@ -22,7 +22,7 @@ describe('applyImportOverConnection', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     window.onImportResult = null;
-    window.safeWsSend = jest.fn(() => ({ sent: true }));
+    window.sendChatSwitch = jest.fn(() => ({ sent: true }));
   });
 
   afterEach(() => {
@@ -36,7 +36,7 @@ describe('applyImportOverConnection', () => {
 
   it('sends the token and succeeds when the connection took the import', async () => {
     const result = applyImportOverConnection('t1');
-    expect(window.safeWsSend).toHaveBeenCalledWith({ message: 'IMPORT_APPLY', token: 't1' });
+    expect(window.sendChatSwitch).toHaveBeenCalledWith({ message: 'IMPORT_APPLY', token: 't1' });
     window.onImportResult({ type: 'import_result', token: 't1', success: true });
     await expect(result).resolves.toEqual({ success: true });
     expect(window.onImportResult).toBeNull();
@@ -57,7 +57,7 @@ describe('applyImportOverConnection', () => {
   });
 
   it('fails at once when the message cannot be sent', async () => {
-    window.safeWsSend = jest.fn(() => ({ sent: false }));
+    window.sendChatSwitch = jest.fn(() => ({ sent: false }));
     const outcome = await applyImportOverConnection('t1');
     expect(outcome.success).toBe(false);
   });
@@ -65,6 +65,6 @@ describe('applyImportOverConnection', () => {
   it('fails without a token', async () => {
     const outcome = await applyImportOverConnection(undefined);
     expect(outcome.success).toBe(false);
-    expect(window.safeWsSend).not.toHaveBeenCalled();
+    expect(window.sendChatSwitch).not.toHaveBeenCalled();
   });
 });

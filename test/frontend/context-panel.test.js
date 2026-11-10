@@ -106,19 +106,13 @@ describe('ContextPanel Tests', () => {
       expect(window.ContextPanel.currentContext).toBeNull();
     });
 
-    test('should reset context when switching apps', () => {
-      // Show first app with context
+    test('keeps the context shown when the app is shown again under another name', () => {
       window.ContextPanel.show('App1');
-      window.ContextPanel.updateContext({
-        topics: [{ text: 'AI', turn: 1 }],
-        people: [],
-        notes: []
-      });
+      window.ContextPanel.updateContext({ topics: [{ text: 'AI', turn: 1 }], people: [], notes: [] });
 
-      // Switch to second app
       window.ContextPanel.show('App2');
 
-      expect(window.ContextPanel.currentContext).toBeNull();
+      expect(window.ContextPanel.currentContext).not.toBeNull();
       expect(window.ContextPanel.currentAppName).toBe('App2');
     });
 
@@ -132,6 +126,148 @@ describe('ContextPanel Tests', () => {
       window.ContextPanel.show('LanguageApp', customSchema);
 
       expect(window.ContextPanel.currentSchema).toEqual(customSchema);
+    });
+  });
+
+  describe('The chat whose context is shown', () => {
+    const ctx = (text) => ({ topics: [{ text: text, turn: 1 }] });
+    const shown = () => {
+      const c = window.ContextPanel.currentContext;
+      return c && c.topics ? c.topics.map((i) => i.text) : null;
+    };
+    let panel;
+
+    beforeEach(() => {
+      panel = window.ContextPanel;
+      panel.show('App');
+      panel.chatEntered({ chat: 'A.0', version: 0, context: {} });
+    });
+
+    test('takes contexts of its chat, newer ones only', () => {
+      panel.contextChanged({ chat: 'A.0', version: 2, context: ctx('two') });
+      panel.contextChanged({ chat: 'A.0', version: 1, context: ctx('one') });
+      expect(shown()).toEqual(['two']);
+      panel.contextChanged({ chat: 'B.0', version: 3, context: ctx('other') });
+      expect(shown()).toEqual(['two']);
+      panel.contextChanged({ chat: 'A.0', context: ctx('no version') });
+      expect(shown()).toEqual(['two']);
+    });
+
+    test('takes nothing of the chat left after a Reset, its extraction begun before included', () => {
+      const number = panel.leaveChat();
+      panel.extractionStarted({ chat: 'A.0', job: 'j1' });
+      panel.contextChanged({ chat: 'A.0', version: 1, context: ctx('old'), job: 'j1' });
+      expect(panel.jobs.size).toBe(0);
+      panel.chatEntered({ chat: 'B.0', version: 0, context: {}, switch: number });
+      panel.extractionStarted({ chat: 'A.0', job: 'j1' });
+      panel.contextChanged({ chat: 'A.0', version: 1, context: ctx('old'), job: 'j1' });
+
+      expect(panel.chat).toBe('B.0');
+      expect(shown()).toBeNull();
+      expect(panel.jobs.size).toBe(0);
+    });
+
+    test('takes the answer to the latest request only', () => {
+      const first = panel.leaveChat();
+      const second = panel.leaveChat();
+      panel.chatEntered({ chat: 'B.0', version: 0, context: ctx('B'), switch: first });
+      expect(panel.chat).toBeNull();
+      panel.chatEntered({ chat: 'A.0', version: 0, context: ctx('A') });
+      expect(panel.chat).toBeNull();
+      panel.chatEntered({ chat: 'C.0', version: 0, context: ctx('C'), switch: second });
+      expect(panel.chat).toBe('C.0');
+      expect(shown()).toEqual(['C']);
+    });
+
+    test('shows the context a chat continued from the history comes with, in the same app', () => {
+      panel.contextChanged({ chat: 'A.0', version: 1, context: ctx('before') });
+      const number = panel.leaveChat();
+      panel.contextChanged({ chat: 'A.0', version: 2, context: ctx('late') });
+      panel.chatEntered({ chat: 'H.1', version: 0, context: ctx('kept'), switch: number });
+      expect(shown()).toEqual(['kept']);
+
+      panel.extractionStarted({ chat: 'H.1', job: 'j2' });
+      expect(panel.isLoading).toBe(true);
+      panel.contextChanged({ chat: 'H.1', version: 1, context: ctx('new'), job: 'j2' });
+      expect(shown()).toEqual(['new']);
+      expect(panel.isLoading).toBe(false);
+    });
+
+    test('stays in its chat when the request could not be sent, or the server stays in it', () => {
+      const unsent = panel.leaveChat();
+      panel.switchNotSent(unsent);
+      expect(panel.chat).toBe('A.0');
+
+      const refused = panel.leaveChat();
+      panel.chatEntered({ chat: 'A.0', version: 0, context: {}, switch: refused });
+      expect(panel.chat).toBe('A.0');
+      panel.contextChanged({ chat: 'A.0', version: 1, context: ctx('still') });
+      expect(shown()).toEqual(['still']);
+    });
+
+    test('a new connection waits for the answer to a request still to be sent, and takes nothing else meanwhile', () => {
+      const queued = panel.leaveChat();
+      window.MonadicWs = { hasQueued: (test) => test({ message: 'RESET', switch: queued }) };
+      panel.connectionOpened();
+      panel.chatEntered({ chat: 'A.0', version: 0, context: {} });
+      panel.extractionStarted({ chat: 'A.0', job: 'j1' });
+      expect(panel.chat).toBeNull();
+      expect(panel.jobs.size).toBe(0);
+      panel.chatEntered({ chat: 'B.0', version: 0, context: {}, switch: queued });
+      expect(panel.chat).toBe('B.0');
+      delete window.MonadicWs;
+    });
+
+    test('a new connection is told its chat when the request asked over the one before is lost', () => {
+      panel.leaveChat();
+      window.MonadicWs = { hasQueued: () => false };
+      panel.connectionOpened();
+      panel.chatEntered({ chat: 'A.0', version: 0, context: {} });
+      expect(panel.chat).toBe('A.0');
+      delete window.MonadicWs;
+    });
+
+    test('waits for the answer to a request sent when the one after it could not be sent', () => {
+      const sent = panel.leaveChat();
+      const unsent = panel.leaveChat();
+      panel.switchNotSent(unsent);
+      expect(panel.chat).toBeNull();
+      panel.chatEntered({ chat: 'B.0', version: 0, context: ctx('B'), switch: sent });
+      expect(panel.chat).toBe('B.0');
+    });
+
+    test('ends an extraction whose context is older than the one shown', () => {
+      panel.extractionStarted({ chat: 'A.0', job: 'j1' });
+      panel.contextChanged({ chat: 'A.0', version: 2, context: ctx('tool') });
+      panel.contextChanged({ chat: 'A.0', version: 1, context: ctx('extracted'), job: 'j1' });
+      expect(shown()).toEqual(['tool']);
+      expect(panel.jobs.size).toBe(0);
+      expect(panel.isLoading).toBe(false);
+    });
+
+    test('a new connection does not show an extraction of the one before as running', () => {
+      panel.extractionStarted({ chat: 'A.0', job: 'j1' });
+      panel.connectionOpened();
+      expect(panel.jobs.size).toBe(0);
+      expect(panel.isLoading).toBe(false);
+    });
+
+    test('keeps the version of its chat when the same chat is told again', () => {
+      panel.contextChanged({ chat: 'A.0', version: 3, context: ctx('three') });
+      panel.connectionOpened();
+      panel.chatEntered({ chat: 'A.0', version: 2, context: ctx('two') });
+      expect(shown()).toEqual(['three']);
+    });
+
+    test('shows the extraction as running until each one begun has ended', () => {
+      panel.extractionStarted({ chat: 'A.0', job: 'j1' });
+      panel.extractionStarted({ chat: 'A.0', job: 'j2' });
+      panel.extractionEnded({ chat: 'A.0', job: 'j1' });
+      expect(panel.isLoading).toBe(true);
+      panel.contextChanged({ chat: 'A.0', version: 1, context: ctx('tool') });
+      expect(panel.isLoading).toBe(true);
+      panel.extractionEnded({ chat: 'A.0', job: 'j2' });
+      expect(panel.isLoading).toBe(false);
     });
   });
 

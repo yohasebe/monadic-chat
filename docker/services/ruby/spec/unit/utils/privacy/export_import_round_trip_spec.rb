@@ -65,12 +65,12 @@ RSpec.describe 'Export/import round trip for session state' do
   describe 'a session carrying both app state and a Context Panel' do
     let(:session) do
       {
+        Monadic::Workspace::Chats::SESSION_KEY => Monadic::Workspace::Ids.generate(:chat),
         monadic_state: {
           'MyApp' => app_state,
-          conversation_context: panel,
           privacy: { registry: { '<<P>>' => 'secret' } }
         }
-      }
+      }.tap { |s| Monadic::Workspace::ChatContext.restore!(s, panel) }
     end
 
     let(:payload) do
@@ -123,6 +123,26 @@ RSpec.describe 'Export/import round trip for session state' do
 
       expect(restored[:monadic_state][:conversation_context]).to eq(panel)
       expect(restored[:monadic_state]['MyApp']['notes'][:data]).to eq(%w[x])
+    end
+  end
+
+  describe 'a file whose Session Context tool kept the context under the app' do
+    let(:older) do
+      {
+        'parameters' => { 'app_name' => 'MyApp' },
+        'monadic_state' => {
+          'MyApp' => { 'conversation_context' => { 'data' => { 'topics' => %w[trip] }, 'version' => 2, 'updated_at' => 't' },
+                       'notes' => { 'data' => %w[x], 'version' => 1, 'updated_at' => 't' } }
+        }
+      }
+    end
+
+    it 'reads it as the chat\'s context, and keeps it out of the app state' do
+      restored = import(older, import_code)
+
+      expect(restored[:monadic_state][:conversation_context]).to eq('_turn_count' => 0,
+                                                                    'topics' => [{ 'text' => 'trip', 'turn' => 1 }])
+      expect(restored[:monadic_state]['MyApp'].keys).to eq(['notes'])
     end
   end
 

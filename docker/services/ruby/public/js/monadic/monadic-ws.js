@@ -289,6 +289,26 @@
     return sentCount;
   }
 
+  // A message that puts the tab in another chat (Reset, another app, an
+  // import, a chat from the history) carries the number the context panel
+  // gives the request (switch): the server answers it with the chat the tab
+  // is in (chat_context), and the panel takes that answer, not one to an
+  // earlier request nor anything of the chat being left. Sent as
+  // safeWsSend sends it.
+  function sendChatSwitch(payload, opts) {
+    const panel = window.ContextPanel;
+    const number = panel && typeof panel.leaveChat === 'function' ? panel.leaveChat() : null;
+    const result = safeWsSend(number === null ? payload : Object.assign({}, payload, { switch: number }), opts);
+    if (number !== null && !(result && (result.sent || result.queued))) panel.switchNotSent(number);
+    return result;
+  }
+
+  // Whether a message still waiting to be sent (not expired) passes test.
+  function hasQueued(test) {
+    pruneExpired(Date.now());
+    return queue.some(function (entry) { return test(entry.payload); });
+  }
+
   function _peekQueue() {
     return queue.slice();
   }
@@ -298,8 +318,10 @@
   }
 
   window.safeWsSend = safeWsSend;
+  window.sendChatSwitch = sendChatSwitch;
   window.MonadicWs = {
     drainQueue: drainQueue,
+    hasQueued: hasQueued,
     isIdempotent: function (messageType) { return IDEMPOTENT_MESSAGE_TYPES.has(messageType); },
     _peekQueue: _peekQueue,
     _resetQueueForTests: _resetQueueForTests,

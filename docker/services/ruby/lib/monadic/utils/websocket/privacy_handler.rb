@@ -578,9 +578,9 @@ module WebSocketHelper
   # route reads (`session_context` / `context_schema`).
   private def privacy_export_session_context(session)
     state = session[:monadic_state]
-    return {} unless state.is_a?(Hash)
+    state = {} unless state.is_a?(Hash)
 
-    context = state[:conversation_context] || state["conversation_context"]
+    context = Monadic::Workspace::ChatContext.read(session)
     schema = state[:context_schema] || state["context_schema"]
 
     {}.tap do |out|

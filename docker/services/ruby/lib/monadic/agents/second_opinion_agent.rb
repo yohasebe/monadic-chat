@@ -346,14 +346,8 @@ module SecondOpinionAgent
     table = words.table(session)
     return nil unless table
 
-    asked = [user_query, agent_response].map { |text| words.put_back(text.to_s) }
-    2.times do
-      snapshot = table.snapshot
-      budget = Monadic::Utils::Privacy::WordTable::Budget.new
-      query, response = asked.map { |text| snapshot.raw(text, budget) }
-      return HiddenWords.new(table, snapshot, query, response) if table.revision == snapshot.revision
-    end
-    raise Monadic::Utils::Privacy::Outbound::Refused, 'the words to hide kept changing; nothing was sent'
+    snapshot, (query, response) = words.hide_texts(table, [user_query, agent_response].map { |text| words.put_back(text.to_s) })
+    HiddenWords.new(table, snapshot, query, response)
   end
 
   # Pre-mask query/response text via the parent session's privacy

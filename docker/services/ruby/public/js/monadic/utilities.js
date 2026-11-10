@@ -1382,7 +1382,7 @@ function doResetActions(resetToDefaultApp = false) {
   // WebSocket is not OPEN; the LOAD reply is what populates the new
   // session, so the submission order matters and is preserved by
   // safeWsSend's drain (see docs_dev/frontend/safe_ws_send.md).
-  window.safeWsSend({ "message": "RESET" });
+  window.sendChatSwitch({ "message": "RESET" });
   // Get UI language from cookie or default to 'en'
   const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
   window.safeWsSend({ "message": "LOAD", "ui_language": uiLanguage });

@@ -9,6 +9,20 @@
 const ContextPanel = {
   // State
   currentContext: null,
+  // The chat whose context is shown (the server's token for the chat and
+  // its epoch), or null while the tab waits for the answer to a switch.
+  chat: null,
+  // The version of the context shown; an older one is not shown over it.
+  version: -1,
+  // The number of the latest request for another chat; the request whose
+  // answer is awaited (null for none), the one awaited before it, and the
+  // chat the tab was in when it began asking.
+  issuedSwitch: 0,
+  awaitedSwitch: null,
+  awaitedBefore: null,
+  chatBeforeSwitch: null,
+  // The extractions running for the chat (shown by the loading indicator).
+  jobs: new Set(),
   currentSchema: null,
   isVisible: false,
   currentAppName: null,
@@ -123,9 +137,9 @@ const ContextPanel = {
    */
   show(appName, schema = null) {
     if (this.panel) {
-      // Reset context when switching to a different app
+      // The context shown is the chat's: entering another chat (another
+      // app starts one) clears it (chatEntered), whenever the answer comes.
       if (appName && appName !== this.currentAppName) {
-        this.resetContext();
         this.currentAppName = appName;
         // Set schema if provided, otherwise use default
         this.currentSchema = schema || this.defaultSchema;
@@ -133,6 +147,7 @@ const ContextPanel = {
 
       this.panel.style.display = "block";
       this.isVisible = true;
+      if (this.currentContext) this.render();
 
       // Show initial message if no context data yet
       if (!this.currentContext && this.sectionsContainer) {
@@ -213,6 +228,121 @@ const ContextPanel = {
     if (badge) {
       badge.textContent = turnCount;
     }
+  },
+
+  /**
+   * The tab asks the server for another chat: until the answer comes
+   * (chatEntered), nothing of a chat is taken.
+   * @returns {number} The request's number, which the message carries as `switch`
+   */
+  leaveChat() {
+    this.issuedSwitch += 1;
+    this.awaitedBefore = this.awaitedSwitch;
+    this.awaitedSwitch = this.issuedSwitch;
+    if (this.chat !== null) this.chatBeforeSwitch = this.chat;
+    this.chat = null;
+    return this.issuedSwitch;
+  },
+
+  /**
+   * The request could not be sent: the answer awaited is the one to the
+   * request before it, if one was sent, or else the tab is still in the
+   * chat it was in.
+   * @param {number} number - The request's number
+   */
+  switchNotSent(number) {
+    if (number !== this.awaitedSwitch) return;
+    this.awaitedSwitch = this.awaitedBefore;
+    this.awaitedBefore = null;
+    if (this.awaitedSwitch === null) this.chat = this.chatBeforeSwitch;
+  },
+
+  /**
+   * A new connection: a request asked over the one before is not answered,
+   * one still waiting to be sent is (it goes now, with its number). What
+   * was running for the chat is not told over the new connection.
+   */
+  connectionOpened() {
+    const awaited = this.awaitedSwitch;
+    const queued = awaited !== null && window.MonadicWs && typeof window.MonadicWs.hasQueued === "function" &&
+      window.MonadicWs.hasQueued(function (payload) { return payload && payload.switch === awaited; });
+    if (!queued) {
+      this.awaitedSwitch = null;
+      this.awaitedBefore = null;
+    }
+    this.jobs.clear();
+    this.hideLoading();
+  },
+
+  /**
+   * The chat the tab is in, with its context (chat_context). Taken when it
+   * answers the latest request for another chat, or, without a number, when
+   * no answer is awaited (the connection opened).
+   * @param {Object} data - { chat, version, context, schema, switch }
+   */
+  chatEntered(data) {
+    if (!data || typeof data.chat !== "string") return;
+    const answer = Number.isInteger(data.switch) ? data.switch === this.awaitedSwitch : this.awaitedSwitch === null;
+    if (!answer) return;
+
+    this.awaitedSwitch = null;
+    this.awaitedBefore = null;
+    this.chatBeforeSwitch = null;
+    if (data.chat !== this.chat) {
+      this.chat = data.chat;
+      this.version = -1;
+      this.jobs.clear();
+      this.hideLoading();
+      this.currentContext = null;
+      if (this.sectionsContainer) this.sectionsContainer.innerHTML = "";
+      this.updateLegendVisibility(false);
+    }
+    if (this.takesVersion(data)) this.updateContext(data.context || {}, data.schema || null);
+  },
+
+  /**
+   * Whether a message is of the chat shown, and its context not older than
+   * the one shown (the version is noted when it is).
+   * @param {Object} data - A message with chat and version
+   * @returns {boolean}
+   */
+  takesVersion(data) {
+    if (!data || data.chat !== this.chat || this.chat === null) return false;
+    if (!Number.isInteger(data.version) || data.version < this.version) return false;
+    this.version = data.version;
+    return true;
+  },
+
+  /**
+   * An extraction began for the chat (context_extraction_started).
+   * @param {Object} data - { chat, job }
+   */
+  extractionStarted(data) {
+    if (!data || data.chat !== this.chat || this.chat === null || !data.job) return;
+    this.jobs.add(data.job);
+    this.showLoading();
+  },
+
+  /**
+   * An extraction ended, with a context or without one.
+   * @param {Object} data - { chat, job }
+   */
+  extractionEnded(data) {
+    if (!data || data.chat !== this.chat || !data.job) return;
+    this.jobs.delete(data.job);
+    if (this.jobs.size === 0) this.hideLoading();
+  },
+
+  /**
+   * A context of the chat (context_update), shown unless an older one.
+   * @param {Object} data - { chat, version, context, schema, job }
+   */
+  contextChanged(data) {
+    // The extraction it came from has ended, whether or not its context is
+    // older than the one shown.
+    if (data && data.job) this.extractionEnded(data);
+    if (!this.takesVersion(data)) return;
+    if (data.context) this.updateContext(data.context, data.schema || null);
   },
 
   /**

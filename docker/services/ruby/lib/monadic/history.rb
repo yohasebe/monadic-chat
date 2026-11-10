@@ -41,9 +41,35 @@ module Monadic
       end
 
       params = payload['parameters'] || {}
+      schema = Serializer.context_schema(session)
       store.save(chat_id, payload, tab: tab, generation: generation,
                                    app_name: params['app_name'], model: params['model'],
-                                   headings: Serializer.headings(payload), search_text: Serializer.search_text(payload))
+                                   headings: Serializer.headings(payload), search_text: Serializer.search_text(payload),
+                                   context: -> { context_now(chat_id, schema) })
+    end
+
+    # Writes the chat's Session Context as it is now into the chat's saved
+    # conversation, when there is one: the context changes apart from the
+    # messages (an extraction ends after the reply was saved).
+    # held: what gives the context to save (nil when there is none), when
+    # it is not the one the chat holds now.
+    def keep_context(chat_id, schema: nil, held: nil, store: Store.default)
+      return nil unless enabled? && chat_id && !Policy.known_private?(chat_id)
+
+      store.update_context(chat_id, -> { context_now(chat_id, schema, held) })
+    rescue StandardError => e
+      Monadic::Utils::ExtraLogger.log { "[History] context not saved: #{e.class}" } if defined?(Monadic::Utils::ExtraLogger)
+      nil
+    end
+
+    # The chat's Session Context as it is saved, read once from what the
+    # chat holds now (Monadic::Workspace::ChatContext), or :absent when the
+    # chat holds none any more. Every save of the history takes the context
+    # from here, inside its transaction, so the save made last has the
+    # latest context whatever the order the saves were begun in.
+    def context_now(chat_id, schema, held = nil)
+      context = held ? held.call : Monadic::Workspace::ChatContext.read({ Monadic::Workspace::Chats::SESSION_KEY => chat_id })
+      context.nil? ? :absent : Serializer.saved_context(context, schema)
     end
 
     # The list as the page shows it, with whether each chat is open in a tab

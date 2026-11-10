@@ -73,7 +73,8 @@ def tab_chat_session(tab_id)
   saved = WebSocketHelper.fetch_session_state(tab_id.to_s)
   return {} unless saved
 
-  (saved[:chat_state] || {}).merge(messages: saved[:messages], parameters: saved[:parameters])
+  (saved[:chat_state] || {}).merge(messages: saved[:messages], parameters: saved[:parameters],
+                                   Monadic::Workspace::Chats::SESSION_KEY => saved[:chat_id])
 end
 
 # The marked words of an imported file, checked: a list of { text, type }
@@ -123,18 +124,16 @@ get "/monadic_state" do
 
     response_data[:monadic_state] = serializable_state
 
-    # Include conversation_context (Session Context) if present
-    conversation_context = session[:monadic_state][:conversation_context] || session[:monadic_state]["conversation_context"]
-    if conversation_context
-      response_data[:session_context] = conversation_context
-    end
-
     # Include context_schema if present
     context_schema = session[:monadic_state][:context_schema] || session[:monadic_state]["context_schema"]
     if context_schema
       response_data[:context_schema] = context_schema
     end
   end
+
+  # The chat's context (Session Context), kept apart from its state.
+  conversation_context = Monadic::Workspace::ChatContext.read(session)
+  response_data[:session_context] = conversation_context if conversation_context
 
   # Include dynamic-skill unlock state so an exported session restores the
   # skills the model had acquired (reproducibility). Independent of
@@ -257,6 +256,9 @@ post "/load" do
                 updated_at: state_entry["updated_at"]
               }
             end
+            # The context a Session Context tool kept here in older files is
+            # read below as the chat's context, not kept as app state.
+            entries.delete("conversation_context")
             result[app_key] = entries unless entries.empty?
           end
 
@@ -269,6 +271,10 @@ post "/load" do
         legacy_state = json_data["monadic_state"]
         if !json_data["session_context"] && legacy_state.is_a?(Hash)
           legacy_context = legacy_state["conversation_context"]
+          # Older still, a Session Context tool kept it under the app's
+          # state, as lists of texts.
+          app_state = legacy_state[json_data.dig("parameters", "app_name").to_s]
+          legacy_context ||= app_state.dig("conversation_context", "data") if app_state.is_a?(Hash) && app_state["conversation_context"].is_a?(Hash)
           json_data["session_context"] = legacy_context if legacy_context.is_a?(Hash)
           legacy_schema = legacy_state["context_schema"]
           json_data["context_schema"] ||= legacy_schema if legacy_schema
@@ -277,7 +283,7 @@ post "/load" do
         # Restore session_context if present in import data (for Session Context feature)
         if json_data["session_context"]
           imported[:monadic_state] ||= {}
-          imported[:monadic_state][:conversation_context] = json_data["session_context"]
+          imported[:monadic_state][:conversation_context] = Monadic::Workspace::ChatContext.normalize(json_data["session_context"])
 
           # Also store context_schema if present
           if json_data["context_schema"]

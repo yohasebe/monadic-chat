@@ -94,13 +94,19 @@ module Monadic
       # schema when it has one. Anything else in it (an internal value, a
       # nested record) is left out, and sizes are capped.
       def session_context(session)
-        state = value_of(session, :monadic_state)
-        return nil unless state.is_a?(Hash)
+        saved_context(Monadic::Workspace::ChatContext.read(session), context_schema(session))
+      end
 
-        context = state[:conversation_context] || state['conversation_context']
+      # A context as the history keeps it (see session_context), with known
+      # secrets removed as from the rest of what is saved.
+      def saved_context(context, schema)
         return nil unless context.is_a?(Hash)
 
-        names = context_field_names(state[:context_schema] || state['context_schema'])
+        Monadic::Utils::SecretRedactor.redact_deep(kept_context(context, schema))
+      end
+
+      def kept_context(context, schema)
+        names = context_field_names(schema)
         out = {}
         turns = context['_turn_count'] || context[:_turn_count]
         out['_turn_count'] = turns if turns.is_a?(Integer)
@@ -114,6 +120,12 @@ module Monadic
           out[name] = kept unless kept.empty?
         end
         out.keys == ['_turn_count'] || out.empty? ? nil : out
+      end
+
+      # The context's schema the chat holds (an imported file's), or nil.
+      def context_schema(session)
+        state = value_of(session, :monadic_state)
+        state.is_a?(Hash) ? (state[:context_schema] || state['context_schema']) : nil
       end
 
       def context_item(item)

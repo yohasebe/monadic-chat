@@ -60,9 +60,11 @@ beforeEach(() => {
 
   // Mock global objects
   global.ContextPanel = {
-    showLoading: jest.fn(),
-    hideLoading: jest.fn(),
-    updateContext: jest.fn()
+    chat: 'c1.0',
+    extractionStarted: jest.fn(),
+    extractionEnded: jest.fn(),
+    contextChanged: jest.fn(),
+    chatEntered: jest.fn()
   };
   global.WorkflowViewer = {
     setStage: jest.fn()
@@ -90,27 +92,46 @@ const handlers = require('../../docker/services/ruby/public/js/monadic/ws-sessio
 
 describe('ws-session-handler', () => {
   describe('handleContextExtractionStarted', () => {
-    it('shows context panel loading state', () => {
-      handlers.handleContextExtractionStarted({});
-      expect(global.ContextPanel.showLoading).toHaveBeenCalled();
+    it('tells the context panel an extraction began', () => {
+      handlers.handleContextExtractionStarted({ chat: 'c1.0', job: 'j1' });
+      expect(global.ContextPanel.extractionStarted).toHaveBeenCalledWith({ chat: 'c1.0', job: 'j1' });
+    });
+  });
+
+  describe('handleContextExtractionEnded', () => {
+    it('tells the context panel an extraction ended', () => {
+      handlers.handleContextExtractionEnded({ chat: 'c1.0', job: 'j1' });
+      expect(global.ContextPanel.extractionEnded).toHaveBeenCalledWith({ chat: 'c1.0', job: 'j1' });
     });
   });
 
   describe('handleContextUpdate', () => {
-    it('updates context panel with data and schema', () => {
-      const data = { context: { key: 'value' }, schema: { type: 'object' } };
+    it('gives the context panel a context of the chat it shows', () => {
+      const data = { chat: 'c1.0', version: 1, context: { key: 'value' }, schema: { type: 'object' } };
       handlers.handleContextUpdate(data);
 
-      expect(global.ContextPanel.hideLoading).toHaveBeenCalled();
-      expect(global.ContextPanel.updateContext).toHaveBeenCalledWith(
-        { key: 'value' },
-        { type: 'object' }
-      );
+      expect(global.ContextPanel.contextChanged).toHaveBeenCalledWith(data);
+      expect(global.WorkflowViewer.setStage).toHaveBeenCalledWith('context');
     });
 
-    it('updates workflow viewer stage', () => {
-      handlers.handleContextUpdate({ context: {} });
-      expect(global.WorkflowViewer.setStage).toHaveBeenCalledWith('context');
+    it('does nothing with a context of another chat', () => {
+      handlers.handleContextUpdate({ chat: 'c0.0', version: 1, context: { key: 'value' } });
+      expect(global.ContextPanel.contextChanged).not.toHaveBeenCalled();
+      expect(global.WorkflowViewer.setStage).not.toHaveBeenCalled();
+    });
+
+    it('does nothing while the tab waits for another chat', () => {
+      global.ContextPanel.chat = null;
+      handlers.handleContextUpdate({ chat: null, version: 1, context: {} });
+      expect(global.ContextPanel.contextChanged).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleChatContext', () => {
+    it('tells the context panel the chat the tab is in', () => {
+      const data = { chat: 'c2.0', version: 0, context: {}, switch: 3 };
+      handlers.handleChatContext(data);
+      expect(global.ContextPanel.chatEntered).toHaveBeenCalledWith(data);
     });
   });
 

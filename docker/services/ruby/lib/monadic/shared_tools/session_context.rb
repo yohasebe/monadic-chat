@@ -9,22 +9,21 @@
 # - Normal text responses by default (faster, fewer tokens)
 # - Server-side context storage (reliable, persistent within session)
 # - Real-time sidebar display via WebSocket
-# - User can edit context directly in the sidebar
 #
 # Usage in MDSL:
 #   tools do
 #     import_shared_tools :session_context, visibility: "always"
 #   end
 
-require_relative 'monadic_session_state'
+require_relative 'context_panel_helper'
 require_relative '../utils/extra_logger'
 
 module MonadicSharedTools
   module SessionContext
     include MonadicHelper
-    include Monadic::SharedTools::MonadicSessionState
+    include Monadic::SharedTools::ContextPanelHelper
 
-    CONTEXT_KEY = :conversation_context
+    FIELDS = %w[topics people notes].freeze
 
     # Get current context from session
     #
@@ -41,20 +40,7 @@ module MonadicSharedTools
     #   #    }
     def get_context(session: nil)
       session ||= @session || Thread.current[:session]
-      result = JSON.parse(monadic_load_state(key: CONTEXT_KEY, default: default_context, session: session))
-
-      if result["success"]
-        {
-          success: true,
-          context: result["data"] || default_context
-        }
-      else
-        {
-          success: false,
-          error: result["error"],
-          context: default_context
-        }
-      end
+      { success: true, context: ChatContext.texts(ChatContext.read(session), FIELDS) }
     end
 
     # Update context with new information
@@ -69,49 +55,19 @@ module MonadicSharedTools
     #   update_context(topics: ["Machine Learning"], notes: ["User prefers Python"])
     #   # => { success: true, context: { topics: [...], people: [...], notes: [...] } }
     def update_context(topics: nil, people: nil, notes: nil, replace: false, session: nil)
-      # Logged with EXTRA_LOGGING (it carries the context)
-      Monadic::Utils::ExtraLogger.log { "[SessionContext] update_context called with topics=#{topics.inspect}, people=#{people.inspect}, notes=#{notes.inspect}, replace=#{replace}" }
-      Monadic::Utils::ExtraLogger.log { "[SessionContext] session parameter received: #{session.nil? ? 'nil' : 'present'}" }
-
       session ||= @session || Thread.current[:session]
-      Monadic::Utils::ExtraLogger.log { "[SessionContext] session after fallback: #{session.nil? ? 'nil' : 'present'}" }
+      given = { "topics" => topics, "people" => people, "notes" => notes }.transform_values { |v| normalize_items(v) }
+      turn = get_current_turn(session || {})
 
-      # Get current context (pass session to ensure consistency)
-      current = get_context(session: session)
-      current_ctx = current[:context] || default_context
-
-      # Build new context
-      new_context = if replace
-                      {
-                        "topics" => topics || [],
-                        "people" => people || [],
-                        "notes" => notes || []
-                      }
-                    else
-                      {
-                        "topics" => ((current_ctx["topics"] || []) + (topics || [])).uniq,
-                        "people" => ((current_ctx["people"] || []) + (people || [])).uniq,
-                        "notes" => ((current_ctx["notes"] || []) + (notes || [])).uniq
-                      }
-                    end
-
-      # Save to session
-      result = JSON.parse(monadic_save_state(key: CONTEXT_KEY, payload: new_context, session: session))
-
-      if result["success"]
-        # Broadcast context update to sidebar via WebSocket
-        broadcast_context_update(session, new_context)
-
-        {
-          success: true,
-          action: replace ? "replaced" : "merged",
-          context: new_context
-        }
-      else
-        {
-          success: false,
-          error: result["error"]
-        }
+      changed_context(session, replace ? "replaced" : "merged") do |context|
+        FIELDS.reduce(context) do |ctx, field|
+          if replace
+            ChatContext.set_texts(ctx, field, given[field].uniq, turn)
+          else
+            known = ChatContext.texts(ctx, [field])[field]
+            ChatContext.add_texts(ctx, field, given[field].uniq - known, turn)
+          end
+        end
       end
     end
 
@@ -123,32 +79,10 @@ module MonadicSharedTools
     # @return [Hash] Updated context
     def remove_from_context(topics: nil, people: nil, notes: nil, session: nil)
       session ||= @session || Thread.current[:session]
+      given = { "topics" => topics, "people" => people, "notes" => notes }.transform_values { |v| normalize_items(v) }
 
-      current = get_context(session: session)
-      current_ctx = current[:context] || default_context
-
-      new_context = {
-        "topics" => (current_ctx["topics"] || []) - (topics || []),
-        "people" => (current_ctx["people"] || []) - (people || []),
-        "notes" => (current_ctx["notes"] || []) - (notes || [])
-      }
-
-      result = JSON.parse(monadic_save_state(key: CONTEXT_KEY, payload: new_context, session: session))
-
-      if result["success"]
-        # Broadcast context update to sidebar via WebSocket
-        broadcast_context_update(session, new_context)
-
-        {
-          success: true,
-          action: "removed",
-          context: new_context
-        }
-      else
-        {
-          success: false,
-          error: result["error"]
-        }
+      changed_context(session, "removed") do |context|
+        FIELDS.reduce(context) { |ctx, field| ChatContext.remove_texts(ctx, field, given[field]) }
       end
     end
 
@@ -161,54 +95,14 @@ module MonadicSharedTools
 
     private
 
-    # Broadcast context update to the client via WebSocket
-    # Sends only to the specific session, not to all clients
-    #
-    # @param session [Hash] The session object
-    # @param context [Hash] The updated context data
-    def broadcast_context_update(session, context)
-      session_id = session&.dig(:parameters, "session_id") ||
-                   session&.dig("parameters", "session_id") ||
-                   Thread.current[:websocket_session_id]
-
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        Monadic::Utils::ExtraLogger.log { "[SessionContext] broadcast_context_update called" }
-        Monadic::Utils::ExtraLogger.log { "[SessionContext] session_id: #{session_id.inspect}" }
-        Monadic::Utils::ExtraLogger.log { "[SessionContext] context: #{context.inspect}" }
-      end
-
-      unless session_id
-        Monadic::Utils::ExtraLogger.log { "[SessionContext] No session_id found, skipping broadcast" }
-        return
-      end
-
-      message = {
-        "type" => "context_update",
-        "context" => context,
-        "timestamp" => Time.now.to_f
-      }
-
-      # Use WebSocketHelper to send to specific session only
-      if defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:send_to_session)
-        WebSocketHelper.send_to_session(message.to_json, session_id)
-        Monadic::Utils::ExtraLogger.log { "[SessionContext] Sent context_update to session #{session_id}" }
+    # The tool's change to the chat's context (see ContextPanelHelper), and
+    # what the model is told of it.
+    def changed_context(session, action, &change)
+      if (change = change_panel(session) { |context| change.call(context) })
+        { success: true, action: action, context: ChatContext.texts(change.context, FIELDS) }
       else
-        Monadic::Utils::ExtraLogger.log { "[SessionContext] WebSocketHelper not available" }
+        { success: false, error: "The conversation this was for is no longer open; nothing was changed." }
       end
-    rescue StandardError => e
-      # Log error but don't fail the context update
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        Monadic::Utils::ExtraLogger.log { "[SessionContext] WebSocket broadcast error: #{e.message}" }
-        Monadic::Utils::ExtraLogger.log { "[SessionContext] Backtrace: #{e.backtrace.first(5).join("\n")}" }
-      end
-    end
-
-    def default_context
-      {
-        "topics" => [],
-        "people" => [],
-        "notes" => []
-      }
     end
   end
 end

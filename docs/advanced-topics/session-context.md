@@ -182,13 +182,14 @@ end
 
 ### Data Storage
 
-- The context is stored in the session on the server
-- It lasts for the session, and is cleared when you switch apps or start a new conversation
-- It is included when you export a conversation, and restored when you import it
+- The context is kept on the server for each conversation, and stays when the page reconnects
+- It is cleared when you switch apps or start a new conversation
+- It is saved in the history and included when you export a conversation, and restored when you continue or import it
+- Extraction and tools change the context of the conversation they ran for; nothing is changed once you have left it
 
 ### WebSocket Communication
 
-Context updates are sent to the browser as WebSocket messages of type `context_update`:
+Context updates are sent to the browser as WebSocket messages of type `context_update`. `chat` identifies the conversation, and `version` increases with each change; the page shows a context only for the conversation it is in, and never an older version over a newer one. When the page enters a conversation, a `chat_context` message gives the conversation and its context.
 
 ```json
 {
@@ -209,6 +210,8 @@ Context updates are sent to the browser as WebSocket messages of type `context_u
       ...
     ]
   },
+  "chat": "c_abcdefghijklmnop.0",
+  "version": 2,
   "timestamp": 1699500000.123
 }
 ```

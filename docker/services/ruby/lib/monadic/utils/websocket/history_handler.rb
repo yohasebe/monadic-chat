@@ -124,6 +124,9 @@ module WebSocketHelper
     session[:messages] = []
     session[:parameters] = {}
     Monadic::Workspace::Chats.clear_chat_state!(session)
+    # Work begun for the chat in the tab that had it ends here; what it
+    # changed until now is kept with the chat.
+    Monadic::Workspace::Chats.renew_epoch!(chat_id)
     Monadic::Workspace::Chats.resume!(session, chat_id)
 
     params = (payload['parameters'] || {}).merge('initiate_from_assistant' => false, 'auto_speech' => false)
@@ -132,8 +135,13 @@ module WebSocketHelper
     session[:messages] = Array(payload['messages']).map do |m|
       m.merge('html' => m['text'], 'active' => true, 'app_name' => m['app_name'] || params['app_name'])
     end
-    context = payload['session_context']
-    session[:monadic_state] = { conversation_context: context } if context.is_a?(Hash)
+    # The context the chat holds, or else the one saved last (none, when it
+    # was emptied), read again now that the chat's work has ended; what was
+    # read to resume, when that is gone.
+    Monadic::Workspace::ChatContext.continue!(session) do
+      row = Monadic::History::Store.default.get(chat_id)
+      row ? row.dig('payload', 'session_context') : payload['session_context']
+    end
   end
 
   private def history_chat_id(obj)

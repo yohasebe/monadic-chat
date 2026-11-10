@@ -302,14 +302,14 @@ RSpec.describe ContextExtractorAgent do
     end
   end
 
-  describe "#merge_with_session_context" do
-    let(:session) { { monadic_state: { conversation_context: nil } } }
+  describe "#merge_contexts" do
+    let(:existing) { nil }
 
     context "with empty existing context" do
       it "adds new items with turn information" do
         new_context = { "topics" => ["AI"], "people" => ["John"], "notes" => [] }
 
-        result = agent.send(:merge_with_session_context, session, new_context)
+        result = agent.send(:merge_contexts, existing, new_context)
 
         expect(result["topics"].first).to eq({ "text" => "AI", "turn" => 1 })
         expect(result["people"].first).to eq({ "text" => "John", "turn" => 1 })
@@ -318,8 +318,8 @@ RSpec.describe ContextExtractorAgent do
     end
 
     context "with existing context" do
-      before do
-        session[:monadic_state][:conversation_context] = {
+      let(:existing) do
+        {
           "_turn_count" => 1,
           "topics" => [{ "text" => "AI", "turn" => 1 }],
           "people" => [],
@@ -330,7 +330,7 @@ RSpec.describe ContextExtractorAgent do
       it "increments turn count" do
         new_context = { "topics" => ["Ruby"], "people" => [], "notes" => [] }
 
-        result = agent.send(:merge_with_session_context, session, new_context)
+        result = agent.send(:merge_contexts, existing, new_context)
 
         expect(result["_turn_count"]).to eq(2)
       end
@@ -338,7 +338,7 @@ RSpec.describe ContextExtractorAgent do
       it "adds new items without duplicating existing ones" do
         new_context = { "topics" => ["Ruby"], "people" => [], "notes" => [] }
 
-        result = agent.send(:merge_with_session_context, session, new_context)
+        result = agent.send(:merge_contexts, existing, new_context)
 
         topic_texts = result["topics"].map { |t| t["text"] }
         expect(topic_texts).to contain_exactly("AI", "Ruby")
@@ -347,7 +347,7 @@ RSpec.describe ContextExtractorAgent do
       it "deduplicates similar items" do
         new_context = { "topics" => ["AI technology"], "people" => [], "notes" => [] }
 
-        result = agent.send(:merge_with_session_context, session, new_context)
+        result = agent.send(:merge_contexts, existing, new_context)
 
         # "AI technology" contains "AI", so should replace shorter version
         topic_texts = result["topics"].map { |t| t["text"] }
@@ -365,10 +365,9 @@ RSpec.describe ContextExtractorAgent do
       end
 
       it "handles custom schema fields" do
-        session[:monadic_state][:conversation_context] = nil
         new_context = { "vocabulary" => ["hello"] }
 
-        result = agent.send(:merge_with_session_context, session, new_context, custom_schema)
+        result = agent.send(:merge_contexts, existing, new_context, custom_schema)
 
         expect(result["vocabulary"].first).to eq({ "text" => "hello", "turn" => 1 })
       end

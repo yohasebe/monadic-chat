@@ -185,8 +185,10 @@ RSpec.describe Monadic::History do
                   'notes' => [{ 'text' => 'n', 'path' => '/private/source' }], 'internal' => { 'x' => 1 },
                   'unlisted' => [{ 'text' => 'not in the schema' }] }
       schema = { fields: [{ name: 'topics' }, { name: 'notes' }] }
-      payload = described_class::Serializer.payload(session_with('hi', monadic_state: { conversation_context: context,
-                                                                                         context_schema: schema }))
+      session = session_with('hi', monadic_state: { context_schema: schema })
+      chat_id = session[chat_key]
+      Monadic::Workspace::ChatContext.update(session, chat: { id: chat_id, epoch: Monadic::Workspace::Chats.epoch(chat_id) }) { context }
+      payload = described_class::Serializer.payload(session)
       expect(payload['session_context']).to eq(
         '_turn_count' => 3,
         'topics' => [{ 'text' => 'trip', 'turn' => 1, 'edited' => true }, { 'text' => 'plain' }],

@@ -548,6 +548,23 @@ module BaseVendorHelper
     pipeline.process_tool_invoke(nil, args)
   end
 
+  # Replies made from what tools gave, or put together from parts each put
+  # back already: in a chat with a word table, shown as they are
+  # (Privacy::Words.as_is).
+  def replies_as_is(replies)
+    Monadic::Utils::Privacy::Words.as_is(replies)
+  end
+
+  # A reply's text and the text a model wrote before it in an earlier
+  # request of the turn, each put back with the snapshot of the request it
+  # came from, joined: the reply is then shown as it is.
+  def join_put_back(earlier, reply, text, separator: "\n\n")
+    words = Monadic::Utils::Privacy::Words
+    joined = words.put_back(earlier) + separator + words.restore_reply(reply, text)
+    replies_as_is(reply)
+    joined
+  end
+
   # A tool call's arguments as the tool is given them: owned `${TOKEN}`s
   # expanded, then, in a chat with a word table, the chat's words put back
   # in the places the tool reads (Privacy::Words.tool_arguments); every
@@ -702,18 +719,19 @@ module BaseVendorHelper
   # of type "message"; the stored conversation has neither) and the tool
   # calls themselves are the model's; a tool's result is data. System and developer messages, and
   # attachments, are left as they are (a word in them stops the request).
+  # A vendor whose conversation has another shape gives its own keys and
+  # the method that changes one of its messages (item).
   # [table, snapshot] for Words.sending, or nil for a chat without a table.
-  def hide_words_in_request!(body, session)
+  def hide_words_in_request!(body, session, keys: %w[messages input], item: method(:hide_words_in_item))
     privacy = Monadic::Utils::Privacy
     table = privacy::Words.table(session)
     return nil unless table
 
-    keys = %w[messages input].select { |key| body[key].is_a?(Array) }
-    original = keys.to_h { |key| [key, body[key]] }
+    original = keys.select { |key| body[key].is_a?(Array) }.to_h { |key| [key, body[key]] }
     2.times do
       snapshot = table.snapshot
       budget = privacy::WordTable::Budget.new
-      hidden = original.transform_values { |items| items.map { |item| hide_words_in_item(item, snapshot, budget) } }
+      hidden = original.transform_values { |items| items.map { |entry| item.call(entry, snapshot, budget) } }
       next unless table.revision == snapshot.revision
 
       body.merge!(hidden)

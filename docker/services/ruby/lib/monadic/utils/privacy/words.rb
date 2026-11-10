@@ -123,15 +123,46 @@ module Monadic
         def note_reply(replies, snapshot)
           return replies unless snapshot
 
-          Array(replies).each do |reply|
+          replies_in(replies).each do |reply|
             next unless reply.is_a?(Hash)
 
             LOCK.synchronize do
+              next if AS_IS.key?(reply)
+
               REPLIES[reply] ||= snapshot
               REPLIES.shift while REPLIES.size > REPLY_LIMIT
             end
           end
           replies
+        end
+
+        # Replies whose text is not the model's to put back: made from what
+        # tools gave (data, in which a placeholder is only text), or put
+        # together from parts each put back with the snapshot of the request
+        # it came from. Shown as they are for as long as the reply lives
+        # (the reply is held weakly, by itself, apart from the snapshots
+        # REPLY_LIMIT drops): no snapshot is noted for it after. Nothing is
+        # marked outside a request that was hidden.
+        AS_IS = ObjectSpace::WeakMap.new
+
+        def as_is(replies)
+          return replies unless Fiber[REQUEST_KEY]&.snapshot
+
+          replies_in(replies).each do |reply|
+            next unless reply.is_a?(Hash)
+
+            LOCK.synchronize do
+              AS_IS[reply] = true
+              REPLIES.delete(reply)
+            end
+          end
+          replies
+        end
+
+        # The replies an api_request returns (a reply, or an Array of them):
+        # Array() would take a Hash for its pairs.
+        def replies_in(replies)
+          replies.is_a?(Array) ? replies : [replies]
         end
 
         # The reply's text with the chat's placeholders put back, as the

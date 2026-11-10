@@ -1862,7 +1862,7 @@ module OpenAIHelper
       block&.call res
       res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
       block&.call res
-      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => success_msg } }] }]
+      return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => success_msg } }] }])
     end
 
     # Jupyter app but no successful result - check for errors
@@ -1883,7 +1883,7 @@ module OpenAIHelper
       block&.call res
       res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
       block&.call res
-      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
+      return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }])
     end
 
     nil  # No fallback triggered
@@ -2167,7 +2167,7 @@ module OpenAIHelper
 
             block&.call({ "type" => "fragment", "content" => image_html, "is_first" => true })
             block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-            return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => image_html } }] }]
+            return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => image_html } }] }])
           elsif parsed["success"] && parsed["filename"]
             filename = parsed["filename"]
             prompt = parsed["prompt"] || "Media generation"
@@ -2197,7 +2197,7 @@ module OpenAIHelper
 
             block&.call({ "type" => "fragment", "content" => media_html, "is_first" => true })
             block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-            return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => media_html } }] }]
+            return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => media_html } }] }])
           end
         rescue JSON::ParserError
           # Continue to normal flow
@@ -2223,7 +2223,7 @@ module OpenAIHelper
 
           block&.call({ "type" => "fragment", "content" => video_html, "is_first" => true })
           block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-          return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }]
+          return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }])
         end
       end
 
@@ -2234,7 +2234,7 @@ module OpenAIHelper
 
           block&.call({ "type" => "fragment", "content" => error_msg, "is_first" => true })
           block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-          return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
+          return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }])
         rescue JSON::ParserError
           # Continue to normal flow
         end

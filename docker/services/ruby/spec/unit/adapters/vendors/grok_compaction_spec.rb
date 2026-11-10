@@ -213,6 +213,88 @@ RSpec.describe GrokCompaction do
     end
   end
 
+  describe 'a chat that hides its words with a word table' do
+    let(:words) { Monadic::Utils::Privacy::Words }
+    let(:session) { {}.tap { |s| Monadic::Workspace::Chats.start_new!(s) } }
+    let(:table) { words.start!(session) }
+    let(:model) { 'grok-4.3' }
+    let(:input) do
+      [sys_item, user_item('Ask Ada Lovelace'), assistant_item('Ada Lovelace answered'), user_item('live')]
+    end
+
+    before { table.confirm!('Ada Lovelace', 'PERSON') }
+    after { words::LOCK.synchronize { words::TABLES.clear } }
+
+    def call
+      helper.apply_grok_compaction(input, session: session, app: 'App', model: model, api_key: 'xai-test')
+    end
+
+    context 'above threshold' do
+      before { register_app('App', { 'compact_threshold' => 1 }) }
+
+      it 'sends the history to compact with its words hidden, and keeps the words the blob was made with' do
+        prior = blob_item('cmp_prior')
+        session[:grok_compaction] = { 'blob' => prior, 'covered_count' => 0, 'model' => model, 'app' => 'App',
+                                      'threshold' => 1, 'words' => table.revision }
+        received = nil
+        allow(helper).to receive(:request_compaction) do |compact_input, **_|
+          received = compact_input
+          blob_item('cmp_new')
+        end
+
+        expect(call.first).to eq(blob_item('cmp_new'))
+        expect(received).to eq([prior, user_item('Ask <<PERSON_1>>'), assistant_item('<<PERSON_1>> answered')])
+        expect(session[:grok_compaction]['words']).to eq(table.revision)
+      end
+
+      it 'does not fold in a blob made before the words changed' do
+        session[:grok_compaction] = { 'blob' => blob_item('cmp_prior'), 'covered_count' => 0, 'model' => model,
+                                      'app' => 'App', 'threshold' => 1, 'words' => table.revision }
+        allow(helper).to receive(:validated_compaction_cache).and_wrap_original do |original, *args|
+          original.call(*args).tap { table.confirm!('Grace Hopper', 'PERSON') }
+        end
+        expect(helper).not_to receive(:request_compaction)
+
+        expect(call).to eq(input)
+        expect(session).not_to have_key(:grok_compaction)
+      end
+
+      it 'sends nothing to compact once the words change while it is being sent' do
+        allow(helper).to receive(:request_compaction) do
+          table.confirm!('Grace Hopper', 'PERSON')
+          words.check_sending!
+          blob_item('cmp_late')
+        end
+
+        expect(call).to eq(input)
+        expect(session).not_to have_key(:grok_compaction)
+      end
+    end
+
+    it 'makes the blob again once the words to hide have changed' do
+      register_app('App', { 'compact_threshold' => 100_000 })
+      session[:grok_compaction] = { 'blob' => blob_item, 'covered_count' => 2, 'model' => model, 'app' => 'App',
+                                    'threshold' => 100_000, 'words' => table.revision }
+      expect(call.first).to eq(blob_item)
+
+      table.confirm!('Grace Hopper', 'PERSON')
+      expect(call).to eq(input)
+      expect(session).not_to have_key(:grok_compaction)
+    end
+
+    it 'does not send a blob made with other words than the request is hidden with' do
+      session[:grok_compaction] = { 'blob' => blob_item, 'covered_count' => 2, 'model' => model, 'app' => 'App',
+                                    'threshold' => 1, 'words' => table.revision }
+      body = { 'input' => [blob_item, sys_item, user_item('live')] }
+      expect { helper.compacted_with_other_words!(body, session, table.snapshot) }.not_to raise_error
+
+      table.confirm!('Grace Hopper', 'PERSON')
+      expect { helper.compacted_with_other_words!(body, session, table.snapshot) }
+        .to raise_error(Monadic::Utils::Privacy::Outbound::Refused)
+      expect(session).not_to have_key(:grok_compaction)
+    end
+  end
+
   describe '#request_compaction (HTTP contract)' do
     let(:compact_input) { [{ 'role' => 'user', 'content' => 'hi' }] }
 

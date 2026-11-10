@@ -506,6 +506,7 @@ module GrokHelper
     # is sent only while the table is unchanged); otherwise the Privacy
     # Filter's masking and marked words apply.
     hiding = hide_words_in_request!(body, session)
+    compacted_with_other_words!(body, session, hiding.last) if hiding
     unless hiding
       if privacy_enabled_for?(app_settings, session) && body["input"].is_a?(Array)
         body["input"] = apply_privacy_to_messages(body["input"], session, app_settings)
@@ -1280,6 +1281,16 @@ module GrokHelper
     res = { "type" => "error", "content" => formatted_error }
     block&.call res
     [res]
+  end
+
+  # A compaction blob made while the chat hid other words than the request
+  # is hidden with is not sent (a word hidden since is in it as it is).
+  def compacted_with_other_words!(body, session, snapshot)
+    return unless Array(body["input"]).any? { |item| item.is_a?(Hash) && item["type"] == "compaction" }
+    return if session.dig(:grok_compaction, "words") == snapshot.revision
+
+    session.delete(:grok_compaction)
+    raise Monadic::Utils::Privacy::Outbound::Refused, "the words to hide changed while the conversation was being compacted; nothing was sent"
   end
 
   def process_responses_api_data(app:, session:, query:, res:, call_depth:, &block)

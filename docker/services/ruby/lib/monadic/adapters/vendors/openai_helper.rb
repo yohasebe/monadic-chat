@@ -1204,6 +1204,12 @@ module OpenAIHelper
     # is sent only while the table is unchanged); otherwise the Privacy
     # Filter's masking and marked words apply.
     hiding = hide_words_in_request!(body, session)
+    # A conversation kept on the provider's side holds words as they were
+    # sent then; a chat with a table sends all of it, hidden, each time.
+    if hiding && body["previous_response_id"]
+      raise Monadic::Utils::Privacy::Outbound::Refused,
+            "a conversation kept on the provider's side cannot be hidden with the chat's words; nothing was sent"
+    end
     unless hiding
       if privacy_enabled_for?(app_settings, session)
         if body["messages"].is_a?(Array)

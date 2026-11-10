@@ -261,6 +261,18 @@ RSpec.describe "An OpenAI chat with a word table" do
       end
     end
 
+    it "sends nothing that continues a conversation kept on the provider's side" do
+      chain_posting do |_uri, json:|
+        sent << JSON.generate(json)
+        double("res", status: HTTP::Response::Status.new(500), body: "{}", code: 500, headers: {})
+      end
+      session[:parameters]["previous_response_id"] = "resp_1"
+      out = []
+      chat.api_request("user", session) { |r| out << r }
+      expect(sent).to be_empty
+      expect(out.to_s).to include("kept on the provider's side")
+    end
+
     it "sends no attempt after the table changed, and reports that nothing was sent" do
       tries = 0
       chain_posting do |_uri, json:|

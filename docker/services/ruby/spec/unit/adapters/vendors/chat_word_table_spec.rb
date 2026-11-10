@@ -367,6 +367,58 @@ RSpec.describe "A chat with a word table on a chat-shaped vendor" do
     end
   end
 
+  describe "on Grok, compacting a long chat" do
+    let(:chat) { Class.new(MonadicApp) { include GrokHelper }.new }
+    let(:model) { Monadic::Utils::ModelSpec.get_provider_models("xai", "chat")&.first }
+    let(:blob) { { "type" => "compaction", "id" => "cmp_1", "encrypted_content" => "E" } }
+    let(:sent) { [] }
+
+    before do
+      compacting = Class.new(MonadicApp) do
+        def settings
+          { "compaction" => { "compact_threshold" => 1 } }
+        end
+      end.new
+      stub_const("APPS", { "SpecApp" => compacting })
+      stub_const("CONFIG", { "XAI_API_KEY" => "k" })
+      allow(chat).to receive(:sleep)
+      session[:parameters] = { "app_name" => "SpecApp", "model" => model, "context_size" => "5", "max_tokens" => "100",
+                               "message" => "And now?", "temperature" => "0.5" }
+      session[:messages] = [{ "role" => "system", "text" => "S", "active" => true },
+                            { "role" => "user", "text" => "Ask Ada Lovelace", "active" => true },
+                            { "role" => "assistant", "text" => "Ada Lovelace answered", "active" => true }]
+      replies = [JSON.generate("output" => [blob]),
+                 JSON.generate("id" => "r1", "model" => model, "status" => "completed",
+                               "output" => [{ "type" => "message", "role" => "assistant",
+                                              "content" => [{ "type" => "output_text", "text" => "Fine." }] }])]
+      chain = double("http")
+      %i[timeout headers via].each { |m| allow(chain).to receive(m).and_return(chain) }
+      allow(chain).to receive(:post) do |uri, json:|
+        sent << [uri.to_s, JSON.generate(json)]
+        double("res", status: HTTP::Response::Status.new(200), body: replies.shift, code: 200, headers: {})
+      end
+      allow(HTTP).to receive(:headers).and_return(chain)
+      allow(HTTP).to receive(:timeout).and_return(chain)
+    end
+
+    it "sends the history to compact, and the blob made of it, with the chat's words hidden" do
+      chat.api_request("user", session, disable_streaming: true) { |_| }
+      expect(sent.map(&:first)).to eq(["#{GrokHelper::API_ENDPOINT}/responses/compact", "#{GrokHelper::API_ENDPOINT}/responses"])
+      expect(sent.first.last).to include("Ask <<PERSON_1>>")
+      expect(sent.last.last).to include("cmp_1")
+      expect(sent.map(&:last).join).not_to include("Ada Lovelace")
+    end
+
+    it "does not send the blob once the words change after it was made" do
+      allow(chat).to receive(:apply_grok_compaction).and_wrap_original do |original, *args, **options|
+        original.call(*args, **options).tap { table.confirm!("Grace Hopper", "PERSON") }
+      end
+      chat.api_request("user", session, disable_streaming: true) { |_| }
+      expect(sent.map(&:first)).to eq(["#{GrokHelper::API_ENDPOINT}/responses/compact"])
+      expect(session).not_to have_key(:grok_compaction)
+    end
+  end
+
   describe "on Ollama" do
     let(:chat) { Class.new(MonadicApp) { include OllamaHelper }.new }
     let(:model) { "spec-model" }

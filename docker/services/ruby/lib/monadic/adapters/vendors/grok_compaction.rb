@@ -14,7 +14,7 @@ require_relative "../../utils/progress_broadcaster"
 #   2. Re-insert that item at the HEAD of the next request's input and append
 #      the live turn after it.
 #
-# Design contract (see memory grok-context-compaction-handoff):
+# Design contract:
 #   - session[:messages] is the single source of truth. The blob is a CACHE
 #     (session[:grok_compaction]) derived from it. Every invalidation path
 #     degrades to "send full history" — i.e. current behaviour, never worse.
@@ -115,18 +115,31 @@ module GrokCompaction
     compact_input << cache["blob"] if cache
     compact_input.concat(pending)
 
-    # Privacy Filter: mask PII before the compact call so xAI only ever sees
-    # masked content here too — consistent with the masking applied to the final
-    # request in execute_grok_api_call. The opaque blob carries no role and is
-    # skipped by apply_privacy_to_messages.
-    app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-    if privacy_enabled_for?(app_settings, session)
-      compact_input = apply_privacy_to_messages(compact_input, session, app_settings)
+    # A chat with a word table hides its words in the compact call as in the
+    # main request (the opaque blob carries no role and is left as it is).
+    # Otherwise, the Privacy Filter masks PII before the compact call, and
+    # words the user marked are masked wherever they are, or nothing is sent.
+    compact_body = { "input" => compact_input }
+    hiding = hide_words_in_request!(compact_body, session, keys: %w[input])
+    if hiding
+      # The blob folded in again holds the words it was made with: it is not
+      # sent with other words hidden around it.
+      if cache && cache["words"] != hiding.last.revision
+        session.delete(:grok_compaction)
+        return input
+      end
+      compact_input = compact_body["input"]
+    else
+      app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
+      if privacy_enabled_for?(app_settings, session)
+        compact_input = apply_privacy_to_messages(compact_input, session, app_settings)
+      end
+      protect_marked_words!(compact_input, session, app_settings)
     end
-    # Words the user marked: masked wherever they are, or nothing is sent.
-    protect_marked_words!(compact_input, session, app_settings)
 
-    blob = request_compaction(compact_input, model: model, api_key: api_key)
+    blob = Monadic::Utils::Privacy::Words.sending(hiding&.first, hiding&.last) do
+      request_compaction(compact_input, model: model, api_key: api_key)
+    end
     if blob.nil?
       # Compaction failed: invalidate and degrade to full history.
       session.delete(:grok_compaction)
@@ -139,7 +152,8 @@ module GrokCompaction
       "covered_count" => live_start,
       "model" => model,
       "app" => app,
-      "threshold" => threshold
+      "threshold" => threshold,
+      "words" => hiding&.last&.revision
     }
     Monadic::Utils::ExtraLogger.log {
       "[Grok] compaction ok (covered=#{live_start}, tail=#{(convo.length - live_start)}, threshold=#{threshold})"
@@ -160,10 +174,13 @@ module GrokCompaction
     cache = session[:grok_compaction]
     return nil unless cache.is_a?(Hash) && cache["blob"].is_a?(Hash)
 
-    if cache["model"] != model || cache["app"] != app || cache["threshold"].to_i != threshold.to_i
+    # The blob holds the history as it was sent: it is made again once the
+    # words a chat hides have changed (a word hidden since is in it as it is).
+    words = Monadic::Utils::Privacy::Words.table(session)&.revision
+    if cache["model"] != model || cache["app"] != app || cache["threshold"].to_i != threshold.to_i || cache["words"] != words
       Monadic::Utils::ExtraLogger.log {
         "[Grok] compaction cache invalidated (was model=#{cache['model']}/app=#{cache['app']}/threshold=#{cache['threshold']}, " \
-          "now model=#{model}/app=#{app}/threshold=#{threshold}); re-deriving from full history"
+          "now model=#{model}/app=#{app}/threshold=#{threshold}, or the words to hide changed); re-deriving from full history"
       }
       session.delete(:grok_compaction)
       return nil

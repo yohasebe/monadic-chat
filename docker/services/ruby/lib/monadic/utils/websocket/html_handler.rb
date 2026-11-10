@@ -306,14 +306,17 @@ module WebSocketHelper
               thread_session = session.dup
               thread_ws_session_id = ws_session_id
               thread_context_schema = context_schema
+              # The chat the context is extracted for, and its epoch: the
+              # context is kept only while the chat is at that epoch. job
+              # tells the page which extraction a context or its end is of.
+              extraction = { chat: Monadic::Workspace::ChatContext.work_chat(session), job: SecureRandom.hex(8) }
 
               # Only extract context if we have both user message and assistant response
-              if !user_text.empty? && !final_text.to_s.empty?
-                # Notify client that context extraction is starting
-                start_message = { type: "context_extraction_started" }.to_json
-                if defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:send_to_session)
-                  WebSocketHelper.send_to_session(start_message, thread_ws_session_id)
-                end
+              if extraction[:chat] && !user_text.empty? && !final_text.to_s.empty?
+                chat = extraction[:chat]
+                start_message = { type: "context_extraction_started", job: extraction[:job],
+                                  chat: Monadic::Workspace::ChatContext.token(chat[:id], chat[:epoch]) }.to_json
+                WebSocketHelper.send_to_live_connection(thread_ws_session_id, start_message, chat_id: chat[:id])
 
                 # Run context extraction in a separate thread to avoid blocking
                 Thread.new do
@@ -324,7 +327,8 @@ module WebSocketHelper
                       final_text,
                       provider,
                       thread_ws_session_id,
-                      thread_context_schema
+                      thread_context_schema,
+                      extraction: extraction
                     )
                   rescue StandardError => ctx_err
                     Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Background error: #{ctx_err.message}\n[ContextExtractor] Backtrace: #{ctx_err.backtrace.first(3).join("\n")}" }

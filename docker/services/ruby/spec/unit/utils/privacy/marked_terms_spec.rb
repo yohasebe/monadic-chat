@@ -490,13 +490,15 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
                      'verify' => { 'responses' => [{ 'text' => 'about SecretName' }] } }],
         parameters: { 'app_name' => 'X' },
         monadic_state: { 'app' => { 'entry' => { data: 'SecretName', version: 1, updated_at: 't' } },
-                         conversation_context: { 'person' => 'SecretName' }, context_schema: { 'description' => 'SecretName' },
+                         context_schema: { 'description' => 'SecretName' },
                          privacy: { registry: {}, audit: [], terms: [{ text: 'SecretName', type: 'PERSON' }] } }
       }
+      with_context(session, 'person' => 'SecretName')
       harness.send(:handle_ws_privacy_export, nil, session, { 'encrypt' => false, 'content' => 'masked' })
       written = Base64.strict_decode64(harness.sent.last['content_base64'])
       expect(written).not_to include('SecretName')
       expect(written).to include('<<PERSON_1>>')
+      expect(JSON.parse(written)['session_context']).to eq('person' => '<<PERSON_1>>')
     end
   end
 
@@ -646,6 +648,14 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
     end
   end
 
+  # The chat's context, kept as given (a value that is JSON text, not the
+  # panel's items).
+  def with_context(session, context)
+    chats = Monadic::Workspace::Chats
+    chat_id = chats.start_new!(session)
+    Monadic::Workspace::ChatContext.update(session, chat: { id: chat_id, epoch: chats.epoch(chat_id) }) { context }
+  end
+
   describe 'a masked file with JSON in it' do
     let(:harness) do
       Class.new do
@@ -666,11 +676,11 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
       word = 'A"B'
       session = { messages: [{ 'mid' => 'a', 'role' => 'user', 'text' => word, 'app_name' => 'X' }],
                   parameters: { 'app_name' => 'X' },
-                  monadic_state: { conversation_context: { 'json' => JSON.generate('person' => word) },
-                                   privacy: { registry: {}, audit: [], terms: [{ text: word, type: 'PERSON' }] } } }
+                  monadic_state: { privacy: { registry: {}, audit: [], terms: [{ text: word, type: 'PERSON' }] } } }
+      with_context(session, 'json' => JSON.generate('person' => word))
       harness.send(:handle_ws_privacy_export, nil, session, { 'encrypt' => false, 'content' => 'masked' })
       file = JSON.parse(Base64.strict_decode64(harness.sent.last['content_base64']))
-      json_value = file.dig('session_context', 'json') || file.dig('monadic_state', 'conversation_context', 'json')
+      json_value = file.dig('session_context', 'json')
       expect(JSON.parse(json_value)).to eq('person' => '<<PERSON_1>>')
       expect(JSON.generate(file)).not_to include('A\\"B')
     end
@@ -727,8 +737,8 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
       [JSON.generate(word), JSON.generate('person' => JSON.generate(word))].each do |json|
         session = { messages: [{ 'mid' => 'a', 'role' => 'user', 'text' => 'x', 'app_name' => 'X' }],
                     parameters: { 'app_name' => 'X' },
-                    monadic_state: { conversation_context: { 'json' => json },
-                                     privacy: { registry: {}, audit: [], terms: [{ text: word, type: 'PERSON' }] } } }
+                    monadic_state: { privacy: { registry: {}, audit: [], terms: [{ text: word, type: 'PERSON' }] } } }
+        with_context(session, 'json' => json)
         harness.send(:handle_ws_privacy_export, nil, session, { 'encrypt' => false, 'content' => 'masked' })
         file = JSON.parse(Base64.strict_decode64(harness.sent.last['content_base64']))
         value = file.dig('session_context', 'json')

@@ -3,6 +3,7 @@
 require_relative "../utils/gemini_request"
 require_relative "../utils/system_defaults"
 require_relative "../utils/extra_logger"
+require_relative "../workspace/chat_context"
 require_relative "../utils/model_spec"
 require_relative "../utils/provider_response"
 require "net/http"
@@ -10,6 +11,7 @@ require "uri"
 require "json"
 require "cld"
 require_relative '../utils/privacy/outbound'
+require_relative '../utils/privacy/words'
 
 # Context Extractor Agent
 # Automatically extracts conversation context after each response for apps with monadic: true setting
@@ -173,25 +175,32 @@ module ContextExtractorAgent
     # Use provided schema or default
     effective_schema = schema || DEFAULT_SCHEMA
 
-    # Privacy mask: when the session has an active privacy pipeline,
-    # extract context from masked text so the extractor's LLM call does
-    # not see raw PII. The resulting context will contain placeholders
-    # (e.g., "<<PERSON_1>>") which the frontend can render as-is — that
-    # makes it visually obvious to the user that masking is active.
+    # A chat that hides its words with a word table: the conversation (as
+    # the chat keeps it, with the words) is hidden with one snapshot of the
+    # table, and the context is put back with it. Otherwise, when the
+    # session has an active privacy pipeline, the context is extracted from
+    # masked text (it keeps the placeholders, e.g. "<<PERSON_1>>").
     # Fail-closed: if masking raises (privacy backend unreachable), the
     # whole extraction is skipped — a degraded extraction that re-leaks
     # PII would defeat the purpose of the user enabling the filter.
+    snapshot = nil
     begin
-      # Refused (nothing is extracted) when the filter is on but cannot mask.
-      pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(session)
-      extractable_user, extractable_assistant = if pipeline
-                                                  [
-                                                    mask_for_extraction(user_message, pipeline, "user"),
-                                                    mask_for_extraction(assistant_response, pipeline, "assistant")
-                                                  ]
-                                                else
-                                                  [user_message, assistant_response]
-                                                end
+      words = Monadic::Utils::Privacy::Words
+      table = words.table(session)
+      if table
+        snapshot, (extractable_user, extractable_assistant) = words.hide_texts(table, [user_message, assistant_response])
+      else
+        # Refused (nothing is extracted) when the filter is on but cannot mask.
+        pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(session)
+        extractable_user, extractable_assistant = if pipeline
+                                                    [
+                                                      mask_for_extraction(user_message, pipeline, "user"),
+                                                      mask_for_extraction(assistant_response, pipeline, "assistant")
+                                                    ]
+                                                  else
+                                                    [user_message, assistant_response]
+                                                  end
+      end
     rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Privacy mask failed (skipping extraction fail-closed): #{e.class}: #{e.message}" }
       return nil
@@ -232,7 +241,9 @@ module ContextExtractorAgent
 
       Thread.current[:monadic_extraction_session] = session
       result = begin
-        call_provider_api(provider, model, system_message, api_key)
+        Monadic::Utils::Privacy::Words.sending(table, snapshot) do
+          call_provider_api(provider, model, system_message, api_key)
+        end
       ensure
         Thread.current[:monadic_extraction_session] = nil
       end
@@ -242,6 +253,7 @@ module ContextExtractorAgent
       if result.is_a?(String) && !result.empty?
         Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Raw API response: #{result[0..500].inspect}" }
         parsed = parse_context_json(result, effective_schema)
+        parsed = parsed.transform_values { |items| items.map { |item| snapshot.restore(item) } } if parsed && snapshot
         Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Parsed context: #{parsed.inspect}" }
         parsed
       else
@@ -649,7 +661,11 @@ module ContextExtractorAgent
   # @param provider [String] The AI provider
   # @param session_id [String] WebSocket session ID for broadcasting
   # @param schema [Hash] The context schema defining fields to extract (optional)
-  def process_and_broadcast_context(session, user_message, assistant_response, provider, session_id, schema = nil)
+  # @param extraction [Hash] The extraction as the tab was told of it
+  #   (optional): { chat:, job: } — the chat and its epoch when it began
+  #   (ChatContext.work_chat), and its job. The context is kept for that chat
+  #   only while it is at that epoch (Monadic::Workspace::ChatContext).
+  def process_and_broadcast_context(session, user_message, assistant_response, provider, session_id, schema = nil, extraction: nil)
     Monadic::Utils::ExtraLogger.log { "[ContextExtractor] process_and_broadcast_context called" }
     Monadic::Utils::ExtraLogger.log { "[ContextExtractor]   provider=#{provider}, session_id=#{session_id ? 'present' : 'nil'}" }
 
@@ -682,18 +698,34 @@ module ContextExtractorAgent
       return
     end
 
-    # Merge with existing context from session (using dynamic schema)
-    merged_context = merge_with_session_context(session, context, effective_schema)
+    # Kept for the chat the extraction began for, while it is still at
+    # that epoch, merged with what the chat holds by then.
+    chat = extraction ? extraction[:chat] : Monadic::Workspace::ChatContext.work_chat(session)
+    change = Monadic::Workspace::ChatContext.update(session, chat: chat) do |existing|
+      merge_contexts(existing, context, effective_schema)
+    end
+    unless change
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] EARLY RETURN: the chat was left" }
+      return
+    end
 
-    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Broadcasting context update to session #{session_id}" }
+    shown = Monadic::Workspace::ChatContext.send_change(session_id, change, schema: effective_schema,
+                                                       extra: extraction ? { "job" => extraction[:job] } : {})
+    log_extraction_success(provider, change.context, effective_schema)
+    shown
+  ensure
+    extraction_ended(session_id, extraction) if extraction && !shown
+  end
 
-    # Broadcast to sidebar via WebSocket (include schema for frontend rendering)
-    broadcast_context_update(session_id, merged_context, effective_schema)
+  # The page shows an extraction as running from its start (the job it was
+  # told) until a context of that job comes, or this.
+  def extraction_ended(session_id, extraction)
+    return unless defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:send_to_live_connection)
 
-    # Also save to session state
-    save_context_to_session(session, merged_context)
-
-    log_extraction_success(provider, merged_context, effective_schema)
+    chat = extraction[:chat]
+    message = { "type" => "context_extraction_ended", "job" => extraction[:job],
+                "chat" => Monadic::Workspace::ChatContext.token(chat[:id], chat[:epoch]) }
+    WebSocketHelper.send_to_live_connection(session_id, message.to_json, chat_id: chat[:id])
   end
 
   private
@@ -786,11 +818,11 @@ module ContextExtractorAgent
     end
   end
 
-  # Merge new context with existing session context
-  # @param session [Hash] The session
+  # The chat's context (existing, or nil) with the newly extracted items
+  # added as the next turn.
   # @param new_context [Hash] The new extracted context
   # @param schema [Hash] The context schema defining expected fields
-  def merge_with_session_context(session, new_context, schema = nil)
+  def merge_contexts(existing, new_context, schema = nil)
     effective_schema = schema || DEFAULT_SCHEMA
     fields = effective_schema[:fields] || effective_schema["fields"] || DEFAULT_SCHEMA[:fields]
 
@@ -801,7 +833,7 @@ module ContextExtractorAgent
       defaults[name] = []
     end
 
-    existing = get_session_context(session) || defaults
+    existing ||= defaults
 
     # Increment turn count
     current_turn = (existing["_turn_count"] || 0) + 1
@@ -860,48 +892,6 @@ module ContextExtractorAgent
     end
 
     result
-  end
-
-  # Get existing context from session
-  def get_session_context(session)
-    return nil unless session
-
-    state = session[:monadic_state] || session["monadic_state"]
-    return nil unless state
-
-    state[:conversation_context] || state["conversation_context"]
-  end
-
-  # Save context to session state
-  def save_context_to_session(session, context)
-    return unless session
-
-    session[:monadic_state] ||= {}
-    session[:monadic_state][:conversation_context] = context
-  end
-
-  # Broadcast context update via WebSocket
-  # @param session_id [String] The WebSocket session ID
-  # @param context [Hash] The context data
-  # @param schema [Hash] The context schema for frontend rendering
-  def broadcast_context_update(session_id, context, schema = nil)
-    effective_schema = schema || DEFAULT_SCHEMA
-
-    message = {
-      "type" => "context_update",
-      "context" => context,
-      "schema" => effective_schema,
-      "timestamp" => Time.now.to_f
-    }
-
-    if defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:send_to_session)
-      WebSocketHelper.send_to_session(message.to_json, session_id)
-      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Sent context_update to session #{session_id}" }
-    else
-      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] WebSocketHelper not available" }
-    end
-  rescue StandardError => e
-    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Broadcast error: #{e.message}" }
   end
 
   # Remove items associated with a specific turn from context
@@ -968,7 +958,8 @@ module ContextExtractorAgent
     result
   end
 
-  # Handle context update when a message is deleted
+  # The chat's context once the turn deleted_turn is deleted: its items go,
+  # and later turns move up by one.
   # @param session [Hash] The session
   # @param deleted_turn [Integer] The turn that was deleted (nil if not an assistant message)
   # @param schema [Hash] The context schema
@@ -976,65 +967,20 @@ module ContextExtractorAgent
   def handle_message_deletion(session, deleted_turn, schema = nil, session_id = nil)
     return unless session && deleted_turn
 
-    context = get_session_context(session)
-    return unless context
-
     effective_schema = schema || DEFAULT_SCHEMA
+    change = Monadic::Workspace::ChatContext.update(session) do |context|
+      next nil unless context
 
-    # Remove items from the deleted turn
-    updated_context = remove_turn_from_context(context, deleted_turn, effective_schema)
-
-    # Remap subsequent turn numbers
-    updated_context = remap_turns_after_deletion(updated_context, deleted_turn, effective_schema)
-
-    # Save and broadcast
-    save_context_to_session(session, updated_context)
-
-    if session_id
-      broadcast_context_update(session_id, updated_context, effective_schema)
+      remap_turns_after_deletion(remove_turn_from_context(context, deleted_turn, effective_schema),
+                                 deleted_turn, effective_schema)
     end
+    Monadic::Workspace::ChatContext.send_change(session_id, change, schema: effective_schema) if change
 
     Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Handled deletion of turn #{deleted_turn}" }
   end
 
-  # Handle context update when multiple messages are deleted (e.g., "delete this and below")
-  # @param session [Hash] The session
-  # @param starting_turn [Integer] The first turn to delete (all turns >= this are removed)
-  # @param schema [Hash] The context schema
-  # @param session_id [String] WebSocket session ID for broadcasting
-  def handle_bulk_deletion(session, starting_turn, schema = nil, session_id = nil)
-    return unless session && starting_turn
-
-    context = get_session_context(session)
-    return unless context
-
-    effective_schema = schema || DEFAULT_SCHEMA
-    fields = effective_schema[:fields] || effective_schema["fields"] || DEFAULT_SCHEMA[:fields]
-
-    # Keep only items with turn < starting_turn
-    result = { "_turn_count" => [starting_turn - 1, 0].max }
-
-    fields.each do |field|
-      name = field[:name] || field["name"]
-      items = context[name] || []
-
-      result[name] = items.select do |item|
-        item_turn = item.is_a?(Hash) ? (item["turn"] || 1) : 1
-        item_turn < starting_turn
-      end
-    end
-
-    # Save and broadcast
-    save_context_to_session(session, result)
-
-    if session_id
-      broadcast_context_update(session_id, result, effective_schema)
-    end
-
-    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Handled bulk deletion from turn #{starting_turn}" }
-  end
-
-  # Mark items from a specific turn as edited and re-extract context
+  # The chat's context once the turn is edited: its items are extracted
+  # again (marked as edited) in place of those it had.
   # @param session [Hash] The session
   # @param turn [Integer] The turn that was edited
   # @param user_message [String] The user message for this turn
@@ -1046,40 +992,29 @@ module ContextExtractorAgent
   def handle_message_edit(session, turn, user_message, assistant_response, provider, schema = nil, session_id = nil, language = nil)
     return unless session && turn && user_message && assistant_response
 
-    context = get_session_context(session)
-    return unless context
-
     effective_schema = schema || DEFAULT_SCHEMA
+    # The chat the edit was made in; the extraction is sent before the
+    # context is changed, and changes it only while the chat is still there.
+    chat = Monadic::Workspace::ChatContext.work_chat(session)
+    return unless Monadic::Workspace::ChatContext.read(session)
 
-    # First, remove existing items from this turn
-    updated_context = remove_turn_from_context(context, turn, effective_schema)
-
-    # Re-extract context for this turn
     new_context = extract_context(session, user_message, assistant_response, provider, effective_schema, language)
+    fields = effective_schema[:fields] || effective_schema["fields"] || DEFAULT_SCHEMA[:fields]
 
-    if new_context
-      fields = effective_schema[:fields] || effective_schema["fields"] || DEFAULT_SCHEMA[:fields]
+    change = Monadic::Workspace::ChatContext.update(session, chat: chat) do |context|
+      next nil unless context
 
+      updated_context = remove_turn_from_context(context, turn, effective_schema)
       fields.each do |field|
         name = field[:name] || field["name"]
-        new_items = new_context[name] || []
-
-        # Add new items with turn number and edited flag
-        new_items_with_meta = new_items.map do |item|
-          text = item.is_a?(Hash) ? item["text"] : item.to_s
-          { "text" => text, "turn" => turn, "edited" => true }
+        edited = (new_context && new_context[name] || []).map do |item|
+          { "text" => item.is_a?(Hash) ? item["text"] : item.to_s, "turn" => turn, "edited" => true }
         end
-
-        updated_context[name] = (updated_context[name] || []) + new_items_with_meta
+        updated_context[name] = (updated_context[name] || []) + edited
       end
+      updated_context
     end
-
-    # Save and broadcast
-    save_context_to_session(session, updated_context)
-
-    if session_id
-      broadcast_context_update(session_id, updated_context, effective_schema)
-    end
+    Monadic::Workspace::ChatContext.send_change(session_id, change, schema: effective_schema) if change
 
     Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Handled edit of turn #{turn}" }
   end

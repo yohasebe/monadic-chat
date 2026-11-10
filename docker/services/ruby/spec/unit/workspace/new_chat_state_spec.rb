@@ -162,7 +162,8 @@ RSpec.describe 'What a new chat keeps from the session' do
       tab = "tab-#{SecureRandom.hex(4)}"
       first = connect(tab, real_session({}))
       first[:current_notebook_filename] = 'nb.ipynb'
-      first[:monadic_state] = { conversation_context: { 'topic' => 'x' } }
+      first[:monadic_state] = { 'App' => { 'k' => { data: 'x' } } }
+      Monadic::Workspace::ChatContext.restore!(first, { 'topics' => [{ 'text' => 'x', 'turn' => 1 }] })
       Thread.current[:websocket_session_id] = tab
       Thread.current[:rack_session] = first
       host.send(:sync_session_state!)
@@ -172,7 +173,8 @@ RSpec.describe 'What a new chat keeps from the session' do
       again = connect(tab, real_session(gemini3_last_image: 'from-another-tab.png'))
       expect(again[:chat_id]).to eq(first[:chat_id])
       expect(again[:current_notebook_filename]).to eq('nb.ipynb')
-      expect(again[:monadic_state]).to eq(conversation_context: { 'topic' => 'x' })
+      expect(again[:monadic_state]).to eq('App' => { 'k' => { data: 'x' } })
+      expect(Monadic::Workspace::ChatContext.read(again)['topics']).to eq([{ 'text' => 'x', 'turn' => 1 }])
       expect(again.key?(:gemini3_last_image)).to be false
 
       other = connect("tab-#{SecureRandom.hex(4)}", real_session({}))
@@ -201,15 +203,15 @@ RSpec.describe 'What a new chat keeps from the session' do
 
     it 'is a copy the old connection can no longer change' do
       old = { messages: [], parameters: {}, chat_id: ids.generate(:chat),
-              monadic_state: { conversation_context: { 'topic' => 'kept' } },
+              monadic_state: { 'App' => { 'topic' => 'kept' } },
               _ws_generation: WebSocketHelper.claim_session_state(tab) }
       save_as(old)
       WebSocketHelper.claim_session_state(tab) # the new connection
       restored = WebSocketHelper.fetch_session_state(tab)[:chat_state]
-      old[:monadic_state][:conversation_context]['topic'] = 'late old reply'
+      old[:monadic_state]['App']['topic'] = 'late old reply'
       save_as(old)
-      expect(restored[:monadic_state][:conversation_context]['topic']).to eq('kept')
-      expect(WebSocketHelper.fetch_session_state(tab)[:chat_state][:monadic_state][:conversation_context]['topic']).to eq('kept')
+      expect(restored[:monadic_state]['App']['topic']).to eq('kept')
+      expect(WebSocketHelper.fetch_session_state(tab)[:chat_state][:monadic_state]['App']['topic']).to eq('kept')
     end
 
     it 'leaves out the pipelines built for the old session' do
@@ -233,6 +235,31 @@ RSpec.describe 'What a new chat keeps from the session' do
       WebSocketHelper.drop_imports('tab-b')
       expect(WebSocketHelper.take_import('tab-b', kept)).to be_nil
       expect(second).to be_a(String)
+    end
+  end
+
+  # The real connection handler telling the page the chat it is in.
+  describe 'the chat the page is told' do
+    it 'is told when the connection opens, after a switch, and in answer to each switch the page asked for' do
+      host = Class.new { include WebSocketHelper }.new
+      allow(host).to receive(:handle_load_message)
+      allow(host).to receive(:teardown_sts_session)
+      allow(host).to receive(:send_workbench_view)
+      reads = [{ 'message' => 'RESET', 'switch' => 1 }, { 'message' => 'IMPORT_APPLY', 'token' => 'stale', 'switch' => 2 },
+               { 'message' => 'RESET', 'switch' => 'not a number' }, { 'message' => 'RESET' }].map(&:to_json)
+      written = []
+      socket = double('connection', flush: nil, read: nil)
+      allow(socket).to receive(:write) { |json| written << JSON.parse(json) }
+      allow(socket).to receive(:read) { reads.shift }
+      allow(Async::WebSocket::Adapters::Rack).to receive(:open) { |_env, &block| block.call(socket) }
+      host.handle_websocket_connection({ 'rack.session' => real_session({}), 'QUERY_STRING' => "tab_id=tab-#{SecureRandom.hex(4)}" })
+
+      told = written.select { |m| m['type'] == 'chat_context' }
+      expect(told.map { |m| m['switch'] }).to eq([nil, 1, 2, nil, nil])
+      chats = told.map { |m| m['chat'] }
+      expect(chats.uniq.size).to eq(4) # each Reset is another chat; the import that was not there is not
+      expect(chats[2]).to eq(chats[1])
+      expect(told).to all(include('version' => 0, 'context' => {}))
     end
   end
 
@@ -283,7 +310,7 @@ RSpec.describe 'What a new chat keeps from the session' do
                                                             "sha256" => "b" * 64, "content_type" => "image/png",
                                                             "created_at" => "2026-01-02T03:04:05Z" },
                                                           { "id" => "r_#{'c' * 16}", "name" => "x.png", "path" => "/etc/x" }] }],
-                         "session_context" => { "topic" => "imported" } }.to_json
+                         "session_context" => { "topics" => [{ "text" => "imported", "turn" => 1 }] } }.to_json
         post = lambda do |tab_id|
           parts = ["--B\r\nContent-Disposition: form-data; name=\"file\"; filename=\"c.json\"\r\n" \
                    "Content-Type: application/json\r\n\r\n#{conversation}\r\n"]
@@ -334,7 +361,7 @@ RSpec.describe 'What a new chat keeps from the session' do
         puts JSON.generate(
           "without_tab" => without_tab, "staged" => staged.keys,
           "keys" => live.keys.map(&:to_s), "real_session" => live.class.name, "messages" => live[:messages].map { |m| m["text"] },
-          "ui_language" => live[:parameters]["ui_language"], "context" => live[:monadic_state] && live[:monadic_state][:conversation_context],
+          "ui_language" => live[:parameters]["ui_language"], "context" => Monadic::Workspace::ChatContext.read(live),
           "old_chat" => old_chat, "chat" => live[:chat_id], "stored_chat" => stored[:chat_id],
           "stored_messages" => stored[:messages].map { |m| m["text"] }, "sent" => sent,
           "artifacts" => live[:messages].first["artifacts"],
@@ -358,16 +385,17 @@ RSpec.describe 'What a new chat keeps from the session' do
       expect(out['keys']).not_to include('gemini3_last_image', 'current_notebook_filename')
       expect(out['messages']).to eq(['hello'])
       expect(out['ui_language']).to eq('ja')
-      expect(out['context']).to eq('topic' => 'imported')
+      imported = { '_turn_count' => 0, 'topics' => [{ 'text' => 'imported', 'turn' => 1 }] }
+      expect(out['context']).to eq(imported)
       expect(out['chat']).not_to eq(out['old_chat'])
       expect(out['stored_chat']).to eq(out['chat'])
       expect(out['stored_messages']).to eq(['hello'])
       # Of what the file says the reply made, only entries of the checked form.
       expect(out['artifacts'].map { |a| a['name'] }).to eq(['20260102-030405_cat.png'])
-      expect(out['sent']).to include('parameters', 'past_messages', 'context_update', 'import_result')
+      expect(out['sent']).to include('parameters', 'past_messages', 'import_result')
       expect(out['second_try']).to eq([['import_result', false]]) # a staged import is taken once
-      expect(out['exported_context']).to eq('topic' => 'imported')
-      expect(out['exported_saved']).to eq('topic' => 'imported')
+      expect(out['exported_context']).to eq(imported)
+      expect(out['exported_saved']).to eq(imported)
       expect(out['exported_unknown']).to be_nil
     end
   end

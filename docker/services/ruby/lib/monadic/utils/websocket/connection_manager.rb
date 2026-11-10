@@ -118,12 +118,15 @@ module WebSocketHelper
   # last save as it closes cannot undo what the new one did (such as a Reset
   # that moved the tab to a new chat).
   def self.claim_session_state(session_id)
-    @@session_state_mutex.synchronize do
+    retired = []
+    generation = @@session_state_mutex.synchronize do
       state = (@@session_state[session_id] ||= {})
       state[:used_at] = monotonic_now
-      prune_session_state(keep: session_id)
+      retired = prune_session_state(keep: session_id)
       state[:generation] = state[:generation].to_i + 1
     end
+    retired.each { |chat_id, epoch| Monadic::Workspace::ChatContext.retire(chat_id, epoch) }
+    generation
   end
 
   # chat_id and chat_state are kept as they are when not given, so callers
@@ -355,17 +358,20 @@ module WebSocketHelper
     end
   end
 
-  # Called with the mutex held.
+  # Called with the mutex held. Returns the chats no tab keeps (or is
+  # taking from the history) any more, each with its epoch now: their
+  # context goes with them (Monadic::Workspace::ChatContext.retire, called
+  # once the mutex is let go, and only for a chat still at that epoch).
   def self.prune_session_state(keep: nil)
     now = monotonic_now
     idle = @@session_state.reject { |id, _| id == keep || @@live_sessions.key?(id) }
     expired = idle.select { |_, state| now - state[:used_at].to_f > STATE_IDLE_TTL }.keys
-    expired.each { |id| @@session_state.delete(id) }
     rest = idle.reject { |id, _| expired.include?(id) }
     excess = rest.size - STATE_MAX_IDLE
-    return unless excess.positive?
-
-    rest.sort_by { |_, state| state[:used_at].to_f }.first(excess).each { |id, _| @@session_state.delete(id) }
+    dropped = expired + (excess.positive? ? rest.sort_by { |_, state| state[:used_at].to_f }.first(excess).map(&:first) : [])
+    chats = dropped.filter_map { |id| @@session_state.delete(id)&.dig(:chat_id) }
+    kept = @@session_state.values.map { |state| state[:chat_id] } + open_chat_ids_locked + @@reserved_chats.keys
+    (chats - kept).map { |chat_id| [chat_id, Monadic::Workspace::Chats.epoch(chat_id)] }
   end
 
   def self.prune_imports

@@ -68,18 +68,25 @@ module Monadic
       # than that of the tab's connection that wrote last. The time of the
       # last activity moves only when the number of messages changes, so a
       # Session Context that arrives later does not reorder the list.
+      #
+      # `context`, when given, is called inside the transaction for the
+      # Session Context as it is now: it is saved in place of the payload's
+      # (which was read before), and :absent keeps what was saved (the chat's
+      # context is no longer held: what was saved last is its latest).
       def save(chat_id, payload, tab: nil, generation: nil, app_name: nil, model: nil, headings: [nil, nil],
-               search_text: nil, now: Time.now)
-        json = JSON.generate(payload)
+               search_text: nil, context: nil, now: Time.now)
         count = payload['messages'].length
         stamp = now.utc.iso8601
         synchronize do |db|
           db.transaction(:immediate) do
             next nil if db.get_first_value('SELECT 1 FROM deleted_chats WHERE chat_id = ?', [chat_id])
 
-            row = db.get_first_row('SELECT revision, generation, owner_tab, message_count, last_activity_at FROM history_chats WHERE chat_id = ?', [chat_id])
+            row = db.get_first_row('SELECT revision, generation, owner_tab, message_count, last_activity_at, payload FROM history_chats WHERE chat_id = ?', [chat_id])
+            next nil if row && !writer?(row, tab, generation)
+
+            payload = with_context(payload, context.call, row && JSON.parse(row['payload'])) if context
+            json = JSON.generate(payload)
             if row
-              next nil unless writer?(row, tab, generation)
 
               revision = row['revision'] + 1
               activity = row['message_count'] == count ? row['last_activity_at'] : stamp
@@ -168,6 +175,29 @@ module Monadic
         end
       end
 
+      # The saved conversation's Session Context, set from what `context`
+      # gives inside the transaction (see save). Only a conversation saved
+      # already is changed; the file is not created. Returns the revision
+      # written, or nil.
+      def update_context(chat_id, context)
+        synchronize(create: false) do |db|
+          db.transaction(:immediate) do
+            row = db.get_first_row('SELECT revision, payload FROM history_chats WHERE chat_id = ?', [chat_id])
+            next nil unless row
+
+            saved = JSON.parse(row['payload'])
+            payload = with_context(saved, context.call, saved)
+            next nil if payload == saved
+
+            revision = row['revision'] + 1
+            db.execute('UPDATE history_chats SET payload = ?, revision = ?, updated_at = ? WHERE chat_id = ?',
+                       [JSON.generate(payload), revision, Time.now.utc.iso8601, chat_id])
+            revision
+          end
+        end
+      end
+
+
       # Removes the chat's row without a tombstone: the chat has nothing left
       # to keep for now (its user messages were removed), and what it says
       # next is kept again. Does not create the file. Returns whether a row
@@ -207,6 +237,13 @@ module Monadic
       end
 
       private
+
+      # The payload with the Session Context given (:absent: the one saved,
+      # or else the payload's own; nil: none).
+      def with_context(payload, context, saved)
+        context = (saved || payload)['session_context'] if context == :absent
+        context.nil? ? payload.except('session_context') : payload.merge('session_context' => context)
+      end
 
       # A tab writes the chat it has (a row from before tabs were recorded
       # has none); within the tab, a connection older than the one that

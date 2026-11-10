@@ -90,6 +90,13 @@
     return !!(r && (r.sent || r.queued));
   }
 
+  // A request for another chat (window.sendChatSwitch).
+  function sendSwitch(payload) {
+    if (typeof window.sendChatSwitch !== 'function') return send(payload);
+    const r = window.sendChatSwitch(payload);
+    return !!(r && (r.sent || r.queued));
+  }
+
   function requestList(query, offset) {
     send({ message: 'HISTORY_LIST', query: query || '', offset: offset || 0 }, { silentDrop: true });
   }
@@ -129,7 +136,7 @@
     const payload = { message: 'HISTORY_RESUME', chat_id: chatId };
     if (confirmed) payload.confirm = true;
     resuming = { chatId: chatId, live: true };
-    if (!send(payload)) resuming = null;
+    if (!sendSwitch(payload)) resuming = null;
   }
 
   // The menu of a row.

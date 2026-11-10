@@ -159,7 +159,9 @@ module WebSocketHelper
     session[:messages].clear
     session[:parameters].clear
     Monadic::Workspace::Chats.begin_new!(session)
+    context = imported[:monadic_state].is_a?(Hash) ? imported[:monadic_state].delete(:conversation_context) : nil
     imported.each { |key, value| session[key] = value }
+    Monadic::Workspace::ChatContext.restore!(session, context)
     session[:parameters]["ui_language"] ||= ui_language if ui_language
     sync_session_state!
 
@@ -183,6 +185,28 @@ module WebSocketHelper
     handle_audio_abort(nil, nil) if session[:_realtime_stt] && respond_to?(:handle_audio_abort, true)
   end
 
+  # The chat the session is in and its epoch, as the page matches them.
+  private def chat_token(session)
+    chat_id = session[Monadic::Workspace::Chats::SESSION_KEY]
+    chat_id && Monadic::Workspace::ChatContext.token(chat_id, Monadic::Workspace::Chats.epoch(chat_id))
+  end
+
+  # The chat the tab is in now, with its context: sent when the connection
+  # opens, whenever a message puts the tab in another chat (Reset, another
+  # app, an import, a chat from the history), and in answer to a switch the
+  # page asked for, done or not. switch is the page's number of that
+  # request, given back so the page takes this answer and not an older one.
+  private def send_chat_context(connection, session, switch: nil)
+    change = Monadic::Workspace::ChatContext.current(session)
+    return unless change
+
+    state = session[:monadic_state]
+    schema = state.is_a?(Hash) ? state[:context_schema] : nil
+    send_to_client(connection, { "type" => "chat_context", "chat" => change.token, "version" => change.version,
+                                 "context" => change.context, "schema" => schema,
+                                 "switch" => switch.is_a?(Integer) ? switch : nil })
+  end
+
   # What the page shows of the chat now in the session (an imported or a
   # resumed one), in the order it applies them; the pauses let it build the
   # app list before the parameters select from it. A resumed chat is shown
@@ -200,10 +224,6 @@ module WebSocketHelper
                                  "private" => Monadic::History::Policy.private?(session) })
 
     state = session[:monadic_state]
-    if state && state[:conversation_context]
-      send_to_client(connection, { "type" => "context_update", "context" => state[:conversation_context],
-                                   "schema" => state[:context_schema], "from_import" => true })
-    end
     registry = state && state[:privacy] && state[:privacy][:registry]
     privacy = { "type" => "privacy_state", "enabled" => session[:_privacy_session_enabled] == true,
                 "registry_count" => registry.is_a?(Hash) ? registry.size : 0, "error" => nil,

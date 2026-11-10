@@ -7,14 +7,6 @@ require_relative "../../../lib/monadic/shared_tools/session_context"
 module MonadicHelper
 end
 
-# Mock WebSocketHelper for testing
-module WebSocketHelper
-  def self.send_to_session(message, session_id)
-    # Mock implementation - just log for testing
-    true
-  end
-end
-
 RSpec.describe "MonadicSharedTools::SessionContext" do
   let(:test_class) do
     Class.new do
@@ -23,16 +15,26 @@ RSpec.describe "MonadicSharedTools::SessionContext" do
       attr_accessor :session
 
       def initialize
-        @session = {
-          parameters: { "session_id" => "test-session-123", "app_name" => "TestApp" },
-          monadic_state: {}
-        }
+        @session = { parameters: { "session_id" => "test-session-123", "app_name" => "TestApp" } }
+        Monadic::Workspace::Chats.start_new!(@session)
       end
     end
   end
 
   let(:app) { test_class.new }
   let(:session) { app.session }
+  let(:sent) { [] }
+
+  after { Monadic::Workspace::ChatContext::LOCK.synchronize { Monadic::Workspace::ChatContext::STORE.clear } }
+
+  before do
+    stub_const("WebSocketHelper", Module.new)
+    messages = sent
+    WebSocketHelper.define_singleton_method(:send_to_live_connection) do |tab, json, chat_id:|
+      messages << [tab, JSON.parse(json), chat_id]
+      true
+    end
+  end
 
   describe "#get_context" do
     context "when context is empty" do
@@ -178,32 +180,48 @@ RSpec.describe "MonadicSharedTools::SessionContext" do
     end
   end
 
-  describe "WebSocket broadcasting" do
-    it "broadcasts context update via WebSocket" do
-      expect(WebSocketHelper).to receive(:send_to_session).with(
-        anything,
-        "test-session-123"
-      )
-
+  describe "the chat's context" do
+    it "sends the change to the tab, with the chat it is of and its version" do
       app.update_context(topics: ["AI"], session: session)
+      app.update_context(people: ["John"], session: session)
+
+      chat_id = session[Monadic::Workspace::Chats::SESSION_KEY]
+      expect(sent.map(&:first)).to all(eq("test-session-123"))
+      expect(sent.map(&:last)).to all(eq(chat_id))
+      expect(sent.map { |_, message, _| message["version"] }).to eq([1, 2])
+      expect(sent.last[1]["chat"]).to eq("#{chat_id}.#{Monadic::Workspace::Chats.epoch(chat_id)}")
     end
-  end
 
-  describe "default_context" do
-    it "returns hash with empty arrays for topics, people, notes" do
-      default = app.send(:default_context)
+    it "keeps what the context panel shows: items with the turn they came from" do
+      session[:messages] = [{ "role" => "user", "text" => "q" }, { "role" => "assistant", "text" => "a" }]
+      app.update_context(topics: ["AI"], session: session)
 
-      expect(default).to eq({
-        "topics" => [],
-        "people" => [],
-        "notes" => []
-      })
+      expect(Monadic::Workspace::ChatContext.read(session)["topics"]).to eq([{ "text" => "AI", "turn" => 2 }])
     end
-  end
 
-  describe "CONTEXT_KEY constant" do
-    it "is defined as :conversation_context" do
-      expect(MonadicSharedTools::SessionContext::CONTEXT_KEY).to eq(:conversation_context)
+    it "removes an item an extraction added, by its text" do
+      Monadic::Workspace::ChatContext.update(session) { { "topics" => [{ "text" => "AI", "turn" => 1, "edited" => true }] } }
+
+      expect(app.remove_from_context(topics: ["AI"], session: session)[:context]["topics"]).to eq([])
+    end
+
+    it "changes nothing once the chat the reply began in has been left" do
+      guard = Monadic::Utils::Privacy::EgressGuard
+      left = session[Monadic::Workspace::Chats::SESSION_KEY]
+      Fiber[guard::CHAT_KEY] = guard::Scope.of(session)
+      # The reply runs in its own thread, begun in the chat; the tab's
+      # connection then starts another (which moves the connection's scope).
+      go = Queue.new
+      reply = Thread.new { go.pop && app.update_context(topics: ["AI"], session: session) }
+      Monadic::Workspace::Chats.begin_new!(session)
+      go << true
+      result = reply.value
+
+      expect(result[:success]).to be false
+      expect(Monadic::Workspace::ChatContext.read(session)).to be_nil
+      expect(Monadic::Workspace::ChatContext.read({ Monadic::Workspace::Chats::SESSION_KEY => left })).to be_nil
+    ensure
+      Fiber[guard::CHAT_KEY] = nil
     end
   end
 end

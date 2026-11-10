@@ -57,10 +57,12 @@ module Monadic
         EPOCHS_LOCK.synchronize { EPOCHS[chat_id] }
       end
 
-      # Runs the block (a decision only: nothing is written or sent in it)
-      # while chat_id is at epoch, under the lock that ends an epoch: either
-      # the chat was left first and the block is not run (nil), or the
-      # block's decision comes first and leaving waits for it.
+      # Runs the block while chat_id is at epoch, under the lock that ends an
+      # epoch: either the chat was left first and the block is not run
+      # (nil), or the block comes first and leaving waits for it. The block
+      # is a decision, or a write of the chat's own data in memory (its
+      # context); nothing is sent or saved in it, and a lock it takes is
+      # never held by what waits for this one.
       def admit_in_epoch(chat_id, epoch)
         EPOCHS_LOCK.synchronize { EPOCHS[chat_id] == epoch ? yield : nil }
       end
@@ -103,6 +105,19 @@ module Monadic
 
         EPOCHS_LOCK.synchronize { EPOCHS[chat_id] += 1 }
         notify(:replaced, session)
+      end
+
+      # Work begun for the chat before is of an earlier epoch from now on:
+      # the chat is continued in a tab from the history, or no tab keeps it
+      # any more. With from:, only while the chat is still at that epoch
+      # (false when it was not).
+      def renew_epoch!(chat_id, from: nil)
+        EPOCHS_LOCK.synchronize do
+          next false if from && EPOCHS[chat_id] != from
+
+          EPOCHS[chat_id] += 1
+          true
+        end
       end
 
       # Drops every key that is not kept for the tab or the connection,

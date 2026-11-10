@@ -200,6 +200,19 @@ module Monadic
           frame.snapshot = snapshot if frame
         end
 
+        # Texts sent outside a chat request (a second opinion, the context
+        # of a chat), hidden as text with one snapshot of the table, made
+        # again once if the table changed meanwhile: [snapshot, texts].
+        def hide_texts(table, texts)
+          2.times do
+            snapshot = table.snapshot
+            budget = WordTable::Budget.new
+            hidden = texts.map { |text| snapshot.raw(text.to_s, budget) }
+            return [snapshot, hidden] if table.revision == snapshot.revision
+          end
+          raise Outbound::Refused, 'the words to hide kept changing; nothing was sent'
+        end
+
         # Text a model wrote in reply to the request being made, kept as the
         # chat keeps replies: with the placeholders the request was sent
         # with put back (as it is outside a request, or before it is hidden).

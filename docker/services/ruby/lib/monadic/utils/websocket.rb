@@ -208,6 +208,7 @@ module WebSocketHelper
       # Send initial load message immediately after connection
       handle_load_message(connection)
       send_workbench_view(connection, session, initial: true)
+      send_chat_context(connection, session)
 
       begin
         while message_data = connection.read
@@ -226,6 +227,11 @@ module WebSocketHelper
           if msg == "UPDATE_LANGUAGE"
             Monadic::Utils::ExtraLogger.log { "WebSocket received UPDATE_LANGUAGE message\n  Full obj: #{obj.inspect}" }
           end
+
+      # The chat the tab is in before the message: when the message puts the
+      # tab in another one, or asks for a switch, the page is told the chat
+      # it is in after it (see send_chat_context).
+      chat_before = chat_token(session)
 
       case msg
       when "TTS"
@@ -318,8 +324,6 @@ module WebSocketHelper
           handle_edit_message(connection, obj)
         when "UPDATE_MCP_CONFIG"
           handle_mcp_config_update(connection, obj)
-        when "UPDATE_CONTEXT_FROM_CLIENT"
-          handle_context_update_from_client(connection, obj)
         when "AI_USER_QUERY"
           suggestion = handle_ws_ai_user_query(connection, obj, session, thread, suggestion) || suggestion
         when "HTML"
@@ -432,8 +436,9 @@ module WebSocketHelper
           started = handle_ws_streaming(connection, obj, session, queue)
           thread = started if started
         end
-      end # end case
-    end # end while
+        send_chat_context(connection, session, switch: obj["switch"]) if obj.key?("switch") || chat_token(session) != chat_before
+      end # end while
+    end
 
     rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[WebSocket] Error in message loop: #{e.class}: #{e.message}\n#{e.backtrace.first(5).join("\n")}" }
@@ -653,44 +658,5 @@ module WebSocketHelper
     end
 
     send_to_client(connection, { "type" => "info", "content" => "MCP configuration updated" })
-  end
-
-  # Handle context update from client sidebar panel
-  # This is called when user edits context directly in the sidebar
-  def handle_context_update_from_client(connection, obj)
-    current_session = session
-    context = obj["context"]
-
-    return unless context.is_a?(Hash)
-
-    # Save context to session state using MonadicSessionState
-    begin
-      # Use the same key as SessionContext module
-      context_key = :conversation_context
-
-      # Save to session state
-      result = JSON.parse(monadic_save_state(key: context_key, payload: context, session: current_session))
-
-      if result["success"]
-        # Broadcast the update back to confirm (session-specific)
-        ws_session_id = Thread.current[:websocket_session_id]
-        message = {
-          "type" => "context_update",
-          "context" => context,
-          "timestamp" => Time.now.to_f
-        }
-
-        if ws_session_id
-          WebSocketHelper.send_to_session(message.to_json, ws_session_id)
-        end
-
-        Monadic::Utils::ExtraLogger.log { "[WebSocket] Context updated from client: #{context.keys.join(', ')}" }
-      else
-        send_to_client(connection, { "type" => "error", "content" => "Failed to save context" })
-      end
-    rescue StandardError => e
-      Monadic::Utils::ExtraLogger.log { "[WebSocket] Context update error: #{e.message}" }
-      send_to_client(connection, { "type" => "error", "content" => "Context update error: #{e.message}" })
-    end
   end
 end

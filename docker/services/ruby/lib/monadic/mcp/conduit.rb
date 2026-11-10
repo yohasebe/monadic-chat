@@ -1362,7 +1362,7 @@ module Monadic
             agent_response: agent_response,
             provider: provider,
             model: model,
-            session: Monadic::Utils::Privacy::Outbound::NOT_FOR_A_CHAT # MCP masks on its own
+            session: Monadic::Utils::Privacy::Outbound::NOT_FOR_A_CHAT # belongs to no chat: sent as the client gave it
           )
 
           comments = result[:comments] || result["comments"]

@@ -1,5 +1,6 @@
 require_relative "../utils/system_defaults"
 require_relative '../utils/privacy/outbound'
+require_relative '../utils/privacy/words'
 require_relative '../utils/error_formatter'
 require_relative '../utils/extra_logger'
 
@@ -8,6 +9,10 @@ module SecondOpinionAgent
   SECOND_OPINION_TIMEOUT = 130    # seconds per provider thread
   SECOND_OPINION_MAX_TOKENS = 4096
   FORCE_STOP_DEPTH = 99_999      # Exceeds any MAX_FUNC_CALLS to prevent further tool calls
+  # The words hidden for every provider of parallel_second_opinions, given
+  # to each of its threads.
+  WORDS_KEY = :monadic_second_opinion_words
+  HiddenWords = Struct.new(:table, :snapshot, :query, :response)
 
   PROVIDER_API_KEYS = {
     "openai" => "OPENAI_API_KEY",
@@ -54,6 +59,14 @@ module SecondOpinionAgent
       return "Error: At least 2 providers must be available. Skipped (no API key): #{skipped.join(', ')}"
     end
 
+    # A chat with a word table: the words are hidden once, here, for every
+    # provider asked (each thread is given them below).
+    begin
+      words = second_opinion_words(user_query, agent_response, session)
+    rescue Monadic::Utils::Privacy::Outbound::Refused => e
+      return "Error: the second opinions were not requested: #{e.message}."
+    end
+
     # Capture WebSocket session ID from current thread for progress reporting
     ws_session_id = Thread.current[:websocket_session_id]
 
@@ -72,6 +85,7 @@ module SecondOpinionAgent
     threads = available.map do |provider_name|
       Thread.new(provider_name) do |pname|
         begin
+          Thread.current[WORDS_KEY] = words
           result = second_opinion_agent(
             user_query: user_query,
             agent_response: agent_response,
@@ -128,19 +142,26 @@ module SecondOpinionAgent
       puts "SecondOpinionAgent: Using provider #{target_provider} with model #{target_model}"
     end
 
-    # Privacy: when the parent session has an active privacy pipeline,
-    # mask the inline query/response before sending so the second-opinion
-    # provider (a different LLM, possibly a different vendor) does not
-    # see raw PII the user has chosen to mask.
-    # Not sent unmasked: refused when the filter is on but cannot mask (see
-    # Privacy::Outbound).
+    # A chat with a word table hides its words with it (the words given by
+    # parallel_second_opinions, or hidden here). Otherwise, when the parent
+    # session has an active privacy pipeline, the query and response are
+    # masked with it, so that the second-opinion provider (a different LLM,
+    # possibly a different vendor) does not see raw PII the user has chosen
+    # to mask. Not sent unmasked: refused when the filter is on but cannot
+    # mask (see Privacy::Outbound).
     begin
-      pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(session)
+      words = Thread.current[WORDS_KEY] || second_opinion_words(user_query, agent_response, session)
+      pipeline = words ? nil : Monadic::Utils::Privacy::Outbound.pipeline!(session)
     rescue Monadic::Utils::Privacy::Outbound::Refused => e
       return { comments: "Error: the second opinion was not requested: #{e.message}.", validity: "error", model: "none" }
     end
-    masked_query = pipeline ? mask_for_second_opinion(user_query, pipeline, "user") : user_query
-    masked_response = pipeline ? mask_for_second_opinion(agent_response, pipeline, "assistant") : agent_response
+    if words
+      masked_query = words.query
+      masked_response = words.response
+    else
+      masked_query = pipeline ? mask_for_second_opinion(user_query, pipeline, "user") : user_query
+      masked_response = pipeline ? mask_for_second_opinion(agent_response, pipeline, "assistant") : agent_response
+    end
 
     # Create a single user message containing all context
     # The evaluated response is fenced between explicit BEGIN/END markers.
@@ -227,7 +248,12 @@ module SecondOpinionAgent
       # Use the provider's helper to send the query
       Monadic::Utils::ExtraLogger.log { "SecondOpinionAgent: Sending query to #{target_provider} with model #{target_model} (#{messages.length} messages)" }
 
-      response = helper.send_query(parameters, model: target_model)
+      # Each attempt is sent only while the table is as it was when the
+      # words were hidden; the reply is put back with those words.
+      response = Monadic::Utils::Privacy::Words.sending(words&.table, words&.snapshot) do
+        helper.send_query(parameters, model: target_model)
+      end
+      response = words.snapshot.restore(response) if words && response.is_a?(String)
 
       Monadic::Utils::ExtraLogger.log { "SecondOpinionAgent: Received response: #{response.inspect[0..200]}..." }
     rescue => e
@@ -300,17 +326,35 @@ module SecondOpinionAgent
     end
   end
 
-  # Embed the evaluator identity INSIDE the comments text. Dogfood (2026-06-10)
-  # showed the orchestrator re-typing the separate model field from memory and
-  # fabricating an outdated model name despite two prompt rules against it.
-  # Riding the identity inside the comments — which the system prompt requires
-  # to be relayed as given — removes the re-typing opportunity structurally.
-  # The :model field is kept unchanged for programmatic consumers.
+  # The evaluator's identity is part of the comments text, which the system
+  # prompt requires to be relayed as given, so that the model relaying it
+  # does not type the model name itself. The :model field is kept for
+  # programmatic consumers.
   def append_evaluator_line(comments, provider, model)
     "#{comments}\n\n---\nEvaluator model: #{model} (provider: #{provider})"
   end
 
   private
+
+  # The query and response of a chat that hides its words with a word table
+  # (Privacy::Words), hidden with one snapshot of the table, or nil for a
+  # chat without one. They are the model's, written with the placeholders of
+  # the request it answered: put back with that request's words first (a
+  # placeholder it was not given stays as it is), then hidden as text.
+  def second_opinion_words(user_query, agent_response, session)
+    words = Monadic::Utils::Privacy::Words
+    table = words.table(session)
+    return nil unless table
+
+    asked = [user_query, agent_response].map { |text| words.put_back(text.to_s) }
+    2.times do
+      snapshot = table.snapshot
+      budget = Monadic::Utils::Privacy::WordTable::Budget.new
+      query, response = asked.map { |text| snapshot.raw(text, budget) }
+      return HiddenWords.new(table, snapshot, query, response) if table.revision == snapshot.revision
+    end
+    raise Monadic::Utils::Privacy::Outbound::Refused, 'the words to hide kept changing; nothing was sent'
+  end
 
   # Pre-mask query/response text via the parent session's privacy
   # pipeline before fan-out. Errors propagate — fail-closed matches the

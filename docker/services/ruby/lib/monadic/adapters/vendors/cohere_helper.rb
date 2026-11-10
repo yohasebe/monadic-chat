@@ -740,11 +740,17 @@ module CohereHelper
     # Cohere v2 uses messages with content as Array of typed parts ({type: "text",
     # text: ...}); image parts ({type: "image"}) pass through untouched.
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-    if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
-      body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+    # A chat with a word table hides its words with it (each attempt below
+    # is sent only while the table is unchanged); otherwise the Privacy
+    # Filter's masking and marked words apply.
+    hiding = hide_words_in_request!(body, session)
+    unless hiding
+      if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
+        body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+      end
+      # Words the user marked: masked wherever they are in the body, or nothing is sent.
+      protect_marked_words!(body, session, app_settings)
     end
-    # Words the user marked: masked wherever they are in the body, or nothing is sent.
-    protect_marked_words!(body, session, app_settings)
 
     # Diagnostic: dump the exact tools and message roles sent to Cohere. The v2
     # API rejects malformed tool schemas (and model-generated calls to
@@ -760,29 +766,31 @@ module CohereHelper
 
     res = nil
     offer_tools!(body, session, app, provider: "cohere", model: body["model"])
-    MAX_RETRIES.times do |i|
-      begin
-        res = post_with_workbench_looks(session, provider: "cohere", model: body["model"]) do
-          http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout).post(target_uri, json: body)
-        end
-        break if res.status.success?
-        if CONFIG["EXTRA_LOGGING"]
-          body_preview = begin
-            res.body.to_s[0, 800]
-          rescue StandardError
-            "(unreadable)"
+    Monadic::Utils::Privacy::Words.sending(hiding&.first, hiding&.last) do
+      MAX_RETRIES.times do |i|
+        begin
+          res = post_with_workbench_looks(session, provider: "cohere", model: body["model"]) do
+            http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout).post(target_uri, json: body)
           end
-          Monadic::Utils::ExtraLogger.log { "[Cohere RESPONSE ERROR] status=#{res.status} body=#{body_preview}" }
+          break if res.status.success?
+          if CONFIG["EXTRA_LOGGING"]
+            body_preview = begin
+              res.body.to_s[0, 800]
+            rescue StandardError
+              "(unreadable)"
+            end
+            Monadic::Utils::ExtraLogger.log { "[Cohere RESPONSE ERROR] status=#{res.status} body=#{body_preview}" }
+          end
+          sleep RETRY_DELAY * (i + 1)
+        rescue HTTP::Error, HTTP::TimeoutError => e
+          next unless i == MAX_RETRIES - 1
+          formatted_error = Monadic::Utils::ErrorFormatter.network_error(
+            provider: "Cohere", message: "Network error: #{e.message}", timeout: true
+          )
+          res = { "type" => "error", "content" => formatted_error }
+          block&.call res
+          return [res]
         end
-        sleep RETRY_DELAY * (i + 1)
-      rescue HTTP::Error, HTTP::TimeoutError => e
-        next unless i == MAX_RETRIES - 1
-        formatted_error = Monadic::Utils::ErrorFormatter.network_error(
-          provider: "Cohere", message: "Network error: #{e.message}", timeout: true
-        )
-        res = { "type" => "error", "content" => formatted_error }
-        block&.call res
-        return [res]
       end
     end
 

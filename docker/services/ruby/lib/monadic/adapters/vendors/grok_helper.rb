@@ -502,16 +502,24 @@ module GrokHelper
     # the app does not declare `privacy do; enabled true; end` in MDSL. Grok
     # uses the Responses API shape (body["input"]).
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-    if privacy_enabled_for?(app_settings, session) && body["input"].is_a?(Array)
-      body["input"] = apply_privacy_to_messages(body["input"], session, app_settings)
+    # A chat with a word table hides its words with it (each attempt below
+    # is sent only while the table is unchanged); otherwise the Privacy
+    # Filter's masking and marked words apply.
+    hiding = hide_words_in_request!(body, session)
+    unless hiding
+      if privacy_enabled_for?(app_settings, session) && body["input"].is_a?(Array)
+        body["input"] = apply_privacy_to_messages(body["input"], session, app_settings)
+      end
+      # Words the user marked: masked wherever they are in the body, or nothing is sent.
+      protect_marked_words!(body, session, app_settings)
     end
-    # Words the user marked: masked wherever they are in the body, or nothing is sent.
-    protect_marked_words!(body, session, app_settings)
 
     offer_tools!(body, session, app, provider: "grok", model: body["model"])
     # Each post of the body is checked for what it holds of the work screen.
-    res = post_json_with_retries(http, target_uri, body, max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY,
-                                 looks: { session: session, provider: "grok", model: body["model"] })
+    res = Monadic::Utils::Privacy::Words.sending(hiding&.first, hiding&.last) do
+      post_json_with_retries(http, target_uri, body, max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY,
+                             looks: { session: session, provider: "grok", model: body["model"] })
+    end
 
     unless res.status.success?
       error_data = JSON.parse(res.body) rescue { "message" => res.body.to_s, "status" => res.status }
@@ -1806,7 +1814,7 @@ module GrokHelper
         summary += "- #{result_name}: #{result_content[0..100]}#{result_content.length > 100 ? '...' : ''}\n"
       end
 
-      return [{
+      return replies_as_is([{
         "choices" => [{
           "message" => {
             "role" => "assistant",
@@ -1814,7 +1822,7 @@ module GrokHelper
           },
           "finish_reason" => "stop"
         }]
-      }]
+      }])
     end
 
     # Check if we should stop due to repeated errors
@@ -1849,7 +1857,7 @@ module GrokHelper
       block&.call({ "type" => "fragment", "content" => response_content })
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
 
-      new_results = [{
+      new_results = replies_as_is([{
         "choices" => [{
           "message" => {
             "role" => "assistant",
@@ -1857,7 +1865,7 @@ module GrokHelper
           },
           "finish_reason" => "stop"
         }]
-      }]
+      }])
     else
       new_results = api_request("tool", session, call_depth: call_depth + 1, disable_streaming: true, &block)
     end
@@ -1880,7 +1888,7 @@ module GrokHelper
         fallback_content += "\n\n#{obj["current_notebook_link"]}"
       end
 
-      return [{
+      return replies_as_is([{
         "choices" => [{
           "message" => {
             "role" => "assistant",
@@ -1888,7 +1896,7 @@ module GrokHelper
           },
           "finish_reason" => "stop"
         }]
-      }]
+      }])
     end
 
     return new_results

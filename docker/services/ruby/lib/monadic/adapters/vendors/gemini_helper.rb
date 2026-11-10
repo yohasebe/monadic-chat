@@ -2223,6 +2223,41 @@ module GeminiHelper
     end
   end
 
+  # One turn of a Gemini conversation, as sent to a chat with a word table
+  # (hide_words_in_request!). Text parts are what the user and the app
+  # wrote, and replies as the chat keeps them (put back): what the model
+  # writes in a round of tool calls is not sent again. A functionCall's
+  # args are the model's; a functionResponse's response is data. Thought
+  # parts, thought signatures, and inline and file data are left as they
+  # are (a word in them stops the request).
+  def hide_words_in_gemini_content(content, snapshot, budget)
+    return content unless content.is_a?(Hash) && %w[user model].include?((content[:role] || content["role"]).to_s)
+
+    parts_key = content.key?(:parts) ? :parts : "parts"
+    parts = content[parts_key]
+    return content unless parts.is_a?(Array)
+
+    content.merge(parts_key => parts.map { |part| hide_words_in_gemini_part(part, snapshot, budget) })
+  end
+
+  def hide_words_in_gemini_part(part, snapshot, budget)
+    return part unless part.is_a?(Hash)
+
+    holder = ->(names) { names.flat_map { |n| [n, n.to_sym] }.find { |k| part[k].is_a?(Hash) } }
+    if (call = holder.(%w[functionCall function_call]))
+      args_key = part[call].key?(:args) ? :args : "args"
+      return part.merge(call => part[call].merge(args_key => snapshot.data(part[call][args_key], origin: :model, budget: budget)))
+    end
+    if (response = holder.(%w[functionResponse function_response]))
+      response_key = part[response].key?(:response) ? :response : "response"
+      return part.merge(response => part[response].merge(response_key => snapshot.data(part[response][response_key], budget: budget)))
+    end
+    return part if part[:thought] == true || part["thought"] == true
+
+    text_key = part.key?(:text) ? :text : "text"
+    part[text_key].is_a?(String) ? part.merge(text_key => snapshot.raw(part[text_key], budget)) : part
+  end
+
   # Execute the Gemini API call: endpoint selection, HTTP request with retries, error handling
   def execute_gemini_api_call(headers:, body:, obj:, api_key:, is_thinking_model:, has_pdf_part:,
                               app:, session:, call_depth:, &block)
@@ -2235,11 +2270,19 @@ module GeminiHelper
     # Privacy Filter: mask user-message PII before sending to Gemini. No-op
     # when the app does not declare `privacy do; enabled true; end` in MDSL.
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-    if privacy_enabled_for?(app_settings, session) && body["contents"].is_a?(Array)
-      body["contents"] = apply_privacy_to_gemini_contents(body["contents"], session, app_settings)
+    # A chat with a word table hides its words with it (each attempt below
+    # is sent only while the table is unchanged); otherwise the Privacy
+    # Filter's masking and marked words apply. The conversation as it was
+    # before is what a request made again is made from.
+    unhidden = body["contents"]
+    hiding = hide_words_in_request!(body, session, keys: %w[contents], item: method(:hide_words_in_gemini_content))
+    unless hiding
+      if privacy_enabled_for?(app_settings, session) && body["contents"].is_a?(Array)
+        body["contents"] = apply_privacy_to_gemini_contents(body["contents"], session, app_settings)
+      end
+      # Words the user marked: masked wherever they are in the body, or nothing is sent.
+      protect_marked_words!(body, session, app_settings)
     end
-    # Words the user marked: masked wherever they are in the body, or nothing is sent.
-    protect_marked_words!(body, session, app_settings)
 
     # The tools as the model is offered them; what depends on them is
     # settled after.
@@ -2257,19 +2300,21 @@ module GeminiHelper
     res = nil
 
     Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Sending POST to #{target_uri[0..80]}... body contents_count=#{body["contents"]&.length}" }
-    MAX_RETRIES.times do |attempt|
-      Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Attempt #{attempt + 1}/#{MAX_RETRIES}" } if attempt > 0
-      res = post_with_workbench_looks(session, provider: "gemini", model: obj["model"]) do
-        http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout)
-            .post(target_uri, json: Monadic::Utils::GeminiRequest.without_storage(body))
-      end
-      if res.status.success?
-        Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Response status: #{res.status}" }
-        break
-      end
+    Monadic::Utils::Privacy::Words.sending(hiding&.first, hiding&.last) do
+      MAX_RETRIES.times do |attempt|
+        Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Attempt #{attempt + 1}/#{MAX_RETRIES}" } if attempt > 0
+        res = post_with_workbench_looks(session, provider: "gemini", model: obj["model"]) do
+          http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout)
+              .post(target_uri, json: Monadic::Utils::GeminiRequest.without_storage(body))
+        end
+        if res.status.success?
+          Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Response status: #{res.status}" }
+          break
+        end
 
-      Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Non-success status: #{res.status}, retrying..." }
-      sleep RETRY_DELAY
+        Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Non-success status: #{res.status}, retrying..." }
+        sleep RETRY_DELAY
+      end
     end
 
     unless res&.status&.success?
@@ -2317,10 +2362,10 @@ module GeminiHelper
     # without adding cells, nudge it to continue by injecting a user message.
     if result.is_a?(Array) && result.first.is_a?(Hash) && result.first["gemini_jupyter_retry"]
       Monadic::Utils::ExtraLogger.log { "[Gemini Jupyter Retry] Nudging model to add cells" }
-      body["contents"] << {
+      body["contents"] = (hiding ? unhidden : body["contents"]) + [{
         "role" => "user",
         "parts" => [{ "text" => "The notebook has been created. Now add the requested code cells using add_jupyter_cells and execute them." }]
-      }
+      }]
       # execute_gemini_api_call internally calls process_json_data and
       # returns the final result array (not an HTTP response object).
       return execute_gemini_api_call(
@@ -2487,7 +2532,7 @@ module GeminiHelper
               error_msg = "The model attempted an invalid function call. Please try again or switch to a different model."
               res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
               block&.call res
-              return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
+              return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }])
             else
               finish_reason = nil
             end
@@ -2607,6 +2652,8 @@ module GeminiHelper
 
       fallback = generate_gemini_fallback_response(session: session, &block)
       result = fallback[:result]
+      # Made from what tools gave, not written by the model.
+      result_from_tools = true
       finish_reason = fallback[:finish_reason] if fallback[:finish_reason]
     else
       result = texts
@@ -2743,7 +2790,7 @@ module GeminiHelper
           # the tool output (e.g. Music Analyst's critique/features) over a blank
           # message; fall back to empty content to keep suppressing the error.
           surfaced = surfaced_tool_text(session)
-          [{ "choices" => [{ "message" => { "content" => surfaced || "" } }] }]
+          replies_as_is([{ "choices" => [{ "message" => { "content" => surfaced || "" } }] }])
         else
           [{ "choices" => [{ "message" => { "content" => result.join("") } }] }]
         end
@@ -2755,8 +2802,10 @@ module GeminiHelper
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
 
-      # Join the result and check if it needs unwrapping
-      final_content = result.join("")
+      # Join the result and check if it needs unwrapping. In a chat with a
+      # word table, what the model wrote is put back here, before what the
+      # search found is added, and the reply is shown as it is.
+      final_content = result_from_tools ? result.join("") : Monadic::Utils::Privacy::Words.put_back(result.join(""))
       
       # Check if the entire response is a single Markdown code block and unwrap it
       final_content = unwrap_single_markdown_code_block(final_content)
@@ -2806,7 +2855,7 @@ module GeminiHelper
         response_data["choices"][0]["message"]["thinking"] = merged_thinking
       end
       
-      [response_data]
+      replies_as_is([response_data])
     else
       # Empty result case - check if Jupyter tools completed successfully
       # This happens when Gemini returns an empty response after tool execution
@@ -3206,8 +3255,13 @@ module GeminiHelper
   def assemble_gemini_final_result(result:, new_results:, tool_calls:, session:, &block)
     begin
       # More robust handling of different response structures
+      # In a chat with a word table, each part of the reply is put back with
+      # the words of the request it came from (what tools gave is shown as
+      # it is), and the reply is then shown as it is (replies_as_is below).
       if new_results.is_a?(Array) && new_results[0].is_a?(Hash) && new_results[0]["choices"]
-        tool_result_content = new_results.dig(0, "choices", 0, "message", "content").to_s.strip
+        tool_result_content = Monadic::Utils::Privacy::Words.restore_reply(
+          new_results[0], new_results.dig(0, "choices", 0, "message", "content").to_s
+        ).strip
       else
         tool_result_content = new_results.to_s.strip
       end
@@ -3306,7 +3360,7 @@ module GeminiHelper
         result = []
       end
 
-      final_result = result.join("").strip
+      final_result = Monadic::Utils::Privacy::Words.put_back(result.join("")).strip
 
       # Special handling for video generation
       if tool_calls.any? { |tc| GeminiHelper.gemini_video_tool?(tc["name"]) }
@@ -3343,9 +3397,9 @@ module GeminiHelper
 
       final_message = { "content" => final_result }
       final_message["thinking"] = tool_result_thinking unless tool_result_thinking.strip.empty?
-      [{ "choices" => [{ "message" => final_message }] }]
+      replies_as_is([{ "choices" => [{ "message" => final_message }] }])
     rescue StandardError => e
-      result_text = result.join("").strip
+      result_text = Monadic::Utils::Privacy::Words.put_back(result.join("")).strip
       result_text = "" if result_text.include?("No response was received")
 
       if tool_calls.any? { |tc| GeminiHelper.gemini_video_tool?(tc["name"]) }
@@ -3356,7 +3410,7 @@ module GeminiHelper
         final_result = result_text.empty? ? error_message : result_text + "\n\n" + error_message
       end
 
-      [{ "choices" => [{ "message" => { "content" => final_result } }] }]
+      replies_as_is([{ "choices" => [{ "message" => { "content" => final_result } }] }])
     end
   end
 
@@ -3502,7 +3556,7 @@ module GeminiHelper
                 Monadic::Utils::ExtraLogger.log { "Gemini: Sent video HTML directly, skipping recursive api_request\n  Filename: #{filename}" }
 
                 # Return the HTML as the result
-                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }]
+                return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }])
               else
                 # Send the image HTML directly to the client
                 image_html = <<~HTML
@@ -3524,7 +3578,7 @@ module GeminiHelper
                 Monadic::Utils::ExtraLogger.log { "Gemini: Sent image HTML directly, skipping recursive api_request\n  Filename: #{filename}" }
 
                 # Return the HTML as the result
-                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => image_html } }] }]
+                return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => image_html } }] }])
               end
             end
           rescue JSON::ParserError
@@ -3561,7 +3615,7 @@ module GeminiHelper
             Monadic::Utils::ExtraLogger.log { "Gemini: Sent video HTML directly, skipping recursive api_request\n  Filename: #{video_filename}" }
 
             # Return the HTML as the result
-            return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }]
+            return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }])
           end
         end
 
@@ -3580,7 +3634,7 @@ module GeminiHelper
 
             Monadic::Utils::ExtraLogger.log { "Gemini: Media generation returned error, skipping recursive api_request\n  Error: #{error_msg}" }
 
-            return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
+            return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }])
           rescue JSON::ParserError
             # Continue to normal flow if parsing fails
           end

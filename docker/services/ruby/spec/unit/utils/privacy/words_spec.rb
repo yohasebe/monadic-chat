@@ -217,6 +217,69 @@ RSpec.describe Monadic::Utils::Privacy::Words do
         .to eq(filepath: '<<PERSON_1>>')
     end
 
+    it 'notes a reply returned on its own, not in an Array' do
+      table = described_class.start!(new_chat)
+      table.confirm!('Ada', 'PERSON')
+      reply = { 'text' => 'reply' }
+      described_class.request do
+        described_class.sent_with(table.snapshot)
+        reply
+      end
+      expect(described_class.restore_reply(reply, '<<PERSON_1>>')).to eq('Ada')
+    end
+
+    it 'shows a reply as it is when it is marked so in a hidden request, whatever is noted for it later' do
+      table = described_class.start!(new_chat)
+      table.confirm!('Ada', 'PERSON')
+      outside = { 'text' => 'outside' }
+      expect(described_class.as_is([outside])).to eq([outside])
+      described_class.request do
+        described_class.sent_with(table.snapshot)
+        expect(described_class.restore_reply(outside, '<<PERSON_1>>')).to eq('<<PERSON_1>>')
+        made = { 'text' => 'made' }
+        described_class.request do
+          described_class.sent_with(table.snapshot)
+          described_class.as_is(made)
+          [made]
+        end
+      end => [made]
+      expect(described_class.restore_reply(made, 'literal <<PERSON_1>>')).to eq('literal <<PERSON_1>>')
+    end
+
+    it 'keeps a reply shown as it is after the snapshots noted for others dropped it, and a request around it returns it' do
+      stub_const("#{described_class}::REPLY_LIMIT", 2)
+      table = described_class.start!(new_chat)
+      table.confirm!('Ada', 'PERSON')
+      raw = { 'text' => 'raw' }
+      described_class.request do
+        described_class.sent_with(table.snapshot)
+        described_class.request do
+          described_class.sent_with(table.snapshot)
+          described_class.as_is(raw)
+        end
+        others = Array.new(3) { { 'text' => 'other' } }
+        described_class.note_reply(others, table.snapshot)
+        GC.start(full_mark: true, immediate_sweep: true)
+        raw
+      end
+      expect(described_class.restore_reply(raw, 'literal <<PERSON_1>>')).to eq('literal <<PERSON_1>>')
+    end
+
+    it 'shows a reply as it is when it is marked so after the request that got it noted it' do
+      table = described_class.start!(new_chat)
+      table.confirm!('Ada', 'PERSON')
+      reply = { 'text' => 'reply' }
+      described_class.request do
+        described_class.sent_with(table.snapshot)
+        described_class.request do
+          described_class.sent_with(table.snapshot)
+          reply
+        end
+        described_class.as_is(reply)
+      end
+      expect(described_class.restore_reply(reply, 'literal <<PERSON_1>>')).to eq('literal <<PERSON_1>>')
+    end
+
     it 'leaves the request around it as it was when the block fails, and notes nothing outside one' do
       table = described_class.start!(new_chat)
       table.confirm!('Ada', 'PERSON')

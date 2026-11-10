@@ -5,6 +5,8 @@ require "json"
 require_relative "../../../../lib/monadic/adapters/vendors/mistral_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/deepseek_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/ollama_helper"
+require_relative "../../../../lib/monadic/adapters/vendors/cohere_helper"
+require_relative "../../../../lib/monadic/adapters/vendors/grok_helper"
 require_relative "../../../../lib/monadic/utils/privacy/words"
 require_relative "../../../../lib/monadic/utils/websocket"
 require_relative "../../../../lib/monadic/utils/tts_text_extractor"
@@ -80,7 +82,10 @@ RSpec.describe "A chat with a word table on a chat-shaped vendor" do
       session[:parameters]["tools"] = tool_app.settings["tools"] if tools_in_parameters
     end
 
+    # The lines of a stream, or the whole body of a reply that is not streamed.
     def chunks(lines)
+      return lines if lines.is_a?(String)
+
       Object.new.tap { |b| b.define_singleton_method(:each) { |&blk| lines.each { |line| blk.call(line.dup) } } }
     end
 
@@ -262,6 +267,103 @@ RSpec.describe "A chat with a word table on a chat-shaped vendor" do
            "data: [DONE]\n\n"]
         ))
       end
+    end
+  end
+
+  describe "on Cohere" do
+    let(:chat) { Class.new(MonadicApp) { include CohereHelper }.new }
+    let(:model) { Monadic::Utils::ModelSpec.get_provider_models("cohere", "chat")&.first }
+    let(:config) { { "COHERE_API_KEY" => "k" } }
+
+    def event(object)
+      "#{JSON.generate(object)}\n"
+    end
+
+    def calling(name, arguments)
+      call = { "id" => "call_1", "type" => "function", "function" => { "name" => name, "arguments" => "" } }
+      [event("type" => "message-start", "id" => "m1"),
+       event("type" => "tool-call-start", "index" => 0, "delta" => { "message" => { "tool_calls" => call } }),
+       event("type" => "tool-call-delta", "index" => 0,
+             "delta" => { "message" => { "tool_calls" => { "function" => { "arguments" => JSON.generate(arguments) } } } }),
+       event("type" => "tool-call-end", "index" => 0),
+       event("type" => "message-end", "delta" => { "finish_reason" => "TOOL_CALL" })]
+    end
+
+    def answering(text)
+      [event("type" => "message-start", "id" => "m2"),
+       event("type" => "content-delta", "index" => 0, "delta" => { "message" => { "content" => { "text" => text } } }),
+       event("type" => "message-end", "delta" => { "finish_reason" => "COMPLETE" })]
+    end
+
+    it_behaves_like "a round of tool calls"
+  end
+
+  describe "on Grok" do
+    let(:chat) { Class.new(MonadicApp) { include GrokHelper }.new }
+    let(:model) { Monadic::Utils::ModelSpec.get_provider_models("xai", "chat")&.first }
+    let(:config) { { "XAI_API_KEY" => "k" } }
+
+    def sse_event(object)
+      "event: #{object['type']}\ndata: #{JSON.generate(object)}\n\n"
+    end
+
+    def calling(name, arguments)
+      item = { "type" => "function_call", "id" => "fc_1", "call_id" => "call_1", "name" => name,
+               "arguments" => JSON.generate(arguments) }
+      [sse_event("type" => "response.created", "response" => { "id" => "r1", "model" => model }),
+       sse_event("type" => "response.output_item.added", "item" => item.merge("arguments" => "")),
+       sse_event("type" => "response.output_item.done", "item" => item),
+       sse_event("type" => "response.completed", "response" => { "id" => "r1", "model" => model, "status" => "completed" })]
+    end
+
+    # The request after a round of tool calls is not streamed.
+    def answering(text)
+      JSON.generate("id" => "r2", "model" => model, "status" => "completed",
+                    "output" => [{ "type" => "message", "role" => "assistant",
+                                   "content" => [{ "type" => "output_text", "text" => text }] }])
+    end
+
+    it_behaves_like "a round of tool calls"
+
+    it "shows a reply it makes from a tool's output as the tool gave it" do
+      code_app = Class.new(MonadicApp) do
+        def settings
+          { "tools" => [{ "type" => "function", "function" => { "name" => "run_code",
+                                                                "parameters" => { "type" => "object", "properties" => {} } } }] }
+        end
+
+        def run_code(code: "", command: "", extension: "")
+          "literal <<PERSON_1>> from #{code}"
+        end
+      end.new
+      stub_const("APPS", { "SpecApp" => code_app })
+      stub_const("CONFIG", config)
+      allow(chat).to receive(:sleep)
+      session[:parameters] = { "app_name" => "SpecApp", "model" => model, "context_size" => "5", "max_tokens" => "100",
+                               "message" => "Run it for Ada Lovelace", "temperature" => "0.5" }
+      session[:messages] = [{ "role" => "system", "text" => "S", "active" => true }]
+      # The model says nothing after the tool ran.
+      replies = [calling("run_code", { "code" => "<<PERSON_1>>" }), answering("")]
+      sent = []
+      chain = double("http")
+      %i[timeout headers via].each { |m| allow(chain).to receive(m).and_return(chain) }
+      allow(chain).to receive(:post) do |_uri, json:|
+        sent << JSON.generate(json)
+        lines = replies.shift
+        body = if lines.is_a?(String)
+                 lines
+               else
+                 Object.new.tap { |b| b.define_singleton_method(:each) { |&blk| lines.each { |l| blk.call(l.dup) } } }
+               end
+        double("res", status: HTTP::Response::Status.new(200), body: body, code: 200, headers: {})
+      end
+      allow(HTTP).to receive(:headers).and_return(chain)
+      allow(HTTP).to receive(:timeout).and_return(chain)
+      reply = Array(chat.api_request("user", session) { |_| }).last
+      text = reply.dig("choices", 0, "message", "content")
+      expect(text).to include("literal <<PERSON_1>> from <<PERSON_1>>")
+      expect(words.restore_reply(reply, text)).to eq(text)
+      expect(sent.join).not_to include("Ada Lovelace")
     end
   end
 

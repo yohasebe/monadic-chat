@@ -1044,11 +1044,19 @@ module ClaudeHelper
     # Claude content is always Array of {type, text|image|document} blocks;
     # apply_privacy_to_messages skips non-text items.
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-    if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
-      body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+    # A chat with a word table hides its words with it (each attempt below
+    # is sent only while the table is unchanged); otherwise the Privacy
+    # Filter's masking and marked words apply. The conversation as it was
+    # before is what a request to another model is made from again.
+    unhidden = body["messages"]
+    hiding = hide_words_in_request!(body, session, keys: %w[messages], item: method(:hide_words_in_claude_message))
+    unless hiding
+      if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
+        body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
+      end
+      # Words the user marked: masked wherever they are in the body, or nothing is sent.
+      protect_marked_words!(body, session, app_settings)
     end
-    # Words the user marked: masked wherever they are in the body, or nothing is sent.
-    protect_marked_words!(body, session, app_settings)
 
     if Monadic::Utils::ExtraLogger.enabled? || ENV["DEBUG_CLAUDE"]
       Monadic::Utils::ExtraLogger.log {
@@ -1068,8 +1076,10 @@ module ClaudeHelper
 
     offer_tools!(body, session, app, provider: "claude", model: body["model"])
     # Each post of the body is checked for what it holds of the work screen.
-    res = post_json_with_retries(http, target_uri, body, max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY,
-                                 looks: { session: session, provider: "claude", model: body["model"] })
+    res = Monadic::Utils::Privacy::Words.sending(hiding&.first, hiding&.last) do
+      post_json_with_retries(http, target_uri, body, max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY,
+                             looks: { session: session, provider: "claude", model: body["model"] })
+    end
 
     unless res.status.success?
       error_report = (JSON.parse(res.body)["error"] rescue nil) || {}
@@ -1095,6 +1105,7 @@ module ClaudeHelper
         Monadic::Utils::ExtraLogger.log { "[Claude] #{body["model"]} unavailable (404 not_found); falling back to #{fallback_model}" }
         (session[:_unavailable_models] ||= {})[body["model"]] = fallback_model
         body["model"] = fallback_model
+        body["messages"] = unhidden if hiding
         return execute_claude_api_call(headers, body, app, session, call_depth, websearch_enabled, use_native_websearch, &block)
       end
 
@@ -1641,7 +1652,8 @@ module ClaudeHelper
         if result.is_a?(Array) && result.first.is_a?(Hash)
           msg = result.first.dig("choices", 0, "message") || result.first["message"]
           if msg && msg["content"]
-            msg["content"] = pre_tool_text + "\n\n" + msg["content"]
+            # Each part put back with the words its own request was sent with.
+            msg["content"] = join_put_back(pre_tool_text, result.first, msg["content"])
           end
         end
       end
@@ -1704,6 +1716,55 @@ module ClaudeHelper
       block&.call res
       return [{ "choices" => [{ "finish_reason" => finish_reason || "stop", "message" => { "content" => response_content } }] }]
     end
+  end
+
+  # One message of a Claude conversation, as sent to a chat with a word
+  # table (hide_words_in_request!). Text blocks are what the user and the
+  # app wrote, and replies as the chat keeps them (put back), except in an
+  # assistant message with a tool_use block: what the model wrote in a
+  # round of tool calls. A tool_use's input is the model's; a tool_result
+  # is data (its text, or the text blocks in it). Thinking blocks are
+  # signed and left as they are, like images, documents and the blocks of
+  # Anthropic's own tools (a word in them stops the request).
+  def hide_words_in_claude_message(message, snapshot, budget)
+    return message unless message.is_a?(Hash)
+
+    key = ->(name) { message.key?(name.to_sym) ? name.to_sym : name }
+    content = message[key.("content")]
+    return message unless %w[user assistant].include?((message[:role] || message["role"]).to_s)
+    return message.merge(key.("content") => snapshot.raw(content, budget)) if content.is_a?(String)
+    return message unless content.is_a?(Array)
+
+    type_of = ->(block) { block.is_a?(Hash) ? (block[:type] || block["type"]).to_s : "" }
+    from_model = (message[:role] || message["role"]).to_s == "assistant" && content.any? { |b| type_of.(b) == "tool_use" }
+    blocks = content.map do |block|
+      field = ->(name) { block.key?(name.to_sym) ? name.to_sym : name }
+      case type_of.(block)
+      when "text"
+        text = block[field.("text")]
+        next block unless text.is_a?(String)
+
+        block.merge(field.("text") => from_model ? snapshot.from_model(text, budget) : snapshot.raw(text, budget))
+      when "tool_use"
+        block.merge(field.("input") => snapshot.data(block[field.("input")], origin: :model, budget: budget))
+      when "tool_result"
+        result = block[field.("content")]
+        result = if result.is_a?(Array)
+                   result.map do |part|
+                     next part unless type_of.(part) == "text"
+
+                     text_key = part.key?(:text) ? :text : "text"
+                     part.merge(text_key => snapshot.data(part[text_key], budget: budget))
+                   end
+                 else
+                   snapshot.data(result, budget: budget)
+                 end
+        block.merge(field.("content") => result)
+      else
+        block
+      end
+    end
+    message.merge(key.("content") => blocks)
   end
 
   # Assemble tool call context from streaming results, parse inputs, and invoke process_functions.
@@ -2011,7 +2072,7 @@ module ClaudeHelper
 
       block&.call({ "type" => "fragment", "content" => success_msg })
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => success_msg } }] }]
+      return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => success_msg } }] }])
     end
 
     notebook_error_result = tool_results.find do |r|
@@ -2029,7 +2090,7 @@ module ClaudeHelper
       error_msg = "Errors occurred during notebook execution.\n\n#{error_summary}"
       block&.call({ "type" => "fragment", "content" => error_msg })
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
+      return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }])
     end
 
     nil

@@ -119,12 +119,15 @@ RSpec.describe "The context of a chat with a word table" do
           { "people" => [{ "text" => "Ada Lovelace", "turn" => 1 }] }
         end
       end
-      entered.pop
+      entered.pop(timeout: 5) or raise 'the change did not begin'
       leaving = Thread.new { chats.begin_new!(session) }
       sleep 0.05
-      expect(leaving).to be_alive
-      release << true
-      [writer, leaving].each(&:join)
+      begin
+        expect(leaving).to be_alive
+      ensure
+        release << true # the change ends whatever was found
+      end
+      [writer, leaving].each { |thread| thread.join(5) or raise 'a thread did not end' }
 
       expect(people({ chats::SESSION_KEY => extraction[:chat][:id] })).to be_nil
       expect(people(session)).to be_nil

@@ -180,6 +180,42 @@ RSpec.describe "WebSocketHelper STS audio routing" do
     end
   end
 
+  describe "STS-capable model in a chat that hides its words with a word table" do
+    let(:words) { Monadic::Utils::Privacy::Words }
+
+    before { stub_apps(privacy_enabled: false) }
+    after { words::LOCK.synchronize { words::TABLES.clear } }
+
+    # A table with no word in it yet keeps the voice closed too.
+    def table_session
+      make_session(privacy_toggle: false).tap do |session|
+        Monadic::Workspace::Chats.start_new!(session)
+        words.start!(session)
+      end
+    end
+
+    it "blocks the audio and says why" do
+      h = host.new(sts_capable: true)
+      h.send(:route_audio_event, connection, table_session, obj,
+             sts_handler: :handle_sts_audio_chunk, fallback: :handle_audio_chunk)
+
+      expect(h.calls).to be_empty
+      payload = JSON.parse(writes.first)
+      expect(payload["type"]).to eq("error")
+      expect(payload["content"]).to match(/hides its words/)
+      expect(payload["content"]).not_to match(/Privacy Filter/)
+    end
+
+    it "does not start a session either" do
+      h = host.new(sts_capable: true)
+      h.define_singleton_method(:handle_sts_start) { |_c, _o| calls << :handle_sts_start }
+      h.send(:route_sts_control, connection, table_session, { "message" => "STS_START" }, handler: :handle_sts_start)
+
+      expect(h.calls).to be_empty
+      expect(writes.size).to eq(1)
+    end
+  end
+
   # UPDATE_PARAMS must tear the STS bridge down when app/model/voice
   # changes; otherwise the old bridge holds its upstream socket and
   # semaphore slot until the WebSocket closes.

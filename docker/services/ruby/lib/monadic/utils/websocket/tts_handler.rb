@@ -2,6 +2,7 @@
 
 require_relative '../tts_provider'
 require_relative '../privacy/outbound'
+require_relative '../privacy/words'
 
 # Text-to-speech (TTS) operations for WebSocket connections.
 # Handles voice listing, TTS request processing, playback control,
@@ -544,13 +545,22 @@ module WebSocketHelper
   private def privacy_sanitize_tts_text(text, session, provider = nil)
     return text unless text.is_a?(String) && !text.empty?
 
+    # A chat that hides its words with a word table reads each word as its
+    # placeholder's type and number, as the Privacy Filter does.
     begin
-      pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(session)
+      table = Monadic::Utils::Privacy::Words.table(session)
+      pipeline = table ? nil : Monadic::Utils::Privacy::Outbound.pipeline!(session)
     rescue Monadic::Utils::Privacy::Outbound::Refused => e
       send_error("Speech was not made: #{e.message}.", Thread.current[:websocket_session_id])
       return nil
     end
-    spoken = pipeline.respond_to?(:sanitize_restored_for_tts) ? pipeline.sanitize_restored_for_tts(text) : text
+    spoken = if table
+               Monadic::Utils::Privacy::Words.spoken(table, text)
+             elsif pipeline.respond_to?(:sanitize_restored_for_tts)
+               pipeline.sanitize_restored_for_tts(text)
+             else
+               text
+             end
     # Words the user marked are never spoken, however they are written: the
     # text is checked as the TTS service would receive it too (after the
     # user's dictionary and the provider's conversion of markers).

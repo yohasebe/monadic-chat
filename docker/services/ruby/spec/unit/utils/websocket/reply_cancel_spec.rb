@@ -520,6 +520,27 @@ RSpec.describe "Stopping an answer" do
       expect(thread.join(5)).not_to be_nil
     end
 
+    it "reads a hidden word as its type and number in a chat that hides its words with a word table" do
+      words = Monadic::Utils::Privacy::Words
+      words.start!(session).confirm!('Ada Lovelace', 'PERSON')
+      app = Object.new.tap do |a|
+        a.define_singleton_method(:api_request) do |_role, _session, &block|
+          block.call({ "type" => "fragment", "content" => "Hello <<PERSON_1>> and Ada Lovelace." })
+          [{ "choices" => [{ "message" => { "content" => "FINAL" }, "finish_reason" => "stop" }] }]
+        end
+        a.define_singleton_method(:settings) { {} }
+      end
+      stub_const("APPS", { "FakeApp" => app })
+      spoken = Queue.new
+      allow(host).to receive(:start_tts_playback) { |**options| spoken << options[:text] }
+      obj = { "message" => "Hi", "app_name" => "FakeApp", "auto_speech" => true, "tts_provider" => "webspeech" }
+      thread = host.send(:handle_ws_streaming, nil, obj, session, queue)
+      expect(Timeout.timeout(5) { spoken.pop }).to eq("Hello PERSON 1 and PERSON 1.")
+    ensure
+      host.send(:stop_reply_work, thread) if thread
+      words::LOCK.synchronize { words::TABLES.clear }
+    end
+
     it "played by hand names no answer" do
       host.send(:start_tts_playback, text: "Hello there.", provider: "webspeech", voice: nil, speed: 1,
                                      response_format: "mp3", language: "en", manual_play: true, ws_session_id: "tab-1")

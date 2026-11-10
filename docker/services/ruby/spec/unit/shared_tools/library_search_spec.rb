@@ -255,6 +255,32 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
     end
   end
 
+  describe 'in a chat that hides its words with a word table' do
+    let(:host) { Class.new { include MonadicSharedTools::LibrarySearch::Tools }.new }
+    let(:words) { Monadic::Utils::Privacy::Words }
+    let(:session) do
+      { parameters: { 'library_rag_enabled' => true, 'app_name' => 'ChatOpenAI' } }
+        .tap { |s| Monadic::Workspace::Chats.start_new!(s) }
+    end
+
+    before do
+      words.start!(session).confirm!('Ada Lovelace', 'PERSON')
+      allow(Monadic::Library::Retriever).to receive(:cascade_search).and_return([
+        { text: 'Ada Lovelace wrote the notes', conversation_id: 'conv-1', turn_idx: 0, speaker_role: 'human',
+          start_message_id: 'm-1', score: 0.9, conversation_title: 'T', conversation_source: 'chat',
+          conversation_language: 'en' }
+      ])
+    end
+
+    after { words::LOCK.synchronize { words::TABLES.clear } }
+
+    it 'gives the passages as saved (they are hidden as the next request is sent)' do
+      out = host.library_search(query: 'notes', session: session)
+      expect(out).to include('Ada Lovelace wrote the notes')
+      expect(out).not_to eq(MonadicSharedTools::LibrarySearch::WITHHELD_MESSAGE)
+    end
+  end
+
   describe 'Registry registration' do
     it 'registers :library_search pointing to the Tools mixin module' do
       group = MonadicSharedTools::Registry::TOOL_GROUPS[:library_search]

@@ -99,11 +99,13 @@ module Monadic
         change
       end
 
-      # The chat's saved conversation is given its context now.
-      def keep_in_history(chat_id, session)
-        return unless chat_id && defined?(Monadic::History)
+      # The chat's saved conversation is given its context now (held: what
+      # gives the context to save, when it is not the one the chat holds).
+      # Nothing is saved where the history is not loaded.
+      def keep_in_history(chat_id, session, held: nil)
+        return unless chat_id && defined?(Monadic::History) && Monadic::History.respond_to?(:keep_context)
 
-        Monadic::History.keep_context(chat_id, schema: Monadic::History::Serializer.context_schema(session || {}))
+        Monadic::History.keep_context(chat_id, session: session, held: held)
       end
 
       # Puts a context in place for the chat the session has just begun from
@@ -154,7 +156,7 @@ module Monadic
         return unless entry
 
         held = -> { LOCK.synchronize { RETIRING[chat_id].equal?(entry) ? entry[:context] : nil } }
-        Monadic::History.keep_context(chat_id, held: held) if defined?(Monadic::History)
+        keep_in_history(chat_id, nil, held: held)
       ensure
         LOCK.synchronize { RETIRING.delete(chat_id) if entry && RETIRING[chat_id].equal?(entry) }
       end

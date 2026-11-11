@@ -151,6 +151,53 @@ RSpec.describe 'What the handlers write to the history' do
       expect(host.sent.last).to include('success' => false, 'error' => 'history_not_found')
     end
 
+    it 'tells the chat shown in the asking tab from one open in another window' do
+      here = chat_session('shown here', generation: 1)
+      sync(here)
+      elsewhere = chat_session('shown elsewhere', generation: 1)
+      sync(elsewhere)
+      allow(WebSocketHelper).to receive(:live_chat_ids).and_return([elsewhere[:chat_id]])
+
+      host.send(:handle_ws_history_list, nil, {}, here)
+      items = host.sent.last['items'].to_h { |i| [i['chat_id'], i.slice('open', 'here')] }
+      expect(items[here[:chat_id]]).to eq('open' => true, 'here' => true)
+      expect(items[elsewhere[:chat_id]]).to eq('open' => true, 'here' => false)
+    end
+
+    it 'narrows the list by app and by how long a chat was not used, and names the apps kept' do
+      now = Time.now
+      old = chat_session('an old chat', generation: 1)
+      allow(Time).to receive(:now).and_return(now - (40 * 86_400))
+      sync(old)
+      recent = chat_session('a recent chat', generation: 1)
+      recent[:parameters] = { 'app_name' => 'ChatClaude', 'model' => 'claude-x' }
+      allow(Time).to receive(:now).and_return(now)
+      sync(recent)
+
+      host.send(:handle_ws_history_list, nil, { 'unused_days' => 30 })
+      expect(host.sent.last['items'].map { |i| i['chat_id'] }).to eq([old[:chat_id]])
+      expect(host.sent.last).to include('unused_days' => 30, 'apps' => %w[ChatClaude ChatOpenAI])
+
+      host.send(:handle_ws_history_list, nil, { 'app' => 'ChatClaude' })
+      expect(host.sent.last['items'].map { |i| i['chat_id'] }).to eq([recent[:chat_id]])
+
+      host.send(:handle_ws_history_list, nil, { 'unused_days' => 12 })
+      expect(host.sent.last['unused_days']).to be_nil
+      expect(host.sent.last['items'].size).to eq(2)
+    end
+
+    it 'removes several chats at once, leaving one open in a window' do
+      kept = Array.new(3) { |i| chat_session("chat #{i} #{marker}", generation: 1).tap { |c| sync(c) } }
+      open_tab = open_in_tab(kept.last)
+
+      host.send(:handle_ws_history_delete, nil, { 'chat_ids' => kept.map { |c| c[:chat_id] } + ['../x'] })
+      reply = host.sent.last
+      expect(reply['chat_ids']).to match_array(kept.first(2).map { |c| c[:chat_id] })
+      expect(reply['failed']).to eq(kept.last[:chat_id] => 'history_chat_open', '../x' => 'history_not_found')
+      expect(store.list.map { |r| r['chat_id'] }).to eq([kept.last[:chat_id]])
+      WebSocketHelper.unregister_live_session(open_tab, 1)
+    end
+
     it 'keeps the order of the list when only the Session Context changes' do
       first = chat_session('first chat', generation: 1)
       sync(first)

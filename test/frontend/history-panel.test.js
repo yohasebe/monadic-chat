@@ -2,9 +2,9 @@
  * @jest-environment jsdom
  */
 // The History tab of the side column, on the page's own markup: names are
-// set as text, an open chat is neither continued nor removed from here, a
-// Private chat is replaced only after a question tied to that chat, and the
-// tab is there only while a history is kept.
+// set as text, an open chat is neither continued nor removed from here,
+// chats are narrowed and removed together, and the tab is there only while
+// a history is kept.
 const fs = require('fs');
 const path = require('path');
 
@@ -99,7 +99,7 @@ describe('History tab', () => {
 
   it('asks for the chats when the tab comes into view', () => {
     show();
-    expect(sent).toContainEqual({ message: 'HISTORY_LIST', query: '', offset: 0 });
+    expect(sent).toContainEqual({ message: 'HISTORY_LIST', query: '', app: '', unused_days: null, offset: 0 });
   });
 
   it('sets names and headings as text, and continues a chat with a click', () => {
@@ -119,6 +119,62 @@ describe('History tab', () => {
     rows()[0].querySelector('.sfp-row-menu').click();
     expect(menuItem('Continue').disabled).toBe(true);
     expect(menuItem('Remove').disabled).toBe(true);
+  });
+
+  it('tells the chat shown here from one open in another window', () => {
+    show();
+    list([item({ chat_id: 'c_here000000000000', open: true, here: true }),
+      item({ chat_id: 'c_else000000000000', open: true, here: false })]);
+    const badges = rows().map((r) => r.querySelector('.history-open-badge').textContent);
+    expect(badges).toEqual(['Shown now', 'Open in another window']);
+  });
+
+  it('removes the chats selected by their boxes together, after asking, and never one that is open', () => {
+    show();
+    list([item({ chat_id: 'c_one0000000000000' }), item({ chat_id: 'c_two0000000000000' }),
+      item({ chat_id: 'c_open000000000000', open: true })]);
+    expect(rows()[2].querySelector('button.sfp-check')).toBeNull();
+
+    document.getElementById('history-select-menu').click();
+    menuItem('Select all shown').click();
+    const band = document.getElementById('history-selection');
+    expect(band.hidden).toBe(false);
+    expect(document.getElementById('history-selection-text').textContent).toContain('2');
+
+    document.getElementById('history-remove-selected').click();
+    expect(sent.some((m) => m.message === 'HISTORY_DELETE')).toBe(false);
+    document.getElementById('history-remove-selected').click();
+    expect(sent).toContainEqual({ message: 'HISTORY_DELETE', chat_ids: ['c_one0000000000000', 'c_two0000000000000'] });
+
+    window.HistoryPanel.onMessage({ type: 'history_deleted', chat_ids: ['c_one0000000000000'],
+      failed: { c_two0000000000000: 'history_chat_open' }, success: false });
+    expect(band.hidden).toBe(true);
+    expect(status().textContent).toContain('1');
+  });
+
+  it('narrows the list by app and by how long a chat was not used, and forgets the selection', () => {
+    show();
+    list([item()], { apps: ['ChatOpenAI', 'ChatClaude'] });
+    rows()[0].querySelector('button.sfp-check').click();
+    document.getElementById('history-filter-toggle').click();
+    const app = document.getElementById('history-filter-app');
+    expect(Array.from(app.options).map((o) => o.value)).toEqual(['', 'ChatOpenAI', 'ChatClaude']);
+    app.value = 'ChatClaude';
+    app.dispatchEvent(new Event('change'));
+    const unused = document.getElementById('history-filter-unused');
+    unused.value = '90';
+    unused.dispatchEvent(new Event('change'));
+
+    expect(sent[sent.length - 1]).toEqual({ message: 'HISTORY_LIST', query: '', app: 'ChatClaude', unused_days: 90, offset: 0 });
+    expect(document.getElementById('history-filtering').hidden).toBe(false);
+    expect(document.getElementById('history-selection').hidden).toBe(true);
+    // An answer to the list before the filters changed is not shown.
+    list([item({ chat_id: 'c_stale00000000000' })]);
+    expect(rows().map((r) => r.dataset.chat)).not.toContain('c_stale00000000000');
+
+    document.getElementById('history-filtering-clear').click();
+    expect(sent[sent.length - 1]).toEqual({ message: 'HISTORY_LIST', query: '', app: '', unused_days: null, offset: 0 });
+    expect(document.getElementById('history-filtering').hidden).toBe(true);
   });
 
   it('removes a chat only after it is asked again', () => {

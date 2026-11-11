@@ -78,10 +78,14 @@ module Monadic
 
     # The list as the page shows it, with whether each chat is open in a tab
     # now. Nothing of the conversations themselves.
-    def list(query: nil, offset: 0, limit: 50, open_chat_ids: [], store: Store.default)
+    # Each kept chat with whether a tab has it open, and whether that tab is
+    # the one asking (here_chat_id).
+    def list(query: nil, offset: 0, limit: 50, open_chat_ids: [], here_chat_id: nil, app_name: nil,
+             unused_before: nil, store: Store.default)
       open = open_chat_ids.to_a
-      store.list(limit: limit, offset: offset, query: query).map do |row|
-        row.merge('open' => open.include?(row['chat_id']))
+      store.list(limit: limit, offset: offset, query: query, app_name: app_name, unused_before: unused_before).map do |row|
+        here = !here_chat_id.nil? && row['chat_id'] == here_chat_id
+        row.merge('open' => open.include?(row['chat_id']) || here, 'here' => here)
       end
     end
   end

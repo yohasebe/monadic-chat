@@ -581,7 +581,7 @@
       what.appendChild(icon('fa-solid fa-lock me-1'));
       what.appendChild(document.createTextNode(protectedText(item.protected_reason)));
     }
-    if (item.busy_reason) what.appendChild(el('span', { className: 'badge bg-info text-dark ms-1', text: t('inUse', 'in use') }));
+    if (item.busy_reason) what.appendChild(el('span', { className: 'mc-badge mc-badge--blue ms-1', text: t('inUse', 'in use') }));
     if (item.kind === 'link') what.appendChild(document.createTextNode(' ' + t('linkNotFollowed', '(link, not followed)')));
     text.appendChild(what);
     name.appendChild(text);

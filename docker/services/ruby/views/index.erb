@@ -745,33 +745,36 @@
           </div>
           <%# The shared folder, one folder at a time (shared-folder-panel.js); everything done with it is here. %>
           <div id="shared-files-pane" class="shared-files-pane" role="tabpanel" aria-labelledby="side-tab-files" hidden>
-            <div class="sfp-bar mb-2">
-              <button type="button" class="btn btn-sm btn-secondary" id="sfp-up" title="Up one folder" aria-label="Up one folder" data-i18n-title="ui.sharedFolderPanel.up" data-i18n-aria-label="ui.sharedFolderPanel.up" disabled><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
-              <nav id="sfp-where" class="sfp-where" aria-label="Folder" data-i18n-aria-label="ui.sharedFolderPanel.folderLabel"></nav>
-              <button type="button" class="btn btn-sm btn-secondary" id="sfp-refresh" title="Refresh" aria-label="Refresh" data-i18n-title="ui.sharedFolderPanel.refresh" data-i18n-aria-label="ui.sharedFolderPanel.refresh"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>
+            <%# Stays under the column's bar while the list scrolls. %>
+            <div class="sfp-head">
+              <div class="sfp-bar mb-2">
+                <button type="button" class="btn btn-sm btn-secondary sfp-icon-btn" id="sfp-up" title="Up one folder" aria-label="Up one folder" data-i18n-title="ui.sharedFolderPanel.up" data-i18n-aria-label="ui.sharedFolderPanel.up" disabled><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
+                <nav id="sfp-where" class="sfp-where" aria-label="Folder" data-i18n-aria-label="ui.sharedFolderPanel.folderLabel"></nav>
+                <button type="button" class="btn btn-sm btn-secondary sfp-icon-btn" id="sfp-refresh" title="Refresh" aria-label="Refresh" data-i18n-title="ui.sharedFolderPanel.refresh" data-i18n-aria-label="ui.sharedFolderPanel.refresh"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>
+              </div>
+              <div class="sfp-find mb-2">
+                <input type="search" class="form-control form-control-sm" id="sfp-search" placeholder="Search names" aria-label="Search names" data-i18n-placeholder="ui.sharedFolderPanel.searchPlaceholder" data-i18n-aria-label="ui.sharedFolderPanel.searchPlaceholder">
+                <select class="form-select form-select-sm" id="sfp-sort" aria-label="Order" data-i18n-aria-label="ui.sharedFolderPanel.orderLabel">
+                  <option value="name" data-i18n="ui.sharedFolderPanel.sortName">By name</option>
+                  <option value="modified" data-i18n="ui.sharedFolderPanel.sortModified">Newest first</option>
+                  <option value="size" data-i18n="ui.sharedFolderPanel.sortSize">Largest first</option>
+                </select>
+                <button type="button" class="btn btn-sm btn-secondary sfp-icon-btn" id="sfp-filter-toggle" title="Filter" aria-label="Filter" aria-haspopup="dialog" aria-expanded="false" data-i18n-title="ui.sharedFolderPanel.filterToggle" data-i18n-aria-label="ui.sharedFolderPanel.filterToggle"><i class="fa-solid fa-filter" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-secondary sfp-icon-btn" id="sfp-select-menu" title="Select" aria-label="Select" aria-haspopup="menu" aria-expanded="false" data-i18n-title="ui.sharedFolderPanel.selectMenu" data-i18n-aria-label="ui.sharedFolderPanel.selectMenu"><i class="fa-regular fa-square-check" aria-hidden="true"></i></button>
+              </div>
+              <div id="sfp-filtering" class="sfp-band sfp-filtering mb-2" hidden>
+                <span id="sfp-filtering-text" class="sfp-band-text"></span>
+                <button type="button" class="btn btn-sm btn-secondary" id="sfp-filtering-clear" data-i18n="ui.sharedFolderPanel.clearFiltersShort">Clear</button>
+              </div>
+              <div id="sfp-selection" class="sfp-band sfp-selection mb-2" hidden>
+                <span id="sfp-selection-text" class="sfp-band-text"></span>
+                <button type="button" class="btn btn-sm btn-secondary" id="sfp-copy" title="Copy the paths for a chat" aria-label="Copy the paths for a chat" data-i18n-title="ui.sharedFolderPanel.copyPaths" data-i18n-aria-label="ui.sharedFolderPanel.copyPaths"><i class="fa-regular fa-copy" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-danger" id="sfp-trash" aria-describedby="sfp-trash-why" hidden><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span id="sfp-trash-label"></span></button>
+                <button type="button" class="btn btn-sm btn-secondary sfp-icon-btn" id="sfp-clear-selection" title="Clear selection" aria-label="Clear selection" data-i18n-title="ui.sharedFolderPanel.clearSelection" data-i18n-aria-label="ui.sharedFolderPanel.clearSelection"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                <span id="sfp-trash-why" class="sfp-band-note" hidden></span>
+              </div>
+              <div id="sfp-status" class="sfp-status mb-2" role="status" aria-live="polite" hidden></div>
             </div>
-            <div class="sfp-find mb-2">
-              <input type="search" class="form-control form-control-sm" id="sfp-search" placeholder="Search names" aria-label="Search names" data-i18n-placeholder="ui.sharedFolderPanel.searchPlaceholder" data-i18n-aria-label="ui.sharedFolderPanel.searchPlaceholder">
-              <select class="form-select form-select-sm" id="sfp-sort" aria-label="Order" data-i18n-aria-label="ui.sharedFolderPanel.orderLabel">
-                <option value="name" data-i18n="ui.sharedFolderPanel.sortName">By name</option>
-                <option value="modified" data-i18n="ui.sharedFolderPanel.sortModified">Newest first</option>
-                <option value="size" data-i18n="ui.sharedFolderPanel.sortSize">Largest first</option>
-              </select>
-              <button type="button" class="btn btn-sm btn-secondary" id="sfp-filter-toggle" title="Filter" aria-label="Filter" aria-haspopup="dialog" aria-expanded="false" data-i18n-title="ui.sharedFolderPanel.filterToggle" data-i18n-aria-label="ui.sharedFolderPanel.filterToggle"><i class="fa-solid fa-filter" aria-hidden="true"></i></button>
-              <button type="button" class="btn btn-sm btn-secondary" id="sfp-select-menu" title="Select" aria-label="Select" aria-haspopup="menu" aria-expanded="false" data-i18n-title="ui.sharedFolderPanel.selectMenu" data-i18n-aria-label="ui.sharedFolderPanel.selectMenu"><i class="fa-regular fa-square-check" aria-hidden="true"></i></button>
-            </div>
-            <div id="sfp-filtering" class="sfp-band sfp-filtering mb-2" hidden>
-              <span id="sfp-filtering-text" class="sfp-band-text"></span>
-              <button type="button" class="btn btn-sm btn-secondary" id="sfp-filtering-clear" data-i18n="ui.sharedFolderPanel.clearFiltersShort">Clear</button>
-            </div>
-            <div id="sfp-selection" class="sfp-band sfp-selection mb-2" hidden>
-              <span id="sfp-selection-text" class="sfp-band-text"></span>
-              <button type="button" class="btn btn-sm btn-secondary" id="sfp-copy" title="Copy the paths for a chat" aria-label="Copy the paths for a chat" data-i18n-title="ui.sharedFolderPanel.copyPaths" data-i18n-aria-label="ui.sharedFolderPanel.copyPaths"><i class="fa-regular fa-copy" aria-hidden="true"></i></button>
-              <button type="button" class="btn btn-sm btn-danger" id="sfp-trash" aria-describedby="sfp-trash-why" hidden><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span id="sfp-trash-label"></span></button>
-              <button type="button" class="btn btn-sm btn-secondary" id="sfp-clear-selection" title="Clear selection" aria-label="Clear selection" data-i18n-title="ui.sharedFolderPanel.clearSelection" data-i18n-aria-label="ui.sharedFolderPanel.clearSelection"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
-              <span id="sfp-trash-why" class="sfp-band-note" hidden></span>
-            </div>
-            <div id="sfp-status" class="sfp-status mb-2" role="status" aria-live="polite" hidden></div>
             <ul id="sfp-list" class="sfp-list mb-2" tabindex="0" aria-label="Files" data-i18n-aria-label="ui.sharedFolderPanel.listLabel"></ul>
             <div class="sfp-foot">
               <span id="sfp-info" class="sfp-info"></span>
@@ -780,11 +783,24 @@
           </div>
           <%# The kept chats (history-panel.js). %>
           <div id="history-pane" class="shared-files-pane history-pane" role="tabpanel" aria-labelledby="side-tab-history" hidden>
-            <div class="sfp-find mb-2">
-              <input type="search" class="form-control form-control-sm" id="history-search" placeholder="Search names and words" aria-label="Search names and words" data-i18n-placeholder="ui.historyPanel.searchPlaceholder" data-i18n-aria-label="ui.historyPanel.searchPlaceholder">
-              <button type="button" class="btn btn-sm btn-secondary" id="history-refresh" title="Refresh" aria-label="Refresh" data-i18n-title="ui.historyPanel.refresh" data-i18n-aria-label="ui.historyPanel.refresh"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>
+            <div class="sfp-head">
+              <div class="sfp-find mb-2">
+                <input type="search" class="form-control form-control-sm" id="history-search" placeholder="Search names and words" aria-label="Search names and words" data-i18n-placeholder="ui.historyPanel.searchPlaceholder" data-i18n-aria-label="ui.historyPanel.searchPlaceholder">
+                <button type="button" class="btn btn-sm btn-secondary sfp-icon-btn" id="history-filter-toggle" title="Filter" aria-label="Filter" aria-haspopup="dialog" aria-expanded="false" data-i18n-title="ui.historyPanel.filterToggle" data-i18n-aria-label="ui.historyPanel.filterToggle"><i class="fa-solid fa-filter" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-secondary sfp-icon-btn" id="history-select-menu" title="Select" aria-label="Select" aria-haspopup="menu" aria-expanded="false" data-i18n-title="ui.historyPanel.selectMenu" data-i18n-aria-label="ui.historyPanel.selectMenu"><i class="fa-regular fa-square-check" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-secondary sfp-icon-btn" id="history-refresh" title="Refresh" aria-label="Refresh" data-i18n-title="ui.historyPanel.refresh" data-i18n-aria-label="ui.historyPanel.refresh"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>
+              </div>
+              <div id="history-filtering" class="sfp-band sfp-filtering mb-2" hidden>
+                <span id="history-filtering-text" class="sfp-band-text"></span>
+                <button type="button" class="btn btn-sm btn-secondary" id="history-filtering-clear" data-i18n="ui.historyPanel.clearFilters">Clear</button>
+              </div>
+              <div id="history-selection" class="sfp-band sfp-selection mb-2" hidden>
+                <span id="history-selection-text" class="sfp-band-text"></span>
+                <button type="button" class="btn btn-sm btn-danger" id="history-remove-selected"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span id="history-remove-label"></span></button>
+                <button type="button" class="btn btn-sm btn-secondary sfp-icon-btn" id="history-clear-selection" title="Clear selection" aria-label="Clear selection" data-i18n-title="ui.historyPanel.clearSelection" data-i18n-aria-label="ui.historyPanel.clearSelection"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+              </div>
+              <div id="history-status" class="sfp-status mb-2" role="status" aria-live="polite" hidden></div>
             </div>
-            <div id="history-status" class="sfp-status mb-2" role="status" aria-live="polite" hidden></div>
             <ul id="history-list" class="sfp-list mb-2" aria-label="Chats" data-i18n-aria-label="ui.historyPanel.listLabel"></ul>
             <div class="sfp-foot">
               <span id="history-info" class="sfp-info"></span>
@@ -1051,6 +1067,14 @@
                     <button id="doc" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from document file" data-i18n="ui.fromFile" data-i18n-title="ui.importFromDoc"><i class="fa-solid fa-file-arrow-up"></i> Text from file</button>
                     <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from web URL" data-i18n="ui.fromURL" data-i18n-title="ui.importFromWeb"><i class="fa-solid fa-globe"></i> Text from URL</button>
                     <button id="anonymize" type="button" class="btn btn-sm btn-warning text-nowrap me-2" title="Find names in the message and choose what to hide" data-i18n-title="ui.wordTable.hint"><i class="fas fa-user-secret"></i> <span data-i18n="ui.wordTable.button">Anonymize</span></button>
+                    <%# Hidden where the browser cannot record (monadic.js). %>
+                    <span id="voice-input-row" class="voice-input">
+                      <button id="voice" class="btn btn-sm btn-warning text-nowrap me-2" tabindex="1" title="Start/stop voice input recording" data-i18n="ui.speechInput" data-i18n-title="ui.startStopVoice"><i class="fas fa-microphone"></i> Speech Input</button>
+                      <div id="amplitude" style="display: none; margin-right: 8px; height: 28px; overflow: hidden;">
+                        <canvas id="amplitude-chart" style="width: 150px; height: 28px; max-width: 100%;" width="300" height="56"></canvas>
+                      </div>
+                      <div id="asr-p-value" class="textbox-caption me-2"></div>
+                    </span>
                     <button id="word-table-status" type="button" class="word-table-status me-2" style="display: none;"></button>
                     <button id="audio-upload" class="btn btn-sm btn-warning text-nowrap me-2" style="display: none;" title="Upload audio or MIDI file for analysis" data-i18n="ui.audioUpload" data-i18n-title="ui.uploadAudioMidi"><i class="fas fa-music"></i> <span data-i18n="ui.audioUpload">Audio/MIDI</span></button>
                   </div>
@@ -1058,18 +1082,6 @@
               </div>
               
               <!-- Voice input row - will be hidden when voice input is not available -->
-              <div id="voice-input-row" class="row mb-3 align-items-center">
-                <div class="col-auto d-flex align-items-center flex-wrap">
-                  <div class="d-flex align-items-center">
-                    <button id="voice" class="btn btn-sm btn-info text-nowrap" tabindex="1" title="Start/stop voice input recording" data-i18n="ui.speechInput" data-i18n-title="ui.startStopVoice"><i class="fas fa-microphone"></i> Speech Input</button>
-                    <div id="amplitude" style="display: none; margin-left: 10px; height: 28px; overflow: hidden;">
-                      <canvas id="amplitude-chart" style="width: 150px; height: 28px; max-width: 100%;" width="300" height="56"></canvas>
-                    </div>
-                  </div>
-                  <div id="asr-p-value" class="textbox-caption ms-2"></div>
-                </div>
-              </div>
-
               <div class="row mb-3">
                 <div class="col-auto d-flex align-items-center">
                   <label class="form-check-label ps-1 me-1 text-nowrap" for="select-role" data-i18n="ui.role">Role</label>
@@ -1634,7 +1646,7 @@
             <div id="lightboxContainer" style="display: inline-block; position: relative;">
               <img id="lightboxImage" src="" alt="Screenshot" style="max-width: 95vw; max-height: 85vh; object-fit: contain; cursor: pointer; border-radius: 4px;">
             </div>
-            <div id="lightboxCounter" style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); color: white; background: rgba(0,0,0,0.6); padding: 4px 12px; border-radius: 12px; font-size: 0.85rem;"></div>
+            <div id="lightboxCounter" style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); color: white; background: rgba(0,0,0,0.6); padding: 4px 12px; border-radius: 12px;"></div>
             <button id="lightboxPrev" class="btn btn-sm" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: white; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 36px; height: 36px; display: none;">&lsaquo;</button>
             <button id="lightboxNext" class="btn btn-sm" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: white; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 36px; height: 36px; display: none;">&rsaquo;</button>
           </div>

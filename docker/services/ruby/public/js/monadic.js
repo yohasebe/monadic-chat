@@ -340,17 +340,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           }
         });
 
-        // Update START button label to "Continue Session" when messages exist
-        if (window.i18nReady) {
-          window.i18nReady.then(() => {
-            const continueText = webUIi18n.t('ui.session.continueSession') || 'Continue Session';
-            const startLabelEl = $id("start-label");
-            if (startLabelEl) startLabelEl.textContent = continueText;
-          });
-        } else {
-          const startLabelEl = $id("start-label");
-          if (startLabelEl) startLabelEl.textContent = 'Continue Session';
-        }
+        window.setStartButtonMode(true);
       }
 
       // Clear restoration flag after a delay to allow all UI updates and WebSocket initialization to complete
@@ -1065,7 +1055,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const aiAssistantText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.aiAssistant') : 'AI Assistant';
         var aiAssistantInfo = $id("ai-assistant-info");
         if (aiAssistantInfo) {
-          aiAssistantInfo.innerHTML = '<span style="color: #DC4C64;" data-i18n="ui.aiAssistant">' + aiAssistantText + '</span> &nbsp;<span class="ai-assistant-provider" style="display: inline-block; padding: 0.25rem 0.5rem; border: 1px solid #dee2e6; border-radius: 0.375rem; background-color: #f8f9fa; font-weight: normal; min-width: 120px; text-align: left; font-size: 0.875rem; line-height: 1.5; height: calc(1.5em + 0.5rem + 2px); vertical-align: middle;">' + provider + '</span>';
+          aiAssistantInfo.innerHTML = '<span style="color: #DC4C64;" data-i18n="ui.aiAssistant">' + aiAssistantText + '</span> &nbsp;<span class="ai-assistant-provider" style="display: inline-block; padding: 0.25rem 0.5rem; border: 1px solid #dee2e6; border-radius: 0.375rem; background-color: #f8f9fa; font-weight: normal; min-width: 120px; text-align: left; line-height: 1.5; height: calc(1.5em + 0.5rem + 2px); vertical-align: middle;">' + provider + '</span>';
           aiAssistantInfo.setAttribute("data-model", selectedModel);
         }
 
@@ -2126,18 +2116,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Reset to settings panel
     enterSettingsMode();
-    // Wait for i18n to be ready before updating button text
-    if (window.i18nReady) {
-      window.i18nReady.then(() => {
-        const startText = webUIi18n.t('ui.session.startSession');
-        { const el = $id("start-label"); if (el) el.textContent = startText; }
-      });
-    } else {
-      // Fallback if i18nReady is not available
-      const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
-        webUIi18n.t('ui.session.startSession') : 'Start Session';
-      { const el = $id("start-label"); if (el) el.textContent = startText; }
-    }
+    window.setStartButtonMode(false);
     proceedWithAppChange(newAppValue);
   });
   
@@ -3145,18 +3124,7 @@ document.addEventListener("DOMContentLoaded", function () {
     audioInit();
     resetEvent(event, false); // false = keep current app
     { const el = $id("select-role"); if (el) { el.value = "user"; $dispatch(el, "change"); } }
-    // Wait for i18n to be ready before updating button text
-    if (window.i18nReady) {
-      window.i18nReady.then(() => {
-        const startText = webUIi18n.t('ui.session.startSession');
-        { const el = $id("start-label"); if (el) el.textContent = startText; }
-      });
-    } else {
-      // Fallback if i18nReady is not available
-      const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
-        webUIi18n.t('ui.session.startSession') : 'Start Session';
-      { const el = $id("start-label"); if (el) el.textContent = startText; }
-    }
+    window.setStartButtonMode(false);
     { const el = $id("model"); if (el) el.disabled = false; }
   });
   
@@ -3169,18 +3137,7 @@ document.addEventListener("DOMContentLoaded", function () {
     audioInit();
     resetEvent(event, false); // false = keep current app
     { const el = $id("select-role"); if (el) { el.value = "user"; $dispatch(el, "change"); } }
-    // Wait for i18n to be ready before updating button text
-    if (window.i18nReady) {
-      window.i18nReady.then(() => {
-        const startText = webUIi18n.t('ui.session.startSession');
-        { const el = $id("start-label"); if (el) el.textContent = startText; }
-      });
-    } else {
-      // Fallback if i18nReady is not available
-      const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
-        webUIi18n.t('ui.session.startSession') : 'Start Session';
-      { const el = $id("start-label"); if (el) el.textContent = startText; }
-    }
+    window.setStartButtonMode(false);
     { const el = $id("model"); if (el) el.disabled = false; }
   }); });
 

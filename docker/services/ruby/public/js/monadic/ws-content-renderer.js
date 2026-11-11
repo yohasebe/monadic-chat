@@ -589,10 +589,6 @@
           if (clock) {
             clock.style.fontSize = '16px';
           }
-          var tempoWrap = midiDiv.querySelector('.abcjs-tempo-wrapper');
-          if (tempoWrap) {
-            tempoWrap.style.fontSize = '10px';
-          }
         }
 
         synthControl.setTune(visualObj, false, {});

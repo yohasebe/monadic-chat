@@ -122,7 +122,7 @@ html, body, input, select, textarea {
 }
 
 button, .btn {
-  font-size: 13px;
+  font-size: inherit;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -193,7 +193,7 @@ textarea {
 
 /* Small buttons: slightly smaller font than base .btn (13px) */
 .btn-sm {
-  font-size: 12px;
+  font-size: inherit;
 }
 
 /* ============================================== */
@@ -259,7 +259,7 @@ textarea {
   font-weight: normal;
   min-width: 120px;
   text-align: left;
-  font-size: 0.875rem;
+  font-size: inherit;
   line-height: 1.5;
   height: calc(1.5em + 0.5rem + 2px);
   vertical-align: middle;
@@ -617,7 +617,7 @@ textarea {
 /* Header label adjustments: ensure icon and text size remain balanced */
 
 #modeLabel, #dockerLabel, #systemLabel {
-  font-size: 0.85rem;
+  font-size: inherit;
 }
 
 #modeLabel i, #dockerLabel i, #systemLabel i {
@@ -681,7 +681,7 @@ div.sourcecode-toggle {
   color: #777;
   margin-top: 0.5em;
   margin-bottom: 0.75em;
-  font-size: 0.9em;
+  font-size: inherit;
   cursor: pointer;
   user-select: none;
 }
@@ -899,7 +899,7 @@ div[class*="alert-"]::after {
 
 span.status {
   font-family: var(--bs-font-sans-serif);
-  font-size: 0.8rem;
+  font-size: inherit;
   font-weight: 400;
   line-height: 1.5;
   color: #212529;
@@ -1080,7 +1080,7 @@ h5 i,
 
 #cancel_query span {
   color: #333;
-  font-size: 0.8rem;
+  font-size: inherit;
   font-weight: 500;
 }
 
@@ -1185,7 +1185,7 @@ blockquote ol {
 /* Legacy message-{type} classes removed - now using unified text-{type} system */
 
 .textbox-caption {
-  font-size: 0.9em;
+  font-size: inherit;
   color: #777;
 }
 
@@ -1310,7 +1310,7 @@ div.sourcecode-toggle:hover {
 /* Ensure consistent button styling for all roles */
 
 .card-body .btn-sm {
-  font-size: 13px;
+  font-size: inherit;
   padding: 0.25rem 0.5rem;
   line-height: 1.5;
 }
@@ -1369,7 +1369,7 @@ div.diagram svg {
   width: 28px !important;
   height: 28px !important;
   padding: 5px 4px !important;
-  font-size: 14px !important;
+  font-size: inherit !important;
 }
 
 .abc-midi .abcjs-midi-progress-background {
@@ -1390,12 +1390,12 @@ div.diagram svg {
 }
 
 .abc-midi .abcjs-midi-tempo {
-  font-size: 10px !important;
+  font-size: inherit !important;
   width: 42px !important;
 }
 
 .abc-midi .abcjs-tempo-wrapper {
-  font-size: 10px !important;
+  font-size: inherit !important;
 }
 
 .generated-audio-player {
@@ -1457,7 +1457,7 @@ div.diagram svg {
 }
 
 .card-body table th {
-  font-size: 14px;
+  font-size: inherit;
   letter-spacing: 1px;
   text-transform: uppercase;
   background-color: var(--bg-hover);
@@ -1624,7 +1624,7 @@ legend {
   right: 8px; /* Positioned from right edge */
   height: 14px; /* Reduced height */
   line-height: 1; /* Reset line height */
-  font-size: 0.85em; /* Reduced font size */
+  font-size: inherit; /* Reduced font size */
   display: inline-block;
   opacity: var(--opacity-hover); /* Add slight transparency */
 }
@@ -1667,7 +1667,7 @@ legend {
   border: 1px solid #dee2e6;
   color: var(--json-label-primary);
   padding: 0.5rem;
-  font-size: 13px;
+  font-size: inherit;
   border-radius: 5px;
   cursor: pointer;
   transition: all var(--transition-fast) ease;
@@ -1718,7 +1718,7 @@ legend {
 
 .toggle-text {
   user-select: none;
-  font-size: 0.85em;
+  font-size: inherit;
   color: #777;
   cursor: pointer;
   margin-left: 0.5em;
@@ -1991,7 +1991,7 @@ legend {
   cursor: pointer;
   list-style: revert;
   user-select: none;
-  font-size: 0.875rem;
+  font-size: inherit;
 }
 #library-viewer-messages details.library-viewer-system[open] summary {
   margin-bottom: 0.5rem;
@@ -2472,7 +2472,7 @@ h1 {
   background-color: #f2f2f2;
   border-bottom: 1px solid #ddd;
   color: #666;
-  font-size: 0.85em;
+  font-size: inherit;
 }
 
 .custom-dropdown-group > span:first-child {
@@ -2496,7 +2496,7 @@ h1 {
   height: calc(1.5em + 0.5rem + 2px);
   display: flex;
   align-items: center;
-  font-size: 0.9em;
+  font-size: inherit;
 }
 
 .custom-dropdown-option i {
@@ -2582,7 +2582,7 @@ h1 {
   background-color: rgba(231, 76, 60, 0.8);
   color: white;
   padding: 2px 6px;
-  font-size: 10px;
+  font-size: inherit;
   border-radius: 0 4px 0 4px;
   z-index: 10; /* UI_ZINDEX.ELEVATED */
 }
@@ -2594,7 +2594,7 @@ h1 {
 }
 
 .mask-controls .btn {
-  font-size: 10px;
+  font-size: inherit;
   padding: 2px 6px;
   margin-right: 5px;
 }
@@ -2787,7 +2787,7 @@ h1 {
 }
 
 .custom-dropdown-group.all-disabled .api-key-required {
-  font-size: 0.85em;
+  font-size: inherit;
   color: #999;
   font-weight: normal;
   margin-left: 8px;
@@ -3140,26 +3140,26 @@ img.base64-image,
   background: var(--bs-body-bg, #fff);
   border: 1px solid var(--bs-border-color-translucent, rgba(0,0,0,0.1));
   border-radius: var(--border-radius, 4px);
-  font-size: 0.875rem;
+  font-size: inherit;
   word-break: break-word;
 }
 
 .context-items-list {
-  font-size: 0.875rem;
+  font-size: inherit;
   line-height: 1.5;
   color: var(--bs-body-color, #212529);
   word-break: break-word;
 }
 
 .context-badge {
-  font-size: 0.7rem;
+  font-size: inherit;
   min-width: 1.25rem;
 }
 
 /* Context Panel Turn Grouping */
 
 .context-items-grouped {
-  font-size: 0.875rem;
+  font-size: inherit;
   line-height: 1.5;
 }
 
@@ -3178,13 +3178,9 @@ img.base64-image,
 
 .context-turn-label {
   flex-shrink: 0;
-  font-size: 0.7rem;
-  font-weight: 600;
   color: var(--chip-neutral-color);
   background: var(--chip-neutral-bg);
   border: 1px solid var(--chip-neutral-border);
-  border-radius: 3px;
-  padding: calc(0.1rem - 1px) calc(0.35rem - 1px);
   min-width: 1.5rem;
   text-align: center;
 }
@@ -3213,7 +3209,7 @@ img.base64-image,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.6rem;
+  font-size: inherit;
   color: #fd7e14;
   margin-left: 2px;
   opacity: 0.9;
@@ -3232,16 +3228,9 @@ img.base64-image,
 /* Card turn number badge */
 
 .card-turn-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.65rem;
-  font-weight: 600;
   background: var(--chip-assistant-bg);
   color: var(--chip-assistant-color);
   border: 1px solid var(--chip-assistant-border);
-  padding: 1px 4px;
-  border-radius: 3px;
   margin-right: 8px;
   min-width: 22px;
   cursor: default;
@@ -3444,16 +3433,9 @@ img.base64-image,
 }
 
 .tool-group-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 500;
   white-space: nowrap;
   cursor: default;
   transition: all 0.2s ease;
-  gap: 4px;
 }
 
 .tool-group-badge i {
@@ -3483,7 +3465,7 @@ img.base64-image,
 }
 
 .badge-category-label {
-  font-size: 11px;
+  font-size: inherit;
   font-weight: 600;
   color: #666;
   flex-shrink: 0;
@@ -3655,7 +3637,7 @@ img.base64-image,
 }
 
 #interaction-toggle-all {
-  font-size: 11px;
+  font-size: inherit;
   padding: 0.15rem 0.4rem;
   vertical-align: middle;
 }
@@ -3663,14 +3645,14 @@ img.base64-image,
 /* Enhanced dropdown styling */
 .enhanced-option {
   padding: 4px 8px;
-  font-size: 0.9em;
+  font-size: inherit;
 }
 
 .enhanced-separator {
   background-color: #f2f2f2;
   font-weight: bold;
   color: #666;
-  font-size: 0.85em;
+  font-size: inherit;
 }
 
 .enhanced-optgroup {
@@ -3819,7 +3801,7 @@ img.base64-image,
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  font-size: 0.875rem;
+  font-size: inherit;
   width: 250px;
   max-width: 250px;
   overflow: hidden;
@@ -3994,7 +3976,7 @@ img.base64-image,
 
 /* Tool execution status in temp card header */
 #tool-status {
-  font-size: 0.75rem;
+  font-size: inherit;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5177,7 +5159,7 @@ i.fas.fa-bolt,
   
   /* Reduce font size for labels */
   label, .form-label, .div-label {
-    font-size: 0.9em;
+    font-size: inherit;
   }
   
   /* Stack model parameters vertically */
@@ -5206,7 +5188,7 @@ i.fas.fa-bolt,
     width: auto;
     margin: 5px 10px 5px 0; /* Increased right margin for better spacing */
     padding: 6px 12px; /* Slightly increased padding */
-    font-size: 13px;
+    font-size: inherit;
   }
   
   /* Media/content buttons should be horizontal on mobile */
@@ -5226,7 +5208,7 @@ i.fas.fa-bolt,
     width: auto;
     margin: 5px 10px 5px 0;
     padding: 6px 12px;
-    font-size: 0.85em;
+    font-size: inherit;
     white-space: nowrap;
   }
   
@@ -5253,7 +5235,7 @@ i.fas.fa-bolt,
   /* AI User section improvements */
   .user-color.fw-bold {
     white-space: nowrap;
-    font-size: 0.9em;
+    font-size: inherit;
   }
   
   /* Make AI User section stack properly */
@@ -5270,14 +5252,14 @@ i.fas.fa-bolt,
   #ai_user_provider {
     max-width: 120px;
     margin-left: 5px;
-    font-size: 0.9em;
+    font-size: inherit;
   }
   
   /* Shrink Run button */
   #ai_user {
     padding: 4px 8px;
     min-width: 40px;
-    font-size: 0.85em;
+    font-size: inherit;
   }
   
   /* Improve speech input controls */
@@ -5292,7 +5274,7 @@ i.fas.fa-bolt,
     margin-right: 10px;
     margin-bottom: 10px;
     padding: 6px 12px;
-    font-size: 0.85em;
+    font-size: inherit;
   }
   
   /* Adjust amplitude display to be properly aligned with voice button */
@@ -5338,7 +5320,7 @@ i.fas.fa-bolt,
     height: auto;
     /* Removed min-height for more compact buttons */
     flex: 0 0 auto; /* Don't grow or shrink */
-    font-size: 13px; /* Match Electron main window buttons */
+    font-size: inherit; /* Match Electron main window buttons */
   }
   
   /* Adjust spacing between voice row and role row */
@@ -5362,7 +5344,7 @@ i.fas.fa-bolt,
     margin-bottom: 8px;
     margin-left: 0;
     padding-left: 0;
-    font-size: 0.85em;
+    font-size: inherit;
     text-align: left;
     clear: both; /* Ensure it appears below the buttons */
     order: 2; /* Place it after the buttons in flex layout */
@@ -5903,8 +5885,22 @@ i.fas.fa-bolt,
 }
 
 
-/* The bar at the top of a column, with the space below it. */
+/* The bar at the top of a column, with the space below it. The side
+   column's bar is its tabs at this height (their labels are one line), so
+   what stays under it knows where it ends. */
+:root { --side-pane-tabs-height: 46px; }
 .column-bar { padding-bottom: var(--spacing-sm); }
+
+/* Text is never smaller than the page's own: Bootstrap's small text and
+   the text of its small buttons and fields take the size around them (their
+   tighter padding stays). */
+small, .small,
+.btn-sm, .btn-group-sm > .btn,
+.form-control-sm, .form-select-sm,
+.input-group-sm > .form-control, .input-group-sm > .form-select,
+.input-group-sm > .input-group-text, .input-group-sm > .btn {
+  font-size: inherit;
+}
 
 /* A chat's word table: the panel above the message box. Text is the
    page's own size; what does not fit opens on request (word-table-how). */
@@ -6006,28 +6002,31 @@ i.fas.fa-bolt,
 .word-table-error { margin-top: 8px; color: #a94442; }
 .word-table-note { margin: 10px 0; color: #5c636a; }
 .word-table-status {
-  padding: 4px 12px;
-  border: 0;
-  border-radius: 16px;
-  background-color: #dfe6f1;
-  color: #3b639b;
+  border: 1px solid var(--bdg-blue-bd);
+  background-color: var(--bdg-blue-bg);
+  color: var(--bdg-blue-fg);
   white-space: nowrap;
 }
-.word-table-status.word-table-unavailable { background-color: #f4e0df; color: #a94442; }
+.word-table-status.word-table-unavailable {
+  border-color: var(--bdg-red-bd);
+  background-color: var(--bdg-red-bg);
+  color: var(--bdg-red-fg);
+}
 /* The buttons under the message box keep a gap when they wrap. */
 .message-tools { row-gap: 8px; }
+/* Voice input and its meter, beside the other tools (hidden by monadic.js
+   where the browser cannot record). */
+.voice-input { display: inline-flex; align-items: center; }
 /* A hidden word as the conversation shows it: its title says what was sent. */
 .word-table-shown { border-bottom: 1px dotted #4f78b8; cursor: help; }
 .dark-theme .word-table-panel,
 .dark-theme .word-table-preview,
 .dark-theme .word-table-add,
 .dark-theme .word-table-word { background-color: #2b2f36; border-color: #454b55; }
-.dark-theme .word-table-hidden,
-.dark-theme .word-table-status { background-color: #3f4b5e; color: #e5e5ea; }
+.dark-theme .word-table-hidden { background-color: #3f4b5e; color: #e5e5ea; }
 .dark-theme .word-table-type { color: #a9c1e8; }
 .dark-theme .word-table-note,
 .dark-theme .word-table-kept { color: #b8bec6; }
-.dark-theme .word-table-status.word-table-unavailable { background-color: #5a3836; color: #f0d4d2; }
 .dark-theme .word-table-putback { border-color: #454b55; }
 .dark-theme .word-table-shown { border-bottom-color: #a9c1e8; }
 
@@ -6036,16 +6035,12 @@ i.fas.fa-bolt,
    first STS turn completes. Deliberately low-contrast: it is a standing
    reference figure, not an alert. */
 .sts-usage-indicator {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.78em;
-  font-weight: 500;
   white-space: nowrap;
   cursor: default;
   user-select: none;
-  background-color: #f1f3f5;
-  color: #6c757d;
+  background-color: var(--bdg-grey-bg);
+  border: 1px solid var(--bdg-grey-bd);
+  color: var(--bdg-grey-fg);
 }
 .sts-usage-indicator i {
   margin-right: 4px;
@@ -6144,7 +6139,7 @@ i.fas.fa-bolt,
 }
 .func-verify {
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: inherit;
   color: var(--color-link);
   user-select: none;
 }
@@ -6162,7 +6157,7 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 }
 .verify-result--pending {
   padding: 0.5rem 0.75rem;
-  font-size: 0.9rem;
+  font-size: inherit;
   color: var(--color-link);
 }
 .verify-header {
@@ -6177,7 +6172,7 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 .verify-caret { transition: transform 0.15s ease; font-size: 0.8rem; color: #6c757d; }
 .verify-collapsed .verify-caret { transform: rotate(-90deg); }
 .verify-collapsed .verify-body { display: none; }
-.verify-body { padding: 0 0.75rem 0.6rem 0.75rem; font-size: 0.9rem; }
+.verify-body { padding: 0 0.75rem 0.6rem 0.75rem; font-size: inherit; }
 .verify-row { margin-top: 0.4rem; }
 .verify-list { margin: 0.2rem 0 0.2rem 1.1rem; padding: 0; }
 .verify-rec { color: #6c757d; font-weight: 500; }
@@ -6186,14 +6181,8 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 .verify-error { color: var(--accent-red); }
 
 .verify-badge {
-  display: inline-block;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #fff;
-  background: #6c757d;
-  line-height: 1.2;
+  color: var(--bdg-grey-fg);
+  background: var(--bdg-grey-bg);
 }
 /* Confidence badge colors (.verify-badge--*) are defined with the rest of the
    badge rules near the end of this file; the colours are in tokens.css
@@ -6212,7 +6201,7 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   margin: 0.25rem 0 0.25rem 1rem;
   padding: 0.4rem 0.6rem;
   border-left: 2px solid var(--border-color);
-  font-size: 0.85rem;
+  font-size: inherit;
   color: #555;
 }
 .verify-panel-open .verify-panel-text { display: block; }
@@ -6222,9 +6211,9 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 .verify-panel-text > :last-child { margin-bottom: 0; }
 .verify-panel-text h1, .verify-panel-text h2, .verify-panel-text h3,
 .verify-panel-text h4, .verify-panel-text h5, .verify-panel-text h6 {
-  font-size: 0.95rem; font-weight: 700; margin: 0.5rem 0 0.25rem;
+  font-size: inherit; font-weight: 700; margin: 0.5rem 0 0.25rem;
 }
-.verify-panel-text table { font-size: 0.8rem; border-collapse: collapse; }
+.verify-panel-text table { font-size: inherit; border-collapse: collapse; }
 .verify-panel-text th, .verify-panel-text td {
   border: 1px solid var(--border-color); padding: 0.15rem 0.4rem;
 }
@@ -6233,14 +6222,9 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 
 /* Verify: at-a-glance header chip */
 .verify-chip {
-  display: inline-block;
   margin-left: 0.5rem;
-  padding: 0.1rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #fff;
-  background: #6c757d;
+  color: var(--bdg-grey-fg);
+  background: var(--bdg-grey-bg);
   cursor: pointer;
   vertical-align: middle;
 }
@@ -6249,24 +6233,42 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
    One pill shape + size for every badge family, applied last so it overrides
    each family's original geometry. All families share the soft treatment
    (tint background + accent border + accent text) defined below. */
+/* Tags. Two shapes, one size and one weight everywhere: a pill for what
+   something is or how it stands (a feature, a state), and a box with
+   slightly rounded corners for a number or a short mark (a turn, "edited").
+   Colors come from the five families below (--bdg-*): blue for information
+   or a feature on, green for what went well, amber for a caution or a
+   setting's value, red for danger or failure, grey for the rest. */
 .mc-badge,
 .badge-tools,
 .badge-capabilities,
 .tool-group-badge,
 .verify-badge,
-.privacy-lang-badge {
+.verify-chip,
+.sts-usage-indicator,
+.word-table-status {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
   padding: 0.22rem 0.6rem;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: inherit;
   font-weight: 600;
   line-height: 1.2;
   vertical-align: middle;
 }
-
-
+.mc-badge--mark,
+.card-turn-badge,
+.context-turn-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--border-radius);
+  font-size: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+}
 
 /* The app's own badge component. Markup uses `mc-badge mc-badge--<family>`
    instead of Bootstrap's `badge bg-*`: bootstrap.min.css is imported into
@@ -6441,7 +6443,7 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   margin-bottom: 0.5rem;
 }
 .lc-live-zone .lc-live-role {
-  font-size: 0.75rem;
+  font-size: inherit;
   color: var(--bs-secondary-color, #6c757d);
   margin-bottom: 0.15rem;
 }
@@ -6523,6 +6525,17 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
     z-index: 6;
     background-color: var(--bg-body);
   }
+  /* A pane's search, order and selection controls stay under the side
+     column's bar while its list scrolls. */
+  .shared-files-pane .sfp-head {
+    position: sticky;
+    top: calc(var(--side-pane-tabs-height) + var(--spacing-sm));
+    z-index: 5;
+    /* Its controls' bottom margin stays inside it (flow-root), so the list
+       scrolls under that space, as wide as the space above the controls. */
+    display: flow-root;
+    background-color: var(--bg-body);
+  }
 }
 
 /* The border between the columns, dragged to set the side column's width:
@@ -6586,7 +6599,7 @@ body.side-pane-resizing {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--font-size-sm);
+  font-size: inherit;
 }
 .shared-files-pane .sfp-where a {
   color: var(--text-secondary);
@@ -6608,6 +6621,18 @@ body.side-pane-resizing {
 .shared-files-pane .sfp-find .btn {
   flex: 0 0 auto;
 }
+/* The search box, the order and the buttons beside them are one height. */
+.shared-files-pane .sfp-find {
+  align-items: stretch;
+}
+/* The buttons that show only an icon are one size. */
+.shared-files-pane .sfp-icon-btn {
+  flex: 0 0 auto;
+  width: 2.5rem;
+  min-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
 /* The filter button while a kind or an age narrows the list. */
 .shared-files-pane .sfp-on {
   box-shadow: 0 0 0 2px var(--focus-outline);
@@ -6618,7 +6643,7 @@ body.side-pane-resizing {
   background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
   border: var(--border-width) solid var(--border-light);
   border-radius: var(--border-radius);
-  font-size: var(--font-size-sm);
+  font-size: inherit;
 }
 .shared-files-pane .sfp-band-text {
   flex: 1 1 auto;
@@ -6627,13 +6652,13 @@ body.side-pane-resizing {
 .shared-files-pane .sfp-band-note {
   flex: 1 0 100%;
   color: var(--text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: inherit;
 }
 .shared-files-pane .sfp-status {
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-sm);
-  font-size: var(--font-size-sm);
+  font-size: inherit;
   color: var(--text-secondary);
 }
 .shared-files-pane .sfp-status[hidden] {
@@ -6646,7 +6671,7 @@ body.side-pane-resizing {
   border-radius: var(--border-radius);
 }
 .shared-files-pane .sfp-status-close {
-  font-size: var(--font-size-xs);
+  font-size: inherit;
 }
 .shared-files-pane .sfp-list {
   list-style: none;
@@ -6713,7 +6738,7 @@ body.side-pane-resizing {
   border: 0;
   border-radius: var(--border-radius);
   color: var(--text-primary);
-  font-size: var(--font-size-sm);
+  font-size: inherit;
   text-align: left;
 }
 .shared-files-pane .sfp-name:hover:not(:disabled) {
@@ -6743,7 +6768,7 @@ body.side-pane-resizing {
   white-space: nowrap;
 }
 .shared-files-pane .sfp-meta {
-  font-size: var(--font-size-xs);
+  font-size: inherit;
   color: var(--text-secondary);
 }
 .shared-files-pane .sfp-row-menu {
@@ -6760,7 +6785,7 @@ body.side-pane-resizing {
   justify-content: space-between;
 }
 .shared-files-pane .sfp-info {
-  font-size: var(--font-size-xs);
+  font-size: inherit;
   color: var(--text-secondary);
 }
 .shared-files-pane .sf-kind-folder { color: var(--accent-amber); }
@@ -6769,9 +6794,6 @@ body.side-pane-resizing {
 .shared-files-pane .sf-kind-other { color: var(--text-secondary); }
 .history-pane .history-open-badge {
   flex: 0 0 auto;
-  background: var(--bg-hover);
-  color: var(--text-secondary);
-  font-weight: 500;
 }
 .history-pane .history-confirm-text {
   flex: 1 1 auto;
@@ -6781,7 +6803,15 @@ body.side-pane-resizing {
    button over everything. */
 .row-menu {
   z-index: 1080;
+  width: max-content;
   min-width: 12rem;
+  max-width: calc(100vw - 8px);
+}
+/* A menu's items each on their own line, their words at their left (the
+   rule for every button makes a button inline and centers what it holds). */
+.dropdown-menu .dropdown-item {
+  display: flex;
+  justify-content: flex-start;
 }
 .row-menu-panel {
   padding: var(--spacing-sm) var(--spacing-md);
@@ -6795,7 +6825,7 @@ body.side-pane-resizing {
 .side-pane-tabs {
   display: flex;
   align-items: stretch;
-  min-height: 46px;
+  min-height: var(--side-pane-tabs-height);
   box-sizing: border-box;
   padding: var(--spacing-xs);
 }
@@ -6863,7 +6893,7 @@ body.side-pane-resizing {
   border: var(--border-width) solid transparent;
   border-radius: var(--border-radius);
   color: var(--text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: inherit;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -6886,15 +6916,26 @@ body.side-pane-resizing {
   align-items: center;
 }
 .workbench-item-remove {
+  width: 1.8em;
+  height: 1.8em;
+  min-width: 0;
   margin-left: var(--border-width);
-  padding: 0 var(--spacing-xs);
+  padding: 0;
   background: transparent;
   border: 0;
+  border-radius: var(--border-radius);
   color: var(--text-secondary);
   line-height: 1;
 }
 .workbench-item-remove:hover {
-  color: var(--text-primary);
+  background-color: rgba(191, 98, 94, 0.14);
+  color: #bf625e;
+}
+/* The buttons that step through the items show only an arrow. */
+.workbench-prev,
+.workbench-next {
+  width: 2.5rem;
+  min-width: 0;
 }
 .workbench-item-remove:focus-visible {
   outline: 2px solid var(--color-link);
@@ -6927,7 +6968,7 @@ body.side-pane-resizing {
   margin: 0;
   padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-sm) 3.5em;
   font-family: var(--font-family-monospace, monospace);
-  font-size: var(--font-size-sm);
+  font-size: inherit;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -6981,7 +7022,7 @@ body.side-pane-resizing {
 }
 .workbench-table {
   margin-bottom: 0;
-  font-size: var(--font-size-sm);
+  font-size: inherit;
 }
 .workbench-table th {
   position: sticky;

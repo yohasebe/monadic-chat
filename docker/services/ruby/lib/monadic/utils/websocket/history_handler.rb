@@ -6,16 +6,28 @@
 # list's headings, never a conversation, except to the tab that resumes it.
 module WebSocketHelper
   HISTORY_PAGE = 50
+  # Chats removed at once, at most.
+  HISTORY_DELETE_MAX = 200
+  # How long a chat was not used, in days, that the list can be narrowed by.
+  HISTORY_UNUSED_DAYS = [30, 90, 365].freeze
 
-  private def handle_ws_history_list(connection, obj)
+  private def handle_ws_history_list(connection, obj, session = {})
     return send_history_off(connection, 'history_list') unless Monadic::History.enabled?
 
     offset = [obj['offset'].to_i, 0].max
     query = obj['query'].to_s[0, 200]
+    app_name = obj['app'].to_s[0, 100]
+    days = HISTORY_UNUSED_DAYS.include?(obj['unused_days'].to_i) ? obj['unused_days'].to_i : nil
     items = Monadic::History.list(query: query, offset: offset, limit: HISTORY_PAGE + 1,
-                                  open_chat_ids: WebSocketHelper.live_chat_ids)
-    # The query comes back so the page can tell the sidebar's list from the panel's.
+                                  open_chat_ids: WebSocketHelper.live_chat_ids,
+                                  here_chat_id: session[Monadic::Workspace::Chats::SESSION_KEY],
+                                  app_name: app_name.empty? ? nil : app_name,
+                                  unused_before: days && (Time.now - (days * 86_400)))
+    # What was asked comes back so the page can tell the answer to its
+    # current list from one to an earlier list.
     send_to_client(connection, { 'type' => 'history_list', 'enabled' => true, 'offset' => offset, 'query' => query,
+                                 'app' => app_name, 'unused_days' => days,
+                                 'apps' => Monadic::History::Store.default.app_names,
                                  'items' => items.first(HISTORY_PAGE), 'has_more' => items.length > HISTORY_PAGE })
   rescue StandardError => e
     send_history_error(connection, 'history_list', e)
@@ -33,28 +45,43 @@ module WebSocketHelper
 
   # A chat open in a tab is not removed: the tab would go on with it. The
   # chat is reserved while it is removed, so no tab takes it meanwhile.
+  # chat_ids: several at once (up to HISTORY_DELETE_MAX); the reply says
+  # which were removed and why the others were not.
   private def handle_ws_history_delete(connection, obj)
     return send_history_off(connection, 'history_deleted') unless Monadic::History.enabled?
 
-    chat_id = history_chat_id(obj)
-    reply = { 'type' => 'history_deleted', 'chat_id' => chat_id }
-    if chat_id.nil?
-      reply['success'] = false
-      reply['error'] = 'history_not_found'
-    elsif !WebSocketHelper.reserve_chat(chat_id)
-      reply['success'] = false
-      reply['error'] = 'history_chat_open'
-    else
-      begin
-        Monadic::History::Store.default.delete(chat_id)
-      ensure
-        WebSocketHelper.release_chat(chat_id)
-      end
-      reply['success'] = true
+    unless obj['chat_ids'].is_a?(Array)
+      chat_id = history_chat_id(obj)
+      error = history_delete_one(chat_id)
+      reply = { 'type' => 'history_deleted', 'chat_id' => chat_id, 'success' => error.nil? }
+      reply['error'] = error if error
+      return send_to_client(connection, reply)
     end
-    send_to_client(connection, reply)
+
+    removed = []
+    failed = {}
+    obj['chat_ids'].first(HISTORY_DELETE_MAX).each do |given|
+      chat_id = history_chat_id({ 'chat_id' => given })
+      error = history_delete_one(chat_id)
+      if error then failed[chat_id || given.to_s[0, 64]] = error else removed << chat_id end
+    end
+    send_to_client(connection, { 'type' => 'history_deleted', 'chat_ids' => removed, 'failed' => failed,
+                                 'success' => failed.empty? })
   rescue StandardError => e
     send_history_error(connection, 'history_deleted', e)
+  end
+
+  # Removes one chat; nil, or why it was not removed.
+  private def history_delete_one(chat_id)
+    return 'history_not_found' if chat_id.nil?
+    return 'history_chat_open' unless WebSocketHelper.reserve_chat(chat_id)
+
+    begin
+      Monadic::History::Store.default.delete(chat_id)
+    ensure
+      WebSocketHelper.release_chat(chat_id)
+    end
+    nil
   end
 
   # Whether HISTORY_RESUME will replace this tab's chat, as nil (it will)

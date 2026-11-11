@@ -1797,3 +1797,28 @@ if (typeof module !== 'undefined' && module.exports) {
     // isFileInputsSupportedForModel, isResponsesApiModel → model-capabilities.js
   };
 }
+
+// The Start button as it is for a chat that has not begun (start) or one
+// that goes on (continue): its words, its icon and its color differ.
+function setStartButtonMode(continuing) {
+  const apply = () => {
+    const t = (key, fallback) => {
+      const v = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t(key) : null;
+      return v && v !== key ? v : fallback;
+    };
+    const label = $id('start-label');
+    if (label) {
+      label.textContent = continuing
+        ? t('ui.session.continueSession', 'Continue Session')
+        : t('ui.session.startSession', 'Start Session');
+    }
+    const button = $id('start');
+    if (!button) return;
+    button.classList.toggle('btn-primary', !continuing);
+    button.classList.toggle('btn-success', !!continuing);
+    const icon = button.querySelector('i');
+    if (icon) icon.className = continuing ? 'fas fa-play' : 'fas fa-rocket';
+  };
+  if (window.i18nReady) window.i18nReady.then(apply); else apply();
+}
+window.setStartButtonMode = setStartButtonMode;

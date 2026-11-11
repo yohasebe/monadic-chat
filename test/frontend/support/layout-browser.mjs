@@ -169,6 +169,21 @@ async function wide(browser, base) {
   out.work = await page.evaluate(measure);
   await page.evaluate(() => window.LayoutController.setPane('files'));
   out.files = await page.evaluate(measure);
+  // The Files pane scrolled: its controls stay right under the column's bar.
+  await page.evaluate(() => { document.getElementById('menu').scrollTop = 600; });
+  out.filesScrolled = await page.evaluate(() => {
+    const headEl = document.querySelector('#shared-files-pane .sfp-head');
+    const head = headEl.getBoundingClientRect();
+    const shownControls = Array.from(headEl.children).filter((c) => getComputedStyle(c).display !== 'none');
+    const lastControl = shownControls[shownControls.length - 1].getBoundingClientRect();
+    const bar = document.querySelector('#menu .column-bar').getBoundingClientRect();
+    return { by: document.getElementById('menu').scrollTop, headTop: head.top, barBottom: bar.bottom,
+             spaceBelow: head.bottom - lastControl.bottom,
+             findHeights: Array.from(headEl.querySelector('.sfp-find').children).map((c) => Math.round(c.getBoundingClientRect().height)),
+             tabsHeight: document.getElementById('side-pane-tabs').getBoundingClientRect().height,
+             tabsBottom: document.getElementById('side-pane-tabs').getBoundingClientRect().bottom };
+  });
+  await page.evaluate(() => { document.getElementById('menu').scrollTop = 0; });
   // Hidden column, and back.
   await page.evaluate(() => window.LayoutController.setMenuHidden(true));
   out.hidden = await page.evaluate(measure);
@@ -204,8 +219,16 @@ async function wide(browser, base) {
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     const box = document.querySelector('.row-menu').getBoundingClientRect();
     const top = document.elementFromPoint(box.left + 5, box.top + 5);
+    // How wide the menu is beside its longest item's words, and how far its
+    // first item's words start from its left edge.
+    const words = Array.from(document.querySelectorAll('.row-menu .dropdown-item')).map((item) => {
+      const range = document.createRange();
+      range.selectNodeContents(item);
+      return range.getBoundingClientRect();
+    });
     const result = { left: box.left, right: box.right, top: box.top, bottom: box.bottom, w: innerWidth, h: innerHeight,
-      onTop: !!(top && top.closest('.row-menu')) };
+      onTop: !!(top && top.closest('.row-menu')),
+      spare: box.width - Math.max(...words.map((w) => w.width)), indent: words[0].left - box.left };
     window.RowMenu.close();
     return result;
   });

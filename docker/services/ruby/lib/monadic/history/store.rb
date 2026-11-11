@@ -150,15 +150,26 @@ module Monadic
 
       # The list without the conversations themselves, the latest activity
       # first. `query` matches the name, the headings and the messages' text.
-      def list(limit: 100, offset: 0, query: nil)
-        where = ''
+      # app_name: only the chats of that app. unused_before: only the chats
+      # last active before that time.
+      def list(limit: 100, offset: 0, query: nil, app_name: nil, unused_before: nil)
+        conditions = []
         args = []
         unless query.to_s.strip.empty?
           like = "%#{query.to_s.strip.gsub(/[\\%_]/) { |c| "\\#{c}" }}%"
-          where = "WHERE title_user LIKE ? ESCAPE '\\' OR heading_first LIKE ? ESCAPE '\\' " \
-                  "OR heading_recent LIKE ? ESCAPE '\\' OR search_text LIKE ? ESCAPE '\\'"
-          args = [like] * 4
+          conditions << "(title_user LIKE ? ESCAPE '\\' OR heading_first LIKE ? ESCAPE '\\' " \
+                        "OR heading_recent LIKE ? ESCAPE '\\' OR search_text LIKE ? ESCAPE '\\')"
+          args.concat([like] * 4)
         end
+        unless app_name.to_s.empty?
+          conditions << 'app_name = ?'
+          args << app_name.to_s
+        end
+        if unused_before
+          conditions << 'last_activity_at < ?'
+          args << unused_before.utc.iso8601
+        end
+        where = conditions.empty? ? '' : "WHERE #{conditions.join(' AND ')}"
         synchronize(create: false) do |db|
           db.execute(<<~SQL, args + [limit, offset])
             SELECT chat_id, app_name, model, title_user, heading_first, heading_recent,
@@ -166,6 +177,14 @@ module Monadic
             FROM history_chats #{where} ORDER BY last_activity_at DESC, chat_id LIMIT ? OFFSET ?
           SQL
         end || []
+      end
+
+      # The apps the kept chats are of, by name.
+      def app_names
+        rows = synchronize(create: false) do |db|
+          db.execute('SELECT DISTINCT app_name FROM history_chats WHERE app_name IS NOT NULL ORDER BY app_name')
+        end
+        Array(rows).map { |row| row['app_name'] }
       end
 
       # Removes the chat and keeps a tombstone, so nothing of it is written

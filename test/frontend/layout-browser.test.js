@@ -32,6 +32,19 @@ describe('The columns in a browser', () => {
     expect(r.before.tabsCut).toEqual([0, 0, 0, 0]);
   });
 
+  test('keeps the Files pane\'s controls right under the side column\'s bar while its list scrolls', () => {
+    expect(r.filesScrolled.by).toBeGreaterThan(0);
+    near(r.filesScrolled.headTop, r.filesScrolled.barBottom);
+    // With room below its last control, which the list scrolls under, as
+    // much as there is between the bar and its first control.
+    expect(r.filesScrolled.spaceBelow).toBeGreaterThan(0);
+    near(r.filesScrolled.spaceBelow, r.filesScrolled.barBottom - r.filesScrolled.tabsBottom);
+    // The search box and the controls beside it are one height.
+    expect(new Set(r.filesScrolled.findHeights).size).toBe(1);
+    // The bar is its tabs at their set height, which the controls stay under.
+    expect(r.filesScrolled.tabsHeight).toBeLessThanOrEqual(46.5);
+  });
+
   test('keeps both bars at the top of their columns, side by side, while the columns scroll', () => {
     expect(r.scrolledBy).toEqual([1500, 1500]);
     near(r.scrolled.summary.top, r.before.summary.top);
@@ -99,6 +112,9 @@ describe('The columns in a browser', () => {
     expect(r.menu.top).toBeGreaterThanOrEqual(0);
     expect(r.menu.bottom).toBeLessThanOrEqual(r.menu.h);
     expect(r.menu.onTop).toBe(true);
+    // As wide as its words need, with them at its left.
+    expect(r.menu.spare).toBeLessThan(100);
+    expect(r.menu.indent).toBeLessThan(40);
   });
 
   test('says the width as drawn, and moves from it with one key press', () => {

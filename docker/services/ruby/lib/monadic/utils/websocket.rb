@@ -354,7 +354,7 @@ module WebSocketHelper
           handle_ws_import_apply(connection, obj, session, imported)
           send_workbench_view(connection, session) if imported
         when "HISTORY_LIST"
-          handle_ws_history_list(connection, obj)
+          handle_ws_history_list(connection, obj, session)
         when "HISTORY_RENAME"
           handle_ws_history_rename(connection, obj)
         when "HISTORY_DELETE"

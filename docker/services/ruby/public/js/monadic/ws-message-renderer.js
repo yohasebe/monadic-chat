@@ -234,25 +234,7 @@ function handlePastMessages(data) {
   setStats(formatInfo(serverMessages), "info");
 
   const hasConversation = serverMessages.some((m) => m.role !== "system");
-  const labelPromise = window.i18nReady || Promise.resolve();
-  labelPromise.then(() => {
-    var startLabelEl = $id("start-label");
-    if (startLabelEl) {
-      if (hasConversation) {
-        const continueText =
-          typeof webUIi18n !== "undefined" && webUIi18n.initialized
-            ? webUIi18n.t("ui.session.continueSession")
-            : "Continue Session";
-        startLabelEl.textContent = continueText;
-      } else {
-        const startText =
-          typeof webUIi18n !== "undefined" && webUIi18n.initialized
-            ? webUIi18n.t("ui.session.startSession")
-            : "Start Session";
-        startLabelEl.textContent = startText;
-      }
-    }
-  });
+  if (typeof window.setStartButtonMode === 'function') window.setStartButtonMode(hasConversation);
 
   const connectedText =
     typeof webUIi18n !== "undefined" && webUIi18n.initialized

@@ -952,6 +952,21 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "word_table": {
+        if (window.WordTable) window.WordTable.handleTable(data);
+        break;
+      }
+
+      case "words_found": {
+        if (window.WordTable) window.WordTable.handleFound(data);
+        break;
+      }
+
+      case "words_changed": {
+        if (window.WordTable) window.WordTable.handleChanged(data);
+        break;
+      }
+
       case "chat_context": {
         const wsh = window.WsSessionHandler;
         if (wsh && typeof wsh.handleChatContext === 'function') {
@@ -1332,6 +1347,7 @@ window.loadedApp = "Chat";
     window.initialLoadComplete = false;
     // Answers still running end here as far as the page can tell, and the
     // page takes input again: nothing more comes for them.
+    if (window.WordTable) window.WordTable.connectionLost();
     const repliesLost = window.BackgroundReply ? window.BackgroundReply.onConnectionLost() : 0;
     if (repliesLost > 0) {
       window._replyInterrupted = true;

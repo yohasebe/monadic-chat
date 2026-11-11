@@ -115,6 +115,7 @@ const FILES = [
   "js/monadic/vocabulary-panel.js",
   "js/monadic/library-panel.js",
   "js/monadic/privacy-mark.js",
+  "js/monadic/word-table.js",
   "js/monadic/row-menu.js",
   "js/monadic/shared-folder-panel.js",
   "js/monadic/history-panel.js",

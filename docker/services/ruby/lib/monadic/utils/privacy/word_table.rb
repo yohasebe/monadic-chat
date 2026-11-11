@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require_relative 'refused'
 
 module Monadic
   module Utils
@@ -106,12 +107,12 @@ module Monadic
         end
 
         # Words that overlap in part in a text (pairs of the words).
-        class Overlap < StandardError
+        class Overlap < Outbound::Refused
           attr_reader :pairs
 
           def initialize(pairs)
             @pairs = pairs
-            super('words overlap in part; mark the whole of what is meant as one word')
+            super('two of the words to hide overlap in part in this text: hide the whole as one word or take one off; nothing was sent')
           end
         end
 
@@ -222,6 +223,21 @@ module Monadic
               'revision' => @revision
             }
           end
+        end
+
+        # Whether a table can take this as a word, and as a type.
+        def self.word?(word)
+          new.send(:checked_word, word)
+          true
+        rescue Invalid
+          false
+        end
+
+        def self.type?(type)
+          new.send(:checked_type, type)
+          true
+        rescue Invalid
+          false
         end
 
         # A placeholder as it is written in a text.

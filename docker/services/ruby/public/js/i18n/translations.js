@@ -2,6 +2,37 @@
 const webUITranslations = {
   en: {
     ui: {
+      wordTable: {
+        title: "Words to hide in this chat",
+        button: "Anonymize",
+        hint: "Find names in the message and choose what to hide",
+        close: "Close",
+        hideSelection: "Hide selected words",
+        everyWhere: "A word is hidden wherever it occurs in this chat.",
+        note: "These words are replaced in what this chat sends from now on. The history keeps the original words. Images, voice, names not listed here and what was already sent are not covered.",
+        apply: "Hide these words",
+        off: "Do not hide",
+        notHidden: "Not hidden:",
+        putBack: "Offer this word again",
+        status: "Hidden: {n}",
+        unavailable: "Word table not available: nothing is sent",
+        notHiddenNotice: "Images and voice are sent as they are: their words are not hidden.",
+        errors: {
+          selectFirst: "Select the words to hide in the text above first.",
+          oneLine: "A word to hide must be on one line.",
+          cannotHide: "These words cannot be hidden.",
+          privacy_container_starting: "The name finder is starting. Try again in a moment; you can still select words yourself.",
+          privacy_container_unreachable: "The name finder is not available. You can still select words yourself.",
+          words_find_failed: "The names could not be found. You can still select words yourself.",
+          words_text_too_long: "The message is too long to look through.",
+          words_other_chat: "This was for another chat. Nothing was changed.",
+          words_refused: "The words could not be hidden.",
+          table_unavailable: "This chat's words could not be read here, so nothing is sent. Open the chat again from the history.",
+          stillFinding: "Still looking for names. Check what is found, then send again.",
+          closeToSend: "Close this panel to send without looking for names.",
+          decideFirst: "Hide the words listed here or take them off first."
+        }
+      },
       privacyMark: {
         button: "Mask",
         hint: "Mark the selected words to be masked in this chat (Ctrl/Cmd+Shift+K)",
@@ -682,6 +713,37 @@ const webUITranslations = {
   },
   ja: {
     ui: {
+      wordTable: {
+        title: "この会話で伏せる語",
+        button: "匿名化",
+        hint: "メッセージの中の名前を探し、伏せる語を選びます",
+        close: "閉じる",
+        hideSelection: "選択した語を伏せる",
+        everyWhere: "語はこの会話のどこに現れても伏せられます。",
+        note: "これらの語は、この会話からこれ以降に送る文で置き換えられます。履歴には元の語が残ります。画像、音声、ここにない名前、すでに送った内容は対象外です。",
+        apply: "これらの語を伏せる",
+        off: "伏せない",
+        notHidden: "伏せない語：",
+        putBack: "この語を再び候補にする",
+        status: "{n} 語を伏せています",
+        unavailable: "語の表がありません：送信できません",
+        notHiddenNotice: "画像と音声はそのまま送られます。その中の語は伏せられません。",
+        errors: {
+          selectFirst: "先に上の文で伏せる語を選んでください。",
+          oneLine: "伏せる語は 1 行の中で選んでください。",
+          cannotHide: "この語は伏せられません。",
+          privacy_container_starting: "名前を探す機能を起動しています。少し待ってからもう一度お試しください。語を自分で選ぶこともできます。",
+          privacy_container_unreachable: "名前を探す機能が使えません。語を自分で選ぶことはできます。",
+          words_find_failed: "名前を探せませんでした。語を自分で選ぶことはできます。",
+          words_text_too_long: "メッセージが長すぎて探せません。",
+          words_other_chat: "別の会話への操作でした。何も変更していません。",
+          words_refused: "語を伏せられませんでした。",
+          table_unavailable: "この会話の語の表を読めないため、何も送りません。履歴から会話を開き直してください。",
+          stillFinding: "名前を探しています。見つかった語を確認してから、もう一度送ってください。",
+          closeToSend: "名前を探さずに送るには、このパネルを閉じてください。",
+          decideFirst: "先に、ここに挙がっている語を伏せるか、外してください。"
+        }
+      },
       privacyMark: {
         button: "伏せる",
         hint: "選んだ語をこの会話で伏せ字にする（Ctrl/Cmd+Shift+K）",
@@ -1362,6 +1424,37 @@ const webUITranslations = {
   },
   zh: {
     ui: {
+      wordTable: {
+        title: "此对话中要隐藏的词",
+        button: "匿名化",
+        hint: "查找消息中的名称并选择要隐藏的内容",
+        close: "关闭",
+        hideSelection: "隐藏所选词语",
+        everyWhere: "词语在此对话中出现的任何位置都会被隐藏。",
+        note: "从现在起，此对话发送的内容中这些词语会被替换。历史记录保留原词。图像、语音、未列出的名称以及已发送的内容不在此范围内。",
+        apply: "隐藏这些词",
+        off: "不隐藏",
+        notHidden: "未隐藏：",
+        putBack: "重新建议此词",
+        status: "已隐藏 {n} 个词",
+        unavailable: "词表不可用：不会发送任何内容",
+        notHiddenNotice: "图像和语音按原样发送，其中的词语不会被隐藏。",
+        errors: {
+          selectFirst: "请先在上方文本中选择要隐藏的词语。",
+          oneLine: "要隐藏的词语必须在同一行内。",
+          cannotHide: "无法隐藏这些词语。",
+          privacy_container_starting: "名称查找功能正在启动，请稍后重试；您也可以自行选择词语。",
+          privacy_container_unreachable: "名称查找功能不可用；您仍可自行选择词语。",
+          words_find_failed: "未能查找名称；您仍可自行选择词语。",
+          words_text_too_long: "消息太长，无法查找。",
+          words_other_chat: "此操作属于另一个对话，未作任何更改。",
+          words_refused: "无法隐藏这些词语。",
+          table_unavailable: "无法读取此会话的词语表，因此不会发送任何内容。请从历史记录重新打开此会话。",
+          stillFinding: "正在查找姓名。请确认找到的词语后再次发送。",
+          closeToSend: "要不查找姓名直接发送，请关闭此面板。",
+          decideFirst: "请先隐藏或移除此处列出的词语。"
+        }
+      },
       privacyMark: {
         button: "遮盖",
         hint: "将所选词语在本对话中遮盖（Ctrl/Cmd+Shift+K）",
@@ -2065,6 +2158,37 @@ const webUITranslations = {
   },
   ko: {
     ui: {
+      wordTable: {
+        title: "이 대화에서 숨길 단어",
+        button: "익명화",
+        hint: "메시지에서 이름을 찾아 숨길 내용을 선택합니다",
+        close: "닫기",
+        hideSelection: "선택한 단어 숨기기",
+        everyWhere: "단어는 이 대화의 어디에 나타나든 숨겨집니다.",
+        note: "이 단어들은 지금부터 이 대화에서 보내는 내용에서 대체됩니다. 기록에는 원래 단어가 남습니다. 이미지, 음성, 여기에 없는 이름, 이미 보낸 내용은 대상이 아닙니다.",
+        apply: "이 단어들 숨기기",
+        off: "숨기지 않기",
+        notHidden: "숨기지 않는 단어:",
+        putBack: "이 단어를 다시 제안",
+        status: "{n}개 단어 숨김",
+        unavailable: "단어 표를 사용할 수 없음: 아무것도 보내지 않습니다",
+        notHiddenNotice: "이미지와 음성은 그대로 전송되며 그 안의 단어는 숨겨지지 않습니다.",
+        errors: {
+          selectFirst: "먼저 위의 글에서 숨길 단어를 선택하세요.",
+          oneLine: "숨길 단어는 한 줄 안에서 선택하세요.",
+          cannotHide: "이 단어는 숨길 수 없습니다.",
+          privacy_container_starting: "이름 찾기 기능을 시작하는 중입니다. 잠시 후 다시 시도하세요. 단어를 직접 선택할 수도 있습니다.",
+          privacy_container_unreachable: "이름 찾기 기능을 사용할 수 없습니다. 단어를 직접 선택할 수는 있습니다.",
+          words_find_failed: "이름을 찾지 못했습니다. 단어를 직접 선택할 수는 있습니다.",
+          words_text_too_long: "메시지가 너무 길어 찾을 수 없습니다.",
+          words_other_chat: "다른 대화에 대한 작업이어서 아무것도 변경하지 않았습니다.",
+          words_refused: "단어를 숨길 수 없습니다.",
+          table_unavailable: "이 대화의 단어 표를 읽을 수 없어 아무것도 보내지 않습니다. 기록에서 대화를 다시 여세요.",
+          stillFinding: "이름을 찾고 있습니다. 찾은 단어를 확인한 뒤 다시 보내 주세요.",
+          closeToSend: "이름을 찾지 않고 보내려면 이 패널을 닫으세요.",
+          decideFirst: "먼저 여기에 나열된 단어를 숨기거나 제외하세요."
+        }
+      },
       privacyMark: {
         button: "가리기",
         hint: "선택한 단어를 이 대화에서 가립니다 (Ctrl/Cmd+Shift+K)",
@@ -2745,6 +2869,37 @@ const webUITranslations = {
   },
   es: {
     ui: {
+      wordTable: {
+        title: "Palabras que ocultar en este chat",
+        button: "Anonimizar",
+        hint: "Buscar nombres en el mensaje y elegir qué ocultar",
+        close: "Cerrar",
+        hideSelection: "Ocultar lo seleccionado",
+        everyWhere: "Una palabra se oculta dondequiera que aparezca en este chat.",
+        note: "Estas palabras se sustituyen en lo que este chat envíe a partir de ahora. El historial conserva las palabras originales. No incluye imágenes, voz, nombres que no estén aquí ni lo ya enviado.",
+        apply: "Ocultar estas palabras",
+        off: "No ocultar",
+        notHidden: "Sin ocultar:",
+        putBack: "Volver a proponer esta palabra",
+        status: "Ocultas: {n}",
+        unavailable: "Tabla de palabras no disponible: no se envía nada",
+        notHiddenNotice: "Las imágenes y la voz se envían tal cual: sus palabras no se ocultan.",
+        errors: {
+          selectFirst: "Seleccione primero en el texto de arriba las palabras que ocultar.",
+          oneLine: "La palabra que ocultar debe estar en una sola línea.",
+          cannotHide: "Estas palabras no se pueden ocultar.",
+          privacy_container_starting: "El buscador de nombres se está iniciando. Inténtelo de nuevo en un momento; también puede seleccionar palabras usted mismo.",
+          privacy_container_unreachable: "El buscador de nombres no está disponible. Puede seleccionar palabras usted mismo.",
+          words_find_failed: "No se pudieron buscar los nombres. Puede seleccionar palabras usted mismo.",
+          words_text_too_long: "El mensaje es demasiado largo para revisarlo.",
+          words_other_chat: "Era para otro chat. No se ha cambiado nada.",
+          words_refused: "No se pudieron ocultar las palabras.",
+          table_unavailable: "No se pudieron leer las palabras de este chat, así que no se envía nada. Vuelva a abrir el chat desde el historial.",
+          stillFinding: "Buscando nombres. Revise lo encontrado y vuelva a enviar.",
+          closeToSend: "Cierre este panel para enviar sin buscar nombres.",
+          decideFirst: "Primero oculte o quite las palabras indicadas aquí."
+        }
+      },
       privacyMark: {
         button: "Ocultar",
         hint: "Marcar las palabras seleccionadas para ocultarlas en esta conversación (Ctrl/Cmd+Shift+K)",
@@ -3425,6 +3580,37 @@ const webUITranslations = {
   },
   fr: {
     ui: {
+      wordTable: {
+        title: "Mots à masquer dans ce chat",
+        button: "Anonymiser",
+        hint: "Trouver les noms dans le message et choisir ce qu'il faut masquer",
+        close: "Fermer",
+        hideSelection: "Masquer la sélection",
+        everyWhere: "Un mot est masqué partout où il apparaît dans ce chat.",
+        note: "Ces mots sont remplacés dans ce que ce chat envoie désormais. L'historique conserve les mots d'origine. Les images, la voix, les noms absents de cette liste et ce qui a déjà été envoyé ne sont pas couverts.",
+        apply: "Masquer ces mots",
+        off: "Ne pas masquer",
+        notHidden: "Non masqués :",
+        putBack: "Proposer de nouveau ce mot",
+        status: "Masqués : {n}",
+        unavailable: "Table de mots indisponible : rien n'est envoyé",
+        notHiddenNotice: "Les images et la voix sont envoyées telles quelles : leurs mots ne sont pas masqués.",
+        errors: {
+          selectFirst: "Sélectionnez d'abord dans le texte ci-dessus les mots à masquer.",
+          oneLine: "Un mot à masquer doit tenir sur une seule ligne.",
+          cannotHide: "Ces mots ne peuvent pas être masqués.",
+          privacy_container_starting: "La recherche de noms démarre. Réessayez dans un instant ; vous pouvez aussi sélectionner les mots vous-même.",
+          privacy_container_unreachable: "La recherche de noms n'est pas disponible. Vous pouvez sélectionner les mots vous-même.",
+          words_find_failed: "Les noms n'ont pas pu être trouvés. Vous pouvez sélectionner les mots vous-même.",
+          words_text_too_long: "Le message est trop long pour être parcouru.",
+          words_other_chat: "Cela concernait un autre chat. Rien n'a été modifié.",
+          words_refused: "Les mots n'ont pas pu être masqués.",
+          table_unavailable: "Les mots de cette conversation n'ont pas pu être lus : rien n'est envoyé. Rouvrez la conversation depuis l'historique.",
+          stillFinding: "Recherche de noms en cours. Vérifiez le résultat, puis envoyez à nouveau.",
+          closeToSend: "Fermez ce panneau pour envoyer sans chercher de noms.",
+          decideFirst: "Masquez ou retirez d'abord les mots listés ici."
+        }
+      },
       privacyMark: {
         button: "Masquer",
         hint: "Marquer les mots sélectionnés pour les masquer dans cette conversation (Ctrl/Cmd+Maj+K)",
@@ -4105,6 +4291,37 @@ const webUITranslations = {
   },
   de: {
     ui: {
+      wordTable: {
+        title: "In diesem Chat zu verbergende Wörter",
+        button: "Anonymisieren",
+        hint: "Namen in der Nachricht finden und auswählen, was verborgen wird",
+        close: "Schließen",
+        hideSelection: "Auswahl verbergen",
+        everyWhere: "Ein Wort wird überall verborgen, wo es in diesem Chat vorkommt.",
+        note: "Diese Wörter werden in allem ersetzt, was dieser Chat von nun an sendet. Der Verlauf behält die Originalwörter. Bilder, Sprache, nicht aufgeführte Namen und bereits Gesendetes sind nicht abgedeckt.",
+        apply: "Diese Wörter verbergen",
+        off: "Nicht verbergen",
+        notHidden: "Nicht verborgen:",
+        putBack: "Dieses Wort wieder vorschlagen",
+        status: "Verborgen: {n}",
+        unavailable: "Worttabelle nicht verfügbar: Es wird nichts gesendet",
+        notHiddenNotice: "Bilder und Sprache werden unverändert gesendet: Ihre Wörter werden nicht verborgen.",
+        errors: {
+          selectFirst: "Wählen Sie zuerst im Text oben die zu verbergenden Wörter aus.",
+          oneLine: "Ein zu verbergendes Wort muss in einer Zeile stehen.",
+          cannotHide: "Diese Wörter können nicht verborgen werden.",
+          privacy_container_starting: "Die Namenssuche wird gestartet. Versuchen Sie es gleich noch einmal; Sie können Wörter auch selbst auswählen.",
+          privacy_container_unreachable: "Die Namenssuche ist nicht verfügbar. Sie können Wörter selbst auswählen.",
+          words_find_failed: "Die Namen konnten nicht gefunden werden. Sie können Wörter selbst auswählen.",
+          words_text_too_long: "Die Nachricht ist zu lang zum Durchsuchen.",
+          words_other_chat: "Das betraf einen anderen Chat. Es wurde nichts geändert.",
+          words_refused: "Die Wörter konnten nicht verborgen werden.",
+          table_unavailable: "Die Wörter dieses Chats konnten nicht gelesen werden, daher wird nichts gesendet. Öffnen Sie den Chat erneut aus dem Verlauf.",
+          stillFinding: "Namen werden gesucht. Prüfen Sie das Ergebnis und senden Sie erneut.",
+          closeToSend: "Schließen Sie dieses Feld, um ohne Namenssuche zu senden.",
+          decideFirst: "Verbergen oder entfernen Sie zuerst die hier aufgeführten Wörter."
+        }
+      },
       privacyMark: {
         button: "Verbergen",
         hint: "Ausgewählte Wörter in diesem Chat maskieren (Strg/Cmd+Umschalt+K)",

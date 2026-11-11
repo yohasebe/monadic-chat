@@ -176,6 +176,27 @@ module Monadic
         true
       end
 
+      # Start one service in the background; it is seen as starting from now.
+      def start_service_async(service, reason: "trigger")
+        mark_starting([service], true)
+        begin
+          Thread.new do
+            start_service(service)
+          rescue StandardError => e
+            DegradationNotifier.report(
+              component: "container-deps",
+              message: "background container startup failed (#{reason}): #{e.message}",
+              severity: :error
+            )
+          ensure
+            mark_starting([service], false)
+          end
+        rescue ThreadError
+          mark_starting([service], false)
+          raise
+        end
+      end
+
       def start_thread(scheduled, target_settings, reason)
         Thread.new do
           ensure_services_for_app(target_settings)

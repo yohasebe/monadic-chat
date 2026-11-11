@@ -134,6 +134,35 @@ module Monadic
           table.active_words.to_h { |entry| [WordTable.placeholder(entry[:id]), entry[:word]] }
         end
 
+        # What the page shows of the chat's table.
+        def shown(session)
+          return { 'marked' => false, 'active' => [], 'kept' => [] } unless marked?(session)
+
+          begin
+            found = table(session)
+          rescue Outbound::Refused
+            return { 'marked' => true, 'unavailable' => true, 'active' => [], 'kept' => [] }
+          end
+          { 'marked' => true,
+            'active' => found.active_words.map { |entry| { 'word' => entry[:word], 'type' => entry[:type] } },
+            'kept' => found.kept_words }
+        end
+
+        # The words a finder gave for a text ([{ original:, type: }, ...]) that
+        # the user has not decided about (table: nil for a chat without one),
+        # each once, the first type found. Those no table could take are left
+        # out.
+        def candidates(table, entities)
+          entities.each_with_object({}) do |entity, found|
+            word = entity['original'] || entity[:original]
+            type = entity['type'] || entity[:type]
+            next if found.key?(word) || !WordTable.word?(word) || !WordTable.type?(type)
+            next if table&.standing(word)
+
+            found[word] = { 'word' => word, 'type' => type }
+          end.values
+        end
+
         # The active words of the chat's table (none for a chat without one).
         def active_of(session)
           table = table(session)

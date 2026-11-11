@@ -124,6 +124,8 @@ function attachEventListeners(card) {
         document.querySelectorAll('.tooltip').forEach(el => el.remove());
       }
 
+      if (window.WordTable && window.WordTable.holdSpeech()) return;
+
       // Stop any current TTS playback
       if (typeof ttsStop === 'function') {
         ttsStop();
@@ -393,6 +395,7 @@ function attachEventListeners(card) {
         }
         return;
       }
+      if (window.WordTable && window.WordTable.holdSend(() => { verifyBtn.click(); })) return;
       const mid = card.id;
       // Backend derives the question + answer from the session by mid, so we
       // only send the message id (server-side history is the source of truth).

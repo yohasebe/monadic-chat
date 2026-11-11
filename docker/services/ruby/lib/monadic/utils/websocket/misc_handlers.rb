@@ -206,6 +206,7 @@ module WebSocketHelper
     send_to_client(connection, { "type" => "chat_context", "chat" => change.token, "version" => change.version,
                                  "context" => change.context, "schema" => schema,
                                  "switch" => switch.is_a?(Integer) ? switch : nil })
+    send_word_table(connection, session)
   end
 
   # What the page shows of the chat now in the session (an imported or a

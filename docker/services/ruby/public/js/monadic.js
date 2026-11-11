@@ -1250,6 +1250,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // One suggestion at a time: a second press while one is being
         // written does nothing (the server would refuse it too).
         if (aiUserHandler && typeof aiUserHandler.isWaiting === 'function' && aiUserHandler.isWaiting()) return;
+        if (window.WordTable && window.WordTable.holdSend(() => { aiUserButton.click(); })) return;
 
         // Force enable AI User
         params["ai_user"] = "true";
@@ -3168,6 +3169,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const hasAttachment = (typeof window.hasVideoAttachments === 'function' && window.hasVideoAttachments()) ||
       (typeof images !== 'undefined' && Array.isArray(images) && images.length > 0);
     if (message.value === "" && !hasAttachment) {
+      return;
+    }
+    // Words decided on just now are taken before the message goes.
+    if (window.WordTable && window.WordTable.holdSend(() => { $id("send").click(); })) {
       return;
     }
     // Auto-collapse settings when sending a message

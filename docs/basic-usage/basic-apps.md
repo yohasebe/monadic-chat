@@ -46,48 +46,44 @@ The table below shows which apps are available for which AI model providers.
 | Document Generator | | ✅ | | | | | | |
 | Monadic Chat Help | ✅ | | | | | | | |
 
-## Privacy Filter and Knowledge Base by App :id=privacy-kb-by-app
+## Knowledge Base Save by App :id=kb-by-app
 
-An app supports either the Privacy Filter (PF) or saving to the Knowledge Base (KB), not both. Apps that create images, videos, diagrams, music or documents support neither: their output is saved in the shared folder (`~/monadic/data`).
+Apps that create images, videos, diagrams, music or documents, and Chat Plus, Second Opinion, Translate and Mail Composer, do not save to the Knowledge Base; the output of the former is saved in the shared folder (`~/monadic/data`). A chat that hides words cannot be saved in any app ([Anonymization](../advanced-topics/anonymization.md#knowledge-base)). To keep a conversation, use **Export**. To see what is saved in the Knowledge Base, click **Browse** in the Knowledge Base panel.
 
-To keep a conversation that used the Privacy Filter, click the Privacy indicator in the top bar and use **Export this conversation** (it can be encrypted, and masked). To see what is saved in the Knowledge Base, click **Browse** in the Knowledge Base panel.
-
-| App | Privacy Filter | Knowledge Base Save |
-|-----|:--:|:--:|
-| Chat | | ✅ |
-| Chat Plus | ✅ | |
-| Voice Chat | | ✅ |
-| Live Conversation | | ✅ |
-| Wikipedia | | ✅ |
-| Math Tutor | | ✅ |
-| Second Opinion | ✅ | |
-| Research Assistant | | ✅ |
-| Language Practice | | ✅ |
-| Language Practice Plus | | ✅ |
-| Translate | ✅ | |
-| Voice Interpreter | | ✅ |
-| Novel Writer | | ✅ |
-| Image Generator | | |
-| Video Generator | | |
-| Music Generator | | |
-| Mail Composer | ✅ | |
-| Mermaid Grapher | | |
-| DrawIO Grapher | | |
-| Syntax Tree | | |
-| Concept Visualizer | | |
-| Speech Draft Helper | | ✅ |
-| Web Insight | | ✅ |
-| Video Describer | | ✅ |
-| Code Interpreter | | ✅ |
-| Coding Assistant | | ✅ |
-| Jupyter Notebook | | ✅ |
-| Auto Forge | | |
-| Music Lab | | |
-| Music Analyst | | |
-| Document Generator | | |
-| Monadic Chat Help | | ✅ |
-
-A blank cell in **both** columns marks an app whose output (image, video, diagram, document, etc.) is saved as a file. Keep it with the controls on the message or from the shared folder.
+| App | Knowledge Base Save |
+|-----|:--:|
+| Chat | ✅ |
+| Chat Plus | |
+| Voice Chat | ✅ |
+| Live Conversation | ✅ |
+| Wikipedia | ✅ |
+| Math Tutor | ✅ |
+| Second Opinion | |
+| Research Assistant | ✅ |
+| Language Practice | ✅ |
+| Language Practice Plus | ✅ |
+| Translate | |
+| Voice Interpreter | ✅ |
+| Novel Writer | ✅ |
+| Image Generator | |
+| Video Generator | |
+| Music Generator | |
+| Mail Composer | |
+| Mermaid Grapher | |
+| DrawIO Grapher | |
+| Syntax Tree | |
+| Concept Visualizer | |
+| Speech Draft Helper | ✅ |
+| Web Insight | ✅ |
+| Video Describer | ✅ |
+| Code Interpreter | ✅ |
+| Coding Assistant | ✅ |
+| Jupyter Notebook | ✅ |
+| Auto Forge | |
+| Music Lab | |
+| Music Analyst | |
+| Document Generator | |
+| Monadic Chat Help | ✅ |
 
 ## Provider Capabilities Overview :id=provider-capabilities
 

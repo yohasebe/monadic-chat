@@ -10,7 +10,7 @@
 - **Python Libraries (CPU)**：nltk、spaCy、gensim、mediapipe、transformers
 - **Music Analysis**：librosa + madmom。音楽の分析のアプリに必要です
 - **System Tools (CLI)**：ImageMagick（`convert` / `mogrify`）
-- **Privacy Filter — Additional Languages**：Privacy Filter で英語のほかに扱う言語。保存すると効き、再ビルドは要りません
+- **Name Finder — Additional Languages**：伏せる名前を探すときに英語のほかに扱う言語（[匿名化](anonymization.md)）。保存すると効き、再ビルドは要りません
 - **Knowledge Base Quality Pack (Docling)**：レイアウトの解析と OCR で PDF からテキストを取り出す、別のコンテナ。OCR の言語も選べます
 
 オプションの一覧は[設定リファレンス](/ja/reference/configuration.md)の表にあります。

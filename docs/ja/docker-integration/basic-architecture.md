@@ -39,7 +39,7 @@ Monadic Chat のサーバーと Web 画面を動かします。どのアプリ�
 Knowledge Base、PDF Database、ヘルプの検索のために、`intfloat/multilingual-e5-base` モデルでテキストをベクトルに変換します。CPU で動き、API キーは要りません。
 
 ### Privacy コンテナ（`monadic-chat-privacy-container`） :id=privacy-container
-[Privacy Filter](../advanced-topics/privacy-filter.md) のために個人情報を見つけます。Privacy Filter は、テキストを API に送る前に個人情報をプレースホルダーに置き換えます。ローカルで動き、API キーは要りません。
+[匿名化](../advanced-topics/anonymization.md)のために名前を見つけます。匿名化は、選んだ語を、会話が送る文の中でプレースホルダーに置き換えます。ローカルで動き、API キーは要りません。
 
 ### Extractor コンテナ（`monadic-chat-extractor-container`） :id=extractor-container
 Knowledge Base Quality Pack をインストールしたときだけあります（**Actions → Install Options → Install Knowledge Base Quality Pack**）。Knowledge Base にファイルを取り込むとき、[Docling](https://github.com/docling-project/docling) で PDF からテキストを取り出します（レイアウトの解析と OCR を含みます）。このコンテナが無いときは、PDF からのテキストの抽出を Python コンテナで行います。このとき OCR は行わないので、スキャンした画像だけの PDF からはテキストを取り出せません。

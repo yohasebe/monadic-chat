@@ -394,12 +394,10 @@ module WebSocketHelper
             else obj["voice"]
             end
     text = obj["text"]
-    # Privacy Filter: card text comes back from the frontend with original
-    # PII restored (display form). Replace those values with the short
-    # spoken-placeholder form ("PERSON 1", "EMAIL ADDRESS 1", ...) so:
-    #   - cloud TTS providers never see real PII
-    #   - the listener does not have to hear long emails / phone numbers
-    #   - Web Speech (browser-native) gets the same treatment for UX
+    # Card text comes back from the page with the chat's words put back.
+    # In a chat that hides words they are read as their type and number
+    # ("PERSON 1", ...), so the speech service never gets them; Web Speech
+    # (browser-native) gets the same text.
     #     parity even though the audio synthesis is local
     text = privacy_sanitize_tts_text(text, session, obj["provider"] || obj["tts_provider"])
     return if text.nil? && obj["text"].is_a?(String) && !obj["text"].empty?
@@ -434,8 +432,7 @@ module WebSocketHelper
     end
   end
 
-  # Speech held back because its text holds a word the user marked for the
-  # Privacy Filter: the page stops waiting for speech, then shows why (a
+  # Speech held back because its text holds a word the chat hides: the page stops waiting for speech, then shows why (a
   # notice for the speech only: the reply itself is fine and stays).
   private def send_tts_withheld(ws_session_id, reply_speech = nil)
     send_or_broadcast(speech_frame({ "type" => "tts_stopped" }, reply_speech).to_json, ws_session_id)
@@ -508,9 +505,8 @@ module WebSocketHelper
             else obj["tts_voice"]
             end
     text = obj["text"]
-    # Privacy Filter: see handle_ws_tts for the rationale. Apply the same
-    # sanitize so the Play button does not leak restored PII to the cloud
-    # TTS provider.
+    # As in handle_ws_tts: the Play button speaks the same text, so a word
+    # the chat hides does not go to the speech service.
     text = privacy_sanitize_tts_text(text, session, obj["tts_provider"] || obj["provider"])
     return if text.nil? && obj["text"].is_a?(String) && !obj["text"].empty?
     speed = obj["tts_speed"]

@@ -22,7 +22,7 @@ The Knowledge Base holds conversations and documents: conversation transcripts, 
 
 The text and tables of PDFs are extracted. With the Knowledge Base Quality Pack installed, layout analysis and OCR are used; without it, no text is extracted from image-only PDFs.
 
-Apps that use the Privacy Filter (such as Translate and Mail Composer) do not save to or search the Knowledge Base, and some other apps do not either; in those apps the Save button and the retrieval switch are not available.
+Some apps (such as Translate and Mail Composer) do not save to or search the Knowledge Base; in those apps the Save button and the retrieval switch are not available. A chat that [hides words](../advanced-topics/anonymization.md) cannot be saved, but in an app that searches the Knowledge Base it can still search it.
 
 **Scope model:**
 

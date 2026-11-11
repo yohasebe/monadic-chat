@@ -99,8 +99,8 @@ To see all available models from the provider, toggle the **All** switch next to
 | `MENU_BAR_MODE` | Run from the menu bar or system tray | `false` | `true`, `false` |
 | `MAX_STORED_MESSAGES` | Number of messages kept in the browser to restore a session | `1000` | A number |
 | `ROUGE_THEME` | Syntax highlighting theme | `github:light` | See [available themes](../basic-usage/syntax-highlighting.md) |
-| `PRIVACY_FILTER` | Start the Privacy container and allow the Privacy Filter | `true` | `true`, `false` |
-| `PRIVACY_LANGS` | Languages the Privacy Filter loads, besides English | `en` | Comma-separated codes (`en`, `de`, `es`, `fr`, `it`, `ja`, `nl`, `pt`, `zh`) |
+| `PRIVACY_FILTER` | Download and start the Privacy container, which finds names for Anonymization | `true` | `true`, `false` |
+| `PRIVACY_LANGS` | Languages the Privacy container loads, besides English | `en` | Comma-separated codes (`en`, `de`, `es`, `fr`, `it`, `ja`, `nl`, `pt`, `zh`) |
 | `EXTRACTOR_SERVICE` | Use the Knowledge Base Quality Pack container | `false` | `true`, `false` |
 | `EXTRACTOR_LANGS` | OCR languages of the Knowledge Base Quality Pack | `en,ja,zh,ko` | Comma-separated codes |
 | `LIBRARY_IMPORT_MAX_BYTES` | Largest file the Knowledge Base imports, in bytes | `104857600` (100 MiB) | A number |
@@ -148,7 +148,7 @@ To see all available models from the provider, toggle the **All** switch next to
 
 ## Install Options
 
-These options choose optional packages for the Python container. After changing them, rebuild it with **Actions → Build Python Container**. The Privacy Filter languages and the Knowledge Base Quality Pack, which are in the same Install Options panel, are in [System Settings](#system-settings).
+These options choose optional packages for the Python container. After changing them, rebuild it with **Actions → Build Python Container**. The languages for finding names to hide and the Knowledge Base Quality Pack, which are in the same Install Options panel, are in [System Settings](#system-settings).
 
 | Variable | Description | Required For | Default |
 |----------|-------------|--------------|---------|

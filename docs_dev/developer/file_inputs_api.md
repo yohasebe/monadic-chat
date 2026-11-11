@@ -46,7 +46,7 @@ Backend (openai_helper.rb)
 - **Size limit**: 50 MB per file
 - **Failure handling**: Returns `nil`, caller falls back to base64
 - **Lifecycle**: Cache cleared when session ends; files auto-deleted by OpenAI after retention period
-- **Inline instead**: `resolve_file_id_for_input` returns `nil` (and the file is sent inline as base64) when only part of the data is base64, or when the conversation has words marked for the Privacy Filter
+- **Inline instead**: `resolve_file_id_for_input` returns `nil` (and the file is sent inline as base64) when only part of the data is base64, or when the chat hides words with a word table
 
 ## Model Capability Flag
 

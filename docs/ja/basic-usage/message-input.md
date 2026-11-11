@@ -62,6 +62,10 @@ Responses APIを使用するモデルでは、ローカルファイルのアッ�
 
 <!-- SCREENSHOT: URLからテキスト抽出ダイアログ - URL入力フィールドとOK/Cancelボタンが表示されている様子 -->
 
+## 匿名化 :id=anonymize
+
+メッセージ欄の横の **匿名化** をクリックすると、会話が送る文の中でプレースホルダーに置き換える語（名前など）を選べます。対象は文だけです。そのまま送られる画像やファイル、声、選んでいない名前、すでに送ったものは対象外です。[匿名化](../advanced-topics/anonymization.md)を参照してください。
+
 ## 音声入力 :id=speech-input
 
 ?> 音声入力はChrome、Edge、Safariでサポートされています。
@@ -97,7 +101,7 @@ Speech-to-Textモデルのドロップダウンで **GPT Realtime Whisper ⚡** 
 
 **プロバイダー対応状況。** リアルタイムストリーミング音声認識は OpenAI でだけ利用できます。ドロップダウン上の他のSTTモデルはバッチ経路を使用します。なおこの音声認識機能は、[Live Conversation](../apps/chat-apps.md#live-conversation) の speech-to-speech 会話とは別の機能です（Live Conversation は OpenAI・xAI・Gemini で利用できます）。
 
-!> **Privacy Filter との関係。** **Speech Input** で取り込んだ音声は、Privacy Filter のマスキングが適用される前に、選択中の Speech-to-Text モデルのプロバイダーへ送信されて転写されます。Privacy Filter は転写後の**テキスト**を LLM に送る段階でのみ動作するため、音声そのものをマスクすることはありません。そのプロバイダーに送りたくない個人情報を含む音声がある場合は、音声入力ではなくテキスト入力で送ってください。
+!> **匿名化との関係。** **Speech Input** で取り込んだ音声は、選択中の Speech-to-Text モデルのプロバイダーへそのまま送られます。[匿名化](../advanced-topics/anonymization.md)が語を伏せるのは、会話が送る文の中だけです。そのプロバイダーに送りたくない語を含む音声がある場合は、音声入力ではなくテキスト入力で送ってください。
 
 ## 音声合成の再生
 

@@ -13,7 +13,7 @@
 
 ![Mail Composer app icon](../assets/icons/mail-composer.png ':size=40')
 
-アシスタントと一緒にメールの下書きを作るアプリです。アシスタントは、まずどのようなメールかを尋ね、その後は要望に沿って下書きを作ります。Mail Composer では Web 検索を使え、Privacy Filter が使われます。
+アシスタントと一緒にメールの下書きを作るアプリです。アシスタントは、まずどのようなメールかを尋ね、その後は要望に沿って下書きを作ります。Mail Composer では Web 検索を使えます。
 
 
 Mail Composer の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。

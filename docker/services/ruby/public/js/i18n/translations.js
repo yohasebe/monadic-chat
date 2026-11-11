@@ -35,8 +35,6 @@ const webUITranslations = {
         }
       },
       privacyMark: {
-        button: "Mask",
-        hint: "Mark the selected words to be masked in this chat (Ctrl/Cmd+Shift+K)",
         typeMenu: "Type",
         person: "Person",
         organization: "Organization",
@@ -45,9 +43,6 @@ const webUITranslations = {
         phone: "Phone number",
         url: "URL",
         date: "Date",
-        selectFirst: "Select the words to mask first.",
-        oneLine: "A mark cannot span more than one line.",
-        nested: "The selection already contains a mark."
       },
       historyPanel: {
         actionsOf: "Actions for {name}",
@@ -456,8 +451,8 @@ const webUITranslations = {
       exportPassphrasePlaceholder: "Enter a passphrase",
       exportPassphraseWarning: "This passphrase is the ONLY way to recover your data. Monadic Chat cannot reset it.",
       exportContent: "Content",
-      exportContentRestored: "Restored — original names and details reconstructed",
-      exportContentMasked: "Masked — placeholders only, no registry",
+      exportContentRestored: "Restored — the original words and this chat's word table",
+      exportContentMasked: "Masked — hidden words as placeholders",
       exportPlainWarningTitle: "Plain export selected.",
       exportPlainWarningBody: "The exported file will contain unencrypted contents. Use only for trusted, local-only workflows.",
       exportRestoredStrongTitle: "PII will be written to disk in plaintext.",
@@ -734,8 +729,6 @@ const webUITranslations = {
         }
       },
       privacyMark: {
-        button: "伏せる",
-        hint: "選んだ語をこの会話で伏せ字にする（Ctrl/Cmd+Shift+K）",
         typeMenu: "種類",
         person: "人名",
         organization: "組織",
@@ -744,9 +737,6 @@ const webUITranslations = {
         phone: "電話番号",
         url: "URL",
         date: "日付",
-        selectFirst: "伏せる語を先に選んでください。",
-        oneLine: "印は 1 行の中で付けてください。",
-        nested: "選んだ範囲にすでに印があります。"
       },
       historyPanel: {
         actionsOf: "{name} の操作",
@@ -1155,8 +1145,8 @@ const webUITranslations = {
       exportPassphrasePlaceholder: "パスフレーズを入力",
       exportPassphraseWarning: "このパスフレーズはデータを復元する唯一の手段です。Monadic Chat ではリセットできません。",
       exportContent: "内容",
-      exportContentRestored: "復元 — 元の氏名や情報を含めて出力",
-      exportContentMasked: "伏せ字のみ — 個人情報なし、レジストリ非含有",
+      exportContentRestored: "復元 — 元の語と、この会話の語の対応表を含む",
+      exportContentMasked: "伏せ字 — 伏せた語を置き換え",
       exportPlainWarningTitle: "平文エクスポートを選択中。",
       exportPlainWarningBody: "出力ファイルは暗号化されません。信頼できるローカル用途のみで使用してください。",
       exportRestoredStrongTitle: "個人情報が平文でディスクに書き出されます。",
@@ -1433,8 +1423,6 @@ const webUITranslations = {
         }
       },
       privacyMark: {
-        button: "遮盖",
-        hint: "将所选词语在本对话中遮盖（Ctrl/Cmd+Shift+K）",
         typeMenu: "类型",
         person: "人名",
         organization: "组织",
@@ -1443,9 +1431,6 @@ const webUITranslations = {
         phone: "电话号码",
         url: "URL",
         date: "日期",
-        selectFirst: "请先选择要遮盖的词语。",
-        oneLine: "标记不能跨行。",
-        nested: "所选内容中已有标记。"
       },
       historyPanel: {
         actionsOf: "{name} 的操作",
@@ -1675,8 +1660,8 @@ const webUITranslations = {
       exportPassphrasePlaceholder: "请输入密码短语",
       exportPassphraseWarning: "此密码短语是恢复数据的唯一方式。Monadic Chat 无法重置。",
       exportContent: "内容",
-      exportContentRestored: "已还原 — 包含原始姓名和详细信息",
-      exportContentMasked: "仅占位符 — 不含个人信息和注册表",
+      exportContentRestored: "已还原 — 包含原始词语和本会话的词语对照表",
+      exportContentMasked: "已遮盖 — 隐藏的词语以占位符表示",
       exportPlainWarningTitle: "已选择明文导出。",
       exportPlainWarningBody: "导出的文件将包含未加密的内容。仅用于受信任的本地工作流程。",
       exportRestoredStrongTitle: "个人信息将以明文写入磁盘。",
@@ -2155,8 +2140,6 @@ const webUITranslations = {
         }
       },
       privacyMark: {
-        button: "가리기",
-        hint: "선택한 단어를 이 대화에서 가립니다 (Ctrl/Cmd+Shift+K)",
         typeMenu: "종류",
         person: "사람 이름",
         organization: "조직",
@@ -2165,9 +2148,6 @@ const webUITranslations = {
         phone: "전화번호",
         url: "URL",
         date: "날짜",
-        selectFirst: "먼저 가릴 단어를 선택하세요.",
-        oneLine: "표시는 한 줄 안에서만 붙일 수 있습니다.",
-        nested: "선택한 범위에 이미 표시가 있습니다."
       },
       historyPanel: {
         actionsOf: "{name} 작업",
@@ -2397,8 +2377,8 @@ const webUITranslations = {
       exportPassphrasePlaceholder: "암호 구문 입력",
       exportPassphraseWarning: "이 암호 구문은 데이터를 복구하는 유일한 방법입니다. Monadic Chat은 재설정할 수 없습니다.",
       exportContent: "내용",
-      exportContentRestored: "복원 — 원본 이름과 세부 정보 포함",
-      exportContentMasked: "마스킹만 — 개인정보 없음, 레지스트리 없음",
+      exportContentRestored: "복원 — 원래 단어와 이 대화의 단어 대응표 포함",
+      exportContentMasked: "마스킹 — 숨긴 단어를 자리 표시자로",
       exportPlainWarningTitle: "일반 내보내기 선택됨.",
       exportPlainWarningBody: "내보낸 파일은 암호화되지 않은 내용을 포함합니다. 신뢰할 수 있는 로컬 작업 흐름에만 사용하세요.",
       exportRestoredStrongTitle: "개인 정보가 평문으로 디스크에 기록됩니다.",
@@ -2854,8 +2834,6 @@ const webUITranslations = {
         }
       },
       privacyMark: {
-        button: "Ocultar",
-        hint: "Marcar las palabras seleccionadas para ocultarlas en esta conversación (Ctrl/Cmd+Shift+K)",
         typeMenu: "Tipo",
         person: "Persona",
         organization: "Organización",
@@ -2864,9 +2842,6 @@ const webUITranslations = {
         phone: "Teléfono",
         url: "URL",
         date: "Fecha",
-        selectFirst: "Selecciona primero las palabras que quieres ocultar.",
-        oneLine: "Una marca no puede ocupar más de una línea.",
-        nested: "La selección ya contiene una marca."
       },
       historyPanel: {
         actionsOf: "Acciones para {name}",
@@ -3096,8 +3071,8 @@ const webUITranslations = {
       exportPassphrasePlaceholder: "Ingrese una frase de contraseña",
       exportPassphraseWarning: "Esta frase de contraseña es la ÚNICA forma de recuperar sus datos. Monadic Chat no puede restablecerla.",
       exportContent: "Contenido",
-      exportContentRestored: "Restaurado — nombres y detalles originales reconstruidos",
-      exportContentMasked: "Enmascarado — solo marcadores, sin registro",
+      exportContentRestored: "Restaurado — las palabras originales y la tabla de palabras de esta conversación",
+      exportContentMasked: "Enmascarado — palabras ocultas como marcadores",
       exportPlainWarningTitle: "Exportación en texto plano seleccionada.",
       exportPlainWarningBody: "El archivo exportado contendrá contenido sin cifrar. Use solo para flujos locales de confianza.",
       exportRestoredStrongTitle: "Se escribirá PII en disco en texto plano.",
@@ -3553,8 +3528,6 @@ const webUITranslations = {
         }
       },
       privacyMark: {
-        button: "Masquer",
-        hint: "Marquer les mots sélectionnés pour les masquer dans cette conversation (Ctrl/Cmd+Maj+K)",
         typeMenu: "Type",
         person: "Personne",
         organization: "Organisation",
@@ -3563,9 +3536,6 @@ const webUITranslations = {
         phone: "Numéro de téléphone",
         url: "URL",
         date: "Date",
-        selectFirst: "Sélectionnez d'abord les mots à masquer.",
-        oneLine: "Une marque ne peut pas s'étendre sur plusieurs lignes.",
-        nested: "La sélection contient déjà une marque."
       },
       historyPanel: {
         actionsOf: "Actions pour {name}",
@@ -3795,8 +3765,8 @@ const webUITranslations = {
       exportPassphrasePlaceholder: "Entrez une phrase secrète",
       exportPassphraseWarning: "Cette phrase secrète est le SEUL moyen de récupérer vos données. Monadic Chat ne peut pas la réinitialiser.",
       exportContent: "Contenu",
-      exportContentRestored: "Restauré — noms et détails d'origine reconstruits",
-      exportContentMasked: "Masqué — uniquement les espaces réservés, sans registre",
+      exportContentRestored: "Restauré — les mots d'origine et la table des mots de cette conversation",
+      exportContentMasked: "Masqué — mots masqués remplacés par des espaces réservés",
       exportPlainWarningTitle: "Exportation en clair sélectionnée.",
       exportPlainWarningBody: "Le fichier exporté contiendra des données non chiffrées. À n'utiliser que pour des flux de travail locaux de confiance.",
       exportRestoredStrongTitle: "Les PII seront écrites en clair sur le disque.",
@@ -4252,8 +4222,6 @@ const webUITranslations = {
         }
       },
       privacyMark: {
-        button: "Verbergen",
-        hint: "Ausgewählte Wörter in diesem Chat maskieren (Strg/Cmd+Umschalt+K)",
         typeMenu: "Art",
         person: "Person",
         organization: "Organisation",
@@ -4262,9 +4230,6 @@ const webUITranslations = {
         phone: "Telefonnummer",
         url: "URL",
         date: "Datum",
-        selectFirst: "Wählen Sie zuerst die zu maskierenden Wörter aus.",
-        oneLine: "Eine Markierung darf nicht über mehrere Zeilen gehen.",
-        nested: "Die Auswahl enthält bereits eine Markierung."
       },
       historyPanel: {
         actionsOf: "Aktionen für {name}",
@@ -4494,8 +4459,8 @@ const webUITranslations = {
       exportPassphrasePlaceholder: "Passphrase eingeben",
       exportPassphraseWarning: "Diese Passphrase ist die EINZIGE Möglichkeit, Ihre Daten wiederherzustellen. Monadic Chat kann sie nicht zurücksetzen.",
       exportContent: "Inhalt",
-      exportContentRestored: "Wiederhergestellt — Originalnamen und Details rekonstruiert",
-      exportContentMasked: "Maskiert — nur Platzhalter, keine Registry",
+      exportContentRestored: "Wiederhergestellt — die ursprünglichen Wörter und die Worttabelle dieser Unterhaltung",
+      exportContentMasked: "Maskiert — verborgene Wörter als Platzhalter",
       exportPlainWarningTitle: "Klartext-Export ausgewählt.",
       exportPlainWarningBody: "Die exportierte Datei enthält unverschlüsselte Inhalte. Nur für vertrauenswürdige, lokale Arbeitsabläufe verwenden.",
       exportRestoredStrongTitle: "PII werden im Klartext auf die Festplatte geschrieben.",

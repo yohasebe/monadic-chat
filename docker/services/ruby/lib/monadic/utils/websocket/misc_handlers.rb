@@ -351,8 +351,7 @@ module WebSocketHelper
       # Generate a unique message ID
       message_id = SecureRandom.hex(4)
 
-      # Words marked for the Privacy Filter are taken out and kept for the
-      # chat, as for a sent message; nothing is added if that fails.
+      # A system message may not hold a word the chat hides.
       if text.is_a?(String)
         if obj["role"] == "system" && hidden_word_in_system_text?(text, session)
           send_error(SYSTEM_TEXT_MARKED, ws_session_id, { "not_accepted" => true })

@@ -126,7 +126,7 @@ These are set in the **Settings** window (**Open → Settings**), not in MDSL fi
 - Extra Logging
 - The TTS dictionary file and the size limit for Auto Speech
 - The MCP server and its port
-- [Install Options](./advanced-configuration.md#install-options), including the Privacy Filter languages and the Knowledge Base Quality Pack
+- [Install Options](./advanced-configuration.md#install-options), including the languages for finding names to hide and the Knowledge Base Quality Pack
 
 The settings are saved in `~/monadic/config/env` and kept between sessions.
 

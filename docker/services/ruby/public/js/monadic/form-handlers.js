@@ -129,8 +129,8 @@ async function importSession(file) {
 }
 
 /**
- * POST /load with optional retry when the backend reports a Privacy Filter
- * encrypted file requires a passphrase. The user is prompted via the
+ * POST /load with optional retry when the backend reports that an encrypted
+ * export requires a passphrase. The user is prompted via the
  * #privacyImportPassphraseModal; on confirm we re-send the same file plus
  * the passphrase. Wrong passphrase loops back to the prompt with an error.
  */

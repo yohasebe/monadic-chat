@@ -102,7 +102,7 @@ PDFs go to the extractor service (`/v1/extract`, layout analysis and OCR) when `
 
 `verify` fields are removed from the messages. When `conversation_id` is given, the conversation is ingested again under the same id, so `mc:conv:<id>` links keep working, and then the points of the prior version are deleted by id (`Store#point_ids` before the ingest, `Store#delete_point_ids` after it, the summary last). A failed ingest leaves the prior version in place (the ingest removes what it wrote, as above). Once the ingest has succeeded, the new version is kept: when deleting the prior points fails (a failed delete may still have been applied), the reply is a success with `warning: "prior_version_left"`, which the panel shows as a warning, and both versions' points may be listed. Two saves of one conversation at the same time are not serialized. The panel keeps the id until Reset, a new session, an app change, or deletion of that entry in Browse.
 
-`LIBRARY_SUGGEST_TITLE` asks the current provider for a title (`Monadic::Library::TitleSuggester`): up to 4 user/assistant messages, 240 characters each, title at most 60 characters, sent through the session's Privacy pipeline when there is one. Any failure returns `res: failure` and the title field stays empty. The panel reuses a suggestion until the conversation grows.
+`LIBRARY_SUGGEST_TITLE` asks the current provider for a title (`Monadic::Library::TitleSuggester`): up to 4 user/assistant messages, 240 characters each, title at most 60 characters, with the chat's words hidden when it has a word table. Any failure returns `res: failure` and the title field stays empty. The panel reuses a suggestion until the conversation grows.
 
 `Manager.list_conversations` (behind `LIBRARY_LIST`) reads every page of `library_summaries` before it sorts by `created_at`, newest first, and applies the limit.
 
@@ -114,7 +114,6 @@ Other messages: `LIBRARY_LIST`, `LIBRARY_STATS`, `LIBRARY_GET_CONVERSATION`, `LI
 
 - Default: both true.
 - MDSL `features` can set them to false. `library_search true` with `library_save false` is a configuration error.
-- Apps with `privacy do; enabled true; end` get both false; declaring either as true is a configuration error.
 
 Apps with `library_search` true get the `library_search` tool group (`visibility: "conditional"`) unless they import it themselves.
 
@@ -138,9 +137,9 @@ The `library_rag` rule in `SystemPromptInjector` (priority 70) applies when the 
 
 1. Reads `app_name` from the session for the scope filter; a session without one searches the `Global` entries only.
 2. Runs `Retriever.cascade_search` with `top_n` clamped to 1–10 and a filter on `content_type` / `source` when given.
-3. Checks each hit for words the user marked (`Privacy::Outbound`); a hit with a marked word withholds the whole result.
-4. Formats the hits: title link `[Title](mc:conv:<id>)`, source, speaker role, turn, score, and up to 480 characters of text.
-5. When the session has an enabled Privacy pipeline, masks the text through it. If masking fails, the result is withheld and the failure is reported.
+3. Formats the hits: title link `[Title](mc:conv:<id>)`, source, speaker role, turn, score, and up to 480 characters of text.
+
+In a chat with a word table, the result is hidden with the rest of the request when it is sent (`hide_words_in_request!`).
 
 The tool group counts as available when the embeddings service answers its health check.
 

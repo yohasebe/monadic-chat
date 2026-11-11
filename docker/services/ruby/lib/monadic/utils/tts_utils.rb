@@ -11,8 +11,8 @@ require_relative 'tts_audio'
 require_relative 'privacy/outbound'
 
 module InteractionUtils
-  # What a speech request gives back when the text holds a word the user
-  # marked for the Privacy Filter: nothing was sent, and the page shows a
+  # What a speech request gives back when the text holds a word the chat
+  # hides: nothing was sent, and the page shows a
   # notice for the speech only (the reply itself is fine).
   TTS_WITHHELD = { "type" => "privacy_withheld" }.freeze
 

@@ -117,8 +117,6 @@ module GrokCompaction
 
     # A chat with a word table hides its words in the compact call as in the
     # main request (the opaque blob carries no role and is left as it is).
-    # Otherwise, the Privacy Filter masks PII before the compact call, and
-    # words the user marked are masked wherever they are, or nothing is sent.
     compact_body = { "input" => compact_input }
     hiding = hide_words_in_request!(compact_body, session, keys: %w[input])
     if hiding

@@ -108,7 +108,7 @@ The Selenium container starts with Monadic Chat. If the group is not shown, wait
 
 Up to three browser sessions can be open at once (for example a chat's browser beside a diagram preview). When all of them are in use, a request for another is refused after a few seconds instead of waiting.
 
-Each chat has its own interactive browser session, and up to two chats can have one at a time. A chat's browser is closed when you press **Reset**, switch to another app, import a conversation or continue another chat from the history, and when it has not been used for 5 minutes. A Private chat uses no browser: no interactive session, page capture, diagram preview or web page saved as a file.
+Each chat has its own interactive browser session, and up to two chats can have one at a time. A chat's browser is closed when you press **Reset**, switch to another app, import a conversation or continue another chat from the history, and when it has not been used for 5 minutes.
 
 #### Video Analysis (1 tool)
 **Requires**: an app on OpenAI, Anthropic, Gemini, or xAI, with that provider's API key

@@ -437,7 +437,7 @@ module BaseVendorHelper
   # The messages as the model reads them: a user message's attachments are
   # described after its text. The described messages are copies; the
   # session keeps what the user typed. Helpers call it on the finished
-  # context before converting it, so the Privacy Filter sees the names.
+  # context before converting it, so the chat's words are hidden there too.
   def model_facing_context(context)
     context.map { |msg| model_facing_message(msg) }
   end

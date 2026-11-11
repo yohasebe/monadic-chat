@@ -35,7 +35,7 @@ This list shows the standard containers; see [Basic Architecture](basic-architec
   docker exec -it monadic-chat-selenium-container bash
   ```
 
-- **Privacy Container** (`monadic-chat-privacy-container`): personal-information detection for the Privacy Filter
+- **Privacy Container** (`monadic-chat-privacy-container`): finding names for Anonymization
   ```shell
   docker exec -it monadic-chat-privacy-container bash
   ```

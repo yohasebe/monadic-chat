@@ -1158,20 +1158,20 @@
               </div>
             </form>
 
-            <!-- Content axis: shown only when Privacy Filter was used (registry has entries) -->
+            <!-- Content axis: shown only for a chat that hides words -->
             <div id="privacy-export-content-section" style="display:none;">
               <hr class="my-2">
               <div class="small fw-bold mb-2" data-i18n="ui.exportContent">Content</div>
               <div class="form-check mb-2">
                 <input class="form-check-input" type="radio" name="privacyExportContent" id="privacyExportContentRestored" value="restored" checked>
                 <label class="form-check-label" for="privacyExportContentRestored">
-                  <span data-i18n="ui.exportContentRestored"><strong>Restored</strong> — original names and details reconstructed</span>
+                  <span data-i18n="ui.exportContentRestored"><strong>Restored</strong> — the original words and this chat's word table</span>
                 </label>
               </div>
               <div class="form-check mb-2">
                 <input class="form-check-input" type="radio" name="privacyExportContent" id="privacyExportContentMasked" value="masked">
                 <label class="form-check-label" for="privacyExportContentMasked">
-                  <span data-i18n="ui.exportContentMasked"><strong>Masked</strong> — placeholders only, no registry</span>
+                  <span data-i18n="ui.exportContentMasked"><strong>Masked</strong> — hidden words as placeholders</span>
                 </label>
               </div>
             </div>
@@ -1183,7 +1183,7 @@
               </div>
               <div id="privacy-export-restored-warning-strong" style="display:none;">
                 <strong>🚨 <span data-i18n="ui.exportRestoredStrongTitle">PII will be written to disk in plaintext.</span></strong>
-                <span data-i18n="ui.exportRestoredStrongBody">Privacy Filter is active in this session, but you are overriding the safer default by choosing "Restored" without encryption. The exported file will contain every name, email, address, and phone number visible in the conversation. Pick "Encrypt and Export" or switch the content radio back to "Masked" if you do not need plaintext PII to leave this machine.</span>
+                <span data-i18n="ui.exportRestoredStrongBody">This chat hides words, but you are overriding the safer default by choosing "Restored" without encryption. The exported file will contain those words as written.</span>
               </div>
             </div>
 
@@ -1202,10 +1202,10 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="privacyImportLabel"><i class="fas fa-lock-open"></i> Decrypt Privacy Export</h5>
+            <h5 class="modal-title" id="privacyImportLabel"><i class="fas fa-lock-open"></i> Decrypt Export</h5>
           </div>
           <div class="modal-body">
-            <p class="small text-muted">This file is an encrypted Privacy Filter export. Enter the passphrase used during export.</p>
+            <p class="small text-muted">This file is an encrypted export. Enter the passphrase used during export.</p>
             <div id="privacy-import-header-info" class="small text-muted mb-2"></div>
             <form onsubmit="event.preventDefault(); return false;" autocomplete="off">
               <label for="privacy-import-passphrase" class="form-label small">Passphrase</label>

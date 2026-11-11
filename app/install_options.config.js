@@ -4,7 +4,7 @@
 //   - The canonical list of optional Python container packages
 //     (PYOPT_*, IMGOPT_*, INSTALL_LATEX) — each with the env name,
 //     the matching HTML checkbox id, and a default English label.
-//   - The Privacy Filter and Extractor language code lists.
+//   - The name finder (Privacy container) and Extractor language code lists.
 //   - "Always-installed" languages that the UI pins as
 //     `checked disabled` (English baseline for both Privacy and
 //     Extractor).
@@ -43,7 +43,7 @@ const PYTHON_OPTIONS = Object.freeze([
   Object.freeze({ id: 'imgopt-imagemagick',   env: 'IMGOPT_IMAGEMAGICK',  label: 'ImageMagick (convert/mogrify)',     group: 'tools' })
 ]);
 
-// Privacy Filter language codes. English is mandatory (always enabled)
+// Name finder (Privacy container) language codes. English is mandatory (always enabled)
 // and pinned `checked disabled` in the HTML; the others are opt-in.
 // PRIVACY_LANGS is a RUNTIME setting: every supported spaCy model is
 // baked into the privacy image, and the selection controls which models

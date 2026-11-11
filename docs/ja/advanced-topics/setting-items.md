@@ -125,7 +125,7 @@ end
 - Extra Logging
 - TTS の辞書のファイルと、Auto Speech の大きさの上限
 - MCP サーバーとそのポート
-- [Install Options](./advanced-configuration.md#install-options)（Privacy Filter の言語、Knowledge Base Quality Pack を含む）
+- [Install Options](./advanced-configuration.md#install-options)（伏せる名前を探す言語、Knowledge Base Quality Pack を含む）
 
 設定は `~/monadic/config/env` に保存され、セッションをまたいで保たれます。
 

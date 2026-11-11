@@ -22,7 +22,7 @@ Knowledge Base には、会話と文書（会話の記録、PDF、Office のフ�
 
 PDF からはテキストと表が取り出されます。Knowledge Base Quality Pack を入れているときは、レイアウトの解析と OCR が使われます。入れていないときは、画像だけの PDF からはテキストが取り出されません。
 
-Privacy Filter を使うアプリ（Translate、Mail Composer など）は Knowledge Base に保存も検索もしません。ほかにも、保存や検索をしないアプリがあります。それらのアプリでは、Save ボタンと検索のスイッチは使えません。
+Knowledge Base に保存も検索もしないアプリがあります（Translate、Mail Composer など）。それらのアプリでは、Save ボタンと検索のスイッチは使えません。[語を伏せている](../advanced-topics/anonymization.md)会話は保存できませんが、検索するアプリでは検索はできます。
 
 **範囲の決まり：**
 

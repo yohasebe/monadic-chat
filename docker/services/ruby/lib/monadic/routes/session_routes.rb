@@ -12,7 +12,7 @@ require_relative "../workbench/shown"
 # Largest saved conversation /load accepts, checked before the body is read (config.ru).
 SESSION_LOAD_MAX_BYTES = 500_000_000
 
-# Convert a Privacy Filter export (encrypted/masked_only/restored) into the
+# Convert an export (encrypted/masked_only/restored) into the
 # standard { parameters, messages } shape that the rest of /load expects.
 #
 # The header is intentionally compact (only app_name + counts), so we look
@@ -156,8 +156,7 @@ post "/load" do
         content = file.read
         json_data = JSON.parse(content)
 
-        # Privacy Filter export detection (Block D.4).
-        # Three forms produced by Block D.2/D.3:
+        # Export detection. Three forms:
         #   - encrypted: { schema_version, header, envelope: { kdf, cipher }, integrity }
         #   - masked_only: { header, messages } — no parameters, placeholders intact
         #   - restored: { header, messages, registry } — plain JSON

@@ -35,14 +35,20 @@ module WebSocketHelper
   end
 
   # The reason finding could not be done; the container is started when it
-  # is not on its way.
+  # is not on its way, unless the user turned it off (PRIVACY_FILTER=false).
   private def privacy_container_started_for_words
+    return "privacy_container_unreachable" if name_finder_off?
     return "privacy_container_starting" if privacy_container_coming_up?
 
     Monadic::Utils::ContainerDependencies.start_service_async(:privacy, reason: "finding words to hide")
     "privacy_container_starting"
   rescue StandardError
     "privacy_container_unreachable"
+  end
+
+  private def name_finder_off?
+    setting = (defined?(CONFIG) && CONFIG.is_a?(Hash) ? CONFIG["PRIVACY_FILTER"] : nil) || ENV.fetch("PRIVACY_FILTER", nil)
+    setting.to_s.downcase == "false"
   end
 
   # The user's decisions, for the chat they were made in: words to hide (a

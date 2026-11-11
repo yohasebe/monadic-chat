@@ -13,7 +13,7 @@ Co-write a novel with the assistant. The assistant first asks for the genre, the
 
 ![Mail Composer app icon](../assets/icons/mail-composer.png ':size=40')
 
-Draft emails with the assistant. It first asks what kind of email you want, then drafts it from your requests. Mail Composer has web search and uses the Privacy Filter.
+Draft emails with the assistant. It first asks what kind of email you want, then drafts it from your requests. Mail Composer has web search.
 
 
 Mail Composer supports each provider shown in the [availability table](../basic-usage/basic-apps.md#app-availability).

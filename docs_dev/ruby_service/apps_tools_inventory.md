@@ -30,7 +30,7 @@ Defined in `MonadicSharedTools::Registry::TOOL_GROUPS` (`lib/monadic/shared_tool
 ## Tools Added to Every App
 
 - `file_operations` (always visible) is added to every app that does not import it.
-- `library_search` (conditional) is added to apps whose `library_search` capability is on (`finalize_capabilities!` in `dsl.rb`; off in Privacy Filter apps).
+- `library_search` (conditional) is added to apps whose `library_search` capability is on (`finalize_capabilities!` in `dsl.rb`).
 - `request_tool` is added to any app with a conditional import.
 
 These are not repeated in the table below.

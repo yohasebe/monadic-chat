@@ -347,13 +347,8 @@
     return PII_EMAIL_RE.test(corpus) || PII_PHONE_RE.test(corpus);
   }
 
-  // Render the Privacy badge column. Privacy Filter and Knowledge Base
-  // save are mutually exclusive at the app level: apps that declare
-  // `privacy do; enabled true; end` in their MDSL have library_save
-  // forced to false by dsl.rb#finalize_capabilities!, so saved KB
-  // entries never go through the Privacy registry — there is no
-  // `pii_status` field to surface. The remaining heuristic catches
-  // legacy or imported entries whose title / source obviously looks
+  // Render the Privacy badge column. A heuristic catches entries whose title
+  // / source obviously looks
   // like PII (email or phone patterns), giving the user a glance-level
   // warning before clicking in.
   function privacyBadgeHtml(row) {
@@ -1625,21 +1620,16 @@
       && window.messages.some(function (m) { return m && (m.role === 'user' || m.role === 'assistant'); });
   }
 
-  // Privacy Filter and Knowledge Base save are mutually exclusive at the
-  // app level — see docs/basic-usage/basic-apps.md#privacy-kb-by-app.
-  // The Save button is hidden in two cases:
-  //   1. The current app is in the KB-save excluded list (artifact-centric
-  //      apps and PF-only apps; flag set by DSL post-processing in
-  //      lib/monadic/dsl.rb#library_save_eligible?).
-  //   2. The Privacy Filter is active in this session — defense in depth
-  //      so a misconfigured app cannot leak PII to disk.
+  // Whether the current app saves to the Knowledge Base (artifact-centric apps
+  // and apps that declare `library_save false` do not; flag set by DSL
+  // post-processing in lib/monadic/dsl.rb).
   function isCurrentAppKbSaveEligible() {
     return readAppFeatureFlag('library_save');
   }
 
   // The "Use Knowledge Base for retrieval" toggle is gated on the same
-  // app metadata as the library_search auto-injection. PF-only apps and
-  // artifact-centric apps do not have library_search in their tool list,
+  // app metadata as the library_search auto-injection. Apps that declare
+  // `library_search false` do not have library_search in their tool list,
   // so the toggle would be a no-op there — hiding it keeps the UI honest.
   function isCurrentAppKbRetrievalEligible() {
     return readAppFeatureFlag('library_search');
@@ -1666,14 +1656,12 @@
   // when more than one disable condition is in effect:
   //
   //   1. The current app does not support saving to the Knowledge Base
-  //      (e.g. apps that declare `privacy do; enabled true; end` or
-  //      `library_save false` in MDSL). Reported first because telling the
+  //      (apps that declare `library_save false` in MDSL). Reported first because telling the
   //      user "no messages yet" is misleading when saving will never
   //      be allowed regardless of how many messages they have.
-  //   2. Privacy Filter is currently ON in this session. Mutually
-  //      exclusive with KB save by design — we refuse to ingest content
-  //      that the user is actively asking us to mask before the LLM sees
-  //      it. (Defense-in-depth on the backend side too.)
+  //   2. The chat hides words: the Knowledge Base would keep them, and a
+  //      search from another chat would send them. (Refused on the server
+  //      too.)
   //   3. There are simply no user/assistant messages to save yet.
   //
   // Driven by initial page load, SessionState events (message added /

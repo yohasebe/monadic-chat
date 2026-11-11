@@ -35,7 +35,7 @@ Start の後、コンソールには動いているコンテナと、それぞ�
   docker exec -it monadic-chat-selenium-container bash
   ```
 
-- **Privacy コンテナ**（`monadic-chat-privacy-container`）：Privacy Filter のための個人情報の検出
+- **Privacy コンテナ**（`monadic-chat-privacy-container`）：匿名化のための名前の検出
   ```shell
   docker exec -it monadic-chat-privacy-container bash
   ```

@@ -139,9 +139,8 @@ module Monadic
 
           id = "look_#{SecureRandom.hex(8)}"
           # What goes to the model as text (the result, the caption before
-          # an image) passes the chat's Privacy Filter here, as the user's
-          # words do; the words the user marked are checked again when the
-          # request is sent.
+          # an image) is checked here against the words the chat hides; they
+          # are checked again when the request is sent.
           result = filtered(caller.session, result_text(id, seen, scope))
           caption = seen[:image] ? filtered(caller.session, caption_text(id, seen)) : nil
           ledger.add(seen.merge(id: id, scope: scope, result: result, caption: caption))

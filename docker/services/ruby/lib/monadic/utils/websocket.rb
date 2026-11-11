@@ -582,8 +582,8 @@ module WebSocketHelper
   # Returns one of:
   #   :sts             — current model has the supports_speech_to_speech
   #                      capability; audio goes to the STS bridge
-  #   :privacy_blocked — model is STS-capable but the Privacy Filter is on;
-  #                      raw audio must not be sent to the provider
+  #   :privacy_blocked — model is STS-capable but the chat hides words;
+  #                      the conversation would be sent as written
   #   :stt             — default realtime-STT transcription path
   # `obj` (the inbound audio message) may carry a `chat_model` routing hint.
   # Deciding from session parameters alone races the client's UPDATE_PARAMS

@@ -1801,6 +1801,10 @@ if (typeof module !== 'undefined' && module.exports) {
 // The Start button as it is for a chat that has not begun (start) or one
 // that goes on (continue): its words, its icon and its color differ.
 function setStartButtonMode(continuing) {
+  // A chat that can be continued is offered by the tabs over the column too.
+  if (window.MainTabs && window.MainTabs.mode() !== 'active') {
+    window.MainTabs.setMode(continuing ? 'ready' : 'none');
+  }
   const apply = () => {
     const t = (key, fallback) => {
       const v = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t(key) : null;

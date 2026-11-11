@@ -51,7 +51,10 @@ const PAGE = `<!doctype html><html><head><meta charset="utf-8">
     </div>
     <div id="side-pane-splitter" role="separator" aria-orientation="vertical" tabindex="0" hidden></div>
     <div id="main" class="order-md-1 scrollable">
-      <div class="column-bar"><div id="config-summary" class="rounded shaded-panel config-summary-locked"><span class="summary-label">Current settings</span></div></div>
+      <div class="column-bar"><div id="config-summary" class="rounded shaded-panel"><div class="d-flex align-items-center flex-grow-1"><div class="summary-tabs me-3" role="tablist">
+        <button type="button" id="summary-tab-settings" class="summary-tab" role="tab" aria-selected="false" tabindex="-1">Current settings</button>
+        <button type="button" id="summary-tab-session" class="summary-tab" role="tab" aria-selected="true">Session</button>
+      </div><span class="fw-semibold">Chat</span></div></div></div>
       <div id="config-wrapper"><div id="config-body">${filler(40, 'config')}</div></div>
       <div id="main-panel"><pre id="wide">${'x'.repeat(3000)}</pre>${filler(80, 'message')}</div>
     </div>
@@ -100,6 +103,9 @@ const measure = async () => {
   return {
     menu: box('menu'), main: box('main'), handle: box('side-pane-splitter'),
     summary: box('config-summary'), tabs: box('side-pane-tabs'),
+    // The two bars and their selected tabs, one height across the columns.
+    barHeights: ['config-summary', 'side-pane-tabs'].map((id) => document.getElementById(id).getBoundingClientRect().height),
+    selectedTabHeights: ['summary-tab-session', 'side-tab-settings'].map((id) => document.getElementById(id).getBoundingClientRect().height),
     // What lies right under each bar at its top corners (outside its
     // rounding, what shows there): the bar's holder in the page's color,
     // not what scrolls under it.

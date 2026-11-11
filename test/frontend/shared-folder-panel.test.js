@@ -235,11 +235,14 @@ describe('Files tab', () => {
       expect(window.electronAPI.trashSharedEntries).toHaveBeenCalledWith(ROOT_ID, ['a.txt']);
     });
 
-    it('offers no Trash where entries cannot be moved (outside the desktop app)', async () => {
+    it('shows the Trash as unavailable outside the desktop app, and says why', async () => {
       delete window.electronAPI;
       await opened([file('a.txt')]);
       rows()[0].querySelector('.sfp-check').click();
-      expect($('sfp-trash').hidden).toBe(true);
+      expect($('sfp-trash').hidden).toBe(false);
+      expect($('sfp-trash').disabled).toBe(true);
+      expect($('sfp-trash-why').hidden).toBe(false);
+      expect($('sfp-trash-why').textContent).toContain('Monadic Chat app');
       expect($('sfp-copy').disabled).toBe(false);
     });
 

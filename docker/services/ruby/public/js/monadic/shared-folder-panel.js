@@ -193,6 +193,16 @@
     return !!(state.rootId && window.electronAPI && typeof window.electronAPI.trashSharedEntries === 'function');
   }
 
+  // Why nothing can be moved to the Trash here, if so: only the app can
+  // move files to the system's Trash, and only in a folder it identified.
+  function trashUnavailableWhy() {
+    if (!window.electronAPI || typeof window.electronAPI.trashSharedEntries !== 'function') {
+      return t('trashNeedsApp', 'Files can be moved to the Trash in the Monadic Chat app, not in a browser.');
+    }
+    if (!state.rootId) return t('trashNoFolderId', 'Files cannot be moved to the Trash: this shared folder could not be identified.');
+    return null;
+  }
+
   function canTrash(item) {
     return !!(item.capabilities && item.capabilities.trash && trashAvailable());
   }
@@ -699,7 +709,6 @@
     if (copy) copy.disabled = count === 0 || !state.chatRoot;
     const trash = $id('sfp-trash');
     if (trash) {
-      trash.hidden = !trashAvailable();
       const go = trashTargets().length;
       trash.disabled = go === 0 || trashing;
       const glyph = trash.querySelector('i');
@@ -711,9 +720,10 @@
       trash.setAttribute('aria-label', name);
       const why = $id('sfp-trash-why');
       if (why) {
-        why.hidden = !trashAvailable() || go === count || count === 0;
-        why.textContent = t('trashSkippedWhy', '{count} of the selected cannot be moved to the Trash (kept by Monadic Chat or in use).')
-          .replace('{count}', String(count - go));
+        why.hidden = count === 0 || (trashAvailable() && go === count);
+        why.textContent = trashUnavailableWhy() ||
+          t('trashSkippedWhy', '{count} of the selected cannot be moved to the Trash (kept by Monadic Chat or in use).')
+            .replace('{count}', String(count - go));
       }
     }
   }

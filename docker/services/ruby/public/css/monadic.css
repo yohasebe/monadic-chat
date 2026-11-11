@@ -1919,6 +1919,11 @@ legend {
   justify-content: space-between
 }
 
+/* A question with a sentence and a few buttons: as wide as that needs. */
+.modal-dialog.modal-confirm {
+  max-width: 26rem;
+}
+
 /* ─── Library: Knowledge Base Viewer modal ─────────────────────────── */
 /* The viewer surfaces a saved conversation verbatim, so it should feel
    like part of the chat surface rather than a stark dialog. We tint the
@@ -3752,6 +3757,22 @@ img.base64-image,
 .btn-primary:disabled {
   background-color: var(--btn-primary-disabled-bg);
   border-color: var(--btn-primary-disabled-bg);
+}
+
+.btn-success {
+  background-color: var(--btn-success-bg);
+  border-color: var(--btn-success-bg);
+  color: #fff;
+}
+
+.btn-success:focus {
+  box-shadow: 0 0 0 0.2rem var(--btn-success-focus-shadow-color);
+}
+
+.btn-success:active,
+.btn-success.active {
+  background-color: var(--btn-success-active-bg);
+  border-color: var(--btn-success-active-border);
 }
 
 /* Secondary button focus */
@@ -5613,6 +5634,11 @@ i.fas.fa-bolt,
     border-color: var(--btn-primary-hover-border);
   }
 
+  .btn-success:hover:not(:disabled) {
+    background-color: var(--btn-success-hover-bg);
+    border-color: var(--btn-success-hover-border);
+  }
+
   .dark-theme .btn-warning:hover:not(:disabled),
   .dark-theme .btn-secondary:hover:not(:disabled),
   .dark-theme .btn-primary:hover:not(:disabled),
@@ -5796,50 +5822,11 @@ i.fas.fa-bolt,
 
 /* ── Collapsible Settings Header ─────────────────────────── */
 
-/* Toggle header is darker than the .shaded-panel body so its role as an
-   interactive control reads at a glance. The shade is derived by mixing panel
-   with page body color (darker than panel in both themes), keeping the
-   relative offset consistent across themes without a new variable. The first
-   declaration is a fallback for browsers without color-mix(). Blend ratios
-   are tuned so the resting state is clearly distinct (~17 RGB units darker
-   in light theme) without losing the "card" feel; hover deepens further
-   (~24 units). */
+/* The bar over the main column: the same strip as the side column's tabs. */
 #config-summary {
   background: var(--bg-hover, #e9ecef);
   background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
   border: var(--border-width) solid var(--border-light);
-  transition: background-color 0.15s ease;
-  user-select: none;
-  cursor: pointer;
-}
-
-#config-summary:hover {
-  background: var(--bg-hover, #e9ecef);
-  background: color-mix(in srgb, var(--bg-panel) 20%, var(--bg-body));
-}
-
-/* Before a session starts the settings are the whole screen, so collapsing
-   them reveals nothing — the summary bar is locked (JS removes data-bs-toggle)
-   and must not LOOK clickable either: no pointer, no chevron, no hover shift. */
-#config-summary.config-summary-locked {
-  cursor: default;
-}
-#config-summary.config-summary-locked:hover {
-  background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
-}
-#config-summary.config-summary-locked .config-collapse-icon {
-  display: none;
-}
-
-.config-collapse-icon {
-  transition: transform 0.3s ease;
-  font-size: 0.85em;
-  color: var(--text-secondary, #6c757d);
-}
-
-/* Rotate chevron when config-body is expanded */
-#config-summary[aria-expanded="true"] .config-collapse-icon {
-  transform: rotate(180deg);
 }
 
 .setting-locked {
@@ -6678,6 +6665,19 @@ body.side-pane-resizing {
   flex: 1 1 auto;
   min-width: 0;
 }
+/* A button that only dismisses (clearing a selection): the icon alone,
+   no fill or border. */
+.shared-files-pane .sfp-plain-btn {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+.shared-files-pane .sfp-plain-btn:hover,
+.shared-files-pane .sfp-plain-btn:focus-visible {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-primary);
+}
 .shared-files-pane .sfp-band-note {
   flex: 1 0 100%;
   color: var(--text-secondary);
@@ -6861,8 +6861,14 @@ body.side-pane-resizing {
 #config-summary {
   padding-right: var(--spacing-lg);
 }
-/* What the summary bar is, in the same box as the selected tab beside it */
-.summary-label,
+/* The main column's tabs are the side column's tabs. Before a session the
+   one tab is only a name: no hover, no pointer. */
+.summary-tabs {
+  display: flex;
+  align-self: stretch;
+  gap: var(--spacing-xs);
+}
+.summary-tab[aria-selected="true"],
 .side-pane-tab[aria-selected="true"] {
   background: var(--bg-panel);
   border: var(--border-width) solid var(--border-light);
@@ -6870,18 +6876,15 @@ body.side-pane-resizing {
   color: var(--text-primary);
   font-weight: 600;
 }
-.summary-label {
-  display: inline-flex;
-  align-items: center;
-  align-self: stretch;
-  padding: 0 var(--spacing-lg);
-  white-space: nowrap;
+.config-summary-locked .summary-tab {
+  pointer-events: none;
 }
 .side-pane-tabs {
   gap: var(--spacing-xs);
   background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
   border: var(--border-width) solid var(--border-light);
 }
+.summary-tab,
 .side-pane-tab {
   padding: 0 var(--spacing-md);
   /* One line; a label longer than the column allows ends in an ellipsis. */
@@ -6895,9 +6898,11 @@ body.side-pane-resizing {
   color: var(--text-secondary);
   font-size: var(--font-size-base);
 }
+.summary-tab:hover,
 .side-pane-tab:hover {
   color: var(--text-primary);
 }
+.summary-tab:focus-visible,
 .side-pane-tab:focus-visible {
   outline: 2px solid var(--color-link);
   outline-offset: 2px;

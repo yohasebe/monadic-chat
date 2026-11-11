@@ -60,6 +60,11 @@ describe('The columns in a browser', () => {
     near(r.scrolled.tabs.top, r.scrolled.menu.top);
   });
 
+  test('gives the main column\'s tabs the side column\'s height', () => {
+    near(r.before.barHeights[0], r.before.barHeights[1]);
+    near(r.before.selectedTabHeights[0], r.before.selectedTabHeights[1]);
+  });
+
   test('lists the shared folder names from the start of their rows', () => {
     expect(r.files.nameIndent).toBeGreaterThanOrEqual(0);
     expect(r.files.nameIndent).toBeLessThanOrEqual(40);

@@ -39,7 +39,7 @@ Runs the [Qdrant](https://qdrant.tech) vector database. It stores the Knowledge 
 Converts text into vectors with the `intfloat/multilingual-e5-base` model, for searching the Knowledge Base, the PDF Database, and the help data. It runs on the CPU and needs no API key.
 
 ### Privacy Container (`monadic-chat-privacy-container`) :id=privacy-container
-Detects personal information for the [Privacy Filter](../advanced-topics/privacy-filter.md), which replaces it with placeholders before text is sent to an API. It runs locally and needs no API key.
+Finds names for [Anonymization](../advanced-topics/anonymization.md), which replaces the words you choose with placeholders in the text a chat sends. It runs locally and needs no API key.
 
 ### Extractor Container (`monadic-chat-extractor-container`) :id=extractor-container
 Present only when the Knowledge Base Quality Pack is installed (**Actions → Install Options → Install Knowledge Base Quality Pack**). It extracts text from PDFs with [Docling](https://github.com/docling-project/docling), including layout analysis and OCR, when files are imported into the Knowledge Base. Without it, the Python container extracts the text of PDFs without OCR, so scanned, image-only PDFs yield no text.

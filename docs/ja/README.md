@@ -77,7 +77,7 @@ Monadic ChatがDockerをどのように活用して強力なAI環境を実現し
 *   [Ollamaの使用](/ja/advanced-topics/ollama.md)
 *   [ヘルプシステムの構成](/ja/advanced-topics/help-system.md)
 *   [MCP統合](/ja/advanced-topics/mcp-integration.md)
-*   [プライバシーフィルター](/ja/advanced-topics/privacy-filter.md)
+*   [匿名化](/ja/advanced-topics/anonymization.md)
 
 ## リファレンス
 

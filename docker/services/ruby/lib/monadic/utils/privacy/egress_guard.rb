@@ -13,8 +13,7 @@ module Monadic
     module Privacy
       # The one place every request leaves Monadic Chat's server for another
       # service: the clients themselves (the http gem, Net::HTTP and the
-      # WebSocket client). While a chat has words the user marked for the
-      # Privacy Filter, no request to a service outside this computer carries
+      # WebSocket client). While a chat hides words, no request to a service outside this computer carries
       # one of them, however the request was put together (a chat's model, a
       # helper, speech, a tool). Checking at each place a request is built
       # missed what was added after the check; this checks what is sent.

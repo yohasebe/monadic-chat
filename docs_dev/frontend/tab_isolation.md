@@ -17,7 +17,7 @@ On a WebSocket connection (`lib/monadic/utils/websocket.rb`):
 1. `ws_session_id` is the `tab_id`. Without one, the Rack session's `websocket_session_id` is used, or a new UUID.
 2. `claim_session_state` gives the connection a generation number (`session[:_ws_generation]`).
 3. The chat state copied from the Rack session is cleared, and `session[:messages]` and `session[:parameters]` are set empty. The Rack session (cookie) is shared by all tabs, so nothing of a chat is taken from it.
-4. `fetch_session_state(ws_session_id)` restores the tab's messages and parameters. When the saved `chat_id` is valid, the rest of the chat's data (`chat_state`: tool results, Session Context, privacy registry) is restored too; `Chats.resume!` continues that chat or starts a new one.
+4. `fetch_session_state(ws_session_id)` restores the tab's messages and parameters. When the saved `chat_id` is valid, the rest of the chat's data (`chat_state`: tool results, Session Context, the word-table mark) is restored too; `Chats.resume!` continues that chat or starts a new one.
 5. `sync_session_state!` saves the state, and `register_live_session` records the connection's session object for HTTP requests (`live_session(tab_id)`).
 
 The store is `WebSocketHelper`'s `@@session_state` (`lib/monadic/utils/websocket/connection_manager.rb`), guarded by a mutex:

@@ -6,7 +6,7 @@ require_relative '../string_utils'
 module Monadic
   module Utils
     module Privacy
-      # Detects the conversation language for Privacy Filter when the sidebar
+      # Detects the conversation language for finding names when the sidebar
       # is set to "auto". Operates on user-typed text received via WebSocket
       # (handle_ws_streaming) BEFORE any vendor adapter reconstructs the
       # messages array. This matters because vendor adapters can inject

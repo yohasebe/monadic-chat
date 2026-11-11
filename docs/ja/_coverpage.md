@@ -8,7 +8,7 @@
 - 複数のAIモデルを活用
 - マルチモーダルなインタラクション
 - JupyterLabとの連携
-- プライバシーフィルター（個人情報マスキング、会話ごとにオン）
+- 匿名化：選んだ名前を、会話が送る文の中で置き換え
 
 [始めよう](/ja/README.md)
 [GitHub](https://github.com/yohasebe/monadic-chat/)

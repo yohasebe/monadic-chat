@@ -10,7 +10,7 @@ This page covers Install Options, startup, build logs, browser tabs and environm
 - **Python Libraries (CPU)**: nltk, spaCy, gensim, mediapipe, transformers
 - **Music Analysis**: librosa + madmom, needed by the music analysis apps
 - **System Tools (CLI)**: ImageMagick (`convert` / `mogrify`)
-- **Privacy Filter — Additional Languages**: languages besides English for the Privacy Filter. They apply when you save; no rebuild is needed
+- **Name Finder — Additional Languages**: languages besides English for finding names to hide ([Anonymization](anonymization.md)). They apply when you save; no rebuild is needed
 - **Knowledge Base Quality Pack (Docling)**: a separate container for PDF extraction with layout analysis and OCR, with its OCR languages
 
 The option table is in the [Configuration Reference](/reference/configuration.md).

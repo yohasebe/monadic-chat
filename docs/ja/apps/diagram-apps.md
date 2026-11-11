@@ -6,7 +6,7 @@
 
 ![Mermaid Grapher app icon](../assets/icons/diagram-draft.png ':size=40')
 
-[Mermaid.js](https://mermaid.js.org/) の図でデータを視覚化するアプリです。データや指示を入力すると、AI が Mermaid のコードを書き、チャットの横の[作業画面](../basic-usage/web-interface.md#work-screen)に図を表示します。図は共有フォルダの会話のフォルダにある `.mmd` のファイルです。返答にはそのパスが書かれ、返答の下の行からもう一度表示できます。**描画** と **元の文字** で図とコードを切り替えます。ファイルを残さない Private の会話では、図はチャットに表示されます。
+[Mermaid.js](https://mermaid.js.org/) の図でデータを視覚化するアプリです。データや指示を入力すると、AI が Mermaid のコードを書き、チャットの横の[作業画面](../basic-usage/web-interface.md#work-screen)に図を表示します。図は共有フォルダの会話のフォルダにある `.mmd` のファイルです。返答にはそのパスが書かれ、返答の下の行からもう一度表示できます。**描画** と **元の文字** で図とコードを切り替えます。
 
 チャットでは、図は **SVG をダウンロード** の付いた画像として表示されます。上の切り替えで Mermaid のコードを表示できます。図の中に書いた設定（`%%{init: …}%%` や frontmatter）は使えません。その図は描かれず、理由が表示されます。どのアプリの返答に入った Mermaid のコードも、このように描かれます。
 

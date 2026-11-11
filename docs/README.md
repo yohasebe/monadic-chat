@@ -77,7 +77,7 @@ Explore advanced configurations, app development, and integration possibilities.
 *   [Using Ollama](/advanced-topics/ollama.md)
 *   [Help System Configuration](/advanced-topics/help-system.md)
 *   [MCP Integration](/advanced-topics/mcp-integration.md)
-*   [Privacy Filter](/advanced-topics/privacy-filter.md)
+*   [Anonymization](/advanced-topics/anonymization.md)
 
 ## Reference
 

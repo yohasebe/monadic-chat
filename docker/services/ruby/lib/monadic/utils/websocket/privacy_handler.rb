@@ -70,7 +70,6 @@ module WebSocketHelper
       parameters = privacy_remask_parameters(parameters, remask)
     end
 
-    header = privacy_export_header(session, messages)
     legacy_mode = privacy_export_legacy_mode(encrypt, content_kind)
 
     # Include parameters + monadic_state alongside messages so the export
@@ -97,8 +96,18 @@ module WebSocketHelper
       monadic_state = privacy_mask_everywhere(monadic_state, remask)
       session_context = privacy_mask_everywhere(session_context, remask)
       progressive_tools = privacy_mask_everywhere(progressive_tools, remask)
+    end
+
+    # The header (plain text even in an encrypted file) and the file name
+    # name the app as the exported parameters do: masked in a masked file.
+    app_name = parameters.is_a?(Hash) ? parameters["app_name"].to_s : ""
+    header = privacy_export_header(app_name, messages)
+    filename = privacy_export_filename(app_name, encrypt, content_kind)
+
+    if masked_file
       contents = { "messages" => messages, "parameters" => parameters, "monadic_state" => monadic_state,
-                   "session_context" => session_context, "progressive_tools" => progressive_tools }
+                   "session_context" => session_context, "progressive_tools" => progressive_tools,
+                   "header" => header, "filename" => filename }
       left = remask.values.map(&:to_s).reject(&:empty?)
       leaked = privacy_file_strings(contents).any? { |text| outbound.holds_word?(text, left) }
       raise ArgumentError, "a masked value is still in the file" if leaked
@@ -135,8 +144,6 @@ module WebSocketHelper
       payload["progressive_tools"] = progressive_tools if progressive_tools
       content = JSON.pretty_generate(payload)
     end
-
-    filename = privacy_export_filename(session, encrypt, content_kind)
 
     send_to_client(connection, {
       "type" => "privacy_export_data",
@@ -408,8 +415,8 @@ module WebSocketHelper
   # Build a non-secret header for the envelope. Stays in plaintext so users
   # can identify exports without decrypting (header_sha256 protects against
   # tampering).
-  private def privacy_export_header(session, messages)
-    app_name = session.dig(:parameters, "app_name") || "unknown"
+  private def privacy_export_header(app_name, messages)
+    app_name = "unknown" if app_name.to_s.empty?
     {
       "schema_version" => Monadic::Utils::Privacy::ExportCipher::SCHEMA_VERSION,
       "created_at" => Time.now.utc.iso8601,
@@ -429,8 +436,7 @@ module WebSocketHelper
     "restored"         => ".plain.json"
   }.freeze
 
-  private def privacy_export_filename(session, encrypt, content_kind)
-    app_name = session.dig(:parameters, "app_name").to_s
+  private def privacy_export_filename(app_name, encrypt, content_kind)
     safe_app = app_name.gsub(/[^a-zA-Z0-9_-]/, "_")
     safe_app = "monadic" if safe_app.empty?
     ts = Time.now.strftime("%Y%m%d-%H%M%S")

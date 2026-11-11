@@ -24,7 +24,7 @@ Works like Language Practice, and adds advice on your language use. The advice i
 
 Translate text into another language. The assistant first asks for the source and target languages. To fix the translation of a phrase, write the phrase followed by the translation you want in parentheses, like `original text(desired translation)`. These pairs are kept as the session's vocabulary and used in the following translations. The languages, vocabulary, and notes are shown in the side panel under Languages, Vocabulary, and Notes.
 
-Translate uses the Privacy Filter. It is available for the providers marked in the [availability table](../basic-usage/basic-apps.md#app-availability). How well each language is translated depends on the provider.
+Translate is available for the providers marked in the [availability table](../basic-usage/basic-apps.md#app-availability). How well each language is translated depends on the provider.
 
 
 ## Voice Interpreter

@@ -6,8 +6,8 @@ Mermaid Grapher has OpenAI, Claude, Gemini and Grok variants. All use `MermaidGr
 
 | Tool | What it does |
 |---|---|
-| `validate_mermaid_syntax(code:)` | Validates with Mermaid in a headless Selenium session of its own (`mermaid_test_<time>_<hex>.html`, removed after use); static checks when Selenium fails, no browser slot is free, or the chat is Private |
-| `preview_mermaid(code:)` | Renders the diagram in a browser session of its own and returns a screenshot to the model; refused in a Private chat |
+| `validate_mermaid_syntax(code:)` | Validates with Mermaid in a headless Selenium session of its own (`mermaid_test_<time>_<hex>.html`, removed after use); static checks when Selenium fails or no browser slot is free |
+| `preview_mermaid(code:)` | Renders the diagram in a browser session of its own and returns a screenshot to the model |
 | `analyze_mermaid_error(code:, error:)` | Suggests fixes for an error message |
 | `fetch_mermaid_docs(diagram_type:)` | Returns the mermaid.js.org syntax page URL for a diagram type (the introduction page for unknown types) |
 

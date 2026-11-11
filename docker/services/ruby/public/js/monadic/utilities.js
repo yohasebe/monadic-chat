@@ -1096,10 +1096,6 @@ function setParams() {
     params["library_rag_enabled"] = libRagEl.checked;
   }
 
-  // Privacy Filter session toggle lives on the backend only — see
-  // ws-privacy-handler.js. Putting it in params would shadow the
-  // health-checked authoritative state on the next submit.
-
   const websearchEl = $id("websearch");
   const modelEl = $id("model");
   params["model"] = modelEl ? modelEl.value : null;

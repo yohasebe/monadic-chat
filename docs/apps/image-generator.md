@@ -8,7 +8,6 @@ Generate images from text descriptions, and edit images you upload or images gen
 
 A generated image is saved in the chat's folder (`conversations/` in the shared folder) and shown in the [work screen](../basic-usage/web-interface.md#work-screen); the reply shows one line with its path in the shared folder. The image stays in the work screen while you go on: ask for changes, and the last image in the work screen is edited. **Save as…** (**Download** in a web browser) saves a copy anywhere you choose. If an image's file is changed, moved or deleted in the shared folder, the work screen says so, and that image is no longer shown, edited or saved.
 
-Image generation is not available in a Private chat.
 
 ## Image Editing
 

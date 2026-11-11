@@ -2806,8 +2806,7 @@ function updateApplicationMenu() {
             label: i18n.t('menu.exportDocumentDB'),
             click: async () => {
               // The plain export contains every saved conversation and
-              // PDF in plaintext, regardless of whether Privacy Filter
-              // was active when each item was saved. Strongly steer the
+              // PDF in plaintext. Strongly steer the
               // user toward the encrypted variant; "Export Plain" is
               // still available but explicit.
               const result = await dialog.showMessageBox(mainWindow, {
@@ -3689,7 +3688,7 @@ function computePendingContainerBuilds(imageStatus = null) {
   const env = readEnvFile(getEnvPath());
   const snapshots = readBuildOptionsSnapshots();
   const truthy = (v) => String(v ?? '').toLowerCase() === 'true';
-  // PRIVACY_FILTER defaults to ON when unset (Privacy Filter is part of the default build set).
+  // PRIVACY_FILTER defaults to ON when unset (the Privacy container is part of the default build set).
   const privacyEnabled = String(env.PRIVACY_FILTER ?? 'true').toLowerCase() !== 'false';
   const notBuilt = (service, snapshot) =>
     imageStatus ? !imageStatus[service] : !snapshot;
@@ -3734,7 +3733,7 @@ function computePendingContainerBuilds(imageStatus = null) {
   if (privacyEnabled && notBuilt('privacy', snapshots.privacy_service)) {
     result.push({
       container: 'privacy_service',
-      label: 'Privacy Filter',
+      label: 'Privacy (name finder)',
       changed: null,
       buildCommand: 'build_privacy_container',
       minutes: '3–5'

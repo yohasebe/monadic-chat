@@ -24,7 +24,7 @@ Language Practice と同じように使え、言葉の使い方についての�
 
 テキストを別の言語に翻訳するアプリです。アシスタントは、まず翻訳元と翻訳先の言語を尋ねます。語句の訳し方を指定したいときは、語句のすぐ後に、括弧に入れて訳語を書きます（`原文の語句(希望する訳語)`）。この組はセッションの語彙として保持され、その後の翻訳で使われます。言語・語彙・メモは、サイドパネルの Languages、Vocabulary、Notes に表示されます。
 
-Translate は Privacy Filter を使います。対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。それぞれの言語をどれだけうまく訳せるかは、プロバイダーによって違います。
+Translate の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。それぞれの言語をどれだけうまく訳せるかは、プロバイダーによって違います。
 
 
 ## Voice Interpreter

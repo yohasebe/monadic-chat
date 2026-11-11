@@ -99,8 +99,8 @@ OPENAI_API_KEY=op://Dev/OpenAI/credential
 | `MENU_BAR_MODE` | メニューバーやシステムトレイから使う | `false` | `true`、`false` |
 | `MAX_STORED_MESSAGES` | セッションを元に戻すためにブラウザーに保存するメッセージの数 | `1000` | 数 |
 | `ROUGE_THEME` | シンタックスハイライトのテーマ | `github:light` | [使えるテーマ](../basic-usage/syntax-highlighting.md)を参照 |
-| `PRIVACY_FILTER` | Privacy のコンテナを起動し、Privacy Filter を使えるようにする | `true` | `true`、`false` |
-| `PRIVACY_LANGS` | Privacy Filter が英語のほかに読み込む言語 | `en` | カンマ区切りのコード（`en`、`de`、`es`、`fr`、`it`、`ja`、`nl`、`pt`、`zh`） |
+| `PRIVACY_FILTER` | 匿名化のために名前を探す Privacy のコンテナをダウンロードし、起動する | `true` | `true`、`false` |
+| `PRIVACY_LANGS` | Privacy のコンテナが英語のほかに読み込む言語 | `en` | カンマ区切りのコード（`en`、`de`、`es`、`fr`、`it`、`ja`、`nl`、`pt`、`zh`） |
 | `EXTRACTOR_SERVICE` | Knowledge Base Quality Pack のコンテナを使う | `false` | `true`、`false` |
 | `EXTRACTOR_LANGS` | Knowledge Base Quality Pack の OCR の言語 | `en,ja,zh,ko` | カンマ区切りのコード |
 | `LIBRARY_IMPORT_MAX_BYTES` | Knowledge Base が取り込むファイルの最大の大きさ（バイト） | `104857600`（100 MiB） | 数 |
@@ -148,7 +148,7 @@ OPENAI_API_KEY=op://Dev/OpenAI/credential
 
 ## インストールオプション :id=install-options
 
-Python のコンテナに入れる追加のパッケージを選びます。変えた後は、**Actions → Build Python Container** で作り直してください。同じ Install Options のパネルにある Privacy Filter の言語と Knowledge Base Quality Pack は、[システム設定](#system-settings)にあります。
+Python のコンテナに入れる追加のパッケージを選びます。変えた後は、**Actions → Build Python Container** で作り直してください。同じ Install Options のパネルにある 伏せる名前を探す言語と Knowledge Base Quality Pack は、[システム設定](#system-settings)にあります。
 
 | 変数 | 説明 | 必要なアプリ | 既定 |
 |------|------|--------------|------|

@@ -23,7 +23,7 @@ A chat that keeps track of the conversation. As the AI responds, it updates thes
 - **People**: The people mentioned in the conversation.
 - **Notes**: Key facts and preferences to remember.
 
-Chat Plus also has web search and the Privacy Filter. The OpenAI version can search the PDFs in the [PDF Database](../basic-usage/pdf_storage.md) and cite them.
+Chat Plus also has web search. The OpenAI version can search the PDFs in the [PDF Database](../basic-usage/pdf_storage.md) and cite them.
 
 
 ## Voice Chat :id=voice-chat
@@ -59,7 +59,7 @@ In the live view the sentence the assistant is currently speaking is highlighted
 
 **Tools** (off by default): Enable the `Tools` toggle to let the assistant call tools during the conversation: current time, Python code execution, Knowledge Base search, and web search (web search requires a `TAVILY_API_KEY`). Python and Knowledge Base are available only while their respective containers are running. A turn that used tools stays on a single card, with a 🛠 badge naming the tool at the paragraph boundary where it was called (red on failure); the status line shows "Using ..." while a call runs.
 
-**Session behavior**: The conversation stops automatically after a period of silence (default: 3 minutes). Gemini sessions have a 15-minute connection limit; when it is reached, the app reconnects automatically and the conversation continues. The Privacy Filter does not apply — audio reaches the provider directly. The conversation can be saved to the Knowledge Base like other conversations. Thinking-process display is not available, because realtime models do not emit a reasoning trace.
+**Session behavior**: The conversation stops automatically after a period of silence (default: 3 minutes). Gemini sessions have a 15-minute connection limit; when it is reached, the app reconnects automatically and the conversation continues. It is not available in a chat that [hides words](../advanced-topics/anonymization.md), since audio reaches the provider directly. The conversation can be saved to the Knowledge Base like other conversations. Thinking-process display is not available, because realtime models do not emit a reasoning trace.
 
 **Cost**: While connected, billing accrues during silent time as well, and the rate differs considerably between providers — check each provider's pricing page before a long session. A running cost estimate based on actual usage is shown at the top of the window.
 

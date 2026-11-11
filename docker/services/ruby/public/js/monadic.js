@@ -3186,8 +3186,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   $on($id("save"), "click", async function () {
     // Always route through the unified Export dialog. The dialog offers
-    // optional encryption (regardless of Privacy Filter state) plus a
-    // restored/masked content choice when the Privacy Filter is active.
+    // optional encryption plus a restored/masked content choice for a chat
+    // that hides words.
     if (window.WsPrivacyHandler && typeof window.WsPrivacyHandler.openExportDialog === 'function') {
       window.WsPrivacyHandler.openExportDialog();
       return;

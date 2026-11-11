@@ -12,7 +12,7 @@ included from `docker/services/compose.yml`):
 - **Embeddings** (`monadic-chat-embeddings-container`): Local embedding service (`multilingual-e5-base`)
 - **Python** (`monadic-chat-python-container`): JupyterLab, Python tools & script execution
 - **Selenium** (`monadic-chat-selenium-container`): Web automation for capture/search
-- **Privacy** (`monadic-chat-privacy-container`): PII masking service for the Privacy Filter
+- **Privacy** (`monadic-chat-privacy-container`): finds names for Anonymization (word tables)
 - **Extractor** (`monadic-chat-extractor-container`): Document extraction service (Docling + RapidOCR)
 
 Native Ollama is not a container: the Ruby service reaches the host's
@@ -24,7 +24,7 @@ Ollama via `host.docker.internal:11434`.
 `monadic-chat-embeddings-container` does inference only (Python and
 sentence-transformers, with the embedding model baked into the image).
 Both are base services. Stateless ML inference runs in its own container,
-as the Privacy Filter does.
+as the Privacy container does.
 
 ## Container Lifecycle
 

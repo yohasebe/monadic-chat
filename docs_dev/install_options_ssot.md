@@ -1,6 +1,6 @@
 # Install Options
 
-This page lists where the options of **Actions → Install Options** are defined: the optional Python layers, the Privacy Filter languages and the Extractor OCR languages.
+This page lists where the options of **Actions → Install Options** are defined: the optional Python layers, the languages the Privacy container finds names in, and the Extractor OCR languages.
 
 ## `app/install_options.config.js`
 
@@ -10,7 +10,7 @@ A CommonJS module required by `app/main.js`. It exports:
 |---|---|
 | `PYTHON_OPTIONS` | Python build options, each `{ id, env, label, group }`: `id` is the checkbox id in `settings.html`, `env` the variable in `~/monadic/config/env` and the Dockerfile `ARG`, `label` the English fallback, `group` one of `python`, `system`, `music`, `tools` |
 | `ENV_KEYS_PYTHON` | The `env` names of `PYTHON_OPTIONS`, used by `main.js` for rebuild detection and env normalization |
-| `PRIVACY_LANG_BASE` / `PRIVACY_LANG_OPTIONAL` / `PRIVACY_LANG_ALL` | Privacy Filter languages. `en` is always on; the others are opt-in |
+| `PRIVACY_LANG_BASE` / `PRIVACY_LANG_OPTIONAL` / `PRIVACY_LANG_ALL` | Languages of the Privacy container. `en` is always on; the others are opt-in |
 | `EXTRACTOR_LANG_BASE` / `EXTRACTOR_LANG_OPTIONAL` / `EXTRACTOR_LANG_ALL` | Extractor OCR languages. `en` is always on; the others are opt-in |
 
 The language selections are runtime settings: compose passes them to the containers as `PRIVACY_LANGS_RUNTIME` and `EXTRACTOR_LANGS_RUNTIME`, and the images do not depend on them.
@@ -40,6 +40,6 @@ The language selections are runtime settings: compose passes them to the contain
 
 Removing an option is the same list in reverse.
 
-## Adding a Privacy Filter Language
+## Adding a Privacy Container Language
 
 Add it to the privacy service's `language_map.json` (which puts the model in the image), append it to `PRIVACY_LANG_OPTIONAL`, add the checkbox row in `settings.html` and the translations.

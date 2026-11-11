@@ -132,9 +132,9 @@ Session Context works with every provider: OpenAI, Anthropic (Claude), Google (G
 - The language can also be detected automatically (`auto`)
 - The same name with or without a common Japanese honorific (さん, くん, ちゃん, 様, 氏) is treated as one item
 
-## Privacy Filter
+## Hidden Words
 
-When the Privacy Filter is on, the extraction agent receives the masked text, so the sidebar shows placeholders such as `<<PERSON_1>>` instead of the masked words. If masking fails, or a word you marked would still be in the request to the extraction agent, extraction is skipped for that turn.
+In a chat that [hides words](anonymization.md), the extraction agent receives the text with the words replaced by placeholders, and the context is shown with the words put back. If the words cannot be hidden, extraction is skipped for that turn.
 
 ## Best Practices
 

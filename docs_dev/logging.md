@@ -24,16 +24,11 @@ Notes:
 
 Tests: `spec/unit/utils/secret_redactor_spec.rb`.
 
-## Private Chats
+## Chats That Hide Words
 
-Nothing is logged for the work of a Private chat (`Monadic::History::Policy.current_work_private?`: the chat the work started in, as `EgressGuard.for_chat` keeps it for the threads and fibers it starts, or the tab's session; the ids of Private chats are kept in memory, so work of a Private chat stays Private after the tab moves to a new chat). A line cannot be told to hold none of the chat, so the whole line is left out:
+Logs are written for every chat alike: a chat's [word table](anonymization.md) hides words only in what is sent to other services, so `extra.log`, `command.log` and the server's output can hold the chat's words. Nothing writes the table itself, the session, or an export's payload to a log. An imported conversation (`/load`) is parsed in memory (`Monadic::Workspace::UploadInMemory`), so no temporary file is made of it.
 
-- `ExtraLogger` (`log`, `log_json`, `log_raw`) writes nothing.
-- `command.log` gets no entry (`Shell.log_invocation`, `MonadicApp#send_command`).
-- HTTP requests that name the tab of a Private chat (`tab_id`) run as that chat's work (`Monadic::History::PrivateRequestGuard`), since the cookie's session is shared by every tab. An imported conversation (`/load`) is parsed in memory (`Monadic::Workspace::UploadInMemory`), so no temporary file is made of it.
-- What the process prints (`STDOUT`/`STDERR`, the server log) is dropped: `Monadic::History::PrivateOutput` is prepended to both streams at startup, so `puts`, `print`, loggers made earlier on them and other threads are covered. `$stderr` is set to a guarded copy of `STDERR`: while it is `STDERR` itself, Ruby writes warnings (`warn`) and the report of a thread that died of an exception straight to the file descriptor, past `write`.
-
-Tests: `spec/unit/history/private_work_spec.rb`, and `spec/unit/history/private_chat_files_spec.rb` (a whole chat through the app booted from `config.ru` in a child process with its own home: every file under it is scanned for a marker and every write is recorded, with a normal chat as the positive control, also after the process is killed in an answer).
+Tests: `spec/unit/history/chat_files_spec.rb` (a whole chat through the app booted from `config.ru` in a child process with its own home: every file under it is scanned for a marker and every write is recorded, also after the process is killed in an answer).
 
 ## Build Logs
 

@@ -549,11 +549,8 @@ module WebSocketHelper
         # Clear session tts_text after use to avoid reusing on next request
         session.delete(:tts_text) if tts_text_from_target
 
-        # A chat that hides its words with a word table reads each as its
-        # type and number (Words.spoken). Privacy Filter: replace any
-        # "<<TYPE_N>>" placeholder with "TYPE N" so TTS reads a sanitized
-        # form instead of speaking the bracket symbols (no-op when no
-        # placeholders).
+        # A chat that hides its words with a word table reads each word and
+        # each "<<TYPE_N>>" placeholder as "TYPE N" (Words.spoken).
         words = Monadic::Utils::Privacy::Words
         begin
           if words.marked?(session)

@@ -91,6 +91,16 @@ RSpec.describe 'The page asking about a chat word table' do
       expect(deps).to have_received(:start_service_async).with(:privacy, anything)
     end
 
+    it 'does not start it when the user turned it off, and says it is not available' do
+      allow(backend).to receive(:health).and_return(false)
+      allow(host).to receive(:privacy_container_coming_up?).and_return(false)
+      allow(deps).to receive(:start_service_async)
+      stub_const('CONFIG', { 'PRIVACY_FILTER' => 'false' })
+
+      expect(find['error']).to eq('privacy_container_unreachable')
+      expect(deps).not_to have_received(:start_service_async)
+    end
+
     it 'does not start it twice' do
       allow(backend).to receive(:health).and_return(false)
       allow(host).to receive(:privacy_container_coming_up?).and_return(true)

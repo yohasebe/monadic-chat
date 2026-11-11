@@ -62,6 +62,10 @@ Click the **Text from URL** button to enter a URL. The content at that URL is lo
 
 <!-- SCREENSHOT: URL input dialog where user enters a web address, with extracted content appearing as Markdown in the message input area -->
 
+## Anonymize :id=anonymize
+
+Click **Anonymize** beside the message box to choose words (such as names) that the chat replaces with placeholders in what it sends. Only text is covered: images, files sent as they are, voice, names not chosen and what was already sent are not. See [Anonymization](../advanced-topics/anonymization.md).
+
 ## Speech Input :id=speech-input
 
 ?> **Note:** Voice input is supported in Chrome, Edge, and Safari browsers.
@@ -97,7 +101,7 @@ A streaming mode is available for the **GPT Realtime Whisper ⚡** entry in the 
 
 **Provider support.** Realtime streaming transcription is available via OpenAI only. Other STT models on the dropdown use the batch path. This transcription feature is separate from the speech-to-speech conversation in [Live Conversation](../apps/chat-apps.md#live-conversation), which is available for OpenAI, xAI, and Gemini.
 
-!> **Privacy Filter interaction.** Audio captured by Speech Input is sent to the provider of the Speech-to-Text model you selected, before any Privacy Filter masking applies. Privacy Filter operates on the **text** sent to the LLM after transcription completes — it does not mask the audio itself. If your audio contains personally identifiable information that you do not want to send to that provider, type the message instead of dictating it.
+!> **Anonymization.** Audio captured by Speech Input is sent as it is to the provider of the Speech-to-Text model you selected; [Anonymization](../advanced-topics/anonymization.md) hides words only in the text a chat sends. If your audio contains words you do not want to send to that provider, type the message instead of dictating it.
 
 ## Text-to-Speech Playback
 

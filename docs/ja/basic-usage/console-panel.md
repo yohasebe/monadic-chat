@@ -41,7 +41,7 @@ Monadic Chatを終了します。
 ビルドのコマンドは Monadic Chat が止まっているとき、JupyterLab のコマンドは動いているとき、ドキュメント DB のコマンドは止まっているときに使えます。
 
 **Install Options** <br />
-設定ウィンドウの Install Options パネルを開きます。サービスコンテナにインストールするオプションパッケージ（LaTeX、Pythonライブラリ、Privacy Filterの追加言語など）を選択できます。
+設定ウィンドウの Install Options パネルを開きます。サービスコンテナにインストールするオプションパッケージ（LaTeX、Pythonライブラリ、伏せる名前を探す追加言語など）を選択できます。
 
 **Start** <br />
 Monadic Chatを起動します。初回起動時はDocker上での環境構築のため少し時間がかかります。
@@ -65,7 +65,7 @@ AI エージェントが使うイメージとコンテナ（`monadic-chat-python
 ユーザーが定義したコンテナ（[Dockerコンテナの追加](../advanced-topics/adding-containers.md)を参照）を、ビルドのキャッシュなしでビルドします。通常の Start ではビルドされないので、定義を追加・変更した後はこのコマンドを使います。
 
 **Build Privacy Container** <br />
-Privacy Filter が使うコンテナ（`monadic-chat-privacy-container`）のイメージをダウンロードします。Privacy Filter が有効なときに使えます。
+[匿名化](../advanced-topics/anonymization.md)のために名前を探すコンテナ（`monadic-chat-privacy-container`）のイメージをダウンロードします。`PRIVACY_FILTER=false` を設定していないときに使えます。
 
 **Build Extractor Container** <br />
 Knowledge Base Quality Pack が使うコンテナ（`monadic-chat-extractor-container`）のイメージをダウンロードします。Quality Pack をインストールしているときに使えます。
@@ -80,7 +80,7 @@ JupyterLabを停止します。
 ドキュメント DB（ナレッジベースに保存した会話・PDF・その他の Knowledge Base エントリすべて）を、共有フォルダ内の書き出したファイルから取り込みます。会話の履歴はドキュメント DB に含まれず、変わりません。実行前に、現在の DB を置き換えることを警告する確認ダイアログ（**Replace and Import**）が表示されます。受け入れられるファイル名は `monadic-qdrant.tar.gz`（平文）または `monadic-qdrant.tar.gz.enc`（暗号化、エクスポート時のパスフレーズを入力するよう促されます）です。
 
 **Export Document DB** <br />
-ドキュメント DB 全体を共有フォルダにエクスポートします。確認ダイアログには 2 つの選択肢があります: **Encrypt and Export**（デフォルト — パスフレーズを尋ね、`monadic-qdrant.tar.gz.enc` を書き出します）と **Export Plain**（暗号化せずに `monadic-qdrant.tar.gz` を書き出します。ナレッジベースに保存した会話と PDF が平文で含まれることを強く警告）。エクスポートには[会話の履歴](web-interface.md#chat-history-panel)は含まれません。マシン外に出る可能性があるエクスポートは暗号化版を使ってください。暗号化フォーマットとインポート／復号の挙動の詳細は [Privacy Filter](../advanced-topics/privacy-filter.md#document-db-export-import) を参照してください。
+ドキュメント DB 全体を共有フォルダにエクスポートします。確認ダイアログには 2 つの選択肢があります: **Encrypt and Export**（デフォルト — パスフレーズを尋ね、`monadic-qdrant.tar.gz.enc` を書き出します）と **Export Plain**（暗号化せずに `monadic-qdrant.tar.gz` を書き出します。ナレッジベースに保存した会話と PDF が平文で含まれることを強く警告）。エクスポートには[会話の履歴](web-interface.md#chat-history-panel)は含まれません。マシン外に出る可能性があるエクスポートは暗号化版を使ってください。暗号化フォーマットとインポート／復号の挙動の詳細は [匿名化](../advanced-topics/anonymization.md#document-db-export-import) を参照してください。
 
 ### Open メニュー
 
@@ -163,7 +163,7 @@ Monadic Chat の Docker イメージ、コンテナ、ボリューム（Knowledg
 コンソールウィンドウを表示する代わりに、メニューバーに常駐させます（macOS）。
 
 **Notify When a Reply Arrives in the Background** <br />
-内部ブラウザのウィンドウを閉じると、ウィンドウは隠れ、会話はそのまま残ります。**Open Browser** か、メニューバー（システムトレイ）のメニューの **Web UI を表示** で、ウィンドウが戻ります。閉じたときに作っていた返事は受け取り続け、届くと通知が出ます。通知を押しても、ウィンドウが戻ります。通知に会話の文は入りません。ウィンドウを隠すときに、音声入力と Live の会話を止め、音声の再生も止めます。隠れている間は音声を鳴らさず、マイクも使えません。会話を終えるときは、**Reset** を使うか、メニューバーのメニューで **Web UI を閉じる** を選ぶか、Monadic Chat を終了します。Private の会話も同じです。この設定をオフにすると、通知を出さずに隠します。
+内部ブラウザのウィンドウを閉じると、ウィンドウは隠れ、会話はそのまま残ります。**Open Browser** か、メニューバー（システムトレイ）のメニューの **Web UI を表示** で、ウィンドウが戻ります。閉じたときに作っていた返事は受け取り続け、届くと通知が出ます。通知を押しても、ウィンドウが戻ります。通知に会話の文は入りません。ウィンドウを隠すときに、音声入力と Live の会話を止め、音声の再生も止めます。隠れている間は音声を鳴らさず、マイクも使えません。会話を終えるときは、**Reset** を使うか、メニューバーのメニューで **Web UI を閉じる** を選ぶか、Monadic Chat を終了します。この設定をオフにすると、通知を出さずに隠します。
 
 **Extra Logging** <br />
 詳しいログ情報を有効にするかどうかを選択します。有効にすると、APIリクエストとレスポンスの詳細がログに記録されます。ログファイルは `~/monadic/log/extra.log` に保存されます。
@@ -216,7 +216,7 @@ Python コンテナにインストールするオプションパッケージを�
 
 同じパネルには、さらに 2 つのグループがあります。
 
-- **Privacy Filter — Additional Languages**：英語のほかに Privacy Filter が見つける言語（ドイツ語、スペイン語、フランス語、イタリア語、日本語、オランダ語、ポルトガル語、中国語）。保存すると、再ビルドなしで反映されます。
+- **Name Finder — Additional Languages**：英語のほかに伏せる名前を探す言語（ドイツ語、スペイン語、フランス語、イタリア語、日本語、オランダ語、ポルトガル語、中国語）。保存すると、再ビルドなしで反映されます。
 - **Knowledge Base Quality Pack (Docling)**：文書の取り込みの質を上げる extractor のコンテナと、その OCR の言語（英語、日本語、中国語、韓国語）をインストールします。[Knowledge Base](../apps/knowledge-base.md) を参照してください。
 
 ### Actions（アクション）

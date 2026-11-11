@@ -46,48 +46,44 @@
 | Document Generator | | ✅ | | | | | | |
 | Monadic Chat Help | ✅ | | | | | | | |
 
-## アプリ別の Privacy Filter / Knowledge Base 対応 :id=privacy-kb-by-app
+## アプリ別の Knowledge Base 保存 :id=kb-by-app
 
-アプリは、Privacy Filter (PF) と Knowledge Base への保存 (KB) のどちらか一方に対応し、両方には対応しません。画像・動画・図・音楽・文書を作るアプリはどちらにも対応せず、その出力は共有フォルダ（`~/monadic/data`）に保存されます。
+画像・動画・図・音楽・文書を作るアプリ、Chat Plus、Second Opinion、Translate、Mail Composer は Knowledge Base に保存しません。画像などの出力は共有フォルダ（`~/monadic/data`）に保存されます。語を伏せている会話は、どのアプリでも保存できません（[匿名化](../advanced-topics/anonymization.md#knowledge-base)）。会話を残すには **Export** を使います。Knowledge Base に保存したものを見るには、Knowledge Base パネルの **Browse** をクリックします。
 
-Privacy Filter を使った会話を残すには、上部のバーの Privacy の表示をクリックし、**Export this conversation** を使います（暗号化も、伏せた形での書き出しもできます）。Knowledge Base に保存したものを見るには、Knowledge Base パネルの **Browse** をクリックします。
-
-| アプリ | Privacy Filter | Knowledge Base 保存 |
-|-----|:--:|:--:|
-| Chat | | ✅ |
-| Chat Plus | ✅ | |
-| Voice Chat | | ✅ |
-| Live Conversation | | ✅ |
-| Wikipedia | | ✅ |
-| Math Tutor | | ✅ |
-| Second Opinion | ✅ | |
-| Research Assistant | | ✅ |
-| Language Practice | | ✅ |
-| Language Practice Plus | | ✅ |
-| Translate | ✅ | |
-| Voice Interpreter | | ✅ |
-| Novel Writer | | ✅ |
-| Image Generator | | |
-| Video Generator | | |
-| Music Generator | | |
-| Mail Composer | ✅ | |
-| Mermaid Grapher | | |
-| DrawIO Grapher | | |
-| Syntax Tree | | |
-| Concept Visualizer | | |
-| Speech Draft Helper | | ✅ |
-| Web Insight | | ✅ |
-| Video Describer | | ✅ |
-| Code Interpreter | | ✅ |
-| Coding Assistant | | ✅ |
-| Jupyter Notebook | | ✅ |
-| Auto Forge | | |
-| Music Lab | | |
-| Music Analyst | | |
-| Document Generator | | |
-| Monadic Chat Help | | ✅ |
-
-両列とも空欄のアプリは、出力（画像・動画・図・文書など）をファイルとして保存するアプリです。メッセージの操作か共有フォルダから残してください。
+| アプリ | Knowledge Base 保存 |
+|-----|:--:|
+| Chat | ✅ |
+| Chat Plus | |
+| Voice Chat | ✅ |
+| Live Conversation | ✅ |
+| Wikipedia | ✅ |
+| Math Tutor | ✅ |
+| Second Opinion | |
+| Research Assistant | ✅ |
+| Language Practice | ✅ |
+| Language Practice Plus | ✅ |
+| Translate | |
+| Voice Interpreter | ✅ |
+| Novel Writer | ✅ |
+| Image Generator | |
+| Video Generator | |
+| Music Generator | |
+| Mail Composer | |
+| Mermaid Grapher | |
+| DrawIO Grapher | |
+| Syntax Tree | |
+| Concept Visualizer | |
+| Speech Draft Helper | ✅ |
+| Web Insight | ✅ |
+| Video Describer | ✅ |
+| Code Interpreter | ✅ |
+| Coding Assistant | ✅ |
+| Jupyter Notebook | ✅ |
+| Auto Forge | |
+| Music Lab | |
+| Music Analyst | |
+| Document Generator | |
+| Monadic Chat Help | ✅ |
 
 ## プロバイダー機能概要 :id=provider-capabilities
 

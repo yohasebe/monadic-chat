@@ -41,7 +41,7 @@ The console has a menu bar with the menus File, Edit, Actions, Open, Help and Wi
 The build commands are available while Monadic Chat is stopped, the JupyterLab commands while it is running, and the Document DB commands while it is stopped.
 
 **Install Options** <br />
-Open the Install Options panel of the settings window, where you can select optional packages (LaTeX, Python libraries, Privacy Filter languages, etc.) to be installed in the service containers.
+Open the Install Options panel of the settings window, where you can select optional packages (LaTeX, Python libraries, languages for finding names to hide, etc.) to be installed in the service containers.
 
 **Start** <br />
 Launch Monadic Chat. The initial startup may take some time due to environment setup on Docker.
@@ -65,7 +65,7 @@ Build the image and container (`monadic-chat-python-container`) used by the AI a
 Build the containers you defined (see [Adding Docker Containers](../advanced-topics/adding-containers.md)), without the build cache. A normal Start does not build them; use this command after adding or changing a definition.
 
 **Build Privacy Container** <br />
-Download the image of the container (`monadic-chat-privacy-container`) used by the Privacy Filter. Available when the Privacy Filter is enabled.
+Download the image of the container (`monadic-chat-privacy-container`) that finds names for [Anonymization](../advanced-topics/anonymization.md). Available unless `PRIVACY_FILTER=false` is set.
 
 **Build Extractor Container** <br />
 Download the image of the container (`monadic-chat-extractor-container`) used by the Knowledge Base Quality Pack. Available when the Quality Pack is installed.
@@ -80,7 +80,7 @@ Stop JupyterLab.
 Import the entire Document DB (conversations saved to the Knowledge Base, PDFs, and other Knowledge Base entries) from a previously exported file in the shared folder. The chat history is not part of the Document DB and is not changed. A confirmation dialog warns that importing replaces the current database (**Replace and Import**). The accepted filenames are `monadic-qdrant.tar.gz` (plain) or `monadic-qdrant.tar.gz.enc` (encrypted, prompts for the passphrase used at export time).
 
 **Export Document DB** <br />
-Export the entire Document DB to the shared folder. A confirmation dialog offers two choices: **Encrypt and Export** (default — prompts for a passphrase and writes `monadic-qdrant.tar.gz.enc`) or **Export Plain** (writes `monadic-qdrant.tar.gz` unencrypted, with a strong warning that every conversation saved to the Knowledge Base and every PDF travels in cleartext). The export does not include the [chat history](web-interface.md#chat-history-panel). Use the encrypted form for any export that may leave your machine. For the encryption format and import/decryption behavior, see [Privacy Filter](../advanced-topics/privacy-filter.md#document-db-export-import).
+Export the entire Document DB to the shared folder. A confirmation dialog offers two choices: **Encrypt and Export** (default — prompts for a passphrase and writes `monadic-qdrant.tar.gz.enc`) or **Export Plain** (writes `monadic-qdrant.tar.gz` unencrypted, with a strong warning that every conversation saved to the Knowledge Base and every PDF travels in cleartext). The export does not include the [chat history](web-interface.md#chat-history-panel). Use the encrypted form for any export that may leave your machine. For the encryption format and import/decryption behavior, see [Anonymization](../advanced-topics/anonymization.md#document-db-export-import).
 
 ### Open Menu
 
@@ -163,7 +163,7 @@ Start Monadic Chat automatically when you log in to your computer.
 Keep Monadic Chat running in the menu bar instead of showing a console window (macOS).
 
 **Notify When a Reply Arrives in the Background** <br />
-Closing the internal browser window hides it, and the conversation stays as it is. **Open Browser**, or **Show Web UI** in the menu bar (system tray) menu, brings the window back. A reply being generated when the window was closed keeps coming in, and a notification says when it has arrived; click it to bring the window back. The notification never includes the text of the conversation. When the window is hidden, voice input and Live conversations stop and audio playback stops; while it is hidden, no audio plays and the microphone cannot be used. To end the conversation, use **Reset**, choose **Close Web UI** in the menu bar menu, or quit Monadic Chat. This also applies to Private conversations. Turn this setting off to hide the window without notifications.
+Closing the internal browser window hides it, and the conversation stays as it is. **Open Browser**, or **Show Web UI** in the menu bar (system tray) menu, brings the window back. A reply being generated when the window was closed keeps coming in, and a notification says when it has arrived; click it to bring the window back. The notification never includes the text of the conversation. When the window is hidden, voice input and Live conversations stop and audio playback stops; while it is hidden, no audio plays and the microphone cannot be used. To end the conversation, use **Reset**, choose **Close Web UI** in the menu bar menu, or quit Monadic Chat. Turn this setting off to hide the window without notifications.
 
 **Extra Logging** <br />
 Select whether to enable additional logging. When enabled, API requests and responses are logged in detail. The log file is saved as `~/monadic/log/extra.log`.
@@ -216,7 +216,7 @@ Select optional packages to be installed in the Python container: LaTeX, Python 
 
 The same panel holds two more groups:
 
-- **Privacy Filter — Additional Languages**: languages detected by the Privacy Filter besides English (German, Spanish, French, Italian, Japanese, Dutch, Portuguese, Chinese). A change takes effect on save, without a rebuild.
+- **Name Finder — Additional Languages**: languages besides English for finding names to hide (German, Spanish, French, Italian, Japanese, Dutch, Portuguese, Chinese). A change takes effect on save, without a rebuild.
 - **Knowledge Base Quality Pack (Docling)**: install the extractor container for higher-quality document import, with its OCR languages (English, Japanese, Chinese, Korean). See [Knowledge Base](../apps/knowledge-base.md).
 
 ### Actions

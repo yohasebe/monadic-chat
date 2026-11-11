@@ -23,9 +23,8 @@ module Monadic
     # data is what the model sees (render); the binding (chat, epoch, tab,
     # connection, request) says where it belongs and is not shown.
     #
-    # What is sent goes through the chat's Privacy Filter as its messages
-    # do (render_for): the values are masked as JSON text, and none is sent
-    # when masking cannot be done or a word the user marked would be left.
+    # What is sent is checked against the words the chat hides (render_for):
+    # none of it is sent when one of them would be left.
     class Observation
       # Characters of a name or path as shown, and of the JSON of the data
       # (the preamble and the tags around it are fixed and short).

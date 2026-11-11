@@ -234,6 +234,9 @@ function handlePastMessages(data) {
   setStats(formatInfo(serverMessages), "info");
 
   const hasConversation = serverMessages.some((m) => m.role !== "system");
+  // A chat taken in (an import, a chat from the history) replaces the one
+  // shown: the column goes back to its settings, to be continued from there.
+  if (data["from_import"] && typeof window.enterSettingsMode === 'function') window.enterSettingsMode();
   if (typeof window.setStartButtonMode === 'function') window.setStartButtonMode(hasConversation);
 
   const connectedText =

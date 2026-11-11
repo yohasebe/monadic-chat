@@ -39,9 +39,8 @@
     const configBody = $id('config-body');
     const wasSettings = current() === 'settings';
     if (settings && !wasSettings && column) conversationScroll = column.scrollTop;
-    if (configBody && typeof bootstrap !== 'undefined') {
-      bootstrap.Collapse.getOrCreateInstance(configBody, { toggle: false })[settings ? 'show' : 'hide']();
-    }
+    // Shown at once, with no animation, so the tab chosen last is what shows.
+    $toggle(configBody, settings);
     $toggle($id('main-panel'), !settings);
     if (mode === 'active') $toggle($id('config-actions'), settings);
     mark(view);
@@ -78,7 +77,10 @@
   $on(bar(), 'keydown', (e) => {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     if (locked() || !e.target.closest('.summary-tab')) return;
+    // The keys are the tabs': the page's shortcuts (→ starts voice input)
+    // do not see them.
     e.preventDefault();
+    e.stopPropagation();
     const next = e.target === tab('settings') ? 'session' : 'settings';
     tab(next).focus();
     if (mode === 'active') show(next);

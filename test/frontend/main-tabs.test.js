@@ -34,7 +34,7 @@ describe('main column tab words', () => {
 });
 
 describe('main column tabs', () => {
-  let shown;
+  const settingsShown = () => document.getElementById('config-body').style.display !== 'none';
   let started;
   const actions = () => document.getElementById('config-actions');
   const tab = (name) => document.getElementById('summary-tab-' + name);
@@ -44,26 +44,17 @@ describe('main column tabs', () => {
   beforeEach(() => {
     document.body.innerHTML = '<div id="main">' +
       cut('<div class="column-bar">', '<div id="config-wrapper">') +
-      '<div id="config-body" class="collapse show"></div>' +
+      '<div id="config-body"></div>' +
       '<div id="config-actions"><button id="start"></button></div>' +
       '<div id="main-panel" class="d-none"></div></div>';
     started = 0;
     document.getElementById('start').addEventListener('click', () => { started += 1; });
-    shown = true;
-    window.bootstrap = {
-      Collapse: {
-        getOrCreateInstance: () => ({
-          show: () => { shown = true; },
-          hide: () => { shown = false; }
-        })
-      }
-    };
     jest.resetModules();
     require('../../docker/services/ruby/public/js/monadic/dom-helpers.js');
     require('../../docker/services/ruby/public/js/monadic/main-tabs.js');
   });
 
-  afterEach(() => { delete window.bootstrap; delete window.MainTabs; });
+  afterEach(() => { delete window.MainTabs; });
 
   function startSession() {
     panel().classList.remove('d-none');
@@ -76,7 +67,7 @@ describe('main column tabs', () => {
     expect(tab('settings').tabIndex).toBe(-1);
     tab('settings').click();
     expect(window.MainTabs.locked()).toBe(true);
-    expect(shown).toBe(true);
+    expect(settingsShown()).toBe(true);
   });
 
   it('from the start of a session, offers both tabs and shows the conversation', () => {
@@ -85,20 +76,20 @@ describe('main column tabs', () => {
     expect(tab('session').getAttribute('aria-selected')).toBe('true');
     expect(tab('session').tabIndex).toBe(0);
     expect(tab('settings').getAttribute('aria-selected')).toBe('false');
-    expect(shown).toBe(false);
+    expect(settingsShown()).toBe(false);
     expect(panel().style.display).not.toBe('none');
   });
 
   it('shows one of the settings and the conversation at a time', () => {
     startSession();
     tab('settings').click();
-    expect(shown).toBe(true);
+    expect(settingsShown()).toBe(true);
     expect(panel().style.display).toBe('none');
     expect(tab('settings').getAttribute('aria-selected')).toBe('true');
     expect(tab('settings').tabIndex).toBe(0);
     expect(tab('session').tabIndex).toBe(-1);
     tab('session').click();
-    expect(shown).toBe(false);
+    expect(settingsShown()).toBe(false);
     expect(panel().style.display).not.toBe('none');
   });
 
@@ -120,12 +111,29 @@ describe('main column tabs', () => {
     expect(column().scrollTop).toBe(0);
   });
 
-  it('switches with the arrow keys', () => {
+  it('switches with the arrow keys, which the page\'s shortcuts do not see', () => {
     startSession();
+    const seen = jest.fn();
+    document.addEventListener('keydown', seen);
     tab('session').focus();
     tab('session').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
     expect(window.MainTabs.current()).toBe('settings');
     expect(document.activeElement).toBe(tab('settings'));
+    // → on the settings tab goes to the conversation, and does not start voice input.
+    tab('settings').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(window.MainTabs.current()).toBe('session');
+    expect(seen).not.toHaveBeenCalled();
+    document.removeEventListener('keydown', seen);
+  });
+
+  it('shows the tab chosen last when tabs are chosen quickly', () => {
+    startSession();
+    tab('settings').click();
+    tab('session').click();
+    tab('settings').click();
+    expect(window.MainTabs.current()).toBe('settings');
+    expect(settingsShown()).toBe(true);
+    expect(panel().style.display).toBe('none');
   });
 
   it('offers a chat opened from the history by "Session", which continues it', () => {
@@ -136,7 +144,7 @@ describe('main column tabs', () => {
     tab('session').click();
     expect(started).toBe(1);
     // The settings stay until the session has started.
-    expect(shown).toBe(true);
+    expect(settingsShown()).toBe(true);
   });
 
   it('does not continue a chat by "Session" while the button under the settings cannot', () => {

@@ -425,6 +425,25 @@ describe('word table', () => {
     expect(status.classList.contains('word-table-unavailable')).toBe(true);
   });
 
+  it('shows the words a file of an earlier version hides', () => {
+    wt.handleTable(table({ marked: true, active: [{ word: 'Ada', type: 'PERSON' }] }));
+
+    wt.noticeOlderFile(1);
+
+    expect(document.getElementById('word-table-panel').style.display).toBe('');
+    expect(document.querySelector('#word-table-list .word-table-word')).not.toBeNull();
+    expect(document.getElementById('word-table-error').textContent).toContain('1');
+  });
+
+  it('keeps the words of an imported file shown when the table comes again', () => {
+    wt.handleTable(table({ chat: 'c2', marked: true, active: [{ word: 'Ada', type: 'PERSON' }] }));
+    wt.noticeOlderFile(1);
+
+    wt.handleTable(table({ chat: 'c2', marked: true, active: [{ word: 'Ada', type: 'PERSON' }] }));
+
+    expect(document.getElementById('word-table-panel').style.display).toBe('');
+  });
+
   it('says how to get a lost table back when the panel opens', () => {
     wt.handleTable(table({ marked: true, unavailable: true }));
 

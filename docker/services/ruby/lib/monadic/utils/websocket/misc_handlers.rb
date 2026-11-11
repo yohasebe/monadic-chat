@@ -167,6 +167,8 @@ module WebSocketHelper
     sync_session_state!
 
     send_chat_to_page(connection, session)
+    # The page is told of the file's words on the result: its table is there by then.
+    send_word_table(connection, session)
     send_to_client(connection, { "type" => "import_result", "token" => token, "success" => true })
     Monadic::Utils::ExtraLogger.log { "[Import] Tab #{ws_session_id} took #{session[:messages].size} messages" }
   rescue StandardError => e

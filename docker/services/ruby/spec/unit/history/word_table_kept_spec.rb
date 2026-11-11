@@ -258,7 +258,7 @@ RSpec.describe 'A chat word table kept with the chat' do
   describe 'in a file' do
     def import(file)
       imported = { messages: [{ 'role' => 'user', 'text' => "About #{word}." }], parameters: { 'app_name' => 'ChatOpenAI' } }
-      table = words.file_table(file, imported)
+      table = words.file_table(file)
       imported[:word_table] = table if table
       tab = "tab-#{SecureRandom.hex(4)}"
       token = WebSocketHelper.stage_import(tab, imported)
@@ -328,20 +328,75 @@ RSpec.describe 'A chat word table kept with the chat' do
     end
 
     it 'refuses a file whose table cannot be read' do
-      expect { words.file_table({ 'word_table' => { 'schema' => 1, 'mapping' => 'x' } }, {}) }
+      expect { words.file_table({ 'word_table' => { 'schema' => 1, 'mapping' => 'x' } }) }
         .to raise_error(table_class::Invalid)
-      expect { words.file_table({ 'word_table' => {} }, {}) }.to raise_error(table_class::Invalid)
+      expect { words.file_table({ 'word_table' => {} }) }.to raise_error(table_class::Invalid)
     end
 
-    it 'refuses a file that holds a table and the state of the Privacy Filter' do
+    it 'refuses a file that holds a table and the words of an earlier version' do
       data = table_class.new.to_h
-      imported = { monadic_state: { privacy: { registry: { '<<PERSON_1>>' => word }, terms: [] } }, _privacy_session_enabled: true }
 
-      expect { words.file_table({ 'word_table' => data }, imported) }.to raise_error(table_class::Invalid, /two ways/)
+      expect { words.file_table({ 'word_table' => data }, registry: { '<<PERSON_1>>' => word }) }
+        .to raise_error(table_class::Invalid, /two ways/)
+      expect { words.file_table({ 'word_table' => data }, terms: [{ text: word, type: 'PERSON' }]) }
+        .to raise_error(table_class::Invalid, /two ways/)
     end
 
-    it 'reads nothing from a file without a table' do
-      expect(words.file_table({ 'messages' => [] }, {})).to be_nil
+    it 'refuses words of an earlier version that are not readable, also beside a table' do
+      [['Ada'], 'Ada', 7, nil].each do |registry|
+        expect { words.file_table({}, registry: registry) }.to raise_error(table_class::Invalid)
+        expect { words.file_table({ 'word_table' => table_class.new.to_h }, registry: registry) }
+          .to raise_error(table_class::Invalid)
+      end
+    end
+
+    it 'tells the page the table of the imported chat before the result' do
+      session, = marked_chat(word)
+      import(file_of(export(session)))
+
+      types = host.sent.map { |m| m['type'] }
+      expect(types.rindex('word_table')).to eq(types.rindex('import_result') - 1)
+      expect(host.sent[types.rindex('word_table')]['active'].map { |e| e['word'] }).to eq([word])
+    end
+
+    it 'reads nothing from a file without a table or words' do
+      expect(words.file_table({ 'messages' => [] })).to be_nil
+    end
+
+    context 'with the words of an earlier version' do
+      let(:table) do
+        table_class.from_h(words.file_table({}, registry: { '<<PERSON_3>>' => word, '<<LOCATION_1>>' => 'Paris' },
+                                                terms: [{ text: 'Grace Hopper', type: 'PERSON' }]))
+      end
+
+      it 'hides the words of the registry and the terms alike' do
+        expect(table.active_words.map { |e| e[:word] }).to contain_exactly(word, 'Paris', 'Grace Hopper')
+        expect(table.snapshot.raw("#{word}, Paris, Grace Hopper")).not_to include(word, 'Paris', 'Grace Hopper')
+      end
+
+      it 'keeps each placeholder, so what the file says with it reads back' do
+        expect(table.snapshot.restore('<<PERSON_3>> in <<LOCATION_1>>')).to eq("#{word} in Paris")
+      end
+
+      it 'gives a new word a number above those of the file' do
+        expect(table.active_words.find { |e| e[:word] == 'Grace Hopper' }[:id]).to eq('PERSON_4')
+      end
+
+      it 'takes the type of a word given in both' do
+        found = table_class.from_h(words.file_table({}, registry: { '<<PERSON_1>>' => word }, terms: [{ text: word, type: 'ORGANIZATION' }]))
+
+        expect(found.active_words.map { |e| [e[:word], e[:type]] }).to eq([[word, 'ORGANIZATION']])
+        expect(found.snapshot.restore('<<PERSON_1>>')).to eq(word)
+      end
+
+      it 'refuses what a table cannot hold, and does not drop it' do
+        [{ 'PERSON_1' => word }, { '<<person_1>>' => word }, { '<<PERSON_1>>' => 'a<<b' }, { '<<PERSON_1>>' => 7 },
+         { '<<PERSON_1>>' => word, '<<PERSON_2>>' => word }].each do |registry|
+          expect { words.file_table({}, registry: registry) }.to raise_error(table_class::Invalid)
+        end
+        too_many = (1..(table_class::MAX_WORDS + 1)).to_h { |n| ["<<PERSON_#{n}>>", "word #{n}"] }
+        expect { words.file_table({}, registry: too_many) }.to raise_error(table_class::Invalid)
+      end
     end
 
     # The /load route of the app, booted in a child process with its own HOME
@@ -367,7 +422,14 @@ RSpec.describe 'A chat word table kept with the chat' do
         imported = WebSocketHelper.take_import("tab-probe", staged["import_token"])
         broken = post.call(base.merge("word_table" => { "schema" => 99 }))
         mixed = post.call(base.merge("word_table" => table.to_h, "terms" => [{ "text" => "Grace Hopper", "type" => "PERSON" }]))
-        puts({ "words" => imported[:word_table]["active"].map { |e| e["word"] }, "broken" => broken, "mixed" => mixed }.to_json)
+        older_file = post.call(base.merge("registry" => { "<<PERSON_2>>" => "Grace Hopper" }, "terms" => [{ "text" => "Paris", "type" => "LOCATION" }]))
+        older = WebSocketHelper.take_import("tab-probe", older_file["import_token"])
+        plain = post.call(base)
+        bad_registry = post.call(base.merge("registry" => ["Ada Lovelace"]))
+        puts({ "words" => imported[:word_table]["active"].map { |e| e["word"] }, "broken" => broken, "mixed" => mixed,
+               "older" => older[:word_table]["active"].map { |e| e["word"] }, "older_count" => older_file["older_words"],
+               "older_keys" => [older.key?(:_privacy_session_enabled), (older[:monadic_state] || {}).key?(:privacy)],
+               "plain_count" => plain["older_words"], "bad_registry" => bad_registry }.to_json)
       RUBY
       root = File.expand_path('../../..', __dir__)
       out = Dir.mktmpdir('word-table-load') do |home|
@@ -380,6 +442,11 @@ RSpec.describe 'A chat word table kept with the chat' do
       expect(out['words']).to eq([word])
       expect(out['broken'].to_s).to include('word table could not be read')
       expect(out['mixed'].to_s).to include('two ways')
+      expect(out['older']).to contain_exactly('Grace Hopper', 'Paris')
+      expect(out['older_count']).to eq(2)
+      expect(out['older_keys']).to eq([false, false])
+      expect(out['plain_count']).to eq(0)
+      expect(out['bad_registry'].to_s).to include('word table could not be read')
     end
   end
 end

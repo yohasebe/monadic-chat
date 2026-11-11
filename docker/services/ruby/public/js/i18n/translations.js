@@ -17,6 +17,7 @@ const webUITranslations = {
         status: "Hidden: {n}",
         unavailable: "Word table not available: nothing is sent",
         notHiddenNotice: "Images and voice are sent as they are: their words are not hidden.",
+        olderFile: "The {n} words this file hides are hidden in this chat. Check them here.",
         errors: {
           selectFirst: "Select the words to hide in the text above first.",
           oneLine: "A word to hide must be on one line.",
@@ -728,6 +729,7 @@ const webUITranslations = {
         status: "{n} 語を伏せています",
         unavailable: "語の表がありません：送信できません",
         notHiddenNotice: "画像と音声はそのまま送られます。その中の語は伏せられません。",
+        olderFile: "このファイルで伏せられていた {n} 語を、この会話でも伏せます。ここで確認してください。",
         errors: {
           selectFirst: "先に上の文で伏せる語を選んでください。",
           oneLine: "伏せる語は 1 行の中で選んでください。",
@@ -1439,6 +1441,7 @@ const webUITranslations = {
         status: "已隐藏 {n} 个词",
         unavailable: "词表不可用：不会发送任何内容",
         notHiddenNotice: "图像和语音按原样发送，其中的词语不会被隐藏。",
+        olderFile: "此文件隐藏的 {n} 个词语在此会话中也会隐藏。请在此确认。",
         errors: {
           selectFirst: "请先在上方文本中选择要隐藏的词语。",
           oneLine: "要隐藏的词语必须在同一行内。",
@@ -2173,6 +2176,7 @@ const webUITranslations = {
         status: "{n}개 단어 숨김",
         unavailable: "단어 표를 사용할 수 없음: 아무것도 보내지 않습니다",
         notHiddenNotice: "이미지와 음성은 그대로 전송되며 그 안의 단어는 숨겨지지 않습니다.",
+        olderFile: "이 파일에서 숨긴 {n}개 단어를 이 대화에서도 숨깁니다. 여기에서 확인하세요.",
         errors: {
           selectFirst: "먼저 위의 글에서 숨길 단어를 선택하세요.",
           oneLine: "숨길 단어는 한 줄 안에서 선택하세요.",
@@ -2884,6 +2888,7 @@ const webUITranslations = {
         status: "Ocultas: {n}",
         unavailable: "Tabla de palabras no disponible: no se envía nada",
         notHiddenNotice: "Las imágenes y la voz se envían tal cual: sus palabras no se ocultan.",
+        olderFile: "Las {n} palabras que oculta este archivo se ocultan en este chat. Revíselas aquí.",
         errors: {
           selectFirst: "Seleccione primero en el texto de arriba las palabras que ocultar.",
           oneLine: "La palabra que ocultar debe estar en una sola línea.",
@@ -3595,6 +3600,7 @@ const webUITranslations = {
         status: "Masqués : {n}",
         unavailable: "Table de mots indisponible : rien n'est envoyé",
         notHiddenNotice: "Les images et la voix sont envoyées telles quelles : leurs mots ne sont pas masqués.",
+        olderFile: "Les {n} mots masqués par ce fichier sont masqués dans cette conversation. Vérifiez-les ici.",
         errors: {
           selectFirst: "Sélectionnez d'abord dans le texte ci-dessus les mots à masquer.",
           oneLine: "Un mot à masquer doit tenir sur une seule ligne.",
@@ -4306,6 +4312,7 @@ const webUITranslations = {
         status: "Verborgen: {n}",
         unavailable: "Worttabelle nicht verfügbar: Es wird nichts gesendet",
         notHiddenNotice: "Bilder und Sprache werden unverändert gesendet: Ihre Wörter werden nicht verborgen.",
+        olderFile: "Die {n} Wörter, die diese Datei verbirgt, werden in diesem Chat verborgen. Prüfen Sie sie hier.",
         errors: {
           selectFirst: "Wählen Sie zuerst im Text oben die zu verbergenden Wörter aus.",
           oneLine: "Ein zu verbergendes Wort muss in einer Zeile stehen.",

@@ -4436,6 +4436,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (response && response.success) {
         // Clean up UI after successful import
         bootstrap.Modal.getOrCreateInstance($id("loadModal")).hide();
+        if (response.older_words > 0 && window.WordTable) window.WordTable.noticeOlderFile(response.older_words);
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.sessionImported') : 'Session imported successfully'}`, "success");
 
         // Privacy import safety net: the WebSocket 'parameters' handler

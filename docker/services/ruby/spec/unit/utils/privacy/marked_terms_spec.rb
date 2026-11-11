@@ -335,7 +335,7 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
                                               "CONTENT_TYPE" => "multipart/form-data; boundary=B", "HTTP_HOST" => "localhost:4567")
         out = JSON.parse(res.body)
         staged = out["import_token"] && WebSocketHelper.take_import("tab-t", out["import_token"])
-        puts JSON.generate("response" => out, "terms" => staged && staged.dig(:monadic_state, :privacy, :terms),
+        puts JSON.generate("response" => out, "active" => staged && staged.dig(:word_table, "active"),
                            "enabled" => staged && staged[:_privacy_session_enabled])
       RUBY
       root = File.expand_path('../../../..', __dir__)
@@ -348,10 +348,10 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
       end
     end
 
-    it 'brings the marked words back, with the Privacy Filter on' do
+    it 'brings the marked words back as words the chat hides' do
       out = probe([{ 'text' => '江戸川今太郎', 'type' => 'PERSON' }])
-      expect(out['terms']).to eq([{ 'text' => '江戸川今太郎', 'type' => 'PERSON' }])
-      expect(out['enabled']).to be true
+      expect(out['active'].map { |entry| entry.slice('word', 'type') }).to eq([{ 'word' => '江戸川今太郎', 'type' => 'PERSON' }])
+      expect(out['enabled']).to be_nil
     end
 
     it 'stops on marked words it cannot read' do

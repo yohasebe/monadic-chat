@@ -147,6 +147,14 @@ module WebSocketHelper
     send_workbench_view(connection, session) unless result['status'] == 'refused'
   end
 
+  def handle_ws_workbench_open_attachment(connection, obj, session)
+    result = workbench_timed('open_attachment') do
+      Monadic::Workbench::Channel.open_attachment(obj, session, **workbench_connection(session), live: WORKBENCH_LIVE)
+    end
+    workbench_deliver(connection).call(result)
+    send_workbench_view(connection, session) unless result['status'] == 'refused'
+  end
+
   def handle_ws_workbench_select(connection, obj, session)
     result = Monadic::Workbench::Channel.select(obj, session, **workbench_connection(session), live: WORKBENCH_LIVE)
     workbench_deliver(connection).call(result)

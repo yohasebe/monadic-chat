@@ -180,6 +180,8 @@ async function wide(browser, base) {
     return { by: document.getElementById('menu').scrollTop, headTop: head.top, barBottom: bar.bottom,
              spaceBelow: head.bottom - lastControl.bottom,
              findHeights: Array.from(headEl.querySelector('.sfp-find').children).map((c) => Math.round(c.getBoundingClientRect().height)),
+             upHeight: Math.round(document.getElementById('sfp-up').getBoundingClientRect().height),
+             refreshHeight: Math.round(document.getElementById('sfp-refresh').getBoundingClientRect().height),
              tabsHeight: document.getElementById('side-pane-tabs').getBoundingClientRect().height,
              tabsBottom: document.getElementById('side-pane-tabs').getBoundingClientRect().bottom };
   });

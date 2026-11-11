@@ -400,8 +400,13 @@ function addAttachmentsToCard(card, attachments) {
   const box = document.createElement('div');
   box.className = 'message-attachments';
   list.forEach(function (a) {
-    const item = document.createElement('div');
-    item.className = 'file-container video-attachment';
+    // Shown on the work screen when pressed (workbench.js).
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'file-container video-attachment attachment-chip-name';
+    item.dataset.attachmentId = String(a.attachment_id);
+    item.dataset.purpose = a.purpose === 'audio' ? 'audio' : 'video';
+    item.dataset.name = String(a.display_name || 'file');
     const icon = document.createElement('i');
     icon.className = 'fas ' + (a.purpose === 'audio' ? 'fa-file-audio' : 'fa-film');
     item.appendChild(icon);

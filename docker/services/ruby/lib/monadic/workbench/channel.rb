@@ -9,6 +9,9 @@ require_relative 'asset_server'
 require_relative 'offer'
 require_relative '../workspace/chats'
 require_relative '../workspace/ids'
+require_relative '../workspace/attachments'
+require_relative '../workspace/ledger'
+require_relative '../workspace/shared_folder_preview'
 
 module Monadic
   module Workbench
@@ -117,6 +120,42 @@ module Monadic
         open_refusal(path, 'busy')
       end
 
+      # An attachment of this connection's chat (audio or video), opened by
+      # the user on the board. The chat, its epoch and the connection are
+      # those of the moment it is asked; the file and its version are the
+      # ledger's, never the page's. A kind the work screen does not play, or
+      # a file too large to read whole, is refused before the file is read.
+      # The answer names the attachment and the page's request.
+      def open_attachment(obj, session, tab:, generation:, live:, ledger: Monadic::Workspace::Ledger.default)
+        attachment_id = obj['attachment_id'].to_s
+        request = obj['request'].is_a?(Integer) ? obj['request'] : nil
+        refuse = ->(reason) { attachment_result(attachment_id, request, reason: reason) }
+        return refuse.call('not_allowed') unless live.call(tab) == generation
+
+        chat_id = chat_id_of(session) or return refuse.call('not_allowed')
+        epoch = Monadic::Workspace::Chats.epoch(chat_id)
+        record = Monadic::Workspace::Ids.valid?(:attachment, attachment_id) && ledger.attachment(attachment_id)
+        return refuse.call('unknown') unless record && record[:chat_id] == chat_id
+        return refuse.call('not_playable') unless %w[audio video].include?(PLAYABLE.call(record[:relative_path]))
+        return refuse.call('too_large') unless record[:size].is_a?(Integer) && record[:size] <= FileItem::LIMIT
+
+        found = Monadic::Workspace::Attachments.resolve!(chat_id: chat_id, attachment_id: attachment_id, ledger: ledger)
+        origin = { actor: :user, source: :attachment, tab: tab, generation: generation }
+        item, added = Board.for(chat_id).add_file(path: found[:relative_path], origin: origin, epoch: epoch, wait: 0,
+                                                  sha256: found[:sha256])
+        changed(chat_id)
+        attachment_result(attachment_id, request, item_id: item['id'], added: added)
+      rescue Monadic::Workspace::Attachments::Unusable => e
+        attachment_result(attachment_id, request, reason: e.reason.to_s)
+      rescue Board::Refused => e
+        attachment_result(attachment_id, request, reason: e.message)
+      rescue FileItem::Busy
+        attachment_result(attachment_id, request, reason: 'busy')
+      end
+
+      # The kind the work screen shows a file as (by its name).
+      PLAYABLE = ->(name) { Monadic::Workspace::SharedFolderPreview.kind_for(name.to_s) }
+
       # The item this tab's page shows now (or nil for none). The page is
       # told what was taken: an item no longer on the board is refused. The
       # answer carries the page's number for the selection (seq), so that
@@ -216,6 +255,12 @@ module Monadic
 
       def refusal(operation_id, reason)
         { 'type' => 'workbench_result', 'operation_id' => operation_id, 'status' => 'refused', 'reason' => reason }
+      end
+
+      def attachment_result(attachment_id, request, reason: nil, item_id: nil, added: nil)
+        { 'type' => 'workbench_attachment_opened', 'attachment_id' => attachment_id, 'request' => request,
+          'status' => reason ? 'refused' : 'accepted', 'reason' => reason, 'item_id' => item_id,
+          'added' => added }.compact
       end
 
       def open_refusal(path, reason)

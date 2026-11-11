@@ -6012,6 +6012,32 @@ small, .small,
   background-color: var(--bdg-red-bg);
   color: var(--bdg-red-fg);
 }
+/* What the next message carries: a chip per file under the message box,
+   and the same files above the work screen's items. A chip's name shows the
+   file on the work screen. */
+.attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin: 0 var(--spacing-xs) var(--spacing-xs) 0;
+}
+.attachment-chip-name {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--border-radius);
+  background: none;
+  color: inherit;
+  text-align: left;
+  min-width: 0;
+  justify-content: flex-start;
+}
+.attachment-chip-name:hover { background-color: var(--bg-hover, #e9ecef); }
+.workbench-drafts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-xs); }
+.workbench-drafts-label { color: var(--text-secondary); margin-right: var(--spacing-xs); }
+.workbench-draft { cursor: pointer; border-style: solid; }
+.workbench-draft[aria-pressed="true"] { border-color: var(--color-link); }
+#discourse .pdf-preview { cursor: pointer; }
+
 /* The buttons under the message box keep a gap when they wrap. */
 .message-tools { row-gap: 8px; }
 /* Voice input and its meter, beside the other tools (hidden by monadic.js
@@ -6628,6 +6654,9 @@ body.side-pane-resizing {
 /* The buttons that show only an icon are one size. */
 .shared-files-pane .sfp-icon-btn {
   flex: 0 0 auto;
+  /* As tall as a field beside it (Bootstrap's small field: line, padding,
+     border), on any row of the pane. */
+  min-height: calc(1.5em + 0.5rem + 2px);
   width: 2.5rem;
   min-width: 0;
   padding-left: 0;

@@ -511,6 +511,54 @@ describe('Workbench', () => {
       expect(document.querySelector('#workbench-view audio')).toBe(first);
     });
 
+    test('asks once more for a medium that fails, then says it is not played instead of asking again', () => {
+      jest.useFakeTimers();
+      try {
+        const clip = { id: 'i_a', kind: 'file', actor: 'user', name: 'a.mkv', path: 'a.mkv', preview: 'video',
+          sha256: 'd'.repeat(64), version: 'd'.repeat(64), status: 'ok' };
+        view([clip]);
+        sent.length = 0;
+        document.querySelector('#workbench-view video').dispatchEvent(new Event('error'));
+        jest.runOnlyPendingTimers();
+        const asked = payloads().filter((p) => p.message === 'WORKBENCH_VIEW').length;
+        expect(asked).toBeGreaterThan(0);
+
+        view([clip], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [clip] },
+          assets: { i_a: '/workbench/asset/i_a-again' } });
+        document.querySelector('#workbench-view video').dispatchEvent(new Event('error'));
+        jest.runOnlyPendingTimers();
+        expect(document.querySelector('#workbench-view video')).toBeNull();
+        expect(document.getElementById('workbench-view').textContent).toContain('not played');
+        expect(payloads().filter((p) => p.message === 'WORKBENCH_VIEW').length).toBe(asked);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    test('asks again for a medium that played and then failed (its address ran out)', () => {
+      jest.useFakeTimers();
+      try {
+        const clip = { id: 'i_a', kind: 'file', actor: 'user', name: 'a.mp4', path: 'a.mp4', preview: 'video',
+          sha256: 'd'.repeat(64), version: 'd'.repeat(64), status: 'ok' };
+        view([clip]);
+        document.querySelector('#workbench-view video').dispatchEvent(new Event('error'));
+        jest.runOnlyPendingTimers();
+        view([clip], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [clip] },
+          assets: { i_a: '/workbench/asset/i_a-again' } });
+        const media = document.querySelector('#workbench-view video');
+        media.dispatchEvent(new Event('loadedmetadata'));
+        sent.length = 0;
+        // Later, past the pause between two asks for a view.
+        jest.advanceTimersByTime(60000);
+        media.dispatchEvent(new Event('error'));
+        jest.runOnlyPendingTimers();
+        expect(payloads().some((p) => p.message === 'WORKBENCH_VIEW')).toBe(true);
+        expect(document.getElementById('workbench-view').textContent).not.toContain('not played');
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     test('tells a new connection what the page still shows', () => {
       view([item()]);
       sent.length = 0;

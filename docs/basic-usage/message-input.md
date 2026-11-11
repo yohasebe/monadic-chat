@@ -64,7 +64,7 @@ Click the **Text from URL** button to enter a URL. The content at that URL is lo
 
 ## Anonymize :id=anonymize
 
-Click **Anonymize** beside the message box to choose words (such as names) that the chat replaces with placeholders in what it sends. Only text is covered: images, files sent as they are, voice, names not chosen and what was already sent are not. See [Anonymization](../advanced-topics/anonymization.md).
+Click **Anonymize** beside the message box to choose words (such as names) that the chat replaces with placeholders in what it sends. Only text is covered: images, file contents, files and pages that code or the browser reads, voice, names not chosen and what was already sent are not. See [Anonymization](../advanced-topics/anonymization.md).
 
 ## Speech Input :id=speech-input
 

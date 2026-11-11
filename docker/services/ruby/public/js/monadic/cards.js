@@ -142,12 +142,14 @@ function attachEventListeners(card) {
       const content = currentCard ? currentCard.querySelector(".card-text") : null;
       let text = '';
       try {
-        text = content ? content.textContent : '';
+        text = content ? (window.ShortPaths ? window.ShortPaths.textOf(content) : content.textContent) : '';
 
         // Clone to process
         if (content) {
           const contentClone = content.cloneNode(true);
           contentClone.querySelectorAll("style, script").forEach(el => el.remove());
+          // Paths shown by their file name are read with their whole path.
+          if (window.ShortPaths) window.ShortPaths.restore(contentClone);
 
           const hrElement = contentClone.querySelector("hr");
           if (hrElement) {
@@ -165,7 +167,7 @@ function attachEventListeners(card) {
         }
       } catch (e) {
         console.error("Error extracting text for TTS:", e);
-        text = content ? content.textContent : '';
+        text = content ? (window.ShortPaths ? window.ShortPaths.textOf(content) : content.textContent) : '';
       }
 
       text = removeCode(text);
@@ -308,6 +310,7 @@ function attachEventListeners(card) {
           if (content) {
             const contentClone = content.cloneNode(true);
             contentClone.querySelectorAll("style, script").forEach(el => el.remove());
+            if (window.ShortPaths) window.ShortPaths.restore(contentClone);
             text = contentClone.textContent;
           }
         }

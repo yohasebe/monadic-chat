@@ -22,6 +22,25 @@ module AppProbe
     Dir.mktmpdir("app-probe-home") { |made| probe_in(script, limit, made) }
   end
 
+  # Whether a process of the probe's group is still there, after the time it
+  # takes the system to end those its leader left: false, or what is left
+  # (for the failure to say).
+  def group_left(pgid, wait: 2.0)
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + wait
+    loop do
+      begin
+        Process.kill(0, -pgid)
+      rescue Errno::ESRCH
+        return false
+      end
+      break if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+
+      sleep 0.1
+    end
+    left = IO.popen(%w[ps -eo pid=,pgid=,stat=,args=], &:read).lines.select { |l| l.split[1].to_i == pgid }
+    "processes left in group #{pgid}:\n#{left.join}"
+  end
+
   def probe_in(script, limit, home)
     begin
       tmp = File.join(home, "tmp")
@@ -49,12 +68,7 @@ module AppProbe
           status = wait.value
         end
       end
-      group_left = begin
-        Process.kill(0, -pgid)
-        true
-      rescue Errno::ESRCH
-        false
-      end
+      group_left = group_left(pgid)
       line = out.lines.find { |l| l.start_with?("PROBE ") }
       raise "probe failed (#{status.exitstatus}):\n#{out.lines.last(25).join}" unless line
 

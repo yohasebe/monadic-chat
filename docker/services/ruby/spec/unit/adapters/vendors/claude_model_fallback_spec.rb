@@ -29,9 +29,8 @@ RSpec.describe 'ClaudeHelper model unavailable fallback' do
 
   before do
     allow(HTTP).to receive(:headers).and_return(double('http'))
-    # Default: privacy disabled, success path returns a sentinel so we can see
+    # Default: success path returns a sentinel so we can see
     # the call reached process_json_data without exercising the SSE parser.
-    allow(helper).to receive(:privacy_enabled_for?).and_return(false)
     allow(helper).to receive(:process_json_data) { |**_| [:processed] }
   end
 

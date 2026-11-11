@@ -46,7 +46,7 @@ RSpec.describe 'HTTP session checks' do
     expect(state[:parameters]).to eq('app_name' => 'Chat')
     expect(state).not_to have_key(:messages)
     expect(state[:chat_state]).not_to have_key(:tool_results)
-    expect(state[:chat_state][:monadic_state]).not_to have_key(:context)
+    expect(state[:chat_state]).not_to have_key(:monadic_state)
     expect(request.first).to eq(200)
   end
 
@@ -62,7 +62,8 @@ RSpec.describe 'HTTP session checks' do
       save(words::MARK_KEY => session[words::MARK_KEY])
 
       state = WebSocketHelper.fetch_http_session_state(tab)
-      expect(state[:chat_state][:monadic_state][:privacy][:terms]).to eq([])
+      expect(state[:chat_state][words::MARK_KEY]).to eq(chat_id)
+      expect(state[:chat_state]).not_to have_key(:monadic_state)
       checked = nil
       status, = request do |_env|
         checked = begin
@@ -79,15 +80,14 @@ RSpec.describe 'HTTP session checks' do
       expect(policy.known_private?(chat_id)).to be(false)
     end
 
-    # A chat of its own, with a table, saved with what is given beside its
-    # mark; whether a request from its tab may send ordinary text out.
-    def sent_through_request(beside = {}, drop_table: false)
+    # A chat of its own, with a table, saved with its mark; whether a request from its tab may send ordinary text out.
+    def sent_through_request(drop_table: false)
       id = Monadic::Workspace::Ids.generate(:chat)
       session = { Monadic::Workspace::Chats::SESSION_KEY => id }
       words.start!(session)
       words::LOCK.synchronize { words::TABLES.delete(id) } if drop_table
       WebSocketHelper.update_session_state(tab, messages: [], parameters: { 'app_name' => 'Chat' }, chat_id: id,
-                                                chat_state: beside.merge(words::MARK_KEY => id))
+                                                chat_state: { words::MARK_KEY => id })
       result = nil
       request('/elsewhere') do |_env|
         result = begin
@@ -101,13 +101,8 @@ RSpec.describe 'HTTP session checks' do
       [result, policy.known_private?(id)]
     end
 
-    it 'sends nothing for it when it also holds the Privacy Filter\'s state, or its table is gone' do
+    it 'sends nothing for it when its table is gone' do
       expect(sent_through_request).to eq([:sent, false])
-      [{ _privacy_session_enabled: true },
-       { _privacy_pipeline: Object.new },
-       { monadic_state: { privacy: { registry: { '<<PERSON_1>>' => 'Bob' } } } }].each do |legacy|
-        expect(sent_through_request(legacy).first).to eq(:refused), legacy.keys.inspect
-      end
       # Not Private: refused because its words are not known.
       expect(sent_through_request(drop_table: true)).to eq([:refused, false])
     end
@@ -165,17 +160,23 @@ RSpec.describe 'HTTP session checks' do
     expect(request.first).to eq(403)
   end
 
-  it 'protects marked words and keeps snapshot changes separate from saved state' do
-    save(monadic_state: { privacy: { terms: [{ text: 'MARKEDWORD', category: 'PERSON' }] } })
+  it 'checks the words of a saved chat and keeps snapshot changes separate from saved state' do
+    words = Monadic::Utils::Privacy::Words
+    session = { Monadic::Workspace::Chats::SESSION_KEY => chat_id }
+    words.start!(session).confirm!('MARKEDWORD', 'PERSON')
+    save(words::MARK_KEY => session[words::MARK_KEY])
     state = WebSocketHelper.fetch_http_session_state(tab)
-    state[:chat_state][:monadic_state][:privacy][:terms][0][:text].replace('changed')
+    state[:chat_state][words::MARK_KEY].replace('changed')
     state[:parameters]['app_name'].replace('changed')
-    expect(WebSocketHelper.fetch_http_session_state(tab)[:parameters]['app_name']).to eq('Chat')
+    again = WebSocketHelper.fetch_http_session_state(tab)
+    expect(again[:parameters]['app_name']).to eq('Chat')
+    expect(again[:chat_state][words::MARK_KEY]).to eq(chat_id)
     status, = request('/load') do |_env|
-      expect(policy.current_work_private?).to be true
       expect(Monadic::Utils::Privacy::EgressGuard.words).to eq(['MARKEDWORD'])
       [200, {}, []]
     end
     expect(status).to eq(200)
+  ensure
+    words::LOCK.synchronize { words::TABLES.clear }
   end
 end

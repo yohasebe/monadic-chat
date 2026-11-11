@@ -248,44 +248,15 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
     end
   end
 
-  describe "through the chat's Privacy Filter" do
-    # A pipeline that masks e-mail addresses wherever they are, as the
-    # filter's own detection does, with no word marked by the user.
-    def masking_pipeline
-      Class.new do
-        def before_send_to_llm(message) = Struct.new(:text).new(message.text.gsub(/\w+@example\.com/, "<<EMAIL_1>>"))
-        def registry_state = { terms: [] }
-      end.new
-    end
-
-    it "masks what a look gives as text, with no word marked" do
-      write("mail.txt", "write to alice@example.com\n")
-      open_file("mail.txt")
-      allow(Monadic::Utils::Privacy::Outbound).to receive(:pipeline!).and_return(masking_pipeline)
-      result = look.run(caller_for, scope: "whole")
-      expect(result.to_s).to include("<<EMAIL_1>>")
-      expect(result.to_s).not_to include("alice@example.com")
-    end
-
-    it "masks the caption of an image" do
-      write("alice@example.com.png", png(2, 2))
-      open_file("alice@example.com.png")
-      allow(Monadic::Utils::Privacy::Outbound).to receive(:pipeline!).and_return(masking_pipeline)
-      look.run(caller_for)
-      looked = ledger.observations_with_content.first
-      expect([looked.caption, looked.result].join).not_to include("alice@example.com")
-    end
-
-    it "gives nothing when a marked word would be left, or when the filter cannot check it" do
+  describe "against the words the chat hides" do
+    it "gives nothing when a word would be left, or when it cannot be checked" do
       write("notes.txt", "the secret plan\n")
       open_file("notes.txt")
-      # A chat with marked words is Private and is refused before this; the
-      # check stands behind that.
-      allow(Monadic::Utils::Privacy::Outbound).to receive(:pipeline!).and_return(nil)
-      allow(Monadic::Utils::Privacy::Outbound).to receive(:terms_of).and_return(["secret plan"])
+      outbound = Monadic::Utils::Privacy::Outbound
+      allow(outbound).to receive(:terms_of).and_return(["secret plan"])
       expect(look.run(caller_for, scope: "whole")).to include("(filtered)")
-      allow(Monadic::Utils::Privacy::Outbound).to receive(:pipeline!)
-        .and_raise(Monadic::Utils::Privacy::Outbound::Refused, "masking is not available")
+      allow(outbound).to receive(:terms_of).and_call_original
+      allow(outbound).to receive(:chat_session!).and_raise(outbound::Refused, "the chat's session could not be read")
       expect(look.run(caller_for, scope: "whole")).to include("(filtered)")
       expect(ledger).to be_nil.or(satisfy { |l| l.records.empty? })
     end
@@ -300,7 +271,7 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
     it "does not look at all in a chat with the filter on (such a chat is Private)" do
       write("notes.txt", "x\n")
       open_file("notes.txt")
-      filtered = session.merge(_privacy_session_enabled: true, _privacy_pipeline: masking_pipeline)
+      filtered = session.merge(_privacy_session_enabled: true, _privacy_pipeline: Object.new)
       expect(look.run(caller_for(of: filtered), scope: "whole")).to include("(private)")
     end
   end

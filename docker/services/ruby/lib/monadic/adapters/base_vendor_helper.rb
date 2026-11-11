@@ -476,54 +476,12 @@ module BaseVendorHelper
     value.to_s.scrub("?").gsub(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/, " ").squeeze(" ").strip[0, limit]
   end
 
-  # Privacy Filter integration helpers.
-  # Vendor helpers call apply_privacy_to_messages just before http.post and
-  # restore_response_text after the response text is finalized. The work is
-  # delegated to a session-scoped Pipeline so registry state survives across
-  # turns within the same conversation.
-  #
-  # Two-gate activation: the app must declare `privacy do; enabled true; end`
-  # in MDSL AND the user must opt in via the session-level toggle (in Session
-  # Controls). Default OFF means privacy filter is fully opt-in per session.
-  def privacy_enabled_for?(app_settings, session = nil)
-    return false unless app_settings && app_settings.dig(:privacy, :enabled) == true
-    # Duck-typed gate: production Rack sessions
-    # (Rack::Session::Abstract::PersistedSecure::SecureSessionHash) are not
-    # Hash subclasses but do support `[]`. Tightening to `is_a?(Hash)` would
-    # disable masking entirely in production while passing plain-Hash unit
-    # fixtures.
-    return false unless session && session.respond_to?(:[])
-
-    # Backend-authoritative session state. PRIVACY_TOGGLE is the only path
-    # that sets this key, and only after a container health check, so a
-    # missing key means "user has not opted in" and we must not mask.
-    session[:_privacy_session_enabled] == true
-  end
-
-  def privacy_pipeline_for(session, app_settings)
-    return nil unless privacy_enabled_for?(app_settings, session)
-    session[:_privacy_pipeline] ||= begin
-      require_relative '../utils/privacy/pipeline'
-      Monadic::Utils::Privacy::Pipeline.new(
-        backend: Monadic::Utils::Privacy::PresidioBackend.new,
-        config: app_settings[:privacy],
-        session: session
-      )
-    end
-  end
-
   # Substitution Pipeline integration (Vocabulary provider only).
   #
   # Vocabulary lets the user and assistant share `${TOKEN}` variables (e.g.
   # ${SHARED} for the synced data folder). The default tokens
   # (Vocabulary::DEFAULT_TOKENS) are on for every app; `vocabulary do; use ...; end`
   # adds tokens and `vocabulary false` turns it off.
-  #
-  # Privacy is deliberately NOT registered here: it stays on its own
-  # `:_privacy_pipeline` hot path. The two providers have opposite failure
-  # contracts (Privacy :closed for PII safety, Vocabulary :open so a miss never
-  # breaks a turn) and independent lifecycles, so they are kept on separate
-  # pipelines.
   #
   # @return [Monadic::Substitution::Pipeline, nil] nil when the app exposes no
   #   vocabulary tokens (the common case).
@@ -581,132 +539,6 @@ module BaseVendorHelper
     pipeline = substitution_pipeline_for(session, app_settings)
     return text unless pipeline
     pipeline.process_output(text)
-  end
-
-  # Replace masked text in user/assistant messages with placeholders.
-  # Returns a new array so callers can keep the original messages
-  # untouched. The system_prompt is never masked — privacy filtering
-  # applies to conversational turns only.
-  #
-  # Why both user and assistant: session[:messages] stores the **restored**
-  # text for past assistant responses (the user-visible form with real
-  # values restored from `<<TYPE_N>>` placeholders). When that history is
-  # replayed as context on the next turn, those past assistant entries
-  # would otherwise leak the original PII to the LLM API. Re-masking is
-  # safe because the privacy backend's `_build_masked` reuses any
-  # (type, original) pair already in the registry — placeholder numbering
-  # stays stable across turns.
-  #
-  # Handles two payload shapes:
-  #   1. Chat Completions: content is a String
-  #   2. Responses API: content is Array of {type, text} items
-  def apply_privacy_to_messages(messages, session, app_settings)
-    require_relative '../utils/privacy/outbound'
-    outbound = Monadic::Utils::Privacy::Outbound
-    pipeline = privacy_pipeline_for(session, app_settings)
-    unless pipeline
-      # Words the user marked stay protected when the filter is off.
-      raise outbound::Refused, 'words were marked to be masked in this chat, but the Privacy Filter is off' if outbound.marked_terms?(session)
-
-      return messages
-    end
-
-    require_relative '../utils/privacy/types'
-    # Note: language detection for "auto" mode happens upstream in
-    # handle_ws_streaming on the raw user-typed text, not here. Hooking it
-    # here would see vendor-adapter-injected placeholders (e.g. OpenAI
-    # Responses API's "Let's start" filler) and lock to the wrong language.
-    mask_text = lambda do |text|
-      next text unless text.is_a?(String) && !text.empty?
-
-      pipeline.before_send_to_llm(Monadic::Utils::Privacy::RawMessage.new(text, "user", {})).text
-    end
-    # In a chat with words the user marked, what a tool gave back is masked
-    # like the conversation: it can carry those words (a search result, a
-    # page). Otherwise tool results are left as they were.
-    mask_tools = outbound.marked_terms?(session)
-    messages.map do |msg|
-      role = msg[:role] || msg["role"]
-      type = (msg[:type] || msg["type"]).to_s
-      if mask_tools && type == "function_call_output"
-        output_key = msg.key?(:output) ? :output : "output"
-        next msg.merge(output_key => mask_text.call(msg[output_key]))
-      end
-      if mask_tools && role.to_s == "tool"
-        content_key = msg.key?(:content) ? :content : "content"
-        # A string, or (Cohere) parts: text, and documents whose data is JSON.
-        # A part's own type and id are protocol and stay as they are.
-        content = msg[content_key]
-        masked_content = if content.is_a?(Array)
-                           content.map do |part|
-                             next privacy_mask_value(part, mask_text) unless part.is_a?(Hash)
-
-                             part.to_h { |k, v| [k, %w[type id].include?(k.to_s) ? v : privacy_mask_value(v, mask_text)] }
-                           end
-                         else
-                           privacy_mask_value(content, mask_text)
-                         end
-        next msg.merge(content_key => masked_content)
-      end
-      # System / developer roles are app-defined (system prompts, tool
-      # plumbing) and must not be re-masked.
-      next msg unless %w[user assistant].include?(role.to_s)
-      text_key = msg.key?(:content) ? :content : "content"
-      content = msg[text_key]
-
-      if content.is_a?(String)
-        raw = Monadic::Utils::Privacy::RawMessage.new(content, "user", {})
-        masked = pipeline.before_send_to_llm(raw)
-        msg.merge(text_key => masked.text)
-      elsif content.is_a?(Array)
-        new_content = content.map do |item|
-          next item unless item.is_a?(Hash)
-          item_type = (item[:type] || item["type"]).to_s
-          if mask_tools && item_type == "tool_result"
-            result_key = item.key?(:content) ? :content : "content"
-            result = item[result_key]
-            masked_result = if result.is_a?(String)
-                              mask_text.call(result)
-                            elsif result.is_a?(Array)
-                              result.map do |part|
-                                next part unless part.is_a?(Hash) && (part.key?("text") || part.key?(:text))
-
-                                part_key = part.key?(:text) ? :text : "text"
-                                part.merge(part_key => mask_text.call(part[part_key]))
-                              end
-                            else
-                              result
-                            end
-            next item.merge(result_key => masked_result)
-          end
-          next item unless %w[input_text text].include?(item_type)
-          item_text_key = item.key?(:text) ? :text : "text"
-          text = item[item_text_key]
-          next item unless text.is_a?(String) && !text.empty?
-          raw = Monadic::Utils::Privacy::RawMessage.new(text, "user", {})
-          masked = pipeline.before_send_to_llm(raw)
-          item.merge(item_text_key => masked.text)
-        end
-        msg.merge(text_key => new_content)
-      else
-        msg
-      end
-    end
-  end
-
-  # The whole request body, just before it is sent. With words the user
-  # marked for the Privacy Filter, nothing is sent when the filter is off,
-  # or when a marked word is still anywhere in the body (the system prompt,
-  # a tool, the app's settings: places that are not masked). The body is
-  # only read. Every vendor calls this, whether the filter is on or not.
-  def protect_marked_words!(body, session, app_settings)
-    require_relative '../utils/privacy/outbound'
-    outbound = Monadic::Utils::Privacy::Outbound
-    return body unless outbound.marked_terms?(session)
-    raise outbound::Refused, 'words were marked to be masked in this chat, but the Privacy Filter is off' unless privacy_pipeline_for(session, app_settings)
-
-    outbound.check_no_marked_words!(session, body)
-    body
   end
 
   # A chat that hides its words with a word table (Privacy::Words): the
@@ -806,32 +638,6 @@ module BaseVendorHelper
       text_key = part.key?(:text) ? :text : "text"
       part[text_key].is_a?(String) ? part.merge(text_key => change.(part[text_key])) : part
     end
-  end
-
-  # Every string in a tool's result masked, the structure kept: a string
-  # that is JSON is read, masked value by value and written again (so its
-  # escapes stay valid); keys are left as they are.
-  def privacy_mask_value(value, mask_text, depth = 0)
-    case value
-    when String
-      inner = Monadic::Utils::Privacy::Outbound.json_value(value)
-      unless inner.nil?
-        raise Monadic::Utils::Privacy::Outbound::Refused, 'a tool result is nested as JSON too deeply to be masked' if depth >= Monadic::Utils::Privacy::Outbound::JSON_DEPTH
-
-        return JSON.generate(privacy_mask_value(inner, mask_text, depth + 1))
-      end
-      mask_text.call(value)
-    when Array then value.map { |v| privacy_mask_value(v, mask_text, depth) }
-    when Hash then value.transform_values { |v| privacy_mask_value(v, mask_text, depth) }
-    else value
-    end
-  end
-
-  def restore_response_text(text, session, app_settings)
-    pipeline = privacy_pipeline_for(session, app_settings)
-    return text unless pipeline
-    return text unless text.is_a?(String) && !text.empty?
-    pipeline.after_receive_from_llm(text).text
   end
 
   # Shared non-streaming POST with retries. Mirrors the inline retry loop

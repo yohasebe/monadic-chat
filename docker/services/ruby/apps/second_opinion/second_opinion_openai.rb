@@ -26,7 +26,7 @@ class SecondOpinionOpenAI < MonadicApp
   # @param provider [String, nil] Optional provider name (e.g., 'claude', 'gemini')
   # @param model [String, nil] Optional specific model to use
   # @return [Hash] Second opinion including comments, validity, and model used
-  # session: the chat's, given by the tool call (its Privacy Filter masks what is sent).
+  # session: the chat's, given by the tool call (its words are hidden in what is sent).
   def second_opinion_agent(user_query:, agent_response:, provider: nil, model: nil, session: nil)
     # Input validation
     raise ArgumentError, "User query cannot be empty" if user_query.to_s.strip.empty?

@@ -313,8 +313,8 @@ module WebSocketHelper
       session[:messages] << user_message_data
       sync_session_state!
 
-      # Privacy Filter auto-detect: lock the session language from the
-      # user's actual typed text (pre-vendor, no placeholder contamination).
+      # Auto-detect: lock the session language (for finding words to hide)
+      # from the user's actual typed text.
       # No-op when conversation_language != "auto" or already locked.
       require_relative '../privacy/language_detector'
       Monadic::Utils::Privacy::LanguageDetector.detect_and_lock!(message_text, session)
@@ -559,16 +559,9 @@ module WebSocketHelper
         begin
           if words.marked?(session)
             text = words.spoken(words.table(session), text)
-          elsif session[:_privacy_pipeline]
-            text = session[:_privacy_pipeline].sanitize_for_tts(text)
-          end
-          # Words the user marked: replaced by their type if the reply holds
-          # one, and nothing is spoken if one is still there.
-          if Monadic::Utils::Privacy::Outbound.marked_terms?(session)
-            pipeline = session[:_privacy_pipeline]
-            text = pipeline.sanitize_restored_for_tts(text) if pipeline.respond_to?(:sanitize_restored_for_tts)
+            # A word still there is not spoken; checked as the TTS service
+            # would receive it too (dictionary, provider markers).
             Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, text)
-            # As the TTS service would receive it (dictionary, provider markers).
             Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, tts_text_as_sent(text, provider)) if respond_to?(:tts_text_as_sent, true)
           end
         rescue Monadic::Utils::Privacy::Outbound::Refused
@@ -682,42 +675,9 @@ module WebSocketHelper
             send_error("content_not_found", ws_session_id)
             break
           end
-          # Privacy Filter: restore <<TYPE_N>> placeholders before the message
-          # is finalized. Buffer remains masked so the post-completion TTS path
-          # above can still apply sanitize_for_tts independently.
-          known_entities = nil
+          # A chat with a word table: its placeholders put back.
           if Monadic::Utils::Privacy::Words.marked?(session)
-            # A chat with a word table: the chat's placeholders put back.
             raw_content = Monadic::Utils::Privacy::Words.restore_reply(response, raw_content)
-          elsif session[:_privacy_pipeline]
-            pipeline = session[:_privacy_pipeline]
-            restored_response = pipeline.after_receive_from_llm(raw_content)
-            raw_content = restored_response.text
-            # Ship the FULL registry rather than just spans substituted in
-            # this turn. The frontend walks every card in #discourse so a
-            # name registered in turn 1 still highlights in user input on
-            # turn 5. The walker is idempotent (re-wrap is rejected).
-            known_entities = pipeline.registry_entries
-            # Notify frontend of current privacy state so the indicator updates.
-            # Detection state lets the UI surface the locked auto-detected
-            # language as a small "ja" / "en" badge alongside the count;
-            # the frontend ignores the field when locked is false.
-            detection_state = nil
-            begin
-              require_relative '../privacy/language_detector'
-              detection_state = Monadic::Utils::Privacy::LanguageDetector.peek_detection_state(session)
-            rescue StandardError => det_err
-              Monadic::Utils::ExtraLogger.log { "[Privacy] detection state unavailable: #{det_err.message}" }
-            end
-            state_payload = {
-              "type" => "privacy_state",
-              "enabled" => true,
-              "registry_count" => pipeline.registry_count,
-              "error" => nil,
-              "private" => true
-            }
-            state_payload["detection"] = detection_state if detection_state.is_a?(Hash)
-            send_or_broadcast(state_payload.to_json, ws_session_id)
           end
           # Fix sandbox URL paths with a more precise regex that ensures we only replace complete paths
           content = raw_content.gsub(%r{\bsandbox:/([^\s"'<>]+)}, '/\1')
@@ -725,11 +685,6 @@ module WebSocketHelper
           content = content.gsub(%r{^/mnt/([^\s"'<>]+)}, '/\1')
 
           response.dig("choices", 0, "message")["content"] = content
-          # Forward the known-entities list with the message so html_handler
-          # can broadcast it to the UI for the unmask-highlight layer.
-          if known_entities && !known_entities.empty?
-            response["choices"][0]["message"]["privacy_known_entities"] = known_entities
-          end
           # Vocabulary: ship the token -> resolved-path map so the frontend can
           # decorate ${TOKEN}s in the rendered card (incl. inside markdown code),
           # show the resolved path on hover, and open it in the file explorer on

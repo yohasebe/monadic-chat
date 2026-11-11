@@ -197,39 +197,33 @@ module Monadic
         !private && chat_id == @chat_id && Monadic::Workspace::Chats.epoch(chat_id) == @epoch
       end
 
-      # The text added to the message for the model, as the chat's Privacy
-      # Filter has it: the data as JSON (within TEXT_LIMIT, items past it
-      # left out, the selected one kept), masked with the chat's pipeline
-      # when the filter is on, then checked for the words the user marked
-      # (the JSON decoded too). nil when masking cannot be done or a marked
-      # word would be left: then nothing of it is sent.
+      # The text added to the message for the model: the data as JSON (within
+      # TEXT_LIMIT, items past it left out, the selected one kept), checked
+      # for the words the chat hides (the JSON decoded too). nil when a word
+      # would be left: then nothing of it is sent.
       def render_for(session)
-        pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(session)
+        Monadic::Utils::Privacy::Outbound.chat_session!(session)
         words = Monadic::Utils::Privacy::Outbound.terms_of(session)
-        key = [pipeline&.object_id, words]
         @rendered_lock.synchronize do
-          @rendered[key] = masked(pipeline, words) unless @rendered.key?(key)
-          @rendered[key]
+          @rendered[words] = checked(words) unless @rendered.key?(words)
+          @rendered[words]
         end
-      rescue Monadic::Utils::Privacy::Outbound::Refused, Monadic::Utils::Privacy::BackendError
-        # The filter refused or could not mask: nothing of it is sent (the
-        # message itself goes through the filter as before).
+      rescue Monadic::Utils::Privacy::Outbound::Refused
         nil
       end
 
-      # As render_for with no filter and no marked words.
+      # As render_for with no words to hide.
       def render
         wrap(json)
       end
 
       private
 
-      def masked(pipeline, words)
+      def checked(words)
         text = json
         return nil unless text
 
         outbound = Monadic::Utils::Privacy::Outbound
-        text = outbound.mask(text, pipeline, 'user') if pipeline
         unless words.empty?
           left = false
           outbound.each_text(text) { |value| left ||= outbound.holds_word?(value, words) }

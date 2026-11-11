@@ -152,27 +152,6 @@ function handleHtml(data) {
     }
   }
 
-  // Privacy Filter: after the latest card lands in the DOM, walk **every**
-  // card in #discourse and wrap each known PII value in a marker span.
-  // Walking the whole discourse (instead of only the current card) lets
-  // user-input cards pick up matches once their string appears in the
-  // registry, and keeps the visual treatment consistent across cards
-  // when the same name appears multiple turns later. The walker is
-  // idempotent — already-wrapped spans are skipped.
-  // Scheduled via setTimeout(0) so it queues behind appendCard's
-  // MarkdownRenderer pass (KaTeX / mermaid take their slots first).
-  const knownEntities = data && data["content"] && data["content"]["privacy_known_entities"];
-  if (knownEntities && knownEntities.length &&
-      window.WsPrivacyHandler &&
-      typeof window.WsPrivacyHandler.highlightUnmaskedSpans === 'function') {
-    setTimeout(function () {
-      const discourseEl = $id('discourse');
-      if (discourseEl) {
-        window.WsPrivacyHandler.highlightUnmaskedSpans(discourseEl, knownEntities);
-      }
-    }, 0);
-  }
-
   // Vocabulary: decorate ${TOKEN}s (hover = resolved path, click = open in file
   // explorer). Same setTimeout(0) ordering as the privacy walker so it runs
   // after the MarkdownRenderer pass.

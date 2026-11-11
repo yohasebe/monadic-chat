@@ -129,12 +129,6 @@ module GrokCompaction
         return input
       end
       compact_input = compact_body["input"]
-    else
-      app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-      if privacy_enabled_for?(app_settings, session)
-        compact_input = apply_privacy_to_messages(compact_input, session, app_settings)
-      end
-      protect_marked_words!(compact_input, session, app_settings)
     end
 
     blob = Monadic::Utils::Privacy::Words.sending(hiding&.first, hiding&.last) do

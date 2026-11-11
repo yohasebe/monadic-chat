@@ -4,21 +4,20 @@ require 'spec_helper'
 require_relative '../../../lib/monadic/dsl'
 require_relative '../../../lib/monadic/dsl/loader'
 
-# Phase 5 of the KB/PF MDSL SSOT refactor: every MDSL in apps/ is
+# Every MDSL in apps/ is
 # walked at suite startup and its resolved capability flags are pinned
 # against an explicit, hand-maintained allocation.
 #
 # Two complementary contracts are enforced:
 #
 #   1. Per-MDSL invariants (always-on guards on the DSL itself).
-#      - privacy_enabled=true ⇒ library_save=false AND library_search=false
 #      - library_search=true  ⇒ library_save=true
 #      These mirror finalize_capabilities! invariants in lib/monadic/dsl.rb;
 #      this spec is the second line of defense if invariants ever weaken.
 #
 #   2. Group allocation pins (coverage check).
-#      Every MDSL must appear in exactly one of four lists below
-#      (PF-only / KB-search / KB-save-only / Neither). Adding a new MDSL
+#      Every MDSL must appear in exactly one of three lists below
+#      (KB-search / KB-save-only / Neither). Adding a new MDSL
 #      → spec fails with "uncategorized MDSL: …", forcing the developer
 #      to think about its capability profile and add it to the correct
 #      list. Renaming or moving an MDSL similarly fails until the spec
@@ -45,38 +44,10 @@ end
 
 ALL_MDSL_FILES = Dir["#{APPS_DIR}/**/*.mdsl"].sort.freeze
 
-# Hand-maintained allocation of every MDSL into one of four capability
+# Hand-maintained allocation of every MDSL into one of three capability
 # groups. Sizes are sanity-pinned (the counts in the shared examples are
 # the SSOT — the spec tells you which list is wrong when a new MDSL is
 # added without registering it here).
-PF_ONLY_MDSLS = %w[
-  chat_plus/chat_plus_claude.mdsl
-  chat_plus/chat_plus_cohere.mdsl
-  chat_plus/chat_plus_deepseek.mdsl
-  chat_plus/chat_plus_gemini.mdsl
-  chat_plus/chat_plus_grok.mdsl
-  chat_plus/chat_plus_mistral.mdsl
-  chat_plus/chat_plus_openai.mdsl
-  mail_composer/mail_composer_claude.mdsl
-  mail_composer/mail_composer_cohere.mdsl
-  mail_composer/mail_composer_deepseek.mdsl
-  mail_composer/mail_composer_gemini.mdsl
-  mail_composer/mail_composer_grok.mdsl
-  mail_composer/mail_composer_mistral.mdsl
-  mail_composer/mail_composer_ollama.mdsl
-  mail_composer/mail_composer_openai.mdsl
-  second_opinion/second_opinion_claude.mdsl
-  second_opinion/second_opinion_cohere.mdsl
-  second_opinion/second_opinion_deepseek.mdsl
-  second_opinion/second_opinion_gemini.mdsl
-  second_opinion/second_opinion_grok.mdsl
-  second_opinion/second_opinion_mistral.mdsl
-  second_opinion/second_opinion_openai.mdsl
-  translate/translate_cohere.mdsl
-  translate/translate_deepseek.mdsl
-  translate/translate_openai.mdsl
-].freeze
-
 KB_SEARCH_MDSLS = %w[
   chat/chat_claude.mdsl
   chat/chat_cohere.mdsl
@@ -164,6 +135,13 @@ NEITHER_MDSLS = %w[
   auto_forge/auto_forge_claude.mdsl
   auto_forge/auto_forge_grok.mdsl
   auto_forge/auto_forge_openai.mdsl
+  chat_plus/chat_plus_claude.mdsl
+  chat_plus/chat_plus_cohere.mdsl
+  chat_plus/chat_plus_deepseek.mdsl
+  chat_plus/chat_plus_gemini.mdsl
+  chat_plus/chat_plus_grok.mdsl
+  chat_plus/chat_plus_mistral.mdsl
+  chat_plus/chat_plus_openai.mdsl
   concept_visualizer/concept_visualizer_claude.mdsl
   concept_visualizer/concept_visualizer_openai.mdsl
   document_generator/document_generator_claude.mdsl
@@ -174,24 +152,42 @@ NEITHER_MDSLS = %w[
   image_generator/image_generator_gemini.mdsl
   image_generator/image_generator_grok.mdsl
   image_generator/image_generator_openai.mdsl
+  mail_composer/mail_composer_claude.mdsl
+  mail_composer/mail_composer_cohere.mdsl
+  mail_composer/mail_composer_deepseek.mdsl
+  mail_composer/mail_composer_gemini.mdsl
+  mail_composer/mail_composer_grok.mdsl
+  mail_composer/mail_composer_mistral.mdsl
+  mail_composer/mail_composer_ollama.mdsl
+  mail_composer/mail_composer_openai.mdsl
   mermaid_grapher/mermaid_grapher_claude.mdsl
   mermaid_grapher/mermaid_grapher_gemini.mdsl
   mermaid_grapher/mermaid_grapher_grok.mdsl
   mermaid_grapher/mermaid_grapher_openai.mdsl
   music_analyst/music_analyst_gemini.mdsl
-  music_lab/music_lab_claude.mdsl
   music_generator/music_generator_gemini.mdsl
+  music_lab/music_lab_claude.mdsl
   music_lab/music_lab_gemini.mdsl
   music_lab/music_lab_grok.mdsl
   music_lab/music_lab_openai.mdsl
+  second_opinion/second_opinion_claude.mdsl
+  second_opinion/second_opinion_cohere.mdsl
+  second_opinion/second_opinion_deepseek.mdsl
+  second_opinion/second_opinion_gemini.mdsl
+  second_opinion/second_opinion_grok.mdsl
+  second_opinion/second_opinion_mistral.mdsl
+  second_opinion/second_opinion_openai.mdsl
   syntax_tree/syntax_tree_claude.mdsl
   syntax_tree/syntax_tree_openai.mdsl
+  translate/translate_cohere.mdsl
+  translate/translate_deepseek.mdsl
+  translate/translate_openai.mdsl
   video_generator/video_generator_gemini.mdsl
   video_generator/video_generator_grok.mdsl
 ].freeze
 
 ALL_EXPECTED_MDSLS = (
-  PF_ONLY_MDSLS + KB_SEARCH_MDSLS + KB_SAVE_ONLY_MDSLS + NEITHER_MDSLS
+  KB_SEARCH_MDSLS + KB_SAVE_ONLY_MDSLS + NEITHER_MDSLS
 ).freeze
 
 RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
@@ -230,7 +226,7 @@ RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
 
       expect(uncategorized).to be_empty,
                                "New MDSL(s) found on disk but not in any expected group list. " \
-                               "Add them to PF_ONLY_MDSLS / KB_SEARCH_MDSLS / KB_SAVE_ONLY_MDSLS / NEITHER_MDSLS:\n#{uncategorized.map { |s| "  #{s}" }.join("\n")}"
+                               "Add them to KB_SEARCH_MDSLS / KB_SAVE_ONLY_MDSLS / NEITHER_MDSLS:\n#{uncategorized.map { |s| "  #{s}" }.join("\n")}"
       expect(stale).to be_empty,
                        "Expected MDSL(s) no longer present on disk. Remove them from the list:\n#{stale.map { |s| "  #{s}" }.join("\n")}"
       expect(duplicates).to be_empty,
@@ -241,14 +237,6 @@ RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
   describe 'per-MDSL invariants (mirror finalize_capabilities!)' do
     ALL_MDSL_FILES.each do |path|
       rel = path.sub("#{APPS_DIR}/", '')
-
-      it "#{rel}: privacy_enabled=true ⇒ library_save=false AND library_search=false" do
-        s = @states[path]
-        skip "load error: #{@load_errors[path]}" if s.nil?
-        next unless s[:privacy_enabled] == true
-        expect(s[:library_save]).to eq(false),   "#{rel}: privacy on but library_save is #{s[:library_save].inspect}"
-        expect(s[:library_search]).to eq(false), "#{rel}: privacy on but library_search is #{s[:library_search].inspect}"
-      end
 
       it "#{rel}: library_search=true ⇒ library_save=true" do
         s = @states[path]
@@ -261,30 +249,24 @@ RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
   end
 
   describe 'group allocation matches resolved capability flags' do
-    # Each group implies a specific (privacy_enabled, library_save,
-    # library_search) triple. This per-group sweep catches "wrong list"
-    # mistakes — e.g., adding an artifact app to KB_SEARCH_MDSLS by
-    # mistake would surface here as a triple mismatch.
+    # Each group implies a specific (library_save, library_search) pair.
+    # This per-group sweep catches "wrong list" mistakes — e.g., adding an
+    # artifact app to KB_SEARCH_MDSLS by mistake would surface here as a
+    # mismatch.
     expected_triples = {
-      pf_only:      { privacy_enabled: true,  library_save: false, library_search: false, list: PF_ONLY_MDSLS },
-      kb_search:    { privacy_enabled: false, library_save: true,  library_search: true,  list: KB_SEARCH_MDSLS },
-      kb_save_only: { privacy_enabled: false, library_save: true,  library_search: false, list: KB_SAVE_ONLY_MDSLS },
-      neither:      { privacy_enabled: false, library_save: false, library_search: false, list: NEITHER_MDSLS }
+      kb_search:    { library_save: true,  library_search: true,  list: KB_SEARCH_MDSLS },
+      kb_save_only: { library_save: true,  library_search: false, list: KB_SAVE_ONLY_MDSLS },
+      neither:      { library_save: false, library_search: false, list: NEITHER_MDSLS }
     }
 
     expected_triples.each do |group, expected|
       describe "group: #{group}" do
         expected[:list].each do |rel|
-          it "#{rel}: matches the #{group} triple (pe=#{expected[:privacy_enabled]}, save=#{expected[:library_save]}, search=#{expected[:library_search]})" do
+          it "#{rel}: matches the #{group} pair (save=#{expected[:library_save]}, search=#{expected[:library_search]})" do
             path = File.join(APPS_DIR, rel)
             s = @states[path]
             skip "load error: #{@load_errors[path]}" if s.nil?
 
-            # privacy_enabled is absent (nil) for non-PF apps, set to true
-            # for PF apps. Compare the resolved boolean explicitly so nil
-            # is treated as "not enabled".
-            expect(s[:privacy_enabled] == true).to eq(expected[:privacy_enabled]),
-                                                   "#{rel}: privacy_enabled is #{s[:privacy_enabled].inspect}, expected #{expected[:privacy_enabled]}"
             expect(s[:library_save]).to eq(expected[:library_save])
             expect(s[:library_search]).to eq(expected[:library_search])
           end
@@ -298,10 +280,9 @@ RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
     # situation we want to surface in code review. Update these when
     # consciously moving an app between groups.
     {
-      'PF only'      => [PF_ONLY_MDSLS, 25],
       'KB search'    => [KB_SEARCH_MDSLS, 53],
       'KB save only' => [KB_SAVE_ONLY_MDSLS, 24],
-      'Neither'      => [NEITHER_MDSLS, 27]
+      'Neither'      => [NEITHER_MDSLS, 52]
     }.each do |label, (list, expected_size)|
       it "#{label}: list size is #{expected_size}" do
         expect(list.size).to eq(expected_size),

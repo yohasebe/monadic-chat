@@ -55,26 +55,19 @@ module Monadic
       #   role/text fields (system entries are ignored).
       # @param app_name [String, nil] the currently active app's class
       #   name (e.g. "ChatOpenAI"); resolves the provider via APPS.
-      # @param pipeline [Privacy::Pipeline, nil] when present, mask each
-      #   message text before sending to the LLM and keep any returned
-      #   placeholders in human-readable form ("PERSON 1") instead of
-      #   restoring them. This stops the title-suggestion call from
-      #   re-introducing PII that the user has chosen to mask in the
-      #   primary chat path.
       # @return [String, nil] a normalised title, or nil on any failure.
       #
       # @param words [Privacy::WordTable, nil] the chat's word table, for a
-      #   chat that hides its words with one (then pipeline is not used):
+      #   chat that hides its words with one:
       #   the messages are sent with its words hidden, and the title comes
       #   back with them put back.
-      def suggest(messages:, app_name:, pipeline: nil, session: nil, words: nil)
+      def suggest(messages:, app_name:, session: nil, words: nil)
         provider = derive_provider(app_name)
         return nil unless provider
         return nil unless api_key_present?(provider)
         return suggest_hiding(messages, provider, words, session) if words
 
-        prep_messages = pipeline ? mask_messages(messages, pipeline) : messages
-        prompt = build_prompt(prep_messages)
+        prompt = build_prompt(messages)
         return nil unless prompt
 
         chat_pair = find_chat_app(provider)
@@ -92,7 +85,7 @@ module Monadic
         return nil if Monadic::Utils::ErrorFormatter.error_reply?(raw) # an error is not a title
 
         title = normalize(raw)
-        pipeline ? humanize_placeholders(title, pipeline) : title
+        title
       rescue StandardError => e
         warn "[TitleSuggester] #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG['EXTRA_LOGGING']
         nil
@@ -149,33 +142,6 @@ module Monadic
 
           m.merge('text' => snapshot.raw(text, budget))
         end
-      end
-
-      # Internal: pre-mask each message so the title-suggestion LLM call
-      # never sees raw PII. Errors are intentionally not rescued here —
-      # the outer suggest() rescue turns them into a nil return so the
-      # UI falls back to its placeholder rather than silently echoing
-      # raw PII when masking is unavailable.
-      def mask_messages(messages, pipeline)
-        return messages unless messages.is_a?(Array)
-        require_relative '../utils/privacy/types'
-        require_relative '../utils/privacy/outbound'
-        messages.map do |m|
-          next m unless m.is_a?(Hash)
-          text = (m['text'] || m[:text]).to_s
-          next m if text.empty?
-          # Masked as other helpers mask (marked words, JSON in the text, checked).
-          m.merge('text' => Monadic::Utils::Privacy::Outbound.mask(text, pipeline, (m['role'] || m[:role]).to_s))
-        end
-      end
-
-      # Replace remaining placeholders ("<<PERSON_1>>") with their
-      # readable form ("PERSON 1"). Mirrors the pattern Pipeline uses
-      # for TTS — same goal: human-facing string with no raw PII.
-      def humanize_placeholders(title, pipeline)
-        return title if title.nil? || title.to_s.empty?
-        return title unless pipeline.respond_to?(:sanitize_for_tts)
-        pipeline.sanitize_for_tts(title)
       end
 
       # Resolve the active app's class name to a canonical provider key.

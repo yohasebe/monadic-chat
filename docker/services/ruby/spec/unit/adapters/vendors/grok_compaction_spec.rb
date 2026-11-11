@@ -153,23 +153,22 @@ RSpec.describe GrokCompaction do
         call(session)
       end
 
-      it 'masks the compact input through the privacy pipeline before sending' do
-        # No production app enables both privacy and compaction, so this
-        # fail-safe path is reachable only here. Pin the wiring: when
-        # privacy is on, the slice handed to the compact endpoint must be masked
-        # with the same apply_privacy_to_messages used on the main request.
-        allow(helper).to receive(:privacy_enabled_for?).and_return(true)
-        allow(helper).to receive(:apply_privacy_to_messages) do |messages, _session, _settings|
-          messages.map { |m| m.merge('masked' => true) }
-        end
+      it 'hides the words of the chat in the compact input before sending' do
+        words = Monadic::Utils::Privacy::Words
+        session = {}
+        Monadic::Workspace::Chats.start_new!(session)
+        words.start!(session).confirm!('first', 'PERSON')
         received = nil
         allow(helper).to receive(:request_compaction) do |compact_input, **_|
           received = compact_input
-          blob_item('cmp_masked')
+          blob_item('cmp_hidden')
         end
 
-        call({})
-        expect(received).to all(include('masked' => true))
+        call(session)
+        expect(received.to_s).to include('<<PERSON_1>>')
+        expect(received.to_s).not_to include('first')
+      ensure
+        words::LOCK.synchronize { words::TABLES.clear }
       end
 
       it 'degrades to full history and clears the cache when compaction fails' do

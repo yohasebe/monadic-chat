@@ -179,21 +179,19 @@ module Monadic
           Monadic::Workspace::Chats.epoch(caller.chat_id) == caller.epoch && !private?(caller)
       end
 
-      # text as the chat's Privacy Filter lets it go: masked with the chat's
-      # pipeline when the filter is on, and with no word the user marked
-      # left. Refused (filtered) otherwise.
+      # text, when it holds no word the chat hides. Refused (filtered)
+      # otherwise.
       def filtered(session, text)
         outbound = Monadic::Utils::Privacy::Outbound
-        pipeline = outbound.pipeline!(session)
+        outbound.chat_session!(session)
         words = outbound.terms_of(session)
-        text = outbound.mask(text, pipeline, 'user') if pipeline
         left = false
         outbound.each_text(text) { |value| left ||= outbound.holds_word?(value, words) } unless words.empty?
-        raise Refused.new('filtered', 'the Privacy Filter does not let it go to the model') if left
+        raise Refused.new('filtered', 'it holds a word this chat hides') if left
 
         text
-      rescue Monadic::Utils::Privacy::Outbound::Refused, Monadic::Utils::Privacy::BackendError
-        raise Refused.new('filtered', 'the Privacy Filter could not check it, so it was not sent')
+      rescue Monadic::Utils::Privacy::Outbound::Refused
+        raise Refused.new('filtered', "it could not be checked against this chat's words, so it was not sent")
       end
 
       # What the item shows, read now at its version:
@@ -209,7 +207,7 @@ module Monadic
         if item['browser']
           content = Browser.look(item, caller, deadline)
           # The title and the address are the page's words: they pass the
-          # chat's Privacy Filter before they are kept or said.
+          # chat's check of its words before they are kept or said.
           name = filtered(caller.session, content[:name])
           path = filtered(caller.session, content[:path])
           return seen(item, 'browser', name, path, nil, **content.except(:name, :path))

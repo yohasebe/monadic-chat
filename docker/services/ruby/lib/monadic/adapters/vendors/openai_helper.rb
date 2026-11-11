@@ -1197,30 +1197,15 @@ module OpenAIHelper
     http = HTTP.headers(headers)
     model = body["model"]
 
-    # Privacy Filter: mask user-message PII before sending to OpenAI. No-op
-    # when the app does not declare `privacy do; enabled true; end` in MDSL.
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
     # A chat with a word table hides its words with it (each attempt below
-    # is sent only while the table is unchanged); otherwise the Privacy
-    # Filter's masking and marked words apply.
+    # is sent only while the table is unchanged).
     hiding = hide_words_in_request!(body, session)
     # A conversation kept on the provider's side holds words as they were
     # sent then; a chat with a table sends all of it, hidden, each time.
     if hiding && body["previous_response_id"]
       raise Monadic::Utils::Privacy::Outbound::Refused,
             "a conversation kept on the provider's side cannot be hidden with the chat's words; nothing was sent"
-    end
-    unless hiding
-      if privacy_enabled_for?(app_settings, session)
-        if body["messages"].is_a?(Array)
-          body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
-        end
-        if body["input"].is_a?(Array)
-          body["input"] = apply_privacy_to_messages(body["input"], session, app_settings)
-        end
-      end
-      # Words the user marked: masked wherever they are in the body, or nothing is sent.
-      protect_marked_words!(body, session, app_settings)
     end
 
     DebugHelper.debug("OpenAI API endpoint: #{target_uri}", category: :api, level: :debug)

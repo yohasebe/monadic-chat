@@ -735,22 +735,10 @@ module CohereHelper
     target_uri = "#{API_ENDPOINT}/chat"
     http = HTTP.headers(headers)
 
-    # Privacy Filter: mask user-message PII before sending to Cohere. No-op
-    # when the app does not declare `privacy do; enabled true; end` in MDSL.
-    # Cohere v2 uses messages with content as Array of typed parts ({type: "text",
-    # text: ...}); image parts ({type: "image"}) pass through untouched.
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
     # A chat with a word table hides its words with it (each attempt below
-    # is sent only while the table is unchanged); otherwise the Privacy
-    # Filter's masking and marked words apply.
+    # is sent only while the table is unchanged).
     hiding = hide_words_in_request!(body, session)
-    unless hiding
-      if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
-        body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
-      end
-      # Words the user marked: masked wherever they are in the body, or nothing is sent.
-      protect_marked_words!(body, session, app_settings)
-    end
 
     # Diagnostic: dump the exact tools and message roles sent to Cohere. The v2
     # API rejects malformed tool schemas (and model-generated calls to

@@ -4,23 +4,13 @@ require 'spec_helper'
 
 # Cross-cutting invariant: any capability flag that
 # `MonadicDSL.finalize_capabilities!` resolves on the AppState
-# (`state.settings[:library_save]`, `[:library_search]`,
-# `[:privacy_enabled]`) must be carried into the generated runtime
+# (`state.settings[:library_save]`, `[:library_search]`) must be carried
+# into the generated runtime
 # class definition. Otherwise the WebSocket app-data layer iterates
 # the runtime instance's `@settings` and silently omits the key —
 # the frontend body-class gate then defaults to "permissive" and
 # renders UI surfaces (e.g. "Save to KB") that the app cannot
 # legally use.
-#
-# Concrete failure mode this guards against (2026-05-08 Chat Plus):
-# `privacy do; enabled true; end` triggered
-# `state.settings[:library_save] = false` inside
-# `finalize_capabilities!`, but the class-generation template only
-# iterates `state.features.each` to populate `@settings`. The
-# library_save=false directive lived in `state.settings` only,
-# was missed by the iterator, and never reached the runtime
-# instance. The frontend received no `library_save` key, defaulted
-# to truthy, and showed the Save-to-KB button on a Privacy-only app.
 #
 # Detection strategy: load each MDSL into AppState, run
 # `MonadicDSL.convert_to_class(state)`, and grep the resulting
@@ -49,7 +39,7 @@ RSpec.describe "Runtime capability propagation (class generation)" do
   # silently skip such keys, so they need an explicit injection in
   # `convert_to_class` AND a corresponding entry here so this spec catches
   # any future regression of the same shape.
-  CAPABILITY_KEYS = %i[library_save library_search privacy_enabled].freeze
+  CAPABILITY_KEYS = %i[library_save library_search].freeze
 
   it "every state.settings capability flag is injected into the generated class definition" do
     discrepancies = []

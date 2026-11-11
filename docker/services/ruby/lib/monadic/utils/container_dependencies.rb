@@ -98,14 +98,6 @@ module Monadic
           services << :python # Selenium operations run through Python
         end
 
-        # Privacy: required when an app declares privacy.enabled in MDSL.
-        # The privacy container is part of the default build set;
-        # ensure-service privacy returns PRIVACY_DISABLED only when the user
-        # has explicitly opted out via PRIVACY_FILTER=false.
-        if get.call(:privacy_enabled)
-          services << :privacy
-        end
-
         services
       end
 

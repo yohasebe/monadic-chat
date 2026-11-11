@@ -1039,24 +1039,12 @@ module ClaudeHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
-    # Privacy Filter: mask user-message PII before sending to Anthropic. No-op
-    # when the app does not declare `privacy do; enabled true; end` in MDSL.
-    # Claude content is always Array of {type, text|image|document} blocks;
-    # apply_privacy_to_messages skips non-text items.
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
     # A chat with a word table hides its words with it (each attempt below
-    # is sent only while the table is unchanged); otherwise the Privacy
-    # Filter's masking and marked words apply. The conversation as it was
+    # is sent only while the table is unchanged). The conversation as it was
     # before is what a request to another model is made from again.
     unhidden = body["messages"]
     hiding = hide_words_in_request!(body, session, keys: %w[messages], item: method(:hide_words_in_claude_message))
-    unless hiding
-      if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
-        body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
-      end
-      # Words the user marked: masked wherever they are in the body, or nothing is sent.
-      protect_marked_words!(body, session, app_settings)
-    end
 
     if Monadic::Utils::ExtraLogger.enabled? || ENV["DEBUG_CLAUDE"]
       Monadic::Utils::ExtraLogger.log {

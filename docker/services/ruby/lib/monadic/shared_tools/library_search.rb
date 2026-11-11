@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require_relative '../utils/privacy/outbound'
 
 # Shared Library Search tool for Monadic Chat
 # Exposes the project-wide Knowledge Base (Library) as a retrieval tool
@@ -110,80 +109,12 @@ module MonadicSharedTools
           top_n: top_n.to_i.clamp(1, 10),
           payload_filter: payload_filter
         )
-        # Words the user marked: each passage (its text, title, source) is
-        # checked while its values are still values of their own (a JSON value in it is read as what it decodes
-        # to), before it is joined into the text; none is returned if one
-        # holds a marked word in any form. A chat that hides its words with a
-        # word table hides them in what a tool returns as it sends it.
-        words = Monadic::Utils::Privacy::Words
-        if !words.marked?(resolved_session) && Monadic::Utils::Privacy::Outbound.marked_terms?(resolved_session)
-          hits.each { |hit| Monadic::Utils::Privacy::Outbound.check_no_marked_words!(resolved_session, hit) }
-        end
-        out = MonadicSharedTools::LibrarySearch.format_results(query, hits)
-        MonadicSharedTools::LibrarySearch.apply_privacy(out, resolved_session)
-      rescue Monadic::Utils::Privacy::Outbound::Refused
-        MonadicSharedTools::LibrarySearch::WITHHELD_MESSAGE
+        # A chat that hides its words hides them in what a tool returns as
+        # it sends it.
+        MonadicSharedTools::LibrarySearch.format_results(query, hits)
       rescue StandardError => e
         "❌ Knowledge Base search failed: #{e.message}"
       end
-    end
-
-    # Returned to the LLM in place of search results when the session has a
-    # live Privacy pipeline but masking is unavailable. Fail-closed: unmasked
-    # snippets must never reach the provider in that state.
-    #
-    # Recovery wording note: this path is reached via a Privacy pipeline left
-    # in the session (PF and library_search are mutually exclusive at the app
-    # level, so the current app has no Privacy Filter toggle). The accurate
-    # user remedies are therefore "wait for the privacy service to recover"
-    # or "reset the session" — NOT "toggle the filter off".
-    WITHHELD_MESSAGE = "❌ Knowledge Base results withheld: privacy masking is " \
-                       "currently unavailable, so unmasked content cannot be " \
-                       "sent to the provider. Tell the user the Privacy Filter " \
-                       "service appears to be down and that they can retry " \
-                       "once it recovers, or start a fresh session (Reset) if " \
-                       "they no longer need the Privacy Filter protection for " \
-                       "this conversation.".freeze
-
-    # Mask PII in a tool-result payload before the LLM ever sees it.
-    # Knowledge Base entries are stored unmasked (the Save dialog warns
-    # the user about this), so retrieval would otherwise re-expose any
-    # PII present in saved conversations to the next LLM request — even
-    # when the user has Privacy Filter ON for the current session.
-    #
-    # The session-level Privacy Pipeline is created lazily by the vendor
-    # helper at request build time. By the time a tool call fires it has
-    # already been instantiated and is reachable via session[:_privacy_pipeline].
-    # We register the search snippets there so that any placeholder the
-    # LLM echoes back gets restored by streaming_handler against the
-    # same registry — round-trip is symmetric without further wiring.
-    #
-    # Failure policy is fail-closed, matching the pipeline's own
-    # `on_failure: :block` default: when masking raises, the snippets are
-    # withheld from the LLM entirely and the degradation is reported. The
-    # previous behavior (return the original text) silently sent unmasked
-    # PII to the provider exactly when the privacy backend was broken.
-    def apply_privacy(text, session)
-      return text unless text.is_a?(String) && !text.empty?
-
-      pipeline = session && (session[:_privacy_pipeline] || session['_privacy_pipeline'])
-      return text unless pipeline.respond_to?(:enabled?) && pipeline.enabled?
-
-      require_relative '../utils/privacy/types'
-      require_relative '../utils/privacy/outbound'
-      raw = Monadic::Utils::Privacy::RawMessage.new(text, 'tool', {})
-      masked = pipeline.before_send_to_llm(raw).text
-      # Words the user marked: results that still hold one (written in a way
-      # the masking did not reach) are withheld.
-      Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, masked)
-      masked
-    rescue StandardError => e
-      Monadic::Utils::DegradationNotifier.report(
-        component: 'privacy',
-        message: "masking failed during Knowledge Base search; results were withheld from the LLM (#{e.message})",
-        severity: :error
-      )
-      WITHHELD_MESSAGE
     end
 
     # Compose an optional Qdrant payload filter from the LLM-supplied

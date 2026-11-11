@@ -122,14 +122,19 @@ RSpec.describe 'What would make files of a Private chat' do
         end,
         paths: ['/document'], session_lookup: ->(id) { tabs[id] }, state_lookup: ->(id) { states[id] }
       )
-      marked = { privacy: { terms: [{ text: 'MARKEDWORD' }] } }
-      tabs['tab-p'] = chat(private: true).merge(monadic_state: marked)
-      states['tab-away'] = { chat_id: chat[:chat_id], chat_state: { policy::SESSION_KEY => policy::PRIVATE, monadic_state: marked } }
+      hiding = Monadic::Utils::Privacy::Words
+      session = chat(private: true)
+      hiding.start!(session).confirm!('MARKEDWORD', 'PERSON')
+      tabs['tab-p'] = session
+      states['tab-away'] = { chat_id: session[:chat_id],
+                             chat_state: { policy::SESSION_KEY => policy::PRIVATE, hiding::MARK_KEY => session[hiding::MARK_KEY] } }
       %w[tab-p tab-away].each do |tab|
         worker.call('REQUEST_METHOD' => 'POST', 'PATH_INFO' => '/load', 'QUERY_STRING' => "tab_id=#{tab}",
                     'rack.input' => StringIO.new('x'))
       end
       expect(words).to eq([['MARKEDWORD'], ['MARKEDWORD']])
+    ensure
+      hiding::LOCK.synchronize { hiding::TABLES.clear }
     end
 
     # The body is listed and closed after the route returned, and the access

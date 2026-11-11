@@ -599,53 +599,23 @@ module WebSocketHelper
     sts_privacy_active?(session) ? :privacy_blocked : :sts
   end
 
-  # Privacy Filter "currently enabled" check for STS routing. Mirrors the
-  # two-gate activation in BaseVendorHelper#privacy_enabled_for?: the app
-  # must declare `privacy do; enabled true; end` in MDSL AND the user must
-  # have opted in via the session toggle (PRIVACY_TOGGLE sets
-  # session[:_privacy_session_enabled] only after a container health probe,
-  # so the key alone is backend-authoritative for the toggle half).
+  # Speech-to-speech gets the conversation as written, so a chat that hides
+  # its words keeps it closed.
   private def sts_privacy_active?(session)
     return false unless session.respond_to?(:[])
-    # Words the user marked keep speech-to-speech closed, on or off: the
-    # voice session would be given the conversation as written. So does a
-    # chat that hides its words with a word table (the voice is not hidden).
-    require_relative 'privacy/outbound'
-    return true if Monadic::Utils::Privacy::Words.marked?(session)
 
-    begin
-      return true if Monadic::Utils::Privacy::Outbound.marked_terms?(session)
-    rescue Monadic::Utils::Privacy::Outbound::Refused
-      return true
-    end
-    return false unless session[:_privacy_session_enabled] == true
-
-    params = session[:parameters] || session["parameters"]
-    params = {} unless params.respond_to?(:[])
-    app_name = params["app_name"] || params[:app_name]
-    app_settings = (defined?(APPS) && app_name && APPS[app_name]) ? APPS[app_name].settings : nil
-    return false unless app_settings
-
-    privacy = app_settings[:privacy] || app_settings["privacy"]
-    return false unless privacy
-
-    (privacy[:enabled] || privacy["enabled"]) == true
+    Monadic::Utils::Privacy::Words.marked?(session)
   end
 
-  # Notify the user that STS is unavailable while the Privacy Filter is on.
+  # Notify the user that STS is unavailable in a chat that hides its words.
   # Sent only once per session (tracked via :_sts_privacy_notice_sent) so a
   # stream of AUDIO_CHUNKs does not spam one error per chunk.
   private def notify_sts_privacy_blocked(connection, session)
     return if session[:_sts_privacy_notice_sent]
 
     session[:_sts_privacy_notice_sent] = true
-    reason = if Monadic::Utils::Privacy::Words.marked?(session)
-               "is unavailable in a conversation that hides its words. " \
-                 "Start a new conversation or choose a model without speech-to-speech support to use voice input."
-             else
-               "is unavailable while the Privacy Filter is on. " \
-                 "Disable the Privacy Filter or choose a model without speech-to-speech support to use voice input."
-             end
+    reason = "is unavailable in a conversation that hides its words. " \
+             "Start a new conversation or choose a model without speech-to-speech support to use voice input."
     send_to_client(connection, {
       "type" => "error",
       "content" => "Speech-to-speech mode sends raw audio directly to the provider and #{reason}"

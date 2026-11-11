@@ -124,14 +124,6 @@ module ContextExtractorAgent
     "en"  # Default to English on error
   end
 
-  # Pre-mask text via the session's privacy pipeline before sending it
-  # to the extraction LLM. Errors propagate — fail-closed matches the
-  # chat path's :block contract; a degraded extraction that re-leaks
-  # PII would defeat the purpose of the user enabling the filter.
-  def mask_for_extraction(text, pipeline, role)
-    Monadic::Utils::Privacy::Outbound.mask(text, pipeline, role)
-  end
-
   # Extract context from a conversation exchange using direct HTTP API calls
   # @param session [Hash] The session information
   # @param user_message [String] The user's message
@@ -177,12 +169,8 @@ module ContextExtractorAgent
 
     # A chat that hides its words with a word table: the conversation (as
     # the chat keeps it, with the words) is hidden with one snapshot of the
-    # table, and the context is put back with it. Otherwise, when the
-    # session has an active privacy pipeline, the context is extracted from
-    # masked text (it keeps the placeholders, e.g. "<<PERSON_1>>").
-    # Fail-closed: if masking raises (privacy backend unreachable), the
-    # whole extraction is skipped — a degraded extraction that re-leaks
-    # PII would defeat the purpose of the user enabling the filter.
+    # table, and the context is put back with it. If that cannot be done,
+    # the whole extraction is skipped.
     snapshot = nil
     begin
       words = Monadic::Utils::Privacy::Words
@@ -190,19 +178,12 @@ module ContextExtractorAgent
       if table
         snapshot, (extractable_user, extractable_assistant) = words.hide_texts(table, [user_message, assistant_response])
       else
-        # Refused (nothing is extracted) when the filter is on but cannot mask.
-        pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(session)
-        extractable_user, extractable_assistant = if pipeline
-                                                    [
-                                                      mask_for_extraction(user_message, pipeline, "user"),
-                                                      mask_for_extraction(assistant_response, pipeline, "assistant")
-                                                    ]
-                                                  else
-                                                    [user_message, assistant_response]
-                                                  end
+        Monadic::Utils::Privacy::Outbound.chat_session!(session)
+        extractable_user = user_message
+        extractable_assistant = assistant_response
       end
     rescue StandardError => e
-      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Privacy mask failed (skipping extraction fail-closed): #{e.class}: #{e.message}" }
+      Monadic::Utils::ExtraLogger.log { "[ContextExtractor] The words could not be hidden (skipping extraction): #{e.class}: #{e.message}" }
       return nil
     end
 

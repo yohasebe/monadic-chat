@@ -428,9 +428,8 @@ module WebSocketHelper
   # message and may carry a `chat_model` hint (see route_audio_mode) that
   # takes precedence over the session parameters — the session copy can be
   # stale when the UPDATE_PARAMS broadcast was silently dropped.
-  # Duck-typed session access (`respond_to?(:[])`) mirrors
-  # BaseVendorHelper#privacy_enabled_for?: production Rack sessions are not
-  # Hash subclasses but do support `[]`.
+  # Duck-typed session access (`respond_to?(:[])`): production Rack sessions
+  # are not Hash subclasses but do support `[]`.
   def sts_session_capable?(sess, obj = nil)
     model = obj.respond_to?(:[]) ? (obj["chat_model"] || obj[:chat_model]) : nil
     if model.to_s.strip.empty? && sess.respond_to?(:[])

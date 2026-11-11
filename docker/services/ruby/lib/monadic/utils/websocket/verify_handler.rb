@@ -65,8 +65,7 @@ module WebSocketHelper
     # The panel is other models. A chat that hides its words with a word
     # table sends the conversation (as the chat keeps it, with the words)
     # hidden with one snapshot of the table, and what the panel says is put
-    # back with it. Otherwise, with the Privacy Filter on, they get the
-    # conversation masked as the chat's model did, or nothing at all.
+    # back with it.
     words = Monadic::Utils::Privacy::Words
     snapshot = nil
     begin
@@ -75,10 +74,6 @@ module WebSocketHelper
         snapshot, texts = words.hide_texts(table, panel_messages.map { |m| m["content"] } + [review_answer])
         review_answer = texts.pop
         panel_messages = panel_messages.zip(texts).map { |m, text| m.merge("content" => text) }
-      elsif (pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(rack_session))
-        outbound = Monadic::Utils::Privacy::Outbound
-        panel_messages = panel_messages.map { |m| m.merge("content" => outbound.mask(m["content"], pipeline, m["role"])) }
-        review_answer = outbound.mask(review_answer, pipeline, "assistant")
       end
       # Words the user marked: nothing is sent while one is still there.
       Monadic::Utils::Privacy::Outbound.check_no_marked_words!(rack_session, { "messages" => panel_messages, "review" => review_answer })

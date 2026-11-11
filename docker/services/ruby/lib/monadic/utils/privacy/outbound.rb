@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require_relative 'refused'
 require_relative 'word_table'
 require_relative 'words'
 
@@ -16,8 +17,6 @@ module Monadic
       # The session of a real chat is a Rack session object, not a Hash, so it
       # is read by key, never by class.
       module Outbound
-        class Refused < StandardError; end
-
         # Given as the session by a caller that does not act for a chat (the
         # MCP server, which has its own masking). Only this says so: a missing
         # session (nil) is refused, so one argument lost on the way to here

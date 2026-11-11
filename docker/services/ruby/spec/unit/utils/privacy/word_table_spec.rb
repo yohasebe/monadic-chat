@@ -164,6 +164,14 @@ RSpec.describe Monadic::Utils::Privacy::WordTable do
       expect(table.apply("ABC and CDE")).to eq("<<PERSON_2>> and <<PERSON_3>>")
     end
 
+    it "refuses what holds words overlapping in part like any request it cannot hide, without saying the words" do
+      table.confirm!("ABC", "PERSON")
+      table.confirm!("CDE", "PERSON")
+      expect { table.apply("xABCDEx") }.to raise_error(Monadic::Utils::Privacy::Outbound::Refused) { |e|
+        expect(e.message).not_to include("ABC", "CDE")
+      }
+    end
+
     it "keeps text that looks like a placeholder as text" do
       expect(table.apply("write <<PERSON_1>> and << PERSON_9 >> for Acme"))
         .to eq("write ‹‹PERSON_1›› and ‹‹ PERSON_9 ›› for <<ORGANIZATION_1>>")

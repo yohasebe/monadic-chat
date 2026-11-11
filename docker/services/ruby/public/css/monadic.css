@@ -5913,6 +5913,90 @@ i.fas.fa-bolt,
 }
 
 
+/* A chat's word table: the panel above the message box. */
+.word-table-panel {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid #e5e5ea;
+  border-radius: 6px;
+  background-color: #f8f9fa;
+  font-size: 0.9em;
+}
+.word-table-preview {
+  margin-top: 4px;
+  padding: 6px 8px;
+  max-height: 10em;
+  min-height: 2.4em;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background-color: #fff;
+  border: 1px solid #e5e5ea;
+  border-radius: 4px;
+}
+.word-table-hidden {
+  padding: 0 3px;
+  border-radius: 3px;
+  background-color: #dfe6f1;
+  color: inherit;
+}
+.word-table-type {
+  margin-right: 4px;
+  font-size: 0.75em;
+  color: #4f78b8;
+  user-select: none;
+}
+.word-table-off {
+  margin-left: 3px;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: #8a939e;
+  line-height: 1;
+  user-select: none;
+}
+.word-table-off:hover { color: #bf625e; }
+.word-table-type-select { width: auto; display: inline-block; }
+.word-table-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.word-table-word {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 4px;
+  border: 1px solid #e5e5ea;
+  border-radius: 4px;
+  background-color: #fff;
+}
+.word-table-draft { border-style: dashed; border-color: #8a939e; }
+.word-table-kept { margin-top: 4px; font-size: 0.85em; color: #6c757d; }
+.word-table-kept-label { margin-right: 4px; }
+.word-table-putback {
+  margin-right: 4px;
+  padding: 0 4px;
+  border: 1px solid #e5e5ea;
+  border-radius: 3px;
+  background: none;
+  color: inherit;
+}
+.word-table-error { margin-top: 4px; color: #a94442; }
+.word-table-status {
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 12px;
+  background-color: #dfe6f1;
+  color: #3b639b;
+  font-size: 0.78em;
+  white-space: nowrap;
+}
+.word-table-status.word-table-unavailable { background-color: #f4e0df; color: #a94442; }
+.dark-theme .word-table-panel,
+.dark-theme .word-table-preview,
+.dark-theme .word-table-word { background-color: #2b2f36; border-color: #454b55; }
+.dark-theme .word-table-hidden,
+.dark-theme .word-table-status { background-color: #3f4b5e; color: #e5e5ea; }
+.dark-theme .word-table-status.word-table-unavailable { background-color: #5a3836; color: #f0d4d2; }
+.dark-theme .word-table-putback { border-color: #454b55; }
+
 /* Privacy Filter indicator (Block C.2). Four states: ready/active/error.
    OFF state hides the element via inline style="display:none". */
 .privacy-indicator {

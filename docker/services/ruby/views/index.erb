@@ -1038,6 +1038,23 @@
             </div>
 
             <div id="user-panel" class="mt-1">
+              <div id="word-table-panel" class="word-table-panel" style="display: none;" role="region" aria-labelledby="word-table-title">
+                <div class="d-flex align-items-center justify-content-between">
+                  <strong id="word-table-title" data-i18n="ui.wordTable.title">Words to hide in this chat</strong>
+                  <button id="word-table-close" type="button" class="btn-close btn-sm" aria-label="Close" data-i18n-aria-label="ui.wordTable.close"></button>
+                </div>
+                <div id="word-table-preview" class="word-table-preview" tabindex="0"></div>
+                <div class="d-flex align-items-center flex-wrap mt-1">
+                  <select id="word-table-type" class="form-select form-select-sm word-table-type-select me-1" aria-label="Type" data-i18n-aria-label="ui.privacyMark.typeMenu"></select>
+                  <button id="word-table-hide-selection" type="button" class="btn btn-sm btn-secondary me-2" data-i18n="ui.wordTable.hideSelection">Hide selected words</button>
+                  <span class="small text-secondary" data-i18n="ui.wordTable.everyWhere">A word is hidden wherever it occurs in this chat.</span>
+                </div>
+                <div id="word-table-list" class="word-table-list"></div>
+                <div id="word-table-kept" class="word-table-kept"></div>
+                <div id="word-table-error" class="word-table-error" style="display: none;" role="alert"></div>
+                <p class="small text-secondary mb-1 mt-1" data-i18n="ui.wordTable.note">These words are replaced in what this chat sends from now on. The history keeps the original words. Images, voice, names not listed here and what was already sent are not covered.</p>
+                <button id="word-table-apply" type="button" class="btn btn-sm btn-primary" data-i18n="ui.wordTable.apply">Hide these words</button>
+              </div>
               <div class="row">
                 <div class="col-12 h-25 mt-3">
                   <div class="message-input-wrapper">
@@ -1055,6 +1072,8 @@
                     <button id="image-file" class="btn btn-sm btn-warning text-nowrap me-2" title="Attach image file to message" data-i18n="ui.image" data-i18n-title="ui.attachImage"><i class="fas fa-image"></i> Image</button>
                     <button id="doc" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from document file" data-i18n="ui.fromFile" data-i18n-title="ui.importFromDoc"><i class="fa-solid fa-file-arrow-up"></i> Text from file</button>
                     <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from web URL" data-i18n="ui.fromURL" data-i18n-title="ui.importFromWeb"><i class="fa-solid fa-globe"></i> Text from URL</button>
+                    <button id="anonymize" type="button" class="btn btn-sm btn-warning text-nowrap me-2" title="Find names in the message and choose what to hide" data-i18n-title="ui.wordTable.hint"><i class="fas fa-user-secret"></i> <span data-i18n="ui.wordTable.button">Anonymize</span></button>
+                    <button id="word-table-status" type="button" class="word-table-status me-2" style="display: none;"></button>
                     <div class="btn-group me-2" id="privacy-mark-group" style="display: none;">
                       <button id="privacy-mark" type="button" class="btn btn-sm btn-warning text-nowrap" title="Mark the selected words to be masked in this chat (Ctrl/Cmd+Shift+K)" data-i18n-title="ui.privacyMark.hint"><i class="fas fa-user-lock"></i> <span data-i18n="ui.privacyMark.button">Mask</span></button>
                       <button type="button" class="btn btn-sm btn-warning dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Type" data-i18n-aria-label="ui.privacyMark.typeMenu"></button>

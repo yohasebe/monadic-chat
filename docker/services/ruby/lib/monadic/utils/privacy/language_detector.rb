@@ -93,6 +93,19 @@ module Monadic
           state
         end
 
+        # The installed language to look for names in this text with: the one
+        # chosen for the chat, or else the text's own, or else English.
+        def language_of(text, session)
+          chosen = locked_language(session)
+          params = session[:parameters] || session['parameters'] || {}
+          chosen ||= params['conversation_language'] unless auto_mode?(session)
+          return chosen if chosen && installed_languages.include?(chosen)
+
+          result = ::StringUtils.detect_language_with_confidence(text)
+          code = result.is_a?(Hash) ? result[:code] : nil
+          installed_languages.include?(code) ? code : 'en'
+        end
+
         # True when sidebar conversation_language is "auto" (or unset).
         # Defensive against both symbol- and string-keyed Rack sessions.
         def auto_mode?(session)

@@ -352,23 +352,41 @@ RSpec.describe Monadic::Utils::Privacy::Words do
       end
     end
 
-    it 'takes them into the table, with or without the Privacy Filter' do
-      session = new_chat
+    before { allow(host).to receive(:get_session_params).and_return({ 'app_name' => 'ChatOpenAI' }) }
+
+    it 'keeps the brackets of what a person writes as plain text' do
+      session = new_chat.merge(messages: [])
       table = described_class.start!(session)
-      expect(host.take_privacy_marks('Ask ⟦Ada⟧ at ⟦Acme|org⟧', session, 'tab')).to eq('Ask Ada at Acme')
-      expect(table.active_words.map { |e| [e[:word], e[:type]] }).to eq([%w[Ada PERSON], %w[Acme ORGANIZATION]])
-      expect(host.take_privacy_marks('plain text', session, 'tab')).to eq('plain text')
+      host.send(:handle_ws_sample, nil, { 'content' => 'Ask ⟦Ada⟧ at ⟦Acme|org⟧', 'role' => 'user' }, session)
+      expect(session[:messages].last['text']).to eq('Ask ⟦Ada⟧ at ⟦Acme|org⟧')
+      expect(table.active_words).to be_empty
     end
 
-    it 'takes none of them when one cannot be taken' do
+    it 'refuses a system message or edit that holds a word the chat hides' do
+      errors = []
+      allow(host).to receive(:send_error) { |msg, _id, extra = {}| errors << extra.merge('message' => msg) }
+      session = new_chat.merge(messages: [{ 'mid' => 's1', 'role' => 'system', 'text' => 'Be brief.' }])
+      described_class.start!(session).confirm_all!([%w[Ada PERSON]])
+      host.send(:handle_ws_sample, nil, { 'content' => 'Call me Ada', 'role' => 'system' }, session)
+      Thread.current[:rack_session] = session
+      host.handle_edit_message(nil, { 'mid' => 's1', 'content' => 'Call me Ada' })
+
+      expect(session[:messages].map { |m| m['text'] }).to eq(['Be brief.'])
+      expect(errors).to all(include('not_accepted' => true, 'message' => a_string_including('system message')))
+      expect(errors.size).to eq(2)
+      expect(errors.last).to include('edit_refused' => true, 'mid' => 's1')
+    ensure
+      Thread.current[:rack_session] = nil
+    end
+
+    it 'refuses a system message while the table cannot be read' do
       errors = []
       allow(host).to receive(:send_error) { |msg, *| errors << msg }
-      session = new_chat
-      table = described_class.start!(session)
-      stub_const('Monadic::Utils::Privacy::WordTable::MAX_WORDS', 1)
-      expect(host.take_privacy_marks('⟦Ada⟧ ⟦Eve⟧', session, 'tab')).to be_nil
-      expect(table.active_words).to be_empty
-      expect(table.revision).to eq(0)
+      session = new_chat.merge(messages: [])
+      described_class.start!(session)
+      allow(described_class).to receive(:table).and_raise(Monadic::Utils::Privacy::Outbound::Refused, 'lost')
+      host.send(:handle_ws_sample, nil, { 'content' => 'Be brief.', 'role' => 'system' }, session)
+      expect(session[:messages]).to be_empty
       expect(errors.size).to eq(1)
     end
   end

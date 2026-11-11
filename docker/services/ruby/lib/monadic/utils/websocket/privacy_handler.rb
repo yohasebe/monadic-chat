@@ -5,19 +5,14 @@ require 'json'
 require 'time'
 require_relative '../privacy/export_cipher'
 
-# WebSocket handlers for the Privacy Filter UI (Blocks C.3 + D.2).
-# Provides registry inspection (modal viewer) and the unified export dialog.
+# WebSocket handlers for exporting a conversation.
 #
 # Export uses two orthogonal axes:
 #   - encrypt:  true (AES-256-GCM + Argon2id) | false (plain JSON)
 #   - content:  "restored" (default)          | "masked" (placeholders only)
 #
-# `encrypt` is always available, regardless of whether the Privacy Filter
-# is active in this session — encryption protects files at rest, while the
-# privacy filter protects data in transit to LLM providers. The two
-# concerns are independent.
-#
-# Registry stays in memory only (RD-1); exports are user-driven via UI.
+# `encrypt` is always available: it protects the file at rest, while a
+# chat's word table hides words in what is sent. The two are independent.
 
 require_relative '../privacy/outbound'
 require_relative '../../workbench/record'
@@ -25,96 +20,17 @@ require_relative '../../workbench/shown'
 require_relative '../../workbench/look/record'
 
 module WebSocketHelper
-  PRIVACY_PLACEHOLDER_RE = /\A<<([A-Z_]+)_(\d+)>>\z/
   PRIVACY_EXPORT_MODES = %w[encrypted masked_only restored].freeze
   PRIVACY_EXPORT_CONTENT = %w[restored masked].freeze
 
-  # PRIVACY_TOGGLE: backend-authoritative toggle handler.
-  #
-  # The frontend treats the backend's privacy_toggle_ack reply as the
-  # source of truth for the toggle's checkbox state. On enable, we probe
-  # the privacy container's health (~2s) and only flip session state to
-  # true on success. On failure, we surface the reason in the ack and
-  # the frontend reverts the visual checkbox.
-  #
-  # The ack is a separate message type from privacy_state (which handles
-  # registry-count indicator updates triggered by app-change / reset /
-  # import) so the two concerns do not race: an unrelated privacy_state
-  # event firing during an in-flight toggle would otherwise be mistaken
-  # for the toggle response.
-  private def handle_ws_privacy_toggle(connection, session, obj)
-    requested_enabled = obj["enabled"] == true || obj["enabled"] == "true"
+  PAGE_OUT_OF_DATE = 'This page is out of date. Reload the page to go on.'
 
-    # The filter is chosen before the chat begins: once it has begun (Start
-    # Session adds the system prompt), neither the filter nor whether the
-    # chat is Private changes, so nothing of a chat was written to disk
-    # before it became Private, and a Private chat keeps its filter. The
-    # page locks the toggle at Start Session; this answers any other sender
-    # with the chat's state as it is. The app is not checked here (the page
-    # asks before it tells the server about a new app): Private only takes
-    # things away.
-    if chat_begun?(session)
-      enabled = session[:_privacy_session_enabled] == true
-      return send_to_client(connection, { "type" => "privacy_toggle_ack", "enabled" => enabled,
-                                          "error" => requested_enabled == enabled ? nil : "privacy_chat_started",
-                                          "private" => Monadic::History::Policy.private?(session) })
-    end
-
-    if requested_enabled
-
-      # Asking for the filter makes the chat Private, whether or not the
-      # filter turns out to be up: nothing of it is kept in the history.
-      Monadic::History::Policy.mark_private!(session)
-      sync_session_state!
-
-      require_relative '../privacy/presidio_backend'
-      backend = Monadic::Utils::Privacy::PresidioBackend.new
-      if !backend.health
-        # Health probe failed. Keep state OFF so subsequent vendor calls
-        # cannot mistake the toggle as active. The reason tells the user
-        # whether to wait (the container starts when an app that needs it
-        # is chosen, and loading its language models takes a while) or to
-        # look into it.
-        session[:_privacy_session_enabled] = false
-        session.delete(:_privacy_pipeline)
-        reason = privacy_container_coming_up? ? "privacy_container_starting" : "privacy_container_unreachable"
-        send_to_client(connection, { "type" => "privacy_toggle_ack", "enabled" => false, "error" => reason, "private" => true })
-      else
-        session[:_privacy_session_enabled] = true
-        send_to_client(connection, {
-          "type" => "privacy_toggle_ack",
-          "enabled" => true,
-          "error" => nil,
-          "private" => true
-        })
-        # Push a fresh privacy_state so the indicator becomes visible right
-        # away. Without this the indicator only shows up after the first
-        # assistant response (when streaming_handler emits its own
-        # privacy_state on restoration). The registry is empty at this
-        # point — count == 0 renders the "Privacy ready" gray state.
-        send_privacy_state(connection, session, registry_count: 0)
-      end
-    else
-      session[:_privacy_session_enabled] = false
-      session.delete(:_privacy_pipeline)
-      # Turned off before the chat begins, the chat is a normal one again
-      # (nothing of it was written).
-      Monadic::History::Policy.clear!(session)
-      send_to_client(connection, {
-        "type" => "privacy_toggle_ack",
-        "enabled" => false,
-        "error" => nil,
-        "private" => Monadic::History::Policy.private?(session)
-      })
-      # Mirror the toggle to the indicator so the badge disappears
-      # immediately when the user opts out, instead of staying visible
-      # until the next message turn.
-      send_privacy_state(connection, session, enabled: false, registry_count: 0)
-    end
-  end
-
-  private def chat_begun?(session)
-    Monadic::History::Policy.begun?(session)
+  # What only a page loaded before this version sends. It is answered here,
+  # as a command the page must not repeat, so that it is never taken for a
+  # message to the model. The page's switch goes back to off with the reply.
+  private def handle_ws_page_out_of_date(connection)
+    send_to_client(connection, { "type" => "privacy_toggle_ack", "enabled" => false, "error" => nil })
+    send_to_client(connection, { "type" => "error", "content" => PAGE_OUT_OF_DATE })
   end
 
   private def user_words_in_chat?(session)
@@ -128,64 +44,6 @@ module WebSocketHelper
     false
   end
 
-  # Build and emit a privacy_state payload mirroring the shape used by
-  # streaming_handler / misc_handlers. Centralized so all sites stay in
-  # sync when the schema evolves (currently: type, enabled, registry_count,
-  # detection?, error).
-  private def send_privacy_state(connection, session, enabled: true, registry_count: 0)
-    payload = {
-      "type" => "privacy_state",
-      "enabled" => enabled,
-      "registry_count" => registry_count,
-      "error" => nil,
-      "private" => Monadic::History::Policy.private?(session)
-    }
-    if enabled
-      begin
-        require_relative '../privacy/language_detector'
-        detection = Monadic::Utils::Privacy::LanguageDetector.peek_detection_state(session)
-        payload["detection"] = detection if detection.is_a?(Hash)
-      rescue StandardError => e
-        Monadic::Utils::ExtraLogger.log { "[Privacy] detection state unavailable in toggle: #{e.message}" }
-      end
-    end
-    send_to_client(connection, payload)
-  end
-
-  # Respond to "PRIVACY_REGISTRY" requests with the current placeholder map.
-  # The payload is intentionally compact (one row per placeholder) and never
-  # cached or persisted client-side.
-  private def handle_ws_privacy_registry(connection, session)
-    pipeline = session[:_privacy_pipeline]
-    payload = {
-      "type" => "privacy_registry",
-      "enabled" => !!pipeline,
-      "entries" => privacy_registry_entries(pipeline)
-    }
-    send_to_client(connection, payload)
-  end
-
-  private def privacy_registry_entries(pipeline)
-    return [] unless pipeline
-
-    state = pipeline.respond_to?(:registry_state) ? pipeline.registry_state : nil
-    registry = state.is_a?(Hash) ? state[:registry] : nil
-    return [] unless registry.is_a?(Hash)
-
-    registry.map do |placeholder, original|
-      type = if (m = placeholder.match(PRIVACY_PLACEHOLDER_RE))
-               m[1]
-             else
-               "UNKNOWN"
-             end
-      { "placeholder" => placeholder, "original" => original, "type" => type }
-    end
-  end
-
-  # Handle "PRIVACY_EXPORT" requests. Two orthogonal axes:
-  #   - encrypt: bool (AES-256-GCM + Argon2id with passphrase, or plain JSON)
-  #   - content: "restored" (default) | "masked" (placeholders only, no registry)
-  #
   # The legacy `mode` parameter ("encrypted"|"masked_only"|"restored") is
   # accepted for backward compatibility and translated to the new axes.
   # Sends "privacy_export_data" with base64-encoded JSON content for the
@@ -637,84 +495,17 @@ module WebSocketHelper
     "#{safe_app}-#{ts}#{suffix}#{ext}"
   end
 
-  # Words the user marks in what they write (⟦…⟧, see Privacy::Marks) are
-  # taken out of the text here, where the chat receives what a person wrote
-  # (a message sent, a message edited), and kept for the chat. Returns the
-  # text without the marks, or nil when it must not go on: a mark that is
-  # not well formed, or marks (or words marked before) while the Privacy
-  # Filter is not on for this chat. The error is sent to the page as not
-  # accepted: nothing was recorded, so the page keeps the cards it shows.
-  # `refusal` adds what the page needs to undo the action (an edit).
-  def take_privacy_marks(text, session, ws_session_id, refusal = {})
-    require_relative '../privacy/marks'
-    require_relative '../privacy/registry'
-    require_relative '../privacy/outbound'
-    require_relative '../privacy/words'
-    marks = Monadic::Utils::Privacy::Marks
-    begin
-      clean, terms = marks.extract(text.to_s)
-    rescue marks::Invalid => e
-      send_error("The words marked with \u27E6 \u27E7 could not be read: #{e.message}. Nothing was sent.", ws_session_id, { "not_accepted" => true }.merge(refusal))
-      return nil
-    end
-
-    # A chat with a word table takes its marks into the table: the words are
-    # hidden there, with or without the Privacy Filter.
-    if Monadic::Utils::Privacy::Words.marked?(session)
-      begin
-        table = Monadic::Utils::Privacy::Words.table(session)
-        table.confirm_all!(terms.map { |t| [t[:text], t[:type]] }) if terms.any?
-      rescue Monadic::Utils::Privacy::Outbound::Refused, Monadic::Utils::Privacy::WordTable::Invalid => e
-        send_error("#{e.message}. Nothing was sent.", ws_session_id, { "not_accepted" => true }.merge(refusal))
-        return nil
-      end
-      return clean
-    end
-
-    if (terms.any? || Monadic::Utils::Privacy::Outbound.marked_terms?(session)) && !privacy_on_for_chat?(session)
-      send_error("Words are marked to be masked in this chat, but the Privacy Filter is off. " \
-                 "Turn it on (or reset the chat) to send. Nothing was sent.", ws_session_id, { "not_accepted" => true }.merge(refusal))
-      return nil
-    end
-
-    begin
-      Monadic::Utils::Privacy::Registry.new(session).add_terms!(terms) if terms.any?
-    rescue Monadic::Utils::Privacy::Registry::TooManyTerms => e
-      send_error("#{e.message}. Nothing was sent.", ws_session_id, { "not_accepted" => true }.merge(refusal))
-      return nil
-    end
-    clean
-  end
-
-  # Whether a system message the user writes (a sample or an edit) holds
-  # words to mask: new marks, or words marked before. System messages are
-  # sent without masking, so the last check before a request leaves would
-  # refuse every later request of the chat; such text is refused when it is
-  # written instead. A mark that is not well formed is left to
-  # take_privacy_marks to report.
-  def marked_words_in_system_text?(text, session)
-    require_relative '../privacy/marks'
-    require_relative '../privacy/outbound'
-    marks = Monadic::Utils::Privacy::Marks
+  # Whether a system message the user writes holds a word this chat hides.
+  # System messages are sent as written, so the last check before a request
+  # leaves would refuse every later request of the chat; such text is
+  # refused when it is written instead.
+  def hidden_word_in_system_text?(text, session)
     outbound = Monadic::Utils::Privacy::Outbound
-    begin
-      clean, terms = marks.extract(text.to_s)
-    rescue marks::Invalid
-      return false
-    end
-    terms.any? || outbound.holds_word?(clean, outbound.terms_of(session))
+    outbound.holds_word?(text.to_s, outbound.terms_of(session))
+  rescue Monadic::Utils::Privacy::Outbound::Refused
+    true
   end
 
-  SYSTEM_TEXT_MARKED = 'A system message is sent without masking, so it cannot hold words marked to be masked. ' \
+  SYSTEM_TEXT_MARKED = 'A system message is sent as written, so it cannot hold a word this chat hides. ' \
                        'Nothing was changed.'
-
-  # The Privacy Filter masks this chat: the user turned it on, and the app
-  # uses it.
-  def privacy_on_for_chat?(session)
-    return false unless session[:_privacy_session_enabled] == true
-
-    app_name = (session[:parameters] || {})["app_name"]
-    settings = defined?(APPS) && APPS[app_name] ? APPS[app_name].settings : nil
-    !!(settings && settings.dig(:privacy, :enabled) == true)
-  end
 end

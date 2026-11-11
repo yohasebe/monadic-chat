@@ -1080,13 +1080,8 @@
     return '';
   }
 
-  function privacyOn() {
-    try {
-      if (window.WsPrivacyHandler && typeof window.WsPrivacyHandler.isEnabled === 'function') {
-        return !!window.WsPrivacyHandler.isEnabled();
-      }
-    } catch (_) {}
-    try { return !!window.privacyEnabled; } catch (_) { return false; }
+  function chatHidesWords() {
+    return !!(window.WordTable && window.WordTable.isMarked());
   }
 
   function openSaveModal() {
@@ -1682,16 +1677,15 @@
   //   3. There are simply no user/assistant messages to save yet.
   //
   // Driven by initial page load, SessionState events (message added /
-  // cleared / app changed), and live `privacy:state-changed` pushes from
-  // the backend so the button reflects backend-authoritative privacy
-  // state without polling.
+  // cleared / app changed), and `wordtable:changed` from the chat's word
+  // table, so the button follows the chat without polling.
   function updateSaveButtonAvailability() {
     if (typeof document === 'undefined') return;
     var btn = document.getElementById('library-save');
     if (!btn) return;
 
     var appEligible = isCurrentAppKbSaveEligible();
-    var privacyActive = privacyOn();
+    var hidesWords = chatHidesWords();
     var saveable = hasSessionMessages();
 
     var disabled = false;
@@ -1702,10 +1696,10 @@
       disabled = true;
       titleKey = 'ui.libSaveAppUnsupported';
       titleFallback = 'This app does not support saving to the Knowledge Base.';
-    } else if (privacyActive) {
+    } else if (hidesWords) {
       disabled = true;
-      titleKey = 'ui.libSavePrivacyActive';
-      titleFallback = 'Saving is disabled while the Privacy Filter is active in this session.';
+      titleKey = 'ui.libSaveHidesWords';
+      titleFallback = 'A chat that hides words cannot be saved to the Knowledge Base.';
     } else if (!saveable) {
       disabled = true;
       titleKey = 'ui.libNoMessages';
@@ -1744,7 +1738,7 @@
         .forEach(function (ev) { window.SessionState.on(ev, updateSaveButtonAvailability); });
       window.SessionState.on('app:changed', updateRagToggleVisibility);
     }
-    document.addEventListener('privacy:state-changed', updateSaveButtonAvailability);
+    document.addEventListener('wordtable:changed', updateSaveButtonAvailability);
 
     var browseBtn = document.getElementById('library-browse');
     if (browseBtn) browseBtn.onclick = openBrowseModal;

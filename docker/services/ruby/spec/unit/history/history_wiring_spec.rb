@@ -112,54 +112,6 @@ RSpec.describe 'What the handlers write to the history' do
     expect(stored_bytes).not_to include(marker)
   end
 
-  [true, false].each do |healthy|
-    it "keeps out a chat that asked for the filter before its first words (filter up: #{healthy})" do
-      allow_any_instance_of(Monadic::Utils::Privacy::PresidioBackend).to receive(:health).and_return(healthy)
-      allow(host).to receive(:send_privacy_state)
-      session = chat_session(marker, generation: 1).merge(messages: [])
-
-      host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => true })
-      session[:messages] << { 'mid' => 'm1', 'role' => 'user', 'text' => marker }
-      sync(session)
-      host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => false })
-      sync(session)
-      expect(store.get(session[:chat_id])).to be_nil
-      store.close
-      expect(stored_bytes).not_to include(marker)
-    end
-  end
-
-  # Whether a chat is Private is decided when it begins: the filter asked
-  # for in a chat with words in it is refused, and what was kept stays.
-  it 'refuses the filter in a chat the user has written in, and keeps the chat' do
-    probe = class_double(Monadic::Utils::Privacy::PresidioBackend)
-    allow(Monadic::Utils::Privacy::PresidioBackend).to receive(:new).and_return(probe)
-    session = chat_session('kept words', generation: 1)
-    sync(session)
-
-    host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => true })
-    expect(host.sent.last).to include('type' => 'privacy_toggle_ack', 'enabled' => false, 'error' => 'privacy_chat_started')
-    expect(session[:_privacy_session_enabled]).not_to be(true)
-    expect(Monadic::History::Policy.private?(session)).to be(false)
-    sync(session)
-    expect(store.get(session[:chat_id])['payload']['messages'].map { |m| m['text'] }).to eq(['kept words'])
-  end
-
-  it 'refuses the filter once the session has started, before any user words' do
-    session = chat_session('x', generation: 1).merge(messages: [{ 'mid' => 's1', 'role' => 'system', 'text' => 'You are helpful.' }])
-    host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => true })
-    expect(host.sent.last).to include('enabled' => false, 'error' => 'privacy_chat_started')
-    expect(Monadic::History::Policy.private?(session)).to be(false)
-  end
-
-  it 'lets a Private chat ask for the filter again' do
-    allow_any_instance_of(Monadic::Utils::Privacy::PresidioBackend).to receive(:health).and_return(true)
-    allow(host).to receive(:send_privacy_state)
-    session = chat_session(marker, generation: 1).merge(_privacy_session_enabled: true)
-    host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => true })
-    expect(host.sent.last).to include('type' => 'privacy_toggle_ack', 'enabled' => true, 'error' => nil)
-  end
-
   it 'does not carry a chat into the next app when the app changes without Reset' do
     session = chat_session(marker, generation: 1).merge(_privacy_session_enabled: true)
     sync(session)
@@ -341,7 +293,6 @@ RSpec.describe 'What the handlers write to the history' do
       expect(here[:messages].map { |m| m['text'] }).to eq([marker])
       expect(here[:parameters]).to include('app_name' => 'ChatOpenAI', 'ui_language' => 'ja', 'auto_speech' => false)
       expect(here).not_to have_key(:gemini3_last_image)
-      expect(host.sent.find { |m| m['type'] == 'past_messages' }).to include('private' => false)
 
       Thread.current[:websocket_session_id] = tab
       kept[:messages] << { 'mid' => 'm2', 'role' => 'user', 'text' => 'from the old tab' }
@@ -547,31 +498,7 @@ RSpec.describe 'What the handlers write to the history' do
       expect(context.read(here)['topics'].map { |i| i['text'] }).to eq(['saved'])
     end
 
-    # The page holds the words of a chat it is sent; whether that chat is
-    # Private comes with them, so the page does not store them.
-    it 'sends whether a chat is Private with its words' do
-      session = { chat_id: Monadic::Workspace::Ids.generate(:chat), messages: [{ 'role' => 'user', 'text' => 'x', 'app_name' => 'ChatOpenAI' }],
-                  parameters: { 'app_name' => 'ChatOpenAI' } }
-      Monadic::History::Policy.mark_private!(session)
-      allow(host).to receive(:prepare_apps_data).and_return({})
-      host.send(:send_chat_to_page, nil, session)
-      expect(host.sent.find { |m| m['type'] == 'past_messages' }).to include('private' => true)
-    end
-
-    it 'sends whether a chat is Private with its words when the tab connects again' do
-      session = { chat_id: Monadic::Workspace::Ids.generate(:chat), messages: [], parameters: {} }
-      Monadic::History::Policy.mark_private!(session)
-      broadcast = []
-      allow(host).to receive(:sleep)
-      allow(host).to receive(:send_or_broadcast) { |json, _id| broadcast << JSON.parse(json) }
-      Thread.current[:rack_session] = session
-      host.push_apps_data(nil, {}, [{ 'role' => 'user', 'text' => 'x' }])
-      expect(broadcast.find { |m| m['type'] == 'past_messages' }).to include('private' => true)
-    ensure
-      Thread.current[:rack_session] = nil
-    end
-
-    it 'asks before it replaces a Private chat with words in it, and shows the resumed chat locked' do
+    it 'asks before it replaces a Private chat with words in it' do
       kept = chat_session('kept', generation: 1)
       sync(kept)
       other_tab = "tab-#{SecureRandom.hex(4)}"
@@ -584,7 +511,6 @@ RSpec.describe 'What the handlers write to the history' do
       obj = { 'chat_id' => kept[:chat_id], 'confirm' => true }
       host.send(:handle_ws_history_resume, nil, obj, here, host.send(:history_resume_refusal, obj, here))
       expect(host.sent.last).to include('success' => true)
-      expect(host.sent).to include(include('type' => 'privacy_state', 'enabled' => false, 'restored' => true))
     end
 
     it 'does not resume a chat open in another tab, or touch the chat here' do

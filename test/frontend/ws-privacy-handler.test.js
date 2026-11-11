@@ -4,10 +4,9 @@
 
 /**
  * Tests for ws-privacy-handler.js — focused on the unmask-highlight layer.
- * The handler also wires registry/export modal interactions, but those are
- * indirect (depend on Bootstrap modal globals + WebSocket); the highlight
- * function is pure DOM walking and worth direct coverage because it ships
- * with Phase 1 of the Privacy Filter unmask transparency UX.
+ * The handler also wires the export dialog, which is indirect (it depends
+ * on Bootstrap modal globals + WebSocket); the highlight function is pure
+ * DOM walking.
  */
 
 require('../../docker/services/ruby/public/js/monadic/ws-privacy-handler');
@@ -145,9 +144,6 @@ describe('WsPrivacyHandler.highlightUnmaskedSpans', () => {
 describe('WsPrivacyHandler.resetExportDialog — content default', () => {
   function buildDialog() {
     document.body.innerHTML = `
-      <div id="privacy-indicator" class="privacy-indicator privacy-active" style="display:">
-        <i class="fas fa-lock"></i> Privacy ON (3)
-      </div>
       <input type="checkbox" id="export-encrypt-toggle" />
       <input type="radio" name="privacyExportContent" id="privacyExportContentRestored" value="restored" checked />
       <input type="radio" name="privacyExportContent" id="privacyExportContentMasked" value="masked" />
@@ -163,247 +159,85 @@ describe('WsPrivacyHandler.resetExportDialog — content default', () => {
     `;
   }
 
-  afterEach(() => { document.body.innerHTML = ''; });
+  function chatHidesWords(hides) {
+    window.WordTable = { hidesWords: () => hides };
+  }
 
-  it('defaults to "masked" when Privacy is active in the session', () => {
+  afterEach(() => { document.body.innerHTML = ''; delete window.WordTable; });
+
+  it('defaults to "masked" when the chat hides words', () => {
     buildDialog();
-    // Indicator already shows "Privacy ON (3)" so isActive() returns true.
+    chatHidesWords(true);
     window.WsPrivacyHandler.resetExportDialog();
     expect(document.getElementById('privacyExportContentMasked').checked).toBe(true);
     expect(document.getElementById('privacyExportContentRestored').checked).toBe(false);
   });
 
-  it('defaults to "restored" when Privacy is not active', () => {
+  it('defaults to "restored" when the chat hides no words', () => {
     buildDialog();
-    // Hide the indicator so isActive() returns false (mirrors privacy OFF state).
-    const ind = document.getElementById('privacy-indicator');
-    ind.style.display = 'none';
+    chatHidesWords(false);
     window.WsPrivacyHandler.resetExportDialog();
     expect(document.getElementById('privacyExportContentRestored').checked).toBe(true);
     expect(document.getElementById('privacyExportContentMasked').checked).toBe(false);
   });
 
-  it('hides the content section when Privacy is not active', () => {
+  describe('while the dialog is open', () => {
+    function openDialog(chat) {
+      buildDialog();
+      const modal = document.createElement('div');
+      modal.id = 'privacyExportModal';
+      modal.className = 'show';
+      document.body.appendChild(modal);
+      window.WordTable = { hidesWords: () => false, chat: () => chat };
+      window.WsPrivacyHandler.resetExportDialog();
+    }
+    const tableNow = (hides, chat) => {
+      window.WordTable = { hidesWords: () => hides, chat: () => chat };
+      document.dispatchEvent(new CustomEvent('wordtable:changed'));
+    };
+    const byId = (id) => document.getElementById(id);
+
+    it('offers "masked" when the table arrives after it was opened', () => {
+      openDialog(null);
+      tableNow(true, 'chat-1');
+      expect(byId('privacyExportContentMasked').checked).toBe(true);
+      expect(byId('privacy-export-content-section').style.display).toBe('');
+    });
+
+    it('keeps what the user picked when the words change', () => {
+      openDialog('chat-1');
+      tableNow(true, 'chat-1');
+      byId('privacyExportContentRestored').checked = true;
+      byId('privacyExportContentRestored').dispatchEvent(new Event('change', { bubbles: true }));
+      tableNow(true, 'chat-1');
+      expect(byId('privacyExportContentRestored').checked).toBe(true);
+    });
+
+    it('does not keep "masked" when no word is hidden any more', () => {
+      openDialog('chat-1');
+      tableNow(true, 'chat-1');
+      byId('privacyExportContentMasked').dispatchEvent(new Event('change', { bubbles: true }));
+      tableNow(false, 'chat-1');
+      expect(byId('privacyExportContentRestored').checked).toBe(true);
+      expect(byId('privacy-export-content-section').style.display).toBe('none');
+    });
+
+    it('starts over for another chat, whatever was picked', () => {
+      openDialog('chat-1');
+      tableNow(true, 'chat-1');
+      byId('privacyExportContentRestored').checked = true;
+      byId('privacyExportContentRestored').dispatchEvent(new Event('change', { bubbles: true }));
+      byId('privacy-export-passphrase').value = 'typed for the other chat';
+      tableNow(true, 'chat-2');
+      expect(byId('privacyExportContentMasked').checked).toBe(true);
+      expect(byId('privacy-export-passphrase').value).toBe('');
+    });
+  });
+
+  it('hides the content section when the chat hides no words', () => {
     buildDialog();
-    const ind = document.getElementById('privacy-indicator');
-    ind.style.display = 'none';
+    chatHidesWords(false);
     window.WsPrivacyHandler.resetExportDialog();
     expect(document.getElementById('privacy-export-content-section').style.display).toBe('none');
-  });
-});
-
-describe('WsPrivacyHandler.handleState — auto-detected language badge', () => {
-  beforeEach(() => {
-    const indicator = document.createElement('div');
-    indicator.id = 'privacy-indicator';
-    indicator.style.display = 'none';
-    document.body.appendChild(indicator);
-  });
-
-  afterEach(() => {
-    document.body.innerHTML = '';
-  });
-
-  it('renders a language badge when detection is locked', () => {
-    window.WsPrivacyHandler.handleState({
-      enabled: true,
-      registry_count: 2,
-      detection: { language: 'ja', reliable: true, locked: true, attempts: 1 }
-    });
-
-    const indicator = document.getElementById('privacy-indicator');
-    expect(indicator.style.display).toBe('');
-    expect(indicator.innerHTML).toMatch(/privacy-lang-badge/);
-    expect(indicator.innerHTML).toMatch(/ja/);
-  });
-
-  it('omits the language badge when detection is not yet locked', () => {
-    window.WsPrivacyHandler.handleState({
-      enabled: true,
-      registry_count: 2,
-      detection: { language: null, reliable: null, locked: false, attempts: 0 }
-    });
-
-    const indicator = document.getElementById('privacy-indicator');
-    expect(indicator.innerHTML).not.toMatch(/privacy-lang-badge/);
-  });
-
-  it('omits the language badge when detection is missing entirely', () => {
-    window.WsPrivacyHandler.handleState({
-      enabled: true,
-      registry_count: 0
-    });
-
-    const indicator = document.getElementById('privacy-indicator');
-    expect(indicator.innerHTML).not.toMatch(/privacy-lang-badge/);
-  });
-});
-
-describe('WsPrivacyHandler.handleState — re-arm reconciliation on backend OFF', () => {
-  let toggle;
-
-  beforeEach(() => {
-    const indicator = document.createElement('div');
-    indicator.id = 'privacy-indicator';
-    document.body.appendChild(indicator);
-
-    toggle = document.createElement('input');
-    toggle.type = 'checkbox';
-    toggle.id = 'check-privacy-session';
-    document.body.appendChild(toggle);
-
-    window.safeWsSend = jest.fn();
-  });
-
-  afterEach(() => {
-    document.body.innerHTML = '';
-    delete window.safeWsSend;
-  });
-
-  it('re-asserts PRIVACY_TOGGLE:true when the toggle is ON but backend reports OFF', () => {
-    // App-change reset path: backend pushes enabled:false while the user's
-    // toggle (restored from localStorage, no change event) is still ON.
-    toggle.checked = true;
-    toggle.disabled = false;
-
-    window.WsPrivacyHandler.handleState({ enabled: false, registry_count: 0 });
-
-    expect(window.safeWsSend).toHaveBeenCalledWith({ message: 'PRIVACY_TOGGLE', enabled: true });
-  });
-
-  it('does NOT re-arm when the user deliberately turned the toggle OFF', () => {
-    toggle.checked = false;
-    toggle.disabled = false;
-
-    window.WsPrivacyHandler.handleState({ enabled: false, registry_count: 0 });
-
-    expect(window.safeWsSend).not.toHaveBeenCalled();
-  });
-
-  it('does NOT re-arm when the toggle is locked/unusable (disabled)', () => {
-    // disabled covers both post-send lock and unsupported-language gating.
-    toggle.checked = true;
-    toggle.disabled = true;
-
-    window.WsPrivacyHandler.handleState({ enabled: false, registry_count: 0 });
-
-    expect(window.safeWsSend).not.toHaveBeenCalled();
-  });
-
-  it('does NOT re-arm when the backend confirms ON (no mismatch)', () => {
-    toggle.checked = true;
-    toggle.disabled = false;
-
-    window.WsPrivacyHandler.handleState({ enabled: true, registry_count: 1 });
-
-    expect(window.safeWsSend).not.toHaveBeenCalled();
-  });
-});
-
-describe('WsPrivacyHandler.handleState for a chat restored after a reload', () => {
-  beforeEach(() => {
-    document.body.innerHTML = '<div id="privacy-indicator"></div><input type="checkbox" id="check-privacy-session">';
-    window.privacyToggleLocked = false;
-    window.safeWsSend = jest.fn();
-  });
-
-  it('shows the chat\'s state, locked, without negotiating the toggle again', () => {
-    window.WsPrivacyHandler.handleState({ enabled: true, registry_count: 2, restored: true });
-    const toggle = document.getElementById('check-privacy-session');
-    expect(toggle.checked).toBe(true);
-    expect(toggle.disabled).toBe(true);
-    expect(window.privacyToggleLocked).toBe(true);
-
-    window.WsPrivacyHandler.handleState({ enabled: false, registry_count: 0, restored: true });
-    expect(toggle.checked).toBe(false);
-    expect(window.safeWsSend).not.toHaveBeenCalled();
-  });
-});
-
-describe('WsPrivacyHandler.handleToggleAck when the container does not answer', () => {
-  beforeEach(() => {
-    document.body.innerHTML = '<input type="checkbox" id="check-privacy-session" checked>';
-    window.setAlert = jest.fn();
-    window.safeWsSend = jest.fn();
-    window.getTranslation = (key, fallback) => fallback;
-  });
-
-  it('turns the toggle off and asks the user to try again in a moment while it starts', () => {
-    window.WsPrivacyHandler.handleToggleAck({ enabled: false, error: 'privacy_container_starting' });
-    expect(document.getElementById('check-privacy-session').checked).toBe(false);
-    expect(window.setAlert.mock.calls[0][0]).toContain('starting');
-    expect(window.setAlert.mock.calls[0][1]).toBe('warning');
-    expect(window.safeWsSend).not.toHaveBeenCalled();
-  });
-
-  it('replaces the starting notice once the filter turns on', () => {
-    window.WsPrivacyHandler.handleToggleAck({ enabled: false, error: 'privacy_container_starting' });
-    window.WsPrivacyHandler.handleToggleAck({ enabled: true, error: null });
-    expect(window.setAlert.mock.calls[1][0]).toContain('ready');
-    expect(window.setAlert.mock.calls[1][1]).toBe('success');
-    window.WsPrivacyHandler.handleToggleAck({ enabled: true, error: null });
-    expect(window.setAlert).toHaveBeenCalledTimes(2); // only after a starting notice
-  });
-
-  it('turns the toggle off and says so when the container is not coming up', () => {
-    window.WsPrivacyHandler.handleToggleAck({ enabled: false, error: 'privacy_container_unreachable' });
-    expect(document.getElementById('check-privacy-session').checked).toBe(false);
-    expect(window.setAlert.mock.calls[0][0]).toContain('could not be started');
-    expect(window.setAlert.mock.calls[0][1]).toBe('error');
-  });
-
-  it('turns the toggle off and points to Reset when the session has already started', () => {
-    window.WsPrivacyHandler.handleToggleAck({ enabled: false, error: 'privacy_chat_started' });
-    expect(document.getElementById('check-privacy-session').checked).toBe(false);
-    expect(window.setAlert.mock.calls[0][0]).toContain('Press Reset');
-    expect(window.setAlert.mock.calls[0][1]).toBe('warning');
-    expect(window.safeWsSend).not.toHaveBeenCalled();
-  });
-});
-
-describe('WsPrivacyHandler: whether the chat is Private', () => {
-  beforeEach(() => {
-    document.body.innerHTML = '<input type="checkbox" id="check-privacy-session">';
-    window.setAlert = jest.fn();
-    window.getTranslation = (key, fallback) => fallback;
-  });
-
-  it('counts asking for the filter as Private until the server answers', () => {
-    const h = window.WsPrivacyHandler;
-    h.handleState({ enabled: false, private: false });
-    expect(h.isChatPrivate()).toBe(false);
-    h.noteRequested(true);
-    expect(h.isChatPrivate()).toBe(true);
-    // The filter could not start: the chat is still Private.
-    h.handleToggleAck({ enabled: false, error: 'privacy_container_unreachable', private: true });
-    expect(h.isChatPrivate()).toBe(true);
-    // A new chat (Reset, another app) is not.
-    h.handleState({ enabled: false, private: false });
-    expect(h.isChatPrivate()).toBe(false);
-  });
-
-  it('marks the page while the chat is Private, so what would make files is hidden', () => {
-    const h = window.WsPrivacyHandler;
-    h.handleState({ enabled: false, private: true });
-    expect(document.body.classList.contains('chat-private')).toBe(true);
-    h.handleState({ enabled: false, private: false });
-    expect(document.body.classList.contains('chat-private')).toBe(false);
-  });
-
-  it('takes whether the chat is Private from the restored words', () => {
-    const h = window.WsPrivacyHandler;
-    h.notePrivate({ private: true, content: [] });
-    expect(h.isChatPrivate()).toBe(true);
-    h.notePrivate({ content: [] });
-    expect(h.isChatPrivate()).toBe(true);
-    h.notePrivate({ private: false, content: [] });
-    expect(h.isChatPrivate()).toBe(false);
-  });
-
-  it('keeps what it knows when a reply does not say', () => {
-    const h = window.WsPrivacyHandler;
-    h.noteRequested(true);
-    h.handleState({ enabled: true, registry_count: 0 });
-    expect(h.isChatPrivate()).toBe(true);
   });
 });

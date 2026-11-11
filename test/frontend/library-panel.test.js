@@ -1260,21 +1260,31 @@ describe('library-panel module', () => {
       expect(btn.getAttribute('title')).toMatch(/does not support|サポート/i);
     });
 
-    it('updateSaveButtonAvailability disables with privacy-active tooltip when Privacy Filter is ON', () => {
+    it('updateSaveButtonAvailability disables Save for a chat that hides words', () => {
       document.body.innerHTML = '<button id="library-save"></button>';
       const btn = document.getElementById('library-save');
-      // Eligible app (library_save: true) so the privacy-active branch is reachable.
       setApp('ChatOpenAI', { library_save: true });
-      // Force privacyOn() to return true via the window.privacyEnabled
-      // fallback that the module reads when WsPrivacyHandler isn't loaded.
-      const prev = window.privacyEnabled;
-      window.privacyEnabled = true;
+      window.WordTable = { isMarked: () => true };
       try {
         lib.updateSaveButtonAvailability();
         expect(btn.disabled).toBe(true);
-        expect(btn.getAttribute('title')).toMatch(/Privacy/i);
+        expect(btn.getAttribute('title')).toMatch(/hides words/i);
       } finally {
-        window.privacyEnabled = prev;
+        delete window.WordTable;
+      }
+    });
+
+    it('follows the word table when the chat starts hiding words', () => {
+      document.body.innerHTML = '<button id="library-save"></button>';
+      const btn = document.getElementById('library-save');
+      setApp('ChatOpenAI', { library_save: true });
+      window.WordTable = { isMarked: () => true };
+      try {
+        btn.disabled = false;
+        document.dispatchEvent(new CustomEvent('wordtable:changed'));
+        expect(btn.disabled).toBe(true);
+      } finally {
+        delete window.WordTable;
       }
     });
 

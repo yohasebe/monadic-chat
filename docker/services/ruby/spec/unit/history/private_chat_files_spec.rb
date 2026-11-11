@@ -154,7 +154,7 @@ RSpec.describe "Files of a Private chat" do
 
     # One chat in a tab of its own, as the page has it: the app, the filter
     # (for a Private chat), a message, the answer shown, an upload.
-    chat = lambda do |task, said, private:, watched:|
+    chat = lambda do |task, said, watched:|
       tab = "probe-#{rand(1_000_000)}"
       words = said
       target = watched
@@ -175,10 +175,8 @@ RSpec.describe "Files of a Private chat" do
         # Recorded from before the filter is asked for: making the chat
         # Private writes nothing either.
         recording = watched
-        if private
-          send.call({ "message" => "PRIVACY_TOGGLE", "enabled" => true })
-          result["toggle"] = wait_for.call("privacy_toggle_ack").slice("enabled", "private")
-        end
+        send.call({ "message" => "PRIVACY_TOGGLE", "enabled" => true })
+        result["old_page"] = wait_for.call("privacy_toggle_ack").slice("enabled")
         send.call({ "message" => "hello #{said}", "app_name" => app_name })
         wait_for.call("streaming_complete")
         send.call({ "message" => "HTML" })
@@ -211,13 +209,7 @@ RSpec.describe "Files of a Private chat" do
     Async do |task|
       server = task.async { Async::HTTP::Server.new(Protocol::Rack::Adapter.new(app), Async::HTTP::Endpoint.parse(origin)).run }
       task.sleep(0.2)
-      if mode == "private"
-        # A normal chat first, so the history is there and open.
-        out["earlier"] = chat.call(task, ENV.fetch("PROBE_EARLIER"), private: false, watched: false)
-        out.merge!(chat.call(task, mark, private: true, watched: true))
-      else
-        out.merge!(chat.call(task, mark, private: false, watched: true))
-      end
+      out.merge!(chat.call(task, mark, watched: true))
       server.stop
     end
     out["writes"] = writes
@@ -323,8 +315,7 @@ RSpec.describe "Files of a Private chat" do
   # the others start or finish leaves none of them behind.
   before(:all) do
     @started = {}
-    { normal: ["normal", false], private: ["private", false],
-      normal_killed: ["normal", true], private_killed: ["private", true] }.each do |name, (mode, kill)|
+    { normal: ["normal", false], normal_killed: ["normal", true] }.each do |name, (mode, kill)|
       @started[name] = start_chat(mode: mode, kill: kill)
     end
     @runs = @started.transform_values { |run| finish_chat(run) }
@@ -351,6 +342,7 @@ RSpec.describe "Files of a Private chat" do
     it "is kept in the history, the logs, the output and the shared folder" do
       done = run[:lines].fetch("DONE")
       expect(done["shown"]).to be(true)
+      expect(done["old_page"]).to eq("enabled" => false)
       found = files_with(run[:mark], run[:home])
       expect(found.grep(%r{\Amonadic/state/history\.sqlite3})).not_to be_empty
       expect(found).to include("monadic/log/extra.log", "monadic/log/command.log", "monadic/data/note-#{run[:mark]}.txt")
@@ -371,53 +363,6 @@ RSpec.describe "Files of a Private chat" do
       expect(found.grep(%r{\Amonadic/state/history\.sqlite3})).not_to be_empty
       expect(found).to include("monadic/log/extra.log", "monadic/log/command.log")
       expect(printed(killed, "stderr")).to be >= 2
-    end
-  end
-
-  describe "a Private chat" do
-    let(:run) { @runs[:private] }
-
-    # Each Private chat follows a normal one in another tab, so the history
-    # is there and open; that chat is kept (found by the same scan).
-    def earlier_kept(run)
-      expect(run[:lines].values.last["earlier"] || run[:lines].fetch("MIDWAY")).to be_truthy
-      expect(files_with(run[:earlier], run[:home]).grep(%r{\Amonadic/state/history\.sqlite3})).not_to be_empty
-    end
-
-    it "is answered and shown as a normal one" do
-      done = run[:lines].fetch("DONE")
-      expect(done["earlier"]["shown"]).to be(true)
-      expect(done["toggle"]).to eq("enabled" => true, "private" => true)
-      expect(done["shown"]).to be(true)
-      expect(done["import"]).to eq("status" => 200, "staged" => true)
-    end
-
-    it "leaves the marker in no file and in no output, beside a kept normal chat" do
-      earlier_kept(run)
-      expect(files_with(run[:mark], run[:home])).to eq([])
-      expect(printed(run, "stdout")).to eq(0)
-      expect(printed(run, "stderr")).to eq(0)
-    end
-
-    it "writes nothing once it is Private, not even a file it removes again" do
-      expect(run[:lines].fetch("DONE")["writes"]).to eq([])
-      expect(run[:lines].fetch("TOOL")).to eq("written" => false)
-      expect(run[:lines].fetch("DONE")["upload"]).to eq("status" => 403, "body_read" => false)
-    end
-
-    it "leaves nothing when the process is killed in an answer, nor once the app boots again" do
-      killed = @runs[:private_killed]
-      expect(killed[:lines].fetch("MIDWAY")["writes"]).to eq([])
-      expect(killed[:status].termsig).to eq(Signal.list.fetch("KILL"))
-      earlier_kept(killed)
-      expect(files_with(killed[:mark], killed[:home])).to eq([])
-      expect(printed(killed, "stdout") + printed(killed, "stderr")).to eq(0)
-
-      _, status = Process.wait2(Process.spawn(child_env(killed[:home], mode: "boot"), RbConfig.ruby, "-Ilib", "-e", child_script,
-                                              chdir: app_root, out: File::NULL, err: File::NULL, in: File::NULL))
-      expect(status.exitstatus).to eq(0)
-      earlier_kept(killed)
-      expect(files_with(killed[:mark], killed[:home])).to eq([])
     end
   end
 end

@@ -351,7 +351,7 @@ RSpec.describe 'WebSocketHelper Library handlers' do
 
         msg = replies.first
         expect(msg['res']).to eq('failure')
-        expect(msg['content']).to match(/Privacy Filter is active/)
+        expect(msg['content']).to match(/hides words/)
       end
 
       it 'rejects the save of a Private chat whose filter could not be started' do

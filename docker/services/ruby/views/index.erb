@@ -50,23 +50,6 @@
       }
     </style>
 
-    <!-- Privacy Filter availability flag from server env (PRIVACY_FILTER, default on)
-         and the list of language codes the privacy container was built with
-         (PRIVACY_LANGS). Toggle gate reads both to decide whether the toggle is
-         enabled for the current sidebar conversation_language.
-         CONFIG is checked first so dev mode (`rake server:debug`, where the
-         dotenv file is loaded into CONFIG but not exported to ENV) sees the
-         user's installed-language set; ENV is the production fallback. -->
-    <script type="text/javascript">
-      <%
-        privacy_filter_raw = (defined?(CONFIG) && CONFIG.is_a?(Hash) ? CONFIG['PRIVACY_FILTER'] : nil) || ENV['PRIVACY_FILTER']
-        privacy_langs_raw  = (defined?(CONFIG) && CONFIG.is_a?(Hash) ? CONFIG['PRIVACY_LANGS']  : nil) || ENV['PRIVACY_LANGS']  || 'en'
-        codes = privacy_langs_raw.to_s.split(',').map(&:strip).reject(&:empty?)
-        codes = ['en'] if codes.empty?
-      %>
-      window.MONADIC_PRIVACY_AVAILABLE = <%= privacy_filter_raw.to_s.downcase != 'false' ? 'true' : 'false' %>;
-      window.MONADIC_PRIVACY_INSTALLED_LANGS = <%= codes.uniq.to_json %>;
-    </script>
 
     <!-- Theme initialization script - runs immediately to prevent flash -->
     <script type="text/javascript">
@@ -297,7 +280,6 @@
           </button>
           <%# Indicators that come and go sit left of the status line, so the
               status line keeps its place (the group is aligned right). %>
-          <span id="privacy-indicator" class="me-2" style="display:none;"></span>
           <span id="sts-usage-indicator" class="me-2" style="display:none;"></span>
           <div id="status-message" class="me-2" data-i18n="ui.notStarted">Not started</div>
           <button id="toggle-menu" class="btn btn-light" aria-label="Toggle Menu" title="Toggle menu visibility" data-i18n-title="ui.toggleMenu">
@@ -481,14 +463,6 @@
             </div>
             <input type="file" id="fileInput" style="display:none;">
             <div class="mt-3 mb-1 textbox-caption" data-i18n="ui.resetDescription"> Press "Reset" to clear conversation and reset parameters to defaults while keeping current app selection.</div>
-            <hr class="my-2">
-            <div class="form-check form-switch mt-2 mb-1 d-flex align-items-center" id="privacy-toggle-form">
-              <input class="form-check-input me-2" type="checkbox" id="check-privacy-session" disabled>
-              <label class="form-check-label small mb-0 flex-grow-1" for="check-privacy-session" id="check-privacy-session-label" data-i18n="ui.privacyFilter">
-                <i class="fas fa-lock"></i> Privacy Filter
-              </label>
-              <i id="privacy-toggle-help" class="fa-regular fa-circle-question text-secondary small ms-2" role="img" tabindex="0" title="Mask names, emails, and phone numbers before sending to the AI. Locked once a message is sent in this session." data-i18n-title="ui.privacyFilterCaption"></i>
-            </div>
             </div><!-- end #control-panel-body -->
           </div>
 
@@ -1074,19 +1048,6 @@
                     <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from web URL" data-i18n="ui.fromURL" data-i18n-title="ui.importFromWeb"><i class="fa-solid fa-globe"></i> Text from URL</button>
                     <button id="anonymize" type="button" class="btn btn-sm btn-warning text-nowrap me-2" title="Find names in the message and choose what to hide" data-i18n-title="ui.wordTable.hint"><i class="fas fa-user-secret"></i> <span data-i18n="ui.wordTable.button">Anonymize</span></button>
                     <button id="word-table-status" type="button" class="word-table-status me-2" style="display: none;"></button>
-                    <div class="btn-group me-2" id="privacy-mark-group" style="display: none;">
-                      <button id="privacy-mark" type="button" class="btn btn-sm btn-warning text-nowrap" title="Mark the selected words to be masked in this chat (Ctrl/Cmd+Shift+K)" data-i18n-title="ui.privacyMark.hint"><i class="fas fa-user-lock"></i> <span data-i18n="ui.privacyMark.button">Mask</span></button>
-                      <button type="button" class="btn btn-sm btn-warning dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Type" data-i18n-aria-label="ui.privacyMark.typeMenu"></button>
-                      <ul class="dropdown-menu privacy-mark-menu">
-                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="PERSON" data-i18n="ui.privacyMark.person">Person</button></li>
-                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="ORGANIZATION" data-i18n="ui.privacyMark.organization">Organization</button></li>
-                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="LOCATION" data-i18n="ui.privacyMark.location">Place</button></li>
-                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="EMAIL_ADDRESS" data-i18n="ui.privacyMark.email">Email address</button></li>
-                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="PHONE_NUMBER" data-i18n="ui.privacyMark.phone">Phone number</button></li>
-                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="URL" data-i18n="ui.privacyMark.url">URL</button></li>
-                        <li><button type="button" class="dropdown-item" data-privacy-mark-type="DATE_TIME" data-i18n="ui.privacyMark.date">Date</button></li>
-                      </ul>
-                    </div>
                     <button id="audio-upload" class="btn btn-sm btn-warning text-nowrap me-2" style="display: none;" title="Upload audio or MIDI file for analysis" data-i18n="ui.audioUpload" data-i18n-title="ui.uploadAudioMidi"><i class="fas fa-music"></i> <span data-i18n="ui.audioUpload">Audio/MIDI</span></button>
                   </div>
                 </div>
@@ -1160,50 +1121,9 @@
       </div>
     </div>
 
-    <!-- Modal: Privacy Registry (Block C.3) -->
-    <div class="modal fade" id="privacyRegistryModal" tabindex="-1" aria-labelledby="privacyRegistryLabel" aria-hidden="true">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="privacyRegistryLabel"><i class="fas fa-lock"></i> Privacy Registry</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <p class="text-muted small mb-3">
-              <i class="fas fa-info-circle"></i>
-              This list is held in memory only and is cleared when the conversation is closed.
-              Copy is intentionally disabled to avoid accidental disclosure.
-            </p>
-            <div id="privacy-registry-empty" class="text-center text-muted py-3" style="display:none;" data-i18n="ui.privacyRegistryEmpty">
-              No personal information has been masked yet.
-            </div>
-            <div class="table-responsive" id="privacy-registry-table-wrapper" style="display:none;">
-              <table class="table table-sm table-bordered" id="privacy-registry-table" style="user-select: none;">
-                <thead>
-                  <tr>
-                    <th style="width: 35%;">Placeholder</th>
-                    <th style="width: 45%;">Original value</th>
-                    <th style="width: 20%;">Type</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-primary" id="privacy-registry-export-btn">
-              <i class="fas fa-file-export"></i> Export this conversation
-            </button>
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Modal: Export Dialog -->
     <!-- Two orthogonal axes: encryption (passphrase-protected at rest) and
-         content (restored vs masked, only meaningful when Privacy Filter
-         was used in this session). -->
+         content (restored vs masked, only for a chat that hides words). -->
     <div class="modal fade" id="privacyExportModal" tabindex="-1" aria-labelledby="privacyExportLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">

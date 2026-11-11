@@ -233,13 +233,13 @@ module WebSocketHelper
     # A Private chat whose filter could not be started is refused too: it
     # stays Private (nothing of it is kept), with the filter off.
     if session.respond_to?(:key?) &&
-       (session[:_privacy_pipeline] || session[:_privacy_session_enabled] == true ||
+       (Monadic::Utils::Privacy::Words.marked?(session) || session[:_privacy_pipeline] || session[:_privacy_session_enabled] == true ||
         (defined?(Monadic::History::Policy) && Monadic::History::Policy.private?(session)))
-      Monadic::Utils::ExtraLogger.log { "[Library] LIBRARY_SAVE rejected: Privacy Filter is active in this session" }
+      Monadic::Utils::ExtraLogger.log { "[Library] LIBRARY_SAVE rejected: the chat hides words" }
       send_to_client(connection, {
         'type' => 'library_saved', 'res' => 'failure',
-        'content' => 'Knowledge Base save is disabled in a Private chat and while the Privacy Filter is active. ' \
-                     'Use Privacy Export to retain this conversation.'
+        'content' => 'A chat that hides words cannot be saved to the Knowledge Base. ' \
+                     'Export the conversation to keep it.'
       })
       return
     end

@@ -97,13 +97,11 @@ RSpec.describe 'What a new chat keeps from the session' do
       end
     end
 
-    it 'tells the page that the Privacy Filter is off for the new chat' do
+    it 'drops the Privacy Filter state for the new chat' do
       session = real_session(messages: [{ 'text' => 'hi' }], parameters: { 'app_name' => 'MailComposerOpenAI' },
                              _privacy_session_enabled: true)
-      sent = []
-      allow(host).to receive(:send_or_broadcast) { |json, _| sent << JSON.parse(json) }
+      allow(host).to receive(:send_or_broadcast)
       host.send(:handle_ws_reset, session)
-      expect(sent).to include(include('type' => 'privacy_state', 'enabled' => false, 'registry_count' => 0))
       expect(session.key?(:_privacy_session_enabled)).to be false
     end
 

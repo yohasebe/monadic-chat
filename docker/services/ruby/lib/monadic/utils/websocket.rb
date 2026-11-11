@@ -414,16 +414,14 @@ module WebSocketHelper
           handle_ws_stop_tts(connection, obj, session)
         when "PLAY_TTS"
           handle_ws_play_tts(connection, obj, session, thread)
-        when "PRIVACY_REGISTRY"
-          handle_ws_privacy_registry(connection, session)
         when "PRIVACY_EXPORT"
           handle_ws_privacy_export(connection, session, obj)
         when "WORDS_FIND"
           handle_ws_words_find(connection, session, obj)
         when "WORDS_CHANGE"
           handle_ws_words_change(connection, session, obj)
-        when "PRIVACY_TOGGLE"
-          handle_ws_privacy_toggle(connection, session, obj)
+        when "PRIVACY_TOGGLE", "PRIVACY_REGISTRY"
+          handle_ws_page_out_of_date(connection)
         when "VERIFY_CONFIDENCE"
           handle_ws_verify_confidence(connection, obj, session)
         else # fragment

@@ -121,6 +121,13 @@
   --btn-primary-active-border: #004085;
   --btn-primary-disabled-bg: #6c9bd1;
   --btn-primary-focus-shadow-color: rgba(0, 123, 255, 0.25);
+  /* .btn-success (Continue Session): the green as vivid as the primary blue */
+  --btn-success-bg: #28a745;
+  --btn-success-hover-bg: #218838;
+  --btn-success-hover-border: #1e7e34;
+  --btn-success-active-bg: #1e7e34;
+  --btn-success-active-border: #1c7430;
+  --btn-success-focus-shadow-color: rgba(40, 167, 69, 0.25);
   --btn-secondary-bg: #78828c;
   --btn-secondary-text: #ffffff;
   --btn-secondary-hover-bg: #5a6268;

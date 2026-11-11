@@ -769,9 +769,9 @@
               </div>
               <div id="sfp-selection" class="sfp-band sfp-selection mb-2" hidden>
                 <span id="sfp-selection-text" class="sfp-band-text"></span>
-                <button type="button" class="btn btn-sm btn-secondary" id="sfp-copy" title="Copy the paths for a chat" aria-label="Copy the paths for a chat" data-i18n-title="ui.sharedFolderPanel.copyPaths" data-i18n-aria-label="ui.sharedFolderPanel.copyPaths"><i class="fa-regular fa-copy" aria-hidden="true"></i></button>
-                <button type="button" class="btn btn-sm btn-danger" id="sfp-trash" aria-describedby="sfp-trash-why" hidden><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span id="sfp-trash-label"></span></button>
-                <button type="button" class="btn btn-sm btn-secondary sfp-icon-btn" id="sfp-clear-selection" title="Clear selection" aria-label="Clear selection" data-i18n-title="ui.sharedFolderPanel.clearSelection" data-i18n-aria-label="ui.sharedFolderPanel.clearSelection"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-secondary sfp-icon-btn" id="sfp-copy" title="Copy the paths for a chat" aria-label="Copy the paths for a chat" data-i18n-title="ui.sharedFolderPanel.copyPaths" data-i18n-aria-label="ui.sharedFolderPanel.copyPaths"><i class="fa-regular fa-copy" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-danger" id="sfp-trash" aria-describedby="sfp-trash-why"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span id="sfp-trash-label"></span></button>
+                <button type="button" class="btn btn-sm sfp-icon-btn sfp-plain-btn" id="sfp-clear-selection" title="Clear selection" aria-label="Clear selection" data-i18n-title="ui.sharedFolderPanel.clearSelection" data-i18n-aria-label="ui.sharedFolderPanel.clearSelection"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
                 <span id="sfp-trash-why" class="sfp-band-note" hidden></span>
               </div>
               <div id="sfp-status" class="sfp-status mb-2" role="status" aria-live="polite" hidden></div>
@@ -797,8 +797,8 @@
               </div>
               <div id="history-selection" class="sfp-band sfp-selection mb-2" hidden>
                 <span id="history-selection-text" class="sfp-band-text"></span>
-                <button type="button" class="btn btn-sm btn-danger" id="history-remove-selected"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span id="history-remove-label"></span></button>
-                <button type="button" class="btn btn-sm btn-secondary sfp-icon-btn" id="history-clear-selection" title="Clear selection" aria-label="Clear selection" data-i18n-title="ui.historyPanel.clearSelection" data-i18n-aria-label="ui.historyPanel.clearSelection"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-danger" id="history-remove-selected"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span id="history-remove-label"></span></button>
+                <button type="button" class="btn btn-sm sfp-icon-btn sfp-plain-btn" id="history-clear-selection" title="Clear selection" aria-label="Clear selection" data-i18n-title="ui.historyPanel.clearSelection" data-i18n-aria-label="ui.historyPanel.clearSelection"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
               </div>
               <div id="history-status" class="sfp-status mb-2" role="status" aria-live="polite" hidden></div>
             </div>
@@ -813,26 +813,22 @@
         <%# The border between the columns; layout-controller.js sets the side column's width from it. %>
         <div id="side-pane-splitter" role="separator" aria-orientation="vertical" aria-controls="menu" tabindex="0" aria-valuemin="25" aria-valuemax="60" aria-valuenow="40" aria-label="Width of the side panel" data-i18n-aria-label="ui.sidePane.resize" hidden></div>
         <div id="main" class="order-md-1 scrollable">
-          <!-- Config Summary Bar: persistent header that mirrors current settings.
-               Click to toggle Box A (#config-body) collapse — but only during a
-               session: before one starts the settings ARE the screen, so
-               collapsing them would leave a bare header with nothing to reveal.
-               The bar starts locked (.config-summary-locked, no data-bs-toggle,
-               chevron hidden); enterConversationMode() unlocks it and
-               enterSettingsMode() re-locks it. aria-expanded must match
-               #config-body's initial .show state for the chevron rotation CSS
-               to render correctly on first paint. It sits outside #config-wrapper,
-               directly in the scrolling column, so it stays at the top of the column
-               (sticky) while the settings and the conversation scroll. -->
+          <%# The bar over the main column. Before a session the settings are the
+              whole column and "Current settings" is only its name; once a session
+              starts (enterConversationMode) it and "Session" are tabs that switch
+              the column between the settings and the conversation. It sits
+              directly in the scrolling column, so it stays at the top (sticky). %>
           <div class="column-bar">
-            <div id="config-summary" class="rounded shaded-panel config-summary-locked" data-bs-target="#config-body" aria-expanded="true" aria-controls="config-body">
+            <div id="config-summary" class="rounded shaded-panel config-summary-locked">
               <div class="d-flex align-items-center flex-grow-1">
-                <span class="summary-label me-3" data-i18n="ui.configSummaryLabel">Current settings</span>
+                <div class="summary-tabs me-3" role="tablist" aria-label="Main column" data-i18n-aria-label="ui.mainTabs.label">
+                  <button type="button" id="summary-tab-settings" class="summary-tab" role="tab" aria-selected="true" aria-controls="config-body" tabindex="-1" data-i18n="ui.configSummaryLabel">Current settings</button>
+                  <button type="button" id="summary-tab-session" class="summary-tab" role="tab" aria-selected="false" aria-controls="main-panel" tabindex="-1" data-i18n="ui.mainTabs.session" hidden>Session</button>
+                </div>
                 <span id="summary-app-icon" class="me-2"></span>
                 <span id="summary-app-name" class="fw-semibold me-2"></span>
                 <span id="summary-model-name" class="text-secondary me-2"></span>
                 <span id="summary-indicators"></span>
-                <i class="fas fa-chevron-down config-collapse-icon ms-auto"></i>
               </div>
             </div>
           </div>
@@ -1240,7 +1236,7 @@
 
     <!-- Modal -->
     <div class="modal fade" id="resetConfirmation" tabindex="-1" aria-labelledby="resetConfirmationLabel" aria-hidden="true">
-      <div class="modal-dialog">
+      <div class="modal-dialog modal-confirm">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="resetConfirmationLabel"><i class="fas fa-arrows-rotate"></i> <span data-i18n="ui.modals.reset">Reset</span></h5>
@@ -1426,7 +1422,7 @@
 
     <!-- Modal -->
     <div class="modal fade" id="pdfDeleteConfirmation" tabindex="-1" aria-labelledby="pdfDeleteConfirmationLabel" aria-hidden="true">
-      <div class="modal-dialog">
+      <div class="modal-dialog modal-confirm">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="pdfDeleteConfirmationLabel"><i class="fa-regular fa-trash-can"></i> <span data-i18n="ui.modals.deletePDF">Delete PDF</span></h5>
@@ -1594,11 +1590,11 @@
           <div class="modal-body">
             <label class="form-label" for="urlLabel" data-i18n="ui.modals.labelOptional">Label (Optional)</label>
             <div class="mb-3">
-              <input data-i18n="[placeholder]ui.modals.urlLabelPlaceholder" placeholder="Text placed at the top of the webpage contents" class="form-control form-control-sm" id="urlLabel"></input>
+              <input data-i18n-placeholder="ui.modals.urlLabelPlaceholder" placeholder="Text placed at the top of the webpage contents" class="form-control form-control-sm" id="urlLabel"></input>
             </div>
             <label for="pageURL" class="form-label" data-i18n="ui.modals.urlToFetch">URL of the page</label>
             <div class="mb-3">
-              <input placeholder="URL must start with http:// or https://" class="form-control form-control-sm" id="pageURL"></input>
+              <input data-i18n-placeholder="ui.modals.urlAddressPlaceholder" placeholder="A URL starting with http:// or https://" class="form-control form-control-sm" id="pageURL"></input>
             </div>
           </div>
           <div class="modal-footer">

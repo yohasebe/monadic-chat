@@ -625,37 +625,22 @@ document.addEventListener("DOMContentLoaded", function () {
     if (initiateEl) initiateEl.disabled = false;
   }
 
-  // Collapse settings and show conversation (used when starting/continuing session).
-  // #config-summary is always visible (it acts as the persistent toggle header
-  // for #config-body), so it is not part of this state machine — but its
-  // collapse TOGGLE is: before a session the settings are the whole screen
-  // (collapsing them reveals nothing), so the toggle is unlocked only here
-  // and re-locked in enterSettingsMode().
+  // Show the conversation (used when starting/continuing session).
   function enterConversationMode() {
-    var bsCollapse = bootstrap.Collapse.getOrCreateInstance($id("config-body"), { toggle: false });
-    bsCollapse.hide();
-    var summary = $id("config-summary");
-    if (summary) {
-      summary.setAttribute("data-bs-toggle", "collapse");
-      summary.classList.remove("config-summary-locked");
-    }
-    var configActions = $id("config-actions");
-    $hide(configActions);
     var mainPanelEl = $id("main-panel");
-    if (mainPanelEl) { mainPanelEl.classList.remove("d-none"); $show(mainPanelEl); }
+    if (mainPanelEl) mainPanelEl.classList.remove("d-none");
+    window.MainTabs.setMode("active");
+    window.MainTabs.show("session");
+    window.setStartButtonMode(true);
     lockSessionSettings();
     updateConfigSummary();
   }
 
-  // Expand settings and hide conversation (used when resetting).
+  // Show the settings alone (used when resetting).
   function enterSettingsMode() {
-    var bsCollapse = bootstrap.Collapse.getOrCreateInstance($id("config-body"), { toggle: false });
-    bsCollapse.show();
-    var summary = $id("config-summary");
-    if (summary) {
-      summary.removeAttribute("data-bs-toggle");
-      summary.classList.add("config-summary-locked");
-    }
+    window.MainTabs.setMode("none");
+    window.MainTabs.show("settings");
+    window.setStartButtonMode(false);
     var configActions = $id("config-actions");
     $show(configActions);
     var mainPanelEl = $id("main-panel");
@@ -663,39 +648,15 @@ document.addEventListener("DOMContentLoaded", function () {
     unlockSessionSettings();
   }
 
-  // Keep the summary-bar chevron in sync with #config-body. The rotation CSS
-  // keys off #config-summary[aria-expanded], but Bootstrap only maintains
-  // aria-expanded on togglers that carried data-bs-toggle when the Collapse
-  // instance was FIRST created — and #config-summary gains data-bs-toggle only
-  // once a session starts (enterConversationMode), after the instance already
-  // exists with an empty trigger list. So Bootstrap never updates it and the
-  // chevron would stay frozen. Drive aria-expanded from the collapse events
-  // instead (guarding against bubbled events from nested collapses).
-  (function () {
-    var configBody = $id("config-body");
-    if (!configBody) return;
-    configBody.addEventListener("show.bs.collapse", function (e) {
-      if (e.target !== configBody) return;
-      var summary = $id("config-summary");
-      if (summary) summary.setAttribute("aria-expanded", "true");
-    });
-    // Refit the Workflow Viewer once the expand ANIMATION completes: the
-    // viewer's ResizeObserver fires at intermediate heights mid-animation and
-    // can fit the graph to a partially-expanded container (chart appears
-    // shrunken). shown.bs.collapse fires at the final size.
-    configBody.addEventListener("shown.bs.collapse", function (e) {
-      if (e.target !== configBody) return;
-      if (typeof window.WorkflowViewer !== "undefined" &&
-          typeof window.WorkflowViewer.refit === "function") {
-        window.WorkflowViewer.refit();
-      }
-    });
-    configBody.addEventListener("hide.bs.collapse", function (e) {
-      if (e.target !== configBody) return;
-      var summary = $id("config-summary");
-      if (summary) summary.setAttribute("aria-expanded", "false");
-    });
-  })();
+  // Refit the Workflow Viewer once the settings have opened: its
+  // ResizeObserver fires at intermediate heights while the collapse animates.
+  $on($id("config-body"), "shown.bs.collapse", function (e) {
+    if (e.target !== this) return;
+    if (typeof window.WorkflowViewer !== "undefined" &&
+        typeof window.WorkflowViewer.refit === "function") {
+      window.WorkflowViewer.refit();
+    }
+  });
 
   // Expose for use in other modules
   window.updateConfigSummary = updateConfigSummary;
@@ -2116,7 +2077,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Reset to settings panel
     enterSettingsMode();
-    window.setStartButtonMode(false);
     proceedWithAppChange(newAppValue);
   });
   
@@ -2766,6 +2726,11 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   $on($id("start"), "click", function() {
+    // In a session, the button under the settings goes back to the conversation.
+    if (window.MainTabs.mode() === "active") {
+      window.MainTabs.show("session");
+      return;
+    }
     audioInit();
     { const el = $id("asr-p-value"); if (el) { el.textContent = ""; $hide(el); } }
 
@@ -2955,11 +2920,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (window.WordTable && window.WordTable.holdSend(() => { $id("send").click(); })) {
       return;
     }
-    // Auto-collapse settings when sending a message
-    var configBody = $id("config-body");
-    if (configBody && configBody.classList.contains("show")) {
-      bootstrap.Collapse.getOrCreateInstance(configBody, { toggle: false }).hide();
-    }
+    // A message sent from the settings view shows the conversation.
+    if (window.MainTabs.mode() === "active" && window.MainTabs.current() === "settings") window.MainTabs.show("session");
     audioInit();
 
     // Reset sequence tracking for realtime TTS (new message starts new sequence)
@@ -3115,7 +3077,6 @@ document.addEventListener("DOMContentLoaded", function () {
     setInputFocus()
   });
 
-  // #settings button removed — settings are now collapsible via #config-summary
 
 
   // Regular reset button - keeps current app
@@ -3124,7 +3085,6 @@ document.addEventListener("DOMContentLoaded", function () {
     audioInit();
     resetEvent(event, false); // false = keep current app
     { const el = $id("select-role"); if (el) { el.value = "user"; $dispatch(el, "change"); } }
-    window.setStartButtonMode(false);
     { const el = $id("model"); if (el) el.disabled = false; }
   });
   
@@ -3137,7 +3097,6 @@ document.addEventListener("DOMContentLoaded", function () {
     audioInit();
     resetEvent(event, false); // false = keep current app
     { const el = $id("select-role"); if (el) { el.value = "user"; $dispatch(el, "change"); } }
-    window.setStartButtonMode(false);
     { const el = $id("model"); if (el) el.disabled = false; }
   }); });
 

@@ -33,7 +33,7 @@ You can change the language at any time during a conversation. The choice is sto
 
 <!-- SCREENSHOT: System settings panel showing Base App selector, Model dropdown, reasoning controls, token limits, and parameters -->
 
-This screen is where you choose the app and model for a session and adjust the conversation parameters. During a session, click the summary bar at the top (app, model and badges) to return to it.
+This screen is where you choose the app and model for a session and adjust the conversation parameters. Once a session starts, the bar at the top has two tabs, **Current settings** and **Session**: **Current settings** shows this screen and **Session** shows the conversation, where you left it. **Continue Session** under the settings also goes back to the conversation. After you open a chat from the history, **Session** continues it, as **Continue Session** does. The bar also shows the app, the model and badges.
 
 **Base App** <br />
 Select one of the basic apps. Each app has different default parameters and initial prompts. See [Base Apps](./basic-apps.md) for details.
@@ -69,7 +69,7 @@ Show a live diagram of the selected app (Hidden, In Panel or Floating) — how i
 Start a new chat or continue your current conversation.
 
 **Session Indicator Badges**<br />
-The summary bar shows badges for the features in effect: **Web Search**, **Math**, **Knowledge Base**, and the current reasoning effort (when it is not off). The Knowledge Base badge appears while **Use Knowledge Base for retrieval (this session)** is on. In [Live Conversation](../apps/chat-apps.md#live-conversation), some of these settings have no UI, so the corresponding badges do not appear.
+The bar at the top shows badges for the features in effect: **Web Search**, **Math**, **Knowledge Base**, and the current reasoning effort (when it is not off). The Knowledge Base badge appears while **Use Knowledge Base for retrieval (this session)** is on. In [Live Conversation](../apps/chat-apps.md#live-conversation), some of these settings have no UI, so the corresponding badges do not appear.
 
 The top bar of the page shows the conversation status.
 
@@ -77,7 +77,7 @@ The top bar of the page shows the conversation status.
 
 The sidebar has four tabs at the top: **Menu**, which holds the following panels from top to bottom, **Work screen** (see [Work Screen](#work-screen) below), **Files** (see [Files Tab](#shared-folder-panel)) and **History** (see [History Tab](#chat-history-panel), shown while chats are kept). The page opens on Menu. Click a panel's title to collapse or expand it.
 
-The tabs, and the **Current settings** bar above the conversation, stay at the top while the column under them scrolls. Drag the border between the conversation and the sidebar to change the sidebar's width; you can also select the border with the Tab key and use ← and → (Home and End for the narrowest and widest). The width is kept, and is the same for every tab. On a narrow window, the sidebar and the conversation take turns at the full width.
+The tabs, and the bar with **Current settings** above the conversation, stay at the top while the column under them scrolls. Drag the border between the conversation and the sidebar to change the sidebar's width; you can also select the border with the Tab key and use ← and → (Home and End for the narrowest and widest). The width is kept, and is the same for every tab. On a narrow window, the sidebar and the conversation take turns at the full width.
 
 **Monadic Chat Info**<br />
 Links to the homepage and GitHub, the current version, the **Conversation Language** selector, the **Web Search** and **Math Rendering** switches, the name and description of the current base app, **Help Data** (the help database used by the Monadic Chat Help app: its status and an install button), and the list of **Available Variables**.
@@ -210,7 +210,7 @@ Select entries with the box before each one: Shift+click selects a range, and Cm
 
 The **⋯** button of an entry (or the Menu key, or Shift+F10, in the list) holds what can be done with it: open it, copy its path, show it in your file manager (in the desktop app; neither a folder nor a file is opened) and move it to the Trash.
 
-In the desktop app, entries can be moved to the system's Trash. Only entries Monadic Chat allows are moved: entries that are kept for a reason, and the folder of a chat open in a tab and what is in it, can be selected (to copy their paths) but are not moved, and the band says how many of the selected cannot be moved. Confirm in the dialog that names the count and the first items. Moved items can be put back from the Trash.
+In the desktop app, entries can be moved to the system's Trash. Only entries Monadic Chat allows are moved: entries that are kept for a reason, and the folder of a chat open in a tab and what is in it, can be selected (to copy their paths) but are not moved, and the band says how many of the selected cannot be moved. In a browser, the button is shown but cannot be used, and the band says so. Confirm in the dialog that names the count and the first items. Moved items can be put back from the Trash.
 
 ?> Monadic Chat keeps a small hidden file, `.monadic-shared-root`, in the shared folder. Do not remove it: without it, entries cannot be shown in the file manager or moved to the Trash (the list is still shown).
 

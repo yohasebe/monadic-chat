@@ -6824,6 +6824,10 @@ body.side-pane-resizing {
 .history-pane .history-open-badge {
   flex: 0 0 auto;
 }
+/* The chat shown now: a bar down its left edge in the color of its tag. */
+.history-pane .sfp-row.history-here {
+  box-shadow: inset 4px 0 0 var(--bdg-green-fg);
+}
 .history-pane .history-confirm-text {
   flex: 1 1 auto;
   min-width: 0;

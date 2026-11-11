@@ -159,6 +159,7 @@ These options choose optional packages for the Python container. After changing 
 | `PYOPT_LIBROSA` | Music Analysis: librosa and madmom, with soundfile, midiutil and pretty_midi | Music Lab, Music Analyst | `false` |
 | `PYOPT_MEDIAPIPE` | Computer vision framework (CPU) | Vision applications | `false` |
 | `PYOPT_TRANSFORMERS` | Hugging Face Transformers and Accelerate (CPU) | Deep learning NLP | `false` |
+| `PYOPT_PLOTLY_STATIC` | kaleido and Chromium: a Plotly chart in a notebook is saved with a PNG beside it | Plotly charts in notebooks shown in the work screen | `false` |
 | `IMGOPT_IMAGEMAGICK` | ImageMagick image processing | Advanced image operations | `false` |
 
 ### Configuring Install Options

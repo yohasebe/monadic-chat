@@ -789,6 +789,10 @@
                 <input type="checkbox" id="pyopt-transformers">
                 <label for="pyopt-transformers">transformers (CPU only)</label>
               </div>
+              <div class="checkbox-row">
+                <input type="checkbox" id="pyopt-plotly-static">
+                <label for="pyopt-plotly-static">Plotly static images (kaleido + Chromium)</label>
+              </div>
             </div>
 
             <div class="setting-group">
@@ -1135,6 +1139,7 @@
             PYOPT_LIBROSA: 'pyopt-librosa',
             PYOPT_MEDIAPIPE: 'pyopt-mediapipe',
             PYOPT_TRANSFORMERS: 'pyopt-transformers',
+            PYOPT_PLOTLY_STATIC: 'pyopt-plotly-static',
             IMGOPT_IMAGEMAGICK: 'imgopt-imagemagick'
           };
           const diff = Object.entries(pyKeys).some(([envKey, id]) => {
@@ -1318,6 +1323,7 @@
           PYOPT_LIBROSA: document.getElementById('pyopt-librosa').checked,
           PYOPT_MEDIAPIPE: document.getElementById('pyopt-mediapipe').checked,
           PYOPT_TRANSFORMERS: document.getElementById('pyopt-transformers').checked,
+          PYOPT_PLOTLY_STATIC: document.getElementById('pyopt-plotly-static').checked,
           IMGOPT_IMAGEMAGICK: document.getElementById('imgopt-imagemagick').checked,
           EXTRACTOR_SERVICE: document.getElementById('install-extractor-service').checked,
           EXTRACTOR_LANGS: collectExtractorLangs(),
@@ -1460,6 +1466,7 @@
         document.getElementById('pyopt-librosa').checked = data.PYOPT_LIBROSA == "true" || false;
         document.getElementById('pyopt-mediapipe').checked = data.PYOPT_MEDIAPIPE == "true" || false;
         document.getElementById('pyopt-transformers').checked = data.PYOPT_TRANSFORMERS == "true" || false;
+        document.getElementById('pyopt-plotly-static').checked = data.PYOPT_PLOTLY_STATIC == "true" || false;
         document.getElementById('imgopt-imagemagick').checked = data.IMGOPT_IMAGEMAGICK == "true" || false;
         // Extractor Service: master flag + OCR-language extras (default en,ja,zh,ko)
         document.getElementById('install-extractor-service').checked = data.EXTRACTOR_SERVICE == "true" || false;

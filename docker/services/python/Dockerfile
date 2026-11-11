@@ -20,6 +20,7 @@ ARG PYOPT_GENSIM=false
 ARG PYOPT_LIBROSA=false
 ARG PYOPT_MEDIAPIPE=false
 ARG PYOPT_TRANSFORMERS=false
+ARG PYOPT_PLOTLY_STATIC=false
 ARG IMGOPT_IMAGEMAGICK=false
 
 # Base OS packages (lean by default)
@@ -99,6 +100,12 @@ RUN if [ "$PYOPT_LIBROSA" = "true" ]; then \
     else echo "skip librosa+madmom"; fi
 RUN if [ "$PYOPT_MEDIAPIPE" = "true" ]; then uv pip install --no-cache mediapipe || echo 'mediapipe wheel not available; skipped'; else echo "skip mediapipe"; fi
 RUN if [ "$PYOPT_TRANSFORMERS" = "true" ]; then uv pip install --no-cache transformers accelerate || true; else echo "skip transformers"; fi
+# Static images of Plotly charts: kaleido draws them with Debian's Chromium.
+RUN if [ "$PYOPT_PLOTLY_STATIC" = "true" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends chromium && \
+      apt-get clean && rm -rf /var/lib/apt/lists/* && \
+      uv pip install --no-cache "kaleido>=1,<2"; \
+    else echo "skip plotly static images"; fi
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings
@@ -108,6 +115,10 @@ COPY @jupyterlab /root/.jupyter/lab/user-settings/@jupyterlab
 ENV MPLCONFIGDIR=/root/.config/matplotlib
 RUN mkdir -p /root/.config/matplotlib
 COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
+
+# IPython settings for the notebooks' kernels (a Plotly chart is saved with
+# a PNG beside it when kaleido is installed)
+COPY ipython_startup /root/.ipython/profile_default/startup
 
 # Copy scripts and set permissions
 COPY scripts /monadic/scripts

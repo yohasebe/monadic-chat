@@ -82,7 +82,8 @@
           "spacy": "spaCy (3.7.5)",
           "gensim": "gensim",
           "mediapipe": "mediapipe (CPU 전용)",
-          "transformers": "transformers (CPU 전용)"
+          "transformers": "transformers (CPU 전용)",
+          "plotlyStatic": "Plotly 정적 이미지(kaleido + Chromium)"
         }
       },
       "music": {

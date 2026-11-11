@@ -156,7 +156,9 @@ module Monadic
             return { 'marked' => true, 'unavailable' => true, 'active' => [], 'kept' => [] }
           end
           { 'marked' => true,
-            'active' => found.active_words.map { |entry| { 'word' => entry[:word], 'type' => entry[:type] } },
+            'active' => found.active_words.map do |entry|
+              { 'word' => entry[:word], 'type' => entry[:type], 'placeholder' => WordTable.placeholder(entry[:id]) }
+            end,
             'kept' => found.kept_words }
         end
 

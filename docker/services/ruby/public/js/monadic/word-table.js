@@ -75,7 +75,8 @@
   }
 
   function offButton(word, label, onClick) {
-    const button = element('button', 'word-table-off', '×');
+    const button = element('button', 'word-table-off');
+    button.appendChild(element('i', 'fa-solid fa-xmark'));
     button.type = 'button';
     button.title = label;
     button.setAttribute('aria-label', label + ': ' + word);
@@ -114,7 +115,7 @@
   }
 
   function typeSelect(current, onChange) {
-    const select = element('select', 'form-select form-select-sm word-table-type-select');
+    const select = element('select', 'form-select word-table-type-select');
     Object.keys(TYPES).concat(TYPES[current] ? [] : [current]).forEach((type) => {
       const option = element('option', '', typeName(type));
       option.value = type;
@@ -261,22 +262,129 @@
     }
   }
 
-  function hideSelection() {
+  // The words selected in the text of the panel, or null.
+  function selectedWord() {
     const selection = window.getSelection ? window.getSelection() : null;
     const box = $id('word-table-preview');
-    const inside = selection && selection.anchorNode && box && box.contains(selection.anchorNode);
-    const word = inside ? selection.toString() : '';
-    const problem = selectionProblem(word);
-    if (problem) {
-      showError(problem);
-      return;
-    }
-    const select = $id('word-table-type');
+    if (!selection || selection.isCollapsed || !box) return null;
+    if (!box.contains(selection.anchorNode) || !box.contains(selection.focusNode)) return null;
+    return selection.toString();
+  }
+
+  function hideAddMenu() {
+    const menu = $id('word-table-add');
+    if (menu) menu.style.display = 'none';
+  }
+
+  function hideAs(word, type) {
     state.leave = state.leave.filter((w) => w !== word);
-    if (!hiddenWords().includes(word)) state.drafts.push({ word: word, type: select ? select.value : 'PERSON' });
+    if (!hiddenWords().includes(word)) state.drafts.push({ word: word, type: type });
     state.findFailed = false;
     showError(null);
+    hideAddMenu();
     render();
+  }
+
+  // Under the selection, as far left as it fits in the panel.
+  function placeAddMenu(menu) {
+    const wrap = menu.parentElement;
+    const selection = window.getSelection();
+    if (!wrap || !selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0).getBoundingClientRect();
+    const area = wrap.getBoundingClientRect();
+    menu.style.top = (range.bottom - area.top + 6) + 'px';
+    menu.style.left = Math.max(0, Math.min(range.left - area.left, area.width - menu.offsetWidth)) + 'px';
+  }
+
+  // Words selected in the text are offered to be hidden, by type, beside
+  // the selection.
+  function offerSelection() {
+    const menu = $id('word-table-add');
+    if (!menu) return;
+    const word = selectedWord();
+    if (word === null) {
+      hideAddMenu();
+      return;
+    }
+    menu.textContent = '';
+    const problem = selectionProblem(word);
+    if (problem) {
+      menu.appendChild(element('span', 'word-table-add-problem', t('ui.wordTable.errors.' + problem, problem)));
+    } else {
+      menu.appendChild(element('span', 'word-table-add-label', t('ui.wordTable.addAs', 'Hide as')));
+      Object.keys(TYPES).forEach((type) => {
+        const button = element('button', 'btn btn-outline-primary word-table-add-type', typeName(type));
+        button.type = 'button';
+        // The button does not take the focus: the selected words stay selected.
+        $on(button, 'mousedown', (e) => e.preventDefault());
+        $on(button, 'click', () => hideAs(word, type));
+        menu.appendChild(button);
+      });
+    }
+    menu.style.display = '';
+    placeAddMenu(menu);
+  }
+
+  // The chat's hidden words where the conversation shows them: each is marked,
+  // and says what the chat sent in its place.
+  const NOT_MARKED = 'code, pre, textarea, script, style, [contenteditable="true"]';
+  let shownObserver = null;
+  let shownTimer = null;
+
+  function unwrapShown(root) {
+    root.querySelectorAll('.word-table-shown').forEach((span) => {
+      const parent = span.parentNode;
+      parent.replaceChild(document.createTextNode(span.textContent), span);
+      parent.normalize();
+    });
+  }
+
+  function markShown() {
+    const root = $id('discourse');
+    if (!root) return;
+    unwrapShown(root);
+    const byWord = new Map(state.active.map((entry) => [entry.word, entry]));
+    if (byWord.size > 0) {
+      root.querySelectorAll('.card-text').forEach((cardText) => {
+        const walker = document.createTreeWalker(cardText, NodeFilter.SHOW_TEXT, {
+          acceptNode: (node) => (node.parentElement && node.parentElement.closest(NOT_MARKED)
+            ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT)
+        });
+        const nodes = [];
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        nodes.forEach((node) => {
+          const parts = splitByWords(node.nodeValue, Array.from(byWord.keys()));
+          if (!parts.some((part) => part.word)) return;
+          const pieces = document.createDocumentFragment();
+          parts.forEach((part) => {
+            if (!part.word) {
+              pieces.appendChild(document.createTextNode(part.text));
+              return;
+            }
+            const entry = byWord.get(part.word);
+            const span = element('span', 'word-table-shown', part.text);
+            span.title = t('ui.wordTable.shownTitle', 'Sent as {placeholder}')
+              .replace('{placeholder}', entry.placeholder || typeName(entry.type));
+            pieces.appendChild(span);
+          });
+          node.parentNode.replaceChild(pieces, node);
+        });
+      });
+    }
+    // What this changed is not a change to mark again.
+    if (shownObserver) shownObserver.takeRecords();
+  }
+
+  function markShownSoon() {
+    clearTimeout(shownTimer);
+    shownTimer = setTimeout(markShown, 150);
+  }
+
+  function watchShown() {
+    const root = $id('discourse');
+    if (!root || typeof MutationObserver === 'undefined') return;
+    shownObserver = new MutationObserver(markShownSoon);
+    shownObserver.observe(root, { childList: true, subtree: true, characterData: true });
   }
 
   function handleTable(data) {
@@ -295,6 +403,7 @@
     state.active = Array.isArray(data.active) ? data.active : [];
     state.kept = Array.isArray(data.kept) ? data.kept : [];
     render();
+    markShown();
     document.dispatchEvent(new CustomEvent('wordtable:changed'));
   }
 
@@ -415,21 +524,21 @@
       if (decided()) apply();
       else if (!searchHolds()) close();
     });
-    // The button does not take the focus: the selected words stay selected.
-    $on($id('word-table-hide-selection'), 'mousedown', (e) => e.preventDefault());
-    $on($id('word-table-hide-selection'), 'click', hideSelection);
+    const preview = $id('word-table-preview');
+    $on(preview, 'mouseup', () => setTimeout(offerSelection, 0));
+    $on(preview, 'keyup', () => setTimeout(offerSelection, 0));
+    document.addEventListener('selectionchange', () => { if (selectedWord() === null) hideAddMenu(); });
+    $on($id('word-table-help'), 'click', function () {
+      const how = $id('word-table-how');
+      if (!how) return;
+      const showing = how.style.display === 'none';
+      how.style.display = showing ? '' : 'none';
+      this.setAttribute('aria-expanded', String(showing));
+    });
     $on($id('message'), 'input', () => { if (state.open) renderPreview(); });
     $on($id('voice'), 'click', noticeNotHidden);
     $on($id('image-file'), 'click', noticeNotHidden);
-    const select = $id('word-table-type');
-    if (select) {
-      select.textContent = '';
-      Object.keys(TYPES).forEach((type) => {
-        const option = element('option', '', typeName(type));
-        option.value = type;
-        select.appendChild(option);
-      });
-    }
+    watchShown();
     render();
   }
 
@@ -444,7 +553,7 @@
     isMarked: () => state.marked, hidesWords: () => state.active.length > 0, chat: () => state.chat
   };
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = Object.assign({ splitByWords: splitByWords, selectionProblem: selectionProblem, _state: state, init: init }, api);
+    module.exports = Object.assign({ splitByWords: splitByWords, selectionProblem: selectionProblem, offerSelection: offerSelection, markShown: markShown, _state: state, init: init }, api);
   }
   if (typeof window !== 'undefined') window.WordTable = api;
 })();

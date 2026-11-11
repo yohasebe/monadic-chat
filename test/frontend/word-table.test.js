@@ -16,17 +16,21 @@ describe('word table', () => {
       <button id="anonymize"></button><button id="word-table-status" style="display:none"></button>
       <div id="word-table-panel" style="display:none">
         <button id="word-table-close"></button>
-        <div id="word-table-preview"></div>
-        <select id="word-table-type"></select>
-        <button id="word-table-hide-selection"></button>
+        <button id="word-table-help"></button><p id="word-table-how" style="display:none"></p>
+        <div><div id="word-table-preview"></div><div id="word-table-add" style="display:none"></div></div>
         <div id="word-table-list"></div><div id="word-table-kept"></div>
         <div id="word-table-error" style="display:none"></div>
         <button id="word-table-apply"></button>
       </div>
-      <textarea id="message"></textarea><button id="voice"></button><button id="image-file"></button>`;
+      <textarea id="message"></textarea><button id="voice"></button><button id="image-file"></button>
+      <div id="discourse"></div>`;
     global.$id = (id) => document.getElementById(id);
     global.$on = (el, event, fn) => { if (el) el.addEventListener(event, fn); };
     global.setAlert = jest.fn();
+    // jsdom does not lay out text: a selection has no position of its own.
+    if (!Range.prototype.getBoundingClientRect) {
+      Range.prototype.getBoundingClientRect = () => ({ top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0 });
+    }
     window.safeWsSend = (payload) => { sent.push(payload); return { sent: true }; };
     wt = require('../../docker/services/ruby/public/js/monadic/word-table.js');
     wt.handleTable(table());
@@ -36,6 +40,94 @@ describe('word table', () => {
     document.getElementById('anonymize').click();
     wt.handleFound({ request: lastSent().request, chat: 'c1', candidates });
   };
+
+  const selectInPreview = (word) => {
+    const preview = document.getElementById('word-table-preview');
+    const node = Array.from(preview.childNodes).find((n) => n.nodeType === 3 && n.nodeValue.includes(word));
+    const start = node.nodeValue.indexOf(word);
+    const range = document.createRange();
+    range.setStart(node, start);
+    range.setEnd(node, start + word.length);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  };
+
+  describe('adding a word that was not found', () => {
+    it('offers the types beside the selected words, and takes the one chosen', () => {
+      document.getElementById('message').value = 'Write to Acme Corp today';
+      document.getElementById('anonymize').click();
+      selectInPreview('Acme Corp');
+      wt.offerSelection();
+
+      const menu = document.getElementById('word-table-add');
+      expect(menu.style.display).toBe('');
+      const buttons = menu.querySelectorAll('button');
+      expect(buttons.length).toBe(7);
+      Array.from(buttons).find((b) => b.textContent === 'organization' || /organi/i.test(b.textContent)).click();
+
+      expect(wt._state.drafts).toContainEqual({ word: 'Acme Corp', type: 'ORGANIZATION' });
+      expect(menu.style.display).toBe('none');
+      expect(document.querySelector('#word-table-preview mark').textContent).toContain('Acme Corp');
+    });
+
+    it('says why words cannot be hidden instead of offering the types', () => {
+      document.getElementById('message').value = 'Line one\nline two';
+      document.getElementById('anonymize').click();
+      selectInPreview('one\nline');
+      wt.offerSelection();
+
+      const menu = document.getElementById('word-table-add');
+      expect(menu.querySelectorAll('button').length).toBe(0);
+      expect(menu.textContent).not.toBe('');
+      expect(wt._state.drafts).toEqual([]);
+    });
+
+    it('offers nothing when nothing is selected', () => {
+      document.getElementById('message').value = 'Hi';
+      document.getElementById('anonymize').click();
+      window.getSelection().removeAllRanges();
+      wt.offerSelection();
+      expect(document.getElementById('word-table-add').style.display).toBe('none');
+    });
+  });
+
+  describe('the hidden words in the conversation', () => {
+    const conversation = (html) => {
+      document.getElementById('discourse').innerHTML = `<div class="card"><div class="card-text">${html}</div></div>`;
+    };
+    const ada = { word: 'Ada', type: 'PERSON', placeholder: '<<PERSON_1>>' };
+
+    it('marks each with what the chat sent in its place, leaving code as it is', () => {
+      conversation('Hi Ada, see <code>Ada</code>.');
+      wt.handleTable(table({ marked: true, active: [ada] }));
+
+      const shown = document.querySelectorAll('#discourse .word-table-shown');
+      expect(shown.length).toBe(1);
+      expect(shown[0].textContent).toBe('Ada');
+      expect(shown[0].title).toContain('<<PERSON_1>>');
+      expect(document.querySelector('#discourse code').textContent).toBe('Ada');
+    });
+
+    it('takes the marks off when the word is no longer hidden, leaving the text as it was', () => {
+      conversation('Hi Ada.');
+      wt.handleTable(table({ marked: true, active: [ada] }));
+      wt.handleTable(table({ marked: true, active: [] }));
+
+      expect(document.querySelectorAll('#discourse .word-table-shown').length).toBe(0);
+      expect(document.querySelector('#discourse .card-text').innerHTML).toBe('Hi Ada.');
+    });
+
+    it('marks a word in a reply shown later', async () => {
+      jest.useFakeTimers();
+      wt.handleTable(table({ marked: true, active: [ada] }));
+      conversation('Ada wrote back.');
+      await Promise.resolve();
+      jest.advanceTimersByTime(200);
+      jest.useRealTimers();
+      expect(document.querySelectorAll('#discourse .word-table-shown').length).toBe(1);
+    });
+  });
 
   it('splits a text by the words, taking the longest where several start together', () => {
     expect(wt.splitByWords('Ada Lovelace and Ada.', ['Ada', 'Ada Lovelace'])).toEqual([

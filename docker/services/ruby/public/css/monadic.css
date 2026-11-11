@@ -5903,21 +5903,35 @@ i.fas.fa-bolt,
 }
 
 
-/* A chat's word table: the panel above the message box. */
+/* The bar at the top of a column, with the space below it. */
+.column-bar { padding-bottom: var(--spacing-sm); }
+
+/* A chat's word table: the panel above the message box. Text is the
+   page's own size; what does not fit opens on request (word-table-how). */
 .word-table-panel {
   margin-top: 8px;
-  padding: 8px 10px;
+  padding: 12px;
   border: 1px solid #e5e5ea;
   border-radius: 6px;
   background-color: #f8f9fa;
-  font-size: 0.9em;
 }
+.word-table-head { display: flex; align-items: center; gap: 6px; }
+.word-table-icon-button {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: #4f78b8;
+}
+.word-table-icon-button:hover { background-color: rgba(79, 120, 184, 0.12); }
+.word-table-how { margin: 8px 0 0; }
+.word-table-preview-wrap { position: relative; margin-top: 8px; }
 .word-table-preview {
-  margin-top: 4px;
-  padding: 6px 8px;
-  max-height: 10em;
-  min-height: 2.4em;
+  padding: 8px 10px;
+  max-height: 12em;
+  min-height: 2.6em;
   overflow-y: auto;
+  line-height: 2;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   background-color: #fff;
@@ -5925,67 +5939,97 @@ i.fas.fa-bolt,
   border-radius: 4px;
 }
 .word-table-hidden {
-  padding: 0 3px;
-  border-radius: 3px;
+  padding: 2px 2px 2px 6px;
+  border-radius: 4px;
   background-color: #dfe6f1;
   color: inherit;
 }
 .word-table-type {
-  margin-right: 4px;
-  font-size: 0.75em;
-  color: #4f78b8;
+  margin-right: 6px;
+  color: #3b639b;
+  font-weight: 600;
   user-select: none;
 }
 .word-table-off {
-  margin-left: 3px;
-  padding: 0 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7em;
+  height: 1.7em;
+  margin-left: 4px;
+  padding: 0;
   border: 0;
+  border-radius: 4px;
   background: none;
-  color: #8a939e;
-  line-height: 1;
+  color: #6c757d;
+  vertical-align: middle;
   user-select: none;
 }
-.word-table-off:hover { color: #bf625e; }
+.word-table-off:hover { background-color: rgba(191, 98, 94, 0.14); color: #bf625e; }
+.word-table-add {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 8px;
+  border: 1px solid #cfd6df;
+  border-radius: 6px;
+  background-color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+.word-table-add-label { margin-right: 2px; font-weight: 600; }
+.word-table-add-problem { color: #a94442; }
 .word-table-type-select { width: auto; display: inline-block; }
-.word-table-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.word-table-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .word-table-word {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 1px 4px;
-  border: 1px solid #e5e5ea;
-  border-radius: 4px;
+  gap: 6px;
+  padding: 4px 4px 4px 10px;
+  border: 1px solid #d5dbe3;
+  border-radius: 6px;
   background-color: #fff;
 }
 .word-table-draft { border-style: dashed; border-color: #8a939e; }
-.word-table-kept { margin-top: 4px; font-size: 0.85em; color: #6c757d; }
-.word-table-kept-label { margin-right: 4px; }
+.word-table-kept { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; color: #5c636a; }
+.word-table-kept:empty { display: none; }
 .word-table-putback {
-  margin-right: 4px;
-  padding: 0 4px;
-  border: 1px solid #e5e5ea;
-  border-radius: 3px;
+  padding: 2px 10px;
+  border: 1px solid #d5dbe3;
+  border-radius: 4px;
   background: none;
   color: inherit;
 }
-.word-table-error { margin-top: 4px; color: #a94442; }
+.word-table-error { margin-top: 8px; color: #a94442; }
+.word-table-note { margin: 10px 0; color: #5c636a; }
 .word-table-status {
-  padding: 2px 8px;
+  padding: 4px 12px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 16px;
   background-color: #dfe6f1;
   color: #3b639b;
-  font-size: 0.78em;
   white-space: nowrap;
 }
 .word-table-status.word-table-unavailable { background-color: #f4e0df; color: #a94442; }
+/* The buttons under the message box keep a gap when they wrap. */
+.message-tools { row-gap: 8px; }
+/* A hidden word as the conversation shows it: its title says what was sent. */
+.word-table-shown { border-bottom: 1px dotted #4f78b8; cursor: help; }
 .dark-theme .word-table-panel,
 .dark-theme .word-table-preview,
+.dark-theme .word-table-add,
 .dark-theme .word-table-word { background-color: #2b2f36; border-color: #454b55; }
 .dark-theme .word-table-hidden,
 .dark-theme .word-table-status { background-color: #3f4b5e; color: #e5e5ea; }
+.dark-theme .word-table-type { color: #a9c1e8; }
+.dark-theme .word-table-note,
+.dark-theme .word-table-kept { color: #b8bec6; }
 .dark-theme .word-table-status.word-table-unavailable { background-color: #5a3836; color: #f0d4d2; }
 .dark-theme .word-table-putback { border-color: #454b55; }
+.dark-theme .word-table-shown { border-bottom-color: #a9c1e8; }
 
 /* Speech-to-speech session cost readout. Sits next to the status line
    and follows its shape; hidden via inline style="display:none" until the
@@ -6466,18 +6510,18 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
     min-width: 0;
   }
   /* The bars at the top of each column stay there, at its top edge, while
-     the column scrolls under them; what scrolls does not show in the space
-     below a bar (its margin, covered by the shadow). */
+     the column scrolls under them. Each sits in a square of the page's
+     color (column-bar), so what scrolls shows neither below a bar nor
+     outside its rounded corners. */
   #contents > .row > #menu,
   #contents > .row > #main {
     padding-top: 0;
   }
-  #config-summary,
-  #side-pane-tabs {
+  .column-bar {
     position: sticky;
     top: 0;
     z-index: 6;
-    box-shadow: 0 var(--spacing-sm) 0 var(--bg-body);
+    background-color: var(--bg-body);
   }
 }
 

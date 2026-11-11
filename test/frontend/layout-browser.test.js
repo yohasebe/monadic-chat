@@ -37,6 +37,8 @@ describe('The columns in a browser', () => {
     near(r.scrolled.summary.top, r.before.summary.top);
     near(r.scrolled.tabs.top, r.before.tabs.top);
     near(r.scrolled.summary.top, r.scrolled.tabs.top);
+    // Nothing that scrolls shows outside their rounded corners.
+    expect(r.scrolled.corners.flat()).toEqual(Array(4).fill('column-bar'));
     // At the top edge of the column, with no space above them.
     near(r.scrolled.summary.top, r.scrolled.main.top);
     near(r.scrolled.tabs.top, r.scrolled.menu.top);

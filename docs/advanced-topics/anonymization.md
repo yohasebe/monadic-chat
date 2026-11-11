@@ -17,7 +17,7 @@ A word is hidden wherever it occurs in the chat. The status beside the message b
 
 A change applies to what the chat sends from then on.
 
-!> **What is anonymized.** Only text the app sends for the chat. Images, screen contents and files sent as they are, your voice (voice input sends the recording as it is to the speech-to-text service), names not in the list, and what was sent before a word was hidden are not covered. The chat history, the logs and a **Restored** export keep the original words. Anonymization makes the provider see placeholders instead of the listed words; it does not make a conversation safe to share.
+!> **What is anonymized.** Only text the app sends for the chat. Images, screen contents, file contents, files and pages that code execution or the browser reads, your voice (voice input sends the recording as it is to the speech-to-text service), names not in the list, and what was sent before a word was hidden are not covered. The chat history, the logs and a **Restored** export keep the original words. Anonymization makes the provider see placeholders instead of the listed words; it does not make a conversation safe to share.
 
 ## Where the Words Are Hidden
 

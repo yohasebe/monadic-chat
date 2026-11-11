@@ -2612,9 +2612,8 @@ h1 {
   background-color: #f8f8f8;
 }
 
-/* Generated images: shared frame styling + click affordance.
-   The actual click listener is attached dynamically in monadic.js;
-   cursor: pointer signals that the image opens in the lightbox. */
+/* Generated images: shared frame styling. One from the shared folder
+   opens on the work screen when clicked (workbench.js). */
 
 .generated_image img {
   background-color: white;
@@ -2626,21 +2625,6 @@ h1 {
   height: auto;
   display: inline-block;
   cursor: pointer;
-}
-
-/* Screenshot Lightbox */
-#screenshotLightbox .modal-backdrop {
-  background-color: rgba(0, 0, 0, 0.85);
-}
-
-#screenshotLightbox .modal-content {
-  background: transparent !important;
-  overflow: visible !important;
-}
-
-#lightboxPrev:hover,
-#lightboxNext:hover {
-  background: rgba(0, 0, 0, 0.75) !important;
 }
 
 /* Alternative selector for syntax tree SVGs if needed */
@@ -6984,6 +6968,31 @@ body.side-pane-resizing {
   width: 100%;
   height: auto;
   border: var(--border-width) solid var(--border-light);
+}
+.workbench-zoomable {
+  cursor: zoom-in;
+}
+.workbench-zoomable:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+/* The image shown larger: the whole window, on a dark backdrop. */
+.workbench-zoom-dialog {
+  max-width: 95vw;
+}
+.workbench-zoom .modal-content {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  align-items: center;
+}
+#workbench-zoom-image {
+  max-width: 95vw;
+  max-height: 90vh;
+  object-fit: contain;
+  cursor: zoom-out;
+  background: #fff;
+  border-radius: var(--border-radius);
 }
 
 .workbench-video {

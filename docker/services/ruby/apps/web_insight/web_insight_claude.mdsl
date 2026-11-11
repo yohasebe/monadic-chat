@@ -50,7 +50,6 @@ app "WebInsightClaude" do
     3. NEVER use web search when users provide a direct URL
     4. For screenshots, use default values (1920x1080 viewport, 100px overlap) unless specified
     5. Screenshots from tool results are images you can directly see and analyze
-    6. When tools return `gallery_html`, you MUST include it in your output exactly as provided
 
     ## Plan-Approve-Execute Protocol
 

@@ -16,6 +16,8 @@ Browse and capture web content with screenshots. When you provide a URL, the AI 
 
 When you ask the AI to interact with a page, it starts a headless browser session in the Selenium container. The AI can click elements, type text, scroll pages, navigate between pages, and more — up to 20 actions per session. After each action, the AI receives a screenshot to verify the result.
 
+The screenshots are for the AI and are not shown in the conversation: you watch the browser in the [work screen](../basic-usage/web-interface.md#work-screen). Captured screenshots are saved in the shared folder; ask the AI to show one in the work screen.
+
 When your instruction is ambiguous (e.g., "click the search button" when multiple candidates exist), the AI can annotate candidate elements with numbered labels on a screenshot and ask you to choose the correct one.
 
 While the AI works in a browser session, the sidebar's **Work screen** tab shows the browser (see [Work Screen](../basic-usage/web-interface.md#work-screen)). The browser stays open after the reply, so you can ask for more on the same page. It closes after five minutes without use, or when you ask the AI to close it.

@@ -479,7 +479,7 @@
     if (kind === 'text' && drawable(item)) return drawableBody(item, drawn);
     if (kind === 'text') return textBody(item, drawn);
     if (kind === 'pdf') return pdfBody(item, drawn);
-    const img = element('img', 'workbench-image rounded');
+    const img = enlargeable(element('img', 'workbench-image rounded'));
     img.alt = item.name || '';
     img.addEventListener('error', () => failed(drawn, false));
     img.src = url;
@@ -1268,7 +1268,7 @@
     if (note) {
       body.appendChild(element('div', 'alert alert-warning mb-2', noteText(note)));
     } else if (local.kind === 'image' && IMAGE_DATA.test(local.data)) {
-      const img = element('img', 'workbench-image');
+      const img = enlargeable(element('img', 'workbench-image'));
       img.alt = local.name || '';
       img.src = local.data;
       body.appendChild(img);
@@ -1344,10 +1344,44 @@
     else pendingOpen = data.item_id || null;
   }
 
-  // A file of a sent message (its card): a PDF from the message's own data.
+  // An image the conversation shows from the shared folder (/data/…):
+  // opened on the work screen as the Files tab opens it.
+  function sharedPathOf(img) {
+    const src = img.getAttribute('src') || '';
+    if (!src.startsWith('/data/')) return null;
+    try {
+      return decodeURIComponent(src.slice('/data/'.length).split(/[?#]/)[0]) || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // A file of a sent message (its card): an image or a PDF from the
+  // message's own data, an audio or video by its attachment; an image the
+  // reply shows from the shared folder.
   function onCardClick(e) {
-    const preview = e.target && e.target.closest ? e.target.closest('#discourse .pdf-preview') : null;
-    const attachment = e.target && e.target.closest ? e.target.closest('#discourse .message-attachments [data-attachment-id]') : null;
+    const at = (selector) => (e.target && e.target.closest ? e.target.closest(selector) : null);
+    const generated = at('#discourse .generated_image img:not([data-action])');
+    if (generated) {
+      const path = sharedPathOf(generated);
+      if (!path) return;
+      e.preventDefault();
+      bringPane();
+      openFile(path);
+      return;
+    }
+    const image = at('#discourse .card .base64-image, #discourse .card .mask-overlay-container');
+    if (image) {
+      const img = image.matches('img') ? image : image.querySelector('img.base-image');
+      if (!img) return;
+      const card = image.closest('.card');
+      const name = img.getAttribute('alt') || '';
+      showAttachment({ source: 'message', key: `message:${card ? card.id : ''}:${name}`, kind: 'image', name,
+                       data: img.getAttribute('src') || null });
+      return;
+    }
+    const preview = at('#discourse .pdf-preview');
+    const attachment = at('#discourse .message-attachments [data-attachment-id]');
     if (attachment) {
       showAttachment({ source: 'message', key: `message:${attachment.dataset.attachmentId}`,
                        kind: attachment.dataset.purpose === 'audio' ? 'audio' : 'video',
@@ -1375,9 +1409,50 @@
     drawDrafts();
   }
 
+  // An image of the work screen is shown larger, over the whole window, on a
+  // click (or Enter or Space); a click on the larger image, outside it, or
+  // Esc closes it.
+  function enlargeable(img) {
+    img.classList.add('workbench-zoomable');
+    img.tabIndex = 0;
+    img.setAttribute('role', 'button');
+    img.title = t('ui.workbench.enlarge', 'Show it larger');
+    return img;
+  }
+
+  function enlarge(img) {
+    const modal = $id('workbenchZoom');
+    const big = $id('workbench-zoom-image');
+    if (!modal || !big || typeof bootstrap === 'undefined') return;
+    big.src = img.currentSrc || img.src;
+    big.alt = img.alt || '';
+    bootstrap.Modal.getOrCreateInstance(modal).show();
+  }
+
+  function onZoomClick(e) {
+    const target = e.target && e.target.closest ? e.target : null;
+    if (!target) return;
+    if (target.id === 'workbench-zoom-image') {
+      bootstrap.Modal.getOrCreateInstance($id('workbenchZoom')).hide();
+      return;
+    }
+    const img = target.closest('#workbench-view .workbench-zoomable');
+    if (img) enlarge(img);
+  }
+
+  function onZoomKey(e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const img = e.target && e.target.closest ? e.target.closest('#workbench-view .workbench-zoomable') : null;
+    if (!img) return;
+    e.preventDefault();
+    enlarge(img);
+  }
+
   if (typeof document !== 'undefined') {
     document.addEventListener('attachments:changed', onDraftsChanged);
     document.addEventListener('click', onCardClick);
+    document.addEventListener('click', onZoomClick);
+    document.addEventListener('keydown', onZoomKey);
   }
 
   function onResult(data) {

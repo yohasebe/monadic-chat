@@ -277,7 +277,11 @@
     if (typeof svg !== 'string' || svg.length > SVG_CHARS) throw new Refused(t('tooLarge', 'The drawing is too large to show.'));
     const url = URL.createObjectURL(new Blob([svg], { type: SVG_TYPE }));
     urls.add(url);
-    const img = element('img', 'workbench-svg');
+    // Shown larger on a click, as the work screen's images are (workbench.js).
+    const img = element('img', 'workbench-svg workbench-zoomable');
+    img.tabIndex = 0;
+    img.setAttribute('role', 'button');
+    img.title = t('enlarge', 'Show it larger');
     img.alt = '';
     img.decoding = 'async';
     img.src = url;

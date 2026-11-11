@@ -88,6 +88,19 @@
   // The number of this tab's latest selection told to the server: an
   // answer to an older one is not taken.
   let selectSeq = 0;
+  // A file the user attached, shown here from the page's own data (draft:
+  // the message being written; message: one sent): { source, key, kind,
+  // name, size, data, attachmentId, note }. Never a board item: while one is
+  // shown nothing of the board is selected, so neither a message's range
+  // nor a look names a board item.
+  let local = null;
+  let localPdf = null;
+  // Each showing of an attachment, so that a new one is drawn anew.
+  let localSerial = 0;
+  // Numbers the requests to open an attachment. Only the answer to the
+  // request the shown attachment waits for is taken; a reset puts the
+  // attachment away, so an answer from before it is dropped.
+  let attachmentRequest = 0;
   // The latest selection the server answered (selectSeq when none waits).
   let answeredSeq = 0;
 
@@ -228,7 +241,29 @@
     return wrap;
   }
 
+  // What the next message carries, above the board's items.
+  function drawDrafts() {
+    const strip = $id('workbench-drafts');
+    if (!strip) return;
+    const entries = window.AttachmentDrafts && typeof window.AttachmentDrafts.list === 'function'
+      ? window.AttachmentDrafts.list() : [];
+    strip.replaceChildren();
+    strip.hidden = entries.length === 0;
+    if (strip.hidden) return;
+    strip.appendChild(element('span', 'workbench-drafts-label', t('ui.workbench.toSend', 'To send')));
+    entries.forEach((entry) => {
+      const chip = element('button', 'mc-badge mc-badge--grey workbench-draft');
+      chip.type = 'button';
+      chip.textContent = entry.name || '';
+      chip.title = t('ui.workbench.showAttachment', 'Show on the work screen');
+      chip.setAttribute('aria-pressed', local && local.key === entry.key ? 'true' : 'false');
+      chip.addEventListener('click', () => showAttachment(Object.assign({ source: 'draft' }, entry)));
+      strip.appendChild(chip);
+    });
+  }
+
   function drawList() {
+    drawDrafts();
     const list = $id('workbench-items');
     if (!list) return;
     list.replaceChildren();
@@ -286,8 +321,17 @@
   }
 
   function drawView() {
+    if (local) {
+      drawLocal();
+      return;
+    }
     const browserArea = $id('work-screen-browser');
     const view = $id('workbench-view');
+    if (view && view.dataset.local) {
+      dropLocalPdf();
+      delete view.dataset.local;
+      view.replaceChildren();
+    }
     const item = selected ? itemById(selected) : null;
     const live = liveBrowser(item);
     // Nothing selected: the area says there is nothing to show.
@@ -343,7 +387,8 @@
     const same = drawnBody && drawnBody.key === key;
     if (same && !(drawnBody.failed && drawnBody.url !== url)) return drawnBody;
     const resumeAt = same && drawnBody.node && typeof drawnBody.node.currentTime === 'number' ? drawnBody.node.currentTime : 0;
-    const drawn = { key: key, url: url, failed: false, node: null };
+    // A medium that failed again with a fresh address is not asked for again.
+    const drawn = { key: key, url: url, failed: false, node: null, retried: !!(same && drawnBody.retried) };
     drawn.node = body(item, drawn, resumeAt);
     letGo(drawnBody);
     drawnBody = drawn;
@@ -415,7 +460,18 @@
       const media = element(kind, `workbench-${kind}`);
       media.controls = true;
       media.preload = 'metadata';
-      media.addEventListener('error', () => failed(drawn, false));
+      // The address may have run out: asked for once more. Failing again,
+      // the browser cannot play it, and the name is shown instead.
+      media.addEventListener('error', () => {
+        if (drawn.retried) {
+          media.replaceWith(element('div', 'alert alert-warning mb-2', t('ui.workbench.notPlayable', 'This kind of file is not played on the work screen.')));
+          return;
+        }
+        drawn.retried = true;
+        failed(drawn, false);
+      });
+      // Read once: a later failure (an address that ran out) is asked for again.
+      media.addEventListener('loadedmetadata', () => { drawn.retried = false; });
       if (resumeAt > 0) media.addEventListener('loadedmetadata', () => { media.currentTime = resumeAt; }, { once: true });
       media.src = url;
       return media;
@@ -722,6 +778,7 @@
   }
 
   function select(id) {
+    if (id) clearLocal();
     selected = id && itemById(id) ? id : null;
     tellSelected();
     draw();
@@ -778,12 +835,15 @@
       tellSelected();
       return;
     }
+    // What the page showed of an attachment gives way to the new item.
+    clearLocal();
     selected = item.id;
     const lc = window.LayoutController;
     if (lc && !lc.isMenuHidden() && lc.selectedPane() !== 'work') lc.setPane('work');
   }
 
   function reset() {
+    clearLocal();
     board = null;
     approvals = {};
     assets = {};
@@ -894,6 +954,9 @@
   // characters are selected in it. The server takes it only for the item
   // this tab has selected, at that version. null with nothing selected.
   function rangeNow() {
+    // An attachment shown from the page's data is no item of the board: the
+    // model is told of none.
+    if (local) return null;
     const item = selected ? itemById(selected) : null;
     if (!item) return null;
     const version = item.version || item.sha256 || '';
@@ -1137,6 +1200,186 @@
     refreshRelay();
   }
 
+  // ---- attachments shown here (page only) ----------------------------
+
+  const IMAGE_DATA = /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=]+$/;
+  const PDF_DATA = /^data:application\/pdf;base64,[A-Za-z0-9+/=]+$/;
+
+  function dropLocalPdf() {
+    if (localPdf && typeof localPdf.dispose === 'function') localPdf.dispose();
+    localPdf = null;
+  }
+
+  function clearLocal() {
+    if (!local) return;
+    dropLocalPdf();
+    local = null;
+  }
+
+  function bytesOf(dataUrl) {
+    const text = atob(dataUrl.slice(dataUrl.indexOf(',') + 1));
+    const bytes = new Uint8Array(text.length);
+    for (let i = 0; i < text.length; i += 1) bytes[i] = text.charCodeAt(i);
+    return bytes;
+  }
+
+  function sizeText(size) {
+    if (!Number.isFinite(size) || size <= 0) return '';
+    return size >= 1048576 ? `${(size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(size / 1024))} KB`;
+  }
+
+  const ATTACHMENT_NOTES = {
+    no_data: ['ui.workbench.noDataToShow', 'No data to show.'],
+    not_playable: ['ui.workbench.notPlayable', 'This kind of file is not played on the work screen.'],
+    too_large: ['ui.workbench.attachmentTooLarge', 'This file is too large to play on the work screen.'],
+    busy: ['ui.workbench.busy', 'The work screen is reading other files. Try again in a moment.']
+  };
+
+  function noteText(note) {
+    const known = ATTACHMENT_NOTES[note];
+    if (known) return t(known[0], known[1]);
+    return t('ui.workbench.attachmentNotOpened', 'The attachment could not be shown on the work screen.');
+  }
+
+  // The file shown from the page's data: an image, a PDF, or what is known
+  // of it (name and size).
+  function drawLocal() {
+    const browserArea = $id('work-screen-browser');
+    const view = $id('workbench-view');
+    if (browserArea) browserArea.hidden = true;
+    const host = stepperHost();
+    if (host) {
+      host.replaceChildren();
+      host.hidden = true;
+    }
+    if (!view) return;
+    view.hidden = false;
+    delete view.dataset.item;
+    const key = `${local.key}|${local.serial}|${local.note || ''}`;
+    if (view.dataset.local === key) return;
+    dropLocalPdf();
+    letGo(drawnBody);
+    drawnBody = null;
+    view.dataset.local = key;
+    const body = element('div', 'workbench-body');
+    const info = element('div', 'workbench-info');
+    let note = local.note;
+    if (!note && (local.kind === 'image' || local.kind === 'pdf') && !local.data) note = 'no_data';
+    if (note) {
+      body.appendChild(element('div', 'alert alert-warning mb-2', noteText(note)));
+    } else if (local.kind === 'image' && IMAGE_DATA.test(local.data)) {
+      const img = element('img', 'workbench-image');
+      img.alt = local.name || '';
+      img.src = local.data;
+      body.appendChild(img);
+    } else if (local.kind === 'pdf' && PDF_DATA.test(local.data) && window.WorkbenchPdf) {
+      const box = element('div', 'workbench-pdf');
+      body.appendChild(box);
+      try {
+        localPdf = window.WorkbenchPdf.show(box, bytesOf(local.data));
+      } catch (_) {
+        box.replaceChildren(element('div', 'alert alert-warning mb-2', t('ui.workbench.pdfFailed', 'The PDF could not be shown.')));
+      }
+    }
+    const line = element('div', 'text-secondary mt-2');
+    line.appendChild(element('code', null, local.name || ''));
+    const size = sizeText(local.size);
+    if (size) line.appendChild(document.createTextNode(` · ${size}`));
+    info.appendChild(line);
+    view.replaceChildren(body, info);
+  }
+
+  function bringPane() {
+    const lc = window.LayoutController;
+    if (!lc) return;
+    if (lc.isMenuHidden()) lc.setMenuHidden(false);
+    if (lc.selectedPane() !== 'work') lc.setPane('work');
+  }
+
+  // A file the user attached, shown on the work screen: audio and video
+  // the server keeps open as board items; the rest is shown from the
+  // page's data.
+  function showAttachment(entry) {
+    if (!entry) return;
+    if (entry.attachmentId && (entry.kind === 'audio' || entry.kind === 'video')) {
+      openAttachment(entry);
+      return;
+    }
+    // The same file, still drawn: shown as it is.
+    if (local && !local.note && local.key === entry.key && local.data === entry.data && (local.kind !== 'pdf' || localPdf)) {
+      bringPane();
+      return;
+    }
+    clearLocal();
+    localSerial += 1;
+    local = Object.assign({}, entry, { note: null, serial: localSerial });
+    bringPane();
+    if (selected) select(null);
+    else draw();
+  }
+
+  function openAttachment(entry) {
+    if (typeof window.safeWsSend !== 'function') return;
+    attachmentRequest += 1;
+    clearLocal();
+    localSerial += 1;
+    local = Object.assign({}, entry, { note: null, waiting: attachmentRequest, serial: localSerial });
+    bringPane();
+    if (selected) select(null);
+    else draw();
+    window.safeWsSend({ message: 'WORKBENCH_OPEN_ATTACHMENT', attachment_id: String(entry.attachmentId),
+                        request: attachmentRequest });
+  }
+
+  // The server's answer to the latest request to open an attachment.
+  function onAttachmentOpened(data) {
+    if (!data || !local || local.waiting !== data.request) return;
+    if (data.status !== 'accepted') {
+      local = Object.assign({}, local, { note: data.reason || 'failed', waiting: null });
+      draw();
+      return;
+    }
+    clearLocal();
+    if (data.item_id && itemById(data.item_id)) showOpened(data.item_id);
+    else pendingOpen = data.item_id || null;
+  }
+
+  // A file of a sent message (its card): a PDF from the message's own data.
+  function onCardClick(e) {
+    const preview = e.target && e.target.closest ? e.target.closest('#discourse .pdf-preview') : null;
+    const attachment = e.target && e.target.closest ? e.target.closest('#discourse .message-attachments [data-attachment-id]') : null;
+    if (attachment) {
+      showAttachment({ source: 'message', key: `message:${attachment.dataset.attachmentId}`,
+                       kind: attachment.dataset.purpose === 'audio' ? 'audio' : 'video',
+                       name: attachment.dataset.name || '', attachmentId: attachment.dataset.attachmentId });
+      return;
+    }
+    if (!preview) return;
+    const card = preview.closest('.card');
+    const title = (preview.textContent || '').trim();
+    const messages = window.SessionState && typeof window.SessionState.getMessages === 'function'
+      ? window.SessionState.getMessages() : [];
+    const message = (Array.isArray(messages) ? messages : []).find((m) => m && card && m.mid === card.id);
+    const file = message && Array.isArray(message.images) ? message.images.find((i) => i && i.title === title) : null;
+    showAttachment({ source: 'message', key: `message:${card ? card.id : ''}:${title}`, kind: 'pdf', name: title,
+                     data: file && typeof file.data === 'string' ? file.data : null });
+  }
+
+  function onDraftsChanged() {
+    const entries = window.AttachmentDrafts && typeof window.AttachmentDrafts.list === 'function'
+      ? window.AttachmentDrafts.list() : [];
+    if (local && local.source === 'draft' && !entries.some((entry) => entry.key === local.key)) {
+      clearLocal();
+      drawView();
+    }
+    drawDrafts();
+  }
+
+  if (typeof document !== 'undefined') {
+    document.addEventListener('attachments:changed', onDraftsChanged);
+    document.addEventListener('click', onCardClick);
+  }
+
   function onResult(data) {
     if (!data) return;
     if (data.action === 'remove' && ['accepted', 'same'].includes(data.status)) {
@@ -1297,6 +1540,7 @@
 
   window.Workbench = {
     onView, onResult, onDownload, onOpened, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
+    showAttachment, onAttachmentOpened, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow,
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),

@@ -895,6 +895,10 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "workbench_attachment_opened": {
+        if (window.Workbench) window.Workbench.onAttachmentOpened(data);
+        break;
+      }
       case "workbench_opened": {
         if (window.Workbench) window.Workbench.onOpened(data);
         break;

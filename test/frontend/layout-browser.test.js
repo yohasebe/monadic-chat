@@ -41,6 +41,9 @@ describe('The columns in a browser', () => {
     near(r.filesScrolled.spaceBelow, r.filesScrolled.barBottom - r.filesScrolled.tabsBottom);
     // The search box and the controls beside it are one height.
     expect(new Set(r.filesScrolled.findHeights).size).toBe(1);
+    // The buttons of the row above are as tall as those of the search row.
+    expect(r.filesScrolled.upHeight).toBe(r.filesScrolled.findHeights[0]);
+    expect(r.filesScrolled.refreshHeight).toBe(r.filesScrolled.findHeights[0]);
     // The bar is its tabs at their set height, which the controls stay under.
     expect(r.filesScrolled.tabsHeight).toBeLessThanOrEqual(46.5);
   });

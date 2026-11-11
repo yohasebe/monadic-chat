@@ -578,8 +578,8 @@ function updateFileDisplay(files) {
       // Display URL-referenced file with link icon
       const icon = getDocumentIcon(file.type);
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
-        <div class="file-container">
-          <i class="fas fa-link"></i> <i class="fas ${icon}"></i> ${window.escapeHtml(file.title)}
+        <div class="file-container attachment-chip">
+          <button type="button" class="attachment-chip-name" data-draft-index='${index}'><i class="fas fa-link"></i> <i class="fas ${icon}"></i> ${window.escapeHtml(file.title)}</button>
           <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
@@ -588,8 +588,8 @@ function updateFileDisplay(files) {
     } else if (file.type === 'application/pdf') {
       // Display PDF file with icon and title
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
-        <div class="file-container">
-          <i class="fas fa-file-pdf"></i> ${window.escapeHtml(file.title)}
+        <div class="file-container attachment-chip">
+          <button type="button" class="attachment-chip-name" data-draft-index='${index}'><i class="fas fa-file-pdf"></i> ${window.escapeHtml(file.title)}</button>
           <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
@@ -599,8 +599,8 @@ function updateFileDisplay(files) {
       // Display document file (XLSX, DOCX, CSV, etc.) with appropriate icon
       const icon = getDocumentIcon(file.type);
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
-        <div class="file-container">
-          <i class="fas ${icon}"></i> ${window.escapeHtml(file.title)}
+        <div class="file-container attachment-chip">
+          <button type="button" class="attachment-chip-name" data-draft-index='${index}'><i class="fas ${icon}"></i> ${window.escapeHtml(file.title)}</button>
           <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
@@ -626,24 +626,20 @@ function updateFileDisplay(files) {
       `;
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', overlayDisplay);
     } else if (!hasMask || !maskData || file.title !== maskData.title) { // Skip displaying the mask image separately
-      // Display image with thumbnail
-      const imageActions = `
-        <div class="image-actions">
-          <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
-            <i class="fas fa-times"></i>
-          </button>
+      // A name chip: the image itself is shown on the work screen. The
+      // image stays in the chip, hidden, for the mask editor.
+      const imageDisplay = `
+        <div class="image-container file-container attachment-chip">
+          <img class='base64-image' hidden alt='${window.escapeHtml(file.title)}' src='${window.escapeHtml(file.data)}' data-type='${window.escapeHtml(file.type)}' />
+          <button type="button" class="attachment-chip-name" data-draft-index='${index}'><i class="fas fa-image"></i> ${window.escapeHtml(file.title)}</button>
           ${isMaskEditingEnabled ?
-            `<button class='btn btn-primary btn-sm create-mask ml-2' data-index='${index}' tabindex="100">
+            `<button class='btn btn-primary btn-sm create-mask' data-index='${index}' tabindex="100">
               <i class="fas fa-brush"></i> Create Mask
             </button>` : ''
           }
-        </div>
-      `;
-
-      const imageDisplay = `
-        <div class="image-container">
-          <img class='base64-image' alt='${window.escapeHtml(file.title)}' src='${window.escapeHtml(file.data)}' data-type='${window.escapeHtml(file.type)}' />
-          ${imageActions}
+          <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
+            <i class="fas fa-times"></i>
+          </button>
         </div>
       `;
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', imageDisplay);
@@ -655,14 +651,27 @@ function updateFileDisplay(files) {
     const sizeMb = (Number(video.size || 0) / (1024 * 1024)).toFixed(1);
     const icon = video.purpose === 'audio' ? 'fa-file-audio' : 'fa-film';
     if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
-      <div class="file-container video-attachment">
-        <i class="fas ${icon}"></i> ${window.escapeHtml(video.name)} (${sizeMb} MB)
+      <div class="file-container video-attachment attachment-chip">
+        <button type="button" class="attachment-chip-name" data-draft-attachment='${index}'><i class="fas ${icon}"></i> ${window.escapeHtml(video.name)} (${sizeMb} MB)</button>
         <button class='btn btn-secondary btn-sm remove-video' data-index='${index}' tabindex="99">
           <i class="fas fa-times"></i>
         </button>
       </div>
     `);
   });
+  // A chip's name shows the file on the work screen.
+  document.querySelectorAll("#image-used .attachment-chip-name").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      const entries = attachmentDrafts();
+      const entry = this.dataset.draftAttachment !== undefined
+        ? entries.find(function (e) { return e.key === 'attachment:' + (videoAttachments[parseInt(btn.dataset.draftAttachment, 10)] || {}).attachment_id; })
+        : entries[parseInt(this.dataset.draftIndex, 10)];
+      if (entry && window.Workbench && typeof window.Workbench.showAttachment === 'function') {
+        window.Workbench.showAttachment(Object.assign({ source: 'draft' }, entry));
+      }
+    });
+  });
+  document.dispatchEvent(new CustomEvent('attachments:changed'));
   document.querySelectorAll(".remove-video").forEach(function (btn) {
     btn.addEventListener("click", function () {
       videoAttachments.splice(parseInt(this.dataset.index, 10), 1);
@@ -1009,3 +1018,25 @@ function imageToBase64(blob, callback) {
     reader.readAsDataURL(blob);
   });
 }
+
+// What the next message carries, as the work screen shows it: the files in
+// the page (images, PDFs, documents, by their place in images[]) and the
+// audio and video attached on the server (by their attachment id).
+function attachmentDrafts() {
+  const list = (typeof images !== 'undefined' && Array.isArray(images)) ? images : [];
+  const files = list.map(function (file, index) {
+    const kind = file.source === 'url' ? 'document'
+      : file.type === 'application/pdf' ? 'pdf'
+      : isDocumentType(file.type) ? 'document' : 'image';
+    const data = typeof file.data === 'string' ? file.data : null;
+    return { key: 'file:' + index + ':' + file.title, kind: kind, name: file.title,
+             size: data ? Math.floor((data.length - data.indexOf(',') - 1) * 3 / 4) : null,
+             data: kind === 'document' ? null : data };
+  });
+  const attached = videoAttachments.map(function (a) {
+    return { key: 'attachment:' + a.attachment_id, kind: a.purpose === 'audio' ? 'audio' : 'video', name: a.name,
+             size: Number(a.size) || null, attachmentId: a.attachment_id };
+  });
+  return files.concat(attached);
+}
+if (typeof window !== 'undefined') window.AttachmentDrafts = { list: attachmentDrafts };

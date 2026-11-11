@@ -616,7 +616,7 @@ function updateFileDisplay(files) {
           <div class="mask-overlay-label">MASK</div>
           <div class="mask-controls">
             <button class='btn btn-sm btn-danger remove-mask' data-index='${index}' tabindex="99">
-              <i class="fas fa-times"></i> Remove Mask
+              <i class="fa-regular fa-trash-can"></i> Remove Mask
             </button>
             <button class='btn btn-sm btn-secondary toggle-mask' tabindex="100">
               <i class="fas fa-eye-slash"></i> Toggle Mask

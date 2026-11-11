@@ -169,6 +169,21 @@ describe('ws-message-renderer', () => {
       expect(window.skipAssistantInitiation).toBe(true);
     });
 
+    it('returns the column to the settings for a chat taken in, and to be continued', () => {
+      const order = [];
+      window.enterSettingsMode = jest.fn(() => order.push('settings'));
+      window.setStartButtonMode = jest.fn((continuing) => order.push(continuing));
+      handlers.handlePastMessages({ content: [{ role: 'user', text: 'Hi', mid: 'm1' }], from_import: true });
+      expect(order).toEqual(['settings', true]);
+
+      // The same chat drawn again after reconnecting stays where it is.
+      order.length = 0;
+      handlers.handlePastMessages({ content: [{ role: 'user', text: 'Hi', mid: 'm1' }] });
+      expect(order).toEqual([true]);
+      delete window.enterSettingsMode;
+      delete window.setStartButtonMode;
+    });
+
     it('updates AI User button state', () => {
       const messages = [
         { role: 'user', text: 'Hello', mid: 'u-1' }

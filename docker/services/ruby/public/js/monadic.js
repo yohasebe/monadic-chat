@@ -648,16 +648,6 @@ document.addEventListener("DOMContentLoaded", function () {
     unlockSessionSettings();
   }
 
-  // Refit the Workflow Viewer once the settings have opened: its
-  // ResizeObserver fires at intermediate heights while the collapse animates.
-  $on($id("config-body"), "shown.bs.collapse", function (e) {
-    if (e.target !== this) return;
-    if (typeof window.WorkflowViewer !== "undefined" &&
-        typeof window.WorkflowViewer.refit === "function") {
-      window.WorkflowViewer.refit();
-    }
-  });
-
   // Expose for use in other modules
   window.updateConfigSummary = updateConfigSummary;
   window.enterConversationMode = enterConversationMode;

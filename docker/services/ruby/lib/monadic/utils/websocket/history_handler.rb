@@ -108,7 +108,7 @@ module WebSocketHelper
     ensure
       WebSocketHelper.release_chat(chat_id)
     end
-    send_chat_to_page(connection, session, restored: true)
+    send_chat_to_page(connection, session)
     send_to_client(connection, reply.merge('success' => true))
   rescue StandardError => e
     # The chat asked about goes with the failure, so the page knows which

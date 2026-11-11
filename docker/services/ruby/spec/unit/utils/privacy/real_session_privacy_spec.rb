@@ -76,7 +76,18 @@ RSpec.describe "Privacy Filter with the session a real chat has" do
     host.send(:handle_ws_library_save, nil, { "contents" => { "messages" => [] } },
               real_session(_privacy_pipeline: pipeline))
     expect(replies.first).to include("type" => "library_saved", "res" => "failure")
-    expect(replies.first["content"]).to include("Privacy Filter is active")
+    expect(replies.first["content"]).to include("hides words")
+  end
+
+  it "refuses to save a chat with a word table to the Knowledge Base" do
+    replies = []
+    host = Class.new { include WebSocketHelper }.new
+    host.define_singleton_method(:send_to_client) { |_conn, payload| replies << payload }
+    session = real_session(Monadic::Workspace::Chats::SESSION_KEY => "chat-1")
+    Monadic::Utils::Privacy::Words.start!(session)
+    host.send(:handle_ws_library_save, nil, { "contents" => { "messages" => [] } }, session)
+    expect(replies.first).to include("type" => "library_saved", "res" => "failure")
+    expect(replies.first["content"]).to include("hides words")
   end
 
   it "stops further tool calls after parallel second opinions" do

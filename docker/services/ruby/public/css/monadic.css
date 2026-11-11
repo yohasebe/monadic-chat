@@ -4008,16 +4008,6 @@ img.base64-image,
 #tool-status .fa-cog {
   color: #f59e0b;
 }
-
-
-  /* A Private chat makes no files: what would make them is hidden (the
-     server refuses it too). Set by WsPrivacyHandler. */
-  body.chat-private #doc,
-  body.chat-private #url,
-  body.chat-private #pdf-import,
-  body.chat-private #audio-upload {
-    display: none !important;
-  }
 } /* end @layer components */
 
 /* ============================================ */
@@ -5997,35 +5987,7 @@ i.fas.fa-bolt,
 .dark-theme .word-table-status.word-table-unavailable { background-color: #5a3836; color: #f0d4d2; }
 .dark-theme .word-table-putback { border-color: #454b55; }
 
-/* Privacy Filter indicator (Block C.2). Four states: ready/active/error.
-   OFF state hides the element via inline style="display:none". */
-.privacy-indicator {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.78em;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: default;
-  user-select: none;
-}
-.privacy-indicator.privacy-ready {
-  background-color: #f1f3f5;
-  color: #6c757d;
-}
-.privacy-indicator.privacy-active {
-  background-color: #d1f4dc;
-  color: #198754;
-}
-.privacy-indicator.privacy-error {
-  background-color: #f8d7da;
-  color: #b02a37;
-}
-.privacy-indicator i {
-  margin-right: 4px;
-}
-
-/* Speech-to-speech session cost readout. Sits next to the privacy indicator
+/* Speech-to-speech session cost readout. Sits next to the status line
    and follows its shape; hidden via inline style="display:none" until the
    first STS turn completes. Deliberately low-contrast: it is a standing
    reference figure, not an alert. */
@@ -6043,28 +6005,6 @@ i.fas.fa-bolt,
 }
 .sts-usage-indicator i {
   margin-right: 4px;
-}
-
-/* Privacy Filter auto-detected language badge — appears next to the
-   indicator label when LanguageDetector has locked the session to a
-   reliable detection (auto mode only). The badge inherits the host
-   indicator's color so it reads as a sub-element rather than competing
-   with the main "Privacy ON (N)" label. */
-.privacy-lang-badge {
-  display: inline-block;
-  margin-left: 4px;
-  padding: 0 5px;
-  border-radius: 8px;
-  font-size: 0.95em;
-  font-weight: 500;
-  background-color: rgba(255, 255, 255, 0.55);
-}
-.privacy-lang-badge i {
-  margin-right: 2px;
-  font-size: 0.85em;
-}
-.dark-theme .privacy-lang-badge {
-  background-color: rgba(0, 0, 0, 0.25);
 }
 
 /* Privacy Filter unmask highlight: applied to user / assistant card text
@@ -6187,17 +6127,16 @@ i.fas.fa-bolt,
 .privacy-strength-bar.score-3 #privacy-strength-fill { width: 75%; background-color: #20c997; }
 .privacy-strength-bar.score-4 #privacy-strength-fill { width: 100%; background-color: #198754; }
 
-/* App-capability gate (MDSL SSOT, Phase 4).
-   Body classes (app-cap-pf / app-cap-kb-save / app-cap-kb-search) are set by
+/* App-capability gate (MDSL SSOT).
+   Body classes (app-cap-kb-save / app-cap-kb-search) are set by
    applyAppCapabilityClasses() in monadic.js from per-app MDSL flags
-   (privacy_enabled, library_save, library_search); app-privacy-on is set
-   independently from live privacy state pushes.
+   (library_save, library_search).
 
-   The Knowledge Base panel and the Privacy Filter toggle stay VISIBLE on every
+   The Knowledge Base panel stays VISIBLE on every
    app. JS owns the disabled state + tooltip (applyAppCapabilityClasses for the
-   KB retrieval and Privacy toggles, updateSaveButtonAvailability for the Save
-   button), so a control a user expects is shown disabled-with-reason rather
-   than vanishing where it isn't supported — consistent across KB and Privacy.
+   KB retrieval toggle, updateSaveButtonAvailability for the Save button), so
+   a control a user expects is shown disabled-with-reason rather than vanishing
+   where it isn't supported.
    The classes remain available for any app-aware styling. */
 
 /* --- Confidence-via-agreement (Verify button) --------------------------- */
@@ -6543,26 +6482,6 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 }
 
 /* Type menu of the Mask button: a compact list of actions (not links). */
-.privacy-mark-menu {
-  min-width: 0;
-  padding: 0.25rem 0;
-  font-size: 13px;
-}
-
-.privacy-mark-menu .dropdown-item {
-  padding: 0.2rem 0.9rem;
-  line-height: 1.4;
-  color: var(--text-primary);
-  font-weight: 400;
-}
-
-.privacy-mark-menu .dropdown-item:hover,
-.privacy-mark-menu .dropdown-item:focus {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
-  text-decoration: none;
-}
-
 /* The two columns side by side (768 px and wider): the side column is
    --side-pane-width of the row, the same for each of its panes, and the
    conversation takes the rest; layout-controller.js sets the width from the

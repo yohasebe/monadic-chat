@@ -213,10 +213,8 @@ module WebSocketHelper
 
   # What the page shows of the chat now in the session (an imported or a
   # resumed one), in the order it applies them; the pauses let it build the
-  # app list before the parameters select from it. A resumed chat is shown
-  # with its Privacy Filter state locked, as after a reload, so the page
-  # does not turn the filter on for it as it does for a new chat.
-  private def send_chat_to_page(connection, session, restored: false)
+  # app list before the parameters select from it.
+  private def send_chat_to_page(connection, session)
     apps_data = prepare_apps_data(session[:parameters]["ui_language"], session: session)
     app_name = session[:parameters]["app_name"]
     shown = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == app_name }
@@ -224,16 +222,7 @@ module WebSocketHelper
     sleep(0.2)
     send_to_client(connection, { "type" => "parameters", "content" => session[:parameters], "from_import" => true }) unless session[:parameters].empty?
     sleep(0.05)
-    send_to_client(connection, { "type" => "past_messages", "content" => shown, "from_import" => true,
-                                 "private" => Monadic::History::Policy.private?(session) })
-
-    state = session[:monadic_state]
-    registry = state && state[:privacy] && state[:privacy][:registry]
-    privacy = { "type" => "privacy_state", "enabled" => session[:_privacy_session_enabled] == true,
-                "registry_count" => registry.is_a?(Hash) ? registry.size : 0, "error" => nil,
-                "private" => Monadic::History::Policy.private?(session) }
-    privacy["restored"] = true if restored
-    send_to_client(connection, privacy)
+    send_to_client(connection, { "type" => "past_messages", "content" => shown, "from_import" => true })
   end
 
   private def handle_ws_update_params(connection, obj, session)
@@ -259,21 +248,7 @@ module WebSocketHelper
       # not start with the previous one's words, Private or not.
       session[:messages] = []
       Monadic::Workspace::Chats.begin_new!(session)
-      # Push a privacy_state event so the frontend indicator reflects the
-      # cleared registry immediately, instead of staying at the previous
-      # app's count until the user sends the first message.
-      ws_session_id = Thread.current[:websocket_session_id]
-      privacy_state_msg = {
-        "type" => "privacy_state",
-        "enabled" => false,
-        "registry_count" => 0,
-        "error" => nil,
-        "private" => false
-      }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(privacy_state_msg, ws_session_id)
-      end
-      Monadic::Utils::ExtraLogger.log { "[WebSocket] App changed from #{current_app} to #{new_app} - context + privacy reset" }
+      Monadic::Utils::ExtraLogger.log { "[WebSocket] App changed from #{current_app} to #{new_app} - context reset" }
     end
 
     # On-demand container startup: when the user selects an app that needs
@@ -379,12 +354,10 @@ module WebSocketHelper
       # Words marked for the Privacy Filter are taken out and kept for the
       # chat, as for a sent message; nothing is added if that fails.
       if text.is_a?(String)
-        if obj["role"] == "system" && marked_words_in_system_text?(text, session)
+        if obj["role"] == "system" && hidden_word_in_system_text?(text, session)
           send_error(SYSTEM_TEXT_MARKED, ws_session_id, { "not_accepted" => true })
           return
         end
-        text = take_privacy_marks(text, session, ws_session_id)
-        return if text.nil?
       end
 
       # Attachments go only with a user message, checked as for a sent
@@ -578,11 +551,5 @@ module WebSocketHelper
     # now on go to a new folder while the previous chat's folder stays.
     Monadic::Workspace::Chats.begin_new!(session)
     sync_session_state!
-    # The Privacy Filter is off for the new chat until the page turns it on
-    # again; tell the page, so its indicator does not keep showing the old
-    # chat's ON (the page turns it back on itself when its toggle is on).
-    send_or_broadcast({ "type" => "privacy_state", "enabled" => false, "registry_count" => 0, "error" => nil,
-                        "private" => false }.to_json,
-                      Thread.current[:websocket_session_id])
   end
 end

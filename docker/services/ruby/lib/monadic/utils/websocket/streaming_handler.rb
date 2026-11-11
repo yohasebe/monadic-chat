@@ -235,16 +235,6 @@ module WebSocketHelper
     # them; they are kept with the chat as it is next saved.
     Monadic::Workspace::StoppedReplies.apply!(session)
 
-    # Words the user marked for the Privacy Filter are taken out of the
-    # message (and kept for the chat) before it is recorded or sent; a
-    # message that cannot be sent masked is not sent at all.
-    if obj.key?("message")
-      clean = take_privacy_marks(obj["message"], session, ws_session_id)
-      return nil if clean.nil?
-
-      obj["message"] = clean
-    end
-
     # The attachments sent with this message, checked against the ledger,
     # and the request the answer runs under: which attachments its tools
     # may take by id (these, and those of earlier messages of this chat).

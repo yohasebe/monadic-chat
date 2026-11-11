@@ -295,6 +295,7 @@
     state.active = Array.isArray(data.active) ? data.active : [];
     state.kept = Array.isArray(data.kept) ? data.kept : [];
     render();
+    document.dispatchEvent(new CustomEvent('wordtable:changed'));
   }
 
   function handleFound(data) {
@@ -439,7 +440,8 @@
 
   const api = {
     handleTable: handleTable, handleFound: handleFound, handleChanged: handleChanged,
-    holdSend: holdSend, holdSpeech: holdSpeech, noticeOlderFile: noticeOlderFile, connectionLost: connectionLost, find: find
+    holdSend: holdSend, holdSpeech: holdSpeech, noticeOlderFile: noticeOlderFile, connectionLost: connectionLost, find: find,
+    isMarked: () => state.marked, hidesWords: () => state.active.length > 0, chat: () => state.chat
   };
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = Object.assign({ splitByWords: splitByWords, selectionProblem: selectionProblem, _state: state, init: init }, api);

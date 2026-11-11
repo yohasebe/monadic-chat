@@ -656,14 +656,6 @@ window.loadedApp = "Chat";
         break;
       }
 
-      case "privacy_state": {
-        const wph = window.WsPrivacyHandler;
-        if (wph && typeof wph.handleState === 'function') {
-          wph.handleState(data);
-        }
-        break;
-      }
-
       case "history_list":
       case "history_renamed":
       case "history_deleted":
@@ -677,14 +669,6 @@ window.loadedApp = "Chat";
         // conversation; the import dialog waits for this.
         if (typeof window.onImportResult === 'function') {
           window.onImportResult(data);
-        }
-        break;
-      }
-
-      case "privacy_toggle_ack": {
-        const wph_ack = window.WsPrivacyHandler;
-        if (wph_ack && typeof wph_ack.handleToggleAck === 'function') {
-          wph_ack.handleToggleAck(data);
         }
         break;
       }
@@ -710,14 +694,6 @@ window.loadedApp = "Chat";
             }
           }
         } catch (_) { /* non-fatal: export persistence is best-effort */ }
-        break;
-      }
-
-      case "privacy_registry": {
-        const wph2 = window.WsPrivacyHandler;
-        if (wph2 && typeof wph2.handleRegistry === 'function') {
-          wph2.handleRegistry(data);
-        }
         break;
       }
 

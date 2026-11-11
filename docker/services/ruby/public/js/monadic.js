@@ -50,9 +50,6 @@ function sanitizeParamsForSync(source) {
   clone.easy_submit = (easySubmitEl && easySubmitEl.checked) || false;
   const autoSpeechEl = $id("check-auto-speech");
   clone.auto_speech = (autoSpeechEl && autoSpeechEl.checked) || false;
-  // Privacy Filter session toggle is negotiated via the PRIVACY_TOGGLE
-  // round-trip; broadcasting it here would let stale param values
-  // override the health-checked backend state.
   const mathEl = $id("math");
   clone.math = (mathEl && mathEl.checked) || false;
   const initiateEl = $id("initiate-from-assistant");
@@ -184,24 +181,12 @@ function getProviderFromGroup(group) {
 // Make the function available globally
 window.getProviderFromGroup = getProviderFromGroup;
 
-// Refresh the Privacy Filter session toggle's enabled / disabled state and
-// tooltip based on the active app + container availability + sidebar
-// conversation_language. Called at app-setup time (`{initial:true}`, with
-// localStorage preference restoration and backend PRIVACY_TOGGLE sync) and
-// from the conversation_language change handler (no args, gate-only refresh).
-//
-// "lock" semantics: once a message has been sent in this session,
-// `window.privacyToggleLocked` is true and we do not touch the toggle's
-// disabled state — the privacy choice for the current conversation is final
-// per design. App change / Reset clears the lock by re-running with
-// `{initial:true}`.
 // Reflect per-app capabilities onto body classes for CSS-driven visibility
 // (MDSL SSOT, Phase 4). The CSS rules in `monadic.css` (search for
 // "App-capability declarative visibility gate") consume these classes:
-//   app-cap-pf       — app's `privacy_enabled` MDSL flag is true
 //   app-cap-kb-save  — app allows saving conversations to the Knowledge Base
 //   app-cap-kb-search — app allows the LLM to call library_search
-// Defaults: KB save / KB search ON, PF OFF — preserving legacy behavior for
+// Defaults: KB save / KB search ON — preserving legacy behavior for
 // custom or older apps that haven't declared the flags. Only an explicit
 // false / "false" disables, matching `CAPABILITY_DEFAULTS` on the Ruby side.
 //
@@ -223,18 +208,16 @@ function applyAppCapabilityClasses(appName) {
   // entry point safe to call without coordination.
   if (!settings) return;
 
-  const isPf       = String(settings.privacy_enabled || "").toLowerCase() === "true";
   const isKbSave   = settings.library_save !== false && settings.library_save !== "false";
   const isKbSearch = settings.library_search !== false && settings.library_search !== "false";
 
   const cl = document.body.classList;
-  cl.toggle("app-cap-pf", isPf);
   cl.toggle("app-cap-kb-save", isKbSave);
   cl.toggle("app-cap-kb-search", isKbSearch);
 
-  // Knowledge Base / Privacy controls stay visible on every app; JS owns the
-  // disabled state + tooltip so a control a user expects (KB retrieval toggle,
-  // Privacy Filter toggle) is shown disabled-with-reason rather than vanishing
+  // The Knowledge Base control stays visible on every app; JS owns the
+  // disabled state + tooltip so a control a user expects (KB retrieval toggle)
+  // is shown disabled-with-reason rather than vanishing
   // on apps that don't support it. The Save button is disabled independently in
   // updateSaveButtonAvailability(). `.checked` is intentionally left untouched:
   // the backend already gates RAG injection on capability, so clobbering it
@@ -248,128 +231,8 @@ function applyAppCapabilityClasses(appName) {
     document.getElementById("library-rag-toggle"), isKbSearch,
     "Knowledge Base retrieval is not available in this app."
   );
-  setControlAvailability(
-    document.getElementById("check-privacy-session"), isPf,
-    "Privacy Filter is not available in this app."
-  );
 }
 window.applyAppCapabilityClasses = applyAppCapabilityClasses;
-
-// Privacy-on body class — session-scoped (not per-app). Toggled in
-// response to backend `privacy_state` pushes via the `privacy:state-changed`
-// CustomEvent (see ws-privacy-handler.js). The CSS rule
-// `body.app-privacy-on #library-save { display: none !important; }` hides
-// the Save button as soon as Privacy is enabled mid-session, since saving
-// would write masked placeholders to the Knowledge Base.
-function applyPrivacyOnClass(on) {
-  if (typeof document === "undefined") return;
-  document.body.classList.toggle("app-privacy-on", !!on);
-}
-window.applyPrivacyOnClass = applyPrivacyOnClass;
-
-function refreshPrivacyToggleGate(opts) {
-  opts = opts || {};
-  const apps = window.apps || {};
-  const appsEl = document.getElementById("apps");
-  const appValue = opts.appValue || (appsEl && appsEl.value);
-  if (!appValue || !apps[appValue]) return;
-
-  // Body-class capability gate — must run before any early-return below so
-  // visibility stays in sync even when the privacy toggle element itself
-  // isn't in the DOM (e.g., partial views in tests).
-  applyAppCapabilityClasses(appValue);
-
-  const privacyEl = document.getElementById("check-privacy-session");
-  const privacyLabel = document.getElementById("check-privacy-session-label");
-  if (!privacyEl) return;
-
-  // Lock semantics: once a message has been sent in this session,
-  // `window.privacyToggleLocked` is true. The lock prevents the user's
-  // privacy choice from flipping mid-conversation, but it does not
-  // prevent us from updating the disabled state and tooltip — those are
-  // observational hints that should still reflect the current
-  // conversation_language. Only the `checked` state and backend sync
-  // are guarded by the lock below.
-  const isLocked = !!window.privacyToggleLocked && !opts.initial;
-
-  const appSupportsPrivacy = String(apps[appValue]["privacy_enabled"] || "").toLowerCase() === "true";
-  const containerAvailable = (typeof window.MONADIC_PRIVACY_AVAILABLE !== "undefined")
-    ? !!window.MONADIC_PRIVACY_AVAILABLE
-    : true;
-  const convLangEl = document.getElementById("conversation-language");
-  const convLang = (convLangEl && convLangEl.value) || "auto";
-  const installedLangs = Array.isArray(window.MONADIC_PRIVACY_INSTALLED_LANGS)
-    ? window.MONADIC_PRIVACY_INSTALLED_LANGS : ["en"];
-  // "auto" and "en" always pass — backend maps "auto" to "en", and "en" is
-  // a required Privacy build language.
-  const languageSupported = (convLang === "auto" || convLang === "en")
-    ? true
-    : installedLangs.includes(convLang);
-  const usable = appSupportsPrivacy && containerAvailable && languageSupported;
-
-  // Pick the most informative tooltip in priority order. App-level lack of
-  // support is reported first because install instructions are misleading
-  // when the app cannot use Privacy at all.
-  let disabledKey = null;
-  let fallback = "";
-  if (!appSupportsPrivacy) {
-    disabledKey = "ui.privacyFilterUnsupported";
-    fallback = "This app does not support Privacy Filter.";
-  } else if (!containerAvailable) {
-    disabledKey = "ui.privacyFilterNotInstalled";
-    fallback = "Privacy Filter is disabled.";
-  } else if (!languageSupported) {
-    disabledKey = "ui.privacyFilterLanguageNotInstalled";
-    fallback = "Privacy Filter is not installed for this language. Install it from Actions → Install Options.";
-  }
-  const tooltip = (typeof webUIi18n !== "undefined" && disabledKey)
-    ? webUIi18n.t(disabledKey)
-    : fallback;
-
-  let nextChecked;
-  if (opts.initial) {
-    let remembered = false;
-    try {
-      remembered = localStorage.getItem("privacy_pref_" + appValue) === "on";
-    } catch (_) { /* localStorage unavailable; default false */ }
-    nextChecked = usable && remembered;
-  } else {
-    // Mid-session refresh (e.g. conversation_language change). Preserve
-    // current visual state when still usable; force OFF when the new
-    // language drops out of the supported set.
-    nextChecked = usable ? privacyEl.checked : false;
-  }
-
-  // disabled state & tooltip always reflect the current gate, even when
-  // locked — locked just means "user cannot toggle right now", but the
-  // reason should still be visible. checked is preserved through lock.
-  if (!isLocked) privacyEl.checked = nextChecked;
-  privacyEl.disabled = !usable || isLocked;
-  if (usable && !isLocked) privacyEl.removeAttribute("title");
-  else privacyEl.setAttribute("title", tooltip);
-  if (privacyLabel) {
-    if (usable && !isLocked) privacyLabel.removeAttribute("title");
-    else privacyLabel.setAttribute("title", tooltip);
-  }
-
-  // Backend sync: at initial setup, mirror the remembered preference so the
-  // backend health-checks and confirms via privacy_toggle_ack. On a
-  // mid-session language change that just dropped support, explicitly emit
-  // PRIVACY_TOGGLE:false to clear backend state (the masking pipeline must
-  // not stay armed when the language is unsupported). Skip backend sync
-  // entirely when locked — the backend pipeline is already bound to the
-  // pre-lock language and must not be retargeted mid-conversation.
-  if (typeof window.safeWsSend === "function" && !isLocked) {
-    if (opts.initial && nextChecked) {
-      if (window.WsPrivacyHandler && window.WsPrivacyHandler.noteRequested) window.WsPrivacyHandler.noteRequested(true);
-      window.safeWsSend({ message: "PRIVACY_TOGGLE", enabled: true });
-    } else if (!opts.initial && !usable) {
-      window.safeWsSend({ message: "PRIVACY_TOGGLE", enabled: false });
-    }
-  }
-}
-
-window.refreshPrivacyToggleGate = refreshPrivacyToggleGate;
 
 document.addEventListener("DOMContentLoaded", async function () {
   // CRITICAL: Forcefully hide spinner and reset Auto Speech flags on page load
@@ -390,16 +253,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   } catch (e) {
     console.error('[DOMContentLoaded] Failed to initialize tab state:', e);
   }
-
-  // Mirror Privacy ON state onto the <body> as a CSS hook (Phase 4).
-  // ws-privacy-handler.js dispatches `privacy:state-changed` with
-  // `detail.enabled` whenever the backend pushes a privacy_state update;
-  // the CSS rule `body.app-privacy-on #library-save { display: none }`
-  // then hides the Knowledge Base Save button without per-handler JS.
-  document.addEventListener("privacy:state-changed", function (ev) {
-    const enabled = !!(ev && ev.detail && ev.detail.enabled);
-    applyPrivacyOnClass(enabled);
-  });
 
   // Put the columns in the state the user chose (layout-controller.js)
   setTimeout(() => { if (window.LayoutController) window.LayoutController.apply(); }, 50);
@@ -2463,22 +2316,7 @@ document.addEventListener("DOMContentLoaded", function () {
       $hide($id("audio-upload"));
     }
 
-    // Privacy Filter session toggle: refresh the gate (3 conditions must
-    // all be true for the toggle to be editable):
-    //   1. App MDSL declares `privacy do; enabled true; end`
-    //   2. PRIVACY_FILTER env is not "false" on the server
-    //   3. Sidebar conversation_language is "auto"/"en" or one of the
-    //      languages enabled for the privacy container (PRIVACY_LANGS,
-    //      a runtime setting — all models are baked into the image)
-    // Initial setup: clears lock + restores remembered preference + emits
-    // PRIVACY_TOGGLE if the remembered state is "on". `setupPrivacyToggleGate`
-    // (defined at module scope) is the same function reused by the
-    // conversation_language change handler so language switches re-evaluate
-    // the gate without a full app re-setup.
-    window.privacyToggleLocked = false;
-    if (typeof window.refreshPrivacyToggleGate === "function") {
-      window.refreshPrivacyToggleGate({ initial: true, appValue: appValue });
-    }
+    if (typeof window.applyAppCapabilityClasses === "function") window.applyAppCapabilityClasses(appValue);
 
     // Image button visibility is handled by adjustImageUploadButton() based on model capabilities
 
@@ -2741,34 +2579,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   })
 
-  $on($id("check-privacy-session"), "change", function() {
-    // Once locked (first message sent), the disabled attribute prevents
-    // further changes. This handler only fires while the toggle is editable.
-    const newState = !!this.checked;
-
-    // Backend is the source of truth for the toggle. PRIVACY_TOGGLE
-    // round-trips through a container health probe; the privacy_toggle_ack
-    // reply is what actually confirms the new state. ws-privacy-handler
-    // reverts the visual checkbox on backend rejection.
-    if (typeof window.safeWsSend === 'function') {
-      if (window.WsPrivacyHandler && window.WsPrivacyHandler.noteRequested) window.WsPrivacyHandler.noteRequested(newState);
-      window.safeWsSend({ message: 'PRIVACY_TOGGLE', enabled: newState });
-    }
-
-    // Persist the choice per app so re-selecting the same app restores it.
-    // Uninstalling the privacy container or app changes that drop support
-    // are handled at restore time (initialChecked = usable && remembered).
-    try {
-      const appEl = $id("apps");
-      if (appEl && appEl.value) {
-        localStorage.setItem("privacy_pref_" + appEl.value, this.checked ? "on" : "off");
-      }
-    } catch (_) { /* localStorage unavailable in private mode */ }
-    if (!isParamBroadcastSuppressed()) {
-      broadcastParamsUpdate('privacy_session_toggle');
-    }
-  })
-
   $on($id("math"), "change", function() {
     if (this.checked) {
       params["math"] = true;
@@ -2993,15 +2803,6 @@ document.addEventListener("DOMContentLoaded", function () {
       params = setParams();
     } else {
       return;
-    }
-
-    // Whether the chat is Private is decided before it starts: from here
-    // on the chat can attach files and run tools, so the Privacy Filter
-    // toggle is locked (Reset or another app unlocks it, for a new chat).
-    {
-      const privacyEl = $id("check-privacy-session");
-      if (privacyEl) privacyEl.disabled = true;
-      window.privacyToggleLocked = true;
     }
 
     const shouldSkipAssistant = (typeof window !== 'undefined') && window.skipAssistantInitiation === true;
@@ -3299,18 +3100,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         if (typeof window.clearVideoAttachments === 'function') {
           window.clearVideoAttachments();
-        }
-        // Lock the Privacy Filter toggle once the first message of the
-        // session has been sent. The locked state is also enforced by the
-        // backend (Pipeline is cached in session[:_privacy_pipeline]).
-        // Reset / app change / new conversation re-enables editing. The lock
-        // is set even when the toggle is disabled for another reason (an
-        // unsupported language), so a later language change cannot unlock
-        // it mid-chat: whether a chat is Private is decided when it begins.
-        {
-          const privacyEl = $id("check-privacy-session");
-          if (privacyEl) privacyEl.disabled = true;
-          window.privacyToggleLocked = true;
         }
         if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
           WorkflowViewer.setStage('input');
@@ -4303,14 +4092,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('conversation_language_change');
-    }
-
-    // Re-evaluate the Privacy Filter toggle gate now that the conversation
-    // language has changed. If the new language is unsupported by the
-    // installed Privacy build, the toggle is disabled (and forced OFF if it
-    // was previously ON, with a PRIVACY_TOGGLE:false sent to the backend).
-    if (typeof window.refreshPrivacyToggleGate === "function") {
-      window.refreshPrivacyToggleGate();
     }
   });
 

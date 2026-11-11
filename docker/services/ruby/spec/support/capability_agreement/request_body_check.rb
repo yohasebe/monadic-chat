@@ -338,7 +338,7 @@ RSpec.describe "Capability note in the request body" do
   # handler with a file open on the workbench and selected in the tab.
   def run_observed_conversation(mod, provider, key, first_reply, second_reply, first_message: "Define it", images: nil,
                                 vision: false, shown_file: ["notes.txt", "one\ntwo\n"], look: false,
-                                takes_images: true, chain: nil, private_after_tool: false, browser: false)
+                                takes_images: true, chain: nil, reset_after_tool: false, browser: false)
     dir = Dir.mktmpdir("observation-body-")
     data = File.join(dir, "data")
     FileUtils.mkdir_p([data, File.join(dir, "state")])
@@ -369,12 +369,15 @@ RSpec.describe "Capability note in the request body" do
     names = [reader_tool_name, *(chain || [called_tool]), *(look ? ["look_at_workbench"] : [])].uniq
     tools = names.map { |name| tool_definition(name) }
     calls = @tool_calls
-    # The chat the tool runs in (it may turn Private while the reply goes on).
+    # The chat the tool runs in (it may be reset while the reply goes on).
     held = {}
     tool_owner = Module.new do
       define_method(:look_up_term) do |**|
         calls << :ran
-        held[:session][Monadic::History::Policy::SESSION_KEY] = Monadic::History::Policy::PRIVATE if private_after_tool
+        if reset_after_tool
+          chat = held[:session][:chat_id]
+          Monadic::Workspace::Chats::EPOCHS_LOCK.synchronize { Monadic::Workspace::Chats::EPOCHS[chat] += 1 }
+        end
         "term found"
       end
     end
@@ -502,15 +505,15 @@ RSpec.describe "Capability note in the request body" do
     end
   end
 
-  # The chat turns Private after the image went to the model, while the
-  # reply goes on: no later request of the reply is sent with it, whatever
-  # its text says of the look.
+  # The chat is reset after the image went to the model, while the reply
+  # goes on: no later request of the reply is sent with it, whatever its
+  # text says of the look.
   providers.each do |mod, (provider, key, first_reply, second_reply)|
-    it "#{mod.name}: sends no later request of the reply holding the image once the chat is Private" do
+    it "#{mod.name}: sends no later request of the reply holding the image once the chat is reset" do
       bodies, session, = run_observed_conversation(mod, provider, key, first_reply, second_reply,
                                                    shown_file: ["shot.png", Base64.decode64(pixel)], look: true,
                                                    vision: true, chain: ["look_at_workbench", called_tool],
-                                                   private_after_tool: true)
+                                                   reset_after_tool: true)
       expect(@tool_calls.first).to eq(:ran)
       expect(bodies.map { |b| JSON.generate(b).scan(pixel[0, 40]).size }.first(2)).to eq([0, 1])
       expect(bodies.drop(2).map { |b| JSON.generate(b) }).to all(satisfy { |text| !text.include?(pixel[0, 40]) })

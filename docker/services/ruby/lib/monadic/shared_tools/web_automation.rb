@@ -331,9 +331,6 @@ module MonadicSharedTools
     end
 
     def capture_viewport_screenshots(url:, viewport_width: nil, viewport_height: nil, overlap: nil, preset: nil)
-      if refusal = private_browser_refusal
-        return refusal
-      end
       # Check if Selenium is available
       if error = check_selenium_or_error
         return error
@@ -502,9 +499,6 @@ module MonadicSharedTools
     end
 
     def start_browser(url:, headless: true)
-      if refusal = private_browser_refusal
-        return refusal
-      end
       if error = check_selenium_or_error
         return error
       end
@@ -864,10 +858,6 @@ module MonadicSharedTools
     # Runs a web_navigator action on the browser this chat owns, naming its
     # WebDriver session (see BrowserOwner).
     def run_navigator(action_args)
-      if refusal = private_browser_refusal
-        return refusal
-      end
-
       chat, epoch = BrowserOwner.current_work
       return browser_state_error(:no_chat) unless chat
 
@@ -900,14 +890,6 @@ module MonadicSharedTools
     def browser_state_error(code)
       error_code, message = BROWSER_STATE_ERRORS.fetch(code)
       { success: false, error_code: error_code, error: message }
-    end
-
-    # A Private chat makes no files and keeps nothing, so it does not use the
-    # browser (its pages and screenshots would outlive the chat).
-    def private_browser_refusal
-      return nil unless BrowserOwner.private_work?
-
-      { success: false, error: BrowserOwner::PrivateChat.new.message }
     end
 
     def parse_navigator_response(output)

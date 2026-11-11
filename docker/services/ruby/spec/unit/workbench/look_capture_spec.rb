@@ -8,7 +8,6 @@ require_relative "../../../lib/monadic/workspace/ids"
 require_relative "../../../lib/monadic/workbench/channel"
 require_relative "../../../lib/monadic/workbench/look"
 require_relative "../../../lib/monadic/workbench/capture_server"
-require_relative "../../../lib/monadic/history/policy"
 require_relative "../../../lib/monadic/utils/websocket"
 
 # A look asks the page of the tab it was made for what the work screen
@@ -237,8 +236,7 @@ RSpec.describe "asking the page what the work screen shows" do
     {
       "the tab has a newer connection" => ->(c, _chat, _req) { c.revoke_tab("tab-1", except_generation: 2) },
       "the connection closed" => ->(c, _chat, _req) { c.revoke_tab("tab-1", generation: 1) },
-      "the reply ended" => ->(c, _chat, req) { c.revoke_request(req) },
-      "the chat became Private" => ->(_c, chat, _req) { Monadic::History::Policy.mark_private!({ chat_id: chat }) }
+      "the reply ended" => ->(c, _chat, req) { c.revoke_request(req) }
     }.each do |what, change|
       it "stops waiting when #{what}" do
         waiting = ask

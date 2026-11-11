@@ -52,8 +52,7 @@ use Monadic::Utils::LocalOriginGuard
 # lib/monadic/workbench/asset_server.rb.
 require_relative "lib/monadic/workbench/asset_server"
 use Monadic::Workbench::AssetServer,
-    live: ->(tab_id) { WebSocketHelper.live_generation(tab_id) },
-    private_chat: ->(chat_id) { Monadic::History::Policy.known_private?(chat_id) }
+    live: ->(tab_id) { WebSocketHelper.live_generation(tab_id) }
 
 # The work screen's worker scripts load nothing and run no text as code.
 # See lib/monadic/workbench/worker_policy.rb.
@@ -72,11 +71,11 @@ use Monadic::Workbench::CaptureServer
 require_relative "lib/monadic/utils/reply_cancel_server"
 use Monadic::Utils::ReplyCancelServer
 
-# A Private chat makes no files: the requests that would make them are
-# refused before anything reads their body (Rack writes file parts to disk
-# while parsing). See lib/monadic/history/private_request_guard.rb.
-require_relative "lib/monadic/history/private_request_guard"
-use Monadic::History::PrivateRequestGuard,
+# The chat a page's request is for, fixed from its tab before anything reads
+# its body (Rack writes file parts to disk while parsing). See
+# lib/monadic/workspace/chat_request_scope.rb.
+require_relative "lib/monadic/workspace/chat_request_scope"
+use Monadic::Workspace::ChatRequestScope,
     paths: [Monadic::Routes::AttachmentRoutes::PATH, "/pdf", "/document", "/upload_audio", "/fetch_webpage"],
     session_lookup: ->(tab_id) { WebSocketHelper.live_session(tab_id) },
     state_lookup: ->(tab_id) { WebSocketHelper.fetch_http_session_state(tab_id) }
@@ -86,7 +85,7 @@ use Monadic::History::PrivateRequestGuard,
 use Rack::TempfileReaper
 
 # A conversation to import is read in memory: no temporary file is made of
-# it (it may be one exported from a Private chat).
+# it.
 use Monadic::Workspace::UploadInMemory, paths: ["/load"]
 
 # Attachments: the chat fixed from the tab, then the size cap, both before

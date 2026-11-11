@@ -3,7 +3,6 @@
 require 'spec_helper'
 require 'monadic/library'
 require_relative '../../../../lib/monadic/utils/websocket/library_handler'
-require_relative '../../../../lib/monadic/history/policy'
 
 # Behaviour tests for the WebSocket Library handlers. We instantiate a
 # host class that mixes in WebSocketHelper and stub:
@@ -324,28 +323,22 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       expect(msg['content']).to match(/No messages/)
     end
 
-    context 'when Privacy Filter is active in the session' do
-      it 'rejects the save with a clear failure message (defense in depth for the PF×KB exclusion)' do
-        # The frontend hides the Save button on PF apps, but a stale tab
-        # or programmatic client could still hit this path. Reject before
-        # any storage side-effect to keep restored PII off disk.
+    context 'when the chat hides words' do
+      it 'rejects the save with a clear failure message before anything is stored' do
+        # The page disables Save for such a chat, but a stale tab or another
+        # client could still send it.
         expect(Monadic::Library::Manager).not_to receive(:import_from_text)
+        words = Monadic::Utils::Privacy::Words
+        session = { chat_id: Monadic::Workspace::Ids.generate(:chat), messages: [], parameters: {} }
+        words.start!(session)
 
-        host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, { _privacy_pipeline: double('Pipeline') })
+        host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, session)
 
         msg = replies.first
         expect(msg['res']).to eq('failure')
         expect(msg['content']).to match(/hides words/)
-      end
-
-      it 'rejects the save of a Private chat whose filter could not be started' do
-        expect(Monadic::Library::Manager).not_to receive(:import_from_text)
-        session = { chat_id: 'chat-x' }
-        Monadic::History::Policy.mark_private!(session)
-
-        host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, session)
-
-        expect(replies.first['res']).to eq('failure')
+      ensure
+        words::LOCK.synchronize { words::TABLES.clear }
       end
     end
   end

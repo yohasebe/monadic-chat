@@ -5,8 +5,8 @@ require_relative "../../../apps/mermaid_grapher/mermaid_grapher_constants"
 require_relative "../../../lib/monadic/shared_tools/registry"
 
 # Mermaid Grapher puts the diagram it checked on the work screen (as a .mmd
-# file of the chat's folder) and keeps it in the chat only when it cannot
-# (a Private chat keeps no files). Every provider's variant says the same.
+# file of the chat's folder) and keeps it in the chat only when it cannot.
+# Every provider's variant says the same.
 RSpec.describe "Mermaid Grapher and the work screen" do
   let(:dir) { File.expand_path("../../../apps/mermaid_grapher", __dir__) }
   let(:variants) { Dir.glob(File.join(dir, "mermaid_grapher_*.mdsl")) }
@@ -32,12 +32,10 @@ RSpec.describe "Mermaid Grapher and the work screen" do
     expect(prompt).not_to include("The user also sees the diagram as SVG in the chat")
   end
 
-  it "shows the diagram in the chat in a Private chat, where the preview is not made" do
+  it "shows the diagram in the chat when the tools are not available" do
     prompt = MermaidGrapher::SYSTEM_PROMPT
-    expect(prompt).to match(/When `preview_mermaid` says the chat is Private.*do not retry and do not call `put_on_workbench`/m)
-    expect(prompt).to include("do not say it was previewed")
-    source = File.read(File.join(dir, "mermaid_grapher_tools.rb"))
-    expect(source).to include("This chat is Private: no preview is made")
+    expect(prompt).to match(/When the tools are not available, do not retry and do not call `put_on_workbench`/)
+    expect(prompt).not_to include("Private")
   end
 
   it "names the statuses the tool really returns" do

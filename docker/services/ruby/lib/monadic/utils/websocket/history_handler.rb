@@ -59,9 +59,7 @@ module WebSocketHelper
 
   # Whether HISTORY_RESUME will replace this tab's chat, as nil (it will)
   # or the reason it will not. It will for a kept chat of this server that
-  # is not the chat the tab is in and that no tab has open or is taking;
-  # when the chat here is Private and has words in it (it is not in the
-  # history, so it is gone once replaced), only once the user has confirmed.
+  # is not the chat the tab is in and that no tab has open or is taking.
   # When it will, the chat is reserved for this tab until the resume ends
   # (handle_ws_history_resume releases it), so the caller can stop what runs
   # for the current chat without another tab taking the chat meanwhile.
@@ -71,7 +69,6 @@ module WebSocketHelper
     chat_id = history_chat_id(obj)
     return 'history_not_found' unless chat_id
     return 'history_chat_here' if chat_id == session[Monadic::Workspace::Chats::SESSION_KEY]
-    return 'history_private_here' if obj['confirm'] != true && private_words_here?(session)
     return 'history_chat_open' unless WebSocketHelper.reserve_chat(chat_id)
 
     kept = false
@@ -81,10 +78,6 @@ module WebSocketHelper
       WebSocketHelper.release_chat(chat_id) unless kept
     end
     kept ? nil : 'history_not_found'
-  end
-
-  private def private_words_here?(session)
-    Monadic::History::Policy.private?(session) && user_words_in_chat?(session)
   end
 
   # Continues a chat from the history in this tab, under its own chat id:

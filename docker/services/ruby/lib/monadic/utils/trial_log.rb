@@ -15,8 +15,7 @@ module Monadic
     # the same arguments can be told apart from two different ones. The
     # digest does not make the record anonymous: short arguments can be
     # guessed back from it. The file is the owner's only (0600). Nothing
-    # is written for the work of a Private chat, nor when the folder does not
-    # exist or is in the shared folder.
+    # is written when the folder does not exist or is in the shared folder.
     module TrialLog
       FLAG = "MONADIC_TRIAL_LOG"
       FILE_NAME = "events.jsonl"
@@ -54,7 +53,6 @@ module Monadic
       def write(record, env: ENV)
         folder = dir(env)
         return unless folder
-        return if defined?(Monadic::History::Policy) && Monadic::History::Policy.current_work_private?
 
         context = defined?(Monadic::Workspace::RequestContext) ? Monadic::Workspace::RequestContext.current : nil
         line = JSON.generate(record.merge("request_id" => context&.request_id, "at" => Time.now.utc.iso8601(3)))

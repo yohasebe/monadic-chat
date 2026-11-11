@@ -80,16 +80,6 @@ RSpec.describe "A chat's words with the session a real chat has" do
     expect(agent.extract_context(session, "Email Alice.", "Done.", "openai")).to be_nil
   end
 
-  it "refuses to save the conversation to the Knowledge Base while the filter is on" do
-    replies = []
-    host = Class.new { include WebSocketHelper }.new
-    host.define_singleton_method(:send_to_client) { |_conn, payload| replies << payload }
-    host.send(:handle_ws_library_save, nil, { "contents" => { "messages" => [] } },
-              real_session(_privacy_pipeline: pipeline))
-    expect(replies.first).to include("type" => "library_saved", "res" => "failure")
-    expect(replies.first["content"]).to include("hides words")
-  end
-
   it "refuses to save a chat with a word table to the Knowledge Base" do
     replies = []
     host = Class.new { include WebSocketHelper }.new

@@ -49,8 +49,8 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
     full
   end
 
-  def board(private: false)
-    Monadic::Workbench::Board.for(chat, private: private, store: store)
+  def board
+    Monadic::Workbench::Board.for(chat, store: store)
   end
 
   def epoch
@@ -117,7 +117,7 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
       item_id = channel.open_file({ "path" => "docs/paper.pdf" }, session, tab: "tab-1", generation: 1, live: live)["item_id"]
       message = channel.view(session, tab: "tab-1", generation: 1, live: live)
       expect(message["board"][:items].first).to include(kind: "file", preview: "pdf", content_type: "application/pdf")
-      server = Monadic::Workbench::AssetServer.new(->(_env) { [200, {}, []] }, live: live, private_chat: ->(_c) { false })
+      server = Monadic::Workbench::AssetServer.new(->(_env) { [200, {}, []] }, live: live)
       env = { "PATH_INFO" => message["assets"][item_id], "REQUEST_METHOD" => "GET", "HTTP_SEC_FETCH_SITE" => "same-origin",
               "HTTP_RANGE" => "bytes=0-3" }
       status, headers, body = server.call(env)
@@ -142,13 +142,6 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
       write("big.txt", "abc")
       expect { open_file("big.txt") }.to raise_error(Monadic::Workbench::Board::Refused, /too large/)
       expect(board.snapshot[:items].size).to eq(1)
-    end
-
-    it "is held in memory only in a Private chat" do
-      write("a.txt", "a")
-      item, = open_file("a.txt", on: board(private: true))
-      expect(item["kind"]).to eq("file")
-      expect(store.exists?(chat)).to be(false)
     end
   end
 
@@ -260,10 +253,8 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
   end
 
   describe "the asset server" do
-    let(:private_chats) { [] }
     let(:server) do
-      Monadic::Workbench::AssetServer.new(->(_env) { [200, {}, ["app"]] }, live: live,
-                                                                            private_chat: ->(c) { private_chats.include?(c) })
+      Monadic::Workbench::AssetServer.new(->(_env) { [200, {}, ["app"]] }, live: live)
     end
 
     def address(path)
@@ -418,13 +409,6 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
       expect(fetch_asset(url).first).to eq(409)
       File.delete(full)
       expect(fetch_asset(url).first).to eq(410)
-    end
-
-    it "serves a file of a Private chat to its tab" do
-      private_chats << chat
-      allow(Monadic::History::Policy).to receive(:known_private?).and_return(true)
-      write("a.txt", "a")
-      expect(fetch_asset(address("a.txt")).first).to eq(200)
     end
   end
 
@@ -671,7 +655,7 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
     end
 
     it "says changed when serving found other bytes behind the same stat, or a file grown past the limit" do
-      server = Monadic::Workbench::AssetServer.new(->(_env) { [200, {}, []] }, live: live, private_chat: ->(_c) { false })
+      server = Monadic::Workbench::AssetServer.new(->(_env) { [200, {}, []] }, live: live)
       full = write("a.txt", "abc")
       item_id = channel.open_file({ "path" => "a.txt" }, session, tab: "tab-1", generation: 1, live: live)["item_id"]
       url = channel.view(session, tab: "tab-1", generation: 1, live: live)["assets"][item_id]

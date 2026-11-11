@@ -217,11 +217,9 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
       expect(look.run(caller_for)).to include("(selection_changed)")
     end
 
-    it "sends nothing from a Private chat, and nothing after a Reset" do
+    it "sends nothing after a Reset" do
       write("a.png", png(2, 2))
       open_file("a.png")
-      expect(look.run(caller_for(of: session.merge(Monadic::History::Policy::SESSION_KEY => Monadic::History::Policy::PRIVATE))))
-        .to include("(private)")
       stale = caller_for
       Monadic::Workspace::Chats::EPOCHS_LOCK.synchronize { Monadic::Workspace::Chats::EPOCHS[chat] += 1 }
       expect(look.run(stale)).to include("(cancelled)")
@@ -261,18 +259,14 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
       expect(ledger).to be_nil.or(satisfy { |l| l.records.empty? })
     end
 
-    it "does not look at all in a chat with marked words (such a chat is Private)" do
+    it "gives nothing that holds a word of the chat's word table" do
       write("notes.txt", "the secret plan\n")
       open_file("notes.txt")
-      marked = session.merge(monadic_state: { privacy: { terms: [{ text: "secret plan" }] } })
-      expect(look.run(caller_for(of: marked), scope: "whole")).to include("(private)")
-    end
-
-    it "does not look at all in a chat with the filter on (such a chat is Private)" do
-      write("notes.txt", "x\n")
-      open_file("notes.txt")
-      filtered = session.merge(_privacy_session_enabled: true, _privacy_pipeline: Object.new)
-      expect(look.run(caller_for(of: filtered), scope: "whole")).to include("(private)")
+      words = Monadic::Utils::Privacy::Words
+      words.start!(session).confirm!("secret plan", "PERSON")
+      expect(look.run(caller_for, scope: "whole")).to include("(filtered)")
+    ensure
+      words::LOCK.synchronize { words::TABLES.clear }
     end
   end
 
@@ -540,10 +534,11 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
       expect(availability.offered?(session: session, provider: "elsewhere", model: "m")).to be(false)
     end
 
-    it "leaves it out in a Private chat and for a model without tools" do
+    it "leaves it out without a chat and for a model without tools" do
       vision(true)
-      private_session = session.merge(Monadic::History::Policy::SESSION_KEY => Monadic::History::Policy::PRIVATE)
-      expect(availability.offered?(session: private_session, provider: "openai", model: "m")).to be(false)
+      expect(availability.offered?(session: session, provider: "openai", model: "m")).to be(true)
+      expect(availability.offered?(session: nil, provider: "openai", model: "m")).to be(false)
+      expect(availability.offered?(session: session.except(:chat_id), provider: "openai", model: "m")).to be(false)
       allow(Monadic::Utils::ModelSpec).to receive(:tool_capability?).and_return(false)
       expect(availability.offered?(session: session, provider: "openai", model: "m")).to be(false)
     end

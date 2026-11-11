@@ -376,8 +376,6 @@ module Monadic
     def log_invocation(argv, stdout, stderr)
       log_path = command_log_file
       return unless log_path
-      # Nothing of a Private chat's work: its commands carry the chat.
-      return if defined?(Monadic::History::Policy) && Monadic::History::Policy.current_work_private?
       Monadic::Utils::Environment.rotate_log(log_path) if defined?(Monadic::Utils::Environment) &&
                                                          Monadic::Utils::Environment.respond_to?(:rotate_log)
       File.open(log_path, 'a') do |f|

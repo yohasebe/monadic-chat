@@ -17,15 +17,9 @@
   // The row being named or asked about, by chat id (one at a time).
   let editing = null;
   let confirmingRemove = null;
-  // The chat to continue once the user confirms that the Private chat here
-  // ends; the question stays while lists arrive, and goes when the tab is
-  // left (it is never used for another chat).
-  let confirmingResume = null;
-  // The request to continue that is on its way, one at a time: { chatId,
-  // live }. Leaving the tab gives it up (live false) but keeps it until its
-  // answer comes, so that answer is known for what it is and asks nothing.
-  // Only its answer, or a new connection (answers go to the connection that
-  // asked), lets the next request go.
+  // Whether a request to continue is on its way (one at a time). Only its
+  // answer, or a new connection (answers go to the connection that asked),
+  // lets the next request go.
   let resuming = null;
   let refreshTimer = null;
   let searchTimer = null;
@@ -131,11 +125,10 @@
   }
 
   // A chat is continued once the request before has been answered.
-  function resume(chatId, confirmed) {
+  function resume(chatId) {
     if (resuming) return;
     const payload = { message: 'HISTORY_RESUME', chat_id: chatId };
-    if (confirmed) payload.confirm = true;
-    resuming = { chatId: chatId, live: true };
+    resuming = true;
     if (!sendSwitch(payload)) resuming = null;
   }
 
@@ -153,7 +146,7 @@
     window.RowMenu.open(more, [
       { label: t('continue', 'Continue'), icon: 'fa-solid fa-arrow-right', disabled: !!item.open,
         title: item.open ? t('openElsewhere', 'This chat is open in a tab. Start a new chat there first.') : '',
-        action: function () { resume(item.chat_id, false); } },
+        action: function () { resume(item.chat_id); } },
       { label: t('rename', 'Name'), icon: 'fa-solid fa-pen',
         action: function () { editing = item.chat_id; confirmingRemove = null; render(); } },
       'divider',
@@ -215,7 +208,7 @@
     text.appendChild(el('span', 'sfp-meta', meta));
     name.appendChild(text);
     if (item.open) name.appendChild(el('span', 'badge history-open-badge ms-auto', t('open', 'Open in a tab')));
-    name.addEventListener('click', function () { if (!item.open) resume(item.chat_id, false); });
+    name.addEventListener('click', function () { if (!item.open) resume(item.chat_id); });
     li.appendChild(name);
     const more = el('button', 'btn btn-sm sfp-row-menu');
     more.type = 'button';
@@ -236,7 +229,7 @@
     if (more) more.hidden = !view.hasMore;
     const info = $id('history-info');
     if (info) info.textContent = view.items.length ? t('count', '{n} shown', { n: view.items.length + (view.hasMore ? '+' : '') }) : '';
-    if (view.items.length === 0 && !confirmingResume) {
+    if (view.items.length === 0) {
       setStatus(view.q ? t('noMatch', 'No chat matches.') : t('empty', 'No chats are kept yet.'));
     }
   }
@@ -256,44 +249,21 @@
     const items = Array.isArray(data.items) ? data.items : [];
     view.items = (data.offset || 0) === 0 ? items : view.items.concat(items);
     view.hasMore = !!data.has_more;
-    if (!confirmingResume) setStatus('');
+    setStatus('');
     render();
-    if (confirmingResume) askResume(confirmingResume);
-  }
-
-  function askResume(chatId) {
-    confirmingResume = chatId;
-    const done = function () { confirmingResume = null; setStatus(''); render(); };
-    setStatus(t('privateHere', 'This chat is Private and is not kept in the history. Continuing another chat ends it for good.'), 'warn', [
-      button('btn-warning', t('continueAnyway', 'Continue the other chat'), null, function () {
-        const target = confirmingResume;
-        done();
-        if (target === chatId) resume(chatId, true);
-      }),
-      button('btn-secondary', t('cancel', 'Cancel'), null, done)
-    ]);
   }
 
   // Continued: on a narrow screen the conversation is shown (the side
   // column and the conversation take turns there).
   function onResumed(data) {
     // One request is on its way at a time on this connection, so this is
-    // its answer, whatever chat it names (a failure may name none); asked:
-    // that request still stands and is the one the answer is about.
-    const asked = !!(resuming && resuming.live && data.chat_id === resuming.chatId);
+    // its answer, whatever chat it names (a failure may name none).
     resuming = null;
     if (data.success || data.error === 'history_chat_here') {
       const lc = window.LayoutController;
       const narrow = window.UIConfig && typeof window.UIConfig.isTabletView === 'function' ? window.UIConfig.isTabletView() : window.innerWidth < 768;
       if (data.success && lc && narrow) lc.setMenuHidden(true);
       refreshSoon();
-      return;
-    }
-    if (data.error === 'history_private_here') {
-      // The chat here is not kept, so continuing another one ends it. Asked
-      // only for the request that stands (not one given up on by leaving).
-      if (!visible || !asked) return;
-      askResume(data.chat_id);
       return;
     }
     if (visible) setStatus(errorText(data.error), 'warn');
@@ -326,8 +296,6 @@
       visible = false;
       editing = null;
       confirmingRemove = null;
-      confirmingResume = null;
-      if (resuming) resuming.live = false;
       setStatus('');
       if (window.RowMenu) window.RowMenu.close();
     }

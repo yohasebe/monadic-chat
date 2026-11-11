@@ -7,7 +7,6 @@ require_relative '../workbench/channel'
 require_relative '../workbench/look'
 require_relative '../workbench/put'
 require_relative '../workbench/shown'
-require_relative '../history/policy'
 
 module MonadicSharedTools
   # What every app can do with the work screen (the workbench beside the
@@ -23,9 +22,7 @@ module MonadicSharedTools
     def show_on_workbench(path:, workbench: nil)
       return refused('this reply cannot show anything in the work screen') unless workbench
 
-      private_chat = Monadic::History::Policy.private?(workbench.session) ||
-                     Monadic::History::Policy.known_private?(workbench.chat_id)
-      board = Monadic::Workbench::Board.for(workbench.chat_id, private: private_chat)
+      board = Monadic::Workbench::Board.for(workbench.chat_id)
       item, = board.add_file(path: path.to_s.sub(SHARED_PREFIXES, ''), origin: workbench.origin, epoch: workbench.epoch)
       Monadic::Workbench::Shown.add(workbench.request_id, item)
       Monadic::Workbench::Channel.changed(workbench.chat_id)

@@ -56,7 +56,6 @@ module Monadic
           return 'the looks of this reply were let go' if @ledger.closed?
           return 'the chat of this reply is no longer the one in this tab' unless chat == @ledger.chat_id
           return 'the chat was reset' unless Monadic::Workspace::Chats.epoch(chat) == @ledger.epoch
-          return 'the chat is Private now, and nothing from the work screen is sent' if Availability.private?(session)
 
           images = @ledger.observations(@ids).any?(&:image)
           return 'the model does not take images' if images && !Availability.vision?(provider.to_s, model)

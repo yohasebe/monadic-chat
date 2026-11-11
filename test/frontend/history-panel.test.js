@@ -145,104 +145,34 @@ describe('History tab', () => {
     expect(sent).toContainEqual({ message: 'HISTORY_RENAME', chat_id: 'c_aaaaaaaaaaaaaaaa', title: 'Trip' });
   });
 
-  it('asks before a Private chat here is replaced, keeps the question while lists arrive, and sends the answer for that chat', () => {
-    show();
-    list([item()]);
-    rows()[0].querySelector('.history-name').click();
-    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
-    expect(status().hidden).toBe(false);
-    list([item(), item({ chat_id: 'c_bbbbbbbbbbbbbbbb' })]);
-    expect(status().hidden).toBe(false);
-    status().querySelector('.btn-warning').click();
-    expect(sent).toContainEqual({ message: 'HISTORY_RESUME', chat_id: 'c_aaaaaaaaaaaaaaaa', confirm: true });
-  });
-
-  it('takes the question back when the tab is left, and a late answer does not bring it back', () => {
-    show();
-    list([item()]);
-    rows()[0].querySelector('.history-name').click();
-    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
-    leave();
-    expect(status().hidden).toBe(true);
-    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
-    show();
-    list([item()]);
-    expect(status().hidden).toBe(true);
-    expect(sent.some((m) => m.confirm)).toBe(false);
-  });
-
-  it('asks nothing for a request given up on by leaving the tab, also once the tab is back', () => {
-    show();
-    list([item()]);
-    rows()[0].querySelector('.history-name').click();
-    leave();
-    show();
-    list([item()]);
-    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
-    expect(status().hidden).toBe(true);
-  });
-
-  it('asks only about the chat the standing request is for', () => {
-    show();
-    list([item(), item({ chat_id: 'c_bbbbbbbbbbbbbbbb' })]);
-    rows()[1].querySelector('.history-name').click();
-    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
-    expect(status().hidden).toBe(true);
-  });
-
-  it('continues one chat at a time: a second click waits for the first answer, and the question is asked for the request that stands', () => {
+  it('continues one chat at a time: a second click waits for the first answer', () => {
     show();
     list([item(), item({ chat_id: 'c_bbbbbbbbbbbbbbbb' })]);
     rows()[0].querySelector('.history-name').click();
     rows()[1].querySelector('.history-name').click();
     expect(sent.filter((m) => m.message === 'HISTORY_RESUME')).toHaveLength(1);
-    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_chat_open' });
     expect(status().hidden).toBe(false);
-    status().querySelector('.btn-secondary').click();
     rows()[1].querySelector('.history-name').click();
     expect(sent.filter((m) => m.message === 'HISTORY_RESUME').pop()).toEqual({ message: 'HISTORY_RESUME', chat_id: 'c_bbbbbbbbbbbbbbbb' });
-    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_bbbbbbbbbbbbbbbb', success: false, error: 'history_private_here' });
-    expect(status().hidden).toBe(false);
-  });
-
-  it('does not let a late answer to a request given up on stand for the same chat asked again', () => {
-    show();
-    list([item()]);
-    rows()[0].querySelector('.history-name').click();
-    leave();
-    show();
-    list([item()]);
-    rows()[0].querySelector('.history-name').click();
-    expect(sent.filter((m) => m.message === 'HISTORY_RESUME')).toHaveLength(1);
-    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
-    expect(status().hidden).toBe(true);
-    rows()[0].querySelector('.history-name').click();
-    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
-    expect(status().hidden).toBe(false);
   });
 
   it('keeps waiting for an answer however long it takes, and lets the next request go on a new connection', () => {
     show();
     list([item()]);
     rows()[0].querySelector('.history-name').click();
-    leave();
-    show();
-    list([item()]);
     jest.advanceTimersByTime(60000);
     rows()[0].querySelector('.history-name').click();
     expect(sent.filter((m) => m.message === 'HISTORY_RESUME')).toHaveLength(1);
-    // The old answer, late: it is the one given up on, and asks nothing.
-    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
-    expect(status().hidden).toBe(true);
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_chat_open' });
     rows()[0].querySelector('.history-name').click();
-    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_private_here' });
-    expect(status().hidden).toBe(false);
+    expect(sent.filter((m) => m.message === 'HISTORY_RESUME')).toHaveLength(2);
     // An answer lost with its connection: a new connection lets the next go.
-    status().querySelector('.btn-secondary').click();
     rows()[0].querySelector('.history-name').click();
+    expect(sent.filter((m) => m.message === 'HISTORY_RESUME')).toHaveLength(2);
     window.HistoryPanel.connectionOpened();
     rows()[0].querySelector('.history-name').click();
-    expect(sent.filter((m) => m.message === 'HISTORY_RESUME')).toHaveLength(4);
+    expect(sent.filter((m) => m.message === 'HISTORY_RESUME')).toHaveLength(3);
   });
 
   it('lets the next request go after a failure, which may name no chat', () => {

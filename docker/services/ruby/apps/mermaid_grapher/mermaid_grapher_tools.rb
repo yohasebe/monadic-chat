@@ -28,12 +28,6 @@ module MermaidGrapherTools
   end
 
   def preview_mermaid(code:)
-    if MonadicSharedTools::BrowserOwner.private_work?
-      return format_tool_response(build_preview_payload(
-        success: false, error: "This chat is Private: no preview is made (it would write files and use the browser)."
-      ))
-    end
-
     sanitized_code = sanitize_mermaid_code(code)
 
     # 1. Validate
@@ -399,9 +393,8 @@ module MermaidGrapherTools
   def run_full_validation(code, source: nil)
     puts "[DEBUG run_full_validation] Starting validation, source: #{source}" if ENV['DEBUG']
     result = begin
-      if source == :preview_tool || MonadicSharedTools::BrowserOwner.private_work?
-        # Static validation only: a preview tests rendering itself, and a
-        # Private chat writes no page and uses no browser.
+      if source == :preview_tool
+        # Static validation only: a preview tests rendering itself.
         puts "[DEBUG run_full_validation] Using static validation" if ENV['DEBUG']
         build_validation_payload(static_validation(code))
       else

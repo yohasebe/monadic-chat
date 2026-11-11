@@ -52,13 +52,6 @@ RSpec.describe Monadic::Utils::TrialLog do
     expect(events.last).to include("event" => "usage", "input_tokens" => 120, "cached_tokens" => 100, "output_tokens" => 30)
   end
 
-  it "writes nothing for the work of a Private chat" do
-    policy = Module.new { def self.current_work_private? = true }
-    stub_const("Monadic::History::Policy", policy)
-    described_class.tool_calls(calls, app: "A", depth: 0, env: env)
-    expect(events).to be_empty
-  end
-
   it "writes nothing when the folder does not exist" do
     missing = File.join(@dir, "missing")
     described_class.usage({ "input_tokens" => 1 }, app: "A", env: { described_class::FLAG => missing })

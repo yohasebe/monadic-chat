@@ -172,7 +172,7 @@ module WebSocketHelper
     end
   end
 
-  # HTTP checks need the chat's identity, privacy decision and marked words,
+  # HTTP checks need the chat's identity and the mark of its word table,
   # not its messages, tool results or the rest of its Session Context.
   def self.fetch_http_session_state(session_id)
     return nil unless session_id
@@ -183,10 +183,8 @@ module WebSocketHelper
 
       state[:used_at] = monotonic_now
       chat = (state[:chat_state] || {}).merge(Monadic::Workspace::Chats::SESSION_KEY => state[:chat_id])
-      policy = Monadic::History::Policy
-      private = policy.private?(chat) || policy.known_private?(state[:chat_id])
       words = Monadic::Utils::Privacy::Words
-      chat_state = { policy::SESSION_KEY => private ? policy::PRIVATE : nil }
+      chat_state = {}
       chat_state[words::MARK_KEY] = chat[words::MARK_KEY].dup if words.marked?(chat)
       {
         chat_id: state[:chat_id]&.dup,

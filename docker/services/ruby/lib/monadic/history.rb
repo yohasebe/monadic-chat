@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require_relative 'history/policy'
 require_relative 'history/serializer'
 require_relative 'history/store'
 
@@ -15,12 +14,8 @@ module Monadic
       ENV['MONADIC_HISTORY'] != 'false'
     end
 
-    # Writes the chat in `session` to the history. Nothing of a Private chat
-    # reaches the history, which is not even opened for it: the chat is
-    # Private before it begins (so no row of it was ever kept), and this
-    # process remembers its id (in memory), which keeps out a later copy of
-    # it that lacks the mark. A chat with no user words left has its row
-    # removed. Returns the revision written, or nil.
+    # Writes the chat in `session` to the history. A chat with no user words
+    # left has its row removed. Returns the revision written, or nil.
     #
     # Called only for a session the tab's state accepted (not one from a
     # connection that a newer one replaced); the connection's generation is
@@ -32,7 +27,6 @@ module Monadic
       return nil unless chat_id
 
       generation = session[:_ws_generation] || session['_ws_generation']
-      return nil if Policy.private?(session) || Policy.known_private?(chat_id)
 
       payload = Serializer.payload(session)
       unless payload
@@ -56,7 +50,7 @@ module Monadic
     # the context to save (nil when there is none), when it is not the one
     # the chat holds now.
     def keep_context(chat_id, session: nil, held: nil, store: Store.default)
-      return nil unless enabled? && chat_id && !Policy.known_private?(chat_id)
+      return nil unless enabled? && chat_id
 
       schema = Serializer.context_schema(session || {})
       store.update_context(chat_id, -> { context_now(chat_id, schema, held) })

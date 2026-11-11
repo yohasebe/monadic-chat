@@ -25,9 +25,6 @@ module DrawIOGrapher
   XML
 
   def write_drawio_file(content:, filename: "diagram")
-    if MonadicSharedTools::BrowserOwner.private_work?
-      return "❌ This chat is Private: no diagram file is written and the browser is not used."
-    end
     return "❌ Invalid filename" unless filename.is_a?(String)
 
     # Handle file extension
@@ -56,9 +53,6 @@ module DrawIOGrapher
   end
 
   def preview_drawio(content:, filename: "diagram", session: nil)
-    if MonadicSharedTools::BrowserOwner.private_work?
-      return "❌ This chat is Private: no diagram file is written and the browser is not used."
-    end
     return "❌ Invalid filename" unless filename.is_a?(String)
 
     # 1. Handle file extension

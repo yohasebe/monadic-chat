@@ -5,8 +5,7 @@ require_relative "secret_redactor"
 module Monadic
   module Utils
     # Centralized logger for EXTRA_LOGGING output. Every line passes through
-    # SecretRedactor before it is written. Nothing is written for the work of
-    # a Private chat: a line cannot be told to hold none of the chat.
+    # SecretRedactor before it is written.
     # Caches file handle to avoid repeated open/close overhead
     #
     # Usage:
@@ -32,7 +31,6 @@ module Monadic
         # @yield block that returns the message (lazy evaluation)
         def log(message = nil, &block)
           return unless enabled?
-          return if private_work?
 
           msg = block ? block.call : message
           return if msg.nil?
@@ -55,7 +53,6 @@ module Monadic
         # @param data [Object] data to log as JSON
         def log_json(label, data)
           return unless enabled?
-          return if private_work?
 
           log("#{label}:\n#{JSON.pretty_generate(data)}")
         rescue JSON::GeneratorError
@@ -65,7 +62,6 @@ module Monadic
         # Log raw data without timestamp (for multi-line output)
         def log_raw(message)
           return unless enabled?
-          return if private_work?
 
           @mutex.synchronize do
             ensure_file_open
@@ -90,10 +86,6 @@ module Monadic
         def reset!
           close
           @enabled = nil
-        end
-
-        def private_work?
-          defined?(Monadic::History::Policy) && Monadic::History::Policy.current_work_private?
         end
 
         private

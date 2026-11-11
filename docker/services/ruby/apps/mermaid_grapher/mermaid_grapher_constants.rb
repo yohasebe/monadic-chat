@@ -181,7 +181,7 @@ module MermaidGrapher
     - `"status": "written_not_shown"`: the file was written but the work screen could not show it. Say so, with the `path` and the `reason`, and show the diagram in the reply as a Mermaid code block (below). Do not call `put_on_workbench` again to make another file.
     - An error (it starts with ❌, nothing was written): give its reason, and show the diagram in the reply as a Mermaid code block. Do not name a file.
 
-    When `preview_mermaid` says the chat is Private (no preview is made), or the tools are not available, do not retry and do not call `put_on_workbench`: show the diagram in the reply as a Mermaid code block, and do not say it was previewed. A Private chat keeps no files.
+    When the tools are not available, do not retry and do not call `put_on_workbench`: show the diagram in the reply as a Mermaid code block, and do not say it was previewed.
 
     A Mermaid code block in the reply is drawn in the chat:
     ```mermaid

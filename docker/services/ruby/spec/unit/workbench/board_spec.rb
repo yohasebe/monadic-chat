@@ -42,8 +42,8 @@ RSpec.describe "the workbench (board, artifact, approvals, record)" do
   let(:origin) { { actor: :agent, source: :tool, request_id: request } }
   let(:artifact) { Monadic::Workbench::Artifact }
 
-  def board(private: false)
-    Monadic::Workbench::Board.for(chat, private: private, store: store)
+  def board
+    Monadic::Workbench::Board.for(chat, store: store)
   end
 
   def run_id
@@ -178,12 +178,10 @@ RSpec.describe "the workbench (board, artifact, approvals, record)" do
       expect(board.snapshot[:items].map { |i| i[:id] }).to eq([item["id"]])
     end
 
-    it "refuses what is not an image, and places nothing for a Private chat" do
+    it "refuses what is not an image" do
       expect do
         board.add_image(bytes: "not an image", epoch: epoch, origin: origin, name: "x.png", run: run_id, app_name: "x")
       end.to raise_error(Monadic::Workbench::ImageCheck::Refused)
-      Monadic::Workbench::Board.reset!
-      expect { add(on: board(private: true)) }.to raise_error(Monadic::Workbench::Board::Refused, /Private/)
       expect(shared_files).to be_empty
       expect(Dir.exist?(File.join(@data, "conversations"))).to be(false)
     end

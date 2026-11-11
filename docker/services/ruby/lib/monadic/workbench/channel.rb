@@ -9,7 +9,6 @@ require_relative 'asset_server'
 require_relative 'offer'
 require_relative '../workspace/chats'
 require_relative '../workspace/ids'
-require_relative '../history/policy'
 
 module Monadic
   module Workbench
@@ -36,7 +35,7 @@ module Monadic
         return nil unless live.call(tab) == generation
 
         chat_id = chat_id_of(session) or return nil
-        board = Board.existing(chat_id, private: private_chat?(session, chat_id))
+        board = Board.existing(chat_id)
         # A chat without a board gets an empty one (no board is made for
         # it). A connection's first view says so too: a page that still
         # shows another chat's board (the app restarted and this tab's chat
@@ -58,8 +57,6 @@ module Monadic
           next if item[:status] != 'ok' || !item[:sha256]
 
           source = item[:kind] == 'file' ? { item_id: item[:id] } : { artifact_id: item[:artifact_id] }
-          next if board.private? && !source[:item_id]
-
           assets[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256])
           next unless item[:render] && item[:size].to_i <= Monadic::Workspace::SharedFolderPreview::RENDER_LIMIT
 
@@ -84,7 +81,7 @@ module Monadic
         # The epoch is checked by the board, with the operation.
         return refusal(operation_id, 'not_allowed') unless grant && grant.chat_id == chat_id && grant.item_id == obj['item_id']
 
-        board = Board.for(chat_id, private: private_chat?(session, chat_id))
+        board = Board.for(chat_id)
         status, operation = board.accept(item_id: grant.item_id, action: obj['action'], operation_id: operation_id,
                                          epoch: grant.epoch, sha256: grant.sha256)
         { 'type' => 'workbench_result', 'operation_id' => operation['id'], 'item_id' => operation['item_id'],
@@ -108,7 +105,7 @@ module Monadic
         sha256 = obj['sha256']
         return open_refusal(path, 'not_allowed') unless sha256.nil? || (sha256.is_a?(String) && sha256.match?(/\A\h{64}\z/))
 
-        board = Board.for(chat_id, private: private_chat?(session, chat_id))
+        board = Board.for(chat_id)
         item, added = board.add_file(path: path, origin: { actor: :user, source: :panel, tab: tab, generation: generation },
                                      epoch: Monadic::Workspace::Chats.epoch(chat_id), wait: 0, sha256: sha256)
         # Added, or found again (what it says of the file may have changed).
@@ -130,7 +127,7 @@ module Monadic
         return select_result(nil, nil, 'not_allowed', seq) unless live.call(tab) == generation
 
         chat_id = chat_id_of(session) or return select_result(nil, nil, 'not_allowed', seq)
-        board = Board.existing(chat_id, private: private_chat?(session, chat_id))
+        board = Board.existing(chat_id)
         return select_result(nil, nil, item_id ? 'no such item' : nil, seq) unless board
 
         select_result(*board.choose(tab: tab, generation: generation, item_id: item_id), nil, seq)
@@ -140,15 +137,15 @@ module Monadic
 
       # An address from which this connection's page saves a copy of an
       # image of the chat (on the board or not: a message's record names it
-      # too), for a short time. Refused for another chat's image, a Private
-      # chat, or a connection a newer one replaced. Whether the file is
+      # too), for a short time. Refused for another chat's image, or a
+      # connection a newer one replaced. Whether the file is
       # still the one recorded is checked when the page asks for it.
       def download(obj, session, tab:, generation:, live:)
         artifact_id = obj['artifact_id']
         return download_refusal(artifact_id, 'not_allowed') unless live.call(tab) == generation
 
         chat_id = chat_id_of(session)
-        return download_refusal(artifact_id, 'not_allowed') if !chat_id || private_chat?(session, chat_id)
+        return download_refusal(artifact_id, 'not_allowed') unless chat_id
 
         record = Artifact.record_of(artifact_id, chat_id: chat_id)
         token = ViewTokens.issue(tab: tab, generation: generation, chat_id: chat_id,
@@ -211,11 +208,6 @@ module Monadic
 
       def chat_id_of(session)
         session[Monadic::Workspace::Chats::SESSION_KEY] || session[Monadic::Workspace::Chats::SESSION_KEY.to_s]
-      end
-
-      def private_chat?(session, chat_id)
-        policy = Monadic::History::Policy
-        policy.private?(session) || policy.known_private?(chat_id)
       end
 
       def empty_board(chat_id)

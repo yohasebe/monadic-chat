@@ -6,8 +6,8 @@ require 'rack'
 module Monadic
   module Workspace
     # Keeps the file parts of a request to these paths in memory instead of
-    # temporary files. What they carry (a conversation to import, perhaps
-    # one exported from a Private chat) is read whole anyway, and a
+    # temporary files. What they carry (a conversation to import) is
+    # read whole anyway, and a
     # temporary file of it could outlive the request (a crash before it is
     # removed).
     class UploadInMemory

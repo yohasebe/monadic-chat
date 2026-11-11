@@ -4,7 +4,6 @@ require 'json'
 require_relative 'board'
 require_relative '../workspace/chats'
 require_relative '../workspace/request_context'
-require_relative '../history/policy'
 require_relative '../utils/privacy/outbound'
 require_relative '../utils/privacy/backend'
 
@@ -50,7 +49,7 @@ module Monadic
         # chat, as the session keeps it) in what it sends now, or nil. Only
         # the message the current request was made for (its request_id)
         # gets it, while the observation still holds for the session's chat
-        # (the same chat and epoch, not Private now). The adapter adds it to
+        # (the same chat and epoch). The adapter adds it to
         # its own copy of the message, never to the session's.
         def text_for(session, message)
           observation = Monadic::Workspace::RequestContext.current&.observation
@@ -58,9 +57,7 @@ module Monadic
           return nil unless message['request_id'] && message['request_id'] == observation.request_id
 
           chat_id = session[Monadic::Workspace::Chats::SESSION_KEY] || session[Monadic::Workspace::Chats::SESSION_KEY.to_s]
-          policy = Monadic::History::Policy
-          private_now = policy.private?(session) || policy.known_private?(chat_id)
-          observation.current?(chat_id: chat_id, private: private_now) ? observation.render_for(session) : nil
+          observation.current?(chat_id: chat_id) ? observation.render_for(session) : nil
         end
 
         # text with the observation after it (a new String), or text when
@@ -72,12 +69,12 @@ module Monadic
         end
 
         # The observation for a message the user sent from tab's connection
-        # (generation) in the chat, or nil: none for a Private chat, a chat
-        # whose workbench is empty, or a connection that is no longer the
+        # (generation) in the chat, or nil: none for a chat whose workbench is
+        # empty, or a connection that is no longer the
         # tab's. reported: what the page sent with the message
         # (workbench_range), checked here.
-        def for_request(chat_id:, tab:, generation:, request_id:, reported: nil, private: false)
-          return nil if private || tab.nil?
+        def for_request(chat_id:, tab:, generation:, request_id:, reported: nil)
+          return nil if tab.nil?
 
           board = Board.existing(chat_id) or return nil
           seen = board.observe(tab: tab.to_s, generation: generation)
@@ -192,9 +189,9 @@ module Monadic
       end
 
       # Whether it still holds for the chat (the same chat, at the epoch it
-      # was made in, not Private now).
-      def current?(chat_id:, private: false)
-        !private && chat_id == @chat_id && Monadic::Workspace::Chats.epoch(chat_id) == @epoch
+      # was made in).
+      def current?(chat_id:)
+        chat_id == @chat_id && Monadic::Workspace::Chats.epoch(chat_id) == @epoch
       end
 
       # The text added to the message for the model: the data as JSON (within

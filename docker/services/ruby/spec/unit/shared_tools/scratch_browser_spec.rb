@@ -3,7 +3,6 @@
 require_relative "../../spec_helper"
 require "tmpdir"
 require_relative "../../../lib/monadic/shared_tools/scratch_browser"
-require_relative "../../../lib/monadic/history/policy"
 require_relative "../../../lib/monadic/adapters/selenium_helper"
 require_relative "../../../apps/mermaid_grapher/mermaid_grapher_tools"
 require_relative "../../../apps/drawio_grapher/drawio_grapher_tools"
@@ -71,41 +70,6 @@ RSpec.describe MonadicSharedTools::ScratchBrowser do
   end
 end
 
-RSpec.describe "Diagram tools in a Private chat" do
-  let(:no_commands) do
-    Module.new do
-      def send_command(**) = raise('no command expected')
-      def run_bash_command(**) = raise('no command expected')
-    end
-  end
-
-  before do
-    MonadicSharedTools::BrowserOwner.reset!
-    allow(Monadic::History::Policy).to receive(:current_work_private?).and_return(true)
-    expect(Monadic::Utils::SharedPathGuard).not_to receive(:write_file!)
-  end
-
-  it 'makes no Mermaid preview' do
-    tools = Class.new.include(MermaidGrapherTools, no_commands).new
-    expect(tools.preview_mermaid(code: "graph TD\n  A-->B").to_s).to include('Private')
-  end
-
-  it 'checks Mermaid syntax without a page or a browser' do
-    tools = Class.new.include(MermaidGrapherTools, no_commands).new
-    expect(JSON.parse(tools.validate_mermaid_syntax(code: "graph TD\n  A-->B"))).to include('validated_code')
-  end
-
-  it 'makes no DrawIO preview' do
-    tools = Class.new.include(DrawIOGrapher, no_commands).new
-    expect(tools.preview_drawio(content: '<mxfile/>')).to include('Private')
-  end
-
-  it 'fetches no page into a file' do
-    tools = Class.new.include(MonadicHelper, no_commands).new
-    expect(tools.selenium_fetch(url: 'https://example.com')).to include('Private')
-  end
-end
-
 RSpec.describe "Diagram preview pages" do
   let(:shared) { Dir.mktmpdir }
   let(:tools) { Class.new.include(MermaidGrapherTools).new }
@@ -136,12 +100,6 @@ RSpec.describe "Diagram preview pages" do
     allow(File).to receive(:lstat).with(gone).and_raise(Errno::ENOENT)
     expect { tools.send(:cleanup_old_mermaid_files) }.not_to raise_error
     expect(File.exist?(left)).to be(false)
-  end
-
-  it 'leaves the shared folder alone when a Private chat is refused' do
-    allow(Monadic::History::Policy).to receive(:current_work_private?).and_return(true)
-    expect(tools).not_to receive(:cleanup_old_mermaid_files)
-    tools.preview_mermaid(code: "graph TD\n  A-->B")
   end
 
   it 'removes pages that earlier runs left' do

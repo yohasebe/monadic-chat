@@ -518,7 +518,7 @@ module MonadicSharedTools
       chat, epoch = BrowserOwner.current_work
       return browser_state_error(:no_chat) unless chat
 
-      result = BrowserOwner.op_lock(chat).synchronize do
+      result = BrowserOwner.acting(chat, recovery: true) do
         # A new start replaces the chat's browser: the old one is closed first.
         previous = BrowserOwner.release(chat, epoch)
         BrowserOwner.close_quietly(previous) if previous
@@ -841,7 +841,7 @@ module MonadicSharedTools
       chat, epoch = BrowserOwner.current_work
       return browser_state_error(:no_chat) unless chat
 
-      BrowserOwner.op_lock(chat).synchronize do
+      BrowserOwner.acting(chat, recovery: true) do
         next browser_state_error(:replaced) if BrowserOwner.replaced?(chat, epoch)
 
         session_id = BrowserOwner.release(chat, epoch)
@@ -861,7 +861,7 @@ module MonadicSharedTools
       chat, epoch = BrowserOwner.current_work
       return browser_state_error(:no_chat) unless chat
 
-      BrowserOwner.op_lock(chat).synchronize do
+      BrowserOwner.acting(chat) do
         session_id = BrowserOwner.session_for(chat, epoch)
         next browser_state_error(BrowserOwner.replaced?(chat, epoch) ? :replaced : :none) unless session_id
 
@@ -944,7 +944,7 @@ module MonadicSharedTools
     end
 
     # The browser chat holds now, as BrowserOwner numbers it; read under
-    # the chat's op_lock, so it is the one the action ran on.
+    # the chat's op_lock (BrowserOwner.acting), so it is the one the action ran on.
     def browser_instance_of(chat)
       BrowserOwner.view(chat)&.instance
     end

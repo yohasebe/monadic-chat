@@ -230,6 +230,7 @@
     const li = el('li', 'sfp-row history-row');
     li.dataset.chat = item.chat_id;
     if (selected.has(item.chat_id)) li.classList.add('sfp-selected');
+    if (item.here) li.classList.add('history-here');
     if (editing === item.chat_id) {
       li.appendChild(nameEditor(item));
       return li;
@@ -258,7 +259,7 @@
     text.appendChild(el('span', 'sfp-meta', meta));
     name.appendChild(text);
     if (item.open) {
-      name.appendChild(el('span', 'mc-badge mc-badge--grey history-open-badge ms-auto',
+      name.appendChild(el('span', 'mc-badge ' + (item.here ? 'mc-badge--green' : 'mc-badge--grey') + ' history-open-badge ms-auto',
         item.here ? t('here', 'Shown now') : t('open', 'Open in another window')));
     }
     name.addEventListener('click', function () { if (!item.open) resume(item.chat_id); });

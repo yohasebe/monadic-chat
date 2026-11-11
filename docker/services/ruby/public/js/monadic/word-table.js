@@ -550,7 +550,9 @@
   const api = {
     handleTable: handleTable, handleFound: handleFound, handleChanged: handleChanged,
     holdSend: holdSend, holdSpeech: holdSpeech, noticeOlderFile: noticeOlderFile, connectionLost: connectionLost, find: find,
-    isMarked: () => state.marked, hidesWords: () => state.active.length > 0, chat: () => state.chat
+    isMarked: () => state.marked, hidesWords: () => state.active.length > 0, chat: () => state.chat,
+    // Whether text holds a word the conversation marks as hidden.
+    showsWordIn: (text) => splitByWords(String(text), state.active.map((e) => e.word)).some((part) => part.word)
   };
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = Object.assign({ splitByWords: splitByWords, selectionProblem: selectionProblem, offerSelection: offerSelection, markShown: markShown, _state: state, init: init }, api);

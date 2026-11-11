@@ -2,7 +2,7 @@
 
 After starting the server and selecting an app and configuring it, click the **Start Session** button to display the following screen.
 
-<!-- SCREENSHOT: Message input interface showing text area, Send button, Speech Input button, Image/PDF upload button, Text from file button, Text from URL button, and Role selector -->
+<!-- SCREENSHOT: Message input interface showing text area, Send button, Speech Input button, Image/PDF upload button, Text from file button, Open URL button, and Role selector -->
 
 Enter a message in the text area and click the **Send** button to send it. For voice input, see [Speech Input](#speech-input) below.
 
@@ -56,9 +56,12 @@ Click the **Text from file** button to select a document file. The contents of t
 
 <!-- SCREENSHOT: File selection dialog allowing user to choose a document file, with extracted text appearing in the message input area -->
 
-## Reading Text from URLs :id=reading-text-from-urls
+## Opening a URL :id=reading-text-from-urls
 
-Click the **Text from URL** button to enter a URL. The content at that URL is loaded into the text area in Markdown format.
+Click **Open URL** below the message box and enter an address that starts with `http://` or `https://`.
+
+- **Open in the work screen** opens the page in the chat's browser on the [work screen](web-interface.md#work-screen). In an app that has browser tools, or that can look at the work screen, the assistant reads the page from there.
+- **Take in as text** reads the page's text into the message box in Markdown format.
 
 <!-- SCREENSHOT: URL input dialog where user enters a web address, with extracted content appearing as Markdown in the message input area -->
 

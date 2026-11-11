@@ -8,7 +8,7 @@ General-purpose conversation and assistant apps: standard and metadata-enriched 
 
 Have a standard conversation with the AI, which responds with appropriate emojis. Web search is available for models that support tool calling; whether a provider uses its built-in search or the Tavily API (requires a `TAVILY_API_KEY`) is shown in the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities).
 
-With the `Text from URL` button below the message box, you can read the text of a web page into your message, with any provider.
+With `Open URL` below the message box, you can open a web page on the work screen or read its text into your message, with any provider.
 
 Availability for this app follows the [App Availability by Provider](../basic-usage/basic-apps.md#app-availability) table.
 

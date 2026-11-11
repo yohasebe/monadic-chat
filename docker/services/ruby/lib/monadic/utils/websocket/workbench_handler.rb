@@ -6,8 +6,8 @@ require_relative '../../workbench/look/record'
 
 # The workbench over the main socket (Monadic::Workbench::Channel): the
 # view a page is sent, the user's removal of an item from the board, a file
-# the user opens on it, the item a tab selects, and the address to save a
-# copy of an image, always for this connection's tab,
+# the user opens on it, an address the user opens in the chat's browser, the
+# item a tab selects, and the address to save a copy of an image, always for this connection's tab,
 # generation and chat, and sent back to this connection only. All of it
 # runs in the connection's own loop, one message after another.
 module WebSocketHelper
@@ -18,6 +18,45 @@ module WebSocketHelper
   # A look asks the page of the tab's connection what its work screen shows.
   Monadic::Workbench::Capture.transport = lambda do |tab, generation, chat_id, json|
     WebSocketHelper.send_to_connection(tab, generation, json, chat_id: chat_id)
+  end
+
+  WORKBENCH_URL_MAX = 2000
+
+  # What starts the chat's browser for an address the user opens: the
+  # browser tools' own start. Built when first used, since this file loads
+  # before MonadicApp is defined.
+  def self.page_browser_host
+    @page_browser_host ||= Class.new(MonadicApp) { include MonadicSharedTools::WebAutomation }
+  end
+
+  # The user opens an address (http or https) in the chat's browser on the
+  # work screen. The browser starts as it does for the browser tools, for
+  # this tab's chat, in a thread of its own; the page is told how it went.
+  private def handle_ws_workbench_open_url(connection, obj, session)
+    url = obj['url'].to_s.strip
+    reply = { 'type' => 'workbench_open_url' }
+    unless url.length <= WORKBENCH_URL_MAX && url.match?(/\A#{URI::DEFAULT_PARSER.make_regexp(%w[http https])}\z/)
+      return send_to_client(connection, reply.merge('success' => false, 'error' => 'invalid_url'))
+    end
+    unless MonadicSharedTools::WebAutomation.available?
+      %i[python selenium].each do |service|
+        Monadic::Utils::ContainerDependencies.start_service_async(service, reason: 'opening a page on the work screen')
+      end
+      return send_to_client(connection, reply.merge('success' => false, 'error' => 'browser_starting'))
+    end
+
+    tab = Thread.current[:websocket_session_id]
+    Thread.new do
+      Thread.current[:websocket_session_id] = tab
+      Thread.current[:rack_session] = session
+      result = WebSocketHelper.page_browser_host.new.start_browser(url: url)
+      opened = result.is_a?(Hash) && result[:success] == true
+      send_or_broadcast(reply.merge('success' => opened, 'error' => opened ? nil : 'open_failed').to_json, tab)
+    rescue StandardError => e
+      Monadic::Utils::ExtraLogger.log { "[Workbench] Page not opened: #{e.class}" }
+      send_or_broadcast(reply.merge('success' => false, 'error' => 'open_failed').to_json, tab)
+    end
+    nil
   end
 
   # initial: the connection's first view (marked so: what it shows is not

@@ -498,31 +498,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 // Fallback implementations are now in shims.js
 
-// ============================================================================
-// Screenshot Lightbox state
-// (file-level scope to ensure accessibility from all event handlers)
-// ============================================================================
-var lightboxImages = [];
-var lightboxIndex = 0;
-
-function updateLightbox() {
-  if (lightboxImages.length === 0) return;
-  const lightboxImage = $id("lightboxImage");
-  if (lightboxImage) lightboxImage.setAttribute("src", lightboxImages[lightboxIndex]);
-  const lightboxCounter = $id("lightboxCounter");
-  const lightboxPrev = $id("lightboxPrev");
-  const lightboxNext = $id("lightboxNext");
-  if (lightboxImages.length > 1) {
-    if (lightboxCounter) {
-      lightboxCounter.textContent = (lightboxIndex + 1) + " / " + lightboxImages.length;
-      $show(lightboxCounter);
-    }
-    $toggle(lightboxPrev, lightboxIndex > 0);
-    $toggle(lightboxNext, lightboxIndex < lightboxImages.length - 1);
-  } else {
-    $hide(lightboxCounter); $hide(lightboxPrev); $hide(lightboxNext); }
-}
-
 // --- Perceptual hash helpers for visual image dedup ---
 function imagePerceptualHash(imgEl, size) {
   size = size || 16;
@@ -1120,7 +1095,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
 
-    // Add MutationObserver for handling image errors, dedup, and screenshot lightbox
+    // Add MutationObserver for handling image errors and dedup
     // Store the observer in the window object to ensure it can be accessed globally for cleanup
     window.imageErrorObserver = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
@@ -1180,27 +1155,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 // Handle already-cached images (browser may not fire load)
                 if (imgEl.complete && imgEl.naturalWidth > 0) {
                   $dispatch(imgEl, "load");
-                }
-
-                // Screenshot lightbox: add click handler directly to each image
-                // Skip images marked by image_generation apps (data-action="open")
-                if (!imgEl.getAttribute("data-action")) {
-                  imgEl.addEventListener("click", function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    var cardEl = this.closest(".card");
-                    lightboxImages = [];
-                    if (cardEl) {
-                      cardEl.querySelectorAll(".generated_image img:not([data-action])").forEach(function(img) {
-                        lightboxImages.push(img.getAttribute("src"));
-                      });
-                    }
-                    lightboxIndex = lightboxImages.indexOf(this.getAttribute("src"));
-                    if (lightboxIndex < 0) lightboxIndex = 0;
-                    updateLightbox();
-                    var lightboxEl = $id("screenshotLightbox");
-                    if (lightboxEl) bootstrap.Modal.getOrCreateInstance(lightboxEl).show();
-                  });
                 }
               });
             }
@@ -4735,28 +4689,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         bootstrap.Modal.getOrCreateInstance($id("deleteConfirmation")).hide();
       }
-    });
-
-    // Lightbox modal controls (state variables are in the outer scope near MutationObserver)
-    $on($id("lightboxImage"), "click", function() {
-      bootstrap.Modal.getOrCreateInstance($id("screenshotLightbox")).hide();
-    });
-
-    $on($id("lightboxPrev"), "click", function(e) {
-      e.stopPropagation();
-      if (lightboxIndex > 0) { lightboxIndex--; updateLightbox(); }
-    });
-
-    $on($id("lightboxNext"), "click", function(e) {
-      e.stopPropagation();
-      if (lightboxIndex < lightboxImages.length - 1) { lightboxIndex++; updateLightbox(); }
-    });
-
-    // Arrow key navigation for lightbox (Escape is handled by Bootstrap's keyboard: true default)
-    document.addEventListener("keydown", function(e) {
-      if (!($id("screenshotLightbox") && $id("screenshotLightbox").classList.contains("show"))) return;
-      if (e.key === "ArrowLeft" && lightboxIndex > 0) { lightboxIndex--; updateLightbox(); }
-      if (e.key === "ArrowRight" && lightboxIndex < lightboxImages.length - 1) { lightboxIndex++; updateLightbox(); }
     });
   })();
 });

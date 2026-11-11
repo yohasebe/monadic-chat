@@ -152,9 +152,9 @@ RSpec.describe "MonadicSharedTools::WebAutomation" do
       expect(result[:_image]).to eq("screenshot_001.png")
     end
 
-    it "includes gallery_html when screenshot is present" do
+    it "leaves the screenshot out of the chat" do
       result = app.start_browser(url: "https://example.com")
-      expect(result[:gallery_html]).to include("generated_image")
+      expect(result).not_to have_key(:gallery_html)
     end
   end
 
@@ -207,25 +207,6 @@ RSpec.describe "MonadicSharedTools::WebAutomation" do
     end
   end
 
-  describe "#create_screenshot_gallery" do
-    it "returns empty string for empty array" do
-      expect(app.send(:create_screenshot_gallery, [])).to eq("")
-    end
-
-    it "includes data-gallery-index and data-gallery-total attributes" do
-      html = app.send(:create_screenshot_gallery, ["s1.png", "s2.png"])
-      expect(html).to include('data-gallery-index="0"')
-      expect(html).to include('data-gallery-index="1"')
-      expect(html).to include('data-gallery-total="2"')
-    end
-
-    it "wraps each screenshot in generated_image div" do
-      html = app.send(:create_screenshot_gallery, ["s1.png"])
-      expect(html).to include('<div class="generated_image">')
-      expect(html).to include('/data/s1.png')
-    end
-  end
-
   describe "#annotate_elements" do
     before do
       app.instance_variable_set(:@browser_action_count, 0)
@@ -252,9 +233,9 @@ RSpec.describe "MonadicSharedTools::WebAutomation" do
         expect(result[:_image]).to eq("annotated_001.png")
       end
 
-      it "includes gallery_html in response" do
+      it "leaves the annotated screenshot out of the chat" do
         result = app.annotate_elements(selectors: ["#btn1", ".nav-link"])
-        expect(result[:gallery_html]).to include("generated_image")
+        expect(result).not_to have_key(:gallery_html)
       end
 
       it "includes element metadata" do

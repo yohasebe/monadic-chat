@@ -218,6 +218,64 @@ describe('Attachments on the work screen', () => {
     expect(window.WorkbenchPdf.show).toHaveBeenCalledTimes(1);
   });
 
+  test('a sent image is shown on the work screen from its card', () => {
+    document.getElementById('discourse').innerHTML =
+      `<div class="card" id="m-1"><div class="card-text"><img class="base64-image" src="${PNG}" alt="cat.png"></div></div>`;
+    document.querySelector('.base64-image').click();
+    expect(window.Workbench.shownAttachment()).toMatchObject({ source: 'message', kind: 'image', name: 'cat.png', data: PNG });
+    expect(pane().querySelector('img').getAttribute('src')).toBe(PNG);
+    expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
+  });
+
+  test('a sent image with a mask is shown as the image itself', () => {
+    document.getElementById('discourse').innerHTML =
+      `<div class="card" id="m-1"><div class="mask-overlay-container"><img class="base-image" src="${PNG}" alt="cat.png">` +
+      `<img class="mask-overlay" src="${PNG}" alt="mask__cat.png"></div></div>`;
+    document.querySelector('.mask-overlay').click();
+    expect(window.Workbench.shownAttachment()).toMatchObject({ kind: 'image', name: 'cat.png', data: PNG });
+  });
+
+  test('an image a reply shows from the shared folder opens on the work screen as the Files tab opens it', () => {
+    document.getElementById('discourse').innerHTML =
+      '<div class="card" id="m-2"><div class="generated_image"><img src="/data/conversations/c1/plot%20one.png?dummy=1"></div>' +
+      '<div class="generated_image"><img src="https://example.com/x.png"></div>' +
+      '<div class="generated_image"><img src="/data/legacy.png" data-action="open"></div></div>';
+    const [shared, outside, legacy] = document.querySelectorAll('.generated_image img');
+    shared.click();
+    expect(sent.filter((x) => x.payload.message === 'WORKBENCH_OPEN').map((x) => x.payload.path))
+      .toEqual(['conversations/c1/plot one.png']);
+    expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
+    // Not from the shared folder, or marked to open otherwise: left alone.
+    outside.click();
+    legacy.click();
+    expect(sent.filter((x) => x.payload.message === 'WORKBENCH_OPEN')).toHaveLength(1);
+  });
+
+  test('an image on the work screen is shown larger on a click or a key, and closed by a click on it', () => {
+    const modal = { show: jest.fn(), hide: jest.fn() };
+    window.bootstrap = { Modal: { getOrCreateInstance: () => modal } };
+    document.body.insertAdjacentHTML('beforeend',
+      '<div id="workbenchZoom"><div class="modal-content"><img id="workbench-zoom-image" alt=""></div></div>');
+    try {
+      drafts = [{ key: 'file:0:cat.png', kind: 'image', name: 'cat.png', size: 2048, data: PNG }];
+      changed();
+      document.querySelector('.workbench-draft').click();
+      const img = pane().querySelector('img');
+      expect(img.classList.contains('workbench-zoomable')).toBe(true);
+      expect(img.tabIndex).toBe(0);
+      img.click();
+      expect(modal.show).toHaveBeenCalledTimes(1);
+      expect(document.getElementById('workbench-zoom-image').getAttribute('src')).toBe(PNG);
+      expect(document.getElementById('workbench-zoom-image').alt).toBe('cat.png');
+      img.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(modal.show).toHaveBeenCalledTimes(2);
+      document.getElementById('workbench-zoom-image').click();
+      expect(modal.hide).toHaveBeenCalledTimes(1);
+    } finally {
+      delete window.bootstrap;
+    }
+  });
+
   describe('audio and video', () => {
     const clip = { source: 'draft', key: 'attachment:a_1', kind: 'video', name: 'clip.mp4', size: 10, attachmentId: 'a_1' };
 

@@ -5,9 +5,8 @@ require "fileutils"
 require_relative "../../spec_helper"
 require_relative "../../../lib/monadic/shared_tools/web_automation"
 
-# A browser action's screenshot is always given to the model; the chat shows
-# it too unless the tab the request came from has that browser selected on
-# its work screen.
+# A browser action's screenshot is given to the model; the chat does not
+# show it (the user watches the browser on the work screen).
 RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work screen" do
   let(:test_class) do
     Class.new do
@@ -48,7 +47,10 @@ RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work scree
     app.instance_variable_set(:@browser_action_count, 0)
     # The work screen as start_browser tells it (a stand-in: each case says
     # what placing the browser does).
-    stub_const("Monadic::WorkScreen", Module.new { def self.browser_opened(_chat) = nil })
+    stub_const("Monadic::WorkScreen", Module.new {
+      const_set(:FULL_NOTE, "The work screen is full, so this browser is not shown there.")
+      def self.browser_opened(_chat) = nil
+    })
   end
 
   after do
@@ -81,69 +83,22 @@ RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work scree
     browser_back: {}, browser_forward: {}, annotate_elements: { selectors: ["#a"] }
   }.freeze
 
-  context "when the tab has the browser selected" do
-    before { place(open_browser) }
-
-    ACTIONS.each do |tool, args|
-      it "#{tool} gives the model the screenshot and leaves it out of the chat" do
-        result = act(tool, **args)
-        expect(result[:_image]).to eq("shot.png")
-        expect(result[:screenshot]).to eq("shot.png")
-        expect(result).not_to have_key(:gallery_html)
-        expect(result[:work_screen]).to include("selected on the work screen")
-        expect(result.keys).not_to include(:browser_instance, :browser_chat)
-      end
+  ACTIONS.each do |tool, args|
+    it "#{tool} gives the model the screenshot and leaves it out of the chat" do
+      place(open_browser)
+      result = act(tool, **args)
+      expect(result[:_image]).to eq("shot.png")
+      expect(result[:screenshot]).to eq("shot.png")
+      expect(result).not_to have_key(:gallery_html)
+      expect(result[:work_screen]).to include("the chat does not show it")
     end
   end
 
-  context "when the screenshot is shown in the chat" do
-    it "the tab selected something else" do
-      item = place(open_browser)
-      other = board.add_browser(instance: 999, epoch: Monadic::Workspace::Chats.epoch(chat), origin: { actor: "agent" })
-      board.select(tab: "t1", generation: 1, item_id: other["id"])
-      expect(item).not_to be_nil
-      expect(act[:gallery_html]).to include("shot.png")
-    end
-
-    it "the tab has nothing selected" do
-      place(open_browser)
-      board.select(tab: "t1", generation: 1, item_id: nil)
-      expect(act[:gallery_html]).to include("shot.png")
-    end
-
-    it "the browser is not on the work screen (a full board, or taken off)" do
-      open_browser
-      result = act
-      expect(result[:gallery_html]).to include("shot.png")
-      expect(result).not_to have_key(:work_screen)
-    end
-
-    it "only another tab has it selected" do
-      place(open_browser, tab: "t2", generation: 2)
-      board.select(tab: "t1", generation: 1, item_id: nil)
-      expect(act[:gallery_html]).to include("shot.png")
-    end
-
-    it "the selected browser item is an earlier browser of the chat" do
-      first = open_browser
-      place(first)
-      # The chat's browser is replaced by a new one, not on the work screen.
-      owner.release(chat, Monadic::Workspace::Chats.epoch(chat))
-      open_browser
-      expect(act[:gallery_html]).to include("shot.png")
-    end
-
-    it "the request's connection is no longer the tab's" do
-      place(open_browser)
-      Monadic::Workbench::Board.live = ->(tab) { tab == "t1" ? 5 : nil }
-      expect(act[:gallery_html]).to include("shot.png")
-    end
-
-    it "the action runs outside a request" do
-      place(open_browser)
-      app.mock_response = shot
-      expect(app.browser_scroll[:gallery_html]).to include("shot.png")
-    end
+  it "leaves the screenshot out of the chat also when the browser is not on the work screen" do
+    open_browser
+    result = act
+    expect(result).not_to have_key(:gallery_html)
+    expect(result[:_image]).to eq("shot.png")
   end
 
   describe "#start_browser" do
@@ -151,35 +106,28 @@ RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work scree
       app.mock_response = JSON.generate(success: true, session_id: "wd-new", screenshot: "start.png", page_info: {})
     end
 
-    it "leaves the screenshot out of the chat when the new browser is selected for the tab" do
-      allow(Monadic::WorkScreen).to receive(:browser_opened) do |c|
-        place(owner.view(c).instance)
-        nil
-      end
+    it "gives the model the screenshot and leaves it out of the chat" do
+      allow(Monadic::WorkScreen).to receive(:browser_opened).and_return(nil)
       result = Monadic::Workspace::RequestContext.with(request) { app.start_browser(url: "https://example.com") }
       expect(result[:_image]).to eq("start.png")
       expect(result).not_to have_key(:gallery_html)
+      expect(result[:work_screen]).to include("the chat does not show it")
     end
 
-    it "shows it when the tab kept its own selection (switching off)" do
-      kept = board.add_browser(instance: 999, epoch: Monadic::Workspace::Chats.epoch(chat), origin: { actor: "agent" })
-      allow(Monadic::WorkScreen).to receive(:browser_opened) do |c|
-        place(owner.view(c).instance)
-        # The page tells what it still shows before the result is made.
-        board.select(tab: "t1", generation: 1, item_id: kept["id"])
-        nil
-      end
+    it "says the browser is not on a full work screen, not that the user sees it there" do
+      allow(Monadic::WorkScreen).to receive(:browser_opened).and_return(:full)
       result = Monadic::Workspace::RequestContext.with(request) { app.start_browser(url: "https://example.com") }
-      expect(result[:gallery_html]).to include("start.png")
+      expect(result[:work_screen]).to eq(Monadic::WorkScreen::FULL_NOTE)
     end
   end
 
-  it "capture_viewport_screenshots shows its pictures in the chat as before" do
-    place(open_browser)
+  it "capture_viewport_screenshots leaves its pictures out of the chat and says how to show one" do
     allow(owner).to receive(:with_job).and_yield
     app.mock_response = "SUCCESS: captured\n- v1.png\n"
     result = Monadic::Workspace::RequestContext.with(request) { app.capture_viewport_screenshots(url: "https://example.com") }
     expect(result[:success]).to be(true)
-    expect(result[:gallery_html]).to include("v1.png")
+    expect(result[:screenshots]).to eq(["v1.png"])
+    expect(result).not_to have_key(:gallery_html)
+    expect(result[:work_screen]).to include("show_on_workbench")
   end
 end

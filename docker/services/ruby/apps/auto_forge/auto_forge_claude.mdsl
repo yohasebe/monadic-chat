@@ -93,7 +93,7 @@ app "AutoForgeClaude" do
 
     ## Debug screenshot note
 
-    When `debug_application` captures a screenshot, it is automatically shown to the user in the chat. You work from the text-based debug report plus your knowledge of the generated code; the visual is for the user's reference.
+    When `debug_application` captures a screenshot, it is shown to the user in the work screen beside the chat. You work from the text-based debug report plus your knowledge of the generated code; the visual is for the user's reference.
   TEXT
 
   # Import web automation tools (includes debug_application) from shared registry

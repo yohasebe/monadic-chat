@@ -84,9 +84,9 @@ class JupyterNotebookOpenAI < MonadicApp
   end
 
   # Override create_jupyter_notebook to auto-save state
-  def create_jupyter_notebook(filename:, session: nil)
+  def create_jupyter_notebook(filename:, session: nil, workbench: nil)
     # JupyterOperations accepts session but doesn't pass it to MonadicHelper
-    result = super(filename: filename, session: session)
+    result = super(filename: filename, session: session, workbench: workbench)
 
     # Auto-save notebook context
     # Note: create_jupyter_notebook returns a string, not a hash, so check for success differently
@@ -160,8 +160,8 @@ class JupyterNotebookClaude < MonadicApp
   end
 
   # Override create_jupyter_notebook to auto-save state
-  def create_jupyter_notebook(filename:, session: nil)
-    result = super(filename: filename, session: session)
+  def create_jupyter_notebook(filename:, session: nil, workbench: nil)
+    result = super(filename: filename, session: session, workbench: workbench)
 
     success = result.is_a?(String) && result.include?("successfully")
     if session && respond_to?(:monadic_save_state) && success
@@ -230,8 +230,8 @@ class JupyterNotebookGemini < MonadicApp
   end
 
   # Override create_jupyter_notebook to auto-save state
-  def create_jupyter_notebook(filename:, session: nil)
-    result = super(filename: filename, session: session)
+  def create_jupyter_notebook(filename:, session: nil, workbench: nil)
+    result = super(filename: filename, session: session, workbench: workbench)
 
     success = result.is_a?(String) && result.include?("successfully")
     if session && respond_to?(:monadic_save_state) && success
@@ -300,8 +300,8 @@ class JupyterNotebookGrok < MonadicApp
   end
 
   # Override create_jupyter_notebook to auto-save state
-  def create_jupyter_notebook(filename:, session: nil)
-    result = super(filename: filename, session: session)
+  def create_jupyter_notebook(filename:, session: nil, workbench: nil)
+    result = super(filename: filename, session: session, workbench: workbench)
 
     success = result.is_a?(String) && result.include?("successfully")
     if session && respond_to?(:monadic_save_state) && success

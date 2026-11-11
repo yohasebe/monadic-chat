@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require_relative '../../lib/monadic/utils/shared_path_guard'
-require 'cgi'
 require 'fileutils'
 require 'securerandom'
 require 'set'
@@ -10,6 +9,7 @@ require 'json'
 require_relative 'auto_forge'
 require_relative 'auto_forge_utils'
 require_relative 'auto_forge_debugger'
+require_relative '../../lib/monadic/shared_tools/workbench_tools'
 require_relative 'agents/error_explainer'
 require_relative 'utils/codex_response_analyzer'
 require_relative '../../lib/monadic/agents/openai_code_agent'
@@ -441,8 +441,10 @@ module AutoForgeTools
     end
   end
 
-  def debug_application(params = {})
-    context = resolve_project_context(params)
+  # Takes its arguments as a hash or as keywords. workbench: who called
+  # (Monadic::Workbench::Caller), given by the server.
+  def debug_application(params = {}, workbench: nil, **keywords)
+    context = resolve_project_context(params.merge(keywords))
 
     unless context[:success]
       return format_debug_context_error(context)
@@ -471,13 +473,13 @@ module AutoForgeTools
     result[:html_path] = context[:html_path]
     report_text = format_debug_report(result)
 
-    # Return gallery_html for server-side display (vendor helpers auto-inject into session)
-    if result[:screenshot]
-      gallery = "<div class=\"generated_image\"><img src=\"/data/#{CGI.escapeHTML(result[:screenshot].to_s)}\" /></div>"
-      { text: report_text, gallery_html: gallery }
-    else
-      report_text
-    end
+    # The screenshot is shown in the work screen (the reply's message names
+    # it there); the model is told so, not shown it.
+    return report_text unless result[:screenshot]
+
+    said = MonadicSharedTools::WorkbenchTools.show_file(result[:screenshot].to_s, workbench)
+    note = said.start_with?("{") ? "The screenshot is shown in the work screen beside the chat." : said
+    "#{report_text}\n\nScreenshot: #{result[:screenshot]}\n#{note}"
   rescue => e
     "❌ Debug error: #{e.message.gsub(/<.*?>/, '')[0..200]}"
   end

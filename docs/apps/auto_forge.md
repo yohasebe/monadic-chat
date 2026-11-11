@@ -30,7 +30,7 @@ Auto Forge can open a generated web application in Chrome in the Selenium contai
 - JavaScript errors and console warnings
 - Results of trying the forms, buttons, and other interactive elements
 - Load time, DOM ready time, and render time
-- A screenshot of the page
+- A screenshot of the page, shown in the [work screen](../basic-usage/web-interface.md#work-screen); the conversation names its file
 
 With OpenAI and xAI, this check runs as part of building a web application. With Claude, it runs when you ask for it.
 

@@ -20,6 +20,7 @@ services:
         PYOPT_LIBROSA: ${PYOPT_LIBROSA:-false}
         PYOPT_MEDIAPIPE: ${PYOPT_MEDIAPIPE:-false}
         PYOPT_TRANSFORMERS: ${PYOPT_TRANSFORMERS:-false}
+        PYOPT_PLOTLY_STATIC: ${PYOPT_PLOTLY_STATIC:-false}
         IMGOPT_IMAGEMAGICK: ${IMGOPT_IMAGEMAGICK:-false}
         PYSETUP_SHA: ${MONADIC_PYSETUP_SHA:-none}
       # ~/monadic/config/pysetup.sh, as a build secret (see the Dockerfile).

@@ -39,6 +39,7 @@ const PYTHON_OPTIONS = Object.freeze([
   Object.freeze({ id: 'pyopt-gensim',         env: 'PYOPT_GENSIM',        label: 'gensim',                            group: 'python' }),
   Object.freeze({ id: 'pyopt-mediapipe',      env: 'PYOPT_MEDIAPIPE',     label: 'mediapipe (CPU)',                   group: 'python' }),
   Object.freeze({ id: 'pyopt-transformers',   env: 'PYOPT_TRANSFORMERS',  label: 'transformers (CPU only)',           group: 'python' }),
+  Object.freeze({ id: 'pyopt-plotly-static',  env: 'PYOPT_PLOTLY_STATIC', label: 'Plotly static images (kaleido + Chromium)', group: 'python' }),
   Object.freeze({ id: 'pyopt-librosa',        env: 'PYOPT_LIBROSA',       label: 'librosa + madmom',                  group: 'music' }),
   Object.freeze({ id: 'imgopt-imagemagick',   env: 'IMGOPT_IMAGEMAGICK',  label: 'ImageMagick (convert/mogrify)',     group: 'tools' })
 ]);

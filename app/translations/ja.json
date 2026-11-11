@@ -73,7 +73,8 @@
           "spacy": "spaCy (3.7.5)",
           "gensim": "gensim",
           "mediapipe": "mediapipe（CPUのみ）",
-          "transformers": "transformers（CPUのみ）"
+          "transformers": "transformers（CPUのみ）",
+          "plotlyStatic": "Plotly の静止画（kaleido と Chromium）"
         }
       },
       "music": {

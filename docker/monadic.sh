@@ -156,7 +156,7 @@ CONFIG_ENV_FILE="${HOME_DIR}/monadic/config/env"
 #   3. Add the matching entry in app/install_options.config.js
 #   4. Add the HTML checkbox row in app/settings.html
 # See docs_dev/install_options_ssot.md for the full checklist.
-PY_OPTIONS=(INSTALL_LATEX PYOPT_NLTK PYOPT_SPACY PYOPT_GENSIM PYOPT_LIBROSA PYOPT_MEDIAPIPE PYOPT_TRANSFORMERS IMGOPT_IMAGEMAGICK)
+PY_OPTIONS=(INSTALL_LATEX PYOPT_NLTK PYOPT_SPACY PYOPT_GENSIM PYOPT_LIBROSA PYOPT_MEDIAPIPE PYOPT_TRANSFORMERS PYOPT_PLOTLY_STATIC IMGOPT_IMAGEMAGICK)
 
 # Read a boolean KEY (quotes trimmed, normalized to "true"/"false").
 # Checks environment variables first (passed by Electron), then falls back
@@ -851,7 +851,7 @@ build_python_container() {
     echo "  \"timestamp\": \"${ts}\"," 
          "\"monadic_version\": \"${MONADIC_VERSION}\"," 
          "\"host_os\": \"${HOST_OS}\"," 
-         "\"options\": {\"INSTALL_LATEX\": ${INSTALL_LATEX}, \"IMGOPT_IMAGEMAGICK\": ${IMGOPT_IMAGEMAGICK}, \"PYOPT_NLTK\": ${PYOPT_NLTK}, \"PYOPT_SPACY\": ${PYOPT_SPACY}, \"PYOPT_GENSIM\": ${PYOPT_GENSIM}, \"PYOPT_LIBROSA\": ${PYOPT_LIBROSA}, \"PYOPT_MEDIAPIPE\": ${PYOPT_MEDIAPIPE}, \"PYOPT_TRANSFORMERS\": ${PYOPT_TRANSFORMERS}} ,"
+         "\"options\": {\"INSTALL_LATEX\": ${INSTALL_LATEX}, \"IMGOPT_IMAGEMAGICK\": ${IMGOPT_IMAGEMAGICK}, \"PYOPT_NLTK\": ${PYOPT_NLTK}, \"PYOPT_SPACY\": ${PYOPT_SPACY}, \"PYOPT_GENSIM\": ${PYOPT_GENSIM}, \"PYOPT_LIBROSA\": ${PYOPT_LIBROSA}, \"PYOPT_MEDIAPIPE\": ${PYOPT_MEDIAPIPE}, \"PYOPT_TRANSFORMERS\": ${PYOPT_TRANSFORMERS}, \"PYOPT_PLOTLY_STATIC\": ${PYOPT_PLOTLY_STATIC}} ,"
     # LaTeX
     if [ "${INSTALL_LATEX}" = "true" ]; then
       ${DOCKER} run --rm "${temp_tag}" sh -lc 'pdflatex -version >/dev/null 2>&1'; LATEX_OK=$?
@@ -864,7 +864,7 @@ import json, shutil, os, importlib
 res = { 'checks': {} }
 res['checks']['latex'] = shutil.which('pdflatex') is not None
 res['checks']['imagemagick'] = shutil.which('convert') is not None
-mods = ['nltk','spacy','sklearn','gensim','librosa','mediapipe','transformers']
+mods = ['nltk','spacy','sklearn','gensim','librosa','mediapipe','transformers','kaleido']
 res['checks']['python'] = { m: False for m in mods }
 for m in mods:
   try:
@@ -1208,10 +1208,11 @@ build_docker_compose() {
   local PYOPT_LIBROSA=$(read_cfg_bool "PYOPT_LIBROSA" false)
   local PYOPT_MEDIAPIPE=$(read_cfg_bool "PYOPT_MEDIAPIPE" false)
   local PYOPT_TRANSFORMERS=$(read_cfg_bool "PYOPT_TRANSFORMERS" false)
+  local PYOPT_PLOTLY_STATIC=$(read_cfg_bool "PYOPT_PLOTLY_STATIC" false)
   local IMGOPT_IMAGEMAGICK=$(read_cfg_bool "IMGOPT_IMAGEMAGICK" false)
 
   # Export install options and gems fingerprint as environment variables for compose.yml to reference
-  export INSTALL_LATEX PYOPT_NLTK PYOPT_SPACY PYOPT_GENSIM PYOPT_LIBROSA PYOPT_MEDIAPIPE PYOPT_TRANSFORMERS IMGOPT_IMAGEMAGICK
+  export INSTALL_LATEX PYOPT_NLTK PYOPT_SPACY PYOPT_GENSIM PYOPT_LIBROSA PYOPT_MEDIAPIPE PYOPT_TRANSFORMERS PYOPT_PLOTLY_STATIC IMGOPT_IMAGEMAGICK
 
   # Debug: log the actual command being executed
   local build_start_time=$(date '+%Y-%m-%d %H:%M:%S')
@@ -1222,7 +1223,7 @@ build_docker_compose() {
   echo "[DEBUG] COMPOSE_FILES='${COMPOSE_FILES}'" >> "${log_file}"
   echo "[DEBUG] REPORTING='${REPORTING}'" >> "${log_file}"
   echo "[DEBUG] use_cache='${use_cache}'" >> "${log_file}"
-  echo "[DEBUG] Install options: INSTALL_LATEX=${INSTALL_LATEX} PYOPT_NLTK=${PYOPT_NLTK} PYOPT_SPACY=${PYOPT_SPACY} PYOPT_GENSIM=${PYOPT_GENSIM} PYOPT_LIBROSA=${PYOPT_LIBROSA} PYOPT_MEDIAPIPE=${PYOPT_MEDIAPIPE} PYOPT_TRANSFORMERS=${PYOPT_TRANSFORMERS} IMGOPT_IMAGEMAGICK=${IMGOPT_IMAGEMAGICK}" >> "${log_file}"
+  echo "[DEBUG] Install options: INSTALL_LATEX=${INSTALL_LATEX} PYOPT_NLTK=${PYOPT_NLTK} PYOPT_SPACY=${PYOPT_SPACY} PYOPT_GENSIM=${PYOPT_GENSIM} PYOPT_LIBROSA=${PYOPT_LIBROSA} PYOPT_MEDIAPIPE=${PYOPT_MEDIAPIPE} PYOPT_TRANSFORMERS=${PYOPT_TRANSFORMERS} PYOPT_PLOTLY_STATIC=${PYOPT_PLOTLY_STATIC} IMGOPT_IMAGEMAGICK=${IMGOPT_IMAGEMAGICK}" >> "${log_file}"
   echo "" >> "${log_file}"
   echo "[DISK USAGE BEFORE BUILD]" >> "${log_file}"
   ${DOCKER} system df >> "${log_file}" 2>&1 || echo "Unable to get disk usage" >> "${log_file}"

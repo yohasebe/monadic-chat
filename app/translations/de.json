@@ -71,7 +71,8 @@
           "spacy": "spaCy (3.7.5)",
           "gensim": "gensim",
           "mediapipe": "mediapipe (nur CPU)",
-          "transformers": "transformers (nur CPU)"
+          "transformers": "transformers (nur CPU)",
+          "plotlyStatic": "Statische Plotly-Bilder (kaleido + Chromium)"
         }
       },
       "music": {

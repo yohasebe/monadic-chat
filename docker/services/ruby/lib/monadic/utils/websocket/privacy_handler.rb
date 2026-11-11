@@ -60,42 +60,21 @@ module WebSocketHelper
     end
 
     word_table = Monadic::Utils::Privacy::Words.table(session)
-    pipeline = session[:_privacy_pipeline]
-    state = pipeline.respond_to?(:registry_state) ? pipeline.registry_state : nil
-    # The chat's own privacy state when no pipeline is built yet (a tab that
-    # reconnected): the registry and the marked words live in the chat.
-    state ||= (session[:monadic_state] || {})[:privacy]
-    registry = (state.is_a?(Hash) ? state[:registry] : {}) || {}
-    terms = (state.is_a?(Hash) ? state[:terms] : nil) || []
     messages = privacy_clean_messages(session[:messages] || [])
 
-    # When the user requests "masked", apply the registry placeholders to the
-    # message text and drop the registry from the export so the file never
-    # contains real PII. If there is no registry (privacy filter was off),
-    # "masked" is equivalent to "restored" — there are no placeholders to
-    # apply, so the original text passes through unchanged.
     parameters = privacy_export_parameters(session)
 
-    # A masked file holds neither the registry nor the marked words: marked
-    # words are masked too, with placeholders of their own when the model
-    # never saw them. A restored file keeps the marked words, so the
-    # imported chat goes on masking them.
-    # A chat that hides its words with a table is masked by its active words;
+    # A masked file is masked by the chat's active words and holds no table;
     # only a restored file carries the table, so a shared one cannot be
     # turned back.
-    remask = word_table ? Monadic::Utils::Privacy::Words.masking(word_table) : privacy_registry_with_terms(registry, terms)
+    remask = word_table ? Monadic::Utils::Privacy::Words.masking(word_table) : {}
     table_to_export = word_table && content_kind == "restored" ? word_table.to_h : nil
     if content_kind == "masked" && !remask.empty?
       messages = privacy_remask_messages(messages, remask)
       parameters = privacy_remask_parameters(parameters, remask)
-      registry_to_export = {}
-      terms_to_export = []
-    else
-      registry_to_export = registry
-      terms_to_export = terms.map { |t| { "text" => t[:text] || t["text"], "type" => t[:type] || t["type"] } }
     end
 
-    header = privacy_export_header(session, messages, registry_to_export)
+    header = privacy_export_header(session, messages)
     legacy_mode = privacy_export_legacy_mode(encrypt, content_kind)
 
     # Include parameters + monadic_state alongside messages so the export
@@ -140,10 +119,8 @@ module WebSocketHelper
       end
       payload = {
         "messages" => messages,
-        "registry" => registry_to_export,
         "parameters" => parameters
       }
-      payload["terms"] = terms_to_export unless terms_to_export.empty?
       payload["word_table"] = table_to_export if table_to_export
       payload["marks_parsed"] = true
       payload["monadic_state"] = monadic_state if monadic_state
@@ -155,8 +132,6 @@ module WebSocketHelper
       content = JSON.generate(envelope)
     else
       payload = { "parameters" => parameters, "messages" => messages }
-      payload["registry"] = registry_to_export unless registry_to_export.empty?
-      payload["terms"] = terms_to_export unless terms_to_export.empty?
       payload["word_table"] = table_to_export if table_to_export
       payload["marks_parsed"] = true
       payload["monadic_state"] = monadic_state if monadic_state
@@ -292,26 +267,6 @@ module WebSocketHelper
   # detected values in the others: reasoning quotes the conversation, and the
   # rendered HTML is built from the restored body.
   PRIVACY_REMASK_MESSAGE_FIELDS = %w[text thinking html].freeze
-
-  # The registry plus a placeholder for each marked word it does not hold
-  # (numbered after the registry's own, per type).
-  private def privacy_registry_with_terms(registry, terms)
-    combined = registry.dup
-    counters = Hash.new(0)
-    registry.each_key do |placeholder|
-      m = placeholder.to_s.match(/\A<<([A-Z_]+)_(\d+)>>\z/)
-      counters[m[1]] = [counters[m[1]], m[2].to_i].max if m
-    end
-    terms.each do |term|
-      text = term[:text] || term["text"]
-      type = term[:type] || term["type"] || "PERSON"
-      next if text.to_s.empty? || combined.value?(text)
-
-      counters[type] += 1
-      combined["<<#{type}_#{counters[type]}>>"] = text
-    end
-    combined
-  end
 
   # The originals in text replaced by their placeholders, overlapping
   # occurrences as one (Outbound.replace_union), so no part of an original
@@ -457,15 +412,14 @@ module WebSocketHelper
   # Build a non-secret header for the envelope. Stays in plaintext so users
   # can identify exports without decrypting (header_sha256 protects against
   # tampering).
-  private def privacy_export_header(session, messages, registry)
+  private def privacy_export_header(session, messages)
     app_name = session.dig(:parameters, "app_name") || "unknown"
     {
       "schema_version" => Monadic::Utils::Privacy::ExportCipher::SCHEMA_VERSION,
       "created_at" => Time.now.utc.iso8601,
       "app_name" => app_name,
       "monadic_version" => (defined?(Monadic::VERSION) ? Monadic::VERSION : "unknown"),
-      "message_count" => messages.length,
-      "registry_count" => registry.size
+      "message_count" => messages.length
     }
   end
 

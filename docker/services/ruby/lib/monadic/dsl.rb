@@ -148,46 +148,23 @@ module MonadicDSL
     library_search: true
   }.freeze
 
-  # Apply MDSL-declared capabilities + defaults + privacy-derived
-  # overrides + invariant validation. Run AFTER the MDSL block has
+  # Apply MDSL-declared capabilities + defaults + invariant
+  # validation. Run AFTER the MDSL block has
   # populated state.features and state.settings, BEFORE library_search
   # auto-injection.
   #
   # Decision order:
-  #   1. If `privacy do; enabled true; end` was declared, force
-  #      library_save=false and library_search=false. MDSL is not
-  #      allowed to contradict (raises on `library_save true` mixed
-  #      with privacy-on).
-  #   2. Otherwise, read MDSL-declared library_save / library_search
+  #   1. Read MDSL-declared library_save / library_search
   #      from features, falling back to CAPABILITY_DEFAULTS.
-  #   3. Validate the cross-flag invariant: library_search=true
+  #   2. Validate the cross-flag invariant: library_search=true
   #      implies library_save=true (search without save is a no-op
   #      since results would have nowhere to come from).
   def self.finalize_capabilities!(state)
-    privacy_on = state.settings[:privacy_enabled] == true
     # MDSL may write to either state.features (preferred — `features do`
     # block) or state.settings directly; we read both for backward
     # compat. nil indicates "not declared".
     declared_save   = first_nonnil(state.features[:library_save],   state.settings[:library_save])
     declared_search = first_nonnil(state.features[:library_search], state.settings[:library_search])
-
-    if privacy_on
-      if declared_save == true
-        raise ConfigurationError,
-              "App '#{state.name}': library_save=true conflicts with privacy.enabled=true. " \
-              "Privacy Filter apps cannot save to the Knowledge Base. " \
-              "Remove `library_save true` from the features block, or remove the privacy block."
-      end
-      if declared_search == true
-        raise ConfigurationError,
-              "App '#{state.name}': library_search=true conflicts with privacy.enabled=true. " \
-              "Privacy Filter apps cannot retrieve from the Knowledge Base. " \
-              "Remove `library_search true` from the features block, or remove the privacy block."
-      end
-      state.settings[:library_save] = false
-      state.settings[:library_search] = false
-      return
-    end
 
     save_value   = declared_save.nil?   ? CAPABILITY_DEFAULTS[:library_save]   : !!declared_save
     search_value = declared_search.nil? ? CAPABILITY_DEFAULTS[:library_search] : !!declared_search
@@ -339,7 +316,7 @@ module MonadicDSL
     app_def.instance_eval(&block)
 
     # Resolve per-app capability flags from MDSL declarations + defaults
-    # + privacy-derived overrides. This must run BEFORE library_search
+    # overrides. This must run BEFORE library_search
     # auto-injection because the injection eligibility now reads the
     # resolved state.settings[:library_search] flag.
     finalize_capabilities!(state)
@@ -481,21 +458,12 @@ module MonadicDSL
       end
     end
 
-    # Privacy Filter (PII masking before LLM, restoration on response).
-    # Usage:
-    #   privacy do
-    #     enabled true
-    #     languages ["ja", "en"]
-    #   end
-    # Setting privacy_enabled=true triggers container_dependencies to require
-    # the :privacy service. The privacy container is part of the default build
-    # set; PRIVACY_FILTER=false in env opts out at runtime.
-    def privacy(&block)
-      config = PrivacyFilterConfiguration.new
-      config.instance_eval(&block) if block_given?
-      hash = config.to_hash
-      @state.settings[:privacy] = hash
-      @state.settings[:privacy_enabled] = hash[:enabled]
+    # A `privacy do` block has no effect: words are hidden per chat with the
+    # Anonymize button. It is accepted so an app that has one still loads.
+    def privacy(*)
+      warn "[DSL] App '#{@state.name}': `privacy do` has no effect and can be removed. " \
+           "The Knowledge Base stays available in this app unless it declares " \
+           "`library_save false` and `library_search false` in its features."
     end
 
     # Vocabulary: shared ${TOKEN} variables between the user and the assistant.
@@ -849,14 +817,6 @@ module MonadicDSL
     # the unset default (which defaults to enabled at the default threshold).
     unless state.settings[:compaction].nil?
       class_def << "        @settings[:compaction] = #{state.settings[:compaction].inspect}\n"
-    end
-
-    # Add privacy filter settings if specified.
-    # `:privacy_enabled` is a derived flag used by container_dependencies to
-    # decide whether to require the privacy service.
-    unless state.settings[:privacy].nil?
-      class_def << "        @settings[:privacy] = #{state.settings[:privacy].inspect}\n"
-      class_def << "        @settings[:privacy_enabled] = #{state.settings[:privacy_enabled].inspect}\n"
     end
 
     # Vocabulary opt-in tokens (plain symbol data; resolution is runtime).

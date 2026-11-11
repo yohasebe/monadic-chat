@@ -8,11 +8,8 @@ require_relative 'words'
 module Monadic
   module Utils
     module Privacy
-      # The Privacy Filter for text sent, on a chat's behalf, somewhere other
-      # than the chat's own model call: a second opinion, the context
-      # extraction, a title suggestion, speech. The chat's own call masks
-      # through its pipeline; these places must use the same one, and must
-      # not send unmasked text when they cannot be sure the filter is off.
+      # What checks text sent, on a chat's behalf, against the words the chat
+      # hides, wherever it is sent from.
       #
       # The session of a real chat is a Rack session object, not a Hash, so it
       # is read by key, never by class.
@@ -25,53 +22,26 @@ module Monadic
 
         module_function
 
-        # The pipeline to mask with, or nil when nothing is to be masked
-        # (NOT_FOR_A_CHAT, or a chat with the filter off). Raises Refused, so
-        # that nothing is sent, when the filter is on but its pipeline is not
-        # there, or when the chat's session is missing or cannot be read (such
-        # as an empty stand-in, given where the session was not available).
-        def pipeline!(session)
-          return nil if session.equal?(NOT_FOR_A_CHAT)
+        # Raises Refused, so that nothing is sent, when the chat's session is
+        # missing or cannot be read (such as an empty stand-in, given where
+        # the session was not available).
+        def chat_session!(session)
+          return if session.equal?(NOT_FOR_A_CHAT)
           raise Refused, "the chat's session was not given" if session.nil?
           raise Refused, "the chat's session could not be read" unless chat_session?(session)
-
-          pipeline = session[:_privacy_pipeline] || rebuild(session)
-          return pipeline if pipeline
-          raise Refused, "the Privacy Filter is on, but its masking is not available" if session[:_privacy_session_enabled] == true
-          raise Refused, "words were marked to be masked in this chat, but the Privacy Filter is off" if marked_terms?(session)
-
-          nil
         end
 
-        # Whether the chat has words to hide (its word table's active words,
-        # or the words marked for the Privacy Filter). Marked words stay
-        # protected after the Privacy Filter is turned off: nothing is sent
-        # for the chat until it is on again (or the chat is reset).
+        # Whether the chat has words to hide.
         def marked_terms?(session)
           !terms_of(session).empty?
         end
 
-        # The chat's words to hide: the active words of its word table when
-        # it has one (Words), otherwise the words marked for the Privacy
-        # Filter. Everything that checks what is sent reads them here.
+        # The active words of the chat's word table. Everything that checks
+        # what is sent reads them here.
         def terms_of(session)
-          return [] unless session.respond_to?(:key?)
-          return Words.active_of(session) if Words.marked?(session)
+          return [] unless session.respond_to?(:key?) && Words.marked?(session)
 
-          legacy_terms(session)
-        end
-
-        # The words marked for the Privacy Filter (monadic_state's privacy
-        # terms).
-        def legacy_terms(session)
-          return [] unless session.respond_to?(:key?)
-
-          state = session[:monadic_state]
-          privacy = state.is_a?(Hash) ? (state[:privacy] || state['privacy']) : nil
-          terms = privacy.is_a?(Hash) ? (privacy[:terms] || privacy['terms']) : nil
-          return [] unless terms.is_a?(Array)
-
-          terms.map { |t| t.is_a?(Hash) ? (t[:text] || t['text']) : nil }.compact
+          Words.active_of(session)
         end
 
         PLACEHOLDER = /<<[A-Z_]+_\d+>>/
@@ -241,48 +211,6 @@ module Monadic
             cursor = g[:end]
           end
           out << text[cursor..]
-        end
-
-        # A chat with the filter on whose pipeline is not built yet (a tab
-        # that reconnected or imported a conversation: a pipeline holds the
-        # session it was built for, so it is not carried over) gets one built
-        # for this session, as the chat's own call would build it, keeping
-        # the registry the session holds. nil when the app does not use the
-        # filter or it cannot be built; the caller then refuses.
-        def rebuild(session)
-          return nil unless session[:_privacy_session_enabled] == true
-
-          app_name = (session[:parameters] || {})["app_name"]
-          settings = defined?(APPS) && APPS[app_name] ? APPS[app_name].settings : nil
-          return nil unless settings && settings.dig(:privacy, :enabled) == true
-
-          require_relative 'pipeline'
-          require_relative 'presidio_backend'
-          session[:_privacy_pipeline] = Pipeline.new(backend: PresidioBackend.new, config: settings[:privacy], session: session)
-        rescue StandardError
-          nil
-        end
-
-        # The text as the chat's model would get it (placeholders for what the
-        # filter masks), with the chat's own pipeline so the placeholders
-        # match the chat's. Raises when masking fails; callers send nothing.
-        def mask(text, pipeline, role)
-          return text if text.nil? || text.to_s.empty?
-
-          require_relative 'types'
-          masked = pipeline.before_send_to_llm(RawMessage.new(text.to_s, role, {})).text
-          # The same last check as a chat's own request: no word the user
-          # marked leaves unmasked.
-          state = pipeline.respond_to?(:registry_state) ? pipeline.registry_state : nil
-          words = (state.is_a?(Hash) ? Array(state[:terms]) : []).map { |t| t[:text] || t['text'] }.compact
-          if words.any?
-            # Read as the request check reads (JSON in the text decoded too).
-            found = false
-            each_text(masked.to_s) { |text| found ||= holds_word?(text, words) }
-            raise Refused, 'a word marked to be masked would have been sent unmasked' if found
-          end
-
-          masked
         end
 
         # What a chat's session holds from its connection on (a stand-in for a

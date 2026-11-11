@@ -541,6 +541,31 @@ RSpec.describe "Stopping an answer" do
       words::LOCK.synchronize { words::TABLES.clear }
     end
 
+    it "speaks nothing when a hidden word comes back as the speech service would get the text" do
+      words = Monadic::Utils::Privacy::Words
+      words.start!(session).confirm!('Ada Lovelace', 'PERSON')
+      app = Object.new.tap do |a|
+        a.define_singleton_method(:api_request) do |_role, _session, &block|
+          block.call({ "type" => "fragment", "content" => "Hello <<PERSON_1>>." })
+          [{ "choices" => [{ "message" => { "content" => "FINAL" }, "finish_reason" => "stop" }] }]
+        end
+        a.define_singleton_method(:settings) { {} }
+      end
+      stub_const("APPS", { "FakeApp" => app })
+      # The user's dictionary turns the label back into the word.
+      allow(host).to receive(:tts_text_as_sent).and_return("Hello Ada Lovelace.")
+      withheld = Queue.new
+      allow(host).to receive(:send_tts_withheld) { |*| withheld << true }
+      allow(host).to receive(:start_tts_playback)
+      obj = { "message" => "Hi", "app_name" => "FakeApp", "auto_speech" => true, "tts_provider" => "openai" }
+      thread = host.send(:handle_ws_streaming, nil, obj, session, queue)
+      expect(Timeout.timeout(5) { withheld.pop }).to be(true)
+      expect(host).not_to have_received(:start_tts_playback).with(hash_including(text: a_string_including("Ada")))
+    ensure
+      host.send(:stop_reply_work, thread) if thread
+      words::LOCK.synchronize { words::TABLES.clear }
+    end
+
     it "played by hand names no answer" do
       host.send(:start_tts_playback, text: "Hello there.", provider: "webspeech", voice: nil, speed: 1,
                                      response_format: "mp3", language: "en", manual_play: true, ws_session_id: "tab-1")

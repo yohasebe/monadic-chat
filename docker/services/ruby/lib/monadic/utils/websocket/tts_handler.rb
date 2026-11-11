@@ -530,38 +530,22 @@ module WebSocketHelper
     )
   end
 
-  # Replace original PII values in restored TTS text with the same short
-  # placeholders that sanitize_for_tts produces for streamed (still
-  # masked) text. Returns the original text unchanged when Privacy is
-  # not active in this session.
-  #
-  # Why on the server (not the client): the registry lives server-side
-  # by design (RD-1: never persisted, never shipped); doing the rewrite
-  # here keeps the registry inside the trust boundary. The frontend
-  # sends the rendered card text as-is; this method abstracts the
-  # values out before any cloud TTS API or browser-native synth call.
-  # Returns nil (nothing is spoken; the page is told why) when the filter is
-  # on but cannot mask, so a cloud TTS provider never gets the restored text.
+  # The text as it may be spoken for a chat that hides its words: each word
+  # read as its placeholder's type and number. Done on the server so the
+  # table stays here. nil (nothing is spoken; the page is told why) when
+  # that cannot be done.
   private def privacy_sanitize_tts_text(text, session, provider = nil)
     return text unless text.is_a?(String) && !text.empty?
 
-    # A chat that hides its words with a word table reads each word as its
-    # placeholder's type and number, as the Privacy Filter does.
     begin
+      Monadic::Utils::Privacy::Outbound.chat_session!(session)
       table = Monadic::Utils::Privacy::Words.table(session)
-      pipeline = table ? nil : Monadic::Utils::Privacy::Outbound.pipeline!(session)
     rescue Monadic::Utils::Privacy::Outbound::Refused => e
       send_error("Speech was not made: #{e.message}.", Thread.current[:websocket_session_id])
       return nil
     end
-    spoken = if table
-               Monadic::Utils::Privacy::Words.spoken(table, text)
-             elsif pipeline.respond_to?(:sanitize_restored_for_tts)
-               pipeline.sanitize_restored_for_tts(text)
-             else
-               text
-             end
-    # Words the user marked are never spoken, however they are written: the
+    spoken = table ? Monadic::Utils::Privacy::Words.spoken(table, text) : text
+    # A word the chat hides is never spoken, however it is written: the
     # text is checked as the TTS service would receive it too (after the
     # user's dictionary and the provider's conversion of markers).
     begin

@@ -178,15 +178,18 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
     end
 
     it "treats disabled services as neither started nor failed" do
-      settings = { "app_name" => "Chat", "privacy_enabled" => true }
+      settings = {
+        "app_name" => "Code Interpreter",
+        "imported_tool_groups" => [{ "name" => :python_execution, "visibility" => "always" }]
+      }
       allow(described_class).to receive(:container_running?).and_return(false)
       allow(described_class).to receive(:start_service) do |service|
-        service == :privacy ? :disabled : :started
+        service == :python ? :disabled : :started
       end
 
       result = described_class.ensure_services_for_app(settings)
-      expect(result[:started]).not_to include(:privacy)
-      expect(result[:failed]).not_to include(:privacy)
+      expect(result[:started]).not_to include(:python)
+      expect(result[:failed]).not_to include(:python)
     end
   end
 

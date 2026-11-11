@@ -13,8 +13,8 @@ require_relative '../../../../lib/monadic/utils/container_dependencies'
 # three routing decisions plus the once-per-session privacy error:
 #
 #   1. :stt             — model is not STS-capable → legacy handlers
-#   2. :sts             — model is STS-capable, privacy off → STS handlers
-#   3. :privacy_blocked — model is STS-capable AND Privacy Filter is on
+#   2. :sts             — model is STS-capable, the chat hides no words → STS handlers
+#   3. :privacy_blocked — model is STS-capable AND the chat hides words
 #                         → one error message per session, no audio routed
 RSpec.describe "WebSocketHelper STS audio routing" do
   # Host including the helper with recording stubs for the pinned STS
@@ -64,77 +64,67 @@ RSpec.describe "WebSocketHelper STS audio routing" do
 
   let(:obj) { { "message" => "AUDIO_CHUNK", "audio" => "AAAA" } }
 
-  def make_session(privacy_toggle:, app_name: "VoiceChatOpenAI")
-    {
-      parameters: { "app_name" => app_name },
-      _privacy_session_enabled: privacy_toggle
-    }
+  def make_session(hides_words:, app_name: "VoiceChatOpenAI")
+    { parameters: { "app_name" => app_name } }.tap do |session|
+      next unless hides_words
+
+      Monadic::Workspace::Chats.start_new!(session)
+      Monadic::Utils::Privacy::Words.start!(session)
+    end
   end
 
-  def stub_apps(privacy_enabled:)
-    app = double(:app, settings: { privacy: { enabled: privacy_enabled } })
-    stub_const("APPS", { "VoiceChatOpenAI" => app })
+  after do
+    words = Monadic::Utils::Privacy::Words
+    words::LOCK.synchronize { words::TABLES.clear }
   end
 
   describe "non-STS-capable model" do
     it "routes AUDIO_CHUNK to the legacy handler" do
       h = host.new(sts_capable: false)
       allow(h).to receive(:handle_audio_chunk) { h.calls << :handle_audio_chunk }
-      h.send(:route_audio_event, connection, make_session(privacy_toggle: false), obj,
+      h.send(:route_audio_event, connection, make_session(hides_words: false), obj,
              sts_handler: :handle_sts_audio_chunk, fallback: :handle_audio_chunk)
       expect(h.calls).to eq([:handle_audio_chunk])
       expect(writes).to be_empty
     end
 
-    it "never emits the privacy error even with the toggle on" do
-      stub_apps(privacy_enabled: true)
+    it "never emits the error in a chat that hides words" do
       h = host.new(sts_capable: false)
       allow(h).to receive(:handle_audio_chunk) { h.calls << :handle_audio_chunk }
-      h.send(:route_audio_event, connection, make_session(privacy_toggle: true), obj,
+      h.send(:route_audio_event, connection, make_session(hides_words: true), obj,
              sts_handler: :handle_sts_audio_chunk, fallback: :handle_audio_chunk)
       expect(h.calls).to eq([:handle_audio_chunk])
       expect(writes).to be_empty
     end
   end
 
-  describe "STS-capable model without privacy" do
+  describe "STS-capable model in a chat that hides no words" do
     it "routes AUDIO_CHUNK to the STS handler" do
       h = host.new(sts_capable: true)
-      h.send(:route_audio_event, connection, make_session(privacy_toggle: false), obj,
+      h.send(:route_audio_event, connection, make_session(hides_words: false), obj,
              sts_handler: :handle_sts_audio_chunk, fallback: :handle_audio_chunk)
       expect(h.calls).to eq([:handle_sts_audio_chunk])
     end
 
     it "routes AUDIO_COMMIT to the STS handler" do
       h = host.new(sts_capable: true)
-      h.send(:route_audio_event, connection, make_session(privacy_toggle: false), obj,
+      h.send(:route_audio_event, connection, make_session(hides_words: false), obj,
              sts_handler: :handle_sts_audio_commit, fallback: :handle_audio_commit)
       expect(h.calls).to eq([:handle_sts_audio_commit])
     end
 
     it "routes AUDIO_ABORT to the STS handler" do
       h = host.new(sts_capable: true)
-      h.send(:route_audio_event, connection, make_session(privacy_toggle: false), obj,
+      h.send(:route_audio_event, connection, make_session(hides_words: false), obj,
              sts_handler: :handle_sts_audio_abort, fallback: :handle_audio_abort)
       expect(h.calls).to eq([:handle_sts_audio_abort])
     end
-
-    it "routes to STS when the app does not declare privacy (two-gate)" do
-      stub_apps(privacy_enabled: false)
-      h = host.new(sts_capable: true)
-      h.send(:route_audio_event, connection, make_session(privacy_toggle: true), obj,
-             sts_handler: :handle_sts_audio_chunk, fallback: :handle_audio_chunk)
-      expect(h.calls).to eq([:handle_sts_audio_chunk])
-      expect(writes).to be_empty
-    end
   end
 
-  describe "STS-capable model with Privacy Filter enabled" do
-    before { stub_apps(privacy_enabled: true) }
-
+  describe "STS-capable model in a chat that hides words" do
     it "blocks routing and sends a single explanatory error" do
       h = host.new(sts_capable: true)
-      session = make_session(privacy_toggle: true)
+      session = make_session(hides_words: true)
       h.send(:route_audio_event, connection, session, obj,
              sts_handler: :handle_sts_audio_chunk, fallback: :handle_audio_chunk)
 
@@ -142,13 +132,13 @@ RSpec.describe "WebSocketHelper STS audio routing" do
       expect(writes.size).to eq(1)
       payload = JSON.parse(writes.first)
       expect(payload["type"]).to eq("error")
-      expect(payload["content"]).to match(/Privacy Filter/i)
+      expect(payload["content"]).to match(/hides its words/i)
       expect(payload["content"]).to match(/speech-to-speech/i)
     end
 
     it "sends the error only once per session across repeated chunks" do
       h = host.new(sts_capable: true)
-      session = make_session(privacy_toggle: true)
+      session = make_session(hides_words: true)
       3.times do
         h.send(:route_audio_event, connection, session, obj,
                sts_handler: :handle_sts_audio_chunk, fallback: :handle_audio_chunk)
@@ -159,7 +149,7 @@ RSpec.describe "WebSocketHelper STS audio routing" do
 
     it "blocks COMMIT and ABORT the same way" do
       h = host.new(sts_capable: true)
-      session = make_session(privacy_toggle: true)
+      session = make_session(hides_words: true)
       h.send(:route_audio_event, connection, session, obj,
              sts_handler: :handle_sts_audio_commit, fallback: :handle_audio_commit)
       h.send(:route_audio_event, connection, session, obj,
@@ -171,9 +161,9 @@ RSpec.describe "WebSocketHelper STS audio routing" do
 
     it "allows STS again in a fresh session (flag is per-session)" do
       h = host.new(sts_capable: true)
-      h.send(:route_audio_event, connection, make_session(privacy_toggle: true), obj,
+      h.send(:route_audio_event, connection, make_session(hides_words: true), obj,
              sts_handler: :handle_sts_audio_chunk, fallback: :handle_audio_chunk)
-      h.send(:route_audio_event, connection, make_session(privacy_toggle: false), obj,
+      h.send(:route_audio_event, connection, make_session(hides_words: false), obj,
              sts_handler: :handle_sts_audio_chunk, fallback: :handle_audio_chunk)
       expect(h.calls).to eq([:handle_sts_audio_chunk])
       expect(writes.size).to eq(1)
@@ -183,12 +173,11 @@ RSpec.describe "WebSocketHelper STS audio routing" do
   describe "STS-capable model in a chat that hides its words with a word table" do
     let(:words) { Monadic::Utils::Privacy::Words }
 
-    before { stub_apps(privacy_enabled: false) }
     after { words::LOCK.synchronize { words::TABLES.clear } }
 
     # A table with no word in it yet keeps the voice closed too.
     def table_session
-      make_session(privacy_toggle: false).tap do |session|
+      make_session(hides_words: false).tap do |session|
         Monadic::Workspace::Chats.start_new!(session)
         words.start!(session)
       end
@@ -324,23 +313,22 @@ RSpec.describe "WebSocketHelper STS audio routing" do
   describe "STS control routing (route_sts_control)" do
     it "routes to handle_sts_initiate in an STS session" do
       h = host.new(sts_capable: true)
-      h.send(:route_sts_control, connection, make_session(privacy_toggle: false), obj, handler: :handle_sts_initiate)
+      h.send(:route_sts_control, connection, make_session(hides_words: false), obj, handler: :handle_sts_initiate)
       expect(h.calls).to eq([:handle_sts_initiate])
     end
 
     it "is ignored outside STS sessions (no call, no error)" do
       h = host.new(sts_capable: false)
       expect do
-        h.send(:route_sts_control, connection, make_session(privacy_toggle: false), obj, handler: :handle_sts_initiate)
+        h.send(:route_sts_control, connection, make_session(hides_words: false), obj, handler: :handle_sts_initiate)
       end.not_to raise_error
       expect(h.calls).to be_empty
       expect(writes).to be_empty
     end
 
-    it "emits the privacy notice instead of initiating when privacy is on" do
-      stub_apps(privacy_enabled: true)
+    it "emits the notice instead of initiating in a chat that hides words" do
       h = host.new(sts_capable: true)
-      h.send(:route_sts_control, connection, make_session(privacy_toggle: true), obj, handler: :handle_sts_initiate)
+      h.send(:route_sts_control, connection, make_session(hides_words: true), obj, handler: :handle_sts_initiate)
       expect(h.calls).to be_empty
       expect(writes.size).to eq(1)
     end
@@ -396,8 +384,7 @@ RSpec.describe 'sts_session_capable? chat_model hint' do
   end
 
   # Production Rack sessions (SecureSessionHash) are not Hash subclasses but
-  # do support []. The gate must duck-type, mirroring
-  # BaseVendorHelper#privacy_enabled_for? — an is_a?(Hash) check passes every
+  # do support []. The gate must duck-type — an is_a?(Hash) check passes every
   # plain-Hash spec fixture while silently disabling the feature in
   # production.
   it 'reads a Hash-like session object that is not a Hash' do

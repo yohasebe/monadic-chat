@@ -498,22 +498,11 @@ module GrokHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
-    # Privacy Filter: mask user-message PII before sending to xAI. No-op when
-    # the app does not declare `privacy do; enabled true; end` in MDSL. Grok
-    # uses the Responses API shape (body["input"]).
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
     # A chat with a word table hides its words with it (each attempt below
-    # is sent only while the table is unchanged); otherwise the Privacy
-    # Filter's masking and marked words apply.
+    # is sent only while the table is unchanged).
     hiding = hide_words_in_request!(body, session)
     compacted_with_other_words!(body, session, hiding.last) if hiding
-    unless hiding
-      if privacy_enabled_for?(app_settings, session) && body["input"].is_a?(Array)
-        body["input"] = apply_privacy_to_messages(body["input"], session, app_settings)
-      end
-      # Words the user marked: masked wherever they are in the body, or nothing is sent.
-      protect_marked_words!(body, session, app_settings)
-    end
 
     offer_tools!(body, session, app, provider: "grok", model: body["model"])
     # Each post of the body is checked for what it holds of the work screen.

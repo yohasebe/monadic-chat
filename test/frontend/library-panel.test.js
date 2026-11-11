@@ -1202,7 +1202,7 @@ describe('library-panel module', () => {
     }
 
     it('isCurrentAppKbSaveEligible returns false for apps with library_save: false', () => {
-      setApp('ChatPlusOpenAI', { library_save: false, library_search: false, privacy_enabled: true });
+      setApp('ChatPlusOpenAI', { library_save: false, library_search: false });
       expect(lib.isCurrentAppKbSaveEligible()).toBe(false);
     });
 
@@ -1212,7 +1212,7 @@ describe('library-panel module', () => {
     });
 
     it('isCurrentAppKbRetrievalEligible returns false when library_search is false (PF-only and artifact apps)', () => {
-      setApp('ChatPlusOpenAI', { library_save: false, library_search: false, privacy_enabled: true });
+      setApp('ChatPlusOpenAI', { library_save: false, library_search: false });
       expect(lib.isCurrentAppKbRetrievalEligible()).toBe(false);
     });
 

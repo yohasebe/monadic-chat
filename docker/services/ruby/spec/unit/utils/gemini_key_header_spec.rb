@@ -80,7 +80,6 @@ RSpec.describe 'Gemini request transport invariants' do
   end
 
   it 'authenticates streaming chat at the transport boundary' do
-    allow(helper).to receive(:privacy_enabled_for?).and_return(false)
     allow(helper).to receive(:process_json_data).and_return([])
     helper.send(:execute_gemini_api_call, headers: { 'Content-Type' => 'application/json' },
                 body: { 'contents' => [] }, obj: { 'model' => 'gemini-test' }, api_key: key,

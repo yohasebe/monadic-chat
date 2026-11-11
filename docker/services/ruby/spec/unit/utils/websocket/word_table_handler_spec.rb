@@ -176,13 +176,6 @@ RSpec.describe 'The page asking about a chat word table' do
       expect(words.marked?(session)).to be(false)
     end
 
-    it 'refuses for a chat that hides its words with the Privacy Filter' do
-      session[:_privacy_session_enabled] = true
-
-      expect(change(hide: [{ 'word' => 'Ada', 'type' => 'PERSON' }])).to include('success' => false, 'error' => 'words_refused')
-      expect(words.marked?(session)).to be(false)
-    end
-
     it 'ends a Live Conversation when the chat begins to hide its words' do
       session[:_sts] = Object.new
       allow(host).to receive(:teardown_sts_session)

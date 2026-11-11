@@ -16,9 +16,8 @@ module Monadic
       # session to the wrong language.
       #
       # Locking happens once per session and persists in
-      # session[:monadic_state][:privacy][:detection]. The detection state is
-      # stripped on persist (Registry.strip_for_persist) and re-runs after
-      # any conversation reset / re-import — same lifecycle as the registry.
+      # session[:monadic_state][:privacy][:detection] (the language words are
+      # searched in), and re-runs after a conversation reset or import.
       module LanguageDetector
         module_function
 

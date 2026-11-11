@@ -143,15 +143,12 @@ module SecondOpinionAgent
     end
 
     # A chat with a word table hides its words with it (the words given by
-    # parallel_second_opinions, or hidden here). Otherwise, when the parent
-    # session has an active privacy pipeline, the query and response are
-    # masked with it, so that the second-opinion provider (a different LLM,
-    # possibly a different vendor) does not see raw PII the user has chosen
-    # to mask. Not sent unmasked: refused when the filter is on but cannot
-    # mask (see Privacy::Outbound).
+    # parallel_second_opinions, or hidden here), so that the second-opinion
+    # provider does not see them. Refused when the chat's session is not
+    # there (see Privacy::Outbound).
     begin
       words = Thread.current[WORDS_KEY] || second_opinion_words(user_query, agent_response, session)
-      pipeline = words ? nil : Monadic::Utils::Privacy::Outbound.pipeline!(session)
+      Monadic::Utils::Privacy::Outbound.chat_session!(session) unless words
     rescue Monadic::Utils::Privacy::Outbound::Refused => e
       return { comments: "Error: the second opinion was not requested: #{e.message}.", validity: "error", model: "none" }
     end
@@ -159,8 +156,8 @@ module SecondOpinionAgent
       masked_query = words.query
       masked_response = words.response
     else
-      masked_query = pipeline ? mask_for_second_opinion(user_query, pipeline, "user") : user_query
-      masked_response = pipeline ? mask_for_second_opinion(agent_response, pipeline, "assistant") : agent_response
+      masked_query = user_query
+      masked_response = agent_response
     end
 
     # Create a single user message containing all context
@@ -348,15 +345,6 @@ module SecondOpinionAgent
 
     snapshot, (query, response) = words.hide_texts(table, [user_query, agent_response].map { |text| words.put_back(text.to_s) })
     HiddenWords.new(table, snapshot, query, response)
-  end
-
-  # Pre-mask query/response text via the parent session's privacy
-  # pipeline before fan-out. Errors propagate — fail-closed matches the
-  # chat path's :block contract; the second opinion is auxiliary, so
-  # losing it on a privacy backend outage is preferable to leaking
-  # un-masked PII to a different provider.
-  def mask_for_second_opinion(text, pipeline, role)
-    Monadic::Utils::Privacy::Outbound.mask(text, pipeline, role)
   end
 
   def normalize_provider_name(name)

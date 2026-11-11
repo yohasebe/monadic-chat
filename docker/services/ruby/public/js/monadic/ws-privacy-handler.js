@@ -1,4 +1,4 @@
-// The export dialog, and the highlight of words put back in a reply.
+// The export dialog.
 (function () {
   // ---- Unified Export Dialog (2 orthogonal axes) ----------------------
   //
@@ -261,145 +261,11 @@
     }
   });
 
-  // ---- Unmask highlight ------------------------------------------------
-  //
-  // After each turn the server ships the full registry as
-  // `privacy_known_entities`. We walk every card in #discourse (user and
-  // assistant alike) and wrap each occurrence of a tracked PII value in
-  // a marker span. The walker is idempotent so passing the whole list on
-  // every turn does not pile up wrappers — already-wrapped subtrees are
-  // skipped.
-  //
-  // Matching is done by text content rather than by character offsets:
-  // markdown rendering shifts offsets and computing them on the rendered
-  // HTML is brittle. Substring search is unambiguous because the LLM
-  // never saw the original — any occurrence in the rendered text traces
-  // back to user input or to a placeholder restoration.
-  //
-  // Skipped subtrees: <code>, <pre> — restored values inside those are
-  // literal/markup and highlighting them is just syntax noise. <script> and
-  // <style> are skipped for sanity. <a> is NOT skipped: markdown auto-links
-  // restored PII (e.g. an email becomes a mailto: link), and the user still
-  // needs to see that it is tracked. We wrap only the link's text node, so
-  // the href and click behavior stay intact.
-  //
-  // Color assignment: each placeholder hashes to one of UNMASK_PALETTE_SIZE
-  // slots (data-color="0..N-1"). The mapping is deterministic so the
-  // **same name keeps the same color across every card**, and the same
-  // hash also flows through any future references to the same placeholder.
-  // The actual color values live in CSS so dark theme can re-skin without
-  // rebuilding the bundle.
-
-  var UNMASK_PALETTE_SIZE = 8;
-
-  // djb2-style hash → palette slot. Tiny and deterministic; enough to
-  // distribute the small number of placeholders we typically see.
-  function unmaskColorIndex(placeholder) {
-    if (!placeholder) return 0;
-    var hash = 0;
-    for (var i = 0; i < placeholder.length; i++) {
-      hash = ((hash << 5) - hash) + placeholder.charCodeAt(i);
-      hash |= 0;
-    }
-    return Math.abs(hash) % UNMASK_PALETTE_SIZE;
-  }
-
-  function isInsideSkippedAncestor(node, root) {
-    var p = node.parentNode;
-    while (p && p !== root) {
-      if (p.classList && p.classList.contains('privacy-unmasked')) return true;
-      var tag = p.nodeName;
-      if (tag === 'CODE' || tag === 'PRE' || tag === 'SCRIPT' || tag === 'STYLE') return true;
-      p = p.parentNode;
-    }
-    return false;
-  }
-
-  function splitAndWrap(textNode, needle, entityType, placeholder) {
-    var text = textNode.nodeValue;
-    var parent = textNode.parentNode;
-    if (!parent) return;
-
-    var doc = textNode.ownerDocument || document;
-    var fragment = doc.createDocumentFragment();
-    var pos = 0;
-    var idx;
-    var colorIdx = unmaskColorIndex(placeholder);
-
-    while ((idx = text.indexOf(needle, pos)) !== -1) {
-      if (idx > pos) {
-        fragment.appendChild(doc.createTextNode(text.substring(pos, idx)));
-      }
-      var span = doc.createElement('span');
-      span.className = 'privacy-unmasked';
-      // data-color drives the underline color via CSS palette rules so the
-      // SAME placeholder produces the SAME visual treatment in every card.
-      span.setAttribute('data-color', String(colorIdx));
-      if (entityType) span.setAttribute('data-entity-type', entityType);
-      if (placeholder) {
-        span.setAttribute('data-placeholder', placeholder);
-        // Title doubles as the native browser tooltip; the visible row is
-        // styled via CSS (gray background + colored underline).
-        span.setAttribute('title', 'Tracked as ' + placeholder);
-      }
-      span.textContent = needle;
-      fragment.appendChild(span);
-      pos = idx + needle.length;
-    }
-
-    if (pos === 0) return; // Nothing matched — leave the original node intact.
-    if (pos < text.length) {
-      fragment.appendChild(doc.createTextNode(text.substring(pos)));
-    }
-    parent.replaceChild(fragment, textNode);
-  }
-
-  function wrapAllOccurrences(root, needle, entityType, placeholder) {
-    if (!needle) return;
-    var doc = root.ownerDocument || document;
-    var walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-      acceptNode: function (node) {
-        if (!node.nodeValue || node.nodeValue.indexOf(needle) === -1) {
-          return NodeFilter.FILTER_REJECT;
-        }
-        if (isInsideSkippedAncestor(node, root)) return NodeFilter.FILTER_REJECT;
-        return NodeFilter.FILTER_ACCEPT;
-      }
-    });
-
-    // Collect first; we mutate during the wrap step which would invalidate
-    // the walker mid-iteration.
-    var nodes = [];
-    var n;
-    while ((n = walker.nextNode())) nodes.push(n);
-
-    nodes.forEach(function (textNode) {
-      splitAndWrap(textNode, needle, entityType, placeholder);
-    });
-  }
-
-  function highlightUnmaskedSpans(root, spans) {
-    if (!root || !spans || !spans.length) return;
-    // Sort by length descending so multi-word originals ("Alice Smith")
-    // are wrapped before any shorter substring ("Alice") that would
-    // otherwise consume their text first and prevent the longer match.
-    var sorted = spans.slice().sort(function (a, b) {
-      var la = (a && a.original) ? a.original.length : 0;
-      var lb = (b && b.original) ? b.original.length : 0;
-      return lb - la;
-    });
-    sorted.forEach(function (span) {
-      if (!span || !span.original) return;
-      wrapAllOccurrences(root, span.original, span.entity_type, span.placeholder);
-    });
-  }
-
   window.WsPrivacyHandler = {
     isActive: isActive,
     openExportDialog: openExportDialog,
     resetExportDialog: resetExportDialog,
     handleExportData: handleExportData,
     handleExportError: handleExportError,
-    highlightUnmaskedSpans: highlightUnmaskedSpans
   };
 })();

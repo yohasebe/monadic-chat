@@ -173,19 +173,6 @@ module WebSocketHelper
                       "monadic" => params["monadic"],
                       "active" => true } # detect_language is called only once here
 
-          # Privacy Filter: forward the full registry as a list of known
-          # entities so the assistant **and** user cards can highlight
-          # tracked PII. The frontend walks every card in #discourse via
-          # TreeWalker; character offsets are intentionally omitted because
-          # markdown rendering would invalidate them, and matching by
-          # `original` is unambiguous (the LLM only ever saw placeholders,
-          # so any organic occurrence in restored text must be a
-          # restoration).
-          privacy_known_entities = content["message"] && content["message"]["privacy_known_entities"]
-          if privacy_known_entities && !privacy_known_entities.empty?
-            new_data["privacy_known_entities"] = privacy_known_entities
-          end
-
           # What the reply made (an image placed in the chat's folder), as the
           # message keeps it (Monadic::Workbench::Record).
           made = content["message"] && Monadic::Workbench::Record.clean(content["message"][Monadic::Workbench::Offer::ARTIFACTS_KEY])

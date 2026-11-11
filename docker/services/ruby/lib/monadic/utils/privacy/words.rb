@@ -15,9 +15,7 @@ module Monadic
       # the chat hides its words this way.
       #
       # A chat with the mark sends nothing when its table is not here (the
-      # server was restarted, or the table was dropped to make room), and
-      # nothing when it also holds the marked words or the masking of the
-      # Privacy Filter: one chat hides its words one way.
+      # server was restarted, or the table was dropped to make room).
       module Words
         MARK_KEY = :_word_table
         # Tables kept, the ones used longest ago dropped first. A chat whose
@@ -26,20 +24,14 @@ module Monadic
         # What sending checks: the table and the snapshot a request was made
         # with, set while it is sent (fibers started in it inherit it).
         SENDING_KEY = :monadic_word_table_sending
-        # Set on a copy of a chat's session that leaves the Privacy Filter's
-        # state out (the copy HTTP requests are checked with), when the chat
-        # had it beside its table.
-        MIXED_KEY = :_word_table_mixed
-        LEGACY_KEYS = [:_privacy_pipeline, :_privacy_session_enabled, MIXED_KEY].freeze
-
         TABLES = {}
         LOCK = Mutex.new
 
         module_function
 
         # The chat's table, or nil for a chat that does not hide its words
-        # this way. Refused when the chat has the mark but no table, a mark of
-        # another chat, or the Privacy Filter's state beside it.
+        # this way. Refused when the chat has the mark but no table, or a mark of
+        # another chat.
         def table(session)
           return nil unless marked?(session)
 
@@ -49,7 +41,6 @@ module Monadic
           unless mark.is_a?(String) && mark == chat_id
             raise Outbound::Refused, "the chat's word table is not this chat's; nothing was sent"
           end
-          raise Outbound::Refused, 'the chat holds words hidden in two ways; nothing was sent' if legacy_state?(session)
 
           LOCK.synchronize do
             table = TABLES.delete(mark) or raise Outbound::Refused, "the chat's word table is not available; nothing was sent"
@@ -70,7 +61,6 @@ module Monadic
         def start!(session)
           existing = table(session)
           return existing if existing
-          raise Outbound::Refused, 'the chat already marks words for the Privacy Filter' if legacy_state?(session)
 
           chat_id = Monadic::Workspace::Chats.current(session)
           table = LOCK.synchronize do
@@ -151,7 +141,7 @@ module Monadic
         end
 
         # What a file shared without its table says for each active word:
-        # placeholder => word, as a Privacy Filter registry is.
+        # placeholder => word.
         def masking(table)
           table.active_words.to_h { |entry| [WordTable.placeholder(entry[:id]), entry[:word]] }
         end
@@ -390,18 +380,6 @@ module Monadic
           return if table.revision == revision
 
           raise Outbound::Refused, 'the words to hide changed while the request was being sent; nothing was sent'
-        end
-
-        # The Privacy Filter's state: its masking, its switch on, the words
-        # marked for it, or the placeholders it gave.
-        def legacy_state?(session)
-          return true if LEGACY_KEYS.any? { |key| !session[key].nil? && session[key] != false }
-          return true unless Outbound.legacy_terms(session).empty?
-
-          state = session[:monadic_state]
-          privacy = state.is_a?(Hash) ? (state[:privacy] || state['privacy']) : nil
-          registry = privacy.is_a?(Hash) ? (privacy[:registry] || privacy['registry']) : nil
-          registry.is_a?(Hash) && !registry.empty?
         end
       end
     end

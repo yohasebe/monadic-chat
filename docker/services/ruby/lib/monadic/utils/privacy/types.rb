@@ -12,9 +12,8 @@
 module Monadic
   module Utils
     module Privacy
-      # Maps DSL mask_types symbols to Presidio canonical entity type strings.
-      # Source of truth shared by PrivacyFilterConfiguration (DSL whitelist
-      # validation) and Pipeline (runtime translation for the backend).
+      # Maps mask_types symbols to Presidio canonical entity type strings
+      # (Pipeline's runtime translation for the backend).
       PRESIDIO_TYPE_MAP = {
         person: 'PERSON',
         organization: 'ORGANIZATION',

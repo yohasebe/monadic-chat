@@ -83,29 +83,13 @@ RSpec.describe Monadic::Utils::Privacy::Words do
       expect { described_class.table(session) }.to raise_error(outbound::Refused, /not this chat's/)
     end
 
-    it "sends nothing for a chat that also holds the Privacy Filter's words or masking" do
-      [{ _privacy_session_enabled: true },
-       { _privacy_pipeline: Object.new },
-       { monadic_state: { privacy: { terms: [{ text: 'Bob', type: 'PERSON' }] } } },
-       { monadic_state: { privacy: { registry: { '<<PERSON_1>>' => 'Bob' } } } }].each do |legacy|
-        session = new_chat
-        expect { described_class.start!(session.merge(legacy)) }.to raise_error(outbound::Refused), legacy.inspect
-        described_class.start!(session)
-        expect { described_class.table(session.merge(legacy)) }.to raise_error(outbound::Refused, /two ways/), legacy.inspect
-      end
-      off = new_chat.merge(_privacy_session_enabled: false)
-      expect(described_class.start!(off)).to be_a(Monadic::Utils::Privacy::WordTable)
-    end
-
-    it "is what the checks read as the chat's words, and the Privacy Filter's terms otherwise" do
+    it "is what the checks read as the chat's words" do
       session = new_chat
       expect(outbound.marked_terms?(session)).to be(false)
       described_class.start!(session).confirm!('Ada', 'PERSON')
       expect(outbound.marked_terms?(session)).to be(true)
       expect { outbound.check_no_marked_words!(session, { 'text' => 'Ada' }) }.to raise_error(outbound::Refused)
-
-      legacy = { monadic_state: { privacy: { terms: [{ text: 'Bob', type: 'PERSON' }] } } }
-      expect(outbound.terms_of(legacy)).to eq(['Bob'])
+      expect(outbound.terms_of(new_chat)).to eq([])
     end
   end
 

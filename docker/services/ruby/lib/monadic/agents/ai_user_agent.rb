@@ -32,23 +32,16 @@ module AIUserAgent
     # The provider writing the suggestion is another model. A chat that hides
     # its words with a word table sends the conversation (as the chat keeps
     # it, with the words) hidden with one snapshot of the table, and the
-    # suggestion is put back with it for the input box. Otherwise, with the
-    # Privacy Filter on, it gets the conversation masked as the chat's model
-    # did (and the suggestion is restored), or nothing at all.
+    # suggestion is put back with it for the input box.
     words = Monadic::Utils::Privacy::Words
-    snapshot = pipeline = nil
+    snapshot = nil
     begin
       table = words.table(session)
       if table
         snapshot, texts = words.hide_texts(table, conversation_messages.map { |m| m["text"].to_s })
         conversation_messages = conversation_messages.zip(texts).map { |m, text| m.merge("text" => text) }
       else
-        pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(session)
-        if pipeline
-          conversation_messages = conversation_messages.map do |m|
-            m.merge("text" => Monadic::Utils::Privacy::Outbound.mask(m["text"], pipeline, m["role"]))
-          end
-        end
+        Monadic::Utils::Privacy::Outbound.chat_session!(session)
       end
     rescue Monadic::Utils::Privacy::Outbound::Refused => e
       return { "type" => "error", "content" => "AI User error: no suggestion was requested: #{e.message}." }
@@ -170,7 +163,6 @@ module AIUserAgent
       
       # Process result
       if result.is_a?(String) && !result.empty?
-        result = pipeline.after_receive_from_llm(result).text if pipeline
         result = snapshot.restore(result) if snapshot
         # Success
         return {

@@ -2168,61 +2168,6 @@ module GeminiHelper
     app_tools
   end
 
-  # Mask conversational text within Gemini's contents array. The body shape
-  # is contents = [{ role, parts: [{ text }, { inline_data }, ...] }]. Both
-  # "user" and "model" (assistant) parts with a String "text" key are
-  # masked. Inline data, file data, and function_call/response parts pass
-  # through untouched. See apply_privacy_to_messages for the rationale on
-  # masking past assistant turns.
-  private def apply_privacy_to_gemini_contents(contents, session, app_settings)
-    require_relative '../../utils/privacy/outbound'
-    outbound = Monadic::Utils::Privacy::Outbound
-    pipeline = privacy_pipeline_for(session, app_settings)
-    unless pipeline
-      # Words the user marked stay protected when the filter is off.
-      raise outbound::Refused, 'words were marked to be masked in this chat, but the Privacy Filter is off' if outbound.marked_terms?(session)
-
-      return contents
-    end
-
-    require_relative '../../utils/privacy/types'
-    mask_text = lambda do |text|
-      next text unless text.is_a?(String) && !text.empty?
-
-      pipeline.before_send_to_llm(Monadic::Utils::Privacy::RawMessage.new(text, "user", {})).text
-    end
-    # In a chat with words the user marked, what a function gave back
-    # (functionResponse.response) is masked like the conversation.
-    mask_tools = outbound.marked_terms?(session)
-    contents.map do |item|
-      role = item[:role] || item["role"]
-      # Gemini uses "model" for assistant turns; mask both directions so
-      # restored values from past turns do not leak as context.
-      next item unless %w[user model].include?(role.to_s)
-      parts_key = item.key?(:parts) ? :parts : "parts"
-      parts = item[parts_key]
-      next item unless parts.is_a?(Array)
-
-      new_parts = parts.map do |part|
-        next part unless part.is_a?(Hash)
-        response_holder = %w[functionResponse function_response].find { |k| part[k].is_a?(Hash) } ||
-                          %i[functionResponse function_response].find { |k| part[k].is_a?(Hash) }
-        if mask_tools && response_holder
-          holder = part[response_holder]
-          response_key = holder.key?(:response) ? :response : "response"
-          next part.merge(response_holder => holder.merge(response_key => privacy_mask_value(holder[response_key], mask_text)))
-        end
-        text_key = part.key?(:text) ? :text : "text"
-        text = part[text_key]
-        next part unless text.is_a?(String) && !text.empty?
-        raw = Monadic::Utils::Privacy::RawMessage.new(text, "user", {})
-        masked = pipeline.before_send_to_llm(raw)
-        part.merge(text_key => masked.text)
-      end
-      item.merge(parts_key => new_parts)
-    end
-  end
-
   # One turn of a Gemini conversation, as sent to a chat with a word table
   # (hide_words_in_request!). Text parts are what the user and the app
   # wrote, and replies as the chat keeps them (put back): what the model
@@ -2267,22 +2212,12 @@ module GeminiHelper
 
     http = HTTP.headers(headers.merge("x-goog-api-key" => api_key))
 
-    # Privacy Filter: mask user-message PII before sending to Gemini. No-op
-    # when the app does not declare `privacy do; enabled true; end` in MDSL.
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
     # A chat with a word table hides its words with it (each attempt below
-    # is sent only while the table is unchanged); otherwise the Privacy
-    # Filter's masking and marked words apply. The conversation as it was
+    # is sent only while the table is unchanged). The conversation as it was
     # before is what a request made again is made from.
     unhidden = body["contents"]
     hiding = hide_words_in_request!(body, session, keys: %w[contents], item: method(:hide_words_in_gemini_content))
-    unless hiding
-      if privacy_enabled_for?(app_settings, session) && body["contents"].is_a?(Array)
-        body["contents"] = apply_privacy_to_gemini_contents(body["contents"], session, app_settings)
-      end
-      # Words the user marked: masked wherever they are in the body, or nothing is sent.
-      protect_marked_words!(body, session, app_settings)
-    end
 
     # The tools as the model is offered them; what depends on them is
     # settled after.

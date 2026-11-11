@@ -38,14 +38,16 @@ RSpec.describe 'WebSocketHelper privacy export (block D.2)' do
       { 'mid' => 'a2', 'role' => 'assistant', 'text' => 'Drafted to john.smith@acme.com.', 'app_name' => 'MailComposerOpenAI' }
     ]
   end
-  let(:pipeline) do
-    Class.new do
-      def initialize(reg); @state = { registry: reg }; end
-      def registry_state; @state; end
-    end.new(registry)
-  end
   let(:session) do
-    { messages: messages, parameters: { 'app_name' => 'MailComposerOpenAI' }, _privacy_pipeline: pipeline }
+    { messages: messages, parameters: { 'app_name' => 'MailComposerOpenAI' } }.tap do |chat|
+      Monadic::Workspace::Chats.start_new!(chat)
+      Monadic::Utils::Privacy::Words.start!(chat).confirm_all!([['John Smith', 'PERSON'], ['john.smith@acme.com', 'EMAIL_ADDRESS']])
+    end
+  end
+
+  after do
+    words = Monadic::Utils::Privacy::Words
+    words::LOCK.synchronize { words::TABLES.clear }
   end
 
   describe 'privacy_remask_messages' do
@@ -145,29 +147,30 @@ RSpec.describe 'WebSocketHelper privacy export (block D.2)' do
         envelope: envelope, passphrase: 'correct horse battery staple'
       )
       parsed = JSON.parse(decrypted)
-      expect(parsed['registry']).to eq(registry)
+      expect(parsed['word_table']['schema']).to eq(Monadic::Utils::Privacy::WordTable::SCHEMA)
       expect(parsed['messages'].length).to eq(2)
       expect(parsed['messages'][1]['text']).to include('john.smith@acme.com')
     end
 
-    it 'returns masked-only payload without registry exposure' do
+    it 'returns masked-only payload without the table' do
       harness.send(:handle_ws_privacy_export, :conn, session, { 'mode' => 'masked_only' })
       payload = harness.sent.last
       expect(payload['mode']).to eq('masked_only')
       content = Base64.strict_decode64(payload['content_base64'])
       parsed = JSON.parse(content)
       expect(parsed).not_to have_key('registry')
+      expect(parsed).not_to have_key('word_table')
       expect(parsed['messages'][0]['text']).to eq('Email <<PERSON_1>>.')
       expect(parsed['messages'][1]['text']).to eq('Drafted to <<EMAIL_ADDRESS_1>>.')
     end
 
-    it 'returns restored payload with registry attached' do
+    it 'returns restored payload with the table attached' do
       harness.send(:handle_ws_privacy_export, :conn, session, { 'mode' => 'restored' })
       payload = harness.sent.last
       expect(payload['mode']).to eq('restored')
       content = Base64.strict_decode64(payload['content_base64'])
       parsed = JSON.parse(content)
-      expect(parsed['registry']).to eq(registry)
+      expect(parsed['word_table']['schema']).to eq(Monadic::Utils::Privacy::WordTable::SCHEMA)
       expect(parsed['messages'][0]['text']).to eq('Email John Smith.')
     end
 
@@ -187,16 +190,16 @@ RSpec.describe 'WebSocketHelper privacy export (block D.2)' do
         envelope: envelope, passphrase: 'a-strong-passphrase-12345'
       )
       parsed = JSON.parse(decrypted)
-      # Masked content drops the registry from the encrypted payload
-      expect(parsed['registry']).to eq({})
+      # Masked content holds no table in the encrypted payload
+      expect(parsed).not_to have_key('word_table')
+      expect(parsed).not_to have_key('registry')
       expect(parsed['messages'][0]['text']).to eq('Email <<PERSON_1>>.')
     end
 
-    it 'allows encrypting a non-privacy session (registry empty) for at-rest protection' do
+    it 'allows encrypting a chat that hides no words, for at-rest protection' do
       no_privacy_session = {
         messages: [{ 'mid' => 'b1', 'role' => 'user', 'text' => 'Plain trade-secret discussion.' }],
-        parameters: { 'app_name' => 'ChatOpenAI' },
-        _privacy_pipeline: nil
+        parameters: { 'app_name' => 'ChatOpenAI' }
       }
       harness.send(:handle_ws_privacy_export, :conn, no_privacy_session,
                    { 'encrypt' => true, 'content' => 'restored', 'passphrase' => 'a-strong-passphrase-12345' })
@@ -212,11 +215,10 @@ RSpec.describe 'WebSocketHelper privacy export (block D.2)' do
       expect(parsed['messages'][0]['text']).to eq('Plain trade-secret discussion.')
     end
 
-    it 'plain export of non-privacy session omits the empty registry from output' do
+    it 'plain export of a chat that hides no words holds no table or registry' do
       no_privacy_session = {
         messages: [{ 'mid' => 'c1', 'role' => 'user', 'text' => 'Hi there.' }],
-        parameters: { 'app_name' => 'ChatOpenAI' },
-        _privacy_pipeline: nil
+        parameters: { 'app_name' => 'ChatOpenAI' }
       }
       harness.send(:handle_ws_privacy_export, :conn, no_privacy_session,
                    { 'encrypt' => false, 'content' => 'restored' })

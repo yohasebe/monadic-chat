@@ -1188,20 +1188,10 @@ module DeepSeekHelper
 
     http = HTTP.headers(headers)
 
-    # Privacy Filter: mask user-message PII before sending to DeepSeek. No-op
-    # when the app does not declare `privacy do; enabled true; end` in MDSL.
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
     # A chat with a word table hides its words with it (each attempt below
-    # is sent only while the table is unchanged); otherwise the Privacy
-    # Filter's masking and marked words apply.
+    # is sent only while the table is unchanged).
     hiding = hide_words_in_request!(body, session)
-    unless hiding
-      if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
-        body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
-      end
-      # Words the user marked: masked wherever they are in the body, or nothing is sent.
-      protect_marked_words!(body, session, app_settings)
-    end
 
     if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
       body.delete("tools")

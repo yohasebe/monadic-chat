@@ -368,19 +368,13 @@ module WebSocketHelper
 
     params = (session && (session[:parameters] || session['parameters'])) || {}
     app_name = (params['app_name'] || params[:app_name]).to_s
-    # Hand the privacy pipeline to TitleSuggester so the suggestion LLM
-    # call mirrors the user's chosen masking. Without it, the suggester
-    # echoes raw PII back into the proposed title even when the chat
-    # path itself is masked.
-    # Not suggested from unmasked text when the filter is on but cannot mask.
-    # A chat with a word table hides its words with it, not with the
-    # Privacy Filter's pipeline.
+    # A chat with a word table hides its words in the suggestion request, so
+    # the title does not bring them back unhidden.
     words = nil
-    pipeline = nil
     begin
       require_relative '../privacy/words'
       words = Monadic::Utils::Privacy::Words.table(session) if session
-      pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(session) unless words
+      Monadic::Utils::Privacy::Outbound.chat_session!(session) unless words
     rescue Monadic::Utils::Privacy::Outbound::Refused => e
       send_to_client(connection, { 'type' => 'library_title_suggested', 'res' => 'failure',
                                    'content' => "No title was suggested: #{e.message}." })
@@ -389,7 +383,6 @@ module WebSocketHelper
     title = Monadic::Library::TitleSuggester.suggest(
       messages: messages,
       app_name: app_name,
-      pipeline: pipeline,
       session: session,
       words: words
     )

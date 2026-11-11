@@ -195,6 +195,8 @@ The **History** tab lists the kept chats, the latest activity first, and is show
 
 The **Files** tab shows what the shared folder (`~/monadic/data`) holds, one folder at a time. Click a folder to open it; use the path at the top, or the up-arrow button, to go back. Click a file to open it in the [work screen](#work-screen) (images, text files, audio, video and PDFs); clicking another kind of file selects it.
 
+In the conversation and the work screen, a path in the shared folder is shown by its file name, with a dotted underline; point to it to see the whole path. Two files of the same name are shown with their folder. Text copied from the page, and what is sent to the model, keep the whole path. Code blocks show paths as written.
+
 Each entry shows its name, when it was last modified, its size and what it is:
 
 - **What it is** comes from Monadic Chat's own record where it has one (the folders of chats, files named `pub_…`) and otherwise only from the entry's name, marked "(by its name)". A name does not tell whether a file is still needed. The videos and subtitles the page plays are kept by Monadic Chat outside the shared folder; files named `pub_…` in the shared folder are not used and can be moved to the trash.

@@ -142,6 +142,11 @@
     return el.tagName === 'INPUT' && !['button', 'checkbox', 'radio', 'submit'].includes(el.type);
   }
 
+  // A path in a line under an item is shown by its file name (short-paths.js).
+  function shortenPaths(el) {
+    if (window.ShortPaths) window.ShortPaths.apply(el);
+  }
+
   // "Save as…" in the desktop app (it asks where to save); "Download" in a
   // browser.
   function saveLabel() {
@@ -367,6 +372,7 @@
     }
     const line = element('div', 'small text-secondary mt-2');
     line.appendChild(element('code', null, item.path || item.name || ''));
+    shortenPaths(line);
     info.appendChild(line);
     if (item.status === 'ok' && item.artifact_id) {
       info.appendChild(saveButton(item.artifact_id, 'btn-primary mt-2'));
@@ -682,6 +688,7 @@
       } else {
         line.appendChild(element('code', null, String(entry.path)));
       }
+      shortenPaths(line);
       if (item && item.status !== 'ok') {
         line.appendChild(document.createTextNode(` — ${statusText(item.status, item)}`));
       } else {
@@ -1520,6 +1527,7 @@
       open.type = 'button';
       open.title = t('ui.workbench.open', 'Show in the work screen');
       open.appendChild(element('code', null, String(entry.name || entry.path)));
+      shortenPaths(open);
       open.addEventListener('click', () => {
         const item = items().find((i) => i.kind === 'file' && i.path === entry.path && i.sha256 === entry.sha256);
         if (item) openItem(item.id);

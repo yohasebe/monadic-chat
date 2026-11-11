@@ -6032,6 +6032,8 @@ small, .small,
 .voice-input { display: inline-flex; align-items: center; }
 /* A hidden word as the conversation shows it: its title says what was sent. */
 .word-table-shown { border-bottom: 1px dotted #4f78b8; cursor: help; }
+/* A shared folder path shown by its file name: its title is the whole path. */
+.short-path { border-bottom: 1px dotted var(--text-secondary); }
 .dark-theme .word-table-panel,
 .dark-theme .word-table-preview,
 .dark-theme .word-table-add,

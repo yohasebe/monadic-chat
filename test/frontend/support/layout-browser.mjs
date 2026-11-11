@@ -38,12 +38,12 @@ const PAGE = `<!doctype html><html><head><meta charset="utf-8">
 <div class="container-fluid pt-0 p-3" id="contents">
   <div class="row g-3 mt-0 mb-0 row-no-bottom-margin">
     <div id="menu" class="order-md-2 scrollable">
-      <div id="side-pane-tabs" class="side-pane-tabs rounded mb-2" role="tablist">
+      <div class="column-bar"><div id="side-pane-tabs" class="side-pane-tabs rounded" role="tablist">
         <button type="button" id="side-tab-settings" class="side-pane-tab" role="tab" aria-selected="true" aria-controls="settings-pane" data-pane="settings">Menu</button>
         <button type="button" id="side-tab-work" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="work-screen-pane" data-pane="work" tabindex="-1">Work screen</button>
         <button type="button" id="side-tab-files" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="shared-files-pane" data-pane="files" tabindex="-1">Files</button>
         <button type="button" id="side-tab-history" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="history-pane" data-pane="history" tabindex="-1">History</button>
-      </div>
+      </div></div>
       <div id="settings-pane" role="tabpanel">${filler(80, 'setting')}</div>
       <div id="work-screen-pane" role="tabpanel" hidden></div>
       ${FILES}
@@ -51,7 +51,7 @@ const PAGE = `<!doctype html><html><head><meta charset="utf-8">
     </div>
     <div id="side-pane-splitter" role="separator" aria-orientation="vertical" tabindex="0" hidden></div>
     <div id="main" class="order-md-1 scrollable">
-      <div id="config-summary" class="rounded shaded-panel mb-2 config-summary-locked"><span class="summary-label">Current settings</span></div>
+      <div class="column-bar"><div id="config-summary" class="rounded shaded-panel config-summary-locked"><span class="summary-label">Current settings</span></div></div>
       <div id="config-wrapper"><div id="config-body">${filler(40, 'config')}</div></div>
       <div id="main-panel"><pre id="wide">${'x'.repeat(3000)}</pre>${filler(80, 'message')}</div>
     </div>
@@ -100,6 +100,19 @@ const measure = async () => {
   return {
     menu: box('menu'), main: box('main'), handle: box('side-pane-splitter'),
     summary: box('config-summary'), tabs: box('side-pane-tabs'),
+    // What lies right under each bar at its top corners (outside its
+    // rounding, what shows there): the bar's holder in the page's color,
+    // not what scrolls under it.
+    corners: ['config-summary', 'side-pane-tabs'].map((id) => {
+      const bar = document.getElementById(id);
+      const r = bar.getBoundingClientRect();
+      return [[r.left + 1, r.top + 1], [r.right - 1, r.top + 1]].map(([x, y]) => {
+        const under = document.elementsFromPoint(x, y).find((el) => el !== bar && !bar.contains(el));
+        if (!under) return '';
+        const filled = getComputedStyle(under).backgroundColor !== 'rgba(0, 0, 0, 0)';
+        return filled ? under.className : `${under.className} (transparent)`;
+      });
+    }),
     width: window.LayoutController.sideWidth(),
     rem: parseFloat(getComputedStyle(document.documentElement).fontSize),
     said: Number(document.getElementById('side-pane-splitter').getAttribute('aria-valuenow')),

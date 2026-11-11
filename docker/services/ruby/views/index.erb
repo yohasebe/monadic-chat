@@ -296,11 +296,13 @@
       <div class="row g-3 mt-0 mb-0 row-no-bottom-margin">
         <div id="menu" class="order-md-2 scrollable">
           <%# The side column holds four panes; layout-controller.js shows one. History is shown while the server keeps one. %>
-          <div id="side-pane-tabs" class="side-pane-tabs rounded mb-2" role="tablist" aria-label="Side panel" data-i18n-aria-label="ui.sidePane.label">
-            <button type="button" id="side-tab-settings" class="side-pane-tab" role="tab" aria-selected="true" aria-controls="settings-pane" data-pane="settings" data-i18n="ui.sidePane.menu">Menu</button>
-            <button type="button" id="side-tab-work" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="work-screen-pane" data-pane="work" tabindex="-1"><span data-i18n="ui.sidePane.workScreen">Work screen</span></button>
-            <button type="button" id="side-tab-files" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="shared-files-pane" data-pane="files" tabindex="-1"><span data-i18n="ui.sidePane.files">Files</span></button>
-            <button type="button" id="side-tab-history" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="history-pane" data-pane="history" tabindex="-1" hidden><span data-i18n="ui.sidePane.history">History</span></button>
+          <div class="column-bar">
+            <div id="side-pane-tabs" class="side-pane-tabs rounded" role="tablist" aria-label="Side panel" data-i18n-aria-label="ui.sidePane.label">
+              <button type="button" id="side-tab-settings" class="side-pane-tab" role="tab" aria-selected="true" aria-controls="settings-pane" data-pane="settings" data-i18n="ui.sidePane.menu">Menu</button>
+              <button type="button" id="side-tab-work" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="work-screen-pane" data-pane="work" tabindex="-1"><span data-i18n="ui.sidePane.workScreen">Work screen</span></button>
+              <button type="button" id="side-tab-files" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="shared-files-pane" data-pane="files" tabindex="-1"><span data-i18n="ui.sidePane.files">Files</span></button>
+              <button type="button" id="side-tab-history" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="history-pane" data-pane="history" tabindex="-1" hidden><span data-i18n="ui.sidePane.history">History</span></button>
+            </div>
           </div>
           <div id="settings-pane" role="tabpanel" aria-labelledby="side-tab-settings">
           <div id="monadic-info-panel" class="mb-3 rounded shaded-panel overflow-hidden">
@@ -805,14 +807,16 @@
                to render correctly on first paint. It sits outside #config-wrapper,
                directly in the scrolling column, so it stays at the top of the column
                (sticky) while the settings and the conversation scroll. -->
-          <div id="config-summary" class="rounded shaded-panel mb-2 config-summary-locked" data-bs-target="#config-body" aria-expanded="true" aria-controls="config-body">
-            <div class="d-flex align-items-center flex-grow-1">
-              <span class="summary-label me-3" data-i18n="ui.configSummaryLabel">Current settings</span>
-              <span id="summary-app-icon" class="me-2"></span>
-              <span id="summary-app-name" class="fw-semibold me-2"></span>
-              <span id="summary-model-name" class="text-secondary me-2"></span>
-              <span id="summary-indicators"></span>
-              <i class="fas fa-chevron-down config-collapse-icon ms-auto"></i>
+          <div class="column-bar">
+            <div id="config-summary" class="rounded shaded-panel config-summary-locked" data-bs-target="#config-body" aria-expanded="true" aria-controls="config-body">
+              <div class="d-flex align-items-center flex-grow-1">
+                <span class="summary-label me-3" data-i18n="ui.configSummaryLabel">Current settings</span>
+                <span id="summary-app-icon" class="me-2"></span>
+                <span id="summary-app-name" class="fw-semibold me-2"></span>
+                <span id="summary-model-name" class="text-secondary me-2"></span>
+                <span id="summary-indicators"></span>
+                <i class="fas fa-chevron-down config-collapse-icon ms-auto"></i>
+              </div>
             </div>
           </div>
           <div id="config-wrapper">
@@ -1013,21 +1017,21 @@
 
             <div id="user-panel" class="mt-1">
               <div id="word-table-panel" class="word-table-panel" style="display: none;" role="region" aria-labelledby="word-table-title">
-                <div class="d-flex align-items-center justify-content-between">
+                <div class="word-table-head">
                   <strong id="word-table-title" data-i18n="ui.wordTable.title">Words to hide in this chat</strong>
-                  <button id="word-table-close" type="button" class="btn-close btn-sm" aria-label="Close" data-i18n-aria-label="ui.wordTable.close"></button>
+                  <button id="word-table-help" type="button" class="word-table-icon-button" aria-expanded="false" aria-controls="word-table-how" title="How to use" data-i18n-title="ui.wordTable.help" aria-label="How to use" data-i18n-aria-label="ui.wordTable.help"><i class="fa-regular fa-circle-question"></i></button>
+                  <button id="word-table-close" type="button" class="btn-close ms-auto" aria-label="Close" data-i18n-aria-label="ui.wordTable.close"></button>
                 </div>
-                <div id="word-table-preview" class="word-table-preview" tabindex="0"></div>
-                <div class="d-flex align-items-center flex-wrap mt-1">
-                  <select id="word-table-type" class="form-select form-select-sm word-table-type-select me-1" aria-label="Type" data-i18n-aria-label="ui.privacyMark.typeMenu"></select>
-                  <button id="word-table-hide-selection" type="button" class="btn btn-sm btn-secondary me-2" data-i18n="ui.wordTable.hideSelection">Hide selected words</button>
-                  <span class="small text-secondary" data-i18n="ui.wordTable.everyWhere">A word is hidden wherever it occurs in this chat.</span>
+                <p id="word-table-how" class="word-table-how" style="display: none;" data-i18n="ui.wordTable.howTo">To hide a word that was not found, select it in the text below and choose its type. A word is hidden wherever it occurs in this chat.</p>
+                <div class="word-table-preview-wrap">
+                  <div id="word-table-preview" class="word-table-preview" tabindex="0"></div>
+                  <div id="word-table-add" class="word-table-add" style="display: none;" role="toolbar" aria-label="Hide as" data-i18n-aria-label="ui.wordTable.addAs"></div>
                 </div>
                 <div id="word-table-list" class="word-table-list"></div>
                 <div id="word-table-kept" class="word-table-kept"></div>
                 <div id="word-table-error" class="word-table-error" style="display: none;" role="alert"></div>
-                <p class="small text-secondary mb-1 mt-1" data-i18n="ui.wordTable.note">These words are replaced in what this chat sends from now on. The history and logs keep the original words. Not covered: images, voice, file contents, files and pages that code or the browser reads, names not listed here, and what was already sent.</p>
-                <button id="word-table-apply" type="button" class="btn btn-sm btn-primary" data-i18n="ui.wordTable.apply">Hide these words</button>
+                <p class="word-table-note" data-i18n="ui.wordTable.note">These words are replaced in what this chat sends from now on. The history and logs keep the original words. Not covered: images, voice, file contents, files and pages that code or the browser reads, names not listed here, and what was already sent.</p>
+                <button id="word-table-apply" type="button" class="btn btn-primary" data-i18n="ui.wordTable.apply">Hide these words</button>
               </div>
               <div class="row">
                 <div class="col-12 h-25 mt-3">
@@ -1042,7 +1046,7 @@
 
               <div class="row mt-1 mb-3">
                 <div class="col-auto">
-                  <div class="d-flex align-items-center flex-wrap">
+                  <div class="d-flex align-items-center flex-wrap message-tools">
                     <button id="image-file" class="btn btn-sm btn-warning text-nowrap me-2" title="Attach image file to message" data-i18n="ui.image" data-i18n-title="ui.attachImage"><i class="fas fa-image"></i> Image</button>
                     <button id="doc" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from document file" data-i18n="ui.fromFile" data-i18n-title="ui.importFromDoc"><i class="fa-solid fa-file-arrow-up"></i> Text from file</button>
                     <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from web URL" data-i18n="ui.fromURL" data-i18n-title="ui.importFromWeb"><i class="fa-solid fa-globe"></i> Text from URL</button>

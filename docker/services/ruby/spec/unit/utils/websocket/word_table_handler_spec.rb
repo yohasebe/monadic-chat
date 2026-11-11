@@ -140,7 +140,7 @@ RSpec.describe 'The page asking about a chat word table' do
 
       expect(words.active_of(session)).to eq(['Ada'])
       expect(of_type('word_table').last).to include('chat' => token, 'marked' => true,
-                                                    'active' => [{ 'word' => 'Ada', 'type' => 'PERSON' }], 'kept' => [])
+                                                    'active' => [{ 'word' => 'Ada', 'type' => 'PERSON', 'placeholder' => '<<PERSON_1>>' }], 'kept' => [])
     end
 
     it 'takes a word off and does not offer it again, and can put it back' do
@@ -161,7 +161,7 @@ RSpec.describe 'The page asking about a chat word table' do
       change(hide: [{ 'word' => 'Ada', 'type' => 'ORGANIZATION' }])
 
       expect(words.table(session).apply('Ada')).to eq(before)
-      expect(of_type('word_table').last['active']).to eq([{ 'word' => 'Ada', 'type' => 'ORGANIZATION' }])
+      expect(of_type('word_table').last['active']).to eq([{ 'word' => 'Ada', 'type' => 'ORGANIZATION', 'placeholder' => before }])
     end
 
     it 'takes nothing meant for another chat' do

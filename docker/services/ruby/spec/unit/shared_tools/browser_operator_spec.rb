@@ -220,14 +220,14 @@ RSpec.describe MonadicSharedTools::BrowserOperator do
       go = Queue.new
       first = Thread.new { owner.acting('c1') { inside << :first; go.pop } }
       threads << first
-      expect(inside.pop).to eq(:first)
+      expect(inside.pop(timeout: 2)).to eq(:first)
       second = Thread.new { owner.acting('c1') { inside << :second } }
       threads << second
       wait_until { second.status == 'sleep' }
       expect(inside).to be_empty
       expect(operator.claim('c1', 1, stream)).to eq(:busy)
       go << :on
-      expect(inside.pop).to eq(:second)
+      expect(inside.pop(timeout: 2)).to eq(:second)
       [first, second].each { |t| expect(t.join(2)).to eq(t) }
       expect(operator.claim('c1', 1, stream)).to be_a(Integer)
     end

@@ -2,6 +2,7 @@
 
 require 'cgi'
 require 'set'
+require_relative 'workbench_tools'
 
 # JupyterOperations Shared Tools
 #
@@ -25,6 +26,9 @@ require 'set'
 # - move_jupyter_cell: Reorganize notebook structure
 # - insert_jupyter_cells: Insert cells at specific positions
 #
+# A notebook a tool makes or changes is shown in the work screen for the
+# reply (the result still gives its JupyterLab address).
+#
 # NOTE: Provider-specific optimization tools like `create_and_populate_jupyter_notebook`
 # (used by Grok and Gemini for parallel function calling) are NOT included here.
 # Those remain as individual tool definitions in their respective apps.
@@ -47,7 +51,7 @@ module MonadicSharedTools
     end
 
     # Create a new Jupyter notebook
-    def create_jupyter_notebook(filename:, session: nil)
+    def create_jupyter_notebook(filename:, session: nil, workbench: nil)
       unless filename && !filename.empty?
         return {
           success: false,
@@ -63,11 +67,11 @@ module MonadicSharedTools
         session[:current_notebook_filename] = filename
       end
 
-      result
+      shown_with(result, created_notebook(result), workbench)
     end
 
     # Add and run cells in a Jupyter notebook
-    def add_jupyter_cells(filename:, cells:, run: true, escaped: false, session: nil)
+    def add_jupyter_cells(filename:, cells:, run: true, escaped: false, session: nil, workbench: nil)
       # Use filename from session if not explicitly provided
       filename ||= session[:current_notebook_filename] if session
 
@@ -126,11 +130,11 @@ module MonadicSharedTools
         end
       end
 
-      result
+      shown_with(result, filename, workbench)
     end
 
     # Delete a cell from a Jupyter notebook
-    def delete_jupyter_cell(filename:, index:, session: nil)
+    def delete_jupyter_cell(filename:, index:, session: nil, workbench: nil)
       # Use filename from session if not explicitly provided
       filename ||= session[:current_notebook_filename] if session
 
@@ -149,11 +153,11 @@ module MonadicSharedTools
       end
 
       # MonadicHelper#delete_jupyter_cell doesn't accept session parameter
-      super(filename: filename, index: index)
+      shown_with(super(filename: filename, index: index), filename, workbench)
     end
 
     # Update the content of a cell in a Jupyter notebook
-    def update_jupyter_cell(filename:, index:, content:, cell_type: "code", session: nil)
+    def update_jupyter_cell(filename:, index:, content:, cell_type: "code", session: nil, workbench: nil)
       # Use filename from session if not explicitly provided
       filename ||= session[:current_notebook_filename] if session
 
@@ -186,7 +190,7 @@ module MonadicSharedTools
       end
 
       # MonadicHelper#update_jupyter_cell doesn't accept session parameter
-      super(filename: filename, index: index, content: content, cell_type: cell_type)
+      shown_with(super(filename: filename, index: index, content: content, cell_type: cell_type), filename, workbench)
     end
 
     # Get all cells with their execution results, including error information
@@ -206,7 +210,7 @@ module MonadicSharedTools
     end
 
     # Execute cells and get error information for fixing
-    def execute_and_fix_jupyter_cells(filename:, max_retries: 3, session: nil)
+    def execute_and_fix_jupyter_cells(filename:, max_retries: 3, session: nil, workbench: nil)
       # Use filename from session if not explicitly provided
       filename ||= session[:current_notebook_filename] if session
 
@@ -225,7 +229,7 @@ module MonadicSharedTools
       end
 
       # MonadicHelper#execute_and_fix_jupyter_cells doesn't accept session parameter
-      super(filename: filename, max_retries: max_retries)
+      shown_with(super(filename: filename, max_retries: max_retries), filename, workbench)
     end
 
     # List all Jupyter notebooks in the data directory
@@ -267,7 +271,7 @@ module MonadicSharedTools
     end
 
     # Move a cell to a new position in the notebook
-    def move_jupyter_cell(filename:, from_index:, to_index:, session: nil)
+    def move_jupyter_cell(filename:, from_index:, to_index:, session: nil, workbench: nil)
       # Use filename from session if not explicitly provided
       filename ||= session[:current_notebook_filename] if session
 
@@ -293,11 +297,11 @@ module MonadicSharedTools
       end
 
       # MonadicHelper#move_jupyter_cell doesn't accept session parameter
-      super(filename: filename, from_index: from_index, to_index: to_index)
+      shown_with(super(filename: filename, from_index: from_index, to_index: to_index), filename, workbench)
     end
 
     # Insert cells at a specific position in the notebook
-    def insert_jupyter_cells(filename:, index:, cells:, run: false, session: nil)
+    def insert_jupyter_cells(filename:, index:, cells:, run: false, session: nil, workbench: nil)
       # Use filename from session if not explicitly provided
       filename ||= session[:current_notebook_filename] if session
 
@@ -323,7 +327,31 @@ module MonadicSharedTools
       end
 
       # MonadicHelper#insert_jupyter_cells doesn't accept session parameter
-      super(filename: filename, index: index, cells: cells, run: run)
+      shown_with(super(filename: filename, index: index, cells: cells, run: run), filename, workbench)
+    end
+
+    # Made and filled in one call (the tool some providers are given).
+    def create_and_populate_jupyter_notebook(filename:, cells: [], run: true, workbench: nil)
+      result = super(filename: filename, cells: cells, run: run)
+      shown_with(result, created_notebook(result), workbench)
+    end
+
+    private
+
+    # The notebook a creation made, as its result names it, or nil.
+    def created_notebook(result)
+      result.is_a?(String) ? result[/\ANotebook (.+?\.ipynb) created successfully/, 1] : nil
+    end
+
+    # The tool's result, once the notebook is shown in the work screen for
+    # the reply; as it was when it cannot be (no reply to show it for, no
+    # such file, a full work screen).
+    def shown_with(result, filename, workbench)
+      return result unless workbench && result.is_a?(String) && filename && !filename.to_s.empty?
+
+      name = filename.to_s.end_with?(".ipynb") ? filename.to_s : "#{filename}.ipynb"
+      said = WorkbenchTools.show_file(name, workbench)
+      said.start_with?("{") ? "#{result}\n\nThe notebook is shown in the work screen beside the chat." : result
     end
   end
 end

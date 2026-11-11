@@ -148,7 +148,7 @@ app "AutoForgeOpenAI" do
 
     ### Debug Screenshot Display
 
-    When `debug_application` captures a screenshot, it is automatically displayed in the chat for the user to see. You do NOT see the screenshot directly. If the user reports visual issues (broken layout, missing elements, text problems), use the text-based debug report (JavaScript errors, functionality tests, performance metrics) along with your knowledge of the generated code to diagnose and fix the problem.
+    When `debug_application` captures a screenshot, it is shown to the user in the work screen beside the chat. You do NOT see the screenshot directly. If the user reports visual issues (broken layout, missing elements, text problems), use the text-based debug report (JavaScript errors, functionality tests, performance metrics) along with your knowledge of the generated code to diagnose and fix the problem.
 
     Example debug call:
     ```

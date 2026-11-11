@@ -34,7 +34,7 @@ Coding Assistant supports the providers indicated in the [availability table](..
 
 ![Jupyter Notebook app icon](../assets/icons/jupyter-notebook.png ':size=40')
 
-Let the AI create Jupyter notebooks, add cells, and run them as you ask. The AI keeps track of the current notebook, so you can go on editing and running the same notebook over several turns. The code runs in the Python container, and the notebook is saved to the shared folder.
+Let the AI create Jupyter notebooks, add cells, and run them as you ask. The AI keeps track of the current notebook, so you can go on editing and running the same notebook over several turns. The code runs in the Python container, and the notebook is saved to the shared folder. Each time the AI makes or changes the notebook, it is shown in the [work screen](../basic-usage/web-interface.md#work-screen); its JupyterLab address is given too, to open it there.
 
 ?> You can ask the AI to start or stop JupyterLab, or use **Start JupyterLab** and **Stop JupyterLab** in the **Actions** menu of the console. See [JupyterLab](../docker-integration/jupyterlab.md).
 <br /><br /><!-- SCREENSHOT: Monadic Chat Actions menu showing Start JupyterLab and Stop JupyterLab options -->

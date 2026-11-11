@@ -20,7 +20,15 @@ module MonadicSharedTools
     # workbench: who called (Monadic::Workbench::Caller), given by the
     # server, never by the model.
     def show_on_workbench(path:, workbench: nil)
-      return refused('this reply cannot show anything in the work screen') unless workbench
+      WorkbenchTools.show_file(path, workbench)
+    end
+
+    # Shows a file of the shared folder in the work screen for the reply of
+    # workbench, as show_on_workbench does; other tools call it for what
+    # they made (a notebook, a screenshot). What is said back, as JSON, or
+    # why not.
+    def self.show_file(path, workbench)
+      return refusal('this reply cannot show anything in the work screen') unless workbench
 
       board = Monadic::Workbench::Board.for(workbench.chat_id)
       item, = board.add_file(path: path.to_s.sub(SHARED_PREFIXES, ''), origin: workbench.origin, epoch: workbench.epoch)
@@ -29,9 +37,13 @@ module MonadicSharedTools
       JSON.generate({ 'status' => 'shown_in_work_screen', 'path' => item.dig('file', 'path'),
                       'note' => 'The file is shown in the work screen as it is now. It was not copied.' })
     rescue Monadic::Workbench::Board::Refused => e
-      refused(e.message)
+      refusal(e.message)
     rescue Monadic::Workbench::FileItem::Busy
-      refused('the work screen is reading other files now; try again in a moment')
+      refusal('the work screen is reading other files now; try again in a moment')
+    end
+
+    def self.refusal(reason)
+      "❌ The file was not shown in the work screen: #{reason}."
     end
 
     # A text the model made, written as a new file of the chat's folder
@@ -52,12 +64,6 @@ module MonadicSharedTools
     # provider's helper places after the result, or a refusal.
     def look_at_workbench(scope: 'visible', workbench: nil)
       Monadic::Workbench::Look.run(workbench, scope: scope)
-    end
-
-    private
-
-    def refused(reason)
-      "❌ The file was not shown in the work screen: #{reason}."
     end
   end
 end

@@ -59,12 +59,18 @@ module MonadicSharedTools
       return :disabled unless enabled?
 
       @lock.synchronize do
-        state = state_for(chat, instance)
-        next :busy unless state.tokens.empty?
-        next :unavailable if state.status == :unavailable
-        next :busy if state.status == :revoking
-        if state.status == :active
-          next state.owner.equal?(owner) ? state.op : :taken
+        state = @states[chat]
+        if state
+          next :busy unless state.tokens.empty?
+          next :unavailable if state.status == :unavailable
+          next :busy if state.status == :revoking
+          if state.status == :active
+            next state.owner.equal?(owner) && state.instance == instance ? state.op : :taken
+          end
+          # Another browser of the chat: what was counted was of the one before.
+          start_browser(state, instance) if state.instance != instance
+        else
+          state = @states[chat] = fresh(instance)
         end
 
         state.status = :active
@@ -92,7 +98,9 @@ module MonadicSharedTools
     end
 
     # Whether op is being revoked (a tool reserved the browser): the stream
-    # stops taking input and lets go of what it pressed.
+    # stops taking input and lets go of what it pressed. A stream that finds
+    # accept? false for any other reason stops as well (a wait that timed
+    # out leaves the browser unavailable, no longer revoking).
     def revoking?(chat, op)
       @lock.synchronize do
         state = @states[chat]
@@ -124,7 +132,7 @@ module MonadicSharedTools
     # A tool reserves the chat's browser: a token for done.
     def reserve(chat)
       @lock.synchronize do
-        state = (@states[chat] ||= State.new(nil, :idle, nil, nil, [], 0, 0))
+        state = (@states[chat] ||= fresh(nil))
         token = Object.new
         state.tokens << token
         state.status = :revoking if state.status == :active
@@ -146,6 +154,7 @@ module MonadicSharedTools
           if left <= 0
             state.status = :unavailable
             state.owner = nil
+            @changed.broadcast
             break :timeout
           end
           @changed.wait(@lock, left)
@@ -173,19 +182,24 @@ module MonadicSharedTools
       done(chat, token) if token
     end
 
-    # The number of inputs taken since the agent was last told, or nil.
+    Notice = Struct.new(:instance, :count)
+
+    # What to tell the agent of the inputs taken on the chat's browser since
+    # it was last told (a Notice), or nil.
     def pending_notice(chat)
       @lock.synchronize do
         state = @states[chat]
-        state && state.acted > state.consumed ? state.acted : nil
+        state && state.acted > state.consumed ? Notice.new(state.instance, state.acted) : nil
       end
     end
 
-    # The agent was told of the inputs up to count.
-    def consume(chat, count)
+    # The agent was told notice; one of another browser tells nothing here.
+    def consume(chat, notice)
       @lock.synchronize do
         state = @states[chat]
-        state.consumed = [state.consumed, count].max if state
+        next unless state && notice && state.instance == notice.instance
+
+        state.consumed = [state.consumed, notice.count].max
       end
     end
 
@@ -195,13 +209,11 @@ module MonadicSharedTools
         state = @states[chat]
         next unless state
 
+        # A tool still waiting keeps its reservation.
         if state.tokens.empty?
           @states.delete(chat)
         else
-          state.instance = nil
-          state.status = :idle
-          state.op = nil
-          state.owner = nil
+          start_browser(state, nil)
         end
         @changed.broadcast
       end
@@ -220,17 +232,19 @@ module MonadicSharedTools
       Process.clock_gettime(Process::CLOCK_MONOTONIC)
     end
 
-    # The chat's state for instance; one for another (a newer) browser
-    # starts afresh unless the user is operating.
-    def state_for(chat, instance)
-      state = (@states[chat] ||= State.new(instance, :idle, nil, nil, [], 0, 0))
-      if state.instance != instance && state.status != :active
-        state.instance = instance
-        state.status = :idle
-        state.op = nil
-        state.owner = nil
-      end
-      state
+    def fresh(instance)
+      State.new(instance, :idle, nil, nil, [], 0, 0)
+    end
+
+    # The state is of browser instance from now on: nothing of the one
+    # before stays but the tools' reservations.
+    def start_browser(state, instance)
+      state.instance = instance
+      state.status = :idle
+      state.op = nil
+      state.owner = nil
+      state.acted = 0
+      state.consumed = 0
     end
 
     def active?(state, op)

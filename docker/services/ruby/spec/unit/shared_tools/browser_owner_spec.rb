@@ -351,6 +351,8 @@ RSpec.describe MonadicSharedTools::BrowserOwner do
 
     before do
       allow(owner).to receive(:close_later)
+      # What a start tells the work screen is not what these look at.
+      allow(Monadic::WorkScreen).to receive(:browser_opened) if defined?(Monadic::WorkScreen)
       owner.runner = lambda do |args, _|
         log << "web_navigator.py #{args.join(' ')}"
         stop_reply

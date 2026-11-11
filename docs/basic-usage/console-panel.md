@@ -188,7 +188,7 @@ For what each key enables and which apps require it, see [Configuration](../refe
 | `ELEVENLABS_API_KEY` | [elevenlabs.io/developers](https://elevenlabs.io/developers) |
 | `TAVILY_API_KEY` | [tavily.com](https://tavily.com/) |
 
-`TAVILY_API_KEY` is the one key not tied to a single provider: it backs the "Text from URL" feature as an alternative to Selenium, and web search in apps whose provider has no native search — see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities).
+`TAVILY_API_KEY` is the one key not tied to a single provider: it backs taking in a page's text from **Open URL** as an alternative to Selenium, and web search in apps whose provider has no native search — see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities).
 
 <!-- SCREENSHOT: Settings panel showing Voice & Audio section with TTS Dictionary File Path input field and Auto TTS Max Bytes input -->
 

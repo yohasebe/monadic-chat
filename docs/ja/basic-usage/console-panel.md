@@ -188,7 +188,7 @@ Monadic Chat の Docker イメージ、コンテナ、ボリューム（Knowledg
 | `ELEVENLABS_API_KEY` | [elevenlabs.io/developers](https://elevenlabs.io/developers) |
 | `TAVILY_API_KEY` | [tavily.com](https://tavily.com/) |
 
-`TAVILY_API_KEY`だけは特定のプロバイダーに紐づきません。"Text from URL"機能（Seleniumの代替）と、ネイティブ検索機能を持たないプロバイダーでのWeb検索に使われます — 対象プロバイダーは[プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)を参照してください。
+`TAVILY_API_KEY`だけは特定のプロバイダーに紐づきません。**URLを開く**のテキストの取り込み（Seleniumの代替）と、ネイティブ検索機能を持たないプロバイダーでのWeb検索に使われます — 対象プロバイダーは[プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)を参照してください。
 
 <!-- SCREENSHOT: 設定パネル。Voice & Audioセクションを表示し、TTS Dictionary File PathとAuto TTS Max Bytesの入力フィールドを含む -->
 

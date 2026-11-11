@@ -24,7 +24,7 @@
 
 - **Native Web Search**: OpenAI, Claude, Gemini, and Grok use their built-in web search
 - **Tavily Search**: Mistral, Cohere, DeepSeek, and Ollama use the Tavily API when `TAVILY_API_KEY` is configured in `~/monadic/config/env`
-- **URL Content Extraction**: With every provider, the **Text from URL** button below the message box reads the text of a web page (using Selenium)
+- **URL Content Extraction**: With every provider, **Open URL** below the message box opens a web page on the work screen or reads its text into the message box (using Selenium)
 
 Web search is turned on and off with the **Web Search** switch. In the Chat app it is on by default for OpenAI, Claude, Gemini and Grok, and off for the other providers.
 

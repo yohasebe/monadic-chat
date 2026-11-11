@@ -8,7 +8,7 @@
 
 AI と標準的な会話をするアプリです。AI は適切な絵文字を付けて応答します。tool calling に対応したモデルでは Web 検索を使えます。プロバイダー自身の検索と Tavily API（`TAVILY_API_KEY` が必要）のどちらを使うかは、[プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)を参照してください。
 
-メッセージ入力欄の下の `Text from URL` ボタンで、Web ページのテキストをメッセージに読み込めます。どのプロバイダーでも使えます。
+メッセージ入力欄の下の `URLを開く` で、Web ページを作業画面に開くか、そのテキストをメッセージに読み込めます。どのプロバイダーでも使えます。
 
 本アプリの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
 

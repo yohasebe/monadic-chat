@@ -1065,7 +1065,7 @@
                   <div class="d-flex align-items-center flex-wrap message-tools">
                     <button id="image-file" class="btn btn-sm btn-warning text-nowrap me-2" title="Attach image file to message" data-i18n="ui.image" data-i18n-title="ui.attachImage"><i class="fas fa-image"></i> Image</button>
                     <button id="doc" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from document file" data-i18n="ui.fromFile" data-i18n-title="ui.importFromDoc"><i class="fa-solid fa-file-arrow-up"></i> Text from file</button>
-                    <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from web URL" data-i18n="ui.fromURL" data-i18n-title="ui.importFromWeb"><i class="fa-solid fa-globe"></i> Text from URL</button>
+                    <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" title="Open a page in the work screen, or take in its text" data-i18n="ui.fromURL" data-i18n-title="ui.importFromWeb"><i class="fa-solid fa-globe"></i> Open URL</button>
                     <button id="anonymize" type="button" class="btn btn-sm btn-warning text-nowrap me-2" title="Find names in the message and choose what to hide" data-i18n-title="ui.wordTable.hint"><i class="fas fa-user-secret"></i> <span data-i18n="ui.wordTable.button">Anonymize</span></button>
                     <%# Hidden where the browser cannot record (monadic.js). %>
                     <span id="voice-input-row" class="voice-input">
@@ -1587,7 +1587,7 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="urlModalLabel"><i class="fa-brands fa-markdown"></i> <span data-i18n="ui.modals.fromURL">From URL</span></h5>
+            <h5 class="modal-title" id="urlModalLabel"><i class="fa-solid fa-globe"></i> <span data-i18n="ui.modals.fromURL">From URL</span></h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
@@ -1595,7 +1595,7 @@
             <div class="mb-3">
               <input data-i18n="[placeholder]ui.modals.urlLabelPlaceholder" placeholder="Text placed at the top of the webpage contents" class="form-control form-control-sm" id="urlLabel"></input>
             </div>
-            <label for="pageURL" class="form-label" data-i18n="ui.modals.urlToFetch">URL of the page to fetch</label>
+            <label for="pageURL" class="form-label" data-i18n="ui.modals.urlToFetch">URL of the page</label>
             <div class="mb-3">
               <input placeholder="URL must start with http:// or https://" class="form-control form-control-sm" id="pageURL"></input>
             </div>
@@ -1605,7 +1605,8 @@
             <div class="spinner-border" role="status" id="url-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
-            <button type="submit" id="fetchPage" value="url" class="btn btn-sm btn-primary" disabled data-i18n="ui.modals.convert">Convert</button>
+            <button type="button" id="fetchPage" value="url" class="btn btn-sm btn-secondary" disabled data-i18n="ui.modals.takeInAsText">Take in as text</button>
+            <button type="submit" id="openPageInWorkScreen" class="btn btn-sm btn-primary" disabled data-i18n="ui.modals.openInWorkScreen">Open in the work screen</button>
           </div>
         </div>
       </div>

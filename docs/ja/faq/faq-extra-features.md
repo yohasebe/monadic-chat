@@ -24,7 +24,7 @@
 
 - **ネイティブWeb検索**: OpenAI、Claude、Gemini、Grokは組み込みのウェブ検索機能を使用
 - **Tavily検索**: Mistral、Cohere、DeepSeek、Ollamaは`~/monadic/config/env`に`TAVILY_API_KEY`を設定することでTavily APIを使用
-- **URLコンテンツ抽出**: どのプロバイダーでも、メッセージ入力欄の下の **Text from URL** ボタンで、Web ページのテキストを読み込めます（Selenium を使います）
+- **URLコンテンツ抽出**: どのプロバイダーでも、メッセージ入力欄の下の **URLを開く** で、Web ページを作業画面に開くか、そのテキストをメッセージ欄に読み込めます（Selenium を使います）
 
 Web 検索は **Web Search** のスイッチでオンとオフを切り替えます。Chat アプリでは、OpenAI、Claude、Gemini、Grok で既定がオン、ほかのプロバイダーでは既定がオフです。
 

@@ -3603,6 +3603,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const cleanupFn = function() {
         { const el = $id('pageURL'); if (el) el.value = ''; }
         { const el = $id('fetchPage'); if (el) el.disabled = true; }
+        { const el = $id('openPageInWorkScreen'); if (el) el.disabled = true; }
       };
       formHandlers.showModalWithFocus('urlModal', 'pageURL', cleanupFn);
     } else {
@@ -3630,6 +3631,7 @@ document.addEventListener("DOMContentLoaded", function () {
   $on($id("urlModal"), "hidden.bs.modal", function () {
     { const el = $id('pageURL'); if (el) el.value = ''; }
     { const el = $id('fetchPage'); if (el) el.disabled = true; }
+    { const el = $id('openPageInWorkScreen'); if (el) el.disabled = true; }
 
     // Ensure any remaining timers are cleared
     const modalEl = this;
@@ -3646,6 +3648,7 @@ document.addEventListener("DOMContentLoaded", function () {
       $id('pageURL'), 
       $id('fetchPage')
     );
+    formHandlers.setupUrlValidation($id('pageURL'), $id('openPageInWorkScreen'));
   } else {
     // Fallback to direct event handler
     var _urlEl = $id("pageURL");
@@ -3657,10 +3660,27 @@ document.addEventListener("DOMContentLoaded", function () {
           var validUrl = url.match(/^(http|https):\/\/[^ "]+$/);
           var _fetchEl = $id('fetchPage');
           if (_fetchEl) _fetchEl.disabled = !validUrl;
+          var _openEl = $id('openPageInWorkScreen');
+          if (_openEl) _openEl.disabled = !validUrl;
         });
       });
     }
   }
+
+  // The page opens in the chat's browser on the work screen, which is shown
+  // (the server answers with workbench_open_url when it could not).
+  $on($id("openPageInWorkScreen"), "click", function (event) {
+    event.preventDefault();
+    const url = (($id("pageURL") || {}).value || "").trim();
+    if (!/^(http|https):\/\/[^ "]+$/.test(url)) return;
+    if (typeof window.safeWsSend === "function") window.safeWsSend({ message: "WORKBENCH_OPEN_URL", url: url });
+    bootstrap.Modal.getOrCreateInstance($id("urlModal")).hide();
+    const lc = window.LayoutController;
+    if (lc) {
+      if (lc.isMenuHidden()) lc.setMenuHidden(false);
+      lc.setPane('work');
+    }
+  });
 
   $on($id("fetchPage"), "click", async function () {
     const url = ($id("pageURL") || {}).value;

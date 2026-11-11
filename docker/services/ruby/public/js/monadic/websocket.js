@@ -863,6 +863,18 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "workbench_open_url": {
+        // An address the user opened in the chat's browser: said only when
+        // it did not open.
+        if (!data.success && typeof setAlert === 'function') {
+          const keys = { invalid_url: 'openUrlInvalid', browser_starting: 'openUrlStarting' };
+          const key = 'ui.modals.' + (keys[data.error] || 'openUrlFailed');
+          const text = typeof webUIi18n !== 'undefined' ? webUIi18n.t(key) : key;
+          setAlert(text, data.error === 'browser_starting' ? 'warning' : 'error');
+        }
+        break;
+      }
+
       case "work_screen": {
         if (window.WorkScreen) window.WorkScreen.onChatEvent(data);
         break;

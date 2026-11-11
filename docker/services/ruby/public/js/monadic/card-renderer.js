@@ -206,7 +206,7 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
     headerButtons =
       '<div class="me-1 text-secondary d-flex align-items-center">' +
       '<span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>' +
-      '<span title="Delete" class="func-delete me-3"><i class="fas fa-xmark"></i></span>' +
+      '<span title="Delete" class="func-delete me-3"><i class="fa-regular fa-trash-can"></i></span>' +
       '<span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>' +
       turnBadge +
       '<span title="' + statusTooltip + '" class="status ' + status_class + '"></span>' +
@@ -217,7 +217,7 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
       '<span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>' +
       '<span title="Start TTS" class="func-play me-3"><i class="fas fa-play"></i></span>' +
       '<span title="Stop TTS" class="func-stop me-3"><i class="fas fa-stop"></i></span>' +
-      '<span title="Delete" class="func-delete me-3"><i class="fas fa-xmark"></i></span>' +
+      '<span title="Delete" class="func-delete me-3"><i class="fa-regular fa-trash-can"></i></span>' +
       '<span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>' +
       turnBadge +
       '<span title="' + statusTooltip + '" class="status ' + status_class + '"></span>' +

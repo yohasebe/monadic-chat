@@ -14,13 +14,11 @@ require "fileutils"
 # tool), and the page also sends an upload. The words of the chat carry a
 # marker; afterwards every file under that home is read for it.
 #
-# A normal chat is the positive control: the marker is found in the
-# history, the logs, the output and the shared folder, and writes are seen.
-# A Private chat leaves the marker nowhere and writes nothing from the
-# moment it is Private, also when the process is killed in the middle of an
-# answer (no ensure or at_exit runs) and after the app boots again on what
-# was left.
-RSpec.describe "Files of a Private chat" do
+# The marker is found in the history, the logs, the output and the shared
+# folder, and writes are seen, also when the process is killed in the middle
+# of an answer (no ensure or at_exit runs). A command only a page of an
+# earlier version sends is answered, not taken for a message.
+RSpec.describe "Files of a chat" do
   def app_root
     File.expand_path("../../..", __dir__)
   end
@@ -45,7 +43,7 @@ RSpec.describe "Files of a Private chat" do
     report = ->(tag, data) { control.puts("#{tag} #{data.to_json}") }
 
     # Every write under the home, by Ruby or SQLite, recorded from the
-    # moment the chat is Private (for a normal chat, from the same point).
+    # moment the chat begins.
     writes = []
     recording = false
     inside = lambda do |path|
@@ -152,8 +150,8 @@ RSpec.describe "Files of a Private chat" do
     probe.close
     origin = "http://127.0.0.1:#{port}"
 
-    # One chat in a tab of its own, as the page has it: the app, the filter
-    # (for a Private chat), a message, the answer shown, an upload.
+    # One chat in a tab of its own, as the page has it: the app, a command of
+    # an earlier page, a message, the answer shown, an upload.
     chat = lambda do |task, said, watched:|
       tab = "probe-#{rand(1_000_000)}"
       words = said
@@ -172,8 +170,6 @@ RSpec.describe "Files of a Private chat" do
         send.call({ "message" => "UPDATE_PARAMS", "params" => { "app_name" => app_name } })
         send.call({ "message" => "PING" })
         wait_for.call("pong")
-        # Recorded from before the filter is asked for: making the chat
-        # Private writes nothing either.
         recording = watched
         send.call({ "message" => "PRIVACY_TOGGLE", "enabled" => true })
         result["old_page"] = wait_for.call("privacy_toggle_ack").slice("enabled")
@@ -224,7 +220,7 @@ RSpec.describe "Files of a Private chat" do
   # A home with EXTRA_LOGGING on, a docker that runs nothing, and an op
   # that reads nothing.
   def make_home
-    home = Dir.mktmpdir("private-chat-home")
+    home = Dir.mktmpdir("chat-files-home")
     FileUtils.mkdir_p([File.join(home, "tmp"), File.join(home, "monadic", "config"), File.join(home, "bin")])
     File.write(File.join(home, "monadic", "config", "env"), "EXTRA_LOGGING=true\n")
     %w[docker op].each do |tool|
@@ -247,7 +243,7 @@ RSpec.describe "Files of a Private chat" do
   # the middle of the answer. Output and control lines are kept outside the
   # home.
   def start_chat(mode:, kill:)
-    run = { home: make_home, outside: Dir.mktmpdir("private-chat-out"), mark: "MARK#{SecureRandom.hex(16)}",
+    run = { home: make_home, outside: Dir.mktmpdir("chat-files-out"), mark: "MARK#{SecureRandom.hex(16)}",
             earlier: "EARLIER#{SecureRandom.hex(16)}", kill: kill }
     run[:control], writer = IO.pipe
     run[:pid] = Process.spawn(child_env(run[:home], mode: mode, mark: run[:mark], earlier: run[:earlier], kill: kill),
@@ -336,7 +332,7 @@ RSpec.describe "Files of a Private chat" do
     end
   end
 
-  describe "a normal chat (the positive control)" do
+  describe "a chat" do
     let(:run) { @runs[:normal] }
 
     it "is kept in the history, the logs, the output and the shared folder" do

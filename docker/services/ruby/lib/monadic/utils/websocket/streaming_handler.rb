@@ -212,8 +212,7 @@ module WebSocketHelper
 
     Monadic::Workbench::Observation.for_request(
       chat_id: chat_id, tab: Thread.current[:websocket_session_id], generation: session[:_ws_generation],
-      request_id: request_id, reported: reported,
-      private: Monadic::Workbench::Channel.private_chat?(session, chat_id)
+      request_id: request_id, reported: reported
     )
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[Workbench] No observation for the message: #{e.class}: #{e.message}" }

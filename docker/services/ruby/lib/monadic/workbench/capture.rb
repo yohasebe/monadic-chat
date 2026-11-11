@@ -120,11 +120,6 @@ module Monadic
           revoke('the reply ended') { |p| p.request_id == request_id }
         end
 
-        # The chat became Private.
-        def revoke_chat(chat_id)
-          revoke('the chat is Private now') { |p| p.chat_id == chat_id }
-        end
-
         def waiting
           @lock.synchronize { @pending.size }
         end

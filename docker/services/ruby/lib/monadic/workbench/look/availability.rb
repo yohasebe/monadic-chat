@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require_relative '../../history/policy'
 require_relative '../../workspace/chats'
 
 module Monadic
@@ -10,8 +9,8 @@ module Monadic
       # app declares the tool; a request offers it only when all hold:
       # the provider's helper carries a look's image to the model
       # (TRANSPORTS), the model takes tools and is known to take images
-      # (a model whose image input is not known is not offered it), and
-      # the chat is not Private. A call of the tool when it was not offered
+      # (a model whose image input is not known is not offered it), for a
+      # reply of a chat. A call of the tool when it was not offered
       # is refused by ToolDispatchGuard, which records the tools after this
       # filter.
       module Availability
@@ -29,14 +28,12 @@ module Monadic
         end
 
         def offered?(session:, provider:, model:)
-          TRANSPORTS.include?(provider.to_s) && !private?(session) && tools?(model) && vision?(provider.to_s, model)
+          TRANSPORTS.include?(provider.to_s) && chat?(session) && tools?(model) && vision?(provider.to_s, model)
         end
 
-        def private?(session)
-          return true unless session
-
-          chat_id = session[Monadic::Workspace::Chats::SESSION_KEY]
-          Monadic::History::Policy.private?(session) || Monadic::History::Policy.known_private?(chat_id)
+        # A session of a chat: looks go only for a reply of a chat.
+        def chat?(session)
+          session.respond_to?(:[]) && !session[Monadic::Workspace::Chats::SESSION_KEY].nil?
         end
 
         def tools?(model)

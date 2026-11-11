@@ -222,19 +222,12 @@ module WebSocketHelper
   end
 
   private def handle_ws_library_save(connection, obj, session)
-    # Defense in depth: Privacy Filter and Knowledge Base save are
-    # mutually exclusive at the app level. Apps that declare
-    # `privacy do; enabled true; end` in their MDSL have library_save
-    # forced to false by lib/monadic/dsl.rb#finalize_capabilities!, and
-    # the frontend hides the Save button accordingly. A stale tab or
-    # programmatic client could still hit this path, so reject the save
-    # before any storage side-effect to keep restored PII off disk.
-    # The session of a real chat is a Rack session object, not a Hash: read it by key.
-    # A Private chat whose filter could not be started is refused too: it
-    # stays Private (nothing of it is kept), with the filter off.
-    if session.respond_to?(:key?) &&
-       (Monadic::Utils::Privacy::Words.marked?(session) || session[:_privacy_pipeline] || session[:_privacy_session_enabled] == true ||
-        (defined?(Monadic::History::Policy) && Monadic::History::Policy.private?(session)))
+    # A chat that hides words is not saved: the Knowledge Base would keep its
+    # words, and a search from another chat would send them unhidden. The
+    # page disables Save for it; this refuses a stale tab or another client
+    # before anything is stored. The session of a real chat is a Rack session
+    # object, not a Hash: read it by key.
+    if session.respond_to?(:key?) && Monadic::Utils::Privacy::Words.marked?(session)
       Monadic::Utils::ExtraLogger.log { "[Library] LIBRARY_SAVE rejected: the chat hides words" }
       send_to_client(connection, {
         'type' => 'library_saved', 'res' => 'failure',

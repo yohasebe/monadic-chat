@@ -74,8 +74,6 @@ const webUITranslations = {
         openElsewhere: "This chat is open in a tab. Start a new chat there first.",
         notFound: "This chat is no longer in the history.",
         off: "The history is not kept.",
-        privateHere: "This chat is Private and is not kept in the history. Continuing another chat ends it for good.",
-        continueAnyway: "Continue the other chat",
         count: "{n} shown"
       },
       sharedFolderPanel: {
@@ -655,7 +653,6 @@ const webUITranslations = {
         aiUserBusy: "An AI User suggestion is already being written",
         messageNotFoundForEditing: "Message not found for editing",
         voiceInputEmpty: "Voice input is empty",
-        voiceInputPrivate: "In a Private chat, voice input works with a Gemini speech-to-text model only.",
         textInputEmpty: "The text input is empty",
         answerStillRunning: "The previous answer is still running. Send again when it has finished, or stop it first.",
         editStillSaving: "The previous edit of this message is still being saved. Edit it again when it has been saved.",
@@ -776,8 +773,6 @@ const webUITranslations = {
         openElsewhere: "この会話はタブで開いています。そのタブで新しい会話を始めてからにしてください。",
         notFound: "この会話はもう履歴にありません。",
         off: "履歴は残していません。",
-        privateHere: "この会話は Private なので履歴に残りません。別の会話を続けると、この会話は戻せなくなります。",
-        continueAnyway: "別の会話を続ける",
         count: "{n} 件を表示"
       },
       sharedFolderPanel: {
@@ -1357,7 +1352,6 @@ const webUITranslations = {
         aiUserBusy: "AI User の提案を作成中です",
         messageNotFoundForEditing: "編集するメッセージが見つかりません",
         voiceInputEmpty: "音声入力が空です",
-        voiceInputPrivate: "Private の会話では、音声入力は Gemini の文字起こしモデルでだけ使えます。",
         textInputEmpty: "テキスト入力が空です",
         answerStillRunning: "前の回答がまだ続いています。終わってから送るか、先に止めてください。",
         editStillSaving: "このメッセージの前の編集をまだ保存しています。保存が終わってから編集してください。",
@@ -1478,8 +1472,6 @@ const webUITranslations = {
         openElsewhere: "此对话已在标签页中打开。请先在该标签页开始新对话。",
         notFound: "此对话已不在历史中。",
         off: "未保留历史。",
-        privateHere: "此对话为 Private，不会保存在历史中。继续其他对话后将无法恢复此对话。",
-        continueAnyway: "继续另一个对话",
         count: "显示 {n} 条"
       },
       sharedFolderPanel: {
@@ -2082,7 +2074,6 @@ const webUITranslations = {
         aiUserBusy: "正在生成 AI User 的建议",
         messageNotFoundForEditing: "找不到要编辑的消息",
         voiceInputEmpty: "语音输入为空",
-        voiceInputPrivate: "在 Private 对话中，语音输入只能使用 Gemini 的语音转文字模型。",
         textInputEmpty: "文本输入为空",
         answerStillRunning: "上一个回答仍在进行中。请在其完成后再发送，或先停止它。",
         editStillSaving: "此消息的上一次编辑仍在保存中。保存完成后再编辑。",
@@ -2203,8 +2194,6 @@ const webUITranslations = {
         openElsewhere: "이 대화는 탭에서 열려 있습니다. 먼저 그 탭에서 새 대화를 시작하세요.",
         notFound: "이 대화는 더 이상 기록에 없습니다.",
         off: "기록을 보관하지 않습니다.",
-        privateHere: "이 대화는 Private이라 기록에 보관되지 않습니다. 다른 대화를 계속하면 이 대화는 되돌릴 수 없습니다.",
-        continueAnyway: "다른 대화 계속하기",
         count: "{n}개 표시"
       },
       sharedFolderPanel: {
@@ -2784,7 +2773,6 @@ const webUITranslations = {
         aiUserBusy: "AI User 제안을 작성하는 중입니다",
         messageNotFoundForEditing: "편집할 메시지를 찾을 수 없습니다",
         voiceInputEmpty: "음성 입력이 비어 있습니다",
-        voiceInputPrivate: "Private 대화에서는 Gemini 음성 인식 모델로만 음성 입력을 사용할 수 있습니다.",
         textInputEmpty: "텍스트 입력이 비어 있습니다",
         answerStillRunning: "이전 답변이 아직 진행 중입니다. 끝난 뒤에 다시 보내거나 먼저 중지하세요.",
         editStillSaving: "이 메시지의 이전 편집을 아직 저장하고 있습니다. 저장이 끝난 뒤에 다시 편집하세요.",
@@ -2905,8 +2893,6 @@ const webUITranslations = {
         openElsewhere: "Este chat está abierto en una pestaña. Inicia allí un chat nuevo primero.",
         notFound: "Este chat ya no está en el historial.",
         off: "El historial no se guarda.",
-        privateHere: "Este chat es Private y no se guarda en el historial. Si continúas otro chat, este se pierde para siempre.",
-        continueAnyway: "Continuar el otro chat",
         count: "{n} mostrados"
       },
       sharedFolderPanel: {
@@ -3486,7 +3472,6 @@ const webUITranslations = {
         aiUserBusy: "Ya se está escribiendo una sugerencia de AI User",
         messageNotFoundForEditing: "Mensaje no encontrado para editar",
         voiceInputEmpty: "La entrada de voz está vacía",
-        voiceInputPrivate: "En un chat Private, la entrada de voz solo funciona con un modelo de voz a texto de Gemini.",
         textInputEmpty: "La entrada de texto está vacía",
         answerStillRunning: "La respuesta anterior aún está en curso. Envía de nuevo cuando termine o detenla primero.",
         editStillSaving: "La edición anterior de este mensaje aún se está guardando. Vuelve a editarlo cuando se haya guardado.",
@@ -3607,8 +3592,6 @@ const webUITranslations = {
         openElsewhere: "Cette discussion est ouverte dans un onglet. Commencez-y d'abord une nouvelle discussion.",
         notFound: "Cette discussion n'est plus dans l'historique.",
         off: "L'historique n'est pas conservé.",
-        privateHere: "Cette discussion est Private et n'est pas conservée dans l'historique. Continuer une autre discussion la fait disparaître définitivement.",
-        continueAnyway: "Continuer l'autre discussion",
         count: "{n} affichées"
       },
       sharedFolderPanel: {
@@ -4188,7 +4171,6 @@ const webUITranslations = {
         aiUserBusy: "Une suggestion AI User est déjà en cours de rédaction",
         messageNotFoundForEditing: "Message introuvable pour l'édition",
         voiceInputEmpty: "L'entrée vocale est vide",
-        voiceInputPrivate: "Dans une conversation Private, la saisie vocale ne fonctionne qu'avec un modèle de transcription Gemini.",
         textInputEmpty: "L'entrée de texte est vide",
         answerStillRunning: "La réponse précédente est toujours en cours. Renvoyez quand elle sera terminée, ou arrêtez-la d'abord.",
         editStillSaving: "La modification précédente de ce message est encore en cours d'enregistrement. Modifiez-le à nouveau une fois enregistrée.",
@@ -4309,8 +4291,6 @@ const webUITranslations = {
         openElsewhere: "Dieser Chat ist in einem Tab geöffnet. Beginnen Sie dort zuerst einen neuen Chat.",
         notFound: "Dieser Chat ist nicht mehr im Verlauf.",
         off: "Der Verlauf wird nicht gespeichert.",
-        privateHere: "Dieser Chat ist Private und wird nicht im Verlauf gespeichert. Wenn Sie einen anderen Chat fortsetzen, ist dieser endgültig verloren.",
-        continueAnyway: "Den anderen Chat fortsetzen",
         count: "{n} angezeigt"
       },
       sharedFolderPanel: {
@@ -4890,7 +4870,6 @@ const webUITranslations = {
         aiUserBusy: "Ein AI-User-Vorschlag wird bereits erstellt",
         messageNotFoundForEditing: "Nachricht zum Bearbeiten nicht gefunden",
         voiceInputEmpty: "Spracheingabe ist leer",
-        voiceInputPrivate: "In einem Private-Chat funktioniert die Spracheingabe nur mit einem Gemini-Spracherkennungsmodell.",
         textInputEmpty: "Texteingabe ist leer",
         answerStillRunning: "Die vorherige Antwort läuft noch. Senden Sie erneut, wenn sie fertig ist, oder stoppen Sie sie zuerst.",
         editStillSaving: "Die vorherige Bearbeitung dieser Nachricht wird noch gespeichert. Bearbeiten Sie sie erneut, wenn sie gespeichert ist.",

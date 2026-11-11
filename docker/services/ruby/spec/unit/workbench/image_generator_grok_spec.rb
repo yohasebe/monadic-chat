@@ -110,11 +110,9 @@ RSpec.describe "the Grok image tool on the workbench" do
       .to eq(Monadic::Workbench::ImageTool::NOTICE_LIMIT)
   end
 
-  it "refuses without the reply's chat, and in a Private chat, before running anything" do
+  it "refuses without the reply's chat before running anything" do
     fake_generator
     expect(app.generate_image_with_grok(prompt: "a cat", session: session)).to start_with("❌")
-    session[:_history_policy] = Monadic::History::Policy::PRIVATE
-    expect(generate).to start_with("❌")
     expect(commands).to be_empty
   end
 

@@ -81,16 +81,6 @@ RSpec.describe 'What the handlers write to the history' do
     Dir.glob(File.join(dir, '*')).map { |f| File.binread(f) }.join
   end
 
-  # The chat has begun once it has a message, and stays begun when its
-  # messages are removed (the Session Context and tool results may remain).
-  it 'marks the chat begun when it is synced with a message, for the rest of the chat' do
-    first, = connect_twice
-    session = chat_session('hello', generation: first)
-    sync(session)
-    session[:messages].clear
-    expect(Monadic::History::Policy.begun?(session)).to be(true)
-  end
-
   it 'does not let a connection that a newer one replaced write its older copy' do
     first, second = connect_twice
     newer = chat_session('newer text', generation: second)
@@ -113,16 +103,14 @@ RSpec.describe 'What the handlers write to the history' do
   end
 
   it 'does not carry a chat into the next app when the app changes without Reset' do
-    session = chat_session(marker, generation: 1).merge(_privacy_session_enabled: true)
+    session = chat_session(marker, generation: 1)
     sync(session)
     host.send(:handle_ws_update_params, nil, { 'params' => { 'app_name' => 'ChatClaude' } }, session)
     session[:messages] << { 'mid' => 'm2', 'role' => 'user', 'text' => 'first words in the new app' }
     sync(session)
 
     texts = store.list.map { |row| store.get(row['chat_id'])['payload']['messages'].map { |m| m['text'] } }
-    expect(texts).to eq([['first words in the new app']])
-    store.close
-    expect(stored_bytes).not_to include(marker)
+    expect(texts).to contain_exactly([marker], ['first words in the new app'])
   end
 
   describe 'the list, names and removal' do
@@ -498,19 +486,14 @@ RSpec.describe 'What the handlers write to the history' do
       expect(context.read(here)['topics'].map { |i| i['text'] }).to eq(['saved'])
     end
 
-    it 'asks before it replaces a Private chat with words in it' do
+    it 'replaces a chat with words in it without asking' do
       kept = chat_session('kept', generation: 1)
       sync(kept)
       other_tab = "tab-#{SecureRandom.hex(4)}"
       here = { chat_id: Monadic::Workspace::Ids.generate(:chat), _ws_generation: WebSocketHelper.claim_session_state(other_tab),
-               messages: [{ 'role' => 'user', 'text' => 'private words' }], parameters: {}, _privacy_session_enabled: true }
-      expect(resume_in(other_tab, here, kept[:chat_id])).to include('success' => false, 'error' => 'history_private_here')
-      expect(here[:messages].map { |m| m['text'] }).to eq(['private words'])
-
-      Thread.current[:websocket_session_id] = other_tab
-      obj = { 'chat_id' => kept[:chat_id], 'confirm' => true }
-      host.send(:handle_ws_history_resume, nil, obj, here, host.send(:history_resume_refusal, obj, here))
-      expect(host.sent.last).to include('success' => true)
+               messages: [{ 'role' => 'user', 'text' => 'words here' }], parameters: {} }
+      expect(resume_in(other_tab, here, kept[:chat_id])).to include('success' => true)
+      expect(here[:messages].map { |m| m['text'] }).to eq(['kept'])
     end
 
     it 'does not resume a chat open in another tab, or touch the chat here' do
@@ -580,11 +563,7 @@ RSpec.describe 'What the handlers write to the history' do
       Thread.current[:websocket_session_id] = tab
       kept[:messages] = []
       sync(kept)
-      kept[:_privacy_session_enabled] = true
-      sync(kept)
       expect(store.get(kept[:chat_id])).to include('owner_tab' => other_tab)
-      kept.delete(:_privacy_session_enabled)
-      kept.delete(Monadic::History::Policy::SESSION_KEY)
       kept[:messages] = [{ 'mid' => 'm9', 'role' => 'user', 'text' => 'from the old tab' }]
       sync(kept)
       expect(store.get(kept[:chat_id])).to include('owner_tab' => other_tab)

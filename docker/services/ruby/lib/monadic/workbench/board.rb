@@ -18,8 +18,7 @@ module Monadic
     # shared folder and the version it had (FileItem). An item holds what
     # the page shows, never the bytes. Removing an item takes it off the
     # board only: the file stays. Kept in the chat's manifest (Store) so it
-    # outlives a restart. A Private chat keeps nothing: it makes no image,
-    # and the files it opens are held in memory only.
+    # outlives a restart.
     #
     # The chat's browser is an item too, while it is open and after it
     # closed (until the user takes it off); it is held in memory only (a
@@ -62,20 +61,20 @@ module Monadic
 
       class << self
         # The board of a chat, loaded from its manifest the first time.
-        def for(chat_id, private: false, store: Store.default)
+        def for(chat_id, store: Store.default)
           @boards_lock.synchronize do
-            @boards[chat_id] ||= new(chat_id, private: private, store: store)
+            @boards[chat_id] ||= new(chat_id, store: store)
           end
         end
 
         # The board of a chat that has one (loaded, or kept in a manifest),
         # or nil: nothing is made for a chat that never used the workbench.
-        def existing(chat_id, private: false, store: Store.default)
+        def existing(chat_id, store: Store.default)
           loaded = @boards_lock.synchronize { @boards[chat_id] }
           return loaded if loaded
-          return nil if private || !store.exists?(chat_id)
+          return nil unless store.exists?(chat_id)
 
-          self.for(chat_id, private: private, store: store)
+          self.for(chat_id, store: store)
         end
 
         def forget(chat_id)
@@ -96,12 +95,11 @@ module Monadic
 
       attr_reader :chat_id
 
-      def initialize(chat_id, private: false, store: Store.default)
+      def initialize(chat_id, store: Store.default)
         @chat_id = chat_id
-        @private = private
         @store = store
         @lock = Mutex.new
-        @data = (private ? nil : store.load(chat_id)) || fresh
+        @data = store.load(chat_id) || fresh
         @selected = {}
         # Each selection a tab's connection makes (select, select_for_origin)
         # takes the next number, kept with it: a capture asked for one
@@ -115,10 +113,6 @@ module Monadic
         # What a text item shows of its version (note_text): its lines and
         # whether it is cut short.
         @texts = {}
-      end
-
-      def private?
-        @private
       end
 
       # A view of the board for the pages of the chat: what the items are,
@@ -166,12 +160,10 @@ module Monadic
       # item off, it is not put back (PlacedOnly). A run of another image is
       # refused.
       #
-      # Refused (nothing placed) for a Private chat, at another epoch, for a
+      # Refused (nothing placed) at another epoch, for a
       # stopped reply, for bytes that are not an image. PlacedOnly when the
       # image was placed and the board did not take it.
       def add_image(bytes:, epoch:, origin:, name:, run:, app_name:, derived_from: nil, unless_closed: nil)
-        raise Refused, 'a Private chat keeps no image' if @private
-
         image = ImageCheck.check!(bytes)
         record = nil
         change do |data|
@@ -476,7 +468,7 @@ module Monadic
             working = deep_dup(@data)
             result = yield working
             working['revision'] += 1
-            @store.save(@chat_id, kept_data(working)) unless @private
+            @store.save(@chat_id, kept_data(working))
             @data = working
             result
           end

@@ -7,7 +7,6 @@ require_relative '../workspace/chats'
 require_relative '../workspace/folders'
 require_relative '../workspace/shared_folder_preview'
 require_relative '../render_formats'
-require_relative '../history/policy'
 require_relative '../utils/shared_path_guard'
 require_relative '../utils/websocket/reply_handle'
 
@@ -23,8 +22,7 @@ module Monadic
     # be running and not cancelled (ReplyHandle#admit_write). From that
     # decision the file is written whole, with the stop held off, so a
     # Cancel that comes after leaves the finished file (never a part of it);
-    # one that came before leaves nothing. A Private chat keeps no files: it
-    # is refused (a chat does not become Private while a reply runs).
+    # one that came before leaves nothing.
     #
     # The same name and text again in one reply give the file written
     # before (shown again if showing it failed), never a new one.
@@ -53,7 +51,6 @@ module Monadic
       # Returns { path:, shown:, reason: } (reason: why it was not shown).
       def run(caller, name:, content:)
         raise Refused, 'this reply cannot put anything on the work screen' unless caller
-        raise Refused, 'a Private chat keeps no files' if private?(caller)
         raise Refused, 'the chat changed' unless current?(caller)
 
         name = clean_name(name)
@@ -74,10 +71,6 @@ module Monadic
           @ended.shift while @ended.size > ENDED_LIMIT
         end
         nil
-      end
-
-      def private?(caller)
-        Monadic::History::Policy.private?(caller.session) || Monadic::History::Policy.known_private?(caller.chat_id)
       end
 
       def current?(caller)
@@ -178,7 +171,7 @@ module Monadic
         result = { path: slot[:path], shown: false, reason: nil }
         return result.merge(reason: 'the reply was stopped') if handle.cancelled?
 
-        board = Board.for(caller.chat_id, private: false)
+        board = Board.for(caller.chat_id)
         item, = board.add_file(path: slot[:path], origin: caller.origin, epoch: caller.epoch)
         Shown.add(caller.request_id, item)
         result.merge(shown: true)

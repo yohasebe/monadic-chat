@@ -2,8 +2,8 @@
 
 require 'spec_helper'
 require_relative '../../../lib/monadic/workspace'
-require_relative '../../../lib/monadic/history/private_request_guard'
 require_relative '../../../lib/monadic/utils/websocket/connection_manager'
+require_relative '../../../lib/monadic/workspace/chat_request_scope'
 
 RSpec.describe 'HTTP session checks' do
   around do |example|
@@ -16,7 +16,6 @@ RSpec.describe 'HTTP session checks' do
 
   let(:tab) { SecureRandom.hex(8) }
   let(:chat_id) { Monadic::Workspace::Ids.generate(:chat) }
-  let(:policy) { Monadic::History::Policy }
   let(:live) { {} }
 
   def save(chat_state = {})
@@ -26,7 +25,7 @@ RSpec.describe 'HTTP session checks' do
   end
 
   def request(path = '/attachments', &app)
-    worker = Monadic::History::PrivateRequestGuard.new(
+    worker = Monadic::Workspace::ChatRequestScope.new(
       app || ->(_env) { [200, {}, []] }, paths: ['/attachments'],
       session_lookup: ->(id) { live[id] }, state_lookup: WebSocketHelper.method(:fetch_http_session_state)
     )
@@ -56,7 +55,7 @@ RSpec.describe 'HTTP session checks' do
 
     after { words::LOCK.synchronize { words::TABLES.clear } }
 
-    it 'is not Private, and what is sent for it is checked against its words' do
+    it 'checks what is sent for it against its words' do
       session = { Monadic::Workspace::Chats::SESSION_KEY => chat_id }
       words.start!(session).confirm!('Ada', 'PERSON')
       save(words::MARK_KEY => session[words::MARK_KEY])
@@ -76,8 +75,6 @@ RSpec.describe 'HTTP session checks' do
       end
       expect(status).to eq(200)
       expect(checked).to eq(:refused)
-      expect(policy.private?(state[:chat_state].merge(Monadic::Workspace::Chats::SESSION_KEY => chat_id))).to be(false)
-      expect(policy.known_private?(chat_id)).to be(false)
     end
 
     # A chat of its own, with a table, saved with its mark; whether a request from its tab may send ordinary text out.
@@ -98,66 +95,28 @@ RSpec.describe 'HTTP session checks' do
         end
         [200, {}, []]
       end
-      [result, policy.known_private?(id)]
+      result
     end
 
     it 'sends nothing for it when its table is gone' do
-      expect(sent_through_request).to eq([:sent, false])
-      # Not Private: refused because its words are not known.
-      expect(sent_through_request(drop_table: true)).to eq([:refused, false])
+      expect(sent_through_request).to eq(:sent)
+      # Refused because its words are not known.
+      expect(sent_through_request(drop_table: true)).to eq(:refused)
     end
   end
 
-  [
-    { _history_policy: 'private' },
-    { _privacy_session_enabled: true },
-    { monadic_state: { privacy: { terms: [{ text: 'MARKEDWORD' }] } } },
-    { monadic_state: { privacy: { registry: { 'MARKEDWORD' => 'PERSON_1' } } } }
-  ].each do |trace|
-    it "refuses an upload with stored privacy state #{trace.keys.first}" do
-      save(trace)
-      expect(request.first).to eq(403)
-      live[tab] = { chat_id: chat_id }
-      expect(request.first).to eq(403)
-    end
-  end
-
-  # Every privacy trace Policy reads, so the snapshot decides as the whole
-  # saved state does.
-  [
-    {},
-    { _history_policy: 'private' },
-    { _privacy_session_enabled: true },
-    { _privacy_pipeline: { lang: 'en' } },
-    { monadic_state: { privacy: { terms: [{ text: 'MARKEDWORD' }] } } },
-    { monadic_state: { privacy: { registry: { 'MARKEDWORD' => 'PERSON_1' } } } }
-  ].each do |trace|
-    it "decides as the whole saved state for #{trace.keys.first || 'no trace'}" do
-      save(trace)
-      full = trace.merge(Monadic::Workspace::Chats::SESSION_KEY => chat_id)
-      snapshot = WebSocketHelper.fetch_http_session_state(tab)
-      expect(policy.private?(snapshot[:chat_state])).to eq(policy.private?(full))
-    end
-  end
-
-  it 'keeps the decision of a snapshot when the chat changes after it is taken' do
-    save
+  it 'keeps nothing in the snapshot but the chat, its app and the mark of its word table' do
+    save(_history_policy: 'private', _privacy_session_enabled: true,
+         monadic_state: { privacy: { terms: [{ text: 'MARKEDWORD' }] } })
     snapshot = WebSocketHelper.fetch_http_session_state(tab)
+    expect(snapshot[:chat_state]).to eq({})
+    expect(request.first).to eq(200)
+  end
+
+  it 'takes the upload of a live chat whatever its saved state holds' do
     save(_history_policy: 'private')
-    expect(policy.private?(snapshot[:chat_state])).to be false
-    expect(policy.private?(WebSocketHelper.fetch_http_session_state(tab)[:chat_state])).to be true
-  end
-
-  it 'refuses a live Private chat even when the saved state is normal' do
-    save
-    live[tab] = { chat_id: chat_id, _history_policy: 'private' }
-    expect(request.first).to eq(403)
-  end
-
-  it 'keeps a known Private chat private after its stored privacy fields are cleared' do
-    policy.remember(chat_id)
-    save
-    expect(request.first).to eq(403)
+    live[tab] = { chat_id: chat_id }
+    expect(request.first).to eq(200)
   end
 
   it 'checks the words of a saved chat and keeps snapshot changes separate from saved state' do

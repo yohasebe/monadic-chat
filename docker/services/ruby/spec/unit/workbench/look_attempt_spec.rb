@@ -131,7 +131,6 @@ RSpec.describe "a request holding looks of the work screen" do
     end
 
     {
-      "the chat became Private" => ->(s, _) { s[Monadic::History::Policy::SESSION_KEY] = Monadic::History::Policy::PRIVATE },
       "the chat was reset" => ->(_, c) { Monadic::Workspace::Chats::EPOCHS_LOCK.synchronize { Monadic::Workspace::Chats::EPOCHS[c] += 1 } },
       "the tab is in another chat" => ->(s, _) { s[:chat_id] = Monadic::Workspace::Ids.generate(:chat) }
     }.each do |what, change|
@@ -152,7 +151,7 @@ RSpec.describe "a request holding looks of the work screen" do
 
     it "checks again when the same body is sent again after it was sent" do
       post(body)
-      session[Monadic::History::Policy::SESSION_KEY] = Monadic::History::Policy::PRIVATE
+      Monadic::Workspace::Chats::EPOCHS_LOCK.synchronize { Monadic::Workspace::Chats::EPOCHS[chat] += 1 }
       expect { post(body) }.to raise_error(Monadic::Workbench::Look::Withheld)
     end
 
@@ -163,7 +162,7 @@ RSpec.describe "a request holding looks of the work screen" do
       tries = 0
       allow(http).to receive(:post) do
         tries += 1
-        session[Monadic::History::Policy::SESSION_KEY] = Monadic::History::Policy::PRIVATE
+        Monadic::Workspace::Chats::EPOCHS_LOCK.synchronize { Monadic::Workspace::Chats::EPOCHS[chat] += 1 }
         failed
       end
       allow(helper).to receive(:sleep)
@@ -213,7 +212,7 @@ RSpec.describe "a request holding looks of the work screen" do
     }.each do |what, change|
       it "checks a body that holds looks when #{what}" do
         sent_body = JSON.parse(change.call(JSON.generate(body)))
-        session[Monadic::History::Policy::SESSION_KEY] = Monadic::History::Policy::PRIVATE
+        Monadic::Workspace::Chats::EPOCHS_LOCK.synchronize { Monadic::Workspace::Chats::EPOCHS[chat] += 1 }
         posted = false
         expect { post(sent_body) { posted = true } }.to raise_error(Monadic::Workbench::Look::Withheld)
         expect(posted).to be(false)

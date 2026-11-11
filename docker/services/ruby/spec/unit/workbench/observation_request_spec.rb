@@ -86,11 +86,9 @@ RSpec.describe "The work screen observation of a message" do
     expect(send_message({ "message" => "", "images" => [image] }).observation).not_to be_nil
   end
 
-  it "makes none for a send that is not the user's message, or in a Private chat" do
+  it "makes none for a send that is not the user's message" do
     opened
     expect(send_message({ "message" => "" }).observation).to be_nil
-    allow(Monadic::History::Policy).to receive(:private?).and_return(true)
-    expect(send_message({ "message" => "hello" }).observation).to be_nil
   end
 
   it "sends the message when the observation cannot be made" do

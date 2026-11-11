@@ -92,12 +92,10 @@ RSpec.describe "the Gemini image tool on the workbench" do
     expect(Dir.children(File.join(store.chat_dir(chat), "jobs"))).to be_empty
   end
 
-  it "refuses without the reply's chat, in a Private chat, or with a model that is not an image model" do
+  it "refuses without the reply's chat, or with a model that is not an image model" do
     fake_native
     expect(app.generate_image_with_gemini(prompt: "a cat", model: model, session: session)).to start_with("❌")
     expect(generate(model: "gemini")).to start_with("❌ Unknown image model")
-    session[:_history_policy] = Monadic::History::Policy::PRIVATE
-    expect(generate).to start_with("❌")
     expect(runs).to be_empty
   end
 

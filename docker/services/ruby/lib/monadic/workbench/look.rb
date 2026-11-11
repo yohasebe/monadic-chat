@@ -10,7 +10,6 @@ require_relative 'capture'
 require_relative 'image_check'
 require_relative 'artifact'
 require_relative 'file_item'
-require_relative '../history/policy'
 require_relative '../workspace/chats'
 require_relative '../workspace/request_context'
 require_relative '../workspace/shared_folder_preview'
@@ -123,10 +122,8 @@ module Monadic
         scope = scope.to_s
         raise Refused.new('unsupported_kind', "scope must be one of #{SCOPES.join(', ')}") unless SCOPES.include?(scope)
         raise Refused.new('connection_gone', 'this reply cannot look at the work screen') unless caller
-        raise Refused.new('private', 'nothing is sent from the work screen in a Private chat') if private?(caller)
 
         board = Board.existing(caller.chat_id) or raise Refused.new('no_selection', 'nothing is shown in the work screen')
-        raise Refused.new('private', 'nothing is sent from the work screen in a Private chat') if board.private?
 
         deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + DEADLINE
         selection = target(board, caller)
@@ -167,16 +164,12 @@ module Monadic
         found
       end
 
-      def private?(caller)
-        Monadic::History::Policy.private?(caller.session) || Monadic::History::Policy.known_private?(caller.chat_id)
-      end
-
       # Whether what the caller reads may still go to the model: the
-      # caller's session is still in its chat, the chat is at the epoch the
-      # reply began in, and it is not Private.
+      # caller's session is still in its chat, and the chat is at the epoch
+      # the reply began in.
       def current?(caller)
         caller.session.respond_to?(:[]) && caller.session[Monadic::Workspace::Chats::SESSION_KEY] == caller.chat_id &&
-          Monadic::Workspace::Chats.epoch(caller.chat_id) == caller.epoch && !private?(caller)
+          Monadic::Workspace::Chats.epoch(caller.chat_id) == caller.epoch
       end
 
       # text, when it holds no word the chat hides. Refused (filtered)

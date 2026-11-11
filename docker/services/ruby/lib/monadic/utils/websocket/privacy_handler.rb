@@ -33,10 +33,6 @@ module WebSocketHelper
     send_to_client(connection, { "type" => "error", "content" => PAGE_OUT_OF_DATE })
   end
 
-  private def user_words_in_chat?(session)
-    Array(session[:messages]).any? { |m| m['role'] == 'user' && !m['text'].to_s.strip.empty? }
-  end
-
   private def privacy_container_coming_up?
     deps = Monadic::Utils::ContainerDependencies
     deps.starting?(:privacy) || deps.container_running?(:privacy)

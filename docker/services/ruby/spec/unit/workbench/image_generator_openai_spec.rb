@@ -119,12 +119,10 @@ RSpec.describe "the OpenAI image tool on the workbench" do
       expect(result.to_s).to include(Monadic::Workbench::Offered::STATUS, result.path)
     end
 
-    it "refuses without the reply's chat, and in a Private chat, before running anything" do
+    it "refuses without the reply's chat before running anything" do
       fake_generator
       expect(app.generate_image_with_openai(operation: "generate", model: "gpt-image-2", prompt: "a cat",
                                             session: session)).to start_with("❌")
-      session[:_history_policy] = Monadic::History::Policy::PRIVATE
-      expect(generate).to start_with("❌")
       expect(commands).to be_empty
       expect(Dir.exist?(store.chat_dir(chat))).to be(false)
     end

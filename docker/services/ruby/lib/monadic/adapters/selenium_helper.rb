@@ -15,8 +15,7 @@ module MonadicHelper
 
     result = nil 
 
-    # The fetcher opens a browser session of its own: it takes a slot (and
-    # is refused in a Private chat, before the page is saved as a file).
+    # The fetcher opens a browser session of its own: it takes a slot.
     begin
       MonadicSharedTools::BrowserOwner.with_job do
         send_command(command: command, container: "python") do |stdout, stderr, status|

@@ -2,7 +2,6 @@
 
 require_relative "../../spec_helper"
 require_relative "../../../lib/monadic/shared_tools/web_automation"
-require_relative "../../../lib/monadic/history/policy"
 
 # Who may open a browser session: each chat its own browser, short jobs a
 # slot of their own, admitted from what Selenium reports.
@@ -155,13 +154,6 @@ RSpec.describe MonadicSharedTools::BrowserOwner do
       expect(owner.snapshot[:jobs]).to eq(0)
     end
 
-    it 'refuses a job in a Private chat before it runs' do
-      allow(Monadic::History::Policy).to receive(:current_work_private?).and_return(true)
-      ran = false
-      expect { owner.with_job { ran = true } }.to raise_error(described_class::PrivateChat)
-      expect(ran).to be(false)
-      expect(owner.snapshot[:jobs]).to eq(0)
-    end
   end
 
   describe 'a replaced chat' do
@@ -399,13 +391,6 @@ RSpec.describe MonadicSharedTools::BrowserOwner do
         expect(result[:success]).to be(false)
         expect(owner.session_for('a', epoch)).to be_nil
       end
-    end
-
-    it 'refuses the browser in a Private chat without a command' do
-      allow(Monadic::History::Policy).to receive(:current_work_private?).and_return(true)
-      expect(app.start_browser(url: 'https://example.com')[:success]).to be(false)
-      expect(app.capture_viewport_screenshots(url: 'https://example.com')[:success]).to be(false)
-      expect(log).to be_empty
     end
 
     it 'refuses work that began before the chat was replaced, even after the chat comes back' do

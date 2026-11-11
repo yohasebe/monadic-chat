@@ -53,7 +53,7 @@ RSpec.describe "a text put on the work screen (put_on_workbench) and what a repl
   end
 
   def board
-    Monadic::Workbench::Board.for(chat, private: false, store: store)
+    Monadic::Workbench::Board.for(chat, store: store)
   end
 
   def written(path)
@@ -130,12 +130,6 @@ RSpec.describe "a text put on the work screen (put_on_workbench) and what a repl
       expect { put.run(caller_for, name: "a.txt", content: "a\0b") }.to raise_error(put::Refused, /UTF-8/)
       stub_const("Monadic::Workbench::Put::LIMIT", 3)
       expect { put.run(caller_for, name: "a.txt", content: "abcd") }.to raise_error(put::Refused, /at most 3 bytes/)
-    end
-
-    it "refuses in a Private chat and writes nothing" do
-      allow(Monadic::History::Policy).to receive(:private?).and_return(true)
-      expect { put.run(caller_for, name: "a.md", content: "x") }.to raise_error(put::Refused, /Private/)
-      expect(files_in_folder).to be_empty
     end
 
     it "refuses without a caller, and for a reply that is not running" do

@@ -38,19 +38,18 @@ RSpec.describe Monadic::Workbench::Observation do
                    epoch: Monadic::Workspace::Chats.epoch(chat)).first
   end
 
-  def observe(reported = nil, tab: "tab-1", generation: 1, private: false)
+  def observe(reported = nil, tab: "tab-1", generation: 1)
     described_class.for_request(chat_id: chat, tab: tab, generation: generation, request_id: "r_1",
-                                reported: reported, private: private)
+                                reported: reported)
   end
 
   def selected(observation)
     observation.data.dig("work_screen", "selected")
   end
 
-  it "tells nothing for a chat with no workbench, a Private chat, or a connection no longer the tab's" do
+  it "tells nothing for a chat with no workbench, or a connection no longer the tab's" do
     expect(observe).to be_nil
     open_file("a.txt", "a")
-    expect(observe(private: true)).to be_nil
     expect(observe(generation: 2)).to be_nil
     expect(observe(tab: nil)).to be_nil
   end
@@ -140,7 +139,6 @@ RSpec.describe Monadic::Workbench::Observation do
     expect(observation.data).to be_frozen
     expect(observation.data.dig("work_screen", "items", 0, "name")).to be_frozen
     expect(observation.current?(chat_id: chat)).to be(true)
-    expect(observation.current?(chat_id: chat, private: true)).to be(false)
     Monadic::Workspace::Chats.replacing!({ chat_id: chat })
     expect(observation.current?(chat_id: chat)).to be(false)
   end
@@ -163,8 +161,6 @@ RSpec.describe Monadic::Workbench::Observation do
         expect(described_class.text_for(session, mine.merge("role" => "assistant"))).to be_nil
         expect(described_class.text_for(session, mine.except("request_id"))).to be_nil
         expect(described_class.text_for(session.merge(chat_id: "c_other"), mine)).to be_nil
-        allow(Monadic::History::Policy).to receive(:private?).and_return(true)
-        expect(described_class.text_for(session, mine)).to be_nil
       end
       expect(described_class.text_for(session, mine)).to be_nil
     end

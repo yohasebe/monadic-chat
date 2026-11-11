@@ -182,7 +182,7 @@ RSpec.describe "the workbench over the main socket (channel, asset server)" do
       expect(result["url"]).to start_with("/workbench/asset/")
     end
 
-    it "is refused for another chat's image, an id that is not one, a Private chat, or an old connection" do
+    it "is refused for another chat's image, an id that is not one, or an old connection" do
       theirs = image("a.png", "1", for_chat: Monadic::Workspace::Ids.generate(:chat))
       expect(download(theirs.dig("artifact", "id"))).to include("status" => "refused")
       expect(download("../x")).to include("status" => "refused")
@@ -190,16 +190,14 @@ RSpec.describe "the workbench over the main socket (channel, asset server)" do
       live_tabs[tab] = 2
       expect(download(mine.dig("artifact", "id"))).to include("status" => "refused")
       live_tabs[tab] = 1
-      allow(Monadic::History::Policy).to receive(:known_private?).and_return(true)
-      expect(download(mine.dig("artifact", "id"))).to include("status" => "refused")
+      expect(download(mine.dig("artifact", "id"))).not_to include("status" => "refused")
     end
   end
 
   describe "the asset server" do
-    let(:private_chats) { [] }
     let(:app) { ->(_env) { [200, {}, ["app"]] } }
     let(:server) do
-      Monadic::Workbench::AssetServer.new(app, live: live, private_chat: ->(c) { private_chats.include?(c) })
+      Monadic::Workbench::AssetServer.new(app, live: live)
     end
 
     def fetch_asset(path, site: "same-origin", method: "GET")
@@ -238,15 +236,12 @@ RSpec.describe "the workbench over the main socket (channel, asset server)" do
       expect(fetch_asset(address).first).to eq(404)
     end
 
-    it "stops serving when the tab's connection changed, the chat was replaced or is Private" do
+    it "stops serving when the tab's connection changed or the chat was replaced" do
       item = image
       address = view["assets"][item["id"]]
       live_tabs[tab] = 2
       expect(fetch_asset(address).first).to eq(404)
       live_tabs[tab] = 1
-      private_chats << chat
-      expect(fetch_asset(address).first).to eq(404)
-      private_chats.clear
       expect(fetch_asset(address).first).to eq(200)
       Monadic::Workspace::Chats.replacing!(session)
       expect(fetch_asset(address).first).to eq(404)

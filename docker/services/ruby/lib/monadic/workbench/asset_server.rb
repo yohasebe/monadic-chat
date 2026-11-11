@@ -16,9 +16,8 @@ module Monadic
     #
     # Only a GET or HEAD sent by a page of this server (Sec-Fetch-Site:
     # same-origin) is served, and only while the token's tab still has the
-    # connection it was given to and its chat is at the same epoch and not
-    # Private (a file item of a Private chat is served: it is the user's
-    # file and only this tab sees it). Anything else gets the same "not
+    # connection it was given to and its chat is at the same epoch.
+    # Anything else gets the same "not
     # found". For a token that holds, the image is read from the chat's
     # folder (Artifact), the file from the shared folder (FileItem): one
     # that is no longer the version given is answered 409 (changed) or 410
@@ -37,11 +36,9 @@ module Monadic
       }.freeze
 
       # live: the generation of the connection a tab has now (or nil).
-      # private_chat: whether a chat is Private.
-      def initialize(app, live:, private_chat:)
+      def initialize(app, live:)
         @app = app
         @live = live
-        @private_chat = private_chat
       end
 
       def call(env)
@@ -63,7 +60,6 @@ module Monadic
         return plain(404, 'Not found') unless @live.call(view.tab) == view.generation
         return plain(404, 'Not found') unless view.epoch == Monadic::Workspace::Chats.epoch(view.chat_id)
         return serve_file(env, view) if view.item_id
-        return plain(404, 'Not found') if @private_chat.call(view.chat_id)
 
         read = Artifact.read(view.artifact_id, chat_id: view.chat_id)
         return plain(409, 'Changed') unless read[:record][:sha256] == view.sha256
@@ -83,7 +79,7 @@ module Monadic
       def serve_file(env, view)
         return plain(404, 'Not found') unless %i[view render].include?(view.purpose)
 
-        board = Board.existing(view.chat_id, private: @private_chat.call(view.chat_id)) or return plain(404, 'Not found')
+        board = Board.existing(view.chat_id) or return plain(404, 'Not found')
         return serve_render(env, board, view) if view.purpose == :render
 
         read = board.file_read(view.item_id, sha256: view.sha256)

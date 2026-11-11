@@ -232,25 +232,6 @@ RSpec.describe Monadic::History do
     end
   end
 
-  describe 'Policy' do
-    it 'treats a chat with Privacy Filter traces as Private for the rest of the chat' do
-      session = session_with('hi', _privacy_session_enabled: true)
-      expect(described_class::Policy.private?(session)).to be(true)
-      session[:_privacy_session_enabled] = false # the filter went down
-      expect(described_class::Policy.private?(session)).to be(true)
-    end
-
-    it 'treats marked words or a registry as Private' do
-      expect(described_class::Policy.private?(session_with('hi', monadic_state: { privacy: { terms: ['Taro'] } }))).to be(true)
-      expect(described_class::Policy.private?(session_with('hi', monadic_state: { privacy: { registry: { 'a' => 'b' } } }))).to be(true)
-      expect(described_class::Policy.private?(session_with('hi'))).to be(false)
-    end
-
-    it 'treats a chat with a privacy pipeline as Private' do
-      expect(described_class::Policy.private?(session_with('hi', _privacy_pipeline: Object.new))).to be(true)
-    end
-  end
-
   describe '.enabled?' do
     it 'is on unless the shell that starts the server turns it off' do
       ENV.delete('MONADIC_HISTORY')
@@ -267,43 +248,11 @@ RSpec.describe Monadic::History do
       expect(Dir.glob(File.join(dir, '*'))).to be_empty
     end
 
-    # A marker in a Private chat must be found nowhere in the history files;
-    # the same marker in a normal chat is found (so the scan does look).
-    it 'leaves no trace of a Private chat, while a normal chat is kept' do
+    it 'keeps a chat with its words' do
       marker = "MARK#{SecureRandom.hex(16)}"
-      described_class.record(session_with("private #{marker}", _privacy_session_enabled: true), store: store)
-      store.close
-      expect(stored_bytes).not_to include(marker)
-
       described_class.record(session_with("normal #{marker}"), store: store)
       store.close
       expect(stored_bytes).to include(marker)
-    end
-
-    it 'does not make the history file for a Private chat' do
-      session = session_with("private #{SecureRandom.hex(8)}", _privacy_session_enabled: true)
-      expect(described_class.record(session, store: store)).to be_nil
-      expect(Dir.glob(File.join(dir, '*'))).to be_empty
-    end
-
-    # The history is there (a normal chat was kept), and nothing is asked of
-    # it for a Private chat: no row of one was ever kept to remove.
-    it 'asks nothing of the history for a Private chat' do
-      described_class.record(session_with('normal'), store: store)
-      session = session_with("private #{SecureRandom.hex(8)}", _privacy_session_enabled: true)
-      %i[save clear delete claim].each { |op| expect(store).not_to receive(op) }
-      expect(described_class.record(session, store: store)).to be_nil
-    end
-
-    it 'keeps a Private chat out even when a copy of it without the mark is written later' do
-      marker = "MARK#{SecureRandom.hex(16)}"
-      session = session_with("private #{marker}")
-      copy = session.dup
-      session[:_privacy_session_enabled] = true
-      described_class.record(session, store: store)
-      expect(described_class.record(copy, store: store)).to be_nil
-      store.close
-      expect(stored_bytes).not_to include(marker)
     end
 
     it 'removes the kept chat when its last user message is removed' do

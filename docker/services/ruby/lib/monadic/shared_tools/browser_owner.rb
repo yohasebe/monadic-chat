@@ -66,12 +66,6 @@ module MonadicSharedTools
       end
     end
 
-    class PrivateChat < Refused
-      def initialize(msg = "This chat is Private: the browser is not used in a Private chat.")
-        super
-      end
-    end
-
     @lock = Mutex.new
     @browsers = {}
     @starting = {}
@@ -113,16 +107,6 @@ module MonadicSharedTools
 
     def current_chat
       current_work.first
-    end
-
-    # A Private chat makes no files and keeps nothing, so it does not use the
-    # browser (its pages and screenshots would outlive the chat).
-    def private_work?
-      defined?(Monadic::History::Policy) && Monadic::History::Policy.current_work_private? ? true : false
-    end
-
-    def refuse_private!
-      raise PrivateChat if private_work?
     end
 
     # The output of web_navigator.py with args (an Array), run in the Python
@@ -291,12 +275,11 @@ module MonadicSharedTools
     end
 
     # A short job: yields name_session, within a slot of its own, or raises
-    # Refused (PrivateChat, Full, Unavailable). A job that knows its session
+    # Refused (Full, Unavailable). A job that knows its session
     # names it (name_session.call(id)) so that it is not counted twice. The
     # job closes its session itself; one it fails to close keeps its slot,
     # through Selenium's report, until Selenium ends it.
     def with_job
-      refuse_private!
       code = admit do |observed, total|
         next :full if taken(observed) >= total
 

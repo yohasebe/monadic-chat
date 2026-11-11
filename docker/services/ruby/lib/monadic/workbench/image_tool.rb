@@ -7,7 +7,6 @@ require_relative 'image_check'
 require_relative 'caller'
 require_relative 'job_output'
 require_relative 'offer'
-require_relative '../history/policy'
 require_relative '../utils/environment'
 require_relative '../utils/shared_path_guard'
 require_relative '../utils/tool_image_utils'
@@ -29,15 +28,9 @@ module Monadic
       module_function
 
       # Why a tool may not run for this reply, or nil. Nothing is made
-      # without the chat to put it in (never saved elsewhere), and nothing
-      # of a Private chat is kept.
+      # without the chat to put it in (never saved elsewhere).
       def refusal(workbench)
         return '❌ Image generation failed: the chat this reply is for could not be identified.' unless workbench
-
-        policy = Monadic::History::Policy
-        if policy.private?(workbench.session) || policy.known_private?(workbench.chat_id)
-          return '❌ Image generation is not available in a Private chat: nothing of it may be kept.'
-        end
 
         nil
       end

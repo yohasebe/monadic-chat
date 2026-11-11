@@ -2,6 +2,8 @@
   { "name": "notes.md", "id": "markdown" },
   { "name": "README.MARKDOWN", "id": "markdown" },
   { "name": "flow.mmd", "id": "diagram" },
+  { "name": "analysis.ipynb", "id": "notebook" },
+  { "name": "work/Analysis.IPYNB", "id": "notebook" },
   { "name": "flow.Mermaid", "id": "diagram" },
   { "name": "data.csv", "id": "table" },
   { "name": "data.TSV", "id": "table" },

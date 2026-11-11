@@ -133,6 +133,78 @@ describe('WorkbenchRender', () => {
     });
   });
 
+  describe('a Jupyter notebook', () => {
+    const PNG = 'iVBORw0KGgo=';
+    const notebook = (cells) => JSON.stringify({ nbformat: 4, nbformat_minor: 5, metadata: {}, cells });
+    const draw = async (cells) => {
+      const box = document.createElement('div');
+      await R.draw(box, 'notebook', typeof cells === 'string' ? cells : notebook(cells), { name: 'n.ipynb' }).done;
+      return box;
+    };
+
+    test('shows its cells in order: Markdown drawn, code with its run number, and what each run showed', async () => {
+      const box = await draw([
+        { cell_type: 'markdown', source: ['# Title\n', 'Some **words**'] },
+        { cell_type: 'code', execution_count: 3, source: 'print("hi")', outputs: [
+          { output_type: 'stream', name: 'stdout', text: ['hi\n'] },
+          { output_type: 'display_data', data: { 'image/png': PNG, 'text/plain': '<Figure>' } },
+          { output_type: 'execute_result', data: { 'text/plain': ['42'] } }
+        ] },
+        { cell_type: 'raw', source: 'raw text' }
+      ]);
+      const cells = box.querySelectorAll('.workbench-nb-cell');
+      expect(cells).toHaveLength(3);
+      expect(cells[0].querySelector('h1').textContent).toBe('Title');
+      expect(cells[0].querySelector('strong').textContent).toBe('words');
+      expect(cells[1].querySelector('.workbench-nb-prompt').textContent).toBe('[3]');
+      expect(cells[1].querySelector('.workbench-nb-source').textContent).toBe('print("hi")');
+      const outputs = Array.from(cells[1].querySelectorAll('.workbench-nb-stream'), (o) => o.textContent);
+      expect(outputs).toEqual(['hi\n', '42']);
+      // The image is shown, not its text form.
+      expect(cells[1].querySelector('img.workbench-nb-image').getAttribute('src')).toBe(`data:image/png;base64,${PNG}`);
+      expect(cells[1].textContent).not.toContain('<Figure>');
+      expect(cells[2].textContent).toBe('raw text');
+    });
+
+    test('runs nothing: HTML outputs are made safe, and one that is only a script is said to be interactive', async () => {
+      const box = await draw([{ cell_type: 'code', execution_count: 1, source: 'df', outputs: [
+        { output_type: 'execute_result', data: { 'text/html': '<table><tr><td onclick="x()">1</td></tr></table><script>alert(1)</script>' } },
+        { output_type: 'display_data', data: { 'text/html': '<div id="plot"></div><script>Plotly.newPlot("plot")</script>',
+                                                'application/vnd.plotly.v1+json': {} } },
+        { output_type: 'display_data', data: { 'application/vnd.jupyter.widget-view+json': {} } }
+      ] }]);
+      expect(box.querySelector('script')).toBeNull();
+      expect(box.querySelector('td').textContent).toBe('1');
+      expect(box.querySelector('td').hasAttribute('onclick')).toBe(false);
+      const notes = Array.from(box.querySelectorAll('.workbench-nb-note'), (n) => n.textContent);
+      expect(notes).toEqual(['An interactive output (not shown here).', 'An interactive output (not shown here).']);
+    });
+
+    test('shows an error\'s traceback without terminal colors', async () => {
+      const box = await draw([{ cell_type: 'code', execution_count: 2, source: '1/0', outputs: [
+        { output_type: 'error', ename: 'ZeroDivisionError', evalue: 'division by zero',
+          traceback: ['\u001b[0;31mZeroDivisionError\u001b[0m: division by zero'] }
+      ] }]);
+      const error = box.querySelector('.workbench-nb-stderr');
+      expect(error.textContent).toBe('ZeroDivisionError: division by zero');
+    });
+
+    test('says when a file is not a notebook it can read', async () => {
+      for (const text of ['{ not json', JSON.stringify({ cells: 'no' })]) {
+        const box = document.createElement('div');
+        const handle = R.draw(box, 'notebook', text, { name: 'n.ipynb' });
+        await expect(handle.done).rejects.toThrow('This notebook could not be read.');
+      }
+    });
+
+    test('keeps an image that is not a data image of an image type out', async () => {
+      const box = await draw([{ cell_type: 'markdown', source: '![x](https://example.com/x.png)' },
+        { cell_type: 'code', execution_count: 1, source: '', outputs: [
+          { output_type: 'display_data', data: { 'image/png': 'not base64 !' } }] }]);
+      expect(box.querySelector('img')).toBeNull();
+    });
+  });
+
   describe('a diagram', () => {
     test('takes no settings of its own, and is not too long', () => {
       expect(R.diagramChecked('flowchart LR\nA-->B')).toBe('flowchart LR\nA-->B');

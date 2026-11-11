@@ -7046,6 +7046,56 @@ body.side-pane-resizing {
   background: var(--bg-panel);
   padding: var(--spacing-sm);
 }
+/* A Jupyter notebook on the work screen (workbench-render.js): its cells in
+   order, the code of each with its run number, and what it showed. */
+.workbench-notebook {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+.workbench-nb-cell {
+  min-width: 0;
+}
+.workbench-nb-prompt {
+  color: var(--text-secondary);
+  font-family: var(--font-family-monospace, monospace);
+}
+.workbench-nb-source,
+.workbench-nb-stream {
+  margin: 0;
+  padding: var(--spacing-sm);
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: var(--border-width) solid var(--border-light);
+  border-radius: var(--border-radius);
+}
+.workbench-nb-source {
+  background: color-mix(in srgb, var(--bg-panel) 60%, var(--bg-body));
+}
+.workbench-nb-stream {
+  margin-top: var(--spacing-xs);
+  border-style: dashed;
+}
+.workbench-nb-stderr {
+  color: var(--bdg-red-fg);
+  background: var(--bdg-red-bg);
+  border-color: var(--bdg-red-bd);
+}
+.workbench-nb-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-top: var(--spacing-xs);
+  background: #fff;
+}
+.workbench-nb-html {
+  margin-top: var(--spacing-xs);
+  overflow-x: auto;
+}
+.workbench-nb-note {
+  margin-top: var(--spacing-xs);
+  color: var(--text-secondary);
+}
 .workbench-rendered .workbench-markdown > :last-child {
   margin-bottom: 0;
 }

@@ -156,8 +156,9 @@
     return markdown;
   }
 
-  function drawMarkdown(box, text, live) {
-    const html = markdownParser().render(text);
+  // HTML made safe as Markdown's is: what it may hold, with data: images
+  // only and no link that goes nowhere outside.
+  function cleanFragment(html) {
     const clean = purifier('markdown').sanitize(html, {
       ALLOWED_TAGS: MARKDOWN_TAGS,
       ALLOWED_ATTR: ['href', 'title', 'alt', 'src', 'class', 'colspan', 'rowspan', 'align', 'start'],
@@ -167,8 +168,16 @@
     keepDataImages(clean);
     // A link to no outside address (a relative one) is its text.
     clean.querySelectorAll('a:not([href])').forEach((a) => a.replaceWith(...a.childNodes));
+    return clean;
+  }
+
+  function markdownFragment(text) {
+    return cleanFragment(markdownParser().render(text));
+  }
+
+  function drawMarkdown(box, text, live) {
     const doc = element('div', 'workbench-markdown');
-    doc.appendChild(clean);
+    doc.appendChild(markdownFragment(text));
     box.replaceChildren(doc);
     // Mermaid blocks are drawn as diagrams, each in turn.
     const blocks = Array.from(doc.querySelectorAll('pre > code.language-mermaid'));
@@ -187,6 +196,108 @@
         })
         .catch(letGo);
     }), Promise.resolve());
+  }
+
+  // ---- Jupyter notebooks (read only) --------------------------------------
+
+  // A notebook as it was saved: its cells in order, the text of each and
+  // what each run showed. Nothing in it runs. Of an output's forms the
+  // first found is shown: an image, HTML (made safe as Markdown's is; one
+  // that is only a script, such as an interactive chart, is said to be
+  // so), Markdown, then text.
+  const NOTEBOOK_CELLS = 1000;
+  const NOTEBOOK_TEXT = 20000;
+  const NOTEBOOK_IMAGES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+  const ANSI = /\u001b\[[0-9;]*[A-Za-z]/g;
+
+  function joined(value) {
+    return Array.isArray(value) ? value.join('') : (typeof value === 'string' ? value : '');
+  }
+
+  function cutText(text) {
+    const plain = String(text).replace(ANSI, '');
+    return plain.length > NOTEBOOK_TEXT ? `${plain.slice(0, NOTEBOOK_TEXT)}\n…` : plain;
+  }
+
+  function preOf(text, className) {
+    const pre = element('pre', className);
+    pre.textContent = cutText(text);
+    return pre;
+  }
+
+  function notebookOutput(output) {
+    if (!output || typeof output !== 'object') return null;
+    if (output.output_type === 'stream') {
+      return preOf(joined(output.text), `workbench-nb-stream${output.name === 'stderr' ? ' workbench-nb-stderr' : ''}`);
+    }
+    if (output.output_type === 'error') {
+      const trace = Array.isArray(output.traceback) ? output.traceback.join('\n') : `${output.ename}: ${output.evalue}`;
+      return preOf(trace, 'workbench-nb-stream workbench-nb-stderr');
+    }
+    const data = output.data && typeof output.data === 'object' ? output.data : null;
+    if (!data) return null;
+    const image = NOTEBOOK_IMAGES.find((type) => typeof joined(data[type]) === 'string' && joined(data[type]));
+    if (image) {
+      const src = `data:${image};base64,${joined(data[image]).replace(/\s/g, '')}`;
+      if (dataImageOk(src)) {
+        const img = element('img', 'workbench-nb-image');
+        img.alt = '';
+        img.src = src;
+        return img;
+      }
+    }
+    if (data['text/html']) {
+      const holder = element('div', 'workbench-nb-html');
+      holder.appendChild(cleanFragment(joined(data['text/html'])));
+      if (holder.textContent.trim() || holder.querySelector('img, table')) return holder;
+      return element('div', 'workbench-nb-note', t('notebookInteractive', 'An interactive output (not shown here).'));
+    }
+    if (data['text/markdown']) {
+      const holder = element('div', 'workbench-markdown');
+      holder.appendChild(markdownFragment(joined(data['text/markdown'])));
+      return holder;
+    }
+    if (data['text/plain']) return preOf(joined(data['text/plain']), 'workbench-nb-stream');
+    return element('div', 'workbench-nb-note', t('notebookInteractive', 'An interactive output (not shown here).'));
+  }
+
+  function drawNotebook(box, text) {
+    let notebook;
+    try {
+      notebook = JSON.parse(text);
+    } catch (_) {
+      throw new Refused(t('notebookUnreadable', 'This notebook could not be read.'));
+    }
+    const cells = notebook && Array.isArray(notebook.cells) ? notebook.cells : null;
+    if (!cells) throw new Refused(t('notebookUnreadable', 'This notebook could not be read.'));
+    const doc = element('div', 'workbench-notebook');
+    cells.slice(0, NOTEBOOK_CELLS).forEach((cell) => {
+      if (!cell || typeof cell !== 'object') return;
+      const source = joined(cell.source);
+      const holder = element('div', `workbench-nb-cell workbench-nb-${cell.cell_type === 'code' ? 'code' : 'text'}`);
+      if (cell.cell_type === 'markdown') {
+        holder.classList.add('workbench-markdown');
+        holder.appendChild(markdownFragment(source));
+      } else if (cell.cell_type === 'code') {
+        const count = Number.isInteger(cell.execution_count) ? String(cell.execution_count) : ' ';
+        holder.appendChild(element('div', 'workbench-nb-prompt', `[${count}]`));
+        const pre = element('pre', 'workbench-nb-source');
+        pre.appendChild(element('code', null, cutText(source)));
+        holder.appendChild(pre);
+        (Array.isArray(cell.outputs) ? cell.outputs : []).forEach((output) => {
+          const shown = notebookOutput(output);
+          if (shown) holder.appendChild(shown);
+        });
+      } else {
+        holder.appendChild(preOf(source, 'workbench-nb-source'));
+      }
+      doc.appendChild(holder);
+    });
+    if (cells.length > NOTEBOOK_CELLS) {
+      doc.appendChild(element('div', 'workbench-nb-note', t('notebookCut', 'Only the first {cells} cells are shown.')
+        .replace('{cells}', String(NOTEBOOK_CELLS))));
+    }
+    box.replaceChildren(doc);
   }
 
   // ---- tables ------------------------------------------------------------
@@ -535,7 +646,7 @@
 
   // ---- drawing -------------------------------------------------------------
 
-  const KINDS = ['markdown', 'diagram', 'table', 'svg', 'html', 'vega_lite'];
+  const KINDS = ['markdown', 'diagram', 'table', 'svg', 'html', 'vega_lite', 'notebook'];
 
   function draw(box, kind, text, options) {
     const ext = (options && options.name ? String(options.name).toLowerCase() : '');
@@ -557,6 +668,7 @@
       else if (kind === 'table') work = drawTable(box, text, ext.endsWith('.tsv') ? '\t' : ',');
       else if (kind === 'svg') work = showing(text);
       else if (kind === 'html') work = drawPage(box, text);
+      else if (kind === 'notebook') work = drawNotebook(box, text);
       else if (kind === 'diagram') work = diagramSvg(text).then(showing);
       else work = chartSvg(text).then(showing);
     } catch (e) {

@@ -117,15 +117,37 @@ module Monadic
         end
 
         # The table of a file being imported, as restore! takes it, or nil
-        # when the file has none. Invalid when it cannot be read, or when the
-        # file also holds what the Privacy Filter hides by (imported is what
-        # was read of it so far).
-        def file_table(file, imported)
-          return nil unless file.is_a?(Hash) && file.key?('word_table')
-          raise WordTable::Invalid, 'the file holds words hidden in two ways' if legacy_state?(imported)
+        # when the file has none. registry (placeholder => word) and terms
+        # ([{ text:, type: }]) are what files of earlier versions hold
+        # instead. Invalid when it cannot be read, or when the file holds both.
+        def file_table(file, registry: {}, terms: [])
+          raise WordTable::Invalid, 'the words of the file are not readable' unless registry.is_a?(Hash)
+
+          older = !registry.empty? || !terms.empty?
+          return older ? older_file_table(registry, terms) : nil unless file.is_a?(Hash) && file.key?('word_table')
+          raise WordTable::Invalid, 'the file holds words hidden in two ways' if older
 
           WordTable.from_h(file['word_table'])
           file['word_table']
+        end
+
+        # The words of an earlier version's file as a table. Each placeholder
+        # stays as it was, so that what the file says with it still reads back.
+        def older_file_table(registry, terms)
+          mapping = {}
+          active = []
+          high = Hash.new(0)
+          registry.each do |placeholder, word|
+            id = placeholder.to_s[/\A<<(.+)>>\z/, 1].to_s
+            match = WordTable::ID_RE.match(id) or raise WordTable::Invalid, 'a placeholder of another form'
+            mapping[id] = { 'word' => word, 'type' => match[1] }
+            active << { 'word' => word, 'id' => id, 'type' => match[1] }
+            high[match[1]] = [high[match[1]], match[2].to_i].max
+          end
+          table = WordTable.from_h('schema' => WordTable::SCHEMA, 'mapping' => mapping, 'active' => active,
+                                   'high' => high.to_h, 'kept' => [], 'revision' => 0)
+          table.confirm_all!(terms.map { |term| [term[:text], term[:type]] })
+          table.to_h
         end
 
         # What a file shared without its table says for each active word:

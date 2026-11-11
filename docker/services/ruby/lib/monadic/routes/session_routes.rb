@@ -163,7 +163,6 @@ post "/load" do
         #   - restored: { header, messages, registry } — plain JSON
         # We unwrap each into the standard { parameters, messages } shape so the
         # rest of /load processes them like any other import.
-        privacy_registry_to_restore = nil
         privacy_terms_source = json_data
         if json_data.is_a?(Hash) && json_data["envelope"].is_a?(Hash) &&
            json_data["envelope"].dig("cipher", "algorithm") == "AES-256-GCM"
@@ -184,19 +183,11 @@ post "/load" do
           decrypted = JSON.parse(plaintext)
           privacy_terms_source = decrypted
           json_data = privacy_synthesize_session(json_data["header"], decrypted, "encrypted")
-          privacy_registry_to_restore = decrypted["registry"] if decrypted["registry"].is_a?(Hash)
         elsif json_data.is_a?(Hash) && json_data["header"].is_a?(Hash) &&
               json_data["messages"].is_a?(Array) && !json_data.key?("parameters")
           # Legacy 3-mode privacy export (masked_only or restored plain).
           mode = json_data["registry"].is_a?(Hash) ? "restored" : "masked_only"
-          privacy_registry_to_restore = json_data["registry"] if mode == "restored"
           json_data = privacy_synthesize_session(json_data["header"], json_data, mode)
-        elsif json_data.is_a?(Hash) && json_data["registry"].is_a?(Hash) &&
-              json_data["parameters"].is_a?(Hash)
-          # Newer plain export carries `registry` alongside parameters/messages.
-          # Capture the registry so the privacy pipeline can be re-seeded after
-          # import; the rest of /load handles parameters/messages normally.
-          privacy_registry_to_restore = json_data["registry"]
         end
 
         # Validate required fields
@@ -357,11 +348,8 @@ post "/load" do
           message_obj
         end.compact # Remove nil values from invalid messages
 
-        # Privacy registry restoration (Block D.4): seeded into the chat when
-        # the tab takes the import, so the next message reuses the imported
-        # placeholders. RD-1 (memory-only) preserved.
-        # The words the user had marked come back with a restored file, so the
-        # imported chat goes on masking them (a masked file holds none).
+        # The words of a file of an earlier version go on being hidden, in the
+        # chat's table (a masked file holds none).
         terms_to_restore = begin
           privacy_import_terms(privacy_terms_source.is_a?(Hash) ? privacy_terms_source["terms"] : nil)
         rescue ArgumentError => e
@@ -369,30 +357,19 @@ post "/load" do
         end
         terms_to_restore = (terms_to_restore + marked_in_messages).reverse.uniq { |t| t[:text] }.reverse
         return error_json("Import error: the file has too many marked words") if terms_to_restore.size > 200
-        has_registry = privacy_registry_to_restore.is_a?(Hash) && !privacy_registry_to_restore.empty?
-        if has_registry || terms_to_restore.any?
-          registry = has_registry ? privacy_registry_to_restore : {}
-          imported[:monadic_state] ||= {}
-          imported[:monadic_state][:privacy] = {
-            registry: registry,
-            audit: [{ ts: Time.now.to_i, op: :import, count: registry.size }],
-            terms: terms_to_restore
-          }
-          # Importing a registry implies the user wanted privacy on for this
-          # conversation; mirror that in the backend SSOT toggle so vendor
-          # helpers honor it without requiring the user to re-toggle.
-          imported[:_privacy_session_enabled] = true
-        end
+        older_registry = privacy_terms_source.is_a?(Hash) ? privacy_terms_source.fetch("registry", {}) : {}
 
         # The chat goes on hiding its words with the file's table, under the
         # new chat's own id (the tab takes it with the import).
-        word_table = Monadic::Utils::Privacy::Words.file_table(privacy_terms_source, imported)
+        word_table = Monadic::Utils::Privacy::Words.file_table(privacy_terms_source, registry: older_registry,
+                                                                                    terms: terms_to_restore)
         imported[:word_table] = word_table if word_table
 
         Monadic::Utils::ExtraLogger.log { "JSON import: #{imported[:messages].size} messages read for app '#{json_data['parameters']['app_name']}'" }
         token = WebSocketHelper.stage_import(tab_id, imported)
 
-        { success: true, app_name: json_data['parameters']['app_name'], import_token: token }.to_json
+        older_words = older_registry.empty? && terms_to_restore.empty? ? 0 : word_table['active'].size
+        { success: true, app_name: json_data['parameters']['app_name'], import_token: token, older_words: older_words }.to_json
       rescue Monadic::Utils::Privacy::WordTable::Invalid => e
         error_json("Import error: the file's word table could not be read: #{e.message}")
       rescue Monadic::Utils::Privacy::Marks::Invalid => e

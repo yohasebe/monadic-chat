@@ -393,6 +393,17 @@
     }
   }
 
+  // A file of an earlier version: its words are hidden here from now on,
+  // and the panel shows which, for the user to check.
+  function noticeOlderFile(count) {
+    state.open = true;
+    render();
+    const box = $id('word-table-error');
+    if (!box) return;
+    box.textContent = t('ui.wordTable.olderFile', 'The {n} words this file hides are hidden in this chat. Check them here.').replace('{n}', String(count));
+    box.style.display = '';
+  }
+
   function init() {
     $on($id('anonymize'), 'click', find);
     $on($id('word-table-status'), 'click', () => {
@@ -428,7 +439,7 @@
 
   const api = {
     handleTable: handleTable, handleFound: handleFound, handleChanged: handleChanged,
-    holdSend: holdSend, holdSpeech: holdSpeech, connectionLost: connectionLost, find: find
+    holdSend: holdSend, holdSpeech: holdSpeech, noticeOlderFile: noticeOlderFile, connectionLost: connectionLost, find: find
   };
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = Object.assign({ splitByWords: splitByWords, selectionProblem: selectionProblem, _state: state, init: init }, api);

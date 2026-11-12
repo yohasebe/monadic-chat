@@ -16,6 +16,7 @@ const i18n = require('./i18n');
 const installOptions = require('./install_options.config');
 const opReferences = require('./op_references');
 const { createRevealHandler, createTrashHandler, showSharedPath, NO_ANSWER } = require('./shared_folder_reveal');
+const { copyAddressItems } = require('./context_menu_copy');
 const { writeStreamNoFollow, readStreamNoFollow, openReadNoFollow } = require('./no_follow_files');
 const { monadicShEnv, monadicInvocation } = require('./monadic_env');
 const { keepWarnings, createLineBuffer } = require('./build_output');
@@ -1689,9 +1690,12 @@ function initializeApp() {
       // Useful extras
       showSaveImageAs: true,
       showCopyImage: true,
-      showCopyImageAddress: true,
       showInspectElement: true,
-      showSearchWithGoogle: false
+      showSearchWithGoogle: false,
+      // Addresses are copied as plain text (see context_menu_copy.js)
+      showCopyLink: false,
+      showCopyImageAddress: false,
+      prepend: (_actions, props) => copyAddressItems(props, clipboard)
     });
 
     // Menu Bar Mode: show Dock (and menu bar) when any window is focused,

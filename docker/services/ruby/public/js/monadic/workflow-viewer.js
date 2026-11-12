@@ -92,13 +92,22 @@ const WorkflowViewer = (function () {
     viewStates[currentApp] = {
       scale: view.scale || 1,
       tx: (view.translate ? view.translate.x : 0),
-      ty: (view.translate ? view.translate.y : 0)
+      ty: (view.translate ? view.translate.y : 0),
+      cw: container.clientWidth,
+      ch: container.clientHeight
     };
   }
 
   function restoreViewState() {
     if (!graph || !currentApp || !viewStates[currentApp]) return false;
     var vs = viewStates[currentApp];
+    // A view kept for a container of another size (the settings panel shown
+    // again at its full height, the side panel opened or closed) would leave
+    // the graph small in a corner or cut off: it is fitted afresh instead.
+    if (Math.abs(container.clientWidth - vs.cw) > 2 || Math.abs(container.clientHeight - vs.ch) > 2) {
+      delete viewStates[currentApp];
+      return false;
+    }
     graph.getView().scaleAndTranslate(vs.scale, vs.tx, vs.ty);
     // A saved state can still be wrong for the CURRENT container size (e.g.
     // captured in floating mode, restored inline). Report failure so the

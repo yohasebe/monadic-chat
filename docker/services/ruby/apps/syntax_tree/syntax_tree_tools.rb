@@ -18,10 +18,11 @@ module SyntaxTreeTools
   # libraries are built in the Ruby container only), so it runs outside it.
   COMMAND = "rsyntaxtree"
   DRAW_TIMEOUT = 60
-  # The look of every tree: serif, black, packed, the words on one row with
-  # dashed lines up to their nodes. A hyphen is a hyphen.
+  # The look of every tree: serif, black, packed close (short rows, narrow
+  # gaps between nodes), the words on one row with dashed lines up to their
+  # nodes. A hyphen is a hyphen.
   STYLE = %w[
-    --fontstyle serif --color off --tidy low --vheight 1.0
+    --fontstyle serif --color off --tidy low --vheight 0.6 --vmargin 0.2 --hspacing 0.6
     --leaf-align words --leafstyle dashed --hyphen literal --transparent on
   ].freeze
   # Languages written right to left: the tree is mirrored, the first word

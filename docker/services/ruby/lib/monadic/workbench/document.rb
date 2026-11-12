@@ -181,9 +181,8 @@ module Monadic
 
       # Every version of the sections of the document at path (a document of
       # the session's own chat folder), as the session's messages made them:
-      # [{ 'section' =>, 'path' =>, 'turn' => }], turn being the place of the
-      # reply among the AI's messages, oldest first. Empty for any other
-      # path.
+      # [{ 'section' =>, 'path' =>, 'version' => }], version counting the
+      # section's versions from 1, oldest first. Empty for any other path.
       def versions(session, path)
         folder = Monadic::Workspace::Folders.lookup(session)
         return [] unless folder && folder[:status] == :ready
@@ -191,14 +190,13 @@ module Monadic
         match = %r{\A#{Regexp.escape(folder[:relative_dir])}/#{DIRNAME}/(?<doc>[a-z0-9-]{1,60})\.md\z}.match(path.to_s)
         return [] unless match
 
-        turn = 0
+        counts = Hash.new(0)
         Array(session[:messages]).each_with_object([]) do |message, found|
           next unless message.is_a?(Hash) && message['role'] == 'assistant'
 
-          turn += 1
           Array(Made.clean(message['workbench_made'])).each do |made|
             section_files(made, match[:doc]).each do |key, file|
-              found << { 'section' => key, 'path' => file, 'turn' => turn }
+              found << { 'section' => key, 'path' => file, 'version' => (counts[key] += 1) }
             end
           end
         end

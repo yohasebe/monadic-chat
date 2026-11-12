@@ -393,8 +393,13 @@
   // The path of a document of a chat's folder.
   const DOCUMENT_PATH = /^conversations\/[^/]+\/documents\/[a-z0-9-]+\.md$/;
 
+  // The document whose versions are listed now (asked again when the
+  // board changes, so a new version shows up in the list).
+  let versionsOf = null;
+
   function askVersions(path) {
-    if (typeof window.safeWsSend === 'function') window.safeWsSend({ message: 'WORKBENCH_VERSIONS', path: String(path) });
+    versionsOf = String(path);
+    if (typeof window.safeWsSend === 'function') window.safeWsSend({ message: 'WORKBENCH_VERSIONS', path: versionsOf });
   }
 
   // The versions the server listed, under the document they are of when it
@@ -410,8 +415,8 @@
     }
     const list = element('div', 'list-group list-group-flush small');
     versions.forEach((version) => {
-      const label = t('ui.workbench.versionOf', '§ {section} — turn {turn}')
-        .replace('{section}', String(version.section)).replace('{turn}', String(version.turn));
+      const label = t('ui.workbench.versionOf', '§ {section} — version {version}')
+        .replace('{section}', String(version.section)).replace('{version}', String(version.version));
       const entry = element('button', 'list-group-item list-group-item-action py-1', label);
       entry.type = 'button';
       entry.addEventListener('click', () => openFile(version.path));
@@ -912,6 +917,7 @@
 
   function reset() {
     clearLocal();
+    versionsOf = null;
     board = null;
     approvals = {};
     assets = {};
@@ -1230,6 +1236,10 @@
     assets = data.assets || {};
     renders = data.renders || {};
     const news = [];
+    // A document whose versions are listed, while it is the one shown.
+    const listed = selected ? itemById(selected) : null;
+    if (versionsOf && listed && listed.path === versionsOf) askVersions(versionsOf);
+    else versionsOf = null;
     if (selected && !itemById(selected)) selected = null;
     const arrived = rowItems().filter((item) => !seen.has(item.id));
     arrived.forEach((item) => seen.add(item.id));

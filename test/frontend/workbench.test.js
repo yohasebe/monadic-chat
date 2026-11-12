@@ -480,14 +480,25 @@ describe('Workbench', () => {
       Array.from(pane.querySelectorAll('button')).find((b) => b.textContent === 'Versions').click();
       expect(sent[0].payload).toEqual({ message: 'WORKBENCH_VERSIONS', path: doc });
       window.Workbench.onVersions({ type: 'workbench_versions', path: doc, versions: [
-        { section: 'draft', path: 'conversations/c_1/artifacts/j_1/reply-to-tanaka--draft.md', turn: 1 },
-        { section: 'draft', path: 'conversations/c_1/artifacts/j_2/reply-to-tanaka--draft.md', turn: 3 }
+        { section: 'draft', path: 'conversations/c_1/artifacts/j_1/reply-to-tanaka--draft.md', version: 1 },
+        { section: 'draft', path: 'conversations/c_1/artifacts/j_2/reply-to-tanaka--draft.md', version: 2 }
       ] });
       const entries = Array.from(pane.querySelectorAll('.workbench-versions button'));
-      expect(entries.map((e) => e.textContent)).toEqual(['§ draft — turn 3', '§ draft — turn 1']);
+      expect(entries.map((e) => e.textContent)).toEqual(['§ draft — version 2', '§ draft — version 1']);
       sent.length = 0;
       entries[1].click();
       expect(sent[0].payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'conversations/c_1/artifacts/j_1/reply-to-tanaka--draft.md' });
+    });
+
+    test('asks for the versions again when the board changes while they are listed', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      const doc = 'conversations/c_1/documents/reply-to-tanaka.md';
+      view([file({ path: doc, name: 'reply-to-tanaka.md' })]);
+      const pane = document.getElementById('workbench-view');
+      Array.from(pane.querySelectorAll('button')).find((b) => b.textContent === 'Versions').click();
+      sent.length = 0;
+      view([file({ path: doc, name: 'reply-to-tanaka.md', sha256: 'b'.repeat(64) })]);
+      expect(sent.map((s) => s.payload)).toContainEqual({ message: 'WORKBENCH_VERSIONS', path: doc });
     });
 
     test('offers no versions for a file that is not a document', () => {

@@ -8,8 +8,11 @@ require 'spec_helper'
 RSpec.describe 'apps whose code output stays in the chat folder' do
   apps_dir = File.expand_path('../../../apps', __dir__)
 
-  %w[research_assistant].each do |app|
+  %w[research_assistant math_tutor].each do |app|
     files = Dir.glob(File.join(apps_dir, app, '*.mdsl')).sort
+    # A prompt kept in the app's constants is the prompt of every provider.
+    constants = File.join(apps_dir, app, "#{app}_constants.rb")
+    shared = File.exist?(constants) ? File.read(constants) : ''
 
     it "#{app}: every provider runs its code in the chat's folder" do
       expect(files).not_to be_empty
@@ -20,8 +23,9 @@ RSpec.describe 'apps whose code output stays in the chat folder' do
 
     it "#{app}: no provider embeds a generated file in the reply" do
       files.each do |file|
-        text = File.read(file)
+        text = File.read(file) + shared
         expect(text).not_to include('<img src="/data/FILENAME"'), file
+        expect(text).not_to include('automatically displayed'), file
         expect(text).not_to include('<a href="/data/FILENAME"'), file
         expect(text).to include('shown on the work screen'), file
       end

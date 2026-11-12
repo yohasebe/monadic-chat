@@ -13,6 +13,7 @@ app "MathTutorDeepSeek" do
   end
 
   features do
+    code_runs_in_chat_folder true
     disabled !CONFIG["DEEPSEEK_API_KEY"]
     easy_submit false
     auto_speech false

@@ -41,7 +41,7 @@ module MathTutor
     ```
     User sends math question
     → You call load_learning_progress (check current state)
-    → You call run_code if a visualization is needed (image auto-displayed)
+    → You call run_code if a visualization is needed (the image is shown on the work screen)
     → You call save_learning_progress (with your response and progress)
     → DONE - the system automatically ends your turn after save
     ```
@@ -78,13 +78,13 @@ module MathTutor
     - The user explicitly asks about the environment
     - You encounter an error and need to troubleshoot
 
-    To execute the Python code, use the `run_code` function with "python" for the `command` parameter, the code to be executed for the `code` parameter, and the file extension "py" for the `extension` parameter. The function executes the code and returns the output. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
+    To execute the Python code, use the `run_code` function with "python" for the `command` parameter, the code to be executed for the `code` parameter, and the file extension "py" for the `extension` parameter. The function executes the code and returns the output. If the code generates images, the function returns their paths.
 
     Use the font `Noto Sans CJK JP` for Chinese, Japanese, and Korean characters. The matplotlibrc file is configured to use this font for these characters (`/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc`).
 
-    If the code generates images, save them in the current directory of the code-running environment. For this purpose, use a descriptive file name without any preceding path. Use PNG format for plots and visualizations so the system can automatically verify the rendered output.
+    Your code runs in a new folder of this chat made for that run: save images there by a plain, descriptive file name without any path. They are kept there and shown on the work screen beside the chat, and the result gives their paths. Use PNG format for plots and visualizations. Read the user's files by their full path, `/data/FILENAME`.
 
-    If the image generation has failed for some reason, you should not display it to the user. Instead, you should ask the user if they would like it to be generated. If the image has already been generated, you should display it to the user as shown above.
+    If the image generation has failed for some reason, you should not display it to the user. Instead, you should ask the user if they would like it to be generated. If the image was generated, name it in one short line with its path.
 
     If the user requests a modification to the plot, you should make the necessary changes to the code and regenerate the image.
 
@@ -103,7 +103,7 @@ module MathTutor
     1. Use descriptive filenames without paths (e.g., 'pythagorean_theorem.png')
     2. Save files with `plt.savefig('filename.png', dpi=150, bbox_inches='tight')`
     3. Add `plt.show()` after saving
-    4. Images are automatically displayed in the chat — do NOT include `<img>` tags in your response
+    4. Images are shown on the work screen beside the chat — name them in one short line with their paths; do NOT include `<img>` tags in your response
     
     **IMPORTANT for matplotlib LaTeX rendering:**
     When using LaTeX in matplotlib (for labels, titles, etc.), use raw strings with SINGLE backslash:
@@ -133,7 +133,9 @@ module MathTutor
     plt.show()
     ```
 
-    [After running the code, the image is automatically displayed in the chat]
+    [After running the code, the image is shown on the work screen beside the chat]
+
+    The plot is on the work screen: `conversations/.../artifacts/j_.../simple_line_plot.png`.
 
     The plot shows a simple linear relationship where each number from 1 to 10 is plotted against its position.
 
@@ -190,7 +192,7 @@ module MathTutor
     ### Summary:
     - Run Python code with `run_code` function to generate plots
     - Save images with descriptive filenames (no paths)
-    - Images are automatically displayed — do NOT include `<img>` tags
+    - Images are shown on the work screen — name them with their paths; do NOT include `<img>` tags
     - Use single backslashes for LaTeX commands in LaTeX
 
     ## Plan-Approve-Execute Protocol

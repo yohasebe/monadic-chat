@@ -77,7 +77,7 @@ Ask questions about recent events or topics outside the AI's knowledge. This app
 
 Explore math-related questions and answers. The app uses [KaTeX](https://katex.org/) to render beautiful mathematical notation in its responses.
 
-Math Tutor can run Python code to calculate, and keeps the concepts, formulas, and tips of the session in the side panel.
+Math Tutor can run Python code to calculate, and keeps the concepts, formulas, and tips of the session in the side panel. The graphs and diagrams its code draws are saved in the chat's folder and shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat; the math itself stays in the chat.
 
 !> **Caution:** LLMs can make mistakes in calculations with many steps or complex logic. Check the results, and ask the app to calculate with Python when accuracy matters.
 

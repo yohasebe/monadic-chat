@@ -197,9 +197,11 @@ module Monadic
                              path: record[:copy_path])
       end
 
-      # Opens a file of the shared folder on the board (FileItem): the same
-      # file at the same version, when the board has it, is selected rather
-      # than added again. origin: who opened it (actor :user from the
+      # Opens a file of the shared folder on the board (FileItem): a file the
+      # board has is selected rather than added again, and taken at the
+      # version it has now (the board refers to the file and keeps no copy,
+      # so an item of an earlier version would show nothing of it). origin:
+      # who opened it (actor :user from the
       # Shared Folder panel, :agent from a tool), and the tab and connection
       # it was opened for (tab:, generation:), which then selects it.
       # Returns [item, added]. Refused at another epoch, for a file the work
@@ -216,14 +218,13 @@ module Monadic
           check_epoch!(epoch)
           raise Refused, 'not_allowed' if origin[:actor].to_s == 'user' && !live?(origin[:tab], origin[:generation])
 
-          found = data['items'].values.find do |item|
-            item['kind'] == 'file' && item.dig('file', 'path') == entry['path'] && item.dig('file', 'sha256') == entry['sha256']
-          end
+          found = data['items'].values.find { |item| item['kind'] == 'file' && item.dig('file', 'path') == entry['path'] }
           if found
-            # The same bytes, maybe saved again: what is seen of the file now
-            # is taken, and what a use found before is dropped.
+            # What is seen of the file now is taken (the same bytes saved
+            # again, or new ones), and what a use found before is dropped.
             found['file'] = entry
             @verdicts.delete(found['id'])
+            @texts.delete(found['id'])
             select_for_origin(origin, found['id'])
             next [deep_dup(found), false]
           end

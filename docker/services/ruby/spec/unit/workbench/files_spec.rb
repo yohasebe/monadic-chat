@@ -90,6 +90,18 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
       expect(board.selected(tab: "tab-2", generation: 1)).to eq(first["id"])
     end
 
+    it "takes a file opened again after it changed as the same item, at the version it has now" do
+      full = write("notes.md", "one")
+      first, = open_file("notes.md")
+      File.binwrite(full, "two")
+      again, added = open_file("notes.md", tab: "tab-2")
+      expect(added).to be(false)
+      expect(again["id"]).to eq(first["id"])
+      expect(board.snapshot[:items].map { |i| [i[:id], i[:sha256]] }).to eq([[first["id"], Digest::SHA256.hexdigest("two")]])
+      expect(board.file_read(first["id"], sha256: Digest::SHA256.hexdigest("two"))[:bytes]).to eq("two")
+      expect { board.file_read(first["id"], sha256: first.dig("file", "sha256")) }.to raise_error(Monadic::Workbench::Artifact::Changed)
+    end
+
     it "says when the file changed or is gone, and reads only the version it opened" do
       full = write("a.txt", "abc")
       item, = open_file("a.txt")
@@ -107,8 +119,9 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
         .to raise_error(Monadic::Workbench::Artifact::Missing)
       write("a.txt", "longer now")
       newer, added = open_file("a.txt")
-      expect(added).to be(true)
-      expect(newer["id"]).not_to eq(item["id"])
+      expect(added).to be(false)
+      expect(newer["id"]).to eq(item["id"])
+      expect(board.snapshot[:items].first[:status]).to eq("ok")
     end
 
     it "opens a PDF, which its address serves whole, at the version opened" do

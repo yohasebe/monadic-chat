@@ -49,6 +49,21 @@ module Monadic
         MonadicSharedTools::WorkbenchTools.show_file(path, workbench).start_with?('{')
       end
 
+      # Keeps files a tool made ({ name => bytes }, in that order) in a new
+      # run folder of the chat and shows each on the work screen. Returns
+      # { paths:, shown: } (shown: every file was shown), or nil without a
+      # chat or its folder. A run folder left empty by a failure goes.
+      def keep_and_show(session:, workbench:, app_name:, files:)
+        job = run_folder(session: session, workbench: workbench, app_name: app_name)
+        return nil unless job
+
+        paths = files.map { |name, bytes| keep(job, name, bytes) }
+        { paths: paths, shown: paths.map { |path| show(path, workbench) }.all? }
+      rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+        drop_if_empty(job)
+        raise
+      end
+
       # A run folder a failed run left empty goes; one with anything in it
       # stays.
       def drop_if_empty(job)

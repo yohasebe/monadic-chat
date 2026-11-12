@@ -22,6 +22,7 @@ require_relative "../../utils/extra_logger"
 require_relative "../../utils/progress_broadcaster"
 require_relative "../../utils/tool_key_requirements"
 require_relative "../../workbench/offer"
+require_relative "../../workbench/chat_output"
 
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
@@ -291,8 +292,11 @@ module GeminiHelper
   # Python examples is the SDK's and is rejected with 400 here). The API may
   # still return MP3, so the saved file's extension follows the returned type. Uploaded images in the session
   # influence the composition (image-to-music, up to 10). Resolves the actual
-  # model id from providerDefaults.gemini.music (SSOT).
-  def generate_music_with_lyria(prompt:, lyria_model: nil, output_format: nil, session: nil)
+  # model id from providerDefaults.gemini.music (SSOT). In a chat, the track
+  # and its lyrics (a Markdown file) are kept in a run folder of the chat's
+  # folder and shown on the work screen; without one, the track goes to the
+  # shared folder.
+  def generate_music_with_lyria(prompt:, lyria_model: nil, output_format: nil, session: nil, workbench: nil)
     require 'net/http'
     require 'json'
     require 'base64'
@@ -360,9 +364,20 @@ module GeminiHelper
     lyrics = format_lyria_lyrics(parts.filter_map { |p| p["text"] }.join("\n"))
 
     filename = "lyria_music_#{Time.now.to_i}_#{SecureRandom.hex(3)}.#{ext}"
-    filepath = File.join(shared_folder, filename)
-    Monadic::Utils::SharedPathGuard.write_file!(filepath, Base64.decode64(inline["data"]))
+    audio = Base64.decode64(inline["data"])
+    files = { filename => audio }
+    files["#{File.basename(filename, '.*')}_lyrics.md"] = "# Lyrics\n\n```text\n#{lyrics}\n```\n" unless lyrics.to_s.strip.empty?
+    app_name = session&.dig(:parameters, "app_name") || "MusicGeneratorGemini"
+    kept = Monadic::Workbench::ChatOutput.keep_and_show(session: session, workbench: workbench, app_name: app_name, files: files)
+    if kept
+      track, sheet = kept[:paths]
+      notice = Monadic::Workbench::ChatOutput.said("The track", track, shown: kept[:shown])
+      notice += " Its lyrics are beside it, as #{sheet}; do not repeat them in the reply." if sheet
+      return { success: true, service: "Google Lyria", path: track, lyrics_path: sheet, mime_type: mime,
+               model: model_id, prompt: prompt, notice: notice }.compact.to_json
+    end
 
+    Monadic::Utils::SharedPathGuard.write_file!(File.join(shared_folder, filename), audio)
     { success: true, service: "Google Lyria", filename: filename, mime_type: mime, lyrics: lyrics,
       model: model_id, prompt: prompt }.to_json
   rescue StandardError => e

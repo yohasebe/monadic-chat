@@ -57,6 +57,24 @@ RSpec.describe MusicGeneratorTools do
     expect(File.binread(File.join(tmpdir, result['filename']))).to eq('MP3-BYTES')
   end
 
+  it "in a chat, keeps the track in a run folder of the chat's folder and shows it on the work screen" do
+    state = Dir.mktmpdir
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(File.realpath(tmpdir))
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(state)
+    allow(MonadicSharedTools::WorkbenchTools).to receive(:show_file).and_return('{"status":"shown_in_work_screen"}')
+    workbench = Struct.new(:chat_id).new(Monadic::Workspace::Ids.generate(:chat))
+
+    result = JSON.parse(tool.generate_music_with_elevenlabs(prompt: 'a calm piano piece', workbench: workbench))
+
+    expect(result).to include('success' => true, 'service' => 'ElevenLabs Music')
+    expect(result['path']).to match(%r{\Aconversations/[^/]+/artifacts/j_[a-z0-9]+/elevenlabs_music_\d+_\h{6}\.mp3\z})
+    expect(File.binread(File.join(tmpdir, result['path']))).to eq('MP3-BYTES')
+    expect(result['notice']).to include(result['path'], 'work screen')
+    expect(Dir.children(tmpdir)).to eq(['conversations'])
+  ensure
+    FileUtils.remove_entry(state) if state
+  end
+
   it 'posts to the music endpoint with the model from providerDefaults and the key in a header' do
     tool.generate_music_with_elevenlabs(prompt: 'x')
     expect(request_url).to start_with('https://api.elevenlabs.io/v1/music?output_format=mp3_44100_128')

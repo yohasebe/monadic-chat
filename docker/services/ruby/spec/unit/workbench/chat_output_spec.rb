@@ -67,6 +67,17 @@ RSpec.describe Monadic::Workbench::ChatOutput do
     expect(File.exist?(File.join(@data, kept[:relative], 'a.abc'))).to be true
   end
 
+  it 'keeps several files in one new run folder and shows each, or does nothing without a chat' do
+    allow(MonadicSharedTools::WorkbenchTools).to receive(:show_file).and_return('{"status":"shown_in_work_screen"}')
+    kept = described_class.keep_and_show(session: nil, workbench: workbench, app_name: 'X',
+                                         files: { 'song.mp3' => 'audio', 'song_lyrics.md' => '# Lyrics' })
+    expect(kept[:paths].map { |p| File.basename(p) }).to eq(['song.mp3', 'song_lyrics.md'])
+    expect(kept[:paths].map { |p| File.dirname(p) }.uniq.size).to eq(1)
+    expect(kept[:shown]).to be true
+    expect(MonadicSharedTools::WorkbenchTools).to have_received(:show_file).twice
+    expect(described_class.keep_and_show(session: nil, workbench: nil, app_name: 'X', files: { 'a.mp3' => 'x' })).to be_nil
+  end
+
   it 'tells the model to say only that the file is on the work screen, or to give its path when it is not' do
     expect(described_class.said('The score', 'p/a.abc', shown: true)).to include('p/a.abc', 'work screen', 'do not put its content')
     expect(described_class.said('The score', 'p/a.abc', shown: false)).to include('p/a.abc', 'could not show it')

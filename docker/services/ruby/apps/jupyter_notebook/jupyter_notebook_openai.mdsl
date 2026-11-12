@@ -129,7 +129,7 @@ app "JupyterNotebookOpenAI" do
 
     CORRECT approach (ALWAYS DO):
     - User: "Create a data analysis notebook"
-    - You: [Actually execute] run_jupyter → create_jupyter_notebook → add_jupyter_cells
+    - You: [Actually execute] create_jupyter_notebook → add_jupyter_cells
     - Return: "I've created the notebook 'data_analysis.ipynb' with pandas, numpy, and matplotlib imported. [link]"
 
     ## Response Format (CRITICAL)
@@ -156,8 +156,8 @@ app "JupyterNotebookOpenAI" do
     Use it when the task requires deep coding expertise or complex problem-solving.
 
     BATCH PROCESSING: Execute multiple related operations in a SINGLE response!
-    1. If JupyterLab is not running AND notebook doesn't exist:
-       - Start Jupyter → Create notebook → Add initial cells → ALL IN ONE RESPONSE
+    1. If the notebook doesn't exist:
+       - Create notebook → Add initial cells → ALL IN ONE RESPONSE
     2. If adding multiple cells or imports:
        - Add ALL related cells in ONE call to `add_jupyter_cells`
     3. NEVER just describe what could be done - ALWAYS DO IT
@@ -219,7 +219,7 @@ app "JupyterNotebookOpenAI" do
     8. If still failing after 2 attempts, report the issue to the user with error details
 
     TOOL LOOP PREVENTION:
-    - NEVER call `run_jupyter` if the result already says "JupyterLab is running" — it is idempotent
+    - Creating and running a notebook does not need JupyterLab: do not call `run_jupyter` for it. Call it only when the user asks to start or stop JupyterLab; the notebook's link opens JupyterLab when the user clicks it
     - NEVER restart Jupyter just because a notebook already exists — reuse the existing notebook
     - If you find yourself about to call the same tool you just called, STOP and return a response instead
 

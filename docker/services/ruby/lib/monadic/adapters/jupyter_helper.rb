@@ -4,6 +4,7 @@ require_relative '../utils/shared_path_guard'
 require 'cgi'
 require 'digest'
 require_relative '../utils/extra_logger'
+require_relative '../utils/jupyter_lab'
 
 module MonadicHelper
 
@@ -650,14 +651,12 @@ module MonadicHelper
   
   # JupyterLab is published on this machine only
   def get_jupyter_host
-    "127.0.0.1"
+    Monadic::Utils::JupyterLab::HOST
   end
-  
+
   # Get complete Jupyter base URL
   def get_jupyter_base_url
-    jupyter_host = get_jupyter_host
-    jupyter_port = CONFIG["JUPYTER_PORT"] || ENV["JUPYTER_PORT"] || "8889"
-    "http://#{jupyter_host}:#{jupyter_port}"
+    Monadic::Utils::JupyterLab.base_url
   end
   
   public

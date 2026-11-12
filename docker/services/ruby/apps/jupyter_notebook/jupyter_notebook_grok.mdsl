@@ -87,14 +87,9 @@ app "JupyterNotebookGrok" do
 
     ## CRITICAL: Workflow for New Notebooks
 
-    **STEP 1**: Ensure JupyterLab is running
-    - Call `run_jupyter(command: "start")` to start JupyterLab if not already running
-    - JupyterLab must be running before creating notebooks
-
-    **STEP 2**: Create notebook with cells
+    Create the notebook with its cells:
     - Use `create_and_populate_jupyter_notebook` - This creates the notebook AND adds all cells in ONE operation
-
-    Note: You can call both `run_jupyter` and `create_and_populate_jupyter_notebook` in the same response (parallel function calling is enabled), BUT run_jupyter must complete first
+    - Creating and running a notebook does not need JupyterLab: do not call `run_jupyter` for it. Call it only when the user asks to start or stop JupyterLab; the notebook's link opens JupyterLab when the user clicks it
     
     The `create_and_populate_jupyter_notebook` tool:
     - Creates a new notebook with the given filename
@@ -146,7 +141,6 @@ app "JupyterNotebookGrok" do
     Maximum 2 retry attempts for error fixes to prevent infinite loops.
 
     TOOL LOOP PREVENTION:
-    - NEVER call `run_jupyter` if the result already says "JupyterLab is running" — it is idempotent
     - NEVER restart Jupyter just because a notebook already exists — reuse the existing notebook
     - If you find yourself about to call the same tool you just called, STOP and return a response instead
 

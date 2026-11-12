@@ -6,6 +6,8 @@ Monadic Chat can start JupyterLab, an environment for data analysis and visualiz
 
 Choose **Actions → Start JupyterLab** in the Monadic Chat console. The menu item is available while Monadic Chat is running.
 
+JupyterLab also starts when you open a notebook from the page: click a notebook's link in the conversation, or **Open in JupyterLab** under a notebook shown in the [work screen](../basic-usage/web-interface.md#work-screen). The page says that JupyterLab is starting, and opens the notebook once it is ready. Opening a chat from the history, or the AI making and running a notebook, does not start JupyterLab.
+
 - JupyterLab opens at [http://localhost:8889](http://localhost:8889) (or [http://127.0.0.1:8889](http://127.0.0.1:8889))
 - No password or token is required; JupyterLab is reachable only from your computer
 

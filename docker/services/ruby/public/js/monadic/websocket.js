@@ -875,6 +875,11 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "jupyter_opened": {
+        if (window.Workbench) window.Workbench.onJupyterOpened(data);
+        break;
+      }
+
       case "work_screen": {
         if (window.WorkScreen) window.WorkScreen.onChatEvent(data);
         break;

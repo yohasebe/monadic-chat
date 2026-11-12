@@ -46,10 +46,14 @@ app "SyntaxTreeClaude" do
 
     Once the user provides you with a sentence, you should analyze it and create a syntactic parse tree. Generate the labeled bracket notation representing the syntax tree of the sentence based on your linguistic knowledge. Use professional knowledge of theoretical linguistics, especially specialized in syntactic theory.
 
-    IMPORTANT - Bracket Notation Format:
-    - Use standard linguistic notation where each label directly precedes its children: "[S [NP [Det The] [N cat]] [VP [V sat] [PP [P on] [NP [Det the] [N mat]]]]"
-    - Labels follow the opening bracket immediately, with a single space separating the label from its content: `[LABEL content]`
-    - This is the standard format used in linguistic textbooks and research
+    IMPORTANT - Bracket Notation (the tree is drawn with RSyntaxTree):
+    - Each label directly follows its opening bracket, and its children follow the label: "[S [NP [Det The] [N cat]] [VP [V sat] [PP [P on] [NP [Det the] [N mat]]]]]"
+    - A leaf of several words is drawn under a triangle, as a phrase left unanalyzed: [PP with the hat]. To keep several words as one plain leaf without a triangle, join them with <>: [V was<>raced]. Do not join words with underscores: a pair of underscores makes a subscript (x_i_ is x with the subscript i).
+    - Movement: put +N on the moved element and on its trace or copy, with the same number, and write +>N on the end the arrow points at (the landing site): [CP [DP What+>1] [C' [C did] [TP [DP the child] [T' [T t] [VP [V find] [DP t+1]]]]]]. Give each chain its own number.
+    - A null head is ∅ ([C ∅]); a trace is t, or a struck-out copy ~word~.
+    - Bar levels are written with an apostrophe right after the letter: V', N', T' (never "V '").
+    - Inside a label: *x* italic, **x** bold, x_i_ subscript, ~x~ struck out. A hyphen is drawn as a hyphen.
+    - <> is a space and <3> three spaces, never angle brackets: write ⟨ and ⟩ for angle brackets. A backslash keeps the character after it as it is (\\+ for a plus sign before digits).
 
     CRITICAL REQUIREMENT - BINARY BRANCHING: You MUST use binary branching. This is non-negotiable.
     - Each non-terminal node MUST have EXACTLY TWO children (never three or more)
@@ -61,11 +65,6 @@ app "SyntaxTreeClaude" do
     - NEVER generate structures with 3+ immediate children
     - If you're unsure, default to right-branching: [X A B C] → [X A [X' B C]]
     
-    CRITICAL: When using labels with apostrophes (like V', N', I', etc.), write them WITHOUT spaces between the letter and apostrophe:
-    - Correct: [V' was_raced], [N' book], [I' will]
-    - Wrong: [V ' was_raced], [N ' book], [I ' will]
-    - This ensures proper rendering in the syntax tree diagram
-
     Make sure your syntactic analysis is linguistically valid and elegant. Consider the specific grammar rules of the target language.
 
     BEFORE calling render_syntax_tree, VERIFY your structure:
@@ -73,7 +72,7 @@ app "SyntaxTreeClaude" do
     2. If ANY node has 3+ children, RESTRUCTURE it to be binary
     3. Double-check: Every non-terminal node should have EXACTLY 2 children (or 1 for unary branching)
     
-    If the structure is linguistically valid AND properly binary, call `render_syntax_tree` with the labeled bracket notation. The labeled bracket notation uses square brackets to represent the nodes. For example: "[S [NP [Det The] [N cat]] [VP [V sat] [PP [P on] [NP [Det the] [N mat]]]]". `render_syntax_tree` draws the tree as an SVG file in this chat's folder, shows it on the work screen, and returns its path.
+    If the structure is linguistically valid AND properly binary, call `render_syntax_tree` with the labeled bracket notation. The labeled bracket notation uses square brackets to represent the nodes. For example: "[S [NP [Det The] [N cat]] [VP [V sat] [PP [P on] [NP [Det the] [N mat]]]]". `render_syntax_tree` draws the tree as an SVG file in this chat's folder, shows it on the work screen, and returns its path. If it answers that the notation was not drawn, fix what it names, following its hints, and call it again. Only when the user asks for the LaTeX source of the tree, call it with `tikz: true`: the source (LaTeX forest) is kept beside the SVG, without the movement arrows, and you give the user its path.
 
     Then, display the syntax tree to the user. The response format is given below:
 
@@ -137,8 +136,7 @@ app "SyntaxTreeClaude" do
   features do
     library_save false
     library_search false
-    # Disabled unless LaTeX option is enabled AND provider key present
-    disabled (!CONFIG["INSTALL_LATEX"]) || (!CONFIG["ANTHROPIC_API_KEY"]) 
+    disabled !CONFIG["ANTHROPIC_API_KEY"]
     easy_submit false
     auto_speech false
     initiate_from_assistant true
@@ -152,9 +150,10 @@ app "SyntaxTreeClaude" do
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
 
-    define_tool "render_syntax_tree", "Draw the syntax tree as an SVG image with LaTeX and show it on the work screen" do
-      parameter :bracket_notation, "string", "The labeled bracket notation of the syntax tree", required: true
-      parameter :language, "string", "The language of the tree (for font selection)", required: true
+    define_tool "render_syntax_tree", "Draw the syntax tree as an SVG image and show it on the work screen" do
+      parameter :bracket_notation, "string", "The labeled bracket notation of the syntax tree, in RSyntaxTree notation", required: true
+      parameter :language, "string", "The language of the sentence (a language written right to left is drawn mirrored)", required: true
+      parameter :tikz, "boolean", "Also keep the LaTeX (forest) source of the tree; only when the user asks for it", required: false
     end
   end
 end

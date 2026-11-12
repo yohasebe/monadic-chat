@@ -152,7 +152,7 @@ Python のコンテナに入れる追加のパッケージを選びます。変�
 
 | 変数 | 説明 | 必要なアプリ | 既定 |
 |------|------|--------------|------|
-| `INSTALL_LATEX` | LaTeX（図のための最小の組。CJK 対応と dvisvgm を含む） | Syntax Tree、Concept Visualizer | `false` |
+| `INSTALL_LATEX` | LaTeX（図のための最小の組。CJK 対応と dvisvgm を含む） | Concept Visualizer | `false` |
 | `PYOPT_NLTK` | Natural Language Toolkit | 自然言語処理 | `false` |
 | `PYOPT_SPACY` | spaCy（自然言語処理のライブラリ） | 高度な自然言語処理 | `false` |
 | `PYOPT_GENSIM` | トピックモデルのライブラリ | テキストの分析 | `false` |

@@ -71,7 +71,7 @@
     "categories": {
       "latex": {
         "title": "LaTeX",
-        "help": "Concept Visualizer / Syntax Tree에 필요",
+        "help": "Concept Visualizer에 필요",
         "items": { "install": "LaTeX 설치 (도표용 최소 세트)" }
       },
       "python": {

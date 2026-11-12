@@ -6,7 +6,7 @@ This page covers Install Options, startup, build logs, browser tabs and environm
 
 **Actions → Install Options** opens the **Install Options** category of the Settings window. It holds optional components:
 
-- **LaTeX**: **Install LaTeX (minimal set for diagrams)**, needed by Concept Visualizer and Syntax Tree
+- **LaTeX**: **Install LaTeX (minimal set for diagrams)**, needed by Concept Visualizer
 - **Python Libraries (CPU)**: nltk, spaCy, gensim, mediapipe, transformers
 - **Music Analysis**: librosa + madmom, needed by the music analysis apps
 - **System Tools (CLI)**: ImageMagick (`convert` / `mogrify`)

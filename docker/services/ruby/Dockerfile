@@ -12,10 +12,17 @@ RUN apt-get update && \
     libffi-dev \
     ca-certificates gnupg lsb-release \
     postgresql postgresql-contrib libpq-dev \
-    # libglib2.0-dev libgirepository1.0-dev \
-    # imagemagick libmagickwand-dev \
+    # RSyntaxTree (Syntax Tree) draws with Pango and librsvg through
+    # GObject introspection; its gems are built against these headers
+    pkg-config libglib2.0-dev libgirepository1.0-dev libcairo2-dev \
+    libpango1.0-dev libgdk-pixbuf-2.0-dev librsvg2-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# RSyntaxTree is run as a command, outside the app's bundle (the bundle is
+# also used on the host, where these libraries are not needed)
+ARG RSYNTAXTREE_VERSION=2.6.0
+RUN gem install rsyntaxtree -v "$RSYNTAXTREE_VERSION" --no-document
 
 ENV WORKSPACE=/monadic
 WORKDIR $WORKSPACE
@@ -42,9 +49,10 @@ RUN apt-get update && \
     ca-certificates curl gnupg lsb-release \
     postgresql-client \
     ffmpeg \
-    # Add ImageMagick runtime libraries needed by RMagick gem
-    # Uncomment to use RSyntaxTree
-    # imagemagick libmagickwand-dev \
+    # RSyntaxTree (Syntax Tree): its drawing libraries, and the fonts it
+    # names for Latin, CJK and other scripts
+    libgirepository-1.0-1 gir1.2-pango-1.0 gir1.2-rsvg-2.0 \
+    fonts-noto-core fonts-noto-cjk fonts-dejavu-core \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

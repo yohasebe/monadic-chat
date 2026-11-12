@@ -6,7 +6,7 @@ Monadic Chat は `monadic-chat-python-container` で Python のツールを動�
 
 コンソールの **Actions → Install Options** で、Python コンテナに追加のコンポーネントを加えられます。
 
-- **LaTeX**：Install LaTeX (minimal set for diagrams)。CJK に対応した TeX Live で、Concept Visualizer と Syntax Tree に必要です。この 2 つのアプリは、LaTeX をインストールし、OpenAI か Anthropic の API キーを設定したときだけ使えます
+- **LaTeX**：Install LaTeX (minimal set for diagrams)。CJK に対応した TeX Live で、Concept Visualizer に必要です。このアプリは、LaTeX をインストールし、OpenAI か Anthropic の API キーを設定したときだけ使えます
 - **Python Libraries (CPU)**：nltk、spaCy (3.7.5)、gensim、mediapipe (CPU)、transformers (CPU only)。`scikit-learn` は常に入っています
 - **Music Analysis**：librosa + madmom。Music Lab が使います
 - **System Tools (CLI)**：ImageMagick（`convert`/`mogrify`）

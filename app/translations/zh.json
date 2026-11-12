@@ -71,7 +71,7 @@
     "categories": {
       "latex": {
         "title": "LaTeX",
-        "help": "Concept Visualizer / Syntax Tree 需要",
+        "help": "Concept Visualizer 需要",
         "items": { "install": "安装 LaTeX（用于图表的最小集）" }
       },
       "python": {

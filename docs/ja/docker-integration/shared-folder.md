@@ -77,7 +77,7 @@ JupyterLab も `/monadic/data` で起動するので、JupyterLab からも共�
 - **Jupyter Notebook**：ノートブック（`.ipynb`）
 - **Video Describer**：動画から取り出したフレーム（PNG、`frames_<timestamp>` フォルダの中）と音声（MP3）
 - **Speech Draft Helper**：読み上げの音声（MP3。Gemini では API が返す形式で、ふつうは WAV）
-- **Syntax Tree**：樹形図（SVG）
+- **Syntax Tree**：樹形図（SVG）。頼んだときはその LaTeX のソースも
 - **Concept Visualizer**：概念図（SVG と PNG）
 - **DrawIO Grapher**：図のファイル（`.drawio`）とプレビュー（PNG）
 - **Web Insight**：Web ページのスクリーンショット（PNG）

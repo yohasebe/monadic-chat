@@ -24,15 +24,12 @@ Mermaid Grapher supports each provider shown in the [availability table](../basi
 
 ![DrawIO Grapher app icon](../assets/icons/diagram-draft.png ':size=40')
 
-Create Draw.io diagrams by describing your requirements. The AI writes Draw.io XML, checks and repairs its structure, and saves the diagram to the shared folder.
+Create Draw.io diagrams by describing your requirements. The AI writes Draw.io XML, checks and repairs its structure, and shows the diagram in the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat. The diagram is a `.drawio` file in the chat's folder of the shared folder; the reply names its path, and a line under the reply shows it again. **Drawn** and **Source** switch between the diagram and its XML.
 
 **Key Features:**
 - **XML check and repair**: The generated Draw.io XML is checked, and common structural problems are repaired
 - **Diagram types**: Flowcharts, UML diagrams (class, sequence, activity), ER diagrams, network diagrams, org charts, mind maps, BPMN, Venn diagrams, wireframes, and more
-- **Preview**: The diagram is drawn in a browser in the Selenium container, and a PNG preview is shown in the chat
-- **Files**: The `.drawio` file is saved to the shared folder and can be opened in Draw.io for further editing. A PNG preview (`drawio_preview_<timestamp>.png`) is saved as well
-
-Unless you give a file name, the diagram is saved as `diagram.drawio`, replacing the previous one. Ask for a file name to keep several diagrams.
+- **Files**: Each diagram is a new `.drawio` file, so earlier diagrams stay. It can be opened in Draw.io for further editing. Ask for a file name and place to save a copy elsewhere in the shared folder
 
 DrawIO Grapher is available for the providers marked in the [availability table](../basic-usage/basic-apps.md#app-availability).
 

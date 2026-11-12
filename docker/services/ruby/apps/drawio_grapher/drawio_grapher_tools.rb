@@ -1,11 +1,7 @@
 require 'nokogiri'
 require 'fileutils'
-require 'shellwords'
-require_relative '../../lib/monadic/shared_tools/scratch_browser'
-require 'cgi'
-require 'json'
-require 'securerandom'
 require_relative '../../lib/monadic/utils/shared_path_guard'
+require_relative '../../lib/monadic/workbench/chat_output'
 
 module DrawIOGrapher
   # Template for a valid minimal Draw.io diagram
@@ -52,69 +48,27 @@ module DrawIOGrapher
     write_file_synchronously(validated_content, filepath, filename, data_dir)
   end
 
-  def preview_drawio(content:, filename: "diagram", session: nil)
+  # Validates and repairs the diagram, keeps it as a .drawio file in a run
+  # folder of the chat's folder and shows it on the work screen, which
+  # draws it. filename is a plain name (no folder).
+  def preview_drawio(content:, filename: "diagram", session: nil, workbench: nil)
     return "❌ Invalid filename" unless filename.is_a?(String)
 
-    # 1. Handle file extension
-    filename = "#{filename}.drawio" unless filename.end_with?(".drawio")
-    shared_volume = Monadic::Utils::Environment.shared_volume
+    name = filename.strip
+    name = "diagram" if name.empty?
+    return "❌ The filename must be a plain name, without a folder" if name.include?("/") || name.include?("\\") || name.start_with?(".")
 
-    # 2. Validate & repair XML
-    validated_content = validate_and_repair_drawio_xml(content)
+    name = "#{name}.drawio" unless name.end_with?(".drawio")
+    app_name = (session && session.dig(:parameters, "app_name")) || self.class.name
+    job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench, app_name: app_name)
+    return "❌ The diagram could not be kept: there is no chat folder to keep it in." unless job
 
-    # 3. Save .drawio file
-    drawio_path = Monadic::Utils::SharedPathGuard.resolve_in_shared(filename, extensions: %w[.drawio], must_exist: false)
-    return "❌ Invalid shared file path" unless drawio_path
-    save_result = write_file_synchronously(validated_content, drawio_path, filename, shared_volume)
-    return save_result if save_result.start_with?("❌")
-
-    # 4. Generate preview HTML
-    # Unique per call, so concurrent previews never share a file name
-    timestamp = "#{Time.now.to_i}_#{SecureRandom.hex(4)}"
-    html_filename = "drawio_live_#{timestamp}.html"
-    screenshot_filename = "drawio_preview_#{timestamp}.png"
-    html_path = Monadic::Utils::SharedPathGuard.resolve_in_shared(html_filename, must_exist: false)
-    return "❌ Invalid preview file path" unless html_path
-    Monadic::Utils::SharedPathGuard.write_file!(html_path, build_drawio_preview_html(validated_content))
-
-    # 5. A browser session of its own for this preview (ScratchBrowser)
-    file_url = "file:///monadic/data/#{html_filename}"
-    MonadicSharedTools::ScratchBrowser.with_session(file_url) do |run, start_output|
-      start_result = parse_drawio_response(start_output)
-      return "❌ Failed to start browser session: #{start_result[:error]}" unless run && start_result[:success]
-
-      # 6. Capture diagram screenshot (waits for SVG to render, resizes to fit)
-      ss_result = parse_drawio_response(run.call(%w[--action diagram_screenshot]))
-
-      if ss_result[:success] && ss_result[:screenshot]
-        src = Monadic::Utils::SharedPathGuard.resolve_in_shared(ss_result[:screenshot], extensions: %w[.png])
-        dst = Monadic::Utils::SharedPathGuard.resolve_in_shared(screenshot_filename, must_exist: false)
-        Monadic::Utils::SharedPathGuard.copy_file!(src, dst) if src && dst
-      end
-    end
-
-    result = {
-      success: true,
-      filename: filename,
-      message: "The file #{filename} has been saved. The preview image is automatically displayed in the chat."
-    }
-    # Store gallery HTML for server-side display (no _image vision injection)
-    if session && File.exist?(File.join(shared_volume, screenshot_filename))
-      gallery_html = "<div class=\"generated_image\"><img src=\"/data/#{CGI.escapeHTML(screenshot_filename.to_s)}\" /></div>"
-      session[:tool_html_fragments] ||= []
-      session[:tool_html_fragments] << gallery_html
-    end
-    result
-  rescue MonadicSharedTools::BrowserOwner::Refused => e
-    "❌ #{e.message}"
-  rescue StandardError => e
-    "❌ Preview generation failed"
-  ensure
-    # Only this preview's page: another preview may still be loading its own
-    if html_filename
-      remove_drawio_preview_page(html_filename)
-      cleanup_old_drawio_html_files
-    end
+    path = Monadic::Workbench::ChatOutput.keep(job, name, validate_and_repair_drawio_xml(content))
+    shown = Monadic::Workbench::ChatOutput.show(path, workbench)
+    Monadic::Workbench::ChatOutput.said("The diagram", path, shown: shown)
+  rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError, ArgumentError
+    Monadic::Workbench::ChatOutput.drop_if_empty(job)
+    "❌ The diagram could not be kept"
   end
 
   private
@@ -254,70 +208,5 @@ module DrawIOGrapher
 
     # If we can't repair it in a specific way, return the minimal template
     return MINIMAL_TEMPLATE
-  end
-
-  # Parse JSON response from web_navigator.py
-  def parse_drawio_response(output)
-    json_match = output.to_s.match(/\{.+\}/m)
-    return { success: false, error: "No JSON response from navigator" } unless json_match
-
-    JSON.parse(json_match[0], symbolize_names: true)
-  rescue JSON::ParserError => e
-    { success: false, error: "Failed to parse response: #{e.message}" }
-  end
-
-  # Build HTML page for Draw.io viewer rendering
-  def build_drawio_preview_html(xml_content)
-    # XML → JSON string → HTML attribute escape
-    data = {
-      highlight: "#0000ff",
-      nav: true,
-      resize: true,
-      xml: xml_content
-    }
-    data_json = JSON.generate(data)
-    escaped_data = CGI.escapeHTML(data_json)
-
-    <<~HTML
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          html, body {
-            margin: 0;
-            padding: 20px;
-            background: white;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="mxgraph" data-mxgraph="#{escaped_data}"></div>
-        <script src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
-      </body>
-      </html>
-    HTML
-  end
-
-  # Pages younger than this may still be loading in another preview
-  PREVIEW_PAGE_MAX_AGE = 600
-
-  # Remove the pages previews left behind, older than PREVIEW_PAGE_MAX_AGE
-  def cleanup_old_drawio_html_files
-    shared_volume = Monadic::Utils::Environment.shared_volume
-    Dir.glob(File.join(shared_volume, "drawio_live_*.html")).each do |f|
-      # Another preview may remove its own page meanwhile
-      next if Time.now - File.lstat(f).mtime < PREVIEW_PAGE_MAX_AGE
-
-      Monadic::Utils::SharedPathGuard.delete_file!(f)
-    rescue StandardError
-      next
-    end
-  end
-
-  # Removes the page one preview wrote, once it is done with it
-  def remove_drawio_preview_page(html_filename)
-    path = File.join(Monadic::Utils::Environment.shared_volume, html_filename)
-    (Monadic::Utils::SharedPathGuard.delete_file!(path) rescue nil)
   end
 end

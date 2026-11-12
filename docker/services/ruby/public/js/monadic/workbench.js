@@ -375,6 +375,10 @@
       info.appendChild(button(t('ui.workbench.reopen', 'Open it as it is now'), 'btn-secondary mt-2',
         () => openFile(item.path)));
     }
+    if (item.kind === 'file' && item.status === 'ok' && /\.ipynb$/i.test(item.path || '')) {
+      info.appendChild(button(t('ui.workbench.jupyterOpen', 'Open in JupyterLab'), 'btn-secondary mt-2',
+        () => openInJupyter(item.path)));
+    }
   }
 
   // What is drawn for the item: kept while it is the same item at the same
@@ -1344,6 +1348,78 @@
     else pendingOpen = data.item_id || null;
   }
 
+  // ---- JupyterLab ------------------------------------------------------
+
+  // A notebook opens in JupyterLab only when the user asks (a link to it in
+  // the conversation, or the button on the work screen): the server starts
+  // JupyterLab when it does not answer, and answers with the notebook's
+  // address. A link counts when it is JupyterLab's on this machine
+  // (127.0.0.1 or localhost, /lab/tree/, a .ipynb); the server takes only
+  // the notebook's path from it.
+  const JUPYTER_HOSTS = ['127.0.0.1', 'localhost'];
+  let jupyterAsked = null;
+
+  function jupyterPath(href) {
+    let url;
+    try {
+      url = new URL(href, window.location.href);
+    } catch (_) {
+      return null;
+    }
+    if (url.protocol !== 'http:' || !JUPYTER_HOSTS.includes(url.hostname) || url.username || url.password) return null;
+    if (!url.pathname.startsWith('/lab/tree/')) return null;
+    let path;
+    try {
+      path = url.pathname.slice('/lab/tree/'.length).split('/').map(decodeURIComponent).join('/');
+    } catch (_) {
+      return null;
+    }
+    return /\.ipynb$/i.test(path) ? path : null;
+  }
+
+  function jupyterSay(key, fallback, kind) {
+    if (typeof window.setAlert === 'function') window.setAlert(t(`ui.workbench.${key}`, fallback), kind);
+  }
+
+  function openInJupyter(path) {
+    if (typeof window.safeWsSend !== 'function') return;
+    const request = newOperationId();
+    // In a web browser the tab is opened now, while the click lets it be,
+    // and given the address once JupyterLab answers. The desktop app opens
+    // the address in the system's browser instead.
+    const pending = window.electronAPI ? null : window.open('about:blank', '_blank');
+    if (jupyterAsked && jupyterAsked.tab && !jupyterAsked.tab.closed) jupyterAsked.tab.close();
+    jupyterAsked = { request, tab: pending };
+    jupyterSay('jupyterStarting', 'Starting JupyterLab…', 'info');
+    window.safeWsSend({ message: 'JUPYTER_OPEN', path: String(path), request });
+  }
+
+  function onJupyterOpened(data) {
+    if (!data || !jupyterAsked || data.request !== jupyterAsked.request) return;
+    const { tab } = jupyterAsked;
+    jupyterAsked = null;
+    if (!data.success || typeof data.url !== 'string') {
+      if (tab && !tab.closed) tab.close();
+      const keys = { not_a_notebook: ['jupyterNotNotebook', 'This is not a notebook in the shared folder.'],
+                     python_starting: ['jupyterPythonStarting', 'The Python container is starting. Try again in a moment.'] };
+      const [key, fallback] = keys[data.error] || ['jupyterNotStarted', 'JupyterLab could not be started.'];
+      jupyterSay(key, fallback, data.error === 'python_starting' ? 'warning' : 'error');
+      return;
+    }
+    jupyterSay('jupyterOpened', 'Opened in JupyterLab.', 'success');
+    if (tab && !tab.closed) tab.location.href = data.url;
+    else window.open(data.url, '_blank');
+  }
+
+  function onJupyterLinkClick(e) {
+    if (e.defaultPrevented || e.button !== 0) return;
+    const link = e.target && e.target.closest ? e.target.closest('#discourse a[href]') : null;
+    const path = link ? jupyterPath(link.getAttribute('href')) : null;
+    if (!path) return;
+    e.preventDefault();
+    openInJupyter(path);
+  }
+
   // A file of a sent message (its card): a PDF from the message's own data.
   function onCardClick(e) {
     const preview = e.target && e.target.closest ? e.target.closest('#discourse .pdf-preview') : null;
@@ -1378,6 +1454,7 @@
   if (typeof document !== 'undefined') {
     document.addEventListener('attachments:changed', onDraftsChanged);
     document.addEventListener('click', onCardClick);
+    document.addEventListener('click', onJupyterLinkClick);
   }
 
   function onResult(data) {
@@ -1540,7 +1617,7 @@
 
   window.Workbench = {
     onView, onResult, onDownload, onOpened, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
-    showAttachment, onAttachmentOpened, shownAttachment: () => (local ? Object.assign({}, local) : null),
+    showAttachment, onAttachmentOpened, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow,
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),

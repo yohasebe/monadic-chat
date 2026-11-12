@@ -6,6 +6,8 @@ Monadic Chat は、Python によるデータの分析と可視化の環境であ
 
 Monadic Chat のコンソールで **Actions → Start JupyterLab** を選びます。このメニューは、Monadic Chat が動いている間に使えます。
 
+ページからノートブックを開いたときにも、JupyterLab が起動します。会話の中のノートブックのリンクか、[作業画面](../basic-usage/web-interface.md#work-screen)に表示したノートブックの下の **JupyterLab で開く** を押してください。ページは JupyterLab を起動していることを表示し、準備ができるとノートブックを開きます。履歴から会話を開いたときや、AI がノートブックを作って実行したときには、JupyterLab は起動しません。
+
 - JupyterLab は [http://localhost:8889](http://localhost:8889)（または [http://127.0.0.1:8889](http://127.0.0.1:8889)）で開きます
 - パスワードやトークンは要りません。JupyterLab には、お使いのコンピューターからだけ接続できます
 

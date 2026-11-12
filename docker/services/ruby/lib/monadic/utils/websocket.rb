@@ -29,6 +29,7 @@ require_relative 'websocket/audio_handler'
 require_relative 'websocket/audio_stream_handler'
 require_relative 'websocket/pdf_handler'
 require_relative 'websocket/workbench_handler'
+require_relative 'websocket/jupyter_handler'
 require_relative 'websocket/library_handler'
 require_relative 'websocket/reply_state'
 require_relative 'websocket/reply_handle'
@@ -290,6 +291,8 @@ module WebSocketHelper
           handle_ws_workbench_open_attachment(connection, obj, session)
         when "WORKBENCH_OPEN_URL"
           handle_ws_workbench_open_url(connection, obj, session)
+        when "JUPYTER_OPEN"
+          handle_ws_jupyter_open(connection, obj, session)
         when "WORKBENCH_SELECT"
           handle_ws_workbench_select(connection, obj, session)
         when "WORKBENCH_SHOW", "WORKBENCH_SHOW_REMOVE"

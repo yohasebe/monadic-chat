@@ -3750,8 +3750,8 @@ img.base64-image,
 }
 
 .btn-primary:hover {
-  background-color: #0056b3;
-  border-color: #0056b3;
+  background-color: var(--btn-primary-hover-bg);
+  border-color: var(--btn-primary-hover-border);
 }
 
 .btn-primary:disabled {
@@ -3773,6 +3773,36 @@ img.base64-image,
 .btn-success.active {
   background-color: var(--btn-success-active-bg);
   border-color: var(--btn-success-active-border);
+}
+
+/* Warning, danger, info and outlined danger buttons take the palette's
+   colors through Bootstrap's own button variables. Warning and info keep
+   dark text on their mid tone; danger is white on its strong tone; an
+   outlined danger is a soft red, not a filled one. */
+.btn-warning {
+  --bs-btn-bg: var(--pal-amber-mid); --bs-btn-border-color: var(--pal-amber-mid);
+  --bs-btn-hover-bg: var(--pal-amber-strong); --bs-btn-hover-border-color: var(--pal-amber-strong);
+  --bs-btn-active-bg: var(--pal-amber-strong-hover); --bs-btn-active-border-color: var(--pal-amber-strong-hover);
+  --bs-btn-disabled-bg: var(--pal-amber-mid); --bs-btn-disabled-border-color: var(--pal-amber-mid);
+}
+.btn-info {
+  --bs-btn-bg: var(--pal-accent-mid); --bs-btn-border-color: var(--pal-accent-mid);
+  --bs-btn-hover-bg: var(--pal-accent-strong); --bs-btn-hover-border-color: var(--pal-accent-strong);
+  --bs-btn-active-bg: var(--pal-accent-strong-hover); --bs-btn-active-border-color: var(--pal-accent-strong-hover);
+  --bs-btn-disabled-bg: var(--pal-accent-mid); --bs-btn-disabled-border-color: var(--pal-accent-mid);
+}
+.btn-danger {
+  --bs-btn-color: #fff; --bs-btn-hover-color: #fff; --bs-btn-active-color: #fff; --bs-btn-disabled-color: #fff;
+  --bs-btn-bg: var(--pal-red-strong); --bs-btn-border-color: var(--pal-red-strong);
+  --bs-btn-hover-bg: var(--pal-red-strong-hover); --bs-btn-hover-border-color: var(--pal-red-strong-hover);
+  --bs-btn-active-bg: var(--pal-red-strong-hover); --bs-btn-active-border-color: var(--pal-red-strong-hover);
+  --bs-btn-disabled-bg: var(--pal-red-mid); --bs-btn-disabled-border-color: var(--pal-red-mid);
+}
+.btn-outline-danger {
+  --bs-btn-color: var(--pal-red-strong); --bs-btn-border-color: var(--pal-red-line);
+  --bs-btn-hover-color: var(--pal-red-text); --bs-btn-hover-bg: var(--pal-red-soft); --bs-btn-hover-border-color: var(--pal-red-mid);
+  --bs-btn-active-color: var(--pal-red-text); --bs-btn-active-bg: var(--pal-red-soft); --bs-btn-active-border-color: var(--pal-red-mid);
+  --bs-btn-disabled-color: var(--pal-red-mid); --bs-btn-disabled-border-color: var(--pal-red-line);
 }
 
 /* Secondary button focus */
@@ -4700,22 +4730,6 @@ i.fas.fa-bolt,
   filter: drop-shadow(0 0 6px rgba(255, 193, 7, 0.25));
 }
 
-/* Dark mode: Delete buttons (red outline). Bootstrap's #dc3545 is dim on the
-   dark surfaces; the dark error color reads, with dark text when filled. */
-
-.dark-theme .btn-outline-danger {
-  --bs-btn-color: var(--status-error);
-  --bs-btn-border-color: var(--status-error);
-  --bs-btn-hover-color: var(--bg-body);
-  --bs-btn-hover-bg: var(--status-error);
-  --bs-btn-hover-border-color: var(--status-error);
-  --bs-btn-active-color: var(--bg-body);
-  --bs-btn-active-bg: var(--status-error);
-  --bs-btn-active-border-color: var(--status-error);
-  --bs-btn-disabled-color: var(--status-error);
-  --bs-btn-disabled-border-color: var(--status-error);
-}
-
 /* Dark mode: Outline secondary buttons (needs to override Bootstrap) */
 
 .dark-theme .btn-outline-secondary {
@@ -5614,8 +5628,8 @@ i.fas.fa-bolt,
   /* Warning buttons - add background color change */
   .btn-warning:hover:not(:disabled),
   #reset:hover:not(:disabled) {
-    background-color: #e0a800;
-    border-color: #d39e00;
+    background-color: var(--pal-amber-strong);
+    border-color: var(--pal-amber-strong);
   }
 
   /* Secondary buttons - add background color change */
@@ -6824,9 +6838,10 @@ body.side-pane-resizing {
 .history-pane .history-open-badge {
   flex: 0 0 auto;
 }
-/* The chat shown now: a bar down its left edge in the color of its tag. */
+/* The chat shown now: a bar down its left edge in the palette's accent,
+   as its tag. */
 .history-pane .sfp-row.history-here {
-  box-shadow: inset 4px 0 0 var(--bdg-green-fg);
+  box-shadow: inset 4px 0 0 var(--pal-accent-strong);
 }
 .history-pane .history-confirm-text {
   flex: 1 1 auto;

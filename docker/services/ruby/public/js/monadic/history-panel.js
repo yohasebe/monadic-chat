@@ -259,7 +259,7 @@
     text.appendChild(el('span', 'sfp-meta', meta));
     name.appendChild(text);
     if (item.open) {
-      name.appendChild(el('span', 'mc-badge ' + (item.here ? 'mc-badge--green' : 'mc-badge--grey') + ' history-open-badge ms-auto',
+      name.appendChild(el('span', 'mc-badge ' + (item.here ? 'mc-badge--blue' : 'mc-badge--grey') + ' history-open-badge ms-auto',
         item.here ? t('here', 'Shown now') : t('open', 'Open in another window')));
     }
     name.addEventListener('click', function () { if (!item.open) resume(item.chat_id); });

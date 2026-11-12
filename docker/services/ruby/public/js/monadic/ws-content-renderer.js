@@ -444,7 +444,7 @@
   function abcClickListener(abcElem, tuneNumber, classes, analysis, drag, mouseEvent) {
     var lastClicked = abcElem.midiPitches;
     if (!lastClicked) return;
-    ABCJS.synth.playEvent(lastClicked, abcElem.midiGraceNotePitches);
+    ABCJS.synth.playEvent(lastClicked, abcElem.midiGraceNotePitches, 1000, window.AbcPlayer.SOUNDFONT_URL);
   }
 
   async function applyAbc(element) {
@@ -486,7 +486,6 @@
         add_classes: true,
         clickListener: self.abcClickListener,
         responsive: "resize",
-        soundfont: "https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/",
         scale: 0.65,
         staffwidth: 740,
         paddingtop: 6,
@@ -514,7 +513,7 @@
       }
 
       // Pass DOM element directly to renderAbc for reliable rendering
-      var renderResult = ABCJS.renderAbc(svgDiv, abcText, abcOptions);
+      var renderResult = ABCJS.renderAbc(svgDiv, window.AbcPlayer.playableText(abcText), abcOptions);
       if (!renderResult || renderResult.length === 0) {
         console.error('[applyAbc] ABCJS.renderAbc returned empty result for:', abcText.substring(0, 100));
       }
@@ -550,17 +549,9 @@
         }
       }
 
-      // Always set up ABCJS MIDI synth for playback
+      // Playing controls, with the sounds Monadic Chat carries (abc-player.js)
       if (visualObj && ABCJS.synth.supportsAudio()) {
-        var synthControl = new ABCJS.synth.SynthController();
-        var cursorControl = new abcCursorControl('#' + abcSVG);
-        synthControl.load('#' + abcMidi, cursorControl, {
-          displayLoop: true,
-          displayRestart: true,
-          displayPlay: true,
-          displayProgress: true,
-          displayWarp: true
-        });
+        var synthControl = window.AbcPlayer.attach(midiDiv, visualObj, new abcCursorControl('#' + abcSVG));
 
         // Force compact sizing on ABCJS audio controls via inline styles.
         // This bypasses CSS cascade/layer issues that can leave controls oversized.
@@ -590,8 +581,7 @@
             clock.style.fontSize = '16px';
           }
         }
-
-        synthControl.setTune(visualObj, false, {});
+        if (!synthControl) midiDiv.innerHTML = "<div class='audio-error'>Audio is not supported in this browser.</div>";
       } else if (!visualObj) {
         midiDiv.innerHTML = "<div class='audio-error'>Failed to parse ABC notation.</div>";
       } else {

@@ -599,6 +599,13 @@
         if (!drawn.gone) {
           drawn.loaded = true;
           restoreScroll(drawn, box);
+          // A tune is played under its score (abc-player.js).
+          if (item.render === 'abc' && window.AbcPlayer) {
+            const controls = element('div', 'workbench-abc-player mt-2');
+            wrap.appendChild(controls);
+            drawn.player = await window.AbcPlayer.playerFor(controls, text);
+            if (drawn.gone) drawn.player.stop();
+          }
         }
       } catch (e) {
         if (drawn.gone) return;
@@ -649,6 +656,7 @@
     drawn.gone = true;
     if (drawn.pdf) drawn.pdf.dispose();
     if (drawn.render) drawn.render.dispose();
+    if (drawn.player) drawn.player.stop();
   }
 
   // ---- the conversation ----------------------------------------------

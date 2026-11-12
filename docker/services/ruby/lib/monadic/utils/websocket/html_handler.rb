@@ -182,9 +182,12 @@ module WebSocketHelper
           shown = request_id && Monadic::Workbench::Shown.clean(Monadic::Workbench::Shown.seal(request_id))
           new_data["workbench_shown"] = shown if shown
 
-          # What the reply made in the chat's folder (Workbench::Made): deleting
-          # this message moves it to the chat's trash.
-          made_paths = request_id && Monadic::Workbench::Made.clean(Monadic::Workbench::Made.seal(request_id))
+          # What the reply made in the chat's folder (Workbench::Made, and the
+          # image it placed): deleting this message moves it to the chat's
+          # trash.
+          made_paths = request_id && Monadic::Workbench::Made.clean(
+            Monadic::Workbench::Made.seal(request_id) + (made || []).map { |entry| entry["path"] }
+          )
           new_data["workbench_made"] = made_paths if made_paths
 
           # Forward the vocabulary token -> resolved-path map for the frontend's

@@ -60,7 +60,7 @@
     "categories": {
       "latex": {
         "title": "LaTeX",
-        "help": "Required for Concept Visualizer / Syntax Tree",
+        "help": "Required for Concept Visualizer",
         "items": {
           "install": "Install LaTeX (minimal set for diagrams)"
         }

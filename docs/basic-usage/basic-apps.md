@@ -148,7 +148,7 @@ Generate music from text descriptions — full songs with vocals and lyrics, or 
 
 ### Diagram & Visualization Apps
 
-Create diagrams from natural-language descriptions using Mermaid.js, Draw.io, and LaTeX/TikZ, with live browser previews and visual self-verification. See [Diagram & Visualization Apps](../apps/diagram-apps.md).
+Create diagrams from natural-language descriptions using Mermaid.js, Draw.io, RSyntaxTree, and LaTeX/TikZ, with live browser previews and visual self-verification. See [Diagram & Visualization Apps](../apps/diagram-apps.md).
 
 - Mermaid Grapher
 - DrawIO Grapher

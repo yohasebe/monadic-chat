@@ -152,7 +152,7 @@ These options choose optional packages for the Python container. After changing 
 
 | Variable | Description | Required For | Default |
 |----------|-------------|--------------|---------|
-| `INSTALL_LATEX` | LaTeX (a minimal set for diagrams, with CJK support and dvisvgm) | Syntax Tree, Concept Visualizer | `false` |
+| `INSTALL_LATEX` | LaTeX (a minimal set for diagrams, with CJK support and dvisvgm) | Concept Visualizer | `false` |
 | `PYOPT_NLTK` | Natural Language Toolkit | NLP applications | `false` |
 | `PYOPT_SPACY` | spaCy NLP library | Advanced NLP tasks | `false` |
 | `PYOPT_GENSIM` | Topic modeling library | Text analysis | `false` |

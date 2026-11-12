@@ -41,15 +41,16 @@ DrawIO Grapher の対応プロバイダーは[モデル対応状況の表](../ba
 
 ![Syntax Tree app icon](../assets/icons/syntax-tree.png ':size=40')
 
-いろいろな言語の文から、言語学の樹形図（統語樹）を作るアプリです。文の文法構造を分析し、LaTeX と tikz-qtree で樹形図を描きます。主な機能：
+いろいろな言語の文から、言語学の樹形図（統語樹）を作るアプリです。文の文法構造を分析し、[RSyntaxTree](https://yohasebe.github.io/rsyntaxtree/) で樹形図を描きます。主な機能：
 
-- 英語、日本語、中国語などの多くの言語に対応
+- 英語、日本語、中国語などの多くの言語に対応。右から左に書く言語の文は左右を反転し、最初の語を右端に置いて描きます
+- 文の語を一列に並べ、それぞれを点線で節点につなげます
+- 移動は、痕跡やコピーから移動先への矢印で描きます。分析しない句は三角形の下に描きます
 - ベクターグラフィックのエディターで編集できる SVG で出力
-- 統語論に沿った言語学の表記
 
-樹形図は、透明な背景の SVG 画像として、チャットの横の[作業画面](../basic-usage/web-interface.md#work-screen)に表示されます。SVG は共有フォルダの会話のフォルダ（`conversations/…/artifacts/`）に保存され、返答にはそのパスが書かれます。
+樹形図は、透明な背景の SVG 画像として、チャットの横の[作業画面](../basic-usage/web-interface.md#work-screen)に表示されます。SVG は共有フォルダの会話のフォルダ（`conversations/…/artifacts/`）に保存され、返答にはそのパスが書かれます。LaTeX のソースを頼むと、樹形図を `.tex` ファイル（LaTeX の forest）として SVG の横に保存します。移動の矢印はソースには入りません。
 
-Syntax Tree には LaTeX が必要です。**Actions → Install Options** で **Install LaTeX (minimal set for diagrams)** をオンにし、Python コンテナを再ビルドしてください。対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
+Syntax Tree の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
 
 
 ## Concept Visualizer :id=concept-visualizer

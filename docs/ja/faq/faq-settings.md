@@ -39,9 +39,9 @@ Monadic ChatでOllamaを使用する詳細については、[Ollamaの利用](..
 
 ---
 
-##### Q: LaTeXを使うアプリ（Concept Visualizer / Syntax Tree）を有効にするにはどうすればよいですか？ :id=enable-latex
+##### Q: LaTeXを使うConcept Visualizerを有効にするにはどうすればよいですか？ :id=enable-latex
 
-**A**: **Actions → Install Options** を開いて **Install LaTeX (minimal set for diagrams)** をオンにし、Pythonコンテナを再構築してください。再構築時にTeX Liveのパッケージの組（XeLaTeX/LuaLaTeX）、dvisvgm/pdf2svg、Ghostscript、CJKフォントパッケージがインストールされ、Concept VisualizerやSyntax Treeで日本語・中国語・韓国語を含む図が描画できるようになります。これらのアプリはOpenAIとAnthropic Claude向けに提供されており、LaTeX のオプションがオンで、どちらかのAPIキーが設定されているときに使えます。
+**A**: **Actions → Install Options** を開いて **Install LaTeX (minimal set for diagrams)** をオンにし、Pythonコンテナを再構築してください。再構築時にTeX Liveのパッケージの組（XeLaTeX/LuaLaTeX）、dvisvgm/pdf2svg、Ghostscript、CJKフォントパッケージがインストールされ、Concept Visualizerで日本語・中国語・韓国語を含む図が描画できるようになります。このアプリはOpenAIとAnthropic Claude向けに提供されており、LaTeX のオプションがオンで、どちらかのAPIキーが設定されているときに使えます。
 
 ---
 

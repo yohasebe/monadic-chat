@@ -77,7 +77,7 @@ The section is collapsed by default; expand it to view the list of variables and
 - **Jupyter Notebook**: Notebooks (`.ipynb`)
 - **Video Describer**: Frames extracted from a video (PNG, in a `frames_<timestamp>` folder) and its audio (MP3)
 - **Speech Draft Helper**: Speech audio (MP3; with Gemini, the format the API returns, usually WAV)
-- **Syntax Tree**: Syntax tree diagrams (SVG)
+- **Syntax Tree**: Syntax tree diagrams (SVG), and their LaTeX source when you ask for it
 - **Concept Visualizer**: Concept diagrams (SVG and PNG)
 - **DrawIO Grapher**: Diagram files (`.drawio`) and previews (PNG)
 - **Web Insight**: Web page screenshots (PNG)

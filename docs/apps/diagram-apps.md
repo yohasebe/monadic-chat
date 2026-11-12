@@ -41,15 +41,16 @@ DrawIO Grapher is available for the providers marked in the [availability table]
 
 ![Syntax Tree app icon](../assets/icons/syntax-tree.png ':size=40')
 
-Generate linguistic syntax trees from sentences in multiple languages. The app analyzes grammatical structure and draws the tree with LaTeX and tikz-qtree. Key features include:
+Generate linguistic syntax trees from sentences in multiple languages. The app analyzes grammatical structure and draws the tree with [RSyntaxTree](https://yohasebe.github.io/rsyntaxtree/). Key features include:
 
-- Support for multiple languages, including English, Japanese, and Chinese.
+- Support for multiple languages, including English, Japanese, and Chinese. A sentence in a language written right to left is drawn mirrored, with its first word at the right edge.
+- The words of the sentence on one row, each joined to its node by a dashed line.
+- Movement drawn as an arrow from the trace or copy to the landing site, and a phrase left unanalyzed drawn under a triangle.
 - SVG output that can be edited in vector graphics editors.
-- Linguistic notation that follows syntactic theory.
 
-The tree is shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat as an SVG image with a transparent background. The SVG is saved in the chat's folder in the shared folder (`conversations/…/artifacts/`), and the reply gives its path.
+The tree is shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat as an SVG image with a transparent background. The SVG is saved in the chat's folder in the shared folder (`conversations/…/artifacts/`), and the reply gives its path. Ask for the LaTeX source to get the tree as a `.tex` file (LaTeX forest) beside the SVG; the movement arrows are not in it.
 
-Syntax Tree needs LaTeX: turn on **Install LaTeX (minimal set for diagrams)** in **Actions → Install Options** and rebuild the Python container. Availability by provider is shown in the [availability table](../basic-usage/basic-apps.md#app-availability).
+Syntax Tree supports each provider shown in the [availability table](../basic-usage/basic-apps.md#app-availability).
 
 
 ## Concept Visualizer :id=concept-visualizer

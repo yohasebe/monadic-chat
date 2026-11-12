@@ -60,7 +60,7 @@
     "categories": {
       "latex": {
         "title": "LaTeX",
-        "help": "Concept Visualizer / Syntax Tree に必要",
+        "help": "Concept Visualizer に必要",
         "items": {
           "install": "LaTeX をインストール（図表用の最小セット）"
         }

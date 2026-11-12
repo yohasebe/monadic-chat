@@ -24,7 +24,7 @@ Runs the Monadic Chat server and the web interface. Every app needs it.
 ### Python Container (`monadic-chat-python-container`) :id=python-container
 Runs Python code, command-line tools, and JupyterLab for the apps.
 - **Port**: 8889 (JupyterLab)
-- **Used by**: Code Interpreter, Jupyter Notebook, Research Assistant, Math Tutor, Video Describer, Syntax Tree, Concept Visualizer, Mermaid Grapher, DrawIO Grapher, Web Insight, Auto Forge, and Knowledge Base file imports
+- **Used by**: Code Interpreter, Jupyter Notebook, Research Assistant, Math Tutor, Video Describer, Concept Visualizer, Mermaid Grapher, DrawIO Grapher, Web Insight, Auto Forge, and Knowledge Base file imports
 - Optional components (LaTeX, extra Python libraries, ImageMagick) are added with **Actions → Install Options**. See [Python Container](python-container.md).
 
 ### Selenium Container (`monadic-chat-selenium-container`) :id=selenium-container
@@ -60,7 +60,7 @@ These apps use only the Ruby container (plus Qdrant and Embeddings, which always
 
 **Python Container**:
 - Code execution (Code Interpreter, Jupyter Notebook)
-- Diagrams with LaTeX (Syntax Tree, Concept Visualizer)
+- Diagrams with LaTeX (Concept Visualizer)
 - Video analysis (Video Describer)
 - Knowledge Base file imports (PDF and Office files)
 

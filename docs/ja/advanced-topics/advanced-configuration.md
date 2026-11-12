@@ -6,7 +6,7 @@
 
 **Actions → Install Options** で、Settings ウィンドウの **Install Options** の項目が開きます。ここで、追加のコンポーネントを選べます。
 
-- **LaTeX**：**Install LaTeX (minimal set for diagrams)**。Concept Visualizer と Syntax Tree に必要です
+- **LaTeX**：**Install LaTeX (minimal set for diagrams)**。Concept Visualizer に必要です
 - **Python Libraries (CPU)**：nltk、spaCy、gensim、mediapipe、transformers
 - **Music Analysis**：librosa + madmom。音楽の分析のアプリに必要です
 - **System Tools (CLI)**：ImageMagick（`convert` / `mogrify`）

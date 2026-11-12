@@ -108,13 +108,13 @@ RSpec.describe Monadic::Workbench::Document do
     expect(board.snapshot[:items].map { |i| i[:path] }).not_to include(path)
   end
 
-  it "lists every version of a document's sections, with the turn that wrote it" do
+  it "lists every version of a document's sections, numbered from the oldest" do
     reply("Draft", ["draft", "First."])
     session[:messages] << { "mid" => "u", "role" => "user", "text" => "shorter" }
     reply("Draft", ["draft", "Second."])
     path = @last.first[:path]
     versions = described_class.versions(session, path)
-    expect(versions.map { |v| [v["section"], v["turn"]] }).to eq([["draft", 1], ["draft", 2]])
+    expect(versions.map { |v| [v["section"], v["version"]] }).to eq([["draft", 1], ["draft", 2]])
     expect(versions.map { |v| text(v["path"]) }).to eq(["First.", "Second."])
   end
 

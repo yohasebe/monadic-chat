@@ -147,7 +147,7 @@ RSpec.describe SyntaxTreeTools do
 
   describe '#indented' do
     it 'opens each node with nodes below it on a line of its own, two spaces deeper per level' do
-      expect(app.indented("[CP [DP What+>1] [C' [C did] [TP [DP t+1] [VP left]]]]")).to eq(<<~TREE.chomp)
+      expect(app.send(:indented, "[CP [DP What+>1] [C' [C did] [TP [DP t+1] [VP left]]]]")).to eq(<<~TREE.chomp)
         [CP
           [DP What+>1]
           [C'
@@ -162,15 +162,15 @@ RSpec.describe SyntaxTreeTools do
     end
 
     it 'keeps a leaf of several words on the line of its node' do
-      expect(app.indented('[VP [V saw] [DP the man with the hat]]')).to eq("[VP\n  [V saw]\n  [DP the man with the hat]\n]")
+      expect(app.send(:indented, '[VP [V saw] [DP the man with the hat]]')).to eq("[VP\n  [V saw]\n  [DP the man with the hat]\n]")
     end
 
     it 'never takes a bracket after a backslash for a node' do
-      expect(app.indented('[S [N a\\[b] [V c]]')).to eq("[S\n  [N a\\[b]\n  [V c]\n]")
+      expect(app.send(:indented, '[S [N a\\[b] [V c]]')).to eq("[S\n  [N a\\[b]\n  [V c]\n]")
     end
 
     it 'gives notation whose brackets do not pair back as it is' do
-      ['[S [NP a]', '[S a]]', 'S a'].each { |text| expect(app.indented(text)).to eq(text) }
+      ['[S [NP a]', '[S a]]', 'S a'].each { |text| expect(app.send(:indented, text)).to eq(text) }
     end
   end
 end

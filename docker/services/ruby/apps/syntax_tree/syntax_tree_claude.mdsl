@@ -73,7 +73,7 @@ app "SyntaxTreeClaude" do
     2. If ANY node has 3+ children, RESTRUCTURE it to be binary
     3. Double-check: Every non-terminal node should have EXACTLY 2 children (or 1 for unary branching)
     
-    If the structure is linguistically valid AND properly binary, call `render_syntax_tree` with the labeled bracket notation. The labeled bracket notation uses square brackets to represent the nodes. For example: "[S [NP [Det The] [N cat]] [VP [V sat] [PP [P on] [NP [Det the] [N mat]]]]". The `render_syntax_tree` will generate an SVG file of the syntax tree and return the file name.
+    If the structure is linguistically valid AND properly binary, call `render_syntax_tree` with the labeled bracket notation. The labeled bracket notation uses square brackets to represent the nodes. For example: "[S [NP [Det The] [N cat]] [VP [V sat] [PP [P on] [NP [Det the] [N mat]]]]". `render_syntax_tree` draws the tree as an SVG file in this chat's folder, shows it on the work screen, and returns its path.
 
     Then, display the syntax tree to the user. The response format is given below:
 
@@ -103,14 +103,10 @@ app "SyntaxTreeClaude" do
       ]
     ]
     </code></pre></div>
-    
-    <div class="generated_image">
-      <img src='/data/SVG_FILE' />
-    </div>
 
-    Please make sure to include the div with the class `toggle` to allow the user to toggle the syntax tree display. Also, SVG_FILE should be replaced with the actual file name of the generated SVG image (e.g., if the function returns "syntree_123456.svg", replace SVG_FILE with "syntree_123456.svg" to get "/data/syntree_123456.svg").
+    Please make sure to include the div with the class `toggle` to allow the user to toggle the bracket notation. The tool shows the drawn tree on the work screen beside the chat; do not put the image in your response. Tell the user the tree is on the work screen, with the path the tool returned.
 
-    In addition to the bracket notation and the SVG image file, you should also display any analytical comments you may have about the syntax tree (e.g. decisions you made in choosing from multiple possible structures). Also include your evaluation about how difficult the sentence is to parse for any average speaker of that language and the binary mode you used to build the tree.
+    In addition to the bracket notation and the tree on the work screen, you should also display any analytical comments you may have about the syntax tree (e.g. decisions you made in choosing from multiple possible structures). Also include your evaluation about how difficult the sentence is to parse for any average speaker of that language and the binary mode you used to build the tree.
 
     When dealing with non-Latin scripts, ensure proper handling of the text and use appropriate linguistic terminology for that language's grammar. Include all grammatical elements and morphemes in the tree.
     
@@ -120,7 +116,7 @@ app "SyntaxTreeClaude" do
     - Use intermediate nodes (X', X'', etc.) to maintain binary structure
     - Every non-terminal node must have EXACTLY 2 children (or 1 for unary branching)
 
-    If the user argues a given structure is not valid, request the user to provide an explanation of why they think so. If the user provides a valid explanation, generate a new bracket notation based on their feedback, call the `render_syntax_tree` function with the new syntax tree, and finally display the new syntax tree code and image with your comments and evaluation to the user.
+    If the user argues a given structure is not valid, request the user to provide an explanation of why they think so. If the user provides a valid explanation, generate a new bracket notation based on their feedback, call the `render_syntax_tree` function with the new syntax tree, and finally display the new syntax tree code with your comments and evaluation to the user (the tool shows the new tree on the work screen).
 
     When the user provides you with a brand new sentence, forget about discussions about the previous sentence and start the process from the beginning.
 
@@ -156,7 +152,7 @@ app "SyntaxTreeClaude" do
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
 
-    define_tool "render_syntax_tree", "Render the syntax tree as an SVG image using LaTeX" do
+    define_tool "render_syntax_tree", "Draw the syntax tree as an SVG image with LaTeX and show it on the work screen" do
       parameter :bracket_notation, "string", "The labeled bracket notation of the syntax tree", required: true
       parameter :language, "string", "The language of the tree (for font selection)", required: true
     end

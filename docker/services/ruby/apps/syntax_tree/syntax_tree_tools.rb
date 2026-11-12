@@ -1,4 +1,8 @@
 require 'cgi'
+require 'shellwords'
+require_relative '../../lib/monadic/workspace/jobs'
+require_relative '../../lib/monadic/workspace/chats'
+require_relative '../../lib/monadic/shared_tools/workbench_tools'
 require_relative '../../lib/monadic/adapters/latex_helper'
 
 # Shared tools for Syntax Tree (provider-independent)
@@ -7,8 +11,21 @@ module SyntaxTreeTools
   include MonadicSharedTools::FileOperations
   include LatexHelper
 
-  def render_syntax_tree(bracket_notation:, language:)
+  # The SVG a drawing leaves in its run folder.
+  OUTPUT_NAME = "syntax_tree.svg"
+  # LaTeX is installed on first use, which takes minutes.
+  DRAW_TIMEOUT = 600
+
+  # Draws the tree as an SVG in a run folder of the chat's folder
+  # (artifacts/j_<id>/syntax_tree.svg) and shows it on the work screen.
+  def render_syntax_tree(bracket_notation:, language:, session: nil, workbench: nil)
     return "❌ Bracket notation is required." if bracket_notation.to_s.empty?
+
+    job = syntax_tree_job(session, workbench)
+    return "❌ The syntax tree could not be kept: there is no chat folder to keep it in." unless job
+
+    output = Monadic::Utils::SharedPathGuard.command_path(job[:path], container: "python", must_exist: false)
+    return "❌ The syntax tree could not be kept: the chat folder is not in the shared folder." unless output
 
     # Debug: Log the input bracket notation to check for stray quotes
     if CONFIG["EXTRA_LOGGING"]
@@ -32,8 +49,7 @@ module SyntaxTreeTools
       cleaned_notation = cleaned_notation.gsub(/\s*\]{#{excess}}\s*$/, '')
     end
     
-    timestamp = Time.now.to_i.to_s
-    base_filename = "syntree_#{timestamp}"
+    base_filename = "syntree"
     
     # Convert bracket notation to LaTeX code (use cleaned notation)
     latex_code = generate_latex_syntax_tree(cleaned_notation, language)
@@ -41,7 +57,11 @@ module SyntaxTreeTools
     # Create a shell script to run LaTeX and convert to SVG with error recovery
     script_code = <<~BASH
       #!/bin/bash
-      cd /monadic/data
+      # Drawn in a folder of its own, removed at the end: only the SVG
+      # is kept, in the run folder of the chat.
+      work=$(mktemp -d)
+      trap 'rm -rf "$work"' EXIT
+      cd "$work" || exit 1
       
       # Check if LaTeX is installed, if not, install it
       if ! command -v pdflatex >/dev/null 2>&1; then
@@ -117,6 +137,7 @@ module SyntaxTreeTools
         fi
         
         if [ -f #{base_filename}.svg ]; then
+          cp #{base_filename}.svg #{Shellwords.escape(output)}/#{OUTPUT_NAME} || exit 1
           echo "Successfully generated editable SVG!"
           echo "Tree structure preserved with editable text elements."
           
@@ -135,34 +156,50 @@ module SyntaxTreeTools
         exit 1
       fi
     BASH
-    
-    # Execute the script
-    run_result = run_code(
-      code: script_code,
-      command: "bash",
-      extension: "sh"
-    )
-    
-    # Check if the result contains error messages
-    # run_result should be a string, but handle other types gracefully
-    if run_result.is_a?(String) && (run_result.include?("Error:") || run_result.include?("timed out"))
-      return "❌ Error generating syntax tree: #{run_result}"
+
+    drawn, detail = send_command(command: script_code, container: "python", timeout: DRAW_TIMEOUT) do |stdout, stderr, status|
+      [status.success?, "#{stdout}\n#{stderr}".strip]
     end
-    
-    # Check if SVG file was created
-    # Try both container path and local path
-    container_path = "/monadic/data/#{base_filename}.svg"
-    local_path = File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "#{base_filename}.svg")
-    
-    svg_exists = File.exist?(container_path) || File.exist?(local_path)
-    unless svg_exists
+    unless drawn
+      drop_empty_job(job)
+      return "❌ Error generating syntax tree: #{detail.to_s[-2000..] || detail}"
+    end
+    unless Monadic::Workspace::Jobs.outputs(job, /\A#{Regexp.escape(OUTPUT_NAME)}\z/).any?
+      drop_empty_job(job)
       return "❌ Syntax tree SVG was not generated. Please check the bracket notation format."
     end
-    
-    "#{base_filename}.svg"
+
+    path = File.join(job[:relative], OUTPUT_NAME)
+    said = workbench ? MonadicSharedTools::WorkbenchTools.show_file(path, workbench) : ""
+    shown = said.start_with?("{") ? " It is shown on the work screen beside the chat." : ""
+    "The syntax tree was drawn as #{path}.#{shown}"
   end
 
   private
+
+  # A run folder in the chat's folder for one drawing: the chat the reply
+  # was asked in, or the session's. nil without a chat or its folder.
+  def syntax_tree_job(session, workbench)
+    chat_id = workbench&.chat_id || (session && session[Monadic::Workspace::Chats::SESSION_KEY])
+    return nil unless Monadic::Workspace::Ids.valid?(:chat, chat_id)
+
+    app_name = (session && session.dig(:parameters, "app_name")) || self.class.name
+    folder = Monadic::Workspace::Folders.ensure_for_chat!(chat_id, app_name: app_name)
+    return nil unless folder[:status] == :ready
+
+    Monadic::Workspace::Jobs.create!(folder[:workspace_id])
+  rescue Monadic::Workspace::Folders::Unavailable, Monadic::Workspace::Jobs::Unavailable,
+         Monadic::Workspace::Ledger::Unreadable
+    nil
+  end
+
+  # A run folder a failed drawing left empty goes; one with anything in it
+  # stays.
+  def drop_empty_job(job)
+    Dir.rmdir(job[:path]) if Monadic::Workspace::Folders.real_path(job[:relative], :directory)
+  rescue SystemCallError
+    nil
+  end
 
   def generate_latex_syntax_tree(bracket_notation, language)
     # Generate LaTeX code for syntax tree using tikz-qtree package

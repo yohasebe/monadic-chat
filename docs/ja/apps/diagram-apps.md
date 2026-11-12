@@ -47,7 +47,7 @@ DrawIO Grapher の対応プロバイダーは[モデル対応状況の表](../ba
 - ベクターグラフィックのエディターで編集できる SVG で出力
 - 統語論に沿った言語学の表記
 
-樹形図は、透明な背景の SVG 画像としてチャットに表示され、共有フォルダに保存されます。
+樹形図は、透明な背景の SVG 画像として、チャットの横の[作業画面](../basic-usage/web-interface.md#work-screen)に表示されます。SVG は共有フォルダの会話のフォルダ（`conversations/…/artifacts/`）に保存され、返答にはそのパスが書かれます。
 
 Syntax Tree には LaTeX が必要です。**Actions → Install Options** で **Install LaTeX (minimal set for diagrams)** をオンにし、Python コンテナを再ビルドしてください。対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
 

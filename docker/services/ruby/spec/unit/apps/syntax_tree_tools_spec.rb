@@ -1,4 +1,7 @@
 require 'spec_helper'
+require 'tmpdir'
+require 'fileutils'
+require 'shellwords'
 
 # Mock the base class and dependencies
 class MonadicApp; end
@@ -50,6 +53,68 @@ RSpec.describe SyntaxTreeOpenAI do
     end
   end
   
+  # The tree is drawn in a run folder of the chat's folder, with nothing
+  # else left there, and shown on the work screen.
+  describe '#render_syntax_tree in a chat' do
+    around do |example|
+      Dir.mktmpdir('syntax-tree-spec') do |dir|
+        @data = File.join(dir, 'data')
+        @state = File.join(dir, 'state')
+        FileUtils.mkdir_p(@data)
+        @data = File.realpath(@data)
+        example.run
+      end
+    end
+
+    let(:chat) { Monadic::Workspace::Ids.generate(:chat) }
+    let(:workbench) { Struct.new(:chat_id).new(chat) }
+    let(:scripts) { [] }
+
+    before do
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data)
+      allow(Monadic::Utils::Environment).to receive(:state_path).and_return(@state)
+      allow(MonadicSharedTools::WorkbenchTools).to receive(:show_file).and_return('{"status":"shown"}')
+    end
+
+    # The container's run: the SVG copied to the folder the script names.
+    def draws(svg: true, ok: true)
+      allow(app).to receive(:send_command) do |command:, **, &block|
+        scripts << command
+        out = command[%r{cp syntree\.svg (\S+)/syntax_tree\.svg}, 1]
+        local = File.join(@data, Shellwords.split(out).first.delete_prefix('/monadic/data/')) if out
+        File.write(File.join(local, 'syntax_tree.svg'), '<svg/>') if svg && ok
+        block.call(ok ? 'done' : '', ok ? '' : 'Error: DVI generation failed', double(success?: ok))
+      end
+    end
+
+    it "keeps only the SVG, in a run folder of the chat's folder, and shows it on the work screen" do
+      draws
+      result = app.render_syntax_tree(bracket_notation: '[S [NP John] [VP runs]]', language: 'english', workbench: workbench)
+      path = result[%r{conversations/\S+/artifacts/j_[a-z0-9]+/syntax_tree\.svg}]
+      expect(path).not_to be_nil
+      expect(Dir.children(File.join(@data, File.dirname(path)))).to eq(['syntax_tree.svg'])
+      expect(MonadicSharedTools::WorkbenchTools).to have_received(:show_file).with(path, workbench)
+      expect(result).to include('shown on the work screen')
+      expect(scripts.last).to include('mktemp -d').and include("trap 'rm -rf")
+      expect(Dir.children(@data)).to eq(['conversations'])
+    end
+
+    it 'leaves no run folder when the drawing fails' do
+      draws(ok: false)
+      result = app.render_syntax_tree(bracket_notation: '[S [NP John] [VP runs]]', language: 'english', workbench: workbench)
+      expect(result).to start_with('❌ Error generating syntax tree')
+      artifacts = Dir.glob(File.join(@data, 'conversations', '*', 'artifacts', '*'))
+      expect(artifacts).to be_empty
+    end
+
+    it 'draws nothing without a chat' do
+      draws
+      result = app.render_syntax_tree(bracket_notation: '[S [NP John] [VP runs]]', language: 'english')
+      expect(result).to start_with('❌')
+      expect(scripts).to be_empty
+    end
+  end
+
   describe '#generate_latex_syntax_tree (private)' do
     it 'generates LaTeX with CJK support for Japanese' do
       latex = app.send(:generate_latex_syntax_tree, '[S [NP 太郎] [VP 走る]]', 'japanese')

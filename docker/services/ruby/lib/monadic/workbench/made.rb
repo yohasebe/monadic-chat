@@ -42,6 +42,12 @@ module Monadic
         nil
       end
 
+      # What the running reply request_id made so far (its message takes
+      # it later).
+      def pending(request_id)
+        @lock.synchronize { (@open[request_id] || []).dup }
+      end
+
       # The reply's paths, once: its message takes them. Later adds for it
       # are dropped.
       def seal(request_id)

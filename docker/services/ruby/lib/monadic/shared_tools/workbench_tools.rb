@@ -7,6 +7,7 @@ require_relative '../workbench/channel'
 require_relative '../workbench/look'
 require_relative '../workbench/put'
 require_relative '../workbench/shown'
+require_relative '../workbench/document'
 
 module MonadicSharedTools
   # What every app can do with the work screen (the workbench beside the
@@ -57,6 +58,19 @@ module MonadicSharedTools
       JSON.generate(out)
     rescue Monadic::Workbench::Put::Refused => e
       "❌ Nothing was put on the work screen: #{e.message}."
+    end
+
+    # A section of a long text, kept for the reply and shown with the rest
+    # of the document in the work screen (Monadic::Workbench::Document).
+    def write_section(document:, section:, content:, session: nil, workbench: nil)
+      app_name = (session && session.dig(:parameters, 'app_name')) || self.class.name
+      result = Monadic::Workbench::Document.write(session: session, workbench: workbench, app_name: app_name,
+                                                  document: document, section: section, content: content)
+      out = { 'status' => result[:shown] ? 'shown_in_work_screen' : 'written_not_shown',
+              'document_path' => result[:path], 'section_path' => result[:section_path] }
+      JSON.generate(out)
+    rescue Monadic::Workbench::Document::Refused, Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError => e
+      "❌ The section was not written: #{e.message}."
     end
 
     # What the asking tab has selected in the work screen, read now

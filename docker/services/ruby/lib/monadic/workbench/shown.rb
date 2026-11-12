@@ -14,7 +14,9 @@ module Monadic
       LIMIT = 20
       # Replies ended, oldest first: a late add for one of them is dropped.
       CLOSED_LIMIT = 1000
-      KEYS = %w[path name sha256 preview render].freeze
+      KEYS = %w[path name sha256 preview render section].freeze
+      # A section of a document the record opens the file at (Document).
+      SECTION = /\A[a-z0-9-]{1,40}\z/
       PATH_LIMIT = 1024
       NAME_LIMIT = 255
 
@@ -31,16 +33,19 @@ module Monadic
           'render' => Monadic::Workspace::SharedFolderPreview.render_for(file['path']) }
       end
 
-      # Records that the reply request_id showed item, while the reply runs.
-      # Whether the reply runs is asked under the same lock as seal takes,
-      # so a reply that ended cannot be given a new place.
-      def add(request_id, item)
-        record = clean([event(item)])&.first or return
+      # Records that the reply request_id showed item, while the reply runs
+      # (section: the section of a document it opens at). Whether the reply
+      # runs is asked under the same lock as seal takes, so a reply that
+      # ended cannot be given a new place.
+      def add(request_id, item, section: nil)
+        record = clean([event(item).merge('section' => section)])&.first or return
         @lock.synchronize do
           next if @closed.key?(request_id) || !running?(request_id)
 
           list = (@open[request_id] ||= [])
-          next if list.any? { |e| e['path'] == record['path'] && e['sha256'] == record['sha256'] }
+          next if list.any? do |e|
+            e['path'] == record['path'] && (e['sha256'] == record['sha256'] || (record['section'] && e['section'] == record['section']))
+          end
 
           list << record if list.size < LIMIT
         end
@@ -80,6 +85,7 @@ module Monadic
           next unless Monadic::Workspace::SharedFolderPreview.kind_for(out['path']) == out['preview']
 
           out['render'] = Monadic::Workspace::SharedFolderPreview.render_for(out['path'])
+          out.delete('section') unless out['section'].is_a?(String) && out['section'].match?(SECTION)
           out.compact
         end
         kept.empty? ? nil : kept

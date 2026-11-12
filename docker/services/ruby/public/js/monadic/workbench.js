@@ -79,6 +79,9 @@
   let opening = null;
   // An item the user opened, shown as soon as the board has it.
   let pendingOpen = null;
+  // A section of a document (Workbench::Document) a line under a reply
+  // opens at: { path, section }, scrolled to once the document is drawn.
+  let pendingSection = null;
   // What the pane drew for the item shown, kept while it is the same item
   // at the same version (media keep playing, text keeps its scroll): its
   // key (item and version), node, the address it was drawn from, and
@@ -603,6 +606,7 @@
         if (!drawn.gone) {
           drawn.loaded = true;
           restoreScroll(drawn, box);
+          scrollToSection(box, item.path);
           // A tune is played under its score (abc-player.js).
           if (item.render === 'abc' && window.AbcPlayer) {
             const controls = element('div', 'workbench-abc-player mt-2');
@@ -639,6 +643,22 @@
     const node = drawn && drawn.node;
     if (!node || !node.matches) return null;
     return node.matches('.workbench-text, .workbench-rendered') ? node : node.querySelector('.workbench-rendered, .workbench-text');
+  }
+
+  // The mark a document's section begins with (a heading "§ <section>").
+  function sectionMark(root, section) {
+    return Array.from(root.querySelectorAll('h6')).find((h) => h.textContent.trim() === `§ ${section}`) || null;
+  }
+
+  // The drawn document at path, in box, scrolled to the section asked for
+  // (pendingSection), once.
+  function scrollToSection(box, path) {
+    if (!box || !pendingSection || pendingSection.path !== path) return false;
+    const mark = sectionMark(box, pendingSection.section);
+    pendingSection = null;
+    if (!mark) return false;
+    box.scrollTop += mark.getBoundingClientRect().top - box.getBoundingClientRect().top;
+    return true;
   }
 
   // Back where the drawing was left, once its content is in.
@@ -867,6 +887,7 @@
     serverSerial = null;
     opening = null;
     pendingOpen = null;
+    pendingSection = null;
     letGo(drawnBody);
     drawnBody = null;
     seen.clear();
@@ -1531,8 +1552,20 @@
       const open = element('button', 'btn btn-link btn-sm p-0 align-baseline workbench-shown-open');
       open.type = 'button';
       open.title = t('ui.workbench.open', 'Show in the work screen');
-      open.appendChild(element('code', null, String(entry.name || entry.path)));
+      open.appendChild(element('code', null, String(entry.name || entry.path) + (typeof entry.section === 'string' ? ` § ${entry.section}` : '')));
       open.addEventListener('click', () => {
+        // A section of a document: the document as it is now, at the section.
+        if (typeof entry.section === 'string') {
+          pendingSection = { path: entry.path, section: entry.section };
+          const doc = items().find((i) => i.kind === 'file' && i.path === entry.path);
+          if (!doc) {
+            openFile(entry.path);
+            return;
+          }
+          openItem(doc.id);
+          if (drawnBody && drawnBody.loaded && selected === doc.id) scrollToSection(scroller(drawnBody), entry.path);
+          return;
+        }
         const item = items().find((i) => i.kind === 'file' && i.path === entry.path && i.sha256 === entry.sha256);
         if (item) openItem(item.id);
         else openFile(entry.path, entry.sha256);

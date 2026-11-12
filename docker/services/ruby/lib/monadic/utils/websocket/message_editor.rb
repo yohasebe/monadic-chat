@@ -10,6 +10,7 @@ require_relative '../../workbench/board'
 require_relative '../../workbench/channel'
 require_relative '../../workbench/made'
 require_relative '../../workbench/turn_trash'
+require_relative '../../workbench/document'
 
 module WebSocketHelper
   # Handle DELETE message
@@ -34,7 +35,7 @@ module WebSocketHelper
     # Delete the message, and move what it made to the chat's trash
     deleted = message_index && messages[message_index]
     rack_session[:messages]&.delete_if { |m| m["mid"] == obj["mid"] }
-    trash_made_files(rack_session, deleted)
+    rebuild_documents(rack_session) unless trash_made_files(rack_session, deleted).empty?
 
     # Invalidate any Grok compaction blob: it summarized the pre-edit history,
     # so a delete makes the cached covered_count and summary stale. Dropping it
@@ -79,6 +80,14 @@ module WebSocketHelper
   rescue StandardError => e
     warn "[MessageEditor] what the deleted message made was not moved to the trash: #{e.class}"
     []
+  end
+
+  # The documents of the chat, put together again from what is left
+  # (Workbench::Document): a deleted turn's sections leave them.
+  def rebuild_documents(rack_session)
+    Monadic::Workbench::Document.rebuild_all(rack_session)
+  rescue StandardError => e
+    warn "[MessageEditor] the chat's documents were not put together again: #{e.class}"
   end
 
   # Find the user-assistant pair for a given turn

@@ -1157,6 +1157,42 @@ describe('Workbench', () => {
       window.Workbench.drawShown('m-1', []);
       expect(el.querySelector('.workbench-shown-note')).toBeNull();
     });
+
+    test('opens a document from the line for one of its sections, as it is now, at that section', async () => {
+      const el = card('m-2');
+      window.WorkbenchRender.draw = jest.fn((box) => {
+        box.innerHTML = '<div class="workbench-markdown"><h1>Story</h1><h6>§ 1</h6><p>One.</p><hr><h6>§ 2</h6><p>Two.</p></div>';
+        return { done: Promise.resolve(), dispose: jest.fn() };
+      });
+      const entry = { path: 'conversations/c/documents/story.md', name: 'story.md', sha256: 'a'.repeat(64),
+                      preview: 'text', render: 'markdown', section: '2' };
+      window.Workbench.drawShown('m-2', [entry]);
+      const button = el.querySelector('.workbench-shown-note button');
+      expect(button.textContent).toBe('story.md § 2');
+      sent.length = 0;
+      button.click();
+      // Not on the work screen yet: the document is opened as it is now.
+      expect(payloads()).toEqual([{ message: 'WORKBENCH_OPEN', path: entry.path }]);
+
+      layout.pane = 'work';
+      const story = doc({ id: 'i_s', name: 'story.md', path: entry.path, sha256: 'b'.repeat(64), version: 'b'.repeat(64) });
+      const marks = [];
+      const rect = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = function () {
+        if (this.tagName === 'H6') marks.push(this.textContent);
+        return { top: this.tagName === 'H6' && this.textContent === '§ 2' ? 300 : 100 };
+      };
+      try {
+        viewDoc([story]);
+        await settle();
+        await settle();
+        const box = document.querySelector('#workbench-view .workbench-rendered');
+        expect(marks).toContain('§ 2');
+        expect(box.scrollTop).toBe(200);
+      } finally {
+        Element.prototype.getBoundingClientRect = rect;
+      }
+    });
   });
 });
 

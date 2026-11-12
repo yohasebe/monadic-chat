@@ -26,6 +26,7 @@ require_relative 'shared_tools/verification'
 require_relative 'shared_tools/parallel_dispatch'
 require_relative 'shared_tools/parallel_python_execution'
 require_relative 'shared_tools/library_search'
+require_relative 'utils/system_prompt_injector'
 require_relative 'dsl/configurations'
 require_relative 'dsl/loader'
 require_relative 'dsl/provider_config'
@@ -233,6 +234,23 @@ module MonadicDSL
     (state.settings[:imported_tool_groups] || []).any? { |g| g[:name] == :workbench }
   end
 
+  def self.documents_already_imported?(state)
+    (state.settings[:imported_tool_groups] || []).any? { |g| g[:name] == :documents }
+  end
+
+  # An app that puts its work on the work screen (its `work_screen`
+  # feature, SystemPromptInjector::WORK_SCREEN_PROMPTS) writes it as a
+  # document (write_section).
+  def self.inject_documents!(state)
+    mode = (state.features[:work_screen] || state.settings[:work_screen]).to_s
+    return unless Monadic::Utils::SystemPromptInjector::WORK_SCREEN_PROMPTS.key?(mode)
+
+    provider = state.settings[:provider].to_s.downcase.to_sym
+    tool_config = ToolConfiguration.new(state, provider)
+    tool_config.import_shared_tools(:documents, visibility: "always")
+    state.settings[:tools] = merge_tools_for_provider(provider, state.settings[:tools], tool_config.to_h)
+  end
+
   # Every app can show a file of the shared folder in the work screen
   # (show_on_workbench): it calls no provider's API, so it is offered
   # whatever the provider. Non-tool-capable models never receive it.
@@ -347,6 +365,14 @@ module MonadicDSL
         inject_workbench!(state)
       rescue StandardError => e
         puts "[DSL] workbench auto-inject skipped for #{state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+      end
+    end
+
+    unless documents_already_imported?(state)
+      begin
+        inject_documents!(state)
+      rescue StandardError => e
+        puts "[DSL] documents auto-inject skipped for #{state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
       end
     end
 

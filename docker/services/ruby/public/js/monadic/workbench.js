@@ -371,9 +371,13 @@
     if (item.status === 'ok' && item.artifact_id) {
       info.appendChild(saveButton(item.artifact_id, 'btn-primary mt-2'));
     }
+    // A file is read again where it is shown (the board takes it at the
+    // version it has now): after it changed, or whenever the user asks.
     if (item.kind === 'file' && item.status === 'changed') {
       info.appendChild(button(t('ui.workbench.reopen', 'Open it as it is now'), 'btn-secondary mt-2',
         () => openFile(item.path)));
+    } else if (item.kind === 'file' && item.status === 'ok') {
+      info.appendChild(button(t('ui.workbench.reload', 'Reload'), 'btn-secondary mt-2', () => openFile(item.path)));
     }
   }
 

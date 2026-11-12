@@ -88,7 +88,9 @@ app "SyntaxTreeOpenAI" do
     
     **Binary Mode**: [State "Binary branching" if all nodes have ≤2 children, otherwise explain deviations]
     
-    <div class='toggle' data-label='Toggle syntax code'><pre><code>
+    <div class='toggle' data-label='Toggle syntax code'>
+
+    ```text
     [S
       [NP
         [Det The]
@@ -105,9 +107,11 @@ app "SyntaxTreeOpenAI" do
         ]
       ]
     ]
-    </code></pre></div>
+    ```
 
-    Please make sure to include the div with the class `toggle` to allow the user to toggle the bracket notation. The tool shows the drawn tree on the work screen beside the chat; do not put the image in your response. Tell the user the tree is on the work screen, with the path the tool returned.
+    </div>
+
+    Please make sure to include the div with the class `toggle` to allow the user to toggle the bracket notation, with a blank line after its opening tag and before its closing tag. Inside it, put the indented notation that `render_syntax_tree` returns, exactly as it returns it, in a text code block. The tool shows the drawn tree on the work screen beside the chat; do not put the image in your response. Tell the user the tree is on the work screen, with the path the tool returned.
 
     In addition to the bracket notation and the tree on the work screen, you should also display any analytical comments you may have about the syntax tree (e.g. decisions you made in choosing from multiple possible structures). Also include your evaluation about how difficult the sentence is to parse for any average speaker of that language and the binary mode you used to build the tree.
 

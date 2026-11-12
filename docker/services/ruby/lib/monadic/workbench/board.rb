@@ -453,6 +453,21 @@ module Monadic
         @lock.synchronize { deep_dup(@data['items'][item_id]) }
       end
 
+      # Takes off the file items of paths (relative to the shared folder),
+      # and of the files inside a folder among them: what a deleted turn
+      # made and moved to the trash. Returns the ids taken off.
+      def drop_files(paths)
+        prefixes = Array(paths).map { |path| "#{path}/" }
+        change do |data|
+          gone = data['items'].values.select do |item|
+            path = item['kind'] == 'file' && item.dig('file', 'path')
+            path && (paths.include?(path) || prefixes.any? { |prefix| path.start_with?(prefix) })
+          end
+          gone.each { |item| take_off!(data, item, 'turn_deleted') }
+          gone.map { |item| item['id'] }
+        end
+      end
+
       private
 
       def fresh

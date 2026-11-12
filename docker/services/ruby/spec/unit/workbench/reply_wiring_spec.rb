@@ -94,6 +94,26 @@ RSpec.describe "the workbench when a reply is recorded" do
     expect(sent["content"]["workbench_shown"]).to eq(message["workbench_shown"])
   end
 
+  it "gives what the reply made in the chat's folder to its message" do
+    require_relative "../../../lib/monadic/shared_tools/workbench_tools"
+    app = Object.new.tap do |made_app|
+      made_app.define_singleton_method(:api_request) do |_role, session, &_block|
+        request = Monadic::Workspace::RequestContext.current
+        caller = Monadic::Workbench::Caller.new(chat_id: session[:chat_id], epoch: Monadic::Workspace::Chats.epoch(session[:chat_id]),
+                                                request_id: request.request_id, session: session, tab: request.tab,
+                                                generation: request.generation)
+        Class.new { include MonadicSharedTools::WorkbenchTools }.new.put_on_workbench(name: "draft.md", content: "x", workbench: caller)
+        [{ "choices" => [{ "message" => { "content" => "Done" }, "finish_reason" => "stop" }] }]
+      end
+      made_app.define_singleton_method(:settings) { {} }
+    end
+    stub_const("APPS", { "FakeApp" => app })
+    thread = host.send(:handle_ws_streaming, nil, { "message" => "write", "app_name" => "FakeApp" }, session, queue)
+    host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+    thread.join(5)
+    expect(session[:messages].last["workbench_made"]).to match([%r{\Aconversations/[^/]+/workbench/draft\.md\z}])
+  end
+
   it "keeps nothing of a reply that ended without a message for the next one" do
     require_relative "../../../lib/monadic/shared_tools/workbench_tools"
     File.write(File.join(shared, "plan.md"), "# Plan")

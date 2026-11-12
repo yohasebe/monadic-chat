@@ -7,7 +7,9 @@ require_relative '../workspace/folders'
 require_relative '../workspace/jobs'
 require_relative '../workspace/ledger'
 require_relative '../utils/shared_path_guard'
+require_relative '../workspace/request_context'
 require_relative '../shared_tools/workbench_tools'
+require_relative 'made'
 
 module Monadic
   module Workbench
@@ -21,7 +23,8 @@ module Monadic
 
       # A run folder for one run of a tool: in the chat the reply was asked
       # in (workbench), or else the session's. nil without a chat or its
-      # folder.
+      # folder. The reply that runs the tool records it as made (Made), so
+      # deleting that turn takes the folder with it.
       def run_folder(session:, workbench:, app_name:)
         chat_id = workbench&.chat_id || (session && session[Monadic::Workspace::Chats::SESSION_KEY])
         return nil unless Monadic::Workspace::Ids.valid?(:chat, chat_id)
@@ -29,7 +32,11 @@ module Monadic
         folder = Monadic::Workspace::Folders.ensure_for_chat!(chat_id, app_name: app_name)
         return nil unless folder[:status] == :ready
 
-        Monadic::Workspace::Jobs.create!(folder[:workspace_id])
+        job = Monadic::Workspace::Jobs.create!(folder[:workspace_id])
+        request_id = (workbench.request_id if workbench.respond_to?(:request_id)) ||
+                     Monadic::Workspace::RequestContext.current&.request_id
+        Made.add(request_id, job[:relative])
+        job
       rescue Monadic::Workspace::Folders::Unavailable, Monadic::Workspace::Jobs::Unavailable,
              Monadic::Workspace::Ledger::Unreadable
         nil

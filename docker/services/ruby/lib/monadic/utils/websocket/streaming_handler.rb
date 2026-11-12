@@ -261,6 +261,7 @@ module WebSocketHelper
     # still send with a message: dropped, never kept with the chat's
     # parameters nor taken as part of the message.
     obj.delete("workbench_shown")
+    obj.delete("workbench_made")
     request_id = Monadic::Workspace::Ids.generate(:request)
     # The user's own message: text, or attached files only (video or audio
     # as attachments, images and PDFs as images).

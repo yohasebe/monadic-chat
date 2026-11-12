@@ -4,6 +4,13 @@
 # Handles message deletion, editing, turn pair finding,
 # HTML generation, and status updates after edits.
 
+require_relative '../../workspace/folders'
+require_relative '../../workspace/chats'
+require_relative '../../workbench/board'
+require_relative '../../workbench/channel'
+require_relative '../../workbench/made'
+require_relative '../../workbench/turn_trash'
+
 module WebSocketHelper
   # Handle DELETE message
   # @param connection [Async::WebSocket::Connection] WebSocket connection
@@ -24,8 +31,10 @@ module WebSocketHelper
       deleted_turn = calculate_turn_number(messages, message_index)
     end
 
-    # Delete the message
+    # Delete the message, and move what it made to the chat's trash
+    deleted = message_index && messages[message_index]
     rack_session[:messages]&.delete_if { |m| m["mid"] == obj["mid"] }
+    trash_made_files(rack_session, deleted)
 
     # Invalidate any Grok compaction blob: it summarized the pre-edit history,
     # so a delete makes the cached covered_count and summary stale. Dropping it
@@ -52,6 +61,26 @@ module WebSocketHelper
     sync_session_state!
   end
   
+  # What a deleted message made in the chat's folder (workbench_made) goes
+  # to the trash of that folder (Workbench::TurnTrash), and leaves the work
+  # screen. A file that cannot be moved stays; the delete goes on.
+  def trash_made_files(rack_session, message)
+    made = message.is_a?(Hash) && Monadic::Workbench::Made.clean(message["workbench_made"])
+    return [] unless made
+
+    folder = Monadic::Workspace::Folders.lookup(rack_session)
+    return [] unless folder && folder[:status] == :ready
+
+    moved = Monadic::Workbench::TurnTrash.move(folder[:relative_dir], made, Monadic::Workbench::TurnTrash.label(message["mid"]))
+    chat_id = rack_session[Monadic::Workspace::Chats::SESSION_KEY]
+    board = !moved.empty? && Monadic::Workbench::Board.existing(chat_id)
+    Monadic::Workbench::Channel.changed(chat_id) if board && !board.drop_files(moved).empty?
+    moved
+  rescue StandardError => e
+    warn "[MessageEditor] what the deleted message made was not moved to the trash: #{e.class}"
+    []
+  end
+
   # Find the user-assistant pair for a given turn
   # @param messages [Array] The messages array
   # @param turn [Integer] The turn number (1-indexed)

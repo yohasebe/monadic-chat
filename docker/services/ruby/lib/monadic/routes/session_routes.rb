@@ -5,6 +5,7 @@ require_relative "../utils/privacy/words"
 require_relative "../workbench/record"
 require_relative "../workbench/look/record"
 require_relative "../workbench/shown"
+require_relative "../workbench/made"
 
 # Session state management routes
 # Export/import conversation state and session data
@@ -344,6 +345,8 @@ post "/load" do
           message_obj["workbench_looks"] = looks if looks
           shown = Monadic::Workbench::Shown.clean(msg["workbench_shown"])
           message_obj["workbench_shown"] = shown if shown
+          made = Monadic::Workbench::Made.clean(msg["workbench_made"])
+          message_obj["workbench_made"] = made if made
           message_obj
         end.compact # Remove nil values from invalid messages
 

@@ -65,14 +65,67 @@ module SyntaxTreeTools
       said = workbench ? MonadicSharedTools::WorkbenchTools.show_file(path, workbench) : ""
       shown = said.start_with?("{") ? " It is shown on the work screen beside the chat." : ""
       source = tikz ? " Its LaTeX (forest) source is #{File.join(job[:relative], TIKZ_NAME)}; movement paths are not in it." : ""
-      "The syntax tree was drawn as #{path}.#{shown}#{source}"
+      "The syntax tree was drawn as #{path}.#{shown}#{source}\n" \
+        "The notation, indented, to show the user exactly as it is in a text code block:\n#{indented(notation)}"
     end
   rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError => e
     drop_empty_job(job) if job
     "❌ The syntax tree could not be kept: #{e.message}"
   end
 
+  # The notation with each node that has nodes below it opened on a line of
+  # its own, its nodes indented two spaces under it, and its closing
+  # bracket on a line of its own; a node with no node below it stays on
+  # one line. A character after a backslash is never a bracket. Notation
+  # whose brackets do not pair comes back as it is.
+  def indented(notation)
+    stack = [[]]
+    text = +""
+    flush = lambda do
+      stack.last << text.strip unless text.strip.empty?
+      text = +""
+    end
+    chars = notation.each_char.to_a
+    i = 0
+    while i < chars.size
+      char = chars[i]
+      if char == "\\" && i + 1 < chars.size
+        text << char << chars[i + 1]
+        i += 2
+        next
+      end
+      case char
+      when "["
+        flush.call
+        stack.push([])
+      when "]"
+        flush.call
+        return notation if stack.size < 2
+
+        node = stack.pop
+        stack.last << node
+      else
+        text << char
+      end
+      i += 1
+    end
+    flush.call
+    return notation unless stack.size == 1
+
+    stack.first.map { |item| indented_lines(item, 0) }.join("\n")
+  end
+
   private
+
+  def indented_lines(item, depth)
+    pad = "  " * depth
+    return "#{pad}#{item}" if item.is_a?(String)
+    return "#{pad}[#{item.join(' ')}]" if item.none?(Array)
+
+    label = item.first.is_a?(String) ? item.first : nil
+    rest = label ? item.drop(1) : item
+    ["#{pad}[#{label}", *rest.map { |child| indented_lines(child, depth + 1) }, "#{pad}]"].join("\n")
+  end
 
   # What RSyntaxTree finds wrong in the notation, as a message to fix it
   # by; nil when it reads.

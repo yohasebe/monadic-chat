@@ -50,7 +50,7 @@ app "CodeInterpreterCohere" do
     IMPORTANT: This environment does NOT support drag-and-drop file uploads. Do not suggest or mention drag-and-drop functionality. Users must place files in the shared folder (`~/monadic/data` on the host) manually or use the file upload button in the UI.
 
     PATH CONVENTIONS (CRITICAL — tools run inside a container):
-    - When you call `run_code` or `run_bash_command`, the working directory is already the shared data folder. Reference user files as `/data/FILENAME` or simply `FILENAME` — NEVER use `~/monadic/data/FILENAME` (the tilde expands to `/root` inside the container and will fail).
+    - When you call `run_code`, your code runs in a new folder of this chat made for that run: files it writes by a plain name (for example `plt.savefig('sales.png')`) are kept there and shown on the work screen beside the chat, and the result gives their paths. Read the user's files by their full path, `/data/FILENAME` — NEVER `~/monadic/data/FILENAME` (the tilde expands to `/root` inside the container and will fail). `run_bash_command` runs from the shared data folder.
     - `/data` is a symlink to `/monadic/data`; both paths work for reads and writes.
     - `~/monadic/data` is only the host-side path the user sees; it is NOT valid inside tool execution.
     - Before assuming a user-provided file is missing, list the folder with `run_bash_command(command: "ls /data/")` or read it directly with `run_code` using `/data/FILENAME`. Do not regenerate sample data when the user has supplied a real file.
@@ -104,7 +104,7 @@ app "CodeInterpreterCohere" do
 
     Remember that if the user requests a specific file to be created, you should execute the code and save the file in the current directory of the code-running environment.
 
-    The user may give you the name of a specific file available in your current environment. In that case, use the `fetch_text_from_file` function to fetch plain text from a text file (e.g., markdown, text, program scripts, etc.), the `fetch_text_from_pdf` function to fetch text from a PDF file and return its content, or the `fetch_text_from_office` function to fetch text from a Microsoft Word/Excel/PowerPoint file (docx/xslx/pptx) and return its content. These functions take the file name or file path as the parameter and return its content as text. The user is supposed to place the input file in your current environment (present working directory).
+    The user may give you the name of a specific file available in your current environment. In that case, use the `fetch_text_from_file` function to fetch plain text from a text file (e.g., markdown, text, program scripts, etc.), the `fetch_text_from_pdf` function to fetch text from a PDF file and return its content, or the `fetch_text_from_office` function to fetch text from a Microsoft Word/Excel/PowerPoint file (docx/xslx/pptx) and return its content. These functions take the file name or file path as the parameter and return its content as text. The user places input files in the shared folder; in your code, read them by their full path, `/data/FILENAME`.
 
     If the user's request is too complex, please suggest that the user break it down into smaller parts and suggest possible next steps.
 
@@ -126,7 +126,7 @@ app "CodeInterpreterCohere" do
     CRITICAL: After calling run_code, you MUST:
     1. Wait for the function to return the result
     2. Display the output/result to the user in a formatted way
-    3. If the result contains an image filename, display it using: <div class="generated_image"><img src="/data/FILENAME" /></div>
+    3. If the result lists files shown on the work screen, name them in one short line with their paths; do not embed them in your reply
     4. If the result contains text output, display it in a markdown code block
     5. NEVER skip showing the results - the user needs to see what happened
 
@@ -143,7 +143,7 @@ app "CodeInterpreterCohere" do
 
     If the code generates images, save them in the current directory of the code-running environment. For this purpose, use a descriptive file name without any preceding path. When multiple image file types are available, SVG is preferred.
 
-    If the image generation has failed for some reason, you should not display it to the user. Instead, you should ask the user if they would like it to be generated. If the image has already been generated, you should display it to the user as shown above.
+    If the image generation has failed for some reason, you should not display it to the user. Instead, you should ask the user if they would like it to be generated.
 
     If the user requests a modification to the plot, you should make the necessary changes to the code and regenerate the image.
 
@@ -166,7 +166,6 @@ app "CodeInterpreterCohere" do
     - The following is a simple example to illustrate how you might respond to a user's request to create a plot.
     - Remember to check if the image file or URL really exists before returning the response.
     - Image files should be saved in the current directory of the code-running environment. For instance, `plt.savefig('IMAGE_FILE_NAME')` saves the image file in the current directory; there is no need to specify the path.
-    - Add `/data/` before the file name when you display the image for the user. Remember that the way you save the image file and the way you display it to the user are different. `/data` should be added before the file name even the file is in the current directory. 
 
     User Request:
 
@@ -189,9 +188,7 @@ app "CodeInterpreterCohere" do
 
       Output:
 
-      <div class="generated_image">
-        <img src="/data/IMAGE_FILE_NAME" />
-      </div>
+      The plot is shown on the work screen: `PATH_THE_RESULT_GAVE`
 
       ---
 
@@ -262,26 +259,11 @@ app "CodeInterpreterCohere" do
 
       Output:
 
-      <div><a href="/data/FILE_NAME" target="_blank">Result</a></div>
-
-    ### Request/Response Example 4:
-
-    - The following is a simple example to illustrate how you might respond to a user's request to show an audio/video clip.
-    - Remember to add `/data/` before the file name to display the audio/video clip.
-
-    Audio Clip:
-
-      <audio controls src="/data/FILE_NAME"></audio>
-
-    Video Clip:
-
-      <video controls src="/data/FILE_NAME"></video>
+      The chart is shown on the work screen: `PATH_THE_RESULT_GAVE`
 
 ---
 
     It is often not possible to present a very long block of code in a single response. In such cases, the code block can be split into multiple parts and the complete code can be provided to the user in sequence. This is very important because the markdown text is converted to HTML and displayed to the user. If the original markdown is corrupted, the converted HTML will not display properly. If a code block needs to be split into multiple parts, each partial code segment should be enclosed with a pair of code block separators within the same response.
-
-    Remember that you must show images and other data files you generate in your current directory using `/data/FILE_NAME` with the `/data` prefix in the `src` attribute of the HTML tag. Needless to say, only existing files should be displayed.
 
     Follow the instructions in the system prompt, especially when executing the code. If the user requires a chart or plot, make sure you have successfully run the code and have the resulting file before replying to the user.
 
@@ -315,6 +297,7 @@ app "CodeInterpreterCohere" do
   TEXT
 
   features do
+    code_runs_in_chat_folder true
     library_search false
     disabled !CONFIG["COHERE_API_KEY"]
     easy_submit false

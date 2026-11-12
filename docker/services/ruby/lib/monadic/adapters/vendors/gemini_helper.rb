@@ -3054,10 +3054,9 @@ module GeminiHelper
       if fragment =~ /```(?:html)?\s*\n?(<div class="generated_image">.*?<\/div>)\s*\n?```/im
         fragment = fragment.gsub(/```(?:html)?\s*\n?(<div class="generated_image">.*?<\/div>)\s*\n?```/im, '\1')
       end
-    # Extract HTML from code blocks for media generator and code interpreter apps
+    # Extract HTML from code blocks for media generator apps
     elsif !session[:parameters]["app_name"].to_s.include?("Jupyter") &&
-       (is_media_generator || session[:parameters]["app_name"].to_s.include?("Code Interpreter") ||
-        session[:parameters]["app_name"].to_s.include?("Video Generator")) && fragment.include?("```")
+       (is_media_generator || session[:parameters]["app_name"].to_s.include?("Video Generator")) && fragment.include?("```")
       if session[:parameters]["app_name"].to_s.include?("Video Generator")
         if fragment =~ /<div class="(?:prompt|generated_video)">.*?<\/div>/im
           html_pattern = /<div.*?>.*?<\/div>|<p.*?>.*?<\/p>/im

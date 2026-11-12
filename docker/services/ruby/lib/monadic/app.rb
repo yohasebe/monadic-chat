@@ -483,7 +483,11 @@ class MonadicApp
     nil
   end
 
-  def send_code(code:, command:, extension:, success: "The code has been executed successfully", max_retries: 3, retry_delay: 1.5, keep_file: false)
+  # Runs code in the Python container, from the shared folder, or from
+  # run_dir (a run folder of a chat, Monadic::Workspace::Jobs) when given:
+  # then the code file is written there and what the code leaves there is
+  # reported by its path in the shared folder.
+  def send_code(code:, command:, extension:, success: "The code has been executed successfully", max_retries: 3, retry_delay: 1.5, keep_file: false, run_dir: nil)
 
     retries = 0
     last_error = nil
@@ -510,7 +514,10 @@ class MonadicApp
       end
 
       # Set appropriate paths based on environment
-      if Monadic::Utils::Environment.in_container?
+      if run_dir
+        data_dir = run_dir[:path]
+        files_dir = run_dir[:path]
+      elsif Monadic::Utils::Environment.in_container?
         data_dir = SHARED_VOL
         files_dir = SHARED_VOL
       else
@@ -537,7 +544,8 @@ class MonadicApp
 
       # Run the code in the Python container (3 minutes at most). Stopped
       # (Cancel) or over its time, it stops there too.
-      stdout, stderr, status = self.capture_command([*command_argv, filename], timeout: 180, container: :python)
+      workdir = run_dir ? File.join(SHARED_VOL, run_dir[:relative]) : nil
+      stdout, stderr, status = self.capture_command([*command_argv, filename], timeout: 180, container: :python, chdir: workdir)
 
       # Wait briefly for filesystem synchronization
       sleep COMMAND_DELAY
@@ -565,7 +573,14 @@ class MonadicApp
 
         # Prepare the success message with file information
         # Use explicit language to help LLMs understand whether images can be displayed
-        if !changed_files.empty?
+        if run_dir
+          output = success.dup
+          unless changed_files.empty?
+            output += "\n\nFiles the code left in its folder: " +
+                      changed_files.map { |file| File.join(run_dir[:relative], File.basename(file)) }.join(", ")
+          end
+          output += "\n\nOutput: #{truncate_output(stdout)}" if stdout.strip.length.positive?
+        elsif !changed_files.empty?
           file_paths = changed_files.map { |file| "/data/" + File.basename(file) }
           image_files = file_paths.select { |f| f.match?(/\.(png|jpg|jpeg|gif|svg|webp)$/i) }
 
@@ -623,10 +638,10 @@ class MonadicApp
   end
 
 
-  def run_code(code: nil, command: nil, extension: nil, success: "The code has been executed successfully", session: nil)
+  def run_code(code: nil, command: nil, extension: nil, success: "The code has been executed successfully", session: nil, run_dir: nil)
     return "Error: code, command, and extension are required." if !code || !command || !extension
 
-    send_code(code: code, command: command, extension: extension, success: success)
+    send_code(code: code, command: command, extension: extension, success: success, run_dir: run_dir)
   end
 
 
@@ -706,9 +721,10 @@ class MonadicApp
   class CodeTimedOut < StandardError; end
 
   # Runs a command and gives back [stdout, stderr, status]. With container:
-  # it runs in that container (an Array as argv, a String as a bash body);
-  # without, on this side (an Array as argv, a String through sh, with env
-  # and chdir). It runs through Monadic::Shell: stopped when the calling
+  # it runs in that container (an Array as argv, a String as a bash body),
+  # in chdir (a path in the container) or else the shared folder; without,
+  # on this side (an Array as argv, a String through sh, with env and
+  # chdir). It runs through Monadic::Shell: stopped when the calling
   # thread is (Cancel) or when it runs over timeout, and then what it
   # started stops too, here and (as far as Docker answers) in the
   # container. A timeout comes back as TIMED_OUT with the reason as its
@@ -719,9 +735,9 @@ class MonadicApp
     require_relative 'shell'
     if container
       if command.is_a?(Array)
-        Monadic::Shell.exec(container: container, argv: command, workdir: SHARED_VOL, env: env, timeout: timeout)
+        Monadic::Shell.exec(container: container, argv: command, workdir: chdir || SHARED_VOL, env: env, timeout: timeout)
       else
-        Monadic::Shell.bash(container: container, body: command, workdir: SHARED_VOL, env: env, timeout: timeout)
+        Monadic::Shell.bash(container: container, body: command, workdir: chdir || SHARED_VOL, env: env, timeout: timeout)
       end
     else
       argv = command.is_a?(Array) ? command : ["/bin/sh", "-c", command]

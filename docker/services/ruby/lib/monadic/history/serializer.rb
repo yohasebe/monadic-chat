@@ -5,6 +5,7 @@ require_relative '../utils/secret_redactor'
 require_relative '../utils/privacy/words'
 require_relative '../workbench/record'
 require_relative '../workbench/shown'
+require_relative '../workbench/made'
 require_relative '../workbench/look/record'
 
 module Monadic
@@ -87,6 +88,8 @@ module Monadic
         out['workbench_looks'] = looks if looks
         shown = Monadic::Workbench::Shown.clean(raw['workbench_shown'] || raw[:workbench_shown])
         out['workbench_shown'] = shown if shown
+        made = Monadic::Workbench::Made.clean(raw['workbench_made'] || raw[:workbench_made])
+        out['workbench_made'] = made if made
         out
       end
 

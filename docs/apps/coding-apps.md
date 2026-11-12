@@ -17,7 +17,7 @@ Code Interpreter availability matches the [availability table](../basic-usage/ba
 
 ![Coding Assistant app icon](../assets/icons/coding-assistant.png ':size=40')
 
-An assistant for software development. It writes and edits code, and reads and writes files in the shared folder. Code it writes for you is shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat as one Markdown document with its explanation, and each revision is kept as a file of its own; the chat says what the code does or what changed.
+An assistant for software development. It writes and edits code, and reads and writes files in the shared folder. Code it writes for you is shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat as one Markdown document with its explanation, showing its newest version; earlier versions stay with the turns that wrote them (**Versions** lists them). The chat says what the code does or what changed.
 
 **Key Features:**
 - Code generation and editing

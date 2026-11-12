@@ -22,7 +22,7 @@ Works like Language Practice, and adds advice on your language use. The advice i
 
 ![Translate app icon](../assets/icons/translate.png ':size=40')
 
-Translate text into another language. The assistant first asks for the source and target languages. To fix the translation of a phrase, write the phrase followed by the translation you want in parentheses, like `original text(desired translation)`. These pairs are kept as the session's vocabulary and used in the following translations. The languages, vocabulary, and notes are shown in the side panel under Languages, Vocabulary, and Notes. A translation longer than a few sentences is shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat, each revision as a file of its own; a short one is answered in the chat.
+Translate text into another language. The assistant first asks for the source and target languages. To fix the translation of a phrase, write the phrase followed by the translation you want in parentheses, like `original text(desired translation)`. These pairs are kept as the session's vocabulary and used in the following translations. The languages, vocabulary, and notes are shown in the side panel under Languages, Vocabulary, and Notes. A translation longer than a few sentences is shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat, showing its newest version (**Versions** lists the earlier ones); a short one is answered in the chat.
 
 Translate is available for the providers marked in the [availability table](../basic-usage/basic-apps.md#app-availability). How well each language is translated depends on the provider.
 

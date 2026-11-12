@@ -96,6 +96,35 @@ RSpec.describe Monadic::Workbench::Document do
     expect(text(path)).to start_with("# Story\n")
   end
 
+  it "removes a document whose every section was deleted, and takes it off the work screen" do
+    only = reply("Draft", ["draft", "Dear Tanaka,"])
+    path = @last.first[:path]
+    board = Monadic::Workbench::Board.for(chat, store: store)
+    expect(board.snapshot[:items].map { |i| i[:path] }).to include(path)
+    session[:messages].delete(only)
+    editor.trash_made_files(session, only)
+    editor.rebuild_documents(session)
+    expect(File.exist?(File.join(@data, path))).to be false
+    expect(board.snapshot[:items].map { |i| i[:path] }).not_to include(path)
+  end
+
+  it "lists every version of a document's sections, with the turn that wrote it" do
+    reply("Draft", ["draft", "First."])
+    session[:messages] << { "mid" => "u", "role" => "user", "text" => "shorter" }
+    reply("Draft", ["draft", "Second."])
+    path = @last.first[:path]
+    versions = described_class.versions(session, path)
+    expect(versions.map { |v| [v["section"], v["turn"]] }).to eq([["draft", 1], ["draft", 2]])
+    expect(versions.map { |v| text(v["path"]) }).to eq(["First.", "Second."])
+  end
+
+  it "lists nothing for a path that is not a document of the chat" do
+    reply("Draft", ["draft", "First."])
+    expect(described_class.versions(session, "conversations/other/documents/draft.md")).to eq([])
+    expect(described_class.versions(session, @last.first[:section_path])).to eq([])
+    expect(described_class.versions({}, @last.first[:path])).to eq([])
+  end
+
   it "leaves out a section whose file is gone" do
     first = reply("Story", ["1", "One."], ["2", "Two."])
     FileUtils.rm(File.join(@data, @last.first[:section_path]))

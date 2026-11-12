@@ -382,6 +382,42 @@
     } else if (item.kind === 'file' && item.status === 'ok') {
       info.appendChild(button(t('ui.workbench.reload', 'Reload'), 'btn-secondary mt-2', () => openFile(item.path)));
     }
+    // A document put together from sections (Workbench::Document): its
+    // earlier versions can be listed and opened as files of their own.
+    if (item.kind === 'file' && item.status === 'ok' && DOCUMENT_PATH.test(item.path || '')) {
+      info.appendChild(button(t('ui.workbench.versions', 'Versions'), 'btn-outline-secondary mt-2 ms-2', () => askVersions(item.path)));
+      info.appendChild(element('div', 'workbench-versions mt-2'));
+    }
+  }
+
+  // The path of a document of a chat's folder.
+  const DOCUMENT_PATH = /^conversations\/[^/]+\/documents\/[a-z0-9-]+\.md$/;
+
+  function askVersions(path) {
+    if (typeof window.safeWsSend === 'function') window.safeWsSend({ message: 'WORKBENCH_VERSIONS', path: String(path) });
+  }
+
+  // The versions the server listed, under the document they are of when it
+  // is still the one shown: newest first, each opening its file.
+  function onVersions(data) {
+    const item = selected ? itemById(selected) : null;
+    const box = item && data && item.path === data.path && document.querySelector('.workbench-versions');
+    if (!box) return;
+    const versions = Array.isArray(data.versions) ? data.versions.slice().reverse() : [];
+    if (versions.length === 0) {
+      box.replaceChildren(element('div', 'small text-secondary', t('ui.workbench.noVersions', 'No versions are kept in this chat.')));
+      return;
+    }
+    const list = element('div', 'list-group list-group-flush small');
+    versions.forEach((version) => {
+      const label = t('ui.workbench.versionOf', '§ {section} — turn {turn}')
+        .replace('{section}', String(version.section)).replace('{turn}', String(version.turn));
+      const entry = element('button', 'list-group-item list-group-item-action py-1', label);
+      entry.type = 'button';
+      entry.addEventListener('click', () => openFile(version.path));
+      list.appendChild(entry);
+    });
+    box.replaceChildren(list);
   }
 
   // What is drawn for the item: kept while it is the same item at the same
@@ -1584,7 +1620,7 @@
   }
 
   window.Workbench = {
-    onView, onResult, onDownload, onOpened, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
+    onView, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
     showAttachment, onAttachmentOpened, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow,
     // Something changed on the board elsewhere (a tool showed a file).

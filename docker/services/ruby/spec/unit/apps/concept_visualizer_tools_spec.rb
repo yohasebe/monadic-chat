@@ -1,5 +1,6 @@
 require 'spec_helper'
-require 'cgi'
+require 'tmpdir'
+require 'fileutils'
 
 # Mock the base class and dependencies
 class MonadicApp; end
@@ -39,17 +40,21 @@ require_relative '../../../apps/concept_visualizer/concept_visualizer_tools'
 RSpec.describe ConceptVisualizerOpenAI do
   let(:app) { described_class.new }
   
+  # The TikZ is compiled in a run folder of the chat's folder, which keeps
+  # the SVG and its LaTeX source; the SVG is shown on the work screen.
   describe '#generate_concept_diagram' do
-    before do
-      # Mock the run_code method to avoid actual script execution
-      # Return a string that includes "Successfully generated" to simulate success
-      allow(app).to receive(:run_code).and_return("Successfully generated diagram!")
-      # Mock data_path and File.exist? for PNG check (default: no PNG)
-      allow(Monadic::Utils::Environment).to receive(:data_path).and_return('/tmp/test_data')
-      allow(File).to receive(:exist?).and_call_original
-      allow(File).to receive(:exist?).with(/\.png$/).and_return(false)
+    around do |example|
+      Dir.mktmpdir('concept-spec') do |dir|
+        @data = File.join(dir, 'data')
+        @state = File.join(dir, 'state')
+        FileUtils.mkdir_p(@data)
+        @data = File.realpath(@data)
+        example.run
+      end
     end
-    
+
+    let(:workbench) { Struct.new(:chat_id).new(Monadic::Workspace::Ids.generate(:chat)) }
+    let(:scripts) { [] }
     let(:valid_tikz_code) do
       <<~TIKZ
         \\begin{tikzpicture}
@@ -57,143 +62,92 @@ RSpec.describe ConceptVisualizerOpenAI do
         \\end{tikzpicture}
       TIKZ
     end
-    
-    context 'with valid inputs' do
-      it 'returns SVG filename as string when no PNG exists' do
-        result = app.generate_concept_diagram(
-          diagram_type: 'mindmap',
-          tikz_code: valid_tikz_code,
-          title: 'Test Diagram',
-          language: 'english'
-        )
-        expect(result).to match(/^concept_mindmap_\d+\.svg$/)
-      end
 
-      it 'sanitizes diagram type in filename' do
-        result = app.generate_concept_diagram(
-          diagram_type: 'Mind Map!',
-          tikz_code: valid_tikz_code,
-          title: 'Test'
-        )
-        expect(result).to match(/^concept_mind_map__\d+\.svg$/)
-      end
+    before do
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data)
+      allow(Monadic::Utils::Environment).to receive(:state_path).and_return(@state)
+      allow(MonadicSharedTools::WorkbenchTools).to receive(:show_file).and_return('{"status":"shown_in_work_screen"}')
+    end
 
-      it 'handles complete LaTeX documents' do
-        complete_doc = <<~LATEX
-          \\documentclass{article}
-          \\usepackage{tikz}
-          \\begin{document}
-          \\begin{tikzpicture}
-            \\node {Test};
-          \\end{tikzpicture}
-          \\end{document}
-        LATEX
-
-        result = app.generate_concept_diagram(
-          diagram_type: 'test',
-          tikz_code: complete_doc,
-          title: 'Test'
-        )
-        expect(result).to match(/^concept_test_\d+\.svg$/)
-      end
-
-      it 'returns SVG filename String when PNG exists (no _image vision injection)' do
-        # Mock data_path and File.exist? to simulate PNG availability
-        data_path = '/tmp/test_data'
-        allow(Monadic::Utils::Environment).to receive(:data_path).and_return(data_path)
-
-        # We need to capture the base_filename used, so we freeze time
-        allow(Time).to receive_message_chain(:now, :to_i, :to_s).and_return('1234567890')
-        expected_png = File.join(data_path, 'concept_mindmap_1234567890.png')
-
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with(expected_png).and_return(true)
-
-        result = app.generate_concept_diagram(
-          diagram_type: 'mindmap',
-          tikz_code: valid_tikz_code,
-          title: 'Test Diagram',
-          language: 'english'
-        )
-        # Returns SVG filename String — no _image key (gallery_html handles display)
-        expect(result).to be_a(String)
-        expect(result).to eq('concept_mindmap_1234567890.svg')
+    # The container: it runs the script in the folder it changes to, and
+    # leaves what a successful compile leaves there (or nothing).
+    def container(succeeds: true)
+      allow(app).to receive(:run_code) do |code:, **|
+        scripts << code
+        dir = code[%r{^cd (/monadic/data/\S+) \|\| exit 1$}, 1]
+        base = code[/cat > (concept_\w+)\.tex/, 1]
+        local = File.join(@data, dir.delete_prefix('/monadic/data/'))
+        if succeeds
+          File.write(File.join(local, "#{base}.svg"), '<svg/>')
+          File.write(File.join(local, "#{base}.tex"), 'tex')
+          { text: "Successfully generated diagram!" }
+        else
+          'Error: Failed to generate diagram'
+        end
       end
     end
 
-    context 'when run_code returns a Hash' do
-      it 'handles Hash return correctly' do
-        allow(app).to receive(:run_code).and_return({ text: "Successfully generated mindmap diagram!" })
-
-        data_path = '/tmp/test_data'
-        allow(Monadic::Utils::Environment).to receive(:data_path).and_return(data_path)
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with(anything).and_return(false)
-
-        result = app.generate_concept_diagram(
-          diagram_type: 'mindmap',
-          tikz_code: valid_tikz_code,
-          title: 'Test Diagram'
-        )
-        # When PNG doesn't exist, returns plain string
-        expect(result).to be_a(String)
-        expect(result).to match(/\.svg$/)
-      end
-
-      it 'returns error when Hash result indicates failure' do
-        allow(app).to receive(:run_code).and_return({ text: "LaTeX compilation failed" })
-
-        result = app.generate_concept_diagram(
-          diagram_type: 'mindmap',
-          tikz_code: valid_tikz_code,
-          title: 'Test Diagram'
-        )
-        expect(result).to start_with("Error generating diagram:")
-      end
+    def draw(type = 'mindmap', code = valid_tikz_code)
+      app.generate_concept_diagram(diagram_type: type, tikz_code: code, title: 'Test', workbench: workbench)
     end
-    
+
+    it "keeps the SVG and its source in a run folder of the chat's folder and shows the SVG" do
+      container
+      result = draw
+      svg = result[%r{conversations/\S+/artifacts/j_[a-z0-9]+/concept_mindmap_\d+\.svg}]
+      expect(svg).not_to be_nil
+      expect(scripts.first).to include("cd /monadic/data/#{File.dirname(svg)} || exit 1")
+      expect(Dir.children(File.join(@data, File.dirname(svg))).sort).to eq([File.basename(svg), File.basename(svg, '.svg') + '.tex'])
+      expect(MonadicSharedTools::WorkbenchTools).to have_received(:show_file).with(svg, workbench)
+      expect(result).to include('work screen', File.basename(svg, '.svg') + '.tex')
+      expect(Dir.children(@data)).to eq(['conversations'])
+    end
+
+    it 'names the files by the diagram type, in plain characters' do
+      container
+      expect(draw('Mind Map!')).to match(/concept_mind_map__\d+\.svg/)
+    end
+
+    it 'takes a complete LaTeX document' do
+      container
+      complete_doc = "\\documentclass{article}\n\\usepackage{tikz}\n\\begin{document}\n#{valid_tikz_code}\\end{document}\n"
+      expect(draw('test', complete_doc)).to match(/concept_test_\d+\.svg/)
+    end
+
+    it 'says what went wrong and leaves no run folder when the compile fails' do
+      container(succeeds: false)
+      expect(draw).to start_with('Error generating diagram')
+      expect(Dir.glob(File.join(@data, 'conversations/*/artifacts/*'))).to be_empty
+    end
+
+    it 'draws nothing without a chat' do
+      allow(app).to receive(:run_code)
+      result = app.generate_concept_diagram(diagram_type: 'mindmap', tikz_code: valid_tikz_code, title: 'Test')
+      expect(result).to start_with('❌')
+      expect(app).not_to have_received(:run_code)
+    end
+
     context 'with invalid inputs' do
       it 'returns error when tikz_code is empty' do
-        result = app.generate_concept_diagram(
-          diagram_type: 'mindmap',
-          tikz_code: '',
-          title: 'Test'
-        )
-        expect(result).to eq("❌ TikZ code is required.")
+        expect(app.generate_concept_diagram(diagram_type: 'mindmap', tikz_code: '', title: 'Test')).to include('TikZ code is required')
       end
 
       it 'returns error when diagram_type is empty' do
-        result = app.generate_concept_diagram(
-          diagram_type: '',
-          tikz_code: valid_tikz_code,
-          title: 'Test'
-        )
-        expect(result).to eq("❌ Diagram type is required.")
+        expect(app.generate_concept_diagram(diagram_type: '', tikz_code: valid_tikz_code, title: 'Test')).to include('Diagram type is required')
       end
 
       it 'returns error when tikz_code has no TikZ commands' do
-        result = app.generate_concept_diagram(
-          diagram_type: 'test',
-          tikz_code: 'Just some text',
-          title: 'Test'
-        )
-        expect(result).to eq("❌ Invalid TikZ code. Code must contain TikZ commands (\\begin{tikzpicture}, \\tikz, or \\Tree).")
+        expect(app.generate_concept_diagram(diagram_type: 'mindmap', tikz_code: 'just text', title: 'Test')).to include('Invalid TikZ code')
       end
     end
-    
-    context 'with HTML entities' do
-      it 'decodes HTML entities in tikz_code' do
-        encoded_tikz = '\\begin{tikzpicture}\n  \\node {Test &amp; Example};\n\\end{tikzpicture}'
-        result = app.generate_concept_diagram(
-          diagram_type: 'test',
-          tikz_code: encoded_tikz,
-          title: 'Test'
-        )
-        expect(result).to match(/^concept_test_\d+\.svg$/)
-      end
+
+    it 'decodes HTML entities in tikz_code' do
+      container
+      draw('mindmap', "\\begin{tikzpicture}\n\\node {A &amp; B};\n\\end{tikzpicture}")
+      expect(scripts.first).to include('A & B')
     end
   end
-  
+
   describe '#extract_tikz_content (private)' do
     it 'extracts TikZ content from complete document' do
       complete_doc = <<~LATEX

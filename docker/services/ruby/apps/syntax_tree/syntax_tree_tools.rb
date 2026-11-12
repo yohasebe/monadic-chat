@@ -73,6 +73,8 @@ module SyntaxTreeTools
     "❌ The syntax tree could not be kept: #{e.message}"
   end
 
+  private
+
   # The notation with each node that has nodes below it opened on a line of
   # its own, its nodes indented two spaces under it, and its closing
   # bracket on a line of its own; a node with no node below it stays on
@@ -114,8 +116,6 @@ module SyntaxTreeTools
 
     stack.first.map { |item| indented_lines(item, 0) }.join("\n")
   end
-
-  private
 
   def indented_lines(item, depth)
     pad = "  " * depth

@@ -19,6 +19,8 @@ require_relative '../../workbench/record'
 require_relative '../../workbench/shown'
 require_relative '../../workbench/made'
 require_relative '../../workbench/look/record'
+require_relative '../../workspace/chat_context'
+require_relative '../progressive_tool_manager'
 
 module WebSocketHelper
   PRIVACY_EXPORT_MODES = %w[encrypted masked_only restored].freeze
@@ -94,7 +96,7 @@ module WebSocketHelper
       outbound = Monadic::Utils::Privacy::Outbound
       messages = privacy_mask_messages_everywhere(messages, remask)
       parameters = privacy_mask_everywhere(parameters, remask)
-      monadic_state = privacy_mask_everywhere(monadic_state, remask)
+      monadic_state = privacy_mask_app_state(monadic_state, remask)
       session_context = privacy_mask_everywhere(session_context, remask)
       progressive_tools = privacy_mask_everywhere(progressive_tools, remask)
     end
@@ -284,8 +286,11 @@ module WebSocketHelper
   end
 
   # Every string in a value masked the same way (the app state, the Session
-  # Context and anything nested in the messages of a masked file).
-  private def privacy_mask_everywhere(value, registry, depth = 0)
+  # Context and anything nested in the messages of a masked file). keys:
+  # the keys of a Hash are what someone said too (the names an app keeps
+  # its items by, such as a story's characters), and are masked as well;
+  # two keys that would become one refuse the file rather than lose one.
+  private def privacy_mask_everywhere(value, registry, depth = 0, keys: false)
     outbound = Monadic::Utils::Privacy::Outbound
     case value
     when String
@@ -295,12 +300,37 @@ module WebSocketHelper
       unless inner.nil?
         raise ArgumentError, "a value is nested as JSON too deeply to be masked" if depth >= outbound::JSON_DEPTH
 
-        return JSON.generate(privacy_mask_everywhere(inner, registry, depth + 1))
+        return JSON.generate(privacy_mask_everywhere(inner, registry, depth + 1, keys: keys))
       end
       privacy_replace_union(value, registry)
-    when Array then value.map { |v| privacy_mask_everywhere(v, registry, depth) }
-    when Hash then value.transform_values { |v| privacy_mask_everywhere(v, registry, depth) }
+    when Array then value.map { |v| privacy_mask_everywhere(v, registry, depth, keys: keys) }
+    when Hash
+      value.each_with_object({}) do |(k, v), out|
+        masked_key = keys && k.is_a?(String) ? privacy_replace_union(k, registry) : k
+        raise ArgumentError, "two names would be the same once masked" if out.key?(masked_key)
+
+        out[masked_key] = privacy_mask_everywhere(v, registry, depth, keys: keys)
+      end
     else value
+    end
+  end
+
+  # The app state of a masked file: its form (the app's name, the state's
+  # key, the envelope's fields) stays as it is, so the file imports; what
+  # the app kept in it (data) is masked, the names it keeps items by among it.
+  private def privacy_mask_app_state(state, registry)
+    return state unless state.is_a?(Hash)
+
+    state.transform_values do |entries|
+      next entries unless entries.is_a?(Hash)
+
+      entries.transform_values do |entry|
+        next privacy_mask_everywhere(entry, registry, keys: true) unless entry.is_a?(Hash)
+
+        entry.to_h do |field, value|
+          [field, field.to_s == "data" ? privacy_mask_everywhere(value, registry, keys: true) : value]
+        end
+      end
     end
   end
 

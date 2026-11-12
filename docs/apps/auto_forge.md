@@ -20,9 +20,11 @@ Examples of web applications: calculators, to-do lists that keep their data in t
 
 ### Modifying and Starting Over
 
-To change an application, ask for the changes using the same application name. Auto Forge updates the latest version of that project. To build it again from scratch under the same name, ask for a fresh start; a new project folder is created.
+To change an application, ask for the changes using the same application name. Auto Forge updates the latest version of that project in the chat. To build it again from scratch under the same name, ask for a fresh start; a new project folder is created.
 
-To see the projects you have made, ask Auto Forge to list them.
+Before a turn changes a project, the project is kept as it was. Delete that turn and the project goes back to how it was before it; delete the turn that made the project and the whole project moves to the `trash` folder of the chat's folder. The same happens when a reply is stopped before it ends.
+
+To see the projects of the chat, ask Auto Forge to list them.
 
 ## Testing Web Applications
 
@@ -36,10 +38,10 @@ With OpenAI and xAI, this check runs as part of building a web application. With
 
 ## Where Projects Are Saved
 
-Projects are saved in `~/monadic/data/auto_forge/`, one folder per project, named after the project with the date and time:
+Projects are saved in the `auto_forge` folder of the chat's folder (`conversations/…` in the shared folder), one folder per project, named after the project with the date and time. Auto Forge changes only the projects of the chat it works in. The copies kept before a change are in the `revisions` folder of the chat's folder.
 
 ```text
-auto_forge/
+conversations/<chat folder>/auto_forge/
 ├── TodoApp_20260127_143022/
 │   └── index.html
 ├── Calculator_20260127_151234/
@@ -62,4 +64,4 @@ Project names can contain characters of any language.
 
 - **No files appear yet**: code generation can take a few minutes for a complex application. Wait until the progress in the chat finishes
 - **"Selenium container is not running"**: the Selenium container starts with Monadic Chat. Check the console for errors at startup, and restart Monadic Chat
-- **"Project not found"**: ask Auto Forge to list the projects and use the exact project name
+- **"Project not found"**: ask Auto Forge to list the projects of the chat and use the exact project name

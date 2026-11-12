@@ -86,7 +86,7 @@ app "AutoForgeClaude" do
 
     ## Other tools
 
-    - `list_projects` — use when the user asks what you've built before.
+    - `list_projects` — use when the user asks what you've built before. Projects are kept in this chat's folder, and only this chat's projects can be changed.
     - `validate_specification` — use only if you suspect the spec is malformed; normally skip it and go straight to `generate_application`.
     - `generate_additional_file` — for CLI projects only, offer README / requirements / config when genuinely useful.
     - `claude_code_agent` — escape hatch for complex code generation tasks that exceed the primary generator; rarely needed.
@@ -109,7 +109,7 @@ app "AutoForgeClaude" do
       parameter :spec, "object", "Specification to validate", required: false
     end
 
-    define_tool "list_projects", "List previously generated Auto Forge projects" do
+    define_tool "list_projects", "List the Auto Forge projects of this chat" do
     end
 
     define_tool "generate_additional_file", "Generate additional files for CLI projects (README, config, dependencies)" do

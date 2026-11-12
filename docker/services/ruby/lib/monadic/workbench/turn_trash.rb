@@ -33,6 +33,31 @@ module Monadic
         end
       end
 
+      # Moves from (a path inside the chat folder folder_dir) to to (another
+      # path inside it, where nothing is), making the folders on the way.
+      # True when it was moved; never through a link.
+      def put_back(folder_dir, from, to)
+        root = File.realpath(Monadic::Utils::Environment.data_path)
+        base = folder_dir.to_s.split('/')
+        source = inside(folder_dir, from)
+        target = inside(folder_dir, to)
+        return false unless source && target
+
+        Monadic::Utils::SharedFs.in_dir(root, base + source[0..-2]) do |from_dir|
+          return false unless Monadic::Utils::SharedFs.entry(from_dir, source.last).is_a?(File::Stat)
+
+          Monadic::Utils::SharedFs.in_dir(root, base + target[0..-2], create: true) do |to_dir|
+            return false if Monadic::Utils::SharedFs.entry(to_dir, target.last)
+
+            Monadic::Utils::SharedFs.rename(from_dir, source.last, to_dir, target.last)
+          end
+        end
+        true
+      rescue Monadic::Utils::SharedFs::Unsafe, SystemCallError, IOError => e
+        warn "[TurnTrash] #{from} was not put back: #{e.class.name.split('::').last}"
+        false
+      end
+
       # A name for one deleted turn's part of the trash.
       def label(mid, now: Time.now)
         tag = mid.to_s.gsub(/[^A-Za-z0-9_-]/, '')[0, 40]

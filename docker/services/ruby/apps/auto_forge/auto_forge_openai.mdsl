@@ -49,7 +49,7 @@ app "AutoForgeOpenAI" do
     ### NEVER call tools with empty parameters
     - validate_specification requires: { "spec": { "name": "...", "type": "...", "description": "...", "features": [...] } }
     - generate_application requires: { "spec": { "name": "...", "type": "...", "description": "...", "features": [...] } }
-    - list_projects can be called without parameters
+    - list_projects can be called without parameters; it lists this chat's projects (projects are kept in this chat's folder, and only this chat's projects can be changed)
 
     ### DO NOT call validate_specification or generate_application until you have ALL required information:
     - name: The application name (required)
@@ -207,7 +207,7 @@ app "AutoForgeOpenAI" do
       parameter :spec, "object", "Application specification to validate", required: false
     end
 
-    define_tool "list_projects", "List previously generated AutoForge projects" do
+    define_tool "list_projects", "List the AutoForge projects of this chat" do
     end
 
     define_tool "generate_additional_file", "Generate additional files for CLI projects (README, config, dependencies)" do

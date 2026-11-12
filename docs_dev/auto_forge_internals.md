@@ -78,8 +78,7 @@ Auto Forge (MDSL `display_name` "Auto Forge") generates applications in two laye
 #### 5. Utilities (`auto_forge_utils.rb`)
 - Project name sanitization (Unicode support)
 - Directory management
-- Project search and listing
-- Cleanup operations
+- Project search and listing (the projects of the reply's chat)
 
 #### 6. Debugger (`auto_forge_debugger.rb`)
 - Selenium integration
@@ -117,14 +116,24 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 ## File Management
 
 ### Directory Structure
+
+`AutoForge::Utils::PathConfig` (`utils/path_config.rb`) puts the projects in the folder of the chat the reply runs for (`ChatContext.work_chat`, the reply's chat scope); with no chat it raises `PathConfig::NoChat` and no project is made.
+
 ```
-~/monadic/data/auto_forge/
-├── [AppName]_[YYYYMMDD]_[HHMMSS]/
-│   ├── index.html
-│   └── .autoforge.json (metadata: created_at, project_name, base_name, …)
-├── .backups/
-└── .templates/
+conversations/<chat folder>/
+├── auto_forge/
+│   ├── [AppName]_[YYYYMMDD]_[HHMMSS]/
+│   │   ├── index.html
+│   │   └── .autoforge.json (metadata: created_at, project_name, base_name, …)
+│   └── .backups/
+└── revisions/<time>-before-<request id>/auto_forge/[AppName]_…/   (Workbench::Revision)
 ```
+
+### Turns and Projects
+
+- `AutoForgeUtils.create_project_directory` records the new project folder as made by the running reply (`PathConfig.record_made` → `Workbench::Made.add`): deleting that turn moves the project to the chat's `trash/` (`Workbench::TurnTrash`).
+- Before a reply changes a project an earlier turn made (`Orchestrator#forge_project` for an existing project, `generate_additional_file`, `apply_fix_with_backup`), `PathConfig.before_change` calls `Workbench::Revision.keep!`, which copies the project once per reply to `revisions/` and records `{ "path", "before" }`. The message keeps it as `workbench_revisions`; deleting the message, or a reply stopped before its message (`Made.close`), puts the copy back (`Revision.undo`).
+- A project path from the model is used only when it is inside this chat's `auto_forge/` folder (`Orchestrator#inside_project_base?`).
 
 ### Unicode Handling
 - Full UTF-8 support for project names

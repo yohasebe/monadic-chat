@@ -244,7 +244,7 @@ module WebSocketHelper
   PRIVACY_EXPORT_MESSAGE_KEYS = %w[
     mid role text app_name type lang html active
     thinking tokens images image
-    interrupted tools_used verify artifacts workbench_looks workbench_shown workbench_made
+    interrupted tools_used verify artifacts workbench_looks workbench_shown workbench_made workbench_revisions
   ].freeze
 
   # Reduce messages to the shared-export schema. Anything not named above is
@@ -265,7 +265,9 @@ module WebSocketHelper
       shown = Monadic::Workbench::Shown.clean(kept.delete('workbench_shown') || kept.delete(:workbench_shown))
       kept = kept.merge('workbench_shown' => shown) if shown
       made = Monadic::Workbench::Made.clean(kept.delete('workbench_made') || kept.delete(:workbench_made))
-      made ? kept.merge('workbench_made' => made) : kept
+      kept = kept.merge('workbench_made' => made) if made
+      revisions = Monadic::Workbench::Made.clean_revisions(kept.delete('workbench_revisions') || kept.delete(:workbench_revisions))
+      revisions ? kept.merge('workbench_revisions' => revisions) : kept
     end
   end
 

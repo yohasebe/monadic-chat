@@ -31,6 +31,8 @@ In the Jupyter Notebook app, you ask the AI agent in the chat to work with noteb
 
 The agent works on the notebooks of the chat you are in. To work on a notebook at the top of the shared folder, name it with `./` before its name, for example `./analysis.ipynb`. A chat you continue from the history keeps its notebooks.
 
+A notebook the agent makes or changes is shown on the [work screen](../basic-usage/web-interface.md#work-screen) with the outputs of its cells, including plots.
+
 Each run starts a new kernel and runs every cell of the notebook. To stop a run, click **Cancel Query**.
 
 For a task with several steps, the app first proposes a numbered plan and waits for your approval before carrying it out.

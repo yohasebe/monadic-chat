@@ -2,8 +2,6 @@ require 'shellwords'
 require 'erb'
 require 'securerandom'
 require_relative '../utils/shared_path_guard'
-require 'cgi'
-require 'digest'
 require_relative '../utils/extra_logger'
 
 module MonadicHelper
@@ -608,9 +606,7 @@ module MonadicHelper
       if notebook_filename
         # Return in the format expected by Grok's process_functions
         # This format allows extraction of the actual filename with timestamp
-        # URL encode the filename to handle Unicode characters (Japanese, Chinese, etc.)
-        encoded_filename = CGI.escape(notebook_filename)
-        result = "Notebook #{notebook_filename} created successfully. Access it at: #{get_jupyter_base_url}/lab/tree/#{encoded_filename}"
+        result = "Notebook #{notebook_filename} created successfully. Access it at: #{get_jupyter_notebook_url(notebook_filename)}"
       else
         # For backward compatibility, handle old format responses
         jupyter_host = get_jupyter_host
@@ -668,88 +664,6 @@ module MonadicHelper
   end
   
   public
-
-  # Extract inline images (image/png base64) from notebook cell outputs.
-  # Saves each image to the shared data directory and returns an array of basenames.
-  #
-  # @param filename [String] notebook filename (with or without .ipynb)
-  # @param max_images [Integer] maximum images to extract (default 5)
-  # @return [Array<String>] array of saved image basenames, empty if none found
-  # Extract image outputs from a notebook and save them as standalone PNG files
-  # in the shared data directory. Returns the list of saved basenames.
-  #
-  # Deduplication: `seen_hashes` is an optional Set of SHA-256 hex digests of
-  # PNG data that have already been extracted in the current session. When
-  # provided, images whose hash is in the set are skipped (and not saved as
-  # new files), and newly-saved images have their hash added to the set.
-  # This prevents the same plot from being re-emitted as a new file across
-  # multiple `add_jupyter_cells(run: true)` calls within a single user turn.
-  def extract_notebook_images(filename:, max_images: 5, seen_hashes: nil)
-    filename_with_ext = filename.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
-    data_path = Monadic::Utils::Environment.data_path
-    notebook_path = File.join(data_path, filename_with_ext)
-
-    # Read as a plain file of the shared folder, never through a link.
-    text = (Monadic::Utils::SharedPathGuard.read_bytes!(notebook_path) rescue nil)
-    return [] unless text
-
-    begin
-      notebook = JSON.parse(text)
-    rescue JSON::ParserError
-      return []
-    end
-
-    cells = notebook["cells"]
-    return [] unless cells.is_a?(Array)
-
-    saved_images = []
-    timestamp = Time.now.strftime("%Y%m%d_%H%M%S")
-
-    # Walk cells in reverse order (most recent output first)
-    cells.reverse_each do |cell|
-      break if saved_images.size >= max_images
-      next unless cell["cell_type"] == "code" && cell["outputs"].is_a?(Array)
-
-      cell["outputs"].reverse_each do |output|
-        break if saved_images.size >= max_images
-
-        png_data = case output["output_type"]
-                   when "display_data", "execute_result"
-                     output.dig("data", "image/png")
-                   end
-        next unless png_data.is_a?(String) && !png_data.empty?
-
-        # Hash the PNG data (base64 string) and skip if already seen in the
-        # current turn. This is the primary guard against duplicate image
-        # emissions when add_jupyter_cells is called multiple times per turn.
-        if seen_hashes
-          content_hash = Digest::SHA256.hexdigest(png_data)
-          if seen_hashes.include?(content_hash)
-            next
-          end
-        end
-
-        # Decode and save the image
-        begin
-          unique_id = saved_images.size + 1
-          image_filename = "jupyter_output_#{timestamp}_#{unique_id}.png"
-          image_path = File.join(data_path, image_filename)
-          decoded = Base64.decode64(png_data)
-          # Skip files that are too large (> 5 MB)
-          next if decoded.bytesize > 5 * 1024 * 1024
-
-          Monadic::Utils::SharedPathGuard.write_file!(image_path, decoded)
-
-          saved_images << image_filename
-          seen_hashes << content_hash if seen_hashes && content_hash
-        rescue StandardError => e
-          Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] Failed to save notebook image: #{e.message}" }
-        end
-      end
-    end
-
-    saved_images
-  end
 
   # List all Jupyter notebooks in the data directory
   def list_jupyter_notebooks

@@ -16,6 +16,7 @@ require_relative "../../utils/extra_logger"
 require_relative "../base_vendor_helper"
 require_relative "../../monadic_performance"
 require_relative "../../workbench/caller"
+require_relative "../../workbench/chat_output"
 
 module ClaudeHelper
   include BaseVendorHelper
@@ -1832,7 +1833,7 @@ module ClaudeHelper
   # Handle server_tool_use tool calls (executed by Anthropic, not by us).
   # Downloads any associated file_id and notifies the user.
   # Returns true if the tool was a server_tool_use (caller should skip to next).
-  private def handle_claude_server_tool(tool_call, tool_name, &block)
+  private def handle_claude_server_tool(session, tool_call, tool_name, &block)
     return false unless tool_call["type"] == "server_tool_use"
 
     Monadic::Utils::ExtraLogger.log { "\n=== Skipping Server Tool (executed by Anthropic) ===\nTool name: #{tool_name}\nTool ID: #{tool_call["id"]}\nHas file_id: #{!tool_call["file_id"].nil?}" }
@@ -1843,14 +1844,15 @@ module ClaudeHelper
       file_result = download_file_from_api(file_id)
 
       if file_result
-        save_result = save_to_documents(file_result[:data], file_result[:filename])
+        save_result = keep_provider_file(session, file_result[:data], file_result[:filename])
 
         Monadic::Utils::ExtraLogger.log { "File downloaded and saved successfully\n  Path: #{save_result[:relative]}\n  Size: #{save_result[:size]} bytes" }
 
         # Notify user about the file
+        where = save_result[:shown] ? " (on the work screen)" : ""
         block&.call({
           "type" => "fragment",
-          "content" => "\n\n✅ **File saved:** `#{save_result[:relative]}` (#{(save_result[:size] / 1024.0).round(2)} KB)\n\n"
+          "content" => "\n\n✅ **File saved:** `#{save_result[:relative]}` (#{(save_result[:size] / 1024.0).round(2)} KB)#{where}\n\n"
         })
       else
         Monadic::Utils::ExtraLogger.log { "ERROR: Failed to download file from API\n  file_id: #{file_id}" }
@@ -1951,8 +1953,9 @@ module ClaudeHelper
       file_result = download_file_from_api(file_id)
 
       if file_result
-        save_result = save_to_documents(file_result[:data], file_result[:filename])
+        save_result = keep_provider_file(session, file_result[:data], file_result[:filename])
         tool_return = tool_return.to_s + "\n\n✅ File saved to #{save_result[:relative]} (#{save_result[:size]} bytes)"
+        tool_return += " and shown on the work screen beside the chat" if save_result[:shown]
       else
         tool_return = tool_return.to_s + "\n\n⚠️ Error downloading file from Skills API"
       end
@@ -2101,7 +2104,7 @@ module ClaudeHelper
       block&.call({ "type" => "tool_executing", "content" => tool_name })
 
       # Skip server_tool_use (executed by Anthropic, not by us)
-      next if handle_claude_server_tool(tool_call, tool_name, &block)
+      next if handle_claude_server_tool(session, tool_call, tool_name, &block)
 
       # Invoke the tool function and build the result entry
       # Returns [tool_result_entry, error_stop]
@@ -2253,6 +2256,23 @@ module ClaudeHelper
     end
   end
 
+  # Keeps a file the provider made for the reply in a run folder of the
+  # chat's folder and shows it on the work screen when the work screen can
+  # show it (a PDF, not an Office file). Without a chat folder it goes to
+  # documents/. Returns { relative:, size:, shown: }.
+  def keep_provider_file(session, file_data, filename)
+    workbench = Monadic::Workbench::Caller.current(session)
+    app_name = session.is_a?(Hash) ? session.dig(:parameters, "app_name") : nil
+    job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench, app_name: app_name || "Chat")
+    return save_to_documents(file_data, filename).merge(shown: false) unless job
+
+    path = Monadic::Workbench::ChatOutput.keep(job, document_file_name(filename), file_data)
+    { relative: path, size: file_data.bytesize, shown: Monadic::Workbench::ChatOutput.show(path, workbench) }
+  rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+    Monadic::Workbench::ChatOutput.drop_if_empty(job)
+    raise
+  end
+
   # Save file to documents directory
   def save_to_documents(file_data, filename)
     # Use the correct base path depending on environment
@@ -2267,8 +2287,7 @@ module ClaudeHelper
 
     # The name comes from the provider's response: only its last part is
     # used, and the file is written never through a link.
-    filename = File.basename(filename.to_s.tr("\\", "/"))
-    filename = "claude_file" if filename.empty? || %w[. ..].include?(filename)
+    filename = document_file_name(filename)
     file_path = File.join(docs_dir, filename)
     Monadic::Utils::SharedPathGuard.write_file!(file_path, file_data, mode: "wb")
 
@@ -2288,6 +2307,13 @@ module ClaudeHelper
       relative: relative_path,
       size: file_data.bytesize
     }
+  end
+
+  # The name comes from the provider's response: only its last part is
+  # used.
+  def document_file_name(filename)
+    name = File.basename(filename.to_s.tr("\\", "/"))
+    name.empty? || %w[. ..].include?(name) ? "claude_file" : name
   end
 
   # Ensure send_query is publicly callable by external agents (e.g., AIUserAgent)

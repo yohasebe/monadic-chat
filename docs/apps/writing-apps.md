@@ -32,7 +32,7 @@ A recording of a speech can be transcribed as well: attach an audio file with th
 
 ![Document Generator app icon](../assets/icons/document-generator.png ':size=40')
 
-Generate Excel spreadsheets, PowerPoint presentations, Word documents, and PDFs. The files are saved in the `documents` folder of the shared folder.
+Generate Excel spreadsheets, PowerPoint presentations, Word documents, and PDFs. The files are saved in the chat's folder, and the chat gives one line with the path. A PDF is also shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat; open the other files from the [Files](../basic-usage/web-interface.md#shared-folder-panel) tab or the shared folder.
 
 **Key Features:**
 - **Excel (.xlsx)**: Data tables, charts, formulas, multiple sheets

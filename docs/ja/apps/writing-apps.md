@@ -32,7 +32,7 @@ Mail Composer の対応プロバイダーは[モデル対応状況の表](../bas
 
 ![Document Generator app icon](../assets/icons/document-generator.png ':size=40')
 
-Excel のスプレッドシート、PowerPoint のプレゼンテーション、Word の文書、PDF を作るアプリです。ファイルは共有フォルダの `documents` フォルダに保存されます。
+Excel のスプレッドシート、PowerPoint のプレゼンテーション、Word の文書、PDF を作るアプリです。ファイルは会話のフォルダに保存され、会話にはそのパスが 1 行で示されます。PDF は会話の横の[作業画面](../basic-usage/web-interface.md#work-screen)にも表示されます。ほかのファイルは[ファイルのタブ](../basic-usage/web-interface.md#shared-folder-panel)か共有フォルダから開きます。
 
 **主な機能：**
 - **Excel (.xlsx)**：データの表、グラフ、数式、複数のシート

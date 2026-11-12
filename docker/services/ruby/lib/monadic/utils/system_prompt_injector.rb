@@ -62,6 +62,24 @@ module Monadic
         ✅ CORRECT: "That sounds like an exciting plan! Studying abroad can be both thrilling and challenging. How can I help you prepare?"
       PROMPT
 
+      # How an app puts its work on the work screen beside the chat, by the
+      # app's `work_screen` feature in its MDSL: the chat keeps the talk, the
+      # work screen the work.
+      WORK_SCREEN_PROMPTS = {
+        # Texts written for the user and revised over turns.
+        "drafts" => <<~PROMPT.strip,
+          WORK SCREEN: Each draft you write for the user (an email, a passage, a translation, any text they will use) goes on the work screen beside the chat, not in the chat. Call put_on_workbench with a Markdown file (.md) holding the whole draft, named for what it is (for example "reply-to-tanaka.md"). Each revision is put whole under the same name: the work screen keeps every version as a file of its own (name-2.md, name-3.md, ...), so the user can go back to any of them. In the chat, say in a few lines what the draft does or what changed, ask what you need to ask, and give the path the tool returned. Do not repeat the draft in the chat. Answers and talk that are not a draft stay in the chat.
+        PROMPT
+        # Translations: a long one is a draft, a short one an answer.
+        "translations" => <<~PROMPT.strip,
+          WORK SCREEN: A translation longer than a few sentences (a passage, a letter, a document) goes on the work screen beside the chat, not in the chat. Call put_on_workbench with a Markdown file (.md) holding the whole translation, named for what it is (for example "contract-ja.md"). A revised translation is put whole under the same name: the work screen keeps every version as a file of its own. In the chat, give notes on choices and nuance in a few lines, and the path the tool returned. A word, a phrase or a sentence or two is answered in the chat as usual.
+        PROMPT
+        # Code with its explanation.
+        "code" => <<~PROMPT.strip
+          WORK SCREEN: Code you write for the user goes on the work screen beside the chat with its explanation, not in the chat. Call put_on_workbench with one Markdown file (.md) that explains the code step by step, each part in a fenced code block with its language, named for what it is (for example "csv-loader.md"). A revision is put whole under the same name: the work screen keeps every version as a file of its own. In the chat, say in a few lines what the code does or what changed, ask what you need to ask, and give the path the tool returned. A line or two of code that answers a quick question may stay in the chat.
+        PROMPT
+      }.freeze
+
       # Math formatting when rendering is disabled (the default)
       MATH_DISABLED_PROMPT = <<~'PROMPT'.strip
         Math Rendering is disabled. Write mathematical expressions in plain text or Unicode, without LaTeX delimiters (`\[ \]`, `\( \)`, `$$`, or `$`). If the user requests LaTeX source, put it in a fenced code block starting with ```latex.
@@ -338,6 +356,16 @@ module Monadic
             "to continue."
           }
         },
+        {
+          name: :work_screen,
+          priority: 30,
+          condition: ->(session, _options) {
+            !Monadic::Utils::SystemPromptInjector.work_screen_mode(session).nil?
+          },
+          generator: ->(session, _options) {
+            WORK_SCREEN_PROMPTS[Monadic::Utils::SystemPromptInjector.work_screen_mode(session)]
+          }
+        },
         # What the app's tools can do now (CapabilityNotes), last so the
         # prompt before it stays the same from request to request.
         {
@@ -394,6 +422,16 @@ module Monadic
         # Render the inventory as plain-text bullet lists. Returns nil when
         # the Library is empty or the lookup fails — the caller still
         # injects the directive in that case.
+        # The app's `work_screen` feature, when it names a way the work
+        # screen is used (WORK_SCREEN_PROMPTS); nil otherwise.
+        def work_screen_mode(session)
+          params = session&.[](:parameters) || {}
+          app_name = params["app_name"] || params[:app_name]
+          app = (APPS[app_name] if defined?(APPS) && app_name)
+          mode = app&.settings&.[](:work_screen).to_s
+          WORK_SCREEN_PROMPTS.key?(mode) ? mode : nil
+        end
+
         def library_inventory_block(app_name = nil)
           return nil unless defined?(Monadic::Library::Store)
 

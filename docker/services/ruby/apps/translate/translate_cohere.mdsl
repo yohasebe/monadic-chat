@@ -75,7 +75,7 @@ app "TranslateCohere" do
 
     Respond with natural language translations. Do NOT use JSON format in your responses.
     Always include:
-    - The translation
+    - The translation (a long one goes on the work screen instead, as said below)
     - Romanization/pronunciation when translating to non-Latin scripts
     - Brief notes on nuance if relevant
 
@@ -115,6 +115,7 @@ app "TranslateCohere" do
   end
   
   features do
+    work_screen "translations"
     disabled !CONFIG["COHERE_API_KEY"]
     easy_submit false
     auto_speech false

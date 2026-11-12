@@ -115,6 +115,44 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
       end
     end
 
+    context 'with an app that puts its work on the work screen' do
+      before do
+        stub_const("APPS", {
+          'MailComposer' => double(settings: { work_screen: 'drafts' }),
+          'Coding' => double(settings: { work_screen: 'code' }),
+          'Translate' => double(settings: { work_screen: 'translations' }),
+          'Odd' => double(settings: { work_screen: 'nothing like this' }),
+          'Chat' => double(settings: {})
+        })
+      end
+
+      def work_screen_for(app_name)
+        described_class.build_injections(session: { parameters: { 'app_name' => app_name } }, options: {})
+                       .find { |r| r[:name] == :work_screen }
+      end
+
+      it 'tells the model to put each draft, and each revision of it, on the work screen' do
+        text = work_screen_for('MailComposer')[:content]
+        expect(text).to include('put_on_workbench', '.md', 'same name', 'name-2.md')
+        expect(text).to include('Do not repeat the draft in the chat')
+      end
+
+      it 'tells the model to put code with its explanation on the work screen' do
+        expect(work_screen_for('Coding')[:content]).to include('put_on_workbench', 'fenced code block')
+      end
+
+      it 'tells the model to put a long translation on the work screen and answer a short one in the chat' do
+        text = work_screen_for('Translate')[:content]
+        expect(text).to include('put_on_workbench', 'longer than a few sentences', 'answered in the chat')
+      end
+
+      it 'says nothing for an app without it, or with a way that is not known' do
+        expect(work_screen_for('Chat')).to be_nil
+        expect(work_screen_for('Odd')).to be_nil
+        expect(work_screen_for('Missing')).to be_nil
+      end
+    end
+
     context 'with Knowledge Base RAG toggle' do
       # Gate: the RAG header injects only when the active app actually exposes
       # library_search. A KB-capable app and a non-KB app exercise both sides so

@@ -59,6 +59,7 @@ app "MailComposerOllama" do
   end
 
   features do
+    work_screen "drafts"
     websearch false
     initiate_from_assistant true
     easy_submit false

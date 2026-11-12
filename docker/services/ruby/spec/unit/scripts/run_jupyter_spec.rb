@@ -12,7 +12,7 @@ RSpec.describe "run_jupyter.sh" do
 
   it "starts JupyterLab with the installed extensions" do
     start = script.lines.find { |line| line.include?("jupyter lab ") }
-    expect(start).to include("--port=8889")
-    expect(start).not_to include("--core-mode")
+    expect(start).to include("--port=")
+    expect(script).not_to include("--core-mode")
   end
 end

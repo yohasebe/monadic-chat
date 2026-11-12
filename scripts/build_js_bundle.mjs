@@ -77,6 +77,7 @@ const FILES = [
   "js/monadic/workflow-viewer.js",
   "js/monadic/form-handlers.js",
   "js/monadic/ws-audio-constants.js",
+  "js/monadic/abc-player.js",
   "js/monadic/ws-content-renderer.js",
   "js/monadic/ws-auto-speech.js",
   "js/monadic/ws-audio-playback.js",

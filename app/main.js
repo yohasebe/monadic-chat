@@ -1856,11 +1856,8 @@ function initializeApp() {
               'Building', 'Stopped', false);
             break;
           // JupyterLab commands
-          case 'start-jupyter':
-            openMainWindow();
-            dockerManager.runCommand('start-jupyter',
-              formatMessage(null, 'messages.startingJupyterLab'),
-              'Starting', 'Running');
+          case 'open-jupyter':
+            openJupyterLab();
             break;
           case 'stop-jupyter':
             openMainWindow();
@@ -2718,11 +2715,8 @@ function updateApplicationMenu() {
             type: 'separator'
           },
           {
-            label: i18n.t('menu.startJupyterLab'),
-            click: () => {
-              openMainWindow();
-              dockerManager.runCommand('start-jupyter', formatMessage(null, 'messages.startingJupyterLab'), 'Starting', 'Running');
-            },
+            label: i18n.t('menu.openJupyterLab'),
+            click: () => openJupyterLab(),
             enabled: (currentStatus === 'Running' || currentStatus === 'Ready') && metRequirements
           },
           {
@@ -3445,6 +3439,27 @@ function openBrowser(url, outside = false, forceOpen = false) {
 // (Removed duplicate openWebViewWindow; unified earlier definition is used)
     });
   }, interval);
+}
+
+// JupyterLab in the system browser: started first unless it answers
+// (run_jupyter.sh), then opened only once it answers.
+const JUPYTER_URL = 'http://127.0.0.1:8889';
+
+function jupyterAnswers() {
+  return new Promise((resolve) => {
+    const request = require('http').get(`${JUPYTER_URL}/api/status`, { timeout: 3000 }, (response) => {
+      response.resume();
+      resolve(response.statusCode === 200);
+    });
+    request.on('timeout', () => request.destroy());
+    request.on('error', () => resolve(false));
+  });
+}
+
+async function openJupyterLab() {
+  openMainWindow();
+  await dockerManager.runCommand('start-jupyter', formatMessage(null, 'messages.startingJupyterLab'), 'Starting', 'Running');
+  if (await jupyterAnswers()) shell.openExternal(`${JUPYTER_URL}/lab/tree`);
 }
 
 function openNoVNCWindow() {

@@ -70,8 +70,8 @@ Download the image of the container (`monadic-chat-privacy-container`) that find
 **Build Extractor Container** <br />
 Download the image of the container (`monadic-chat-extractor-container`) used by the Knowledge Base Quality Pack. Available when the Quality Pack is installed.
 
-**Start JupyterLab** <br />
-Launch JupyterLab at [http://localhost:8889](http://localhost:8889). See [JupyterLab Integration](../docker-integration/jupyterlab.md) for details.
+**Open JupyterLab** <br />
+Open JupyterLab ([http://localhost:8889](http://localhost:8889)) in your browser, starting it first when it is not running. See [JupyterLab Integration](../docker-integration/jupyterlab.md) for details.
 
 **Stop JupyterLab** <br />
 Stop JupyterLab.

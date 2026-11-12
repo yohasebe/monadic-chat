@@ -120,7 +120,7 @@
     "documentation": "문서",
     "startSeleniumContainer": "Selenium 컨테이너 시작",
     "stopSeleniumContainer": "Selenium 컨테이너 중지",
-    "startJupyterLab": "JupyterLab 시작",
+    "openJupyterLab": "JupyterLab 열기",
     "stopJupyterLab": "JupyterLab 중지",
     "importDocumentDB": "문서 DB 가져오기",
     "exportDocumentDB": "문서 DB 내보내기",

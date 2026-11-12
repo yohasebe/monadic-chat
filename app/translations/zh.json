@@ -120,7 +120,7 @@
     "documentation": "文档",
     "startSeleniumContainer": "启动Selenium容器",
     "stopSeleniumContainer": "停止Selenium容器",
-    "startJupyterLab": "启动JupyterLab",
+    "openJupyterLab": "打开 JupyterLab",
     "stopJupyterLab": "停止JupyterLab",
     "importDocumentDB": "导入文档数据库",
     "exportDocumentDB": "导出文档数据库",

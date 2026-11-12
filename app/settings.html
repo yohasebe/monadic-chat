@@ -896,8 +896,8 @@
             <div class="setting-group">
               <label data-i18n="settings.labels.actionJupyterTitle">JupyterLab</label>
               <div class="action-btn-group">
-                <button type="button" class="action-btn" id="action-start-jupyter" disabled>
-                  <i class="fas fa-play"></i> <span data-i18n="settings.labels.actionStartJupyter">Start JupyterLab</span>
+                <button type="button" class="action-btn" id="action-open-jupyter" disabled>
+                  <i class="fas fa-up-right-from-square"></i> <span data-i18n="settings.labels.actionOpenJupyter">Open JupyterLab</span>
                 </button>
                 <button type="button" class="action-btn" id="action-stop-jupyter" disabled>
                   <i class="fas fa-stop"></i> <span data-i18n="settings.labels.actionStopJupyter">Stop JupyterLab</span>
@@ -1194,7 +1194,7 @@
           'action-build-user': buildable,
           'action-build-privacy': buildable,
           'action-build-extractor': buildable && extractorOn,
-          'action-start-jupyter': (s === 'Running' || s === 'Ready') && met,
+          'action-open-jupyter': (s === 'Running' || s === 'Ready') && met,
           'action-stop-jupyter': (s === 'Running' || s === 'Ready') && met,
           'action-import-db': s === 'Stopped' && met,
           'action-export-db': s === 'Stopped' && met,
@@ -1217,7 +1217,7 @@
         'action-build-user': 'build_user_containers',
         'action-build-privacy': 'build_privacy_container',
         'action-build-extractor': 'build_extractor_container',
-        'action-start-jupyter': 'start-jupyter',
+        'action-open-jupyter': 'open-jupyter',
         'action-stop-jupyter': 'stop-jupyter',
         'action-import-db': 'import-db',
         'action-export-db': 'export-db',

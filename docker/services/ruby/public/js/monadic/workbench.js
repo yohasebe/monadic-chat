@@ -542,7 +542,17 @@
     box.setAttribute('tabindex', '0');
     fetchInto(box, item, drawn, async (response) => {
       const list = element('ol', 'workbench-lines');
-      textLines(await response.text()).forEach((lineText) => list.appendChild(element('li', null, lineText)));
+      const lines = textLines(await response.text());
+      // Code is highlighted by its language; each line keeps its own text.
+      const render = window.WorkbenchRender;
+      const html = render && typeof render.highlightedLines === 'function'
+        ? render.highlightedLines(lines.join('\n'), render.codeLanguage(item.name || item.path)) : null;
+      lines.forEach((lineText, i) => {
+        const li = element('li', null);
+        if (html && html.length === lines.length) li.innerHTML = html[i];
+        else li.textContent = lineText;
+        list.appendChild(li);
+      });
       box.replaceChildren(list);
       drawn.loaded = true;
       restoreScroll(drawn, box);

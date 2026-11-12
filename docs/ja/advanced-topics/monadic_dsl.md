@@ -189,6 +189,9 @@ features do
   monadic true            # REQUIRED for Session State apps - enables context management via tools
   initiate_from_assistant true # Allow assistant to send first message in conversation
   autonomy "high"         # Set autonomy level: "high", "medium" (default), or "low"
+  work_screen "drafts"    # Put the app's work on the work screen beside the chat:
+                          # "drafts" (texts revised over turns, each version a file of its own)
+                          # or "code" (code with its explanation, as Markdown)
   expressive_speech false # Opt this app out of Expressive Speech injection.
                           # Useful for apps with strict output formats (e.g. JSON-producing apps)
                           # where appended voice-marker instructions would collide with the system prompt.

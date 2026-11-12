@@ -13,7 +13,7 @@ Co-write a novel with the assistant. The assistant first asks for the genre, the
 
 ![Mail Composer app icon](../assets/icons/mail-composer.png ':size=40')
 
-Draft emails with the assistant. It first asks what kind of email you want, then drafts it from your requests. Mail Composer has web search.
+Draft emails with the assistant. It first asks what kind of email you want, then drafts it from your requests. Each draft is shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat, and each revision is kept as a file of its own, so you can go back to an earlier version; the chat says what changed. Mail Composer has web search.
 
 
 Mail Composer supports each provider shown in the [availability table](../basic-usage/basic-apps.md#app-availability).

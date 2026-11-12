@@ -189,6 +189,10 @@ module WebSocketHelper
             Monadic::Workbench::Made.seal(request_id) + (made || []).map { |entry| entry["path"] }
           )
           new_data["workbench_made"] = made_paths if made_paths
+          # What it changed in place, as it was before (Workbench::Revision):
+          # deleting this message puts it back.
+          revisions = request_id && Monadic::Workbench::Made.clean_revisions(Monadic::Workbench::Made.seal_revisions(request_id))
+          new_data[Monadic::Workbench::Made::REVISIONS_KEY] = revisions if revisions
 
           # Forward the vocabulary token -> resolved-path map for the frontend's
           # decoration / hover / reveal-in-explorer layer.

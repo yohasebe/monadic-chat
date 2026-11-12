@@ -10,6 +10,7 @@ require_relative '../../workbench/board'
 require_relative '../../workbench/channel'
 require_relative '../../workbench/made'
 require_relative '../../workbench/turn_trash'
+require_relative '../../workbench/revision'
 require_relative '../../workbench/document'
 
 module WebSocketHelper
@@ -35,7 +36,8 @@ module WebSocketHelper
     # Delete the message, and move what it made to the chat's trash
     deleted = message_index && messages[message_index]
     rack_session[:messages]&.delete_if { |m| m["mid"] == obj["mid"] }
-    rebuild_documents(rack_session) unless trash_made_files(rack_session, deleted).empty?
+    later = deleted ? Array(rack_session[:messages])[message_index..] || [] : []
+    rebuild_documents(rack_session) unless trash_made_files(rack_session, deleted, later).empty?
 
     # Invalidate any Grok compaction blob: it summarized the pre-edit history,
     # so a delete makes the cached covered_count and summary stale. Dropping it
@@ -63,23 +65,42 @@ module WebSocketHelper
   end
   
   # What a deleted message made in the chat's folder (workbench_made) goes
-  # to the trash of that folder (Workbench::TurnTrash), and leaves the work
-  # screen. A file that cannot be moved stays; the delete goes on.
-  def trash_made_files(rack_session, message)
-    made = message.is_a?(Hash) && Monadic::Workbench::Made.clean(message["workbench_made"])
-    return [] unless made
+  # to the chat's trash and off the work screen, and what it changed in
+  # place (its revisions) is put back as it was (Workbench::Revision);
+  # later: the messages after it, whose revisions of the same things take
+  # the earlier state over. Returns the paths moved or put back.
+  def trash_made_files(rack_session, message, later = [])
+    return [] unless message.is_a?(Hash)
+
+    made = Monadic::Workbench::Made.clean(message["workbench_made"])
+    revisions = Monadic::Workbench::Made.clean_revisions(message[Monadic::Workbench::Made::REVISIONS_KEY])
+    return [] unless made || revisions
 
     folder = Monadic::Workspace::Folders.lookup(rack_session)
     return [] unless folder && folder[:status] == :ready
 
-    moved = Monadic::Workbench::TurnTrash.move(folder[:relative_dir], made, Monadic::Workbench::TurnTrash.label(message["mid"]))
+    label = Monadic::Workbench::TurnTrash.label(message["mid"])
+    moved = made ? Monadic::Workbench::TurnTrash.move(folder[:relative_dir], made, label) : []
+    put_back = revisions ? Monadic::Workbench::Revision.undo(folder[:relative_dir], revisions, label, later: later_revisions(later)) : []
     chat_id = rack_session[Monadic::Workspace::Chats::SESSION_KEY]
-    board = !moved.empty? && Monadic::Workbench::Board.existing(chat_id)
-    Monadic::Workbench::Channel.changed(chat_id) if board && !board.drop_files(moved).empty?
-    moved
+    board = !(moved + put_back).empty? && Monadic::Workbench::Board.existing(chat_id)
+    Monadic::Workbench::Channel.changed(chat_id) if board && (!board.drop_files(moved).empty? || !put_back.empty?)
+    moved + put_back
   rescue StandardError => e
     warn "[MessageEditor] what the deleted message made was not moved to the trash: #{e.class}"
     []
+  end
+
+  # The revisions the messages keep, in order, as the messages hold them
+  # (a revision that takes an earlier state over is changed there).
+  def later_revisions(messages)
+    Array(messages).flat_map do |m|
+      next [] unless m.is_a?(Hash)
+
+      kept = Monadic::Workbench::Made.clean_revisions(m[Monadic::Workbench::Made::REVISIONS_KEY])
+      m[Monadic::Workbench::Made::REVISIONS_KEY] = kept if kept
+      kept || []
+    end
   end
 
   # The documents of the chat, put together again from what is left

@@ -364,9 +364,9 @@ module AutoForgeTools
     projects = AutoForgeUtils.list_projects
 
     if projects.empty?
-      "No AutoForge projects found"
+      "No AutoForge projects in this chat"
     else
-      lines = ["📁 AutoForge Projects:\n"]
+      lines = ["📁 AutoForge projects of this chat:\n"]
       projects.each do |project|
         status = project[:has_index] ? "✅" : "🚧"
         lines << "  #{status} #{project[:base_name]} (#{project[:name]})"
@@ -377,17 +377,6 @@ module AutoForgeTools
       lines << "\n💡 To modify an existing app: Use the same name in generate_application"
       lines << "💡 To create a new version: Add \"reset\": true to the spec"
       lines.join("\n")
-    end
-  end
-
-  def cleanup_old_projects(params = {})
-    days = params['days'] || params[:days] || 7
-    removed = AutoForgeUtils.cleanup_old_projects(days.to_i)
-
-    if removed.empty?
-      "No old projects to clean up"
-    else
-      "🗑️ Removed #{removed.size} old project(s):\n#{removed.map { |p| "  - #{p}" }.join("\n")}"
     end
   end
 
@@ -412,6 +401,9 @@ module AutoForgeTools
     unless project_type == 'cli'
       return "ℹ️ Additional files are only available for CLI projects."
     end
+
+    # A project an earlier turn made is kept as it is before it changes.
+    AutoForge::Utils::PathConfig.before_change(project_path)
 
     # Allow fully custom file generation when file_name and instructions are present
     if file_name && instructions
@@ -1134,6 +1126,9 @@ module AutoForgeTools
     project_name = diagnosis[:project_name]
 
     begin
+      # The project as an earlier turn left it is kept first, so deleting
+      # this turn puts it back (Workbench::Revision).
+      AutoForge::Utils::PathConfig.before_change(File.dirname(html_path))
       # The page is read as a plain file of the shared folder: a link in its
       # place is never followed (its target would be copied in).
       Monadic::Utils::SharedPathGuard.copy_file!(html_path, backup_path, replace: false)

@@ -347,6 +347,8 @@ post "/load" do
           message_obj["workbench_shown"] = shown if shown
           made = Monadic::Workbench::Made.clean(msg["workbench_made"])
           message_obj["workbench_made"] = made if made
+          revisions = Monadic::Workbench::Made.clean_revisions(msg["workbench_revisions"])
+          message_obj["workbench_revisions"] = revisions if revisions
           message_obj
         end.compact # Remove nil values from invalid messages
 

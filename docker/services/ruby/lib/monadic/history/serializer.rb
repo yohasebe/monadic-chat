@@ -90,6 +90,8 @@ module Monadic
         out['workbench_shown'] = shown if shown
         made = Monadic::Workbench::Made.clean(raw['workbench_made'] || raw[:workbench_made])
         out['workbench_made'] = made if made
+        revisions = Monadic::Workbench::Made.clean_revisions(raw[Monadic::Workbench::Made::REVISIONS_KEY] || raw[:workbench_revisions])
+        out[Monadic::Workbench::Made::REVISIONS_KEY] = revisions if revisions
         out
       end
 

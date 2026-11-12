@@ -100,7 +100,9 @@ module MonadicSharedTools
                          "beside the chat, in one step. The work screen draws it by its extension: .md (Markdown), " \
                          ".mmd (a Mermaid diagram), .csv or .tsv (a table, first row as the header), .svg, " \
                          ".html (a static page: no scripts run, links do not open, only data: images load), " \
-                         ".vl.json (a Vega-Lite chart: put the data in data.values; no url, no images, no params); " \
+                         ".vl.json (a Vega-Lite chart: put the data in data.values; no url, no images, no params), " \
+                         ".drawio (a draw.io diagram: its mxfile or mxGraphModel XML; images it names are not loaded), " \
+                         ".abc (a tune in ABC notation, drawn as a score); " \
                          ".json and .txt are shown as text. Use it for tables, diagrams, charts, long documents and " \
                          "content to compare side by side; keep short answers in the chat. The result gives the path; " \
                          "the same name and content again in one reply give the same file.",

@@ -48,6 +48,12 @@ RSpec.describe Monadic::Workspace::SharedFolderPreview do
       expect(described_class.mime_for('f.html')).to be_nil
     end
 
+    it 'draws a draw.io diagram and an ABC tune, which are shown as text too' do
+      expect(described_class.render_for('flow.drawio')).to eq('drawio')
+      expect(described_class.render_for('Tune.ABC')).to eq('abc')
+      expect(described_class.render_for('notes.txt')).to be_nil
+    end
+
     it 'comes with the root a chat uses for the shared folder' do
       expect(Monadic::Workspace::SharedFolder.list('')[:chat_root]).to eq('/monadic/data')
     end

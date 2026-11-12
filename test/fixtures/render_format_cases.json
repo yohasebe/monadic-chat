@@ -10,6 +10,8 @@
   { "name": "page.htm", "id": "html" },
   { "name": "reports/sales.vl.json", "id": "vega_lite" },
   { "name": "Sales.Vega-Lite.JSON", "id": "vega_lite" },
+  { "name": "flow.drawio", "id": "drawio" },
+  { "name": "Tune.ABC", "id": "abc" },
   { "name": ".vl.json", "id": null },
   { "name": "data.json", "id": null },
   { "name": "notes.txt", "id": null },

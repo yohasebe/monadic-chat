@@ -4,5 +4,7 @@
   { "id": "table", "fences": [], "extensions": ["csv", "tsv"], "compound_extensions": [] },
   { "id": "svg", "fences": [], "extensions": ["svg"], "compound_extensions": [] },
   { "id": "html", "fences": [], "extensions": ["html", "htm"], "compound_extensions": [] },
+  { "id": "drawio", "fences": [], "extensions": ["drawio"], "compound_extensions": [] },
+  { "id": "abc", "fences": [], "extensions": ["abc"], "compound_extensions": [] },
   { "id": "vega_lite", "fences": [], "extensions": [], "compound_extensions": ["vl.json", "vega-lite.json"] }
 ]

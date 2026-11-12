@@ -143,6 +143,7 @@ RSpec.describe "the workbench when a reply is recorded" do
     expect(view["approvals"].keys).to eq([item[:id]])
     expect(message["artifacts"]).to eq([board.item(item[:id])["artifact"].slice(*Monadic::Workbench::Record::FIELDS)])
     expect(broadcasts.find { |m| m["type"] == "html" }.dig("content", "artifacts")).to eq(message["artifacts"])
+    expect(message["workbench_made"]).to eq([message["artifacts"].first["path"]])
   end
 
   it "gives the page an address to save a copy of what the message records, in the connection's turn" do

@@ -193,6 +193,22 @@ RSpec.describe "what a turn made (Made) and the trash it goes to (TurnTrash)" do
       expect(board.snapshot[:items].map { |i| i[:path] }).not_to include(put[:path])
     end
 
+    it "moves the image the message placed to the trash and takes it off the work screen" do
+      running_handle
+      png = "\x89PNG\r\n\x1A\n".b + [13].pack("N") + "IHDR".b + [8, 8].pack("NN") + "\x08\x02\x00\x00\x00".b + "\x00" * 4
+      board = Monadic::Workbench::Board.for(chat, store: store)
+      item = board.add_image(bytes: png, epoch: Monadic::Workspace::Chats.epoch(chat), name: "cat.png", run: "j_#{SecureRandom.hex(10)}",
+                             app_name: "Chat", origin: caller_for.origin)
+      path = item.dig("artifact", "path")
+      expect(exists?(path)).to be true
+
+      moved = editor.trash_made_files(session, { "mid" => "m1", "role" => "assistant", "workbench_made" => [path] })
+      expect(moved).to eq([path])
+      expect(exists?(path)).to be false
+      expect(board.snapshot[:items]).to be_empty
+      expect(Monadic::Workbench::Artifact.status(item.dig("artifact", "id"), chat_id: chat)).to eq(:missing)
+    end
+
     it "moves nothing for a message that made nothing, or in a chat without a folder" do
       expect(editor.trash_made_files(session, { "mid" => "m1", "role" => "assistant" })).to eq([])
       other = { Monadic::Workspace::Chats::SESSION_KEY => Monadic::Workspace::Ids.generate(:chat) }

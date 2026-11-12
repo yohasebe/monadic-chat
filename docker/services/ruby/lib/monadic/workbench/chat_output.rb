@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'cgi'
 require_relative '../workspace/ids'
 require_relative '../workspace/chats'
 require_relative '../workspace/folders'
@@ -64,12 +65,30 @@ module Monadic
         raise
       end
 
+      # A file a program wrote into the run folder itself (name, a plain name
+      # in it), shown on the work screen: { path:, notice: } (what: what the
+      # file is, for the notice), or nil when no such file is there.
+      def take(job, name, workbench, what)
+        return nil unless job && name.is_a?(String) && File.basename(name) == name
+
+        path = File.join(job[:relative], name)
+        return nil unless Monadic::Workspace::Folders.real_path(path)
+
+        { path: path, notice: said(what, path, shown: show(path, workbench)) }
+      end
+
       # A run folder a failed run left empty goes; one with anything in it
       # stays.
       def drop_if_empty(job)
         Dir.rmdir(job[:path]) if job && Monadic::Workspace::Folders.real_path(job[:relative], :directory)
       rescue SystemCallError
         nil
+      end
+
+      # The line a reply shows, made by the server rather than the model, for
+      # a file kept and shown (HTML).
+      def chat_line(what, path)
+        "<p>#{CGI.escapeHTML(what)} is on the work screen beside the chat: <code>#{CGI.escapeHTML(path)}</code></p>"
       end
 
       # What the model is told of a file kept (and shown or not), for its

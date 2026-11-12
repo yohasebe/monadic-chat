@@ -82,7 +82,7 @@ JupyterLab も `/monadic/data` で起動するので、JupyterLab からも共�
 - **DrawIO Grapher**：図のファイル（`.drawio`）
 - **Web Insight**：Web ページのスクリーンショット（PNG）
 
-会話のアプリがその会話のために作るファイル（図、楽譜、音楽、読み上げの音声）は、会話のフォルダ（`conversations/…/artifacts/`）に保存されます。それ以外のほとんどのファイルは、タイムスタンプや識別子を含む名前で、共有フォルダのいちばん上に保存されます。[ファイルのタブ](../basic-usage/web-interface.md#shared-folder-panel)で、各ファイルが何かを確かめ、要らなくなったものをごみ箱に移せます。
+会話のアプリがその会話のために作るファイル（図、楽譜、音楽、読み上げの音声、動画）は、会話のフォルダ（`conversations/…/artifacts/`）に保存されます。それ以外のほとんどのファイルは、タイムスタンプや識別子を含む名前で、共有フォルダのいちばん上に保存されます。[ファイルのタブ](../basic-usage/web-interface.md#shared-folder-panel)で、各ファイルが何かを確かめ、要らなくなったものをごみ箱に移せます。
 
 
 ## Monadic Chat のディレクトリ構造

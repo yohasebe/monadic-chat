@@ -81,6 +81,9 @@ app "VideoGeneratorGemini" do
     <div class="prompt" style="margin-bottom: 15px;">
       <b>Prompt</b>: [user's prompt]
     </div>
+    In a chat the result has a path and a notice: the video is on the work
+    screen beside the chat. Add one line saying so, with the path, and no
+    video player. Without a path (no chat folder), add instead:
     <div class="generated_video">
       <video controls width="600">
         <source src="/data/[filename]" type="video/mp4" />

@@ -14,6 +14,7 @@ describe('Opening a notebook in JupyterLab', () => {
   let opened;
   let added;
   let addListener;
+  let addWindowListener;
 
   const asked = () => sent.filter((p) => p.message === 'JUPYTER_OPEN');
 
@@ -28,8 +29,9 @@ describe('Opening a notebook in JupyterLab', () => {
   afterEach(() => {
     global.URL = stubbedURL;
     window.URL = stubbedURL;
-    added.forEach(([type, fn, opts]) => document.removeEventListener(type, fn, opts));
+    added.forEach(([target, type, fn, opts]) => target.removeEventListener(type, fn, opts));
     document.addEventListener = addListener;
+    window.addEventListener = addWindowListener;
     delete window.electronAPI;
   });
 
@@ -40,8 +42,13 @@ describe('Opening a notebook in JupyterLab', () => {
     added = [];
     addListener = document.addEventListener;
     document.addEventListener = function (type, fn, opts) {
-      added.push([type, fn, opts]);
+      added.push([document, type, fn, opts]);
       return addListener.call(this, type, fn, opts);
+    };
+    addWindowListener = window.addEventListener;
+    window.addEventListener = function (type, fn, opts) {
+      added.push([window, type, fn, opts]);
+      return addWindowListener.call(this, type, fn, opts);
     };
     jest.resetModules();
     document.body.innerHTML = `
@@ -96,6 +103,27 @@ describe('Opening a notebook in JupyterLab', () => {
     expect(opened[0].location.href).toBe('about:blank');
     window.Workbench.onJupyterOpened({ request: asked()[0].request, success: true, url: 'http://127.0.0.1:8889/lab/tree/nb.ipynb' });
     expect(opened[0].location.href).toBe('http://127.0.0.1:8889/lab/tree/nb.ipynb');
+  });
+
+  test('in the desktop app, the link reaches the page and not the handler that opens web links outside', () => {
+    // The desktop app's handler: on the document, in the capture phase, set
+    // before the page's scripts.
+    const outside = [];
+    const desktop = (e) => {
+      const link = e.target.closest('a[href]');
+      if (link && /^https?:/.test(link.getAttribute('href'))) {
+        e.preventDefault();
+        outside.push(link.getAttribute('href'));
+      }
+    };
+    document.addEventListener('click', desktop, true);
+    document.getElementById('discourse').innerHTML =
+      '<a href="http://127.0.0.1:8889/lab/tree/nb.ipynb">nb</a> <a href="https://example.com/">site</a>';
+    const [nb, site] = document.querySelectorAll('#discourse a');
+    click(nb);
+    click(site);
+    expect(asked()).toEqual([expect.objectContaining({ path: 'nb.ipynb' })]);
+    expect(outside).toEqual(['https://example.com/']);
   });
 
   test('closes the tab and says why when JupyterLab could not be started', () => {

@@ -341,7 +341,8 @@ class MonadicApp
   def send_command(command:,
                    container: "python",
                    success: "Command has been executed.\n",
-                   success_with_output: "Command has been executed with the following output: \n"
+                   success_with_output: "Command has been executed with the following output: \n",
+                   timeout: nil
                   )
 
     command_env = {}
@@ -396,7 +397,9 @@ class MonadicApp
     end
 
     # Use longer timeout for media generation (videos, images, and TTS can take several minutes)
-    timeout_value = if command.include?("video_generator_gemini")
+    timeout_value = if timeout
+                      timeout
+                    elsif command.include?("video_generator_gemini")
                       # Extract --max-wait value from command if present, add 60s buffer
                       max_wait_match = command.match(/--max-wait\s+(\d+)/)
                       max_wait = max_wait_match ? max_wait_match[1].to_i : 600

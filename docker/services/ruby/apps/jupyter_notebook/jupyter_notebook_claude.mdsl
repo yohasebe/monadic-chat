@@ -203,9 +203,9 @@ app "JupyterNotebookClaude" do
     6. Maximum 2 retry attempts per error to prevent infinite loops
     
     Advanced notebook management:
-    - `restart_jupyter_kernel`: Restart kernel and clear all outputs when notebook state is problematic
-    - `move_jupyter_cell`: Reorganize notebook by moving cells (from_index, to_index)
-    - `insert_jupyter_cells`: Insert cells at specific positions (index, cells array)
+    - `clear_jupyter_outputs`: Clear the outputs the notebook keeps (each run starts a new kernel; the user stops a run with Cancel)
+    - `move_jupyter_cell`: Move a cell so that it ends at to_index (0-based); it keeps its outputs and nothing runs
+    - `insert_jupyter_cells`: Insert cells before the cell at index (0-based; the number of cells adds them at the end); with run, the whole notebook runs again
     
     CRITICAL: When the user reports errors, use the existing notebook filename, do NOT create a new notebook.
 

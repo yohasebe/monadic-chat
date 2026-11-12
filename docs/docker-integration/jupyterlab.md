@@ -27,7 +27,9 @@ In the Jupyter Notebook app, you ask the AI agent in the chat to work with noteb
 - Create notebooks in the shared folder and list the existing ones
 - Add, edit, move, and delete cells, and run them
 - Read the outputs of cells and fix cells that raise errors
-- Restart or interrupt the kernel
+- Clear the outputs a notebook keeps
+
+Each run starts a new kernel and runs every cell of the notebook. To stop a run, click **Cancel Query**.
 
 For a task with several steps, the app first proposes a numbered plan and waits for your approval before carrying it out.
 

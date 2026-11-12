@@ -3228,7 +3228,7 @@ module GeminiHelper
       jupyter_tools = %w[
         create_and_populate_jupyter_notebook add_jupyter_cells create_jupyter_notebook
         get_jupyter_cells_with_results delete_jupyter_cell update_jupyter_cell
-        insert_jupyter_cells move_jupyter_cell restart_jupyter_kernel run_jupyter
+        insert_jupyter_cells move_jupyter_cell clear_jupyter_outputs run_jupyter
       ]
       is_jupyter_tool = tool_calls.any? { |tc| jupyter_tools.include?(tc["name"]) }
 

@@ -610,7 +610,7 @@ module GrokHelper
     if obj["current_notebook_filename"] && argument_hash["filename"]
       jupyter_functions = %w[add_jupyter_cells delete_jupyter_cell update_jupyter_cell
                             get_jupyter_cells_with_results execute_and_fix_jupyter_cells
-                            restart_jupyter_kernel interrupt_jupyter_execution
+                            clear_jupyter_outputs
                             move_jupyter_cell insert_jupyter_cells]
 
       if jupyter_functions.include?(function_name)

@@ -8,6 +8,10 @@ require_relative '../utils/extra_logger'
 module MonadicHelper
 
   JUPYTER_RUN_TIMEOUT = 600
+  # How long a whole run may take: longer than one cell may.
+  JUPYTER_RUN_LIMIT = JUPYTER_RUN_TIMEOUT + 60
+  # Cells go to the container as one argument, which Linux limits to 128 KiB.
+  INSERT_LIMIT = 100_000
   JUPYTER_LOG_FILE = if Monadic::Utils::Environment.in_container?
                        "/monadic/log/jupyter.log"
                      else
@@ -428,33 +432,7 @@ module MonadicHelper
       if verification_result[:success]
         if run.to_s == "true"
           results2 = run_jupyter_cells(filename: filename)
-
-          # Automatically verify cell execution results
-          cells_results = get_jupyter_cells_with_results(filename: filename)
-
-          # Check for errors in executed cells
-          if cells_results.is_a?(Array)
-            error_cells = cells_results.select { |cell| cell[:has_error] }
-
-            if error_cells.any?
-              # Format error summary for AI
-              error_summary = "\n\n⚠️  ERRORS DETECTED IN NOTEBOOK:\n"
-              error_cells.each do |error_cell|
-                error_summary += "\n• Cell #{error_cell[:index]} (#{error_cell[:error_type]}): #{error_cell[:error_message]}\n"
-                error_summary += "  Code: #{error_cell[:source][0..100]}...\n"
-              end
-              error_summary += "\nTotal cells: #{cells_results.length}, Cells with errors: #{error_cells.length}\n"
-              error_summary += "Use get_jupyter_cells_with_results(filename: \"#{filename}\") for full error details."
-
-              "#{results1}\n\n#{results2}#{error_summary}\n\nAccess the notebook at: #{notebook_url}"
-            else
-              # All cells executed successfully
-              "#{results1}\n\n#{results2}\n✓ All #{cells_results.length} cells executed successfully without errors.\n\nAccess the notebook at: #{notebook_url}"
-            end
-          else
-            # Verification failed (unexpected response format)
-            "#{results1}\n\n#{results2}\n⚠️  Could not verify cell execution: #{cells_results}\n\nAccess the notebook at: #{notebook_url}"
-          end
+          "#{results1}\n\n#{results2}\n\nAccess the notebook at: #{notebook_url}"
         else
           "#{results1}\n\nAccess the notebook at: #{notebook_url}"
         end
@@ -470,6 +448,10 @@ module MonadicHelper
     end
   end
 
+  # Runs every cell of the notebook in a new kernel (each run starts one;
+  # nothing is kept between runs). Says whether the run itself failed (it
+  # could not start, ran out of time or was stopped) apart from cells that
+  # raised errors, which do not stop the run.
   def run_jupyter_cells(filename:)
     name = filename.to_s.end_with?('.ipynb') ? filename.to_s : "#{filename}.ipynb"
     notebook_path = Monadic::Utils::SharedPathGuard.resolve_in_shared(name, extensions: %w[.ipynb])
@@ -479,22 +461,40 @@ module MonadicHelper
     return "Error: Invalid shared notebook path" unless command_path
 
     command = "jupyter nbconvert --to notebook --execute #{Shellwords.escape(command_path)} --ExecutePreprocessor.timeout=#{JUPYTER_RUN_TIMEOUT} --allow-errors --inplace"
-    res = send_command(
-      command: command,
-      container: "python",
-      success: "The notebook has been executed\n",
-      success_with_output: "The notebook has been executed with the following output:\n"
-    )
+    ran, detail = notebook_command(command, timeout: JUPYTER_RUN_LIMIT)
+    return "Error: The notebook could not be run to the end. #{detail}".strip unless ran
 
-    if res
-      # Don't include the last cell output in the response as it's too technical
-      # and Grok tends to repeat it unnecessarily in user-facing messages
-      "The cells have been executed successfully."
-    else
-      "Error: The notebook could not be executed."
+    "The cells have been executed.#{notebook_error_report(name)}"
+  end
+
+  # What cells raised when the notebook last ran ("" when none did).
+  def notebook_error_report(filename)
+    cells = get_jupyter_cells_with_results(filename: filename)
+    return "" unless cells.is_a?(Array)
+
+    failed = cells.select { |cell| cell[:has_error] }
+    return "\n✓ All #{cells.length} cells executed successfully without errors." if failed.empty?
+
+    lines = failed.map do |cell|
+      "\n• Cell #{cell[:index]} (#{cell[:error_type]}): #{cell[:error_message]}\n  Code: #{cell[:source].to_s[0..100]}..."
+    end
+    "\n\n⚠️  ERRORS DETECTED IN NOTEBOOK:\n#{lines.join}\n\nTotal cells: #{cells.length}, Cells with errors: #{failed.length}\n" \
+      "Use get_jupyter_cells_with_results(filename: \"#{filename}\") for full error details."
+  end
+
+  # Runs a command in the Python container: [true, what it printed] when it
+  # ended well, [false, what it said went wrong] otherwise (it failed, ran
+  # out of time or was stopped).
+  def notebook_command(command, timeout: nil)
+    send_command(command: command, container: "python", timeout: timeout) do |stdout, stderr, status|
+      if status.success?
+        [true, stdout.to_s.strip]
+      else
+        [false, Monadic::Utils::ErrorFormatter.scrub_identifiers(stderr.to_s.strip)]
+      end
     end
   end
-  
+
   # Helper method to generate access URL for an existing notebook
   def get_jupyter_notebook_url(filename)
     # Ensure filename has .ipynb extension
@@ -907,74 +907,75 @@ module MonadicHelper
     end
   end
   
-  # Restart the kernel for a notebook
-  def restart_jupyter_kernel(filename:)
-    return "Error: Filename is required." if filename.empty?
-    
-    # Ensure filename has .ipynb extension
-    filename_with_ext = filename.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
-    
-    # Resolve to the per-environment shared volume so dev-mode users can
-    # restart kernels whatever their home directory is.
-    full_path = Monadic::Utils::SharedPathGuard.resolve_in_shared(filename_with_ext, extensions: %w[.ipynb])
+  # Clears the outputs the notebook keeps. There is no kernel to restart:
+  # every run starts a new one.
+  def clear_jupyter_outputs(filename:)
+    return "Error: Filename is required." if filename.to_s.empty?
+
+    name = filename.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
+    full_path = Monadic::Utils::SharedPathGuard.resolve_in_shared(name, extensions: %w[.ipynb])
     return "Error: Invalid shared notebook path" unless full_path
 
     command_path = Monadic::Utils::SharedPathGuard.command_path(full_path, container: "python")
     return "Error: Invalid shared notebook path" unless command_path
 
-    restart_command = "jupyter nbconvert --clear-output --inplace #{Shellwords.escape(command_path)}"
+    cleared, detail = notebook_command("jupyter nbconvert --clear-output --inplace #{Shellwords.escape(command_path)}")
+    return "Error: Could not clear the outputs of #{name}. #{detail}".strip unless cleared
 
-    result = send_command(
-      command: restart_command,
-      container: "python",
-      success: "Kernel restarted and outputs cleared for #{filename_with_ext}"
-    )
-    
-    if result
-      "Successfully restarted kernel and cleared outputs for notebook: #{filename_with_ext}"
-    else
-      "Error: Could not restart kernel for notebook: #{filename_with_ext}"
-    end
+    "Cleared the outputs of #{name}."
   end
-  
-  # Interrupt currently running cells in a notebook
-  def interrupt_jupyter_execution(filename:)
-    return "Error: Filename is required." if filename.empty?
-    
-    # This is a placeholder - actual implementation would require kernel management
-    # For now, we return a message indicating the limitation
-    "Note: Direct kernel interrupt is not currently supported. " \
-    "Please wait for the current execution to complete or restart the kernel."
-  end
-  
-  # Move a cell to a new position in the notebook
+
+  # Moves a cell so that it ends at to_index (both 0-based, counted in the
+  # notebook as it is). The cell keeps its outputs; nothing is run.
   def move_jupyter_cell(filename:, from_index:, to_index:)
-    return "Error: Filename is required." if filename.empty?
-    return "Error: Invalid indices." if from_index < 0 || to_index < 0
-    
-    # Check if indices are reasonable (basic validation)
-    if from_index >= 10 || to_index >= 10
-      return "Error: Index out of range"
-    end
-    
-    "Successfully moved cell from index #{from_index} to index #{to_index}"
+    name = notebook_name(filename)
+    return "Error: Invalid shared notebook path" unless name
+
+    from = cell_position(from_index)
+    to = cell_position(to_index)
+    return "Error: Cell positions must be whole numbers from 0." unless from && to
+
+    moved, detail = notebook_command("jupyter_controller.py move #{Shellwords.escape(name)} #{from} #{to}")
+    moved ? "#{detail}." : "Error: The cell was not moved. #{detail}".strip
   end
-  
-  # Insert cells at a specific position
+
+  # Inserts cells before the cell at index (0-based; the number of cells
+  # adds them at the end). With run, the whole notebook runs afterwards in
+  # a new kernel, every cell of it, not only the new ones.
   def insert_jupyter_cells(filename:, index:, cells:, run: false)
-    return "Error: Filename is required." if filename.empty?
-    return "Error: Cells are required." if cells.empty?
-    return "Error: Invalid index." if index < 0
-    
-    # Normalize the cells
-    normalized_cells = normalize_cell_format(cells)
-    
-    result = if run
-      "Successfully inserted #{normalized_cells.length} cell(s) at index #{index} and executed"
-    else
-      "Successfully inserted #{normalized_cells.length} cell(s) at index #{index}"
-    end
-    
-    result
+    name = notebook_name(filename)
+    return "Error: Invalid shared notebook path" unless name
+
+    at = cell_position(index)
+    return "Error: The position must be a whole number from 0." unless at
+    return "Error: Cells are required." unless cells.is_a?(Array) && !cells.empty?
+
+    cells_json = normalize_cell_format(cells).to_json
+    return "Error: The cells are too large to insert in one call; insert them in parts." if cells_json.bytesize > INSERT_LIMIT
+
+    inserted, detail = notebook_command("jupyter_controller.py insert #{Shellwords.escape(name)} #{at} #{Shellwords.escape(cells_json)}")
+    return "Error: The cells were not inserted. #{detail}".strip unless inserted
+    return "#{detail}." unless run.to_s == "true"
+
+    "#{detail}.\n\n#{run_jupyter_cells(filename: name)}"
+  end
+
+  # A cell position given as a whole number from 0 (or its digits); nil
+  # for anything else.
+  def cell_position(value)
+    return value if value.is_a?(Integer) && value >= 0
+    return value.to_i if value.is_a?(String) && value.match?(/\A\d+\z/)
+
+    nil
+  end
+
+  # The notebook's name in the shared folder (with .ipynb) when it names a
+  # notebook file there; nil otherwise.
+  def notebook_name(filename)
+    text = filename.to_s
+    return nil if text.empty?
+
+    name = text.end_with?(".ipynb") ? text : "#{text}.ipynb"
+    Monadic::Utils::SharedPathGuard.resolve_in_shared(name, extensions: %w[.ipynb]) ? name : nil
   end
 end

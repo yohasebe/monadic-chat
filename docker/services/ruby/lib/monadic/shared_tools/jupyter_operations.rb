@@ -21,10 +21,12 @@ require_relative 'workbench_tools'
 # - get_jupyter_cells_with_results: Retrieve cells with execution results
 # - execute_and_fix_jupyter_cells: Execute with automatic error detection
 # - list_jupyter_notebooks: List all notebooks
-# - restart_jupyter_kernel: Restart kernel and clear outputs
-# - interrupt_jupyter_execution: Interrupt running cells
+# - clear_jupyter_outputs: Clear the outputs a notebook keeps
 # - move_jupyter_cell: Reorganize notebook structure
 # - insert_jupyter_cells: Insert cells at specific positions
+#
+# Every run starts a new kernel and runs the whole notebook; the user stops
+# a run with Cancel.
 #
 # A notebook a tool makes or changes is shown in the work screen for the
 # reply (the result still gives its JupyterLab address).
@@ -114,7 +116,7 @@ module MonadicSharedTools
       # role == "user" block). For providers without an explicit reset, the
       # set is cleared when tool_html_fragments is consumed by the html
       # handler, so a stale set cannot persist beyond one assistant response.
-      if run.to_s == "true" && result.is_a?(String) && result.include?("executed successfully")
+      if run.to_s == "true" && result.is_a?(String) && !result.start_with?("Error")
         seen_hashes = if session
                         session[:_jupyter_seen_image_hashes] ||= Set.new
                       else
@@ -238,8 +240,8 @@ module MonadicSharedTools
       super()
     end
 
-    # Restart the kernel for a notebook and clear all outputs
-    def restart_jupyter_kernel(filename:, session: nil)
+    # Clear the outputs a notebook keeps
+    def clear_jupyter_outputs(filename:, session: nil, workbench: nil)
       # Use filename from session if not explicitly provided
       filename ||= session[:current_notebook_filename] if session
 
@@ -250,24 +252,8 @@ module MonadicSharedTools
         }
       end
 
-      # MonadicHelper#restart_jupyter_kernel doesn't accept session parameter
-      super(filename: filename)
-    end
-
-    # Interrupt currently running cells
-    def interrupt_jupyter_execution(filename:, session: nil)
-      # Use filename from session if not explicitly provided
-      filename ||= session[:current_notebook_filename] if session
-
-      unless filename && !filename.empty?
-        return {
-          success: false,
-          error: "Filename is required and cannot be empty (or current notebook not set in session)."
-        }
-      end
-
-      # MonadicHelper#interrupt_jupyter_execution doesn't accept session parameter
-      super(filename: filename)
+      # MonadicHelper#clear_jupyter_outputs doesn't accept session parameter
+      shown_with(super(filename: filename), filename, workbench)
     end
 
     # Move a cell to a new position in the notebook
@@ -279,20 +265,6 @@ module MonadicSharedTools
         return {
           success: false,
           error: "Filename is required and cannot be empty (or current notebook not set in session)."
-        }
-      end
-
-      unless from_index.is_a?(Integer) && from_index >= 0
-        return {
-          success: false,
-          error: "From index must be a non-negative integer."
-        }
-      end
-
-      unless to_index.is_a?(Integer) && to_index >= 0
-        return {
-          success: false,
-          error: "To index must be a non-negative integer."
         }
       end
 
@@ -309,20 +281,6 @@ module MonadicSharedTools
         return {
           success: false,
           error: "Filename is required and cannot be empty (or current notebook not set in session)."
-        }
-      end
-
-      unless index.is_a?(Integer) && index >= 0
-        return {
-          success: false,
-          error: "Index must be a non-negative integer."
-        }
-      end
-
-      unless cells.is_a?(Array)
-        return {
-          success: false,
-          error: "Cells must be an array."
         }
       end
 

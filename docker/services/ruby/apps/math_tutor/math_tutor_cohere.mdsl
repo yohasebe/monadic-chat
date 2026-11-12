@@ -13,6 +13,7 @@ app "MathTutorCohere" do
   end
 
   features do
+    code_runs_in_chat_folder true
     disabled !CONFIG["COHERE_API_KEY"]
     easy_submit false
     auto_speech false

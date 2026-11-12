@@ -50,9 +50,8 @@ app "ResearchAssistantCohere" do
 
     You can execute Python code for data analysis and visualization:
     - Use `run_code` with `command: "python"`, your code, and `extension: "py"`
-    - Save images with descriptive file names (e.g., `plt.savefig('analysis_chart.png')`)
-    - Display images: `<div class="generated_image"><img src="/data/FILENAME" /></div>`
-    - Display HTML files: `<div><a href="/data/FILENAME" target="_blank">Result</a></div>`
+    - Your code runs in a new folder of this chat made for that run: save charts and other files by a plain, descriptive name (e.g., `plt.savefig('analysis_chart.png')`). They are kept there and shown on the work screen beside the chat, and the result gives their paths. In your reply, name them in one short line with their paths; do not embed them as images or links
+    - Read the user's files by their full path, `/data/FILENAME`
     - Use `run_bash_command` to check available tools and libraries
     - Use `fetch_text_from_file`, `fetch_text_from_pdf`, or `fetch_text_from_office` to read documents
 
@@ -116,6 +115,7 @@ app "ResearchAssistantCohere" do
   display_name "Research Assistant"
 
   features do
+    code_runs_in_chat_folder true
     disabled !CONFIG["COHERE_API_KEY"]
     websearch !!CONFIG["TAVILY_API_KEY"]
     temperature 0.3

@@ -479,6 +479,16 @@ describe('Workbench', () => {
       sent.length = 0;
       Array.from(pane.querySelectorAll('button')).find((b) => b.textContent.includes('as it is now')).click();
       expect(sent[0].payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'reports/notes.txt' });
+      expect(Array.from(pane.querySelectorAll('button')).some((b) => b.textContent === 'Reload')).toBe(false);
+    });
+
+    test('reads a file shown as it is again when the user asks to reload it', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      view([file()]);
+      const pane = document.getElementById('workbench-view');
+      sent.length = 0;
+      Array.from(pane.querySelectorAll('button')).find((b) => b.textContent === 'Reload').click();
+      expect(sent[0].payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'reports/notes.txt' });
     });
   });
   describe('the browser as an item', () => {

@@ -202,6 +202,7 @@ Each entry shows its name, when it was last modified, its size and what it is:
 - The folder of a chat open in a tab is marked "in use".
 - Files made by Monadic Chat's own test runs (named `monadic-test-…`) are marked "Made by a test run"; names that test runs used before are marked "Possibly left by a test run".
 - Links are listed as links and not followed.
+- Files the system keeps are not listed: what the operating system or Jupyter leaves beside your files (such as `.DS_Store`, `Thumbs.db` and `.ipynb_checkpoints`) and Monadic Chat's own hidden files at the top of the shared folder.
 - Sizes of folders are counted in the background and appear as they finish. A size shown as "≥" was counted only in part (a very large folder, or one partly unreadable).
 
 The search box finds entries by name, the menu beside it orders them by name, modification time (**Newest first**) or size (**Largest first**; kept for the next time), and the filter button narrows the list to one kind of item or to items not modified in the last 30, 90 or 365 days. While a filter is on, a band above the list says so, with a button to clear it. **Show more** adds the next 50 entries. A line above the list says when it is loading, when the folder is empty or nothing matches, and what went wrong, what was copied or what moving to the Trash did; a result stays until you close it.

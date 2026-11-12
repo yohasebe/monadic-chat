@@ -3,6 +3,7 @@
 require_relative 'language_config'
 require_relative 'tts_marker_vocabulary'
 require_relative 'capability_notes'
+require_relative '../workbench/outputs'
 
 module Monadic
   module Utils
@@ -379,8 +380,24 @@ module Monadic
             context = defined?(Monadic::Workspace::RequestContext) ? Monadic::Workspace::RequestContext.current : nil
             Monadic::Utils::CapabilityNotes.for_session(session, request_id: context&.request_id).to_s
           }
+        },
+        # The files this chat has made (Monadic::Workbench::Outputs), after
+        # the rest: it changes when a turn makes or loses a file.
+        {
+          name: :chat_outputs,
+          priority: 15,
+          condition: ->(session, _options) {
+            session.is_a?(Hash) && Array(session[:messages]).any? { |m| m.is_a?(Hash) && m['workbench_made'] }
+          },
+          generator: ->(session, _options) {
+            Monadic::Utils::SystemPromptInjector.chat_outputs_prompt(Monadic::Workbench::Outputs.in_chat(session))
+          }
         }
       ].freeze
+
+      # At most this many of the chat's files are named in the prompt, the
+      # newest.
+      CHAT_OUTPUTS_LISTED = 30
 
       # User message injection rules (applied to each user input)
       # Typically simpler than system rules - just appending instructions
@@ -419,9 +436,17 @@ module Monadic
           parts.join("\n\n")
         end
 
-        # Render the inventory as plain-text bullet lists. Returns nil when
-        # the Library is empty or the lookup fails — the caller still
-        # injects the directive in that case.
+        # The prompt's list of the files the chat has made (Outputs.in_chat),
+        # or nil when there are none.
+        def chat_outputs_prompt(files)
+          return nil if files.empty?
+
+          listed = files.last(CHAT_OUTPUTS_LISTED).map { |f| "- #{f[:path]} (turn #{f[:turn]})" }
+          more = files.size > listed.size ? "\n(and #{files.size - listed.size} earlier files)" : ''
+          "Files made earlier in this chat, in the shared folder (read one where it is; to change one, " \
+            "write a new file, and the earlier one stays with its turn):\n#{listed.join("\n")}#{more}"
+        end
+
         # The app's `work_screen` feature, when it names a way the work
         # screen is used (WORK_SCREEN_PROMPTS); nil otherwise.
         def work_screen_mode(session)
@@ -432,6 +457,9 @@ module Monadic
           WORK_SCREEN_PROMPTS.key?(mode) ? mode : nil
         end
 
+        # Render the inventory as plain-text bullet lists. Returns nil when
+        # the Library is empty or the lookup fails — the caller still
+        # injects the directive in that case.
         def library_inventory_block(app_name = nil)
           return nil unless defined?(Monadic::Library::Store)
 

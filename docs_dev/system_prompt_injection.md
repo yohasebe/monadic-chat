@@ -28,6 +28,9 @@ Rules run in descending priority.
 | 40 | `system_prompt_suffix` | Non-empty `options[:system_prompt_suffix]` | The suffix |
 | 30 | `expressive_speech` | Auto Speech on, the app has not set `expressive_speech false`, and the TTS provider is tag-aware or instruction-mode (`TtsMarkerVocabulary`) | `TtsMarkerVocabulary.prompt_addendum_for(provider, app_is_monadic:)` |
 | 29 | `plain_voice_enforcement` | Auto Speech on, no opt-out, and a TTS provider that is neither tag-aware nor instruction-mode | An instruction to write plain prose without speech markers |
+| 30 | `work_screen` | The app's `work_screen` feature names a mode of `WORK_SCREEN_PROMPTS` | How the app writes its drafts, translations or code as a document on the work screen (`write_section`) |
+| 20 | `capability_notes` | `CapabilityNotes.enabled_for?` the app | What the app's tools can do now (`CapabilityNotes.for_session`) |
+| 15 | `chat_outputs` | A message of the chat has `workbench_made` | The files the chat's replies made and are still there, with their turns, the newest `CHAT_OUTPUTS_LISTED` (`Monadic::Workbench::Outputs.in_chat`); last, as it changes when a turn makes or loses a file |
 
 ## User Rules
 

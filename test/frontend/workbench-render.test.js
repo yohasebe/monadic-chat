@@ -16,6 +16,7 @@ describe('WorkbenchRender', () => {
   beforeAll(() => {
     window.DOMPurify = require(js('vendor/js/purify.min.js'));
     window.markdownit = require(js('vendor/js/markdown-it.min.js'));
+    window.hljs = require(js('vendor/js/highlight.min.js'));
     require(js('js/monadic/text-utils.js'));
   });
 
@@ -133,6 +134,37 @@ describe('WorkbenchRender', () => {
     });
   });
 
+  describe('code', () => {
+    test('is highlighted by its extension, each line standing alone', () => {
+      expect(R.codeLanguage('scripts/run.py')).toBe('py');
+      expect(R.codeLanguage('notes.txt')).toBeNull();
+      expect(R.codeLanguage('data.csv')).toBeNull();
+      const text = 'def f():\n    """two\n    lines"""\n    return 1';
+      const lines = R.highlightedLines(text, 'py');
+      expect(lines).toHaveLength(4);
+      // Each line is whole: every span it opens is closed, and its text is the line's.
+      lines.forEach((html, i) => {
+        const li = document.createElement('li');
+        li.innerHTML = html;
+        expect(li.textContent).toBe(text.split('\n')[i]);
+        expect((html.match(/<span/g) || []).length).toBe((html.match(/<\/span>/g) || []).length);
+      });
+      expect(lines[0]).toContain('hljs-keyword');
+      // The string that runs over lines is a string on both.
+      expect(lines[1]).toContain('hljs-string');
+      expect(lines[2]).toContain('hljs-string');
+    });
+
+    test('escapes what it shows and leaves text it cannot highlight alone', () => {
+      const lines = R.highlightedLines('x = "<img src=x onerror=alert(1)>"', 'py');
+      const li = document.createElement('li');
+      li.innerHTML = lines[0];
+      expect(li.querySelector('img')).toBeNull();
+      expect(R.highlightedLines('text', null)).toBeNull();
+      expect(R.highlightedLines('text', 'no-such-language')).toBeNull();
+    });
+  });
+
   describe('a Jupyter notebook', () => {
     const PNG = 'iVBORw0KGgo=';
     const notebook = (cells) => JSON.stringify({ nbformat: 4, nbformat_minor: 5, metadata: {}, cells });
@@ -158,6 +190,7 @@ describe('WorkbenchRender', () => {
       expect(cells[0].querySelector('strong').textContent).toBe('words');
       expect(cells[1].querySelector('.workbench-nb-prompt').textContent).toBe('[3]');
       expect(cells[1].querySelector('.workbench-nb-source').textContent).toBe('print("hi")');
+      expect(cells[1].querySelector('.workbench-nb-source .hljs-built_in, .workbench-nb-source .hljs-string')).not.toBeNull();
       const outputs = Array.from(cells[1].querySelectorAll('.workbench-nb-stream'), (o) => o.textContent);
       expect(outputs).toEqual(['hi\n', '42']);
       // The image is shown, not its text form.

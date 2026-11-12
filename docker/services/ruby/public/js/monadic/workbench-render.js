@@ -198,6 +198,53 @@
     }), Promise.resolve());
   }
 
+  // ---- code, highlighted --------------------------------------------------
+
+  // A text is highlighted as code by its extension (highlight.js knows it as
+  // a language) up to HIGHLIGHT_CHARS; plain text and data are not.
+  const HIGHLIGHT_CHARS = 200000;
+  const NOT_CODE = ['txt', 'log', 'csv', 'tsv', 'srt', 'vtt', 'jsonl', 'mmd', 'mermaid'];
+
+  function codeLanguage(name) {
+    const ext = String(name || '').toLowerCase().split('.').pop();
+    if (!ext || NOT_CODE.includes(ext) || !window.hljs || !window.hljs.getLanguage) return null;
+    return window.hljs.getLanguage(ext) ? ext : null;
+  }
+
+  // The HTML of each line of text highlighted as language, or null. A token
+  // that runs over lines (a long string, a comment) is closed at each line's
+  // end and opened again on the next, so each line stands alone. The text
+  // is highlight.js's own escaping of it; the markup is its spans.
+  function highlightedLines(text, language) {
+    if (!language || !window.hljs || String(text).length > HIGHLIGHT_CHARS || !window.hljs.getLanguage(language)) return null;
+    let html;
+    try {
+      html = window.hljs.highlight(String(text), { language, ignoreIllegals: true }).value;
+    } catch (_) {
+      return null;
+    }
+    const lines = [];
+    const open = [];
+    let line = '';
+    html.split(/(<span[^>]*>|<\/span>|\n)/).forEach((token) => {
+      if (!token) return;
+      if (token === '\n') {
+        lines.push(line + '</span>'.repeat(open.length));
+        line = open.join('');
+      } else if (token.startsWith('<span')) {
+        open.push(token);
+        line += token;
+      } else if (token === '</span>') {
+        open.pop();
+        line += token;
+      } else {
+        line += token;
+      }
+    });
+    lines.push(line);
+    return lines;
+  }
+
   // ---- Jupyter notebooks (read only) --------------------------------------
 
   // A notebook as it was saved: its cells in order, the text of each and
@@ -271,6 +318,9 @@
     const cells = notebook && Array.isArray(notebook.cells) ? notebook.cells : null;
     if (!cells) throw new Refused(t('notebookUnreadable', 'This notebook could not be read.'));
     const doc = element('div', 'workbench-notebook');
+    const meta = notebook.metadata || {};
+    const language = String((meta.language_info && meta.language_info.name) ||
+      (meta.kernelspec && meta.kernelspec.language) || 'python').toLowerCase();
     cells.slice(0, NOTEBOOK_CELLS).forEach((cell) => {
       if (!cell || typeof cell !== 'object') return;
       const source = joined(cell.source);
@@ -282,7 +332,12 @@
         const count = Number.isInteger(cell.execution_count) ? String(cell.execution_count) : ' ';
         holder.appendChild(element('div', 'workbench-nb-prompt', `[${count}]`));
         const pre = element('pre', 'workbench-nb-source');
-        pre.appendChild(element('code', null, cutText(source)));
+        const code = element('code', null);
+        const text = cutText(source);
+        const lines = highlightedLines(text, language);
+        if (lines) code.innerHTML = lines.join('\n');
+        else code.textContent = text;
+        pre.appendChild(code);
         holder.appendChild(pre);
         (Array.isArray(cell.outputs) ? cell.outputs : []).forEach((output) => {
           const shown = notebookOutput(output);
@@ -689,6 +744,7 @@
   const api = {
     draw, KINDS, Refused,
     // For tests: what is taken apart from drawing.
+    codeLanguage, highlightedLines,
     parseTable, pageDocument, diagramChecked, dataImageOk, cssLoads,
     _dropFrames() {
       dropDiagramFrame();

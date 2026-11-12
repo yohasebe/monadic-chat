@@ -120,6 +120,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
         stub_const("APPS", {
           'MailComposer' => double(settings: { work_screen: 'drafts' }),
           'Coding' => double(settings: { work_screen: 'code' }),
+          'Translate' => double(settings: { work_screen: 'translations' }),
           'Odd' => double(settings: { work_screen: 'nothing like this' }),
           'Chat' => double(settings: {})
         })
@@ -138,6 +139,11 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
       it 'tells the model to put code with its explanation on the work screen' do
         expect(work_screen_for('Coding')[:content]).to include('put_on_workbench', 'fenced code block')
+      end
+
+      it 'tells the model to put a long translation on the work screen and answer a short one in the chat' do
+        text = work_screen_for('Translate')[:content]
+        expect(text).to include('put_on_workbench', 'longer than a few sentences', 'answered in the chat')
       end
 
       it 'says nothing for an app without it, or with a way that is not known' do

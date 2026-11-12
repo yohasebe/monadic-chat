@@ -1,10 +1,7 @@
 require 'json'
 require 'tmpdir'
 require_relative '../../lib/monadic/shell'
-require_relative '../../lib/monadic/workspace/jobs'
-require_relative '../../lib/monadic/workspace/chats'
-require_relative '../../lib/monadic/utils/shared_path_guard'
-require_relative '../../lib/monadic/shared_tools/workbench_tools'
+require_relative '../../lib/monadic/workbench/chat_output'
 
 # Shared tools for Syntax Tree (provider-independent)
 module SyntaxTreeTools
@@ -47,29 +44,29 @@ module SyntaxTreeTools
       problems = notation_problems(input, style)
       return problems if problems
 
-      job = syntax_tree_job(session, workbench)
+      app_name = (session && session.dig(:parameters, "app_name")) || self.class.name
+      job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench, app_name: app_name)
       return "❌ The syntax tree could not be kept: there is no chat folder to keep it in." unless job
 
       formats = tikz ? { "svg" => OUTPUT_NAME, "tikz" => TIKZ_NAME } : { "svg" => OUTPUT_NAME }
       formats.each do |format, name|
         failure = draw(input, style, format, dir)
         if failure
-          drop_empty_job(job)
+          Monadic::Workbench::ChatOutput.drop_if_empty(job)
           return "❌ Error generating syntax tree: #{failure}"
         end
         drawn = File.binread(File.join(dir, "syntree.#{format == 'tikz' ? 'tex' : format}"))
-        Monadic::Utils::SharedPathGuard.write_file!(File.join(job[:path], name), drawn, mode: "wb", replace: false, strict: true)
+        Monadic::Workbench::ChatOutput.keep(job, name, drawn)
       end
 
       path = File.join(job[:relative], OUTPUT_NAME)
-      said = workbench ? MonadicSharedTools::WorkbenchTools.show_file(path, workbench) : ""
-      shown = said.start_with?("{") ? " It is shown on the work screen beside the chat." : ""
+      shown = Monadic::Workbench::ChatOutput.show(path, workbench) ? " It is shown on the work screen beside the chat." : ""
       source = tikz ? " Its LaTeX (forest) source is #{File.join(job[:relative], TIKZ_NAME)}; movement paths are not in it." : ""
       "The syntax tree was drawn as #{path}.#{shown}#{source}\n" \
         "The notation, indented, to show the user exactly as it is in a text code block:\n#{indented(notation)}"
     end
   rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError => e
-    drop_empty_job(job) if job
+    Monadic::Workbench::ChatOutput.drop_if_empty(job)
     "❌ The syntax tree could not be kept: #{e.message}"
   end
 
@@ -164,30 +161,6 @@ module SyntaxTreeTools
 
     original = Bundler.unbundled_env
     ENV.keys.each_with_object(original.dup) { |key, env| env[key] = nil unless original.key?(key) }
-  end
-
-  # A run folder in the chat's folder for one drawing: the chat the reply
-  # was asked in, or the session's. nil without a chat or its folder.
-  def syntax_tree_job(session, workbench)
-    chat_id = workbench&.chat_id || (session && session[Monadic::Workspace::Chats::SESSION_KEY])
-    return nil unless Monadic::Workspace::Ids.valid?(:chat, chat_id)
-
-    app_name = (session && session.dig(:parameters, "app_name")) || self.class.name
-    folder = Monadic::Workspace::Folders.ensure_for_chat!(chat_id, app_name: app_name)
-    return nil unless folder[:status] == :ready
-
-    Monadic::Workspace::Jobs.create!(folder[:workspace_id])
-  rescue Monadic::Workspace::Folders::Unavailable, Monadic::Workspace::Jobs::Unavailable,
-         Monadic::Workspace::Ledger::Unreadable
-    nil
-  end
-
-  # A run folder a failed drawing left empty goes; one with anything in it
-  # stays.
-  def drop_empty_job(job)
-    Dir.rmdir(job[:path]) if Monadic::Workspace::Folders.real_path(job[:relative], :directory)
-  rescue SystemCallError
-    nil
   end
 end
 

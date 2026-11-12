@@ -1,8 +1,8 @@
 /**
  * What the work screen draws of a text file (workbench.js asks, by the kind
  * the server named from the file's extension): Markdown, a table (CSV,
- * TSV), an SVG image, a static HTML page, a Mermaid diagram and a Vega-Lite
- * chart. The file is the model's or the user's, so nothing drawn here may
+ * TSV), an SVG image, a static HTML page, a Mermaid diagram, a draw.io
+ * diagram, a score in ABC notation and a Vega-Lite chart. The file is the model's or the user's, so nothing drawn here may
  * reach the network or run as script:
  *
  * - Markdown and HTML pass a sanitizer of their own (a DOMPurify instance
@@ -14,9 +14,9 @@
  *   data: images.
  * - SVG, and the SVG a diagram or a chart becomes, is shown as an image
  *   (an image loads nothing and runs nothing).
- * - A diagram is made by Mermaid inside a hidden iframe that may run its
- *   scripts and nothing else (its policy loads nothing); the text goes in
- *   by message only.
+ * - A diagram (Mermaid or draw.io) or a score (ABC) is made by its library
+ *   inside a hidden iframe that may run its scripts and nothing else (its
+ *   policy loads nothing); the text goes in by message only.
  * - A chart is made inside a worker whose own policy loads nothing and
  *   runs no text as code (vendor/vega, built by `npm run build:vega`); a
  *   chart that takes too long ends with the worker.
@@ -34,10 +34,13 @@
   const TABLE_ROWS = 2000;
   const TABLE_COLUMNS = 50;
   const DIAGRAM_CHARS = 50000;
+  const FRAME_TEXT_CHARS = 1024 * 1024;
   const SVG_CHARS = 5 * 1024 * 1024;
   const DIAGRAM_WAIT_MS = 15000;
   const CHART_WAIT_MS = 10000;
   const MERMAID_PATH = '/vendor/js/mermaid.min.js';
+  const DRAWIO_PATH = '/vendor/js/viewer-static.min.js';
+  const ABCJS_PATH = '/vendor/js/abcjs-basic-min.min.js';
   const VEGA_WORKER_PATH = '/vendor/vega/vega-worker.mjs';
   const PAGE_POLICY = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; " +
     "base-uri 'none'; form-action 'none'";
@@ -497,66 +500,149 @@
     box.replaceChildren(frame);
   }
 
-  // ---- Mermaid, in a frame that loads nothing ---------------------------
+  // ---- Mermaid, draw.io and ABC, each in a frame that loads nothing -------
+  //
+  // Each kind is drawn by its library inside a hidden iframe that may run
+  // its scripts and nothing else (its policy loads nothing); the text goes
+  // in by message only and an SVG comes back, shown as an image. One frame
+  // per kind, made the first time that kind is drawn.
 
-  let mermaidSource = null;
-  let diagramFrame = null;
-
+  // Settings inside a Mermaid diagram are not taken. Which kinds of
+  // diagram there are is Mermaid's to say (it tells when it knows none), in
+  // the frame.
   function diagramChecked(text) {
     const source = String(text);
     if (source.length > DIAGRAM_CHARS) throw new Refused(t('diagramTooLong', 'The diagram is too long to draw.'));
     if (/^\s*---/.test(source) || source.includes('%%{')) {
       throw new Refused(t('diagramSettings', 'Settings inside a diagram are not taken.'));
     }
-    // Which kinds of diagram there are is Mermaid's to say (it tells when it
-    // knows none), in the frame.
     return source;
   }
 
-  // Mermaid's text, read once. A read that fails, or that a drawing gave
+  function frameTextChecked(text) {
+    const source = String(text);
+    if (source.length > FRAME_TEXT_CHARS) throw new Refused(t('diagramTooLong', 'The diagram is too long to draw.'));
+    return source;
+  }
+
+  // An SVG element made in a frame as XML text an image can show: its size
+  // that of its drawing (the viewBox), not "100%".
+  const SIZED_XML = `function sizedXml(svg) {
+    var box = svg && (svg.getAttribute('viewBox') || '').split(/[\\s,]+/).map(Number);
+    if (box && box.length === 4 && box[2] > 0 && box[3] > 0) {
+      svg.setAttribute('width', String(Math.ceil(box[2])));
+      svg.setAttribute('height', String(Math.ceil(box[3])));
+      svg.style.removeProperty('max-width');
+    }
+    if (svg && !svg.getAttribute('xmlns')) svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    return svg ? new XMLSerializer().serializeToString(svg) : '';
+  }`;
+
+  // What each frame runs: before its library (prelude), and a function from
+  // the text to the SVG's XML text (or a promise of it).
+  const ENGINES = {
+    diagram: {
+      path: MERMAID_PATH,
+      checked: diagramChecked,
+      prelude: '',
+      render: `(function () {
+        mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default',
+          maxTextSize: ${DIAGRAM_CHARS}, maxEdges: 500 });
+        var n = 0;
+        return function (text) {
+          n += 1;
+          return mermaid.render('d' + n, text).then(function (out) {
+            // Labels hold HTML (<br>): read as HTML, written as XML.
+            return sizedXml(new DOMParser().parseFromString(String(out.svg), 'text/html').querySelector('svg'));
+          });
+        };
+      })()`
+    },
+    // A draw.io file (mxfile, its first page) or a bare mxGraphModel.
+    drawio: {
+      path: DRAWIO_PATH,
+      checked: frameTextChecked,
+      // The library draws every diagram on the page when it loads, unless
+      // this is defined.
+      prelude: 'window.onDrawioViewerLoad = function () {};',
+      render: `function (text) {
+        var doc = mxUtils.parseXml(text);
+        var node = doc && doc.documentElement;
+        if (node && node.nodeName === 'mxfile') {
+          var page = node.getElementsByTagName('diagram')[0];
+          node = page ? Editor.parseDiagramNode(page) : null;
+        }
+        if (!node || node.nodeName !== 'mxGraphModel') throw new Error('This is not a draw.io diagram.');
+        var holder = document.createElement('div');
+        document.body.appendChild(holder);
+        var graph = new Graph(holder);
+        try {
+          new mxCodec(node.ownerDocument).decode(node, graph.getModel());
+          return sizedXml(graph.getSvg(null, 1, 10, true, null, true));
+        } finally {
+          graph.destroy();
+          holder.remove();
+        }
+      }`
+    },
+    // ABC notation: its first tune, as a score.
+    abc: {
+      path: ABCJS_PATH,
+      checked: frameTextChecked,
+      prelude: '',
+      render: `function (text) {
+        var holder = document.createElement('div');
+        document.body.appendChild(holder);
+        try {
+          var tunes = ABCJS.renderAbc(holder, text, { add_classes: false });
+          var svg = holder.querySelector('svg');
+          // What ABCJS could not read is said, as it says it: words read as
+          // notes are drawn as a staff all the same.
+          var tune = tunes && tunes[0];
+          var warning = tune && (tune.warnings || [])[0];
+          if (warning) throw new Error('This is not ABC notation as written: ' + String(warning).replace(/<[^>]*>/g, ''));
+          if (!tune || !(tune.lines || []).some(function (line) { return line.staff; }) || !svg) throw new Error('This is not ABC notation.');
+          return sizedXml(svg);
+        } finally {
+          holder.remove();
+        }
+      }`
+    }
+  };
+
+  const librarySources = {};
+  const frames = {};
+
+  // A library's text, read once. A read that fails, or that a drawing gave
   // up on (abort), is forgotten, so the next drawing reads it again.
-  function loadMermaid() {
-    if (!mermaidSource) {
+  function loadLibrary(kind) {
+    if (!librarySources[kind]) {
       const controller = new AbortController();
-      const loading = fetch(MERMAID_PATH, { credentials: 'same-origin', signal: controller.signal }).then((response) => {
-        if (!response.ok) throw new Error('Mermaid is not here');
+      const loading = fetch(ENGINES[kind].path, { credentials: 'same-origin', signal: controller.signal }).then((response) => {
+        if (!response.ok) throw new Error(`${kind} is not here`);
         return response.text();
       });
       loading.abort = () => controller.abort();
-      loading.catch(() => { if (mermaidSource === loading) mermaidSource = null; });
-      mermaidSource = loading;
+      loading.catch(() => { if (librarySources[kind] === loading) delete librarySources[kind]; });
+      librarySources[kind] = loading;
     }
-    return mermaidSource;
+    return librarySources[kind];
   }
 
   // The frame's script: takes { type: 'render', id, text } from the page
   // that made it, answers { type: 'rendered', id, svg | error } to it.
-  function frameScript(origin) {
+  function frameScript(kind, origin) {
     return `(function () {
-      mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default',
-        maxTextSize: ${DIAGRAM_CHARS}, maxEdges: 500 });
-      var n = 0;
+      ${SIZED_XML}
+      var render = ${ENGINES[kind].render};
       var to = ${JSON.stringify(origin)};
       window.addEventListener('message', function (e) {
         if (e.source !== window.parent) return;
         var d = e.data;
         if (!d || d.type !== 'render' || typeof d.id !== 'number' || typeof d.text !== 'string' ||
-            d.text.length > ${DIAGRAM_CHARS}) return;
-        n += 1;
-        mermaid.render('d' + n, d.text).then(function (out) {
-          // Labels hold HTML (<br>): read as HTML, written as XML, so that
-          // it can be shown as an image.
-          var svg = new DOMParser().parseFromString(String(out.svg), 'text/html').querySelector('svg');
-          // An image takes its size from width and height: those of the
-          // drawing (its viewBox), not "100%".
-          var box = svg && (svg.getAttribute('viewBox') || '').split(/[\\s,]+/).map(Number);
-          if (box && box.length === 4 && box[2] > 0 && box[3] > 0) {
-            svg.setAttribute('width', String(Math.ceil(box[2])));
-            svg.setAttribute('height', String(Math.ceil(box[3])));
-            svg.style.removeProperty('max-width');
-          }
-          var xml = svg ? new XMLSerializer().serializeToString(svg) : '';
-          window.parent.postMessage({ type: 'rendered', id: d.id, svg: xml }, to);
+            d.text.length > ${FRAME_TEXT_CHARS}) return;
+        Promise.resolve().then(function () { return render(d.text); }).then(function (svg) {
+          window.parent.postMessage({ type: 'rendered', id: d.id, svg: svg }, to);
         }, function (err) {
           window.parent.postMessage({ type: 'rendered', id: d.id, error: String((err && err.message) || err) }, to);
         });
@@ -565,19 +651,20 @@
     })();`;
   }
 
-  function makeDiagramFrame(source) {
+  function makeFrame(kind, source) {
     const frame = document.createElement('iframe');
     frame.setAttribute('sandbox', 'allow-scripts');
     frame.setAttribute('aria-hidden', 'true');
     frame.tabIndex = -1;
     frame.className = 'workbench-diagram-frame';
-    // Mermaid measures text, so the frame has a size; it is out of view.
+    // The libraries measure text, so the frame has a size; it is out of view.
     frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:1200px;height:800px;border:0;visibility:hidden';
     const script = (code) => `<script>${code.replace(/<\/script/gi, '<\\/script')}</script>`;
     frame.srcdoc = `<!doctype html><html><head><meta charset="utf-8">` +
       `<meta http-equiv="Content-Security-Policy" content="${FRAME_POLICY}"></head><body>` +
-      `${script(source)}${script(frameScript(window.location.origin))}</body></html>`;
-    const state = { frame: frame, ready: null, waiting: null, nextId: 1 };
+      `${ENGINES[kind].prelude ? script(ENGINES[kind].prelude) : ''}${script(source)}` +
+      `${script(frameScript(kind, window.location.origin))}</body></html>`;
+    const state = { kind: kind, frame: frame, ready: null, waiting: null, nextId: 1 };
     state.ready = new Promise((resolve) => { state.readied = resolve; });
     state.listener = (e) => {
       if (e.source !== frame.contentWindow || !e.data || typeof e.data !== 'object') return;
@@ -588,7 +675,7 @@
       const waiting = state.waiting;
       if (e.data.type !== 'rendered' || !waiting || e.data.id !== waiting.id) return;
       state.waiting = null;
-      if (typeof e.data.svg === 'string' && e.data.svg.length <= SVG_CHARS) waiting.resolve(e.data.svg);
+      if (typeof e.data.svg === 'string' && e.data.svg && e.data.svg.length <= SVG_CHARS) waiting.resolve(e.data.svg);
       else waiting.reject(new Refused(typeof e.data.error === 'string' ? e.data.error.slice(0, 300) : t('renderFailed', 'This could not be drawn.')));
     };
     window.addEventListener('message', state.listener);
@@ -596,29 +683,30 @@
     return state;
   }
 
-  function dropDiagramFrame() {
-    if (!diagramFrame) return;
-    const state = diagramFrame;
-    diagramFrame = null;
+  function dropFrame(kind) {
+    const state = frames[kind];
+    if (!state) return;
+    delete frames[kind];
     window.removeEventListener('message', state.listener);
     if (state.waiting) state.waiting.reject(new Error(t('renderFailed', 'This could not be drawn.')));
     state.frame.remove();
   }
 
-  // One diagram at a time: each waits for the one before.
-  let diagramQueue = Promise.resolve();
+  // One drawing at a time: each waits for the one before.
+  let frameQueue = Promise.resolve();
 
-  // The SVG of a diagram. One limit covers reading Mermaid, making the
-  // frame and drawing: a frame that does not answer (not even that it is
-  // ready) is dropped, and the next diagram makes a new one.
-  function diagramSvg(text) {
+  // The SVG of a text of a kind drawn in a frame. One limit covers reading
+  // the library, making the frame and drawing: a frame that does not
+  // answer (not even that it is ready) is dropped, and the next drawing of
+  // that kind makes a new one.
+  function frameSvg(kind, text) {
     let source;
     try {
-      source = diagramChecked(text);
+      source = ENGINES[kind].checked(text);
     } catch (e) {
       return Promise.reject(e);
     }
-    const run = diagramQueue.then(() => new Promise((resolve, reject) => {
+    const run = frameQueue.then(() => new Promise((resolve, reject) => {
       let settled = false;
       let state = null;
       const finish = (fn, value) => {
@@ -628,31 +716,35 @@
         if (state && state.waiting && state.waiting.finish === finish) state.waiting = null;
         fn(value);
       };
-      const loading = loadMermaid();
+      const loading = loadLibrary(kind);
       const timer = setTimeout(() => {
         finish(reject, new Error(t('renderTimeout', 'Drawing took too long.')));
-        if (state && diagramFrame === state) dropDiagramFrame();
-        // Still reading Mermaid: that read ends, and the next drawing reads
-        // it again.
+        if (state && frames[kind] === state) dropFrame(kind);
+        // Still reading the library: that read ends, and the next drawing
+        // reads it again.
         if (!state) {
-          if (mermaidSource === loading) mermaidSource = null;
+          if (librarySources[kind] === loading) delete librarySources[kind];
           loading.abort();
         }
       }, DIAGRAM_WAIT_MS);
       loading.then((code) => {
         if (settled) return null;
-        if (!diagramFrame) diagramFrame = makeDiagramFrame(code);
-        state = diagramFrame;
+        if (!frames[kind]) frames[kind] = makeFrame(kind, code);
+        state = frames[kind];
         return state.ready.then(() => {
-          if (settled || diagramFrame !== state) return;
+          if (settled || frames[kind] !== state) return;
           const id = state.nextId++;
           state.waiting = { id, finish, resolve: (svg) => finish(resolve, svg), reject: (e) => finish(reject, e) };
           state.frame.contentWindow.postMessage({ type: 'render', id: id, text: source }, '*');
         });
       }).catch((e) => finish(reject, e));
     }));
-    diagramQueue = run.catch(() => null);
+    frameQueue = run.catch(() => null);
     return run;
+  }
+
+  function diagramSvg(text) {
+    return frameSvg('diagram', text);
   }
 
   // ---- Vega-Lite, in a worker that loads nothing ------------------------
@@ -701,7 +793,7 @@
 
   // ---- drawing -------------------------------------------------------------
 
-  const KINDS = ['markdown', 'diagram', 'table', 'svg', 'html', 'vega_lite', 'notebook'];
+  const KINDS = ['markdown', 'diagram', 'table', 'svg', 'html', 'vega_lite', 'notebook', 'drawio', 'abc'];
 
   function draw(box, kind, text, options) {
     const ext = (options && options.name ? String(options.name).toLowerCase() : '');
@@ -724,7 +816,7 @@
       else if (kind === 'svg') work = showing(text);
       else if (kind === 'html') work = drawPage(box, text);
       else if (kind === 'notebook') work = drawNotebook(box, text);
-      else if (kind === 'diagram') work = diagramSvg(text).then(showing);
+      else if (kind === 'diagram' || kind === 'drawio' || kind === 'abc') work = frameSvg(kind, text).then(showing);
       else work = chartSvg(text).then(showing);
     } catch (e) {
       work = Promise.reject(e);
@@ -751,7 +843,7 @@
     codeLanguage, highlightedLines,
     parseTable, pageDocument, diagramChecked, dataImageOk, cssLoads,
     _dropFrames() {
-      dropDiagramFrame();
+      Object.keys(frames).forEach(dropFrame);
       if (chartWorker) chartWorker.terminate();
       chartWorker = null;
     }

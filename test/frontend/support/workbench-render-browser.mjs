@@ -18,7 +18,7 @@ const PAGE = '<!doctype html><meta charset="utf-8"><div id="box" style="width:70
   + '<script src="/js/monadic/text-utils.js"></script><script src="/js/monadic/workbench-render.js"></script>'
   + '<script src="/js/monadic/render-registry.js"></script>';
 const FILES = ['/js/monadic/render-registry.js', '/vendor/js/purify.min.js', '/vendor/js/markdown-it.min.js', '/vendor/js/mermaid.min.js', '/js/monadic/text-utils.js',
-  '/js/monadic/workbench-render.js', '/vendor/vega/vega-worker.mjs'];
+  '/js/monadic/workbench-render.js', '/vendor/vega/vega-worker.mjs', '/vendor/js/viewer-static.min.js', '/vendor/js/abcjs-basic-min.min.js'];
 
 const probes = [];
 
@@ -127,6 +127,23 @@ try {
     await run('diagramGit', 'diagram', 'gitGraph\n  commit\n  branch dev\n  commit');
     await run('diagramUnknown', 'diagram', 'notADiagram\nA-->B');
     await run('diagramSettings', 'diagram', '%%{init: {"securityLevel": "loose"}}%%\nflowchart LR\nA-->B');
+
+    // draw.io: a file of one page, a bare model, an image a cell names and
+    // a label holding HTML that names one, and what is not a diagram.
+    const cells = (extra) => '<mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>' +
+      '<mxCell id="2" value="\u958b\u59cb" style="rounded=1;" vertex="1" parent="1"><mxGeometry x="20" y="20" width="120" height="60" as="geometry"/></mxCell>' +
+      '<mxCell id="3" value="End" vertex="1" parent="1"><mxGeometry x="220" y="20" width="120" height="60" as="geometry"/></mxCell>' +
+      '<mxCell id="4" edge="1" parent="1" source="2" target="3"><mxGeometry relative="1" as="geometry"/></mxCell>' +
+      `${extra || ''}</root></mxGraphModel>`;
+    await run('drawioFile', 'drawio', `<mxfile><diagram name="Page-1">${cells()}</diagram></mxfile>`);
+    await run('drawioModel', 'drawio', cells());
+    await run('drawioProbe', 'drawio', cells(
+      `<mxCell id="5" value="" style="shape=image;image=${P('drawio-image')};" vertex="1" parent="1"><mxGeometry x="20" y="120" width="40" height="40" as="geometry"/></mxCell>` +
+      `<mxCell id="6" value="&lt;img src=&quot;${P('drawio-label')}&quot;&gt;" style="html=1;" vertex="1" parent="1"><mxGeometry x="120" y="120" width="80" height="40" as="geometry"/></mxCell>`));
+    await run('drawioNot', 'drawio', '<svg xmlns="http://www.w3.org/2000/svg"/>');
+    // ABC: a tune, and what is not one.
+    await run('abcTune', 'abc', 'X:1\nT:Scale\nM:4/4\nL:1/8\nK:C\nCDEF GABc|c2B2 A2G2|]');
+    await run('abcNot', 'abc', 'just some words');
 
     const bar = { data: { values: [{ a: 'A', b: 28 }, { a: 'B', b: 55 }] }, mark: 'bar',
       encoding: { x: { field: 'a', type: 'nominal' }, y: { field: 'b', type: 'quantitative' } } };

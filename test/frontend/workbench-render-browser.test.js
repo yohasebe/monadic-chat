@@ -45,6 +45,16 @@ describe('WorkbenchRender in a browser', () => {
     expect(r.refused.diagramUnknown).toMatch(/^refused: .*[Nn]o diagram type/);
   });
 
+  test('draws a draw.io diagram, from a file or a bare model, without the images it names, and refuses what is not one', () => {
+    ['drawioFile', 'drawioModel', 'drawioProbe'].forEach((name) => expect(r.drawn[name].width).toBeGreaterThan(0));
+    expect(r.refused.drawioNot).toMatch(/^refused: This is not a draw\.io diagram/);
+  });
+
+  test('draws a tune in ABC notation as a score, and refuses what is not one', () => {
+    expect(r.drawn.abcTune.width).toBeGreaterThan(0);
+    expect(r.refused.abcNot).toMatch(/^refused: This is not ABC notation as written: .*Unknown character/);
+  });
+
   test('draws charts from inline values, and refuses addresses, images, a second fold, too many views, signals and other functions', () => {
     expect(r.drawn.chartBar.width).toBeGreaterThan(0);
     expect(r.drawn.chartLine.width).toBeGreaterThan(0);

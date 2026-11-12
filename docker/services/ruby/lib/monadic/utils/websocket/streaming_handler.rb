@@ -263,6 +263,7 @@ module WebSocketHelper
     obj.delete("workbench_shown")
     obj.delete("workbench_made")
     obj.delete("workbench_revisions")
+    obj.delete("state_changes")
     request_id = Monadic::Workspace::Ids.generate(:request)
     # The user's own message: text, or attached files only (video or audio
     # as attachments, images and PDFs as images).

@@ -7,6 +7,7 @@ require_relative '../workbench/record'
 require_relative '../workbench/shown'
 require_relative '../workbench/made'
 require_relative '../workbench/look/record'
+require_relative '../turn_state/form'
 
 module Monadic
   module History
@@ -43,6 +44,8 @@ module Monadic
           'messages' => messages,
           'parameters' => pick(value_of(session, :parameters), PARAMETER_FIELDS),
           'session_context' => session_context(session),
+          'monadic_state' => Monadic::TurnState::Form.clean_base(value_of(session, :monadic_state)).first,
+          'turn_state_schema' => Monadic::TurnState::Form::SCHEMA,
           'word_table' => Monadic::Utils::Privacy::Words.marked?(session) ? {} : nil
         }.compact
         Monadic::Utils::SecretRedactor.redact_deep(data)
@@ -92,6 +95,10 @@ module Monadic
         out['workbench_made'] = made if made
         revisions = Monadic::Workbench::Made.clean_revisions(raw[Monadic::Workbench::Made::REVISIONS_KEY] || raw[:workbench_revisions])
         out[Monadic::Workbench::Made::REVISIONS_KEY] = revisions if revisions
+        # What the reply changed in its app's state (Monadic::TurnState).
+        key = Monadic::TurnState::Form::STATE_CHANGES_KEY
+        changes = Monadic::TurnState::Form.clean_changes(raw[key] || raw[key.to_sym])
+        out[key] = changes if changes
         out
       end
 

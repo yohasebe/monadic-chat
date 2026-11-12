@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../../turn_state/form'
+
 # The conversation history as the page uses it, over the tab's own
 # WebSocket: the list, a name for a chat, removing one, and continuing one in
 # this tab. Only this server's chat ids are taken, and the replies carry the
@@ -156,6 +158,10 @@ module WebSocketHelper
     session[:messages] = Array(payload['messages']).map do |m|
       m.merge('html' => m['text'], 'active' => true, 'app_name' => m['app_name'] || params['app_name'])
     end
+    # The app state the chat began with (Monadic::TurnState::Form's base);
+    # what its replies changed comes back with their messages.
+    base, = Monadic::TurnState::Form.clean_base(payload['monadic_state'])
+    session[:monadic_state] = Monadic::TurnState::Form.to_session(base) if base
     # The context the chat holds, or else the one saved last (none, when it
     # was emptied), read again now that the chat's work has ended; what was
     # read to resume, when that is gone.

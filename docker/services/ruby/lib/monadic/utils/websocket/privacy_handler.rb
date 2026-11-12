@@ -20,6 +20,7 @@ require_relative '../../workbench/shown'
 require_relative '../../workbench/made'
 require_relative '../../workbench/look/record'
 require_relative '../../workspace/chat_context'
+require_relative '../../turn_state/form'
 require_relative '../progressive_tool_manager'
 
 module WebSocketHelper
@@ -247,6 +248,7 @@ module WebSocketHelper
     mid role text app_name type lang html active
     thinking tokens images image
     interrupted tools_used verify artifacts workbench_looks workbench_shown workbench_made workbench_revisions
+    state_changes
   ].freeze
 
   # Reduce messages to the shared-export schema. Anything not named above is
@@ -269,7 +271,9 @@ module WebSocketHelper
       made = Monadic::Workbench::Made.clean(kept.delete('workbench_made') || kept.delete(:workbench_made))
       kept = kept.merge('workbench_made' => made) if made
       revisions = Monadic::Workbench::Made.clean_revisions(kept.delete('workbench_revisions') || kept.delete(:workbench_revisions))
-      revisions ? kept.merge('workbench_revisions' => revisions) : kept
+      kept = kept.merge('workbench_revisions' => revisions) if revisions
+      changes = Monadic::TurnState::Form.clean_changes(kept.delete('state_changes') || kept.delete(:state_changes))
+      changes ? kept.merge('state_changes' => changes) : kept
     end
   end
 
@@ -315,6 +319,19 @@ module WebSocketHelper
     end
   end
 
+  # A reply's state changes in a masked file: their form (app, kind, key,
+  # collection, id, op) stays, so the file imports; data is masked, keys
+  # and all.
+  private def privacy_mask_state_changes(changes, registry)
+    return changes unless changes.is_a?(Array)
+
+    changes.map do |change|
+      next change unless change.is_a?(Hash) && change.key?('data')
+
+      change.merge('data' => privacy_mask_everywhere(change['data'], registry, keys: true))
+    end
+  end
+
   # The app state of a masked file: its form (the app's name, the state's
   # key, the envelope's fields) stays as it is, so the file imports; what
   # the app kept in it (data) is masked, the names it keeps items by among it.
@@ -345,7 +362,13 @@ module WebSocketHelper
       next privacy_mask_everywhere(m, registry) unless m.is_a?(Hash)
 
       m.each_with_object({}) do |(k, v), out|
-        out[k] = PRIVACY_MESSAGE_PROTOCOL_KEYS.include?(k.to_s) ? v : privacy_mask_everywhere(v, registry)
+        out[k] = if PRIVACY_MESSAGE_PROTOCOL_KEYS.include?(k.to_s)
+                   v
+                 elsif k.to_s == Monadic::TurnState::Form::STATE_CHANGES_KEY
+                   privacy_mask_state_changes(v, registry)
+                 else
+                   privacy_mask_everywhere(v, registry)
+                 end
       end
     end
   end

@@ -6,6 +6,7 @@ require_relative "../workbench/record"
 require_relative "../workbench/look/record"
 require_relative "../workbench/shown"
 require_relative "../workbench/made"
+require_relative "../turn_state/form"
 
 # Session state management routes
 # Export/import conversation state and session data
@@ -227,34 +228,19 @@ post "/load" do
           imported[:parameters]["initial_prompt"] = json_data["messages"].first["text"]
         end
 
-        # Restore monadic_state if present in import data (for Session State mechanism)
-        if json_data["monadic_state"]
-          # Convert string keys to symbols for consistency
-          # Only namespaces shaped like {key => {data, version, updated_at}}
-          # are app state. A file written before the export separated the
-          # Context Panel's structures out can carry those here instead, and
-          # reading ["data"] from an Integer or Array raised, which failed the
-          # whole import. Skip what does not fit and let session_context below
-          # restore the panel.
-          imported[:monadic_state] = json_data["monadic_state"].transform_keys(&:to_s).each_with_object({}) do |(app_key, app_data), result|
-            next unless app_data.is_a?(Hash)
-
-            entries = app_data.transform_keys(&:to_s).each_with_object({}) do |(state_key, state_entry), app_result|
-              next unless state_entry.is_a?(Hash) && state_entry.key?("data")
-
-              app_result[state_key] = {
-                data: state_entry["data"],
-                version: state_entry["version"].to_i,
-                updated_at: state_entry["updated_at"]
-              }
-            end
-            # The context a Session Context tool kept here in older files is
-            # read below as the chat's context, not kept as app state.
-            entries.delete("conversation_context")
-            result[app_key] = entries unless entries.empty?
+        # The app state the file began with (Monadic::TurnState::Form's
+        # base): what fits is kept, what does not is left out and counted.
+        # The Context Panel's structures a file of an earlier version kept
+        # here are read below as the chat's context, not as app state.
+        state_changes_dropped = 0
+        if json_data["monadic_state"].is_a?(Hash)
+          legacy = json_data["monadic_state"].transform_keys(&:to_s).transform_values do |entries|
+            entries.is_a?(Hash) ? entries.reject { |key, _| key.to_s == "conversation_context" } : entries
           end
+          base, state_changes_dropped = Monadic::TurnState::Form.clean_base(legacy)
+          imported[:monadic_state] = Monadic::TurnState::Form.to_session(base) if base
 
-          Monadic::Utils::ExtraLogger.log { "[Import] Restored monadic_state for apps: #{imported[:monadic_state].keys.join(', ')}" }
+          Monadic::Utils::ExtraLogger.log { "[Import] Restored monadic_state for apps: #{Array(base&.keys).join(', ')}" }
         end
 
         # Files written before the export separated them carry the panel under
@@ -349,6 +335,16 @@ post "/load" do
           message_obj["workbench_made"] = made if made
           revisions = Monadic::Workbench::Made.clean_revisions(msg["workbench_revisions"])
           message_obj["workbench_revisions"] = revisions if revisions
+          # What the reply changed in its app's state, taken as the file's
+          # data; changes that do not fit are left out, and counted.
+          if msg.key?("state_changes")
+            changes = Monadic::TurnState::Form.clean_changes(msg["state_changes"])
+            if changes
+              message_obj["state_changes"] = changes
+            else
+              state_changes_dropped += 1
+            end
+          end
           message_obj
         end.compact # Remove nil values from invalid messages
 
@@ -373,7 +369,8 @@ post "/load" do
         token = WebSocketHelper.stage_import(tab_id, imported)
 
         older_words = older_registry.empty? && terms_to_restore.empty? ? 0 : word_table['active'].size
-        { success: true, app_name: json_data['parameters']['app_name'], import_token: token, older_words: older_words }.to_json
+        { success: true, app_name: json_data['parameters']['app_name'], import_token: token, older_words: older_words,
+          state_dropped: state_changes_dropped }.to_json
       rescue Monadic::Utils::Privacy::WordTable::Invalid => e
         error_json("Import error: the file's word table could not be read: #{e.message}")
       rescue Monadic::Utils::Privacy::Marks::Invalid => e

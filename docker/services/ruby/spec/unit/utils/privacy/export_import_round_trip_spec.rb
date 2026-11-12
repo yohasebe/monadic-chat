@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../../../spec_helper'
+require_relative '../../../../lib/monadic/turn_state/form'
 
 # session[:monadic_state] holds three unrelated things under one roof: app
 # namespaces shaped {key => {data, version, updated_at}}, the Context Panel's
@@ -38,7 +39,7 @@ RSpec.describe 'Export/import round trip for session state' do
     lines = File.readlines(
       File.expand_path('../../../../lib/monadic/routes/session_routes.rb', __dir__)
     )
-    start = lines.index { |l| l.strip == 'if json_data["monadic_state"]' }
+    start = lines.index { |l| l.strip == 'state_changes_dropped = 0' }
     finish = lines.index { |l| l.include?('Restored session_context with') }
 
     expect(start).to be_a(Integer), 'the monadic_state restore block has moved'

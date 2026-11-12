@@ -1388,7 +1388,9 @@
   // JupyterLab when it does not answer, and answers with the notebook's
   // address. A link counts when it is JupyterLab's on this machine
   // (127.0.0.1 or localhost, /lab/tree/, a .ipynb); the server takes only
-  // the notebook's path from it.
+  // the notebook's path from it. The click is taken on the window before
+  // anything on the document sees it: the desktop app opens every web link
+  // it gets in the system browser.
   const JUPYTER_HOSTS = ['127.0.0.1', 'localhost'];
   let jupyterAsked = null;
 
@@ -1450,6 +1452,7 @@
     const path = link ? jupyterPath(link.getAttribute('href')) : null;
     if (!path) return;
     e.preventDefault();
+    e.stopPropagation();
     openInJupyter(path);
   }
 
@@ -1562,8 +1565,8 @@
     document.addEventListener('click', onCardClick);
     document.addEventListener('click', onZoomClick);
     document.addEventListener('keydown', onZoomKey);
-    document.addEventListener('click', onJupyterLinkClick);
   }
+  if (typeof window !== 'undefined') window.addEventListener('click', onJupyterLinkClick, true);
 
   function onResult(data) {
     if (!data) return;

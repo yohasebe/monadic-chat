@@ -119,7 +119,7 @@
     "documentation": "Documentación",
     "startSeleniumContainer": "Iniciar Contenedor Selenium",
     "stopSeleniumContainer": "Detener Contenedor Selenium",
-    "startJupyterLab": "Iniciar JupyterLab",
+    "openJupyterLab": "Abrir JupyterLab",
     "stopJupyterLab": "Detener JupyterLab",
     "importDocumentDB": "Importar DB de Documentos",
     "exportDocumentDB": "Exportar DB de Documentos",

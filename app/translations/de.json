@@ -119,7 +119,7 @@
     "updateUserContainers": "Benutzer-Container aktualisieren",
     "startSeleniumContainer": "Selenium-Container starten",
     "stopSeleniumContainer": "Selenium-Container stoppen",
-    "startJupyterLab": "JupyterLab starten",
+    "openJupyterLab": "JupyterLab öffnen",
     "stopJupyterLab": "JupyterLab stoppen",
     "importDocumentDB": "Document DB importieren",
     "exportDocumentDB": "Document DB exportieren",

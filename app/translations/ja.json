@@ -126,7 +126,7 @@
     "updateUserContainers": "ユーザーコンテナを更新",
     "startSeleniumContainer": "Seleniumコンテナを開始",
     "stopSeleniumContainer": "Seleniumコンテナを停止",
-    "startJupyterLab": "JupyterLabを開始",
+    "openJupyterLab": "JupyterLab を開く",
     "stopJupyterLab": "JupyterLabを停止",
     "importDocumentDB": "ドキュメントDBをインポート",
     "exportDocumentDB": "ドキュメントDBをエクスポート",

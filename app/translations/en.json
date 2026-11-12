@@ -126,7 +126,7 @@
     "updateUserContainers": "Update User Containers",
     "startSeleniumContainer": "Start Selenium Container",
     "stopSeleniumContainer": "Stop Selenium Container",
-    "startJupyterLab": "Start JupyterLab",
+    "openJupyterLab": "Open JupyterLab",
     "stopJupyterLab": "Stop JupyterLab",
     "importDocumentDB": "Import Document DB",
     "exportDocumentDB": "Export Document DB",

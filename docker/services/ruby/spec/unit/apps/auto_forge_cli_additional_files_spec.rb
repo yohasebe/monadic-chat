@@ -9,10 +9,6 @@ RSpec.describe 'AutoForge CLI optional files' do
   let(:helper_class) do
     Class.new do
       include AutoForgeTools
-
-      def initialize
-        @context = {}
-      end
     end
   end
 
@@ -82,21 +78,12 @@ RSpec.describe 'AutoForge CLI optional files' do
       allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data_dir)
     end
 
-    it 'creates a README for the active CLI project' do
+    it "creates a README for the chat's CLI project" do
       Dir.mktmpdir('project-', @data_dir) do |dir|
         script_path = File.join(dir, 'tool.py')
         File.write(script_path, "#!/usr/bin/env python3\nprint('ok')\n")
 
-        helper.instance_variable_set(
-          :@context,
-          {
-            auto_forge: {
-              project_path: dir,
-              project_type: 'cli',
-              main_file: 'tool.py'
-            }
-          }
-        )
+        allow(AutoForgeUtils).to receive(:current_project).and_return({ path: dir, has_index: false })
 
         message = helper.generate_additional_file('file_type' => 'readme')
         expect(message).to include('✅ Created README.md')
@@ -109,17 +96,7 @@ RSpec.describe 'AutoForge CLI optional files' do
         script_path = File.join(dir, 'tool.py')
         File.write(script_path, "#!/usr/bin/env python3\nprint('ok')\n")
 
-        helper.instance_variable_set(
-          :@context,
-          {
-            agent: :openai,
-            auto_forge: {
-              project_path: dir,
-              project_type: 'cli',
-              main_file: 'tool.py'
-            }
-          }
-        )
+        allow(AutoForgeUtils).to receive(:current_project).and_return({ path: dir, has_index: false })
 
         # Mock call_openai_code method which is used by resolve_text_generator
         allow(helper).to receive(:call_openai_code).and_return({ success: true, code: "Line one\nLine two" })
@@ -134,18 +111,22 @@ RSpec.describe 'AutoForge CLI optional files' do
       end
     end
 
+    it "says so when the chat has no project, or its project is a web app" do
+      allow(AutoForgeUtils).to receive(:current_project).and_return(nil)
+      expect(helper.generate_additional_file('file_type' => 'readme')).to include('No project of this chat')
+      allow(AutoForgeUtils).to receive(:current_project).and_return({ path: @data_dir, has_index: true })
+      expect(helper.generate_additional_file('file_type' => 'readme')).to include('only available for CLI projects')
+    end
+
+    it 'adds to the project the model names' do
+      allow(AutoForgeUtils).to receive(:current_project).and_return(nil)
+      helper.generate_additional_file('file_type' => 'readme', 'project_name' => 'Tool')
+      expect(AutoForgeUtils).to have_received(:current_project).with(path: nil, name: 'Tool')
+    end
+
     it 'rejects unsafe file names' do
       Dir.mktmpdir('project-', @data_dir) do |dir|
-        helper.instance_variable_set(
-          :@context,
-          {
-            auto_forge: {
-              project_path: dir,
-              project_type: 'cli',
-              main_file: 'tool.py'
-            }
-          }
-        )
+        allow(AutoForgeUtils).to receive(:current_project).and_return({ path: dir, has_index: false })
 
         message = helper.generate_additional_file(
           'file_name' => '../secret.txt',

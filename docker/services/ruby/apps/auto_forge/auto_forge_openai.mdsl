@@ -212,6 +212,7 @@ app "AutoForgeOpenAI" do
 
     define_tool "generate_additional_file", "Generate additional files for CLI projects (README, config, dependencies)" do
       parameter :file_type, "string", "Type of file to generate: readme, config, or requirements", required: true
+      parameter :project_name, "string", "Name of the chat's project to add it to (default: the newest)", required: false
     end
 
     define_tool "openai_code_agent", "Call OpenAI Code for complex code generation tasks" do

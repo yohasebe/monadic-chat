@@ -79,6 +79,28 @@ RSpec.describe "AutoForge projects in the chat's folder" do
     expect(File.read(File.join(project[:path], "index.html"))).to eq("v1")
   end
 
+  it "finds the chat's project by its path, its name, or as the newest" do
+    reply
+    older = AutoForgeUtils.create_project_directory("Older", { type: "web" })
+    allow(Time).to receive(:now).and_return(Time.now + 5)
+    newer = AutoForgeUtils.create_project_directory("Newer", { type: "web" })
+    expect(AutoForgeUtils.current_project[:path]).to eq(newer[:path])
+    expect(AutoForgeUtils.current_project(name: "older")[:path]).to eq(older[:path])
+    expect(AutoForgeUtils.current_project(path: older[:path])[:path]).to eq(older[:path])
+    expect(AutoForgeUtils.current_project(path: File.join(@data, "elsewhere"))).to be_nil
+  end
+
+  it "changes the chat's project of the same name rather than making another" do
+    reply
+    own = AutoForgeUtils.create_project_directory("App")
+    orchestrator = AutoForge::Orchestrator.new({})
+    expect(orchestrator.send(:resolve_project_context, { name: "app" })).to include(path: own[:path], existing: true)
+    allow(Time).to receive(:now).and_return(Time.now + 5)
+    fresh = orchestrator.send(:resolve_project_context, { name: "App", reset: true })
+    expect(fresh[:existing]).to be_falsey
+    expect(fresh[:path]).not_to eq(own[:path])
+  end
+
   it "takes no project outside this chat's auto_forge folder" do
     reply
     own = AutoForgeUtils.create_project_directory("App")

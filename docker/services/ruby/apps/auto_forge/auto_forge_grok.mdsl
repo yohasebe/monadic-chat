@@ -132,6 +132,7 @@ app "AutoForgeGrok" do
 
     define_tool "generate_additional_file", "Generate additional files for CLI projects (README, config, dependencies)" do
       parameter :file_type, "string", "Type of file to generate: readme, config, or requirements", required: true
+      parameter :project_name, "string", "Name of the chat's project to add it to (default: the newest)", required: false
     end
 
     define_tool "grok_code_agent", "Call Grok-Code-Fast-1 for complex code generation tasks" do

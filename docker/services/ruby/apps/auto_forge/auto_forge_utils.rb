@@ -116,6 +116,24 @@ module AutoForgeUtils
     end
   end
 
+  # The chat's project the user means: the one at path (a folder of this
+  # chat's projects), else the one named name, else the newest. nil when
+  # the chat has none of them.
+  def self.current_project(path: nil, name: nil)
+    projects = list_projects
+    if path && !path.to_s.strip.empty?
+      real = begin
+        File.realpath(path.to_s.strip)
+      rescue SystemCallError
+        nil
+      end
+      return projects.find { |project| File.realpath(project[:path]) == real }
+    end
+    return find_recent_project(name) if name && !name.to_s.strip.empty?
+
+    projects.first
+  end
+
   # Validate project specification
   # @param spec [Hash] Project specification
   # @return [Hash] Validation result with :valid and :errors keys

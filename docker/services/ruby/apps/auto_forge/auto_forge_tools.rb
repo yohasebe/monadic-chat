@@ -212,19 +212,6 @@ module AutoForgeTools
     # Pass the progress callback to generate_application
     result = app.generate_application(spec, &progress_callback)
 
-    # Store project info in context for additional file generation
-    # Note: Only using local variable context to avoid race conditions with shared @context
-    if result[:success]
-      auto_forge = context[:auto_forge] || {}
-      auto_forge[:project_path] = result[:project_path]
-      auto_forge[:project_type] = project_type
-      auto_forge[:project_id] = result[:project_id]
-      auto_forge[:main_file] = result[:files_created]&.first if project_type == 'cli'
-      context[:auto_forge] = auto_forge
-      context['auto_forge'] = auto_forge if context.respond_to?(:[])
-      # Removed @context assignment to prevent cross-session contamination
-    end
-
     # Format response
     if result[:success]
       if project_type == 'cli'
@@ -385,22 +372,14 @@ module AutoForgeTools
     file_name = params['file_name'] || params[:file_name]
     instructions = params['instructions'] || params[:instructions]
 
-    # Handle both symbol and string keys for context
-    context = @context || {}
-    auto_forge = context[:auto_forge] || context['auto_forge'] || {}
+    # The chat's project: the one named by path or name, else the newest.
+    project = AutoForgeUtils.current_project(path: params['project_path'] || params[:project_path],
+                                             name: params['project_name'] || params[:project_name])
+    return "❌ No project of this chat was found. Please generate the main application first." unless project
 
-    # Try both key formats for retrieval
-    project_path = auto_forge[:project_path] || auto_forge['project_path']
-    project_type = auto_forge[:project_type] || auto_forge['project_type'] ||
-                   auto_forge[:current_project_type] || auto_forge['current_project_type']
-
-    unless project_path && File.exist?(project_path)
-      return "❌ No active project found. Please generate the main application first."
-    end
-
-    unless project_type == 'cli'
-      return "ℹ️ Additional files are only available for CLI projects."
-    end
+    project_path = project[:path]
+    # A web project has its index.html; any other is a CLI project.
+    return "ℹ️ Additional files are only available for CLI projects." if project[:has_index]
 
     # A project an earlier turn made is kept as it is before it changes.
     AutoForge::Utils::PathConfig.before_change(project_path)
@@ -442,7 +421,7 @@ module AutoForgeTools
       return format_debug_context_error(context)
     end
 
-    debugger = AutoForge::Debugger.new(@context)
+    debugger = AutoForge::Debugger.new
 
     # Check Selenium availability with retries
     if error = debugger.send(:check_selenium_or_error)
@@ -483,7 +462,7 @@ module AutoForgeTools
       return raw_error_hash(context)
     end
 
-    debugger = AutoForge::Debugger.new(@context)
+    debugger = AutoForge::Debugger.new
 
     # Check Selenium availability with retries
     if error = debugger.send(:check_selenium_or_error)

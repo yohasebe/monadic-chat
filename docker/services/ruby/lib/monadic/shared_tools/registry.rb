@@ -817,7 +817,7 @@ module MonadicSharedTools
           },
           {
             name: "create_jupyter_notebook",
-            description: "Create a new Jupyter notebook with automatic timestamping",
+            description: "Create a new, empty Jupyter notebook in this chat's folder; returns its path and JupyterLab address",
             parameters: [
               {
                 name: :filename,

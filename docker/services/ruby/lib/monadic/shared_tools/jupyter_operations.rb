@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 
 require 'cgi'
+require 'json'
 require 'set'
+require_relative '../workspace/notebooks'
+require_relative '../workspace/chats'
 require_relative 'workbench_tools'
 
 # JupyterOperations Shared Tools
@@ -52,44 +55,23 @@ module MonadicSharedTools
       super(command: command)
     end
 
-    # Create a new Jupyter notebook
+    # Create a new Jupyter notebook: in the chat's folder (work/), or at the
+    # top of the shared folder for a call with no chat.
     def create_jupyter_notebook(filename:, session: nil, workbench: nil)
-      unless filename && !filename.empty?
-        return {
-          success: false,
-          error: "Filename is required and cannot be empty."
-        }
+      chat_id = notebook_chat(session, workbench)
+      unless chat_id
+        result = super(filename: filename)
+        return shown_with(result, created_notebook(result), workbench)
       end
 
-      # MonadicHelper#create_jupyter_notebook doesn't accept session parameter
-      result = super(filename: filename)
-
-      # Store the created notebook's filename in the session
-      if session && result.is_a?(Hash) && result["success"]
-        session[:current_notebook_filename] = filename
-      end
-
-      shown_with(result, created_notebook(result), workbench)
+      path, result = notebook_made(chat_id, filename, session)
+      shown_with(result, path, workbench)
     end
 
     # Add and run cells in a Jupyter notebook
     def add_jupyter_cells(filename:, cells:, run: true, escaped: false, session: nil, workbench: nil)
-      # Use filename from session if not explicitly provided
-      filename ||= session[:current_notebook_filename] if session
-
-      unless filename && !filename.empty?
-        return {
-          success: false,
-          error: "Filename is required and cannot be empty (or current notebook not set in session)."
-        }
-      end
-
-      unless cells.is_a?(Array)
-        return {
-          success: false,
-          error: "Cells must be an array."
-        }
-      end
+      filename, refused = notebook_for(filename, session, workbench)
+      return refused if refused
 
       # MonadicHelper#add_jupyter_cells doesn't accept session parameter
       result = super(filename: filename, cells: cells, run: run, escaped: escaped)
@@ -137,164 +119,147 @@ module MonadicSharedTools
 
     # Delete a cell from a Jupyter notebook
     def delete_jupyter_cell(filename:, index:, session: nil, workbench: nil)
-      # Use filename from session if not explicitly provided
-      filename ||= session[:current_notebook_filename] if session
+      filename, refused = notebook_for(filename, session, workbench)
+      return refused if refused
 
-      unless filename && !filename.empty?
-        return {
-          success: false,
-          error: "Filename is required and cannot be empty (or current notebook not set in session)."
-        }
-      end
-
-      unless index.is_a?(Integer) && index >= 0
-        return {
-          success: false,
-          error: "Index must be a non-negative integer."
-        }
-      end
-
-      # MonadicHelper#delete_jupyter_cell doesn't accept session parameter
       shown_with(super(filename: filename, index: index), filename, workbench)
     end
 
     # Update the content of a cell in a Jupyter notebook
     def update_jupyter_cell(filename:, index:, content:, cell_type: "code", session: nil, workbench: nil)
-      # Use filename from session if not explicitly provided
-      filename ||= session[:current_notebook_filename] if session
+      filename, refused = notebook_for(filename, session, workbench)
+      return refused if refused
+      return "Error: Cell type must be 'code' or 'markdown'." unless %w[code markdown].include?(cell_type)
 
-      unless filename && !filename.empty?
-        return {
-          success: false,
-          error: "Filename is required and cannot be empty (or current notebook not set in session)."
-        }
-      end
-
-      unless index.is_a?(Integer) && index >= 0
-        return {
-          success: false,
-          error: "Index must be a non-negative integer."
-        }
-      end
-
-      unless content
-        return {
-          success: false,
-          error: "Content is required."
-        }
-      end
-
-      unless %w[code markdown].include?(cell_type)
-        return {
-          success: false,
-          error: "Cell type must be 'code' or 'markdown'."
-        }
-      end
-
-      # MonadicHelper#update_jupyter_cell doesn't accept session parameter
       shown_with(super(filename: filename, index: index, content: content, cell_type: cell_type), filename, workbench)
     end
 
     # Get all cells with their execution results, including error information
-    def get_jupyter_cells_with_results(filename:, session: nil)
-      # Use filename from session if not explicitly provided
-      filename ||= session[:current_notebook_filename] if session
+    def get_jupyter_cells_with_results(filename:, session: nil, workbench: nil)
+      filename, refused = notebook_for(filename, session, workbench)
+      return refused if refused
 
-      unless filename && !filename.empty?
-        return {
-          success: false,
-          error: "Filename is required and cannot be empty (or current notebook not set in session)."
-        }
-      end
-
-      # MonadicHelper#get_jupyter_cells_with_results doesn't accept session parameter
       super(filename: filename)
     end
 
     # Execute cells and get error information for fixing
     def execute_and_fix_jupyter_cells(filename:, max_retries: 3, session: nil, workbench: nil)
-      # Use filename from session if not explicitly provided
-      filename ||= session[:current_notebook_filename] if session
+      filename, refused = notebook_for(filename, session, workbench)
+      return refused if refused
 
-      unless filename && !filename.empty?
-        return {
-          success: false,
-          error: "Filename is required and cannot be empty (or current notebook not set in session)."
-        }
-      end
-
-      unless max_retries.is_a?(Integer) && max_retries > 0
-        return {
-          success: false,
-          error: "Max retries must be a positive integer."
-        }
-      end
-
-      # MonadicHelper#execute_and_fix_jupyter_cells doesn't accept session parameter
       shown_with(super(filename: filename, max_retries: max_retries), filename, workbench)
     end
 
-    # List all Jupyter notebooks in the data directory
-    def list_jupyter_notebooks(session: nil)
-      # MonadicHelper#list_jupyter_notebooks doesn't accept session parameter
-      super()
+    # The chat's notebooks, or those at the top of the shared folder for a
+    # call with no chat.
+    def list_jupyter_notebooks(session: nil, workbench: nil)
+      chat_id = notebook_chat(session, workbench)
+      return super() unless chat_id
+
+      known = Monadic::Workspace::Notebooks.known(chat_id)
+      return "This chat has no notebooks yet." if known.empty?
+
+      known.map { |path| "- #{Monadic::Workspace::Notebooks.named(path)}" }.join("\n")
     end
 
     # Clear the outputs a notebook keeps
     def clear_jupyter_outputs(filename:, session: nil, workbench: nil)
-      # Use filename from session if not explicitly provided
-      filename ||= session[:current_notebook_filename] if session
+      filename, refused = notebook_for(filename, session, workbench)
+      return refused if refused
 
-      unless filename && !filename.empty?
-        return {
-          success: false,
-          error: "Filename is required and cannot be empty (or current notebook not set in session)."
-        }
-      end
-
-      # MonadicHelper#clear_jupyter_outputs doesn't accept session parameter
       shown_with(super(filename: filename), filename, workbench)
     end
 
     # Move a cell to a new position in the notebook
     def move_jupyter_cell(filename:, from_index:, to_index:, session: nil, workbench: nil)
-      # Use filename from session if not explicitly provided
-      filename ||= session[:current_notebook_filename] if session
+      filename, refused = notebook_for(filename, session, workbench)
+      return refused if refused
 
-      unless filename && !filename.empty?
-        return {
-          success: false,
-          error: "Filename is required and cannot be empty (or current notebook not set in session)."
-        }
-      end
-
-      # MonadicHelper#move_jupyter_cell doesn't accept session parameter
       shown_with(super(filename: filename, from_index: from_index, to_index: to_index), filename, workbench)
     end
 
     # Insert cells at a specific position in the notebook
     def insert_jupyter_cells(filename:, index:, cells:, run: false, session: nil, workbench: nil)
-      # Use filename from session if not explicitly provided
-      filename ||= session[:current_notebook_filename] if session
+      filename, refused = notebook_for(filename, session, workbench)
+      return refused if refused
 
-      unless filename && !filename.empty?
-        return {
-          success: false,
-          error: "Filename is required and cannot be empty (or current notebook not set in session)."
-        }
-      end
-
-      # MonadicHelper#insert_jupyter_cells doesn't accept session parameter
       shown_with(super(filename: filename, index: index, cells: cells, run: run), filename, workbench)
     end
 
     # Made and filled in one call (the tool some providers are given).
-    def create_and_populate_jupyter_notebook(filename:, cells: [], run: true, workbench: nil)
-      result = super(filename: filename, cells: cells, run: run)
-      shown_with(result, created_notebook(result), workbench)
+    def create_and_populate_jupyter_notebook(filename:, cells: [], run: true, session: nil, workbench: nil)
+      chat_id = notebook_chat(session, workbench)
+      unless chat_id
+        result = super(filename: filename, cells: cells, run: run)
+        return shown_with(result, created_notebook(result), workbench)
+      end
+
+      path, created = notebook_made(chat_id, filename, session)
+      return created unless path
+      return shown_with(created, path, workbench) unless cells.is_a?(Array) && !cells.empty?
+
+      "#{created}\n\n#{add_jupyter_cells(filename: path, cells: cells, run: run, session: session, workbench: workbench)}"
     end
 
     private
+
+    # The chat a notebook call is for: the one the reply was asked in, or
+    # the session's; nil for a call with no chat (an MCP call).
+    def notebook_chat(session, workbench)
+      chat_id = workbench&.chat_id || (session && session[Monadic::Workspace::Chats::SESSION_KEY])
+      Monadic::Workspace::Ids.valid?(:chat, chat_id) ? chat_id : nil
+    end
+
+    # [path, nil] for the chat's notebook the name stands for (the one used
+    # last, or else the latest, for no name), or [nil, what was refused].
+    # With no chat, the name as given.
+    def notebook_for(filename, session, workbench)
+      chat_id = notebook_chat(session, workbench)
+      unless chat_id
+        return [nil, "Error: Filename is required."] if filename.to_s.strip.empty?
+
+        return [filename, nil]
+      end
+
+      notebooks = Monadic::Workspace::Notebooks
+      current = session && session[:current_notebook_filename]
+      current = notebooks.known(chat_id).first if current.to_s.empty?
+      path = notebooks.resolve(chat_id, filename, current: current)
+      remember_notebook(path, session)
+      [path, nil]
+    rescue Monadic::Workspace::Notebooks::Refused => e
+      [nil, "Error: #{e.message}"]
+    end
+
+    # [path, what the tool says] for a new notebook in the chat's folder, or
+    # [nil, what was refused].
+    def notebook_made(chat_id, filename, session)
+      path = Monadic::Workspace::Notebooks.create(chat_id, app_name: notebook_app(session), name: filename)
+      remember_notebook(path, session)
+      [path, "Notebook #{path} created successfully. Access it at: #{get_jupyter_notebook_url(path)}"]
+    rescue Monadic::Workspace::Notebooks::Refused => e
+      [nil, "Error: #{e.message}"]
+    end
+
+    # The notebook used last: the default for the next call, and what the
+    # app's state names (the ${NOTEBOOK} vocabulary reads it).
+    def remember_notebook(path, session)
+      return unless session
+
+      session[:current_notebook_filename] = path
+      return unless respond_to?(:monadic_save_state)
+
+      app = notebook_app(session)
+      saved = JSON.parse(monadic_load_state(app: app, key: "context", session: session)).dig("data") rescue nil
+      data = (saved.is_a?(Hash) ? saved : {}).merge("notebook_filename" => path)
+      monadic_save_state(app: app, key: "context", payload: data, session: session)
+    rescue StandardError => e
+      Monadic::Utils::ExtraLogger.log { "[Jupyter] Notebook not remembered in the app state: #{e.class}" }
+    end
+
+    def notebook_app(session)
+      (session && session.dig(:parameters, "app_name")) || self.class.name
+    end
 
     # The notebook a creation made, as its result names it, or nil.
     def created_notebook(result)

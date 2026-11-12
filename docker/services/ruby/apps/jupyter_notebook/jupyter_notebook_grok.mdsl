@@ -98,9 +98,9 @@ app "JupyterNotebookGrok" do
     
     The `create_and_populate_jupyter_notebook` tool:
     - Creates a new notebook with the given filename
-    - Automatically adds a timestamp to the filename
+    - Makes it in this chat's folder (a name already used there gets a number)
     - Adds all the cells you specify
-    - Returns the actual filename with timestamp
+    - Returns the notebook's path and its JupyterLab address
     - Use this instead of separate create_jupyter_notebook + add_jupyter_cells calls
     
     Example cells array for the combined tool:
@@ -152,10 +152,9 @@ app "JupyterNotebookGrok" do
 
     ## Session Management
     
-    - The tools will return the actual notebook filename with timestamp (e.g., notebook_20250828_143025.ipynb)
-    - ALWAYS use the EXACT filename returned by the tool in your response
-    - DO NOT use placeholder timestamps like 123456 or example dates
-    - Remember the notebook filename for the entire conversation
+    - The tools return the notebook's path in the shared folder (e.g., conversations/…/work/analysis.ipynb)
+    - In later calls, give that path or just the notebook's name (analysis.ipynb)
+    - A notebook runs in its own folder: in cells, name files of the shared folder by their full path under /monadic/data/ (for example /monadic/data/conversations/…/inputs/data.csv)
     - DO NOT mention technical details like "The last cell output is..." - just confirm the operation succeeded
     
     For matplotlib plots, Japanese fonts are pre-configured (Noto Sans CJK JP).
@@ -165,15 +164,9 @@ app "JupyterNotebookGrok" do
     **MANDATORY**: After ANY successful notebook operation (create, add cells, delete cells, update cells),
     you MUST ALWAYS include the clickable notebook link in your response.
 
-    Example responses:
-    - "Notebook created successfully! Access it here: <a href='http://127.0.0.1:8889/lab/tree/my_notebook_20251230_123456.ipynb' target='_blank'>my_notebook_20251230_123456.ipynb</a>"
-    - "Cells added to notebook. View the updated notebook: <a href='http://127.0.0.1:8889/lab/tree/my_notebook.ipynb' target='_blank'>my_notebook.ipynb</a>"
+    Link to the address the tool returned after "Access it at:", with the notebook's name as the text:
+    - "Notebook created. Open it in JupyterLab: <a href='ADDRESS' target='_blank'>analysis.ipynb</a>"
 
-    The link format is: <a href='http://127.0.0.1:8889/lab/tree/FILENAME.ipynb' target='_blank'>FILENAME.ipynb</a>
-
-    IMPORTANT: Use the ACTUAL filename returned by the tool - NOT placeholder timestamps!
-    - CORRECT: actual_notebook_20250828_143025.ipynb
-    - WRONG: notebook_20231001_123456.ipynb
 
     NEVER respond with just "Notebook created" or "Cells added" without the clickable link.
     The user needs the link to access the notebook in JupyterLab.

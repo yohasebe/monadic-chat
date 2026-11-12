@@ -606,29 +606,6 @@ module GrokHelper
       argument_hash = {}
     end
 
-    # Fix Jupyter filenames if stored filename exists
-    if obj["current_notebook_filename"] && argument_hash["filename"]
-      jupyter_functions = %w[add_jupyter_cells delete_jupyter_cell update_jupyter_cell
-                            get_jupyter_cells_with_results execute_and_fix_jupyter_cells
-                            clear_jupyter_outputs
-                            move_jupyter_cell insert_jupyter_cells]
-
-      if jupyter_functions.include?(function_name)
-        provided_filename = argument_hash["filename"].to_s.gsub(/\.ipynb$/, '')
-        stored_filename = obj["current_notebook_filename"].gsub(/\.ipynb$/, '')
-        shared_volume = Monadic::Utils::Environment.in_container? ? MonadicApp::SHARED_VOL : MonadicApp::LOCAL_SHARED_VOL
-        provided_path = File.join(shared_volume, "#{provided_filename}.ipynb")
-
-        if !File.exist?(provided_path)
-          stored_base_name = stored_filename.gsub(/_\d{8}_\d{6}$/, '')
-          provided_base_name = provided_filename.gsub(/_\d{8}_\d{6}$/, '')
-          if stored_base_name == provided_base_name
-            argument_hash["filename"] = stored_filename
-          end
-        end
-      end
-    end
-
     # Symbolize keys, skip null values
     argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
       next if /null/ =~ v.to_s.strip || (v.class != String && v.to_s.strip.empty?)
@@ -745,7 +722,8 @@ module GrokHelper
     return unless function_return =~ /Notebook\s+(\S+\.ipynb)\s+created successfully/
 
     obj["current_notebook_filename"] = $1
-    obj["current_notebook_link"] = "<a href='http://127.0.0.1:8889/lab/tree/#{$1}' target='_blank'>Open #{$1}</a>"
+    name = $1
+    obj["current_notebook_link"] = "<a href='#{CGI.escapeHTML(get_jupyter_notebook_url(name))}' target='_blank'>Open #{CGI.escapeHTML(File.basename(name))}</a>"
   end
 
   # Store image/video filenames from generation results

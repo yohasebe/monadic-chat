@@ -9,7 +9,9 @@ require_relative "../../../apps/auto_forge/auto_forge_tools"
 # Jupyter tool made or changed, the screenshot AutoForge's debug took); the
 # result tells the model so, and is as it was when it cannot be shown.
 RSpec.describe "Tools that show what they made in the work screen" do
-  let(:workbench) { Object.new }
+  # The caller of a reply with no chat (as for an MCP call): notebooks are
+  # named as given.
+  let(:workbench) { Struct.new(:chat_id).new(nil) }
   let(:shown) { [] }
   let(:said) { JSON.generate("status" => "shown_in_work_screen") }
 

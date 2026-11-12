@@ -1,4 +1,5 @@
 require 'shellwords'
+require 'erb'
 require 'securerandom'
 require_relative '../utils/shared_path_guard'
 require 'cgi'
@@ -96,8 +97,8 @@ module MonadicHelper
   # Verify that cells were actually added to the notebook
   def verify_cells_added(filename, expected_cells)
     begin
-      # Sanitize filename to prevent directory traversal
-      filename = File.basename(filename.to_s)
+      filename = shared_relative(filename)
+      return { success: false, error: "Invalid shared notebook path" } unless filename
       # Add .ipynb extension only if not already present
       filename_with_ext = filename.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
       
@@ -206,8 +207,9 @@ module MonadicHelper
   end
 
   def add_jupyter_cells(filename: "", cells: "", run: true, escaped: false, retrial: false)
-    # Sanitize filename to prevent directory traversal
-    filename = File.basename(filename.to_s)
+    # A path in the shared folder (a chat's notebook is in its folder).
+    filename = shared_relative(filename)
+    return "Error: Invalid shared notebook path" unless filename
 
     original_cells = cells.dup
 
@@ -500,11 +502,16 @@ module MonadicHelper
     # Ensure filename has .ipynb extension
     filename = filename.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
     
-    # Get base jupyter URL
-    jupyter_url = get_jupyter_base_url
-    
-    # Build the complete URL
-    "#{jupyter_url}/lab/tree/#{filename}"
+    "#{get_jupyter_base_url}/lab/tree/#{filename.split('/').map { |part| ERB::Util.url_encode(part) }.join('/')}"
+  end
+
+  # A path relative to the shared folder (its container path taken as
+  # one), or nil for one outside it.
+  def shared_relative(filename)
+    text = filename.to_s.delete_prefix("#{Monadic::Utils::SharedPathGuard::CONTAINER_ROOT}/")
+    return nil if text.empty? || text.start_with?('/') || text.split('/').include?('..')
+
+    text
   end
 
   # Combined function for Gemini to create notebook and add cells in one call

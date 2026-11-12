@@ -61,6 +61,6 @@ Visualize concepts and relationships by describing them in natural language. The
 - **Domains**: Business, educational, scientific, and technical diagrams.
 - **Languages**: Text in many languages, including Chinese, Japanese, and Korean.
 
-The diagrams are saved to the shared folder as SVG and PNG. The SVG can be edited in any vector graphics editor.
+Each diagram is kept in the chat's folder in the shared folder, as an SVG with its LaTeX source, and shown on the work screen beside the chat. The SVG can be edited in any vector graphics editor.
 
 Concept Visualizer needs LaTeX: turn on **Install LaTeX (minimal set for diagrams)** in **Actions → Install Options** and rebuild the Python container. Availability by provider is shown in the [availability table](../basic-usage/basic-apps.md#app-availability).

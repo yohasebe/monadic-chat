@@ -94,8 +94,13 @@ def encode_image_to_data_url(image_path)
   image && "data:#{image[:mime_type]};base64,#{Base64.strict_encode64(image[:data])}"
 end
 
+# out_dir: a folder of the shared folder to save the video in (a chat's run
+# folder); without it, the top of the shared folder.
 def generate_video(prompt, image_path = nil, aspect_ratio: DEFAULT_OPTIONS[:aspect_ratio],
-                   duration: DEFAULT_OPTIONS[:duration_seconds], negative_prompt: nil)
+                   duration: DEFAULT_OPTIONS[:duration_seconds], negative_prompt: nil, out_dir: nil)
+  save_dir = out_dir ? Monadic::Utils::SharedPathGuard.shared_dir(out_dir) : get_save_path
+  return { success: false, error: "invalid_input", message: "The folder to save in is not a folder of the shared folder." } unless save_dir
+
   image = nil
   if image_path && !image_path.to_s.strip.empty?
     image = read_image(image_path)
@@ -105,7 +110,7 @@ def generate_video(prompt, image_path = nil, aspect_ratio: DEFAULT_OPTIONS[:aspe
     end
   end
 
-  generator = Monadic::Utils::GeminiOmniVideo.new(api_key: get_api_key, model: video_model, save_dir: get_save_path)
+  generator = Monadic::Utils::GeminiOmniVideo.new(api_key: get_api_key, model: video_model, save_dir: save_dir)
   result = generator.generate(prompt: prompt, image: image, aspect_ratio: aspect_ratio,
                               duration: duration, negative_prompt: negative_prompt)
   result[:original_prompt] = prompt
@@ -125,6 +130,7 @@ def parse_options(argv = ARGV)
     opts.on("-a", "--aspect-ratio RATIO", VALID_ASPECT_RATIOS.join(" or ")) { |v| options[:aspect_ratio] = v }
     opts.on("-d", "--duration SECONDS", "#{VALID_DURATION_SECONDS.first} to #{VALID_DURATION_SECONDS.last} seconds") { |v| options[:duration_seconds] = v }
     opts.on("--negative-prompt TEXT", "What to keep out of the video") { |v| options[:negative_prompt] = v }
+    opts.on("--out-dir PATH", "A folder of the shared folder to save the video in") { |v| options[:out_dir] = v }
     # Accepted from callers written for Veo; Omni makes one video at one speed.
     opts.on("-n", "--number NUMBER", "Ignored: one video is made") { |_v| nil }
     opts.on("--fast", "Ignored") { nil }
@@ -150,7 +156,8 @@ if __FILE__ == $PROGRAM_NAME
   end
 
   result = generate_video(options[:prompt], options[:image_path], aspect_ratio: options[:aspect_ratio],
-                          duration: options[:duration_seconds], negative_prompt: options[:negative_prompt])
+                          duration: options[:duration_seconds], negative_prompt: options[:negative_prompt],
+                          out_dir: options[:out_dir])
   STDERR.puts(result[:success] ? "Saved video: #{result[:filename]}" : "Video generation failed: #{result[:message]}")
   puts JSON.generate(result)
   exit(result[:success] ? 0 : 1)

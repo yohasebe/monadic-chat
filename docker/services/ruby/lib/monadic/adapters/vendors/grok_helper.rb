@@ -5,6 +5,7 @@ require 'cgi'
 require_relative "../../utils/request_retry"
 require_relative "../../utils/shared_path_guard"
 require_relative "../../workbench/offer"
+require_relative "../../workbench/chat_output"
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/usage_normalizer"
 require_relative "../../utils/error_formatter"
@@ -1715,7 +1716,9 @@ module GrokHelper
         begin
           if result_content.is_a?(String)
             content_json = JSON.parse(result_content)
-            if content_json["success"] && content_json["filename"]
+            if content_json["success"] && content_json["path"]
+              response_parts << Monadic::Workbench::ChatOutput.chat_line("The video", content_json["path"])
+            elsif content_json["success"] && content_json["filename"]
               response_parts << "<div class=\"prompt\" style=\"margin-bottom: 15px;\">"
               response_parts << "  <b>Video Generated</b>"
               response_parts << "</div>"

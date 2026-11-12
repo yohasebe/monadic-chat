@@ -87,7 +87,7 @@ app "SpeechDraftHelperOpenAI" do
       Note: Long texts (1000+ words) may take 2-3 minutes to process, especially with Gemini.
 
       **After calling `text_to_speech`, your turn is COMPLETE:**
-      - If successful: Present the audio using `<audio controls src="FILENAME"></audio>`
+      - If successful: say in one line that the speech is on the work screen beside the chat, with the path the tool returned; do not put an audio player in the reply (without a chat folder, the tool returns a file name instead: then present it with `<audio controls src="FILENAME"></audio>`)
       - If error: Report the error to the user and ask if they want to try a different provider/voice
       - Do NOT automatically retry or call more tools
 
@@ -129,7 +129,7 @@ app "SpeechDraftHelperOpenAI" do
 
     define_tool "list_providers_and_voices", "List the available providers and voices for text-to-speech. A voice data consists of voice_id and name."
 
-    define_tool "text_to_speech", "Convert the text to speech to generate an MP3 file and return the filename." do
+    define_tool "text_to_speech", "Convert the text to speech; the audio is kept in this chat's folder and shown on the work screen, and its path is returned." do
       parameter :text, "string", "Text to convert to speech.", required: true
       parameter :provider, "string", "Provider of the speech.", required: false
       parameter :voice_id, "string", "Voice ID (not name) of the speech. Use the exact voice_id value from list_providers_and_voices function.", required: false

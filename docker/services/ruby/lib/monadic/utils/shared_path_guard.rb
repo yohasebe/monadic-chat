@@ -61,6 +61,13 @@ module Monadic
         raise InvalidPath, "Invalid file path or file not found"
       end
 
+      # The real path of a folder in the shared folder (absolute, or relative
+      # to it), or nil when name is not one.
+      def shared_dir(name)
+        dir = resolve_in_shared(name, must_exist: false)
+        dir && File.directory?(dir) ? dir : nil
+      end
+
       def inside_shared?(path)
         !resolve_in_shared(path, must_exist: false).nil?
       end

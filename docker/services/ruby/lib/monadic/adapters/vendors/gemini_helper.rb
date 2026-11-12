@@ -22,6 +22,7 @@ require_relative "../../utils/extra_logger"
 require_relative "../../utils/progress_broadcaster"
 require_relative "../../utils/tool_key_requirements"
 require_relative "../../workbench/offer"
+require_relative "../../workbench/chat_output"
 
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
@@ -291,8 +292,11 @@ module GeminiHelper
   # Python examples is the SDK's and is rejected with 400 here). The API may
   # still return MP3, so the saved file's extension follows the returned type. Uploaded images in the session
   # influence the composition (image-to-music, up to 10). Resolves the actual
-  # model id from providerDefaults.gemini.music (SSOT).
-  def generate_music_with_lyria(prompt:, lyria_model: nil, output_format: nil, session: nil)
+  # model id from providerDefaults.gemini.music (SSOT). In a chat, the track
+  # and its lyrics (a Markdown file) are kept in a run folder of the chat's
+  # folder and shown on the work screen; without one, the track goes to the
+  # shared folder.
+  def generate_music_with_lyria(prompt:, lyria_model: nil, output_format: nil, session: nil, workbench: nil)
     require 'net/http'
     require 'json'
     require 'base64'
@@ -360,9 +364,20 @@ module GeminiHelper
     lyrics = format_lyria_lyrics(parts.filter_map { |p| p["text"] }.join("\n"))
 
     filename = "lyria_music_#{Time.now.to_i}_#{SecureRandom.hex(3)}.#{ext}"
-    filepath = File.join(shared_folder, filename)
-    Monadic::Utils::SharedPathGuard.write_file!(filepath, Base64.decode64(inline["data"]))
+    audio = Base64.decode64(inline["data"])
+    files = { filename => audio }
+    files["#{File.basename(filename, '.*')}_lyrics.md"] = "# Lyrics\n\n```text\n#{lyrics}\n```\n" unless lyrics.to_s.strip.empty?
+    app_name = session&.dig(:parameters, "app_name") || "MusicGeneratorGemini"
+    kept = Monadic::Workbench::ChatOutput.keep_and_show(session: session, workbench: workbench, app_name: app_name, files: files)
+    if kept
+      track, sheet = kept[:paths]
+      notice = Monadic::Workbench::ChatOutput.said("The track", track, shown: kept[:shown])
+      notice += " Its lyrics are beside it, as #{sheet}; do not repeat them in the reply." if sheet
+      return { success: true, service: "Google Lyria", path: track, lyrics_path: sheet, mime_type: mime,
+               model: model_id, prompt: prompt, notice: notice }.compact.to_json
+    end
 
+    Monadic::Utils::SharedPathGuard.write_file!(File.join(shared_folder, filename), audio)
     { success: true, service: "Google Lyria", filename: filename, mime_type: mime, lyrics: lyrics,
       model: model_id, prompt: prompt }.to_json
   rescue StandardError => e
@@ -3469,16 +3484,20 @@ module GeminiHelper
 
               # Check if this is a video file
               if filename.to_s.end_with?(".mp4")
-                # Send the video HTML directly to the client
-                video_html = <<~HTML
-                  <div class="prompt" style="margin-bottom: 15px;">
-                    <b>Prompt</b>: #{CGI.escapeHTML(prompt.to_s)}
-                  </div>
+                # Send the video HTML directly to the client: in a chat, a
+                # line saying it is on the work screen.
+                shown = parsed["path"] ? Monadic::Workbench::ChatOutput.chat_line("The video", parsed["path"]) : <<~HTML
                   <div class="generated_video">
                     <video controls width="600">
                       <source src="/data/#{CGI.escapeHTML(filename.to_s)}" type="video/mp4" />
                     </video>
                   </div>
+                HTML
+                video_html = <<~HTML
+                  <div class="prompt" style="margin-bottom: 15px;">
+                    <b>Prompt</b>: #{CGI.escapeHTML(prompt.to_s)}
+                  </div>
+                  #{shown}
                 HTML
 
                 res = { "type" => "fragment", "content" => video_html, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
@@ -3797,8 +3816,11 @@ module GeminiHelper
 
   # Generates a video with Gemini Omni (scripts/generators/video_generator_gemini.rb):
   # text-to-video, or image-to-video from an image in the shared folder or one
-  # uploaded with the message. One video, 720p, 3 to 10 seconds.
-  def generate_video_with_gemini(prompt:, image_path: nil, aspect_ratio: nil, duration: nil, negative_prompt: nil, session: nil)
+  # uploaded with the message. One video, 720p, 3 to 10 seconds. In a chat,
+  # the video is saved in a run folder of the chat's folder and shown on the
+  # work screen; without one, at the top of the shared folder.
+  def generate_video_with_gemini(prompt:, image_path: nil, aspect_ratio: nil, duration: nil, negative_prompt: nil, session: nil,
+                                 workbench: nil)
     # An uploaded image lives in the session as a data URL and is written to
     # the shared folder for the generator; a failure is reported instead of
     # silently making a text-to-video.
@@ -3815,6 +3837,9 @@ module GeminiHelper
     parts += ["-a", aspect_ratio.to_s] unless aspect_ratio.to_s.strip.empty?
     parts += ["-d", duration.to_s] unless duration.to_s.strip.empty?
     parts += ["--negative-prompt", negative_prompt.to_s] unless negative_prompt.to_s.strip.empty?
+    job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench,
+                                                    app_name: session&.dig(:parameters, "app_name") || "VideoGeneratorGemini")
+    parts += ["--out-dir", job[:path]] if job
     if final_image_path && !final_image_path.empty?
       parts += ["-i", final_image_path]
       session[:gemini_last_video_image] = File.basename(final_image_path) if session
@@ -3836,9 +3861,13 @@ module GeminiHelper
       result = { "success" => false, "message" => result.to_s } unless result.is_a?(Hash)
       result["original_prompt"] ||= prompt
       session[:gemini_last_video_filename] = result["filename"] if session && result["success"] && result["filename"]
+      taken = result["success"] && Monadic::Workbench::ChatOutput.take(job, result["filename"], workbench, "The video")
+      result["path"], result["notice"] = taken.values_at(:path, :notice) if taken
+      Monadic::Workbench::ChatOutput.drop_if_empty(job)
       result.to_json
     rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[Gemini] Error executing command: #{e.message}" }
+      Monadic::Workbench::ChatOutput.drop_if_empty(job)
       { "success" => false, "message" => "Error executing video generation command: #{e.message}", "original_prompt" => prompt }.to_json
     ensure
       # Only the file this process wrote from an upload is removed.
@@ -3849,9 +3878,10 @@ module GeminiHelper
   # The name this tool had with Veo. Its Veo-only settings have no Omni
   # counterpart and are said to be ignored rather than dropped silently.
   def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: nil, number_of_videos: nil, person_generation: nil,
-                              negative_prompt: nil, duration_seconds: nil, veo_model: nil, session: nil)
+                              negative_prompt: nil, duration_seconds: nil, veo_model: nil, session: nil, workbench: nil)
     result_json = generate_video_with_gemini(prompt: prompt, image_path: image_path, aspect_ratio: aspect_ratio,
-                                             duration: duration_seconds, negative_prompt: negative_prompt, session: session)
+                                             duration: duration_seconds, negative_prompt: negative_prompt, session: session,
+                                             workbench: workbench)
     ignored = { "veo_model" => veo_model, "person_generation" => person_generation }.reject { |_, v| v.to_s.strip.empty? }.keys
     ignored << "number_of_videos (one video is made)" if number_of_videos.to_i > 1
     return result_json if ignored.empty?

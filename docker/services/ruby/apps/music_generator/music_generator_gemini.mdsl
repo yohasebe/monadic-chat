@@ -122,25 +122,30 @@ app "MusicGeneratorGemini" do
       a loop, or explicitly instrumental/background.
 
     RESULT DISPLAY:
-    The tools return { service, model, filename, mime_type, lyrics } (ElevenLabs
-    has no lyrics). On success, output raw HTML (NO markdown code blocks), using the
-    returned values. ALWAYS include the service line, so the user can see which
-    service made the track:
+    In a chat, the tools return { service, model, path, mime_type, notice } and,
+    when Lyria wrote lyrics, lyrics_path. The track (and its lyrics) are on the
+    work screen beside the chat: do not put an audio player, the file or the
+    lyrics in your reply. Output raw HTML (NO markdown code blocks), and
+    ALWAYS include the service line, so the user can see which service made
+    the track:
     <div class="prompt" style="margin-bottom: 10px;">
       <b>Prompt</b>: [user's prompt]
     </div>
     <div class="music-service" style="margin-bottom: 10px;">
       <b>Generated with</b>: [service] ([model])
     </div>
+    Then one line saying the track is on the work screen, with its path (and
+    the lyrics' path when there is one), as the notice says.
+
+    Without a chat folder the tools return { service, model, filename,
+    mime_type, lyrics } instead. Then add, after the service line:
     <div class="generated_music" style="margin-bottom: 10px;">
       <audio controls style="width: 100%;">
         <source src="/data/[filename]" type="[mime_type]" />
       </audio>
     </div>
-
-    The returned lyrics are already cleaned for display (no timestamps or section
-    codes). If the lyrics field is non-empty, also append (reproduce the lyrics
-    verbatim, preserving line breaks):
+    and, if the lyrics field is non-empty (reproduce it verbatim, preserving
+    line breaks):
     <div class="lyrics" style="white-space: pre-wrap;">
       <b>Lyrics</b><br/>[lyrics]
     </div>
@@ -197,14 +202,14 @@ app "MusicGeneratorGemini" do
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
 
-    define_tool "generate_music_with_lyria", "Generate music with Google's Lyria. Default model lyria-3.5 produces full songs (a couple of minutes) with vocals and lyrics when requested; lyria-3-clip-preview produces fast 30-second instrumental clips. Returns the audio saved to the shared folder (MP3, or WAV when requested and supplied) plus any generated lyrics; mime_type reports the format actually returned." do
+    define_tool "generate_music_with_lyria", "Generate music with Google's Lyria. Default model lyria-3.5 produces full songs (a couple of minutes) with vocals and lyrics when requested; lyria-3-clip-preview produces fast 30-second instrumental clips. In a chat, keeps the audio (MP3, or WAV when requested and supplied) and any generated lyrics in this chat's folder and shows them on the work screen; mime_type reports the format actually returned." do
       parameter :prompt, "string", "The music description to generate from (English works best). Include genre, mood, instrumentation, tempo, and any lyrics for vocal tracks.", required: true
       parameter :lyria_model, "string", "Optional: 'pro' (default, full songs with optional vocals) or 'clip' (fast 30s instrumental).", required: false
       parameter :output_format, "string", "Optional: 'wav' for lossless audio (Pro model only; larger file) or 'mp3' (default).", required: false
       parameter :session, "object", "Session object (automatically provided). Carries any uploaded images for image-to-music.", required: false
     end
 
-    define_tool "generate_music_with_elevenlabs", "Generate music with ElevenLabs Music instead of Lyria. Use ONLY when the user explicitly asks for ElevenLabs by name; never as a fallback when Lyria fails or as a silent substitute. Returns the audio saved to the shared folder (no lyrics text) and the service that made it." do
+    define_tool "generate_music_with_elevenlabs", "Generate music with ElevenLabs Music instead of Lyria. Use ONLY when the user explicitly asks for ElevenLabs by name; never as a fallback when Lyria fails or as a silent substitute. In a chat, keeps the audio in this chat's folder and shows it on the work screen (no lyrics text); returns the service that made it." do
       parameter :prompt, "string", "The music description to generate from. Include genre, mood, instrumentation, tempo, and any lyrics for vocal tracks.", required: true
       parameter :length_seconds, "number", "Optional: length of the track in seconds (3 to 600). Omit to let the model decide.", required: false
       parameter :instrumental, "boolean", "Optional: true for a track without vocals.", required: false

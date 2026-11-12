@@ -64,6 +64,30 @@ RSpec.describe 'GeminiHelper#generate_music_with_lyria' do
     expect(File.binread(saved)).to eq('FAKE-AUDIO-BYTES')
   end
 
+  it 'in a chat, keeps the track and its lyrics in a run folder of the chat and shows both on the work screen' do
+    state = Dir.mktmpdir
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(File.realpath(tmpdir))
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(state)
+    allow(MonadicSharedTools::WorkbenchTools).to receive(:show_file).and_return('{"status":"shown_in_work_screen"}')
+    workbench = Struct.new(:chat_id).new(Monadic::Workspace::Ids.generate(:chat))
+    allow(Net::HTTP).to receive(:start).and_return(
+      response('200', audio_body(mime: 'audio/mpeg', text: "[[A0]]\n[0.0:] First line"))
+    )
+
+    result = JSON.parse(helper.generate_music_with_lyria(prompt: 'a calm tune', workbench: workbench))
+
+    expect(result['path']).to match(%r{\Aconversations/[^/]+/artifacts/j_[a-z0-9]+/lyria_music_\d+_\h{6}\.mp3\z})
+    expect(result['lyrics_path']).to eq(result['path'].sub(/\.mp3\z/, '_lyrics.md'))
+    expect(File.binread(File.join(tmpdir, result['path']))).to eq('FAKE-AUDIO-BYTES')
+    expect(File.read(File.join(tmpdir, result['lyrics_path']))).to include('[0:00] First line')
+    expect(result['notice']).to include(result['path'], result['lyrics_path'], 'work screen')
+    expect(result).not_to have_key('lyrics')
+    expect(MonadicSharedTools::WorkbenchTools).to have_received(:show_file).twice
+    expect(Dir.children(tmpdir)).to eq(['conversations'])
+  ensure
+    FileUtils.remove_entry(state) if state
+  end
+
   it 'uses a .wav extension when the response is WAV (Pro)' do
     allow(Net::HTTP).to receive(:start).and_return(
       response('200', audio_body(mime: 'audio/wav', text: '<instrumental>'))

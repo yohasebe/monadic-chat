@@ -6,7 +6,7 @@ Apps for writing and running code: Python execution in a container, coding assis
 
 ![Code Interpreter app icon](../assets/icons/code-interpreter.png ':size=40')
 
-Let the AI write and run Python code in the Python container. Text and images produced by the code are saved to the shared folder and shown in the chat. The AI keeps track of the files it has made, so you can refer to them in later turns. To give the AI your own files (scripts or data), place them in the shared folder and mention their names in your message.
+Let the AI write and run Python code in the Python container. Each run of code runs in a folder of its own inside the chat's folder (`conversations/…/artifacts/`): the files it makes (images, pages, tables, sounds) are kept there and shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat, and the chat names them with their paths. The AI is given those paths, so you can refer to the files in later turns. To give the AI your own files (scripts or data), place them in the shared folder and mention their names in your message.
 
 ?> **Note:** The Python container includes Japanese fonts (Noto Sans CJK JP), and matplotlib is set up to use them, so Japanese text in plots is displayed correctly.
 

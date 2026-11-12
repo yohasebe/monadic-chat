@@ -185,6 +185,8 @@ features do
   pdf_vector_storage true # Enable PDF file upload and vector storage for RAG (Retrieval-Augmented Generation)
   toggle true             # Render <div class='toggle'> blocks in assistant messages as collapsible show/hide sections
   jupyter true            # Enable access to Jupyter notebook interface
+  code_runs_in_chat_folder true # run_code runs each run in a folder of the chat's folder;
+                          # the files it writes are shown on the work screen
   image_generation true   # Enable AI image generation tools in conversation
   monadic true            # REQUIRED for Session State apps - enables context management via tools
   initiate_from_assistant true # Allow assistant to send first message in conversation

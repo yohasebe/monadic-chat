@@ -746,25 +746,12 @@ module GrokHelper
     end
   end
 
-  # Post-process Grok's response: fix filenames, image paths, notebook URLs
+  # Post-process Grok's response: fix notebook filenames and URLs
   private def postprocess_grok_response(new_results, obj)
     return unless new_results.is_a?(Array) && !new_results.empty?
 
     content = new_results.dig(0, "choices", 0, "message", "content")
     return unless content
-
-    # Fix image paths for Code Interpreter
-    if obj["app_name"].to_s.include?("CodeInterpreter") || obj["display_name"].to_s.include?("Code Interpreter")
-      if content =~ /File created: ([^\s]+\.(svg|png|jpg|jpeg|gif)).*Full path: \/monadic\/data/i
-        filename = $1
-        unless content.include?("<div class=\"generated_image\">")
-          if content =~ /(Output:.*?```[^`]*```)/m
-            image_html = "\n\n<div class=\"generated_image\">\n  <img src=\"/data/#{CGI.escapeHTML(filename.to_s)}\" />\n</div>"
-            content = content.sub($1, $1 + image_html)
-          end
-        end
-      end
-    end
 
     # Fix notebook filenames
     if obj["current_notebook_filename"]

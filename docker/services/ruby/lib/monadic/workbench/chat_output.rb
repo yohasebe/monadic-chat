@@ -77,6 +77,14 @@ module Monadic
         { path: path, notice: said(what, path, shown: show(path, workbench)) }
       end
 
+      # Every file a program left in the run folder (not a hidden one),
+      # each shown on the work screen: { paths:, shown: } (shown: every file
+      # was shown), by name.
+      def take_all(job, workbench)
+        paths = Monadic::Workspace::Jobs.outputs(job, /\A[^.]/).map { |real| File.join(job[:relative], File.basename(real)) }
+        { paths: paths, shown: paths.map { |path| show(path, workbench) }.all? }
+      end
+
       # A run folder a failed run left empty goes; one with anything in it
       # stays.
       def drop_if_empty(job)

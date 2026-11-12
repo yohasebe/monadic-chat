@@ -107,12 +107,16 @@ module Monadic
       end
 
       # Puts document doc of the chat folder folder together from what was
-      # made and writes it (title: its title; else the one it has). Returns
-      # its path.
+      # made and writes it (title: its title; else the one it has). A
+      # document with no section left is removed: it is made from the
+      # sections, never by a turn. Returns its path, or nil when removed.
       def rebuild(folder, doc, made, title: nil)
         path = File.join(folder, DIRNAME, "#{doc}.md")
         heading = title || title_of(path) || doc
-        parts = sections(made, doc).map do |key, file|
+        found = sections(made, doc)
+        return remove(path) if found.empty?
+
+        parts = found.map do |key, file|
           body = File.read(Monadic::Workspace::Folders.real_path(file), encoding: 'UTF-8')
           "#{MARK} #{key}\n\n#{body.strip}\n"
         rescue SystemCallError
@@ -123,6 +127,16 @@ module Monadic
         Monadic::Utils::SharedPathGuard.mkdir_p!(File.join(root, folder, DIRNAME), strict: true)
         Monadic::Utils::SharedPathGuard.write_file!(File.join(root, path), text, mode: 'w', replace: true, strict: true)
         path
+      end
+
+      # Removes a document with no section left (a plain file of the chat's
+      # documents folder, never a link). Returns nil.
+      def remove(path)
+        real = Monadic::Workspace::Folders.real_path(path)
+        File.unlink(real) if real
+        nil
+      rescue SystemCallError
+        nil
       end
 
       # The title a document was written under (its first line).
@@ -145,13 +159,49 @@ module Monadic
         return [] unless dir
 
         made = made_lists(session)
+        removed = []
         written = Dir.children(dir).sort.filter_map do |name|
           next unless name.end_with?('.md')
 
-          rebuild(folder[:relative_dir], name.delete_suffix('.md'), made)
+          path = rebuild(folder[:relative_dir], name.delete_suffix('.md'), made)
+          removed << File.join(folder[:relative_dir], DIRNAME, name) unless path
+          path
         end
-        refresh(session[Monadic::Workspace::Chats::SESSION_KEY], written)
+        chat_id = session[Monadic::Workspace::Chats::SESSION_KEY]
+        refresh(chat_id, written)
+        drop(chat_id, removed)
         written
+      end
+
+      # Takes removed documents off the work screen.
+      def drop(chat_id, paths)
+        board = chat_id && !paths.empty? && Board.existing(chat_id)
+        Channel.changed(chat_id) if board && !board.drop_files(paths).empty?
+      end
+
+      # Every version of the sections of the document at path (a document of
+      # the session's own chat folder), as the session's messages made them:
+      # [{ 'section' =>, 'path' =>, 'turn' => }], turn being the place of the
+      # reply among the AI's messages, oldest first. Empty for any other
+      # path.
+      def versions(session, path)
+        folder = Monadic::Workspace::Folders.lookup(session)
+        return [] unless folder && folder[:status] == :ready
+
+        match = %r{\A#{Regexp.escape(folder[:relative_dir])}/#{DIRNAME}/(?<doc>[a-z0-9-]{1,60})\.md\z}.match(path.to_s)
+        return [] unless match
+
+        turn = 0
+        Array(session[:messages]).each_with_object([]) do |message, found|
+          next unless message.is_a?(Hash) && message['role'] == 'assistant'
+
+          turn += 1
+          Array(Made.clean(message['workbench_made'])).each do |made|
+            section_files(made, match[:doc]).each do |key, file|
+              found << { 'section' => key, 'path' => file, 'turn' => turn }
+            end
+          end
+        end
       end
 
       # The work screen's items of paths are read again, in place.

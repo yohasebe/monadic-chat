@@ -490,6 +490,32 @@ describe('Workbench', () => {
       Array.from(pane.querySelectorAll('button')).find((b) => b.textContent === 'Reload').click();
       expect(sent[0].payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'reports/notes.txt' });
     });
+
+    test('lists the versions of a document, newest first, and opens the one chosen', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      const doc = 'conversations/c_1/documents/reply-to-tanaka.md';
+      view([file({ path: doc, name: 'reply-to-tanaka.md' })]);
+      const pane = document.getElementById('workbench-view');
+      sent.length = 0;
+      Array.from(pane.querySelectorAll('button')).find((b) => b.textContent === 'Versions').click();
+      expect(sent[0].payload).toEqual({ message: 'WORKBENCH_VERSIONS', path: doc });
+      window.Workbench.onVersions({ type: 'workbench_versions', path: doc, versions: [
+        { section: 'draft', path: 'conversations/c_1/artifacts/j_1/reply-to-tanaka--draft.md', turn: 1 },
+        { section: 'draft', path: 'conversations/c_1/artifacts/j_2/reply-to-tanaka--draft.md', turn: 3 }
+      ] });
+      const entries = Array.from(pane.querySelectorAll('.workbench-versions button'));
+      expect(entries.map((e) => e.textContent)).toEqual(['§ draft — turn 3', '§ draft — turn 1']);
+      sent.length = 0;
+      entries[1].click();
+      expect(sent[0].payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'conversations/c_1/artifacts/j_1/reply-to-tanaka--draft.md' });
+    });
+
+    test('offers no versions for a file that is not a document', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      view([file()]);
+      const pane = document.getElementById('workbench-view');
+      expect(Array.from(pane.querySelectorAll('button')).some((b) => b.textContent === 'Versions')).toBe(false);
+    });
   });
   describe('the browser as an item', () => {
     function browser(overrides = {}) {

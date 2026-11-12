@@ -133,17 +133,18 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
       it 'tells the model to put each draft, and each revision of it, on the work screen' do
         text = work_screen_for('MailComposer')[:content]
-        expect(text).to include('put_on_workbench', '.md', 'same name', 'name-2.md')
+        expect(text).to include('write_section', '"draft" as the section', 'same title and section')
+        expect(text).not_to include('put_on_workbench')
         expect(text).to include('Do not repeat the draft in the chat')
       end
 
       it 'tells the model to put code with its explanation on the work screen' do
-        expect(work_screen_for('Coding')[:content]).to include('put_on_workbench', 'fenced code block')
+        expect(work_screen_for('Coding')[:content]).to include('write_section', '"code" as the section', 'fenced code block')
       end
 
       it 'tells the model to put a long translation on the work screen and answer a short one in the chat' do
         text = work_screen_for('Translate')[:content]
-        expect(text).to include('put_on_workbench', 'longer than a few sentences', 'answered in the chat')
+        expect(text).to include('write_section', '"translation" as the section', 'longer than a few sentences', 'answered in the chat')
       end
 
       it 'says nothing for an app without it, or with a way that is not known' do

@@ -909,6 +909,11 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "workbench_versions": {
+        if (window.Workbench) window.Workbench.onVersions(data);
+        break;
+      }
+
       case "workbench_selected": {
         if (window.Workbench) window.Workbench.onSelected(data);
         break;

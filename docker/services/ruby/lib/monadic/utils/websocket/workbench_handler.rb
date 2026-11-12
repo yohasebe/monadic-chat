@@ -3,6 +3,7 @@
 require_relative '../../workbench/channel'
 require_relative '../../workbench/look'
 require_relative '../../workbench/look/record'
+require_relative '../../workbench/document'
 
 # The workbench over the main socket (Monadic::Workbench::Channel): the
 # view a page is sent, the user's removal of an item from the board, a file
@@ -145,6 +146,14 @@ module WebSocketHelper
     end
     workbench_deliver(connection).call(result)
     send_workbench_view(connection, session) unless result['status'] == 'refused'
+  end
+
+  # The earlier versions of a document's sections (Workbench::Document),
+  # for the work screen to list.
+  def handle_ws_workbench_versions(connection, obj, session)
+    path = obj['path'].to_s
+    versions = Monadic::Workbench::Document.versions(session, path)
+    workbench_deliver(connection).call({ 'type' => 'workbench_versions', 'path' => path, 'versions' => versions })
   end
 
   def handle_ws_workbench_open_attachment(connection, obj, session)

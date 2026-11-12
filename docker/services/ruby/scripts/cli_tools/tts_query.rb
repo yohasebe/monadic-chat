@@ -469,14 +469,9 @@ begin
     exit 1
   end
 
-  # Define save paths
-
-  primary_save_path = "/monadic/data/"
-  secondary_save_path = File.expand_path("~/monadic/data/")
-
-  # Select appropriate save path based on directory existence
-
-  save_path = Dir.exist?(primary_save_path) ? primary_save_path : secondary_save_path
+  # The audio goes beside its text, in the folder of the shared folder the
+  # caller chose.
+  save_path = File.dirname(textpath)
 
   # Create output filename from input filename
   outfile = File.basename(textpath, ".*")

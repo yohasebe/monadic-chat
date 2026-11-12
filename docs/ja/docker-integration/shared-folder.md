@@ -78,11 +78,11 @@ JupyterLab も `/monadic/data` で起動するので、JupyterLab からも共�
 - **Video Describer**：動画から取り出したフレーム（PNG、`frames_<timestamp>` フォルダの中）と音声（MP3）
 - **Speech Draft Helper**：読み上げの音声（MP3。Gemini では API が返す形式で、ふつうは WAV）
 - **Syntax Tree**：樹形図（SVG）。頼んだときはその LaTeX のソースも
-- **Concept Visualizer**：概念図（SVG と PNG）
-- **DrawIO Grapher**：図のファイル（`.drawio`）とプレビュー（PNG）
+- **Concept Visualizer**：概念図（SVG と、その LaTeX のソース）
+- **DrawIO Grapher**：図のファイル（`.drawio`）
 - **Web Insight**：Web ページのスクリーンショット（PNG）
 
-ほとんどのファイルは、タイムスタンプや識別子を含む名前で、共有フォルダのいちばん上に保存されます。[ファイルのタブ](../basic-usage/web-interface.md#shared-folder-panel)で、各ファイルが何かを確かめ、要らなくなったものをごみ箱に移せます。
+会話のアプリがその会話のために作るファイル（図、楽譜、音楽、読み上げの音声）は、会話のフォルダ（`conversations/…/artifacts/`）に保存されます。それ以外のほとんどのファイルは、タイムスタンプや識別子を含む名前で、共有フォルダのいちばん上に保存されます。[ファイルのタブ](../basic-usage/web-interface.md#shared-folder-panel)で、各ファイルが何かを確かめ、要らなくなったものをごみ箱に移せます。
 
 
 ## Monadic Chat のディレクトリ構造

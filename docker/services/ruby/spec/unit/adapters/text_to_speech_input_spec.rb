@@ -62,4 +62,14 @@ RSpec.describe "Text-to-speech input file" do
     helper.text_to_speech(text: "Thank you all")
     expect(Dir.children(@dir)).to eq(["notes.md"])
   end
+
+  it "puts the text in the folder it is given, and removes it there" do
+    out = File.join(@dir, "run")
+    Dir.mkdir(out)
+    helper.outcome = "speech.mp3"
+    helper.text_to_speech(text: "Thank you all", out_dir: out)
+    expect(helper.seen).to eq("Thank you all")
+    expect(Dir.children(out)).to be_empty
+    expect(Dir.children(@dir)).to eq(["run"])
+  end
 end

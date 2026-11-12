@@ -1,66 +1,19 @@
 /**
  * Status Message Configuration Module
  *
- * Centralized configuration for #status-message styling and behavior.
- * Aligned with Electron UI design system (#status, #dockerStatus).
- *
- * Design System:
- * - Background: Dark gray (#444444 light mode, #2a2a2a dark mode)
- * - Text: Colored by status type for visual differentiation
+ * The kinds of #status-message, each with its icon and its text color. The
+ * color is a palette token (tokens.css), so it follows the theme by itself.
  */
 
 (function(window) {
   'use strict';
 
-  /**
-   * Status type definitions
-   * Each status type includes:
-   * - icon: FontAwesome icon class (without 'fa-solid' prefix)
-   * - colorLight: Text color for light mode
-   * - colorDark: Text color for dark mode
-   */
   const STATUS_CONFIG = {
-    success: {
-      icon: 'fa-circle-check',
-      colorLight: '#5cd65c',  // Softer green (matches Electron UI .status.running)
-      colorDark: '#7fd89f'    // Lighter green for dark mode
-    },
-    warning: {
-      icon: 'fa-exclamation-triangle',
-      colorLight: '#ffa64d',  // Softer orange (matches Electron UI .status.stopped)
-      colorDark: '#ffb74d'    // Lighter orange for dark mode
-    },
-    danger: {
-      icon: 'fa-circle-exclamation',
-      colorLight: '#dc4c64',  // Red
-      colorDark: '#ef5350'    // Lighter red for dark mode
-    },
-    info: {
-      icon: 'fa-info-circle',
-      colorLight: '#64b5f6',  // Blue
-      colorDark: '#90caf9'    // Lighter blue for dark mode
-    },
-    secondary: {
-      icon: 'fa-check',
-      colorLight: '#757575',  // Gray
-      colorDark: '#bdbdbd'    // Lighter gray for dark mode
-    }
-  };
-
-  /**
-   * Background colors (softer for light mode, inspired by Electron UI)
-   */
-  const STATUS_BG = {
-    light: '#707070',  // Lighter gray (balanced for light mode UI)
-    dark: '#2a2a2a'    // Darker gray for dark mode
-  };
-
-  /**
-   * Border colors
-   */
-  const STATUS_BORDER = {
-    light: '#808080',  // Slightly lighter than background
-    dark: '#444444'    // Slightly lighter than dark background
+    success: { icon: 'fa-circle-check', color: 'var(--pal-green-text)' },
+    warning: { icon: 'fa-exclamation-triangle', color: 'var(--pal-amber-text)' },
+    danger: { icon: 'fa-circle-exclamation', color: 'var(--pal-red-text)' },
+    info: { icon: 'fa-info-circle', color: 'var(--pal-accent-text)' },
+    secondary: { icon: 'fa-check', color: 'var(--text-secondary)' }
   };
 
   /**
@@ -100,49 +53,24 @@
   }
 
   /**
-   * Get text color for status type and theme
+   * Text color for a status type (a CSS value), the secondary one for an
+   * unknown type.
    * @param {string} type - Status type
-   * @param {boolean} isDark - Whether dark mode is active
-   * @returns {string} Color hex value
+   * @returns {string} CSS color value
    */
-  function getTextColor(type, isDark) {
-    const config = getStatusConfig(type);
-    if (!config) {
-      return isDark ? '#bdbdbd' : '#757575'; // Default to secondary color
-    }
-    return isDark ? config.colorDark : config.colorLight;
-  }
-
-  /**
-   * Get background color for theme
-   * @param {boolean} isDark - Whether dark mode is active
-   * @returns {string} Color hex value
-   */
-  function getBackgroundColor(isDark) {
-    return isDark ? STATUS_BG.dark : STATUS_BG.light;
-  }
-
-  /**
-   * Get border color for theme
-   * @param {boolean} isDark - Whether dark mode is active
-   * @returns {string} Color hex value
-   */
-  function getBorderColor(isDark) {
-    return isDark ? STATUS_BORDER.dark : STATUS_BORDER.light;
+  function getTextColor(type) {
+    const config = getStatusConfig(type) || STATUS_CONFIG.secondary;
+    return config.color;
   }
 
   // Export to window
   window.StatusConfig = {
     STATUS_CONFIG,
-    STATUS_BG,
-    STATUS_BORDER,
     getStatusConfig,
     getValidStatusTypes,
     isValidStatusType,
     getIconClass,
-    getTextColor,
-    getBackgroundColor,
-    getBorderColor
+    getTextColor
   };
 
 })(window);

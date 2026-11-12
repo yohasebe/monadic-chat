@@ -3124,13 +3124,13 @@ ipcMain.handle('get-translations', async (_e, lang) => {
 // light value is unchanged; dark is the page's dark body (tokens.css
 // --bg-body).
 function consoleBackground() {
-  return nativeTheme.shouldUseDarkColors ? '#1a1a1a' : '#f0f0f0';
+  return nativeTheme.shouldUseDarkColors ? '#18191b' : '#f0f0f0';
 }
 
 // The settings window's own background: its page's body color in light and
 // in dark (tokens.css --bg-panel).
 function settingsBackground() {
-  return nativeTheme.shouldUseDarkColors ? '#2a2a2a' : '#f5f5f7';
+  return nativeTheme.shouldUseDarkColors ? '#25272a' : '#f5f5f7';
 }
 
 function createMainWindow() {

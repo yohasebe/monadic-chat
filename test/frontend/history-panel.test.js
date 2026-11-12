@@ -129,7 +129,7 @@ describe('History tab', () => {
     expect(badges).toEqual(['Shown now', 'Open in another window']);
     // The chat shown now stands out in the list, in its tag's color.
     expect(rows().map((r) => r.classList.contains('history-here'))).toEqual([true, false]);
-    expect(rows()[0].querySelector('.history-open-badge').classList.contains('mc-badge--green')).toBe(true);
+    expect(rows()[0].querySelector('.history-open-badge').classList.contains('mc-badge--blue')).toBe(true);
     expect(rows()[1].querySelector('.history-open-badge').classList.contains('mc-badge--grey')).toBe(true);
   });
 

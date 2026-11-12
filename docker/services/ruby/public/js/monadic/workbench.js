@@ -1552,7 +1552,9 @@
       const open = element('button', 'btn btn-link btn-sm p-0 align-baseline workbench-shown-open');
       open.type = 'button';
       open.title = t('ui.workbench.open', 'Show in the work screen');
-      open.appendChild(element('code', null, String(entry.name || entry.path) + (typeof entry.section === 'string' ? ` § ${entry.section}` : '')));
+      open.appendChild(element('code', null, String(entry.name || entry.path)));
+      // The section beside the path, so the path alone is shown by its name.
+      if (typeof entry.section === 'string') open.appendChild(element('span', null, ` § ${entry.section}`));
       open.addEventListener('click', () => {
         // A section of a document: the document as it is now, at the section.
         if (typeof entry.section === 'string') {

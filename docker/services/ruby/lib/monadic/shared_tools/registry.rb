@@ -147,6 +147,44 @@ module MonadicSharedTools
         default_hint: "Call request_tool(\"workbench\") to show a file or a text you made in the work screen."
       },
 
+      documents: {
+        module_name: 'MonadicSharedTools::WorkbenchTools',
+        tools: [
+          {
+            name: "write_section",
+            description: "Write one section of a long text the user and you build over the chat (a story, a draft " \
+                         "revised again and again) and show the whole text in the work screen beside the chat. " \
+                         "Each call keeps the section as this reply wrote it; the work screen shows every section " \
+                         "of the document in the order they were first written, each as written last, with a mark " \
+                         "between them, and the line under your reply opens it at this section. To rewrite a " \
+                         "section, call it again with the same section name and the whole new text. Deleting a " \
+                         "turn takes its sections away, and an earlier version shows again. Write the section in " \
+                         "Markdown; do not repeat it in the chat.",
+            parameters: [
+              {
+                name: :document,
+                type: "string",
+                description: "The document's title, the same in every call for it (e.g. the story's title)",
+                required: true
+              },
+              {
+                name: :section,
+                type: "string",
+                description: "The section's name, the same when it is rewritten (e.g. '1', '2', 'opening')",
+                required: true
+              },
+              {
+                name: :content,
+                type: "string",
+                description: "The whole text of the section, in Markdown",
+                required: true
+              }
+            ]
+          }
+        ],
+        default_hint: "Call request_tool(\"documents\") to write a section of a long text shown in the work screen."
+      },
+
       python_execution: {
         module_name: 'MonadicSharedTools::PythonExecution',
         tools: [

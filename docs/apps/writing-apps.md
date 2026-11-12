@@ -6,7 +6,7 @@ Apps that help you draft and produce written content — from novels and emails 
 
 ![Novel Writer app icon](../assets/icons/novel-writer.png ':size=40')
 
-Co-write a novel with the assistant. The assistant first asks for the genre, the language of the story, its approximate length, and any characters or settings you have in mind. It then writes the story one section at a time, following your directions, and offers options for what comes next. The characters, plot, and settings are kept in the side panel.
+Co-write a novel with the assistant. The assistant first asks for the genre, the language of the story, its approximate length, and any characters or settings you have in mind. It then writes the story one section at a time, following your directions, and offers options for what comes next. The story is shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat as one text, every section in order with a mark between them; the chat says which section was written, and the line under the reply opens the story at that section. Ask for a section to be rewritten and the new version takes its place; delete that turn and the earlier version comes back. Each turn's section is kept as a file of its own in the chat's folder, and the whole story is `documents/<title>.md` there. The characters, plot, and settings are kept in the side panel.
 
 
 ## Mail Composer

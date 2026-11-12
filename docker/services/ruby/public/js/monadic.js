@@ -1918,6 +1918,13 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
 
+  // Choosing another app shows the menu in the side column: its settings
+  // are what the user looks at next.
+  function showMenuPane() {
+    const lc = window.LayoutController;
+    if (lc && typeof lc.setPane === 'function' && lc.selectedPane() !== 'settings') lc.setPane('settings');
+  }
+
   $on($id("apps"), "change", function(event) {
     if (stop_apps_trigger) {
       stop_apps_trigger = false;
@@ -1997,6 +2004,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     proceedWithAppChange(selectedAppValue);
+    if (selectedAppValue !== previousAppValue) showMenuPane();
   });
   
   // Handle cancellation of app change
@@ -2068,6 +2076,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Reset to settings panel
     enterSettingsMode();
     proceedWithAppChange(newAppValue);
+    showMenuPane();
   });
   
   // Function to handle the actual app change

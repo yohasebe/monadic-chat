@@ -224,6 +224,26 @@ describe('Workbench', () => {
     ]);
   });
 
+  describe('a chat continued from the history', () => {
+    test('shows the work screen when its board has something on it', () => {
+      window.Workbench.expectResumed('c_1');
+      view([item()], { selected: null });
+      expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
+      expect(window.LayoutController.setMenuHidden).not.toHaveBeenCalled();
+    });
+
+    test('keeps the pane when the board is empty, and only for the board of that chat', () => {
+      window.Workbench.expectResumed('c_1');
+      view([], { selected: null });
+      view([item()], { selected: null });
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+
+      window.Workbench.expectResumed('c_2');
+      view([item()], { selected: null });
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+    });
+  });
+
   describe('saving a copy', () => {
     let clicked;
 

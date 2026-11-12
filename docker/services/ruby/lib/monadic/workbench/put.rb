@@ -61,7 +61,7 @@ module Monadic
         slot[:mutex].synchronize do
           unless slot[:path]
             slot[:path] = write(caller, handle, name, bytes)
-            Made.add(caller.request_id, slot[:path])
+            Made.add(caller.request_id, slot[:path], chat_id: caller.chat_id)
           end
           show(caller, handle, slot)
         end

@@ -103,6 +103,31 @@ RSpec.describe "what a turn made (Made) and the trash it goes to (TurnTrash)" do
     expect(Monadic::History::Serializer.message(message.merge("workbench_made" => ["/x"]))).not_to have_key("workbench_made")
   end
 
+  describe "a reply that ends without its message" do
+    it "moves what it made to the chat's trash and takes it off the work screen" do
+      running_handle
+      job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: caller_for, app_name: "Chat")
+      kept = Monadic::Workbench::ChatOutput.keep(job, "tune.abc", "X:1")
+      put = Monadic::Workbench::Put.run(caller_for, name: "draft.md", content: "# Draft\n")
+      expect(Monadic::Workbench::Board.for(chat, store: store).snapshot[:items].map { |i| i[:path] }).to include(put[:path])
+
+      expect(made.close(request_id)).to contain_exactly(job[:relative], put[:path])
+      expect(exists?(kept)).to be false
+      expect(exists?(put[:path])).to be false
+      trashed = Dir.glob(File.join(@data, folder_dir, "trash", "*stopped-*", "**", "*")).map { |f| File.basename(f) }
+      expect(trashed).to include("tune.abc", "draft.md")
+      expect(Monadic::Workbench::Board.for(chat, store: store).snapshot[:items].map { |i| i[:path] }).not_to include(put[:path])
+    end
+
+    it "moves nothing once its message took what it made" do
+      running_handle
+      put = Monadic::Workbench::Put.run(caller_for, name: "draft.md", content: "# Draft\n")
+      made.seal(request_id)
+      expect(made.close(request_id)).to eq([])
+      expect(exists?(put[:path])).to be true
+    end
+  end
+
   describe "the trash" do
     def write(path, text = "x")
       FileUtils.mkdir_p(File.dirname(File.join(@data, path)))

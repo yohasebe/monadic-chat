@@ -35,7 +35,7 @@ module Monadic
         job = Monadic::Workspace::Jobs.create!(folder[:workspace_id])
         request_id = (workbench.request_id if workbench.respond_to?(:request_id)) ||
                      Monadic::Workspace::RequestContext.current&.request_id
-        Made.add(request_id, job[:relative])
+        Made.add(request_id, job[:relative], chat_id: chat_id)
         job
       rescue Monadic::Workspace::Folders::Unavailable, Monadic::Workspace::Jobs::Unavailable,
              Monadic::Workspace::Ledger::Unreadable

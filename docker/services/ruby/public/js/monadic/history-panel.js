@@ -440,6 +440,9 @@
       const lc = window.LayoutController;
       const narrow = window.UIConfig && typeof window.UIConfig.isTabletView === 'function' ? window.UIConfig.isTabletView() : window.innerWidth < 768;
       if (data.success && lc && narrow) lc.setMenuHidden(true);
+      if (data.success && window.Workbench && typeof window.Workbench.expectResumed === 'function') {
+        window.Workbench.expectResumed(data.chat_id);
+      }
       refreshSoon();
       return;
     }

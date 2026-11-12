@@ -245,6 +245,16 @@ describe('History tab', () => {
     expect(sent.filter((m) => m.message === 'HISTORY_RESUME')).toHaveLength(2);
   });
 
+  it('tells the work screen which chat was continued, and nothing when it was not', () => {
+    window.Workbench = { expectResumed: jest.fn() };
+    show();
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_chat_here' });
+    expect(window.Workbench.expectResumed).not.toHaveBeenCalled();
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: true });
+    expect(window.Workbench.expectResumed).toHaveBeenCalledWith('c_aaaaaaaaaaaaaaaa');
+    delete window.Workbench;
+  });
+
   it('shows the conversation after a chat is continued on a narrow screen', () => {
     show();
     window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: true });

@@ -1219,6 +1219,18 @@
     if (news.length > 0) announce(news.join(' '));
     draw();
     refreshRelay();
+    if (resumedChat && next.chat_id === resumedChat) {
+      resumedChat = null;
+      const lc = window.LayoutController;
+      if (lc && rowItems().length > 0 && lc.selectedPane() !== 'work') lc.setPane('work');
+    }
+  }
+
+  // A chat continued from the history shows its work screen when its board
+  // has something on it; the board comes after the history's answer.
+  let resumedChat = null;
+  function expectResumed(chatId) {
+    resumedChat = chatId ? String(chatId) : null;
   }
 
   // ---- attachments shown here (page only) ----------------------------
@@ -1709,7 +1721,7 @@
   }
 
   window.Workbench = {
-    onView, onResult, onDownload, onOpened, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
+    onView, expectResumed, onResult, onDownload, onOpened, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
     showAttachment, onAttachmentOpened, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow,
     // Something changed on the board elsewhere (a tool showed a file).

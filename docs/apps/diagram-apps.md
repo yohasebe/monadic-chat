@@ -47,7 +47,7 @@ Generate linguistic syntax trees from sentences in multiple languages. The app a
 - SVG output that can be edited in vector graphics editors.
 - Linguistic notation that follows syntactic theory.
 
-The trees are shown in the chat as SVG images with transparent backgrounds and saved to the shared folder.
+The tree is shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat as an SVG image with a transparent background. The SVG is saved in the chat's folder in the shared folder (`conversations/…/artifacts/`), and the reply gives its path.
 
 Syntax Tree needs LaTeX: turn on **Install LaTeX (minimal set for diagrams)** in **Actions → Install Options** and rebuild the Python container. Availability by provider is shown in the [availability table](../basic-usage/basic-apps.md#app-availability).
 

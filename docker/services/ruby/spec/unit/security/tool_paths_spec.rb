@@ -473,7 +473,7 @@ RSpec.describe 'Tool input boundaries' do
       allow(MonadicSharedTools::BrowserOwner).to receive(:observe).and_return({ sessions: [], max: 3 })
     end
 
-    %i[run_jupyter_cells restart_jupyter_kernel].each do |method|
+    %i[run_jupyter_cells clear_jupyter_outputs].each do |method|
       it "#{method}: passes notebook names as literal arguments" do
         (shell_names('.ipynb') + ['日本語 folder/space name.ipynb']).each do |name|
           fixture(name)

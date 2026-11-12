@@ -817,7 +817,7 @@ module MonadicSharedTools
           },
           {
             name: "create_jupyter_notebook",
-            description: "Create a new Jupyter notebook with automatic timestamping",
+            description: "Create a new, empty Jupyter notebook in this chat's folder; returns its path and JupyterLab address",
             parameters: [
               {
                 name: :filename,
@@ -941,20 +941,8 @@ module MonadicSharedTools
             parameters: []
           },
           {
-            name: "restart_jupyter_kernel",
-            description: "Restart the kernel for a notebook and clear all outputs",
-            parameters: [
-              {
-                name: :filename,
-                type: "string",
-                description: "The notebook filename",
-                required: true
-              }
-            ]
-          },
-          {
-            name: "interrupt_jupyter_execution",
-            description: "Interrupt currently running cells in a notebook",
+            name: "clear_jupyter_outputs",
+            description: "Clear the outputs a notebook keeps. Each run of a notebook starts a new kernel, so there is no kernel to restart.",
             parameters: [
               {
                 name: :filename,
@@ -966,7 +954,7 @@ module MonadicSharedTools
           },
           {
             name: "move_jupyter_cell",
-            description: "Move a cell to a new position in the notebook",
+            description: "Move a cell so that it ends at to_index. Positions are 0-based and counted in the notebook as it is. The cell keeps its outputs; nothing is run.",
             parameters: [
               {
                 name: :filename,
@@ -983,14 +971,14 @@ module MonadicSharedTools
               {
                 name: :to_index,
                 type: "integer",
-                description: "The target zero-based index position",
+                description: "The zero-based position the cell ends at",
                 required: true
               }
             ]
           },
           {
             name: "insert_jupyter_cells",
-            description: "Insert cells at a specific position in the notebook",
+            description: "Insert cells before the cell at index (0-based); index equal to the number of cells adds them at the end.",
             parameters: [
               {
                 name: :filename,
@@ -1013,7 +1001,7 @@ module MonadicSharedTools
               {
                 name: :run,
                 type: "boolean",
-                description: "Whether to execute the cells after inserting (default: false)",
+                description: "Run the whole notebook afterwards in a new kernel, every cell of it, not only the new ones (default: false)",
                 required: false
               }
             ]

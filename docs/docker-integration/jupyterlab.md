@@ -26,10 +26,16 @@ Choose **Actions → Stop JupyterLab**. JupyterLab keeps running when you close 
 In the Jupyter Notebook app, you ask the AI agent in the chat to work with notebooks. The agent can:
 
 - Start and stop JupyterLab
-- Create notebooks in the shared folder and list the existing ones
+- Create notebooks in the chat's folder (`conversations/…/work/` in the shared folder) and list the chat's notebooks
 - Add, edit, move, and delete cells, and run them
 - Read the outputs of cells and fix cells that raise errors
-- Restart or interrupt the kernel
+- Clear the outputs a notebook keeps
+
+The agent works on the notebooks of the chat you are in. To work on a notebook at the top of the shared folder, name it with `./` before its name, for example `./analysis.ipynb`. A chat you continue from the history keeps its notebooks.
+
+A notebook the agent makes or changes is shown on the [work screen](../basic-usage/web-interface.md#work-screen) with the outputs of its cells, including plots.
+
+Each run starts a new kernel and runs every cell of the notebook. To stop a run, click **Cancel Query**.
 
 For a task with several steps, the app first proposes a numbered plan and waits for your approval before carrying it out.
 

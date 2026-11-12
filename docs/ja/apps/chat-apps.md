@@ -95,7 +95,7 @@ Second Opinion の対応状況は[モデル対応状況の表](../basic-usage/ba
 
 ![Research Assistant app icon](../assets/icons/research-assistant.png ':size=40')
 
-学術・科学の調査のためのアシスタントです。Web を検索し、情報源を読んで分析し、セッションで調べたトピック・わかったこと・情報源をサイドパネルに記録します。最新の情報を探す、事実を確かめる、トピックをまとめる、といった用途に使えます。
+学術・科学の調査のためのアシスタントです。Web を検索し、情報源を読んで分析し、セッションで調べたトピック・わかったこと・情報源をサイドパネルに記録します。最新の情報を探す、事実を確かめる、トピックをまとめる、といった用途に使えます。Python のコードが作ったグラフなどのファイルは、会話のフォルダに保存され、会話の横の[作業画面](../basic-usage/web-interface.md#work-screen)に表示されます。返答では、そのパスが示されます。
 
 Research Assistant の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。Web 検索でプロバイダー自身の検索と Tavily API（`TAVILY_API_KEY` が必要）のどちらを使うかは、[プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)のとおりです。OpenAI 版では、[PDF Database](../basic-usage/pdf_storage.md) の PDF も検索できます。Web ページをメッセージに読み込む方法は、[URL からのテキストの読み込み](../basic-usage/message-input.md#reading-text-from-urls)を参照してください。
 

@@ -176,8 +176,8 @@ The context for modifications is kept in the session, under `@context[:auto_forg
   - Dependency manifests are offered when imports go beyond the per-language standard library set defined in `standard_libraries`.
   - Usage examples (USAGE.md) are suggested when argument parsing libraries (argparse, OptionParser, click, etc.) are detected.
   - A “custom asset” entry is always included to remind the orchestrator that arbitrary files can be generated on demand.
-- `generate_additional_file` re-validates project context (project path, type, and main file) before writing to disk.
-- Custom file requests require both `file_name` (sanitized to avoid traversal) and `instructions`. Content is produced through `context[:codex_callback]`, which wraps `call_openai_code`, `claude_code_agent` or `call_grok_code`, using a rich prompt that includes the main script excerpt and existing files.
+- `generate_additional_file` works on the chat's project that `AutoForgeUtils.current_project` finds (the path or `project_name` given, else the newest); a project with an `index.html` is a web project and gets no additional files.
+- Custom file requests require both `file_name` (sanitized to avoid traversal) and `instructions`. Content is produced through `resolve_text_generator`, the code agent of the variant's own provider (`forge_agent` in `auto_forge_{openai,claude,grok}.rb`, mapped by `CODE_AGENT_CALLS`), using a prompt that includes the main script excerpt and existing files. `apply_automatic_fixes` uses the same call.
 
 ## Error Handling
 

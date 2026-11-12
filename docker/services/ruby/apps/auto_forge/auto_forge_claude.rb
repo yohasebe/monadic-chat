@@ -11,7 +11,12 @@ class AutoForgeClaude < MonadicApp
   include AutoForgeTools
   include Monadic::Agents::ClaudeCodeAgent
 
+  # The code agent of this app's provider, for everything it generates.
+  def forge_agent
+    :claude
+  end
+
   def generate_application(spec:)
-    super(spec: spec, agent: :claude)
+    super(spec: spec, agent: forge_agent)
   end
 end

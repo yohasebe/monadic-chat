@@ -955,15 +955,17 @@ module AutoForgeTools
     sanitized
   end
 
-  def resolve_text_generator
-    # Note: Removed @context usage to prevent cross-session contamination
-    # Default to OpenAI agent
+  # The call to the code agent of each provider (Monadic::Agents::*CodeAgent).
+  CODE_AGENT_CALLS = { openai: :call_openai_code, claude: :call_claude_code, grok: :call_grok_code }.freeze
 
-    if respond_to?(:call_openai_code)
-      ->(prompt, app_name = 'AutoForgeAdditionalFile', &block) { call_openai_code(prompt: prompt, app_name: app_name, &block) }
-    else
-      nil
-    end
+  # A call to the code agent of the app's own provider (its forge_agent),
+  # never another provider's: (prompt, app_name) -> its result. nil when
+  # the app has none.
+  def resolve_text_generator
+    call = CODE_AGENT_CALLS[respond_to?(:forge_agent) ? forge_agent : nil]
+    return nil unless call && respond_to?(call)
+
+    ->(prompt, app_name = 'AutoForgeAdditionalFile', &block) { send(call, prompt: prompt, app_name: app_name, &block) }
   end
 
   def build_custom_file_prompt(project_path, file_name, instructions, usage_examples: false)
@@ -1054,22 +1056,18 @@ module AutoForgeTools
     errors = fetch_array(diagnosis[:debug_result], :javascript_errors)
     return 'No errors to fix.' if errors.empty?
 
-    unless respond_to?(:call_openai_code)
-      return 'Error correction requires GPT-5-Codex access.'
-    end
+    generator = resolve_text_generator
+    return "Error correction needs the code agent of this app's provider." unless generator
 
     fix_prompt = build_fix_prompt(diagnosis[:explanations], errors)
-    puts '[AutoForge] Calling GPT-5-Codex for fixes...' if CONFIG && CONFIG['EXTRA_LOGGING']
+    puts "[AutoForge] Calling the #{forge_agent} code agent for fixes..." if CONFIG && CONFIG['EXTRA_LOGGING']
 
-    codex_result = call_openai_code(
-      prompt: fix_prompt,
-      app_name: 'AutoForgeErrorFixer'
-    )
+    codex_result = generator.call(fix_prompt, 'AutoForgeErrorFixer')
 
     if codex_result[:success]
       apply_codex_fix(diagnosis, codex_result[:code])
     else
-      error_msg = fetch_from_hash(codex_result, :error) || 'Unknown error from GPT-5-Codex'
+      error_msg = fetch_from_hash(codex_result, :error) || 'Unknown error from the code agent'
       "Failed to generate fixes: #{error_msg}\n\nYou may want to try again or fix manually."
     end
   end

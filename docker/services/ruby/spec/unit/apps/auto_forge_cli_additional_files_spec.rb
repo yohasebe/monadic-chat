@@ -9,6 +9,10 @@ RSpec.describe 'AutoForge CLI optional files' do
   let(:helper_class) do
     Class.new do
       include AutoForgeTools
+
+      def forge_agent
+        :openai
+      end
     end
   end
 
@@ -98,7 +102,7 @@ RSpec.describe 'AutoForge CLI optional files' do
 
         allow(AutoForgeUtils).to receive(:current_project).and_return({ path: dir, has_index: false })
 
-        # Mock call_openai_code method which is used by resolve_text_generator
+        # The app's own provider's code agent writes the file.
         allow(helper).to receive(:call_openai_code).and_return({ success: true, code: "Line one\nLine two" })
 
         message = helper.generate_additional_file(
@@ -109,6 +113,34 @@ RSpec.describe 'AutoForge CLI optional files' do
         expect(message).to include('✅ Created USAGE.md')
         expect(File.read(File.join(dir, 'USAGE.md'))).to include('Line one')
       end
+    end
+
+    it "writes a custom file with the code agent of the app's own provider, never another's" do
+      claude = Class.new do
+        include AutoForgeTools
+
+        def forge_agent
+          :claude
+        end
+
+        def call_claude_code(prompt:, app_name: nil)
+          { success: true, code: "From Claude (#{app_name})" }
+        end
+
+        def call_openai_code(**)
+          raise 'another provider was called'
+        end
+      end.new
+      expect(claude.send(:resolve_text_generator).call('p', 'X')).to eq({ success: true, code: 'From Claude (X)' })
+      expect(Class.new { include AutoForgeTools }.new.send(:resolve_text_generator)).to be_nil
+      grok = Class.new do
+        include AutoForgeTools
+
+        def forge_agent
+          :grok
+        end
+      end.new
+      expect(grok.send(:resolve_text_generator)).to be_nil
     end
 
     it "says so when the chat has no project, or its project is a web app" do

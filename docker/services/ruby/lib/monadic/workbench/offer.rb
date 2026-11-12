@@ -4,6 +4,7 @@ require_relative 'board'
 require_relative 'caller'
 require_relative 'job_output'
 require_relative 'record'
+require_relative 'made'
 
 module Monadic
   module Workbench
@@ -67,6 +68,9 @@ module Monadic
                                origin: caller.origin,
                                unless_closed: -> { closed?(caller.request_id) })
         entry = item['artifact'].slice(*Record::FIELDS)
+        # Made by the reply: its message takes it, and a reply stopped
+        # before its message moves it to the trash.
+        Made.add(caller.request_id, entry['path'], chat_id: caller.chat_id)
         Offered.new(chat_id: caller.chat_id, request_id: caller.request_id, item_id: item['id'],
                     path: entry['path'], entry: entry)
       end

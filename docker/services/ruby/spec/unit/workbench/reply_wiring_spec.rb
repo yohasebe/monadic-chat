@@ -158,14 +158,21 @@ RSpec.describe "the workbench when a reply is recorded" do
     expect(File.binread(File.join(shared, entry["path"]))).to eq(png)
   end
 
-  it "keeps the image of a reply that ends without its message, and closes that reply" do
+  it "moves the image of a reply that ends without its message to the trash, and closes that reply" do
     stub_const("APPS", { "FakeApp" => offering_app(store, png) })
     thread = host.send(:handle_ws_streaming, nil, { "message" => "a cat", "app_name" => "FakeApp" }, session, queue)
     wait_for_answer_made(thread)
+    board = Monadic::Workbench::Board.for(session[:chat_id])
+    item = board.snapshot[:items].first
+    placed = board.item(item[:id])
+    path = placed.dig("artifact", "path")
     host.send(:stop_reply_work, thread)
-    item = Monadic::Workbench::Board.for(session[:chat_id]).snapshot[:items].first
-    expect(item[:mid]).to be_nil
-    request_id = Monadic::Workbench::Board.for(session[:chat_id]).item(item[:id]).dig("origin", "request_id")
-    expect(Monadic::Workbench::Offer.closed?(request_id)).to be(true)
+
+    expect(Monadic::Workbench::Offer.closed?(placed.dig("origin", "request_id"))).to be(true)
+    expect(board.snapshot[:items]).to be_empty
+    expect(File.exist?(File.join(Monadic::Utils::Environment.data_path, path))).to be(false)
+    folder = path.split("/").first(2).join("/")
+    trashed = Dir.glob(File.join(Monadic::Utils::Environment.data_path, folder, "trash", "*stopped-*", "**", "*"))
+    expect(trashed.map { |f| File.basename(f) }).to include(File.basename(path))
   end
 end

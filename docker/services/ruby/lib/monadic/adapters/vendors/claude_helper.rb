@@ -449,10 +449,7 @@ module ClaudeHelper
     use_adaptive = supports_thinking &&
                    Monadic::Utils::ModelSpec.supports_adaptive_thinking?(obj["model"])
 
-    monadic_with_structured_outputs = obj["monadic"].to_s == "true" &&
-                                      Monadic::Utils::ModelSpec.supports_structured_outputs?(obj["model"])
-
-    if supports_thinking && obj["reasoning_effort"] && obj["reasoning_effort"] != "none" && !monadic_with_structured_outputs
+    if supports_thinking && obj["reasoning_effort"] && obj["reasoning_effort"] != "none"
       thinking_enabled = true
 
       if use_adaptive
@@ -500,10 +497,6 @@ module ClaudeHelper
       adaptive_effort = nil
       max_tokens = user_max_tokens
 
-      if monadic_with_structured_outputs
-        Monadic::Utils::ExtraLogger.log { "Claude: Thinking mode disabled for monadic app with structured outputs\n  Model: #{obj["model"]}\n  App: #{app}" }
-      end
-
       # On models that think whenever `thinking` is omitted, leaving it out for
       # "none" ran the model's default effort (high on Sonnet 5.5, medium on
       # Opus 5.5) — more reasoning than "low". Opus 5.5 and Fable 5.1 cannot
@@ -511,8 +504,7 @@ module ClaudeHelper
       # block_binding that dynamically loaded skills need, so send the lowest
       # effort the model offers. Only an explicit request to switch reasoning
       # off does this; an unspecified effort still gets the model's default.
-      requested_off = obj["reasoning_effort"] == "none" || monadic_with_structured_outputs
-      if supports_thinking && use_adaptive && requested_off &&
+      if supports_thinking && use_adaptive && obj["reasoning_effort"] == "none" &&
          Monadic::Utils::ModelSpec.thinking_on_by_default?(obj["model"])
         lowest = Monadic::Utils::ModelSpec.get_reasoning_effort_options(obj["model"])&.dig(:options)&.first
         if lowest
@@ -926,7 +918,7 @@ module ClaudeHelper
           # before every response, so "auto" plus the tool instructions in the
           # system prompt is the documented replacement. This branch is
           # reached on such a model only when the helper's own thinking flag
-          # is off (monadic structured outputs, effort "none"); the model
+          # is off (effort "none"); the model
           # thinks regardless.
           forced = Monadic::Utils::ModelSpec.rejects_forced_tool_choice?(body["model"]) ? "auto" : "any"
           tool_choice_value = { "type" => forced }

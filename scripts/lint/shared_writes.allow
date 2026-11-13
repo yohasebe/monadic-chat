@@ -77,3 +77,4 @@ docker/services/ruby/lib/monadic/workbench/store.rb | Dir.mkdir(dir, 0o700) | st
 docker/services/ruby/lib/monadic/workbench/job_output.rb | Dir.mkdir(dir, 0o700) | state | a generator's job folder in the workbench, made new (state folder)
 docker/services/ruby/lib/monadic/workbench/job_output.rb | FileUtils.rm_rf(checked_dir!(dir, root: root)) | state | removes a checked job folder of the workbench (state folder)
 docker/services/ruby/lib/monadic/workbench/job_output.rb | PARTS.each { |part| Dir.mkdir(File.join(dir, part), 0o700) } | state | a generator job's in/ and out/ folders, made new (state folder)
+docker/services/ruby/apps/syntax_tree/syntax_tree_tools.rb | File.write(input, notation) | system-temp | the notation given to RSyntaxTree, in a work folder of its own (Dir.mktmpdir)

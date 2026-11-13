@@ -151,9 +151,9 @@ module Monadic
       # documents folder, never a link). Returns nil.
       def remove(path)
         real = Monadic::Workspace::Folders.real_path(path)
-        File.unlink(real) if real
+        Monadic::Utils::SharedPathGuard.delete_file!(real) if real
         nil
-      rescue SystemCallError
+      rescue SystemCallError, Monadic::Utils::SharedPathGuard::InvalidPath
         nil
       end
 

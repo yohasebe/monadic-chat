@@ -95,8 +95,11 @@ module Monadic
       # A run folder a failed run left empty goes; one with anything in it
       # stays.
       def drop_if_empty(job)
-        Dir.rmdir(job[:path]) if job && Monadic::Workspace::Folders.real_path(job[:relative], :directory)
-      rescue SystemCallError
+        return unless job && Monadic::Workspace::Folders.real_path(job[:relative], :directory) && Dir.empty?(job[:path])
+
+        Monadic::Utils::SharedPathGuard.remove_tree!(job[:path])
+        nil
+      rescue SystemCallError, Monadic::Utils::SharedPathGuard::InvalidPath
         nil
       end
 

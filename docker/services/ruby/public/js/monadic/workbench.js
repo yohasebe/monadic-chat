@@ -1817,10 +1817,8 @@
   }
 
   window.Workbench = {
-    onView, expectResumed, onResult, onDownload, onOpened, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
+    onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
     showAttachment, onAttachmentOpened, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
-    onView, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
-    showAttachment, onAttachmentOpened, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow,
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),

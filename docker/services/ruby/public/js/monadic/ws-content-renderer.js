@@ -10,35 +10,16 @@
 
   // ── Message rendering helpers ──────────────────────────────────────
 
-  function getMessageAppName(msg) {
-    if (msg && msg.app_name) {
-      return msg.app_name;
-    }
-
-    if (window.SessionState && typeof window.SessionState.getCurrentApp === 'function') {
-      var current = window.SessionState.getCurrentApp();
-      if (current) return current;
-    }
-
-    if (typeof params !== 'undefined' && params && params["app_name"]) {
-      return params["app_name"];
-    }
-
-    return null;
-  }
-
   function renderMessage(msg) {
     if (!msg) {
       console.error('renderMessage: msg is null or undefined');
       return '';
     }
 
-    var appName = getMessageAppName(msg);
-
     // Priority 1: Client-side rendering with MarkdownRenderer
     if (msg.text && window.MarkdownRenderer) {
       try {
-        var result = window.MarkdownRenderer.render(msg.text, { appName: appName });
+        var result = window.MarkdownRenderer.render(msg.text);
         return result;
       } catch (err) {
         console.error('MarkdownRenderer failed:', err);
@@ -661,7 +642,6 @@
 
   // ── Namespace export ───────────────────────────────────────────────
   var ns = {
-    getMessageAppName: getMessageAppName,
     renderMessage: renderMessage,
     setCopyCodeButton: setCopyCodeButton,
     applyMath: applyMath,

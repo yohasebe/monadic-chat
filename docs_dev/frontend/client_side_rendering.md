@@ -3,19 +3,18 @@
 ## Overview
 
 All HTML generation for chat cards happens in the browser. The Ruby server sends raw
-`msg.text` (Markdown or Monadic JSON) together with metadata (`app_name`, `monadic`,
-flags for KaTeX/ABC/Mermaid, etc.). The front-end converts that payload into styled HTML
+`msg.text` (Markdown) together with metadata (`app_name`, flags for KaTeX/ABC/Mermaid,
+etc.). The front-end converts that payload into styled HTML
 using `MarkdownRenderer`.
 
 ```
 Ruby (websocket.rb)
-  └─ sends { text, app_name, monadic, ... }
+  └─ sends { text, app_name, ... }
 
 Browser
   ├─ renderMessage()
-  │   └─ MarkdownRenderer.render(text, { appName, isMonadic })
-  │        ├─ Monadic JSON? → jsonToHtml()
-  │        └─ Markdown?     → renderMarkdown()
+  │   └─ MarkdownRenderer.render(text)
+  │        └─ renderMarkdown()
   │
   └─ MarkdownRenderer.applyRenderers(cardElement)
       ├─ highlight.js
@@ -29,25 +28,20 @@ Browser
 ### 1. Entry point
 
 ```js
-MarkdownRenderer.render(text, { appName, isMonadic })
+MarkdownRenderer.render(text)
 ```
 
-- Detects Monadic JSON vs normal Markdown
-- Parses Monadic payloads (AutoForge, Chat Plus, etc.) via `jsonToHtml`
-- Normal Markdown paths keep KaTeX/ABC/Mermaid blocks as placeholders until after rendering
+- Renders the text as Markdown, the same way in every app
+- KaTeX/ABC/Mermaid blocks are kept as placeholders until after rendering
 
-### 2. Monadic JSON support
+### 2. Markdown rendering
 
-- `isMonadicJson()` checks the explicit `isMonadic` flag, app name (`chat_plus_*`, `auto_forge_*`, `concept_visualizer_*`) and JSON structure
-- `renderMonadicJson()` mirrors Ruby’s `monadic_html` layouts (message first, collapsible context sections, citation formatting)
-
-### 3. Markdown rendering
 
 - markdown-it renders text → HTML
 - KaTeX, ABC, Mermaid blocks are temporarily replaced with placeholders (`MATH_BLOCK_PLACEHOLDER_x`, `ABC_BLOCK_PLACEHOLDER_x`, `MERMAID_BLOCK_PLACEHOLDER_x`)
 - After HTML is produced, KaTeX placeholders are replaced with rendered math HTML, ABC/Mermaid placeholders with `<div class="abc-code"><pre>…</pre></div>` or `<div class="mermaid-code"><pre>…</pre></div>`
 
-### 4. Unified post-processing
+### 3. Unified post-processing
 
 `MarkdownRenderer.applyRenderers(container)` runs after a card is inserted into the DOM:
 
@@ -64,12 +58,9 @@ Processing is scheduled via `requestIdleCallback` (with raf/setTimeout fallback)
 
 To keep client rendering deterministic, the server must send:
 
-- `text`: Markdown or Monadic JSON (raw string, no HTML)
-- `app_name`: canonical snake_case name (e.g., `chat_plus_openai`)
-- `monadic`: boolean flag when the app uses Monadic JSON responses
+- `text`: Markdown (raw string, no HTML)
+- `app_name`: the app's name
 - Feature flags (KaTeX, Mermaid, ABC) in `params`
-
-`renderMessage()` on the client fills gaps by looking at SessionState/params, but the goal is to always send accurate metadata from Ruby so the browser does not need to guess.
 
 ## Tab isolation
 

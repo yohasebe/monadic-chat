@@ -12,7 +12,7 @@
  *     annotation[encoding], span style/class/aria-hidden — all default-allowed)
  *   - mc: scheme citation links with data-mc-link (ALLOWED_URI_REGEXP)
  *   - div.{mermaid,abc,drawio}-code > pre wrappers
- *   - Monadic JSON tree (div.json-item[data-depth][data-key], inline style)
+ *   - Collapsible tree (div.json-item[data-depth][data-key], inline style)
  *   - highlight.js code classes, base64 image attachments
  *
  * Inline event handlers (onclick etc.) are stripped by DOMPurify by design;

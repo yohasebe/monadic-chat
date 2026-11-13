@@ -452,20 +452,6 @@ function attachEventListeners(card) {
 
       const text = currentMessage.text;
 
-      // Check if message is JSON (which can't be edited)
-      let json = false;
-      try {
-        JSON.parse(text);
-        json = true;
-      } catch (e) {
-        // Not JSON, continue
-      }
-
-      if (json) {
-        alert("A JSON message can't be edited");
-        return;
-      }
-
       // Check if this is the last message
       const isLastMessage = messageIndex === messages.length - 1;
       const lastCard = document.querySelector("#discourse .card:last-child");

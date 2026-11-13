@@ -12,6 +12,16 @@ The user-facing description is `docs/advanced-topics/monadic-mode.md`. This page
 
 The `session_context` group (`lib/monadic/shared_tools/session_context.rb`) and the tools modules of Chat Plus, Research Assistant, Math Tutor, Novel Writer, Translate, Voice Interpreter, Language Practice Plus, Jupyter Notebook, Image Generator and Video Generator are built on it.
 
+## Session State Kept by Turn
+
+An app whose MDSL sets `turn_state true` (`Monadic::TurnState.enabled?`, `lib/monadic/turn_state.rb`) keeps its state from what each reply changed:
+
+- `monadic_save_state`, `monadic_load_state`, `monadic_update_state` (read and change one value with no other change of the reply in between) and `monadic_put_item` / `monadic_remove_item` / `monadic_load_items` (items of a collection, each under an id the server makes) write to the running reply's record. The record is fixed to the reply's chat, epoch and app (`Workbench::Caller.current`); a change without a running reply, to another app's name, or from a second reply of the same chat (`TurnState::Busy`) is refused.
+- `html_handler` seals the record into the message as `state_changes` where it seals `workbench_made` (inside the reply's `:saving`). A reply that ends without its message lets it go (`reply_state` → `TurnState.close`). A record begun before the chat changed under it (`TurnState.changed!`: a message deleted, a file read in, a chat resumed; or the chat's epoch) is let go at the seal.
+- Reading folds the chat's messages oldest first over the base (`session[:monadic_state][app]`: the state the chat began with, e.g. a file of an earlier version): for each value the newest change wins, for each item the newest put or removal (a removal stops the base from showing through). Deleting a turn removes its changes. Items keep the order of their earliest remaining record. The fold is cached per chat until its messages or revision change.
+- `TurnState::Form` (`lib/monadic/turn_state/form.rb`) checks the changes and the base the same way for saving, the history (`History::Serializer` keeps `state_changes` per message and the base as `monadic_state`), shared files (`privacy_clean_messages`; a masked file masks `data`, keys included, and keeps the form) and imports (`session_routes`; what does not fit is left out and counted as `state_dropped`). The client's `state_changes` are dropped (`streaming_handler`).
+- Novel Writer keeps its settings as the value `novel_context`, each character as an item of `characters`, and counts the amount written from the story's sections (`Workbench::Document.section_texts`). A file of an earlier version has its characters made items of the base once, with the ids kept in the base (`_items`, `_ids`).
+
 ## What `monadic true` Changes
 
 `features do monadic true end` sets `features[:monadic]`, which the app list sends to the UI and the session parameters carry as `monadic`.

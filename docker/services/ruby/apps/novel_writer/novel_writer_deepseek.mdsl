@@ -145,6 +145,7 @@ app "NovelWriterDeepSeek" do
     initiate_from_assistant true
     group "DeepSeek"
     monadic true  # Uses Session State mechanism for novel progress tracking
+    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
   end
 
   context_schema do
@@ -180,10 +181,8 @@ app "NovelWriterDeepSeek" do
     define_tool "save_novel_context", "Save story context to session state" do
       parameter :grand_plot, "string", "Brief description of the overarching plot", required: false
       parameter :total_text_amount, "integer", "Target word/character count for the novel", required: false
-      parameter :text_amount_so_far, "integer", "Current word/character count", required: false
       parameter :language, "string", "Language used in the novel", required: false
       parameter :summary_so_far, "string", "Summary of the story up to current point", required: false
-      parameter :progress, "string", "Current progress percentage (e.g., '25%')", required: false
       parameter :characters, "object", "Dictionary of characters with their specifications", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
@@ -195,8 +194,8 @@ app "NovelWriterDeepSeek" do
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
 
-    define_tool "update_progress", "Update story progress after writing new content" do
-      parameter :new_text, "string", "The newly written text to add to the word/character count", required: true
+    define_tool "update_progress", "Update story progress after writing new content; the amount written is counted from the story's sections" do
+      parameter :new_text, "string", "The section just written (it is counted with the rest of the story)", required: false
       parameter :use_chars, "boolean", "Use character count instead of word count (for CJK languages)", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false
     end

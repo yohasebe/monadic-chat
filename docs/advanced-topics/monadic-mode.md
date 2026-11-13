@@ -54,6 +54,7 @@ These built-in apps keep context with Session State tools:
 1. **Tool definitions**: The app imports the `session_context` group or defines its tools with `define_tool`.
 2. **Tool implementation**: The shared modules or the app's `*_tools.rb` implement the tools.
 3. **Session storage**: The context is stored in the session, separately for each app and key (`session[:monadic_state][app][key]`), with a version and a time stamp.
+   In an app whose MDSL sets `turn_state true` (Novel Writer), what each reply changes is kept with its message instead: deleting a turn takes back what it changed, and the state comes back when the chat is continued from the history or read from a file.
 4. **Speech**: The `tts_target` feature can read the text to speak from a tool parameter.
 
 ### Tool Flow Example

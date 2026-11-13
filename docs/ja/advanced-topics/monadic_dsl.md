@@ -189,6 +189,8 @@ features do
                           # the files it writes are shown on the work screen
   image_generation true   # Enable AI image generation tools in conversation
   monadic true            # REQUIRED for Session State apps - enables context management via tools
+  turn_state true         # Keep the Session State by turn: each reply's changes go with its message,
+                          # so deleting a turn takes them back (monadic_put_item etc. for items)
   initiate_from_assistant true # Allow assistant to send first message in conversation
   autonomy "high"         # Set autonomy level: "high", "medium" (default), or "low"
   work_screen "drafts"    # Put the app's work on the work screen beside the chat:

@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
-# Novel Writer tools using Monadic Session State mechanism.
-# Manages story context (plot, characters, progress) without embedding JSON in responses.
+# Novel Writer tools on the app's state kept by turn (Monadic::TurnState):
+# the story's settings are a value, each character an item of its own, and
+# the amount written is counted from the story's sections on the work
+# screen. Deleting a turn takes back what it changed.
 
 module NovelWriterTools
   include MonadicHelper
@@ -9,6 +11,10 @@ module NovelWriterTools
   include Monadic::SharedTools::MonadicSessionState
 
   STATE_KEY = "novel_context"
+  CHARACTERS = "characters"
+  # The settings the story keeps as one value (the characters and the
+  # amount written are kept apart).
+  SETTINGS = %w[grand_plot total_text_amount language summary_so_far count_by].freeze
 
   # Count number of words in text
   def count_num_of_words(text: "")
@@ -20,160 +26,168 @@ module NovelWriterTools
     text.size
   end
 
-  # Save novel context to session state.
+  # Save novel context.
   # Called by LLM when story elements change.
   #
   # @param grand_plot [String] Brief description of the overarching plot
   # @param total_text_amount [Integer] Target word/character count
-  # @param text_amount_so_far [Integer] Current word/character count
+  # @param text_amount_so_far [Integer] Ignored: counted from the story's sections
   # @param language [String] Language used in the novel
   # @param summary_so_far [String] Summary of the story up to current point
-  # @param progress [String] Current progress (e.g., "25%")
+  # @param progress [String] Ignored: counted from the story's sections
   # @param characters [Hash] Dictionary of characters with their specifications
   # @param session [Hash] Session object (automatically provided)
   # @return [String] JSON response with success status
   def save_novel_context(grand_plot: nil, total_text_amount: nil, text_amount_so_far: nil,
                          language: nil, summary_so_far: nil, progress: nil,
                          characters: nil, session: nil)
-    existing = load_novel_context_internal(session)
-
-    context = {
-      grand_plot: grand_plot || existing[:grand_plot],
-      total_text_amount: total_text_amount || existing[:total_text_amount],
-      text_amount_so_far: text_amount_so_far || existing[:text_amount_so_far],
-      language: language || existing[:language],
-      summary_so_far: summary_so_far || existing[:summary_so_far],
-      progress: progress || existing[:progress],
-      characters: characters || existing[:characters] || {}
-    }
-
-    monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    _ = [text_amount_so_far, progress]
+    given = { "grand_plot" => grand_plot, "total_text_amount" => total_text_amount,
+              "language" => language, "summary_so_far" => summary_so_far }.compact
+    novel_settings_change(session) { |now| now.merge(given) } unless given.empty?
+    novel_characters_replace(session, characters) if characters.is_a?(Hash)
+    load_novel_context(session: session)
+  rescue Monadic::TurnState::Refused => e
+    { success: false, error: e.message }.to_json
   end
 
-  # Load novel context from session state.
+  # Load novel context.
   # Called by LLM when it needs to reference story state.
   #
   # @param session [Hash] Session object (automatically provided)
   # @return [String] JSON response with context data
   def load_novel_context(session: nil)
-    default_context = {
-      grand_plot: nil,
-      total_text_amount: nil,
-      text_amount_so_far: 0,
-      language: nil,
-      summary_so_far: nil,
-      progress: "0%",
-      characters: {}
-    }
-    monadic_load_state(key: STATE_KEY, default: default_context, session: session)
+    novel_converted_base!(session)
+    settings = novel_settings(session)
+    amount = novel_amount_written(session, settings["count_by"])
+    total = settings["total_text_amount"].to_i
+    progress = total.positive? ? "#{[(amount.to_f / total * 100).round, 100].min}%" : "0%"
+    data = settings.slice(*SETTINGS - ["count_by"]).merge(
+      "text_amount_so_far" => amount, "progress" => progress, "characters" => novel_characters(session)
+    )
+    { success: true, key: STATE_KEY, data: data }.to_json
   end
 
   # Add or update a character in the novel.
-  # Accumulates characters without overwriting existing ones.
   #
   # @param name [String] Character name
   # @param specification [String] Character description and traits
   # @param role [String] Character's role in the story
   # @param session [Hash] Session object (automatically provided)
-  # @return [String] JSON response with updated characters
+  # @return [String] JSON response with updated context
   def add_character(name:, specification:, role:, session: nil)
-    existing = load_novel_context_internal(session)
-    characters = existing[:characters] || {}
-
-    characters[name] = {
-      specification: specification,
-      role: role
-    }
-
-    save_novel_context(
-      grand_plot: existing[:grand_plot],
-      total_text_amount: existing[:total_text_amount],
-      text_amount_so_far: existing[:text_amount_so_far],
-      language: existing[:language],
-      summary_so_far: existing[:summary_so_far],
-      progress: existing[:progress],
-      characters: characters,
-      session: session
-    )
+    novel_converted_base!(session)
+    novel_put_character(session, name.to_s, { "specification" => specification, "role" => role })
+    load_novel_context(session: session)
+  rescue Monadic::TurnState::Refused => e
+    { success: false, error: e.message }.to_json
   end
 
-  # Update story progress after writing a new section.
-  # Automatically updates text_amount_so_far and progress percentage.
+  # Update story progress after writing a new section: the amount written
+  # is counted from the story's sections (new_text is the section just
+  # written, already among them).
   #
-  # @param new_text [String] The newly written text to add to the count
-  # @param use_chars [Boolean] Use character count instead of word count (for CJK languages)
+  # @param new_text [String] The newly written text
+  # @param use_chars [Boolean] Count characters instead of words (for CJK languages)
   # @param session [Hash] Session object (automatically provided)
   # @return [String] JSON response with updated progress
-  def update_progress(new_text:, use_chars: false, session: nil)
-    existing = load_novel_context_internal(session)
-
-    # Calculate new amount
-    new_amount = use_chars ? count_num_of_chars(text: new_text) : count_num_of_words(text: new_text)
-    current_amount = (existing[:text_amount_so_far] || 0) + new_amount
-    total = existing[:total_text_amount] || 1
-
-    # Calculate progress percentage
-    progress_percent = [(current_amount.to_f / total * 100).round, 100].min
-    progress_str = "#{progress_percent}%"
-
-    save_novel_context(
-      grand_plot: existing[:grand_plot],
-      total_text_amount: existing[:total_text_amount],
-      text_amount_so_far: current_amount,
-      language: existing[:language],
-      summary_so_far: existing[:summary_so_far],
-      progress: progress_str,
-      characters: existing[:characters],
-      session: session
-    )
+  def update_progress(new_text: "", use_chars: false, session: nil)
+    _ = new_text
+    count_by = use_chars ? "chars" : "words"
+    novel_settings_change(session) { |now| now.merge("count_by" => count_by) } if novel_settings(session)["count_by"] != count_by
+    load_novel_context(session: session)
+  rescue Monadic::TurnState::Refused => e
+    { success: false, error: e.message }.to_json
   end
 
   # Update the story summary.
-  # Called when significant plot developments occur.
   #
   # @param summary [String] Updated summary of the story
   # @param session [Hash] Session object (automatically provided)
   # @return [String] JSON response with success status
   def update_summary(summary:, session: nil)
-    existing = load_novel_context_internal(session)
-
-    save_novel_context(
-      grand_plot: existing[:grand_plot],
-      total_text_amount: existing[:total_text_amount],
-      text_amount_so_far: existing[:text_amount_so_far],
-      language: existing[:language],
-      summary_so_far: summary,
-      progress: existing[:progress],
-      characters: existing[:characters],
-      session: session
-    )
+    novel_settings_change(session) { |now| now.merge("summary_so_far" => summary) }
+    load_novel_context(session: session)
+  rescue Monadic::TurnState::Refused => e
+    { success: false, error: e.message }.to_json
   end
 
   private
 
-  # Internal helper to load context as Ruby hash (not JSON string)
-  def load_novel_context_internal(session)
-    result = JSON.parse(monadic_load_state(key: STATE_KEY, default: {}, session: session))
-    data = result["data"] || {}
-    {
-      grand_plot: data["grand_plot"],
-      total_text_amount: data["total_text_amount"],
-      text_amount_so_far: data["text_amount_so_far"] || 0,
-      language: data["language"],
-      summary_so_far: data["summary_so_far"],
-      progress: data["progress"] || "0%",
-      characters: (data["characters"] || {}).transform_keys(&:to_s)
-    }
-  rescue StandardError
-    {
-      grand_plot: nil,
-      total_text_amount: nil,
-      text_amount_so_far: 0,
-      language: nil,
-      summary_so_far: nil,
-      progress: "0%",
-      characters: {}
-    }
+  # The story's settings now (a Hash with string keys).
+  def novel_settings(session)
+    data = JSON.parse(monadic_load_state(key: STATE_KEY, default: {}, session: session))["data"]
+    (data.is_a?(Hash) ? data : {}).slice(*SETTINGS)
+  end
+
+  def novel_settings_change(session)
+    monadic_update_state(key: STATE_KEY, default: {}, session: session) do |now|
+      yield((now.is_a?(Hash) ? now : {}).slice(*SETTINGS))
+    end
+  end
+
+  # The characters now: { name => { "specification", "role" } }.
+  def novel_characters(session)
+    novel_character_items(session).to_h { |item| [item[:data]["name"], item[:data].except("name")] }
+  end
+
+  def novel_character_items(session)
+    Monadic::TurnState.items(session, CHARACTERS).select { |item| item[:data].is_a?(Hash) && item[:data]["name"] }
+  end
+
+  # Puts one character, under the id it has when its name is known; only
+  # what changed is kept.
+  def novel_put_character(session, name, spec)
+    found = novel_character_items(session).find { |item| item[:data]["name"] == name }
+    value = { "name" => name }.merge(spec.transform_keys(&:to_s))
+    return if found && found[:data] == value
+
+    Monadic::TurnState.put_item(session, CHARACTERS, value, id: found && found[:id])
+  end
+
+  # The characters as given in full: those added or changed are put, those
+  # left out removed, the others not touched.
+  def novel_characters_replace(session, characters)
+    given = characters.to_h { |name, spec| [name.to_s, spec.is_a?(Hash) ? spec : { "specification" => spec.to_s }] }
+    given.each { |name, spec| novel_put_character(session, name, spec) }
+    novel_character_items(session).each do |item|
+      Monadic::TurnState.remove_item(session, CHARACTERS, item[:id]) unless given.key?(item[:data]["name"])
+    end
+  end
+
+  # A chat that began from a file of an earlier version has its characters
+  # in the story's settings: they become items of the base once, with ids
+  # kept in the base (so the history and a file keep the same ids).
+  def novel_converted_base!(session)
+    return unless session.is_a?(Hash)
+
+    app = Monadic::TurnState.app_of(session)
+    entries = session.dig(:monadic_state, app)
+    return unless entries.is_a?(Hash) && !entries.key?("_ids")
+
+    old = entries[STATE_KEY] || entries[STATE_KEY.to_sym]
+    old_data = old.is_a?(Hash) ? (old[:data] || old["data"]) : nil
+    old_characters = old_data.is_a?(Hash) ? (old_data["characters"] || old_data[:characters]) : nil
+    return unless old_characters.is_a?(Hash) && !old_characters.empty?
+
+    ids = {}
+    items = old_characters.each_with_object({}) do |(name, spec), out|
+      id = "c_#{SecureRandom.alphanumeric(10).downcase}"
+      ids[name.to_s] = id
+      out[id] = { "name" => name.to_s }.merge(spec.is_a?(Hash) ? spec.transform_keys(&:to_s) : { "specification" => spec.to_s })
+    end
+    entries["_items"] = { data: { CHARACTERS => items }, version: 1, updated_at: nil }
+    entries["_ids"] = { data: { CHARACTERS => ids }, version: 1, updated_at: nil }
+    Monadic::TurnState.changed!(session[Monadic::Workspace::Chats::SESSION_KEY])
+  end
+
+  # How much of the story is written: the sections on the work screen
+  # (the newest of each), headings left out, in words or characters.
+  def novel_amount_written(session, count_by)
+    text = Monadic::Workbench::Document.section_texts(session).map do |body|
+      body.lines.reject { |line| line.lstrip.start_with?("#") }.join
+    end.join("\n")
+    count_by == "chars" ? text.gsub(/\s+/, "").size : count_num_of_words(text: text)
   end
 end
 

@@ -3,6 +3,7 @@
 require 'digest'
 require_relative 'chat_output'
 require_relative 'made'
+require_relative 'caller'
 require_relative 'shown'
 require_relative 'board'
 require_relative 'channel'
@@ -87,8 +88,25 @@ module Monadic
         end
       end
 
+      # The text of every document's sections the chat has now (the newest
+      # of each, the running reply's among them), in the order first
+      # written.
+      def section_texts(session)
+        request_id = Caller.current(session)&.request_id
+        made = made_lists(session) + [request_id ? Made.pending(request_id) : []]
+        found = made.each_with_object({}) do |paths, out|
+          Array(paths).each { |path| section_files(path, nil).each { |key, file| out[key] = file } }
+        end
+        found.values.filter_map do |file|
+          File.read(Monadic::Workspace::Folders.real_path(file), encoding: 'UTF-8')
+        rescue SystemCallError, TypeError
+          nil
+        end
+      end
+
       # The section files of doc a path made holds (a run folder's files,
-      # or the file itself), as [key, path].
+      # or the file itself), as [key, path]; of every document when doc is
+      # nil, keyed by [document, section].
       def section_files(path, doc)
         dir = Monadic::Workspace::Folders.real_path(path, :directory)
         names = if dir
@@ -98,9 +116,9 @@ module Monadic
                 end
         names.filter_map do |name, file|
           match = SECTION_FILE.match(name)
-          next unless match && match[:document] == doc && Monadic::Workspace::Folders.real_path(file)
+          next unless match && (doc.nil? || match[:document] == doc) && Monadic::Workspace::Folders.real_path(file)
 
-          [match[:section], file]
+          [doc ? match[:section] : [match[:document], match[:section]], file]
         end
       rescue SystemCallError
         []

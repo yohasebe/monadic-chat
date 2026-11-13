@@ -4,6 +4,8 @@
 # Handles: CHECK_TOKEN, AI_USER_QUERY, UPDATE_PARAMS, SYSTEM_PROMPT,
 # SAMPLE, UPDATE_LANGUAGE, and RESET messages.
 
+require_relative '../../turn_state/notes'
+
 module WebSocketHelper
   private def handle_ws_check_token(connection, obj, session)
     # Store ui_language in session parameters if provided
@@ -225,6 +227,8 @@ module WebSocketHelper
     send_to_client(connection, { "type" => "parameters", "content" => session[:parameters], "from_import" => true }) unless session[:parameters].empty?
     sleep(0.05)
     send_to_client(connection, { "type" => "past_messages", "content" => shown, "from_import" => true })
+    # The app's state, as its notes on the work screen show it.
+    Monadic::TurnState::Notes.refresh(session, show: true)
   end
 
   private def handle_ws_update_params(connection, obj, session)

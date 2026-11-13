@@ -218,13 +218,21 @@ module Monadic
     end
 
     def change!(session, change)
+      change_all!(session, [change])
+    end
+
+    # Several changes of the running reply as one: all are made, or, when
+    # one does not fit or the reply would change too much, none.
+    def change_all!(session, list)
       record = writer!(session)
-      checked = Form.change(change.merge('app' => record.app))
-      raise Refused, 'the change does not fit the form of state' unless checked
+      checked = list.map { |change| Form.change(change.merge('app' => record.app)) }
+      raise Refused, 'the change does not fit the form of state' if checked.any?(&:nil?)
 
       @lock.synchronize do
         changes = record.changes.dup
-        changes[slot(checked)] = checked
+        checked.each { |change| changes[slot(change)] = change }
+        raise Refused, "a reply can change #{Form::ENTRIES} values and items of the state at most" if changes.size > Form::ENTRIES
+
         size = JSON.generate(changes.values).bytesize
         raise Refused, "the state this reply changed would be larger than #{Form::SAVE_BYTES / 1024} KB" if size > Form::SAVE_BYTES
 

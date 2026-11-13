@@ -266,6 +266,20 @@ RSpec.describe Monadic::TurnState do
       expect(finish["state_changes"].map { |c| c["key"] }).to eq(["small"])
     end
 
+    it "makes several changes together or none of them, and no more than a reply may make" do
+      run_reply
+      item = ->(id, data) { { "kind" => "item", "collection" => "notes", "id" => id, "op" => "set", "data" => data } }
+      ts.change_all!(session, [item.call("a", "one"), item.call("b", "two")])
+
+      expect { ts.change_all!(session, [item.call("c", "three"), { "kind" => "item", "collection" => "Not A Name", "id" => "d", "op" => "set", "data" => "four" }]) }
+        .to raise_error(described_class::Refused)
+      many = Array.new(described_class::Form::ENTRIES) { |i| item.call("m#{i}", i) }
+      expect { ts.change_all!(session, many) }.to raise_error(described_class::Refused, /at most/)
+
+      expect(ts.items(session, "notes").map { |i| i[:data] }).to eq(%w[one two])
+      expect(finish["state_changes"].size).to eq(2)
+    end
+
     it "refuses a change without a running reply, and to another app's state" do
       expect(save("novel_context", { "a" => 1 })).to include("success" => false)
       run_reply

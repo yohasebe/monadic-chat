@@ -19,6 +19,8 @@ module Monadic
     # state_notes):
     #   { title:, key:, values: { field => label },
     #     lists: { collection => { label:, name: field, fields: { field => label } } } }
+    # (key and values: the fields of one value, for an app that has them;
+    # lists: its collections of items, in the order they were added)
     # and may add lines made from other things (its private
     # state_notes_extra(session): { label => text }).
     module Notes
@@ -27,19 +29,21 @@ module Monadic
       module_function
 
       # Makes the page of the session's app again. show: put it on the work
-      # screen when it is not there yet (after a reply; a deleted turn only
-      # changes a page already shown). Returns its path, or nil.
+      # screen when it is not there yet (after a reply, or when the chat is
+      # resumed or read from a file; a deleted turn only changes a page
+      # already shown). The chat's folder is made for a page to show.
+      # Returns its path, or nil.
       def refresh(session, show: false)
         app = declaring_app(session)
         return nil unless app
 
         declaration = app.send(:state_notes)
-        folder = Monadic::Workspace::Folders.lookup(session)
+        text = render(session, declaration, app)
+        folder = text ? Monadic::Workspace::Folders.ensure!(session, app_name: TurnState.app_of(session)) : Monadic::Workspace::Folders.lookup(session)
         return nil unless folder && folder[:status] == :ready
 
-        path = File.join(folder[:relative_dir], DIRNAME, "#{Monadic::Workbench::Document.slug(declaration[:title], 60)}.md")
+        path = page_path(folder, declaration)
         chat_id = session[Monadic::Workspace::Chats::SESSION_KEY]
-        text = render(session, declaration, app)
         unless text
           Monadic::Workbench::Document.remove(path)
           Monadic::Workbench::Document.drop(chat_id, [path])
@@ -49,9 +53,25 @@ module Monadic
         write(path, text)
         put_on_screen(chat_id, path, show)
         path
-      rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError => e
+      rescue ArgumentError, Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError => e
         Monadic::Utils::ExtraLogger.log { "[TurnState::Notes] not made: #{e.class}" } if defined?(Monadic::Utils::ExtraLogger)
         nil
+      end
+
+      # The page of the session's app that is there now: its path, or nil.
+      def current(session)
+        app = declaring_app(session)
+        folder = app && Monadic::Workspace::Folders.lookup(session)
+        return nil unless folder && folder[:status] == :ready
+
+        path = page_path(folder, app.send(:state_notes))
+        Monadic::Workspace::Folders.real_path(path) ? path : nil
+      rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+        nil
+      end
+
+      def page_path(folder, declaration)
+        File.join(folder[:relative_dir], DIRNAME, "#{Monadic::Workbench::Document.slug(declaration[:title], 60)}.md")
       end
 
       # The app the session is in, when it keeps its state by turn and
@@ -68,7 +88,7 @@ module Monadic
       def render(session, declaration, app = nil)
         turns = turn_numbers(session)
         parts = []
-        value = TurnState.value(session, declaration[:key].to_s)
+        value = declaration[:key] ? TurnState.value(session, declaration[:key].to_s) : { found: false }
         data = value[:found] && value[:data].is_a?(Hash) ? value[:data] : {}
         lines = (declaration[:values] || {}).filter_map do |field, label|
           text = data[field.to_s]

@@ -821,4 +821,21 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
       end
     end
   end
+
+  describe 'the state notes page' do
+    it 'names the page when there is one, as a page to read and not to write' do
+      allow(Monadic::TurnState::Notes).to receive(:current).and_return('conversations/x/notes/context.md')
+      result = described_class.build_injections(session: { parameters: {} }, options: {})
+      rule = result.find { |r| r[:name] == :state_notes }
+
+      expect(rule[:content]).to include('conversations/x/notes/context.md', 'do not write to this file')
+    end
+
+    it 'says nothing when there is no page' do
+      allow(Monadic::TurnState::Notes).to receive(:current).and_return(nil)
+      result = described_class.build_injections(session: { parameters: {} }, options: {})
+
+      expect(result.map { |r| r[:name] }).not_to include(:state_notes)
+    end
+  end
 end

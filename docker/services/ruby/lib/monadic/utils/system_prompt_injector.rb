@@ -4,6 +4,7 @@ require_relative 'language_config'
 require_relative 'tts_marker_vocabulary'
 require_relative 'capability_notes'
 require_relative '../workbench/outputs'
+require_relative '../turn_state/notes'
 
 module Monadic
   module Utils
@@ -382,8 +383,26 @@ module Monadic
           generator: ->(session, _options) {
             Monadic::Utils::SystemPromptInjector.chat_outputs_prompt(Monadic::Workbench::Outputs.in_chat(session))
           }
+        },
+        # The page that shows the app's state on the work screen
+        # (Monadic::TurnState::Notes), when there is one.
+        {
+          name: :state_notes,
+          priority: 14,
+          condition: ->(session, _options) {
+            session.is_a?(Hash) && !Monadic::TurnState::Notes.current(session).nil?
+          },
+          generator: ->(session, _options) {
+            path = Monadic::TurnState::Notes.current(session)
+            path && format(STATE_NOTES_PROMPT, path: path)
+          }
         }
       ].freeze
+
+      # The page is made from the state: it is read, never written.
+      STATE_NOTES_PROMPT = "The state this app keeps is shown to the user as a page on the work screen, in the shared " \
+                           "folder: %<path>s. It is made again from the state after each reply, so it is only read: " \
+                           "to change what it shows, change the state with your tools, and do not write to this file."
 
       # At most this many of the chat's files are named in the prompt, the
       # newest.

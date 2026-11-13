@@ -255,6 +255,8 @@
       let html = md.render(text);
 
       // 6-9. Restore placeholders (replacing directly with KaTeX-rendered HTML)
+      // A placeholder is put back by its whole number (10 is not 1 followed
+      // by 0), with its text as it is ($ in it is not a replacement pattern).
       var katexMacros = { "\\R": "\\mathbb{R}", "\\N": "\\mathbb{N}", "\\Z": "\\mathbb{Z}", "\\Q": "\\mathbb{Q}", "\\C": "\\mathbb{C}" };
       mathBlocks.forEach((content, index) => {
         var rendered;
@@ -266,8 +268,8 @@
           rendered = `$$${content}$$`;
         }
         html = html.replace(
-          new RegExp(`MATH_BLOCK_PLACEHOLDER_${index}`, 'g'),
-          rendered
+          new RegExp(`MATH_BLOCK_PLACEHOLDER_${index}(?!\\d)`, 'g'),
+          () => rendered
         );
       });
 
@@ -281,32 +283,32 @@
           rendered = `$${content}$`;
         }
         html = html.replace(
-          new RegExp(`MATH_INLINE_PLACEHOLDER_${index}`, 'g'),
-          rendered
+          new RegExp(`MATH_INLINE_PLACEHOLDER_${index}(?!\\d)`, 'g'),
+          () => rendered
         );
       });
 
       abcBlocks.forEach((content, index) => {
         const escaped = escapeHtml(content);
         html = html.replace(
-          new RegExp(`ABC_BLOCK_PLACEHOLDER_${index}`, 'g'),
-          `<div class="abc-code"><pre>${escaped}</pre></div>`
+          new RegExp(`ABC_BLOCK_PLACEHOLDER_${index}(?!\\d)`, 'g'),
+          () => `<div class="abc-code"><pre>${escaped}</pre></div>`
         );
       });
 
       mermaidBlocks.forEach((content, index) => {
         const escaped = escapeHtml(content);
         html = html.replace(
-          new RegExp(`MERMAID_BLOCK_PLACEHOLDER_${index}`, 'g'),
-          `<div class="mermaid-code"><pre>${escaped}</pre></div>`
+          new RegExp(`MERMAID_BLOCK_PLACEHOLDER_${index}(?!\\d)`, 'g'),
+          () => `<div class="mermaid-code"><pre>${escaped}</pre></div>`
         );
       });
 
       drawioBlocks.forEach((content, index) => {
         const escaped = escapeHtml(content);
         html = html.replace(
-          new RegExp(`DRAWIO_BLOCK_PLACEHOLDER_${index}`, 'g'),
-          `<div class="drawio-code"><pre>${escaped}</pre></div>`
+          new RegExp(`DRAWIO_BLOCK_PLACEHOLDER_${index}(?!\\d)`, 'g'),
+          () => `<div class="drawio-code"><pre>${escaped}</pre></div>`
         );
       });
 
@@ -315,7 +317,7 @@
       // DOM walker (ws-vocabulary-handler.js) looks for and decorates.
       vocabTokens.forEach((original, index) => {
         html = html.replace(
-          new RegExp(`VOCAB_TOKEN_PLACEHOLDER_${index}`, 'g'),
+          new RegExp(`VOCAB_TOKEN_PLACEHOLDER_${index}(?!\\d)`, 'g'),
           () => original
         );
       });

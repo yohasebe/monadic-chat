@@ -5,27 +5,27 @@ app "ChatPlusClaude" do
     TEXT
 
     ja <<~TEXT
-    構造化されたサイドバーでトピック・重要な事実・推論の流れを追跡する会話AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    会話のトピック・人物・メモを記録し、作業画面のページとして表示する会話AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     zh <<~TEXT
-    具有结构化上下文跟踪的对话AI。在整个会话中维护主题、关键事实和推理的持久侧边栏。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    具有结构化上下文跟踪的对话AI。记录对话中的主题、人物和笔记，并在工作画面中以页面形式显示。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ko <<~TEXT
-    구조화된 컨텍스트 추적 기능이 있는 대화형 AI. 세션 전반의 주제, 핵심 사실, 추론 흐름을 사이드바에 지속적으로 유지합니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    구조화된 컨텍스트 추적 기능이 있는 대화형 AI. 대화의 주제, 인물, 메모를 기록하고 작업 화면의 페이지로 표시합니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     es <<~TEXT
-    IA conversacional con seguimiento de contexto estructurado. Mantiene una barra lateral persistente con temas, hechos clave y el razonamiento del asistente durante toda la sesión. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversacional con seguimiento de contexto estructurado. Guarda los temas, las personas y las notas de la conversación y los muestra como una página en la pantalla de trabajo. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     fr <<~TEXT
-    IA conversationnelle avec suivi de contexte structuré. Maintient une barre latérale persistante des sujets, faits clés et raisonnement de l'assistant tout au long de la session. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversationnelle avec suivi de contexte structuré. Conserve les sujets, les personnes et les notes de la conversation et les affiche sur une page de l'écran de travail. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     de <<~TEXT
-    Konversations-KI mit strukturierter Kontextverfolgung. Verwaltet eine persistente Seitenleiste mit Themen, wichtigen Fakten und der Argumentation des Assistenten während der gesamten Sitzung. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Konversations-KI mit strukturierter Kontextverfolgung. Hält Themen, Personen und Notizen des Gesprächs fest und zeigt sie als Seite auf dem Arbeitsbildschirm. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   icon "chat-plus"

@@ -1912,7 +1912,8 @@ module ClaudeHelper
           app: app,
           function_name: tool_name,
           argument_hash: argument_hash,
-          session: session
+          session: session,
+          function_return: tool_return
         )
       rescue => e
         Monadic::Utils::ExtraLogger.log { "ERROR calling function: #{e.class} - #{e.message}\nBacktrace: #{e.backtrace.first(5).join("\n")}" }
@@ -2118,6 +2119,10 @@ module ClaudeHelper
         block&.call res
         return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected. Stopping." } }] }]
       end
+
+      # The tool that takes the reply's text ended the reply.
+      ended = Monadic::Utils::TtsTextExtractor.reply_ended(session, &block)
+      return ended if ended
 
       api_request("tool", session, call_depth: call_depth, &block)
     else

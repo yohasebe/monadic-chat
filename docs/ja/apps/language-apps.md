@@ -31,6 +31,6 @@ Translate の対応プロバイダーは[モデル対応状況の表](../basic-u
 
 ![Voice Interpreter app icon](../assets/icons/voice-chat.png ':size=40')
 
-話した内容を別の言語に翻訳し、その訳を音声で聞けるアプリです。アシスタントは、まず翻訳先の言語を尋ね、その後は話した内容を翻訳して、訳だけを読み上げます。言語と翻訳したフレーズは、[作業画面](../basic-usage/web-interface.md#work-screen)に **Interpreter notes** のページとしてまとめられます。
+話した内容を別の言語に翻訳し、その訳を音声で聞けるアプリです。アシスタントは、まず翻訳先の言語を尋ね、その後は話した内容を翻訳して、訳だけを読み上げます。言語と、フレーズごとの原文と訳は、[作業画面](../basic-usage/web-interface.md#work-screen)に **Interpreter notes** のページとしてまとめられます。
 
 Voice Interpreter の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。音声の設定は [Speech パネル](../basic-usage/web-interface.md#speech-settings-panel)を参照してください。

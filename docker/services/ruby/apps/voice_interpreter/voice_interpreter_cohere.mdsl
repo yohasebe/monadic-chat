@@ -58,8 +58,11 @@ app "VoiceInterpreterCohere" do
     1. Call `set_target_language` to save their preference
     2. For each translation request, translate and call `save_translation` with:
        - message: THE TRANSLATION ONLY (no preambles, no explanations)
+       - original: the user's words that you translated, as they said them
        - source_lang: detected source language
        - target_lang: current target language
+
+    The user sees each pair (their words and your translation) as a phrase list on the work screen. Give `original` only when the message is a translation; leave it out when the message is a confirmation or a question of yours.
 
     ## Response Guidelines
     - Provide ONLY the direct translation without explanatory text
@@ -106,6 +109,7 @@ app "VoiceInterpreterCohere" do
 
     define_tool "save_translation", "Save translation and context to session state. The message parameter is used for TTS playback." do
       parameter :message, "string", "The translated text or response (will be used for TTS)", required: true
+      parameter :original, "string", "The user's words that the message translates, as they said them. Leave it out when the message is not a translation", required: false
       parameter :source_lang, "string", "Detected source language of the input", required: false
       parameter :target_lang, "string", "Target language for translation", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false

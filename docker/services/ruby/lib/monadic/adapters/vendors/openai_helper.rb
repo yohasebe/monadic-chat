@@ -1929,6 +1929,10 @@ module OpenAIHelper
       return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected. Stopping." } }] }]
     end
 
+    # The tool that takes the reply's text ended the reply.
+    ended = Monadic::Utils::TtsTextExtractor.reply_ended(session, &block)
+    return ended if ended
+
     api_request("tool", session, call_depth: session[:call_depth_per_turn], &block)
   end
 
@@ -2051,7 +2055,8 @@ module OpenAIHelper
           app: app,
           function_name: function_name,
           argument_hash: argument_hash,
-          session: session
+          session: session,
+          function_return: function_return
         )
       rescue StandardError => e
         Monadic::Utils::ExtraLogger.log { "[OpenAI Tools] Error in #{function_name}: #{e.message}\n[OpenAI Tools] Backtrace: #{e.backtrace.first(5).join("\n")}" }

@@ -20,11 +20,13 @@ module VoiceInterpreterTools
   # The "message" parameter is extracted for TTS via tts_target feature.
   #
   # @param message [String] Translated message (used for TTS)
+  # @param original [String] The user's words the message translates; nil
+  #   when the message is not a translation
   # @param source_lang [String] Detected source language
   # @param target_lang [String] Target language for translation
   # @param session [Hash] Session object (automatically provided)
   # @return [String] JSON response with success status
-  def save_translation(message:, source_lang: nil, target_lang: nil, session: nil)
+  def save_translation(message:, original: nil, source_lang: nil, target_lang: nil, session: nil)
     # What is kept is the translation as the user reads it, without the
     # speech directive the model may begin it with.
     message = Monadic::Utils::TtsInstructionExtractor.strip_from_history(message)
@@ -33,7 +35,10 @@ module VoiceInterpreterTools
                 last_translation: message }
 
     result = monadic_save_state(key: STATE_KEY, payload: context, session: session)
-    logged = JSON.parse(monadic_log(collection: PHRASES, entries: [message], session: session))
+    # The phrase list holds what was translated with its translation, not
+    # the interpreter's own remarks.
+    phrase = original.to_s.strip.empty? ? nil : "#{original.to_s.strip} → #{message.to_s.strip}"
+    logged = JSON.parse(monadic_log(collection: PHRASES, entries: [phrase].compact, session: session))
     logged["success"] ? result : logged.to_json
   end
 

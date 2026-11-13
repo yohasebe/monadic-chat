@@ -493,6 +493,8 @@ module WebSocketHelper
       tts_text_from_target, target_instructions =
         Monadic::Utils::TtsInstructionExtractor.extract(session.delete(:tts_text))
       tts_text_from_target = nil if tts_text_from_target.to_s.strip.empty?
+      # A mark that the tool ended the reply is the reply's own, too.
+      session.delete(:tts_reply_ended)
 
       # TTS is allowed if auto_speech is enabled, not cutoff, and not realtime mode
       # The actual text source is determined later:

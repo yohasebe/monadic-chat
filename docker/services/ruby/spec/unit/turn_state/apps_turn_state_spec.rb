@@ -178,23 +178,33 @@ RSpec.describe "the Monadic apps' state by turn" do
     let(:app) { "VoiceInterpreterOpenAI" }
     let(:interpreter) { Class.new { include VoiceInterpreterTools }.new }
 
-    it "keeps each phrase whole in the log, once, and the languages as a value" do
-      long = "word " * 30
-      run_reply { interpreter.save_translation(message: long, source_lang: "English", target_lang: "Japanese", session: session) }
-      run_reply { interpreter.save_translation(message: long, session: session) }
+    def phrases
+      Monadic::TurnState.items(session, "phrases").map { |item| item[:data] }
+    end
+
+    it "keeps each phrase whole with its translation in the log, once, and the languages as a value" do
+      long = ("word " * 30).strip
+      run_reply { interpreter.save_translation(message: long, original: "ことば", source_lang: "Japanese", target_lang: "English", session: session) }
+      run_reply { interpreter.save_translation(message: long, original: "ことば", session: session) }
       run_reply { interpreter.set_target_language(target_lang: "French", session: session) }
 
-      expect(Monadic::TurnState.items(session, "phrases").map { |item| item[:data] }).to eq([long.strip])
+      expect(phrases).to eq(["ことば → #{long}"])
       loaded = JSON.parse(interpreter.load_context(session: session))["data"]
-      expect(loaded).to eq("source_lang" => "English", "target_lang" => "French", "last_translation" => long)
+      expect(loaded).to eq("source_lang" => "Japanese", "target_lang" => "French", "last_translation" => long)
       page = Monadic::TurnState::Notes.render(session, interpreter.send(:state_notes), interpreter)
-      expect(page).to include("- **From**: English", "- **To**: French", "## Phrases")
+      expect(page).to include("- **From**: Japanese", "- **To**: French", "## Phrases", "- ことば → #{long} (turn 1)")
     end
 
     it "keeps a phrase without the speech directive it was given with" do
-      run_reply { interpreter.save_translation(message: "<<TTS:Voice: calm.>>\nBonjour", session: session) }
+      run_reply { interpreter.save_translation(message: "<<TTS:Voice: calm.>>\nBonjour", original: "Hello", session: session) }
 
-      expect(Monadic::TurnState.items(session, "phrases").map { |item| item[:data] }).to eq(["Bonjour"])
+      expect(phrases).to eq(["Hello → Bonjour"])
+    end
+
+    it "does not list a message of the interpreter's own as a phrase" do
+      run_reply { interpreter.save_translation(message: "OK, I'll translate to English.", session: session) }
+
+      expect(phrases).to eq([])
     end
   end
 

@@ -31,6 +31,6 @@ Translate is available for the providers marked in the [availability table](../b
 
 ![Voice Interpreter app icon](../assets/icons/voice-chat.png ':size=40')
 
-Translate your speech into another language and hear the translation. The assistant first asks for the target language, then translates what you say and reads only the translation aloud. The languages and the phrases translated are collected on the [work screen](../basic-usage/web-interface.md#work-screen) as the **Interpreter notes** page.
+Translate your speech into another language and hear the translation. The assistant first asks for the target language, then translates what you say and reads only the translation aloud. The languages and each phrase with its translation are collected on the [work screen](../basic-usage/web-interface.md#work-screen) as the **Interpreter notes** page.
 
 Voice Interpreter follows the provider availability shown in the [availability table](../basic-usage/basic-apps.md#app-availability). For the speech settings, see [Speech Panel](../basic-usage/web-interface.md#speech-settings-panel).

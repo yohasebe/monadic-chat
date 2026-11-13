@@ -88,7 +88,7 @@ app "NovelWriterDeepSeek" do
 
     [One line: which section was written (or rewritten) and that the story is on the work screen, with the document_path the tool returned]
 
-    **Progress:** [X]% ([current]/[total])
+    Do not report the progress in the chat: the user sees it, with the plot and the characters, on the story's notes on the work screen.
 
     **What happens next?**
     1. [Option A]

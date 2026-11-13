@@ -462,7 +462,7 @@ function attachEventListeners(card) {
       }
 
       if (json) {
-        alert("The current app is monadic. You can't edit JSON messages");
+        alert("A JSON message can't be edited");
         return;
       }
 

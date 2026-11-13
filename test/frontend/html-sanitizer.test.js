@@ -181,8 +181,7 @@ describeFn('model-output sanitization pipeline (golden + XSS)', () => {
 
     test('Monadic JSON tree markup survives (json-item/json-header/json-content)', () => {
       const html = MarkdownRenderer.render(
-        JSON.stringify({ message: 'hi', context: { theme: 'cats' } }),
-        { isMonadic: true }
+        JSON.stringify({ message: 'hi', context: { theme: 'cats' } })
       );
       const doc = toDoc(sanitizeModelHtml(html));
       expect(doc.querySelector('.json-item[data-key="context"]')).not.toBeNull();

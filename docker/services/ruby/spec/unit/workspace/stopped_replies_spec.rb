@@ -114,7 +114,7 @@ RSpec.describe Monadic::Workspace::StoppedReplies do
 
     it "reads the line after a marked message of the conversation" do
       text = agent.send(:format_conversation, [user("q_1", "Search").merge("reply_stopped" => true),
-                                               user("q_2", "Hello")], false)
+                                               user("q_2", "Hello")])
 
       expect(text).to include("User: Search\n\n#{described_class::NOTE}\n\n")
       expect(text).to end_with("User: Hello\n\n")

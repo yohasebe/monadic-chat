@@ -48,7 +48,7 @@ module AIUserAgent
     end
     
     # Format conversation history as text
-    conversation_text = format_conversation(conversation_messages, params["monadic"])
+    conversation_text = format_conversation(conversation_messages)
     
     # Create system message with instruction
     instruction = "Based on the conversation history above, generate the next natural response from the user."
@@ -190,33 +190,16 @@ module AIUserAgent
   
   # Format conversation history as text
   # @param messages [Array] The messages to format
-  # @param monadic [Boolean] Whether monadic mode is enabled
   # @return [String] Formatted conversation text
-  def format_conversation(messages, monadic)
+  def format_conversation(messages)
     text = ""
     messages.each do |m|
       role = m["role"] == "user" ? "User" : "Assistant"
-      content = extract_content(m["text"], monadic)
       # A message whose reply was stopped says so (StoppedReplies).
-      content = Monadic::Workspace::StoppedReplies.with_note(m, content)
+      content = Monadic::Workspace::StoppedReplies.with_note(m, m["text"])
       text = text.dup << "#{role}: #{content}\n\n"
     end
     text
-  end
-  
-  # Extract content from message, handling monadic mode
-  # @param text [String] The message text
-  # @param monadic [Boolean] Whether monadic mode is enabled
-  # @return [String] The extracted content
-  def extract_content(text, monadic)
-    return text unless monadic
-
-    begin
-      parsed = JSON.parse(text)
-      parsed["message"] || parsed["response"] || text
-    rescue JSON::ParserError
-      text
-    end
   end
   
   # Find a Chat app that matches the provider

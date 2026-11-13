@@ -96,7 +96,7 @@ RSpec.describe AIUserAgent do
         agent.process_ai_user(session, params)
         
         # Should only process last 5 non-system messages
-        expect(agent).to have_received(:format_conversation) do |messages, _|
+        expect(agent).to have_received(:format_conversation) do |messages|
           expect(messages.length).to be <= 5
         end
       end
@@ -108,7 +108,7 @@ RSpec.describe AIUserAgent do
         
         agent.process_ai_user(session, params)
         
-        expect(agent).to have_received(:format_conversation) do |messages, _|
+        expect(agent).to have_received(:format_conversation) do |messages|
           expect(messages.none? { |m| m["role"] == "system" }).to be true
         end
       end
@@ -136,35 +136,6 @@ RSpec.describe AIUserAgent do
         expect(result["content"]).to eq("Anthropic response")
       end
       
-    end
-    
-    context 'with monadic mode' do
-      let(:params) do
-        {
-          "ai_user_provider" => "openai",
-          "monadic" => true
-        }
-      end
-      
-      let(:monadic_message) do
-        {
-          "role" => "assistant",
-          "text" => '{"message": "This is from monadic mode", "context": "some data"}',
-          "type" => "text"
-        }
-      end
-      
-      it 'extracts message from JSON in monadic mode' do
-        session[:messages] << monadic_message
-        
-        allow(agent).to receive(:format_conversation).and_call_original
-        
-        agent.process_ai_user(session, params)
-        
-        expect(agent).to have_received(:format_conversation) do |messages, monadic|
-          expect(monadic).to be true
-        end
-      end
     end
     
     context 'with errors' do
@@ -230,62 +201,18 @@ RSpec.describe AIUserAgent do
     end
     
     it 'formats messages as conversation text' do
-      result = agent.send(:format_conversation, messages, false)
+      result = agent.send(:format_conversation, messages)
       
       expect(result).to include("User: Hello")
       expect(result).to include("Assistant: Hi there!")
     end
     
-    it 'handles monadic mode JSON extraction' do
-      monadic_messages = [
-        { "role" => "user", "text" => '{"message": "Hello from user"}' },
-        { "role" => "assistant", "text" => '{"response": "Hi from assistant"}' }
-      ]
-      
-      result = agent.send(:format_conversation, monadic_messages, true)
-      
-      expect(result).to include("User: Hello from user")
-      expect(result).to include("Assistant: Hi from assistant")
-    end
-    
-    it 'handles invalid JSON in monadic mode' do
-      messages_with_invalid = [
-        { "role" => "user", "text" => "Not JSON at all" }
-      ]
-      
-      result = agent.send(:format_conversation, messages_with_invalid, true)
-      
-      expect(result).to include("User: Not JSON at all")
-    end
-  end
-  
-  describe '#extract_content' do
-    it 'returns text as-is when not in monadic mode' do
-      text = "Regular text message"
-      result = agent.send(:extract_content, text, false)
-      
-      expect(result).to eq(text)
-    end
-    
-    it 'extracts message field from JSON in monadic mode' do
-      json_text = '{"message": "Hello", "other": "data"}'
-      result = agent.send(:extract_content, json_text, true)
-      
-      expect(result).to eq("Hello")
-    end
-    
-    it 'extracts response field if message not present' do
-      json_text = '{"response": "Hi there", "other": "data"}'
-      result = agent.send(:extract_content, json_text, true)
-      
-      expect(result).to eq("Hi there")
-    end
-    
-    it 'returns original text on JSON parse error' do
-      invalid_json = '{"broken": json}'
-      result = agent.send(:extract_content, invalid_json, true)
-      
-      expect(result).to eq(invalid_json)
+    it 'gives a JSON text as it is' do
+      json = '{"message": "Hello"}'
+
+      result = agent.send(:format_conversation, [{ "role" => "assistant", "text" => json }])
+
+      expect(result).to include("Assistant: #{json}")
     end
   end
   

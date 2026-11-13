@@ -151,9 +151,7 @@
       this._initMarkdownIt();
 
       // 1. Check if this is Monadic JSON
-      const isMonadic = this.isMonadicJson(text, options);
-
-      if (isMonadic) {
+      if (this.isMonadicJson(text)) {
         return this.renderMonadicJson(text, options);
       }
 
@@ -164,60 +162,13 @@
     // ===== Monadic JSON Detection =====
 
     /**
-     * Detect if content is Monadic JSON structure
+     * Detect if content is a JSON object with a `message` or `context` key
      *
      * @param {string} text - Text to check
-     * @param {string} appName - Application name
      * @returns {boolean}
      */
-    isMonadicJson: function(text, options = {}) {
-      if (!text) return false;
-
-      // Forced flag takes precedence
-      if (options.isMonadic) {
-        return this._looksLikeMonadicJson(text);
-      }
-
-      // Apps that use Monadic structure
-      const monadicApps = [
-        'auto_forge_openai',
-        'auto_forge_claude',
-        'auto_forge_grok',
-        'concept_visualizer_openai',
-        'concept_visualizer_claude',
-        'chat_plus_openai',
-        'chat_plus_claude',
-        'chat_plus_gemini',
-        'chat_plus_grok',
-        'chat_plus_mistral',
-        'chat_plus_deepseek',
-        'chat_plus_cohere',
-        'chat_plus_ollama',
-        'language_practice_plus_claude'
-      ];
-
-      const appName = options.appName;
-      if (appName) {
-        // Convert CamelCase to snake_case for comparison
-        // e.g., "ChatPlusClaude" -> "chat_plus_claude"
-        const snakeCaseAppName = appName
-          .replace(/([A-Z])/g, '_$1')  // Insert _ before capitals
-          .toLowerCase()
-          .replace(/^_/, '');           // Remove leading _
-
-        if (monadicApps.includes(snakeCaseAppName)) {
-          return this._looksLikeMonadicJson(text);
-        }
-      }
-
-      // Fallback auto-detection
-      return this._looksLikeMonadicJson(text);
-    },
-
-    _looksLikeMonadicJson: function(text) {
-      // Check if valid JSON with Monadic structure
-      const extracted = this._extractMonadicJson(text);
-      return extracted !== null;
+    isMonadicJson: function(text) {
+      return !!text && this._extractMonadicJson(text) !== null;
     },
 
     /**
@@ -456,16 +407,6 @@
      * @param {object} options - Options { iteration: number }
      * @returns {string} HTML
      */
-    /**
-     * Keys that are valid in a Monadic JSON response but must NOT be
-     * rendered as visible "JSON sections" in the UI. Currently holds the
-     * Expressive Speech instruction-mode field (see
-     * docs_dev/expressive_speech_instruction_mode.md, "Display"): the directive
-     * rides in the JSON so it can reach the TTS engine, but the reader
-     * only needs to see the spoken `message` + per-app `context`.
-     */
-    MONADIC_SUPPRESSED_KEYS: new Set(['tts_instructions']),
-
     jsonToHtml: function(hash, options) {
       if (typeof hash !== 'object' || hash === null) {
         return String(hash);
@@ -484,9 +425,8 @@
           .reduce((obj, k) => ({ ...obj, [k]: hash[k] }), {});
       }
 
-      // Render remaining fields, skipping any suppressed top-level keys.
+      // Render remaining fields.
       for (const [key, value] of Object.entries(hash)) {
-        if (this.MONADIC_SUPPRESSED_KEYS.has(key)) continue;
         output += this.renderField(key, value, iteration, options);
       }
 

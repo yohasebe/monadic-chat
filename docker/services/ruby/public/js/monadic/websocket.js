@@ -75,7 +75,7 @@ if (!window.logTL) {
 // OpenAI API token verification
 window.verified = null;
 
-const { getMessageAppName, getMessageMonadicFlag, renderMessage } = window.WsContentRenderer || {};
+const { getMessageAppName, renderMessage } = window.WsContentRenderer || {};
 const { registerAudioElement, stopAllActiveAudio } = window.WsAudioPlayback || {};
 
 if (typeof window.suppressParamBroadcastCount === 'undefined') {

@@ -27,25 +27,6 @@
     return null;
   }
 
-  function getMessageMonadicFlag(msg) {
-    if (msg && typeof msg.monadic !== 'undefined') {
-      return msg.monadic;
-    }
-
-    if (typeof params !== 'undefined' && params && typeof params["monadic"] !== 'undefined') {
-      return params["monadic"];
-    }
-
-    if (window.SessionState && window.SessionState.app && window.SessionState.app.params) {
-      var appParams = window.SessionState.app.params;
-      if (typeof appParams["monadic"] !== 'undefined') {
-        return appParams["monadic"];
-      }
-    }
-
-    return false;
-  }
-
   function renderMessage(msg) {
     if (!msg) {
       console.error('renderMessage: msg is null or undefined');
@@ -53,12 +34,11 @@
     }
 
     var appName = getMessageAppName(msg);
-    var monadicFlag = getMessageMonadicFlag(msg);
 
     // Priority 1: Client-side rendering with MarkdownRenderer
     if (msg.text && window.MarkdownRenderer) {
       try {
-        var result = window.MarkdownRenderer.render(msg.text, { appName: appName, isMonadic: monadicFlag });
+        var result = window.MarkdownRenderer.render(msg.text, { appName: appName });
         return result;
       } catch (err) {
         console.error('MarkdownRenderer failed:', err);
@@ -682,7 +662,6 @@
   // ── Namespace export ───────────────────────────────────────────────
   var ns = {
     getMessageAppName: getMessageAppName,
-    getMessageMonadicFlag: getMessageMonadicFlag,
     renderMessage: renderMessage,
     setCopyCodeButton: setCopyCodeButton,
     applyMath: applyMath,

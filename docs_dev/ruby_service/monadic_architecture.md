@@ -32,12 +32,7 @@ An app whose MDSL sets `turn_state true` (`Monadic::TurnState.enabled?`, `lib/mo
 | Where | Effect |
 |---|---|
 | UI (`utilities.js`, `ws-app-data-handlers.js`) | Monadic badge |
-| `ws-content-renderer.js` | Passes `isMonadic` to `MarkdownRenderer.render` |
 | `html_handler.rb` | Runs context extraction in a background thread after the response (`process_and_broadcast_context`, with the app's `context_schema`) for the sidebar |
-| `system_prompt_injector.rb` (`__app_is_monadic?`) | Selects the monadic variant of the TTS instruction-mode addendum |
-| `streaming_handler.rb` | No TTS sentinel hold-back for monadic apps |
-| `claude_helper.rb` | No thinking when the model supports structured outputs |
-| `ai_user_agent.rb` | Formats the conversation for the AI User with the flag |
 
 `monadic true` adds no tools; the app imports `session_context` or defines its own load and save tools.
 

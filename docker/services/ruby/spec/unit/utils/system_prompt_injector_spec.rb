@@ -270,21 +270,11 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
         expect(result[0][:content]).to include('\\begin{itemize}')  # Includes limitations
       end
 
-      it 'includes math prompt with extra escaping for monadic mode' do
-        session = {
-          parameters: { "math" => true, "monadic" => true }
-        }
-        options = {}
+      it 'gives a monadic app the same math prompt as any other app' do
+        plain = described_class.build_injections(session: { parameters: { "math" => true } }, options: {})
+        monadic = described_class.build_injections(session: { parameters: { "math" => true, "monadic" => true } }, options: {})
 
-        result = described_class.build_injections(session: session, options: options)
-
-        expect(result.length).to eq(1)
-        expect(result[0][:name]).to eq(:math)
-        expect(result[0][:content]).not_to include(described_class::MATH_DISABLED_PROMPT)
-        expect(result[0][:content]).to include('LaTeX notation')
-        expect(result[0][:content]).to include('\\\\frac')  # Double backslash (literal) for JSON escaping
-        expect(result[0][:content]).to include('Make sure to escape properly')
-        expect(result[0][:content]).not_to include('\\begin{itemize}')  # No limitations section
+        expect(monadic[0][:content]).to eq(plain[0][:content])
       end
 
       it 'includes math prompt with extra escaping for jupyter mode' do
@@ -316,7 +306,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
           expect(content).to include('plain text or Unicode', '```latex')
           expect(content).to include('\[ \]', '\( \)', '$$', '$')
           expect(content).not_to include(described_class::MATH_BASE_PROMPT)
-          expect(content).not_to include(described_class::MATH_MONADIC_PROMPT)
+          expect(content).not_to include(described_class::MATH_JUPYTER_PROMPT)
           expect(content).not_to include(described_class::MATH_REGULAR_PROMPT)
         end
       end

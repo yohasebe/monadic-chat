@@ -91,8 +91,8 @@ module Monadic
         You use the LaTeX notation to write mathematical expressions. In doing so, you should follow the format requirements: Use double dollar signs `$$` to enclose LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly. Either type of LaTeX expression should be presntend without surrounding backticks.
       PROMPT
 
-      # Math formatting prompt for monadic/jupyter mode (requires extra escaping)
-      MATH_MONADIC_PROMPT = <<~'PROMPT'.strip
+      # Math formatting prompt for jupyter mode (requires extra escaping)
+      MATH_JUPYTER_PROMPT = <<~'PROMPT'.strip
         Make sure to escape properly in the LaTeX expressions.
 
           Good examples of inline LaTeX expressions:
@@ -255,11 +255,8 @@ module Monadic
             parts = [MATH_BASE_PROMPT]
 
             # Add mode-specific escaping instructions
-            monadic_mode = session&.[](:parameters)&.[]("monadic") == true
-            jupyter_mode = session&.[](:parameters)&.[]("jupyter") == true
-
-            if monadic_mode || jupyter_mode
-              parts << MATH_MONADIC_PROMPT
+            if session&.[](:parameters)&.[]("jupyter") == true
+              parts << MATH_JUPYTER_PROMPT
             else
               parts << MATH_REGULAR_PROMPT
             end

@@ -23,7 +23,7 @@ Rules run in descending priority.
 | 70 | `library_rag` | `library_rag_enabled` is on and the app has `library_search` | Directive, Knowledge Base inventory and filter notes (`build_library_rag_prompt`) |
 | 65 | `vocabulary_variables` | The app declares `${TOKEN}` variables in a `vocabulary` block | The list of variables to use verbatim |
 | 60 | `stt_diarization_warning` | The `stt_model` parameter contains `diarize` | `DIARIZATION_STT_PROMPT` (do not take a speaker's role) |
-| 50 | `math` | `math` parameter is true | `MATH_BASE_PROMPT` plus `MATH_MONADIC_PROMPT` (double backslashes, for Monadic or Jupyter apps) or `MATH_REGULAR_PROMPT` |
+| 50 | `math` | `math` parameter is true | `MATH_BASE_PROMPT` plus `MATH_JUPYTER_PROMPT` (double backslashes, for Jupyter apps) or `MATH_REGULAR_PROMPT` |
 | 50 | `math_disabled` | `math` parameter is not true | `MATH_DISABLED_PROMPT` |
 | 40 | `system_prompt_suffix` | Non-empty `options[:system_prompt_suffix]` | The suffix |
 | 30 | `expressive_speech` | Auto Speech on, the app has not set `expressive_speech false`, and the TTS provider is tag-aware or instruction-mode (`TtsMarkerVocabulary`) | `TtsMarkerVocabulary.prompt_addendum_for(provider, app_is_monadic:)` |

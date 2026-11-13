@@ -117,7 +117,7 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 
 ### Directory Structure
 
-`AutoForge::Utils::PathConfig` (`utils/path_config.rb`) puts the projects in the folder of the chat the reply runs for (`ChatContext.work_chat`, the reply's chat scope); with no chat it raises `PathConfig::NoChat` and no project is made.
+`AutoForge::Utils::PathConfig` (`utils/path_config.rb`) puts the projects in the folder of the chat the reply runs for (`Chats.work_chat`, the reply's chat scope); with no chat it raises `PathConfig::NoChat` and no project is made.
 
 ```
 conversations/<chat folder>/

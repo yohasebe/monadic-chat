@@ -128,9 +128,7 @@ function broadcastParamsUpdate(reason = null) {
   // the wrapper's default set; silentDrop because the user did not
   // explicitly trigger this and a "Connection lost" alert would be
   // disorienting on a passive sync.
-  // Another app starts another chat.
-  const send = reason === 'app_change' ? window.sendChatSwitch : window.safeWsSend;
-  send(payload, { silentDrop: true });
+  window.safeWsSend(payload, { silentDrop: true });
 }
 
 window.broadcastParamsUpdate = broadcastParamsUpdate;
@@ -1954,7 +1952,7 @@ document.addEventListener("DOMContentLoaded", function () {
         window.BackgroundReply.forgetStopToken();
       }
       // Send server-side RESET to clear session
-      window.sendChatSwitch({ message: "RESET" });
+      window.safeWsSend({ message: "RESET" });
     }
 
     proceedWithAppChange(selectedAppValue);
@@ -2025,7 +2023,7 @@ document.addEventListener("DOMContentLoaded", function () {
       window.BackgroundReply.forgetStopToken();
     }
     // Send server-side RESET to clear session
-    window.sendChatSwitch({ message: "RESET" });
+    window.safeWsSend({ message: "RESET" });
 
     // Reset to settings panel
     enterSettingsMode();
@@ -3109,10 +3107,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const exportParams = setParams();
     delete exportParams.initiate_from_assistant;
 
-    // Fetch monadic_state and session_context from server
+    // Fetch monadic_state from server
     let monadicState = null;
-    let serverSessionContext = null;
-    let serverContextSchema = null;
     let progressiveTools = null;
     try {
       const response = await fetch('/monadic_state' + (typeof window.monadicTabQuery === 'function' ? window.monadicTabQuery() : ''));
@@ -3121,13 +3117,6 @@ document.addEventListener("DOMContentLoaded", function () {
       if (data.success) {
         if (data.monadic_state) {
           monadicState = data.monadic_state;
-        }
-        // Get session_context from server (more reliable than frontend state)
-        if (data.session_context) {
-          serverSessionContext = data.session_context;
-        }
-        if (data.context_schema) {
-          serverContextSchema = data.context_schema;
         }
         // Dynamic-skill unlock state, so the export restores acquired skills
         if (data.progressive_tools) {
@@ -3148,18 +3137,6 @@ document.addEventListener("DOMContentLoaded", function () {
       obj.monadic_state = monadicState;
     }
 
-    // Include session_context - prefer server-side, fallback to frontend ContextPanel
-    const sessionContext = serverSessionContext ||
-      (typeof ContextPanel !== 'undefined' ? ContextPanel.currentContext : null);
-    const contextSchema = serverContextSchema ||
-      (typeof ContextPanel !== 'undefined' ? ContextPanel.currentSchema : null);
-
-    if (sessionContext) {
-      obj.session_context = sessionContext;
-    }
-    if (contextSchema) {
-      obj.context_schema = contextSchema;
-    }
     if (progressiveTools) {
       obj.progressive_tools = progressiveTools;
     }
@@ -4711,7 +4688,7 @@ document.addEventListener("DOMContentLoaded", function () {
 // the request left the page.
 function applyImportOverConnection(token, timeoutMs) {
   return new Promise(function (resolve) {
-    if (!token || typeof window.sendChatSwitch !== 'function') {
+    if (!token || typeof window.safeWsSend !== 'function') {
       resolve({ success: false, error: "Could not reach the server to finish the import. Please try again." });
       return;
     }
@@ -4731,7 +4708,7 @@ function applyImportOverConnection(token, timeoutMs) {
       finish({ success: false, error: "The server did not finish the import in time. Please try again." });
     }, timeoutMs || 30000);
     window.onImportResult = onResult;
-    const sent = window.sendChatSwitch({ message: "IMPORT_APPLY", token: token });
+    const sent = window.safeWsSend({ message: "IMPORT_APPLY", token: token });
     if (!sent || !sent.sent) {
       finish({ success: false, error: "Could not reach the server to finish the import. Please try again." });
     }

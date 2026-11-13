@@ -73,7 +73,6 @@ const FILES = [
   "js/monadic/layout-controller.js",
   "js/monadic/main-tabs.js",
   "js/monadic/ui-utilities.js",
-  "js/monadic/context-panel.js",
   "js/monadic/workflow-viewer.js",
   "js/monadic/form-handlers.js",
   "js/monadic/ws-audio-constants.js",

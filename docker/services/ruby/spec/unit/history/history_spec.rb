@@ -179,23 +179,6 @@ RSpec.describe Monadic::History do
       expect(payload['parameters']).to eq('app_name' => 'ChatOpenAI', 'model' => 'gpt-x')
     end
 
-    it 'keeps of the Session Context only its fields, items and turns' do
-      context = { '_turn_count' => 3, 'topics' => [{ 'text' => 'trip', 'turn' => 1, 'edited' => true,
-                                                      'raw_tool' => { 'data' => 'data:image/png;base64,AAAA' } }, 'plain'],
-                  'notes' => [{ 'text' => 'n', 'path' => '/private/source' }], 'internal' => { 'x' => 1 },
-                  'unlisted' => [{ 'text' => 'not in the schema' }] }
-      schema = { fields: [{ name: 'topics' }, { name: 'notes' }] }
-      session = session_with('hi', monadic_state: { context_schema: schema })
-      chat_id = session[chat_key]
-      Monadic::Workspace::ChatContext.update(session, chat: { id: chat_id, epoch: Monadic::Workspace::Chats.epoch(chat_id) }) { context }
-      payload = described_class::Serializer.payload(session)
-      expect(payload['session_context']).to eq(
-        '_turn_count' => 3,
-        'topics' => [{ 'text' => 'trip', 'turn' => 1, 'edited' => true }, { 'text' => 'plain' }],
-        'notes' => [{ 'text' => 'n' }]
-      )
-    end
-
     it 'keeps of what was saved from the workbench only entries of the checked form' do
       saved = { 'id' => "r_#{'a' * 16}", 'path' => "conversations/20260102-030000_chat_w_#{'b' * 16}/artifacts/20260102-030405_cat.png",
                 'name' => '20260102-030405_cat.png', 'sha256' => 'b' * 64, 'content_type' => 'image/png',

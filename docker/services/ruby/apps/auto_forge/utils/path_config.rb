@@ -2,7 +2,7 @@
 
 require 'fileutils'
 require_relative '../../../lib/monadic/utils/shared_path_guard'
-require_relative '../../../lib/monadic/workspace/chat_context'
+require_relative '../../../lib/monadic/workspace/chats'
 require_relative '../../../lib/monadic/workspace/folders'
 require_relative '../../../lib/monadic/workspace/request_context'
 require_relative '../../../lib/monadic/workbench/made'
@@ -30,7 +30,7 @@ module AutoForge
 
       # The chat the reply runs for, { id:, epoch: }, or nil.
       def current_chat
-        Monadic::Workspace::ChatContext.work_chat(nil)
+        Monadic::Workspace::Chats.work_chat(nil)
       end
 
       # The chat's folder (relative to the shared folder). NoChat without a

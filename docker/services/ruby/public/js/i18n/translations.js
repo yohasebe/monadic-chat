@@ -378,8 +378,6 @@ const webUITranslations = {
       libViewerLoadFailure: "Could not load this conversation.",
       libViewerSkipped: "Verbatim messages were not stored (",
       sessionLabel: "Session Controls",
-      sessionContext: "Session Context",
-      contextTurnLegend: "T = Turn",
       saveChanges: "Save",
       speech: "Speech",
       systemSettings: "System Settings",
@@ -603,7 +601,6 @@ const webUITranslations = {
         spinnerProcessingRequest: "Processing request",
         spinnerProcessingTools: "Processing tools",
         spinnerProcessingAudio: "Processing audio",
-        spinnerUpdatingContext: "Updating context",
         gpt5CodexAnalyzing: "GPT-5-Codex is analyzing requirements",
         gpt5CodexGenerating: "GPT-5-Codex is generating code",
         gpt5CodexDelegating: "Delegating to GPT-5-Codex specialist agent",
@@ -701,7 +698,6 @@ const webUITranslations = {
         pdfExported: "Exported",
         messageActive: "Active (within context)",
         messageInactive: "Inactive (outside context)",
-        contextEditedBadge: "Re-extracted after message edit",
         contextTurnLabel: "Turn"
       },
       session: {
@@ -1110,8 +1106,6 @@ const webUITranslations = {
       libViewerLoadFailure: "この会話を読み込めませんでした。",
       libViewerSkipped: "本文は保存されていません (",
       sessionLabel: "セッション操作",
-      sessionContext: "セッションコンテキスト",
-      contextTurnLegend: "T = ターン",
       saveChanges: "保存",
       speech: "音声",
       systemSettings: "システム設定",
@@ -1329,7 +1323,6 @@ const webUITranslations = {
         spinnerProcessingRequest: "リクエスト処理中",
         spinnerProcessingTools: "ツール処理中",
         spinnerProcessingAudio: "音声処理中",
-        spinnerUpdatingContext: "コンテキスト更新中",
         gpt5CodexAnalyzing: "GPT-5-Codexが要件を分析中",
         gpt5CodexGenerating: "GPT-5-Codexがコードを生成中",
         gpt5CodexDelegating: "GPT-5-Codex専門エージェントに委譲中",
@@ -1427,7 +1420,6 @@ const webUITranslations = {
         pdfExported: "出力日時",
         messageActive: "アクティブ（コンテキスト内）",
         messageInactive: "非アクティブ（コンテキスト外）",
-        contextEditedBadge: "メッセージ編集後に再抽出",
         contextTurnLabel: "ターン"
       },
       session: {
@@ -1796,8 +1788,6 @@ const webUITranslations = {
       systemSettings: "系统设置",
       speech: "语音",
       sessionLabel: "会话控制",
-      sessionContext: "会话上下文",
-      contextTurnLegend: "T = 轮次",
       saveChanges: "保存",
       pdfDatabase: "PDF数据库",
       noPdfsLocal: "未导入PDF",
@@ -2055,7 +2045,6 @@ const webUITranslations = {
         spinnerProcessingRequest: "处理请求中",
         spinnerProcessingTools: "处理工具中",
         spinnerProcessingAudio: "处理音频中",
-        spinnerUpdatingContext: "正在更新上下文",
         gpt5CodexAnalyzing: "GPT-5-Codex正在分析需求",
         gpt5CodexGenerating: "GPT-5-Codex正在生成代码",
         gpt5CodexDelegating: "委托给GPT-5-Codex专业代理",
@@ -2176,7 +2165,6 @@ const webUITranslations = {
         pdfExported: "导出时间",
         messageActive: "活动（上下文内）",
         messageInactive: "非活动（上下文外）",
-        contextEditedBadge: "消息编辑后重新提取",
         contextTurnLabel: "轮次"
       },
       session: {
@@ -2545,8 +2533,6 @@ const webUITranslations = {
       systemSettings: "시스템 설정",
       speech: "음성",
       sessionLabel: "세션 제어",
-      sessionContext: "세션 컨텍스트",
-      contextTurnLegend: "T = 턴",
       saveChanges: "저장",
       pdfDatabase: "PDF 데이터베이스",
       noPdfsLocal: "가져온 PDF 없음",
@@ -2804,7 +2790,6 @@ const webUITranslations = {
         spinnerProcessingRequest: "요청 처리 중",
         spinnerProcessingTools: "도구 처리 중",
         spinnerProcessingAudio: "오디오 처리 중",
-        spinnerUpdatingContext: "컨텍스트 업데이트 중",
         gpt5CodexAnalyzing: "GPT-5-Codex가 요구사항을 분석 중",
         gpt5CodexGenerating: "GPT-5-Codex가 코드를 생성 중",
         gpt5CodexDelegating: "GPT-5-Codex 전문 에이전트에 위임 중",
@@ -2902,7 +2887,6 @@ const webUITranslations = {
         pdfExported: "내보내기 날짜",
         messageActive: "활성 (컨텍스트 내)",
         messageInactive: "비활성 (컨텍스트 외)",
-        contextEditedBadge: "메시지 편집 후 재추출됨",
         contextTurnLabel: "턴"
       },
       session: {
@@ -3271,8 +3255,6 @@ const webUITranslations = {
       systemSettings: "Configuración del sistema",
       speech: "Voz",
       sessionLabel: "Controles de sesión",
-      sessionContext: "Contexto de sesión",
-      contextTurnLegend: "T = Turno",
       saveChanges: "Guardar",
       pdfDatabase: "Base de datos PDF",
       noPdfsLocal: "No se han importado PDFs",
@@ -3530,7 +3512,6 @@ const webUITranslations = {
         spinnerProcessingRequest: "Procesando solicitud",
         spinnerProcessingTools: "Procesando herramientas",
         spinnerProcessingAudio: "Procesando audio",
-        spinnerUpdatingContext: "Actualizando contexto",
         gpt5CodexAnalyzing: "GPT-5-Codex está analizando requisitos",
         gpt5CodexGenerating: "GPT-5-Codex está generando código",
         gpt5CodexDelegating: "Delegando a agente especialista GPT-5-Codex",
@@ -3628,7 +3609,6 @@ const webUITranslations = {
         pdfExported: "Exportado",
         messageActive: "Activo (dentro del contexto)",
         messageInactive: "Inactivo (fuera del contexto)",
-        contextEditedBadge: "Re-extraído después de editar mensaje",
         contextTurnLabel: "Turno"
       },
       session: {
@@ -3997,8 +3977,6 @@ const webUITranslations = {
       systemSettings: "Paramètres système",
       speech: "Voix",
       sessionLabel: "Contrôles de session",
-      sessionContext: "Contexte de session",
-      contextTurnLegend: "T = Tour",
       saveChanges: "Enregistrer",
       pdfDatabase: "Base de données PDF",
       noPdfsLocal: "Aucun PDF importé",
@@ -4256,7 +4234,6 @@ const webUITranslations = {
         spinnerProcessingRequest: "Traitement de la requête",
         spinnerProcessingTools: "Traitement des outils",
         spinnerProcessingAudio: "Traitement audio",
-        spinnerUpdatingContext: "Mise à jour du contexte",
         gpt5CodexAnalyzing: "GPT-5-Codex analyse les exigences",
         gpt5CodexGenerating: "GPT-5-Codex génère du code",
         gpt5CodexDelegating: "Délégation à l'agent spécialiste GPT-5-Codex",
@@ -4354,7 +4331,6 @@ const webUITranslations = {
         pdfExported: "Exporté",
         messageActive: "Actif (dans le contexte)",
         messageInactive: "Inactif (hors contexte)",
-        contextEditedBadge: "Ré-extrait après modification du message",
         contextTurnLabel: "Tour"
       },
       tts: {
@@ -4723,8 +4699,6 @@ const webUITranslations = {
       systemSettings: "Systemeinstellungen",
       speech: "Sprache",
       sessionLabel: "Sitzungssteuerung",
-      sessionContext: "Sitzungskontext",
-      contextTurnLegend: "T = Runde",
       saveChanges: "Speichern",
       pdfDatabase: "PDF-Datenbank",
       noPdfsLocal: "Keine PDFs importiert",
@@ -4982,7 +4956,6 @@ const webUITranslations = {
         spinnerProcessingRequest: "Anfrage verarbeiten",
         spinnerProcessingTools: "Werkzeuge verarbeiten",
         spinnerProcessingAudio: "Audio verarbeiten",
-        spinnerUpdatingContext: "Kontext wird aktualisiert",
         gpt5CodexAnalyzing: "GPT-5-Codex analysiert Anforderungen",
         gpt5CodexGenerating: "GPT-5-Codex generiert Code",
         gpt5CodexDelegating: "Delegieren an GPT-5-Codex-Spezialagenten",
@@ -5080,7 +5053,6 @@ const webUITranslations = {
         pdfExported: "Exportiert",
         messageActive: "Aktiv (innerhalb des Kontexts)",
         messageInactive: "Inaktiv (außerhalb des Kontexts)",
-        contextEditedBadge: "Nach Nachrichtenbearbeitung erneut extrahiert",
         contextTurnLabel: "Runde"
       },
       tts: {

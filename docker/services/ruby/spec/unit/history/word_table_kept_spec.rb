@@ -306,7 +306,6 @@ RSpec.describe 'A chat word table kept with the chat' do
       session, table = marked_chat(word)
       table.confirm!('Grace Hopper', 'PERSON')
       table.disable!('Grace Hopper')
-      Monadic::Workspace::ChatContext.restore!(session, { 'topics' => [{ 'text' => "On #{word}", 'turn' => 1 }] })
 
       raw = Base64.strict_decode64(export(session, content: 'masked')['content_base64'])
 

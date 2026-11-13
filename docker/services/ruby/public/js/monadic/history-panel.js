@@ -99,13 +99,6 @@
     return !!(r && (r.sent || r.queued));
   }
 
-  // A request for another chat (window.sendChatSwitch).
-  function sendSwitch(payload) {
-    if (typeof window.sendChatSwitch !== 'function') return send(payload);
-    const r = window.sendChatSwitch(payload);
-    return !!(r && (r.sent || r.queued));
-  }
-
   function requestList(offset) {
     send({ message: 'HISTORY_LIST', query: view.q, app: view.app, unused_days: view.unused, offset: offset || 0 },
       { silentDrop: true });
@@ -153,7 +146,7 @@
     if (resuming) return;
     const payload = { message: 'HISTORY_RESUME', chat_id: chatId };
     resuming = true;
-    if (sendSwitch(payload)) setStatus(t('opening', 'Opening the chat…'), 'busy');
+    if (send(payload)) setStatus(t('opening', 'Opening the chat…'), 'busy');
     else resuming = null;
   }
 

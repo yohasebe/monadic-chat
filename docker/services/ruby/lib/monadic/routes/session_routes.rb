@@ -110,8 +110,8 @@ get "/monadic_state" do
   if session[:monadic_state]
     # Convert symbol keys to strings for JSON serialization
     serializable_state = session[:monadic_state].each_with_object({}) do |(app_key, app_data), result|
-      # Skip special keys that don't follow the standard structure
-      next if [:conversation_context, :context_schema, "conversation_context", "context_schema"].include?(app_key)
+      # Skip what files of earlier versions kept beside the app state
+      next if %w[conversation_context context_schema].include?(app_key.to_s)
 
       if app_data.is_a?(Hash)
         result[app_key.to_s] = app_data.each_with_object({}) do |(state_key, state_entry), app_result|
@@ -126,17 +126,7 @@ get "/monadic_state" do
     end
 
     response_data[:monadic_state] = serializable_state
-
-    # Include context_schema if present
-    context_schema = session[:monadic_state][:context_schema] || session[:monadic_state]["context_schema"]
-    if context_schema
-      response_data[:context_schema] = context_schema
-    end
   end
-
-  # The chat's context (Session Context), kept apart from its state.
-  conversation_context = Monadic::Workspace::ChatContext.read(session)
-  response_data[:session_context] = conversation_context if conversation_context
 
   # Include dynamic-skill unlock state so an exported session restores the
   # skills the model had acquired (reproducibility). Independent of
@@ -230,8 +220,8 @@ post "/load" do
 
         # The app state the file began with (Monadic::TurnState::Form's
         # base): what fits is kept, what does not is left out and counted.
-        # The Context Panel's structures a file of an earlier version kept
-        # here are read below as the chat's context, not as app state.
+        # What a file of an earlier version kept here beside the app state
+        # (the context of its side panel) is not read.
         state_changes_dropped = 0
         if json_data["monadic_state"].is_a?(Hash)
           legacy = json_data["monadic_state"].transform_keys(&:to_s).transform_values do |entries|
@@ -241,34 +231,6 @@ post "/load" do
           imported[:monadic_state] = Monadic::TurnState::Form.to_session(base) if base
 
           Monadic::Utils::ExtraLogger.log { "[Import] Restored monadic_state for apps: #{Array(base&.keys).join(', ')}" }
-        end
-
-        # Files written before the export separated them carry the panel under
-        # monadic_state instead. Read it from there when the dedicated field is
-        # absent, so an older export still restores its context.
-        legacy_state = json_data["monadic_state"]
-        if !json_data["session_context"] && legacy_state.is_a?(Hash)
-          legacy_context = legacy_state["conversation_context"]
-          # Older still, a Session Context tool kept it under the app's
-          # state, as lists of texts.
-          app_state = legacy_state[json_data.dig("parameters", "app_name").to_s]
-          legacy_context ||= app_state.dig("conversation_context", "data") if app_state.is_a?(Hash) && app_state["conversation_context"].is_a?(Hash)
-          json_data["session_context"] = legacy_context if legacy_context.is_a?(Hash)
-          legacy_schema = legacy_state["context_schema"]
-          json_data["context_schema"] ||= legacy_schema if legacy_schema
-        end
-
-        # Restore session_context if present in import data (for Session Context feature)
-        if json_data["session_context"]
-          imported[:monadic_state] ||= {}
-          imported[:monadic_state][:conversation_context] = Monadic::Workspace::ChatContext.normalize(json_data["session_context"])
-
-          # Also store context_schema if present
-          if json_data["context_schema"]
-            imported[:monadic_state][:context_schema] = json_data["context_schema"]
-          end
-
-          Monadic::Utils::ExtraLogger.log { "[Import] Restored session_context with #{json_data['session_context'].keys.join(', ')}" }
         end
 
         # Process messages.

@@ -17,7 +17,6 @@ require_relative '../../../../lib/monadic/utils/privacy/pipeline'
 require_relative '../../../../lib/monadic/utils/privacy/types'
 require_relative '../../../../lib/monadic/adapters/base_vendor_helper'
 require_relative '../../../../lib/monadic/utils/websocket'
-require_relative '../../../../lib/monadic/agents/context_extractor_agent'
 require_relative '../../../../lib/monadic/adapters/vendors/gemini_helper'
 require_relative '../../../../lib/monadic/agents/ai_user_agent'
 require_relative '../../../../lib/monadic/adapters/vendors/openai_helper'
@@ -338,21 +337,20 @@ RSpec.describe 'Words a chat hides' do
       end.new
     end
 
-    it 'holds the marked words nowhere: not in the app state, the Session Context or anything nested' do
+    it 'holds the marked words nowhere: not in the app state or anything nested' do
       session = {
         messages: [{ 'mid' => 'a', 'role' => 'user', 'text' => 'SecretName', 'app_name' => 'X',
                      'verify' => { 'responses' => [{ 'text' => 'about SecretName' }] } }],
         parameters: { 'app_name' => 'X' },
-        monadic_state: { 'app' => { 'entry' => { data: 'SecretName', version: 1, updated_at: 't' } },
-                         context_schema: { 'description' => 'SecretName' } }
+        monadic_state: { 'app' => { 'entry' => { data: 'SecretName', version: 1, updated_at: 't' } } }
       }
-      with_context(session, 'person' => 'SecretName')
+      Monadic::Workspace::Chats.start_new!(session)
       hide_in(session, 'SecretName')
       harness.send(:handle_ws_privacy_export, nil, session, { 'encrypt' => false, 'content' => 'masked' })
       written = Base64.strict_decode64(harness.sent.last['content_base64'])
       expect(written).not_to include('SecretName')
       expect(written).to include('<<PERSON_1>>')
-      expect(JSON.parse(written)['session_context']).to eq('person' => '<<PERSON_1>>')
+      expect(JSON.parse(written).dig('monadic_state', 'app', 'entry', 'data')).to eq('<<PERSON_1>>')
     end
   end
 
@@ -367,29 +365,6 @@ RSpec.describe 'Words a chat hides' do
       expect { registry.add_terms!([{ text: 'one more', type: 'PERSON' }]) }
         .to raise_error(Monadic::Utils::Privacy::Registry::TooManyTerms)
       expect(registry.terms.size).to eq(200)
-    end
-  end
-
-  describe 'the helpers that send for the chat' do
-    def extract(schema)
-      session = hide_in(real_session(parameters: {}), 'SecretName')
-      agent = Class.new { include ContextExtractorAgent }.new
-      allow(SystemDefaults).to receive(:get_default_model).and_return('test-model')
-      allow(agent).to receive(:get_api_key_for_provider).and_return('test-key-not-sent')
-      sent = nil
-      allow(agent).to receive(:call_provider_api) { |_p, _m, prompt, _k| (sent = prompt) && nil }
-      agent.extract_context(session, 'Hi SecretName', 'Hello', 'openai', schema)
-      sent
-    end
-
-    it 'sends the context extraction with the conversation hidden' do
-      sent = extract(nil)
-      expect(sent).to include('<<PERSON_1>>')
-      expect(sent).not_to include('SecretName')
-    end
-
-    it 'sends no context extraction when the schema holds a hidden word' do
-      expect(extract({ 'fields' => [{ 'name' => 'person', 'description' => 'Facts about SecretName' }] })).to be_nil
     end
   end
 
@@ -470,12 +445,10 @@ RSpec.describe 'Words a chat hides' do
     end
   end
 
-  # The chat's context, kept as given (a value that is JSON text, not the
-  # panel's items).
-  def with_context(session, context)
-    chats = Monadic::Workspace::Chats
-    chat_id = chats.start_new!(session)
-    Monadic::Workspace::ChatContext.update(session, chat: { id: chat_id, epoch: chats.epoch(chat_id) }) { context }
+  # A chat whose app state holds data as given (a value that is JSON text).
+  def with_state(session, data)
+    Monadic::Workspace::Chats.start_new!(session)
+    session[:monadic_state] = { 'X' => { 'entry' => { data: data, version: 1, updated_at: 't' } } }
   end
 
   describe 'a masked file with JSON in it' do
@@ -498,11 +471,11 @@ RSpec.describe 'Words a chat hides' do
       word = 'A"B'
       session = { messages: [{ 'mid' => 'a', 'role' => 'user', 'text' => word, 'app_name' => 'X' }],
                   parameters: { 'app_name' => 'X' } }
-      with_context(session, 'json' => JSON.generate('person' => word))
+      with_state(session, 'json' => JSON.generate('person' => word))
       hide_in(session, word)
       harness.send(:handle_ws_privacy_export, nil, session, { 'encrypt' => false, 'content' => 'masked' })
       file = JSON.parse(Base64.strict_decode64(harness.sent.last['content_base64']))
-      json_value = file.dig('session_context', 'json')
+      json_value = file.dig('monadic_state', 'X', 'entry', 'data', 'json')
       expect(JSON.parse(json_value)).to eq('person' => '<<PERSON_1>>')
       expect(JSON.generate(file)).not_to include('A\\"B')
     end
@@ -559,11 +532,11 @@ RSpec.describe 'Words a chat hides' do
       [JSON.generate(word), JSON.generate('person' => JSON.generate(word))].each do |json|
         session = { messages: [{ 'mid' => 'a', 'role' => 'user', 'text' => 'x', 'app_name' => 'X' }],
                     parameters: { 'app_name' => 'X' } }
-        with_context(session, 'json' => json)
+        with_state(session, 'json' => json)
         hide_in(session, word)
         harness.send(:handle_ws_privacy_export, nil, session, { 'encrypt' => false, 'content' => 'masked' })
         file = JSON.parse(Base64.strict_decode64(harness.sent.last['content_base64']))
-        value = file.dig('session_context', 'json')
+        value = file.dig('monadic_state', 'X', 'entry', 'data', 'json')
         decoded = JSON.parse(value)
         decoded = JSON.parse(decoded['person']) if decoded.is_a?(Hash)
         expect(decoded).to eq('<<PERSON_1>>')
@@ -610,15 +583,6 @@ RSpec.describe 'Words a chat hides' do
       result = agent.process_ai_user(session, { 'ai_user_provider' => 'anthropic' })
       expect(app).not_to have_received(:send_query)
       expect(result['type']).to eq('error')
-    end
-
-    it 'checks the context extraction request at its HTTP boundary' do
-      agent = Class.new { include ContextExtractorAgent }.new
-      Thread.current[:monadic_extraction_session] = marked('JSON only')
-      expect(Net::HTTP).not_to receive(:new)
-      expect(agent.make_http_request(URI('https://example.invalid/'), { 'messages' => [{ 'content' => 'return JSON only' }] }, {})).to be_nil
-    ensure
-      Thread.current[:monadic_extraction_session] = nil
     end
 
     it 'does not speak a marked word, however it is written' do

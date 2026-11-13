@@ -67,6 +67,7 @@ RSpec.describe Monadic::TurnState::Form do
                      "nodata" => { version: 1 }, "_items" => { "data" => { "characters" => {} } } },
         :privacy => { registry: { "<<P>>" => "secret" } },
         "context_schema" => { "fields" => [] },
+        "conversation_context" => { "topics" => [{ "text" => "x", "turn" => 1 }] },
         "../x" => { "a" => { data: 1 } }
       }
       base, dropped = described_class.clean_base(state)

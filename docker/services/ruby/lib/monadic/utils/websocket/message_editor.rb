@@ -29,12 +29,6 @@ module WebSocketHelper
     messages = rack_session[:messages] || []
     message_index = messages.find_index { |m| m["mid"] == obj["mid"] }
 
-    # Calculate turn number before deletion (if it's an assistant message)
-    deleted_turn = nil
-    if message_index
-      deleted_turn = calculate_turn_number(messages, message_index)
-    end
-
     # Delete the message, and move what it made to the chat's trash
     deleted = message_index && messages[message_index]
     rack_session[:messages]&.delete_if { |m| m["mid"] == obj["mid"] }
@@ -48,12 +42,6 @@ module WebSocketHelper
     # so a delete makes the cached covered_count and summary stale. Dropping it
     # degrades to full-history replay (and re-compaction) on the next turn.
     rack_session.delete(:grok_compaction)
-
-    # Update Session Context if a turn was deleted
-    if deleted_turn
-      schema = get_context_schema(rack_session)
-      handle_message_deletion(rack_session, deleted_turn, schema, ws_session_id)
-    end
 
     # Check message status
     past_messages_data = check_past_messages(rack_session[:parameters])
@@ -116,44 +104,6 @@ module WebSocketHelper
     warn "[MessageEditor] the chat's documents were not put together again: #{e.class}"
   end
 
-  # Find the user-assistant pair for a given turn
-  # @param messages [Array] The messages array
-  # @param turn [Integer] The turn number (1-indexed)
-  # @return [Hash, nil] Hash with :user and :assistant messages, or nil
-  def find_turn_pair(messages, turn)
-    return nil unless messages && turn && turn > 0
-
-    assistant_count = 0
-    assistant_index = nil
-
-    # Find the assistant message for this turn
-    messages.each_with_index do |m, idx|
-      if m["role"] == "assistant"
-        assistant_count += 1
-        if assistant_count == turn
-          assistant_index = idx
-          break
-        end
-      end
-    end
-
-    return nil unless assistant_index
-
-    # Find the preceding user message
-    user_message = nil
-    (assistant_index - 1).downto(0) do |idx|
-      if messages[idx]["role"] == "user"
-        user_message = messages[idx]
-        break
-      end
-    end
-
-    {
-      user: user_message,
-      assistant: messages[assistant_index]
-    }
-  end
-
   # Handle EDIT message
   # @param connection [Async::WebSocket::Connection] WebSocket connection
   # @param obj [Hash] Parsed message object
@@ -171,20 +121,6 @@ module WebSocketHelper
     if message_index
       edited_message = messages[message_index]
       edited_role = edited_message["role"]
-
-      # Calculate turn number if this is an assistant message, or find the associated turn for user message
-      turn_to_update = nil
-      if edited_role == "assistant"
-        turn_to_update = calculate_turn_number(messages, message_index)
-      elsif edited_role == "user"
-        # Find the next assistant message to determine the turn
-        (message_index + 1...messages.length).each do |idx|
-          if messages[idx]["role"] == "assistant"
-            turn_to_update = calculate_turn_number(messages, idx)
-            break
-          end
-        end
-      end
 
       refusal = { "edit_refused" => true, "mid" => obj["mid"] }
       if edited_role == "system" && hidden_word_in_system_text?(obj["content"], rack_session)
@@ -228,30 +164,6 @@ module WebSocketHelper
 
       # Push the response - send to session only
       send_or_broadcast(response.to_json, ws_session_id)
-
-      # Re-extract Session Context for the affected turn
-      if turn_to_update
-        # Get the updated turn pair (after the edit)
-        turn_pair = find_turn_pair(messages, turn_to_update)
-
-        if turn_pair && turn_pair[:user] && turn_pair[:assistant]
-          schema = get_context_schema(rack_session)
-          provider = rack_session.dig(:parameters, "ai_provider") || "openai"
-          language = rack_session.dig(:runtime_settings, :language) || rack_session.dig("runtime_settings", "language")
-
-          # Re-extract context for this turn with edited flag
-          handle_message_edit(
-            rack_session,
-            turn_to_update,
-            turn_pair[:user]["text"],
-            turn_pair[:assistant]["text"],
-            provider,
-            schema,
-            ws_session_id,
-            language
-          )
-        end
-      end
 
       # Update message status
       update_message_status_after_edit

@@ -14,14 +14,10 @@ The Workflow Viewer visualises each MDSL app's internal pipeline as an interacti
 | `agent` | Agent name | Side (right of Model) | Red | Expandable to show backend model |
 | `feature` | Features | Side (right of Model) | Grey | Enabled feature flags |
 | `history` | Message History | Side (left of Response) | Yellow | Always present; conversation loop source |
-| `context` | Monadic Context | Side (left of Response) | Yellow | Only when `context_schema` has fields |
 
-### History vs Context Separation
+### Message History
 
-- **Message History** (`type: 'history'`): Always present. Represents the conversation log. Has a feedback edge to User Input. No arrow from Response (infrastructure, not directional).
-- **Monadic Context** (`type: 'context'`): Only shown for monadic apps with `context_schema` fields. Has a directional arrow from Response (extraction flow) and a feedback edge to User Input. During `context_update`, only this node pulses via `setStage('context')`.
-
-Both share the same yellow colour (Context palette) since they are conceptually related.
+**Message History** (`type: 'history'`): Always present. Represents the conversation log. Has a feedback edge to User Input. No arrow from Response (infrastructure, not directional).
 
 ## Layout Algorithm
 
@@ -44,10 +40,7 @@ This prevents expanded nodes (e.g., tall Tools or expanded Model) from overlappi
 
 ### Feedback Edges
 
-The `feedbackEdges` array (not a single edge) creates L-shaped orthogonal routes from left-side nodes back to User Input:
-
-- History feedback: offset 40px left of the leftmost node
-- Context feedback (when present): offset 60px left (additional 20px per index)
+The `feedbackEdges` array creates an L-shaped orthogonal route from the Message History node back to User Input, offset 40px left of the leftmost node.
 
 ## Real-time Highlighting
 
@@ -60,10 +53,7 @@ The `feedbackEdges` array (not a single edge) creates L-shaped orthogonal routes
 | `model` | Input, Prompt, Model | Input→Prompt→Model |
 | `tools` | Input, Prompt, Model, Tools | + Model→Tools |
 | `response` | Input, Prompt, Model, Response | Input→Prompt→Model→Response |
-| `context` | Response, Context | Node pulse only (no edge highlight) |
 | `done` | (all cleared) | — |
-
-The `context` stage only pulses the Monadic Context node. The Response→Context edge is never highlighted to avoid rendering artefacts with side-edge waypoints.
 
 ## Label Formatting
 

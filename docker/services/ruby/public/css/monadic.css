@@ -2318,7 +2318,7 @@ pre code {
   margin-bottom: 1rem;
 }
 
-#monadic-info-panel, #ai-status-panel, #pdf-panel, #context-panel, #control-panel, #theme-panel, #interaction-panel, #voice-panel {
+#monadic-info-panel, #ai-status-panel, #pdf-panel, #control-panel, #theme-panel, #interaction-panel, #voice-panel {
   border: none;
   border-bottom: 1px solid var(--border-light);
   margin-bottom: 1rem;
@@ -3078,141 +3078,15 @@ img.base64-image,
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 
-/* ============================================
-   Context Panel Styles
-   ============================================ */
-
-#context-panel {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.context-section {
-  margin-bottom: 0.5rem;
-  border: 1px solid var(--bs-border-color, #dee2e6);
-  border-radius: var(--border-radius, 4px);
-  overflow: hidden;
-}
-
-.context-section-header {
-  padding: 0.5rem 0.75rem;
-  cursor: pointer;
-  background: var(--bs-tertiary-bg, #f8f9fa);
-  transition: background-color var(--transition-fast, 200ms) ease;
-  user-select: none;
-}
-
-.context-section-header:hover {
-  background: var(--bs-secondary-bg, #e9ecef);
-}
-
-.context-section-header i.toggle-icon {
-  transition: transform var(--transition-fast, 200ms) ease;
-}
-
-.context-section.collapsed .context-section-header i.toggle-icon {
-  transform: rotate(-90deg);
-}
-
-.context-section-content {
-  padding: 0.5rem 0.75rem;
-  border-top: 1px solid var(--bs-border-color, #dee2e6);
-}
-
-.context-section.collapsed .context-section-content {
-  display: none;
-}
-
-.context-item {
-  padding: 0.25rem 0.5rem;
-  margin: 0.25rem 0;
-  background: var(--bs-body-bg, #fff);
-  border: 1px solid var(--bs-border-color-translucent, rgba(0,0,0,0.1));
-  border-radius: var(--border-radius, 4px);
-  font-size: inherit;
-  word-break: break-word;
-}
-
-.context-items-list {
-  font-size: inherit;
-  line-height: 1.5;
-  color: var(--bs-body-color, #212529);
-  word-break: break-word;
-}
-
-.context-badge {
-  font-size: inherit;
-  min-width: 1.25rem;
-}
 
 /* Context Panel Turn Grouping */
 
-.context-items-grouped {
-  font-size: inherit;
-  line-height: 1.5;
-}
-
-.context-turn-group {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.35rem 0;
-}
-
-.context-turn-group.with-separator {
-  border-top: 1px dashed var(--bs-border-color, #dee2e6);
-  margin-top: 0.25rem;
-  padding-top: 0.5rem;
-}
-
-.context-turn-label {
-  flex-shrink: 0;
-  color: var(--chip-neutral-color);
-  background: var(--chip-neutral-bg);
-  border: 1px solid var(--chip-neutral-border);
-  min-width: 1.5rem;
-  text-align: center;
-}
-
-.context-turn-items {
-  flex-grow: 1;
-  color: var(--bs-body-color);
-}
 
 /* Clickable turn labels */
 
-.context-turn-label.clickable {
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.context-turn-label.clickable:hover {
-  background: var(--bs-primary, #0d6efd);
-  color: white;
-  transform: scale(1.05);
-}
 
 /* Edited badge for re-extracted turns */
 
-.context-edited-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: inherit;
-  color: #fd7e14;
-  margin-left: 2px;
-  opacity: 0.9;
-}
-
-.context-edited-badge i {
-  font-size: 0.55rem;
-}
-
-.context-turn-group.edited {
-  border-left: 2px solid #fd7e14;
-  padding-left: 6px;
-  margin-left: -8px;
-}
 
 /* Card turn number badge */
 
@@ -3233,53 +3107,9 @@ img.base64-image,
   border-color: var(--chip-user-border);
 }
 
-/* Highlight effect when navigating to a card */
-
-.card.context-highlight {
-  animation: context-card-highlight 2s ease-out;
-}
-
-@keyframes context-card-highlight {
-  0% {
-    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.5);
-  }
-  100% {
-    box-shadow: none;
-  }
-}
-
-@keyframes context-card-highlight-dark {
-  0% {
-    box-shadow: 0 0 0 4px rgba(102, 178, 255, 0.5);
-  }
-  100% {
-    box-shadow: none;
-  }
-}
 
 /* Context Panel Loading Indicator */
 
-.context-loading-indicator {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-left: 8px;
-  border-radius: 50%;
-  background-color: var(--accent-amber);
-  animation: context-loading-pulse 1.2s ease-in-out infinite;
-  vertical-align: middle;
-}
-
-@keyframes context-loading-pulse {
-  0%, 100% {
-    opacity: 0.4;
-    transform: scale(0.85);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.15);
-  }
-}
 
 /* Improvements for monadic context display */
 
@@ -4033,7 +3863,6 @@ img.base64-image,
 @layer dark-theme {
 
 
-
 /* ============================================== */
 
 /* Dark Theme Card Styles */
@@ -4548,85 +4377,9 @@ i.fas.fa-bolt,
   border-bottom: 1px solid rgba(255, 255, 255, 0.18);
 }
 
-/* Dark mode adjustments for context panel - use high specificity to override .shaded-panel rules */
-
-.dark-theme #context-panel .context-section {
-  border-color: var(--json-label-primary);
-  background: #1a1d20;
-}
-
-.dark-theme #context-panel .context-section-header {
-  background: #2b3035;
-}
-
-.dark-theme #context-panel .context-section-header span {
-  color: #dee2e6;
-}
-
-.dark-theme #context-panel .context-section-header:hover {
-  background: #3a4045;
-}
-
-.dark-theme #context-panel .context-section-header i {
-  color: #adb5bd;
-}
-
-.dark-theme #context-panel .context-section-content {
-  background: #1a1d20;
-  border-top-color: var(--json-label-primary);
-}
-
-.dark-theme #context-panel .context-section-content div {
-  color: #dee2e6;
-}
-
-.dark-theme #context-panel .context-item {
-  background: #212529;
-}
-
-.dark-theme #context-panel .context-items-list {
-  color: #dee2e6;
-}
-
-.dark-theme #context-panel .context-badge {
-  background-color: #6c757d;
-  color: #fff;
-}
-
-.dark-theme #context-panel #context-legend {
-  color: #adb5bd;
-}
-
-.dark-theme #context-panel #context-legend span {
-  color: #adb5bd;
-}
 
 /* Dark mode for turn grouping */
 
-.dark-theme #context-panel .context-turn-items {
-  color: #dee2e6;
-}
-
-.dark-theme #context-panel .context-turn-group.with-separator {
-  border-top-color: var(--json-label-primary);
-}
-
-.dark-theme .context-turn-label.clickable:hover {
-  background: var(--bs-primary, #0d6efd);
-  color: white;
-}
-
-.dark-theme .context-edited-badge {
-  color: #ffc107;
-}
-
-.dark-theme .context-turn-group.edited {
-  border-left-color: #ffc107;
-}
-
-.dark-theme .card.context-highlight {
-  animation: context-card-highlight-dark 2s ease-out;
-}
 
 .dark-theme .badge-category-label {
   color: #aaa;
@@ -5770,7 +5523,6 @@ i.fas.fa-bolt,
 }
 
 
-
 } /* end @layer responsive */
 
 /* ============================================ */
@@ -5801,7 +5553,6 @@ i.fas.fa-bolt,
 .hidden {
   display: none !important;
 }
-
 
 
 /* Note: Bootstrap already has .d-none, but we add .hidden for semantic clarity */
@@ -6271,8 +6022,7 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   vertical-align: middle;
 }
 .mc-badge--mark,
-.card-turn-badge,
-.context-turn-label {
+.card-turn-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;

@@ -19,7 +19,6 @@ require_relative '../../workbench/record'
 require_relative '../../workbench/shown'
 require_relative '../../workbench/made'
 require_relative '../../workbench/look/record'
-require_relative '../../workspace/chat_context'
 require_relative '../../turn_state/form'
 require_relative '../progressive_tool_manager'
 
@@ -80,7 +79,6 @@ module WebSocketHelper
     # round-trips a full session (matches the historical local export shape).
     # `parameters` was assembled and remasked above, alongside the messages.
     monadic_state = privacy_export_monadic_state(session)
-    session_context = privacy_export_session_context(session)
     masked_file = content_kind == "masked" && !remask.empty?
     # Dynamic-skill unlock state, so an imported session restores the skills the
     # model had acquired (reproducibility). This is the ACTIVE export path
@@ -90,15 +88,14 @@ module WebSocketHelper
     progressive_tools = Monadic::Utils::ProgressiveToolManager.export_unlocked(session)
 
     # A masked file holds none of the originals anywhere, not only in the
-    # message text: everything that goes into it (the app state, the Session
-    # Context, what is nested in the messages) is masked, and the file is not
+    # message text: everything that goes into it (the app state, what is
+    # nested in the messages) is masked, and the file is not
     # written when one is still there.
     if masked_file
       outbound = Monadic::Utils::Privacy::Outbound
       messages = privacy_mask_messages_everywhere(messages, remask)
       parameters = privacy_mask_everywhere(parameters, remask)
       monadic_state = privacy_mask_app_state(monadic_state, remask)
-      session_context = privacy_mask_everywhere(session_context, remask)
       progressive_tools = privacy_mask_everywhere(progressive_tools, remask)
     end
 
@@ -110,7 +107,7 @@ module WebSocketHelper
 
     if masked_file
       contents = { "messages" => messages, "parameters" => parameters, "monadic_state" => monadic_state,
-                   "session_context" => session_context, "progressive_tools" => progressive_tools,
+                   "progressive_tools" => progressive_tools,
                    "header" => header, "filename" => filename }
       left = remask.values.map(&:to_s).reject(&:empty?)
       leaked = privacy_file_strings(contents).any? { |text| outbound.holds_word?(text, left) }
@@ -133,7 +130,6 @@ module WebSocketHelper
       payload["word_table"] = table_to_export if table_to_export
       payload["marks_parsed"] = true
       payload["monadic_state"] = monadic_state if monadic_state
-      payload.merge!(session_context)
       payload["progressive_tools"] = progressive_tools if progressive_tools
       envelope = Monadic::Utils::Privacy::ExportCipher.encrypt(
         header: header, plaintext: payload, passphrase: passphrase
@@ -144,7 +140,6 @@ module WebSocketHelper
       payload["word_table"] = table_to_export if table_to_export
       payload["marks_parsed"] = true
       payload["monadic_state"] = monadic_state if monadic_state
-      payload.merge!(session_context)
       payload["progressive_tools"] = progressive_tools if progressive_tools
       content = JSON.pretty_generate(payload)
     end
@@ -426,15 +421,9 @@ module WebSocketHelper
   # exports remain round-trippable through the existing import path. Returns
   # nil when there is no monadic_state to include.
   # Keys that sit alongside the app namespaces in session[:monadic_state] but
-  # hold something else. `conversation_context` and `context_schema` are the
-  # Context Panel's own structures; `privacy` is the registry, which RD-1 says
-  # is never persisted.
-  #
-  # The import route reads each app namespace as {key => {data, version,
-  # updated_at}} and applies ["data"] to every value, so emitting the panel's
-  # plain hash here made the import raise. It has its own field on the wire —
-  # `session_context` — which the import route already restores; this exports
-  # into that field rather than leaving the mechanism unwired.
+  # hold something else: `privacy` is the registry, which RD-1 says is never
+  # persisted; `conversation_context` and `context_schema` are what files of
+  # earlier versions kept there, never app state.
   PRIVACY_STATE_RESERVED_KEYS = %w[privacy conversation_context context_schema].freeze
 
   private def privacy_export_monadic_state(session)
@@ -453,21 +442,6 @@ module WebSocketHelper
       result[app_key.to_s] = entries
     end
     serializable.empty? ? nil : serializable
-  end
-
-  # The Context Panel's structures, exported under the field names the import
-  # route reads (`session_context` / `context_schema`).
-  private def privacy_export_session_context(session)
-    state = session[:monadic_state]
-    state = {} unless state.is_a?(Hash)
-
-    context = Monadic::Workspace::ChatContext.read(session)
-    schema = state[:context_schema] || state["context_schema"]
-
-    {}.tap do |out|
-      out["session_context"] = context if context.is_a?(Hash) && !context.empty?
-      out["context_schema"] = schema if schema
-    end
   end
 
   # Build a non-secret header for the envelope. Stays in plaintext so users

@@ -198,104 +198,15 @@ RSpec.describe 'What the handlers write to the history' do
       WebSocketHelper.unregister_live_session(open_tab, 1)
     end
 
-    it 'keeps the order of the list when only the Session Context changes' do
+    it 'keeps the order of the list when a chat is saved again with no new message' do
       first = chat_session('first chat', generation: 1)
       sync(first)
       later = chat_session('later chat', generation: 1).merge(chat_id: Monadic::Workspace::Ids.generate(:chat))
       allow(Time).to receive(:now).and_return(Time.now + 60)
       sync(later)
       allow(Time).to receive(:now).and_return(Time.now + 120)
-      chat = { id: first[:chat_id], epoch: Monadic::Workspace::Chats.epoch(first[:chat_id]) }
-      Monadic::Workspace::ChatContext.update(first, chat: chat) { { 'topics' => [{ 'text' => 'trips' }] } }
       sync(first)
       expect(store.list.map { |r| r['chat_id'] }).to eq([later[:chat_id], first[:chat_id]])
-      expect(store.get(first[:chat_id]).dig('payload', 'session_context', 'topics')).to eq([{ 'text' => 'trips' }])
-    end
-  end
-
-  describe 'the Session Context, which changes apart from the messages' do
-    let(:context) { Monadic::Workspace::ChatContext }
-    let(:chats) { Monadic::Workspace::Chats }
-
-    def change(session, text)
-      chat = { id: session[:chat_id], epoch: chats.epoch(session[:chat_id]) }
-      context.update(session, chat: chat) { |c| context.add_texts(c, 'topics', [text], 1) }
-    end
-
-    def saved_topics(chat_id)
-      store.get(chat_id)&.dig('payload', 'session_context', 'topics')&.map { |i| i['text'] }
-    end
-
-    it 'is saved when it changes after the reply was saved, with nothing done after' do
-      session = chat_session('a question', generation: WebSocketHelper.claim_session_state(tab))
-      sync(session)
-      change(session, 'trips')
-      expect(saved_topics(session[:chat_id])).to eq(['trips'])
-    end
-
-    it 'is saved as it was last when the chat is left right after it changed' do
-      session = chat_session('a question', generation: WebSocketHelper.claim_session_state(tab))
-      sync(session)
-      left = session[:chat_id]
-      allow(Monadic::History).to receive(:keep_context).and_return(nil) # the change's own write is lost
-      change(session, 'trips')
-      allow(Monadic::History).to receive(:keep_context).and_call_original
-      chats.begin_new!(session)
-      sync(session.merge(messages: [{ 'mid' => 'm2', 'role' => 'user', 'text' => 'next' }]))
-      expect(saved_topics(left)).to eq(['trips'])
-      expect(context.read({ chat_id: left })).to be_nil
-    end
-
-    it 'is not kept older by a save that read it before a later change' do
-      session = chat_session('a question', generation: WebSocketHelper.claim_session_state(tab))
-      sync(session)
-      allow(Monadic::History::Serializer).to receive(:session_context).and_wrap_original do |original, chat|
-        original.call(chat).tap do
-          next if !chat.key?(:messages) || @changed
-
-          @changed = true
-          change(session, 'later')
-        end
-      end
-      change(session, 'first')
-      sync(session)
-      expect(saved_topics(session[:chat_id])).to eq(%w[first later])
-    end
-
-    it 'is saved with known secrets removed, as the rest of the chat is' do
-      session = chat_session('a question', generation: WebSocketHelper.claim_session_state(tab))
-      sync(session)
-      change(session, 'see op://Vault/Item/field')
-      expect(saved_topics(session[:chat_id]).join).not_to include('op://Vault/Item/field')
-    end
-
-    it 'is not set back by a save of the chat begun before the chat was left' do
-      session = chat_session('a question', generation: WebSocketHelper.claim_session_state(tab))
-      change(session, 'first')
-      sync(session)
-      left = session[:chat_id]
-      allow(store).to receive(:save).and_wrap_original do |original, *args, **options|
-        unless @left
-          @left = true
-          change(session, 'latest')
-          chats.begin_new!(session)
-        end
-        original.call(*args, **options)
-      end
-      Thread.current[:rack_session] = session.merge(chat_id: left)
-      host.sync_session_state!
-      expect(saved_topics(left)).to eq(%w[first latest])
-    end
-
-    it 'is not changed by work of a tab the chat was taken from' do
-      session = chat_session('a question', generation: WebSocketHelper.claim_session_state(tab))
-      sync(session)
-      old_work = { id: session[:chat_id], epoch: chats.epoch(session[:chat_id]) }
-      chats.renew_epoch!(session[:chat_id])
-      context.restore!(session, { 'topics' => [{ 'text' => 'kept', 'turn' => 1 }] })
-
-      expect(context.update(session, chat: old_work) { |c| context.add_texts(c, 'topics', ['late'], 1) }).to be_nil
-      expect(context.read(session)['topics'].map { |i| i['text'] }).to eq(['kept'])
     end
   end
 
@@ -339,198 +250,31 @@ RSpec.describe 'What the handlers write to the history' do
       expect(store.get(kept[:chat_id])['payload']['messages'].map { |m| m['text'] }).to eq([marker, 'from the new tab'])
     end
 
-    it 'takes the chat with what its work changed until it was taken, even after the saved one was read' do
+    it 'takes the chat from the tab that had it: work begun for it before is no longer admitted' do
       kept = chat_session(marker, generation: 1)
       sync(kept)
-      context = Monadic::Workspace::ChatContext
-      old_work = { id: kept[:chat_id], epoch: Monadic::Workspace::Chats.epoch(kept[:chat_id]) }
-      context.update(kept, chat: old_work) { |c| context.add_texts(c, 'topics', ['before'], 1) }
-      allow(store).to receive(:claim).and_wrap_original do |original, *args, **options|
-        original.call(*args, **options).tap do
-          context.update(kept, chat: old_work) { |c| context.add_texts(c, 'topics', ['after the claim'], 1) }
-        end
-      end
+      chats = Monadic::Workspace::Chats
+      before = chats.epoch(kept[:chat_id])
       other_tab = "tab-#{SecureRandom.hex(4)}"
       here = empty_tab_session(other_tab)
 
       expect(resume_in(other_tab, here, kept[:chat_id])).to include('success' => true)
-      expect(context.read(here)['topics'].map { |i| i['text'] }).to eq(['before', 'after the claim'])
-      expect(store.get(kept[:chat_id])['payload']['session_context']['topics'].map { |i| i['text'] })
-        .to eq(['before', 'after the claim'])
-    end
-
-    it 'takes the chat with the change its work made last, before that change was saved' do
-      kept = chat_session(marker, generation: 1)
-      sync(kept)
-      context = Monadic::Workspace::ChatContext
-      old_work = { id: kept[:chat_id], epoch: Monadic::Workspace::Chats.epoch(kept[:chat_id]) }
-      context.update(kept, chat: old_work) { |c| context.add_texts(c, 'topics', ['saved'], 1) }
-      allow(store).to receive(:claim).and_wrap_original do |original, *args, **options|
-        original.call(*args, **options).tap do
-          allow(Monadic::History).to receive(:keep_context).and_return(nil) # its own save comes later
-          context.update(kept, chat: old_work) { |c| context.add_texts(c, 'topics', ['not saved yet'], 1) }
-          allow(Monadic::History).to receive(:keep_context).and_call_original
-        end
-      end
-      other_tab = "tab-#{SecureRandom.hex(4)}"
-      here = empty_tab_session(other_tab)
-
-      expect(resume_in(other_tab, here, kept[:chat_id])).to include('success' => true)
-      expect(context.read(here)['topics'].map { |i| i['text'] }).to eq(['saved', 'not saved yet'])
-      expect(store.get(kept[:chat_id])['payload']['session_context']['topics'].map { |i| i['text'] })
-        .to eq(['saved', 'not saved yet'])
-    end
-
-    it 'takes the chat with its last context when the tab that had it stopped keeping it meanwhile' do
-      kept = chat_session(marker, generation: 1)
-      sync(kept)
-      context = Monadic::Workspace::ChatContext
-      old_work = { id: kept[:chat_id], epoch: Monadic::Workspace::Chats.epoch(kept[:chat_id]) }
-      context.update(kept, chat: old_work) { |c| context.add_texts(c, 'topics', ['saved'], 1) }
-      allow(store).to receive(:claim).and_wrap_original do |original, *args, **options|
-        original.call(*args, **options).tap do
-          allow(Monadic::History).to receive(:keep_context).and_return(nil)
-          context.update(kept, chat: old_work) { |c| context.add_texts(c, 'topics', ['last'], 1) }
-          allow(Monadic::History).to receive(:keep_context).and_call_original
-          context.retire(kept[:chat_id], Monadic::Workspace::Chats.epoch(kept[:chat_id]))
-        end
-      end
-      other_tab = "tab-#{SecureRandom.hex(4)}"
-      here = empty_tab_session(other_tab)
-
-      expect(resume_in(other_tab, here, kept[:chat_id])).to include('success' => true)
-      expect(context.read(here)['topics'].map { |i| i['text'] }).to eq(%w[saved last])
-    end
-
-    it 'takes the chat with its context emptied, not the one read before it was emptied' do
-      kept = chat_session(marker, generation: 1)
-      sync(kept)
-      context = Monadic::Workspace::ChatContext
-      old_work = { id: kept[:chat_id], epoch: Monadic::Workspace::Chats.epoch(kept[:chat_id]) }
-      context.update(kept, chat: old_work) { |c| context.add_texts(c, 'topics', ['emptied later'], 1) }
-      allow(store).to receive(:claim).and_wrap_original do |original, *args, **options|
-        original.call(*args, **options).tap do
-          context.update(kept, chat: old_work) { |_c| { '_turn_count' => 1 } }
-          context.retire(kept[:chat_id], Monadic::Workspace::Chats.epoch(kept[:chat_id]))
-        end
-      end
-      other_tab = "tab-#{SecureRandom.hex(4)}"
-      here = empty_tab_session(other_tab)
-
-      expect(resume_in(other_tab, here, kept[:chat_id])).to include('success' => true)
-      expect(context.read(here)&.dig('topics')).to be_nil
+      expect(chats.admit_in_epoch(kept[:chat_id], before) { :ran }).to be_nil
+      expect(chats.admit_in_epoch(kept[:chat_id], chats.epoch(kept[:chat_id])) { :ran }).to eq(:ran)
     end
 
     it 'keeps the chat a tab continued after no tab kept it, when the chat is let go of late' do
       kept = chat_session(marker, generation: 1)
       sync(kept)
-      context = Monadic::Workspace::ChatContext
-      old_work = { id: kept[:chat_id], epoch: Monadic::Workspace::Chats.epoch(kept[:chat_id]) }
-      context.update(kept, chat: old_work) { |c| context.add_texts(c, 'topics', ['saved'], 1) }
-      let_go = [kept[:chat_id], Monadic::Workspace::Chats.epoch(kept[:chat_id])] # when no tab kept it
-      other_tab = "tab-#{SecureRandom.hex(4)}"
-      here = empty_tab_session(other_tab)
-      expect(resume_in(other_tab, here, kept[:chat_id])).to include('success' => true)
-
-      context.retire(*let_go)
-
-      expect(context.read(here)['topics'].map { |i| i['text'] }).to eq(['saved'])
-      expect(context.update(here) { |c| context.add_texts(c, 'topics', ['new'], 2) }).not_to be_nil
-    end
-
-    it 'saves nothing over what a tab that continued the chat while it was let go of did next' do
-      kept = chat_session(marker, generation: 1)
-      sync(kept)
-      context = Monadic::Workspace::ChatContext
       chats = Monadic::Workspace::Chats
-      old_work = { id: kept[:chat_id], epoch: chats.epoch(kept[:chat_id]) }
-      context.update(kept, chat: old_work) { |c| context.add_texts(c, 'topics', ['saved'], 1) }
-      other_tab = "tab-#{SecureRandom.hex(4)}"
-      here = empty_tab_session(other_tab)
-      allow(Monadic::History).to receive(:keep_context).and_wrap_original do |original, *args, **options|
-        if options[:held] && args.first == kept[:chat_id] && !@continued
-          @continued = true
-          resume_in(other_tab, here, kept[:chat_id])
-          context.update(here) { |c| context.add_texts(c, 'topics', ['next'], 2) }
-          Thread.current[:websocket_session_id] = other_tab
-        end
-        original.call(*args, **options)
-      end
-
-      context.retire(kept[:chat_id], chats.epoch(kept[:chat_id]))
-
-      expect(context.read(here)['topics'].map { |i| i['text'] }).to eq(%w[saved next])
-      expect(store.get(kept[:chat_id])['payload']['session_context']['topics'].map { |i| i['text'] }).to eq(%w[saved next])
-    end
-
-    # The chat is let go of (no tab keeps it) with its last change not saved
-    # yet; the save finishes once the tab continuing it reads the saved
-    # context, or after the tab has taken the context.
-    def continued_while_let_go(last)
-      kept = chat_session(marker, generation: 1)
-      sync(kept)
-      context = Monadic::Workspace::ChatContext
-      chats = Monadic::Workspace::Chats
-      old_work = { id: kept[:chat_id], epoch: chats.epoch(kept[:chat_id]) }
-      context.update(kept, chat: old_work) { |c| context.add_texts(c, 'topics', ['saved'], 1) }
-      allow(Monadic::History).to receive(:keep_context).and_return(nil)
-      context.update(kept, chat: old_work) { |c| last.call(c) }
-      saving = Queue.new
-      go_on = Queue.new
-      allow(Monadic::History).to receive(:keep_context).and_wrap_original do |original, *args, **options|
-        # Only the let go of this chat waits (a tab's state dropped meanwhile
-        # lets go of other chats too).
-        if options[:held] && Thread.current[:letting_go] == kept[:chat_id]
-          saving << true
-          go_on.pop(timeout: 5)
-        end
-        original.call(*args, **options)
-      end
-      retiring = Thread.new do
-        Thread.current[:letting_go] = kept[:chat_id]
-        context.retire(kept[:chat_id], chats.epoch(kept[:chat_id]))
-      end
-      saving.pop(timeout: 5) or raise 'the chat was not let go of'
-      finish = lambda do
-        next unless retiring.alive?
-
-        go_on << true
-        retiring.join
-      end
-      allow(store).to receive(:get).and_wrap_original do |original, *args|
-        original.call(*args).tap { finish.call }
-      end
+      let_go = chats.epoch(kept[:chat_id]) # when no tab kept it
       other_tab = "tab-#{SecureRandom.hex(4)}"
       here = empty_tab_session(other_tab)
       expect(resume_in(other_tab, here, kept[:chat_id])).to include('success' => true)
-      finish.call
-      [context.read(here), store.get(kept[:chat_id])['payload']['session_context']]
-    end
+      continued = chats.epoch(kept[:chat_id])
 
-    it 'takes the context a chat being let go of saved meanwhile, not the one saved before' do
-      held, saved = continued_while_let_go(->(c) { Monadic::Workspace::ChatContext.add_texts(c, 'topics', ['latest'], 1) })
-      expect(held['topics'].map { |i| i['text'] }).to eq(%w[saved latest])
-      expect(saved['topics'].map { |i| i['text'] }).to eq(%w[saved latest])
-    end
-
-    it 'takes the context a chat being let go of emptied meanwhile' do
-      held, saved = continued_while_let_go(->(_c) { { '_turn_count' => 1 } })
-      expect(held&.dig('topics')).to be_nil
-      expect(saved).to be_nil
-    end
-
-    it 'takes the chat from the tab that had it: its work no longer changes the context, which comes back as saved' do
-      kept = chat_session(marker, generation: 1)
-      sync(kept)
-      context = Monadic::Workspace::ChatContext
-      old_work = { id: kept[:chat_id], epoch: Monadic::Workspace::Chats.epoch(kept[:chat_id]) }
-      context.update(kept, chat: old_work) { |c| context.add_texts(c, 'topics', ['saved'], 1) }
-      other_tab = "tab-#{SecureRandom.hex(4)}"
-      here = empty_tab_session(other_tab)
-
-      expect(resume_in(other_tab, here, kept[:chat_id])).to include('success' => true)
-      expect(context.update(kept, chat: old_work) { |c| context.add_texts(c, 'topics', ['late'], 1) }).to be_nil
-      expect(context.read(here)['topics'].map { |i| i['text'] }).to eq(['saved'])
+      expect(chats.renew_epoch!(kept[:chat_id], from: let_go)).to be(false)
+      expect(chats.epoch(kept[:chat_id])).to eq(continued)
     end
 
     it 'replaces a chat with words in it without asking' do

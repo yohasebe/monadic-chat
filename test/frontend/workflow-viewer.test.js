@@ -146,7 +146,6 @@ const SAMPLE_MINIMAL = {
   shared_tool_groups: [],
   agents: {},
   features: {},
-  context_schema: null,
   system_prompt: 'You are a helpful assistant.',
 };
 
@@ -166,12 +165,6 @@ const SAMPLE_FULL = {
   ],
   agents: { code_agent: 'gpt-4o-mini' },
   features: { websearch: true, monadic: true, pdf_vector_storage: false },
-  context_schema: {
-    fields: [
-      { name: 'topics', label: 'Topics' },
-      { name: 'findings', label: 'Findings' },
-    ]
-  },
   system_prompt: 'You are a research assistant with web browsing capabilities.',
   input_types: ['text', 'image'],
   output_types: ['text', 'html'],
@@ -227,7 +220,7 @@ describe('WorkflowViewer', () => {
     test('should build legend on init', () => {
       const legend = document.querySelector('.workflow-viewer-legend');
       const items = legend.querySelectorAll('.wv-legend-item');
-      // Input/Response, Speech (STT/TTS), Prompt, Model, Tool, Agent, Feature, Context
+      // Input/Response, Speech (STT/TTS), Prompt, Model, Tool, Agent, Feature, History
       expect(items.length).toBe(8);
     });
   });
@@ -512,7 +505,7 @@ describe('WorkflowViewer graph structure', () => {
 
     test('should create 5 flow + side nodes', () => {
       // User Input, System Prompt, Model, Response = 4 flow nodes
-      // Context = 1 side node (always present)
+      // History = 1 side node (always present)
       expect(insertedVertices.length).toBe(5);
     });
 
@@ -537,7 +530,7 @@ describe('WorkflowViewer graph structure', () => {
       expect(insertedEdges.length).toBe(5);
     });
 
-    test('should create 1 feedback edge for non-monadic app without context schema', () => {
+    test('should create 1 feedback edge for a minimal app', () => {
       const feedbackEdges = insertedEdges.filter(e =>
         e.style && e.style.dashed === true && e.style.exitX === 0 && e.style.entryX === 0
       );
@@ -550,7 +543,7 @@ describe('WorkflowViewer graph structure', () => {
     });
   });
 
-  describe('Full app (tools, agents, features, context schema)', () => {
+  describe('Full app (tools, agents, features)', () => {
     beforeEach(async () => {
       await loadAppWithData(SAMPLE_FULL);
     });
@@ -561,8 +554,7 @@ describe('WorkflowViewer graph structure', () => {
       // 1 Agent: code_agent (side, right of Model)
       // 1 Features (side, right of Model) — websearch + monadic = 2 enabled
       // 1 Message History (side, left of Response) — always present
-      // 1 Monadic Context (side, left of Response) — has context_schema fields
-      expect(insertedVertices.length).toBe(9);
+      expect(insertedVertices.length).toBe(8);
     });
 
     test('should include Tools node with tool groups', () => {
@@ -585,13 +577,6 @@ describe('WorkflowViewer graph structure', () => {
       expect(featNode.value).not.toContain('pdf vector storage'); // false = excluded
     });
 
-    test('should include Monadic Context node with schema fields', () => {
-      const ctxNode = insertedVertices.find(v => v.value.includes('Monadic Context'));
-      expect(ctxNode).toBeDefined();
-      expect(ctxNode.value).toContain('Topics');
-      expect(ctxNode.value).toContain('Findings');
-    });
-
     test('should include Message History node', () => {
       const histNode = insertedVertices.find(v => v.value.includes('Message History'));
       expect(histNode).toBeDefined();
@@ -609,12 +594,12 @@ describe('WorkflowViewer graph structure', () => {
       expect(respNode.value).toContain('HTML Output');
     });
 
-    test('should create 2 feedback edges for monadic app with context schema', () => {
-      // 3 flow + 5 side (tools, agent, features, history, context) + 2 feedback = 10
+    test('should create 1 feedback edge', () => {
+      // 3 flow + 4 side (tools, agent, features, history) + 1 feedback = 8
       const feedbackEdges = insertedEdges.filter(e =>
         e.style && e.style.dashed === true && e.style.exitX === 0 && e.style.entryX === 0
       );
-      expect(feedbackEdges.length).toBe(2);
+      expect(feedbackEdges.length).toBe(1);
     });
   });
 
@@ -633,13 +618,11 @@ describe('WorkflowViewer graph structure', () => {
       expect(toolNode.geometry.width).toBe(240);
     });
 
-    test('Feature/History/Context nodes should have width of 200', () => {
+    test('Feature/History nodes should have width of 200', () => {
       const featNode = insertedVertices.find(v => v.value.includes('Features'));
       expect(featNode.geometry.width).toBe(200);
       const histNode = insertedVertices.find(v => v.value.includes('Message History'));
       expect(histNode.geometry.width).toBe(200);
-      const ctxNode = insertedVertices.find(v => v.value.includes('Monadic Context'));
-      expect(ctxNode.geometry.width).toBe(200);
     });
   });
 
@@ -868,19 +851,14 @@ describe('WorkflowViewer label generation', () => {
     expect(inputNode.value).toContain('<b>');
   });
 
-  test('Message History node should always be present even without context_schema', async () => {
-    // Even with null context_schema
-    const noSchema = { ...SAMPLE_MINIMAL, context_schema: null };
+  test('Message History node should always be present', async () => {
     global.fetch.mockResolvedValueOnce({
-      ok: true, json: async () => noSchema,
+      ok: true, json: async () => SAMPLE_MINIMAL,
     });
     window.WorkflowViewer._doLoadApp('TestApp');
     await new Promise(r => setTimeout(r, 0));
     const histNode = insertedVertices.find(v => v.value.includes('Message History'));
     expect(histNode).toBeDefined();
-    // No Monadic Context node when schema is null
-    const ctxNode = insertedVertices.find(v => v.value.includes('Monadic Context'));
-    expect(ctxNode).toBeUndefined();
   });
 
   test('titleCase should handle acronyms (PDF, HTML) correctly', async () => {
@@ -1060,7 +1038,6 @@ describe('WorkflowViewer real-time highlighting', () => {
     expect(() => window.WorkflowViewer.setStage('model')).not.toThrow();
     expect(() => window.WorkflowViewer.setStage('tools')).not.toThrow();
     expect(() => window.WorkflowViewer.setStage('response')).not.toThrow();
-    expect(() => window.WorkflowViewer.setStage('context')).not.toThrow();
     expect(() => window.WorkflowViewer.setStage('done')).not.toThrow();
   });
 
@@ -1076,7 +1053,7 @@ describe('WorkflowViewer real-time highlighting', () => {
 
   test('setStage should accept all valid stage names without error', () => {
     document.getElementById('workflow-viewer-panel').classList.remove('wv-panel-collapsed');
-    const stages = ['input', 'prompt', 'model', 'tools', 'response', 'context', 'done'];
+    const stages = ['input', 'prompt', 'model', 'tools', 'response', 'done'];
     stages.forEach(function (stage) {
       expect(() => window.WorkflowViewer.setStage(stage)).not.toThrow();
     });
@@ -1168,7 +1145,7 @@ describe('WorkflowViewer highlighting with loaded graph', () => {
   });
 
   test('sequential stage transitions should not throw', () => {
-    const sequence = ['input', 'model', 'tools', 'response', 'context', 'done'];
+    const sequence = ['input', 'model', 'tools', 'response', 'done'];
     sequence.forEach(function (stage) {
       expect(() => window.WorkflowViewer.setStage(stage)).not.toThrow();
     });

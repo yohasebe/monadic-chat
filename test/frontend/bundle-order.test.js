@@ -111,7 +111,6 @@ describe('bundle order invariants', () => {
       'js/monadic/websocket-handlers.js',
       'js/monadic/ws-privacy-handler.js',
       'js/monadic/ws-message-renderer.js',
-      'js/monadic/context-panel.js',
       'js/monadic/pdf_export.js'
     ];
 

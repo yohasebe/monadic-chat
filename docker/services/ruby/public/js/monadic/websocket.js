@@ -273,7 +273,6 @@ window.loadedApp = "Chat";
     // Answers go to the connection that asked: what was asked over the one
     // before gets none now.
     if (window.HistoryPanel && typeof window.HistoryPanel.connectionOpened === 'function') window.HistoryPanel.connectionOpened();
-    if (window.ContextPanel && typeof window.ContextPanel.connectionOpened === 'function') window.ContextPanel.connectionOpened();
     // Update state if available
     if (window.UIState) {
       window.UIState.set('wsConnected', true);
@@ -938,22 +937,6 @@ window.loadedApp = "Chat";
         break;
       }
 
-      case "context_extraction_started": {
-        const wsh = window.WsSessionHandler;
-        if (wsh && typeof wsh.handleContextExtractionStarted === 'function') {
-          wsh.handleContextExtractionStarted(data);
-        }
-        break;
-      }
-
-      case "context_extraction_ended": {
-        const wsh = window.WsSessionHandler;
-        if (wsh && typeof wsh.handleContextExtractionEnded === 'function') {
-          wsh.handleContextExtractionEnded(data);
-        }
-        break;
-      }
-
       case "word_table": {
         if (window.WordTable) window.WordTable.handleTable(data);
         break;
@@ -966,22 +949,6 @@ window.loadedApp = "Chat";
 
       case "words_changed": {
         if (window.WordTable) window.WordTable.handleChanged(data);
-        break;
-      }
-
-      case "chat_context": {
-        const wsh = window.WsSessionHandler;
-        if (wsh && typeof wsh.handleChatContext === 'function') {
-          wsh.handleChatContext(data);
-        }
-        break;
-      }
-
-      case "context_update": {
-        const wsh = window.WsSessionHandler;
-        if (wsh && typeof wsh.handleContextUpdate === 'function') {
-          wsh.handleContextUpdate(data);
-        }
         break;
       }
 

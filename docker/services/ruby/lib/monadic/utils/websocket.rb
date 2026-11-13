@@ -12,7 +12,6 @@ require_relative 'privacy/egress_guard'
 require_relative '../workspace'
 require_relative '../history'
 require_relative '../agents/ai_user_agent'
-require_relative '../agents/context_extractor_agent'
 require_relative 'boolean_parser'
 require_relative 'extra_logger'
 require_relative 'ssl_configuration'
@@ -46,7 +45,6 @@ Monadic::Utils::SSLConfiguration.configure! if defined?(Monadic::Utils::SSLConfi
 
 module WebSocketHelper
   include AIUserAgent
-  include ContextExtractorAgent
   include Monadic::SharedTools::MonadicSessionState
 
   # Access Rack session from thread-local storage in WebSocket context
@@ -208,7 +206,7 @@ module WebSocketHelper
       # Send initial load message immediately after connection
       handle_load_message(connection)
       send_workbench_view(connection, session, initial: true)
-      send_chat_context(connection, session)
+      send_word_table(connection, session) if chat_token(session)
 
       begin
         while message_data = connection.read
@@ -229,8 +227,8 @@ module WebSocketHelper
           end
 
       # The chat the tab is in before the message: when the message puts the
-      # tab in another one, or asks for a switch, the page is told the chat
-      # it is in after it (see send_chat_context).
+      # tab in another one, the page is told the words of the chat it is in
+      # after it.
       chat_before = chat_token(session)
 
       case msg
@@ -446,7 +444,7 @@ module WebSocketHelper
           started = handle_ws_streaming(connection, obj, session, queue)
           thread = started if started
         end
-        send_chat_context(connection, session, switch: obj["switch"]) if obj.key?("switch") || chat_token(session) != chat_before
+        send_word_table(connection, session) if chat_token(session) != chat_before
       end # end while
     end
 

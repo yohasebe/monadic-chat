@@ -1378,15 +1378,10 @@ function doResetActions(resetToDefaultApp = false) {
   // WebSocket is not OPEN; the LOAD reply is what populates the new
   // session, so the submission order matters and is preserved by
   // safeWsSend's drain (see docs_dev/frontend/safe_ws_send.md).
-  window.sendChatSwitch({ "message": "RESET" });
+  window.safeWsSend({ "message": "RESET" });
   // Get UI language from cookie or default to 'en'
   const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
   window.safeWsSend({ "message": "LOAD", "ui_language": uiLanguage });
-
-  // Reset Context Panel for monadic apps
-  if (typeof ContextPanel !== "undefined" && ContextPanel.resetContext) {
-    ContextPanel.resetContext();
-  }
 
   // The speech-to-speech cost readout is per-conversation. This is the live
   // reset path — ws-audio-queue.js's resetSessionState also clears it but has
@@ -1669,18 +1664,6 @@ document.addEventListener("DOMContentLoaded", function() {
         WorkflowViewer.loadApp(selectedApp);
       }
 
-      // Show/hide Context Panel based on monadic setting
-      if (typeof ContextPanel !== "undefined" && apps && apps[selectedApp]) {
-        const isMonadic = apps[selectedApp]["monadic"] === true ||
-                          apps[selectedApp]["monadic"] === "true";
-        if (isMonadic) {
-          // Get context_schema from app settings if defined
-          const contextSchema = apps[selectedApp]["context_schema"] || null;
-          ContextPanel.show(selectedApp, contextSchema);
-        } else {
-          ContextPanel.hide();
-        }
-      }
     });
   }
 

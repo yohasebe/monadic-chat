@@ -125,7 +125,7 @@ module WebSocketHelper
       retired = prune_session_state(keep: session_id)
       state[:generation] = state[:generation].to_i + 1
     end
-    retired.each { |chat_id, epoch| Monadic::Workspace::ChatContext.retire(chat_id, epoch) }
+    retired.each { |chat_id, epoch| Monadic::Workspace::Chats.renew_epoch!(chat_id, from: epoch) }
     generation
   end
 
@@ -349,9 +349,9 @@ module WebSocketHelper
   end
 
   # Called with the mutex held. Returns the chats no tab keeps (or is
-  # taking from the history) any more, each with its epoch now: their
-  # context goes with them (Monadic::Workspace::ChatContext.retire, called
-  # once the mutex is let go, and only for a chat still at that epoch).
+  # taking from the history) any more, each with its epoch now: work begun
+  # for one changes nothing from then on (its epoch is renewed once the
+  # mutex is let go, and only for a chat still at that epoch).
   def self.prune_session_state(keep: nil)
     now = monotonic_now
     idle = @@session_state.reject { |id, _| id == keep || @@live_sessions.key?(id) }

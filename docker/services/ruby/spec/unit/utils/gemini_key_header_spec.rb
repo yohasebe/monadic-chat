@@ -12,7 +12,6 @@ require_relative '../../../lib/monadic/agents/audio_transcription_agent'
 require_relative '../../../lib/monadic/agents/image_analysis_agent'
 require_relative '../../../lib/monadic/agents/video_analyze_agent'
 require_relative '../../../lib/monadic/utils/gemini_omni_video'
-require_relative '../../../lib/monadic/agents/context_extractor_agent'
 require_relative '../../../lib/monadic/shared_tools/parallel_dispatch'
 require_relative '../../../lib/monadic/utils/websocket'
 require_relative '../../../lib/monadic/utils/websocket/sts_stream_handler'
@@ -230,12 +229,6 @@ RSpec.describe 'Gemini request transport invariants' do
       allow(Monadic::Utils::ProgressBroadcaster).to receive(:with_progress).and_yield
     end
     after { FileUtils.rm_rf(@shared) }
-
-    it 'authenticates context extraction in headers' do
-      host = Class.new { include ContextExtractorAgent }.new
-      host.send(:call_gemini_api, 'gemini-test', 'Hello', key)
-      expect_header_auth
-    end
 
     it 'authenticates native image generation in headers' do
       helper.generate_image_with_gemini_native(prompt: 'Hello', model: 'gemini-3.1-flash-image')

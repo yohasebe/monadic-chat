@@ -96,7 +96,6 @@ module WebSocketHelper
             end
           end
 
-
           type_continue = "Press <button class='btn btn-secondary btn-sm contBtn'>continue</button> to get more results\n"
           code_truncated = "[CODE BLOCK TRUNCATED]"
 
@@ -267,73 +266,6 @@ module WebSocketHelper
           info_message = { "type" => "info", "content" => past_messages_data }.to_json
           send_or_broadcast(info_message, ws_session_id)
 
-          # Context extraction for monadic apps (automatic context tracking)
-          # This runs AFTER the response is sent to the user, in a background thread
-          # Uses direct HTTP API calls to avoid re-triggering WebSocket flow
-          if params["monadic"]
-            begin
-              Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Monadic mode detected, starting context extraction setup" }
-
-              # Get the provider and context_schema from the app settings
-              app_name = params["app_name"]
-              app = APPS[app_name] if defined?(APPS) && app_name
-              provider = app&.settings&.dig("provider") || app&.settings&.dig(:provider) || "openai"
-              context_schema = app&.settings&.dig(:context_schema) || app&.settings&.dig("context_schema")
-
-              Monadic::Utils::ExtraLogger.log { "[ContextExtractor] app_name=#{app_name}, provider=#{provider}, context_schema=#{context_schema ? 'present' : 'nil'}" }
-
-              # Find the last user message from session messages
-              user_messages = messages.select { |m| m["role"] == "user" }
-              last_user_message = user_messages.last
-              # Support both "text" and "content" keys for user messages
-              user_text = if last_user_message
-                last_user_message["text"] ||
-                last_user_message[:text] ||
-                (last_user_message["content"].is_a?(String) ? last_user_message["content"] : nil) ||
-                (last_user_message["content"].is_a?(Array) ? last_user_message["content"].map { |c| c.is_a?(Hash) ? (c["text"] || c[:text]) : c.to_s }.compact.join("\n") : nil) ||
-                ""
-              else
-                ""
-              end
-
-              # Capture session data for thread (avoid closure issues)
-              thread_session = session.dup
-              thread_ws_session_id = ws_session_id
-              thread_context_schema = context_schema
-              # The chat the context is extracted for, and its epoch: the
-              # context is kept only while the chat is at that epoch. job
-              # tells the page which extraction a context or its end is of.
-              extraction = { chat: Monadic::Workspace::ChatContext.work_chat(session), job: SecureRandom.hex(8) }
-
-              # Only extract context if we have both user message and assistant response
-              if extraction[:chat] && !user_text.empty? && !final_text.to_s.empty?
-                chat = extraction[:chat]
-                start_message = { type: "context_extraction_started", job: extraction[:job],
-                                  chat: Monadic::Workspace::ChatContext.token(chat[:id], chat[:epoch]) }.to_json
-                WebSocketHelper.send_to_live_connection(thread_ws_session_id, start_message, chat_id: chat[:id])
-
-                # Run context extraction in a separate thread to avoid blocking
-                Thread.new do
-                  begin
-                    process_and_broadcast_context(
-                      thread_session,
-                      user_text,
-                      final_text,
-                      provider,
-                      thread_ws_session_id,
-                      thread_context_schema,
-                      extraction: extraction
-                    )
-                  rescue StandardError => ctx_err
-                    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Background error: #{ctx_err.message}\n[ContextExtractor] Backtrace: #{ctx_err.backtrace.first(3).join("\n")}" }
-                  end
-                end
-              end
-            rescue StandardError => ctx_setup_err
-              # Don't let context extraction setup errors affect the main flow
-              Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Setup error: #{ctx_setup_err.message}" }
-            end
-          end
         rescue StandardError => e
           STDERR.puts "Error processing request: #{e.message}"
           ws_session_id = Thread.current[:websocket_session_id]

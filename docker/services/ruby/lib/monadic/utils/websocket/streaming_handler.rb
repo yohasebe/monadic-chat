@@ -152,36 +152,6 @@ module WebSocketHelper
     res
   end
 
-  # Calculate the turn number for an assistant message.
-  # Turn numbers are 1-indexed based on assistant message order.
-  # @param messages [Array] The messages array
-  # @param message_index [Integer] The index of the message
-  # @return [Integer, nil] The turn number or nil if not an assistant message
-  def calculate_turn_number(messages, message_index)
-    return nil unless messages && message_index
-
-    message = messages[message_index]
-    return nil unless message && message["role"] == "assistant"
-
-    # Count assistant messages up to and including this one
-    turn = 0
-    messages.each_with_index do |m, idx|
-      turn += 1 if m["role"] == "assistant"
-      return turn if idx == message_index
-    end
-    nil
-  end
-
-  # Get context schema from session.
-  # @param rack_session [Hash] The session
-  # @return [Hash, nil] The context schema or nil
-  def get_context_schema(rack_session)
-    monadic_state = rack_session[:monadic_state] || rack_session["monadic_state"]
-    return nil unless monadic_state
-
-    monadic_state[:context_schema] || monadic_state["context_schema"]
-  end
-
   # Main streaming handler — processes LLM API responses with realtime TTS,
   # fragment buffering, post-completion TTS, and context extraction.
   # @return [Thread] The streaming thread (returned for orchestrator control)

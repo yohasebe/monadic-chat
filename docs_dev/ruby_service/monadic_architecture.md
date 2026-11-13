@@ -34,7 +34,6 @@ An app whose MDSL sets `turn_state true` (`Monadic::TurnState.enabled?`, `lib/mo
 | Where | Effect |
 |---|---|
 | UI (`utilities.js`, `ws-app-data-handlers.js`) | Monadic badge |
-| `html_handler.rb` | Runs context extraction in a background thread after the response (`process_and_broadcast_context`, with the app's `context_schema`) for the sidebar |
 
 `monadic true` adds no tools; the app imports `session_context` or defines its own load and save tools.
 
@@ -45,5 +44,4 @@ An app whose MDSL sets `turn_state true` (`Monadic::TurnState.enabled?`, `lib/mo
 ## Related Documentation
 
 - `docs/advanced-topics/monadic-mode.md`
-- `docs/advanced-topics/session-context.md`
 - `docs/advanced-topics/monadic_dsl.md`

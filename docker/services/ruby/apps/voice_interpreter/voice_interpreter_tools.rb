@@ -65,6 +65,12 @@ module VoiceInterpreterTools
 
   private
 
+  # What the model is given of the state with each request, as load_context
+  # returns it (Monadic::TurnState::ModelState).
+  def state_for_model(session)
+    { data: load_context_internal(session), load_tool: "load_context" }
+  end
+
   # The interpreter's notes on the work screen (Monadic::TurnState::Notes).
   def state_notes
     { title: "Interpreter notes", key: STATE_KEY, values: { "source_lang" => "From", "target_lang" => "To" },

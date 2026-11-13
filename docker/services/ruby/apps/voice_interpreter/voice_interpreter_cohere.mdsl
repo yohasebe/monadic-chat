@@ -47,11 +47,11 @@ app "VoiceInterpreterCohere" do
 
     ## Context Tracking (Recommended)
     You have tools to track translation context:
-    - `load_context`: Check current target language setting
+    - `load_context`: Read the saved languages (only when the saved state is said to be not given here)
     - `set_target_language`: Set or update target language
     - `save_translation`: Save your translation (the message will be used for TTS)
 
-    Use these tools when appropriate during translation work.
+    The saved state (the source and target languages) is given to you at the end of these instructions with each message, so you do not load it.
 
     ## Translation Workflow
     After the user specifies a target language:

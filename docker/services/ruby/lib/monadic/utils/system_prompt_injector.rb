@@ -5,6 +5,7 @@ require_relative 'tts_marker_vocabulary'
 require_relative 'capability_notes'
 require_relative '../workbench/outputs'
 require_relative '../turn_state/notes'
+require_relative '../turn_state/model_state'
 
 module Monadic
   module Utils
@@ -398,6 +399,18 @@ module Monadic
           generator: ->(session, _options) {
             path = Monadic::TurnState::Notes.current(session)
             path && format(STATE_NOTES_PROMPT, path: Monadic::Utils::SystemPromptInjector.path_as_sent(session, path))
+          }
+        },
+        # The app's state as its load tool gives it (Monadic::TurnState::
+        # ModelState), last: it changes with each reply that saves.
+        {
+          name: :app_state,
+          priority: 13,
+          condition: ->(session, _options) {
+            !Monadic::TurnState::ModelState.declaring_app(session).nil?
+          },
+          generator: ->(session, _options) {
+            Monadic::TurnState::ModelState.prompt(session)
           }
         }
       ].freeze

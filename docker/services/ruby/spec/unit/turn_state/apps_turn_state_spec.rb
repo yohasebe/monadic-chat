@@ -166,6 +166,15 @@ RSpec.describe "the Monadic apps' state by turn" do
       expect(JSON.parse(practice.load_context(session: session))["data"]["last_message"]).to eq("Good try!")
     end
 
+    it "gives the model what load_context returns, and names that tool" do
+      run_reply { practice.save_response(message: "Hola", target_lang: "Spanish", language_advice: ["Roll the r"], session: session) }
+
+      declared = practice.send(:state_for_model, session)
+
+      expect(declared[:load_tool]).to eq("load_context")
+      expect(JSON.parse(JSON.generate(declared[:data]))).to eq(JSON.parse(practice.load_context(session: session))["data"])
+    end
+
     it "shows the language and the advice on its notes" do
       run_reply { practice.save_response(message: "Hola", target_lang: "Spanish", language_advice: ["Roll the r"], session: session) }
 

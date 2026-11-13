@@ -117,6 +117,88 @@ RSpec.describe "the workbench when a reply is recorded" do
     expect(session[:messages].count { |m| m["state_changes"] }).to eq(1)
   end
 
+  describe "the state a reply changed, and its Cancel" do
+    let(:running) { [] }
+
+    before do
+      allow(Monadic::Workbench::Caller).to receive(:current) { running[0] }
+      Monadic::TurnState.reset!
+      stub_const("APPS", { "FakeApp" => state_app(running) })
+      session[:parameters] = { "app_name" => "FakeApp" }
+    end
+
+    def start_reply
+      host.send(:handle_ws_streaming, nil, { "message" => "note", "app_name" => "FakeApp" }, session, queue)
+    end
+
+    def notes
+      Monadic::TurnState.value(session, "notes")
+    end
+
+    def next_reply_can_write
+      thread = start_reply
+      host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+      thread.join(5)
+      session[:messages].last.key?("state_changes")
+    end
+
+    it "lets the changes go when the reply is stopped before it is taken to be recorded" do
+      thread = start_reply
+      wait_for_answer_made(thread)
+      host.send(:stop_reply_work, thread)
+      host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+      thread.join(5)
+
+      expect(session[:messages].none? { |m| m.key?("state_changes") }).to be(true)
+      expect(notes[:found]).to be(false)
+      expect(next_reply_can_write).to be(true)
+    end
+
+    it "keeps the changes when the stop comes after the reply was taken to be recorded" do
+      thread = start_reply
+      wait_for_answer_made(thread)
+      allow(Monadic::Workbench::Made).to receive(:seal).and_wrap_original do |original, *args|
+        WebSocketHelper::Replies.cancel(thread[:reply_handle])
+        original.call(*args)
+      end
+      host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+      thread.join(5)
+
+      expect(session[:messages].last["state_changes"]).to include(a_hash_including("key" => "notes"))
+      expect(notes).to include(found: true, data: { "a" => 1 })
+    end
+
+    it "lets the changes go when the message fails before it joins the chat" do
+      thread = start_reply
+      wait_for_answer_made(thread)
+      allow(host).to receive(:send_or_broadcast) do |msg, *_|
+        raise IOError, "the page went away" if JSON.parse(msg)["type"] == "html"
+
+        broadcasts << JSON.parse(msg)
+      end
+      host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+      thread.join(5)
+
+      expect(session[:messages].none? { |m| m.key?("state_changes") }).to be(true)
+      expect(notes[:found]).to be(false)
+      allow(host).to receive(:send_or_broadcast) { |msg, *_| broadcasts << JSON.parse(msg) }
+      expect(next_reply_can_write).to be(true)
+    end
+
+    it "gives the changes to one message only: the answer is taken to be recorded once, and sealed once" do
+      thread = start_reply
+      wait_for_answer_made(thread)
+      handle = thread[:reply_handle]
+      host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+      thread.join(5)
+      request_id = session[:messages].find { |m| m["role"] == "user" }["request_id"]
+
+      expect(session[:messages].count { |m| m.key?("state_changes") }).to eq(1)
+      expect(handle.take_for_saving).to be(false)
+      expect(Monadic::TurnState.seal(request_id, session)).to be_nil
+    end
+  end
+
   it "gives the files the reply showed to its message before it is sent" do
     require_relative "../../../lib/monadic/shared_tools/workbench_tools"
     File.write(File.join(shared, "plan.md"), "# Plan")

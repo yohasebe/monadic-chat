@@ -80,13 +80,16 @@ module Monadic
       entry.is_a?(Hash) ? (entry[:data] || entry['data']) : nil
     end
 
-    # The items of collection, oldest first: [{ id:, data: }].
+    # The items of collection, oldest first: [{ id:, data:, by: }] (by: the
+    # mid of the message that changed it last; nil for the base or the
+    # running reply).
     def items(session, collection)
       app = app_of(session)
-      index = committed(session, app)[:items][collection] || { order: [], data: {}, removed: {} }
+      index = committed(session, app)[:items][collection] || { order: [], data: {}, removed: {}, by: {} }
       order = index[:order].dup
       data = index[:data].dup
       removed = index[:removed].dup
+      by = index[:by].dup
       pending_items(session, app, collection).each do |change|
         id = change['id']
         order << id unless order.include?(id)
@@ -96,8 +99,9 @@ module Monadic
           removed.delete(id)
           data[id] = change['data']
         end
+        by[id] = nil
       end
-      order.filter_map { |id| { id: id, data: data[id] } if data.key?(id) && !removed[id] }
+      order.filter_map { |id| { id: id, data: data[id], by: by[id] } if data.key?(id) && !removed[id] }
     end
 
     # --- changing (for the running reply) ----------------------------------
@@ -319,7 +323,7 @@ module Monadic
         Array(Form.clean_changes(message[Form::STATE_CHANGES_KEY])).each do |change|
           next unless change['app'] == app
 
-          change['kind'] == 'value' ? fold_value(values, change, message) : fold_item(items, change)
+          change['kind'] == 'value' ? fold_value(values, change, message) : fold_item(items, change, message)
         end
       end
       { values: values, items: items }
@@ -328,13 +332,14 @@ module Monadic
     def fold_value(values, change, message)
       version = (values[change['key']]&.dig(:version) || 0) + 1
       values[change['key']] = { found: change['op'] == 'set', data: change['data'], version: version,
-                                updated_at: message['timestamp'] }
+                                updated_at: message['timestamp'], by: message['mid'] }
     end
 
-    def fold_item(items, change)
-      index = (items[change['collection']] ||= { order: [], data: {}, removed: {} })
+    def fold_item(items, change, message)
+      index = (items[change['collection']] ||= { order: [], data: {}, removed: {}, by: {} })
       id = change['id']
       index[:order] << id unless index[:order].include?(id)
+      index[:by][id] = message['mid']
       if change['op'] == 'remove'
         index[:removed][id] = true
       else
@@ -353,7 +358,7 @@ module Monadic
       data.each_with_object({}) do |(collection, found), out|
         next unless found.is_a?(Hash)
 
-        out[collection.to_s] = { order: found.keys.map(&:to_s), data: found.transform_keys(&:to_s), removed: {} }
+        out[collection.to_s] = { order: found.keys.map(&:to_s), data: found.transform_keys(&:to_s), removed: {}, by: {} }
       end
     end
 

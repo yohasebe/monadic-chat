@@ -114,6 +114,22 @@ module NovelWriterTools
 
   private
 
+  # The story's notes on the work screen (Monadic::TurnState::Notes): its
+  # settings and characters, as the conversation leaves them.
+  def state_notes
+    { title: "Story notes", key: STATE_KEY,
+      values: { "grand_plot" => "Plot", "summary_so_far" => "Summary so far", "language" => "Language",
+                "total_text_amount" => "Target length" },
+      lists: { CHARACTERS => { label: "Characters", name: "name",
+                               fields: { "role" => "Role", "specification" => "Description" } } } }
+  end
+
+  # The amount written and the progress, counted from the story.
+  def state_notes_extra(session)
+    data = JSON.parse(load_novel_context(session: session))["data"] || {}
+    { "Written so far" => data["text_amount_so_far"].to_s, "Progress" => data["progress"] }
+  end
+
   # The story's settings now (a Hash with string keys).
   def novel_settings(session)
     data = JSON.parse(monadic_load_state(key: STATE_KEY, default: {}, session: session))["data"]

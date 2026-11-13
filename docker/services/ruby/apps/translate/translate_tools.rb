@@ -123,6 +123,14 @@ module TranslateTools
 
   private
 
+  # The translation's notes on the work screen (Monadic::TurnState::Notes):
+  # its languages and vocabulary, as the conversation leaves them.
+  def state_notes
+    { title: "Translation notes", key: STATE_KEY,
+      values: { "source_lang" => "From", "target_lang" => "To" },
+      lists: { "vocabulary" => { label: "Vocabulary", name: "original_text", fields: { "translation" => "Translation" } } } }
+  end
+
   # Internal helper to load context as Ruby hash (not JSON string)
   def load_translation_context_internal(session)
     result = JSON.parse(monadic_load_record(key: STATE_KEY, lists: LISTS, default: {}, session: session))

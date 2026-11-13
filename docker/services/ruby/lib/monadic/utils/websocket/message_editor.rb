@@ -13,6 +13,7 @@ require_relative '../../workbench/turn_trash'
 require_relative '../../workbench/revision'
 require_relative '../../workbench/document'
 require_relative '../../turn_state'
+require_relative '../../turn_state/notes'
 
 module WebSocketHelper
   # Handle DELETE message
@@ -39,6 +40,7 @@ module WebSocketHelper
     rack_session[:messages]&.delete_if { |m| m["mid"] == obj["mid"] }
     # The app state is made again without the deleted turn's changes.
     Monadic::TurnState.changed!(rack_session[Monadic::Workspace::Chats::SESSION_KEY]) if defined?(Monadic::TurnState)
+    Monadic::TurnState::Notes.refresh(rack_session)
     later = deleted ? Array(rack_session[:messages])[message_index..] || [] : []
     rebuild_documents(rack_session) unless trash_made_files(rack_session, deleted, later).empty?
 

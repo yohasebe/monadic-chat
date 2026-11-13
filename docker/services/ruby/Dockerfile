@@ -32,11 +32,13 @@ RUN BUNDLE_GEMFILE=$RSYNTAXTREE_HOME/Gemfile BUNDLE_PATH=$RSYNTAXTREE_HOME/gems 
 ENV WORKSPACE=/monadic
 WORKDIR $WORKSPACE
 
-COPY Gemfile monadic.gemspec $WORKSPACE/
+COPY Gemfile Gemfile.lock monadic.gemspec $WORKSPACE/
 COPY config.ru $WORKSPACE/
 
+# The app's gems, each at the version and checksum of Gemfile.lock (a gem
+# that differs, or a Gemfile the lock does not match, stops the build)
 ENV BUNDLER_WITHOUT="development test"
-RUN bundle install -j4 && \
+RUN BUNDLE_FROZEN=true bundle install -j4 && \
     rm -rf /usr/local/bundle/cache/*
 
 # Stage 2: Runtime environment

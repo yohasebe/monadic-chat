@@ -60,6 +60,8 @@ tags
 Gemfile.lock
 # RSyntaxTree's bundle in the Ruby container is installed from its lock file
 !/docker/services/ruby/rsyntaxtree/Gemfile.lock
+# The Ruby service's gems are installed from its lock file, in the image and on the host
+!/docker/services/ruby/Gemfile.lock
 .ruby-version
 .ruby-gemset
 /.ruby-lsp/

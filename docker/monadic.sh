@@ -611,8 +611,8 @@ build_ruby_container() {
   local dockerfile="${ROOT_DIR}/services/ruby/Dockerfile"
   # Compute gems fingerprint for labeling
   local gems_hash
-  if [ -f "${ROOT_DIR}/services/ruby/Gemfile" ] && [ -f "${ROOT_DIR}/services/ruby/monadic.gemspec" ]; then
-    gems_hash=$(cat "${ROOT_DIR}/services/ruby/Gemfile" "${ROOT_DIR}/services/ruby/monadic.gemspec" | sha256sum | awk '{print $1}')
+  if [ -f "${ROOT_DIR}/services/ruby/Gemfile" ] && [ -f "${ROOT_DIR}/services/ruby/monadic.gemspec" ] && [ -f "${ROOT_DIR}/services/ruby/rsyntaxtree/Gemfile.lock" ]; then
+    gems_hash=$(cat "${ROOT_DIR}/services/ruby/Gemfile" "${ROOT_DIR}/services/ruby/monadic.gemspec" "${ROOT_DIR}/services/ruby/rsyntaxtree/Gemfile.lock" | sha256sum | awk '{print $1}')
   else
     gems_hash="unknown"
   fi
@@ -1193,8 +1193,8 @@ build_docker_compose() {
   
   # Calculate gems fingerprint for Ruby container labeling
   local gems_fingerprint
-  if [ -f "${ROOT_DIR}/services/ruby/Gemfile" ] && [ -f "${ROOT_DIR}/services/ruby/monadic.gemspec" ]; then
-    gems_fingerprint=$(cat "${ROOT_DIR}/services/ruby/Gemfile" "${ROOT_DIR}/services/ruby/monadic.gemspec" | sha256sum | awk '{print $1}')
+  if [ -f "${ROOT_DIR}/services/ruby/Gemfile" ] && [ -f "${ROOT_DIR}/services/ruby/monadic.gemspec" ] && [ -f "${ROOT_DIR}/services/ruby/rsyntaxtree/Gemfile.lock" ]; then
+    gems_fingerprint=$(cat "${ROOT_DIR}/services/ruby/Gemfile" "${ROOT_DIR}/services/ruby/monadic.gemspec" "${ROOT_DIR}/services/ruby/rsyntaxtree/Gemfile.lock" | sha256sum | awk '{print $1}')
   else
     gems_fingerprint="unknown"
   fi
@@ -1673,8 +1673,8 @@ start_docker_compose() {
   if command -v sha256sum >/dev/null 2>&1; then
     if [ "$needs_full_rebuild" != true ] && [ "$needs_selective_rebuild" != true ] && [ "$needs_ruby_rebuild" != true ]; then
       local gems_hash current_hash image_ref
-      if [ -f "${ROOT_DIR}/services/ruby/Gemfile" ] && [ -f "${ROOT_DIR}/services/ruby/monadic.gemspec" ]; then
-        gems_hash=$(cat "${ROOT_DIR}/services/ruby/Gemfile" "${ROOT_DIR}/services/ruby/monadic.gemspec" | sha256sum | awk '{print $1}')
+      if [ -f "${ROOT_DIR}/services/ruby/Gemfile" ] && [ -f "${ROOT_DIR}/services/ruby/monadic.gemspec" ] && [ -f "${ROOT_DIR}/services/ruby/rsyntaxtree/Gemfile.lock" ]; then
+        gems_hash=$(cat "${ROOT_DIR}/services/ruby/Gemfile" "${ROOT_DIR}/services/ruby/monadic.gemspec" "${ROOT_DIR}/services/ruby/rsyntaxtree/Gemfile.lock" | sha256sum | awk '{print $1}')
         image_ref="yohasebe/monadic-chat:${MONADIC_VERSION}"
         if ! ${DOCKER} images --format '{{.Repository}}:{{.Tag}}' | grep -q "^${image_ref}$"; then
           image_ref="yohasebe/monadic-chat:latest"

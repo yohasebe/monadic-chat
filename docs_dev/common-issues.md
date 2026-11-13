@@ -99,8 +99,8 @@ while passing in CI.
 - When assembling shell scripts on Ruby side, finalize flags like `needs_cjk` in Ruby before embedding in strings. Expanding uninitialized variables causes `bash: needs_cjk: unbound variable` errors
 
 ### Syntax Tree draws nothing in development mode
-- Syntax Tree runs the `rsyntaxtree` command outside the app's bundle (`apps/syntax_tree/syntax_tree_tools.rb`). The Ruby image installs the gem with its libraries and fonts (`docker/services/ruby/Dockerfile`)
-- With `rake server:debug` the command runs on the host: install Pango and librsvg (`brew install pango librsvg`), then `gem install rsyntaxtree` with the version the Dockerfile names (`RSYNTAXTREE_VERSION`). The Noto fonts (Noto Serif, Noto Serif CJK JP) give the same look as the container
+- Syntax Tree runs the `rsyntaxtree` command outside the app's bundle (`apps/syntax_tree/syntax_tree_tools.rb`). The Ruby image installs it as a bundle of its own in `/opt/rsyntaxtree`, with every gem at the version and checksum of `docker/services/ruby/rsyntaxtree/Gemfile.lock`, and with its libraries and fonts (`docker/services/ruby/Dockerfile`); the image's `rsyntaxtree` command runs it in that bundle. To change a version, edit `rsyntaxtree/Gemfile` and make the lock file again in the image's Ruby (`bundle lock --add-platform ruby x86_64-linux aarch64-linux`, then `bundle lock --add-checksums`)
+- With `rake server:debug` the command runs on the host: install Pango and librsvg (`brew install pango librsvg`), then `gem install rsyntaxtree` with the version `docker/services/ruby/rsyntaxtree/Gemfile` names. The Noto fonts (Noto Serif, Noto Serif CJK JP) give the same look as the container
 
 ### ABC or Mermaid blocks corrupted in rendered messages
 

@@ -20,9 +20,14 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # RSyntaxTree is run as a command, outside the app's bundle (the bundle is
-# also used on the host, where these libraries are not needed)
-ARG RSYNTAXTREE_VERSION=2.6.0
-RUN gem install rsyntaxtree -v "$RSYNTAXTREE_VERSION" --no-document
+# also used on the host, where these libraries are not needed): a bundle of
+# its own, in its own place, with every gem at the version and checksum of
+# rsyntaxtree/Gemfile.lock (a gem that differs stops the build)
+ENV RSYNTAXTREE_HOME=/opt/rsyntaxtree
+COPY rsyntaxtree/Gemfile rsyntaxtree/Gemfile.lock $RSYNTAXTREE_HOME/
+RUN BUNDLE_GEMFILE=$RSYNTAXTREE_HOME/Gemfile BUNDLE_PATH=$RSYNTAXTREE_HOME/gems BUNDLE_FROZEN=true \
+    bundle install -j4 && \
+    rm -rf $RSYNTAXTREE_HOME/gems/ruby/*/cache
 
 ENV WORKSPACE=/monadic
 WORKDIR $WORKSPACE
@@ -82,6 +87,13 @@ WORKDIR $WORKSPACE
 
 COPY --from=build /usr/local/bundle /usr/local/bundle
 COPY --from=build $WORKSPACE $WORKSPACE
+
+# The rsyntaxtree command: RSyntaxTree run in its own bundle
+ENV RSYNTAXTREE_HOME=/opt/rsyntaxtree
+COPY --from=build $RSYNTAXTREE_HOME $RSYNTAXTREE_HOME
+RUN printf '%s\n' '#!/bin/sh' \
+      "BUNDLE_GEMFILE=$RSYNTAXTREE_HOME/Gemfile BUNDLE_PATH=$RSYNTAXTREE_HOME/gems BUNDLE_FROZEN=true exec bundle exec rsyntaxtree \"\$@\"" \
+      > /usr/local/bin/rsyntaxtree && chmod +x /usr/local/bin/rsyntaxtree
 
 COPY apps/ $WORKSPACE/apps/
 COPY lib/ $WORKSPACE/lib/

@@ -2257,10 +2257,21 @@ module OpenAIHelper
     normalized
   end
 
+  # A tool call's arguments as a Hash. Arguments that are JSON as given are
+  # taken as they are: typographic quotes and full-width punctuation inside
+  # a string are the model's text, not JSON syntax. Only arguments that do
+  # not parse are normalized (and then repaired).
   def parse_function_call_arguments(raw_arguments, function_name: nil)
-    normalized = normalize_function_call_arguments(raw_arguments)
-    return {} if normalized.strip.empty?
+    return {} if raw_arguments.to_s.strip.empty?
 
+    begin
+      given = JSON.parse(raw_arguments)
+      return given if given.is_a?(Hash)
+    rescue JSON::ParserError
+      # normalized below
+    end
+
+    normalized = normalize_function_call_arguments(raw_arguments)
     JSON.parse(normalized)
   rescue JSON::ParserError => e
     repaired = JSONRepair.attempt_repair(normalized)

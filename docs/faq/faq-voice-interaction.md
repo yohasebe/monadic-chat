@@ -49,7 +49,7 @@
 - **OpenAI models**: Multiple models with varying accuracy and features. Advanced models support speaker identification (diarization) for multi-person audio.
 - **Google Gemini**: Provides advanced audio understanding with flexible language recognition and multilingual support.
 - **ElevenLabs Scribe**: High-accuracy speech recognition with word-level timestamps. Requires an ElevenLabs API key.
-- **Cohere**: Speech recognition with the Cohere Transcribe model. Requires a Cohere API key.
+- **Cohere**: Speech recognition with the Cohere Transcribe model. Requires a Cohere API key. The model does not detect the language: when **Conversation Language** is set to automatic, speech is recognized in the UI language.
 - **Mistral Voxtral**: Speech recognition with Mistral's Voxtral Transcribe model. Requires a Mistral API key.
 - **xAI**: Speech recognition powered by xAI. Requires an xAI API key.
 

@@ -34,7 +34,8 @@ module WebSocketHelper
     session[:parameters]["stt_model"] = model
 
     # Process the transcription
-    process_transcription(connection, blob, format, obj["lang_code"], model, ws_session_id)
+    lang_code = stt_language(obj["lang_code"], model, session[:parameters]["ui_language"])
+    process_transcription(connection, blob, format, lang_code, model, ws_session_id)
   end
 
   # Process audio transcription

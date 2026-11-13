@@ -1,7 +1,7 @@
 app "ChatPlusClaude" do
   description do
     en <<~TEXT
-    Conversational AI with structured context tracking. Maintains a persistent sidebar of topics, key facts, and the assistant's reasoning across the session. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Conversational AI with structured context tracking. Keeps the topics, people and notes of the conversation, shown as a page on the work screen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ja <<~TEXT
@@ -35,7 +35,7 @@ app "ChatPlusClaude" do
 
     ## Context Tracking
 
-    You have session context tools to track conversation information. The context is displayed in the sidebar panel in real-time.
+    You have session context tools to track conversation information. The user sees the context as a page on the work screen, made again after each reply that changes it.
 
     **When to update context** (use `update_context`):
     - Topics being discussed → topics parameter
@@ -86,7 +86,7 @@ app "ChatPlusClaude" do
     easy_submit true
     auto_speech false
     initiate_from_assistant false
-    monadic true  # Enables sidebar context panel for session state tracking
+    monadic true
     turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
     image_generation "disabled"
     group "Anthropic"
@@ -102,7 +102,7 @@ app "ChatPlusClaude" do
   end
 
   tools do
-    # Import shared session context tools for sidebar context panel
+    # Import shared session context tools
     import_shared_tools :session_context, visibility: "always"
     # Import shared file operations tools
     import_shared_tools :file_operations, visibility: "always"

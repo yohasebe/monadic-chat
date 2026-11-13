@@ -768,12 +768,12 @@ module MonadicSharedTools
         tools: [
           {
             name: "get_context",
-            description: "Get current conversation context from session. The context is also displayed in the sidebar panel.",
+            description: "Get the conversation context kept so far (topics, people, notes). The user sees it as a page on the work screen.",
             parameters: []
           },
           {
             name: "update_context",
-            description: "Update conversation context by adding new topics, people, or notes. Items are merged with existing context by default. The sidebar panel will update automatically.",
+            description: "Update conversation context by adding new topics, people, or notes. Items are merged with existing context by default. The page on the work screen is made again after the reply.",
             parameters: [
               {
                 name: :topics,
@@ -806,7 +806,7 @@ module MonadicSharedTools
           },
           {
             name: "remove_from_context",
-            description: "Remove specific items from conversation context. The sidebar panel will update automatically.",
+            description: "Remove specific items from conversation context. The page on the work screen is made again after the reply.",
             parameters: [
               {
                 name: :topics,
@@ -833,11 +833,11 @@ module MonadicSharedTools
           },
           {
             name: "clear_context",
-            description: "Clear all conversation context (topics, people, notes). The sidebar panel will update automatically.",
+            description: "Clear all conversation context (topics, people, notes). The page on the work screen is made again after the reply.",
             parameters: []
           }
         ],
-        default_hint: "Use session context tools to track conversation topics, people, and notes. Context is displayed in the sidebar panel."
+        default_hint: "Use session context tools to track conversation topics, people, and notes. The user sees the context as a page on the work screen."
       },
 
       jupyter_operations: {

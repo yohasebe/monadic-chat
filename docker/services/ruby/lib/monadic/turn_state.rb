@@ -2,6 +2,7 @@
 
 require 'json'
 require 'securerandom'
+require 'digest'
 require_relative 'turn_state/form'
 require_relative 'workspace/chats'
 require_relative 'workbench/caller'
@@ -119,6 +120,12 @@ module Monadic
       id = id.to_s.empty? ? "i_#{SecureRandom.alphanumeric(10).downcase}" : id.to_s
       change!(session, { 'kind' => 'item', 'collection' => collection.to_s, 'id' => id, 'op' => 'set', 'data' => data })
       id
+    end
+
+    # The id of an item that is a text: the same wherever the text is put
+    # again.
+    def text_id(text)
+      "t_#{Digest::SHA256.hexdigest(text.to_s)[0, 24]}"
     end
 
     def remove_item(session, collection, id)

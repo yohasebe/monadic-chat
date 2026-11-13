@@ -140,6 +140,14 @@ module ResearchAssistantSessionState
 
   private
 
+  # The research's notes on the work screen (Monadic::TurnState::Notes).
+  def state_notes
+    { title: "Research notes", key: STATE_KEY, values: { "current_topic" => "Current topic" },
+      lists: { "research_topics" => { label: "Topics" }, "findings" => { label: "Findings" },
+               "sources" => { label: "Sources" }, "notes" => { label: "Notes" },
+               "search_history" => { label: "Searches" } } }
+  end
+
   # Internal helper to load research as Ruby hash (not JSON string)
   def load_research_internal(session)
     result = JSON.parse(monadic_load_record(key: STATE_KEY, lists: LISTS, default: {}, session: session))

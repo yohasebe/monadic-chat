@@ -106,6 +106,23 @@ module Monadic
         { success: false, error: e.message }.to_json
       end
 
+      # Texts added to a log: a collection an app only adds to, for the
+      # user to read on the app's notes (advice given, phrases translated),
+      # which the model does not read back. A text added before is not
+      # added again; the texts are added together or not at all.
+      def monadic_log(collection:, entries:, session: nil)
+        texts = Array(entries).map { |entry| entry.to_s.strip }.reject(&:empty?).uniq
+        kept = Monadic::TurnState.items(session, collection.to_s).map { |item| item[:id] }
+        changes = texts.filter_map do |text|
+          id = Monadic::TurnState.text_id(text)
+          { 'kind' => 'item', 'collection' => collection.to_s, 'id' => id, 'op' => 'set', 'data' => text } unless kept.include?(id)
+        end
+        Monadic::TurnState.change_all!(session, changes) unless changes.empty?
+        { success: true, collection: collection.to_s, added: changes.size }.to_json
+      rescue Monadic::TurnState::Refused => e
+        { success: false, error: e.message }.to_json
+      end
+
       # A value whose list fields accumulate entries (findings, vocabulary,
       # characters): read and saved as one Hash, as apps did before, while an
       # app that keeps its state by turn keeps each entry of a list as an

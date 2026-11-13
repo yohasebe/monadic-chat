@@ -2,12 +2,10 @@
 
 # Math Tutor application tools for learning progress tracking.
 # Uses Monadic Session State mechanism for context tracking.
-# Uses ContextPanelHelper to update the sidebar Context Panel.
 
 module MathTutorTools
   include MonadicHelper
   include Monadic::SharedTools::MonadicSessionState
-  include Monadic::SharedTools::ContextPanelHelper
 
   STATE_KEY = "math_tutor_context"
   # The lists of the state, each entry kept apart when the state is kept by
@@ -15,7 +13,6 @@ module MathTutorTools
   LISTS = { "problems_solved" => nil, "concepts_covered" => nil, "weak_areas" => nil, "learning_notes" => nil }.freeze
 
   # Save learning progress and context to session state.
-  # Also updates the Context Panel with concepts and tips.
   #
   # @param message [String] Response message to the user
   # @param current_problem [String] The current problem being worked on
@@ -40,19 +37,6 @@ module MathTutorTools
 
     # Save to session state
     result = monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
-
-    # Update Context Panel with concepts (mapped to "concepts" field)
-    if concepts_covered&.any?
-      add_to_context_panel(field: :concepts, items: concepts_covered, session: session)
-    end
-
-    # Update Context Panel with tips (from learning notes and weak areas)
-    tips = []
-    tips.concat(learning_notes) if learning_notes&.any?
-    tips.concat(weak_areas.map { |a| "Practice: #{a}" }) if weak_areas&.any?
-    if tips.any?
-      add_to_context_panel(field: :tips, items: tips, session: session)
-    end
 
     # Force-stop further tool calls — save_learning_progress marks end of turn.
     # This prevents _image injection from triggering additional run_code cycles.
@@ -95,7 +79,6 @@ module MathTutorTools
   end
 
   # Add concepts covered in the tutoring session.
-  # Also updates the Context Panel.
   #
   # @param concepts [Array<String>] Mathematical concepts to add
   # @param session [Hash] Session object (automatically provided)
@@ -106,18 +89,10 @@ module MathTutorTools
     all_concepts = all_concepts.uniq
 
     context = existing.merge(concepts_covered: all_concepts)
-    result = monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
-
-    # Update Context Panel
-    if concepts&.any?
-      add_to_context_panel(field: :concepts, items: concepts, session: session)
-    end
-
-    result
+    monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
   end
 
   # Record weak areas that need more practice.
-  # Also updates the Context Panel tips.
   #
   # @param areas [Array<String>] Areas where student struggles
   # @param session [Hash] Session object (automatically provided)
@@ -128,19 +103,10 @@ module MathTutorTools
     all_areas = all_areas.uniq
 
     context = existing.merge(weak_areas: all_areas)
-    result = monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
-
-    # Update Context Panel with tips
-    if areas&.any?
-      tips = areas.map { |a| "Practice: #{a}" }
-      add_to_context_panel(field: :tips, items: tips, session: session)
-    end
-
-    result
+    monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
   end
 
   # Add learning notes about the student's progress.
-  # Also updates the Context Panel tips.
   #
   # @param notes [Array<String>] Notes to add
   # @param session [Hash] Session object (automatically provided)
@@ -151,17 +117,17 @@ module MathTutorTools
     all_notes = all_notes.uniq
 
     context = existing.merge(learning_notes: all_notes)
-    result = monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
-
-    # Update Context Panel with tips
-    if notes&.any?
-      add_to_context_panel(field: :tips, items: notes, session: session)
-    end
-
-    result
+    monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
   end
 
   private
+
+  # The learner's notes on the work screen (Monadic::TurnState::Notes).
+  def state_notes
+    { title: "Learning notes", key: STATE_KEY, values: { "current_problem" => "Current problem" },
+      lists: { "problems_solved" => { label: "Problems solved" }, "concepts_covered" => { label: "Concepts" },
+               "weak_areas" => { label: "To practice" }, "learning_notes" => { label: "Notes" } } }
+  end
 
   # Internal helper to load progress as Ruby hash (not JSON string)
   def load_progress_internal(session)

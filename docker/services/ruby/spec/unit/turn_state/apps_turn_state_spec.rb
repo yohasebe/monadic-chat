@@ -9,6 +9,9 @@ require_relative "../../../lib/monadic/substitution/vocabulary"
 require_relative "../../../lib/monadic/utils/tool_image_utils"
 require_relative "../../../apps/translate/translate_tools"
 require_relative "../../../apps/research_assistant/research_assistant_tools"
+require_relative "../../../apps/language_practice_plus/language_practice_plus_tools"
+require_relative "../../../apps/voice_interpreter/voice_interpreter_tools"
+require_relative "../../../lib/monadic/turn_state/notes"
 
 # The Monadic apps keep their state by turn: a list's entries are items of
 # their own (deleting the turn that added one takes it back), the rest of
@@ -62,13 +65,7 @@ RSpec.describe "the Monadic apps' state by turn" do
 
   describe "Translate's vocabulary" do
     let(:translate) do
-      Class.new do
-        include TranslateTools
-
-        def set_context_panel_field(**) = nil
-        def add_to_context_panel(**) = nil
-        def clear_context_panel_field(**) = nil
-      end.new
+      Class.new { include TranslateTools }.new
     end
 
     def vocabulary
@@ -133,6 +130,66 @@ RSpec.describe "the Monadic apps' state by turn" do
       expect(progress["findings"]).to eq(["B"])
       expect(progress["sources"]).to eq([])
       expect(progress["current_topic"]).to eq("T")
+    end
+  end
+
+  describe "Language Practice Plus's advice" do
+    let(:app) { "LanguagePracticePlusOpenAI" }
+    let(:practice) { Class.new { include LanguagePracticePlusTools }.new }
+
+    def advice
+      Monadic::TurnState.items(session, "language_advice").map { |item| item[:data] }
+    end
+
+    it "adds each turn's advice to the log, which the model does not read back, and takes a turn's advice back with it" do
+      first = run_reply do
+        practice.save_response(message: "Bonjour", target_lang: "French", language_advice: ["Say 'tu' to a friend"], session: session)
+      end
+      run_reply { practice.save_response(message: "Bien", language_advice: ["'bien' is an adverb", "Say 'tu' to a friend"], session: session) }
+
+      expect(advice).to eq(["Say 'tu' to a friend", "'bien' is an adverb"])
+      loaded = JSON.parse(practice.load_context(session: session))["data"]
+      expect(loaded).to eq("target_lang" => "French", "last_message" => "Bien")
+
+      delete(first)
+      expect(advice).to eq(["'bien' is an adverb"])
+    end
+
+    it "shows the language and the advice on its notes" do
+      run_reply { practice.save_response(message: "Hola", target_lang: "Spanish", language_advice: ["Roll the r"], session: session) }
+
+      page = Monadic::TurnState::Notes.render(session, practice.send(:state_notes), practice)
+      expect(page).to include("# Practice notes", "- **Language**: Spanish", "## Advice", "- Roll the r (turn 1)")
+    end
+  end
+
+  describe "Voice Interpreter's phrases" do
+    let(:app) { "VoiceInterpreterOpenAI" }
+    let(:interpreter) { Class.new { include VoiceInterpreterTools }.new }
+
+    it "keeps each phrase whole in the log, once, and the languages as a value" do
+      long = "word " * 30
+      run_reply { interpreter.save_translation(message: long, source_lang: "English", target_lang: "Japanese", session: session) }
+      run_reply { interpreter.save_translation(message: long, session: session) }
+      run_reply { interpreter.set_target_language(target_lang: "French", session: session) }
+
+      expect(Monadic::TurnState.items(session, "phrases").map { |item| item[:data] }).to eq([long.strip])
+      loaded = JSON.parse(interpreter.load_context(session: session))["data"]
+      expect(loaded).to eq("source_lang" => "English", "target_lang" => "French", "last_translation" => long)
+      page = Monadic::TurnState::Notes.render(session, interpreter.send(:state_notes), interpreter)
+      expect(page).to include("- **From**: English", "- **To**: French", "## Phrases")
+    end
+  end
+
+  describe "the notes of Math Tutor and Research Assistant" do
+    it "show Research Assistant's topic, findings and sources" do
+      session[:parameters]["app_name"] = "ResearchAssistantOpenAI"
+      stub_const("APPS", { "ResearchAssistantOpenAI" => double(settings: { turn_state: true }) })
+      research = Class.new { include ResearchAssistantSessionState }.new
+      run_reply { research.add_finding(finding: "A", source: "s1", session: session) }
+
+      page = Monadic::TurnState::Notes.render(session, research.send(:state_notes), research)
+      expect(page).to include("# Research notes", "## Findings", "- A [Source: s1] (turn 1)", "## Sources", "- s1 (turn 1)")
     end
   end
 

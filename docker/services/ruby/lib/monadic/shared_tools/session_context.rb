@@ -12,7 +12,6 @@
 #     import_shared_tools :session_context, visibility: "always"
 #   end
 
-require 'digest'
 require_relative '../turn_state'
 
 module MonadicSharedTools
@@ -101,10 +100,9 @@ module MonadicSharedTools
       end
     end
 
-    # A text is the same item wherever it is added again: its id is made
-    # from the text.
+    # A text is the same item wherever it is added again.
     def context_change(field, text, op)
-      change = { 'kind' => 'item', 'collection' => field, 'id' => "c_#{Digest::SHA256.hexdigest(text)[0, 24]}", 'op' => op }
+      change = { 'kind' => 'item', 'collection' => field, 'id' => Monadic::TurnState.text_id(text), 'op' => op }
       op == 'set' ? change.merge('data' => text) : change
     end
 

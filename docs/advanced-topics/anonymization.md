@@ -24,7 +24,7 @@ A change applies to what the chat sends from then on.
 The words are hidden in what a chat sends:
 
 - the chat's own requests to its model, including earlier messages and tool results
-- second opinions, **Verify**, AI User suggestions, the Session Context extraction and title suggestions
+- second opinions, **Verify**, AI User suggestions and title suggestions
 - the results of the Knowledge Base search, as they go to the model
 - text read aloud (a hidden word is read as its type and number, such as "PERSON 1")
 

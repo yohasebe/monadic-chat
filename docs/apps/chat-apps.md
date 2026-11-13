@@ -17,11 +17,13 @@ Availability for this app follows the [App Availability by Provider](../basic-us
 
 ![Chat app icon](../assets/icons/chat-plus.png ':size=40')
 
-A chat that keeps track of the conversation. As the AI responds, it updates these lists in the side panel:
+A chat that keeps track of the conversation. As the AI responds, it updates these lists, shown on the [work screen](../basic-usage/web-interface.md#work-screen) as the **Context** page:
 
 - **Topics**: The topics discussed so far.
 - **People**: The people mentioned in the conversation.
 - **Notes**: Key facts and preferences to remember.
+
+Deleting a turn takes back what that turn added to the lists.
 
 Chat Plus also has web search. The OpenAI version can search the PDFs in the [PDF Database](../basic-usage/pdf_storage.md) and cite them.
 
@@ -77,7 +79,7 @@ Ask questions about recent events or topics outside the AI's knowledge. This app
 
 Explore math-related questions and answers. The app uses [KaTeX](https://katex.org/) to render beautiful mathematical notation in its responses.
 
-Math Tutor can run Python code to calculate, and keeps the concepts, formulas, and tips of the session in the side panel. The graphs and diagrams its code draws are saved in the chat's folder and shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat; the math itself stays in the chat.
+Math Tutor can run Python code to calculate, and keeps the problems solved, the concepts covered, the areas to practice, and notes of the session, shown on the work screen as the **Learning notes** page. The graphs and diagrams its code draws are saved in the chat's folder and shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat; the math itself stays in the chat.
 
 !> **Caution:** LLMs can make mistakes in calculations with many steps or complex logic. Check the results, and ask the app to calculate with Python when accuracy matters.
 
@@ -95,7 +97,7 @@ Second Opinion is available wherever the [availability table](../basic-usage/bas
 
 ![Research Assistant app icon](../assets/icons/research-assistant.png ':size=40')
 
-An assistant for academic and scientific research. It searches the web, reads and analyzes the sources, and keeps the topics, findings, and sources of the session in the side panel. Use it to find current information, check facts, and summarize a topic. Charts and other files its Python code makes are saved in the chat's folder and shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat; the reply names them with their paths.
+An assistant for academic and scientific research. It searches the web, reads and analyzes the sources, and keeps the topics, findings, sources, and searches of the session, shown on the work screen as the **Research notes** page. Use it to find current information, check facts, and summarize a topic. Charts and other files its Python code makes are saved in the chat's folder and shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat; the reply names them with their paths.
 
 Research Assistant availability matches the [availability table](../basic-usage/basic-apps.md#app-availability). Whether web search uses the provider's own search or the Tavily API (requires `TAVILY_API_KEY`) is shown in the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities). The OpenAI version can also search the PDFs in the [PDF Database](../basic-usage/pdf_storage.md). To read a web page into your message, see [Reading Text from URLs](../basic-usage/message-input.md#reading-text-from-urls).
 

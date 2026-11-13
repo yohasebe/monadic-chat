@@ -15,14 +15,14 @@ Language Practice supports the providers indicated in the [availability table](.
 
 ![Language Practice Plus app icon](../assets/icons/language-practice-plus.png ':size=40')
 
-Works like Language Practice, and adds advice on your language use. The advice is collected in the side panel under Vocabulary, Grammar, and Tips.
+Works like Language Practice, and adds advice on your language use. The advice is collected on the [work screen](../basic-usage/web-interface.md#work-screen) as the **Practice notes** page.
 
 
 ## Translate
 
 ![Translate app icon](../assets/icons/translate.png ':size=40')
 
-Translate text into another language. The assistant first asks for the source and target languages. To fix the translation of a phrase, write the phrase followed by the translation you want in parentheses, like `original text(desired translation)`. These pairs are kept as the session's vocabulary and used in the following translations. The languages, vocabulary, and notes are shown in the side panel under Languages, Vocabulary, and Notes. A translation longer than a few sentences is shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat, showing its newest version (**Versions** lists the earlier ones); a short one is answered in the chat. The languages and vocabulary are also shown on the work screen as a page, `notes/translation-notes.md` in the chat's folder, made again when a turn changes them or is deleted; deleting the turn that added a vocabulary entry takes back that entry only.
+Translate text into another language. The assistant first asks for the source and target languages. To fix the translation of a phrase, write the phrase followed by the translation you want in parentheses, like `original text(desired translation)`. These pairs are kept as the session's vocabulary and used in the following translations. A translation longer than a few sentences is shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat, showing its newest version (**Versions** lists the earlier ones); a short one is answered in the chat. The languages and vocabulary are also shown on the work screen as a page, `notes/translation-notes.md` in the chat's folder, made again when a turn changes them or is deleted; deleting the turn that added a vocabulary entry takes back that entry only.
 
 Translate is available for the providers marked in the [availability table](../basic-usage/basic-apps.md#app-availability). How well each language is translated depends on the provider.
 
@@ -31,6 +31,6 @@ Translate is available for the providers marked in the [availability table](../b
 
 ![Voice Interpreter app icon](../assets/icons/voice-chat.png ':size=40')
 
-Translate your speech into another language and hear the translation. The assistant first asks for the target language, then translates what you say and reads only the translation aloud.
+Translate your speech into another language and hear the translation. The assistant first asks for the target language, then translates what you say and reads only the translation aloud. The languages and the phrases translated are collected on the [work screen](../basic-usage/web-interface.md#work-screen) as the **Interpreter notes** page.
 
 Voice Interpreter follows the provider availability shown in the [availability table](../basic-usage/basic-apps.md#app-availability). For the speech settings, see [Speech Panel](../basic-usage/web-interface.md#speech-settings-panel).

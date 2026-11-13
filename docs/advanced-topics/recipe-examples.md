@@ -101,9 +101,9 @@ end
 
 For the groups and their tools, see [Tool Groups](./tool-groups.md).
 
-## An App with Session Context
+## An App with Session State
 
-With `monadic true` and a `context_schema`, the important points of the conversation are extracted and shown in the sidebar.
+With the `session_context` group, the app keeps topics, people and notes of the conversation and shows them as a page on the work screen.
 
 ```ruby
 # reading_notes_openai.mdsl
@@ -118,22 +118,17 @@ app "ReadingNotesOpenAI" do
 
   system_prompt <<~PROMPT
     You discuss books with the user.
+    Call get_context at the start of each turn.
+    When a book, a person or a theme comes up, call update_context.
   PROMPT
 
-  features do
-    monadic true
-  end
-
-  context_schema do
-    field :books, icon: "fa-book", label: "Books",
-          description: "Titles of books mentioned"
-    field :themes, icon: "fa-lightbulb", label: "Themes",
-          description: "Themes and ideas discussed"
+  tools do
+    import_shared_tools :session_context, visibility: "always"
   end
 end
 ```
 
-See [Session Context](./session-context.md) and [Monadic Mode](./monadic-mode.md).
+See [Session State](./monadic-mode.md).
 
 ## An App Using an Agent Module
 
@@ -188,5 +183,5 @@ Tools come from the app's tools module, from shared tool groups (`import_shared_
 
 - [Developing Apps](./develop_apps.md) - Detailed guide for app development
 - [Monadic DSL](./monadic_dsl.md) - Complete MDSL syntax reference
-- [Monadic Mode](./monadic-mode.md) - Understanding structured context
+- [Session State](./monadic-mode.md) - Keeping working data across turns
 - [Adding Docker Containers](./adding-containers.md) - Extending with custom containers

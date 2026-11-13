@@ -188,9 +188,6 @@ features do
   code_runs_in_chat_folder true # run_code runs each run in a folder of the chat's folder;
                           # the files it writes are shown on the work screen
   image_generation true   # Enable AI image generation tools in conversation
-  monadic true            # REQUIRED for Session State apps - enables context management via tools
-  turn_state true         # Keep the Session State by turn: each reply's changes go with its message,
-                          # so deleting a turn takes them back (monadic_put_item etc. for items)
   initiate_from_assistant true # Allow assistant to send first message in conversation
   autonomy "high"         # Set autonomy level: "high", "medium" (default), or "low"
   work_screen "drafts"    # Put the app's work on the work screen beside the chat:
@@ -349,7 +346,6 @@ app "ChatClaude" do  # AppName + Provider
   end
 
   features do
-    monadic false  # Disable Session State (context management)
     initiate_from_assistant true
   end
 end
@@ -481,20 +477,12 @@ For the full pattern explanation and the canonical implementation template — i
 
 ### Session State Apps
 
-Session State allows apps to persist context across conversation turns using explicit tool calls. This is useful for apps that need to track progress, accumulate information, or maintain structured state.
-
-#### Requirements for Session State Apps
-
-Apps using Session State **must** set `monadic true` in the features block:
+Session State lets an app keep working data across turns through tools that read and save it. What a reply changes is kept with its message, so deleting a turn takes the change back. No setting is needed: an app has Session State when it defines the tools.
 
 ```ruby
 app "MySessionStateOpenAI" do
   llm do
     provider "openai"
-  end
-
-  features do
-    monadic true  # REQUIRED - enables Session State functionality
   end
 
   tools do
@@ -512,69 +500,7 @@ app "MySessionStateOpenAI" do
 end
 ```
 
-#### Built-in Session State Apps
-
-Apps that use Session State include Chat Plus, Research Assistant, Math Tutor, Novel Writer, Translate, Language Practice Plus, Voice Interpreter and Jupyter Notebook.
-
-### Context Schema (Session Context)
-
-While Session State Apps use explicit tool calls for context management, you can also enable **automatic context extraction** using the `context_schema` block. This feature extracts key information from conversations and displays it in the sidebar panel.
-
-> **Note**: For complete documentation on Session Context, see the [Session Context](session-context.md) guide.
-
-#### Basic Usage
-
-```ruby
-app "MyAppOpenAI" do
-  features do
-    monadic true  # Required for context_schema
-  end
-
-  context_schema do
-    field :topics, icon: "fa-tags", label: "Topics",
-          description: "Main subjects discussed in conversation"
-    field :people, icon: "fa-users", label: "People",
-          description: "Names of people mentioned"
-    field :notes, icon: "fa-sticky-note", label: "Notes",
-          description: "Important facts and preferences to remember"
-  end
-end
-```
-
-#### Field Definition
-
-Each field in `context_schema` accepts the following options:
-
-| Option | Type | Required | Description |
-|--------|------|----------|-------------|
-| `name` | Symbol | Yes | Field identifier (first argument, e.g., `:topics`) |
-| `icon` | String | No | FontAwesome icon class (e.g., `"fa-tags"`) |
-| `label` | String | No | Display name in sidebar (default: the name with `_` replaced by spaces and the first letter capitalized) |
-| `description` | String | No | Guides the extraction agent on what to extract |
-
-#### Default Schema
-
-If no `context_schema` block is provided but `monadic true` is set, the app uses the default schema:
-
-- **Topics**: Main subjects discussed
-- **People**: Names of people mentioned
-- **Notes**: Important facts to remember
-
-#### Custom Schema Example
-
-```ruby
-# For a Code Review app
-context_schema do
-  field :files_reviewed, icon: "fa-file-code", label: "Files",
-        description: "Source code files that were reviewed"
-  field :issues, icon: "fa-bug", label: "Issues",
-        description: "Bugs and code problems identified"
-  field :suggestions, icon: "fa-lightbulb", label: "Suggestions",
-        description: "Improvement recommendations"
-end
-```
-
-Session State (explicit tool calls) and Session Context (automatic extraction) both require `monadic true` and can be used together in the same app. For a side-by-side comparison of the two mechanisms and the related terminology, see the [Terminology Guide](monadic-mode.md#terminology-guide) in the Monadic Mode documentation.
+For the state tools, the page that shows the state on the work screen, and the built-in apps that keep state, see [Session State](monadic-mode.md).
 
 ### Provider-Specific Adapters
 

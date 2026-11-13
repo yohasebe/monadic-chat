@@ -65,24 +65,23 @@ The AI will search the web and provide current information.
 ### 3.1 Try Chat Plus
 
 1. From the app menu, select **Chat Plus**
-2. Notice the **Session Context** panel in the sidebar
-3. Have a conversation about planning a trip:
+2. Have a conversation about planning a trip:
 
 ```
 I want to plan a 5-day trip to Tokyo. Can you help me create an itinerary?
 ```
 
-4. Continue the conversation:
+3. Continue the conversation:
 
 ```
 I'm interested in technology and anime. Can you adjust the recommendations?
 ```
 
-5. Look at the **Session Context** panel to see what is being tracked
+4. Look at the **Context** page on the work screen to see what is being tracked
 
-### 3.2 Understanding Monadic Context
+### 3.2 Understanding Session State
 
-The Chat Plus app keeps "monadic" context alongside the conversation:
+The Chat Plus app keeps a context alongside the conversation. Deleting a turn takes back what that turn added:
 - **Topics**: Main subjects discussed
 - **People**: Names of people mentioned
 - **Notes**: Important facts and preferences to remember

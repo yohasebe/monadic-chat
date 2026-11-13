@@ -1,73 +1,51 @@
-# Monadic Mode (Session State)
+# Session State
 
-Monadic Mode lets an app keep structured context, such as topics, notes or settings, through the conversation and update it as the conversation goes on.
-
-## Terminology Guide :id=terminology-guide
-
-| Term | Description |
-|------|-------------|
-| **Monadic Mode** | The feature flag (`monadic true`) that turns on Session State and Session Context for an app |
-| **Session State** | Context that the model reads and writes by calling tools |
-| **Session Context** | Key information extracted automatically after each turn and shown in the sidebar (see [Session Context](session-context.md)) |
-
-`monadic true` does not add tools by itself. An app that uses Session State imports the shared `session_context` tool group or defines its own load and save tools.
+In Monadic Chat, a reply carries two things: what it says, and what it changed in the chat. The changes are the files the reply made or revised in the chat's folder and the app's Session State: working data, such as topics, notes or settings, that the app records by calling tools.
 
 ## Overview
 
-With Session State, the model calls tools to read the current context and to add to it. The context is kept for the session, so later turns can use it.
+Session State belongs to a turn. What a reply changes is kept with its message, and the state at any moment is what the remaining turns changed, on top of what the chat began with.
+
+- Deleting a turn takes back what it changed. Each entry of a list (Translate's vocabulary, Research Assistant's findings and sources, Novel Writer's characters) is kept apart, so deleting the turn that added an entry takes back that entry and leaves the others. A value that a later turn wrote again keeps the later value.
+- The state comes back when the chat is continued from the history or read from a file.
+- Only a running reply can change the state, and only the state of its own app.
+
+Things a reply did outside the chat's folder and its state, such as code it ran or a page it opened, are not taken back with the turn.
+
+Session State needs no setting. An app has it when it defines tools that read and save it.
 
 ### How It Works
 
-1. The model reads the current context with a tool (for example `get_context`).
+1. The model reads the current state with a tool (for example `get_context`).
 2. It answers the user, using other tools as needed.
-3. It adds what it learned to the context with a tool (for example `update_context`).
+3. It records what it learned with a tool (for example `update_context`).
 
-### Context Structure Example
+## State Notes :id=state-notes
 
-The `session_context` group keeps three lists:
+An app can show its state to the user as a page on the [work screen](../basic-usage/web-interface.md#work-screen): its state notes, kept in the chat's folder as `notes/<title>.md`. The page is made from the state after a reply that changed it, when a turn is deleted, and when the chat is continued from the history or read from a file. Each part names the turn that changed it last. When the state holds nothing to show, the page is removed.
 
-```json
-{
-  "topics": ["topic1", "topic2"],
-  "people": ["person1", "person2"],
-  "notes": ["important note 1", "important note 2"]
-}
-```
+The page is for reading. The model changes the state with the app's tools, and the page follows.
+
+Some apps also keep a log on the page: texts that are added for the user to read and that the model does not read back, such as the advice of Language Practice Plus and the phrases of Voice Interpreter.
 
 ## Session State Apps
 
-These built-in apps keep context with Session State tools:
+These built-in apps keep Session State:
 
-| App | Tools |
-|-----|-------|
-| Chat Plus | `get_context`, `update_context`, `remove_from_context`, `clear_context` (the `session_context` group) |
-| Research Assistant | `load_research_progress`, `save_research_progress` |
-| Math Tutor | `load_learning_progress`, `save_learning_progress` |
-| Novel Writer | `load_novel_context`, `save_novel_context` |
-| Translate | `load_translation_context`, `save_translation_context`, and vocabulary tools |
-| Voice Interpreter | `load_context`, `save_translation`, `set_target_language` |
-| Language Practice Plus | `load_context`, `save_response`, `set_target_language` |
-| Jupyter Notebook, Image Generator, Video Generator | `monadic_load_state` (the app saves the state itself) |
-
-## Architecture
-
-1. **Tool definitions**: The app imports the `session_context` group or defines its tools with `define_tool`.
-2. **Tool implementation**: The shared modules or the app's `*_tools.rb` implement the tools.
-3. **Session storage**: The context is stored in the session, separately for each app and key (`session[:monadic_state][app][key]`), with a version and a time stamp.
-   In an app whose MDSL sets `turn_state true` (every app above), what each reply changes is kept with its message instead: deleting a turn takes back what it changed, and the state comes back when the chat is continued from the history or read from a file. Each entry of a list the state gathers (Translate's vocabulary, Research Assistant's findings and sources, Novel Writer's characters) is kept apart, so deleting the turn that added an entry takes back that entry and leaves the others.
-4. **Speech**: The `tts_target` feature can read the text to speak from a tool parameter.
-
-### Tool Flow Example
-
-1. The user sends a message.
-2. The model calls `get_context` and receives the current context.
-3. The model handles the request, calling other tools if needed.
-4. The model calls `update_context` with new topics, people or notes.
-5. The response is shown, and the sidebar shows the updated context.
+| App | Tools | State notes |
+|-----|-------|-------------|
+| Chat Plus | `get_context`, `update_context`, `remove_from_context`, `clear_context` (the `session_context` group) | Context |
+| Research Assistant | `load_research_progress`, `save_research_progress` | Research notes |
+| Math Tutor | `load_learning_progress`, `save_learning_progress` | Learning notes |
+| Novel Writer | `load_novel_context`, `save_novel_context` | Story notes |
+| Translate | `load_translation_context`, `save_translation_context`, and vocabulary tools | Translation notes |
+| Voice Interpreter | `load_context`, `save_translation`, `set_target_language` | Interpreter notes |
+| Language Practice Plus | `load_context`, `save_response`, `set_target_language` | Practice notes |
+| Jupyter Notebook, Video Generator | `monadic_load_state` (the app saves the state itself) | — |
 
 ## Creating a Session State App
 
-The simplest way is to import the `session_context` group:
+The simplest way is to import the `session_context` group, which keeps three lists (topics, people and notes) and shows them as the **Context** page:
 
 ```ruby
 app "MyAppOpenAI" do
@@ -76,10 +54,6 @@ app "MyAppOpenAI" do
 
   llm do
     provider "openai"
-  end
-
-  features do
-    monadic true
   end
 
   system_prompt <<~PROMPT
@@ -94,11 +68,38 @@ app "MyAppOpenAI" do
 end
 ```
 
-For other fields, write your own load and save tools in the app's `*_tools.rb`, as the apps in the table above do.
+For other fields, write your own load and save tools in the app's `*_tools.rb` with the state tools of `Monadic::SharedTools::MonadicSessionState`:
 
-## UI Representation
+| Tool | Use |
+|------|-----|
+| `monadic_load_state(key:, default:, session:)` | Read a value |
+| `monadic_save_state(key:, payload:, session:)` | Set a value |
+| `monadic_put_item(collection:, data:, id:, session:)`, `monadic_remove_item`, `monadic_load_items` | Keep the entries of a list apart |
+| `monadic_log(collection:, entries:, session:)` | Add texts to a log |
 
-The context that the tools keep is shown in the sidebar panel. Its fields follow the app's `context_schema`; see [Session Context](session-context.md).
+```ruby
+module ReadingNotesTools
+  include MonadicHelper
+  include Monadic::SharedTools::MonadicSessionState
+
+  def add_book(title:, session: nil)
+    monadic_log(collection: "books", entries: [title], session: session)
+  end
+
+  def load_books(session: nil)
+    monadic_load_items(collection: "books", session: session)
+  end
+
+  private
+
+  # The page that shows the state on the work screen.
+  def state_notes
+    { title: "Reading notes", lists: { "books" => { label: "Books" } } }
+  end
+end
+```
+
+`state_notes` declares the page: its `title`, the collections to list under `lists` (each with a `label`, and for entries with fields a `name` field and `fields` with their labels), and, for an app that keeps one value with several fields, its `key` and the fields to show under `values`. An app without `state_notes` keeps its state without a page.
 
 ## TTS Integration
 
@@ -106,7 +107,6 @@ For apps that speak, `tts_target` names the tool parameter that holds the text t
 
 ```ruby
 features do
-  monadic true
   auto_speech true
   tts_target :tool_param, "save_translation", "message"
 end
@@ -114,12 +114,16 @@ end
 
 ## Best Practices
 
-1. **Read the context first**: Read the current context at the start of each turn.
-2. **Add to the context**: Do not remove items unless the user asks.
-3. **Keep the same fields**: Use the same context fields through the conversation.
-4. **Keep the context focused**: Store only information that later turns will use.
+1. **Read the state first**: Read the current state at the start of each turn.
+2. **Add to the state**: Do not remove items unless the user asks.
+3. **Keep the same fields**: Use the same fields through the conversation.
+4. **Keep the state focused**: Store only information that later turns will use.
+
+## Settings of Earlier Versions
+
+`monadic`, `turn_state` and `context_schema` in an MDSL file are read and not used. They can be removed.
 
 ## See Also
 
 - [Monadic DSL](./monadic_dsl.md) - Full MDSL syntax reference
-- [Session Context](./session-context.md) - Automatic extraction to the sidebar
+- [Tool Groups](./tool-groups.md) - The shared tool groups

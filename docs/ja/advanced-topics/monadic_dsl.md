@@ -188,9 +188,6 @@ features do
   code_runs_in_chat_folder true # run_code runs each run in a folder of the chat's folder;
                           # the files it writes are shown on the work screen
   image_generation true   # Enable AI image generation tools in conversation
-  monadic true            # REQUIRED for Session State apps - enables context management via tools
-  turn_state true         # Keep the Session State by turn: each reply's changes go with its message,
-                          # so deleting a turn takes them back (monadic_put_item etc. for items)
   initiate_from_assistant true # Allow assistant to send first message in conversation
   autonomy "high"         # Set autonomy level: "high", "medium" (default), or "low"
   work_screen "drafts"    # Put the app's work on the work screen beside the chat:
@@ -345,7 +342,6 @@ app "ChatClaude" do  # AppName + Provider
   end
 
   features do
-    monadic false  # Disable Session State (context management)
     initiate_from_assistant true
   end
 end
@@ -477,20 +473,12 @@ end
 
 ### Session Stateアプリ
 
-Session State を使うと、アプリは明示的なツールの呼び出しで、会話のターンをまたいで文脈を保てます。進み具合を追う、情報を積み上げる、構造のある状態を保つ、といったアプリで役に立ちます。
-
-#### Session Stateアプリの要件
-
-Session State を使うアプリでは、features ブロックで `monadic true` を**必ず**設定します。
+Session State を使うと、アプリは、状態を読むツールと保存するツールで、ターンをまたいで作業用のデータを保てます。返答が変えたものはそのメッセージと一緒に保存されるので、ターンを削除すると、その変化は元に戻ります。設定は要りません。ツールを定義したアプリが Session State を持ちます。
 
 ```ruby
 app "MySessionStateOpenAI" do
   llm do
     provider "openai"
-  end
-
-  features do
-    monadic true  # REQUIRED - enables Session State functionality
   end
 
   tools do
@@ -508,69 +496,7 @@ app "MySessionStateOpenAI" do
 end
 ```
 
-#### 組み込みSession Stateアプリ
-
-Session State を使うアプリには、Chat Plus、Research Assistant、Math Tutor、Novel Writer、Translate、Language Practice Plus、Voice Interpreter、Jupyter Notebook などがあります。
-
-### コンテキストスキーマ（セッションコンテキスト）
-
-Session State のアプリは明示的なツールの呼び出しで文脈を扱いますが、`context_schema` ブロックで**文脈の自動抽出**も使えます。会話から大事な情報を取り出し、サイドバーのパネルに表示します。
-
-> **注意**：Session Context の説明の全体は、[Session Context](session-context.md) のガイドを参照してください。
-
-#### 基本的な使い方
-
-```ruby
-app "MyAppOpenAI" do
-  features do
-    monadic true  # Required for context_schema
-  end
-
-  context_schema do
-    field :topics, icon: "fa-tags", label: "Topics",
-          description: "Main subjects discussed in conversation"
-    field :people, icon: "fa-users", label: "People",
-          description: "Names of people mentioned"
-    field :notes, icon: "fa-sticky-note", label: "Notes",
-          description: "Important facts and preferences to remember"
-  end
-end
-```
-
-#### フィールド定義
-
-`context_schema` のフィールドには、次の項目を指定できます。
-
-| 項目 | 型 | 必須 | 説明 |
-|------|----|------|------|
-| `name` | Symbol | はい | フィールドの識別子（最初の引数、例：`:topics`） |
-| `icon` | String | いいえ | Font Awesome のアイコンのクラス（例：`"fa-tags"`） |
-| `label` | String | いいえ | サイドバーに表示する名前（既定：名前の `_` を空白にし、最初の文字を大文字にしたもの） |
-| `description` | String | いいえ | 何を取り出すかを抽出のエージェントに伝えます |
-
-#### デフォルトスキーマ
-
-`context_schema` のブロックがなく、`monadic true` が設定されているときは、既定のスキーマが使われます。
-
-- **Topics**：話題にしたこと
-- **People**：出てきた人の名前
-- **Notes**：覚えておく事実
-
-#### カスタムスキーマの例
-
-```ruby
-# For a Code Review app
-context_schema do
-  field :files_reviewed, icon: "fa-file-code", label: "Files",
-        description: "Source code files that were reviewed"
-  field :issues, icon: "fa-bug", label: "Issues",
-        description: "Bugs and code problems identified"
-  field :suggestions, icon: "fa-lightbulb", label: "Suggestions",
-        description: "Improvement recommendations"
-end
-```
-
-Session State（明示的なツールの呼び出し）と Session Context（自動の抽出）は、どちらも `monadic true` が必要で、1 つのアプリでいっしょに使えます。2 つの仕組みの比較と用語は、Monadic モードのドキュメントの[用語ガイド](monadic-mode.md#terminology-guide)を参照してください。
+状態のツール、状態を作業画面に見せるページ、状態を保つ組み込みのアプリは、[Session State](monadic-mode.md) を参照してください。
 
 ### プロバイダー固有のアダプター
 

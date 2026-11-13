@@ -17,11 +17,13 @@ AI と標準的な会話をするアプリです。AI は適切な絵文字を�
 
 ![Chat app icon](../assets/icons/chat-plus.png ':size=40')
 
-会話の内容を記録しながら進めるチャットです。AI は応答のたびに、サイドパネルの次の一覧を更新します。
+会話の内容を記録しながら進めるチャットです。AI は応答のたびに次の一覧を更新し、一覧は[作業画面](../basic-usage/web-interface.md#work-screen)に **Context** のページとして表示されます。
 
 - **Topics**：ここまでの会話で取り上げたトピック
 - **People**：会話に出てきた人物
 - **Notes**：覚えておくべき事実や好み
+
+ターンを削除すると、そのターンが一覧に足したものは元に戻ります。
 
 Chat Plus では、Web 検索も使えます。OpenAI 版では、[PDF Database](../basic-usage/pdf_storage.md) の PDF を検索して引用できます。
 
@@ -77,7 +79,7 @@ OpenAI、xAI Grok、Google Gemini の 3 つの版があります。それぞれ�
 
 数学の質問と回答のためのアプリです。数式は [KaTeX](https://katex.org/) で表示されます。
 
-Math Tutor は Python のコードを実行して計算でき、セッションで扱った概念・公式・ヒントをサイドパネルに記録します。コードが描いたグラフや図は、会話のフォルダに保存され、会話の横の[作業画面](../basic-usage/web-interface.md#work-screen)に表示されます。数式の説明は会話の中に表示されます。
+Math Tutor は Python のコードを実行して計算でき、セッションで解いた問題・扱った概念・練習が必要な分野・メモを記録し、作業画面に **Learning notes** のページとして表示します。コードが描いたグラフや図は、会話のフォルダに保存され、会話の横の[作業画面](../basic-usage/web-interface.md#work-screen)に表示されます。数式の説明は会話の中に表示されます。
 
 !> **注意：** LLM は、手順の多い計算や複雑な論理で間違えることがあります。結果を確かめ、正確さが大事なときは Python で計算するように頼んでください。
 
@@ -95,7 +97,7 @@ Second Opinion の対応状況は[モデル対応状況の表](../basic-usage/ba
 
 ![Research Assistant app icon](../assets/icons/research-assistant.png ':size=40')
 
-学術・科学の調査のためのアシスタントです。Web を検索し、情報源を読んで分析し、セッションで調べたトピック・わかったこと・情報源をサイドパネルに記録します。最新の情報を探す、事実を確かめる、トピックをまとめる、といった用途に使えます。Python のコードが作ったグラフなどのファイルは、会話のフォルダに保存され、会話の横の[作業画面](../basic-usage/web-interface.md#work-screen)に表示されます。返答では、そのパスが示されます。
+学術・科学の調査のためのアシスタントです。Web を検索し、情報源を読んで分析し、セッションで調べたトピック・わかったこと・情報源・検索を記録し、作業画面に **Research notes** のページとして表示します。最新の情報を探す、事実を確かめる、トピックをまとめる、といった用途に使えます。Python のコードが作ったグラフなどのファイルは、会話のフォルダに保存され、会話の横の[作業画面](../basic-usage/web-interface.md#work-screen)に表示されます。返答では、そのパスが示されます。
 
 Research Assistant の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。Web 検索でプロバイダー自身の検索と Tavily API（`TAVILY_API_KEY` が必要）のどちらを使うかは、[プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)のとおりです。OpenAI 版では、[PDF Database](../basic-usage/pdf_storage.md) の PDF も検索できます。Web ページをメッセージに読み込む方法は、[URL からのテキストの読み込み](../basic-usage/message-input.md#reading-text-from-urls)を参照してください。
 

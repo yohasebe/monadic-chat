@@ -750,7 +750,7 @@ module StringUtils
       t8_utf8 = t8.dup.force_encoding('UTF-8')
       html = Commonmarker.to_html(t8_utf8, options: options)
       code_block_placeholders.each do |block|
-        html.gsub!(block[:placeholder], block[:html])
+        html.gsub!(/#{block[:placeholder]}(?!\d)/) { block[:html] }
       end
       html = convert_fenced_code_html(html)
 
@@ -762,12 +762,14 @@ module StringUtils
       # Apply syntax highlighting - but save for after restoring code blocks
       highlighted_html = html.dup
 
+      # A placeholder is put back by its whole number (10 is not 1 followed
+      # by 0), with its text as it is (a backslash in it is not a pattern).
       # Restore code blocks first to ensure proper syntax highlighting
       code_blocks.each_with_index do |code, index|
         # First handle code blocks wrapped in <p> tags
-        html.gsub!(%r{<p>CODE_BLOCK_PLACEHOLDER_#{index}</p>}, code)
+        html.gsub!(%r{<p>CODE_BLOCK_PLACEHOLDER_#{index}</p>}) { code }
         # Then handle any remaining placeholders
-        html.gsub!("CODE_BLOCK_PLACEHOLDER_#{index}", code)
+        html.gsub!(/CODE_BLOCK_PLACEHOLDER_#{index}(?!\d)/) { code }
       end
 
       # Now apply syntax highlighting after code blocks are properly restored
@@ -776,20 +778,20 @@ module StringUtils
       # Restore block math expressions
       block_math.each_with_index do |code, index|
         # Extract math expressions from within <p> tags if present
-        html.gsub!(%r{<p>BLOCK_MATHJAX_PLACEHOLDER_#{index}</p>}, "$$#{code}$$")
+        html.gsub!(%r{<p>BLOCK_MATHJAX_PLACEHOLDER_#{index}</p>}) { "$$#{code}$$" }
         # Handle other cases with normal replacement
-        html.gsub!("BLOCK_MATHJAX_PLACEHOLDER_#{index}", "$$#{code}$$")
+        html.gsub!(/BLOCK_MATHJAX_PLACEHOLDER_#{index}(?!\d)/) { "$$#{code}$$" }
       end
 
       # Restore inline math expressions
       inline_math.each_with_index do |code, index|
-        placeholder = "INLINE_MATHJAX_PLACEHOLDER_#{index}"
+        placeholder = /INLINE_MATHJAX_PLACEHOLDER_#{index}(?!\d)/
         # Use \(...\) format for expressions with \text{} or other complex commands
         if code.include?('\\text') || code.include?('\\math') || code.count('\\') > 2
-          html.gsub!(placeholder, "\\(#{code}\\)")
+          html.gsub!(placeholder) { "\\(#{code}\\)" }
         else
           # Use $...$ format for simpler expressions
-          html.gsub!(placeholder, "$#{code}$")
+          html.gsub!(placeholder) { "$#{code}$" }
         end
       end
     else
@@ -798,7 +800,7 @@ module StringUtils
       t3_utf8 = t3.dup.force_encoding('UTF-8')
       html = Commonmarker.to_html(t3_utf8, options: options)
       code_block_placeholders.each do |block|
-        html.gsub!(block[:placeholder], block[:html])
+        html.gsub!(/#{block[:placeholder]}(?!\d)/) { block[:html] }
       end
       html = convert_fenced_code_html(html)
 
@@ -813,7 +815,7 @@ module StringUtils
 
     # Restore bold placeholders
     all_bold_items.each_with_index do |content, index|
-      html.gsub!("BOLD_PLACEHOLDER_#{index}", "<strong>#{CGI.escapeHTML(content)}</strong>")
+      html.gsub!(/BOLD_PLACEHOLDER_#{index}(?!\d)/) { "<strong>#{CGI.escapeHTML(content)}</strong>" }
     end
 
     html

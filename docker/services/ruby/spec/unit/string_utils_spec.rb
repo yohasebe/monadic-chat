@@ -338,6 +338,27 @@ RSpec.describe StringUtils do
   end
   
   describe ".markdown_to_html" do
+    it "puts each of more than ten formulas back in its own place" do
+      formulas = Array.new(12) { |i| "v_{#{i}} = #{i}" }
+      result = StringUtils.markdown_to_html(formulas.map { |f| "- $#{f}$" }.join("\n"), math: true)
+
+      expect(result.scan(/\$([^$]+)\$/).flatten).to eq(formulas)
+      expect(result).not_to include("PLACEHOLDER")
+    end
+
+    it "keeps the backslashes of a formula as written" do
+      result = StringUtils.markdown_to_html("$$a \\\\ b$$", math: true)
+
+      expect(result).to include("$$a \\\\ b$$")
+    end
+
+    it "puts each of more than ten code blocks back in its own place" do
+      blocks = Array.new(12) { |i| "```\nline #{i}\n```" }
+      result = StringUtils.markdown_to_html(blocks.join("\n\n"))
+
+      expect(result.scan(/line (\d+)/).flatten).to eq((0..11).map(&:to_s))
+    end
+
     it "converts markdown to HTML" do
       text = "**Bold text**"
       result = StringUtils.markdown_to_html(text)

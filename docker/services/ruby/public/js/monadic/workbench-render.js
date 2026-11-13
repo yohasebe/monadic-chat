@@ -174,8 +174,12 @@
     return clean;
   }
 
+  // Markdown as drawn: in a chat that hides words, a placeholder the text
+  // holds is shown as its word (WordTable; the text itself is not changed).
   function markdownFragment(text) {
-    return cleanFragment(markdownParser().render(text));
+    const fragment = cleanFragment(markdownParser().render(text));
+    if (window.WordTable && typeof window.WordTable.showWordsIn === 'function') window.WordTable.showWordsIn(fragment);
+    return fragment;
   }
 
   function drawMarkdown(box, text, live) {

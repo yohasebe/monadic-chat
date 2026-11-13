@@ -375,6 +375,59 @@
     if (shownObserver) shownObserver.takeRecords();
   }
 
+  // A placeholder as a file holds it (what a model wrote, kept as written).
+  const PLACEHOLDER = /<<[\s?]*([A-Z][A-Z_]*_\d+)[\s?]*>>/g;
+
+  // In root (text drawn from a file of the chat, such as its state notes),
+  // each placeholder of a word the chat hides is shown as the word; its
+  // title says how the file holds it. Only what is drawn changes: the file
+  // and what is sent keep the placeholder. Done again when the table
+  // changes: what was shown before is put back first.
+  function showWordsIn(root) {
+    if (!root) return;
+    root.querySelectorAll('.word-table-shown[data-placeholder]').forEach((span) => {
+      const parent = span.parentNode;
+      parent.replaceChild(document.createTextNode(span.dataset.placeholder), span);
+      parent.normalize();
+    });
+    const byId = new Map(state.active.map((entry) => [String(entry.placeholder || '').slice(2, -2), entry]));
+    if (byId.size === 0) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => (node.parentElement && node.parentElement.closest(NOT_MARKED)
+        ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT)
+    });
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach((node) => {
+      const text = node.nodeValue;
+      const pieces = document.createDocumentFragment();
+      let at = 0;
+      let found = false;
+      text.replace(PLACEHOLDER, (match, id, offset) => {
+        const entry = byId.get(id);
+        if (!entry) return match;
+        found = true;
+        if (offset > at) pieces.appendChild(document.createTextNode(text.slice(at, offset)));
+        const span = element('span', 'word-table-shown', entry.word);
+        span.dataset.placeholder = match;
+        span.title = t('ui.wordTable.writtenTitle', 'Written in the file as {placeholder}')
+          .replace('{placeholder}', entry.placeholder);
+        pieces.appendChild(span);
+        at = offset + match.length;
+        return match;
+      });
+      if (!found) return;
+      if (at < text.length) pieces.appendChild(document.createTextNode(text.slice(at)));
+      node.parentNode.replaceChild(pieces, node);
+    });
+  }
+
+  // The Markdown the work screen has drawn, shown again with the table as
+  // it is now.
+  function showWordsOnWorkScreen() {
+    document.querySelectorAll('.workbench-markdown').forEach(showWordsIn);
+  }
+
   function markShownSoon() {
     clearTimeout(shownTimer);
     shownTimer = setTimeout(markShown, 150);
@@ -404,6 +457,7 @@
     state.kept = Array.isArray(data.kept) ? data.kept : [];
     render();
     markShown();
+    showWordsOnWorkScreen();
     document.dispatchEvent(new CustomEvent('wordtable:changed'));
   }
 
@@ -550,6 +604,7 @@
   const api = {
     handleTable: handleTable, handleFound: handleFound, handleChanged: handleChanged,
     holdSend: holdSend, holdSpeech: holdSpeech, noticeOlderFile: noticeOlderFile, connectionLost: connectionLost, find: find,
+    showWordsIn: showWordsIn,
     isMarked: () => state.marked, hidesWords: () => state.active.length > 0, chat: () => state.chat,
     // Whether text holds a word the conversation marks as hidden.
     showsWordIn: (text) => splitByWords(String(text), state.active.map((e) => e.word)).some((part) => part.word)

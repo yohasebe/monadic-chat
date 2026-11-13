@@ -5,6 +5,8 @@
 # the advice given as a log shown on the practice's notes.
 # Uses tts_target to extract message for TTS from save_response tool.
 
+require_relative "../../lib/monadic/utils/tts_instruction_extractor"
+
 module LanguagePracticePlusTools
   include MonadicHelper
   include Monadic::SharedTools::MonadicSessionState
@@ -23,6 +25,9 @@ module LanguagePracticePlusTools
   # @param session [Hash] Session object (automatically provided)
   # @return [String] JSON response with success status
   def save_response(message:, target_lang: nil, language_advice: nil, session: nil)
+    # What is kept is the message as the user reads it, without the speech
+    # directive the model may begin it with.
+    message = Monadic::Utils::TtsInstructionExtractor.strip_from_history(message)
     existing = load_context_internal(session)
     context = { target_lang: target_lang || existing[:target_lang], last_message: message }
 

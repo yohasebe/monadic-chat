@@ -5,6 +5,8 @@
 # translated as a log shown on the interpreter's notes.
 # Uses tts_target to extract translated message for TTS from save_translation tool.
 
+require_relative "../../lib/monadic/utils/tts_instruction_extractor"
+
 module VoiceInterpreterTools
   include MonadicHelper
   include Monadic::SharedTools::MonadicSessionState
@@ -23,6 +25,9 @@ module VoiceInterpreterTools
   # @param session [Hash] Session object (automatically provided)
   # @return [String] JSON response with success status
   def save_translation(message:, source_lang: nil, target_lang: nil, session: nil)
+    # What is kept is the translation as the user reads it, without the
+    # speech directive the model may begin it with.
+    message = Monadic::Utils::TtsInstructionExtractor.strip_from_history(message)
     existing = load_context_internal(session)
     context = { source_lang: source_lang || existing[:source_lang], target_lang: target_lang || existing[:target_lang],
                 last_translation: message }

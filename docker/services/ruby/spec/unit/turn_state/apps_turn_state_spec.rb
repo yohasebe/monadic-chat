@@ -155,6 +155,17 @@ RSpec.describe "the Monadic apps' state by turn" do
       expect(advice).to eq(["'bien' is an adverb"])
     end
 
+    it "keeps advice given as objects as texts, and the message without its speech directive" do
+      run_reply do
+        practice.save_response(message: "<<TTS:Voice: warm.>>\nGood try!", target_lang: "English",
+                               language_advice: [{ "original" => "goed", "correction" => "went", "explanation" => "irregular" }],
+                               session: session)
+      end
+
+      expect(advice).to eq(["goed — went — irregular"])
+      expect(JSON.parse(practice.load_context(session: session))["data"]["last_message"]).to eq("Good try!")
+    end
+
     it "shows the language and the advice on its notes" do
       run_reply { practice.save_response(message: "Hola", target_lang: "Spanish", language_advice: ["Roll the r"], session: session) }
 
@@ -178,6 +189,12 @@ RSpec.describe "the Monadic apps' state by turn" do
       expect(loaded).to eq("source_lang" => "English", "target_lang" => "French", "last_translation" => long)
       page = Monadic::TurnState::Notes.render(session, interpreter.send(:state_notes), interpreter)
       expect(page).to include("- **From**: English", "- **To**: French", "## Phrases")
+    end
+
+    it "keeps a phrase without the speech directive it was given with" do
+      run_reply { interpreter.save_translation(message: "<<TTS:Voice: calm.>>\nBonjour", session: session) }
+
+      expect(Monadic::TurnState.items(session, "phrases").map { |item| item[:data] }).to eq(["Bonjour"])
     end
   end
 

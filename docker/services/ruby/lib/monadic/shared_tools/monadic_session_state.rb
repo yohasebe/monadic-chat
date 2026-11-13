@@ -74,9 +74,10 @@ module Monadic
       # Texts added to a log: a collection an app only adds to, for the
       # user to read on the app's notes (advice given, phrases translated),
       # which the model does not read back. A text added before is not
-      # added again; the texts are added together or not at all.
+      # added again; the texts are added together or not at all. An entry
+      # given as an object is read as its values, in order.
       def monadic_log(collection:, entries:, session: nil)
-        texts = Array(entries).map { |entry| entry.to_s.strip }.reject(&:empty?).uniq
+        texts = Array(entries).map { |entry| monadic_log_text(entry) }.reject(&:empty?).uniq
         kept = Monadic::TurnState.items(session, collection.to_s).map { |item| item[:id] }
         changes = texts.filter_map do |text|
           id = Monadic::TurnState.text_id(text)
@@ -126,6 +127,12 @@ module Monadic
       end
 
       private
+
+      def monadic_log_text(entry)
+        return entry.to_s.strip unless entry.is_a?(Hash)
+
+        entry.values.map { |value| value.is_a?(String) ? value.strip : value.to_json }.reject(&:empty?).join(" — ")
+      end
 
       def monadic_record_list(session, field, entries, identity)
         given = Array(entries)

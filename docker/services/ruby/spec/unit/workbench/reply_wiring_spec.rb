@@ -119,6 +119,46 @@ RSpec.describe "the workbench when a reply is recorded" do
     expect(session[:messages].count { |m| m["state_changes"] }).to eq(1)
   end
 
+  # A provider call whose tool leaves the text to speak (tts_target), then
+  # answers with the text given.
+  def speaking_app(spoken, answer: "")
+    Object.new.tap do |app|
+      app.define_singleton_method(:api_request) do |_role, session, &_block|
+        session[:tts_text] = spoken
+        [{ "choices" => [{ "message" => { "content" => answer }, "finish_reason" => "stop" }] }]
+      end
+      app.define_singleton_method(:settings) { {} }
+    end
+  end
+
+  def reply_of(app, message)
+    stub_const("APPS", { "FakeApp" => app })
+    session[:parameters] = { "app_name" => "FakeApp" }
+    thread = host.send(:handle_ws_streaming, nil, { "message" => message, "app_name" => "FakeApp" }, session, queue)
+    host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+    thread.join(5)
+    session[:messages].last
+  end
+
+  it "takes the text a tool left to speak as the reply when the reply has no text, without its speech directive" do
+    message = reply_of(speaking_app("<<TTS:Voice: warm.>>\nGood try!"), "hello")
+
+    expect(message).to include("role" => "assistant", "text" => "Good try!")
+    expect(session[:tts_text]).to be_nil
+  end
+
+  it "keeps the reply's own text, and does not carry the text to speak to the next reply" do
+    first = reply_of(speaking_app("Spoken", answer: "Written"), "one")
+    expect(first["text"]).to eq("Written")
+
+    plain = Object.new.tap do |app|
+      app.define_singleton_method(:api_request) { |_role, _session, &_block| [{ "choices" => [{ "message" => { "content" => "Next" }, "finish_reason" => "stop" }] }] }
+      app.define_singleton_method(:settings) { {} }
+    end
+    expect(reply_of(plain, "two")["text"]).to eq("Next")
+    expect(session[:tts_text]).to be_nil
+  end
+
   describe "the state a reply changed, and its Cancel" do
     let(:running) { [] }
 

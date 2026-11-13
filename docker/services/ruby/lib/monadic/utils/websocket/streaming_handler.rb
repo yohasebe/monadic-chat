@@ -487,7 +487,12 @@ module WebSocketHelper
       auto_speech_enabled = original_auto_speech == true || original_auto_speech == "true"
 
       # Check for tts_target extracted text (for apps like Voice Interpreter)
-      tts_text_from_target = session[:tts_text]
+      # Taken once: a text a reply left is not spoken, or shown, with a
+      # later one. The model may begin it with the speech directive, as it
+      # begins a reply: the directive is taken off what is spoken and shown.
+      tts_text_from_target, target_instructions =
+        Monadic::Utils::TtsInstructionExtractor.extract(session.delete(:tts_text))
+      tts_text_from_target = nil if tts_text_from_target.to_s.strip.empty?
 
       # TTS is allowed if auto_speech is enabled, not cutoff, and not realtime mode
       # The actual text source is determined later:
@@ -512,9 +517,6 @@ module WebSocketHelper
         # Get TTS text: prefer tts_target extraction (from session[:tts_text]) over full buffer
         # This allows apps to specify a specific tool parameter for TTS instead of the full response
         text = tts_text_from_target || buffer.join
-
-        # Clear session tts_text after use to avoid reusing on next request
-        session.delete(:tts_text) if tts_text_from_target
 
         # A chat that hides its words with a word table reads each word and
         # each "<<TYPE_N>>" placeholder as "TYPE N" (Words.spoken).
@@ -542,11 +544,13 @@ module WebSocketHelper
         # conservative response) it returns [text, nil] and the TTS call
         # just runs in plain mode.
         #
-        # For tts_text_from_target path we skip extraction: the target text
-        # is a specific tool parameter (not the assistant's raw response),
-        # so it cannot contain the sentinel prefix.
+        # A text from a tool parameter had its directive taken off above;
+        # it is passed on when the provider takes one.
         tts_instructions = nil
-        if !tts_text_from_target && Monadic::Utils::TtsMarkerVocabulary.instruction_capable?(provider)
+        capable = Monadic::Utils::TtsMarkerVocabulary.instruction_capable?(provider)
+        if tts_text_from_target
+          tts_instructions = target_instructions if capable
+        elsif capable
           text, tts_instructions = Monadic::Utils::TtsInstructionExtractor.extract(text)
           if CONFIG["EXTRA_LOGGING"] && tts_instructions.nil?
             Monadic::Utils::ExtraLogger.log { "[ExpressiveSpeech] instruction-capable parse returned no directive; falling back to plain TTS (provider=#{provider})" }
@@ -633,6 +637,9 @@ module WebSocketHelper
             send_error("content_not_found", ws_session_id)
             break
           end
+          # A reply that ended with the tool whose parameter is the text
+          # to speak, and no text of its own: that text is the reply.
+          raw_content = tts_text_from_target if raw_content.to_s.strip.empty? && tts_text_from_target
           # A chat with a word table: its placeholders put back.
           if Monadic::Utils::Privacy::Words.marked?(session)
             raw_content = Monadic::Utils::Privacy::Words.restore_reply(response, raw_content)

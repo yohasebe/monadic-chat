@@ -112,7 +112,7 @@ app "LanguagePracticePlusOpenAI" do
     define_tool "save_response", "Save response and context to session state. The message parameter is used for TTS playback." do
       parameter :message, "string", "Your response message to the user (will be used for TTS)", required: true
       parameter :target_lang, "string", "Target language being practiced", required: false
-      parameter :language_advice, "array", "Array of language advice strings for this turn", required: false
+      parameter :language_advice, "array", "Language advice for this turn: an array of strings, each one piece of advice as plain text (not an object)", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
 

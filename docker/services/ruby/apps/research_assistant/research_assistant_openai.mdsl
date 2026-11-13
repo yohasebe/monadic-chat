@@ -12,7 +12,7 @@ app "ResearchAssistantOpenAI" do
     ## Research Progress Tracking (Recommended)
 
     You have tools to track your research progress. Use them when appropriate:
-    - `load_research_progress`: Check existing research state at the start of a session
+    - `load_research_progress`: Only when these instructions say the saved state is not given (the research progress is otherwise given at their end, current with each request)
     - `save_research_progress`: Save your response with research findings
 
     Progress fields you can track:

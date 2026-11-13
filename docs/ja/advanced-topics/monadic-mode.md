@@ -16,7 +16,7 @@ Session State に設定は要りません。状態を読むツールと保存す
 
 ### 動作の仕組み
 
-1. モデルが、ツール（たとえば `get_context`）で今の状態を読みます。
+1. モデルは今の状態を持っています。下の表のうち状態ノートを持つアプリと、`session_context` のツールを使うアプリは、要求のたびに、システムプロンプトの末尾で状態をモデルに渡します。ほかのアプリは、自分で定義したツールで状態を読みます。
 2. 必要に応じてほかのツールも使いながら、利用者に答えます。
 3. わかったことを、ツール（たとえば `update_context`）で記録します。
 
@@ -58,7 +58,6 @@ app "MyAppOpenAI" do
 
   system_prompt <<~PROMPT
     You are an assistant that keeps track of the conversation.
-    Call get_context at the start of each turn.
     When the user mentions new topics, people or facts, call update_context.
   PROMPT
 
@@ -114,7 +113,7 @@ end
 
 ## ベストプラクティス
 
-1. **最初に状態を読む**：ターンの初めに、今の状態を読みます。
+1. **渡された状態を使う**：状態が要求と一緒に渡されるアプリでは、読み込み直しません。それ以外では、ターンの初めに 1 回読みます。
 2. **状態に書き加える**：利用者に頼まれない限り、項目を消しません。
 3. **同じフィールドを使う**：会話を通して、同じフィールドを使います。
 4. **状態を絞る**：後のターンで使う情報だけを保存します。

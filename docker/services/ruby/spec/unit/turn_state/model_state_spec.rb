@@ -65,6 +65,22 @@ RSpec.describe Monadic::TurnState::ModelState do
     expect(prompt).to eq(described_class::NOT_GIVEN)
   end
 
+  context "in an app that does not offer its load tool to the model" do
+    before do
+      allow(app).to receive(:settings).and_return({ tools: [{ "type" => "function", "function" => { "name" => "other" } }] })
+    end
+
+    it "gives nothing" do
+      expect(prompt).to be_nil
+    end
+
+    it "gives the state once the tool is offered, however the provider lists it" do
+      allow(app).to receive(:settings).and_return({ tools: { "function_declarations" => [{ name: "load_context" }] } })
+
+      expect(prompt).to include(described_class::OPEN)
+    end
+  end
+
   it "gives nothing for an app that does not say what the model is given" do
     session[:parameters]["app_name"] = "Plain"
 

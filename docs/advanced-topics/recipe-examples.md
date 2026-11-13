@@ -118,7 +118,6 @@ app "ReadingNotesOpenAI" do
 
   system_prompt <<~PROMPT
     You discuss books with the user.
-    Call get_context at the start of each turn.
     When a book, a person or a theme comes up, call update_context.
   PROMPT
 

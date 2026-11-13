@@ -12,6 +12,8 @@ require_relative "../../../apps/research_assistant/research_assistant_tools"
 require_relative "../../../apps/language_practice_plus/language_practice_plus_tools"
 require_relative "../../../apps/voice_interpreter/voice_interpreter_tools"
 require_relative "../../../lib/monadic/turn_state/notes"
+require_relative "../../../lib/monadic/turn_state/model_state"
+require_relative "../../../lib/monadic/shared_tools/session_context"
 
 # The Monadic apps keep their state by turn: a list's entries are items of
 # their own (deleting the turn that added one takes it back), the rest of
@@ -234,6 +236,53 @@ RSpec.describe "the Monadic apps' state by turn" do
 
       page = Monadic::TurnState::Notes.render(session, research.send(:state_notes), research)
       expect(page).to include("# Research notes", "## Findings", "- A [Source: s1] (turn 1)", "## Sources", "- s1 (turn 1)")
+    end
+  end
+
+  describe "what the model is given of the state with each request" do
+    let(:translate) { Class.new { include TranslateTools }.new }
+
+    def given(tools)
+      tools.send(:state_for_model, session)
+    end
+
+    it "is what Translate's load tool returns, vocabulary included" do
+      run_reply { translate.add_vocabulary_entry(original_text: "猫", translation: "cat", session: session) }
+
+      declared = given(translate)
+      expect(declared[:load_tool]).to eq("load_translation_context")
+      expect(declared[:data]).to eq(JSON.parse(translate.load_translation_context(session: session))["data"])
+      expect(declared[:data]["vocabulary"]).to eq([{ "original_text" => "猫", "translation" => "cat" }])
+    end
+
+    it "is what Research Assistant's load tool returns" do
+      session[:parameters]["app_name"] = "ResearchAssistantOpenAI"
+      stub_const("APPS", { "ResearchAssistantOpenAI" => double(settings: {}) })
+      research = Class.new { include ResearchAssistantSessionState }.new
+      run_reply { research.add_finding(finding: "A", source: "s1", session: session) }
+
+      declared = given(research)
+      expect(declared[:load_tool]).to eq("load_research_progress")
+      expect(declared[:data]).to eq(JSON.parse(research.load_research_progress(session: session))["data"])
+      expect(declared[:data]["findings"]).not_to be_empty
+    end
+
+    it "is the context a conversational app keeps" do
+      context = Class.new { include MonadicSharedTools::SessionContext }.new
+      run_reply { context.update_context(topics: ["Ruby"], session: session) }
+
+      expect(given(context)).to eq(data: context.get_context(session: session)[:context], load_tool: "get_context")
+      expect(given(context)[:data]["topics"]).to eq(["Ruby"])
+    end
+
+    it "is nothing saved before a tool saves, for the model to be told so" do
+      expect(Monadic::TurnState::ModelState.blank?(given(translate)[:data])).to be(true)
+    end
+
+    it "is not an empty state when the load tool did not succeed" do
+      allow(translate).to receive(:load_translation_context).and_return({ success: false, error: "x" }.to_json)
+
+      expect { given(translate) }.to raise_error(ArgumentError)
     end
   end
 

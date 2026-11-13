@@ -45,6 +45,8 @@ module Monadic
 
         declared = app.send(:state_for_model, session)
         tool = declared[:load_tool]
+        # A variant that does not offer the state's tools keeps no state.
+        return nil if tool && !offered?(app, tool)
         data = as_sent(session, JSON.parse(JSON.generate(declared[:data] || {})))
         return NONE if blank?(data)
 
@@ -53,6 +55,30 @@ module Monadic
       rescue StandardError => e
         Monadic::Utils::ExtraLogger.log { "[TurnState::ModelState] not given: #{e.class}" } if defined?(Monadic::Utils::ExtraLogger)
         not_given(tool)
+      end
+
+      # The data of a load tool's result (JSON, or a Hash); a result that
+      # did not succeed is not an empty state.
+      def from_tool(result)
+        parsed = JSON.parse(result.is_a?(String) ? result : JSON.generate(result))
+        raise ArgumentError, 'the state was not read' unless parsed['success']
+
+        parsed['data']
+      end
+
+      # Whether the app offers the tool to the model; an app whose tools
+      # are not known is taken to.
+      def offered?(app, tool)
+        tools = app.respond_to?(:settings) && app.settings.respond_to?(:[]) ? app.settings[:tools] : nil
+        tools.nil? || tool_names(tools).include?(tool.to_s)
+      end
+
+      def tool_names(tools)
+        case tools
+        when Hash then [tools['name'] || tools[:name]].compact.map(&:to_s) + tools.values.flat_map { |v| tool_names(v) }
+        when Array then tools.flat_map { |v| tool_names(v) }
+        else []
+        end
       end
 
       def not_given(tool)

@@ -39,10 +39,10 @@ app "TranslateOpenAI" do
     Translation context (source_lang, target_lang, vocabulary) is managed through session state tools.
     Use these tools to maintain context across the conversation:
 
+    The saved context is given to you at the end of these instructions, current with each request: read the language settings and the vocabulary there.
+
     **When to use load_translation_context:**
-    - At the start of a session to check if language settings exist
-    - When you need to verify current vocabulary entries
-    - When user asks about current settings
+    - Only when these instructions say the saved state is not given
 
     **When to use save_translation_context:**
     - When user specifies source or target language for the first time

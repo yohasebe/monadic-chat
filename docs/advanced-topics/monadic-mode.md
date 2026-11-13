@@ -16,7 +16,7 @@ Session State needs no setting. An app has it when it defines tools that read an
 
 ### How It Works
 
-1. The model reads the current state with a tool (for example `get_context`).
+1. The model has the current state: the apps in the table below that have state notes, and any app that uses the `session_context` tools, give it to the model with each request, at the end of the system prompt. Another app reads it with a tool it defines.
 2. It answers the user, using other tools as needed.
 3. It records what it learned with a tool (for example `update_context`).
 
@@ -58,7 +58,6 @@ app "MyAppOpenAI" do
 
   system_prompt <<~PROMPT
     You are an assistant that keeps track of the conversation.
-    Call get_context at the start of each turn.
     When the user mentions new topics, people or facts, call update_context.
   PROMPT
 
@@ -114,7 +113,7 @@ end
 
 ## Best Practices
 
-1. **Read the state first**: Read the current state at the start of each turn.
+1. **Use the state given**: Where the state is given with the request, do not load it again. Elsewhere, read it once at the start of a turn.
 2. **Add to the state**: Do not remove items unless the user asks.
 3. **Keep the same fields**: Use the same fields through the conversation.
 4. **Keep the state focused**: Store only information that later turns will use.

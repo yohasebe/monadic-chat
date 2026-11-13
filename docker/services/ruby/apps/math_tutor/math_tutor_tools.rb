@@ -122,6 +122,12 @@ module MathTutorTools
 
   private
 
+  # What the model is given of the state with each request, as load_learning_progress
+  # returns it (Monadic::TurnState::ModelState).
+  def state_for_model(session)
+    { data: Monadic::TurnState::ModelState.from_tool(load_learning_progress(session: session)), load_tool: "load_learning_progress" }
+  end
+
   # The learner's notes on the work screen (Monadic::TurnState::Notes).
   def state_notes
     { title: "Learning notes", key: STATE_KEY, values: { "current_problem" => "Current problem" },

@@ -98,6 +98,12 @@ module TranslateTools
 
   private
 
+  # What the model is given of the state with each request, as load_translation_context
+  # returns it (Monadic::TurnState::ModelState).
+  def state_for_model(session)
+    { data: Monadic::TurnState::ModelState.from_tool(load_translation_context(session: session)), load_tool: "load_translation_context" }
+  end
+
   # The translation's notes on the work screen (Monadic::TurnState::Notes):
   # its languages and vocabulary, as the conversation leaves them.
   def state_notes

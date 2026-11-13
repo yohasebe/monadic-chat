@@ -140,6 +140,12 @@ module ResearchAssistantSessionState
 
   private
 
+  # What the model is given of the state with each request, as load_research_progress
+  # returns it (Monadic::TurnState::ModelState).
+  def state_for_model(session)
+    { data: Monadic::TurnState::ModelState.from_tool(load_research_progress(session: session)), load_tool: "load_research_progress" }
+  end
+
   # The research's notes on the work screen (Monadic::TurnState::Notes).
   def state_notes
     { title: "Research notes", key: STATE_KEY, values: { "current_topic" => "Current topic" },

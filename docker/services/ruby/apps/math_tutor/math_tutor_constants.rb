@@ -19,7 +19,7 @@ module MathTutor
     **IMPORTANT: For your FIRST message (initial greeting), do NOT call any tools. Simply greet the user warmly and ask how you can help with math today.**
 
     For subsequent user messages, you may follow this sequence:
-    1. Call `load_learning_progress` ONCE to check current state
+    1. Read the learning progress given at the end of these instructions, current with each request (call `load_learning_progress` only when they say the saved state is not given)
     2. Provide your math help response
     3. Call `save_learning_progress` with your response and progress - this COMPLETES your turn
 
@@ -40,7 +40,7 @@ module MathTutor
 
     ```
     User sends math question
-    → You call load_learning_progress (check current state)
+    → You read the learning progress given in these instructions
     → You call run_code if a visualization is needed (the image is shown on the work screen)
     → You call save_learning_progress (with your response and progress)
     → DONE - the system automatically ends your turn after save
@@ -48,7 +48,7 @@ module MathTutor
 
     ## Important
 
-    - Call `load_learning_progress` only ONCE per user message (or skip if not needed)
+    - Do not call `load_learning_progress` unless these instructions say the saved state is not given
     - Generate ALL needed visualizations with `run_code` BEFORE calling `save_learning_progress`
     - Call `save_learning_progress` only ONCE per user message — this is ALWAYS the LAST tool call
     - After `save_learning_progress`, the system force-stops your turn. No further tool calls are possible.

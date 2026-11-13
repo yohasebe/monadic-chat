@@ -84,6 +84,12 @@ module MonadicSharedTools
 
     private
 
+    # What the model is given of the context with each request, as
+    # get_context returns it (Monadic::TurnState::ModelState).
+    def state_for_model(session)
+      { data: context_texts(session), load_tool: "get_context" }
+    end
+
     # The page that shows the context on the work screen.
     def state_notes
       { title: "Context", lists: { "topics" => { label: "Topics" }, "people" => { label: "People" },

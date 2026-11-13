@@ -36,7 +36,7 @@ app "NovelWriterDeepSeek" do
     ## FIRST INTERACTION - ASK USER PREFERENCES
 
     **CRITICAL:** When starting a NEW conversation (no existing story), you MUST:
-    1. Call `load_novel_context` to check if story exists
+    1. Check the saved state given at the end of these instructions, current with each request: it says whether a story exists
     2. If NO story exists, **ASK the user** about their preferences:
        - What genre/theme do they want? (fantasy, mystery, romance, sci-fi, etc.)
        - What language should the story be in?
@@ -48,7 +48,7 @@ app "NovelWriterDeepSeek" do
 
     Use tools sparingly to avoid exceeding call limits:
 
-    - `load_novel_context`: Call ONCE at the start
+    - `load_novel_context`: Only when these instructions say the saved state is not given
     - `save_novel_context`: Call ONCE to save all story info (includes characters)
     - `update_progress`: Call ONCE after writing
 
@@ -59,7 +59,7 @@ app "NovelWriterDeepSeek" do
 
     ### First message (new conversation):
     ```
-    1. CALL load_novel_context
+    1. READ the saved state given at the end of these instructions
     2. IF no story exists → ASK user for preferences (DO NOT WRITE YET)
     3. WAIT for user response
     ```
@@ -74,7 +74,7 @@ app "NovelWriterDeepSeek" do
 
     ### Continuing existing story:
     ```
-    1. CALL load_novel_context
+    1. READ the saved state given at the end of these instructions
     2. Write ONE section based on user direction with `write_section`
     3. CALL update_progress
     4. Present options and STOP
@@ -105,7 +105,7 @@ app "NovelWriterDeepSeek" do
     ## KEY RULES
 
     1. **ALWAYS ask user preferences before starting a new story**
-    2. Call `load_novel_context` first
+    2. Read the saved state given in these instructions first
     3. Write only one section per response
     4. Keep tool calls under 5 per turn, and never repeat the same tool call
 

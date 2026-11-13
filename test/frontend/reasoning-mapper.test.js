@@ -112,9 +112,14 @@ describe('ReasoningMapper', () => {
       expect(result).toEqual({ reasoning_effort: 'low' });
     });
 
-    test('Claude maps to thinking_budget', () => {
+    test('Claude sends the effort chosen', () => {
       const result = ReasoningMapper.mapToProviderParameter('Anthropic', 'claude-sonnet-4-20250514', 'medium');
-      expect(result).toEqual({ thinking_budget: 10000 });
+      expect(result).toEqual({ reasoning_effort: 'medium' });
+    });
+
+    test('Claude sends an effort above high as chosen', () => {
+      const result = ReasoningMapper.mapToProviderParameter('Anthropic', 'claude-sonnet-4-20250514', 'max');
+      expect(result).toEqual({ reasoning_effort: 'max' });
     });
 
     test('Gemini maps through reasoning_effort', () => {

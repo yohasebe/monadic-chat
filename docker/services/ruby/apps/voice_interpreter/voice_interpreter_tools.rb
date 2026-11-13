@@ -35,10 +35,7 @@ module VoiceInterpreterTools
                 last_translation: message }
 
     result = monadic_save_state(key: STATE_KEY, payload: context, session: session)
-    # The phrase list holds what was translated with its translation, not
-    # the interpreter's own remarks.
-    phrase = original.to_s.strip.empty? ? nil : "#{original.to_s.strip} → #{message.to_s.strip}"
-    logged = JSON.parse(monadic_log(collection: PHRASES, entries: [phrase].compact, session: session))
+    logged = JSON.parse(monadic_log(collection: PHRASES, entries: [phrase(original, message)].compact, session: session))
     logged["success"] ? result : logged.to_json
   end
 
@@ -64,6 +61,20 @@ module VoiceInterpreterTools
   end
 
   private
+
+  # A line of the phrase list: what was translated with its translation.
+  # Nothing for the interpreter's own remarks, nor for words given back as
+  # they were said.
+  def phrase(original, message)
+    said, translated = [original, message].map { |text| text.to_s.strip }
+    return nil if said.empty? || same_words?(said, translated)
+
+    "#{said} → #{translated}"
+  end
+
+  def same_words?(one, other)
+    [one, other].map { |text| text.unicode_normalize(:nfkc).tr("‘’“”", %q(''"")).gsub(/\s+/, " ").downcase }.uniq.size == 1
+  end
 
   # What the model is given of the state with each request, as load_context
   # returns it (Monadic::TurnState::ModelState).

@@ -215,6 +215,14 @@ RSpec.describe "the Monadic apps' state by turn" do
 
       expect(phrases).to eq([])
     end
+
+    it "does not list words given back as they were said" do
+      run_reply do
+        interpreter.save_translation(message: "There\u2019s a  giant.", original: "there's a giant.", session: session)
+      end
+
+      expect(phrases).to eq([])
+    end
   end
 
   describe "the notes of Math Tutor and Research Assistant" do

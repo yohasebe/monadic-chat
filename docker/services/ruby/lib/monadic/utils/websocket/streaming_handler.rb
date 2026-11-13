@@ -391,10 +391,9 @@ module WebSocketHelper
       buffer = []
       cutoff = false
 
-      # Save original auto_speech and monadic values before they might be overwritten
-      # These will be used for final segment processing after streaming completes
+      # Save the original auto_speech value before it might be overwritten
+      # This will be used for final segment processing after streaming completes
       original_auto_speech = obj["auto_speech"]
-      original_monadic = obj["monadic"]
 
       app_name = obj["app_name"]
       app_obj = APPS[app_name]
@@ -407,7 +406,7 @@ module WebSocketHelper
       end
 
       # Expressive Speech instruction-mode streaming hold-back state.
-      # For non-Monadic apps using openai-tts-4o the LLM prefixes the reply
+      # With an instruction-capable TTS provider the LLM prefixes the reply
       # with a `<<TTS:...>>` directive block. We buffer fragments on the
       # server until either (a) a complete sentinel arrives — then forward
       # only the remainder, or (b) the accumulated prefix can no longer be
@@ -415,7 +414,6 @@ module WebSocketHelper
       # Once decided, subsequent fragments pass through unchanged.
       sentinel_hold_back_active =
         (original_auto_speech == true || original_auto_speech == "true") &&
-        (original_monadic.nil? || original_monadic.to_s.strip.empty?) &&
         Monadic::Utils::TtsMarkerVocabulary.instruction_capable?(obj["tts_provider"])
       sentinel_state = sentinel_hold_back_active ? :scanning : :passthrough
       sentinel_held = +""
@@ -425,7 +423,7 @@ module WebSocketHelper
         next if chat_changed.call
 
         # DEBUG: Log all fragment arrivals
-        Monadic::Utils::ExtraLogger.log { "[DEBUG] Fragment arrived: type='#{fragment["type"]}', auto_speech=#{obj["auto_speech"]}, cutoff=#{cutoff}, monadic=#{obj["monadic"]}" }
+        Monadic::Utils::ExtraLogger.log { "[DEBUG] Fragment arrived: type='#{fragment["type"]}', auto_speech=#{obj["auto_speech"]}, cutoff=#{cutoff}" }
 
         if fragment["type"] == "error"
           error_content = fragment["content"] || fragment.to_s
@@ -518,17 +516,13 @@ module WebSocketHelper
       # arrive as boolean true or string "true" from the client.
       auto_speech_enabled = original_auto_speech == true || original_auto_speech == "true"
 
-      # Check if monadic is nil or empty string (both should be treated as false/disabled)
-      monadic_disabled = original_monadic.nil? || original_monadic.to_s.strip.empty?
-
-      # Check for tts_target extracted text (for monadic apps like Voice Interpreter)
-      # This must be checked BEFORE the condition so monadic apps with tts_target can use TTS
+      # Check for tts_target extracted text (for apps like Voice Interpreter)
       tts_text_from_target = session[:tts_text]
 
       # TTS is allowed if auto_speech is enabled, not cutoff, and not realtime mode
       # The actual text source is determined later:
       # - If tts_text_from_target exists (tool was called), use that
-      # - Otherwise, fall back to buffer.join (works for all apps including monadic)
+      # - Otherwise, fall back to buffer.join (works for all apps)
       #
       # NOTE: The server auto-triggers TTS here. The client should NOT also click
       # the Play button to avoid duplicate audio playback. The client-side code
@@ -536,7 +530,7 @@ module WebSocketHelper
       # is expected (server will send audio automatically).
       tts_allowed = auto_speech_enabled && !cutoff
 
-      Monadic::Utils::ExtraLogger.log { "[DEBUG] POST-COMPLETION MODE conditions:\n[DEBUG]   original_auto_speech=#{original_auto_speech.inspect}, auto_speech_enabled=#{auto_speech_enabled.inspect}\n[DEBUG]   cutoff=#{cutoff.inspect}\n[DEBUG]   original_monadic=#{original_monadic.inspect}, monadic_disabled=#{monadic_disabled.inspect}\n[DEBUG]   tts_text_from_target=#{tts_text_from_target ? 'present' : 'nil'}\n[DEBUG]   tts_allowed=#{tts_allowed.inspect}" }
+      Monadic::Utils::ExtraLogger.log { "[DEBUG] POST-COMPLETION MODE conditions:\n[DEBUG]   original_auto_speech=#{original_auto_speech.inspect}, auto_speech_enabled=#{auto_speech_enabled.inspect}\n[DEBUG]   cutoff=#{cutoff.inspect}\n[DEBUG]   tts_text_from_target=#{tts_text_from_target ? 'present' : 'nil'}\n[DEBUG]   tts_allowed=#{tts_allowed.inspect}" }
 
       if tts_allowed
         # Stop any existing TTS thread first
@@ -580,17 +574,12 @@ module WebSocketHelper
         #
         # For tts_text_from_target path we skip extraction: the target text
         # is a specific tool parameter (not the assistant's raw response),
-        # so it cannot contain the JSON wrapper or sentinel prefix.
+        # so it cannot contain the sentinel prefix.
         tts_instructions = nil
         if !tts_text_from_target && Monadic::Utils::TtsMarkerVocabulary.instruction_capable?(provider)
-          app_is_monadic = !monadic_disabled
-          extracted_text, tts_instructions = Monadic::Utils::TtsInstructionExtractor.extract(
-            text,
-            app_is_monadic: app_is_monadic
-          )
-          text = extracted_text
+          text, tts_instructions = Monadic::Utils::TtsInstructionExtractor.extract(text)
           if CONFIG["EXTRA_LOGGING"] && tts_instructions.nil?
-            Monadic::Utils::ExtraLogger.log { "[ExpressiveSpeech] instruction-capable parse returned no directive; falling back to plain TTS (provider=#{provider}, monadic=#{app_is_monadic})" }
+            Monadic::Utils::ExtraLogger.log { "[ExpressiveSpeech] instruction-capable parse returned no directive; falling back to plain TTS (provider=#{provider})" }
           end
         end
 

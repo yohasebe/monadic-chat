@@ -308,14 +308,7 @@ module Monadic
           generator: ->(session, _options) {
             params = session[:parameters] || {}
             tts_provider = params["tts_provider"] || params[:tts_provider]
-            # Instruction-mode's addendum shape depends on whether the active
-            # app is Monadic (JSON sibling field) or not (sentinel prefix).
-            # Marker-mode addendum ignores this flag.
-            app_is_monadic = Monadic::Utils::SystemPromptInjector.__app_is_monadic?(session)
-            Monadic::Utils::TtsMarkerVocabulary.prompt_addendum_for(
-              tts_provider,
-              app_is_monadic: app_is_monadic
-            )
+            Monadic::Utils::TtsMarkerVocabulary.prompt_addendum_for(tts_provider)
           }
         },
         # Plain-voice enforcement — the mirror of expressive_speech. When Auto
@@ -497,6 +490,9 @@ module Monadic
           params = session&.[](:parameters) || {}
           auto_speech = params["auto_speech"] || params[:auto_speech]
           return false unless auto_speech == true || auto_speech.to_s == "true"
+          # A reply that is JSON as a whole has no place for the markers or
+          # the leading directive block.
+          return false if (params["json"] || params[:json]).to_s == "true"
 
           # Per-app opt-out: if the MDSL declares `expressive_speech false`,
           # skip both addenda. This lets apps with strict output formats
@@ -508,25 +504,6 @@ module Monadic
           end
 
           true
-        end
-
-        # Decide the instruction-mode addendum variant. Monadic apps receive
-        # the JSON-sibling version; non-Monadic apps receive the sentinel
-        # prefix version. Uses the session's `monadic` parameter first, then
-        # falls back to the MDSL `monadic` setting.
-        def __app_is_monadic?(session)
-          params = session&.[](:parameters) || {}
-
-          session_monadic = params["monadic"] || params[:monadic]
-          return true if session_monadic == true || session_monadic.to_s == "true"
-
-          app_name = params["app_name"] || params[:app_name]
-          if defined?(APPS) && app_name && (app = APPS[app_name])
-            mdsl_monadic = app.settings["monadic"] rescue nil
-            return true if mdsl_monadic == true || mdsl_monadic.to_s == "true"
-          end
-
-          false
         end
 
         # Resolve the active app's effective vocabulary token symbols. Delegates

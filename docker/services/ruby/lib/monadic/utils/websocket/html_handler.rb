@@ -148,17 +148,12 @@ module WebSocketHelper
 
           # Expressive Speech instruction-mode: strip ephemeral TTS metadata
           # from the stored message so next-turn LLM context does not carry
-          # per-turn directives. Monadic apps store JSON (remove the
-          # `tts_instructions` key); non-Monadic apps store plain text with
-          # a leading `<<TTS:...>>` sentinel (remove that block). No-op for
-          # providers without instruction-mode.
+          # per-turn directives: the leading `<<TTS:...>>` block is removed.
+          # No-op for providers without instruction-mode.
           tts_provider_for_history = params["tts_provider"] || session[:parameters]&.dig("tts_provider")
           if tts_provider_for_history &&
              Monadic::Utils::TtsMarkerVocabulary.instruction_capable?(tts_provider_for_history)
-            final_text = Monadic::Utils::TtsInstructionExtractor.strip_from_history(
-              final_text,
-              app_is_monadic: !!params["monadic"]
-            )
+            final_text = Monadic::Utils::TtsInstructionExtractor.strip_from_history(final_text)
           end
 
          new_data = { "mid" => SecureRandom.hex(4),

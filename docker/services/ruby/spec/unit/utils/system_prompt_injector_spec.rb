@@ -473,8 +473,13 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
         # "plain prose only in the reply").
         expect(names).not_to include(:plain_voice_enforcement)
         addendum = result.find { |r| r[:name] == :expressive_speech }[:content]
-        # Default is non-Monadic → sentinel variant.
         expect(addendum).to include('<<TTS:')
+      end
+
+      it 'excludes the addendum when the reply is JSON as a whole' do
+        session = { parameters: { 'auto_speech' => true, 'tts_provider' => 'openai-tts-4o', 'json' => true } }
+        result = described_class.build_injections(session: session, options: {})
+        expect(result.map { |r| r[:name] }).not_to include(:expressive_speech)
       end
 
       it 'excludes the addendum when parameters is missing entirely' do

@@ -20,15 +20,21 @@ module InteractionUtils
     Monadic::Utils::TtsAudio.pcm_to_wav(pcm_data, **options)
   end
 
+  # Pictographs and what joins or modifies them (variation selectors, the
+  # joiner, skin tones, flag letters, the keycap mark): shown, not spoken.
+  TTS_PICTOGRAPHS = /[\p{Extended_Pictographic}\p{Emoji_Modifier}\u{FE0E}\u{FE0F}\u{200D}\u{20E3}\u{1F1E6}-\u{1F1FF}]+/
+
   # The text as a TTS service receives it: the user's dictionary applied,
-  # then the provider's own conversion (markers, tags). What is checked for
-  # words the user marked is this text, not the one before.
+  # pictographs left out, then the provider's own conversion (markers,
+  # tags). What is checked for words the user marked is this text, not the
+  # one before.
   def tts_text_as_sent(text, provider)
     converted = if CONFIG["TTS_DICT"]
                   text.gsub(/(#{CONFIG["TTS_DICT"].keys.join("|")})/) { CONFIG["TTS_DICT"][$1] }
                 else
                   text
                 end
+    converted = converted.gsub(TTS_PICTOGRAPHS, " ").gsub(/[ \t]{2,}/, " ").strip
     Monadic::Utils::TtsTextProcessors.pre_send(provider, converted)
   end
 
@@ -45,6 +51,8 @@ module InteractionUtils
     return nil if text.nil? || text.empty?
 
     text_converted = tts_text_as_sent(text, provider)
+    # Nothing to say once what is not spoken is left out
+    return nil if text_converted.strip.empty?
 
     num_retrial = 0
 
@@ -396,6 +404,7 @@ module InteractionUtils
 
     # Apply TTS dictionary if configured
     text_converted = tts_text_as_sent(text, provider)
+    return if text_converted.strip.empty?
 
     Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request_async: START - provider=#{provider}, text_length=#{text_converted.length}, sequence_id=#{sequence_id}" }
 

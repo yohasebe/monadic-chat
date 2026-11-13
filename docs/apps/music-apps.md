@@ -10,7 +10,7 @@ An interactive lab for learning music theory hands-on: play chords, scales, inte
 
 **Key Features:**
 - **Audio/MIDI analysis**: Upload audio files (mp3, wav, m4a, ogg, flac) or MIDI files (mid, midi) to detect tempo, key, time signature, chord progressions, and song structure. MIDI analysis also extracts track/instrument information.
-- **Audio playback**: Chords, scales, intervals, and progressions are shown as sheet music in the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat and played there with in-browser MIDI synthesis. Each one is a `.abc` file in the chat's folder of the shared folder; the reply names its path
+- **Audio playback**: Chords, scales, intervals, and progressions are shown as sheet music in the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat and played there with in-browser MIDI synthesis, with the instrument sounds of the FluidR3 GM sound font by Frank Wen ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0/us/)), as rendered in [midi-js-soundfonts](https://github.com/paulrosen/midi-js-soundfonts). Each one is a `.abc` file in the chat's folder of the shared folder; the reply names its path
 - **Backing tracks**: Multi-instrument backing tracks (chords + bass) with style-specific patterns (jazz, bossa nova, pop, rock, ballad)
 - **Algorithmic melody**: Generate melodies automatically using chord-scale theory, Euclidean rhythms, and contour shaping (lyrical, rhythmic, jazz, latin, gentle styles)
 - **Guitar-specific patterns**: Bossa nova arpeggios, rock power chords, ballad fingerpicking

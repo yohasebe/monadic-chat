@@ -592,3 +592,38 @@ describe('Form Handlers', () => {
     });
   });
 });
+
+describe('importNotice', () => {
+  const formHandlers = require('../../docker/services/ruby/public/js/monadic/form-handlers.js');
+  const t = (key) => ({
+    'ui.messages.sessionImported': 'Imported.',
+    'ui.messages.stateDropped': '{n} entries were left out.'
+  })[key];
+
+  it('says the session was imported', () => {
+    expect(formHandlers.importNotice({ success: true, state_dropped: 0 }, t)).toBe('Imported.');
+    expect(formHandlers.importNotice({ success: true }, t)).toBe('Imported.');
+  });
+
+  it('says how many entries of the app state were left out', () => {
+    expect(formHandlers.importNotice({ success: true, state_dropped: 2 }, t)).toBe('Imported. 2 entries were left out.');
+  });
+
+  it('has its own words without a translator', () => {
+    expect(formHandlers.importNotice({ state_dropped: 1 }, null)).toContain('1 entries');
+  });
+});
+
+describe('the dropped-state notice in every language', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const text = fs.readFileSync(path.join(__dirname, '../../docker/services/ruby/public/js/i18n/translations.js'), 'utf8');
+  const blocks = text.split(/\n {2}(?=\w\w: \{\n {4}ui: \{)/).slice(1);
+
+  it('names the count in each of the seven languages', () => {
+    expect(blocks.map((b) => b.slice(0, 2))).toEqual(['en', 'ja', 'zh', 'ko', 'es', 'fr', 'de']);
+    blocks.forEach((block) => {
+      expect(block).toMatch(/stateDropped: "[^"]*\{n\}[^"]*"/);
+    });
+  });
+});

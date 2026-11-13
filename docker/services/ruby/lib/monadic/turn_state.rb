@@ -57,7 +57,7 @@ module Monadic
     # The data of key for the app the session is in; nil when there is
     # none (or it was removed).
     def data_of(session, key)
-      return nil unless session.is_a?(Hash)
+      return nil unless session.respond_to?(:[])
 
       entry = value(session, key.to_s)
       entry[:found] ? entry[:data] : nil
@@ -180,7 +180,7 @@ module Monadic
     # --- inside ------------------------------------------------------------
 
     def app_of(session)
-      params = session.is_a?(Hash) ? (session[:parameters] || session['parameters']) : nil
+      params = session.respond_to?(:[]) ? (session[:parameters] || session['parameters']) : nil
       (params && (params['app_name'] || params[:app_name])).to_s
     end
 
@@ -215,7 +215,9 @@ module Monadic
     def change_all!(session, list)
       record = writer!(session)
       checked = list.map { |change| Form.change(change.merge('app' => record.app)) }
-      raise Refused, 'the change does not fit the form of state' if checked.any?(&:nil?)
+      if (at = checked.index(nil))
+        raise Refused, "the change does not fit the form of state (#{shape(list[at], record.app)})"
+      end
 
       @lock.synchronize do
         changes = record.changes.dup
@@ -230,6 +232,12 @@ module Monadic
       nil
     rescue Form::Invalid => e
       raise Refused, "the value cannot be kept in state: #{e.message}"
+    end
+
+    # What a refused change was of, without what it holds.
+    def shape(change, app)
+      c = change.is_a?(Hash) ? change.transform_keys(&:to_s) : {}
+      "app #{app.inspect}, #{c['kind']} #{(c['key'] || c['collection']).inspect}, id #{c['id'].inspect}, #{c['op']}, keys #{c.keys.sort.join(' ')}"
     end
 
     def slot(change)
@@ -286,8 +294,8 @@ module Monadic
     # => entry }, items: { collection => { order:, data:, removed: } } },
     # kept per chat until its messages or revision change.
     def committed(session, app)
-      chat_id = session.is_a?(Hash) ? session[Monadic::Workspace::Chats::SESSION_KEY] : nil
-      messages = Array(session.is_a?(Hash) ? session[:messages] : nil)
+      chat_id = session.respond_to?(:[]) ? session[Monadic::Workspace::Chats::SESSION_KEY] : nil
+      messages = Array(session.respond_to?(:[]) ? session[:messages] : nil)
       signature = [app, @lock.synchronize { @revisions[chat_id] }, messages.size,
                    messages.last.is_a?(Hash) ? messages.last['mid'] : nil, base_of(session, app).hash]
       cached = chat_id && @lock.synchronize { @cache[chat_id] }
@@ -299,7 +307,7 @@ module Monadic
     end
 
     def base_of(session, app)
-      state = session.is_a?(Hash) ? session[:monadic_state] : nil
+      state = session.respond_to?(:[]) ? session[:monadic_state] : nil
       entries = state.is_a?(Hash) ? (state[app] || state[app.to_sym]) : nil
       entries.is_a?(Hash) ? entries : {}
     end
@@ -360,7 +368,7 @@ module Monadic
     end
 
     def chat_bytes(session)
-      Array(session.is_a?(Hash) ? session[:messages] : nil).sum do |message|
+      Array(session.respond_to?(:[]) ? session[:messages] : nil).sum do |message|
         changes = message.is_a?(Hash) ? message[Form::STATE_CHANGES_KEY] : nil
         changes ? JSON.generate(changes).bytesize : 0
       end

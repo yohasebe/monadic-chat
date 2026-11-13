@@ -31,9 +31,10 @@ module Monadic
       # Makes the page of the session's app again. show: put it on the work
       # screen when it is not there yet (after a reply, or when the chat is
       # resumed or read from a file; a deleted turn only changes a page
-      # already shown). The chat's folder is made for a page to show.
-      # Returns its path, or nil.
-      def refresh(session, show: false)
+      # already shown), selected for tab (the tab the reply or the chat is
+      # in). The chat's folder is made for a page to show. Returns its path,
+      # or nil.
+      def refresh(session, show: false, tab: nil)
         app = declaring_app(session)
         return nil unless app
 
@@ -51,7 +52,7 @@ module Monadic
         end
 
         write(path, text)
-        put_on_screen(chat_id, path, show)
+        put_on_screen(chat_id, path, show, { actor: :assistant, tab: tab, generation: session[:_ws_generation] })
         path
       rescue ArgumentError, Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError => e
         Monadic::Utils::ExtraLogger.log { "[TurnState::Notes] not made: #{e.class}" } if defined?(Monadic::Utils::ExtraLogger)
@@ -76,7 +77,7 @@ module Monadic
 
       # The app the session is in, when it declares its notes.
       def declaring_app(session)
-        return nil unless session.is_a?(Hash)
+        return nil unless session.respond_to?(:[])
 
         name = TurnState.app_of(session)
         app = defined?(APPS) ? APPS[name] : nil
@@ -98,22 +99,22 @@ module Monadic
           next if items.empty?
 
           body = items.map { |item| entry(item, list, turns) }.join("\n\n")
-          section(collection.to_s, list[:label] || collection.to_s, nil, body)
+          section(list[:label] || collection.to_s, nil, body)
         end
         # Lines made from other things are shown with the state, never alone.
         return nil if lines.empty? && lists.empty?
 
         extra = app.respond_to?(:state_notes_extra, true) ? app.send(:state_notes_extra, session) : nil
         (extra || {}).each { |label, text| lines << "- **#{label}**: #{inline(text)}" unless blank?(text) }
-        parts << section('settings', 'Settings', turns[value[:by]], lines.join("\n")) unless lines.empty?
+        parts << section('Settings', turns[value[:by]], lines.join("\n")) unless lines.empty?
         parts.concat(lists)
 
         "# #{declaration[:title]}\n\n#{parts.join("\n\n")}\n"
       end
 
-      def section(key, label, turn, body)
+      def section(label, turn, body)
         changed = turn ? " (turn #{turn})" : ''
-        "#{Monadic::Workbench::Document::MARK} #{key}\n## #{label}#{changed}\n\n#{body}"
+        "## #{label}#{changed}\n\n#{body}"
       end
 
       def entry(item, list, turns)
@@ -161,15 +162,22 @@ module Monadic
         Monadic::Utils::SharedPathGuard.write_file!(full, text, mode: 'w', replace: true, strict: true)
       end
 
-      # Read again where the work screen shows it; put there when asked.
-      def put_on_screen(chat_id, path, show)
+      # Read again where the work screen shows it; put there when asked,
+      # for origin's tab to select. A page already there is selected only
+      # for a tab that shows nothing (a page loaded again): what the user
+      # is looking at stays.
+      def put_on_screen(chat_id, path, show, origin)
         board = chat_id && (show ? Monadic::Workbench::Board.for(chat_id) : Monadic::Workbench::Board.existing(chat_id))
         return unless board
 
-        if board.snapshot[:items].any? { |item| item[:path] == path }
+        if (item = board.snapshot[:items].find { |found| found[:path] == path })
           Monadic::Workbench::Document.refresh(chat_id, [path])
+          if show && origin[:tab] && board.selected(tab: origin[:tab], generation: origin[:generation]).nil?
+            board.select(tab: origin[:tab], generation: origin[:generation], item_id: item[:id])
+            Monadic::Workbench::Channel.changed(chat_id)
+          end
         elsif show
-          board.add_file(path: path, origin: { actor: :assistant }, epoch: Monadic::Workspace::Chats.epoch(chat_id), wait: 0)
+          board.add_file(path: path, origin: origin, epoch: Monadic::Workspace::Chats.epoch(chat_id), wait: 0)
           Monadic::Workbench::Channel.changed(chat_id)
         end
       rescue Monadic::Workbench::Board::Refused, Monadic::Workbench::FileItem::Busy

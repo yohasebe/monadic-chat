@@ -6860,6 +6860,25 @@ body.side-pane-resizing {
 .workbench-rendered .workbench-markdown > :last-child {
   margin-bottom: 0;
 }
+/* Headings step down in size from the page's title. */
+.workbench-rendered .workbench-markdown h1 {
+  font-size: 1.25em;
+  margin: 0.8em 0 0.5em 0;
+}
+.workbench-rendered .workbench-markdown h2 {
+  font-size: 1.1em;
+  margin: 0.9em 0 0.4em 0;
+}
+.workbench-rendered .workbench-markdown h3,
+.workbench-rendered .workbench-markdown h4,
+.workbench-rendered .workbench-markdown h5,
+.workbench-rendered .workbench-markdown h6 {
+  font-size: 1em;
+  margin: 0.8em 0 0.3em 0;
+}
+.workbench-rendered .workbench-markdown > :first-child {
+  margin-top: 0;
+}
 .workbench-rendered .workbench-markdown img {
   max-width: 100%;
 }

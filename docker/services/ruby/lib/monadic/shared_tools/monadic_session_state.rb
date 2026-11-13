@@ -149,7 +149,7 @@ module Monadic
       # characters) becomes entries with that "name"; the block, when given,
       # makes an entry of each.
       def monadic_record_base!(session, key, lists)
-        return unless session.is_a?(Hash)
+        return unless session.respond_to?(:[])
 
         entries = session.dig(:monadic_state, Monadic::TurnState.app_of(session))
         return unless entries.is_a?(Hash) && !entries.key?("_ids")

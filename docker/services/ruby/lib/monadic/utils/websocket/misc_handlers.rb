@@ -209,7 +209,7 @@ module WebSocketHelper
     sleep(0.05)
     send_to_client(connection, { "type" => "past_messages", "content" => shown, "from_import" => true })
     # The app's state, as its notes on the work screen show it.
-    Monadic::TurnState::Notes.refresh(session, show: true)
+    Monadic::TurnState::Notes.refresh(session, show: true, tab: Thread.current[:websocket_session_id])
   end
 
   private def handle_ws_update_params(connection, obj, session)

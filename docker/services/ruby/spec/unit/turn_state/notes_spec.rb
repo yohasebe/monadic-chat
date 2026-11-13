@@ -75,9 +75,10 @@ RSpec.describe Monadic::TurnState::Notes do
 
     text = page
     expect(text).to start_with("# Story notes\n")
-    expect(text).to include("###### § settings\n## Settings (turn 1)")
+    expect(text).to include("## Settings (turn 1)")
     expect(text).to include("- **Plot**: A quest")
-    expect(text).to include("###### § characters\n## Characters")
+    expect(text).to include("## Characters")
+    expect(text).not_to include("§")
     expect(text).to include("### Alice (turn 2)\n- **Role**: hero\n- **Description**: brave")
   end
 

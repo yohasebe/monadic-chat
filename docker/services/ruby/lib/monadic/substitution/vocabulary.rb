@@ -308,7 +308,7 @@ module Monadic
       # @return [Object, nil] the data of key in the active app's state, however
       #   the app keeps it (Monadic::TurnState.data_of), or nil
       def app_state(session, key)
-        return nil unless session.is_a?(Hash)
+        return nil unless session.respond_to?(:[])
         require_relative "../turn_state"
         Monadic::TurnState.data_of(session, key)
       end

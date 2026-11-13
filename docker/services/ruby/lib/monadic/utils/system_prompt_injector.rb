@@ -378,7 +378,7 @@ module Monadic
           name: :chat_outputs,
           priority: 15,
           condition: ->(session, _options) {
-            session.is_a?(Hash) && Array(session[:messages]).any? { |m| m.is_a?(Hash) && m['workbench_made'] }
+            session.respond_to?(:[]) && Array(session[:messages]).any? { |m| m.is_a?(Hash) && m['workbench_made'] }
           },
           generator: ->(session, _options) {
             Monadic::Utils::SystemPromptInjector.chat_outputs_prompt(Monadic::Workbench::Outputs.in_chat(session))
@@ -390,7 +390,7 @@ module Monadic
           name: :state_notes,
           priority: 14,
           condition: ->(session, _options) {
-            session.is_a?(Hash) && !Monadic::TurnState::Notes.current(session).nil?
+            session.respond_to?(:[]) && !Monadic::TurnState::Notes.current(session).nil?
           },
           generator: ->(session, _options) {
             path = Monadic::TurnState::Notes.current(session)

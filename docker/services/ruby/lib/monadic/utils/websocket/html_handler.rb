@@ -245,7 +245,7 @@ module WebSocketHelper
           session[:messages] << new_data
           sync_session_state!
           # The app's state, as its notes on the work screen show it.
-          Monadic::TurnState::Notes.refresh(session, show: true) if state_changes
+          Monadic::TurnState::Notes.refresh(session, show: true, tab: ws_session_id) if state_changes
           workbench_reply_recorded(connection, session, new_data["mid"], request_id,
                                    content["message"][Monadic::Workbench::Offer::ITEMS_KEY])
           outcomes[request_id] = "done" if request_id

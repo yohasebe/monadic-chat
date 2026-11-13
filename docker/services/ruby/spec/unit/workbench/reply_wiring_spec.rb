@@ -110,7 +110,7 @@ RSpec.describe "the workbench when a reply is recorded" do
     thread.join(5)
     expect(session[:messages].last["state_changes"]).to eq([{ "app" => "FakeApp", "kind" => "value", "key" => "notes",
                                                               "op" => "set", "data" => { "a" => 1 } }])
-    expect(Monadic::TurnState::Notes).to have_received(:refresh).with(session, show: true).once
+    expect(Monadic::TurnState::Notes).to have_received(:refresh).with(session, show: true, tab: "tab-1").once
 
     stub_const("APPS", { "FakeApp" => state_app(running, answer: nil) })
     thread = host.send(:handle_ws_streaming, nil, { "message" => "again", "app_name" => "FakeApp" }, session, queue)

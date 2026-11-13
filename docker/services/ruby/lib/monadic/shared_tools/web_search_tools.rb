@@ -213,7 +213,7 @@ module MonadicSharedTools
     # the shared folder. Returns [path in the shared folder, full path].
     def keep_web_content(body, session, workbench)
       name = "web_content_#{Time.now.strftime('%Y%m%d_%H%M%S')}.txt"
-      app_name = session.is_a?(Hash) ? session.dig(:parameters, 'app_name') : nil
+      app_name = session.respond_to?(:[]) ? session.dig(:parameters, 'app_name') : nil
       job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench, app_name: app_name || self.class.name)
       if job
         path = Monadic::Workbench::ChatOutput.keep(job, name, body)

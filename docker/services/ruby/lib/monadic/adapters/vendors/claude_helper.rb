@@ -2254,7 +2254,7 @@ module ClaudeHelper
   # documents/. Returns { relative:, size:, shown: }.
   def keep_provider_file(session, file_data, filename)
     workbench = Monadic::Workbench::Caller.current(session)
-    app_name = session.is_a?(Hash) ? session.dig(:parameters, "app_name") : nil
+    app_name = session.respond_to?(:[]) ? session.dig(:parameters, "app_name") : nil
     job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench, app_name: app_name || "Chat")
     return save_to_documents(file_data, filename).merge(shown: false) unless job
 

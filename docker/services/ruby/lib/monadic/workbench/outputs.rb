@@ -21,7 +21,7 @@ module Monadic
       # number of the reply among the chat's replies). Only what is there
       # now; a folder made is listed by its files.
       def in_chat(session)
-        messages = session.is_a?(Hash) ? Array(session[:messages]) : []
+        messages = session.respond_to?(:[]) ? Array(session[:messages]) : []
         turn = 0
         messages.flat_map do |message|
           next [] unless message.is_a?(Hash) && message['role'] == 'assistant'

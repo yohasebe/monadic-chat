@@ -11,6 +11,9 @@ module ResearchAssistantSessionState
   include Monadic::SharedTools::MonadicSessionState
 
   STATE_KEY = "research_assistant_context"
+  # The lists of the state, each entry kept apart when the state is kept by
+  # turn (what the research gathers): { field => the entry's field that names it }.
+  LISTS = { "research_topics" => nil, "search_history" => nil, "findings" => nil, "sources" => nil, "notes" => nil }.freeze
 
   # Save research progress and context to session state.
   #
@@ -37,7 +40,7 @@ module ResearchAssistantSessionState
       last_message: message
     }
 
-    monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
   end
 
   # Load research progress from session state.
@@ -55,7 +58,7 @@ module ResearchAssistantSessionState
       notes: [],
       last_message: nil
     }
-    monadic_load_state(key: STATE_KEY, default: default_context, session: session)
+    monadic_load_record(key: STATE_KEY, lists: LISTS, default: default_context, session: session)
   end
 
   # Add a finding to the research.
@@ -75,7 +78,7 @@ module ResearchAssistantSessionState
     all_sources = (all_sources + [source]).uniq if source
 
     context = existing.merge(findings: all_findings, sources: all_sources)
-    monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
   end
 
   # Add research topics explored.
@@ -89,7 +92,7 @@ module ResearchAssistantSessionState
     all_topics = all_topics.uniq
 
     context = existing.merge(research_topics: all_topics)
-    monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
   end
 
   # Record a search performed.
@@ -104,7 +107,7 @@ module ResearchAssistantSessionState
     all_searches = (existing[:search_history] || []) + [entry]
 
     context = existing.merge(search_history: all_searches)
-    monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
   end
 
   # Add sources/citations.
@@ -118,7 +121,7 @@ module ResearchAssistantSessionState
     all_sources = all_sources.uniq
 
     context = existing.merge(sources: all_sources)
-    monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
   end
 
   # Add research notes.
@@ -132,14 +135,14 @@ module ResearchAssistantSessionState
     all_notes = all_notes.uniq
 
     context = existing.merge(notes: all_notes)
-    monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
   end
 
   private
 
   # Internal helper to load research as Ruby hash (not JSON string)
   def load_research_internal(session)
-    result = JSON.parse(monadic_load_state(key: STATE_KEY, default: {}, session: session))
+    result = JSON.parse(monadic_load_record(key: STATE_KEY, lists: LISTS, default: {}, session: session))
     data = result["data"] || {}
     {
       current_topic: data["current_topic"],

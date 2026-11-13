@@ -132,6 +132,7 @@ app "VideoGeneratorGemini" do
     image_generation "upload_only"
     video_generation true
     monadic true  # Uses Session State for tracking last used images
+    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
     group "Google"
   end
 

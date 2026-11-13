@@ -123,6 +123,7 @@ app "ImageGeneratorGemini" do
     initiate_from_assistant true
     image_generation false
     monadic true  # Uses Session State for tracking last generated images
+    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
     group "Google"
   end
 

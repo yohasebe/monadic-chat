@@ -64,6 +64,22 @@ module Monadic
       entry
     end
 
+    # The data of key for the app the session is in, however the app keeps
+    # its state: by turn (value), or else as session[:monadic_state] holds
+    # it. nil when there is none (or it was removed).
+    def data_of(session, key)
+      return nil unless session.is_a?(Hash)
+
+      if enabled?(session)
+        entry = value(session, key.to_s)
+        return entry[:found] ? entry[:data] : nil
+      end
+
+      entries = base_of(session, app_of(session))
+      entry = entries[key.to_s] || entries[key.to_sym]
+      entry.is_a?(Hash) ? (entry[:data] || entry['data']) : nil
+    end
+
     # The items of collection, oldest first: [{ id:, data: }].
     def items(session, collection)
       app = app_of(session)

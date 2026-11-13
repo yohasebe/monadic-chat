@@ -208,6 +208,7 @@ app "JupyterNotebookGrok" do
     easy_submit false
     auto_speech false
     monadic true  # Uses Session State for notebook context tracking
+    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
     jupyter true
     math true
     initiate_from_assistant true

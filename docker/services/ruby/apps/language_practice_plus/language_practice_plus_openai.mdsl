@@ -102,6 +102,7 @@ app "LanguagePracticePlusOpenAI" do
     auto_speech true
     initiate_from_assistant true
     monadic true  # Uses Session State mechanism for context tracking
+    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
     tts_target :tool_param, "save_response", "message"
   end
 

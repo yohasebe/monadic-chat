@@ -79,7 +79,8 @@ module Monadic
       #   1. The most recent uploaded image in the session (data URL → file).
       #   2. An explicit image_path argument (a real filename), ignoring the
       #      literal placeholder "image_path" that models sometimes emit.
-      #   3. last_image_key in the session (a previously materialized filename).
+      #   3. The image the app used last: its state's "last_images" for an app
+      #      that keeps its state by turn, else last_image_key in the session.
       #
       # @param session [Hash] the WebSocket session (provides :messages and fallbacks)
       # @param image_path [String, nil] filename passed by the tool call, if any
@@ -116,9 +117,16 @@ module Monadic
           materialized = image_path
         end
 
-        # Fall back to a previously materialized image for this app.
-        if materialized.nil? && last_image_key && session && session[last_image_key]
-          materialized = session[last_image_key]
+        # Fall back to the image the app used last: for an app that keeps
+        # its state by turn, the one its state names now (a deleted turn's
+        # image is not used again); for others, the session's key.
+        if materialized.nil? && session
+          if defined?(Monadic::TurnState) && Monadic::TurnState.enabled?(session)
+            last = Monadic::TurnState.data_of(session, "last_images")
+            materialized = Array(last).first&.to_s
+          elsif last_image_key && session[last_image_key]
+            materialized = session[last_image_key]
+          end
         end
 
         materialized

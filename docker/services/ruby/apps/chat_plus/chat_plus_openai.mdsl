@@ -87,6 +87,7 @@ app "ChatPlusOpenAI" do
     initiate_from_assistant false
     pdf_vector_storage true
     monadic true  # Enables sidebar context panel for session state tracking
+    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
     library_save false
     library_search false
   end

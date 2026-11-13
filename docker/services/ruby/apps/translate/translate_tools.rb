@@ -11,6 +11,9 @@ module TranslateTools
   include Monadic::SharedTools::ContextPanelHelper
 
   STATE_KEY = "translation_context"
+  # The lists of the state, each entry kept apart when the state is kept by
+  # turn (vocabulary entries, named by their original text): { field => the entry's field that names it }.
+  LISTS = { "vocabulary" => "original_text" }.freeze
 
   # Save translation context to session state.
   # Called by LLM when language settings or vocabulary changes.
@@ -36,7 +39,7 @@ module TranslateTools
     }
 
     # Save to session state
-    result = monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    result = monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
 
     # Update Context Panel with language settings
     if new_source && new_target
@@ -58,7 +61,7 @@ module TranslateTools
       target_lang: nil,
       vocabulary: []
     }
-    monadic_load_state(key: STATE_KEY, default: default_context, session: session)
+    monadic_load_record(key: STATE_KEY, lists: LISTS, default: default_context, session: session)
   end
 
   # Add vocabulary entry to the translation context.
@@ -122,7 +125,7 @@ module TranslateTools
 
   # Internal helper to load context as Ruby hash (not JSON string)
   def load_translation_context_internal(session)
-    result = JSON.parse(monadic_load_state(key: STATE_KEY, default: {}, session: session))
+    result = JSON.parse(monadic_load_record(key: STATE_KEY, lists: LISTS, default: {}, session: session))
     data = result["data"] || {}
     {
       source_lang: data["source_lang"],

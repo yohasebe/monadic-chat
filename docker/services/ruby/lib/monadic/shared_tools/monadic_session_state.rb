@@ -2,6 +2,7 @@
 
 require 'time'
 require 'json'
+require 'securerandom'
 require_relative '../turn_state'
 
 module Monadic
@@ -105,7 +106,103 @@ module Monadic
         { success: false, error: e.message }.to_json
       end
 
+      # A value whose list fields accumulate entries (findings, vocabulary,
+      # characters): read and saved as one Hash, as apps did before, while an
+      # app that keeps its state by turn keeps each entry of a list as an
+      # item, so deleting the turn that added an entry takes it back without
+      # touching the rest. lists: { field => identity }, identity being the
+      # entry's field that names it (nil: the entry as a whole). Apps that do
+      # not keep their state by turn keep the whole Hash as one value.
+      def monadic_load_record(key:, lists:, default: {}, session: nil)
+        return monadic_load_state(key: key, default: default, session: session) unless Monadic::TurnState.enabled?(session)
+
+        monadic_record_base!(session, key, lists)
+        entry = Monadic::TurnState.value(session, key.to_s)
+        stored = entry[:found] && entry[:data].is_a?(Hash) ? entry[:data] : {}
+        data = Monadic::TurnState::Form.data(default || {}).merge(stored.except(*lists.keys))
+        lists.each_key { |field| data[field] = Monadic::TurnState.items(session, field).map { |item| item[:data] } }
+        { success: true, app: Monadic::TurnState.app_of(session), key: key, version: entry[:version],
+          updated_at: entry[:updated_at], data: data }.to_json
+      rescue Monadic::TurnState::Refused, Monadic::TurnState::Form::Invalid => e
+        { success: false, error: e.message }.to_json
+      end
+
+      # Saves payload (the whole Hash) as monadic_load_record reads it: its
+      # other fields as one value, changed only when they changed, and each
+      # list given in full: entries added or changed are put, entries left
+      # out removed, the others not touched.
+      def monadic_save_record(key:, payload:, lists:, session: nil)
+        return monadic_save_state(key: key, payload: payload, session: session) unless Monadic::TurnState.enabled?(session)
+
+        monadic_record_base!(session, key, lists)
+        given = Monadic::TurnState::Form.data(payload || {})
+        fields = given.except(*lists.keys)
+        now = Monadic::TurnState.value(session, key.to_s)
+        stored = now[:found] && now[:data].is_a?(Hash) ? now[:data].except(*lists.keys) : nil
+        Monadic::TurnState.set_value(session, key.to_s, fields) unless stored == fields
+        lists.each { |field, identity| monadic_record_list(session, field, given[field], identity) if given.key?(field) }
+        entry = Monadic::TurnState.value(session, key.to_s)
+        { success: true, app: Monadic::TurnState.app_of(session), key: key, version: entry[:version],
+          updated_at: entry[:updated_at] }.to_json
+      rescue Monadic::TurnState::Refused, Monadic::TurnState::Form::Invalid => e
+        { success: false, error: e.message }.to_json
+      end
+
       private
+
+      def monadic_record_list(session, field, entries, identity)
+        given = Array(entries)
+        name = ->(entry) { identity && entry.is_a?(Hash) ? entry[identity.to_s].to_s : JSON.generate(entry) }
+        current = Monadic::TurnState.items(session, field)
+        by_name = current.to_h { |item| [name.call(item[:data]), item] }
+        given.each do |entry|
+          found = by_name[name.call(entry)]
+          next if found && found[:data] == entry
+
+          Monadic::TurnState.put_item(session, field, entry, id: found && found[:id])
+        end
+        names = given.map { |entry| name.call(entry) }
+        current.each { |item| Monadic::TurnState.remove_item(session, field, item[:id]) unless names.include?(name.call(item[:data])) }
+      end
+
+      # A chat that began from a file of an earlier version holds the lists
+      # inside the value: they become items of the base once, with their ids
+      # kept in the base ("_items", "_ids"), so the history and a file keep
+      # the same ids. A list kept as { name => entry } (Novel Writer's
+      # characters) becomes entries with that "name"; the block, when given,
+      # makes an entry of each.
+      def monadic_record_base!(session, key, lists)
+        return unless session.is_a?(Hash)
+
+        entries = session.dig(:monadic_state, Monadic::TurnState.app_of(session))
+        return unless entries.is_a?(Hash) && !entries.key?("_ids")
+
+        old = entries[key.to_s] || entries[key.to_sym]
+        old_data = old.is_a?(Hash) ? (old[:data] || old["data"]) : nil
+        return unless old_data.is_a?(Hash)
+
+        items = {}
+        ids = {}
+        lists.each do |field, identity|
+          found = old_data[field] || old_data[field.to_sym]
+          list = found.is_a?(Hash) ? found.map { |label, entry| { "name" => label.to_s }.merge(entry.is_a?(Hash) ? entry : { "value" => entry }) } : Array(found)
+          next if list.empty?
+
+          items[field] = {}
+          ids[field] = {}
+          list.each do |raw|
+            entry = Monadic::TurnState::Form.data(raw)
+            id = "i_#{SecureRandom.alphanumeric(10).downcase}"
+            items[field][id] = entry
+            ids[field][identity && entry.is_a?(Hash) ? entry[identity.to_s].to_s : JSON.generate(entry)] = id
+          end
+        end
+        return if items.empty?
+
+        entries["_items"] = { data: items, version: 1, updated_at: nil }
+        entries["_ids"] = { data: ids, version: 1, updated_at: nil }
+        Monadic::TurnState.changed!(session[Monadic::Workspace::Chats::SESSION_KEY])
+      end
 
       def turn_state_only!(session)
         return if Monadic::TurnState.enabled?(session)
@@ -162,40 +259,6 @@ module Monadic
       def fetch_version(session, app_key, key)
         entry = dig_state(session, app_key, key)
         entry ? entry[:version].to_i : 0
-      end
-
-      # Fetch last images from monadic state or legacy session keys.
-      # Tolerant to symbol/string keys. Uses legacy_prefix for provider-specific fallbacks.
-      # @param session [Hash] Session hash
-      # @param app_key [String] App name key for monadic_state lookup
-      # @param legacy_prefix [String] Provider prefix for legacy keys (e.g., "openai", "grok", "gemini3")
-      # @return [Array<String>, nil] Array of image filenames or nil
-      def fetch_last_images_from_session(session, app_key, legacy_prefix: nil)
-        # monadic_state lookup (symbol and string keys)
-        monadic_state = session[:monadic_state] || session["monadic_state"] || {}
-        app_state = monadic_state[app_key] || monadic_state[app_key.to_s] || {}
-        last_images_entry = app_state[:last_images] || app_state["last_images"]
-        data = last_images_entry && (last_images_entry[:data] || last_images_entry["data"])
-        return data if data.is_a?(Array) && !data.empty?
-
-        return nil unless legacy_prefix
-
-        # legacy {prefix}_last_image_generation
-        gen_key_sym = :"#{legacy_prefix}_last_image_generation"
-        gen_key_str = "#{legacy_prefix}_last_image_generation"
-        legacy = session[gen_key_sym] || session[gen_key_str]
-        if legacy
-          imgs = legacy[:images] || legacy["images"]
-          return imgs if imgs.is_a?(Array) && !imgs.empty?
-        end
-
-        # single last image fallback
-        img_key_sym = :"#{legacy_prefix}_last_image"
-        img_key_str = "#{legacy_prefix}_last_image"
-        last_image = session[img_key_sym] || session[img_key_str]
-        return [last_image] if last_image
-
-        nil
       end
     end
   end

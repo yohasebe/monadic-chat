@@ -134,6 +134,7 @@ app "VideoGeneratorGrok" do
     image_generation "upload_only"
     video_generation true
     monadic true
+    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
     group "xAI"
   end
 

@@ -29,8 +29,6 @@ class VideoGeneratorGemini < MonadicApp
           monadic_save_state(app: app_key, key: "last_images", payload: [image_path], session: session)
         end
 
-        # Legacy compatibility
-        session[:veo_last_image] = image_path
       rescue => e
         # Ignore state saving errors
       end
@@ -71,7 +69,6 @@ class VideoGeneratorGrok < MonadicApp
           monadic_save_state(app: app_key, key: "last_images", payload: [image_path], session: session)
         end
 
-        session[:grok_last_video_image] = image_path
       rescue => e
         # Ignore state saving errors
       end

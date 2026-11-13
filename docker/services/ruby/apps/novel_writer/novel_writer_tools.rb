@@ -156,29 +156,9 @@ module NovelWriterTools
   end
 
   # A chat that began from a file of an earlier version has its characters
-  # in the story's settings: they become items of the base once, with ids
-  # kept in the base (so the history and a file keep the same ids).
+  # in the story's settings: they become items of the base once.
   def novel_converted_base!(session)
-    return unless session.is_a?(Hash)
-
-    app = Monadic::TurnState.app_of(session)
-    entries = session.dig(:monadic_state, app)
-    return unless entries.is_a?(Hash) && !entries.key?("_ids")
-
-    old = entries[STATE_KEY] || entries[STATE_KEY.to_sym]
-    old_data = old.is_a?(Hash) ? (old[:data] || old["data"]) : nil
-    old_characters = old_data.is_a?(Hash) ? (old_data["characters"] || old_data[:characters]) : nil
-    return unless old_characters.is_a?(Hash) && !old_characters.empty?
-
-    ids = {}
-    items = old_characters.each_with_object({}) do |(name, spec), out|
-      id = "c_#{SecureRandom.alphanumeric(10).downcase}"
-      ids[name.to_s] = id
-      out[id] = { "name" => name.to_s }.merge(spec.is_a?(Hash) ? spec.transform_keys(&:to_s) : { "specification" => spec.to_s })
-    end
-    entries["_items"] = { data: { CHARACTERS => items }, version: 1, updated_at: nil }
-    entries["_ids"] = { data: { CHARACTERS => ids }, version: 1, updated_at: nil }
-    Monadic::TurnState.changed!(session[Monadic::Workspace::Chats::SESSION_KEY])
+    monadic_record_base!(session, STATE_KEY, { CHARACTERS => "name" })
   end
 
   # How much of the story is written: the sections on the work screen

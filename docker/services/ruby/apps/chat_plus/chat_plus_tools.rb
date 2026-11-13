@@ -9,6 +9,9 @@ module ChatPlusTools
   include Monadic::SharedTools::MonadicSessionState
 
   STATE_KEY = "chat_plus_context"
+  # The lists of the state, each entry kept apart when the state is kept by
+  # turn (what the conversation gathers): { field => the entry's field that names it }.
+  LISTS = { "topics" => nil, "people" => nil, "notes" => nil }.freeze
 
   # Save response and conversation context to session state.
   #
@@ -30,7 +33,7 @@ module ChatPlusTools
       last_message: message
     }
 
-    monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
   end
 
   # Load conversation context from session state.
@@ -46,7 +49,7 @@ module ChatPlusTools
       notes: [],
       last_message: nil
     }
-    monadic_load_state(key: STATE_KEY, default: default_context, session: session)
+    monadic_load_record(key: STATE_KEY, lists: LISTS, default: default_context, session: session)
   end
 
   # Add topics to the conversation context.
@@ -68,7 +71,7 @@ module ChatPlusTools
       last_message: existing[:last_message]
     }
 
-    monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
   end
 
   # Add people to the conversation context.
@@ -90,7 +93,7 @@ module ChatPlusTools
       last_message: existing[:last_message]
     }
 
-    monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
   end
 
   # Add notes to the conversation context.
@@ -112,14 +115,14 @@ module ChatPlusTools
       last_message: existing[:last_message]
     }
 
-    monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
   end
 
   private
 
   # Internal helper to load context as Ruby hash (not JSON string)
   def load_context_internal(session)
-    result = JSON.parse(monadic_load_state(key: STATE_KEY, default: {}, session: session))
+    result = JSON.parse(monadic_load_record(key: STATE_KEY, lists: LISTS, default: {}, session: session))
     data = result["data"] || {}
     {
       reasoning: data["reasoning"],

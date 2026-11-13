@@ -216,6 +216,7 @@ app "JupyterNotebookGemini" do
     library_search false
     disabled !CONFIG["GEMINI_API_KEY"]
     monadic true
+    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
     jupyter true
     initiate_from_assistant true
     auto_speech false

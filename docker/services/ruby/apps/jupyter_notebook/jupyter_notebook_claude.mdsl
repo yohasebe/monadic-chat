@@ -423,6 +423,7 @@ app "JupyterNotebookClaude" do
     library_search false
     disabled !CONFIG["ANTHROPIC_API_KEY"]
     monadic true  # Uses Session State for notebook context tracking
+    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
     easy_submit false
     auto_speech false
     jupyter true

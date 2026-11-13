@@ -87,6 +87,7 @@ app "ChatPlusClaude" do
     auto_speech false
     initiate_from_assistant false
     monadic true  # Enables sidebar context panel for session state tracking
+    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
     image_generation "disabled"
     group "Anthropic"
     library_save false

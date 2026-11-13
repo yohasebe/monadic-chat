@@ -87,6 +87,7 @@ app "ChatPlusDeepSeek" do
     auto_speech false
     initiate_from_assistant false
     monadic true  # Enables sidebar context panel for session state tracking
+    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
     library_save false
     library_search false
   end

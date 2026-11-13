@@ -122,6 +122,7 @@ app "ResearchAssistantGemini" do
     initiate_from_assistant true
     math true
     monadic true  # Uses Session State mechanism for research progress tracking
+    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
   end
 
   context_schema do

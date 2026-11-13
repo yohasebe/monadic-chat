@@ -130,6 +130,7 @@ app "TranslateDeepSeek" do
     initiate_from_assistant true
     group "DeepSeek"
     monadic true  # Uses Session State mechanism for translation context
+    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
     library_save false
     library_search false
   end

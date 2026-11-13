@@ -10,6 +10,9 @@ module MathTutorTools
   include Monadic::SharedTools::ContextPanelHelper
 
   STATE_KEY = "math_tutor_context"
+  # The lists of the state, each entry kept apart when the state is kept by
+  # turn (what the learner has done and noted): { field => the entry's field that names it }.
+  LISTS = { "problems_solved" => nil, "concepts_covered" => nil, "weak_areas" => nil, "learning_notes" => nil }.freeze
 
   # Save learning progress and context to session state.
   # Also updates the Context Panel with concepts and tips.
@@ -36,7 +39,7 @@ module MathTutorTools
     }
 
     # Save to session state
-    result = monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    result = monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
 
     # Update Context Panel with concepts (mapped to "concepts" field)
     if concepts_covered&.any?
@@ -72,7 +75,7 @@ module MathTutorTools
       learning_notes: [],
       last_message: nil
     }
-    monadic_load_state(key: STATE_KEY, default: default_context, session: session)
+    monadic_load_record(key: STATE_KEY, lists: LISTS, default: default_context, session: session)
   end
 
   # Add a solved problem to the learning history.
@@ -88,7 +91,7 @@ module MathTutorTools
     all_problems = all_problems.uniq
 
     context = existing.merge(problems_solved: all_problems)
-    monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
   end
 
   # Add concepts covered in the tutoring session.
@@ -103,7 +106,7 @@ module MathTutorTools
     all_concepts = all_concepts.uniq
 
     context = existing.merge(concepts_covered: all_concepts)
-    result = monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    result = monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
 
     # Update Context Panel
     if concepts&.any?
@@ -125,7 +128,7 @@ module MathTutorTools
     all_areas = all_areas.uniq
 
     context = existing.merge(weak_areas: all_areas)
-    result = monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    result = monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
 
     # Update Context Panel with tips
     if areas&.any?
@@ -148,7 +151,7 @@ module MathTutorTools
     all_notes = all_notes.uniq
 
     context = existing.merge(learning_notes: all_notes)
-    result = monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    result = monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
 
     # Update Context Panel with tips
     if notes&.any?
@@ -162,7 +165,7 @@ module MathTutorTools
 
   # Internal helper to load progress as Ruby hash (not JSON string)
   def load_progress_internal(session)
-    result = JSON.parse(monadic_load_state(key: STATE_KEY, default: {}, session: session))
+    result = JSON.parse(monadic_load_record(key: STATE_KEY, lists: LISTS, default: {}, session: session))
     data = result["data"] || {}
     {
       current_problem: data["current_problem"],

@@ -92,7 +92,6 @@ app "ResearchAssistantDeepSeek" do
     auto_speech false
     math true
     initiate_from_assistant true
-    # Note: monadic mode disabled for DeepSeek due to tool loop issues
   end
 
   tools do

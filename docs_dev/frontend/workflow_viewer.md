@@ -78,7 +78,7 @@ Returns JSON with app pipeline data. Key normalization in `wv_extract_features`:
 
 ### Feature Flags
 
-`wv_extract_features` checks these flags: `websearch`, `monadic`, `image`, `pdf`, `jupyter`, `mermaid`, `math`, `abc`, `image_generation`, `easy_submit`, `auto_speech`, `initiate_from_assistant`. Only truthy values appear in the Features node.
+`wv_extract_features` checks these flags: `websearch`, `image`, `pdf`, `jupyter`, `mermaid`, `math`, `abc`, `image_generation`, `easy_submit`, `auto_speech`, `initiate_from_assistant`. Only truthy values appear in the Features node.
 
 ## Files
 

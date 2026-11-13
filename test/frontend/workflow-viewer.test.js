@@ -164,7 +164,7 @@ const SAMPLE_FULL = {
     { name: 'file_tools', tool_names: ['read_file', 'write_file'] },
   ],
   agents: { code_agent: 'gpt-4o-mini' },
-  features: { websearch: true, monadic: true, pdf_vector_storage: false },
+  features: { websearch: true, math: true, pdf_vector_storage: false },
   system_prompt: 'You are a research assistant with web browsing capabilities.',
   input_types: ['text', 'image'],
   output_types: ['text', 'html'],
@@ -573,7 +573,7 @@ describe('WorkflowViewer graph structure', () => {
       const featNode = insertedVertices.find(v => v.value.includes('Features'));
       expect(featNode).toBeDefined();
       expect(featNode.value).toContain('Websearch');
-      expect(featNode.value).toContain('Monadic');
+      expect(featNode.value).toContain('Math');
       expect(featNode.value).not.toContain('pdf vector storage'); // false = excluded
     });
 

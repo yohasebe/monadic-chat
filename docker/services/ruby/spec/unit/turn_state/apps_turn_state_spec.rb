@@ -16,7 +16,7 @@ require_relative "../../../lib/monadic/turn_state/notes"
 # The Monadic apps keep their state by turn: a list's entries are items of
 # their own (deleting the turn that added one takes it back), the rest of
 # the state a value; what reads the state (a notebook's name, the image
-# used last) reads it however the app keeps it.
+# used last) reads what the turns left in the chat changed.
 RSpec.describe "the Monadic apps' state by turn" do
   around do |example|
     Dir.mktmpdir("apps-turn-state") do |dir|
@@ -37,7 +37,7 @@ RSpec.describe "the Monadic apps' state by turn" do
   before do
     Monadic::TurnState.reset!
     WebSocketHelper::Replies.reset!
-    stub_const("APPS", { app => double(settings: { turn_state: true }) })
+    stub_const("APPS", { app => double(settings: {}) })
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data)
     allow(Monadic::Utils::Environment).to receive(:state_path).and_return(@state)
     @reply = nil
@@ -184,23 +184,12 @@ RSpec.describe "the Monadic apps' state by turn" do
   describe "the notes of Math Tutor and Research Assistant" do
     it "show Research Assistant's topic, findings and sources" do
       session[:parameters]["app_name"] = "ResearchAssistantOpenAI"
-      stub_const("APPS", { "ResearchAssistantOpenAI" => double(settings: { turn_state: true }) })
+      stub_const("APPS", { "ResearchAssistantOpenAI" => double(settings: {}) })
       research = Class.new { include ResearchAssistantSessionState }.new
       run_reply { research.add_finding(finding: "A", source: "s1", session: session) }
 
       page = Monadic::TurnState::Notes.render(session, research.send(:state_notes), research)
       expect(page).to include("# Research notes", "## Findings", "- A [Source: s1] (turn 1)", "## Sources", "- s1 (turn 1)")
-    end
-  end
-
-  describe "an app that does not keep its state by turn" do
-    it "reads and saves the whole state as one value, as before" do
-      stub_const("APPS", { app => double(settings: {}) })
-      tools = Class.new { include Monadic::SharedTools::MonadicSessionState }.new
-      tools.monadic_save_record(key: "ctx", lists: { "items" => nil }, payload: { "a" => 1, "items" => ["x"] }, session: session)
-      expect(session[:monadic_state][app]["ctx"][:data]).to eq({ "a" => 1, "items" => ["x"] })
-      expect(JSON.parse(tools.monadic_load_record(key: "ctx", lists: { "items" => nil }, session: session))["data"])
-        .to eq({ "a" => 1, "items" => ["x"] })
     end
   end
 
@@ -215,21 +204,12 @@ RSpec.describe "the Monadic apps' state by turn" do
       expect(Monadic::Substitution::Vocabulary.current_notebook(session)).to be_nil
     end
 
-    it "reuses the image the app's state names, never a key the session kept from a deleted turn" do
+    it "reuses the image a tool used, and none once that turn is deleted" do
       tools = Class.new { include Monadic::SharedTools::MonadicSessionState }.new
-      used = run_reply { tools.monadic_save_state(key: "last_images", payload: ["in.png"], session: session) }
-      session[:grok_last_video_image] = "in.png"
-      expect(Monadic::Utils::ToolImageUtils.materialize_session_image(session, last_image_key: :grok_last_video_image)).to eq("in.png")
+      used = run_reply { Monadic::Utils::ToolImageUtils.remember_image(tools, session, "work/in.png") }
+      expect(Monadic::Utils::ToolImageUtils.materialize_session_image(session)).to eq("in.png")
       delete(used)
-      expect(Monadic::Utils::ToolImageUtils.materialize_session_image(session, last_image_key: :grok_last_video_image)).to be_nil
-    end
-
-    it "reads the session's state as before for an app that does not keep it by turn" do
-      stub_const("APPS", { app => double(settings: {}) })
-      session[:monadic_state] = { app => { context: { data: { "notebook_filename" => "b.ipynb" } } } }
-      session[:grok_last_video_image] = "old.png"
-      expect(Monadic::Substitution::Vocabulary.current_notebook(session)).to eq("b.ipynb")
-      expect(Monadic::Utils::ToolImageUtils.materialize_session_image(session, last_image_key: :grok_last_video_image)).to eq("old.png")
+      expect(Monadic::Utils::ToolImageUtils.materialize_session_image(session)).to be_nil
     end
   end
 end

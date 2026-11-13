@@ -920,10 +920,6 @@ button.fixed-width {
   width: 140px;
 }
 
-.monadic-color {
-  color: var(--color-icon-primary);
-}
-
 /* START: ROLE COLOR IMPROVEMENTS - ADDED 2025-04-08 */
 
 .assistant-color {

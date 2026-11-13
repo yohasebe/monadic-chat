@@ -130,14 +130,6 @@ app "ResearchAssistantGrok" do
     auto_speech false
     initiate_from_assistant true
     math true
-    monadic true  # Uses Session State mechanism for research progress tracking
-    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
-  end
-
-  context_schema do
-    field :topics, icon: "fa-tags", label: "Topics", description: "Research topics being investigated"
-    field :findings, icon: "fa-search", label: "Findings", description: "Key findings and discoveries"
-    field :sources, icon: "fa-link", label: "Sources", description: "Sources and references used"
   end
 
   tools do

@@ -13,28 +13,10 @@ class VideoGeneratorGemini < MonadicApp
     @orchestration_keep_rounds = 3
   end
 
-  # Override to add monadic state saving for uploaded images
   def generate_video_with_gemini(prompt:, image_path: nil, aspect_ratio: nil, duration: nil, negative_prompt: nil, session: nil, workbench: nil)
     validate_video_prompt(prompt)
 
-    # Call the parent implementation
-    result_json = super
-
-    # Save uploaded image filename to monadic state for later reuse
-    if session && image_path && !image_path.to_s.strip.empty?
-      begin
-        app_key = session.dig(:parameters, "app_name") || "VideoGeneratorGemini"
-
-        if respond_to?(:monadic_save_state)
-          monadic_save_state(app: app_key, key: "last_images", payload: [image_path], session: session)
-        end
-
-      rescue => e
-        # Ignore state saving errors
-      end
-    end
-
-    result_json
+    super
   end
 
   private
@@ -58,23 +40,7 @@ class VideoGeneratorGrok < MonadicApp
   def generate_video_with_grok_imagine(prompt:, duration: nil, aspect_ratio: nil, resolution: nil, image_path: nil, session: nil, workbench: nil)
     validate_grok_video_params(prompt: prompt, duration: duration, aspect_ratio: aspect_ratio, resolution: resolution, image_path: image_path)
 
-    result_json = super
-
-    # Save uploaded image filename to monadic state for later reuse
-    if session && image_path && !image_path.to_s.strip.empty?
-      begin
-        app_key = session.dig(:parameters, "app_name") || "VideoGeneratorGrok"
-
-        if respond_to?(:monadic_save_state)
-          monadic_save_state(app: app_key, key: "last_images", payload: [image_path], session: session)
-        end
-
-      rescue => e
-        # Ignore state saving errors
-      end
-    end
-
-    result_json
+    super
   end
 
   private

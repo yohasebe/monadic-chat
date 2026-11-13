@@ -166,9 +166,7 @@ module MonadicHelper
     # If an upload exists but can't be materialized, surface the error instead
     # of silently downgrading to text-to-video.
     begin
-      image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(
-        session, image_path: image_path, last_image_key: :grok_last_video_image
-      )
+      image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(session, image_path: image_path)
     rescue Monadic::Utils::ToolImageUtils::ImageMaterializationError => e
       return JSON.generate({ success: false, message: e.message })
     end
@@ -188,7 +186,7 @@ module MonadicHelper
 
     if image_path && !image_path.to_s.strip.empty?
       parts << "-i" << Shellwords.shellescape(image_path)
-      session[:grok_last_video_image] = File.basename(image_path) if session
+      Monadic::Utils::ToolImageUtils.remember_image(self, session, image_path)
     end
 
     cmd = parts.join(' ')

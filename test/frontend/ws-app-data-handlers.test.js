@@ -317,7 +317,6 @@ describe('ws-app-data-handlers', () => {
       createDOMElement('base-app-title');
       createDOMElement('base-app-icon');
       createDOMElement('base-app-desc');
-      createDOMElement('monadic-badge');
       createDOMElement('websearch-badge');
       createDOMElement('tools-badge');
       createDOMElement('math-badge');
@@ -549,7 +548,6 @@ describe('ws-app-data-handlers', () => {
       createDOMElement('base-app-title');
       createDOMElement('base-app-icon');
       createDOMElement('base-app-desc');
-      createDOMElement('monadic-badge');
       createDOMElement('tools-badge');
       createDOMElement('show-all-models', 'input');
       document.getElementById('show-all-models').type = 'checkbox';
@@ -704,7 +702,7 @@ describe('multiple APPS within one timeout window', () => {
     mk('base-app-title');
     mk('base-app-icon');
     mk('base-app-desc');
-    ['monadic-badge', 'websearch-badge', 'tools-badge', 'math-badge'].forEach((id) => mk(id));
+    ['websearch-badge', 'tools-badge', 'math-badge'].forEach((id) => mk(id));
     mk('show-all-models', 'input').type = 'checkbox';
     mk('model', 'select');
     mk('model-selected');

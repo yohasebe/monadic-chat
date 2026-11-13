@@ -57,12 +57,6 @@ RSpec.describe Monadic::Utils::ToolImageUtils do
       expect(described_class.materialize_session_image({ messages: [] }, image_path: 'image_path')).to be_nil
     end
 
-    it 'falls back to last_image_key when no upload and no explicit path' do
-      session = { messages: [], grok_last_video_image: 'prev.png' }
-      result = described_class.materialize_session_image(session, last_image_key: :grok_last_video_image)
-      expect(result).to eq('prev.png')
-    end
-
     it 'returns nil when there is nothing to resolve' do
       expect(described_class.materialize_session_image({ messages: [] })).to be_nil
     end

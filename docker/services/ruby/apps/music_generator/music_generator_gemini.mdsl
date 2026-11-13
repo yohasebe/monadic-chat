@@ -192,12 +192,6 @@ app "MusicGeneratorGemini" do
     group "Google"
   end
 
-  context_schema do
-    field :styles, icon: "fa-palette", label: "Styles", description: "Genres, moods, and musical preferences"
-    field :prompts, icon: "fa-pen", label: "Prompts", description: "Key music descriptions used"
-    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important preferences to remember"
-  end
-
   tools do
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"

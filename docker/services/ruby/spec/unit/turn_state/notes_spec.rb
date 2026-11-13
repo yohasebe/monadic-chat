@@ -31,7 +31,7 @@ RSpec.describe Monadic::TurnState::Notes do
     Class.new do
       include NovelWriterTools
 
-      def settings = { turn_state: true }
+      def settings = {}
     end.new
   end
   let(:store) { Monadic::Workbench::Store.new(File.join(@state, "workbench")) }
@@ -108,7 +108,7 @@ RSpec.describe Monadic::TurnState::Notes do
   it "makes no page for an app that keeps its state otherwise, or declares none" do
     stub_const("APPS", { app_name => double(settings: { turn_state: false }) })
     expect(described_class.refresh(session, show: true)).to be_nil
-    stub_const("APPS", { app_name => double(settings: { turn_state: true }) })
+    stub_const("APPS", { app_name => double(settings: {}) })
     expect(described_class.refresh(session, show: true)).to be_nil
   end
 end

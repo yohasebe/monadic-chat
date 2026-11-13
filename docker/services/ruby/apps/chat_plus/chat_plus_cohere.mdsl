@@ -84,17 +84,8 @@ app "ChatPlusCohere" do
     easy_submit false
     auto_speech false
     initiate_from_assistant false
-    monadic true
-    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
     library_save false
     library_search false
-  end
-
-  # Define context fields to track for this app
-  context_schema do
-    field :topics, icon: "fa-tags", label: "Topics", description: "Main subjects discussed in conversation"
-    field :people, icon: "fa-users", label: "People", description: "Names of people mentioned"
-    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important facts and preferences to remember"
   end
 
   tools do

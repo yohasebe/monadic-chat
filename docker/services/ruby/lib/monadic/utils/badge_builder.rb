@@ -14,7 +14,7 @@ module Monadic
     # @example
     #   settings = {
     #     imported_tool_groups: [...],
-    #     features: { monadic: true, pdf_vector_storage: true },
+    #     features: { math: true, pdf_vector_storage: true },
     #     agents: { code_generator: "gpt-5-codex" }
     #   }
     #   badges = BadgeBuilder.build_all_badges(settings)
@@ -305,11 +305,6 @@ module Monadic
 
       # Configuration for badge-worthy features
       BADGE_WORTHY_FEATURES = {
-        monadic: {
-          icon: "fa-project-diagram",
-          label: "monadic",
-          description: "Structured context management"
-        },
         math: {
           icon: "fa-square-root-alt",
           label: "math",

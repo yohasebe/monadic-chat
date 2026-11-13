@@ -94,7 +94,7 @@ RSpec.describe "the workbench when a reply is recorded" do
              .monadic_save_state(key: "notes", payload: { "a" => 1 }, session: session)
         answer ? [{ "choices" => [{ "message" => { "content" => answer }, "finish_reason" => "stop" }] }] : []
       end
-      app.define_singleton_method(:settings) { { turn_state: true } }
+      app.define_singleton_method(:settings) { {} }
     end
   end
 

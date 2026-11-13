@@ -52,7 +52,6 @@ module MonadicDSL
   # - abc: Enables ABC music notation rendering and playback for music composition
   # - tools: Defines function-calling capabilities available to the model
   # - image_generation: Enables AI image generation within the conversation
-  # - monadic: Enables monadic mode for structured JSON responses and special rendering
   # - websearch: Enables web search functionality for retrieving external information (web_search)
   # - jupyter: Enables access to Jupyter notebooks in the conversation
   # - temperature: Controls randomness in model responses (0.0-2.0)
@@ -421,10 +420,10 @@ module MonadicDSL
       @state.settings[:include_modules] = modules.map(&:to_s)
     end
     
-    # Monadic mode for structured output
-    def monadic(value)
-      @state.features[:monadic] = value
-    end
+    # Settings of earlier versions: read and not used.
+    def monadic(_value = nil); end
+
+    def context_schema; end
     
     # Assistant initiation flag
     def initiate_from_assistant(value)
@@ -560,22 +559,6 @@ module MonadicDSL
         config = AppAgentsConfiguration.new
         config.instance_eval(&block)
         @state.settings[:agents] = config.to_hash
-      end
-    end
-
-    # Context schema for monadic apps
-    # Defines what context fields should be tracked automatically
-    # @example
-    #   context_schema do
-    #     field :topics, icon: "fa-tags", label: "Topics", description: "Main subjects"
-    #     field :people, icon: "fa-users", label: "People", description: "Names mentioned"
-    #     field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important facts"
-    #   end
-    def context_schema(&block)
-      if block_given?
-        config = ContextSchemaConfiguration.new
-        config.instance_eval(&block)
-        @state.settings[:context_schema] = config.to_hash
       end
     end
 
@@ -864,11 +847,6 @@ module MonadicDSL
     # Add agents if specified (internal sub-agents like code_generator, speech_to_text)
     if state.settings[:agents] && !state.settings[:agents].empty?
       class_def << "        @settings[:agents] = #{state.settings[:agents].inspect}\n"
-    end
-
-    # Add context_schema if specified (for monadic apps)
-    if state.settings[:context_schema]
-      class_def << "        @settings[:context_schema] = #{state.settings[:context_schema].inspect}\n"
     end
 
     class_def << "      end\n"

@@ -1562,9 +1562,6 @@ function doResetActions(resetToDefaultApp = false) {
     return !!value;
   });
 
-  const drMonadicBadge = $id("monadic-badge");
-  $toggle(drMonadicBadge, toBool(apps[currentApp]["monadic"]));
-
   const drToolsBadge = $id("tools-badge");
   $toggle(drToolsBadge, apps[currentApp]["tools"]);
 

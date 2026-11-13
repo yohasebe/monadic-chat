@@ -2,8 +2,8 @@
 
 # HTML response handler for WebSocket connections.
 # Processes completed API responses: extracts thinking blocks, citations,
-# ABC notation blocks, assembles final HTML message, handles context
-# extraction for monadic apps, and broadcasts to client.
+# ABC notation blocks, assembles final HTML message, and broadcasts to
+# client.
 
 require_relative '../tts_instruction_extractor'
 require_relative '../../workspace'
@@ -57,7 +57,6 @@ module WebSocketHelper
         begin
           content = last_one["choices"][0]
 
-          # Always use message content - monadic apps will have JSON in content field
           text = content["text"] || content["message"]["content"]
 
           # Append tool HTML fragments (e.g., ABC notation from Music Lab).
@@ -160,7 +159,6 @@ module WebSocketHelper
                       "text" => final_text,
                       "lang" => detect_language(final_text),
                       "app_name" => params["app_name"],
-                      "monadic" => params["monadic"],
                       "active" => true } # detect_language is called only once here
 
           # What the reply made (an image placed in the chat's folder), as the

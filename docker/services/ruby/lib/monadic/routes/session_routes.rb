@@ -46,7 +46,6 @@ def privacy_synthesize_session(header, body, mode)
                      base[key] = value unless value.nil?
                    end
                  end
-                 base["monadic"] = false unless base.key?("monadic")
                  base
                end
   parameters["app_name"] ||= app_name
@@ -269,9 +268,6 @@ post "/load" do
           # conversation restores it on render (KB save strips it separately).
           message_obj["verify"] = msg["verify"] if msg["verify"].is_a?(Hash)
           message_obj["app_name"] = app_name if app_name
-          if json_data["parameters"].key?("monadic")
-            message_obj["monadic"] = json_data["parameters"]["monadic"]
-          end
           # Preserve token count if present in import (for accurate stats without recomputation)
           message_obj["tokens"] = msg["tokens"].to_i if msg.key?("tokens")
 

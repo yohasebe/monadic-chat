@@ -422,20 +422,12 @@ app "JupyterNotebookClaude" do
   features do
     library_search false
     disabled !CONFIG["ANTHROPIC_API_KEY"]
-    monadic true  # Uses Session State for notebook context tracking
-    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
     easy_submit false
     auto_speech false
     jupyter true
     math true
     initiate_from_assistant true
     group "Anthropic"
-  end
-
-  context_schema do
-    field :topics, icon: "fa-tags", label: "Topics", description: "Main subjects and analysis goals"
-    field :code, icon: "fa-code", label: "Code", description: "Key libraries and techniques used"
-    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important findings and results"
   end
 
   tools do

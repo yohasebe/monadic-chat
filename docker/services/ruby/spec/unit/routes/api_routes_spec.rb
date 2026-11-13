@@ -90,7 +90,6 @@ RSpec.describe "API Routes helpers" do
       it "extracts boolean feature flags from settings" do
         settings = {
           websearch: true,
-          monadic: false,
           image: true,
           pdf: false,
           jupyter: true,
@@ -106,7 +105,6 @@ RSpec.describe "API Routes helpers" do
         result = described_class.wv_extract_features(settings)
 
         expect(result["websearch"]).to be true
-        expect(result["monadic"]).to be false
         expect(result["image"]).to be true
         expect(result["jupyter"]).to be true
         expect(result["image_generation"]).to be true

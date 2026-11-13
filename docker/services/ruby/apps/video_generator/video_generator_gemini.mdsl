@@ -131,15 +131,7 @@ app "VideoGeneratorGemini" do
     initiate_from_assistant true
     image_generation "upload_only"
     video_generation true
-    monadic true  # Uses Session State for tracking last used images
-    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
     group "Google"
-  end
-
-  context_schema do
-    field :styles, icon: "fa-palette", label: "Styles", description: "Visual styles and preferences"
-    field :prompts, icon: "fa-pen", label: "Prompts", description: "Key video descriptions used"
-    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important preferences to remember"
   end
 
   tools do

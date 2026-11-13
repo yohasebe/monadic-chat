@@ -4,6 +4,7 @@ require 'base64'
 require 'fileutils'
 require_relative 'environment'
 require_relative 'shared_path_guard'
+require_relative '../turn_state'
 
 module Monadic
   module Utils
@@ -79,15 +80,14 @@ module Monadic
       #   1. The most recent uploaded image in the session (data URL → file).
       #   2. An explicit image_path argument (a real filename), ignoring the
       #      literal placeholder "image_path" that models sometimes emit.
-      #   3. The image the app used last: its state's "last_images" for an app
-      #      that keeps its state by turn, else last_image_key in the session.
+      #   3. The image the app used last: its state's "last_images" (a
+      #      deleted turn's image is not used again).
       #
       # @param session [Hash] the WebSocket session (provides :messages and fallbacks)
       # @param image_path [String, nil] filename passed by the tool call, if any
-      # @param last_image_key [Symbol, nil] session key holding a prior filename
       # @return [String, nil] the bare filename on the shared volume, or nil
       # @raise [ImageMaterializationError] if an upload exists but cannot be written
-      def self.materialize_session_image(session, image_path: nil, last_image_key: nil)
+      def self.materialize_session_image(session, image_path: nil)
         materialized = nil
 
         # A freshly uploaded image always wins. Resolve it first regardless of
@@ -117,19 +117,23 @@ module Monadic
           materialized = image_path
         end
 
-        # Fall back to the image the app used last: for an app that keeps
-        # its state by turn, the one its state names now (a deleted turn's
-        # image is not used again); for others, the session's key.
         if materialized.nil? && session
-          if defined?(Monadic::TurnState) && Monadic::TurnState.enabled?(session)
-            last = Monadic::TurnState.data_of(session, "last_images")
-            materialized = Array(last).first&.to_s
-          elsif last_image_key && session[last_image_key]
-            materialized = session[last_image_key]
-          end
+          materialized = Array(Monadic::TurnState.data_of(session, "last_images")).first&.to_s
         end
 
         materialized
+      end
+
+      # Names the image a tool used in the app's state ("last_images"), for
+      # the next call to use again; not kept when the app has no state tools
+      # or the change is refused.
+      def self.remember_image(app, session, image_path)
+        return unless session && app.respond_to?(:monadic_save_state)
+
+        name = File.basename(image_path.to_s)
+        return if Array(Monadic::TurnState.data_of(session, "last_images")) == [name]
+
+        app.monadic_save_state(key: "last_images", payload: [name], session: session)
       end
 
       # Names this process wrote with write_data_url_to_shared and has not

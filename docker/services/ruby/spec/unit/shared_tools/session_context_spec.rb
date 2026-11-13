@@ -37,7 +37,6 @@ RSpec.describe "MonadicSharedTools::SessionContext" do
     Monadic::TurnState.reset!
     Monadic::Workbench::Board.reset!
     stub_const("APPS", { app_name => app })
-    allow(Monadic::TurnState).to receive(:enabled?).and_return(true)
     allow(Monadic::Workbench::Store).to receive(:default).and_return(store)
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data)
     allow(Monadic::Utils::Environment).to receive(:state_path).and_return(@state)

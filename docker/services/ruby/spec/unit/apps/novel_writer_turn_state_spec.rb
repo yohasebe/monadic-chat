@@ -34,7 +34,7 @@ RSpec.describe "Novel Writer's state by turn" do
     Monadic::Workbench::Made.reset!
     Monadic::Workbench::Shown.reset!
     WebSocketHelper::Replies.reset!
-    stub_const("APPS", { app => double(settings: { turn_state: true }) })
+    stub_const("APPS", { app => double(settings: {}) })
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data)
     allow(Monadic::Utils::Environment).to receive(:state_path).and_return(@state)
     @reply = nil

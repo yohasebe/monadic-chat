@@ -37,14 +37,14 @@ end
 #   - customtools variant prioritizes custom tools over built-in tools
 #
 # Gemini 3.5 Flash (gemini-3.5-flash; GA successor of the gemini-3-flash-preview line):
-#   - Full support for monadic mode + function calling simultaneously
+#   - Full support for structured JSON output + function calling simultaneously
 #   - No special workarounds required
 #
 # Gemini 2.5 (gemini-2.5-flash, gemini-2.5-pro) - Legacy Support:
 #   - Has limitation: cannot support function calling and structured JSON output simultaneously
 #   - Workaround code is preserved below for backward compatibility
 #   - For function calling: uses `reasoning_effort: minimal`
-#   - For structured JSON (monadic mode): omits reasoning_effort parameter
+#   - For structured JSON: omits reasoning_effort parameter
 #
 # Tool Management Strategy:
 #   - Info-gathering tools (read-only) are separated from action tools
@@ -1435,7 +1435,7 @@ module GeminiHelper
         Monadic::Utils::ExtraLogger.log { "[Jupyter Termination Check] role=tool, tool_names=#{tool_names.inspect}" }
       end
 
-      # Gemini 3+ fully supports function calling with monadic mode
+      # Gemini 3+ fully supports function calling with structured JSON output
       # Gemini 2.5 also supports function calling (with some workarounds)
       if is_jupyter_app
         # Separate information-gathering tools from action tools
@@ -3824,9 +3824,7 @@ module GeminiHelper
     # the shared folder for the generator; a failure is reported instead of
     # silently making a text-to-video.
     begin
-      final_image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(
-        session, image_path: image_path, last_image_key: :gemini_last_video_image
-      )
+      final_image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(session, image_path: image_path)
     rescue Monadic::Utils::ToolImageUtils::ImageMaterializationError => e
       return { "success" => false, "message" => e.message, "original_prompt" => prompt }.to_json
     end
@@ -3841,7 +3839,7 @@ module GeminiHelper
     parts += ["--out-dir", job[:path]] if job
     if final_image_path && !final_image_path.empty?
       parts += ["-i", final_image_path]
-      session[:gemini_last_video_image] = File.basename(final_image_path) if session
+      Monadic::Utils::ToolImageUtils.remember_image(self, session, final_image_path)
     end
 
     begin

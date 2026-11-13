@@ -23,14 +23,6 @@ app "MathTutorGrok" do
     initiate_from_assistant true
     math true
     group "xAI"
-    monadic true  # Uses Session State mechanism for learning progress tracking
-    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
-  end
-
-  context_schema do
-    field :concepts, icon: "fa-brain", label: "Concepts", description: "Mathematical concepts covered"
-    field :formulas, icon: "fa-square-root-alt", label: "Formulas", description: "Key formulas and equations"
-    field :tips, icon: "fa-lightbulb", label: "Tips", description: "Problem-solving tips"
   end
 
   tools do

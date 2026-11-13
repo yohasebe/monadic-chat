@@ -110,7 +110,6 @@ app "WebInsightClaude" do
   features do
     library_search false
     disabled !CONFIG["ANTHROPIC_API_KEY"]
-    monadic false
     websearch true
     context_size 20
     initiate_from_assistant true

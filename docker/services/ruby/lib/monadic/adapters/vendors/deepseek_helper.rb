@@ -30,7 +30,7 @@ module DeepSeekHelper
   # this file.
   WEBSEARCH_TOOLS = Monadic::SharedTools::TavilyDefinitions::TOOLS
 
-  # JSON format instruction for monadic mode (required by DeepSeek API)
+  # JSON format instruction for json mode (required by DeepSeek API)
   JSON_FORMAT_PROMPT = <<~TEXT
 
     IMPORTANT: You must respond in valid JSON format. Your response should be a properly formatted JSON object.
@@ -256,13 +256,7 @@ module DeepSeekHelper
 
     body["temperature"] = temperature
 
-    # Determine if we need to add JSON format instruction
-    # Handle both string "true" and boolean true values
-    # Note: monadic mode does NOT require JSON format - it uses tools for state management
-    # Only explicit json mode requires JSON format
-    is_monadic = obj["monadic"].to_s == "true"
     is_json = obj["json"].to_s == "true"
-    needs_json_prompt = is_json  # Only json mode needs JSON format, not monadic
 
     system_message_modified = false
     messages_containing_img = false
@@ -279,8 +273,8 @@ module DeepSeekHelper
         )
         # Add websearch prompt if enabled
         content += "\n\n---\n\n" + WEBSEARCH_PROMPT if websearch
-        # Add JSON format prompt if monadic/json mode (required by DeepSeek API)
-        content += "\n\n---\n\n" + JSON_FORMAT_PROMPT if needs_json_prompt
+        # Add JSON format prompt in json mode (required by DeepSeek API)
+        content += "\n\n---\n\n" + JSON_FORMAT_PROMPT if is_json
         { "role" => msg["role"], "content" => content }
       else
         # Images are attached only to user messages: DeepSeek answers 400 for an
@@ -382,8 +376,6 @@ module DeepSeekHelper
 
     obj = session[:parameters]
 
-    # Define monadic/json mode flags for consistent checking
-    is_monadic = obj["monadic"].to_s == "true"
     is_json = obj["json"].to_s == "true"
 
     buffer = String.new.force_encoding("UTF-8")
@@ -516,7 +508,6 @@ module DeepSeekHelper
                   elsif is_json
                     # Suppress fragments for json mode only - content will be processed after completion
                     # The raw JSON fragments should not be shown to the user
-                    # Note: monadic mode uses normal streaming since responses are natural language
                   elsif fragment.length > 0
                     res = {
                       "type" => "fragment",
@@ -610,8 +601,7 @@ module DeepSeekHelper
 
       parse_deepseek_json_function_call(content, text_result, tools) unless dsml_result
       
-      # Process JSON responses only for explicit json mode (not monadic mode)
-      # Monadic mode uses tools for state management and returns natural language
+      # Process JSON responses only for json mode
       if is_json
         choice = text_result["choices"][0]
         if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop" || choice["finish_reason"].nil?

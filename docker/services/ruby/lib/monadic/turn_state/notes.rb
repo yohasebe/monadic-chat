@@ -74,10 +74,9 @@ module Monadic
         File.join(folder[:relative_dir], DIRNAME, "#{Monadic::Workbench::Document.slug(declaration[:title], 60)}.md")
       end
 
-      # The app the session is in, when it keeps its state by turn and
-      # declares its notes.
+      # The app the session is in, when it declares its notes.
       def declaring_app(session)
-        return nil unless session.is_a?(Hash) && TurnState.enabled?(session)
+        return nil unless session.is_a?(Hash)
 
         name = TurnState.app_of(session)
         app = defined?(APPS) ? APPS[name] : nil

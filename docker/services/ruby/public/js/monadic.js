@@ -2342,12 +2342,6 @@ document.addEventListener("DOMContentLoaded", function () {
     { const el = $id("base-app-title"); if (el) el.textContent = displayText; }
     { const el = $id("base-app-icon"); if (el) el.innerHTML = apps[appValue]["icon"]; }
 
-    if (toBool(apps[appValue]["monadic"])) {
-      $show($id("monadic-badge"));
-    } else {
-      $hide($id("monadic-badge"));
-    }
-
     if (apps[appValue]["tools"]) {
       $show($id("tools-badge"));
     } else {
@@ -2748,7 +2742,6 @@ document.addEventListener("DOMContentLoaded", function () {
         message: "SYSTEM_PROMPT",
         content: ($id("initial-prompt") || {}).value,
         math: ($id("math") || {}).checked,
-        monadic: params["monadic"],
         websearch: params["websearch"],
         jupyter: params["jupyter"],
         conversation_language: params["conversation_language"] || "auto",

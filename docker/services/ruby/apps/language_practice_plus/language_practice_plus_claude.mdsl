@@ -101,17 +101,9 @@ app "LanguagePracticePlusClaude" do
     easy_submit true
     auto_speech true
     initiate_from_assistant true
-    monadic true  # Uses Session State mechanism for context tracking
-    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
     image_generation "disabled"
     group "Anthropic"
     tts_target :tool_param, "save_response", "message"
-  end
-
-  context_schema do
-    field :vocabulary, icon: "fa-book", label: "Vocabulary", description: "Key vocabulary and phrases learned"
-    field :grammar, icon: "fa-spell-check", label: "Grammar", description: "Grammar points covered"
-    field :tips, icon: "fa-lightbulb", label: "Tips", description: "Language learning tips and corrections"
   end
 
   tools do

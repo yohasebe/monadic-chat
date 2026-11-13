@@ -19,7 +19,7 @@ RSpec.describe Monadic::TurnState do
 
   before do
     ts.reset!
-    stub_const("APPS", { app => double(settings: { turn_state: true }), "Plain" => double(settings: {}) })
+    stub_const("APPS", { app => double(settings: {}) })
     @reply = nil
     allow(Monadic::Workbench::Caller).to receive(:current) { @reply }
   end
@@ -304,16 +304,6 @@ RSpec.describe Monadic::TurnState do
       expect(JSON.parse(tools.monadic_load_state(key: "novel_context", session: resumed))["data"]).to eq("plot" => "p")
       expect(JSON.parse(tools.monadic_load_state(key: "goal", session: resumed))["data"]).to eq(1000)
       expect(JSON.parse(tools.monadic_load_items(collection: "characters", session: resumed))["items"].size).to eq(1)
-    end
-  end
-
-  describe "an app that does not keep its state by turn" do
-    it "keeps it in the session as before, and has no items" do
-      session[:parameters]["app_name"] = "Plain"
-      tools.monadic_save_state(key: "notes", payload: %w[x], session: session)
-      expect(session[:monadic_state]["Plain"]["notes"][:data]).to eq(%w[x])
-      expect(tools.monadic_update_state(key: "notes", session: session) { |n| n + %w[y] }).to eq(%w[x y])
-      expect(JSON.parse(tools.monadic_put_item(collection: "c", data: 1, session: session))).to include("success" => false)
     end
   end
 end

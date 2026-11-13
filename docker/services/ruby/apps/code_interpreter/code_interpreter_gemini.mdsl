@@ -316,7 +316,6 @@ app "CodeInterpreterGemini" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    monadic false  # Required for proper function calling with Gemini
   end
 
   tools do

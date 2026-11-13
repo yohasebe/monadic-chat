@@ -136,15 +136,7 @@ app "NovelWriterMistral" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    monadic true  # Uses Session State mechanism for novel progress tracking
-    turn_state true  # Its state is kept by turn: deleting a turn takes back what it changed
     group "Mistral"
-  end
-
-  context_schema do
-    field :characters, icon: "fa-users", label: "Characters", description: "Main characters in the story"
-    field :plot, icon: "fa-book-open", label: "Plot", description: "Key plot points and events"
-    field :settings, icon: "fa-map", label: "Settings", description: "Locations and time periods"
   end
 
   tools do

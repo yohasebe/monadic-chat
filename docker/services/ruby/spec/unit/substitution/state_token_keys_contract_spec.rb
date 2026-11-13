@@ -37,6 +37,10 @@ RSpec.describe "session-state token key contract" do
     chat = Monadic::Workspace::Ids.generate(:chat)
     session = { Monadic::Workspace::Chats::SESSION_KEY => chat, parameters: { "app_name" => "JupyterNotebookOpenAI" } }
     allow(Monadic::Workspace::Notebooks).to receive(:create).and_return("conversations/x_w/work/analysis.ipynb")
+    Monadic::TurnState.reset!
+    reply = Monadic::Workbench::Caller.new(chat_id: chat, epoch: Monadic::Workspace::Chats.epoch(chat),
+                                           request_id: Monadic::Workspace::Ids.generate(:request), session: session)
+    allow(Monadic::Workbench::Caller).to receive(:current).and_return(reply)
 
     app.create_jupyter_notebook(filename: "analysis", session: session)
     expect(Monadic::Substitution::Vocabulary.current_notebook(session)).to eq("conversations/x_w/work/analysis.ipynb")

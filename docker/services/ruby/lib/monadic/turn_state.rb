@@ -14,9 +14,6 @@ module Monadic
   # on top of the base the chat began with. Deleting a turn takes its
   # changes with it.
   #
-  # For apps whose MDSL sets `turn_state true` (enabled?); the others keep
-  # their state in session[:monadic_state] as before.
-  #
   # While a reply runs, what it changes is kept for it alone (its record)
   # and given to its message once (seal), or let go when it ends without
   # one (close). One reply of a chat changes its state at a time: another
@@ -41,14 +38,6 @@ module Monadic
 
     module_function
 
-    # Whether the app the session is in keeps its state this way.
-    def enabled?(session)
-      params = session.is_a?(Hash) ? (session[:parameters] || session['parameters']) : nil
-      app_name = params && (params['app_name'] || params[:app_name])
-      app = defined?(APPS) && app_name ? APPS[app_name] : nil
-      app&.settings&.[](:turn_state) == true
-    end
-
     # --- reading -----------------------------------------------------------
 
     # The value of key for the app the session is in now: { found:, data:,
@@ -65,20 +54,13 @@ module Monadic
       entry
     end
 
-    # The data of key for the app the session is in, however the app keeps
-    # its state: by turn (value), or else as session[:monadic_state] holds
-    # it. nil when there is none (or it was removed).
+    # The data of key for the app the session is in; nil when there is
+    # none (or it was removed).
     def data_of(session, key)
       return nil unless session.is_a?(Hash)
 
-      if enabled?(session)
-        entry = value(session, key.to_s)
-        return entry[:found] ? entry[:data] : nil
-      end
-
-      entries = base_of(session, app_of(session))
-      entry = entries[key.to_s] || entries[key.to_sym]
-      entry.is_a?(Hash) ? (entry[:data] || entry['data']) : nil
+      entry = value(session, key.to_s)
+      entry[:found] ? entry[:data] : nil
     end
 
     # The items of collection, oldest first: [{ id:, data:, by: }] (by: the

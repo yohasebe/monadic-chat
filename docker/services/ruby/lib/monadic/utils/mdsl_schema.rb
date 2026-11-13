@@ -94,10 +94,6 @@ module MDSLSchema
       type: :boolean,
       description: "Whether the app is disabled"
     },
-    monadic: {
-      type: :boolean,
-      description: "Enable monadic JSON response format"
-    },
     easy_submit: {
       type: :boolean,
       description: "Enable easy submit mode"

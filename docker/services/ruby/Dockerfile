@@ -36,8 +36,9 @@ COPY Gemfile Gemfile.lock monadic.gemspec $WORKSPACE/
 COPY config.ru $WORKSPACE/
 
 # The app's gems, each at the version and checksum of Gemfile.lock (a gem
-# that differs, or a Gemfile the lock does not match, stops the build)
-ENV BUNDLER_WITHOUT="development test"
+# that differs, or a Gemfile the lock does not match, stops the build),
+# without the gems only development and tests use
+ENV BUNDLE_WITHOUT="development:test"
 RUN BUNDLE_FROZEN=true bundle install -j4 && \
     rm -rf /usr/local/bundle/cache/*
 
@@ -87,6 +88,9 @@ RUN apt-get update && \
 ENV WORKSPACE="/monadic"
 WORKDIR $WORKSPACE
 
+# The same groups as the build stage left out: the server is started through
+# the bundle, which must not look for them
+ENV BUNDLE_WITHOUT="development:test"
 COPY --from=build /usr/local/bundle /usr/local/bundle
 COPY --from=build $WORKSPACE $WORKSPACE
 

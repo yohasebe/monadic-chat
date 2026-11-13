@@ -381,7 +381,10 @@ module Monadic
             session.respond_to?(:[]) && Array(session[:messages]).any? { |m| m.is_a?(Hash) && m['workbench_made'] }
           },
           generator: ->(session, _options) {
-            Monadic::Utils::SystemPromptInjector.chat_outputs_prompt(Monadic::Workbench::Outputs.in_chat(session))
+            files = Monadic::Workbench::Outputs.in_chat(session).map do |file|
+              file.merge(path: Monadic::Utils::SystemPromptInjector.path_as_sent(session, file[:path]))
+            end
+            Monadic::Utils::SystemPromptInjector.chat_outputs_prompt(files)
           }
         },
         # The page that shows the app's state on the work screen
@@ -394,7 +397,7 @@ module Monadic
           },
           generator: ->(session, _options) {
             path = Monadic::TurnState::Notes.current(session)
-            path && format(STATE_NOTES_PROMPT, path: path)
+            path && format(STATE_NOTES_PROMPT, path: Monadic::Utils::SystemPromptInjector.path_as_sent(session, path))
           }
         }
       ].freeze
@@ -443,6 +446,17 @@ module Monadic
           parts << inventory_block if inventory_block
           parts << LIBRARY_RAG_FOOTER
           parts.join("\n\n")
+        end
+
+        # A path named in the prompt, as a chat that hides its words sends
+        # it: each hidden word as its placeholder, which the tools that read
+        # a file put back (Privacy::Words::RESTORED_ARGUMENTS). The path as
+        # it is for a chat without a word table.
+        def path_as_sent(session, path)
+          return path unless defined?(Monadic::Utils::Privacy::Words)
+
+          table = Monadic::Utils::Privacy::Words.table(session)
+          table ? table.snapshot.raw(path.to_s) : path
         end
 
         # The prompt's list of the files the chat has made (Outputs.in_chat),

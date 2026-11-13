@@ -88,5 +88,23 @@ RSpec.describe Monadic::Workbench::Outputs do
       expect(Monadic::Utils::SystemPromptInjector.build_injections(session: session_for(chat)).map { |i| i[:name] })
         .not_to include(:chat_outputs)
     end
+
+    it "names a file by its placeholder in a chat that hides a word of the name, and the tool gets the name back" do
+      chat, dir = new_chat
+      write("#{dir}/workbench/Tanaka-plan.md")
+      session = session_for(chat, [{ "role" => "assistant", "workbench_made" => ["#{dir}/workbench/Tanaka-plan.md"] }])
+      words = Monadic::Utils::Privacy::Words
+      table = words.start!(session)
+      table.confirm_all!([%w[Tanaka PERSON]])
+
+      text = Monadic::Utils::SystemPromptInjector.build_injections(session: session)
+                                               .find { |i| i[:name] == :chat_outputs }[:content]
+      named = text[%r{^- (.+) \(turn 1\)$}, 1]
+
+      expect(text).not_to include("Tanaka")
+      expect(table.snapshot.restore_exact(named)).to eq("#{dir}/workbench/Tanaka-plan.md")
+    ensure
+      words::LOCK.synchronize { words::TABLES.clear }
+    end
   end
 end

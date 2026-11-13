@@ -15,7 +15,7 @@ Language Practice の対応プロバイダーは[モデル対応状況の表](..
 
 ![Language Practice Plus app icon](../assets/icons/language-practice-plus.png ':size=40')
 
-Language Practice と同じように使え、言葉の使い方についての助言が加わります。助言は、[作業画面](../basic-usage/web-interface.md#work-screen)に **Practice notes** のページとしてまとめられます。
+Language Practice と同じように使え、言葉の使い方についての助言が加わります。返答は会話に専念し、訂正や説明は、[作業画面](../basic-usage/web-interface.md#work-screen)に **Practice notes** のページとしてまとめられます。
 
 
 ## Translate

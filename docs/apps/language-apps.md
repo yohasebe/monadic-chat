@@ -15,7 +15,7 @@ Language Practice supports the providers indicated in the [availability table](.
 
 ![Language Practice Plus app icon](../assets/icons/language-practice-plus.png ':size=40')
 
-Works like Language Practice, and adds advice on your language use. The advice is collected on the [work screen](../basic-usage/web-interface.md#work-screen) as the **Practice notes** page.
+Works like Language Practice, and adds advice on your language use. The replies keep to the conversation; corrections and explanations are collected on the [work screen](../basic-usage/web-interface.md#work-screen) as the **Practice notes** page.
 
 
 ## Translate

@@ -7,6 +7,7 @@
 
 require_relative '../tts_instruction_extractor'
 require_relative '../../workspace'
+require_relative '../../turn_state'
 require_relative '../tts_marker_vocabulary'
 require_relative '../../workbench/shown'
 require_relative '../../workbench/made'
@@ -191,6 +192,10 @@ module WebSocketHelper
           # deleting this message puts it back.
           revisions = request_id && Monadic::Workbench::Made.clean_revisions(Monadic::Workbench::Made.seal_revisions(request_id))
           new_data[Monadic::Workbench::Made::REVISIONS_KEY] = revisions if revisions
+          # What it changed in its app's state (Monadic::TurnState): deleting
+          # this message takes the changes back.
+          state_changes = request_id && Monadic::TurnState.seal(request_id, session)
+          new_data[Monadic::TurnState::Form::STATE_CHANGES_KEY] = state_changes if state_changes
 
           # Forward the vocabulary token -> resolved-path map for the frontend's
           # decoration / hover / reveal-in-explorer layer.

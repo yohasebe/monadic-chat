@@ -163,6 +163,8 @@ module WebSocketHelper
     context = imported[:monadic_state].is_a?(Hash) ? imported[:monadic_state].delete(:conversation_context) : nil
     imported.each { |key, value| session[key] = value }
     Monadic::Workspace::ChatContext.restore!(session, context)
+    # The app state is made from the file's messages and base.
+    Monadic::TurnState.changed!(session[Monadic::Workspace::Chats::SESSION_KEY]) if defined?(Monadic::TurnState)
     session[:parameters]["ui_language"] ||= ui_language if ui_language
     sync_session_state!
 

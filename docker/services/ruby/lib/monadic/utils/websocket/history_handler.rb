@@ -162,6 +162,7 @@ module WebSocketHelper
     # what its replies changed comes back with their messages.
     base, = Monadic::TurnState::Form.clean_base(payload['monadic_state'])
     session[:monadic_state] = Monadic::TurnState::Form.to_session(base) if base
+    Monadic::TurnState.changed!(chat_id) if defined?(Monadic::TurnState)
     # The context the chat holds, or else the one saved last (none, when it
     # was emptied), read again now that the chat's work has ended; what was
     # read to resume, when that is gone.

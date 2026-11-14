@@ -1363,55 +1363,17 @@ module CohereHelper
     # Special handling for check_environment function
     argument_hash = {} if function_name == "check_environment" && argument_hash.empty?
 
-    # request_tool (progressive disclosure) is handled group-aware in the execute
-    # block below via ProgressiveToolManager.handle_request_tool.
+    result = run_tool_call(
+      app, session, function_name, argument_hash, call_id: tool_call_id, speech: true,
+      error_text: lambda { |e|
+        Monadic::Utils::ExtraLogger.log { "[Cohere Tools] Function execution error: #{e.message}" }
+        Monadic::Utils::ErrorFormatter.tool_error(provider: "Cohere", tool_name: function_name, message: e.message)
+      }, &block
+    )
+    function_return = result.value
 
-    # Expand vocabulary ${TOKEN}s before the tool runs; before :session
-    # injection so the session object is never walked. No-op without vocabulary.
-    argument_hash = tool_arguments_given(function_name, argument_hash, session, APPS[app]&.settings)
-
-    # Inject session for tools that need it
-    method_obj = APPS[app].method(function_name.to_sym) rescue nil
-    if method_obj && method_obj.parameters.any? { |_type, name| name == :session }
-      argument_hash[:session] = session
-    end
-    Monadic::Workbench::Caller.inject!(argument_hash, method_obj, session)
-
-    # Execute function and capture result
-    begin
-      refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
-      function_return = if refusal
-        # Run only the tools offered to the model in the latest request.
-        refusal
-      elsif function_name == "request_tool"
-        Monadic::Utils::ProgressiveToolManager.handle_request_tool(
-          session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: argument_hash
-        )
-      else
-        APPS[app].public_send(function_name.to_sym, **argument_hash)
-      end
-      send_verification_notification(session, &block) if function_name == "report_verification"
-    rescue StandardError => e
-      Monadic::Utils::ExtraLogger.log { "[Cohere Tools] Function execution error: #{e.message}" }
-      function_return = Monadic::Utils::ErrorFormatter.tool_error(
-        provider: "Cohere", tool_name: function_name, message: e.message
-      )
-    end
-
-    # TTS extraction is a non-fatal side effect — isolate it so a failure here
-    # cannot clobber a successful tool result (which previously surfaced as a
-    # bogus "Tool Execution Error" and made the model re-call in a loop).
-    begin
-      Monadic::Utils::TtsTextExtractor.extract_tts_text(
-        app: app, function_name: function_name,
-        argument_hash: argument_hash, session: session, function_return: function_return
-      )
-    rescue StandardError => e
-      Monadic::Utils::ExtraLogger.log { "[Cohere Tools] TTS extract (non-fatal): #{e.message}" }
-    end
-
-    # Check for repeated errors
-    if handle_function_error(session, function_return, function_name, &block)
+    # The same error too often: the round ends with what the tool said.
+    if result.stop
       error_entry = {
         "role" => "tool", "tool_call_id" => tool_call_id,
         "content" => [{ "type" => "text", "text" => function_return.to_s }]
@@ -1419,23 +1381,9 @@ module CohereHelper
       return [error_entry, true]
     end
 
-    bind_workbench_look(function_return, tool_call_id)
-
-    # Store gallery_html for server-side injection
-    if function_return.is_a?(Hash) && function_return[:gallery_html]
-      session[:tool_html_fragments] ||= []
-      session[:tool_html_fragments] << function_return[:gallery_html]
-    end
-
-    # Collect _image for visual self-verification and clean underscore keys
-    pending_images = nil
-    if function_return.is_a?(Hash) && function_return[:_image]
-      pending_images = Array(function_return[:_image])
-      clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
-      serialized_return = JSON.generate(clean_return)
-    else
-      serialized_return = nil
-    end
+    # A result with images for the model goes without its private keys
+    pending_images = result.images
+    serialized_return = pending_images ? JSON.generate(result.without_private_keys) : nil
 
     # Process function return to detect generated images
     processed_return = function_return.to_s

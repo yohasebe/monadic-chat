@@ -1227,57 +1227,24 @@ module DeepSeekHelper
       memo[k.to_sym] = v
     end
 
-    # Expand vocabulary ${TOKEN}s before the tool runs; before :session
-    # injection so the session object is never walked. No-op without vocabulary.
-    converted = tool_arguments_given(function_name, converted, session, APPS[app]&.settings)
+    # The Web Search toggle, asked where every path of a call meets: the
+    # model can still write a call in its content (JSON or DSML) for a tool
+    # the request did not offer it.
+    web_search_off = lambda {
+      next unless Monadic::SharedTools::TavilyDefinitions.web_search_tool?(function_name) &&
+                  !Monadic::SharedTools::TavilyDefinitions.websearch_requested?(session[:parameters])
 
-    method_obj = APPS[app].method(function_name.to_sym) rescue nil
-    if method_obj && method_obj.parameters.any? { |_type, name| name == :session }
-      converted[:session] = session
-    end
-    Monadic::Workbench::Caller.inject!(converted, method_obj, session)
-
-    # Consumption-point gate for the Web Search UI toggle. The schema gate hides
-    # web-search tools when the toggle is off, but DeepSeek's model can still
-    # surface a call via its content fallbacks (JSON or DSML). Block execution
-    # here — the single point every request path converges on — so a UI-disabled
-    # capability never runs regardless of how it was requested.
-    refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
-    if refusal
-      # Run only the tools offered to the model in the latest request; this also
-      # covers calls written in the content (DSML or JSON).
-      function_return = refusal
-    elsif Monadic::SharedTools::TavilyDefinitions.web_search_tool?(function_name) &&
-       !Monadic::SharedTools::TavilyDefinitions.websearch_requested?(session[:parameters])
       Monadic::Utils::ExtraLogger.log { "[DeepSeek] Web Search off — blocked #{function_name}" }
-      function_return = "❌ Web search is turned off for this conversation. " \
-                        "Do NOT attempt web search or fetching again. Answer the user directly from your own " \
-                        "knowledge, and note that your information may not be up to date."
-    else
-      begin
-        function_return = if function_name == "request_tool"
-                            Monadic::Utils::ProgressiveToolManager.handle_request_tool(
-                              session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: converted
-                            )
-                          elsif converted.empty?
-                            APPS[app].public_send(function_name.to_sym)
-                          else
-                            APPS[app].public_send(function_name.to_sym, **converted)
-                          end
-      rescue StandardError => e
-        function_return = "ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"
-      end
-    end
+      "❌ Web search is turned off for this conversation. " \
+        "Do NOT attempt web search or fetching again. Answer the user directly from your own " \
+        "knowledge, and note that your information may not be up to date."
+    }
+    result = run_tool_call(
+      app, session, function_name, converted, call_id: tool_call["id"], refuse: web_search_off,
+      error_text: ->(e) { "ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}" }, &block
+    )
+    function_return = result.value
 
-    send_verification_notification(session, &block) if function_name == "report_verification"
-
-    # Store gallery_html for server-side injection
-    if function_return.is_a?(Hash) && function_return[:gallery_html]
-      session[:tool_html_fragments] ||= []
-      session[:tool_html_fragments] << function_return[:gallery_html]
-    end
-
-    bind_workbench_look(function_return, tool_call["id"])
     content_value = function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
     entry = {
       "role" => "tool",
@@ -1286,8 +1253,7 @@ module DeepSeekHelper
       "content" => content_value
     }
 
-    error_stop = handle_function_error(session, function_return, function_name, &block)
-    [entry, error_stop]
+    [entry, result.stop]
   end
 
   def process_functions(app, session, tools, context, call_depth, &block)

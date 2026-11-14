@@ -11,6 +11,7 @@ require_relative "../workspace/stopped_replies"
 require_relative "../workbench/observation"
 require_relative "../workbench/look"
 require_relative "../workbench/look/availability"
+require_relative "tool_run"
 
 # BaseVendorHelper
 # Shared utilities for vendor helpers. Provides macros for common patterns
@@ -20,6 +21,8 @@ require_relative "../workbench/look/availability"
 module BaseVendorHelper
   DEFAULT_MAX_RETRIES = 5
   DEFAULT_RETRY_DELAY = 1 # seconds
+
+  include ToolRun
 
   def self.included(base)
     base.extend(ClassMethods)

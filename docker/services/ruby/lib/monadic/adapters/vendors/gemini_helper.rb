@@ -3390,51 +3390,30 @@ module GeminiHelper
       block&.call({ "type" => "tool_executing", "content" => function_name })
 
       begin
-        Monadic::Utils::ExtraLogger.log { "[process_functions] Preparing args for #{function_name}" }
-        argument_hash = prepare_gemini_tool_arguments(tool_call, app, function_name, session)
+        argument_hash = prepare_gemini_tool_arguments(tool_call, function_name)
 
-        Monadic::Utils::ExtraLogger.log { "[process_functions] Invoking #{function_name} with #{argument_hash.keys.inspect}" }
-        refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
-        function_return = if refusal
-          # Run only the tools offered to the model in the latest request.
-          refusal
-        elsif function_name == "request_tool"
-          Monadic::Utils::ProgressiveToolManager.handle_request_tool(
-            session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: argument_hash
-          )
-        else
-          invoke_gemini_tool_function(app, function_name, argument_hash)
-        end
-        Monadic::Utils::ExtraLogger.log { "[process_functions] #{function_name} returned #{workbench_loggable(function_return).to_s[0..200]}" }
-
-        send_verification_notification(session, &block) if function_name == "report_verification"
-
-        # Extract TTS text from tool parameters if tts_target is configured
-        Monadic::Utils::TtsTextExtractor.extract_tts_text(
-          app: app,
-          function_name: function_name,
-          argument_hash: argument_hash,
-          session: session
+        # Gemini's calls carry no id: the look a result is (if any) is known
+        # by one made here, kept beside the result and never sent.
+        made_id = "call_#{SecureRandom.hex(6)}"
+        run = run_tool_call(
+          app, session, function_name, argument_hash, call_id: made_id, speech: true,
+          error_text: ->(e) { gemini_tool_error_text(e, function_name, &block) }, &block
         )
+        function_return = run.value
+        Monadic::Utils::ExtraLogger.log { "[process_functions] #{function_name} returned #{workbench_loggable(function_return).to_s[0..200]}" }
 
         # Process the returned content
         if function_return
           content = handle_media_generation_result(function_name, function_return, session)
+          result = gemini_tool_result(tool_call, content, call_depth)
 
-          # Check for repeated errors before adding to tool results
-          if handle_function_error(session, content, function_name, &block)
-            # Stop retrying - add result and skip to loop exit
-            session_params["tool_results"] << gemini_tool_result(tool_call, content, call_depth)
+          # The same error too often: the round ends with what the tool said.
+          if run.stop
+            session_params["tool_results"] << result
             next
           end
 
-          result = gemini_tool_result(tool_call, content, call_depth)
-          # A look is known by an id made here (Gemini's calls carry none),
-          # kept beside the result and never sent.
-          if function_return.is_a?(Monadic::Workbench::Look::Result)
-            result["_look_call"] = "call_#{SecureRandom.hex(6)}"
-            bind_workbench_look(function_return, result["_look_call"])
-          end
+          result["_look_call"] = made_id if function_return.is_a?(Monadic::Workbench::Look::Result)
           session_params["tool_results"] << result
 
           if function_return.is_a?(Monadic::Workbench::Offered) && function_return.for?(session)
@@ -3620,40 +3599,15 @@ module GeminiHelper
   end
 
   # 3a: Parse, symbolize, and prepare tool arguments from a Gemini tool call
-  def prepare_gemini_tool_arguments(tool_call, app, function_name, session)
-    # Parse arguments from the tool call
-    argument_hash = tool_call["args"] || {}
+  def prepare_gemini_tool_arguments(tool_call, function_name)
+    argument_hash = (tool_call["args"] || {}).transform_keys(&:to_sym)
 
-    # Convert string keys to symbols for method calling
-    argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
-      memo[k.to_sym] = v
-      memo
-    end
-
-    # Check if Gemini wrapped arguments in an "options" key and unwrap them
+    # Gemini sometimes wraps the arguments in an "options" key
     if argument_hash.keys == [:options] && argument_hash[:options].is_a?(Hash)
-      argument_hash = argument_hash[:options]
-      # Convert the unwrapped hash keys to symbols as well
-      argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
-        memo[k.to_sym] = v
-        memo
-      end
+      argument_hash = argument_hash[:options].transform_keys(&:to_sym)
     end
 
-    # Expand vocabulary ${TOKEN}s (e.g. ${SHARED}) before the tool runs; before
-    # :session injection so the session object is never walked. No-op without
-    # a vocabulary block.
-    argument_hash = tool_arguments_given(function_name, argument_hash, session, APPS[app]&.settings)
-
-    # Inject session for tools that need it (e.g., monadic state tools, image generators)
-    # Check if the method accepts a :session parameter and inject it if so
-    method_obj = APPS[app]&.method(function_name.to_sym) rescue nil
-    if method_obj && method_obj.parameters.any? { |type, name| name == :session }
-      argument_hash[:session] = session
-    end
-    Monadic::Workbench::Caller.inject!(argument_hash, method_obj, session)
-
-    # Special handling for tavily_search to ensure proper parameter mapping
+    # tavily_search by the names its method takes
     if function_name == "tavily_search"
       clean_args = {}
       clean_args[:query] = argument_hash[:query] || argument_hash[:q] if argument_hash[:query] || argument_hash[:q]
@@ -3664,19 +3618,14 @@ module GeminiHelper
     argument_hash
   end
 
-  # 3b: Look up and invoke the tool function on the app instance or self
-  def invoke_gemini_tool_function(app, function_name, argument_hash)
-    function_return = if APPS[app] && APPS[app].respond_to?(function_name.to_sym)
-      APPS[app].public_send(function_name.to_sym, **argument_hash)
-    elsif respond_to?(function_name.to_sym)
-      public_send(function_name.to_sym, **argument_hash)
-    else
-      raise NoMethodError, "Function '#{function_name}' not found in app or helper"
-    end
-
-    Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{function_name} returned: #{workbench_loggable(function_return).to_s[0..500]}" }
-
-    function_return
+  # 3b: What an exception in a tool becomes: its result for the model, said
+  # in the chat as well.
+  def gemini_tool_error_text(e, function_name, &block)
+    error_message = Monadic::Utils::ErrorFormatter.tool_error(provider: "Gemini", tool_name: function_name, message: e.message)
+    Monadic::Utils::ExtraLogger.log { "[Gemini] #{error_message}" }
+    block&.call({ "type" => "fragment", "content" => "<span class='text-danger'>#{error_message}</span>",
+                  "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true })
+    error_message
   end
 
   # 3c: Process tool return value for media generators and standard functions
@@ -3733,31 +3682,16 @@ module GeminiHelper
         content = function_return.is_a?(String) ? function_return : function_return.to_json
       end
 
-      if function_return.is_a?(Hash) && function_return[:gallery_html]
-        session[:tool_html_fragments] ||= []
-        session[:tool_html_fragments] << function_return[:gallery_html]
-      end
-
       content
     end
   end
 
-  # 3d: Handle errors during tool function execution
-  # The error answers the call that raised it, after that call and its
-  # signature, like any other result.
+  # 3d: A failure around a tool's run (its arguments, what is made of its
+  # result): the error answers the call, after that call and its signature,
+  # like any other result.
   def handle_gemini_tool_execution_error(e, tool_call, call_depth, session_params, &block)
-    function_name = tool_call["name"]
-    error_message = Monadic::Utils::ErrorFormatter.tool_error(
-      provider: "Gemini",
-      tool_name: function_name,
-      message: e.message
-    )
-    Monadic::Utils::ExtraLogger.log { "[Gemini] #{error_message}" }
-
+    error_message = gemini_tool_error_text(e, tool_call["name"], &block)
     session_params["tool_results"] << gemini_tool_result(tool_call, error_message, call_depth)
-
-    res = { "type" => "fragment", "content" => "<span class='text-danger'>#{error_message}</span>", "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
-    block&.call res
   end
 
   def translate_role(role)

@@ -6017,6 +6017,13 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   line-height: 1.2;
   vertical-align: middle;
 }
+/* What an app has (its tools and capabilities, in the menu) is a list to
+   read, not a state to notice: regular weight. */
+.badge-tools,
+.badge-capabilities,
+.tool-group-badge {
+  font-weight: 400;
+}
 .mc-badge--mark,
 .card-turn-badge {
   display: inline-flex;

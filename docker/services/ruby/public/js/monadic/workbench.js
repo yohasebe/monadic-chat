@@ -938,6 +938,10 @@
   }
 
   function reset() {
+    // The work screen of the chat before is gone: the side column shows
+    // the menu rather than an empty work screen (a new item brings it back).
+    const lc = window.LayoutController;
+    if (lc && typeof lc.setPane === 'function' && lc.selectedPane() === 'work') lc.setPane('settings');
     clearLocal();
     versionsOf = null;
     board = null;

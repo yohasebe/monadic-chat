@@ -999,11 +999,24 @@ const WorkflowViewer = (function () {
     return Math.max(MIN_PANEL_H, available);
   }
 
-  function applyInlineHeight() {
-    if (currentMode !== 'inline' || !panelEl) return;
+  // The height the inline panel takes where it is now: what the user set,
+  // within what the viewport leaves above the Start Session button.
+  function inlineHeight() {
     var available = computeInlineHeight();
     var saved = loadInlineHeight();
-    var h = (saved && saved > 0) ? Math.min(saved, available) : available;
+    return (saved && saved > 0) ? Math.min(saved, available) : available;
+  }
+
+  // True when the inline panel is shown at another height than its place
+  // gives it now (it was sized while hidden, or where it stood before).
+  function inlineHeightStale() {
+    if (currentMode !== 'inline' || !panelEl || panelEl.offsetParent === null) return false;
+    return Math.abs(panelEl.getBoundingClientRect().height - inlineHeight()) > 2;
+  }
+
+  function applyInlineHeight() {
+    if (currentMode !== 'inline' || !panelEl) return;
+    var h = inlineHeight();
     panelEl.style.height = h + 'px';
     panelEl.style.maxHeight = 'none';
     if (graph) {
@@ -1565,6 +1578,9 @@ const WorkflowViewer = (function () {
           if (skipNextResize || !graph || !container || container.clientWidth === 0) return;
           clearTimeout(resizeTimer);
           resizeTimer = setTimeout(function () {
+            // Shown again where it has another height to take: sized and
+            // fitted afresh.
+            if (inlineHeightStale()) { applyInlineHeight(); return; }
             if (!restoreViewState()) fitGraphToContainer();
           }, 80);
         }).observe(container);
@@ -1769,6 +1785,7 @@ const WorkflowViewer = (function () {
           container.innerHTML = '';
           createGraph();
           renderGraph(buildGraphData(data, getExpanded()));
+          if (inlineHeightStale()) applyInlineHeight();
         })
         .catch(function (err) {
           container.innerHTML = '<div class="workflow-viewer-message"><i class="fas fa-exclamation-triangle me-2"></i>Failed: ' + (err.message || '?') + '</div>';

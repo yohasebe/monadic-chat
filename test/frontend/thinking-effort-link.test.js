@@ -205,3 +205,23 @@ describe('syncShowThinkingToEffort (initial/model-selection coherence)', () => {
     expect(document.getElementById('show-thinking').checked).toBe(false);
   });
 });
+
+describe('showThinkingAtStart (how the toggle starts)', () => {
+  const { showThinkingAtStart } = require(MODULE_PATH);
+
+  test('shows the thinking when nothing is set', () => {
+    expect(showThinkingAtStart(undefined, 'DeepSeek')).toBe(true);
+    expect(showThinkingAtStart(null, 'Anthropic')).toBe(true);
+  });
+
+  test('starts hidden with Ollama when nothing is set', () => {
+    expect(showThinkingAtStart(undefined, 'Ollama')).toBe(false);
+  });
+
+  test('keeps what the app or the user set', () => {
+    expect(showThinkingAtStart(false, 'DeepSeek')).toBe(false);
+    expect(showThinkingAtStart('false', 'DeepSeek')).toBe(false);
+    expect(showThinkingAtStart(true, 'Ollama')).toBe(true);
+    expect(showThinkingAtStart('true', 'Ollama')).toBe(true);
+  });
+});

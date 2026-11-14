@@ -854,15 +854,8 @@ window.loadParams = function(params, calledFor = "loadParams") {
     // layer of the same guard (house pattern: belt and suspenders).
     if (spec["supports_thinking"] && !document.body.classList.contains('lc-app')) {
       $show(thinkingContainer);
-      // Restore from params if available, default to unchecked (thinking off).
-      // Users can opt in via the toggle; default off avoids slow responses
-      // from models with expensive thinking (e.g. Ollama qwen3-vl:8b-thinking).
-      if (showThinkingCb) {
-        if (params["show_thinking"] !== undefined) {
-          showThinkingCb.checked = params["show_thinking"] !== false && params["show_thinking"] !== "false";
-        } else {
-          showThinkingCb.checked = false;
-        }
+      if (showThinkingCb && window.ThinkingEffortLink) {
+        showThinkingCb.checked = window.ThinkingEffortLink.showThinkingAtStart(params["show_thinking"], provider);
       }
     } else {
       $hide(thinkingContainer);

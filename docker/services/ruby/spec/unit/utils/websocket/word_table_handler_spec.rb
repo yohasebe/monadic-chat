@@ -201,7 +201,7 @@ RSpec.describe 'The page asking about a chat word table' do
   it 'tells the page the table of the chat it is in' do
     words.start!(session).confirm!('Ada', 'PERSON')
 
-    host.send(:send_chat_context, nil, session)
+    host.send(:send_word_table, nil, session)
 
     expect(of_type('word_table').last).to include('chat' => token, 'marked' => true)
   end

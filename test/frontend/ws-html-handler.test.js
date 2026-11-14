@@ -332,7 +332,7 @@ describe('ws-html-handler', () => {
         }
       };
       handlers.handleHtml(dataNoHtml);
-      expect(window.MarkdownRenderer.render).toHaveBeenCalledWith('Plain text', { appName: 'TestApp' });
+      expect(window.MarkdownRenderer.render).toHaveBeenCalledWith('Plain text');
     });
   });
 

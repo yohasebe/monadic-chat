@@ -1,72 +1,51 @@
-# Monadicモード（Session State）
+# Session State
 
-Monadic モードでは、アプリが話題、メモ、設定などの構造のある文脈を、会話を通して保ち、会話が進むにつれて更新できます。
-
-## 用語ガイド :id=terminology-guide
-
-| 用語 | 説明 |
-|------|------|
-| **Monadic モード** | アプリで Session State と Session Context をオンにする機能フラグ（`monadic true`） |
-| **Session State** | モデルがツールを呼んで読み書きする文脈 |
-| **Session Context** | ターンごとに自動で取り出され、サイドバーに表示される大事な情報（[セッションコンテキスト](session-context.md)を参照） |
-
-`monadic true` だけでは、ツールは加わりません。Session State を使うアプリは、共有の `session_context` のツールグループを取り込むか、独自の読み込みと保存のツールを定義します。
+Monadic Chat では、返答は 2 つのものを運びます。返答が言ったことと、返答が会話に加えた変化です。変化とは、返答が会話のフォルダに作ったり書き直したりしたファイルと、アプリの Session State です。Session State は、話題、メモ、設定などの作業用のデータで、アプリがツールを呼んで記録します。
 
 ## 概要
 
-Session State では、モデルがツールを呼んで、今の文脈を読み、文脈に書き加えます。文脈はセッションの間保たれるので、後のターンで使えます。
+Session State はターンに属します。返答が変えたものはそのメッセージと一緒に保存され、ある時点の状態は、会話が始まったときの状態に、残っているターンの変化を重ねたものです。
+
+- ターンを削除すると、そのターンが変えたものは元に戻ります。一覧（Translate の用語集、Research Assistant の発見と出典、Novel Writer の登場人物など）は項目ごとに保存するので、ある項目を足したターンを削除すると、その項目だけが元に戻り、ほかの項目は残ります。後のターンが書き直した値は、後の値のまま残ります。
+- 履歴から会話を続けたときや、ファイルから読み込んだときも、状態は戻ります。
+- 状態を変えられるのは実行中の返答だけで、変えられるのは自分のアプリの状態だけです。
+
+返答が会話のフォルダと状態の外で行ったこと（実行したコードや開いたページなど）は、ターンを削除しても元に戻りません。
+
+Session State に設定は要りません。状態を読むツールと保存するツールを定義したアプリが、Session State を持ちます。
 
 ### 動作の仕組み
 
-1. モデルが、ツール（たとえば `get_context`）で今の文脈を読みます。
+1. モデルは今の状態を持っています。下の表のうち状態ノートを持つアプリと、`session_context` のツールを使うアプリは、要求のたびに、システムプロンプトの末尾で状態をモデルに渡します。ほかのアプリは、自分で定義したツールで状態を読みます。
 2. 必要に応じてほかのツールも使いながら、利用者に答えます。
-3. わかったことを、ツール（たとえば `update_context`）で文脈に書き加えます。
+3. わかったことを、ツール（たとえば `update_context`）で記録します。
 
-### コンテキスト構造の例
+## 状態ノート :id=state-notes
 
-`session_context` のグループは、3 つの一覧を保ちます。
+アプリは、状態を[作業画面](../basic-usage/web-interface.md#work-screen)のページとして利用者に見せられます。これが状態ノートで、会話のフォルダに `notes/<題名>.md` として置かれます。ページは、状態を変えた返答の後、ターンを削除したとき、履歴から会話を続けたときやファイルから読み込んだときに、状態から作り直されます。それぞれの部分には、最後に変えたターンが付きます。見せるものが状態になくなると、ページは削除されます。
 
-```json
-{
-  "topics": ["topic1", "topic2"],
-  "people": ["person1", "person2"],
-  "notes": ["important note 1", "important note 2"]
-}
-```
+ページは読むためのものです。モデルはアプリのツールで状態を変え、ページはそれに合わせて変わります。
+
+ページにログを載せるアプリもあります。ログは利用者が読むために足していく文で、モデルは読み返しません。Language Practice Plus の助言や、Voice Interpreter のフレーズがそうです。
 
 ## Session Stateアプリ
 
-次の組み込みのアプリが、Session State のツールで文脈を保っています。
+次の組み込みのアプリが、Session State を保っています。
 
-| アプリ | ツール |
-|--------|--------|
-| Chat Plus | `get_context`、`update_context`、`remove_from_context`、`clear_context`（`session_context` のグループ） |
-| Research Assistant | `load_research_progress`、`save_research_progress` |
-| Math Tutor | `load_learning_progress`、`save_learning_progress` |
-| Novel Writer | `load_novel_context`、`save_novel_context` |
-| Translate | `load_translation_context`、`save_translation_context`、語彙のツール |
-| Voice Interpreter | `load_context`、`save_translation`、`set_target_language` |
-| Language Practice Plus | `load_context`、`save_response`、`set_target_language` |
-| Jupyter Notebook、Image Generator、Video Generator | `monadic_load_state`（保存はアプリが自分で行います） |
-
-## アーキテクチャ
-
-1. **ツールの定義**：アプリは `session_context` のグループを取り込むか、`define_tool` でツールを定義します。
-2. **ツールの実装**：共有のモジュールか、アプリの `*_tools.rb` がツールを実装します。
-3. **セッションへの保存**：文脈は、アプリとキーごとに分けてセッションに保存されます（`session[:monadic_state][app][key]`）。版と時刻も記録されます。
-4. **読み上げ**：`tts_target` で、読み上げる文をツールのパラメーターから取れます。
-
-### ツールフローの例
-
-1. 利用者がメッセージを送ります。
-2. モデルが `get_context` を呼び、今の文脈を受け取ります。
-3. モデルが、必要ならほかのツールも呼びながら、求めに応えます。
-4. モデルが、新しい話題、人物、事実を `update_context` で書き加えます。
-5. 応答が表示され、サイドバーに更新された文脈が表示されます。
+| アプリ | ツール | 状態ノート |
+|--------|--------|------------|
+| Chat Plus | `get_context`、`update_context`、`remove_from_context`、`clear_context`（`session_context` のグループ） | Context |
+| Research Assistant | `load_research_progress`、`save_research_progress` | Research notes |
+| Math Tutor | `load_learning_progress`、`save_learning_progress` | Learning notes |
+| Novel Writer | `load_novel_context`、`save_novel_context` | Story notes |
+| Translate | `load_translation_context`、`save_translation_context`、語彙のツール | Translation notes |
+| Voice Interpreter | `load_context`、`save_translation`、`set_target_language` | Interpreter notes |
+| Language Practice Plus | `load_context`、`save_response`、`set_target_language` | Practice notes |
+| Jupyter Notebook、Video Generator | `monadic_load_state`（保存はアプリが自分で行います） | — |
 
 ## Session Stateアプリの作成
 
-いちばん簡単なのは、`session_context` のグループを取り込むことです。
+いちばん簡単なのは、`session_context` のグループを取り込む方法です。このグループは 3 つの一覧（話題、人物、メモ）を保ち、**Context** のページとして見せます。
 
 ```ruby
 app "MyAppOpenAI" do
@@ -77,13 +56,8 @@ app "MyAppOpenAI" do
     provider "openai"
   end
 
-  features do
-    monadic true
-  end
-
   system_prompt <<~PROMPT
     You are an assistant that keeps track of the conversation.
-    Call get_context at the start of each turn.
     When the user mentions new topics, people or facts, call update_context.
   PROMPT
 
@@ -93,11 +67,38 @@ app "MyAppOpenAI" do
 end
 ```
 
-ほかのフィールドを使うときは、上の表のアプリと同じように、アプリの `*_tools.rb` に独自の読み込みと保存のツールを書きます。
+ほかのフィールドを使うときは、アプリの `*_tools.rb` に、`Monadic::SharedTools::MonadicSessionState` の状態のツールを使って、独自の読み込みと保存のツールを書きます。
 
-## UI表現
+| ツール | 用途 |
+|--------|------|
+| `monadic_load_state(key:, default:, session:)` | 値を読む |
+| `monadic_save_state(key:, payload:, session:)` | 値を設定する |
+| `monadic_put_item(collection:, data:, id:, session:)`、`monadic_remove_item`、`monadic_load_items` | 一覧を項目ごとに保存する |
+| `monadic_log(collection:, entries:, session:)` | ログに文を足す |
 
-ツールが保つ文脈は、サイドバーのパネルに表示されます。フィールドはアプリの `context_schema` にしたがいます。[セッションコンテキスト](session-context.md)を参照してください。
+```ruby
+module ReadingNotesTools
+  include MonadicHelper
+  include Monadic::SharedTools::MonadicSessionState
+
+  def add_book(title:, session: nil)
+    monadic_log(collection: "books", entries: [title], session: session)
+  end
+
+  def load_books(session: nil)
+    monadic_load_items(collection: "books", session: session)
+  end
+
+  private
+
+  # The page that shows the state on the work screen.
+  def state_notes
+    { title: "Reading notes", lists: { "books" => { label: "Books" } } }
+  end
+end
+```
+
+`state_notes` でページを宣言します。`title` がページの題名で、`lists` に一覧にするコレクションを書きます（それぞれに `label`、フィールドのある項目には名前のフィールド `name` と、`fields` にフィールドとラベル）。いくつかのフィールドを持つ 1 つの値を保つアプリでは、その `key` と、`values` に見せるフィールドを書きます。`state_notes` のないアプリは、ページなしで状態を保ちます。
 
 ## TTS統合
 
@@ -105,7 +106,6 @@ end
 
 ```ruby
 features do
-  monadic true
   auto_speech true
   tts_target :tool_param, "save_translation", "message"
 end
@@ -113,12 +113,16 @@ end
 
 ## ベストプラクティス
 
-1. **最初に文脈を読む**：ターンの初めに、今の文脈を読みます。
-2. **文脈に書き加える**：利用者に頼まれない限り、項目を消しません。
+1. **渡された状態を使う**：状態が要求と一緒に渡されるアプリでは、読み込み直しません。それ以外では、ターンの初めに 1 回読みます。
+2. **状態に書き加える**：利用者に頼まれない限り、項目を消しません。
 3. **同じフィールドを使う**：会話を通して、同じフィールドを使います。
-4. **文脈を絞る**：後のターンで使う情報だけを保存します。
+4. **状態を絞る**：後のターンで使う情報だけを保存します。
+
+## 以前のバージョンの設定
+
+MDSL ファイルの `monadic`、`turn_state`、`context_schema` は、読み込まれますが使われません。削除してかまいません。
 
 ## 関連項目
 
 - [Monadic DSL](./monadic_dsl.md) - MDSL の文法の全体
-- [セッションコンテキスト](./session-context.md) - サイドバーへの自動の抽出
+- [ツールグループ](./tool-groups.md) - 共有のツールグループ

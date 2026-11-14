@@ -2,7 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import os
+import sys
+import stat
 import argparse
+import tempfile
 import nbformat as nbf
 from datetime import datetime
 import json
@@ -43,12 +46,24 @@ def read_notebook(notebook_path, max_retries=5, retry_delay=1):
     raise IOError(f"Failed to read notebook at {notebook_path} after {max_retries} attempts")
 
 def write_notebook(notebook_path, nb, max_retries=5, retry_delay=1):
+    # Written to a file beside it and put in its place, so that a reader
+    # never finds half a notebook.
+    directory = os.path.dirname(notebook_path) or '.'
     for attempt in range(max_retries):
+        temp_path = None
         try:
-            with open(notebook_path, 'w', encoding='utf-8') as f:
+            fd, temp_path = tempfile.mkstemp(prefix='.', suffix='.ipynb.tmp', dir=directory)
+            with os.fdopen(fd, 'w', encoding='utf-8') as f:
                 nbf.write(nb, f)
+            try:
+                os.chmod(temp_path, stat.S_IMODE(os.lstat(notebook_path).st_mode))
+            except FileNotFoundError:
+                os.chmod(temp_path, 0o644)
+            os.replace(temp_path, notebook_path)
             return
         except Exception as e:
+            if temp_path and os.path.exists(temp_path):
+                os.remove(temp_path)
             print(f"Error writing notebook: {str(e)}")
             if attempt == max_retries - 1:
                 raise
@@ -66,37 +81,42 @@ def create_notebook(notebook_path):
     else:
         print(f"[ERROR] File was NOT created: {notebook_path}")
 
+def new_cell(cell):
+    """A notebook cell from a cell given as {type|cell_type, content|source}."""
+    if not isinstance(cell, dict):
+        raise ValueError("Each cell must be an object")
+    # Support both 'type' and 'cell_type' fields
+    cell_type = cell.get('type') or cell.get('cell_type')
+    # Support both 'content' and 'source' fields
+    content = cell.get('content')
+    if content is None:
+        source = cell.get('source', '')
+        # If source is a list, join it
+        if isinstance(source, list):
+            # Remove trailing newlines from each line before joining
+            # This prevents double newlines when lines already have \n
+            cleaned_lines = []
+            for line in source:
+                if isinstance(line, str) and line.endswith('\n'):
+                    cleaned_lines.append(line.rstrip('\n'))
+                else:
+                    cleaned_lines.append(line)
+            content = '\n'.join(cleaned_lines)
+        else:
+            content = source
+
+    if cell_type == 'markdown':
+        return nbf.v4.new_markdown_cell(content)
+    elif cell_type == 'code':
+        return nbf.v4.new_code_cell(content)
+    raise ValueError(f"Invalid cell type: {cell_type}")
+
 def add_cells_to_notebook(notebook_path, new_cells, max_retries=5, retry_delay=1):
     for attempt in range(max_retries):
         try:
             nb = read_notebook(notebook_path)
             for cell in new_cells:
-                # Support both 'type' and 'cell_type' fields
-                cell_type = cell.get('type') or cell.get('cell_type')
-                # Support both 'content' and 'source' fields
-                content = cell.get('content')
-                if content is None:
-                    source = cell.get('source', '')
-                    # If source is a list, join it
-                    if isinstance(source, list):
-                        # Remove trailing newlines from each line before joining
-                        # This prevents double newlines when lines already have \n
-                        cleaned_lines = []
-                        for line in source:
-                            if isinstance(line, str) and line.endswith('\n'):
-                                cleaned_lines.append(line.rstrip('\n'))
-                            else:
-                                cleaned_lines.append(line)
-                        content = '\n'.join(cleaned_lines)
-                    else:
-                        content = source
-                
-                if cell_type == 'markdown':
-                    nb['cells'].append(nbf.v4.new_markdown_cell(content))
-                elif cell_type == 'code':
-                    nb['cells'].append(nbf.v4.new_code_cell(content))
-                else:
-                    raise ValueError(f"Invalid cell type: {cell_type}")
+                nb['cells'].append(new_cell(cell))
             write_notebook(notebook_path, nb)
             print(f"Cells added to notebook at {notebook_path}")
             return
@@ -107,6 +127,59 @@ def add_cells_to_notebook(notebook_path, new_cells, max_retries=5, retry_delay=1
             else:
                 time.sleep(retry_delay + random.uniform(0, 1))
     print(f"Failed to add cells to notebook at {notebook_path} after {max_retries} attempts")
+
+class NotebookChanged(Exception):
+    """The notebook was saved by someone else while it was being changed."""
+
+def file_state(notebook_path):
+    st = os.stat(notebook_path)
+    return (st.st_ino, st.st_mtime_ns, st.st_size)
+
+def save_unless_changed(notebook_path, nb, state):
+    if file_state(notebook_path) != state:
+        raise NotebookChanged("The notebook was saved by another program meanwhile; read it again and retry")
+    write_notebook(notebook_path, nb)
+
+def move_cell(notebook_path, from_index, to_index):
+    """Moves a cell so that it ends at to_index (both 0-based, of the cells
+    as they are). The cell keeps its id, metadata and outputs."""
+    state = file_state(notebook_path)
+    nb = read_notebook(notebook_path)
+    count = len(nb['cells'])
+    if count == 0:
+        raise IndexError("The notebook has no cells")
+    for name, value in (('from_index', from_index), ('to_index', to_index)):
+        if not 0 <= value < count:
+            raise IndexError(f"{name} {value} is out of range: the notebook has {count} cells (0 to {count - 1})")
+    if from_index != to_index:
+        cell = nb['cells'].pop(from_index)
+        nb['cells'].insert(to_index, cell)
+        save_unless_changed(notebook_path, nb, state)
+    return count
+
+def insert_cells(notebook_path, index, cells):
+    """Inserts cells before the cell at index (0-based); index equal to the
+    number of cells adds them at the end."""
+    if not isinstance(cells, list) or not cells:
+        raise ValueError("Cells must be a non-empty array")
+    state = file_state(notebook_path)
+    nb = read_notebook(notebook_path)
+    count = len(nb['cells'])
+    if not 0 <= index <= count:
+        raise IndexError(f"index {index} is out of range: the notebook has {count} cells (0 to {count})")
+    made = [new_cell(cell) for cell in cells]
+    with_ids = nb.get('nbformat', 4) > 4 or nb.get('nbformat_minor', 0) >= 5
+    taken = {cell.get('id') for cell in nb['cells']}
+    for cell in made:
+        if not with_ids:
+            cell.pop('id', None)
+            continue
+        while cell.get('id') in taken:
+            cell['id'] = nbf.v4.new_code_cell().get('id')
+        taken.add(cell['id'])
+    nb['cells'][index:index] = made
+    save_unless_changed(notebook_path, nb, state)
+    return len(made)
 
 def display_notebook_cells(notebook_path):
     nb = read_notebook(notebook_path)
@@ -200,7 +273,38 @@ def main():
     add_from_json_parser.add_argument('notebook_filename', type=str, help='Name of the notebook file to add cells to')
     add_from_json_parser.add_argument('json_filename', type=str, help='Name of the JSON file containing cells to add')
 
+    move_parser = subparsers.add_parser('move', help='Move a cell to another position')
+    move_parser.add_argument('filename', type=str, help='Name of the notebook file')
+    move_parser.add_argument('from_index', type=int, help='Index of the cell to move')
+    move_parser.add_argument('to_index', type=int, help='Index the cell ends at')
+
+    insert_parser = subparsers.add_parser('insert', help='Insert cells at a position')
+    insert_parser.add_argument('filename', type=str, help='Name of the notebook file')
+    insert_parser.add_argument('index', type=int, help='Index the first new cell takes')
+    insert_parser.add_argument('cells', type=str, help='JSON string of cells to insert')
+
     args = parser.parse_args()
+
+    # These say what failed on stderr and end with status 1.
+    if args.command in ('move', 'insert'):
+        notebook_path = get_notebook_path(args.filename)
+        try:
+            if not os.path.isfile(notebook_path):
+                raise FileNotFoundError(f"Notebook {args.filename} does not exist")
+            if args.command == 'move':
+                move_cell(notebook_path, args.from_index, args.to_index)
+                if args.from_index == args.to_index:
+                    print(f"Cell {args.from_index} is already at that position")
+                else:
+                    print(f"Moved cell {args.from_index} to position {args.to_index}")
+            else:
+                count = insert_cells(notebook_path, args.index, json.loads(args.cells))
+                print(f"Inserted {count} cell(s) at position {args.index}")
+        except (OSError, ValueError, IndexError, NotebookChanged) as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        return
+
 
     try:
         if args.command == 'create':

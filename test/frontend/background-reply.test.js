@@ -373,10 +373,10 @@ describe('where the token is taken and used', () => {
   test('the token goes before each RESET is sent', () => {
     const source = js('monadic.js');
     const resets = [];
-    let at = source.indexOf('window.sendChatSwitch({ message: "RESET" })');
+    let at = source.indexOf('window.safeWsSend({ message: "RESET" })');
     while (at !== -1) {
       resets.push(at);
-      at = source.indexOf('window.sendChatSwitch({ message: "RESET" })', at + 1);
+      at = source.indexOf('window.safeWsSend({ message: "RESET" })', at + 1);
     }
     expect(resets.length).toBeGreaterThan(0);
     resets.forEach((reset) => {

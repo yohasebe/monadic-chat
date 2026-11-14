@@ -122,3 +122,5 @@ Yoichiro HASEBE
 ## License
 
 This software is available as open source under the terms of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+
+The instrument sounds that play ABC scores are from the FluidR3 GM sound font by Frank Wen, licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/us/), as rendered in [midi-js-soundfonts](https://github.com/paulrosen/midi-js-soundfonts) (MIT License).

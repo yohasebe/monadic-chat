@@ -3,6 +3,7 @@ require 'json'
 require 'fileutils'
 require 'shellwords'
 require_relative '../../lib/monadic/shared_tools/scratch_browser'
+require_relative '../../lib/monadic/utils/tool_image_utils'
 require_relative '../../lib/monadic/utils/shared_path_guard'
 require 'securerandom'
 require_relative '../../lib/monadic/utils/environment'
@@ -38,7 +39,8 @@ module MermaidGrapherTools
     # Unique per call, so concurrent previews never share a file name
     timestamp = "#{Time.now.to_i}_#{SecureRandom.hex(4)}"
     html_filename = "mermaid_live_#{timestamp}.html"
-    screenshot_filename = "mermaid_preview_#{timestamp}.png"
+    screenshot_filename = Monadic::Utils::ToolImageUtils.for_model_name
+    preview_name = screenshot_filename.delete_suffix(".png")
     shared_volume = Monadic::Utils::Environment.shared_volume
     html_path = File.join(shared_volume, html_filename)
     Monadic::Utils::SharedPathGuard.write_file!(html_path, build_mermaid_html(sanitized_code))
@@ -75,7 +77,7 @@ module MermaidGrapherTools
 
       if ss_result[:success] && ss_result[:tiled] && ss_result[:screenshots]
         # Tiled mode: multiple overlapping screenshots for tall diagrams
-        image_files = copy_screenshot_tiles(ss_result[:screenshots], "mermaid_preview_#{timestamp}", shared_volume)
+        image_files = copy_screenshot_tiles(ss_result[:screenshots], preview_name, shared_volume)
         if image_files.any?
           # No gallery_html — Mermaid diagrams are rendered as SVG directly by
           # the client-side MarkdownRenderer. Instead, inject via _image so the
@@ -289,14 +291,15 @@ module MermaidGrapherTools
 
   # Preview pages and images younger than this may still be in use by
   # another preview or check (a page) or not yet read by the vendor helper
-  # of this or another session (an image), so they are left in place
+  # of this or another session (an image, removed when it is read), so
+  # they are left in place
   PREVIEW_IMAGE_MAX_AGE = 600
 
   # Remove the pages that previews and checks left behind and the preview
   # images, older than PREVIEW_IMAGE_MAX_AGE seconds
   def cleanup_old_mermaid_files
     shared_volume = Monadic::Utils::Environment.shared_volume
-    %w[mermaid_live_*.html mermaid_test_*.html mermaid_preview_*.png].each do |pattern|
+    %w[mermaid_live_*.html mermaid_test_*.html].each do |pattern|
       Dir.glob(File.join(shared_volume, pattern)).each do |f|
         # Another preview may remove its own file meanwhile
         next if Time.now - File.lstat(f).mtime < PREVIEW_IMAGE_MAX_AGE
@@ -306,6 +309,7 @@ module MermaidGrapherTools
         next
       end
     end
+    Monadic::Utils::ToolImageUtils.sweep_for_model
   end
 
   # Removes the page one preview or check wrote, once it is done with it

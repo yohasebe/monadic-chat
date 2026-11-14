@@ -47,7 +47,7 @@ This list shows the standard containers; see [Basic Architecture](basic-architec
 
 ## JupyterLab
 
-**Actions → Start JupyterLab** starts JupyterLab in the Python container, in the shared folder (`/monadic/data`). Click `Terminal` on the JupyterLab Launcher to open a shell in the container. See [JupyterLab Integration](jupyterlab.md).
+**Actions → Open JupyterLab** opens JupyterLab, started in the Python container, in the shared folder (`/monadic/data`). Click `Terminal` on the JupyterLab Launcher to open a shell in the container. See [JupyterLab Integration](jupyterlab.md).
 
 ## Common Use Cases
 

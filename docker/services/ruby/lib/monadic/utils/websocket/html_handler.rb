@@ -2,13 +2,16 @@
 
 # HTML response handler for WebSocket connections.
 # Processes completed API responses: extracts thinking blocks, citations,
-# ABC notation blocks, assembles final HTML message, handles context
-# extraction for monadic apps, and broadcasts to client.
+# ABC notation blocks, assembles final HTML message, and broadcasts to
+# client.
 
 require_relative '../tts_instruction_extractor'
 require_relative '../../workspace'
+require_relative '../../turn_state'
+require_relative '../../turn_state/notes'
 require_relative '../tts_marker_vocabulary'
 require_relative '../../workbench/shown'
+require_relative '../../workbench/made'
 
 module WebSocketHelper
   # Maximum number of tool HTML fragments kept per response cycle.
@@ -54,7 +57,6 @@ module WebSocketHelper
         begin
           content = last_one["choices"][0]
 
-          # Always use message content - monadic apps will have JSON in content field
           text = content["text"] || content["message"]["content"]
 
           # Append tool HTML fragments (e.g., ABC notation from Music Lab).
@@ -69,13 +71,6 @@ module WebSocketHelper
 
             stored_fragments = dedupe_tool_html_fragments(text.to_s, stored_fragments)
             text = text.to_s + "\n\n" + stored_fragments.join("\n\n")
-            # Reset per-turn image-dedup trackers used by shared tools.
-            # The Jupyter add_jupyter_cells tool remembers PNG hashes seen
-            # in the current turn to avoid re-emitting the same plot when
-            # the model calls add_jupyter_cells multiple times. Clearing
-            # the set here (at the moment the final assistant response is
-            # sent to the UI) ties its lifetime to a single user turn.
-            session.delete(:_jupyter_seen_image_hashes)
           end
           # Extract thinking content uniformly from message
           thinking = content["message"]["thinking"] || content["message"]["reasoning_content"] || content["thinking"]
@@ -99,7 +94,6 @@ module WebSocketHelper
               DebugHelper.debug("WebSocket: Found citation references but no HTML: #{text.scan(/\[\d+\]/).join(', ')}", category: :api, level: :info)
             end
           end
-
 
           type_continue = "Press <button class='btn btn-secondary btn-sm contBtn'>continue</button> to get more results\n"
           code_truncated = "[CODE BLOCK TRUNCATED]"
@@ -152,17 +146,12 @@ module WebSocketHelper
 
           # Expressive Speech instruction-mode: strip ephemeral TTS metadata
           # from the stored message so next-turn LLM context does not carry
-          # per-turn directives. Monadic apps store JSON (remove the
-          # `tts_instructions` key); non-Monadic apps store plain text with
-          # a leading `<<TTS:...>>` sentinel (remove that block). No-op for
-          # providers without instruction-mode.
+          # per-turn directives: the leading `<<TTS:...>>` block is removed.
+          # No-op for providers without instruction-mode.
           tts_provider_for_history = params["tts_provider"] || session[:parameters]&.dig("tts_provider")
           if tts_provider_for_history &&
              Monadic::Utils::TtsMarkerVocabulary.instruction_capable?(tts_provider_for_history)
-            final_text = Monadic::Utils::TtsInstructionExtractor.strip_from_history(
-              final_text,
-              app_is_monadic: !!params["monadic"]
-            )
+            final_text = Monadic::Utils::TtsInstructionExtractor.strip_from_history(final_text)
           end
 
          new_data = { "mid" => SecureRandom.hex(4),
@@ -170,7 +159,6 @@ module WebSocketHelper
                       "text" => final_text,
                       "lang" => detect_language(final_text),
                       "app_name" => params["app_name"],
-                      "monadic" => params["monadic"],
                       "active" => true } # detect_language is called only once here
 
           # What the reply made (an image placed in the chat's folder), as the
@@ -187,6 +175,20 @@ module WebSocketHelper
           # given to this message before it is sent and kept.
           shown = request_id && Monadic::Workbench::Shown.clean(Monadic::Workbench::Shown.seal(request_id))
           new_data["workbench_shown"] = shown if shown
+
+          # What the reply made in the chat's folder (Workbench::Made, the
+          # image it placed among it): deleting this message moves it to the
+          # chat's trash.
+          made_paths = request_id && Monadic::Workbench::Made.clean(Monadic::Workbench::Made.seal(request_id))
+          new_data["workbench_made"] = made_paths if made_paths
+          # What it changed in place, as it was before (Workbench::Revision):
+          # deleting this message puts it back.
+          revisions = request_id && Monadic::Workbench::Made.clean_revisions(Monadic::Workbench::Made.seal_revisions(request_id))
+          new_data[Monadic::Workbench::Made::REVISIONS_KEY] = revisions if revisions
+          # What it changed in its app's state (Monadic::TurnState): deleting
+          # this message takes the changes back.
+          state_changes = request_id && Monadic::TurnState.seal(request_id, session)
+          new_data[Monadic::TurnState::Form::STATE_CHANGES_KEY] = state_changes if state_changes
 
           # Forward the vocabulary token -> resolved-path map for the frontend's
           # decoration / hover / reveal-in-explorer layer.
@@ -242,6 +244,8 @@ module WebSocketHelper
 
           session[:messages] << new_data
           sync_session_state!
+          # The app's state, as its notes on the work screen show it.
+          Monadic::TurnState::Notes.refresh(session, show: true, tab: ws_session_id) if state_changes
           workbench_reply_recorded(connection, session, new_data["mid"], request_id,
                                    content["message"][Monadic::Workbench::Offer::ITEMS_KEY])
           outcomes[request_id] = "done" if request_id
@@ -260,73 +264,6 @@ module WebSocketHelper
           info_message = { "type" => "info", "content" => past_messages_data }.to_json
           send_or_broadcast(info_message, ws_session_id)
 
-          # Context extraction for monadic apps (automatic context tracking)
-          # This runs AFTER the response is sent to the user, in a background thread
-          # Uses direct HTTP API calls to avoid re-triggering WebSocket flow
-          if params["monadic"]
-            begin
-              Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Monadic mode detected, starting context extraction setup" }
-
-              # Get the provider and context_schema from the app settings
-              app_name = params["app_name"]
-              app = APPS[app_name] if defined?(APPS) && app_name
-              provider = app&.settings&.dig("provider") || app&.settings&.dig(:provider) || "openai"
-              context_schema = app&.settings&.dig(:context_schema) || app&.settings&.dig("context_schema")
-
-              Monadic::Utils::ExtraLogger.log { "[ContextExtractor] app_name=#{app_name}, provider=#{provider}, context_schema=#{context_schema ? 'present' : 'nil'}" }
-
-              # Find the last user message from session messages
-              user_messages = messages.select { |m| m["role"] == "user" }
-              last_user_message = user_messages.last
-              # Support both "text" and "content" keys for user messages
-              user_text = if last_user_message
-                last_user_message["text"] ||
-                last_user_message[:text] ||
-                (last_user_message["content"].is_a?(String) ? last_user_message["content"] : nil) ||
-                (last_user_message["content"].is_a?(Array) ? last_user_message["content"].map { |c| c.is_a?(Hash) ? (c["text"] || c[:text]) : c.to_s }.compact.join("\n") : nil) ||
-                ""
-              else
-                ""
-              end
-
-              # Capture session data for thread (avoid closure issues)
-              thread_session = session.dup
-              thread_ws_session_id = ws_session_id
-              thread_context_schema = context_schema
-              # The chat the context is extracted for, and its epoch: the
-              # context is kept only while the chat is at that epoch. job
-              # tells the page which extraction a context or its end is of.
-              extraction = { chat: Monadic::Workspace::ChatContext.work_chat(session), job: SecureRandom.hex(8) }
-
-              # Only extract context if we have both user message and assistant response
-              if extraction[:chat] && !user_text.empty? && !final_text.to_s.empty?
-                chat = extraction[:chat]
-                start_message = { type: "context_extraction_started", job: extraction[:job],
-                                  chat: Monadic::Workspace::ChatContext.token(chat[:id], chat[:epoch]) }.to_json
-                WebSocketHelper.send_to_live_connection(thread_ws_session_id, start_message, chat_id: chat[:id])
-
-                # Run context extraction in a separate thread to avoid blocking
-                Thread.new do
-                  begin
-                    process_and_broadcast_context(
-                      thread_session,
-                      user_text,
-                      final_text,
-                      provider,
-                      thread_ws_session_id,
-                      thread_context_schema,
-                      extraction: extraction
-                    )
-                  rescue StandardError => ctx_err
-                    Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Background error: #{ctx_err.message}\n[ContextExtractor] Backtrace: #{ctx_err.backtrace.first(3).join("\n")}" }
-                  end
-                end
-              end
-            rescue StandardError => ctx_setup_err
-              # Don't let context extraction setup errors affect the main flow
-              Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Setup error: #{ctx_setup_err.message}" }
-            end
-          end
         rescue StandardError => e
           STDERR.puts "Error processing request: #{e.message}"
           ws_session_id = Thread.current[:websocket_session_id]

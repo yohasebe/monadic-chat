@@ -39,9 +39,9 @@ These settings are independent, allowing you to use the app interface in one lan
 
 ---
 
-##### Q: How do I enable the LaTeX-based apps (Concept Visualizer / Syntax Tree)? :id=enable-latex
+##### Q: How do I enable Concept Visualizer, which uses LaTeX? :id=enable-latex
 
-**A**: Open **Actions → Install Options**, turn on **Install LaTeX (minimal set for diagrams)**, and rebuild the Python container. The rebuild installs a set of TeX Live packages (XeLaTeX/LuaLaTeX), dvisvgm/pdf2svg, Ghostscript, and CJK font packages, so Concept Visualizer and Syntax Tree can render diagrams that include Japanese, Chinese, or Korean text. These apps are provided for OpenAI and Anthropic Claude; they are available when the LaTeX option is on and one of those API keys is configured.
+**A**: Open **Actions → Install Options**, turn on **Install LaTeX (minimal set for diagrams)**, and rebuild the Python container. The rebuild installs a set of TeX Live packages (XeLaTeX/LuaLaTeX), dvisvgm/pdf2svg, Ghostscript, and CJK font packages, so Concept Visualizer can render diagrams that include Japanese, Chinese, or Korean text. The app is provided for OpenAI and Anthropic Claude; it is available when the LaTeX option is on and one of those API keys is configured.
 
 ---
 

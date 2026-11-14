@@ -92,7 +92,6 @@ featuresブロック内のすべての設定はオプションです：
 
 #### コンテキスト管理
 - `context_size` - モデルに送る直近のメッセージの数。Web の画面の **Max Context Size** の欄の値にもなります
-- `monadic` - Session State と Session Context を有効化。[Monadic モード](./monadic-mode.md)を参照
 - `toggle` - 応答の中の `<div class='toggle'>` のブロックを、折りたためる節として表示
 - `prompt_suffix` - すべてのユーザーメッセージに追加されるテキスト
 
@@ -149,7 +148,6 @@ app "ChatOpenAI" do
     easy_submit true
     auto_speech false
     context_size 20
-    monadic false
     # 注: 画像アップロードはビジョン機能を持つモデルで自動的に有効になります
     websearch true
   end

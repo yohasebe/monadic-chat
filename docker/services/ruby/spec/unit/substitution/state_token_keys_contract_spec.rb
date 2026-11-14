@@ -13,7 +13,6 @@ require_relative "../../spec_helper"
 RSpec.describe "session-state token key contract" do
   ruby_root = File.expand_path("../../..", __dir__) # docker/services/ruby
   vocab     = File.read(File.join(ruby_root, "lib/monadic/substitution/vocabulary.rb"))
-  jup_tools = File.read(File.join(ruby_root, "apps/jupyter_notebook/jupyter_notebook_tools.rb"))
 
   # The image tools place images in the chat's folder; what a reply made is
   # recorded on its message, which ${LAST_GENERATED_IMAGE} reads.
@@ -25,10 +24,25 @@ RSpec.describe "session-state token key contract" do
       "record.rb should still define last_path"
   end
 
-  it "keeps 'notebook_filename' in sync (resolver reads / Jupyter tools write)" do
-    expect(vocab).to include("notebook_filename"),
-      "vocabulary.rb resolver should read 'notebook_filename' from the context slot"
-    expect(jup_tools).to include("notebook_filename"),
-      "jupyter_notebook_tools.rb should still persist 'notebook_filename'"
+  # The notebook the Jupyter tools used last is what ${NOTEBOOK} reads:
+  # asked of the resolver itself, after a tool made one.
+  it "resolves ${NOTEBOOK} to the notebook a Jupyter tool made" do
+    require_relative "../../../lib/monadic/shared_tools/jupyter_operations"
+    require_relative "../../../lib/monadic/shared_tools/monadic_session_state"
+    require_relative "../../../lib/monadic/substitution/vocabulary"
+    app = Class.new do
+      include MonadicSharedTools::JupyterOperations
+      include Monadic::SharedTools::MonadicSessionState
+    end.new
+    chat = Monadic::Workspace::Ids.generate(:chat)
+    session = { Monadic::Workspace::Chats::SESSION_KEY => chat, parameters: { "app_name" => "JupyterNotebookOpenAI" } }
+    allow(Monadic::Workspace::Notebooks).to receive(:create).and_return("conversations/x_w/work/analysis.ipynb")
+    Monadic::TurnState.reset!
+    reply = Monadic::Workbench::Caller.new(chat_id: chat, epoch: Monadic::Workspace::Chats.epoch(chat),
+                                           request_id: Monadic::Workspace::Ids.generate(:request), session: session)
+    allow(Monadic::Workbench::Caller).to receive(:current).and_return(reply)
+
+    app.create_jupyter_notebook(filename: "analysis", session: session)
+    expect(Monadic::Substitution::Vocabulary.current_notebook(session)).to eq("conversations/x_w/work/analysis.ipynb")
   end
 end

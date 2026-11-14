@@ -6,7 +6,7 @@
 
 ![Mermaid Grapher app icon](../assets/icons/diagram-draft.png ':size=40')
 
-[Mermaid.js](https://mermaid.js.org/) の図でデータを視覚化するアプリです。データや指示を入力すると、AI が Mermaid のコードを書き、チャットの横の[作業画面](../basic-usage/web-interface.md#work-screen)に図を表示します。図は共有フォルダの会話のフォルダにある `.mmd` のファイルです。返答にはそのパスが書かれ、返答の下の行からもう一度表示できます。**描画** と **元の文字** で図とコードを切り替えます。
+[Mermaid.js](https://mermaid.js.org/) の図でデータを視覚化するアプリです。データや指示を入力すると、AI が Mermaid のコードを書き、チャットの横の[作業画面](../basic-usage/web-interface.md#work-screen)に図を表示します。図は共有フォルダの会話のフォルダにある `.mmd` のファイルです。返答にはそのパスが書かれ、返答の下の行からもう一度表示できます。**描画** と **ソースコード** で図とコードを切り替えます。
 
 チャットでは、図は **SVG をダウンロード** の付いた画像として表示されます。上の切り替えで Mermaid のコードを表示できます。図の中に書いた設定（`%%{init: …}%%` や frontmatter）は使えません。その図は描かれず、理由が表示されます。どのアプリの返答に入った Mermaid のコードも、このように描かれます。
 
@@ -24,15 +24,12 @@ Mermaid Grapher の対応プロバイダーは[モデル対応状況の表](../b
 
 ![DrawIO Grapher app icon](../assets/icons/diagram-draft.png ':size=40')
 
-必要な図を説明すると、Draw.io の図を作るアプリです。AI が Draw.io の XML を書き、構造を確かめて直し、図を共有フォルダに保存します。
+必要な図を説明すると、Draw.io の図を作るアプリです。AI が Draw.io の XML を書き、構造を確かめて直し、チャットの横の[作業画面](../basic-usage/web-interface.md#work-screen)に図を表示します。図は共有フォルダの会話のフォルダにある `.drawio` のファイルです。返答にはそのパスが書かれ、返答の下の行からもう一度表示できます。**描画** と **元の文字** で図と XML を切り替えます。
 
 **主な機能：**
 - **XML の確認と修復**：生成された Draw.io の XML を確かめ、よくある構造の問題を直します
 - **図の種類**：フローチャート、UML の図（クラス図、シーケンス図、アクティビティ図）、ER 図、ネットワーク図、組織図、マインドマップ、BPMN、ベン図、ワイヤーフレームなど
-- **プレビュー**：図は Selenium コンテナのブラウザで描画され、PNG のプレビューがチャットに表示されます
-- **ファイル**：`.drawio` ファイルが共有フォルダに保存され、Draw.io で開いて編集を続けられます。PNG のプレビュー（`drawio_preview_<timestamp>.png`）も保存されます
-
-ファイル名を指定しないと、図は `diagram.drawio` として保存され、前の図は置き換わります。いくつもの図を残すときは、ファイル名を指定してください。
+- **ファイル**：図はそのたびに新しい `.drawio` ファイルになるので、前の図も残ります。Draw.io で開いて編集を続けられます。共有フォルダの別の場所に写しを保存するときは、ファイル名と場所を指定してください
 
 DrawIO Grapher の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
 
@@ -41,15 +38,16 @@ DrawIO Grapher の対応プロバイダーは[モデル対応状況の表](../ba
 
 ![Syntax Tree app icon](../assets/icons/syntax-tree.png ':size=40')
 
-いろいろな言語の文から、言語学の樹形図（統語樹）を作るアプリです。文の文法構造を分析し、LaTeX と tikz-qtree で樹形図を描きます。主な機能：
+いろいろな言語の文から、言語学の樹形図（統語樹）を作るアプリです。文の文法構造を分析し、[RSyntaxTree](https://yohasebe.github.io/rsyntaxtree/) で樹形図を描きます。主な機能：
 
-- 英語、日本語、中国語などの多くの言語に対応
+- 英語、日本語、中国語などの多くの言語に対応。右から左に書く言語の文は左右を反転し、最初の語を右端に置いて描きます
+- 文の語を一列に並べ、それぞれを点線で節点につなげます
+- 移動は、痕跡やコピーから移動先への矢印で描きます。分析しない句は三角形の下に描きます
 - ベクターグラフィックのエディターで編集できる SVG で出力
-- 統語論に沿った言語学の表記
 
-樹形図は、透明な背景の SVG 画像としてチャットに表示され、共有フォルダに保存されます。
+樹形図は、透明な背景の SVG 画像として、チャットの横の[作業画面](../basic-usage/web-interface.md#work-screen)に表示されます。SVG は共有フォルダの会話のフォルダ（`conversations/…/artifacts/`）に保存され、返答にはそのパスが書かれます。LaTeX のソースを頼むと、樹形図を `.tex` ファイル（LaTeX の forest）として SVG の横に保存します。移動の矢印はソースには入りません。
 
-Syntax Tree には LaTeX が必要です。**Actions → Install Options** で **Install LaTeX (minimal set for diagrams)** をオンにし、Python コンテナを再ビルドしてください。対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
+Syntax Tree の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
 
 
 ## Concept Visualizer :id=concept-visualizer
@@ -63,6 +61,6 @@ Syntax Tree には LaTeX が必要です。**Actions → Install Options** で *
 - **分野**：ビジネス、教育、科学、技術の図
 - **言語**：中国語、日本語、韓国語を含む多くの言語のテキスト
 
-図は SVG と PNG で共有フォルダに保存されます。SVG はベクターグラフィックのエディターで編集できます。
+図は、共有フォルダの会話のフォルダに SVG と LaTeX のソースで保存され、チャットの横の作業画面に表示されます。SVG はベクターグラフィックのエディターで編集できます。
 
 Concept Visualizer には LaTeX が必要です。**Actions → Install Options** で **Install LaTeX (minimal set for diagrams)** をオンにし、Python コンテナを再ビルドしてください。対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。

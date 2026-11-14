@@ -79,6 +79,9 @@
   let opening = null;
   // An item the user opened, shown as soon as the board has it.
   let pendingOpen = null;
+  // A section of a document (Workbench::Document) a line under a reply
+  // opens at: { path, section }, scrolled to once the document is drawn.
+  let pendingSection = null;
   // What the pane drew for the item shown, kept while it is the same item
   // at the same version (media keep playing, text keeps its scroll): its
   // key (item and version), node, the address it was drawn from, and
@@ -140,6 +143,11 @@
     if (!el) return false;
     if (el.isContentEditable || el.tagName === 'TEXTAREA') return true;
     return el.tagName === 'INPUT' && !['button', 'checkbox', 'radio', 'submit'].includes(el.type);
+  }
+
+  // A path in a line under an item is shown by its file name (short-paths.js).
+  function shortenPaths(el) {
+    if (window.ShortPaths) window.ShortPaths.apply(el);
   }
 
   // "Save as…" in the desktop app (it asks where to save); "Download" in a
@@ -208,8 +216,9 @@
     return button(saveLabel(), className, () => download(artifactId));
   }
 
+  // A document is named by its title; every other file by its name.
   function label(item) {
-    return item.kind === 'browser' ? t('ui.workbench.browser', 'Browser') : (item.name || '');
+    return item.kind === 'browser' ? t('ui.workbench.browser', 'Browser') : (item.title || item.name || '');
   }
 
   function tab(id, label) {
@@ -367,14 +376,64 @@
     }
     const line = element('div', 'small text-secondary mt-2');
     line.appendChild(element('code', null, item.path || item.name || ''));
+    shortenPaths(line);
     info.appendChild(line);
     if (item.status === 'ok' && item.artifact_id) {
       info.appendChild(saveButton(item.artifact_id, 'btn-primary mt-2'));
     }
+    // A file is read again where it is shown (the board takes it at the
+    // version it has now): after it changed, or whenever the user asks.
     if (item.kind === 'file' && item.status === 'changed') {
       info.appendChild(button(t('ui.workbench.reopen', 'Open it as it is now'), 'btn-secondary mt-2',
         () => openFile(item.path)));
+    } else if (item.kind === 'file' && item.status === 'ok') {
+      info.appendChild(button(t('ui.workbench.reload', 'Reload'), 'btn-secondary mt-2', () => openFile(item.path)));
     }
+    if (item.kind === 'file' && item.status === 'ok' && /\.ipynb$/i.test(item.path || '')) {
+      info.appendChild(button(t('ui.workbench.jupyterOpen', 'Open in JupyterLab'), 'btn-secondary mt-2',
+        () => openInJupyter(item.path)));
+    }
+    // A document put together from sections (Workbench::Document): its
+    // earlier versions can be listed and opened as files of their own.
+    if (item.kind === 'file' && item.status === 'ok' && DOCUMENT_PATH.test(item.path || '')) {
+      info.appendChild(button(t('ui.workbench.versions', 'Versions'), 'btn-outline-secondary mt-2 ms-2', () => askVersions(item.path)));
+      info.appendChild(element('div', 'workbench-versions mt-2'));
+    }
+  }
+
+  // The path of a document of a chat's folder.
+  const DOCUMENT_PATH = /^conversations\/[^/]+\/documents\/[a-z0-9-]+\.md$/;
+
+  // The document whose versions are listed now (asked again when the
+  // board changes, so a new version shows up in the list).
+  let versionsOf = null;
+
+  function askVersions(path) {
+    versionsOf = String(path);
+    if (typeof window.safeWsSend === 'function') window.safeWsSend({ message: 'WORKBENCH_VERSIONS', path: versionsOf });
+  }
+
+  // The versions the server listed, under the document they are of when it
+  // is still the one shown: newest first, each opening its file.
+  function onVersions(data) {
+    const item = selected ? itemById(selected) : null;
+    const box = item && data && item.path === data.path && document.querySelector('.workbench-versions');
+    if (!box) return;
+    const versions = Array.isArray(data.versions) ? data.versions.slice().reverse() : [];
+    if (versions.length === 0) {
+      box.replaceChildren(element('div', 'small text-secondary', t('ui.workbench.noVersions', 'No versions are kept in this chat.')));
+      return;
+    }
+    const list = element('div', 'list-group list-group-flush small');
+    versions.forEach((version) => {
+      const label = t('ui.workbench.versionOf', '§ {section} — version {version}')
+        .replace('{section}', String(version.section)).replace('{version}', String(version.version));
+      const entry = element('button', 'list-group-item list-group-item-action py-1', label);
+      entry.type = 'button';
+      entry.addEventListener('click', () => openFile(version.path));
+      list.appendChild(entry);
+    });
+    box.replaceChildren(list);
   }
 
   // What is drawn for the item: kept while it is the same item at the same
@@ -479,7 +538,7 @@
     if (kind === 'text' && drawable(item)) return drawableBody(item, drawn);
     if (kind === 'text') return textBody(item, drawn);
     if (kind === 'pdf') return pdfBody(item, drawn);
-    const img = element('img', 'workbench-image rounded');
+    const img = enlargeable(element('img', 'workbench-image rounded'));
     img.alt = item.name || '';
     img.addEventListener('error', () => failed(drawn, false));
     img.src = url;
@@ -536,7 +595,17 @@
     box.setAttribute('tabindex', '0');
     fetchInto(box, item, drawn, async (response) => {
       const list = element('ol', 'workbench-lines');
-      textLines(await response.text()).forEach((lineText) => list.appendChild(element('li', null, lineText)));
+      const lines = textLines(await response.text());
+      // Code is highlighted by its language; each line keeps its own text.
+      const render = window.WorkbenchRender;
+      const html = render && typeof render.highlightedLines === 'function'
+        ? render.highlightedLines(lines.join('\n'), render.codeLanguage(item.name || item.path)) : null;
+      lines.forEach((lineText, i) => {
+        const li = element('li', null);
+        if (html && html.length === lines.length) li.innerHTML = html[i];
+        else li.textContent = lineText;
+        list.appendChild(li);
+      });
       box.replaceChildren(list);
       drawn.loaded = true;
       restoreScroll(drawn, box);
@@ -599,6 +668,14 @@
         if (!drawn.gone) {
           drawn.loaded = true;
           restoreScroll(drawn, box);
+          scrollToSection(box, item.path);
+          // A tune is played under its score (abc-player.js).
+          if (item.render === 'abc' && window.AbcPlayer) {
+            const controls = element('div', 'workbench-abc-player mt-2');
+            wrap.appendChild(controls);
+            drawn.player = await window.AbcPlayer.playerFor(controls, text);
+            if (drawn.gone) drawn.player.stop();
+          }
         }
       } catch (e) {
         if (drawn.gone) return;
@@ -630,6 +707,22 @@
     return node.matches('.workbench-text, .workbench-rendered') ? node : node.querySelector('.workbench-rendered, .workbench-text');
   }
 
+  // The mark a document's section begins with (a heading "§ <section>").
+  function sectionMark(root, section) {
+    return Array.from(root.querySelectorAll('h6')).find((h) => h.textContent.trim() === `§ ${section}`) || null;
+  }
+
+  // The drawn document at path, in box, scrolled to the section asked for
+  // (pendingSection), once.
+  function scrollToSection(box, path) {
+    if (!box || !pendingSection || pendingSection.path !== path) return false;
+    const mark = sectionMark(box, pendingSection.section);
+    pendingSection = null;
+    if (!mark) return false;
+    box.scrollTop += mark.getBoundingClientRect().top - box.getBoundingClientRect().top;
+    return true;
+  }
+
   // Back where the drawing was left, once its content is in.
   function restoreScroll(drawn, box) {
     const top = scrolls.get(drawn.key);
@@ -649,6 +742,7 @@
     drawn.gone = true;
     if (drawn.pdf) drawn.pdf.dispose();
     if (drawn.render) drawn.render.dispose();
+    if (drawn.player) drawn.player.stop();
   }
 
   // ---- the conversation ----------------------------------------------
@@ -682,6 +776,7 @@
       } else {
         line.appendChild(element('code', null, String(entry.path)));
       }
+      shortenPaths(line);
       if (item && item.status !== 'ok') {
         line.appendChild(document.createTextNode(` — ${statusText(item.status, item)}`));
       } else {
@@ -843,7 +938,12 @@
   }
 
   function reset() {
+    // The work screen of the chat before is gone: the side column shows
+    // the menu rather than an empty work screen (a new item brings it back).
+    const lc = window.LayoutController;
+    if (lc && typeof lc.setPane === 'function' && lc.selectedPane() === 'work') lc.setPane('settings');
     clearLocal();
+    versionsOf = null;
     board = null;
     approvals = {};
     assets = {};
@@ -855,6 +955,7 @@
     serverSerial = null;
     opening = null;
     pendingOpen = null;
+    pendingSection = null;
     letGo(drawnBody);
     drawnBody = null;
     seen.clear();
@@ -1161,6 +1262,10 @@
     assets = data.assets || {};
     renders = data.renders || {};
     const news = [];
+    // A document whose versions are listed, while it is the one shown.
+    const listed = selected ? itemById(selected) : null;
+    if (versionsOf && listed && listed.path === versionsOf) askVersions(versionsOf);
+    else versionsOf = null;
     if (selected && !itemById(selected)) selected = null;
     const arrived = rowItems().filter((item) => !seen.has(item.id));
     arrived.forEach((item) => seen.add(item.id));
@@ -1198,6 +1303,18 @@
     if (news.length > 0) announce(news.join(' '));
     draw();
     refreshRelay();
+    if (resumedChat && next.chat_id === resumedChat) {
+      resumedChat = null;
+      const lc = window.LayoutController;
+      if (lc && rowItems().length > 0 && lc.selectedPane() !== 'work') lc.setPane('work');
+    }
+  }
+
+  // A chat continued from the history shows its work screen when its board
+  // has something on it; the board comes after the history's answer.
+  let resumedChat = null;
+  function expectResumed(chatId) {
+    resumedChat = chatId ? String(chatId) : null;
   }
 
   // ---- attachments shown here (page only) ----------------------------
@@ -1268,7 +1385,7 @@
     if (note) {
       body.appendChild(element('div', 'alert alert-warning mb-2', noteText(note)));
     } else if (local.kind === 'image' && IMAGE_DATA.test(local.data)) {
-      const img = element('img', 'workbench-image');
+      const img = enlargeable(element('img', 'workbench-image'));
       img.alt = local.name || '';
       img.src = local.data;
       body.appendChild(img);
@@ -1344,10 +1461,119 @@
     else pendingOpen = data.item_id || null;
   }
 
-  // A file of a sent message (its card): a PDF from the message's own data.
+  // ---- JupyterLab ------------------------------------------------------
+
+  // A notebook opens in JupyterLab only when the user asks (a link to it in
+  // the conversation, or the button on the work screen): the server starts
+  // JupyterLab when it does not answer, and answers with the notebook's
+  // address. A link counts when it is JupyterLab's on this machine
+  // (127.0.0.1 or localhost, /lab/tree/, a .ipynb); the server takes only
+  // the notebook's path from it. The click is taken on the window before
+  // anything on the document sees it: the desktop app opens every web link
+  // it gets in the system browser.
+  const JUPYTER_HOSTS = ['127.0.0.1', 'localhost'];
+  let jupyterAsked = null;
+
+  function jupyterPath(href) {
+    let url;
+    try {
+      url = new URL(href, window.location.href);
+    } catch (_) {
+      return null;
+    }
+    if (url.protocol !== 'http:' || !JUPYTER_HOSTS.includes(url.hostname) || url.username || url.password) return null;
+    if (!url.pathname.startsWith('/lab/tree/')) return null;
+    let path;
+    try {
+      path = url.pathname.slice('/lab/tree/'.length).split('/').map(decodeURIComponent).join('/');
+    } catch (_) {
+      return null;
+    }
+    return /\.ipynb$/i.test(path) ? path : null;
+  }
+
+  function jupyterSay(key, fallback, kind) {
+    if (typeof window.setAlert === 'function') window.setAlert(t(`ui.workbench.${key}`, fallback), kind);
+  }
+
+  function openInJupyter(path) {
+    if (typeof window.safeWsSend !== 'function') return;
+    const request = newOperationId();
+    // In a web browser the tab is opened now, while the click lets it be,
+    // and given the address once JupyterLab answers. The desktop app opens
+    // the address in the system's browser instead.
+    const pending = window.electronAPI ? null : window.open('about:blank', '_blank');
+    if (jupyterAsked && jupyterAsked.tab && !jupyterAsked.tab.closed) jupyterAsked.tab.close();
+    jupyterAsked = { request, tab: pending };
+    jupyterSay('jupyterStarting', 'Starting JupyterLab…', 'info');
+    window.safeWsSend({ message: 'JUPYTER_OPEN', path: String(path), request });
+  }
+
+  function onJupyterOpened(data) {
+    if (!data || !jupyterAsked || data.request !== jupyterAsked.request) return;
+    const { tab } = jupyterAsked;
+    jupyterAsked = null;
+    if (!data.success || typeof data.url !== 'string') {
+      if (tab && !tab.closed) tab.close();
+      const keys = { not_a_notebook: ['jupyterNotNotebook', 'This is not a notebook in the shared folder.'],
+                     python_starting: ['jupyterPythonStarting', 'The Python container is starting. Try again in a moment.'] };
+      const [key, fallback] = keys[data.error] || ['jupyterNotStarted', 'JupyterLab could not be started.'];
+      jupyterSay(key, fallback, data.error === 'python_starting' ? 'warning' : 'error');
+      return;
+    }
+    jupyterSay('jupyterOpened', 'Opened in JupyterLab.', 'success');
+    if (tab && !tab.closed) tab.location.href = data.url;
+    else window.open(data.url, '_blank');
+  }
+
+  function onJupyterLinkClick(e) {
+    if (e.defaultPrevented || e.button !== 0) return;
+    const link = e.target && e.target.closest ? e.target.closest('#discourse a[href]') : null;
+    const path = link ? jupyterPath(link.getAttribute('href')) : null;
+    if (!path) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openInJupyter(path);
+  }
+
+  // An image the conversation shows from the shared folder (/data/…):
+  // opened on the work screen as the Files tab opens it.
+  function sharedPathOf(img) {
+    const src = img.getAttribute('src') || '';
+    if (!src.startsWith('/data/')) return null;
+    try {
+      return decodeURIComponent(src.slice('/data/'.length).split(/[?#]/)[0]) || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // A file of a sent message (its card): an image or a PDF from the
+  // message's own data, an audio or video by its attachment; an image the
+  // reply shows from the shared folder.
   function onCardClick(e) {
-    const preview = e.target && e.target.closest ? e.target.closest('#discourse .pdf-preview') : null;
-    const attachment = e.target && e.target.closest ? e.target.closest('#discourse .message-attachments [data-attachment-id]') : null;
+    const at = (selector) => (e.target && e.target.closest ? e.target.closest(selector) : null);
+    const generated = at('#discourse .generated_image img:not([data-action])');
+    if (generated) {
+      const path = sharedPathOf(generated);
+      if (!path) return;
+      e.preventDefault();
+      bringPane();
+      openFile(path);
+      return;
+    }
+    const image = at('#discourse .card .base64-image, #discourse .card .mask-overlay-container');
+    if (image) {
+      const img = image.matches('img') ? image : image.querySelector('img.base-image');
+      if (!img) return;
+      const card = image.closest('.card');
+      const name = img.getAttribute('alt') || '';
+      showAttachment({ source: 'message', key: `message:${card ? card.id : ''}:${name}`, kind: 'image', name,
+                       data: img.getAttribute('src') || null });
+      return;
+    }
+    const preview = at('#discourse .pdf-preview');
+    const attachment = at('#discourse .message-attachments [data-attachment-id]');
     if (attachment) {
       showAttachment({ source: 'message', key: `message:${attachment.dataset.attachmentId}`,
                        kind: attachment.dataset.purpose === 'audio' ? 'audio' : 'video',
@@ -1375,10 +1601,52 @@
     drawDrafts();
   }
 
+  // An image of the work screen is shown larger, over the whole window, on a
+  // click (or Enter or Space); a click on the larger image, outside it, or
+  // Esc closes it.
+  function enlargeable(img) {
+    img.classList.add('workbench-zoomable');
+    img.tabIndex = 0;
+    img.setAttribute('role', 'button');
+    img.title = t('ui.workbench.enlarge', 'Show it larger');
+    return img;
+  }
+
+  function enlarge(img) {
+    const modal = $id('workbenchZoom');
+    const big = $id('workbench-zoom-image');
+    if (!modal || !big || typeof bootstrap === 'undefined') return;
+    big.src = img.currentSrc || img.src;
+    big.alt = img.alt || '';
+    bootstrap.Modal.getOrCreateInstance(modal).show();
+  }
+
+  function onZoomClick(e) {
+    const target = e.target && e.target.closest ? e.target : null;
+    if (!target) return;
+    if (target.id === 'workbench-zoom-image') {
+      bootstrap.Modal.getOrCreateInstance($id('workbenchZoom')).hide();
+      return;
+    }
+    const img = target.closest('#workbench-view .workbench-zoomable');
+    if (img) enlarge(img);
+  }
+
+  function onZoomKey(e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const img = e.target && e.target.closest ? e.target.closest('#workbench-view .workbench-zoomable') : null;
+    if (!img) return;
+    e.preventDefault();
+    enlarge(img);
+  }
+
   if (typeof document !== 'undefined') {
     document.addEventListener('attachments:changed', onDraftsChanged);
     document.addEventListener('click', onCardClick);
+    document.addEventListener('click', onZoomClick);
+    document.addEventListener('keydown', onZoomKey);
   }
+  if (typeof window !== 'undefined') window.addEventListener('click', onJupyterLinkClick, true);
 
   function onResult(data) {
     if (!data) return;
@@ -1520,7 +1788,22 @@
       open.type = 'button';
       open.title = t('ui.workbench.open', 'Show in the work screen');
       open.appendChild(element('code', null, String(entry.name || entry.path)));
+      shortenPaths(open);
+      // The section beside the path, so the path alone is shown by its name.
+      if (typeof entry.section === 'string') open.appendChild(element('span', null, ` § ${entry.section}`));
       open.addEventListener('click', () => {
+        // A section of a document: the document as it is now, at the section.
+        if (typeof entry.section === 'string') {
+          pendingSection = { path: entry.path, section: entry.section };
+          const doc = items().find((i) => i.kind === 'file' && i.path === entry.path);
+          if (!doc) {
+            openFile(entry.path);
+            return;
+          }
+          openItem(doc.id);
+          if (drawnBody && drawnBody.loaded && selected === doc.id) scrollToSection(scroller(drawnBody), entry.path);
+          return;
+        }
         const item = items().find((i) => i.kind === 'file' && i.path === entry.path && i.sha256 === entry.sha256);
         if (item) openItem(item.id);
         else openFile(entry.path, entry.sha256);
@@ -1539,8 +1822,8 @@
   }
 
   window.Workbench = {
-    onView, onResult, onDownload, onOpened, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
-    showAttachment, onAttachmentOpened, shownAttachment: () => (local ? Object.assign({}, local) : null),
+    onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
+    showAttachment, onAttachmentOpened, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow,
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),

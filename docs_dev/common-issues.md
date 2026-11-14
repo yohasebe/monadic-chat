@@ -93,10 +93,14 @@ while passing in CI.
 - For operations without fallback, adjust `ProviderModelCache.fetch` usage locations and explicitly `clear(:provider)` to re-fetch
 - New HTTP clients must use `SSLConfiguration.configure!`
 
-### LaTeX-dependent apps (Concept Visualizer / Syntax Tree)
-- These tools require Python service built with `INSTALL_LATEX=true`. MDSL's `disabled` condition is only lifted when pdflatex + dvisvgm (and necessary fonts) are available
+### LaTeX-dependent app (Concept Visualizer)
+- It requires the Python service built with `INSTALL_LATEX=true`. MDSL's `disabled` condition is only lifted when pdflatex + dvisvgm (and necessary fonts) are available
 - No need to re-check LaTeX toolchain availability at runtime or add fallbacks. Rebuild Docker image if environment is insufficient
 - When assembling shell scripts on Ruby side, finalize flags like `needs_cjk` in Ruby before embedding in strings. Expanding uninitialized variables causes `bash: needs_cjk: unbound variable` errors
+
+### Syntax Tree draws nothing in development mode
+- Syntax Tree runs the `rsyntaxtree` command outside the app's bundle (`apps/syntax_tree/syntax_tree_tools.rb`). The Ruby image installs it as a bundle of its own in `/opt/rsyntaxtree`, with every gem at the version and checksum of `docker/services/ruby/rsyntaxtree/Gemfile.lock`, and with its libraries and fonts (`docker/services/ruby/Dockerfile`); the image's `rsyntaxtree` command runs it in that bundle. To change a version, edit `rsyntaxtree/Gemfile` and make the lock file again in the image's Ruby (`bundle lock --add-platform ruby x86_64-linux aarch64-linux`, then `bundle lock --add-checksums`)
+- With `rake server:debug` the command runs on the host: install Pango and librsvg (`brew install pango librsvg`), then `gem install rsyntaxtree` with the version `docker/services/ruby/rsyntaxtree/Gemfile` names. The Noto fonts (Noto Serif, Noto Serif CJK JP) give the same look as the container
 
 ### ABC or Mermaid blocks corrupted in rendered messages
 

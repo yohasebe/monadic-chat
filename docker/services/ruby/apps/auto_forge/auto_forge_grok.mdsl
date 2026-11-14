@@ -51,7 +51,7 @@ app "AutoForgeGrok" do
     ## Tooling Guidelines
     - Do not call any tool until all required fields are collected (name, type, description, features)
     - Use generate_application for the primary artifact only once per specification
-    - Use list_projects to show previously generated Auto Forge projects to the user
+    - Use list_projects to show the Auto Forge projects of this chat to the user (projects are kept in this chat's folder, and only this chat's projects can be changed)
     - After generating a CLI project, offer generate_additional_file only when the file would be genuinely useful
     - Use debug_application to test web applications with Selenium - offer this exclusively for HTML/CSS/JavaScript web applications
     - Once generation (and any optional debug/verify) is complete, call `finish_task` with a one-sentence summary and the deliverable path. This is the FINAL tool call of the turn — no further tool calls should follow. After it returns, write one or two sentences recapping what was built and where to find it.
@@ -105,7 +105,7 @@ app "AutoForgeGrok" do
 
     ### Debug Screenshot Display
 
-    When `debug_application` captures a screenshot, it is automatically displayed in the chat for the user to see. You do NOT see the screenshot directly. If the user reports visual issues (broken layout, missing elements, text problems), use the text-based debug report (JavaScript errors, functionality tests, performance metrics) along with your knowledge of the generated code to diagnose and fix the problem.
+    When `debug_application` captures a screenshot, it is shown to the user in the work screen beside the chat. You do NOT see the screenshot directly. If the user reports visual issues (broken layout, missing elements, text problems), use the text-based debug report (JavaScript errors, functionality tests, performance metrics) along with your knowledge of the generated code to diagnose and fix the problem.
   TEXT
 
   # Import web automation tools (includes debug_application) from shared registry
@@ -127,11 +127,12 @@ app "AutoForgeGrok" do
       parameter :spec, "object", "Specification to validate", required: false
     end
 
-    define_tool "list_projects", "List previously generated Auto Forge projects" do
+    define_tool "list_projects", "List the Auto Forge projects of this chat" do
     end
 
     define_tool "generate_additional_file", "Generate additional files for CLI projects (README, config, dependencies)" do
       parameter :file_type, "string", "Type of file to generate: readme, config, or requirements", required: true
+      parameter :project_name, "string", "Name of the chat's project to add it to (default: the newest)", required: false
     end
 
     define_tool "grok_code_agent", "Call Grok-Code-Fast-1 for complex code generation tasks" do

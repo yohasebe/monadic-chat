@@ -18,7 +18,6 @@ All boolean feature flags MUST use actual boolean values (`true`/`false`), not s
 | `math` | Boolean | `false` | Enables mathematical notation rendering |
 | `mermaid` | Boolean | `false` | Enables Mermaid diagram rendering |
 | `abc` | Boolean | `false` | Enables ABC music notation rendering |
-| `monadic` | Boolean | `false` | Enables monadic mode with JSON context |
 | `pdf_vector_storage` | Boolean | `false` | Enables vector storage for PDF |
 | `websearch` | Boolean | `false` | Enables web search functionality |
 | `jupyter` | Boolean | `false` | Enables Jupyter notebook access |

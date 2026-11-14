@@ -161,7 +161,6 @@ RSpec.describe 'What a new chat keeps from the session' do
       first = connect(tab, real_session({}))
       first[:current_notebook_filename] = 'nb.ipynb'
       first[:monadic_state] = { 'App' => { 'k' => { data: 'x' } } }
-      Monadic::Workspace::ChatContext.restore!(first, { 'topics' => [{ 'text' => 'x', 'turn' => 1 }] })
       Thread.current[:websocket_session_id] = tab
       Thread.current[:rack_session] = first
       host.send(:sync_session_state!)
@@ -172,7 +171,6 @@ RSpec.describe 'What a new chat keeps from the session' do
       expect(again[:chat_id]).to eq(first[:chat_id])
       expect(again[:current_notebook_filename]).to eq('nb.ipynb')
       expect(again[:monadic_state]).to eq('App' => { 'k' => { data: 'x' } })
-      expect(Monadic::Workspace::ChatContext.read(again)['topics']).to eq([{ 'text' => 'x', 'turn' => 1 }])
       expect(again.key?(:gemini3_last_image)).to be false
 
       other = connect("tab-#{SecureRandom.hex(4)}", real_session({}))
@@ -238,13 +236,13 @@ RSpec.describe 'What a new chat keeps from the session' do
 
   # The real connection handler telling the page the chat it is in.
   describe 'the chat the page is told' do
-    it 'is told when the connection opens, after a switch, and in answer to each switch the page asked for' do
+    it 'is told with its words when the connection opens and whenever a message puts the tab in another chat' do
       host = Class.new { include WebSocketHelper }.new
       allow(host).to receive(:handle_load_message)
       allow(host).to receive(:teardown_sts_session)
       allow(host).to receive(:send_workbench_view)
-      reads = [{ 'message' => 'RESET', 'switch' => 1 }, { 'message' => 'IMPORT_APPLY', 'token' => 'stale', 'switch' => 2 },
-               { 'message' => 'RESET', 'switch' => 'not a number' }, { 'message' => 'RESET' }].map(&:to_json)
+      reads = [{ 'message' => 'RESET' }, { 'message' => 'IMPORT_APPLY', 'token' => 'stale' },
+               { 'message' => 'RESET' }].map(&:to_json)
       written = []
       socket = double('connection', flush: nil, read: nil)
       allow(socket).to receive(:write) { |json| written << JSON.parse(json) }
@@ -252,12 +250,9 @@ RSpec.describe 'What a new chat keeps from the session' do
       allow(Async::WebSocket::Adapters::Rack).to receive(:open) { |_env, &block| block.call(socket) }
       host.handle_websocket_connection({ 'rack.session' => real_session({}), 'QUERY_STRING' => "tab_id=tab-#{SecureRandom.hex(4)}" })
 
-      told = written.select { |m| m['type'] == 'chat_context' }
-      expect(told.map { |m| m['switch'] }).to eq([nil, 1, 2, nil, nil])
-      chats = told.map { |m| m['chat'] }
-      expect(chats.uniq.size).to eq(4) # each Reset is another chat; the import that was not there is not
-      expect(chats[2]).to eq(chats[1])
-      expect(told).to all(include('version' => 0, 'context' => {}))
+      chats = written.select { |m| m['type'] == 'word_table' }.map { |m| m['chat'] }
+      expect(chats.uniq.size).to eq(3) # each Reset is another chat; the import that was not there is not
+      expect(chats).to all(be_a(String))
     end
   end
 
@@ -359,12 +354,12 @@ RSpec.describe 'What a new chat keeps from the session' do
         puts JSON.generate(
           "without_tab" => without_tab, "staged" => staged.keys,
           "keys" => live.keys.map(&:to_s), "real_session" => live.class.name, "messages" => live[:messages].map { |m| m["text"] },
-          "ui_language" => live[:parameters]["ui_language"], "context" => Monadic::Workspace::ChatContext.read(live),
+          "ui_language" => live[:parameters]["ui_language"],
           "old_chat" => old_chat, "chat" => live[:chat_id], "stored_chat" => stored[:chat_id],
           "stored_messages" => stored[:messages].map { |m| m["text"] }, "sent" => sent,
           "artifacts" => live[:messages].first["artifacts"],
-          "second_try" => again.map { |m| [m["type"], m["success"]] }, "exported_context" => exported["session_context"],
-          "exported_saved" => exported_saved["session_context"], "exported_unknown" => exported_unknown["monadic_state"]
+          "second_try" => again.map { |m| [m["type"], m["success"]] }, "exported" => exported,
+          "exported_saved" => exported_saved, "exported_unknown" => exported_unknown["monadic_state"]
         )
       RUBY
     end
@@ -383,8 +378,6 @@ RSpec.describe 'What a new chat keeps from the session' do
       expect(out['keys']).not_to include('gemini3_last_image', 'current_notebook_filename')
       expect(out['messages']).to eq(['hello'])
       expect(out['ui_language']).to eq('ja')
-      imported = { '_turn_count' => 0, 'topics' => [{ 'text' => 'imported', 'turn' => 1 }] }
-      expect(out['context']).to eq(imported)
       expect(out['chat']).not_to eq(out['old_chat'])
       expect(out['stored_chat']).to eq(out['chat'])
       expect(out['stored_messages']).to eq(['hello'])
@@ -392,8 +385,10 @@ RSpec.describe 'What a new chat keeps from the session' do
       expect(out['artifacts'].map { |a| a['name'] }).to eq(['20260102-030405_cat.png'])
       expect(out['sent']).to include('parameters', 'past_messages', 'import_result')
       expect(out['second_try']).to eq([['import_result', false]]) # a staged import is taken once
-      expect(out['exported_context']).to eq(imported)
-      expect(out['exported_saved']).to eq(imported)
+      # The side panel's context a file of an earlier version carries is not read.
+      expect(out['exported']).to include('success' => true)
+      expect(out['exported']).not_to have_key('session_context')
+      expect(out['exported_saved']).to include('success' => true)
       expect(out['exported_unknown']).to be_nil
     end
   end

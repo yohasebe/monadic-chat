@@ -41,7 +41,6 @@ app "MonadicHelpOpenAI" do
   features do
     library_search false
     disabled !CONFIG["OPENAI_API_KEY"]
-    monadic false
     auto_speech false
     websearch false
     initiate_from_assistant true

@@ -81,7 +81,7 @@ app "ConceptVisualizerOpenAI" do
          \draw[->] (A) -- (B);
        \end{tikzpicture}
        ```
-    4. Display the result with explanation
+    4. Explain the result (the diagram itself is on the work screen)
 
     **Response format**:
     ## Visualization Type: [Type of Diagram]
@@ -93,20 +93,7 @@ app "ConceptVisualizerOpenAI" do
     - Explain relationships
     - Note any special features
 
-    <div class='toggle' data-label='Show TikZ Code'>
-    <pre><code>
-    [Display the generated TikZ code here]
-    </code></pre>
-    </div>
-
-    <div class="generated_image">
-      <img src="/data/ACTUAL_FILENAME" />
-    </div>
-    
-    IMPORTANT: When the generate_concept_diagram function returns a filename like "concept_network_1749468013.svg", you must display it as:
-    <div class="generated_image">
-      <img src="/data/concept_network_1749468013.svg" />
-    </div>
+    One line saying the diagram is on the work screen beside the chat, with the path `generate_concept_diagram` returned (and its LaTeX source's path). Do not put the TikZ code, an image or the file in your reply: the diagram is on the work screen, and a line under your reply opens it again.
 
     **Usage Notes**: 
     - How to interpret the diagram
@@ -126,18 +113,7 @@ app "ConceptVisualizerOpenAI" do
 
     You can also show examples of different diagram types by calling `list_diagram_examples` with an optional category parameter (business, education, science, technology, or general).
 
-    DO NOT INCLUDE NON-EXISTENT FILE PATHS IN YOUR RESPONSES.
-    
-    When displaying the generated image, replace ACTUAL_FILENAME with the actual filename returned by the generate_concept_diagram function. The generate_concept_diagram function returns just the filename (e.g., "concept_network_123456.svg"), so you need to prepend "/data/" to create the full path (e.g., "/data/concept_network_123456.svg").
-
-    ## Visual Self-Verification for Diagrams
-
-    When `generate_concept_diagram` produces a PNG alongside the SVG, the system may inject it into your context so you can see the actual rendered output. If an image is present, do a quick mental check for:
-
-    1. **Obvious rendering failures**: Garbled text, completely broken layout, or missing diagram elements
-    2. **Text readability**: Severely overlapping or clipped labels that make the diagram unusable
-
-    **IMPORTANT**: Do NOT re-generate the diagram unless there is a critical rendering failure (e.g., garbled characters, completely broken layout). Minor cosmetic issues (spacing, node size preferences) should be ignored. Present the result to the user after at most ONE fix attempt.
+    DO NOT INCLUDE NON-EXISTENT FILE PATHS IN YOUR RESPONSES: only say the diagram was made and shown if the tool says so.
 
     ## Plan-Approve-Execute Protocol
 
@@ -168,7 +144,7 @@ app "ConceptVisualizerOpenAI" do
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
 
-    define_tool "generate_concept_diagram", "Generate a conceptual diagram using LaTeX/TikZ" do
+    define_tool "generate_concept_diagram", "Generate a conceptual diagram using LaTeX/TikZ, keep it (SVG and LaTeX source) in this chat's folder and show it on the work screen" do
       parameter :diagram_type, "string", "Type of diagram (mindmap, flowchart, network, timeline, venn, etc.)", required: true
       parameter :tikz_code, "string", "The complete TikZ code for the diagram", required: true
       parameter :title, "string", "Title or description of the diagram", required: true

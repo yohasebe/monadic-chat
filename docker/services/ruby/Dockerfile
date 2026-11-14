@@ -12,19 +12,34 @@ RUN apt-get update && \
     libffi-dev \
     ca-certificates gnupg lsb-release \
     postgresql postgresql-contrib libpq-dev \
-    # libglib2.0-dev libgirepository1.0-dev \
-    # imagemagick libmagickwand-dev \
+    # RSyntaxTree (Syntax Tree) draws with Pango and librsvg through
+    # GObject introspection; its gems are built against these headers
+    pkg-config libglib2.0-dev libgirepository1.0-dev libcairo2-dev \
+    libpango1.0-dev libgdk-pixbuf-2.0-dev librsvg2-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# RSyntaxTree is run as a command, outside the app's bundle (the bundle is
+# also used on the host, where these libraries are not needed): a bundle of
+# its own, in its own place, with every gem at the version and checksum of
+# rsyntaxtree/Gemfile.lock (a gem that differs stops the build)
+ENV RSYNTAXTREE_HOME=/opt/rsyntaxtree
+COPY rsyntaxtree/Gemfile rsyntaxtree/Gemfile.lock $RSYNTAXTREE_HOME/
+RUN BUNDLE_GEMFILE=$RSYNTAXTREE_HOME/Gemfile BUNDLE_PATH=$RSYNTAXTREE_HOME/gems BUNDLE_FROZEN=true \
+    bundle install -j4 && \
+    rm -rf $RSYNTAXTREE_HOME/gems/ruby/*/cache
 
 ENV WORKSPACE=/monadic
 WORKDIR $WORKSPACE
 
-COPY Gemfile monadic.gemspec $WORKSPACE/
+COPY Gemfile Gemfile.lock monadic.gemspec $WORKSPACE/
 COPY config.ru $WORKSPACE/
 
-ENV BUNDLER_WITHOUT="development test"
-RUN bundle install -j4 && \
+# The app's gems, each at the version and checksum of Gemfile.lock (a gem
+# that differs, or a Gemfile the lock does not match, stops the build),
+# without the gems only development and tests use
+ENV BUNDLE_WITHOUT="development:test"
+RUN BUNDLE_FROZEN=true bundle install -j4 && \
     rm -rf /usr/local/bundle/cache/*
 
 # Stage 2: Runtime environment
@@ -42,9 +57,10 @@ RUN apt-get update && \
     ca-certificates curl gnupg lsb-release \
     postgresql-client \
     ffmpeg \
-    # Add ImageMagick runtime libraries needed by RMagick gem
-    # Uncomment to use RSyntaxTree
-    # imagemagick libmagickwand-dev \
+    # RSyntaxTree (Syntax Tree): its drawing libraries, and the fonts it
+    # names for Latin, CJK and other scripts
+    libgirepository-1.0-1 gir1.2-pango-1.0 gir1.2-rsvg-2.0 \
+    fonts-noto-core fonts-noto-cjk fonts-dejavu-core \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -72,8 +88,18 @@ RUN apt-get update && \
 ENV WORKSPACE="/monadic"
 WORKDIR $WORKSPACE
 
+# The same groups as the build stage left out: the server is started through
+# the bundle, which must not look for them
+ENV BUNDLE_WITHOUT="development:test"
 COPY --from=build /usr/local/bundle /usr/local/bundle
 COPY --from=build $WORKSPACE $WORKSPACE
+
+# The rsyntaxtree command: RSyntaxTree run in its own bundle
+ENV RSYNTAXTREE_HOME=/opt/rsyntaxtree
+COPY --from=build $RSYNTAXTREE_HOME $RSYNTAXTREE_HOME
+RUN printf '%s\n' '#!/bin/sh' \
+      "BUNDLE_GEMFILE=$RSYNTAXTREE_HOME/Gemfile BUNDLE_PATH=$RSYNTAXTREE_HOME/gems BUNDLE_FROZEN=true exec bundle exec rsyntaxtree \"\$@\"" \
+      > /usr/local/bin/rsyntaxtree && chmod +x /usr/local/bin/rsyntaxtree
 
 COPY apps/ $WORKSPACE/apps/
 COPY lib/ $WORKSPACE/lib/

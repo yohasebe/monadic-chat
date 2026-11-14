@@ -380,12 +380,25 @@ async function uploadAudioFile(file) {
   }
 }
 
+// What the page says when an import is done: that it was imported, and,
+// when the file held app state that did not fit, how many entries of it
+// were left out (state_dropped from the import route). t: the translator.
+function importNotice(response, t) {
+  const say = typeof t === 'function' ? t : null;
+  const done = say ? say('ui.messages.sessionImported') : 'Session imported successfully';
+  const dropped = response && Number(response.state_dropped) > 0 ? Number(response.state_dropped) : 0;
+  if (!dropped) return done;
+  const left = say ? say('ui.messages.stateDropped') : "{n} entries of the app's saved state did not fit and were left out.";
+  return done + ' ' + String(left).replace('{n}', String(dropped));
+}
+
 // Export functions to window for browser environment
 window.formHandlers = {
   uploadPdf,
   convertDocument,
   fetchWebpage,
   importSession,
+  importNotice,
   uploadAudioFile,
   setupUrlValidation,
   setupFileValidation,

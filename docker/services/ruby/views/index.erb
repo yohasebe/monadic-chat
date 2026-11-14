@@ -468,35 +468,6 @@
             </div><!-- end #control-panel-body -->
           </div>
 
-          <div id="context-panel" class="mb-3 rounded shaded-panel overflow-hidden" style="display: none;">
-            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#context-panel-body" aria-expanded="true">
-              <span class="text flex-grow-1" data-i18n="ui.sessionContext"><i class="fas fa-brain"></i> Session Context</span>
-              <span class="d-flex align-items-center gap-2">
-                <button class="btn btn-sm btn-link p-0" id="context-toggle-all" title="Toggle all sections" onclick="event.stopPropagation()">
-                  <i class="fas fa-arrows-up-down"></i>
-                </button>
-                <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
-              </span>
-            </h5>
-            <div id="context-panel-body" class="collapse show px-3 pb-3">
-            <div class="text-muted small mb-2 d-flex align-items-center gap-2" id="context-legend" style="display: none;">
-              <span data-i18n="ui.contextTurnLegend">T = Turn</span>
-              <span class="mc-badge mc-badge--grey" id="context-turn-badge" title="Total turns">0</span>
-            </div>
-            <div id="context-sections">
-              <!-- Context sections will be dynamically populated -->
-            </div>
-            <div class="mt-2 d-flex gap-2">
-              <button class="btn btn-sm btn-primary" id="context-save" style="display: none;" data-i18n="ui.saveChanges">
-                <i class="fas fa-save"></i> Save
-              </button>
-              <button class="btn btn-sm btn-outline-secondary" id="context-cancel" style="display: none;" data-i18n="ui.cancel">
-                Cancel
-              </button>
-            </div>
-            </div><!-- end #context-panel-body -->
-          </div>
-
           <div id="theme-panel" class="mb-3 rounded shaded-panel overflow-hidden">
             <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#theme-panel-body" aria-expanded="true">
               <span class="text" data-i18n="ui.theme"><i class="fas fa-palette"></i> Theme</span>
@@ -1636,18 +1607,11 @@
         </div>
       </div>
     </div>
-    <!-- Screenshot Lightbox Modal -->
-    <div class="modal fade" id="screenshotLightbox" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered" style="max-width: 95vw;">
-        <div class="modal-content" style="background: transparent; border: none; box-shadow: none;">
-          <div class="modal-body p-0 text-center position-relative">
-            <div id="lightboxContainer" style="display: inline-block; position: relative;">
-              <img id="lightboxImage" src="" alt="Screenshot" style="max-width: 95vw; max-height: 85vh; object-fit: contain; cursor: pointer; border-radius: 4px;">
-            </div>
-            <div id="lightboxCounter" style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); color: white; background: rgba(0,0,0,0.6); padding: 4px 12px; border-radius: 12px;"></div>
-            <button id="lightboxPrev" class="btn btn-sm" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: white; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 36px; height: 36px; display: none;">&lsaquo;</button>
-            <button id="lightboxNext" class="btn btn-sm" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: white; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 36px; height: 36px; display: none;">&rsaquo;</button>
-          </div>
+    <%# An image of the work screen, shown larger (workbench.js). %>
+    <div class="modal fade workbench-zoom" id="workbenchZoom" tabindex="-1" aria-label="Image" data-i18n-aria-label="ui.workbench.enlarged">
+      <div class="modal-dialog modal-dialog-centered workbench-zoom-dialog">
+        <div class="modal-content">
+          <img id="workbench-zoom-image" alt="">
         </div>
       </div>
     </div>

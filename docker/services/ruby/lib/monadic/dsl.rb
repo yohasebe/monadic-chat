@@ -20,12 +20,12 @@ require_relative 'shared_tools/audio_transcription'
 require_relative 'shared_tools/image_analysis'
 require_relative 'shared_tools/video_analysis'
 require_relative 'shared_tools/session_context'
-require_relative 'shared_tools/context_panel_helper'
 require_relative 'shared_tools/planning'
 require_relative 'shared_tools/verification'
 require_relative 'shared_tools/parallel_dispatch'
 require_relative 'shared_tools/parallel_python_execution'
 require_relative 'shared_tools/library_search'
+require_relative 'utils/system_prompt_injector'
 require_relative 'dsl/configurations'
 require_relative 'dsl/loader'
 require_relative 'dsl/provider_config'
@@ -52,7 +52,6 @@ module MonadicDSL
   # - abc: Enables ABC music notation rendering and playback for music composition
   # - tools: Defines function-calling capabilities available to the model
   # - image_generation: Enables AI image generation within the conversation
-  # - monadic: Enables monadic mode for structured JSON responses and special rendering
   # - websearch: Enables web search functionality for retrieving external information (web_search)
   # - jupyter: Enables access to Jupyter notebooks in the conversation
   # - temperature: Controls randomness in model responses (0.0-2.0)
@@ -233,6 +232,23 @@ module MonadicDSL
     (state.settings[:imported_tool_groups] || []).any? { |g| g[:name] == :workbench }
   end
 
+  def self.documents_already_imported?(state)
+    (state.settings[:imported_tool_groups] || []).any? { |g| g[:name] == :documents }
+  end
+
+  # An app that puts its work on the work screen (its `work_screen`
+  # feature, SystemPromptInjector::WORK_SCREEN_PROMPTS) writes it as a
+  # document (write_section).
+  def self.inject_documents!(state)
+    mode = (state.features[:work_screen] || state.settings[:work_screen]).to_s
+    return unless Monadic::Utils::SystemPromptInjector::WORK_SCREEN_PROMPTS.key?(mode)
+
+    provider = state.settings[:provider].to_s.downcase.to_sym
+    tool_config = ToolConfiguration.new(state, provider)
+    tool_config.import_shared_tools(:documents, visibility: "always")
+    state.settings[:tools] = merge_tools_for_provider(provider, state.settings[:tools], tool_config.to_h)
+  end
+
   # Every app can show a file of the shared folder in the work screen
   # (show_on_workbench): it calls no provider's API, so it is offered
   # whatever the provider. Non-tool-capable models never receive it.
@@ -350,6 +366,14 @@ module MonadicDSL
       end
     end
 
+    unless documents_already_imported?(state)
+      begin
+        inject_documents!(state)
+      rescue StandardError => e
+        puts "[DSL] documents auto-inject skipped for #{state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+      end
+    end
+
     # Debug the state
     puts "After DSL eval: #{state.name}, display_name: #{state.settings[:display_name]}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
 
@@ -396,10 +420,10 @@ module MonadicDSL
       @state.settings[:include_modules] = modules.map(&:to_s)
     end
     
-    # Monadic mode for structured output
-    def monadic(value)
-      @state.features[:monadic] = value
-    end
+    # Settings of earlier versions: read and not used.
+    def monadic(_value = nil); end
+
+    def context_schema; end
     
     # Assistant initiation flag
     def initiate_from_assistant(value)
@@ -535,22 +559,6 @@ module MonadicDSL
         config = AppAgentsConfiguration.new
         config.instance_eval(&block)
         @state.settings[:agents] = config.to_hash
-      end
-    end
-
-    # Context schema for monadic apps
-    # Defines what context fields should be tracked automatically
-    # @example
-    #   context_schema do
-    #     field :topics, icon: "fa-tags", label: "Topics", description: "Main subjects"
-    #     field :people, icon: "fa-users", label: "People", description: "Names mentioned"
-    #     field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important facts"
-    #   end
-    def context_schema(&block)
-      if block_given?
-        config = ContextSchemaConfiguration.new
-        config.instance_eval(&block)
-        @state.settings[:context_schema] = config.to_hash
       end
     end
 
@@ -839,11 +847,6 @@ module MonadicDSL
     # Add agents if specified (internal sub-agents like code_generator, speech_to_text)
     if state.settings[:agents] && !state.settings[:agents].empty?
       class_def << "        @settings[:agents] = #{state.settings[:agents].inspect}\n"
-    end
-
-    # Add context_schema if specified (for monadic apps)
-    if state.settings[:context_schema]
-      class_def << "        @settings[:context_schema] = #{state.settings[:context_schema].inspect}\n"
     end
 
     class_def << "      end\n"

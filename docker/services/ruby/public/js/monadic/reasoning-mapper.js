@@ -196,26 +196,9 @@ class ReasoningMapper {
         return null;
       }
       
-      if (!spec.thinking_budget) {
-        console.warn('ReasoningMapper: Claude model missing thinking_budget specification');
-        return null;
-      }
-      
-      // Map UI values to thinking budget tokens
-      const budgetMap = {
-        'minimal': spec.thinking_budget.min || 1024,
-        'low': 5000,
-        'medium': spec.thinking_budget.default || 10000,
-        'high': 25000
-      };
-      
-      const budgetValue = budgetMap[uiValue];
-      if (budgetValue !== undefined) {
-        return { thinking_budget: budgetValue };
-      }
-      
-      console.warn(`ReasoningMapper: Invalid UI value '${uiValue}' for Claude`);
-      return null;
+      // The server works out the thinking (adaptive effort, or a budget on
+      // models without it) from the effort chosen.
+      return { reasoning_effort: uiValue };
     } catch (error) {
       console.error('ReasoningMapper: Error in _mapClaude:', error);
       return null;

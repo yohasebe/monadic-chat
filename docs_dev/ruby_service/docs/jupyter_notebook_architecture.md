@@ -6,7 +6,7 @@ This document describes the architecture and implementation patterns for Jupyter
 
 ## Session Context
 
-All Jupyter Notebook apps (OpenAI, Claude, Gemini, xAI Grok) run with `monadic true`. The Jupyter tools save the notebook context, and the model reads it with `monadic_load_state`:
+The Jupyter tools of every Jupyter Notebook app (OpenAI, Claude, Gemini, xAI Grok) save the notebook context, and the model reads it with `monadic_load_state`:
 
 ```ruby
 monadic_load_state(app: "JupyterNotebook...", key: "context")

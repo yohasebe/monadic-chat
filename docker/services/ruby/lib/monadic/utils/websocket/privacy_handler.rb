@@ -17,7 +17,10 @@ require_relative '../privacy/export_cipher'
 require_relative '../privacy/outbound'
 require_relative '../../workbench/record'
 require_relative '../../workbench/shown'
+require_relative '../../workbench/made'
 require_relative '../../workbench/look/record'
+require_relative '../../turn_state/form'
+require_relative '../progressive_tool_manager'
 
 module WebSocketHelper
   PRIVACY_EXPORT_MODES = %w[encrypted masked_only restored].freeze
@@ -76,7 +79,6 @@ module WebSocketHelper
     # round-trips a full session (matches the historical local export shape).
     # `parameters` was assembled and remasked above, alongside the messages.
     monadic_state = privacy_export_monadic_state(session)
-    session_context = privacy_export_session_context(session)
     masked_file = content_kind == "masked" && !remask.empty?
     # Dynamic-skill unlock state, so an imported session restores the skills the
     # model had acquired (reproducibility). This is the ACTIVE export path
@@ -86,15 +88,14 @@ module WebSocketHelper
     progressive_tools = Monadic::Utils::ProgressiveToolManager.export_unlocked(session)
 
     # A masked file holds none of the originals anywhere, not only in the
-    # message text: everything that goes into it (the app state, the Session
-    # Context, what is nested in the messages) is masked, and the file is not
+    # message text: everything that goes into it (the app state, what is
+    # nested in the messages) is masked, and the file is not
     # written when one is still there.
     if masked_file
       outbound = Monadic::Utils::Privacy::Outbound
       messages = privacy_mask_messages_everywhere(messages, remask)
       parameters = privacy_mask_everywhere(parameters, remask)
-      monadic_state = privacy_mask_everywhere(monadic_state, remask)
-      session_context = privacy_mask_everywhere(session_context, remask)
+      monadic_state = privacy_mask_app_state(monadic_state, remask)
       progressive_tools = privacy_mask_everywhere(progressive_tools, remask)
     end
 
@@ -106,7 +107,7 @@ module WebSocketHelper
 
     if masked_file
       contents = { "messages" => messages, "parameters" => parameters, "monadic_state" => monadic_state,
-                   "session_context" => session_context, "progressive_tools" => progressive_tools,
+                   "progressive_tools" => progressive_tools,
                    "header" => header, "filename" => filename }
       left = remask.values.map(&:to_s).reject(&:empty?)
       leaked = privacy_file_strings(contents).any? { |text| outbound.holds_word?(text, left) }
@@ -129,7 +130,6 @@ module WebSocketHelper
       payload["word_table"] = table_to_export if table_to_export
       payload["marks_parsed"] = true
       payload["monadic_state"] = monadic_state if monadic_state
-      payload.merge!(session_context)
       payload["progressive_tools"] = progressive_tools if progressive_tools
       envelope = Monadic::Utils::Privacy::ExportCipher.encrypt(
         header: header, plaintext: payload, passphrase: passphrase
@@ -140,7 +140,6 @@ module WebSocketHelper
       payload["word_table"] = table_to_export if table_to_export
       payload["marks_parsed"] = true
       payload["monadic_state"] = monadic_state if monadic_state
-      payload.merge!(session_context)
       payload["progressive_tools"] = progressive_tools if progressive_tools
       content = JSON.pretty_generate(payload)
     end
@@ -243,7 +242,8 @@ module WebSocketHelper
   PRIVACY_EXPORT_MESSAGE_KEYS = %w[
     mid role text app_name type lang html active
     thinking tokens images image
-    interrupted tools_used verify artifacts workbench_looks workbench_shown
+    interrupted tools_used verify artifacts workbench_looks workbench_shown workbench_made workbench_revisions
+    state_changes
   ].freeze
 
   # Reduce messages to the shared-export schema. Anything not named above is
@@ -262,7 +262,13 @@ module WebSocketHelper
       looks = Monadic::Workbench::Look::Record.clean(kept.delete('workbench_looks') || kept.delete(:workbench_looks))
       kept = kept.merge('workbench_looks' => looks) if looks
       shown = Monadic::Workbench::Shown.clean(kept.delete('workbench_shown') || kept.delete(:workbench_shown))
-      shown ? kept.merge('workbench_shown' => shown) : kept
+      kept = kept.merge('workbench_shown' => shown) if shown
+      made = Monadic::Workbench::Made.clean(kept.delete('workbench_made') || kept.delete(:workbench_made))
+      kept = kept.merge('workbench_made' => made) if made
+      revisions = Monadic::Workbench::Made.clean_revisions(kept.delete('workbench_revisions') || kept.delete(:workbench_revisions))
+      kept = kept.merge('workbench_revisions' => revisions) if revisions
+      changes = Monadic::TurnState::Form.clean_changes(kept.delete('state_changes') || kept.delete(:state_changes))
+      changes ? kept.merge('state_changes' => changes) : kept
     end
   end
 
@@ -279,8 +285,11 @@ module WebSocketHelper
   end
 
   # Every string in a value masked the same way (the app state, the Session
-  # Context and anything nested in the messages of a masked file).
-  private def privacy_mask_everywhere(value, registry, depth = 0)
+  # Context and anything nested in the messages of a masked file). keys:
+  # the keys of a Hash are what someone said too (the names an app keeps
+  # its items by, such as a story's characters), and are masked as well;
+  # two keys that would become one refuse the file rather than lose one.
+  private def privacy_mask_everywhere(value, registry, depth = 0, keys: false)
     outbound = Monadic::Utils::Privacy::Outbound
     case value
     when String
@@ -290,12 +299,50 @@ module WebSocketHelper
       unless inner.nil?
         raise ArgumentError, "a value is nested as JSON too deeply to be masked" if depth >= outbound::JSON_DEPTH
 
-        return JSON.generate(privacy_mask_everywhere(inner, registry, depth + 1))
+        return JSON.generate(privacy_mask_everywhere(inner, registry, depth + 1, keys: keys))
       end
       privacy_replace_union(value, registry)
-    when Array then value.map { |v| privacy_mask_everywhere(v, registry, depth) }
-    when Hash then value.transform_values { |v| privacy_mask_everywhere(v, registry, depth) }
+    when Array then value.map { |v| privacy_mask_everywhere(v, registry, depth, keys: keys) }
+    when Hash
+      value.each_with_object({}) do |(k, v), out|
+        masked_key = keys && k.is_a?(String) ? privacy_replace_union(k, registry) : k
+        raise ArgumentError, "two names would be the same once masked" if out.key?(masked_key)
+
+        out[masked_key] = privacy_mask_everywhere(v, registry, depth, keys: keys)
+      end
     else value
+    end
+  end
+
+  # A reply's state changes in a masked file: their form (app, kind, key,
+  # collection, id, op) stays, so the file imports; data is masked, keys
+  # and all.
+  private def privacy_mask_state_changes(changes, registry)
+    return changes unless changes.is_a?(Array)
+
+    changes.map do |change|
+      next change unless change.is_a?(Hash) && change.key?('data')
+
+      change.merge('data' => privacy_mask_everywhere(change['data'], registry, keys: true))
+    end
+  end
+
+  # The app state of a masked file: its form (the app's name, the state's
+  # key, the envelope's fields) stays as it is, so the file imports; what
+  # the app kept in it (data) is masked, the names it keeps items by among it.
+  private def privacy_mask_app_state(state, registry)
+    return state unless state.is_a?(Hash)
+
+    state.transform_values do |entries|
+      next entries unless entries.is_a?(Hash)
+
+      entries.transform_values do |entry|
+        next privacy_mask_everywhere(entry, registry, keys: true) unless entry.is_a?(Hash)
+
+        entry.to_h do |field, value|
+          [field, field.to_s == "data" ? privacy_mask_everywhere(value, registry, keys: true) : value]
+        end
+      end
     end
   end
 
@@ -310,7 +357,13 @@ module WebSocketHelper
       next privacy_mask_everywhere(m, registry) unless m.is_a?(Hash)
 
       m.each_with_object({}) do |(k, v), out|
-        out[k] = PRIVACY_MESSAGE_PROTOCOL_KEYS.include?(k.to_s) ? v : privacy_mask_everywhere(v, registry)
+        out[k] = if PRIVACY_MESSAGE_PROTOCOL_KEYS.include?(k.to_s)
+                   v
+                 elsif k.to_s == Monadic::TurnState::Form::STATE_CHANGES_KEY
+                   privacy_mask_state_changes(v, registry)
+                 else
+                   privacy_mask_everywhere(v, registry)
+                 end
       end
     end
   end
@@ -368,15 +421,9 @@ module WebSocketHelper
   # exports remain round-trippable through the existing import path. Returns
   # nil when there is no monadic_state to include.
   # Keys that sit alongside the app namespaces in session[:monadic_state] but
-  # hold something else. `conversation_context` and `context_schema` are the
-  # Context Panel's own structures; `privacy` is the registry, which RD-1 says
-  # is never persisted.
-  #
-  # The import route reads each app namespace as {key => {data, version,
-  # updated_at}} and applies ["data"] to every value, so emitting the panel's
-  # plain hash here made the import raise. It has its own field on the wire —
-  # `session_context` — which the import route already restores; this exports
-  # into that field rather than leaving the mechanism unwired.
+  # hold something else: `privacy` is the registry, which RD-1 says is never
+  # persisted; `conversation_context` and `context_schema` are what files of
+  # earlier versions kept there, never app state.
   PRIVACY_STATE_RESERVED_KEYS = %w[privacy conversation_context context_schema].freeze
 
   private def privacy_export_monadic_state(session)
@@ -395,21 +442,6 @@ module WebSocketHelper
       result[app_key.to_s] = entries
     end
     serializable.empty? ? nil : serializable
-  end
-
-  # The Context Panel's structures, exported under the field names the import
-  # route reads (`session_context` / `context_schema`).
-  private def privacy_export_session_context(session)
-    state = session[:monadic_state]
-    state = {} unless state.is_a?(Hash)
-
-    context = Monadic::Workspace::ChatContext.read(session)
-    schema = state[:context_schema] || state["context_schema"]
-
-    {}.tap do |out|
-      out["session_context"] = context if context.is_a?(Hash) && !context.empty?
-      out["context_schema"] = schema if schema
-    end
   end
 
   # Build a non-secret header for the envelope. Stays in plaintext so users

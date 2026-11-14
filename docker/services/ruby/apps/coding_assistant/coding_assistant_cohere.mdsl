@@ -47,15 +47,13 @@ app "CodingAssistantCohere" do
   IMPORTANT: When the user asks you to save or write code to a file, you MUST use the `write_file_to_shared_folder` tool. Do NOT tell the user you cannot save files - you CAN and SHOULD save files when asked.
 
   ## Code Formatting
-  It is often not possible to present a very long block of code in a single response. In such cases, the code block can be split into multiple parts and the complete code can be provided to the user in sequence. This is very important because the markdown text is converted to HTML and displayed to the user. If the original markdown is corrupted, the converted HTML will not display properly. If a code block needs to be split into multiple parts, each partial code segment should be enclosed with a pair of code block separators within the same response.
-
   ## Initial Message
   First, briefly inform the user that they can:
   1. Provide prompts describing coding problems or tasks
   2. Ask you to read/write files in their shared folder
   3. Send code to be modified with `Role` set to `System`
 
-  Suggestions for modifying the code are allowed to show the differences when the modification points are clear and there is no possibility of misunderstanding, but when there is even a slight possibility of misunderstanding, please show the entire file without omitting it. Note that only one file is shown in one response. However, when the file is large, it can be divided into multiple responses. In that case, be sure to divide the file properly so that the content of the file does not break off in the middle.
+  Suggestions for modifying the code are allowed to show the differences when the modification points are clear and there is no possibility of misunderstanding, but when there is even a slight possibility of misunderstanding, please show the entire file without omitting it.
 
   ## Plan-Approve-Execute Protocol
 
@@ -83,6 +81,7 @@ app "CodingAssistantCohere" do
   display_name "Coding Assistant"
   
   features do
+    work_screen "code"
     disabled !CONFIG["COHERE_API_KEY"]
     easy_submit false
     auto_speech false

@@ -129,6 +129,55 @@ describe('word table', () => {
     });
   });
 
+  describe('placeholders in text drawn from a file of the chat', () => {
+    const ada = { word: 'Ada', type: 'PERSON', placeholder: '<<PERSON_1>>' };
+    const drawn = (html) => {
+      const box = document.createElement('div');
+      box.className = 'workbench-markdown';
+      box.innerHTML = html;
+      document.body.appendChild(box);
+      return box;
+    };
+
+    afterEach(() => document.querySelectorAll('.workbench-markdown').forEach((box) => box.remove()));
+
+    it('shows each as its word, with how the file holds it, leaving code and unknown ones as they are', () => {
+      wt.handleTable(table({ marked: true, active: [ada] }));
+      const box = drawn('<p>&lt;&lt;PERSON_1&gt;&gt; met &lt;&lt;PERSON_2&gt;&gt;.</p><pre><code>&lt;&lt;PERSON_1&gt;&gt;</code></pre>');
+
+      wt.showWordsIn(box);
+
+      const shown = box.querySelectorAll('.word-table-shown');
+      expect(shown.length).toBe(1);
+      expect(shown[0].textContent).toBe('Ada');
+      expect(shown[0].title).toContain('<<PERSON_1>>');
+      expect(box.querySelector('p').textContent).toBe('Ada met <<PERSON_2>>.');
+      expect(box.querySelector('code').textContent).toBe('<<PERSON_1>>');
+    });
+
+    it('shows what the work screen has drawn again when the table changes', () => {
+      const box = drawn('<p>&lt;&lt;PERSON_1&gt;&gt; called.</p>');
+      wt.handleTable(table({ marked: true, active: [] }));
+      expect(box.textContent).toBe('<<PERSON_1>> called.');
+
+      wt.handleTable(table({ marked: true, active: [ada] }));
+      expect(box.textContent).toBe('Ada called.');
+
+      wt.handleTable(table({ marked: true, active: [] }));
+      expect(box.textContent).toBe('<<PERSON_1>> called.');
+      expect(box.querySelectorAll('.word-table-shown').length).toBe(0);
+    });
+
+    it('changes nothing in a chat that hides no word', () => {
+      wt.handleTable(table({ marked: false, active: [] }));
+      const box = drawn('<p>&lt;&lt;PERSON_1&gt;&gt;</p>');
+
+      wt.showWordsIn(box);
+
+      expect(box.innerHTML).toBe('<p>&lt;&lt;PERSON_1&gt;&gt;</p>');
+    });
+  });
+
   it('splits a text by the words, taking the longest where several start together', () => {
     expect(wt.splitByWords('Ada Lovelace and Ada.', ['Ada', 'Ada Lovelace'])).toEqual([
       { text: 'Ada Lovelace', word: 'Ada Lovelace' }, { text: ' and ' }, { text: 'Ada', word: 'Ada' }, { text: '.' }

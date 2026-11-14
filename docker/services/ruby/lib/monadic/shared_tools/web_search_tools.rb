@@ -3,6 +3,7 @@
 require 'net/http'
 require 'uri'
 require_relative '../utils/shared_path_guard'
+require_relative '../workbench/chat_output'
 
 # Unified Web Search Tools for Monadic Chat
 # Consolidates web search and content fetching capabilities
@@ -125,7 +126,7 @@ module MonadicSharedTools
     #
     # @example Fetch with custom timeout
     #   fetch_web_content(url: "https://example.com/large-file", timeout: 30)
-    def fetch_web_content(url:, timeout: 10, **_)
+    def fetch_web_content(url:, timeout: 10, session: nil, workbench: nil, **_)
       # Validate URL
       unless url
         return {
@@ -172,22 +173,11 @@ module MonadicSharedTools
           }
         end
 
-        # Save content to shared folder
-        timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
-        filename = "web_content_#{timestamp}.txt"
-
-        # Resolve the shared volume for the current mode. Use the Environment
-        # helper (a method call) rather than the bare SHARED_VOL/LOCAL_SHARED_VOL
-        # constants, which only resolve from a class that defines them — not
-        # from this module's lexical scope (e.g. a headless agent host).
-        data_dir = Monadic::Utils::Environment.shared_volume
-
-        filepath = File.join(data_dir, filename)
         # Interpret the raw body as UTF-8 and scrub invalid bytes rather than
         # transcoding (the response is ASCII-8BIT and `encoding: 'UTF-8'` raises
         # on non-ASCII bytes, e.g. a Cyrillic page).
-        # Never through a link in its place (code a model runs could have made one)
-        Monadic::Utils::SharedPathGuard.write_file!(filepath, response.body.to_s.dup.force_encoding('UTF-8').scrub)
+        body = response.body.to_s.dup.force_encoding('UTF-8').scrub
+        filename, filepath = keep_web_content(body, session, workbench)
 
         {
           success: true,
@@ -216,6 +206,26 @@ module MonadicSharedTools
           error: "Failed to fetch content: #{e.message}"
         }
       end
+    end
+
+    # Keeps a fetched page as a text file: in a run folder of the reply's
+    # chat (so it goes with the turn that fetched it), or else at the top of
+    # the shared folder. Returns [path in the shared folder, full path].
+    def keep_web_content(body, session, workbench)
+      name = "web_content_#{Time.now.strftime('%Y%m%d_%H%M%S')}.txt"
+      app_name = session.respond_to?(:[]) ? session.dig(:parameters, 'app_name') : nil
+      job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench, app_name: app_name || self.class.name)
+      if job
+        path = Monadic::Workbench::ChatOutput.keep(job, name, body)
+        return [path, File.join(Monadic::Utils::Environment.shared_volume, path)]
+      end
+
+      # The Environment helper (a method call) resolves the shared volume
+      # from this module too, which the bare SHARED_VOL constants do not.
+      filepath = File.join(Monadic::Utils::Environment.shared_volume, name)
+      # Never through a link in its place (code a model runs could have made one)
+      Monadic::Utils::SharedPathGuard.write_file!(filepath, body)
+      [name, filepath]
     end
 
     # Search the web using Tavily API

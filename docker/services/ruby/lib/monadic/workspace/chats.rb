@@ -57,6 +57,17 @@ module Monadic
         EPOCHS_LOCK.synchronize { EPOCHS[chat_id] }
       end
 
+      # The chat work is done for, { id:, epoch: }: the one the reply or the
+      # thread began for (the scope it runs under, Privacy::EgressGuard),
+      # or else the session's chat now. nil without a chat.
+      def work_chat(session)
+        scope = Fiber[Monadic::Utils::Privacy::EgressGuard::CHAT_KEY] if defined?(Monadic::Utils::Privacy::EgressGuard)
+        return { id: scope.chat_id, epoch: scope.epoch } if scope&.chat_id && scope.epoch
+
+        chat_id = session && session[SESSION_KEY]
+        chat_id ? { id: chat_id, epoch: epoch(chat_id) } : nil
+      end
+
       # Runs the block while chat_id is at epoch, under the lock that ends an
       # epoch: either the chat was left first and the block is not run
       # (nil), or the block comes first and leaving waits for it. The block

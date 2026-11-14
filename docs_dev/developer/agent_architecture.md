@@ -6,7 +6,7 @@ Agents are Ruby modules in `lib/monadic/agents/` that carry out a task the chat 
 |---|---|---|
 | Media analysis | `ImageAnalysisAgent`, `AudioTranscriptionAgent` (with the timed transcription in `timed_audio_transcription.rb`), `VideoAnalyzeAgent`, `AudioAnalysisAgent` | The app's own provider, or an error |
 | Code generation | `Monadic::Agents::OpenAICodeAgent`, `ClaudeCodeAgent`, `GrokCodeAgent` | The provider of the app variant that includes it |
-| Conversation | `SecondOpinionAgent`, `ContextExtractorAgent`, `AIUserAgent` | Chosen per call (see below) |
+| Conversation | `SecondOpinionAgent`, `AIUserAgent` | Chosen per call (see below) |
 
 ## Media Analysis
 
@@ -59,7 +59,6 @@ Each is used only by the app variants of its own provider: Code Interpreter, Cod
 ## Conversation Agents
 
 - **`SecondOpinionAgent`**: `second_opinion_agent(user_query:, agent_response:, provider:, model:, session:)` asks one provider; `parallel_second_opinions(…, providers:)` asks several in threads, each with its own helper instance. In a chat with a word table, the text is sent with its words hidden and the answers are put back (see `anonymization.md`).
-- **`ContextExtractorAgent`**: `extract_context(session, user_message, assistant_response, provider, schema, language)` builds the Session Context after a response; `WebSocketHelper` includes the module. It calls the API directly, not through `send_query`, so it does not re-enter the WebSocket flow.
 - **`AIUserAgent`**: `process_ai_user(session, params)` writes the next user message with the provider's chat app and default model.
 
 ## Adding a Media Agent

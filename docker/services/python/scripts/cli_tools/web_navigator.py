@@ -175,7 +175,12 @@ def _get_page_info(session_id):
 
         var tag = el.tagName.toLowerCase();
         var type = el.getAttribute('type') || '';
-        var text = (el.innerText || el.value || el.getAttribute('aria-label') ||
+        // What is typed in a password or another secret field is not read.
+        var secret = el.type === 'password' ||
+            (el.getAttribute('autocomplete') || '').split(' ').some(function (t) {
+                return ['current-password', 'new-password', 'one-time-code', 'cc-number', 'cc-csc'].indexOf(t) >= 0;
+            });
+        var text = (el.innerText || (secret ? '' : el.value) || el.getAttribute('aria-label') ||
                     el.getAttribute('title') || el.getAttribute('placeholder') || '').trim();
         if (text.length > 80) text = text.substring(0, 80) + '...';
         var href = el.getAttribute('href') || '';
@@ -490,7 +495,8 @@ def action_type(args):
     // Dispatch events to trigger frameworks
     el.dispatchEvent(new Event('input', {bubbles: true}));
     el.dispatchEvent(new Event('change', {bubbles: true}));
-    return {found: true, tag: el.tagName, value: el.value.substring(0, 50)};
+    // A password field's value is not given back.
+    return {found: true, tag: el.tagName, value: el.type === 'password' ? '' : el.value.substring(0, 50)};
     """
     r = _execute_js(session_id, js, [selector, text])
 

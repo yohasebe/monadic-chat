@@ -34,8 +34,8 @@ module Monadic
 
       # Shown as text. The work screen can also draw some of them
       # (render_for); nothing here runs what a file holds.
-      TEXT = %w[txt md markdown csv tsv json jsonl log yml yaml toml ini xml html htm svg mmd mermaid
-                rb py js ts sh r tex bib srt vtt css sql].freeze
+      TEXT = %w[txt md markdown csv tsv json jsonl log yml yaml toml ini xml html htm svg mmd mermaid drawio abc
+                rb py js ts sh r tex bib srt vtt css sql ipynb].freeze
 
       # Bytes of a file the work screen draws: a larger one is shown as text.
       RENDER_LIMIT = 8 * 1024 * 1024
@@ -50,7 +50,8 @@ module Monadic
       end
 
       # What a text file is drawn as ("markdown", "diagram", "table", "svg",
-      # "html", "vega_lite"), or nil when it is shown as text only.
+      # "html", "vega_lite", "notebook", "drawio", "abc"), or nil when it is shown as text
+      # only.
       # (Monadic::RenderFormats, the table the page draws by.)
       def render_for(name)
         kind_for(name) == 'text' ? Monadic::RenderFormats.for_name(name) : nil

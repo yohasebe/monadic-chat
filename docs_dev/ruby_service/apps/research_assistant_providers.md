@@ -4,15 +4,15 @@ Research Assistant has OpenAI, Claude, Gemini, Grok, Mistral, Cohere and DeepSee
 
 ## Settings by Variant
 
-| Variant | Web search | `monadic` | Progress tools | Code agent |
-|---|---|---|---|---|
-| OpenAI | Native (`websearch true`) | true | yes | `openai_code_agent` (conditional) |
-| Claude | Native (`websearch true`) | true | yes | — |
-| Gemini | Native (`websearch true`) | true | yes | — |
-| Grok | Native (`websearch true`) | true | yes | `grok_code_agent` (conditional) |
-| Mistral | Tavily (on when `TAVILY_API_KEY` is set) | true | yes | — |
-| Cohere | Tavily (on when `TAVILY_API_KEY` is set) | true | yes | — |
-| DeepSeek | Tavily (on when `TAVILY_API_KEY` is set) | — | — | — |
+| Variant | Web search | Progress tools | Code agent |
+|---|---|---|---|
+| OpenAI | Native (`websearch true`) | yes | `openai_code_agent` (conditional) |
+| Claude | Native (`websearch true`) | yes | — |
+| Gemini | Native (`websearch true`) | yes | — |
+| Grok | Native (`websearch true`) | yes | `grok_code_agent` (conditional) |
+| Mistral | Tavily (on when `TAVILY_API_KEY` is set) | yes | — |
+| Cohere | Tavily (on when `TAVILY_API_KEY` is set) | yes | — |
+| DeepSeek | Tavily (on when `TAVILY_API_KEY` is set) | — | — |
 
 - "Progress tools": `load_research_progress`, `save_research_progress`, `add_finding`, `add_research_topics`, `add_search`, `add_sources`, `add_research_notes`, on Session State (`MonadicSessionState`).
 - All variants import `file_operations`, `python_execution`, `file_reading`, `planning` and `parallel_dispatch` (always visible), and `image_analysis` (conditional). `web_search_tools` (conditional) is imported by all but Gemini; `web_automation` (conditional) by OpenAI, Claude, Gemini and Grok.

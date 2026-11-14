@@ -51,8 +51,12 @@ module Monadic
       event = { type: 'work_screen', event: 'browser_opened', browser: view.instance }
       event[:workbench] = 'full' if placed == :full
       message = JSON.generate(event)
-      WebSocketHelper.live_tabs_for_chat(chat).each do |tab|
-        WebSocketHelper.send_to_live_connection(tab, message, chat_id: chat)
+      # The pages are reached through the server's sockets (Workbench::Channel
+      # does the same): without them there is no page to tell.
+      if defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:live_tabs_for_chat)
+        WebSocketHelper.live_tabs_for_chat(chat).each do |tab|
+          WebSocketHelper.send_to_live_connection(tab, message, chat_id: chat)
+        end
       end
       placed == :full ? :full : nil
     end

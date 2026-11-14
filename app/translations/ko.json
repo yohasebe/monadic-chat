@@ -71,7 +71,7 @@
     "categories": {
       "latex": {
         "title": "LaTeX",
-        "help": "Concept Visualizer / Syntax Tree에 필요",
+        "help": "Concept Visualizer에 필요",
         "items": { "install": "LaTeX 설치 (도표용 최소 세트)" }
       },
       "python": {
@@ -82,7 +82,8 @@
           "spacy": "spaCy (3.7.5)",
           "gensim": "gensim",
           "mediapipe": "mediapipe (CPU 전용)",
-          "transformers": "transformers (CPU 전용)"
+          "transformers": "transformers (CPU 전용)",
+          "plotlyStatic": "Plotly 정적 이미지(kaleido + Chromium)"
         }
       },
       "music": {
@@ -119,7 +120,7 @@
     "documentation": "문서",
     "startSeleniumContainer": "Selenium 컨테이너 시작",
     "stopSeleniumContainer": "Selenium 컨테이너 중지",
-    "startJupyterLab": "JupyterLab 시작",
+    "openJupyterLab": "JupyterLab 열기",
     "stopJupyterLab": "JupyterLab 중지",
     "importDocumentDB": "문서 DB 가져오기",
     "exportDocumentDB": "문서 DB 내보내기",

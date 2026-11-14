@@ -87,6 +87,15 @@ describe('History tab', () => {
     delete window.HistoryPanel;
   });
 
+  it('shows every chat on two lines: its name, then the app, the count and the time', () => {
+    list([item(), item({ chat_id: 'c_bbbbbbbbbbbbbbbb', heading_recent: null })]);
+    rows().forEach((row) => {
+      const lines = Array.from(row.querySelectorAll('.sfp-text > span'));
+      expect(lines.map((line) => line.className)).toEqual(['sfp-label', 'sfp-meta']);
+      expect(lines[0].textContent).toBe('Plan a trip');
+    });
+  });
+
   it('shows the tab only while the server keeps a history, and leaves it when it stops', () => {
     list([], { enabled: false });
     expect(document.getElementById('side-tab-history').hidden).toBe(true);
@@ -129,7 +138,7 @@ describe('History tab', () => {
     expect(badges).toEqual(['Shown now', 'Open in another window']);
     // The chat shown now stands out in the list, in its tag's color.
     expect(rows().map((r) => r.classList.contains('history-here'))).toEqual([true, false]);
-    expect(rows()[0].querySelector('.history-open-badge').classList.contains('mc-badge--green')).toBe(true);
+    expect(rows()[0].querySelector('.history-open-badge').classList.contains('mc-badge--blue')).toBe(true);
     expect(rows()[1].querySelector('.history-open-badge').classList.contains('mc-badge--grey')).toBe(true);
   });
 
@@ -243,6 +252,16 @@ describe('History tab', () => {
     expect(status().textContent).toContain('did not work');
     rows()[0].querySelector('.history-name').click();
     expect(sent.filter((m) => m.message === 'HISTORY_RESUME')).toHaveLength(2);
+  });
+
+  it('tells the work screen which chat was continued, and nothing when it was not', () => {
+    window.Workbench = { expectResumed: jest.fn() };
+    show();
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_chat_here' });
+    expect(window.Workbench.expectResumed).not.toHaveBeenCalled();
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: true });
+    expect(window.Workbench.expectResumed).toHaveBeenCalledWith('c_aaaaaaaaaaaaaaaa');
+    delete window.Workbench;
   });
 
   it('shows the conversation after a chat is continued on a narrow screen', () => {

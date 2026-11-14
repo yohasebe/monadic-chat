@@ -6,7 +6,6 @@ require "rack/session/pool"
 require "monadic/library"
 require_relative "../../../../lib/monadic/utils/unlimited_session_store"
 require_relative "../../../../lib/monadic/agents/second_opinion_agent"
-require_relative "../../../../lib/monadic/agents/context_extractor_agent"
 require_relative "../../../../lib/monadic/utils/websocket/library_handler"
 require_relative "../../../../lib/monadic/utils/websocket/tts_handler"
 require_relative "../../../../lib/monadic/utils/websocket/verify_handler"
@@ -70,16 +69,6 @@ RSpec.describe "A chat's words with the session a real chat has" do
     expect(given).to be(session)
   end
 
-  it "extracts no context when the words cannot be hidden" do
-    agent = Class.new { include ContextExtractorAgent }.new
-    allow(SystemDefaults).to receive(:get_default_model).and_return("test-model")
-    allow(agent).to receive(:get_api_key_for_provider).and_return("test-key-not-sent")
-    allow(words).to receive(:hide_texts).and_raise(StandardError, "not hidden")
-    expect(agent).not_to receive(:call_provider_api)
-    session = hiding({ parameters: {} }, [%w[Alice PERSON]])
-    expect(agent.extract_context(session, "Email Alice.", "Done.", "openai")).to be_nil
-  end
-
   it "refuses to save a chat with a word table to the Knowledge Base" do
     replies = []
     host = Class.new { include WebSocketHelper }.new
@@ -116,14 +105,6 @@ RSpec.describe "A chat's words with the session a real chat has" do
           result = agent.second_opinion_agent(user_query: "Email Alice.", agent_response: "Done.", session: session)
           expect(result[:validity]).to eq("error")
           expect(result[:comments]).to include("not requested")
-        end
-
-        it "extracts no context" do
-          agent = Class.new { include ContextExtractorAgent }.new
-          allow(SystemDefaults).to receive(:get_default_model).and_return("test-model")
-          allow(agent).to receive(:get_api_key_for_provider).and_return("test-key-not-sent")
-          expect(agent).not_to receive(:call_provider_api)
-          expect(agent.extract_context(session, "Email Alice.", "Done.", "openai")).to be_nil
         end
 
         it "suggests no title for the Knowledge Base" do

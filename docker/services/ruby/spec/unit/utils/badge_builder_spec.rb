@@ -189,38 +189,38 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
     context "with features" do
       it "builds capability badges from features" do
         settings = {
-          features: { monadic: true, math: true }
+          features: { jupyter: true, math: true }
         }
 
         result = described_class.build_all_badges(settings)
 
         expect(result[:capabilities].size).to eq(2)
-        expect(result[:capabilities].map { |b| b[:id] }).to contain_exactly("monadic", "math")
+        expect(result[:capabilities].map { |b| b[:id] }).to contain_exactly("jupyter", "math")
       end
 
       it "marks user-controlled features correctly" do
         settings = {
-          features: { math: true, monadic: true }
+          features: { math: true, jupyter: true }
         }
 
         result = described_class.build_all_badges(settings)
 
         math_badge = result[:capabilities].find { |b| b[:id] == "math" }
-        monadic_badge = result[:capabilities].find { |b| b[:id] == "monadic" }
+        jupyter_badge = result[:capabilities].find { |b| b[:id] == "jupyter" }
 
         expect(math_badge[:user_controlled]).to be true
-        expect(monadic_badge[:user_controlled]).to be false
+        expect(jupyter_badge[:user_controlled]).to be false
       end
 
       it "filters out features not in BADGE_WORTHY_FEATURES" do
         settings = {
-          features: { monadic: true, internal_flag: true }
+          features: { jupyter: true, internal_flag: true }
         }
 
         result = described_class.build_all_badges(settings)
 
-        # Only monadic should be included
-        expect(result[:capabilities].map { |b| b[:id] }).to contain_exactly("monadic")
+        # Only jupyter should be included
+        expect(result[:capabilities].map { |b| b[:id] }).to contain_exactly("jupyter")
       end
     end
 
@@ -273,7 +273,7 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
     context "with both features and agents" do
       it "combines features and backend models" do
         settings = {
-          features: { monadic: true, image: true },
+          features: { jupyter: true, image: true },
           agents: { code_generator: "gpt-5-codex" }
         }
 
@@ -372,7 +372,7 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
     end
 
     it "handles strings without underscores" do
-      expect(described_class.format_label("monadic")).to eq("monadic")
+      expect(described_class.format_label("jupyter")).to eq("jupyter")
     end
   end
 end

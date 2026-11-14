@@ -920,10 +920,6 @@ button.fixed-width {
   width: 140px;
 }
 
-.monadic-color {
-  color: var(--color-icon-primary);
-}
-
 /* START: ROLE COLOR IMPROVEMENTS - ADDED 2025-04-08 */
 
 .assistant-color {
@@ -2318,7 +2314,7 @@ pre code {
   margin-bottom: 1rem;
 }
 
-#monadic-info-panel, #ai-status-panel, #pdf-panel, #context-panel, #control-panel, #theme-panel, #interaction-panel, #voice-panel {
+#monadic-info-panel, #ai-status-panel, #pdf-panel, #control-panel, #theme-panel, #interaction-panel, #voice-panel {
   border: none;
   border-bottom: 1px solid var(--border-light);
   margin-bottom: 1rem;
@@ -2612,9 +2608,8 @@ h1 {
   background-color: #f8f8f8;
 }
 
-/* Generated images: shared frame styling + click affordance.
-   The actual click listener is attached dynamically in monadic.js;
-   cursor: pointer signals that the image opens in the lightbox. */
+/* Generated images: shared frame styling. One from the shared folder
+   opens on the work screen when clicked (workbench.js). */
 
 .generated_image img {
   background-color: white;
@@ -2626,21 +2621,6 @@ h1 {
   height: auto;
   display: inline-block;
   cursor: pointer;
-}
-
-/* Screenshot Lightbox */
-#screenshotLightbox .modal-backdrop {
-  background-color: rgba(0, 0, 0, 0.85);
-}
-
-#screenshotLightbox .modal-content {
-  background: transparent !important;
-  overflow: visible !important;
-}
-
-#lightboxPrev:hover,
-#lightboxNext:hover {
-  background: rgba(0, 0, 0, 0.75) !important;
 }
 
 /* Alternative selector for syntax tree SVGs if needed */
@@ -3094,141 +3074,15 @@ img.base64-image,
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 
-/* ============================================
-   Context Panel Styles
-   ============================================ */
-
-#context-panel {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.context-section {
-  margin-bottom: 0.5rem;
-  border: 1px solid var(--bs-border-color, #dee2e6);
-  border-radius: var(--border-radius, 4px);
-  overflow: hidden;
-}
-
-.context-section-header {
-  padding: 0.5rem 0.75rem;
-  cursor: pointer;
-  background: var(--bs-tertiary-bg, #f8f9fa);
-  transition: background-color var(--transition-fast, 200ms) ease;
-  user-select: none;
-}
-
-.context-section-header:hover {
-  background: var(--bs-secondary-bg, #e9ecef);
-}
-
-.context-section-header i.toggle-icon {
-  transition: transform var(--transition-fast, 200ms) ease;
-}
-
-.context-section.collapsed .context-section-header i.toggle-icon {
-  transform: rotate(-90deg);
-}
-
-.context-section-content {
-  padding: 0.5rem 0.75rem;
-  border-top: 1px solid var(--bs-border-color, #dee2e6);
-}
-
-.context-section.collapsed .context-section-content {
-  display: none;
-}
-
-.context-item {
-  padding: 0.25rem 0.5rem;
-  margin: 0.25rem 0;
-  background: var(--bs-body-bg, #fff);
-  border: 1px solid var(--bs-border-color-translucent, rgba(0,0,0,0.1));
-  border-radius: var(--border-radius, 4px);
-  font-size: inherit;
-  word-break: break-word;
-}
-
-.context-items-list {
-  font-size: inherit;
-  line-height: 1.5;
-  color: var(--bs-body-color, #212529);
-  word-break: break-word;
-}
-
-.context-badge {
-  font-size: inherit;
-  min-width: 1.25rem;
-}
 
 /* Context Panel Turn Grouping */
 
-.context-items-grouped {
-  font-size: inherit;
-  line-height: 1.5;
-}
-
-.context-turn-group {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.35rem 0;
-}
-
-.context-turn-group.with-separator {
-  border-top: 1px dashed var(--bs-border-color, #dee2e6);
-  margin-top: 0.25rem;
-  padding-top: 0.5rem;
-}
-
-.context-turn-label {
-  flex-shrink: 0;
-  color: var(--chip-neutral-color);
-  background: var(--chip-neutral-bg);
-  border: 1px solid var(--chip-neutral-border);
-  min-width: 1.5rem;
-  text-align: center;
-}
-
-.context-turn-items {
-  flex-grow: 1;
-  color: var(--bs-body-color);
-}
 
 /* Clickable turn labels */
 
-.context-turn-label.clickable {
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.context-turn-label.clickable:hover {
-  background: var(--bs-primary, #0d6efd);
-  color: white;
-  transform: scale(1.05);
-}
 
 /* Edited badge for re-extracted turns */
 
-.context-edited-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: inherit;
-  color: #fd7e14;
-  margin-left: 2px;
-  opacity: 0.9;
-}
-
-.context-edited-badge i {
-  font-size: 0.55rem;
-}
-
-.context-turn-group.edited {
-  border-left: 2px solid #fd7e14;
-  padding-left: 6px;
-  margin-left: -8px;
-}
 
 /* Card turn number badge */
 
@@ -3249,53 +3103,9 @@ img.base64-image,
   border-color: var(--chip-user-border);
 }
 
-/* Highlight effect when navigating to a card */
-
-.card.context-highlight {
-  animation: context-card-highlight 2s ease-out;
-}
-
-@keyframes context-card-highlight {
-  0% {
-    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.5);
-  }
-  100% {
-    box-shadow: none;
-  }
-}
-
-@keyframes context-card-highlight-dark {
-  0% {
-    box-shadow: 0 0 0 4px rgba(102, 178, 255, 0.5);
-  }
-  100% {
-    box-shadow: none;
-  }
-}
 
 /* Context Panel Loading Indicator */
 
-.context-loading-indicator {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-left: 8px;
-  border-radius: 50%;
-  background-color: var(--accent-amber);
-  animation: context-loading-pulse 1.2s ease-in-out infinite;
-  vertical-align: middle;
-}
-
-@keyframes context-loading-pulse {
-  0%, 100% {
-    opacity: 0.4;
-    transform: scale(0.85);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.15);
-  }
-}
 
 /* Improvements for monadic context display */
 
@@ -3750,8 +3560,8 @@ img.base64-image,
 }
 
 .btn-primary:hover {
-  background-color: #0056b3;
-  border-color: #0056b3;
+  background-color: var(--btn-primary-hover-bg);
+  border-color: var(--btn-primary-hover-border);
 }
 
 .btn-primary:disabled {
@@ -3773,6 +3583,36 @@ img.base64-image,
 .btn-success.active {
   background-color: var(--btn-success-active-bg);
   border-color: var(--btn-success-active-border);
+}
+
+/* Warning, danger, info and outlined danger buttons take the palette's
+   colors through Bootstrap's own button variables. Warning and info keep
+   dark text on their mid tone; danger is white on its strong tone; an
+   outlined danger is a soft red, not a filled one. */
+.btn-warning {
+  --bs-btn-bg: var(--pal-amber-mid); --bs-btn-border-color: var(--pal-amber-mid);
+  --bs-btn-hover-bg: var(--pal-amber-strong); --bs-btn-hover-border-color: var(--pal-amber-strong);
+  --bs-btn-active-bg: var(--pal-amber-strong-hover); --bs-btn-active-border-color: var(--pal-amber-strong-hover);
+  --bs-btn-disabled-bg: var(--pal-amber-mid); --bs-btn-disabled-border-color: var(--pal-amber-mid);
+}
+.btn-info {
+  --bs-btn-bg: var(--pal-accent-mid); --bs-btn-border-color: var(--pal-accent-mid);
+  --bs-btn-hover-bg: var(--pal-accent-strong); --bs-btn-hover-border-color: var(--pal-accent-strong);
+  --bs-btn-active-bg: var(--pal-accent-strong-hover); --bs-btn-active-border-color: var(--pal-accent-strong-hover);
+  --bs-btn-disabled-bg: var(--pal-accent-mid); --bs-btn-disabled-border-color: var(--pal-accent-mid);
+}
+.btn-danger {
+  --bs-btn-color: #fff; --bs-btn-hover-color: #fff; --bs-btn-active-color: #fff; --bs-btn-disabled-color: #fff;
+  --bs-btn-bg: var(--pal-red-strong); --bs-btn-border-color: var(--pal-red-strong);
+  --bs-btn-hover-bg: var(--pal-red-strong-hover); --bs-btn-hover-border-color: var(--pal-red-strong-hover);
+  --bs-btn-active-bg: var(--pal-red-strong-hover); --bs-btn-active-border-color: var(--pal-red-strong-hover);
+  --bs-btn-disabled-bg: var(--pal-red-mid); --bs-btn-disabled-border-color: var(--pal-red-mid);
+}
+.btn-outline-danger {
+  --bs-btn-color: var(--pal-red-strong); --bs-btn-border-color: var(--pal-red-line);
+  --bs-btn-hover-color: var(--pal-red-text); --bs-btn-hover-bg: var(--pal-red-soft); --bs-btn-hover-border-color: var(--pal-red-mid);
+  --bs-btn-active-color: var(--pal-red-text); --bs-btn-active-bg: var(--pal-red-soft); --bs-btn-active-border-color: var(--pal-red-mid);
+  --bs-btn-disabled-color: var(--pal-red-mid); --bs-btn-disabled-border-color: var(--pal-red-line);
 }
 
 /* Secondary button focus */
@@ -4017,7 +3857,6 @@ img.base64-image,
 /* Dark Theme Layer: All dark mode overrides */
 /* ============================================ */
 @layer dark-theme {
-
 
 
 /* ============================================== */
@@ -4534,85 +4373,9 @@ i.fas.fa-bolt,
   border-bottom: 1px solid rgba(255, 255, 255, 0.18);
 }
 
-/* Dark mode adjustments for context panel - use high specificity to override .shaded-panel rules */
-
-.dark-theme #context-panel .context-section {
-  border-color: var(--json-label-primary);
-  background: #1a1d20;
-}
-
-.dark-theme #context-panel .context-section-header {
-  background: #2b3035;
-}
-
-.dark-theme #context-panel .context-section-header span {
-  color: #dee2e6;
-}
-
-.dark-theme #context-panel .context-section-header:hover {
-  background: #3a4045;
-}
-
-.dark-theme #context-panel .context-section-header i {
-  color: #adb5bd;
-}
-
-.dark-theme #context-panel .context-section-content {
-  background: #1a1d20;
-  border-top-color: var(--json-label-primary);
-}
-
-.dark-theme #context-panel .context-section-content div {
-  color: #dee2e6;
-}
-
-.dark-theme #context-panel .context-item {
-  background: #212529;
-}
-
-.dark-theme #context-panel .context-items-list {
-  color: #dee2e6;
-}
-
-.dark-theme #context-panel .context-badge {
-  background-color: #6c757d;
-  color: #fff;
-}
-
-.dark-theme #context-panel #context-legend {
-  color: #adb5bd;
-}
-
-.dark-theme #context-panel #context-legend span {
-  color: #adb5bd;
-}
 
 /* Dark mode for turn grouping */
 
-.dark-theme #context-panel .context-turn-items {
-  color: #dee2e6;
-}
-
-.dark-theme #context-panel .context-turn-group.with-separator {
-  border-top-color: var(--json-label-primary);
-}
-
-.dark-theme .context-turn-label.clickable:hover {
-  background: var(--bs-primary, #0d6efd);
-  color: white;
-}
-
-.dark-theme .context-edited-badge {
-  color: #ffc107;
-}
-
-.dark-theme .context-turn-group.edited {
-  border-left-color: #ffc107;
-}
-
-.dark-theme .card.context-highlight {
-  animation: context-card-highlight-dark 2s ease-out;
-}
 
 .dark-theme .badge-category-label {
   color: #aaa;
@@ -4698,22 +4461,6 @@ i.fas.fa-bolt,
 
 .dark-theme #main-nav .nav-logo {
   filter: drop-shadow(0 0 6px rgba(255, 193, 7, 0.25));
-}
-
-/* Dark mode: Delete buttons (red outline). Bootstrap's #dc3545 is dim on the
-   dark surfaces; the dark error color reads, with dark text when filled. */
-
-.dark-theme .btn-outline-danger {
-  --bs-btn-color: var(--status-error);
-  --bs-btn-border-color: var(--status-error);
-  --bs-btn-hover-color: var(--bg-body);
-  --bs-btn-hover-bg: var(--status-error);
-  --bs-btn-hover-border-color: var(--status-error);
-  --bs-btn-active-color: var(--bg-body);
-  --bs-btn-active-bg: var(--status-error);
-  --bs-btn-active-border-color: var(--status-error);
-  --bs-btn-disabled-color: var(--status-error);
-  --bs-btn-disabled-border-color: var(--status-error);
 }
 
 /* Dark mode: Outline secondary buttons (needs to override Bootstrap) */
@@ -5614,8 +5361,14 @@ i.fas.fa-bolt,
   /* Warning buttons - add background color change */
   .btn-warning:hover:not(:disabled),
   #reset:hover:not(:disabled) {
-    background-color: #e0a800;
-    border-color: #d39e00;
+    background-color: var(--pal-amber-strong);
+    border-color: var(--pal-amber-strong);
+  }
+
+  /* The voice button keeps its own colour on hover */
+  #voice.btn-warning:hover:not(:disabled) {
+    background-color: var(--voice-btn-hover-bg);
+    border-color: var(--voice-btn-hover-border);
   }
 
   /* Secondary buttons - add background color change */
@@ -5772,7 +5525,6 @@ i.fas.fa-bolt,
 }
 
 
-
 } /* end @layer responsive */
 
 /* ============================================ */
@@ -5803,7 +5555,6 @@ i.fas.fa-bolt,
 .hidden {
   display: none !important;
 }
-
 
 
 /* Note: Bootstrap already has .d-none, but we add .hidden for semantic clarity */
@@ -6032,6 +5783,8 @@ small, .small,
 .voice-input { display: inline-flex; align-items: center; }
 /* A hidden word as the conversation shows it: its title says what was sent. */
 .word-table-shown { border-bottom: 1px dotted #4f78b8; cursor: help; }
+/* A shared folder path shown by its file name: its title is the whole path. */
+.short-path { border-bottom: 1px dotted var(--text-secondary); }
 .dark-theme .word-table-panel,
 .dark-theme .word-table-preview,
 .dark-theme .word-table-add,
@@ -6270,9 +6023,15 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   line-height: 1.2;
   vertical-align: middle;
 }
+/* What an app has (its tools and capabilities, in the menu) is a list to
+   read, not a state to notice: regular weight. */
+.badge-tools,
+.badge-capabilities,
+.tool-group-badge {
+  font-weight: 400;
+}
 .mc-badge--mark,
-.card-turn-badge,
-.context-turn-label {
+.card-turn-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -6824,9 +6583,10 @@ body.side-pane-resizing {
 .history-pane .history-open-badge {
   flex: 0 0 auto;
 }
-/* The chat shown now: a bar down its left edge in the color of its tag. */
+/* The chat shown now: a bar down its left edge in the palette's accent,
+   as its tag. */
 .history-pane .sfp-row.history-here {
-  box-shadow: inset 4px 0 0 var(--bdg-green-fg);
+  box-shadow: inset 4px 0 0 var(--pal-accent-strong);
 }
 .history-pane .history-confirm-text {
   flex: 1 1 auto;
@@ -6985,6 +6745,31 @@ body.side-pane-resizing {
   height: auto;
   border: var(--border-width) solid var(--border-light);
 }
+.workbench-zoomable {
+  cursor: zoom-in;
+}
+.workbench-zoomable:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+/* The image shown larger: the whole window, on a dark backdrop. */
+.workbench-zoom-dialog {
+  max-width: 95vw;
+}
+.workbench-zoom .modal-content {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  align-items: center;
+}
+#workbench-zoom-image {
+  max-width: 95vw;
+  max-height: 90vh;
+  object-fit: contain;
+  cursor: zoom-out;
+  background: #fff;
+  border-radius: var(--border-radius);
+}
 
 .workbench-video {
   display: block;
@@ -7035,8 +6820,109 @@ body.side-pane-resizing {
   background: var(--bg-panel);
   padding: var(--spacing-sm);
 }
+/* A Jupyter notebook on the work screen (workbench-render.js): its cells in
+   order, the code of each with its run number, and what it showed. */
+.workbench-notebook {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+.workbench-nb-cell {
+  min-width: 0;
+}
+.workbench-nb-prompt {
+  color: var(--text-secondary);
+  font-family: var(--font-family-monospace, monospace);
+}
+.workbench-nb-source,
+.workbench-nb-stream {
+  margin: 0;
+  padding: var(--spacing-sm);
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: var(--border-width) solid var(--border-light);
+  border-radius: var(--border-radius);
+}
+.workbench-nb-source {
+  background: color-mix(in srgb, var(--bg-panel) 60%, var(--bg-body));
+}
+.workbench-nb-stream {
+  margin-top: var(--spacing-xs);
+  border-style: dashed;
+}
+.workbench-nb-stderr {
+  color: var(--bdg-red-fg);
+  background: var(--bdg-red-bg);
+  border-color: var(--bdg-red-bd);
+}
+.workbench-nb-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-top: var(--spacing-xs);
+  background: #fff;
+}
+.workbench-nb-html {
+  margin-top: var(--spacing-xs);
+  overflow-x: auto;
+}
+.workbench-nb-note {
+  margin-top: var(--spacing-xs);
+  color: var(--text-secondary);
+}
+/* Markdown reads as a chat card's text does: the same color, line height
+   and spacing of paragraphs and lists (.card-text), with room around it. */
+.workbench-rendered .workbench-markdown {
+  color: var(--text-primary);
+  line-height: 1.6;
+  padding: 0.25rem 0.5rem 0.5rem;
+  /* A long address breaks where the column ends. */
+  overflow-wrap: anywhere;
+}
+.workbench-rendered .workbench-markdown p {
+  margin: 0.5em 0;
+}
+.workbench-rendered .workbench-markdown ul,
+.workbench-rendered .workbench-markdown ol {
+  margin: 1em 0;
+}
+.workbench-rendered .workbench-markdown li ul,
+.workbench-rendered .workbench-markdown li ol {
+  margin: 0.6em 0 0.4em 0;
+}
+.workbench-rendered .workbench-markdown li {
+  margin-bottom: 0.5em;
+}
+.workbench-rendered .workbench-markdown li:last-child {
+  margin-bottom: 0;
+}
+.workbench-rendered .workbench-markdown li > p:first-child {
+  margin-top: 0;
+}
+.workbench-rendered .workbench-markdown li > p:last-child {
+  margin-bottom: 0;
+}
 .workbench-rendered .workbench-markdown > :last-child {
   margin-bottom: 0;
+}
+/* Headings step down in size from the page's title. */
+.workbench-rendered .workbench-markdown h1 {
+  font-size: 1.25em;
+  margin: 0.8em 0 0.5em 0;
+}
+.workbench-rendered .workbench-markdown h2 {
+  font-size: 1.1em;
+  margin: 0.9em 0 0.4em 0;
+}
+.workbench-rendered .workbench-markdown h3,
+.workbench-rendered .workbench-markdown h4,
+.workbench-rendered .workbench-markdown h5,
+.workbench-rendered .workbench-markdown h6 {
+  font-size: 1em;
+  margin: 0.8em 0 0.3em 0;
+}
+.workbench-rendered .workbench-markdown > :first-child {
+  margin-top: 0;
 }
 .workbench-rendered .workbench-markdown img {
   max-width: 100%;

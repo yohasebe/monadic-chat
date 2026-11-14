@@ -100,7 +100,9 @@ module MonadicSharedTools
                          "beside the chat, in one step. The work screen draws it by its extension: .md (Markdown), " \
                          ".mmd (a Mermaid diagram), .csv or .tsv (a table, first row as the header), .svg, " \
                          ".html (a static page: no scripts run, links do not open, only data: images load), " \
-                         ".vl.json (a Vega-Lite chart: put the data in data.values; no url, no images, no params); " \
+                         ".vl.json (a Vega-Lite chart: put the data in data.values; no url, no images, no params), " \
+                         ".drawio (a draw.io diagram: its mxfile or mxGraphModel XML; images it names are not loaded), " \
+                         ".abc (a tune in ABC notation, drawn as a score); " \
                          ".json and .txt are shown as text. Use it for tables, diagrams, charts, long documents and " \
                          "content to compare side by side; keep short answers in the chat. The result gives the path; " \
                          "the same name and content again in one reply give the same file.",
@@ -143,6 +145,44 @@ module MonadicSharedTools
           }
         ],
         default_hint: "Call request_tool(\"workbench\") to show a file or a text you made in the work screen."
+      },
+
+      documents: {
+        module_name: 'MonadicSharedTools::WorkbenchTools',
+        tools: [
+          {
+            name: "write_section",
+            description: "Write one section of a long text the user and you build over the chat (a story, a draft " \
+                         "revised again and again) and show the whole text in the work screen beside the chat. " \
+                         "Each call keeps the section as this reply wrote it; the work screen shows every section " \
+                         "of the document in the order they were first written, each as written last, with a mark " \
+                         "between them, and the line under your reply opens it at this section. To rewrite a " \
+                         "section, call it again with the same section name and the whole new text. Deleting a " \
+                         "turn takes its sections away, and an earlier version shows again. Write the section in " \
+                         "Markdown; do not repeat it in the chat.",
+            parameters: [
+              {
+                name: :document,
+                type: "string",
+                description: "The document's title, the same in every call for it (e.g. the story's title)",
+                required: true
+              },
+              {
+                name: :section,
+                type: "string",
+                description: "The section's name, the same when it is rewritten (e.g. '1', '2', 'opening')",
+                required: true
+              },
+              {
+                name: :content,
+                type: "string",
+                description: "The whole text of the section, in Markdown",
+                required: true
+              }
+            ]
+          }
+        ],
+        default_hint: "Call request_tool(\"documents\") to write a section of a long text shown in the work screen."
       },
 
       python_execution: {
@@ -728,12 +768,12 @@ module MonadicSharedTools
         tools: [
           {
             name: "get_context",
-            description: "Get current conversation context from session. The context is also displayed in the sidebar panel.",
+            description: "Get the conversation context kept so far (topics, people, notes). The user sees it as a page on the work screen.",
             parameters: []
           },
           {
             name: "update_context",
-            description: "Update conversation context by adding new topics, people, or notes. Items are merged with existing context by default. The sidebar panel will update automatically.",
+            description: "Update conversation context by adding new topics, people, or notes. Items are merged with existing context by default. The page on the work screen is made again after the reply.",
             parameters: [
               {
                 name: :topics,
@@ -766,7 +806,7 @@ module MonadicSharedTools
           },
           {
             name: "remove_from_context",
-            description: "Remove specific items from conversation context. The sidebar panel will update automatically.",
+            description: "Remove specific items from conversation context. The page on the work screen is made again after the reply.",
             parameters: [
               {
                 name: :topics,
@@ -793,11 +833,11 @@ module MonadicSharedTools
           },
           {
             name: "clear_context",
-            description: "Clear all conversation context (topics, people, notes). The sidebar panel will update automatically.",
+            description: "Clear all conversation context (topics, people, notes). The page on the work screen is made again after the reply.",
             parameters: []
           }
         ],
-        default_hint: "Use session context tools to track conversation topics, people, and notes. Context is displayed in the sidebar panel."
+        default_hint: "Use session context tools to track conversation topics, people, and notes. The user sees the context as a page on the work screen."
       },
 
       jupyter_operations: {
@@ -817,7 +857,7 @@ module MonadicSharedTools
           },
           {
             name: "create_jupyter_notebook",
-            description: "Create a new Jupyter notebook with automatic timestamping",
+            description: "Create a new, empty Jupyter notebook in this chat's folder; returns its path and JupyterLab address",
             parameters: [
               {
                 name: :filename,
@@ -941,20 +981,8 @@ module MonadicSharedTools
             parameters: []
           },
           {
-            name: "restart_jupyter_kernel",
-            description: "Restart the kernel for a notebook and clear all outputs",
-            parameters: [
-              {
-                name: :filename,
-                type: "string",
-                description: "The notebook filename",
-                required: true
-              }
-            ]
-          },
-          {
-            name: "interrupt_jupyter_execution",
-            description: "Interrupt currently running cells in a notebook",
+            name: "clear_jupyter_outputs",
+            description: "Clear the outputs a notebook keeps. Each run of a notebook starts a new kernel, so there is no kernel to restart.",
             parameters: [
               {
                 name: :filename,
@@ -966,7 +994,7 @@ module MonadicSharedTools
           },
           {
             name: "move_jupyter_cell",
-            description: "Move a cell to a new position in the notebook",
+            description: "Move a cell so that it ends at to_index. Positions are 0-based and counted in the notebook as it is. The cell keeps its outputs; nothing is run.",
             parameters: [
               {
                 name: :filename,
@@ -983,14 +1011,14 @@ module MonadicSharedTools
               {
                 name: :to_index,
                 type: "integer",
-                description: "The target zero-based index position",
+                description: "The zero-based position the cell ends at",
                 required: true
               }
             ]
           },
           {
             name: "insert_jupyter_cells",
-            description: "Insert cells at a specific position in the notebook",
+            description: "Insert cells before the cell at index (0-based); index equal to the number of cells adds them at the end.",
             parameters: [
               {
                 name: :filename,
@@ -1013,7 +1041,7 @@ module MonadicSharedTools
               {
                 name: :run,
                 type: "boolean",
-                description: "Whether to execute the cells after inserting (default: false)",
+                description: "Run the whole notebook afterwards in a new kernel, every cell of it, not only the new ones (default: false)",
                 required: false
               }
             ]

@@ -234,7 +234,7 @@ RSpec.describe Monadic::Workspace::SharedFolder do
     it 'protects what the app and your setup read, and says why' do
       expect(item(listing, 'scripts')).to include(classification: 'protected', protected_reason: 'user_scripts')
       expect(item(listing, 'compose_user.yml')[:protected_reason]).to be_a(String)
-      expect(item(listing, described_class::ROOT_ID_FILE)[:protected_reason]).to be_a(String)
+      expect(described_class.entry(described_class::ROOT_ID_FILE, ledger: ledger)[:protected_reason]).to be_a(String)
     end
 
     it 'says where it knows what an entry is and where it only guesses from the name' do
@@ -285,6 +285,42 @@ RSpec.describe Monadic::Workspace::SharedFolder do
       second = described_class.list('', ledger: ledger, per_page: 3, page: 2)
       expect(first[:total]).to eq(second[:total])
       expect(first[:items].map { |i| i[:name] } & second[:items].map { |i| i[:name] }).to be_empty
+    end
+  end
+
+  describe 'files the system keeps' do
+    before do
+      write('.DS_Store')
+      write('._notes.txt')
+      write('Thumbs.db')
+      write('.help-installation')
+      write('.browser_session_id')
+      write('.ipynb_checkpoints/a-checkpoint.ipynb')
+      write('.test_tmp/x.md')
+      write('notes.txt')
+      write('work/.DS_Store')
+      write('work/desktop.ini')
+      write('work/.help-installation')
+      write('work/a.py')
+    end
+
+    def listed(relative = '')
+      described_class.list(relative, ledger: ledger)
+    end
+
+    it 'leaves them out of the top of the shared folder, and out of the count' do
+      described_class.root_id(File.realpath(@data))
+      listing = listed
+      expect(listing[:items].map { |i| i[:name] }).to contain_exactly('notes.txt', '.test_tmp', 'work')
+      expect(listing[:total]).to eq(3)
+    end
+
+    it 'leaves out what the system leaves in a folder below, and keeps a dot file of the user there' do
+      expect(listed('work')[:items].map { |i| i[:name] }).to contain_exactly('a.py', '.help-installation')
+    end
+
+    it 'leaves them out of choosing every entry for the trash' do
+      expect(described_class.matching('', ledger: ledger)[:items].map { |i| i[:path] }).to contain_exactly('notes.txt', '.test_tmp', 'work')
     end
   end
 

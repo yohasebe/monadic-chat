@@ -164,3 +164,30 @@ RSpec.describe 'STT provider routing' do
     end
   end
 end
+
+# A model that cannot detect the language is given the page's when the
+# conversation's is left to detection; every other case is as chosen.
+RSpec.describe 'STT language' do
+  let(:host) { Class.new { include InteractionUtils }.new }
+  let(:needs_language) do
+    Monadic::Utils::ModelSpec.default_audio_model(InteractionUtils::STT_LANGUAGE_REQUIRED.first)
+  end
+  let(:detects) { Monadic::Utils::ModelSpec.default_audio_model('openai') }
+
+  it 'uses the page language for a model that cannot detect one' do
+    expect(host.stt_language('auto', needs_language, 'ja')).to eq('ja')
+    expect(host.stt_language(nil, needs_language, 'ja')).to eq('ja')
+  end
+
+  it 'keeps the language chosen for the conversation' do
+    expect(host.stt_language('fr', needs_language, 'ja')).to eq('fr')
+  end
+
+  it 'leaves detection to a model that detects' do
+    expect(host.stt_language('auto', detects, 'ja')).to eq('auto')
+  end
+
+  it 'keeps what was sent when the page language is unknown' do
+    expect(host.stt_language('auto', needs_language, nil)).to eq('auto')
+  end
+end

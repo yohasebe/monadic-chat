@@ -3,6 +3,9 @@
 require_relative 'language_config'
 require_relative 'tts_marker_vocabulary'
 require_relative 'capability_notes'
+require_relative '../workbench/outputs'
+require_relative '../turn_state/notes'
+require_relative '../turn_state/model_state'
 
 module Monadic
   module Utils
@@ -62,6 +65,24 @@ module Monadic
         ✅ CORRECT: "That sounds like an exciting plan! Studying abroad can be both thrilling and challenging. How can I help you prepare?"
       PROMPT
 
+      # How an app puts its work on the work screen beside the chat, by the
+      # app's `work_screen` feature in its MDSL: the chat keeps the talk, the
+      # work screen the work.
+      WORK_SCREEN_PROMPTS = {
+        # Texts written for the user and revised over turns.
+        "drafts" => <<~PROMPT.strip,
+          WORK SCREEN: Each draft you write for the user (an email, a passage, any text they will use) goes on the work screen beside the chat, not in the chat. Call write_section with the draft's title as the document (for example "Reply to Tanaka"), "draft" as the section, and the whole draft in Markdown as the content. Each revision is written whole the same way, with the same title and section: the work screen shows the newest, and the earlier versions stay with the turns that wrote them. In the chat, say in a few lines what the draft does or what changed, ask what you need to ask, and give the path the tool returned. Do not repeat the draft in the chat. Answers and talk that are not a draft stay in the chat.
+        PROMPT
+        # Translations: a long one is a draft, a short one an answer.
+        "translations" => <<~PROMPT.strip,
+          WORK SCREEN: A translation longer than a few sentences (a passage, a letter, a document) goes on the work screen beside the chat, not in the chat. Call write_section with a title for what is translated as the document (for example "Contract, Japanese"), "translation" as the section, and the whole translation in Markdown as the content. A revised translation is written whole the same way, with the same title and section: the work screen shows the newest, and the earlier versions stay with the turns that wrote them. In the chat, give notes on choices and nuance in a few lines, and the path the tool returned. A word, a phrase or a sentence or two is answered in the chat as usual.
+        PROMPT
+        # Code with its explanation.
+        "code" => <<~PROMPT.strip
+          WORK SCREEN: Code you write for the user goes on the work screen beside the chat with its explanation, not in the chat. Call write_section with a title for what the code is as the document (for example "CSV loader"), "code" as the section, and as the content one Markdown text that explains the code step by step, each part in a fenced code block with its language. A revision is written whole the same way, with the same title and section: the work screen shows the newest, and the earlier versions stay with the turns that wrote them. Separate programs get separate titles. In the chat, say in a few lines what the code does or what changed, ask what you need to ask, and give the path the tool returned. A line or two of code that answers a quick question may stay in the chat.
+        PROMPT
+      }.freeze
+
       # Math formatting when rendering is disabled (the default)
       MATH_DISABLED_PROMPT = <<~'PROMPT'.strip
         Math Rendering is disabled. Write mathematical expressions in plain text or Unicode, without LaTeX delimiters (`\[ \]`, `\( \)`, `$$`, or `$`). If the user requests LaTeX source, put it in a fenced code block starting with ```latex.
@@ -72,8 +93,8 @@ module Monadic
         You use the LaTeX notation to write mathematical expressions. In doing so, you should follow the format requirements: Use double dollar signs `$$` to enclose LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly. Either type of LaTeX expression should be presntend without surrounding backticks.
       PROMPT
 
-      # Math formatting prompt for monadic/jupyter mode (requires extra escaping)
-      MATH_MONADIC_PROMPT = <<~'PROMPT'.strip
+      # Math formatting prompt for jupyter mode (requires extra escaping)
+      MATH_JUPYTER_PROMPT = <<~'PROMPT'.strip
         Make sure to escape properly in the LaTeX expressions.
 
           Good examples of inline LaTeX expressions:
@@ -236,11 +257,8 @@ module Monadic
             parts = [MATH_BASE_PROMPT]
 
             # Add mode-specific escaping instructions
-            monadic_mode = session&.[](:parameters)&.[]("monadic") == true
-            jupyter_mode = session&.[](:parameters)&.[]("jupyter") == true
-
-            if monadic_mode || jupyter_mode
-              parts << MATH_MONADIC_PROMPT
+            if session&.[](:parameters)&.[]("jupyter") == true
+              parts << MATH_JUPYTER_PROMPT
             else
               parts << MATH_REGULAR_PROMPT
             end
@@ -292,14 +310,7 @@ module Monadic
           generator: ->(session, _options) {
             params = session[:parameters] || {}
             tts_provider = params["tts_provider"] || params[:tts_provider]
-            # Instruction-mode's addendum shape depends on whether the active
-            # app is Monadic (JSON sibling field) or not (sentinel prefix).
-            # Marker-mode addendum ignores this flag.
-            app_is_monadic = Monadic::Utils::SystemPromptInjector.__app_is_monadic?(session)
-            Monadic::Utils::TtsMarkerVocabulary.prompt_addendum_for(
-              tts_provider,
-              app_is_monadic: app_is_monadic
-            )
+            Monadic::Utils::TtsMarkerVocabulary.prompt_addendum_for(tts_provider)
           }
         },
         # Plain-voice enforcement — the mirror of expressive_speech. When Auto
@@ -338,6 +349,16 @@ module Monadic
             "to continue."
           }
         },
+        {
+          name: :work_screen,
+          priority: 30,
+          condition: ->(session, _options) {
+            !Monadic::Utils::SystemPromptInjector.work_screen_mode(session).nil?
+          },
+          generator: ->(session, _options) {
+            WORK_SCREEN_PROMPTS[Monadic::Utils::SystemPromptInjector.work_screen_mode(session)]
+          }
+        },
         # What the app's tools can do now (CapabilityNotes), last so the
         # prompt before it stays the same from request to request.
         {
@@ -351,8 +372,57 @@ module Monadic
             context = defined?(Monadic::Workspace::RequestContext) ? Monadic::Workspace::RequestContext.current : nil
             Monadic::Utils::CapabilityNotes.for_session(session, request_id: context&.request_id).to_s
           }
+        },
+        # The files this chat has made (Monadic::Workbench::Outputs), after
+        # the rest: it changes when a turn makes or loses a file.
+        {
+          name: :chat_outputs,
+          priority: 15,
+          condition: ->(session, _options) {
+            session.respond_to?(:[]) && Array(session[:messages]).any? { |m| m.is_a?(Hash) && m['workbench_made'] }
+          },
+          generator: ->(session, _options) {
+            files = Monadic::Workbench::Outputs.in_chat(session).map do |file|
+              file.merge(path: Monadic::Utils::SystemPromptInjector.path_as_sent(session, file[:path]))
+            end
+            Monadic::Utils::SystemPromptInjector.chat_outputs_prompt(files)
+          }
+        },
+        # The page that shows the app's state on the work screen
+        # (Monadic::TurnState::Notes), when there is one.
+        {
+          name: :state_notes,
+          priority: 14,
+          condition: ->(session, _options) {
+            session.respond_to?(:[]) && !Monadic::TurnState::Notes.current(session).nil?
+          },
+          generator: ->(session, _options) {
+            path = Monadic::TurnState::Notes.current(session)
+            path && format(STATE_NOTES_PROMPT, path: Monadic::Utils::SystemPromptInjector.path_as_sent(session, path))
+          }
+        },
+        # The app's state as its load tool gives it (Monadic::TurnState::
+        # ModelState), last: it changes with each reply that saves.
+        {
+          name: :app_state,
+          priority: 13,
+          condition: ->(session, _options) {
+            !Monadic::TurnState::ModelState.declaring_app(session).nil?
+          },
+          generator: ->(session, _options) {
+            Monadic::TurnState::ModelState.prompt(session)
+          }
         }
       ].freeze
+
+      # The page is made from the state: it is read, never written.
+      STATE_NOTES_PROMPT = "The state this app keeps is shown to the user as a page on the work screen, in the shared " \
+                           "folder: %<path>s. It is made again from the state after each reply, so it is only read: " \
+                           "to change what it shows, change the state with your tools, and do not write to this file."
+
+      # At most this many of the chat's files are named in the prompt, the
+      # newest.
+      CHAT_OUTPUTS_LISTED = 30
 
       # User message injection rules (applied to each user input)
       # Typically simpler than system rules - just appending instructions
@@ -389,6 +459,38 @@ module Monadic
           parts << inventory_block if inventory_block
           parts << LIBRARY_RAG_FOOTER
           parts.join("\n\n")
+        end
+
+        # A path named in the prompt, as a chat that hides its words sends
+        # it: each hidden word as its placeholder, which the tools that read
+        # a file put back (Privacy::Words::RESTORED_ARGUMENTS). The path as
+        # it is for a chat without a word table.
+        def path_as_sent(session, path)
+          return path unless defined?(Monadic::Utils::Privacy::Words)
+
+          table = Monadic::Utils::Privacy::Words.table(session)
+          table ? table.snapshot.raw(path.to_s) : path
+        end
+
+        # The prompt's list of the files the chat has made (Outputs.in_chat),
+        # or nil when there are none.
+        def chat_outputs_prompt(files)
+          return nil if files.empty?
+
+          listed = files.last(CHAT_OUTPUTS_LISTED).map { |f| "- #{f[:path]} (turn #{f[:turn]})" }
+          more = files.size > listed.size ? "\n(and #{files.size - listed.size} earlier files)" : ''
+          "Files made earlier in this chat, in the shared folder (read one where it is; to change one, " \
+            "write a new file, and the earlier one stays with its turn):\n#{listed.join("\n")}#{more}"
+        end
+
+        # The app's `work_screen` feature, when it names a way the work
+        # screen is used (WORK_SCREEN_PROMPTS); nil otherwise.
+        def work_screen_mode(session)
+          params = session&.[](:parameters) || {}
+          app_name = params["app_name"] || params[:app_name]
+          app = (APPS[app_name] if defined?(APPS) && app_name)
+          mode = app&.settings&.[](:work_screen).to_s
+          WORK_SCREEN_PROMPTS.key?(mode) ? mode : nil
         end
 
         # Render the inventory as plain-text bullet lists. Returns nil when
@@ -434,6 +536,9 @@ module Monadic
           params = session&.[](:parameters) || {}
           auto_speech = params["auto_speech"] || params[:auto_speech]
           return false unless auto_speech == true || auto_speech.to_s == "true"
+          # A reply that is JSON as a whole has no place for the markers or
+          # the leading directive block.
+          return false if (params["json"] || params[:json]).to_s == "true"
 
           # Per-app opt-out: if the MDSL declares `expressive_speech false`,
           # skip both addenda. This lets apps with strict output formats
@@ -445,25 +550,6 @@ module Monadic
           end
 
           true
-        end
-
-        # Decide the instruction-mode addendum variant. Monadic apps receive
-        # the JSON-sibling version; non-Monadic apps receive the sentinel
-        # prefix version. Uses the session's `monadic` parameter first, then
-        # falls back to the MDSL `monadic` setting.
-        def __app_is_monadic?(session)
-          params = session&.[](:parameters) || {}
-
-          session_monadic = params["monadic"] || params[:monadic]
-          return true if session_monadic == true || session_monadic.to_s == "true"
-
-          app_name = params["app_name"] || params[:app_name]
-          if defined?(APPS) && app_name && (app = APPS[app_name])
-            mdsl_monadic = app.settings["monadic"] rescue nil
-            return true if mdsl_monadic == true || mdsl_monadic.to_s == "true"
-          end
-
-          false
         end
 
         # Resolve the active app's effective vocabulary token symbols. Delegates

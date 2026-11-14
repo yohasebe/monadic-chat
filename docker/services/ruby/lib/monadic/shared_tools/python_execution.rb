@@ -19,6 +19,7 @@ require 'cgi'
 #   - check_environment: Inspect Docker container environment
 
 require_relative '../utils/extra_logger'
+require_relative '../workbench/chat_output'
 
 module MonadicSharedTools
   module PythonExecution
@@ -58,7 +59,12 @@ module MonadicSharedTools
     #     command: "ruby",
     #     extension: "rb"
     #   )
-    def run_code(code:, command:, extension:, session: nil)
+    #
+    # In an app whose MDSL sets `code_runs_in_chat_folder true`, the code
+    # runs in a run folder of the chat's folder: what it writes by a plain
+    # name stays there and is shown on the work screen beside the chat.
+    # Without a chat it runs from the shared folder.
+    def run_code(code:, command:, extension:, session: nil, workbench: nil)
       # Validate inputs
       unless code && command && extension
         return {
@@ -73,6 +79,12 @@ module MonadicSharedTools
           success: false,
           error: "Code cannot be empty"
         }
+      end
+
+      job = code_run_folder(session, workbench)
+      if job
+        output = super(code: code, command: command, extension: extension, session: session, run_dir: job)
+        return output + run_folder_notice(job, workbench)
       end
 
       # Call existing MonadicHelper implementation, passing the session
@@ -193,6 +205,35 @@ module MonadicSharedTools
     end
 
     private
+
+    # A run folder of the chat for this run, when the app keeps what its
+    # code makes in the chat's folder; nil otherwise.
+    def code_run_folder(session, workbench)
+      app_name = session&.dig(:parameters, "app_name")
+      app = (APPS[app_name] if defined?(APPS) && app_name)
+      return nil unless app&.settings&.[](:code_runs_in_chat_folder)
+
+      Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench, app_name: app_name)
+    end
+
+    # What the model is told of the files the run left: shown on the work
+    # screen, by their paths. A run that left nothing leaves no folder.
+    def run_folder_notice(job, workbench)
+      taken = Monadic::Workbench::ChatOutput.take_all(job, workbench)
+      if taken[:paths].empty?
+        Monadic::Workbench::ChatOutput.drop_if_empty(job)
+        return ""
+      end
+
+      listed = taken[:paths].map { |path| "- #{path}" }.join("\n")
+      if taken[:shown]
+        "\n\nThese files are shown on the work screen beside the chat:\n#{listed}\n" \
+          "In your reply, name them in one short line with their paths; do not embed them in the reply. " \
+          "To read one in later code, open /monadic/data/ followed by its path."
+      else
+        "\n\nThese files were saved, but the work screen could not show them all; give the user their paths:\n#{listed}"
+      end
+    end
 
     # Post-process run_code output: detect generated images and store gallery HTML
     # for server-side display via WebSocket (tool_html_fragments).

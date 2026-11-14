@@ -37,6 +37,9 @@ module WebSocketHelper
       # What it showed on the work screen and wrote there is not added to
       # later (a message that took it already has it).
       Monadic::Workbench::Shown.close(request_id) if defined?(Monadic::Workbench::Shown)
+      Monadic::Workbench::Made.close(request_id) if defined?(Monadic::Workbench::Made)
+      # What it changed in its app's state and no message took is let go.
+      Monadic::TurnState.close(request_id) if defined?(Monadic::TurnState)
       Monadic::Workbench::Put.release(request_id) if defined?(Monadic::Workbench::Put)
     end
     ending_step("capture") do

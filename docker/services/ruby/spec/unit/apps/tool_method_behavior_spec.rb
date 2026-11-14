@@ -262,46 +262,6 @@ RSpec.describe 'Tool Method Behavior' do
   end
 
   # ============================================
-  # Mermaid Grapher Tools
-  # ============================================
-  describe 'MermaidGrapher Tools' do
-    before(:all) do
-      tools_file = File.join(File.expand_path('../../../apps/mermaid_grapher', __dir__), 'mermaid_grapher_tools.rb')
-      require tools_file if File.exist?(tools_file)
-    end
-
-    let(:app_class) do
-      Object.const_get('MermaidGrapherOpenAI') if Object.const_defined?('MermaidGrapherOpenAI')
-    end
-
-    let(:instance) { app_class&.new }
-
-    describe '#preview_mermaid', :integration do
-      # The preview page is written into the shared folder: a temporary one
-      # here, never the user's.
-      before do
-        @shared = Dir.mktmpdir('mermaid-shared-')
-        allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(@shared)
-        allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@shared)
-      end
-
-      after { FileUtils.rm_rf(@shared) if @shared }
-
-      it 'validates mermaid code' do
-        skip 'MermaidGrapherOpenAI not loaded' unless instance
-        skip 'preview_mermaid not defined' unless instance.respond_to?(:preview_mermaid)
-
-        # This may require external service
-        mermaid_code = "graph TD\n    A-->B"
-
-        result = instance.preview_mermaid(code: mermaid_code)
-
-        expect(result).to be_a(Hash).or be_a(String)
-      end
-    end
-  end
-
-  # ============================================
   # Second Opinion Tools
   # ============================================
   describe 'SecondOpinion Tools' do

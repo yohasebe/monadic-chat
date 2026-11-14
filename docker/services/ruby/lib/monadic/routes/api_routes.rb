@@ -209,8 +209,7 @@ get "/api/app/:name/graph" do
       end),
       shared_tool_groups: wv_extract_shared_tool_groups(s),
       agents: wv_extract_agents(s),
-      features: wv_extract_features(s),
-      context_schema: (s[:context_schema] || s["context_schema"] || {})
+      features: wv_extract_features(s)
     }.to_json
   rescue StandardError => e
     status 500

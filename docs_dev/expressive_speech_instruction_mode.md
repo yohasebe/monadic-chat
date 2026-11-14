@@ -13,28 +13,26 @@ In `model_spec.js`, TTS models carry `tts_family` (`ModelSpec.tts_family(model)`
 
 ## What the Model Is Asked For
 
-The `:expressive_speech` rule (priority 30) adds the addendum when Auto Speech is on and the app has not set `expressive_speech false`. The directive is a set of 3 to 6 lines taken from `INSTRUCTION_ATTRIBUTE_TEMPLATE` (Voice, Tone, Pacing, Emotion, Pronunciation, Pauses; the Gemini addendum also allows free-form lines), stays under 600 characters, and follows `INSTRUCTION_INTENSITY_GUIDANCE` (neutral wording for neutral content, vivid physical wording for strong emotion). The reply itself must be plain prose.
+The `:expressive_speech` rule (priority 30) adds the addendum when Auto Speech is on, the app has not set `expressive_speech false`, and the session's `json` parameter is not set (a reply that is JSON as a whole has no place for the directive). The directive is a set of 3 to 6 lines taken from `INSTRUCTION_ATTRIBUTE_TEMPLATE` (Voice, Tone, Pacing, Emotion, Pronunciation, Pauses; the Gemini addendum also allows free-form lines), stays under 600 characters, and follows `INSTRUCTION_INTENSITY_GUIDANCE` (neutral wording for neutral content, vivid physical wording for strong emotion). The reply itself must be plain prose.
 
-| Family | App | Addendum | Encoding |
-|---|---|---|---|
-| `openai-instruction` | Monadic app | `instruction_addendum_json` | a top-level `tts_instructions` field beside `message` and `context` |
-| `openai-instruction` | other app | `instruction_addendum_sentinel` | `<<TTS:directive>>` at the start, then the reply |
-| `gemini` | Monadic app | `hybrid_addendum_for` | an optional top-level `tts_instructions` field, plus inline markers in `message` |
-| `gemini` | other app | `hybrid_addendum_for` | optional `<<TTS:directive>>` at the start, plus inline markers |
+| Family | Addendum | Encoding |
+|---|---|---|
+| `openai-instruction` | `instruction_addendum` | `<<TTS:directive>>` at the start, then the reply |
+| `gemini` | `hybrid_addendum_for` | optional `<<TTS:directive>>` at the start, plus inline markers |
 
-`SystemPromptInjector.__app_is_monadic?` decides the app type from the session's `monadic` parameter, then the MDSL `monadic` setting. `:plain_voice_enforcement` is not added for `openai-instruction`.
+`:plain_voice_enforcement` is not added for `openai-instruction`.
 
 ## Extraction
 
 `Monadic::Utils::TtsInstructionExtractor` (`lib/monadic/utils/tts_instruction_extractor.rb`) never raises; when it finds nothing it returns the text unchanged with nil.
 
-- `extract(text, app_is_monadic:)` → `[reply, directive_or_nil]`, using `extract_json` (Monadic apps: `message` and `tts_instructions`) or `extract_sentinel` (others: `SENTINEL_RE = /\A\s*<<TTS:(.*?)>>\s*/m`).
-- `strip_from_history(text, app_is_monadic:)` removes the `tts_instructions` key or the leading block.
+- `extract(text)` → `[reply, directive_or_nil]` (`SENTINEL_RE = /\A\s*<<TTS:(.*?)>>\s*/m`).
+- `strip_from_history(text)` removes the leading block.
 - `possibly_sentinel_start?` / `try_consume_sentinel` support streaming.
 
 In `streaming_handler.rb`:
 
-- **Streaming**: for non-Monadic apps with Auto Speech on and an instruction-capable provider, fragments are held back while the text could still be the start of `<<TTS:`. A complete block is dropped and the rest is forwarded; anything else is forwarded at once.
+- **Streaming**: with Auto Speech on and an instruction-capable provider, fragments are held back while the text could still be the start of `<<TTS:`. A complete block is dropped and the rest is forwarded; anything else is forwarded at once.
 - **TTS**: after the reply completes, `extract` runs on the text (not on a `tts_target` text) and the directive is passed to `start_tts_playback(..., instructions:)`. Without a directive, the reply is spoken without one.
 
 `html_handler.rb` runs `strip_from_history` before the assistant message is stored, so the next request does not carry the directive.
@@ -56,8 +54,7 @@ In `streaming_handler.rb`:
 
 ## Display
 
-- Sentinel: `DISPLAY_SANITIZE["openai-instruction"]` and `["gemini"]` (Ruby and JS) remove a leading `<<TTS:...>>` block; `sanitize_for_display` removes it for every other family as well.
-- JSON: `markdown-renderer.js` skips the keys in `MONADIC_SUPPRESSED_KEYS` (`tts_instructions`) when it renders a Monadic response.
+`DISPLAY_SANITIZE["openai-instruction"]` and `["gemini"]` (Ruby and JS) remove a leading `<<TTS:...>>` block; `sanitize_for_display` removes it for every other family as well.
 
 ## UI
 

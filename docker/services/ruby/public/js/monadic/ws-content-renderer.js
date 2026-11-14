@@ -10,55 +10,16 @@
 
   // ── Message rendering helpers ──────────────────────────────────────
 
-  function getMessageAppName(msg) {
-    if (msg && msg.app_name) {
-      return msg.app_name;
-    }
-
-    if (window.SessionState && typeof window.SessionState.getCurrentApp === 'function') {
-      var current = window.SessionState.getCurrentApp();
-      if (current) return current;
-    }
-
-    if (typeof params !== 'undefined' && params && params["app_name"]) {
-      return params["app_name"];
-    }
-
-    return null;
-  }
-
-  function getMessageMonadicFlag(msg) {
-    if (msg && typeof msg.monadic !== 'undefined') {
-      return msg.monadic;
-    }
-
-    if (typeof params !== 'undefined' && params && typeof params["monadic"] !== 'undefined') {
-      return params["monadic"];
-    }
-
-    if (window.SessionState && window.SessionState.app && window.SessionState.app.params) {
-      var appParams = window.SessionState.app.params;
-      if (typeof appParams["monadic"] !== 'undefined') {
-        return appParams["monadic"];
-      }
-    }
-
-    return false;
-  }
-
   function renderMessage(msg) {
     if (!msg) {
       console.error('renderMessage: msg is null or undefined');
       return '';
     }
 
-    var appName = getMessageAppName(msg);
-    var monadicFlag = getMessageMonadicFlag(msg);
-
     // Priority 1: Client-side rendering with MarkdownRenderer
     if (msg.text && window.MarkdownRenderer) {
       try {
-        var result = window.MarkdownRenderer.render(msg.text, { appName: appName, isMonadic: monadicFlag });
+        var result = window.MarkdownRenderer.render(msg.text);
         return result;
       } catch (err) {
         console.error('MarkdownRenderer failed:', err);
@@ -444,7 +405,7 @@
   function abcClickListener(abcElem, tuneNumber, classes, analysis, drag, mouseEvent) {
     var lastClicked = abcElem.midiPitches;
     if (!lastClicked) return;
-    ABCJS.synth.playEvent(lastClicked, abcElem.midiGraceNotePitches);
+    ABCJS.synth.playEvent(lastClicked, abcElem.midiGraceNotePitches, 1000, window.AbcPlayer.SOUNDFONT_URL);
   }
 
   async function applyAbc(element) {
@@ -486,7 +447,6 @@
         add_classes: true,
         clickListener: self.abcClickListener,
         responsive: "resize",
-        soundfont: "https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/",
         scale: 0.65,
         staffwidth: 740,
         paddingtop: 6,
@@ -514,7 +474,7 @@
       }
 
       // Pass DOM element directly to renderAbc for reliable rendering
-      var renderResult = ABCJS.renderAbc(svgDiv, abcText, abcOptions);
+      var renderResult = ABCJS.renderAbc(svgDiv, window.AbcPlayer.playableText(abcText), abcOptions);
       if (!renderResult || renderResult.length === 0) {
         console.error('[applyAbc] ABCJS.renderAbc returned empty result for:', abcText.substring(0, 100));
       }
@@ -550,17 +510,9 @@
         }
       }
 
-      // Always set up ABCJS MIDI synth for playback
+      // Playing controls, with the sounds Monadic Chat carries (abc-player.js)
       if (visualObj && ABCJS.synth.supportsAudio()) {
-        var synthControl = new ABCJS.synth.SynthController();
-        var cursorControl = new abcCursorControl('#' + abcSVG);
-        synthControl.load('#' + abcMidi, cursorControl, {
-          displayLoop: true,
-          displayRestart: true,
-          displayPlay: true,
-          displayProgress: true,
-          displayWarp: true
-        });
+        var synthControl = window.AbcPlayer.attach(midiDiv, visualObj, new abcCursorControl('#' + abcSVG));
 
         // Force compact sizing on ABCJS audio controls via inline styles.
         // This bypasses CSS cascade/layer issues that can leave controls oversized.
@@ -590,8 +542,7 @@
             clock.style.fontSize = '16px';
           }
         }
-
-        synthControl.setTune(visualObj, false, {});
+        if (!synthControl) midiDiv.innerHTML = "<div class='audio-error'>Audio is not supported in this browser.</div>";
       } else if (!visualObj) {
         midiDiv.innerHTML = "<div class='audio-error'>Failed to parse ABC notation.</div>";
       } else {
@@ -691,8 +642,6 @@
 
   // ── Namespace export ───────────────────────────────────────────────
   var ns = {
-    getMessageAppName: getMessageAppName,
-    getMessageMonadicFlag: getMessageMonadicFlag,
     renderMessage: renderMessage,
     setCopyCodeButton: setCopyCodeButton,
     applyMath: applyMath,

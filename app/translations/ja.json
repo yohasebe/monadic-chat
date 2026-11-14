@@ -60,7 +60,7 @@
     "categories": {
       "latex": {
         "title": "LaTeX",
-        "help": "Concept Visualizer / Syntax Tree に必要",
+        "help": "Concept Visualizer に必要",
         "items": {
           "install": "LaTeX をインストール（図表用の最小セット）"
         }
@@ -73,7 +73,8 @@
           "spacy": "spaCy (3.7.5)",
           "gensim": "gensim",
           "mediapipe": "mediapipe（CPUのみ）",
-          "transformers": "transformers（CPUのみ）"
+          "transformers": "transformers（CPUのみ）",
+          "plotlyStatic": "Plotly の静止画（kaleido と Chromium）"
         }
       },
       "music": {
@@ -126,7 +127,7 @@
     "updateUserContainers": "ユーザーコンテナを更新",
     "startSeleniumContainer": "Seleniumコンテナを開始",
     "stopSeleniumContainer": "Seleniumコンテナを停止",
-    "startJupyterLab": "JupyterLabを開始",
+    "openJupyterLab": "JupyterLab を開く",
     "stopJupyterLab": "JupyterLabを停止",
     "importDocumentDB": "ドキュメントDBをインポート",
     "exportDocumentDB": "ドキュメントDBをエクスポート",

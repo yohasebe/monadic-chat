@@ -70,8 +70,8 @@ AI エージェントが使うイメージとコンテナ（`monadic-chat-python
 **Build Extractor Container** <br />
 Knowledge Base Quality Pack が使うコンテナ（`monadic-chat-extractor-container`）のイメージをダウンロードします。Quality Pack をインストールしているときに使えます。
 
-**Start JupyterLab** <br />
-JupyterLabを[http://localhost:8889](http://localhost:8889)で起動します。詳細は[JupyterLabとの連携](../docker-integration/jupyterlab.md)を参照してください。
+**Open JupyterLab** <br />
+JupyterLab（[http://localhost:8889](http://localhost:8889)）をブラウザーで開きます。動いていなければ、先に起動します。詳細は[JupyterLabとの連携](../docker-integration/jupyterlab.md)を参照してください。
 
 **Stop JupyterLab** <br />
 JupyterLabを停止します。

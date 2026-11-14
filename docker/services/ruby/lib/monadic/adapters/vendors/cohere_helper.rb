@@ -1404,7 +1404,7 @@ module CohereHelper
     begin
       Monadic::Utils::TtsTextExtractor.extract_tts_text(
         app: app, function_name: function_name,
-        argument_hash: argument_hash, session: session
+        argument_hash: argument_hash, session: session, function_return: function_return
       )
     rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[Cohere Tools] TTS extract (non-fatal): #{e.message}" }
@@ -1545,6 +1545,10 @@ module CohereHelper
 
     block&.call({ "type" => "wait", "content" => "<i class='fas fa-check-circle'></i> FUNCTION CALLS COMPLETE" })
     block&.call({ "type" => "clear_fragments" })
+
+    # The tool that takes the reply's text ended the reply.
+    ended = Monadic::Utils::TtsTextExtractor.reply_ended(session, &block)
+    return ended if ended
 
     # Make recursive API request with tool results
     api_request("tool", session, call_depth: call_depth, &block)

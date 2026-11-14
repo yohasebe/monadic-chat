@@ -4,6 +4,7 @@ require 'json'
 require 'set'
 require_relative '../shell'
 require_relative '../workspace/chats'
+require_relative 'browser_operator'
 
 module MonadicSharedTools
   # Who may open a browser session on the Selenium node, so that no request
@@ -126,6 +127,16 @@ module MonadicSharedTools
 
     def op_lock(chat)
       @lock.synchronize { @op_locks[chat] ||= Mutex.new }
+    end
+
+    # Runs the block as a tool acting on the chat's browser: the user's
+    # operation from the work screen ends first (BrowserOperator), then the
+    # block runs under op_lock. recovery: a tool that closes or replaces
+    # the browser, which runs even when the user's operation could not end.
+    def acting(chat, recovery: false, &block)
+      BrowserOperator.as_tool(chat, recovery: recovery) { op_lock(chat).synchronize(&block) }
+    rescue BrowserOperator::Unreleased => e
+      { success: false, error: e.message }
     end
 
     # The chat's epoch now; work keeps the one it began in.
@@ -450,3 +461,6 @@ Monadic::Workspace::Chats.on_change do |event, session|
                                                    session[Monadic::Workspace::Chats::SESSION_KEY.to_s])
   end
 end
+
+# What the user held of a chat's browser goes with the browser.
+MonadicSharedTools::BrowserOwner.on_closed { |chat| MonadicSharedTools::BrowserOperator.forget(chat) }

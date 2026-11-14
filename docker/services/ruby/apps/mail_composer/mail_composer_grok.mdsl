@@ -58,6 +58,7 @@ app "MailComposerGrok" do
   end
   
   features do
+    work_screen "drafts"
     websearch true
     disabled !CONFIG["XAI_API_KEY"]
     initiate_from_assistant true

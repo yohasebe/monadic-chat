@@ -93,7 +93,6 @@ Omitted `sts_vad_*` keys fall back to the provider's defaults, and not every pro
 
 #### Context Management
 - `context_size` - Number of recent messages sent to the model. It also sets the **Max Context Size** field in the web UI
-- `monadic` - Enable Session State and Session Context; see [Monadic Mode](./monadic-mode.md)
 - `toggle` - Render `<div class='toggle'>` blocks in responses as collapsible sections
 - `prompt_suffix` - Text appended to every user message
 
@@ -150,7 +149,6 @@ app "ChatOpenAI" do
     easy_submit true
     auto_speech false
     context_size 20
-    monadic false
     # Note: Image upload is automatically enabled for models with vision capability
     websearch true
   end

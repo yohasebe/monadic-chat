@@ -2,6 +2,7 @@ require 'shellwords'
 require_relative '../utils/progress_broadcaster'
 require_relative '../utils/tool_image_utils'
 require_relative '../utils/environment'
+require_relative '../workbench/chat_output'
 
 module MonadicHelper
   # Adapter for OpenAI function generate_image
@@ -155,17 +156,17 @@ module MonadicHelper
 
   # Adapter for xAI Grok Imagine video generation
   # Accepts keyword args: prompt, duration, aspect_ratio, resolution, image_path
+  # In a chat, the video is saved in a run folder of the chat's folder and
+  # shown on the work screen; without one, at the top of the shared folder.
   def generate_video_with_grok_imagine(prompt:, duration: nil, aspect_ratio: nil, resolution: nil,
-                                       image_path: nil, max_wait: 420, session: nil)
+                                       image_path: nil, max_wait: 420, session: nil, workbench: nil)
     # Resolve the source image for image-to-video. Uploaded images live in the
     # session as a data URL and must be materialized to a file on the shared
     # volume for the CLI generator. Shared with the Veo path via ToolImageUtils.
     # If an upload exists but can't be materialized, surface the error instead
     # of silently downgrading to text-to-video.
     begin
-      image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(
-        session, image_path: image_path, last_image_key: :grok_last_video_image
-      )
+      image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(session, image_path: image_path)
     rescue Monadic::Utils::ToolImageUtils::ImageMaterializationError => e
       return JSON.generate({ success: false, message: e.message })
     end
@@ -179,10 +180,13 @@ module MonadicHelper
     parts << "-a" << Shellwords.shellescape(aspect_ratio) if aspect_ratio
     parts << "-r" << Shellwords.shellescape(resolution) if resolution
     parts << "--max-wait" << max_wait.to_i.to_s
+    job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench,
+                                                    app_name: session&.dig(:parameters, "app_name") || "VideoGeneratorGrok")
+    parts << "--out-dir" << Shellwords.shellescape(job[:path]) if job
 
     if image_path && !image_path.to_s.strip.empty?
       parts << "-i" << Shellwords.shellescape(image_path)
-      session[:grok_last_video_image] = File.basename(image_path) if session
+      Monadic::Utils::ToolImageUtils.remember_image(self, session, image_path)
     end
 
     cmd = parts.join(' ')
@@ -212,6 +216,8 @@ module MonadicHelper
           session[:grok_last_video_request_id] = parsed["request_id"] if parsed["request_id"]
           session[:grok_last_video_filename] = parsed["filename"] if parsed["filename"]
         end
+        taken = parsed["success"] && Monadic::Workbench::ChatOutput.take(job, parsed["filename"], workbench, "The video")
+        parsed["path"], parsed["notice"] = taken.values_at(:path, :notice) if taken
 
         return JSON.generate(parsed)
       else
@@ -233,6 +239,7 @@ module MonadicHelper
       # Only the file this process wrote from an upload is removed; a name
       # the model or the session gave is never deleted.
       Monadic::Utils::ToolImageUtils.discard_materialized(image_path) if image_path
+      Monadic::Workbench::ChatOutput.drop_if_empty(job)
     end
   end
 

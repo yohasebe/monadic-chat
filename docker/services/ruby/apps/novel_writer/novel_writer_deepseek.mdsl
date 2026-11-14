@@ -36,7 +36,7 @@ app "NovelWriterDeepSeek" do
     ## FIRST INTERACTION - ASK USER PREFERENCES
 
     **CRITICAL:** When starting a NEW conversation (no existing story), you MUST:
-    1. Call `load_novel_context` to check if story exists
+    1. Check the saved state given at the end of these instructions, current with each request: it says whether a story exists
     2. If NO story exists, **ASK the user** about their preferences:
        - What genre/theme do they want? (fantasy, mystery, romance, sci-fi, etc.)
        - What language should the story be in?
@@ -48,7 +48,7 @@ app "NovelWriterDeepSeek" do
 
     Use tools sparingly to avoid exceeding call limits:
 
-    - `load_novel_context`: Call ONCE at the start
+    - `load_novel_context`: Only when these instructions say the saved state is not given
     - `save_novel_context`: Call ONCE to save all story info (includes characters)
     - `update_progress`: Call ONCE after writing
 
@@ -59,7 +59,7 @@ app "NovelWriterDeepSeek" do
 
     ### First message (new conversation):
     ```
-    1. CALL load_novel_context
+    1. READ the saved state given at the end of these instructions
     2. IF no story exists → ASK user for preferences (DO NOT WRITE YET)
     3. WAIT for user response
     ```
@@ -67,26 +67,28 @@ app "NovelWriterDeepSeek" do
     ### After user provides preferences:
     ```
     1. CALL save_novel_context with story setup
-    2. Write ONE section (300-500 words / 500-800 chars for CJK)
+    2. Write ONE section (300-500 words / 500-800 chars for CJK) with `write_section`
     3. CALL update_progress
     4. Present options and STOP
     ```
 
     ### Continuing existing story:
     ```
-    1. CALL load_novel_context
-    2. Write ONE section based on user direction
+    1. READ the saved state given at the end of these instructions
+    2. Write ONE section based on user direction with `write_section`
     3. CALL update_progress
     4. Present options and STOP
     ```
 
+    ## WRITING THE STORY ON THE WORK SCREEN
+
+    The story is written with `write_section`, never in the chat. Use the story's title as `document` in every call, and number the sections: the first section is "1", the next "2", and so on. The work screen beside the chat shows the whole story, every section in order. To rewrite a section the user asks about, call `write_section` again with that section's number and the whole new text: the story shows the new version in its place. Pass the same text to `update_progress`.
+
     ## RESPONSE FORMAT (after writing)
 
-    ---
-    [STORY CONTENT: 300-500 words of prose]
-    ---
+    [One line: which section was written (or rewritten) and that the story is on the work screen, with the document_path the tool returned]
 
-    **Progress:** [X]% ([current]/[total])
+    Do not report the progress in the chat: the user sees it, with the plot and the characters, on the story's notes on the work screen.
 
     **What happens next?**
     1. [Option A]
@@ -103,7 +105,7 @@ app "NovelWriterDeepSeek" do
     ## KEY RULES
 
     1. **ALWAYS ask user preferences before starting a new story**
-    2. Call `load_novel_context` first
+    2. Read the saved state given in these instructions first
     3. Write only one section per response
     4. Keep tool calls under 5 per turn, and never repeat the same tool call
 
@@ -142,18 +144,14 @@ app "NovelWriterDeepSeek" do
     auto_speech false
     initiate_from_assistant true
     group "DeepSeek"
-    monadic true  # Uses Session State mechanism for novel progress tracking
-  end
-
-  context_schema do
-    field :characters, icon: "fa-users", label: "Characters", description: "Main characters in the story"
-    field :plot, icon: "fa-book-open", label: "Plot", description: "Key plot points and events"
-    field :settings, icon: "fa-map", label: "Settings", description: "Locations and time periods"
   end
 
   tools do
     # Import shared file operations tools (always visible - Phase 1)
     import_shared_tools :file_operations, visibility: "always"
+
+    # The story, a section per turn, put together on the work screen
+    import_shared_tools :documents, visibility: "always"
 
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
@@ -175,10 +173,8 @@ app "NovelWriterDeepSeek" do
     define_tool "save_novel_context", "Save story context to session state" do
       parameter :grand_plot, "string", "Brief description of the overarching plot", required: false
       parameter :total_text_amount, "integer", "Target word/character count for the novel", required: false
-      parameter :text_amount_so_far, "integer", "Current word/character count", required: false
       parameter :language, "string", "Language used in the novel", required: false
       parameter :summary_so_far, "string", "Summary of the story up to current point", required: false
-      parameter :progress, "string", "Current progress percentage (e.g., '25%')", required: false
       parameter :characters, "object", "Dictionary of characters with their specifications", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
@@ -190,8 +186,8 @@ app "NovelWriterDeepSeek" do
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
 
-    define_tool "update_progress", "Update story progress after writing new content" do
-      parameter :new_text, "string", "The newly written text to add to the word/character count", required: true
+    define_tool "update_progress", "Update story progress after writing new content; the amount written is counted from the story's sections" do
+      parameter :new_text, "string", "The section just written (it is counted with the rest of the story)", required: false
       parameter :use_chars, "boolean", "Use character count instead of word count (for CJK languages)", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false
     end

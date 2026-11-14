@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
-require 'cgi'
 require_relative 'browser_owner'
+require_relative '../utils/shared_path_guard'
+require_relative '../utils/tool_image_utils'
+require_relative '../workbench/chat_output'
 
 module MonadicSharedTools
   module WebAutomation
@@ -330,7 +332,8 @@ module MonadicSharedTools
       @captured_screenshots = []
     end
 
-    def capture_viewport_screenshots(url:, viewport_width: nil, viewport_height: nil, overlap: nil, preset: nil)
+    def capture_viewport_screenshots(url:, viewport_width: nil, viewport_height: nil, overlap: nil, preset: nil,
+                                     session: nil, workbench: nil)
       # Check if Selenium is available
       if error = check_selenium_or_error
         return error
@@ -370,24 +373,24 @@ module MonadicSharedTools
         screenshots = output_lines.select { |line| line.strip.start_with?("- ") }
                                  .map { |line| line.strip[2..-1] }
 
+        # The model is given the first one; the captures are kept in the
+        # chat's folder and shown on the work screen.
+        view = model_view_of(screenshots.first)
+        screenshots = keep_captures(screenshots, session, workbench)
+        shown = show_captures(screenshots, workbench)
+
         # Store in session
         @captured_screenshots ||= []
         @captured_screenshots.concat(screenshots)
-
-        # Create image gallery HTML
-        gallery_html = create_screenshot_gallery(screenshots)
 
         response = {
           success: true,
           message: "Successfully captured #{screenshots.length} screenshots.",
           screenshots: screenshots,
           filenames: screenshots.join("\n"),
-          gallery_html: gallery_html,
-          display_instruction: "Display the images using the gallery_html provided."
+          work_screen: shown ? CAPTURES_SHOWN_NOTE : CAPTURES_NOTE
         }
-
-        # Send the first screenshot as _image for LLM vision (Claude)
-        response[:_image] = screenshots.first if screenshots.first
+        response[:_image] = view || screenshots.first if screenshots.first
 
         response
       elsif output.include?("ERROR:")
@@ -413,13 +416,11 @@ module MonadicSharedTools
           screenshots: []
         }
       else
-        gallery_html = create_screenshot_gallery(@captured_screenshots)
         {
           success: true,
           message: "Found #{@captured_screenshots.length} screenshots in this session",
           screenshots: @captured_screenshots,
-          gallery_html: gallery_html,
-          display_instruction: "Please display the gallery_html below to show all captured screenshots."
+          work_screen: CAPTURES_NOTE
         }
       end
     end
@@ -518,7 +519,7 @@ module MonadicSharedTools
       chat, epoch = BrowserOwner.current_work
       return browser_state_error(:no_chat) unless chat
 
-      result = BrowserOwner.op_lock(chat).synchronize do
+      result = BrowserOwner.acting(chat, recovery: true) do
         # A new start replaces the chat's browser: the old one is closed first.
         previous = BrowserOwner.release(chat, epoch)
         BrowserOwner.close_quietly(previous) if previous
@@ -543,7 +544,7 @@ module MonadicSharedTools
           BrowserOwner.close_later(started[:session_id])
           next browser_state_error(:replaced)
         end
-        started.merge(browser_chat: chat, browser_instance: browser_instance_of(chat))
+        started
       end
       return result unless result[:success]
 
@@ -644,7 +645,7 @@ module MonadicSharedTools
       response
     end
 
-    def browser_screenshot
+    def browser_screenshot(session: nil, workbench: nil)
       if limit_error = browser_action_guard!("screenshot")
         return limit_error
       end
@@ -661,7 +662,16 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      attach_screenshot!(response, result)
+      # Asked for: a copy is kept in the chat's folder, for the user to be
+      # shown when they want it.
+      view = model_view_of(result[:screenshot])
+      kept = keep_captures([result[:screenshot]].compact, session, workbench).first
+      if kept && kept != result[:screenshot]
+        response[:screenshot] = kept
+        response[:work_screen] = CAPTURES_NOTE
+      end
+      response[:_image] = view || result[:screenshot] if result[:screenshot]
+      response[:work_screen] ||= SCREENSHOT_NOTE
 
       response
     end
@@ -841,7 +851,7 @@ module MonadicSharedTools
       chat, epoch = BrowserOwner.current_work
       return browser_state_error(:no_chat) unless chat
 
-      BrowserOwner.op_lock(chat).synchronize do
+      BrowserOwner.acting(chat, recovery: true) do
         next browser_state_error(:replaced) if BrowserOwner.replaced?(chat, epoch)
 
         session_id = BrowserOwner.release(chat, epoch)
@@ -861,7 +871,7 @@ module MonadicSharedTools
       chat, epoch = BrowserOwner.current_work
       return browser_state_error(:no_chat) unless chat
 
-      BrowserOwner.op_lock(chat).synchronize do
+      BrowserOwner.acting(chat) do
         session_id = BrowserOwner.session_for(chat, epoch)
         next browser_state_error(BrowserOwner.replaced?(chat, epoch) ? :replaced : :none) unless session_id
 
@@ -871,7 +881,7 @@ module MonadicSharedTools
         next browser_state_error(:replaced) unless BrowserOwner.holds?(chat, session_id, epoch)
 
         BrowserOwner.note_window(chat, session_id, result[:window])
-        result[:success] ? result.merge(browser_chat: chat, browser_instance: browser_instance_of(chat)) : result
+        result
       end
     end
 
@@ -907,67 +917,72 @@ module MonadicSharedTools
       end
     end
 
-    SELECTED_NOTE = "This browser is selected on the work screen in the user's tab; " \
-                    'this screenshot is not included in the chat.'
+    # The chat shows no screenshots: the user watches the browser on the
+    # work screen.
+    SCREENSHOT_NOTE = 'This screenshot is for you to see; the chat does not show it. ' \
+                      'The user sees the browser on the work screen.'
+    CAPTURES_NOTE = 'The chat does not show these screenshots; they are in the shared folder. ' \
+                    'When the user wants to see one, show it with show_on_workbench.'
+    CAPTURES_SHOWN_NOTE = 'These screenshots are shown on the work screen beside the chat; the chat does not ' \
+                          'show them. In your reply, do not put them in the text.'
 
-    # The screenshot an action took: the model always gets it. The chat
-    # shows it too, unless the tab the request came from has the browser
-    # the action ran on selected on its work screen (decided now; later
-    # changes of the selection do not change what was sent).
+    # The screenshot an action took: the model gets it, under a name by
+    # which it is removed once read (ToolImageUtils); the chat does not
+    # show it, and nothing of it stays in the shared folder.
     def attach_screenshot!(response, result)
       shot = result[:screenshot]
       return unless shot
 
-      response[:screenshot] = shot
-      response[:_image] = shot
-      if browser_selected_in_tab?(result[:browser_chat], result[:browser_instance])
-        response[:work_screen] = SELECTED_NOTE
-      else
-        response[:gallery_html] = create_screenshot_gallery([shot])
+      Monadic::Utils::ToolImageUtils.sweep_for_model
+      response[:_image] = Monadic::Utils::ToolImageUtils.for_model!(shot) || shot
+      response[:work_screen] ||= SCREENSHOT_NOTE
+    end
+
+    # A copy of a screenshot (a name directly in the shared folder) for the
+    # model to see, removed once read; nil when it cannot be made.
+    def model_view_of(shot)
+      return nil unless shot.is_a?(String) && File.basename(shot) == shot
+
+      folder = Monadic::Utils::Environment.data_path
+      view = Monadic::Utils::ToolImageUtils.for_model_name
+      Monadic::Utils::ToolImageUtils.sweep_for_model
+      Monadic::Utils::SharedPathGuard.copy_file!(File.join(folder, shot), File.join(folder, view))
+      view
+    rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+      nil
+    end
+
+    # Shows captures kept in the chat's folder on the work screen, the
+    # first one last so that it is the one in view; true when every one is
+    # shown.
+    def show_captures(paths, workbench)
+      kept = paths.select { |path| path.is_a?(String) && File.basename(path) != path }
+      return false if kept.empty? || kept.length != paths.length
+
+      kept.reverse.map { |path| Monadic::Workbench::ChatOutput.show(path, workbench) }.all?
+    end
+
+    # Moves screenshots a capture left directly in the shared folder into a
+    # run folder of the chat; returns their paths there (the names as they
+    # were, without a chat or when one cannot be moved).
+    def keep_captures(names, session, workbench)
+      return names if names.empty?
+
+      app_name = session.respond_to?(:[]) ? session.dig(:parameters, 'app_name') : nil
+      job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench,
+                                                      app_name: app_name || self.class.name)
+      return names unless job
+
+      folder = Monadic::Utils::Environment.data_path
+      names.map do |name|
+        next name unless name.is_a?(String) && File.basename(name) == name
+
+        kept = File.join(job[:relative], name)
+        Monadic::Utils::SharedPathGuard.rename_file!(File.join(folder, name), File.join(folder, kept))
+        kept
+      rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+        name
       end
-    end
-
-    def browser_selected_in_tab?(chat, instance)
-      return false unless chat && instance && defined?(Monadic::Workbench::Board)
-
-      request = Monadic::Workspace::RequestContext.current
-      return false unless request && request.chat_id == chat && request.tab && request.generation
-
-      board = Monadic::Workbench::Board.existing(chat) or return false
-      target = board.look_target(tab: request.tab, generation: request.generation)
-      return false unless target.is_a?(Monadic::Workbench::Board::Target)
-
-      target.item['kind'] == 'browser' && target.item.dig('browser', 'instance') == instance
-    rescue StandardError => e
-      Monadic::Utils::ExtraLogger.log { "[WebAutomation] The work screen's selection was not read: #{e.class}" }
-      false
-    end
-
-    # The browser chat holds now, as BrowserOwner numbers it; read under
-    # the chat's op_lock, so it is the one the action ran on.
-    def browser_instance_of(chat)
-      BrowserOwner.view(chat)&.instance
-    end
-
-    def create_screenshot_gallery(screenshots)
-      return "" if screenshots.empty?
-
-      @gallery_screenshot_counter ||= 0
-      total = screenshots.length
-      # Use Monadic Chat's standard image display format
-      html = ""
-      screenshots.each_with_index do |filename, index|
-        @gallery_screenshot_counter += 1
-        safe_filename = CGI.escapeHTML(filename.to_s)
-        html += <<~HTML
-          <div class="generated_image">
-            <p><strong>Screenshot #{@gallery_screenshot_counter}:</strong> #{safe_filename}</p>
-            <img src="/data/#{safe_filename}" alt="Screenshot #{@gallery_screenshot_counter}" data-gallery-index="#{index}" data-gallery-total="#{total}" data-screenshot-dpr="2" />
-          </div>
-        HTML
-      end
-
-      html
     end
   end
 end

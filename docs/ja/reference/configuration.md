@@ -152,13 +152,14 @@ Python のコンテナに入れる追加のパッケージを選びます。変�
 
 | 変数 | 説明 | 必要なアプリ | 既定 |
 |------|------|--------------|------|
-| `INSTALL_LATEX` | LaTeX（図のための最小の組。CJK 対応と dvisvgm を含む） | Syntax Tree、Concept Visualizer | `false` |
+| `INSTALL_LATEX` | LaTeX（図のための最小の組。CJK 対応と dvisvgm を含む） | Concept Visualizer | `false` |
 | `PYOPT_NLTK` | Natural Language Toolkit | 自然言語処理 | `false` |
 | `PYOPT_SPACY` | spaCy（自然言語処理のライブラリ） | 高度な自然言語処理 | `false` |
 | `PYOPT_GENSIM` | トピックモデルのライブラリ | テキストの分析 | `false` |
 | `PYOPT_LIBROSA` | Music Analysis：librosa と madmom（soundfile、midiutil、pretty_midi を含む） | Music Lab、Music Analyst | `false` |
 | `PYOPT_MEDIAPIPE` | 画像認識のフレームワーク（CPU） | 画像の処理 | `false` |
 | `PYOPT_TRANSFORMERS` | Hugging Face Transformers と Accelerate（CPU） | 深層学習の自然言語処理 | `false` |
+| `PYOPT_PLOTLY_STATIC` | kaleido と Chromium：ノートブックの Plotly のグラフに PNG を添えて保存する | 作業画面に表示するノートブックの Plotly のグラフ | `false` |
 | `IMGOPT_IMAGEMAGICK` | ImageMagick の画像処理 | 高度な画像の操作 | `false` |
 
 ### インストールオプションの設定方法

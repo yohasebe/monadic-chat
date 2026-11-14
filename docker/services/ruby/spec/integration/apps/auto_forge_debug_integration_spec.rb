@@ -64,9 +64,7 @@ RSpec.describe 'AutoForge debugging (integration)', type: :integration do
   it 'returns a friendly summary via debug_application' do
     output = debug_application('spec' => { 'name' => @project_name, 'project_path' => @project_path })
 
-    # debug_application returns a Hash with :text and :gallery_html when screenshot is present,
-    # or a plain String when no screenshot
-    report_text = output.is_a?(Hash) ? output[:text] : output
+    report_text = output
 
     expect(report_text).to include('🔍 Debug Report')
     expect(report_text).to include(@project_name)

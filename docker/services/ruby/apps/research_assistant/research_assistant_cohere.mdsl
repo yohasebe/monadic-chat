@@ -9,11 +9,11 @@ app "ResearchAssistantCohere" do
     ## Initial Greeting (Important)
     When starting a new session with no prior user messages, simply greet the user and briefly explain your capabilities, including the ability to dispatch parallel sub-agents for broad research tasks covering multiple topics simultaneously. Do NOT call any tools for the initial greeting - just respond with text.
 
-    ## Research Progress Tracking (Recommended)
+    ## Research Progress Tracking
 
-    You have tools to track your research progress. Use them when appropriate:
-    - `load_research_progress`: Check existing research state at the start of a session
-    - `save_research_progress`: Save your response with research findings
+    You have tools to track your research progress. For every research request, after researching and before you write your answer, call `save_research_progress` once with the topic, the key findings and their sources: the user sees them as the research notes on the work screen. Then write your answer in the chat.
+    - `load_research_progress`: Only when these instructions say the saved state is not given (the research progress is otherwise given at their end, current with each request)
+    - `save_research_progress`: Record the topic, the findings and the sources (your answer is written in the chat, not given to the tool)
 
     Progress fields you can track:
     - current_topic: The current research topic
@@ -50,9 +50,8 @@ app "ResearchAssistantCohere" do
 
     You can execute Python code for data analysis and visualization:
     - Use `run_code` with `command: "python"`, your code, and `extension: "py"`
-    - Save images with descriptive file names (e.g., `plt.savefig('analysis_chart.png')`)
-    - Display images: `<div class="generated_image"><img src="/data/FILENAME" /></div>`
-    - Display HTML files: `<div><a href="/data/FILENAME" target="_blank">Result</a></div>`
+    - Your code runs in a new folder of this chat made for that run: save charts and other files by a plain, descriptive name (e.g., `plt.savefig('analysis_chart.png')`). They are kept there and shown on the work screen beside the chat, and the result gives their paths. In your reply, name them in one short line with their paths; do not embed them as images or links
+    - Read the user's files by their full path, `/data/FILENAME`
     - Use `run_bash_command` to check available tools and libraries
     - Use `fetch_text_from_file`, `fetch_text_from_pdf`, or `fetch_text_from_office` to read documents
 
@@ -69,7 +68,7 @@ app "ResearchAssistantCohere" do
     - Call tools with purpose - avoid repeated calls with same parameters
     - After completing tool calls, provide your response
     - Do NOT call the same tool multiple times in one turn
-    - **After calling `save_research_progress`, your turn is COMPLETE. Do NOT call any more tools.**
+    - **After calling `save_research_progress`, do NOT call any more tools: write your answer in the chat.**
 
     ## Source Fidelity
 
@@ -116,6 +115,7 @@ app "ResearchAssistantCohere" do
   display_name "Research Assistant"
 
   features do
+    code_runs_in_chat_folder true
     disabled !CONFIG["COHERE_API_KEY"]
     websearch !!CONFIG["TAVILY_API_KEY"]
     temperature 0.3
@@ -123,13 +123,6 @@ app "ResearchAssistantCohere" do
     auto_speech false
     initiate_from_assistant true
     math true
-    monadic true  # Uses Session State mechanism for research progress tracking
-  end
-
-  context_schema do
-    field :topics, icon: "fa-tags", label: "Topics", description: "Research topics being investigated"
-    field :findings, icon: "fa-search", label: "Findings", description: "Key findings and discoveries"
-    field :sources, icon: "fa-link", label: "Sources", description: "Sources and references used"
   end
 
   tools do
@@ -159,8 +152,7 @@ app "ResearchAssistantCohere" do
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
 
-    define_tool "save_research_progress", "Save response and research progress to session state" do
-      parameter :message, "string", "Your response message to the user", required: true
+    define_tool "save_research_progress", "Save the research progress to session state, before the answer is written in the chat" do
       parameter :current_topic, "string", "The current research topic", required: false
       parameter :research_topics, "array", "Research topics explored (accumulated)", required: false
       parameter :search_history, "array", "Searches performed with results (accumulated)", required: false

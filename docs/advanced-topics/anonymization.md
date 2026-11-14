@@ -24,9 +24,12 @@ A change applies to what the chat sends from then on.
 The words are hidden in what a chat sends:
 
 - the chat's own requests to its model, including earlier messages and tool results
-- second opinions, **Verify**, AI User suggestions, the Session Context extraction and title suggestions
+- second opinions, **Verify**, AI User suggestions and title suggestions
 - the results of the Knowledge Base search, as they go to the model
 - text read aloud (a hidden word is read as its type and number, such as "PERSON 1")
+- the names of the files the chat has made, as the AI is told of them (the tools that read a file get the real name back)
+
+What the AI writes into a file, such as an app's [state notes](./monadic-mode.md#state-notes), keeps the placeholders. When the work screen draws such a Markdown file, it shows each placeholder as its word, underlined; the file itself is not changed, and **Source code** shows it as it is.
 
 What the AI is told about the [work screen](../basic-usage/web-interface.md#work-screen), and the text it looks at there, are checked instead: when they hold a hidden word, they are not sent.
 

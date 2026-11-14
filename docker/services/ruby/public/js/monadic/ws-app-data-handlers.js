@@ -601,9 +601,6 @@ function handleAppsMessage(data) {
         if (titleEl) titleEl.textContent = displayText;
 
         // Update badges immediately
-        const monadicBadge = $id("monadic-badge");
-        $toggle(monadicBadge, selectedApp["monadic"]);
-
         const websearchBadge = $id("websearch-badge");
         $toggle(websearchBadge, selectedApp["websearch"]);
 
@@ -1047,9 +1044,6 @@ function handleParametersMessage(data) {
       if (titleEl) titleEl.textContent = currentApp["display_name"] || currentApp["app_name"];
       const iconEl = $id("base-app-icon");
       if (iconEl) iconEl.innerHTML = currentApp["icon"];
-
-      const monadicBadge = $id("monadic-badge");
-      $toggle(monadicBadge, currentApp["monadic"]);
 
       const toolsBadge = $id("tools-badge");
       $toggle(toolsBadge, currentApp["tools"]);

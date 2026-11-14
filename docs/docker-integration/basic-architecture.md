@@ -24,13 +24,13 @@ Runs the Monadic Chat server and the web interface. Every app needs it.
 ### Python Container (`monadic-chat-python-container`) :id=python-container
 Runs Python code, command-line tools, and JupyterLab for the apps.
 - **Port**: 8889 (JupyterLab)
-- **Used by**: Code Interpreter, Jupyter Notebook, Research Assistant, Math Tutor, Video Describer, Syntax Tree, Concept Visualizer, Mermaid Grapher, DrawIO Grapher, Web Insight, Auto Forge, and Knowledge Base file imports
+- **Used by**: Code Interpreter, Jupyter Notebook, Research Assistant, Math Tutor, Video Describer, Concept Visualizer, Mermaid Grapher, Web Insight, Auto Forge, and Knowledge Base file imports
 - Optional components (LaTeX, extra Python libraries, ImageMagick) are added with **Actions → Install Options**. See [Python Container](python-container.md).
 
 ### Selenium Container (`monadic-chat-selenium-container`) :id=selenium-container
 Runs a Chromium browser that the apps control to open web pages and take screenshots.
 - **Ports**: 7900 (browser view through **Open → Open noVNC**). WebDriver (4444) is reached only from the other containers
-- **Used by**: Web Insight, Research Assistant, Auto Forge, Mermaid Grapher, DrawIO Grapher
+- **Used by**: Web Insight, Research Assistant, Auto Forge, Mermaid Grapher
 
 ### Qdrant Container (`monadic-chat-qdrant-container`) :id=qdrant-container
 Runs the [Qdrant](https://qdrant.tech) vector database. It stores the Knowledge Base, the PDF Database, and the help data. See [Vector Database](vector-database.md).
@@ -60,13 +60,13 @@ These apps use only the Ruby container (plus Qdrant and Embeddings, which always
 
 **Python Container**:
 - Code execution (Code Interpreter, Jupyter Notebook)
-- Diagrams with LaTeX (Syntax Tree, Concept Visualizer)
+- Diagrams with LaTeX (Concept Visualizer)
 - Video analysis (Video Describer)
 - Knowledge Base file imports (PDF and Office files)
 
 **Selenium Container**:
 - Opening web pages and taking screenshots (Web Insight, Research Assistant, Auto Forge)
-- Diagram previews (Mermaid Grapher, DrawIO Grapher)
+- Diagram previews (Mermaid Grapher)
 
 **Qdrant + Embeddings Containers**:
 - Knowledge Base

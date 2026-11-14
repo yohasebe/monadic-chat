@@ -4,6 +4,8 @@
 # Handles: CHECK_TOKEN, AI_USER_QUERY, UPDATE_PARAMS, SYSTEM_PROMPT,
 # SAMPLE, UPDATE_LANGUAGE, and RESET messages.
 
+require_relative '../../turn_state/notes'
+
 module WebSocketHelper
   private def handle_ws_check_token(connection, obj, session)
     # Store ui_language in session parameters if provided
@@ -160,9 +162,9 @@ module WebSocketHelper
     session[:parameters].clear
     Monadic::Workspace::Chats.begin_new!(session)
     Monadic::Utils::Privacy::Words.restore!(session, imported.delete(:word_table))
-    context = imported[:monadic_state].is_a?(Hash) ? imported[:monadic_state].delete(:conversation_context) : nil
     imported.each { |key, value| session[key] = value }
-    Monadic::Workspace::ChatContext.restore!(session, context)
+    # The app state is made from the file's messages and base.
+    Monadic::TurnState.changed!(session[Monadic::Workspace::Chats::SESSION_KEY]) if defined?(Monadic::TurnState)
     session[:parameters]["ui_language"] ||= ui_language if ui_language
     sync_session_state!
 
@@ -191,24 +193,7 @@ module WebSocketHelper
   # The chat the session is in and its epoch, as the page matches them.
   private def chat_token(session)
     chat_id = session[Monadic::Workspace::Chats::SESSION_KEY]
-    chat_id && Monadic::Workspace::ChatContext.token(chat_id, Monadic::Workspace::Chats.epoch(chat_id))
-  end
-
-  # The chat the tab is in now, with its context: sent when the connection
-  # opens, whenever a message puts the tab in another chat (Reset, another
-  # app, an import, a chat from the history), and in answer to a switch the
-  # page asked for, done or not. switch is the page's number of that
-  # request, given back so the page takes this answer and not an older one.
-  private def send_chat_context(connection, session, switch: nil)
-    change = Monadic::Workspace::ChatContext.current(session)
-    return unless change
-
-    state = session[:monadic_state]
-    schema = state.is_a?(Hash) ? state[:context_schema] : nil
-    send_to_client(connection, { "type" => "chat_context", "chat" => change.token, "version" => change.version,
-                                 "context" => change.context, "schema" => schema,
-                                 "switch" => switch.is_a?(Integer) ? switch : nil })
-    send_word_table(connection, session)
+    chat_id && "#{chat_id}.#{Monadic::Workspace::Chats.epoch(chat_id)}"
   end
 
   # What the page shows of the chat now in the session (an imported or a
@@ -223,6 +208,8 @@ module WebSocketHelper
     send_to_client(connection, { "type" => "parameters", "content" => session[:parameters], "from_import" => true }) unless session[:parameters].empty?
     sleep(0.05)
     send_to_client(connection, { "type" => "past_messages", "content" => shown, "from_import" => true })
+    # The app's state, as its notes on the work screen show it.
+    Monadic::TurnState::Notes.refresh(session, show: true, tab: Thread.current[:websocket_session_id])
   end
 
   private def handle_ws_update_params(connection, obj, session)

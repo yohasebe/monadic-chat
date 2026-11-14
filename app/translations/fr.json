@@ -60,7 +60,7 @@
     "categories": {
       "latex": {
         "title": "LaTeX",
-        "help": "Nécessaire pour Concept Visualizer / Syntax Tree",
+        "help": "Nécessaire pour Concept Visualizer",
         "items": { "install": "Installer LaTeX (ensemble minimal pour les diagrammes)" }
       },
       "python": {
@@ -71,7 +71,8 @@
           "spacy": "spaCy (3.7.5)",
           "gensim": "gensim",
           "mediapipe": "mediapipe (CPU uniquement)",
-          "transformers": "transformers (CPU uniquement)"
+          "transformers": "transformers (CPU uniquement)",
+          "plotlyStatic": "Images statiques Plotly (kaleido + Chromium)"
         }
       },
       "music": {
@@ -119,7 +120,7 @@
     "updateUserContainers": "Mettre à jour conteneurs utilisateur",
     "startSeleniumContainer": "Démarrer conteneur Selenium",
     "stopSeleniumContainer": "Arrêter conteneur Selenium",
-    "startJupyterLab": "Démarrer JupyterLab",
+    "openJupyterLab": "Ouvrir JupyterLab",
     "stopJupyterLab": "Arrêter JupyterLab",
     "importDocumentDB": "Importer Document DB",
     "exportDocumentDB": "Exporter Document DB",

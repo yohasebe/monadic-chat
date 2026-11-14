@@ -31,6 +31,23 @@ RSpec.describe "TTS request shapes", :no_api do
     sent.last
   end
 
+  it "leaves pictographs out of the text sent, keeping the words" do
+    host.tts_api_request("Great! \u{1F60A} What do you like \u{1F44D}\u{1F3FD} to do?\u{2764}\u{FE0F}",
+                         provider: "openai-tts-4o", voice: "v1", response_format: "mp3")
+    expect(sent.last[1]["input"]).to eq("Great! What do you like to do?")
+  end
+
+  it "keeps digits, the number sign and line breaks" do
+    host.tts_api_request("Room #12, 3 pm.\nSee you.", provider: "openai-tts-4o", voice: "v1", response_format: "mp3")
+    expect(sent.last[1]["input"]).to eq("Room #12, 3 pm.\nSee you.")
+  end
+
+  it "sends nothing for a text of pictographs only" do
+    expect(host.tts_api_request("\u{1F60A}\u{1F1EF}\u{1F1F5}", provider: "openai-tts-4o", voice: "v1",
+                                                               response_format: "mp3")).to be_nil
+    expect(sent).to be_empty
+  end
+
   it "sends Eleven v3 to the convert endpoint, without previous_text" do
     url, body = speak("elevenlabs-v3", previous_text: "Hi.")
     expect(url).to eq("https://api.elevenlabs.io/v1/text-to-speech/v1?output_format=mp3_44100_128")

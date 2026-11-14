@@ -6,7 +6,7 @@
 
 ![Code Interpreter app icon](../assets/icons/code-interpreter.png ':size=40')
 
-AI に Python のコードを書かせ、Python コンテナで実行させるアプリです。コードが作ったテキストや画像は共有フォルダに保存され、チャットにも表示されます。AI は自分が作ったファイルを覚えているので、後のターンでそれらを参照できます。自分のファイル（スクリプトやデータ）を AI に渡すときは、共有フォルダに置き、メッセージの中でファイル名を伝えてください。
+AI に Python のコードを書かせ、Python コンテナで実行させるアプリです。コードは実行ごとに、会話のフォルダの中の専用のフォルダ（`conversations/…/artifacts/`）で動きます。コードが作ったファイル（画像、ページ、表、音声）はそこに保存されて会話の横の[作業画面](../basic-usage/web-interface.md#work-screen)に表示され、会話にはそのパスが書かれます。AI にもそのパスが伝わるので、後のターンでそれらのファイルを参照できます。自分のファイル（スクリプトやデータ）を AI に渡すときは、共有フォルダに置き、メッセージの中でファイル名を伝えてください。
 
 ?> **注意：** Python コンテナには日本語のフォント（Noto Sans CJK JP）が入っていて、matplotlib はそれを使うように設定されているので、グラフの日本語は正しく表示されます。
 
@@ -17,7 +17,7 @@ Code Interpreter の対応プロバイダーは[モデル対応状況の表](../
 
 ![Coding Assistant app icon](../assets/icons/coding-assistant.png ':size=40')
 
-ソフトウェア開発のためのアシスタントです。コードを書いて直し、共有フォルダのファイルを読み書きします。
+ソフトウェア開発のためのアシスタントです。コードを書いて直し、共有フォルダのファイルを読み書きします。書いたコードは、解説と一緒に 1 つの Markdown の文書として会話の横の[作業画面](../basic-usage/web-interface.md#work-screen)に表示され、いちばん新しい版が表示されます。前の版はそれを書いたターンとともに残ります（**版** で一覧できます）。会話には、コードが何をするか、何を変えたかが書かれます。
 
 **主な機能：**
 - コードの生成と編集
@@ -34,9 +34,9 @@ Coding Assistant の対応プロバイダーは[モデル対応状況の表](../
 
 ![Jupyter Notebook app icon](../assets/icons/jupyter-notebook.png ':size=40')
 
-AI に Jupyter のノートブックを作らせ、頼んだとおりにセルを加えて実行させるアプリです。AI は今のノートブックを覚えているので、いくつものターンにわたって同じノートブックの編集と実行を続けられます。コードは Python コンテナで実行され、ノートブックは共有フォルダに保存されます。
+AI に Jupyter のノートブックを作らせ、頼んだとおりにセルを加えて実行させるアプリです。AI は今のノートブックを覚えているので、いくつものターンにわたって同じノートブックの編集と実行を続けられます。コードは Python コンテナで実行され、ノートブックは共有フォルダに保存されます。AI がノートブックを作ったり変えたりするたびに、ノートブックが[作業画面](../basic-usage/web-interface.md#work-screen)に表示されます。JupyterLab で開くためのアドレスも示されます。
 
-?> JupyterLab の起動と停止は、AI に頼むほか、コンソールの **Actions** メニューの **Start JupyterLab** と **Stop JupyterLab** でもできます。[JupyterLab](../docker-integration/jupyterlab.md) を参照してください。
-<br /><br /><!-- SCREENSHOT: Actionsメニュー - Start JupyterLabとStop JupyterLabのメニュー項目が表示されている様子 -->
+?> JupyterLab は、ページからノートブックを開いたときや、コンソールの **Actions** メニューの **Open JupyterLab** を選んだときに起動します。**Stop JupyterLab** で止まります。AI に起動や停止を頼むこともできます。[JupyterLab](../docker-integration/jupyterlab.md) を参照してください。
+<br /><br /><!-- SCREENSHOT: Actionsメニュー - Open JupyterLabとStop JupyterLabのメニュー項目が表示されている様子 -->
 
 Jupyter Notebook の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。

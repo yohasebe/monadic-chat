@@ -262,17 +262,9 @@ module Monadic
         made = Monadic::Workbench::Record.last_path(session[:messages] || session["messages"])
         return made if made
 
-        params = session_params(session)
-        app_name = params && (params["app_name"] || params[:app_name])
-        ms = monadic_state(session)
-        if app_name
-          entry = ms[app_name] || ms[app_name.to_s]
-          slot = entry && (entry[:last_images] || entry["last_images"])
-          data = slot && (slot[:data] || slot["data"])
-          first = data.is_a?(Array) ? data.first : nil
-          return File.basename(first.to_s) if first && !first.to_s.empty?
-        end
-        nil
+        data = app_state(session, "last_images")
+        first = data.is_a?(Array) ? data.first : nil
+        first && !first.to_s.empty? ? File.basename(first.to_s) : nil
       end
 
       # @param session [Hash]
@@ -304,25 +296,21 @@ module Monadic
 
       # @param session [Hash]
       # @return [String, nil] filename of the current Jupyter notebook, or nil.
-      #   Reads the active app's monadic_state "context" slot, where the Jupyter
+      #   Reads the active app's state "context" (however the app keeps it), where the Jupyter
       #   tools persist "notebook_filename" on create/open.
       def current_notebook(session)
-        params = session_params(session)
-        app_name = params && (params["app_name"] || params[:app_name])
-        return nil unless app_name
-        ms = monadic_state(session)
-        entry = ms[app_name] || ms[app_name.to_s]
-        slot = entry && (entry[:context] || entry["context"])
-        data = slot && (slot[:data] || slot["data"])
-        return nil unless data
+        data = app_state(session, "context")
+        return nil unless data.is_a?(Hash)
         name = data["notebook_filename"] || data[:notebook_filename]
         name && !name.to_s.empty? ? name.to_s : nil
       end
 
-      # @return [Hash] the monadic_state namespace (symbol/string tolerant), or {}
-      def monadic_state(session)
-        return {} unless session.respond_to?(:[])
-        session[:monadic_state] || session["monadic_state"] || {}
+      # @return [Object, nil] the data of key in the active app's state, however
+      #   the app keeps it (Monadic::TurnState.data_of), or nil
+      def app_state(session, key)
+        return nil unless session.respond_to?(:[])
+        require_relative "../turn_state"
+        Monadic::TurnState.data_of(session, key)
       end
 
       # @return [Hash, nil]

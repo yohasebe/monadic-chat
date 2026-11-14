@@ -1,32 +1,24 @@
-# Monadic Mode (Server Side)
+# Session State (Server Side)
 
-The user-facing description is `docs/advanced-topics/monadic-mode.md`. This page lists where the code reads the `monadic` flag and how Session State is stored.
+The user-facing description is `docs/advanced-topics/monadic-mode.md`. This page lists how an app's state is stored and shown.
 
-## Session State Storage
+## Session State Kept by Turn
 
-`Monadic::SharedTools::MonadicSessionState` (`lib/monadic/shared_tools/monadic_session_state.rb`):
+Every app keeps its state from what each reply changed (`Monadic::TurnState`, `lib/monadic/turn_state.rb`), through the tools of `Monadic::SharedTools::MonadicSessionState` (`lib/monadic/shared_tools/monadic_session_state.rb`). An app has state when it includes that module or imports the `session_context` group; no setting turns it on, and `monadic`, `turn_state` and `context_schema` in an MDSL file of an earlier version are read and not used (`SimplifiedFeatureConfiguration::RETIRED`, `monadic` and `context_schema` in `lib/monadic/dsl.rb`).
 
-- `monadic_save_state(app: nil, key:, payload:, session: nil, version: nil)` stores `{data:, version:, updated_at:}` in `session[:monadic_state][app][key]`. The version is the previous one plus 1 unless given.
-- `monadic_load_state(app: nil, key:, default: nil, session: nil)` returns JSON with `success`, `app`, `key`, `version` (0 when nothing is stored), `updated_at` and `data` (`default` when nothing is stored).
-- Errors are returned as `{success: false, error: …}` JSON.
-
-The `session_context` group (`lib/monadic/shared_tools/session_context.rb`) and the tools modules of Chat Plus, Research Assistant, Math Tutor, Novel Writer, Translate, Voice Interpreter, Language Practice Plus, Jupyter Notebook, Image Generator and Video Generator are built on it.
-
-## What `monadic true` Changes
-
-`features do monadic true end` sets `features[:monadic]`, which the app list sends to the UI and the session parameters carry as `monadic`.
-
-| Where | Effect |
-|---|---|
-| UI (`utilities.js`, `ws-app-data-handlers.js`) | Monadic badge |
-| `ws-content-renderer.js` | Passes `isMonadic` to `MarkdownRenderer.render` |
-| `html_handler.rb` | Runs context extraction in a background thread after the response (`process_and_broadcast_context`, with the app's `context_schema`) for the sidebar |
-| `system_prompt_injector.rb` (`__app_is_monadic?`) | Selects the monadic variant of the TTS instruction-mode addendum |
-| `streaming_handler.rb` | No TTS sentinel hold-back for monadic apps |
-| `claude_helper.rb` | No thinking when the model supports structured outputs |
-| `ai_user_agent.rb` | Formats the conversation for the AI User with the flag |
-
-`monadic true` adds no tools; the app imports `session_context` or defines its own load and save tools.
+- `monadic_save_state(app: nil, key:, payload:, session: nil)` and `monadic_load_state(app: nil, key:, default: nil, session: nil)` return JSON with `success`, `app`, `key`, `version` and `updated_at` (and `data` for a load, `default` when nothing is stored); errors are returned as `{success: false, error: …}` JSON.
+- `monadic_save_state`, `monadic_load_state`, `monadic_update_state` (read and change one value with no other change of the reply in between) and `monadic_put_item` / `monadic_remove_item` / `monadic_load_items` (items of a collection, each under an id the server makes) write to the running reply's record. The record is fixed to the reply's chat, epoch and app (`Workbench::Caller.current`); a change without a running reply, to another app's name, or from a second reply of the same chat (`TurnState::Busy`) is refused.
+- `html_handler` seals the record into the message as `state_changes` where it seals `workbench_made` (inside the reply's `:saving`). A reply that ends without its message lets it go (`reply_state` → `TurnState.close`). A record begun before the chat changed under it (`TurnState.changed!`: a message deleted, a file read in, a chat resumed; or the chat's epoch) is let go at the seal.
+- Reading folds the chat's messages oldest first over the base (`session[:monadic_state][app]`: the state the chat began with, e.g. a file of an earlier version): for each value the newest change wins, for each item the newest put or removal (a removal stops the base from showing through). Deleting a turn removes its changes. Items keep the order of their earliest remaining record. The fold is cached per chat until its messages or revision change.
+- `TurnState::Form` (`lib/monadic/turn_state/form.rb`) checks the changes and the base the same way for saving, the history (`History::Serializer` keeps `state_changes` per message and the base as `monadic_state`), shared files (`privacy_clean_messages`; a masked file masks `data`, keys included, and keeps the form) and imports (`session_routes`; what does not fit is left out and counted as `state_dropped`). The client's `state_changes` are dropped (`streaming_handler`).
+- Novel Writer keeps its settings as the value `novel_context`, each character as an item of `characters`, and counts the amount written from the story's sections (`Workbench::Document.section_texts`). A file of an earlier version has its characters made items of the base once, with the ids kept in the base (`_items`, `_ids`).
+- The other apps with a state hold a Hash whose list fields gather entries: `monadic_load_record` / `monadic_save_record` (`lib/monadic/shared_tools/monadic_session_state.rb`) read and save it whole, keeping each entry of a list (`LISTS` in the app's tools: field => the entry's field that names it) as an item and the rest as one value; only entries added, changed or left out are recorded. `monadic_record_base!` turns the lists of a base of an earlier version into items once (Novel Writer uses it too).
+- What reads an app's state outside its tools (`Substitution::Vocabulary` for `${NOTEBOOK}` and the last image, `ToolImageUtils.materialize_session_image`) reads it through `TurnState.data_of`. The video tools name the image they used in the state (`ToolImageUtils.remember_image`), so a deleted turn's image is not used again.
+- `TurnState::Notes` (`lib/monadic/turn_state/notes.rb`) shows an app's state as a Markdown page on the work screen, `<chat folder>/notes/<title>.md`, for an app that declares it in a private `state_notes` (title, the value's key and fields to show with labels, collections with their name field and fields) and may add lines in a private `state_notes_extra(session)`, and a line the page begins with by defining a private `state_notes_lead(session)` (Novel Writer names the story's document there). It is made from the state (each part with the turn of the message that changed it last, `by` in `TurnState.value` / `TurnState.items`), after a reply that changed the state (`html_handler`, shown on the work screen and selected for the reply's tab), when the chat is resumed or read from a file (`send_chat_to_page`) and after a deleted message (`message_editor`, refreshed where shown); with nothing left it is removed and taken off the work screen. The chat's folder is made for a page to show. While the page is there, the `state_notes` prompt rule names it to the model as a page to read, not to write. Novel Writer, Translate, Research Assistant, Math Tutor, Language Practice Plus, Voice Interpreter and the `session_context` group declare it.
+- `TurnState::ModelState` (`lib/monadic/turn_state/model_state.rb`) gives the model the app's state with each request, at the end of the system prompt (the `app_state` prompt rule), so a reply does not begin by loading it. An app says what is given in a private `state_for_model(session)` (`{ data:, load_tool: }`, the data its load tool returns, made in one place). The text says one of three things: the state, as JSON between two lines and said to be data and current; that nothing is saved yet; or that the state is not given (larger than `ModelState::LIMIT`, or it could not be made), naming the load tool when there is one. In a chat that hides words the data is hidden as a tool's result is (`Snapshot#data`). Language Practice Plus and Voice Interpreter declare it.
+- A reply ends with the tool that takes its text (`tts_target :tool_param, tool, parameter`): when that tool succeeded, `TtsTextExtractor.extract_tts_text` marks the session and the provider's `process_functions` (OpenAI, Claude, Cohere) returns `TtsTextExtractor.reply_ended` instead of asking the model again; `streaming_handler` takes the tool's text as the reply's text, without its speech directive.
+- `monadic_log(collection:, entries:)` adds texts to a log: a collection an app only adds to for the user to read on its notes (Language Practice Plus's advice, Voice Interpreter's phrases), which its load tool does not return to the model. A text's id is made from the text (`TurnState.text_id`), so a text is added once.
+- The `session_context` group (`lib/monadic/shared_tools/session_context.rb`, Chat Plus) keeps topics, people and notes as items of the collections of those names, a text's id made from the text; one tool call's changes are made together or not at all (`TurnState.change_all!`).
 
 ## Speech From a Tool Parameter
 
@@ -35,5 +27,4 @@ The `session_context` group (`lib/monadic/shared_tools/session_context.rb`) and 
 ## Related Documentation
 
 - `docs/advanced-topics/monadic-mode.md`
-- `docs/advanced-topics/session-context.md`
 - `docs/advanced-topics/monadic_dsl.md`

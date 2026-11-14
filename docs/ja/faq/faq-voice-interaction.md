@@ -25,7 +25,7 @@
 - **OpenAIモデル**: 精度と機能が異なる複数のモデル。高度なモデルは複数人の音声における話者識別（ダイアライゼーション）をサポートします。
 - **Google Gemini**: 柔軟な言語認識と多言語サポートによる高度な音声理解を提供します。
 - **ElevenLabs Scribe**: 単語レベルのタイムスタンプを備えた高精度の音声認識。ElevenLabs APIキーが必要です。
-- **Cohere**: Cohere Transcribeモデルによる音声認識。Cohere APIキーが必要です。
+- **Cohere**: Cohere Transcribeモデルによる音声認識。Cohere APIキーが必要です。このモデルは言語を自動判定しません。**Conversation Language** が自動のときは、UI言語で認識します。
 - **Mistral Voxtral**: MistralのVoxtral Transcribeモデルによる音声認識。Mistral APIキーが必要です。
 - **xAI**: xAIによる音声認識。xAI APIキーが必要です。
 

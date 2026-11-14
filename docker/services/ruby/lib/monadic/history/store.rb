@@ -66,16 +66,13 @@ module Monadic
       # or nil when the write is not taken: the chat is deleted or Private,
       # another tab has it (it was resumed there), or `generation` is older
       # than that of the tab's connection that wrote last. The time of the
-      # last activity moves only when the number of messages changes, so a
-      # Session Context that arrives later does not reorder the list.
+      # last activity moves only when the number of messages changes.
       #
-      # `context`, when given, is called inside the transaction for the
-      # Session Context as it is now: it is saved in place of the payload's
-      # (which was read before), and :absent keeps what was saved (the chat's
-      # context is no longer held: what was saved last is its latest).
-      # `word_table` is read the same way.
+      # `word_table`, when given, is called inside the transaction for the
+      # chat's word table as it is now: it is saved in place of the payload's
+      # (which was read before), and :absent keeps what was saved.
       def save(chat_id, payload, tab: nil, generation: nil, app_name: nil, model: nil, headings: [nil, nil],
-               search_text: nil, context: nil, word_table: nil, now: Time.now)
+               search_text: nil, word_table: nil, now: Time.now)
         count = payload['messages'].length
         stamp = now.utc.iso8601
         synchronize do |db|
@@ -86,7 +83,6 @@ module Monadic
             next nil if row && !writer?(row, tab, generation)
 
             saved = row && JSON.parse(row['payload'])
-            payload = with_context(payload, context.call, saved) if context
             payload = with_word_table(payload, word_table.call, saved) if word_table
             json = JSON.generate(payload)
             if row
@@ -197,28 +193,6 @@ module Monadic
         end
       end
 
-      # The saved conversation's Session Context, set from what `context`
-      # gives inside the transaction (see save). Only a conversation saved
-      # already is changed; the file is not created. Returns the revision
-      # written, or nil.
-      def update_context(chat_id, context)
-        synchronize(create: false) do |db|
-          db.transaction(:immediate) do
-            row = db.get_first_row('SELECT revision, payload FROM history_chats WHERE chat_id = ?', [chat_id])
-            next nil unless row
-
-            saved = JSON.parse(row['payload'])
-            payload = with_context(saved, context.call, saved)
-            next nil if payload == saved
-
-            revision = row['revision'] + 1
-            db.execute('UPDATE history_chats SET payload = ?, revision = ?, updated_at = ? WHERE chat_id = ?',
-                       [JSON.generate(payload), revision, Time.now.utc.iso8601, chat_id])
-            revision
-          end
-        end
-      end
-
 
       # Removes the chat's row without a tombstone: the chat has nothing left
       # to keep for now (its user messages were removed), and what it says
@@ -259,13 +233,6 @@ module Monadic
       end
 
       private
-
-      # The payload with the Session Context given (:absent: the one saved,
-      # or else the payload's own; nil: none).
-      def with_context(payload, context, saved)
-        context = (saved || payload)['session_context'] if context == :absent
-        context.nil? ? payload.except('session_context') : payload.merge('session_context' => context)
-      end
 
       # The payload with the word table given (:absent: the one saved, or
       # else the payload's own). The key says the chat hides its words with

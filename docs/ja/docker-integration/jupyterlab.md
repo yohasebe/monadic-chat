@@ -4,12 +4,14 @@ Monadic Chat は、Python によるデータの分析と可視化の環境であ
 
 ## JupyterLab の起動
 
-Monadic Chat のコンソールで **Actions → Start JupyterLab** を選びます。このメニューは、Monadic Chat が動いている間に使えます。
+Monadic Chat のコンソールで **Actions → Open JupyterLab** を選びます。JupyterLab が動いていなければ起動し、ブラウザーで開きます。このメニューは、Monadic Chat が動いている間に使えます。
+
+ページからノートブックを開いたときにも、JupyterLab が起動します。会話の中のノートブックのリンクか、[作業画面](../basic-usage/web-interface.md#work-screen)に表示したノートブックの下の **JupyterLab で開く** を押してください。ページは JupyterLab を起動していることを表示し、準備ができるとノートブックを開きます。履歴から会話を開いたときや、AI がノートブックを作って実行したときには、JupyterLab は起動しません。
 
 - JupyterLab は [http://localhost:8889](http://localhost:8889)（または [http://127.0.0.1:8889](http://127.0.0.1:8889)）で開きます
 - パスワードやトークンは要りません。JupyterLab には、お使いのコンピューターからだけ接続できます
 
-<!-- SCREENSHOT: Monadic Chat Actions menu showing Start JupyterLab and Stop JupyterLab options -->
+<!-- SCREENSHOT: Monadic Chat Actions menu showing Open JupyterLab and Stop JupyterLab options -->
 
 JupyterLab は共有フォルダ（`/monadic/data`）で起動するので、`~/monadic/data` に置いたファイルをそこで使えます。
 
@@ -24,10 +26,16 @@ JupyterLab は共有フォルダ（`/monadic/data`）で起動するので、`~/
 Jupyter Notebook アプリでは、チャットで AI エージェントにノートブックの作業を頼みます。エージェントは次のことができます。
 
 - JupyterLab の起動と停止
-- 共有フォルダでのノートブックの作成と、既存のノートブックの一覧
+- 会話のフォルダ（共有フォルダの `conversations/…/work/`）でのノートブックの作成と、その会話のノートブックの一覧
 - セルの追加、編集、移動、削除と、セルの実行
 - セルの出力の読み取りと、エラーになったセルの修正
-- カーネルの再起動と中断
+- ノートブックに残っている出力の消去
+
+エージェントが扱うのは、今の会話のノートブックです。共有フォルダの一番上にあるノートブックを扱うときは、`./analysis.ipynb` のように名前の前に `./` を付けて伝えます。履歴から続ける会話でも、その会話のノートブックはそのまま使えます。
+
+エージェントが作ったり変えたりしたノートブックは、セルの出力（グラフを含む）と一緒に[作業画面](../basic-usage/web-interface.md#work-screen)に表示されます。
+
+実行するたびに新しいカーネルが立ち上がり、ノートブックのすべてのセルを実行します。実行を止めるには **Cancel Query** を押します。
 
 いくつもの手順がある作業では、アプリはまず番号付きの計画を示し、承認を待ってから実行します。
 

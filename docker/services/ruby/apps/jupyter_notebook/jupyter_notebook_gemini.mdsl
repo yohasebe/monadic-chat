@@ -106,7 +106,7 @@ app "JupyterNotebookGemini" do
 
     CORRECT approach (ALWAYS DO):
     - User: "Create a data analysis notebook"
-    - You: [Actually execute] run_jupyter → create_and_populate_jupyter_notebook(filename:, cells:)
+    - You: [Actually execute] create_and_populate_jupyter_notebook(filename:, cells:)
     - Return: "I've created the notebook 'data_analysis.ipynb' with pandas, numpy, and matplotlib imported. [link]"
 
     IMPORTANT: When creating a new notebook WITH code, ALWAYS use `create_and_populate_jupyter_notebook`
@@ -118,18 +118,15 @@ app "JupyterNotebookGemini" do
     **MANDATORY**: After ANY successful notebook operation (create, add cells, delete cells, update cells),
     you MUST ALWAYS include the clickable notebook link in your response.
 
-    Example responses:
-    - "Notebook created successfully! Access it here: <a href='http://127.0.0.1:8889/lab/tree/my_notebook_20251230_123456.ipynb' target='_blank'>my_notebook_20251230_123456.ipynb</a>"
-    - "Cells added to notebook. View the updated notebook: <a href='http://127.0.0.1:8889/lab/tree/my_notebook.ipynb' target='_blank'>my_notebook.ipynb</a>"
-
-    The link format is: <a href='http://127.0.0.1:8889/lab/tree/FILENAME.ipynb' target='_blank'>FILENAME.ipynb</a>
+    Link to the address the tool returned after "Access it at:", with the notebook's name as the text:
+    - "Notebook created. Open it in JupyterLab: <a href='ADDRESS' target='_blank'>analysis.ipynb</a>"
 
     NEVER respond with just "Notebook created" or "Cells added" without the clickable link.
     The user needs the link to access the notebook in JupyterLab.
 
     BATCH PROCESSING: Execute multiple related operations in a SINGLE response!
-    1. If JupyterLab is not running AND notebook doesn't exist:
-       - Start Jupyter → Create notebook → Add initial cells → ALL IN ONE RESPONSE
+    1. If the notebook doesn't exist:
+       - Create notebook → Add initial cells → ALL IN ONE RESPONSE
     2. If adding multiple cells or imports:
        - Add ALL related cells in ONE call to `add_jupyter_cells`
     3. NEVER just describe what could be done - ALWAYS DO IT
@@ -162,14 +159,15 @@ app "JupyterNotebookGemini" do
     7. If still failing after 2 attempts, report the issue to the user with error details
 
     TOOL LOOP PREVENTION:
-    - NEVER call `run_jupyter` if the result already says "JupyterLab is running" — it is idempotent
+    - Creating and running a notebook does not need JupyterLab: do not call `run_jupyter` for it. Call it only when the user asks to start or stop JupyterLab; the notebook's link opens JupyterLab when the user clicks it
     - NEVER restart Jupyter just because a notebook already exists — reuse the existing notebook
     - If you find yourself about to call the same tool you just called, STOP and return a response instead
 
     Advanced notebook management:
-    - `restart_jupyter_kernel`: Restart kernel and clear all outputs when notebook state is problematic
-    - `move_jupyter_cell`: Reorganize notebook by moving cells (from_index, to_index)
-    - `insert_jupyter_cells`: Insert cells at specific positions (index, cells array)
+    - `clear_jupyter_outputs`: Clear the outputs the notebook keeps (each run starts a new kernel; the user stops a run with Cancel)
+    - A notebook runs in its own folder: in cells, name files of the shared folder by their full path under /monadic/data/ (for example /monadic/data/conversations/…/inputs/data.csv)
+    - `move_jupyter_cell`: Move a cell so that it ends at to_index (0-based); it keeps its outputs and nothing runs
+    - `insert_jupyter_cells`: Insert cells before the cell at index (0-based; the number of cells adds them at the end); with run, the whole notebook runs again
 
     IMPORTANT: DO NOT repeatedly execute the same cells or similar code:
     - Each cell should be executed ONCE unless fixing an error
@@ -217,16 +215,9 @@ app "JupyterNotebookGemini" do
   features do
     library_search false
     disabled !CONFIG["GEMINI_API_KEY"]
-    monadic true
     jupyter true
     initiate_from_assistant true
     auto_speech false
-  end
-
-  context_schema do
-    field :topics, icon: "fa-tags", label: "Topics", description: "Main subjects and analysis goals"
-    field :code, icon: "fa-code", label: "Code", description: "Key libraries and techniques used"
-    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important findings and results"
   end
 
   tools do
@@ -250,7 +241,7 @@ app "JupyterNotebookGemini" do
 
     # Combined notebook creation + cell population (preferred for Gemini)
     define_tool "create_and_populate_jupyter_notebook", "Create a new Jupyter notebook and add code/markdown cells in a single operation. ALWAYS use this instead of separate create + add calls." do
-      parameter :filename, "string", "Name for the notebook (timestamp will be appended automatically)", required: true
+      parameter :filename, "string", "Name for the notebook (made in this chat's folder; a name already used gets a number)", required: true
       parameter :cells, "array", "Array of cell objects, each with 'cell_type' ('code' or 'markdown') and 'source' (string or array of strings)", required: true
       parameter :run, "boolean", "Whether to execute the cells after adding (default: true)", required: false
     end

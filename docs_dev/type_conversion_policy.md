@@ -6,7 +6,7 @@ App settings reach the browser through `prepare_apps_data` (`lib/monadic/utils/w
 
 | Setting | Sent as |
 |---|---|
-| `auto_speech`, `easy_submit`, `initiate_from_assistant`, `math`, `mermaid`, `abc`, `monadic`, `pdf_vector_storage`, `websearch`, `jupyter`, `image_generation`, `video`, `audio_upload`, `library_save`, `library_search` | The value as is (booleans stay booleans) |
+| `auto_speech`, `easy_submit`, `initiate_from_assistant`, `math`, `mermaid`, `abc`, `pdf_vector_storage`, `websearch`, `jupyter`, `image_generation`, `video`, `audio_upload`, `library_save`, `library_search` | The value as is (booleans stay booleans) |
 | `models` (Array) | JSON string; for Ollama apps, the installed Ollama models when the list is available |
 | `tools` (Array or Hash) | JSON string |
 | `imported_tool_groups` (Array) | JSON string, each group with `available` from `MonadicSharedTools::Registry.available?` |

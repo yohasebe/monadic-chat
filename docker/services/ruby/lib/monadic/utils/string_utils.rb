@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require 'cld'
 require 'csv'
 require 'commonmarker'
 require_relative 'extra_logger'

@@ -2525,7 +2525,6 @@ module WebSocketHelper
       "text" => text,
       "lang" => detect_language(text),
       "app_name" => params["app_name"],
-      "monadic" => params["monadic"],
       "active" => true
     }
     new_data["interrupted"] = true if interrupted

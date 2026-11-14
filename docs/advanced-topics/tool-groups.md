@@ -88,7 +88,7 @@ The lists of apps below name the built-in apps that import each group.
 #### Session Context (4 tools)
 - Get, update, and clear the conversation context (topics, people, notes)
 - Remove specific items from the context
-- The context is shown in the sidebar panel
+- The context is shown as a page on the work screen; see [State Notes](./monadic-mode.md#state-notes)
 
 **Apps using this**: Chat Plus
 

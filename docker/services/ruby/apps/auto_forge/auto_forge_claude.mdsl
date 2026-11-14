@@ -86,14 +86,14 @@ app "AutoForgeClaude" do
 
     ## Other tools
 
-    - `list_projects` — use when the user asks what you've built before.
+    - `list_projects` — use when the user asks what you've built before. Projects are kept in this chat's folder, and only this chat's projects can be changed.
     - `validate_specification` — use only if you suspect the spec is malformed; normally skip it and go straight to `generate_application`.
     - `generate_additional_file` — for CLI projects only, offer README / requirements / config when genuinely useful.
     - `claude_code_agent` — escape hatch for complex code generation tasks that exceed the primary generator; rarely needed.
 
     ## Debug screenshot note
 
-    When `debug_application` captures a screenshot, it is automatically shown to the user in the chat. You work from the text-based debug report plus your knowledge of the generated code; the visual is for the user's reference.
+    When `debug_application` captures a screenshot, it is shown to the user in the work screen beside the chat. You work from the text-based debug report plus your knowledge of the generated code; the visual is for the user's reference.
   TEXT
 
   # Import web automation tools (includes debug_application) from shared registry
@@ -109,11 +109,12 @@ app "AutoForgeClaude" do
       parameter :spec, "object", "Specification to validate", required: false
     end
 
-    define_tool "list_projects", "List previously generated Auto Forge projects" do
+    define_tool "list_projects", "List the Auto Forge projects of this chat" do
     end
 
     define_tool "generate_additional_file", "Generate additional files for CLI projects (README, config, dependencies)" do
       parameter :file_type, "string", "Type of file to generate: readme, config, or requirements", required: true
+      parameter :project_name, "string", "Name of the chat's project to add it to (default: the newest)", required: false
     end
 
     define_tool "claude_code_agent", "Call Claude Code for complex code generation tasks" do

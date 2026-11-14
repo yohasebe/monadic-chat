@@ -19,16 +19,16 @@ When Auto Speech is on, the system prompt tells the model how to shape its reply
 
 ## System Prompt
 
-Two rules in `SystemPromptInjector` (`lib/monadic/utils/system_prompt_injector.rb`), both off unless `__expressive_speech_active?` is true (Auto Speech on, and the app has not set `expressive_speech false` in its MDSL `features`):
+Two rules in `SystemPromptInjector` (`lib/monadic/utils/system_prompt_injector.rb`), both off unless `__expressive_speech_active?` is true (Auto Speech on, the app has not set `expressive_speech false` in its MDSL `features`, and the session's `json` parameter is not set):
 
 | Rule | Priority | Condition | Text |
 |---|---|---|---|
-| `:expressive_speech` | 30 | marker family or `openai-instruction` | `TtsMarkerVocabulary.prompt_addendum_for(provider, app_is_monadic:)` |
+| `:expressive_speech` | 30 | marker family or `openai-instruction` | `TtsMarkerVocabulary.prompt_addendum_for(provider)` |
 | `:plain_voice_enforcement` | 29 | any other selected provider | "output plain prose only", and ignore markers in earlier turns |
 
 `TtsMarkerVocabulary` (`lib/monadic/utils/tts_marker_vocabulary.rb`) holds the marker lists in `VOCABULARIES` (`xai`, `elevenlabs-v3`, `gemini`). `prompt_addendum_for` returns:
 
-- `hybrid_addendum_for` for `gemini` (markers plus an optional directive: a `tts_instructions` field in Monadic apps, a leading `<<TTS:...>>` block otherwise);
+- `hybrid_addendum_for` for `gemini` (markers plus an optional directive in a leading `<<TTS:...>>` block);
 - `marker_addendum_for` for `xai` and `elevenlabs-v3`;
 - `instruction_addendum` for `openai-instruction`;
 - nil otherwise.
@@ -92,7 +92,7 @@ Give a family key only to the engine versions that interpret markers; other vers
 |---|---|
 | `spec/unit/utils/tts_text_processors_spec.rb` | `family_for`, translation, display sanitizers |
 | `spec/unit/utils/tts_marker_vocabulary_spec.rb` | vocabularies, addendum contents |
-| `spec/unit/utils/tts_instruction_extractor_spec.rb` | `<<TTS:...>>` and JSON extraction |
+| `spec/unit/utils/tts_instruction_extractor_spec.rb` | `<<TTS:...>>` extraction |
 | `spec/unit/utils/system_prompt_injector_spec.rb` | `:expressive_speech` / `:plain_voice_enforcement` conditions, MDSL opt-out |
 | `spec/unit/utils/tts_registry_sync_spec.rb` | Ruby and JS lists agree |
 | `test/frontend/tts-tag-sanitizer.test.js` | JS sanitizer |

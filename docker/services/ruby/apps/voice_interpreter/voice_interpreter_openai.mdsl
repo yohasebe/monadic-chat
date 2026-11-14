@@ -49,19 +49,22 @@ app "VoiceInterpreterOpenAI" do
 
     ## Context Tracking (Recommended)
     You have tools to track translation context:
-    - `load_context`: Check current target language setting
+    - `load_context`: Read the saved languages (only when the saved state is said to be not given here)
     - `set_target_language`: Set or update target language
     - `save_translation`: Save your translation (the message will be used for TTS)
 
-    Use these tools when appropriate during translation work.
+    The saved state (the source and target languages) is given to you at the end of these instructions with each message, so you do not load it.
 
     ## Translation Workflow
     After the user specifies a target language:
     1. Call `set_target_language` to save their preference
     2. For each translation request, translate and call `save_translation` with:
        - message: THE TRANSLATION ONLY (no preambles, no explanations)
+       - original: the user's words that you translated, as they said them
        - source_lang: detected source language
        - target_lang: current target language
+
+    The user sees each pair (their words and your translation) as a phrase list on the work screen. Give `original` only when the message is a translation; leave it out when the message is a confirmation or a question of yours.
 
     ## Response Guidelines
     - Provide ONLY the direct translation without explanatory text
@@ -85,7 +88,7 @@ app "VoiceInterpreterOpenAI" do
     - ❌ Wrong: `save_translation(message: "Japanese to English please")` (user's request - NEVER do this)
 
     ## Tool Usage Tips
-    - Call `load_context` when you need to check the current target language
+    - The current target language is in the saved state at the end of these instructions
     - The `message` in `save_translation` will be spoken aloud via TTS - always use YOUR text, not the user's
   TEXT
 
@@ -95,14 +98,7 @@ app "VoiceInterpreterOpenAI" do
     easy_submit true
     auto_speech true
     initiate_from_assistant true
-    monadic true  # Uses Session State mechanism for context tracking
     tts_target :tool_param, "save_translation", "message"
-  end
-
-  context_schema do
-    field :languages, icon: "fa-language", label: "Languages", description: "Source and target languages"
-    field :phrases, icon: "fa-comment", label: "Phrases", description: "Key phrases translated"
-    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Translation notes"
   end
 
   tools do
@@ -112,6 +108,7 @@ app "VoiceInterpreterOpenAI" do
 
     define_tool "save_translation", "Save translation and context to session state. The message parameter is used for TTS playback." do
       parameter :message, "string", "The translated text or response (will be used for TTS)", required: true
+      parameter :original, "string", "The user's words that the message translates, as they said them. Leave it out when the message is not a translation", required: false
       parameter :source_lang, "string", "Detected source language of the input", required: false
       parameter :target_lang, "string", "Target language for translation", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false

@@ -224,6 +224,26 @@ describe('Workbench', () => {
     ]);
   });
 
+  describe('a chat continued from the history', () => {
+    test('shows the work screen when its board has something on it', () => {
+      window.Workbench.expectResumed('c_1');
+      view([item()], { selected: null });
+      expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
+      expect(window.LayoutController.setMenuHidden).not.toHaveBeenCalled();
+    });
+
+    test('keeps the pane when the board is empty, and only for the board of that chat', () => {
+      window.Workbench.expectResumed('c_1');
+      view([], { selected: null });
+      view([item()], { selected: null });
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+
+      window.Workbench.expectResumed('c_2');
+      view([item()], { selected: null });
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+    });
+  });
+
   describe('saving a copy', () => {
     let clicked;
 
@@ -459,6 +479,53 @@ describe('Workbench', () => {
       sent.length = 0;
       Array.from(pane.querySelectorAll('button')).find((b) => b.textContent.includes('as it is now')).click();
       expect(sent[0].payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'reports/notes.txt' });
+      expect(Array.from(pane.querySelectorAll('button')).some((b) => b.textContent === 'Reload')).toBe(false);
+    });
+
+    test('reads a file shown as it is again when the user asks to reload it', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      view([file()]);
+      const pane = document.getElementById('workbench-view');
+      sent.length = 0;
+      Array.from(pane.querySelectorAll('button')).find((b) => b.textContent === 'Reload').click();
+      expect(sent[0].payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'reports/notes.txt' });
+    });
+
+    test('lists the versions of a document, newest first, and opens the one chosen', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      const doc = 'conversations/c_1/documents/reply-to-tanaka.md';
+      view([file({ path: doc, name: 'reply-to-tanaka.md' })]);
+      const pane = document.getElementById('workbench-view');
+      sent.length = 0;
+      Array.from(pane.querySelectorAll('button')).find((b) => b.textContent === 'Versions').click();
+      expect(sent[0].payload).toEqual({ message: 'WORKBENCH_VERSIONS', path: doc });
+      window.Workbench.onVersions({ type: 'workbench_versions', path: doc, versions: [
+        { section: 'draft', path: 'conversations/c_1/artifacts/j_1/reply-to-tanaka--draft.md', version: 1 },
+        { section: 'draft', path: 'conversations/c_1/artifacts/j_2/reply-to-tanaka--draft.md', version: 2 }
+      ] });
+      const entries = Array.from(pane.querySelectorAll('.workbench-versions button'));
+      expect(entries.map((e) => e.textContent)).toEqual(['§ draft — version 2', '§ draft — version 1']);
+      sent.length = 0;
+      entries[1].click();
+      expect(sent[0].payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'conversations/c_1/artifacts/j_1/reply-to-tanaka--draft.md' });
+    });
+
+    test('asks for the versions again when the board changes while they are listed', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      const doc = 'conversations/c_1/documents/reply-to-tanaka.md';
+      view([file({ path: doc, name: 'reply-to-tanaka.md' })]);
+      const pane = document.getElementById('workbench-view');
+      Array.from(pane.querySelectorAll('button')).find((b) => b.textContent === 'Versions').click();
+      sent.length = 0;
+      view([file({ path: doc, name: 'reply-to-tanaka.md', sha256: 'b'.repeat(64) })]);
+      expect(sent.map((s) => s.payload)).toContainEqual({ message: 'WORKBENCH_VERSIONS', path: doc });
+    });
+
+    test('offers no versions for a file that is not a document', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      view([file()]);
+      const pane = document.getElementById('workbench-view');
+      expect(Array.from(pane.querySelectorAll('button')).some((b) => b.textContent === 'Versions')).toBe(false);
     });
   });
   describe('the browser as an item', () => {
@@ -1146,6 +1213,42 @@ describe('Workbench', () => {
       expect(window.setAlert).toHaveBeenCalledWith(expect.stringContaining('changed after it was shown'), 'warning');
       window.Workbench.drawShown('m-1', []);
       expect(el.querySelector('.workbench-shown-note')).toBeNull();
+    });
+
+    test('opens a document from the line for one of its sections, as it is now, at that section', async () => {
+      const el = card('m-2');
+      window.WorkbenchRender.draw = jest.fn((box) => {
+        box.innerHTML = '<div class="workbench-markdown"><h1>Story</h1><h6>§ 1</h6><p>One.</p><hr><h6>§ 2</h6><p>Two.</p></div>';
+        return { done: Promise.resolve(), dispose: jest.fn() };
+      });
+      const entry = { path: 'conversations/c/documents/story.md', name: 'story.md', sha256: 'a'.repeat(64),
+                      preview: 'text', render: 'markdown', section: '2' };
+      window.Workbench.drawShown('m-2', [entry]);
+      const button = el.querySelector('.workbench-shown-note button');
+      expect(button.textContent).toBe('story.md § 2');
+      sent.length = 0;
+      button.click();
+      // Not on the work screen yet: the document is opened as it is now.
+      expect(payloads()).toEqual([{ message: 'WORKBENCH_OPEN', path: entry.path }]);
+
+      layout.pane = 'work';
+      const story = doc({ id: 'i_s', name: 'story.md', path: entry.path, sha256: 'b'.repeat(64), version: 'b'.repeat(64) });
+      const marks = [];
+      const rect = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = function () {
+        if (this.tagName === 'H6') marks.push(this.textContent);
+        return { top: this.tagName === 'H6' && this.textContent === '§ 2' ? 300 : 100 };
+      };
+      try {
+        viewDoc([story]);
+        await settle();
+        await settle();
+        const box = document.querySelector('#workbench-view .workbench-rendered');
+        expect(marks).toContain('§ 2');
+        expect(box.scrollTop).toBe(200);
+      } finally {
+        Element.prototype.getBoundingClientRect = rect;
+      }
     });
   });
 });

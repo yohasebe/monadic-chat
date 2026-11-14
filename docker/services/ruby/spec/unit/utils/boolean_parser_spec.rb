@@ -97,7 +97,7 @@ RSpec.describe BooleanParser do
       input = {
         "websearch" => "true",
         "auto_speech" => "false",
-        "monadic" => true,
+        "jupyter" => true,
         "temperature" => 0.7,
         "model" => "gpt-4"
       }
@@ -106,7 +106,7 @@ RSpec.describe BooleanParser do
       
       expect(result["websearch"]).to eq(true)
       expect(result["auto_speech"]).to eq(false)
-      expect(result["monadic"]).to eq(true)
+      expect(result["jupyter"]).to eq(true)
       expect(result["temperature"]).to eq(0.7)
       expect(result["model"]).to eq("gpt-4")
     end

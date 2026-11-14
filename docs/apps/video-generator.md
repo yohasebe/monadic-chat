@@ -18,7 +18,7 @@ Create videos from text descriptions (text-to-video) or from an image (image-to-
 1. For text-to-video: describe the video you want. Include the shot type, subject, action, setting, lighting, and camera movement
 2. For image-to-video: upload an image and describe how it should move
 
-?> **Note:** Generated videos are saved in the shared folder and shown in the chat.
+?> **Note:** Generated videos are kept in the chat's folder in the shared folder and shown on the work screen beside the chat.
 
 **Example requests:**
 - "Create a video of a sunset over mountains" → text-to-video

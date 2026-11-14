@@ -83,45 +83,6 @@ class JupyterNotebookOpenAI < MonadicApp
     result
   end
 
-  # Override create_jupyter_notebook to auto-save state
-  def create_jupyter_notebook(filename:, session: nil)
-    # JupyterOperations accepts session but doesn't pass it to MonadicHelper
-    result = super(filename: filename, session: session)
-
-    # Auto-save notebook context
-    # Note: create_jupyter_notebook returns a string, not a hash, so check for success differently
-    success = result.is_a?(String) && result.include?("successfully")
-    if session && respond_to?(:monadic_save_state) && success
-      begin
-        app_key = session.dig(:parameters, "app_name") || "JupyterNotebookOpenAI"
-
-        # Extract actual filename with timestamp from the result string
-        # Format: "Notebook example_20241101_120000.ipynb created successfully..."
-        actual_filename = if result =~ /Notebook\s+(\S+\.ipynb)/
-                            $1
-                          else
-                            filename.to_s.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
-                          end
-
-        # Load existing context and update
-        existing = monadic_load_state(app: app_key, key: "context", session: session)
-        existing_data = JSON.parse(existing).dig("data") || {} rescue {}
-
-        new_context = existing_data.merge({
-          "jupyter_running" => true,
-          "notebook_created" => true,
-          "notebook_filename" => actual_filename,
-          "link" => "<a href='http://localhost:8889/lab/tree/#{actual_filename}' target='_blank'>#{actual_filename}</a>"
-        })
-
-        monadic_save_state(app: app_key, key: "context", payload: new_context, session: session)
-      rescue => e
-        # Ignore state saving errors
-      end
-    end
-
-    result
-  end
 end
 
 class JupyterNotebookClaude < MonadicApp
@@ -159,39 +120,6 @@ class JupyterNotebookClaude < MonadicApp
     result
   end
 
-  # Override create_jupyter_notebook to auto-save state
-  def create_jupyter_notebook(filename:, session: nil)
-    result = super(filename: filename, session: session)
-
-    success = result.is_a?(String) && result.include?("successfully")
-    if session && respond_to?(:monadic_save_state) && success
-      begin
-        app_key = session.dig(:parameters, "app_name") || "JupyterNotebookClaude"
-
-        actual_filename = if result =~ /Notebook\s+(\S+\.ipynb)/
-                            $1
-                          else
-                            filename.to_s.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
-                          end
-
-        existing = monadic_load_state(app: app_key, key: "context", session: session)
-        existing_data = JSON.parse(existing).dig("data") || {} rescue {}
-
-        new_context = existing_data.merge({
-          "jupyter_running" => true,
-          "notebook_created" => true,
-          "notebook_filename" => actual_filename,
-          "link" => "<a href='http://localhost:8889/lab/tree/#{actual_filename}' target='_blank'>#{actual_filename}</a>"
-        })
-
-        monadic_save_state(app: app_key, key: "context", payload: new_context, session: session)
-      rescue => e
-        # Ignore state saving errors
-      end
-    end
-
-    result
-  end
 end
 
 class JupyterNotebookGemini < MonadicApp
@@ -229,39 +157,6 @@ class JupyterNotebookGemini < MonadicApp
     result
   end
 
-  # Override create_jupyter_notebook to auto-save state
-  def create_jupyter_notebook(filename:, session: nil)
-    result = super(filename: filename, session: session)
-
-    success = result.is_a?(String) && result.include?("successfully")
-    if session && respond_to?(:monadic_save_state) && success
-      begin
-        app_key = session.dig(:parameters, "app_name") || "JupyterNotebookGemini"
-
-        actual_filename = if result =~ /Notebook\s+(\S+\.ipynb)/
-                            $1
-                          else
-                            filename.to_s.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
-                          end
-
-        existing = monadic_load_state(app: app_key, key: "context", session: session)
-        existing_data = JSON.parse(existing).dig("data") || {} rescue {}
-
-        new_context = existing_data.merge({
-          "jupyter_running" => true,
-          "notebook_created" => true,
-          "notebook_filename" => actual_filename,
-          "link" => "<a href='http://localhost:8889/lab/tree/#{actual_filename}' target='_blank'>#{actual_filename}</a>"
-        })
-
-        monadic_save_state(app: app_key, key: "context", payload: new_context, session: session)
-      rescue => e
-        # Ignore state saving errors
-      end
-    end
-
-    result
-  end
 end
 
 class JupyterNotebookGrok < MonadicApp
@@ -299,39 +194,6 @@ class JupyterNotebookGrok < MonadicApp
     result
   end
 
-  # Override create_jupyter_notebook to auto-save state
-  def create_jupyter_notebook(filename:, session: nil)
-    result = super(filename: filename, session: session)
-
-    success = result.is_a?(String) && result.include?("successfully")
-    if session && respond_to?(:monadic_save_state) && success
-      begin
-        app_key = session.dig(:parameters, "app_name") || "JupyterNotebookGrok"
-
-        actual_filename = if result =~ /Notebook\s+(\S+\.ipynb)/
-                            $1
-                          else
-                            filename.to_s.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
-                          end
-
-        existing = monadic_load_state(app: app_key, key: "context", session: session)
-        existing_data = JSON.parse(existing).dig("data") || {} rescue {}
-
-        new_context = existing_data.merge({
-          "jupyter_running" => true,
-          "notebook_created" => true,
-          "notebook_filename" => actual_filename,
-          "link" => "<a href='http://localhost:8889/lab/tree/#{actual_filename}' target='_blank'>#{actual_filename}</a>"
-        })
-
-        monadic_save_state(app: app_key, key: "context", payload: new_context, session: session)
-      rescue => e
-        # Ignore state saving errors
-      end
-    end
-
-    result
-  end
 end
 
 # Shared utilities for Jupyter Notebook apps

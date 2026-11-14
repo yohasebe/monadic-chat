@@ -81,7 +81,7 @@ function handleHtml(data) {
     } else if (data["content"]["text"]) {
       // Client-side rendering with MarkdownRenderer
       html = window.MarkdownRenderer ?
-        window.MarkdownRenderer.render(data["content"]["text"], { appName: data["content"]["app_name"] }) :
+        window.MarkdownRenderer.render(data["content"]["text"]) :
         data["content"]["text"];
     } else {
       console.error("Message has neither html nor text field:", data["content"]);

@@ -72,7 +72,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "pandoc-ruby"
   spec.add_dependency "parallel"
   spec.add_dependency "parslet"
-  # Conversation history store; pinned: the image installs from this file without the lock.
+  # Conversation history store
   spec.add_dependency "sqlite3", "2.9.6"
   spec.add_dependency "twitter_cldr"
   spec.add_dependency "rack", "~> 3.2"
@@ -81,7 +81,4 @@ Gem::Specification.new do |spec|
   spec.add_dependency "sinatra", "~> 4.2"
   spec.add_dependency "falcon", "~> 0.51"
   spec.add_dependency "tiktoken_ruby", "~> 0.0.15"
-
-  # Uncomment to use RSyntaxTree
-  # spec.add_dependency "rsyntaxtree"
 end

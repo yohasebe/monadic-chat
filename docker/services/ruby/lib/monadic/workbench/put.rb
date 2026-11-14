@@ -3,6 +3,7 @@
 require 'digest'
 require_relative 'board'
 require_relative 'shown'
+require_relative 'made'
 require_relative '../workspace/chats'
 require_relative '../workspace/folders'
 require_relative '../workspace/shared_folder_preview'
@@ -58,7 +59,10 @@ module Monadic
         handle = WebSocketHelper::Replies.find(caller.request_id)
         slot = slot_for(handle, caller.request_id, name, Digest::SHA256.hexdigest(bytes))
         slot[:mutex].synchronize do
-          slot[:path] ||= write(caller, handle, name, bytes)
+          unless slot[:path]
+            slot[:path] = write(caller, handle, name, bytes)
+            Made.add(caller.request_id, slot[:path], chat_id: caller.chat_id)
+          end
           show(caller, handle, slot)
         end
       end

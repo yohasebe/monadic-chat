@@ -4,12 +4,14 @@ Monadic Chat can start JupyterLab, an environment for data analysis and visualiz
 
 ## Launching JupyterLab
 
-Choose **Actions → Start JupyterLab** in the Monadic Chat console. The menu item is available while Monadic Chat is running.
+Choose **Actions → Open JupyterLab** in the Monadic Chat console: JupyterLab starts when it is not running, and opens in your browser. The menu item is available while Monadic Chat is running.
+
+JupyterLab also starts when you open a notebook from the page: click a notebook's link in the conversation, or **Open in JupyterLab** under a notebook shown in the [work screen](../basic-usage/web-interface.md#work-screen). The page says that JupyterLab is starting, and opens the notebook once it is ready. Opening a chat from the history, or the AI making and running a notebook, does not start JupyterLab.
 
 - JupyterLab opens at [http://localhost:8889](http://localhost:8889) (or [http://127.0.0.1:8889](http://127.0.0.1:8889))
 - No password or token is required; JupyterLab is reachable only from your computer
 
-<!-- SCREENSHOT: Monadic Chat Actions menu showing Start JupyterLab and Stop JupyterLab options -->
+<!-- SCREENSHOT: Monadic Chat Actions menu showing Open JupyterLab and Stop JupyterLab options -->
 
 JupyterLab starts in the shared folder (`/monadic/data`), so the files you place in `~/monadic/data` are available there.
 
@@ -24,10 +26,16 @@ Choose **Actions → Stop JupyterLab**. JupyterLab keeps running when you close 
 In the Jupyter Notebook app, you ask the AI agent in the chat to work with notebooks. The agent can:
 
 - Start and stop JupyterLab
-- Create notebooks in the shared folder and list the existing ones
+- Create notebooks in the chat's folder (`conversations/…/work/` in the shared folder) and list the chat's notebooks
 - Add, edit, move, and delete cells, and run them
 - Read the outputs of cells and fix cells that raise errors
-- Restart or interrupt the kernel
+- Clear the outputs a notebook keeps
+
+The agent works on the notebooks of the chat you are in. To work on a notebook at the top of the shared folder, name it with `./` before its name, for example `./analysis.ipynb`. A chat you continue from the history keeps its notebooks.
+
+A notebook the agent makes or changes is shown on the [work screen](../basic-usage/web-interface.md#work-screen) with the outputs of its cells, including plots.
+
+Each run starts a new kernel and runs every cell of the notebook. To stop a run, click **Cancel Query**.
 
 For a task with several steps, the app first proposes a numbered plan and waits for your approval before carrying it out.
 

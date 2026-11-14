@@ -35,42 +35,14 @@ module Monadic
       end
 
       params = payload['parameters'] || {}
-      schema = Serializer.context_schema(session)
       store.save(chat_id, payload, tab: tab, generation: generation,
                                    app_name: params['app_name'], model: params['model'],
                                    headings: Serializer.headings(payload), search_text: Serializer.search_text(payload),
-                                   context: -> { context_now(chat_id, schema) },
                                    word_table: -> { word_table_now(chat_id) })
     end
 
-    # Writes the chat's Session Context as it is now into the chat's saved
-    # conversation, when there is one: the context changes apart from the
-    # messages (an extraction ends after the reply was saved).
-    # session: the chat's (for its context schema), or nil. held: what gives
-    # the context to save (nil when there is none), when it is not the one
-    # the chat holds now.
-    def keep_context(chat_id, session: nil, held: nil, store: Store.default)
-      return nil unless enabled? && chat_id
-
-      schema = Serializer.context_schema(session || {})
-      store.update_context(chat_id, -> { context_now(chat_id, schema, held) })
-    rescue StandardError => e
-      Monadic::Utils::ExtraLogger.log { "[History] context not saved: #{e.class}" } if defined?(Monadic::Utils::ExtraLogger)
-      nil
-    end
-
-    # The chat's Session Context as it is saved, read once from what the
-    # chat holds now (Monadic::Workspace::ChatContext), or :absent when the
-    # chat holds none any more. Every save of the history takes the context
-    # from here, inside its transaction, so the save made last has the
-    # latest context whatever the order the saves were begun in.
-    def context_now(chat_id, schema, held = nil)
-      context = held ? held.call : Monadic::Workspace::ChatContext.read({ Monadic::Workspace::Chats::SESSION_KEY => chat_id })
-      context.nil? ? :absent : Serializer.saved_context(context, schema)
-    end
-
     # The chat's word table as it is saved, read inside the transaction of
-    # the save as the context is, or :absent when no table is held for it.
+    # the save, or :absent when no table is held for it.
     def word_table_now(chat_id)
       table = Monadic::Utils::Privacy::Words.saved(chat_id)
       table ? Serializer.saved_words(table) : :absent

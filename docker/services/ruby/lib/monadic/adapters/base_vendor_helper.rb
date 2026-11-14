@@ -161,8 +161,8 @@ module BaseVendorHelper
   end
 
   # Strip base64 image data from inactive session messages to prevent
-  # unbounded session growth.  Keeps filenames/titles so auto-attach
-  # (fetch_last_images_from_session) can still locate files on disk.
+  # unbounded session growth.  Keeps filenames/titles so the files can
+  # still be found on disk.
   # Idempotent — safe to call on every request.
   def strip_inactive_image_data(session)
     return unless session[:messages].is_a?(Array)

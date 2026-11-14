@@ -22,14 +22,15 @@ RSpec.describe 'the pinned vendor asset list' do
   it 'pins every file to a versioned URL and a sha256' do
     expect(assets.size).to be > 40
     assets.each do |type, url, filename, sha|
-      expect(%w[css js font webfont pdfjs]).to include(type), filename
+      expect(%w[css js font webfont pdfjs soundfont]).to include(type), filename
       # A folder in a name stays under the vendor directory.
       expect(filename.split('/')).to all(match(/\A[\w.-]+\z/)), filename
       expect(filename.split('/')).not_to include('..', '.'), filename
       expect(url).to start_with('https://'), filename
       expect(url).not_to include('@latest'), filename
-      # A URL that serves whatever is current cannot keep matching a pin.
-      expect(url).to match(%r{[@/]v?\d+\.\d+(\.\d+)?/|/v\d+/}), "#{filename}: #{url}"
+      # A URL that serves whatever is current cannot keep matching a pin: a
+      # version, or a commit.
+      expect(url).to match(%r{[@/]v?\d+\.\d+(\.\d+)?/|/v\d+/|/\h{40}/}), "#{filename}: #{url}"
       expect(sha).to match(/\A\h{64}\z/), filename
     end
     expect(assets.map { |a| a[2] }.uniq.size).to eq(assets.size)
@@ -39,7 +40,8 @@ RSpec.describe 'the pinned vendor asset list' do
     manifest = bash('vendor_manifest').split("\n").map { |l| l.split("\t") }
     expect(manifest.size).to eq(assets.size + 1)
     expect(manifest.map(&:first)).to include('css/montserrat.css', 'css/katex.min.css', 'fonts/KaTeX_Main-Regular.woff2',
-                                             'pdfjs/pdf.min.mjs', 'pdfjs/pdf.worker.min.mjs')
+                                             'pdfjs/pdf.min.mjs', 'pdfjs/pdf.worker.min.mjs',
+                                             'soundfont/FluidR3_GM/acoustic_grand_piano-mp3/A4.mp3')
     manifest.each { |_path, sha| expect(sha).to match(/\A\h{64}\z/) }
   end
 

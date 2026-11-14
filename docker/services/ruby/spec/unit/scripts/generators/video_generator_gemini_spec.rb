@@ -85,6 +85,23 @@ RSpec.describe "VideoGeneratorGemini" do
     end
   end
 
+  describe "the folder to save in" do
+    it "is taken from --out-dir" do
+      expect(script.parse_options(["-p", "x", "--out-dir", "conversations/a/artifacts/j_1"])[:out_dir])
+        .to eq("conversations/a/artifacts/j_1")
+    end
+
+    it "must be a folder of the shared folder" do
+      outside = Dir.mktmpdir("video-outside-")
+      [outside, File.join(@data_dir, "missing")].each do |dir|
+        result = script.generate_video(test_prompt, nil, out_dir: dir)
+        expect(result).to include(success: false, error: "invalid_input")
+      end
+    ensure
+      FileUtils.remove_entry(outside) if outside
+    end
+  end
+
   describe "#get_save_path" do
     it "returns existing data path" do
       allow(Dir).to receive(:exist?).with("/monadic/data/").and_return(true)

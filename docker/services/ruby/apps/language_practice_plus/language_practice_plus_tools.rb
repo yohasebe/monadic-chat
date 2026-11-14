@@ -1,44 +1,39 @@
 # frozen_string_literal: true
 
 # Language Practice Plus tools using Monadic Session State mechanism.
-# Manages language learning context (target language, advice) without embedding JSON in responses.
+# Keeps the practice's settings (target language, last message) as state, and
+# the advice given as a log shown on the practice's notes.
 # Uses tts_target to extract message for TTS from save_response tool.
-# Uses ContextPanelHelper to update the sidebar Context Panel.
+
+require_relative "../../lib/monadic/utils/tts_instruction_extractor"
 
 module LanguagePracticePlusTools
   include MonadicHelper
   include Monadic::SharedTools::MonadicSessionState
-  include Monadic::SharedTools::ContextPanelHelper
 
   STATE_KEY = "language_practice_context"
+  # The advice given, turn after turn: added to, shown on the notes, not
+  # read back by the model.
+  ADVICE = "language_advice"
 
   # Save response and context to session state.
   # The "message" parameter is extracted for TTS via tts_target feature.
-  # Language advice is also displayed in the Context Panel (mapped to "tips" field).
   #
   # @param message [String] Response message to the user (used for TTS)
   # @param target_lang [String] Target language being practiced
-  # @param language_advice [Array<String>] Array of language advice items
+  # @param language_advice [Array<String>] Language advice of this turn
   # @param session [Hash] Session object (automatically provided)
   # @return [String] JSON response with success status
   def save_response(message:, target_lang: nil, language_advice: nil, session: nil)
+    # What is kept is the message as the user reads it, without the speech
+    # directive the model may begin it with.
+    message = Monadic::Utils::TtsInstructionExtractor.strip_from_history(message)
     existing = load_context_internal(session)
+    context = { target_lang: target_lang || existing[:target_lang], last_message: message }
 
-    context = {
-      target_lang: target_lang || existing[:target_lang],
-      language_advice: language_advice || existing[:language_advice] || [],
-      last_message: message
-    }
-
-    # Save to session state (for persistence)
     result = monadic_save_state(key: STATE_KEY, payload: context, session: session)
-
-    # Update Context Panel with language advice (mapped to "tips" field in context_schema)
-    if language_advice&.any?
-      add_to_context_panel(field: :tips, items: language_advice, session: session)
-    end
-
-    result
+    logged = JSON.parse(monadic_log(collection: ADVICE, entries: language_advice, session: session))
+    logged["success"] ? result : logged.to_json
   end
 
   # Load language practice context from session state.
@@ -47,12 +42,7 @@ module LanguagePracticePlusTools
   # @param session [Hash] Session object (automatically provided)
   # @return [String] JSON response with context data
   def load_context(session: nil)
-    default_context = {
-      target_lang: nil,
-      language_advice: [],
-      last_message: nil
-    }
-    monadic_load_state(key: STATE_KEY, default: default_context, session: session)
+    monadic_load_state(key: STATE_KEY, default: { target_lang: nil, last_message: nil }, session: session)
   end
 
   # Update target language.
@@ -62,34 +52,30 @@ module LanguagePracticePlusTools
   # @param session [Hash] Session object (automatically provided)
   # @return [String] JSON response with success status
   def set_target_language(target_lang:, session: nil)
-    existing = load_context_internal(session)
-
-    context = {
-      target_lang: target_lang,
-      language_advice: existing[:language_advice] || [],
-      last_message: existing[:last_message]
-    }
-
+    context = { target_lang: target_lang, last_message: load_context_internal(session)[:last_message] }
     monadic_save_state(key: STATE_KEY, payload: context, session: session)
   end
 
   private
 
+  # What the model is given of the state with each request, as load_context
+  # returns it (Monadic::TurnState::ModelState).
+  def state_for_model(session)
+    { data: Monadic::TurnState::ModelState.from_tool(load_context(session: session)), load_tool: "load_context" }
+  end
+
+  # The practice's notes on the work screen (Monadic::TurnState::Notes).
+  def state_notes
+    { title: "Practice notes", key: STATE_KEY, values: { "target_lang" => "Language" },
+      lists: { ADVICE => { label: "Advice" } } }
+  end
+
   # Internal helper to load context as Ruby hash (not JSON string)
   def load_context_internal(session)
-    result = JSON.parse(monadic_load_state(key: STATE_KEY, default: {}, session: session))
-    data = result["data"] || {}
-    {
-      target_lang: data["target_lang"],
-      language_advice: data["language_advice"] || [],
-      last_message: data["last_message"]
-    }
+    data = JSON.parse(monadic_load_state(key: STATE_KEY, default: {}, session: session))["data"] || {}
+    { target_lang: data["target_lang"], last_message: data["last_message"] }
   rescue StandardError
-    {
-      target_lang: nil,
-      language_advice: [],
-      last_message: nil
-    }
+    { target_lang: nil, last_message: nil }
   end
 end
 

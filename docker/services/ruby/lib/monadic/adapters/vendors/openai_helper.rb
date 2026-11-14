@@ -1929,6 +1929,10 @@ module OpenAIHelper
       return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected. Stopping." } }] }]
     end
 
+    # The tool that takes the reply's text ended the reply.
+    ended = Monadic::Utils::TtsTextExtractor.reply_ended(session, &block)
+    return ended if ended
+
     api_request("tool", session, call_depth: session[:call_depth_per_turn], &block)
   end
 
@@ -2051,7 +2055,8 @@ module OpenAIHelper
           app: app,
           function_name: function_name,
           argument_hash: argument_hash,
-          session: session
+          session: session,
+          function_return: function_return
         )
       rescue StandardError => e
         Monadic::Utils::ExtraLogger.log { "[OpenAI Tools] Error in #{function_name}: #{e.message}\n[OpenAI Tools] Backtrace: #{e.backtrace.first(5).join("\n")}" }
@@ -2257,10 +2262,21 @@ module OpenAIHelper
     normalized
   end
 
+  # A tool call's arguments as a Hash. Arguments that are JSON as given are
+  # taken as they are: typographic quotes and full-width punctuation inside
+  # a string are the model's text, not JSON syntax. Only arguments that do
+  # not parse are normalized (and then repaired).
   def parse_function_call_arguments(raw_arguments, function_name: nil)
-    normalized = normalize_function_call_arguments(raw_arguments)
-    return {} if normalized.strip.empty?
+    return {} if raw_arguments.to_s.strip.empty?
 
+    begin
+      given = JSON.parse(raw_arguments)
+      return given if given.is_a?(Hash)
+    rescue JSON::ParserError
+      # normalized below
+    end
+
+    normalized = normalize_function_call_arguments(raw_arguments)
     JSON.parse(normalized)
   rescue JSON::ParserError => e
     repaired = JSONRepair.attempt_repair(normalized)

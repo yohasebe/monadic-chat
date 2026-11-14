@@ -1,5 +1,7 @@
 require_relative '../../spec_helper'
 require 'json'
+require 'tmpdir'
+require 'fileutils'
 
 # Load MusicLabTools and classes
 app_base_dir = File.expand_path('../../../apps', __dir__)
@@ -210,37 +212,53 @@ RSpec.describe 'MusicLabTools' do
     let(:instance) { MusicLabOpenAI.new }
     let(:session) { { parameters: {} } }
 
-    it 'returns text description and stores ABC HTML in session' do
-      json_output = '{"success": true, "abc": "X:1\nT:Cmaj7\nM:4/4\nL:1/8\nQ:1/4=120\nK:C clef=treble\n| [CEG]4 z4 |", "description": "Cmaj7 chord, root position, piano", "notes": ["C4", "E4", "G4"]}'
-      allow(instance).to receive(:send_command).and_return(json_output)
-
-      result = instance.send(:run_music_action, "chord", { "chord_name" => "Cmaj7" }, session)
-      expect(result).to be_a(String)
-      expect(result).to include("Cmaj7 chord, root position, piano")
-      expect(result).to include("Notes: C4, E4, G4")
-      # ABC is NOT in the text return — it's stored in session for post-response injection
-      expect(result).not_to include("X:1")
-      expect(session[:tool_html_fragments]).to be_a(Array)
-      html = session[:tool_html_fragments].first
-      expect(html).to include("abc-code")
-      expect(html).to include("X:1")
+    around do |example|
+      Dir.mktmpdir('music-lab-spec') do |dir|
+        @data = File.join(dir, 'data')
+        @state = File.join(dir, 'state')
+        FileUtils.mkdir_p(@data)
+        @data = File.realpath(@data)
+        example.run
+      end
     end
 
-    it 'returns text without storing fragments when session is nil' do
-      json_output = '{"success": true, "abc": "X:1\nT:C\nM:4/4\nL:1/8\nK:C\n| [CEG]4 z4 |", "description": "C chord", "notes": ["C4"]}'
+    before do
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data)
+      allow(Monadic::Utils::Environment).to receive(:state_path).and_return(@state)
+      allow(MonadicSharedTools::WorkbenchTools).to receive(:show_file).and_return('{"status":"shown_in_work_screen"}')
+    end
+
+    let(:workbench) { Struct.new(:chat_id).new(Monadic::Workspace::Ids.generate(:chat)) }
+    let(:abc) { "X:1\nT:Cmaj7\nM:4/4\nL:1/8\nQ:1/4=120\nK:C clef=treble\n| [CEG]4 z4 |" }
+
+    it "keeps the score in the chat's folder, shows it on the work screen, and gives the model only its path" do
+      json_output = JSON.generate('success' => true, 'abc' => abc, 'description' => 'Cmaj7 chord, root position, piano',
+                                  'notes' => %w[C4 E4 G4])
       allow(instance).to receive(:send_command).and_return(json_output)
 
-      result = instance.send(:run_music_action, "chord", { "chord_name" => "C" }, nil)
-      expect(result).to be_a(String)
-      expect(result).to include("C chord")
+      result = instance.send(:run_music_action, "chord", { "chord_name" => "Cmaj7" }, session, workbench)
+      expect(result).to include("Cmaj7 chord, root position, piano", "Notes: C4, E4, G4", "work screen")
+      expect(result).not_to include("X:1")
+      path = result[%r{conversations/\S+/artifacts/j_[a-z0-9]+/Cmaj7\.abc}]
+      expect(File.read(File.join(@data, path))).to eq(abc)
+      expect(MonadicSharedTools::WorkbenchTools).to have_received(:show_file).with(path, workbench)
+      expect(session[:tool_html_fragments]).to be_nil
+    end
+
+    it 'says the score could not be kept without a chat' do
+      json_output = JSON.generate('success' => true, 'abc' => abc, 'description' => 'C chord', 'notes' => ['C4'])
+      allow(instance).to receive(:send_command).and_return(json_output)
+
+      result = instance.send(:run_music_action, "chord", { "chord_name" => "C" }, nil, nil)
+      expect(result).to include("C chord", "could not be kept")
+      expect(Dir.exist?(File.join(@data, 'conversations'))).to be false
     end
 
     it 'returns error text on failure' do
       json_output = '{"success": false, "error": "Unknown chord quality: xyz"}'
       allow(instance).to receive(:send_command).and_return(json_output)
 
-      result = instance.send(:run_music_action, "chord", { "chord_name" => "Cxyz" }, session)
-      expect(result).to be_a(String)
+      result = instance.send(:run_music_action, "chord", { "chord_name" => "Cxyz" }, session, workbench)
       expect(result).to start_with("Error:")
       expect(result).to include("Unknown chord")
     end
@@ -248,8 +266,7 @@ RSpec.describe 'MusicLabTools' do
     it 'returns error text on exception' do
       allow(instance).to receive(:send_command).and_raise(RuntimeError, "container not found")
 
-      result = instance.send(:run_music_action, "chord", { "chord_name" => "C" }, session)
-      expect(result).to be_a(String)
+      result = instance.send(:run_music_action, "chord", { "chord_name" => "C" }, session, workbench)
       expect(result).to start_with("Error:")
       expect(result).to include("container not found")
     end

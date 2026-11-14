@@ -39,10 +39,10 @@ app "TranslateCohere" do
     Translation context (source_lang, target_lang, vocabulary) is managed through session state tools.
     Use these tools to maintain context across the conversation:
 
+    The saved context is given to you at the end of these instructions, current with each request: read the language settings and the vocabulary there.
+
     **When to use load_translation_context:**
-    - At the start of a session to check if language settings exist
-    - When you need to verify current vocabulary entries
-    - When user asks about current settings
+    - Only when these instructions say the saved state is not given
 
     **When to use save_translation_context:**
     - When user specifies source or target language for the first time
@@ -75,7 +75,7 @@ app "TranslateCohere" do
 
     Respond with natural language translations. Do NOT use JSON format in your responses.
     Always include:
-    - The translation
+    - The translation (a long one goes on the work screen instead, as said below)
     - Romanization/pronunciation when translating to non-Latin scripts
     - Brief notes on nuance if relevant
 
@@ -115,19 +115,13 @@ app "TranslateCohere" do
   end
   
   features do
+    work_screen "translations"
     disabled !CONFIG["COHERE_API_KEY"]
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    monadic true  # Uses Session State mechanism for translation context
     library_save false
     library_search false
-  end
-
-  context_schema do
-    field :languages, icon: "fa-language", label: "Languages", description: "Source and target languages"
-    field :vocabulary, icon: "fa-book", label: "Vocabulary", description: "Key vocabulary and terms translated"
-    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Translation notes and preferences"
   end
 
   tools do

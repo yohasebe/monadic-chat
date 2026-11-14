@@ -81,18 +81,6 @@ RSpec.describe "Session Routes Logic" do
       expect(serializable_state["App"]).not_to have_key("invalid")
     end
 
-    it "includes session_context when present" do
-      monadic_state = {
-        conversation_context: { "topics" => ["AI"], "notes" => ["important"] }
-      }
-
-      conversation_context = monadic_state[:conversation_context] || monadic_state["conversation_context"]
-      response_data = { success: true, monadic_state: {} }
-      response_data[:session_context] = conversation_context if conversation_context
-
-      expect(response_data[:session_context]).to eq({ "topics" => ["AI"], "notes" => ["important"] })
-    end
-
     it "returns nil monadic_state when session has none" do
       response = { success: true, monadic_state: nil }
       expect(response[:monadic_state]).to be_nil

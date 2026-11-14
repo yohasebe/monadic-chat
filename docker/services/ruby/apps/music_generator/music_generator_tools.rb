@@ -3,6 +3,7 @@
 require 'json'
 require 'securerandom'
 require_relative '../../lib/monadic/utils/shared_path_guard'
+require_relative '../../lib/monadic/workbench/chat_output'
 
 # ElevenLabs Music for the Music Generator.
 #
@@ -24,7 +25,9 @@ module MusicGeneratorTools
   # 128 kbps is available on every paid plan; higher bitrates are plan-gated.
   ELEVENLABS_MUSIC_OUTPUT_FORMAT = "mp3_44100_128"
 
-  def generate_music_with_elevenlabs(prompt:, length_seconds: nil, instrumental: nil, session: nil)
+  # In a chat, the track is kept in a run folder of the chat's folder and
+  # shown on the work screen; without one, it goes to the shared folder.
+  def generate_music_with_elevenlabs(prompt:, length_seconds: nil, instrumental: nil, session: nil, workbench: nil)
     api_key = CONFIG["ELEVENLABS_API_KEY"].to_s.strip
     if api_key.empty?
       return { success: false, service: ELEVENLABS_MUSIC_SERVICE,
@@ -56,6 +59,14 @@ module MusicGeneratorTools
     mime = "audio/mpeg" unless mime.start_with?("audio/")
     ext = mime.include?("wav") ? "wav" : "mp3"
     filename = "elevenlabs_music_#{Time.now.to_i}_#{SecureRandom.hex(3)}.#{ext}"
+    app_name = session&.dig(:parameters, "app_name") || "MusicGeneratorGemini"
+    kept = Monadic::Workbench::ChatOutput.keep_and_show(session: session, workbench: workbench, app_name: app_name,
+                                                        files: { filename => response.body.to_s })
+    if kept
+      return { success: true, service: ELEVENLABS_MUSIC_SERVICE, path: kept[:paths].first, mime_type: mime, model: model_id,
+               prompt: prompt, notice: Monadic::Workbench::ChatOutput.said("The track", kept[:paths].first, shown: kept[:shown]) }.to_json
+    end
+
     filepath = File.join(Monadic::Utils::Environment.shared_volume, filename)
     Monadic::Utils::SharedPathGuard.write_file!(filepath, response.body.to_s)
 

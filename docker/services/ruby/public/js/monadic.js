@@ -128,9 +128,7 @@ function broadcastParamsUpdate(reason = null) {
   // the wrapper's default set; silentDrop because the user did not
   // explicitly trigger this and a "Connection lost" alert would be
   // disorienting on a passive sync.
-  // Another app starts another chat.
-  const send = reason === 'app_change' ? window.sendChatSwitch : window.safeWsSend;
-  send(payload, { silentDrop: true });
+  window.safeWsSend(payload, { silentDrop: true });
 }
 
 window.broadcastParamsUpdate = broadcastParamsUpdate;
@@ -497,31 +495,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 });
 
 // Fallback implementations are now in shims.js
-
-// ============================================================================
-// Screenshot Lightbox state
-// (file-level scope to ensure accessibility from all event handlers)
-// ============================================================================
-var lightboxImages = [];
-var lightboxIndex = 0;
-
-function updateLightbox() {
-  if (lightboxImages.length === 0) return;
-  const lightboxImage = $id("lightboxImage");
-  if (lightboxImage) lightboxImage.setAttribute("src", lightboxImages[lightboxIndex]);
-  const lightboxCounter = $id("lightboxCounter");
-  const lightboxPrev = $id("lightboxPrev");
-  const lightboxNext = $id("lightboxNext");
-  if (lightboxImages.length > 1) {
-    if (lightboxCounter) {
-      lightboxCounter.textContent = (lightboxIndex + 1) + " / " + lightboxImages.length;
-      $show(lightboxCounter);
-    }
-    $toggle(lightboxPrev, lightboxIndex > 0);
-    $toggle(lightboxNext, lightboxIndex < lightboxImages.length - 1);
-  } else {
-    $hide(lightboxCounter); $hide(lightboxPrev); $hide(lightboxNext); }
-}
 
 // --- Perceptual hash helpers for visual image dedup ---
 function imagePerceptualHash(imgEl, size) {
@@ -1120,7 +1093,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
 
-    // Add MutationObserver for handling image errors, dedup, and screenshot lightbox
+    // Add MutationObserver for handling image errors and dedup
     // Store the observer in the window object to ensure it can be accessed globally for cleanup
     window.imageErrorObserver = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
@@ -1180,27 +1153,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 // Handle already-cached images (browser may not fire load)
                 if (imgEl.complete && imgEl.naturalWidth > 0) {
                   $dispatch(imgEl, "load");
-                }
-
-                // Screenshot lightbox: add click handler directly to each image
-                // Skip images marked by image_generation apps (data-action="open")
-                if (!imgEl.getAttribute("data-action")) {
-                  imgEl.addEventListener("click", function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    var cardEl = this.closest(".card");
-                    lightboxImages = [];
-                    if (cardEl) {
-                      cardEl.querySelectorAll(".generated_image img:not([data-action])").forEach(function(img) {
-                        lightboxImages.push(img.getAttribute("src"));
-                      });
-                    }
-                    lightboxIndex = lightboxImages.indexOf(this.getAttribute("src"));
-                    if (lightboxIndex < 0) lightboxIndex = 0;
-                    updateLightbox();
-                    var lightboxEl = $id("screenshotLightbox");
-                    if (lightboxEl) bootstrap.Modal.getOrCreateInstance(lightboxEl).show();
-                  });
                 }
               });
             }
@@ -1918,6 +1870,13 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
 
+  // Choosing another app shows the menu in the side column: its settings
+  // are what the user looks at next.
+  function showMenuPane() {
+    const lc = window.LayoutController;
+    if (lc && typeof lc.setPane === 'function' && lc.selectedPane() !== 'settings') lc.setPane('settings');
+  }
+
   $on($id("apps"), "change", function(event) {
     if (stop_apps_trigger) {
       stop_apps_trigger = false;
@@ -1993,10 +1952,11 @@ document.addEventListener("DOMContentLoaded", function () {
         window.BackgroundReply.forgetStopToken();
       }
       // Send server-side RESET to clear session
-      window.sendChatSwitch({ message: "RESET" });
+      window.safeWsSend({ message: "RESET" });
     }
 
     proceedWithAppChange(selectedAppValue);
+    if (selectedAppValue !== previousAppValue) showMenuPane();
   });
   
   // Handle cancellation of app change
@@ -2063,11 +2023,12 @@ document.addEventListener("DOMContentLoaded", function () {
       window.BackgroundReply.forgetStopToken();
     }
     // Send server-side RESET to clear session
-    window.sendChatSwitch({ message: "RESET" });
+    window.safeWsSend({ message: "RESET" });
 
     // Reset to settings panel
     enterSettingsMode();
     proceedWithAppChange(newAppValue);
+    showMenuPane();
   });
   
   // Function to handle the actual app change
@@ -2380,12 +2341,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const displayText = apps[appValue]["display_name"] || apps[appValue]["app_name"];
     { const el = $id("base-app-title"); if (el) el.textContent = displayText; }
     { const el = $id("base-app-icon"); if (el) el.innerHTML = apps[appValue]["icon"]; }
-
-    if (toBool(apps[appValue]["monadic"])) {
-      $show($id("monadic-badge"));
-    } else {
-      $hide($id("monadic-badge"));
-    }
 
     if (apps[appValue]["tools"]) {
       $show($id("tools-badge"));
@@ -2787,7 +2742,6 @@ document.addEventListener("DOMContentLoaded", function () {
         message: "SYSTEM_PROMPT",
         content: ($id("initial-prompt") || {}).value,
         math: ($id("math") || {}).checked,
-        monadic: params["monadic"],
         websearch: params["websearch"],
         jupyter: params["jupyter"],
         conversation_language: params["conversation_language"] || "auto",
@@ -3146,10 +3100,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const exportParams = setParams();
     delete exportParams.initiate_from_assistant;
 
-    // Fetch monadic_state and session_context from server
+    // Fetch monadic_state from server
     let monadicState = null;
-    let serverSessionContext = null;
-    let serverContextSchema = null;
     let progressiveTools = null;
     try {
       const response = await fetch('/monadic_state' + (typeof window.monadicTabQuery === 'function' ? window.monadicTabQuery() : ''));
@@ -3158,13 +3110,6 @@ document.addEventListener("DOMContentLoaded", function () {
       if (data.success) {
         if (data.monadic_state) {
           monadicState = data.monadic_state;
-        }
-        // Get session_context from server (more reliable than frontend state)
-        if (data.session_context) {
-          serverSessionContext = data.session_context;
-        }
-        if (data.context_schema) {
-          serverContextSchema = data.context_schema;
         }
         // Dynamic-skill unlock state, so the export restores acquired skills
         if (data.progressive_tools) {
@@ -3185,18 +3130,6 @@ document.addEventListener("DOMContentLoaded", function () {
       obj.monadic_state = monadicState;
     }
 
-    // Include session_context - prefer server-side, fallback to frontend ContextPanel
-    const sessionContext = serverSessionContext ||
-      (typeof ContextPanel !== 'undefined' ? ContextPanel.currentContext : null);
-    const contextSchema = serverContextSchema ||
-      (typeof ContextPanel !== 'undefined' ? ContextPanel.currentSchema : null);
-
-    if (sessionContext) {
-      obj.session_context = sessionContext;
-    }
-    if (contextSchema) {
-      obj.context_schema = contextSchema;
-    }
     if (progressiveTools) {
       obj.progressive_tools = progressiveTools;
     }
@@ -4144,7 +4077,11 @@ document.addEventListener("DOMContentLoaded", function () {
         // Clean up UI after successful import
         bootstrap.Modal.getOrCreateInstance($id("loadModal")).hide();
         if (response.older_words > 0 && window.WordTable) window.WordTable.noticeOlderFile(response.older_words);
-        setAlert(`<i class='fa-solid fa-circle-check'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.sessionImported') : 'Session imported successfully'}`, "success");
+        const translate = typeof webUIi18n !== 'undefined' ? (key) => webUIi18n.t(key) : null;
+        const importedText = typeof formHandlers.importNotice === 'function'
+          ? formHandlers.importNotice(response, translate)
+          : (translate ? translate('ui.messages.sessionImported') : 'Session imported successfully');
+        setAlert(`<i class='fa-solid fa-circle-check'></i> ${importedText}`, response.state_dropped > 0 ? "warning" : "success");
 
         // Privacy import safety net: the WebSocket 'parameters' handler
         // schedules proceedWithAppChange via rAF, but if rAF is throttled
@@ -4736,28 +4673,6 @@ document.addEventListener("DOMContentLoaded", function () {
         bootstrap.Modal.getOrCreateInstance($id("deleteConfirmation")).hide();
       }
     });
-
-    // Lightbox modal controls (state variables are in the outer scope near MutationObserver)
-    $on($id("lightboxImage"), "click", function() {
-      bootstrap.Modal.getOrCreateInstance($id("screenshotLightbox")).hide();
-    });
-
-    $on($id("lightboxPrev"), "click", function(e) {
-      e.stopPropagation();
-      if (lightboxIndex > 0) { lightboxIndex--; updateLightbox(); }
-    });
-
-    $on($id("lightboxNext"), "click", function(e) {
-      e.stopPropagation();
-      if (lightboxIndex < lightboxImages.length - 1) { lightboxIndex++; updateLightbox(); }
-    });
-
-    // Arrow key navigation for lightbox (Escape is handled by Bootstrap's keyboard: true default)
-    document.addEventListener("keydown", function(e) {
-      if (!($id("screenshotLightbox") && $id("screenshotLightbox").classList.contains("show"))) return;
-      if (e.key === "ArrowLeft" && lightboxIndex > 0) { lightboxIndex--; updateLightbox(); }
-      if (e.key === "ArrowRight" && lightboxIndex < lightboxImages.length - 1) { lightboxIndex++; updateLightbox(); }
-    });
   })();
 });
 
@@ -4766,7 +4681,7 @@ document.addEventListener("DOMContentLoaded", function () {
 // the request left the page.
 function applyImportOverConnection(token, timeoutMs) {
   return new Promise(function (resolve) {
-    if (!token || typeof window.sendChatSwitch !== 'function') {
+    if (!token || typeof window.safeWsSend !== 'function') {
       resolve({ success: false, error: "Could not reach the server to finish the import. Please try again." });
       return;
     }
@@ -4786,7 +4701,7 @@ function applyImportOverConnection(token, timeoutMs) {
       finish({ success: false, error: "The server did not finish the import in time. Please try again." });
     }, timeoutMs || 30000);
     window.onImportResult = onResult;
-    const sent = window.sendChatSwitch({ message: "IMPORT_APPLY", token: token });
+    const sent = window.safeWsSend({ message: "IMPORT_APPLY", token: token });
     if (!sent || !sent.sent) {
       finish({ success: false, error: "Could not reach the server to finish the import. Please try again." });
     }

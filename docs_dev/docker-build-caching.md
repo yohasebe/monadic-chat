@@ -13,7 +13,7 @@ This page describes when the Ruby and Python images are built or downloaded, and
 | Version update or Gem change only (`needs_ruby_rebuild`) | Only Ruby is rebuilt, with cache |
 | Nothing changed | No build |
 
-`check_dockerfiles_changed` compares hashes of the Python, Selenium and Embeddings Dockerfiles. The Ruby image carries the label `com.monadic.gems_hash` (SHA256 of `Gemfile` and `monadic.gemspec`); a different value triggers a Ruby rebuild. `FORCE_RUBY_REBUILD_NO_CACHE=true` makes Ruby builds use `--no-cache`.
+`check_dockerfiles_changed` compares hashes of the Python, Selenium and Embeddings Dockerfiles. The Ruby image carries the label `com.monadic.gems_hash` (SHA256 of `Gemfile`, `Gemfile.lock`, `monadic.gemspec` and `rsyntaxtree/Gemfile.lock`); a different value triggers a Ruby rebuild. `FORCE_RUBY_REBUILD_NO_CACHE=true` makes Ruby builds use `--no-cache`.
 
 User containers are never built at Start; **Actions → Build User Containers** builds them with `--no-cache`.
 

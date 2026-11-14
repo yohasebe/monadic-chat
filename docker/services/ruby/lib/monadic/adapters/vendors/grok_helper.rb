@@ -5,6 +5,7 @@ require 'cgi'
 require_relative "../../utils/request_retry"
 require_relative "../../utils/shared_path_guard"
 require_relative "../../workbench/offer"
+require_relative "../../workbench/chat_output"
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/usage_normalizer"
 require_relative "../../utils/error_formatter"
@@ -606,29 +607,6 @@ module GrokHelper
       argument_hash = {}
     end
 
-    # Fix Jupyter filenames if stored filename exists
-    if obj["current_notebook_filename"] && argument_hash["filename"]
-      jupyter_functions = %w[add_jupyter_cells delete_jupyter_cell update_jupyter_cell
-                            get_jupyter_cells_with_results execute_and_fix_jupyter_cells
-                            restart_jupyter_kernel interrupt_jupyter_execution
-                            move_jupyter_cell insert_jupyter_cells]
-
-      if jupyter_functions.include?(function_name)
-        provided_filename = argument_hash["filename"].to_s.gsub(/\.ipynb$/, '')
-        stored_filename = obj["current_notebook_filename"].gsub(/\.ipynb$/, '')
-        shared_volume = Monadic::Utils::Environment.in_container? ? MonadicApp::SHARED_VOL : MonadicApp::LOCAL_SHARED_VOL
-        provided_path = File.join(shared_volume, "#{provided_filename}.ipynb")
-
-        if !File.exist?(provided_path)
-          stored_base_name = stored_filename.gsub(/_\d{8}_\d{6}$/, '')
-          provided_base_name = provided_filename.gsub(/_\d{8}_\d{6}$/, '')
-          if stored_base_name == provided_base_name
-            argument_hash["filename"] = stored_filename
-          end
-        end
-      end
-    end
-
     # Symbolize keys, skip null values
     argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
       next if /null/ =~ v.to_s.strip || (v.class != String && v.to_s.strip.empty?)
@@ -745,7 +723,8 @@ module GrokHelper
     return unless function_return =~ /Notebook\s+(\S+\.ipynb)\s+created successfully/
 
     obj["current_notebook_filename"] = $1
-    obj["current_notebook_link"] = "<a href='http://127.0.0.1:8889/lab/tree/#{$1}' target='_blank'>Open #{$1}</a>"
+    name = $1
+    obj["current_notebook_link"] = "<a href='#{CGI.escapeHTML(get_jupyter_notebook_url(name))}' target='_blank'>Open #{CGI.escapeHTML(File.basename(name))}</a>"
   end
 
   # Store image/video filenames from generation results
@@ -767,25 +746,12 @@ module GrokHelper
     end
   end
 
-  # Post-process Grok's response: fix filenames, image paths, notebook URLs
+  # Post-process Grok's response: fix notebook filenames and URLs
   private def postprocess_grok_response(new_results, obj)
     return unless new_results.is_a?(Array) && !new_results.empty?
 
     content = new_results.dig(0, "choices", 0, "message", "content")
     return unless content
-
-    # Fix image paths for Code Interpreter
-    if obj["app_name"].to_s.include?("CodeInterpreter") || obj["display_name"].to_s.include?("Code Interpreter")
-      if content =~ /File created: ([^\s]+\.(svg|png|jpg|jpeg|gif)).*Full path: \/monadic\/data/i
-        filename = $1
-        unless content.include?("<div class=\"generated_image\">")
-          if content =~ /(Output:.*?```[^`]*```)/m
-            image_html = "\n\n<div class=\"generated_image\">\n  <img src=\"/data/#{CGI.escapeHTML(filename.to_s)}\" />\n</div>"
-            content = content.sub($1, $1 + image_html)
-          end
-        end
-      end
-    end
 
     # Fix notebook filenames
     if obj["current_notebook_filename"]
@@ -1737,7 +1703,9 @@ module GrokHelper
         begin
           if result_content.is_a?(String)
             content_json = JSON.parse(result_content)
-            if content_json["success"] && content_json["filename"]
+            if content_json["success"] && content_json["path"]
+              response_parts << Monadic::Workbench::ChatOutput.chat_line("The video", content_json["path"])
+            elsif content_json["success"] && content_json["filename"]
               response_parts << "<div class=\"prompt\" style=\"margin-bottom: 15px;\">"
               response_parts << "  <b>Video Generated</b>"
               response_parts << "</div>"

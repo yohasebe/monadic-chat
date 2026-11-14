@@ -21,7 +21,7 @@ app "ResearchAssistantDeepSeek" do
     ## Code Execution
 
     You can execute Python code using `run_code` with `command: "python"`, your code, and `extension: "py"`.
-    Save images with descriptive file names. Display images: `<div class="generated_image"><img src="/data/FILENAME" /></div>`
+    Your code runs in a new folder of this chat made for that run: save charts and other files by a plain, descriptive name. They are kept there and shown on the work screen beside the chat, and the result gives their paths; name them in one short line with their paths and do not embed them as images or links. Read the user's files by their full path, `/data/FILENAME`.
 
     ## IMPORTANT: Tool Calling Rules
 
@@ -83,6 +83,7 @@ app "ResearchAssistantDeepSeek" do
   display_name "Research Assistant"
 
   features do
+    code_runs_in_chat_folder true
     disabled !CONFIG["DEEPSEEK_API_KEY"]
     websearch !!CONFIG["TAVILY_API_KEY"]
     temperature 0.0
@@ -91,7 +92,6 @@ app "ResearchAssistantDeepSeek" do
     auto_speech false
     math true
     initiate_from_assistant true
-    # Note: monadic mode disabled for DeepSeek due to tool loop issues
   end
 
   tools do

@@ -132,7 +132,7 @@ app "JupyterNotebookClaude" do
     
     CORRECT approach (ALWAYS DO):
     - User: "Create a data analysis notebook"
-    - You: [Actually execute] run_jupyter → create_jupyter_notebook → add_jupyter_cells
+    - You: [Actually execute] create_jupyter_notebook → add_jupyter_cells
     - Return: "I've created the notebook 'data_analysis.ipynb' with pandas, numpy, and matplotlib imported. [link]"
     
     ACTION-ORIENTED BEHAVIOR:
@@ -146,11 +146,8 @@ app "JupyterNotebookClaude" do
     **MANDATORY**: After ANY successful notebook operation (create, add cells, delete cells, update cells),
     you MUST ALWAYS include the clickable notebook link in your response.
 
-    Example responses:
-    - "Notebook created successfully! Access it here: <a href='http://127.0.0.1:8889/lab/tree/my_notebook_20251230_123456.ipynb' target='_blank'>my_notebook_20251230_123456.ipynb</a>"
-    - "Cells added to notebook. View the updated notebook: <a href='http://127.0.0.1:8889/lab/tree/my_notebook.ipynb' target='_blank'>my_notebook.ipynb</a>"
-
-    The link format is: <a href='http://127.0.0.1:8889/lab/tree/FILENAME.ipynb' target='_blank'>FILENAME.ipynb</a>
+    Link to the address the tool returned after "Access it at:", with the notebook's name as the text:
+    - "Notebook created. Open it in JupyterLab: <a href='ADDRESS' target='_blank'>analysis.ipynb</a>"
 
     NEVER respond with just "Notebook created" or "Cells added" without the clickable link.
     The user needs the link to access the notebook in JupyterLab.
@@ -203,9 +200,10 @@ app "JupyterNotebookClaude" do
     6. Maximum 2 retry attempts per error to prevent infinite loops
     
     Advanced notebook management:
-    - `restart_jupyter_kernel`: Restart kernel and clear all outputs when notebook state is problematic
-    - `move_jupyter_cell`: Reorganize notebook by moving cells (from_index, to_index)
-    - `insert_jupyter_cells`: Insert cells at specific positions (index, cells array)
+    - `clear_jupyter_outputs`: Clear the outputs the notebook keeps (each run starts a new kernel; the user stops a run with Cancel)
+    - A notebook runs in its own folder: in cells, name files of the shared folder by their full path under /monadic/data/ (for example /monadic/data/conversations/…/inputs/data.csv)
+    - `move_jupyter_cell`: Move a cell so that it ends at to_index (0-based); it keeps its outputs and nothing runs
+    - `insert_jupyter_cells`: Insert cells before the cell at index (0-based; the number of cells adds them at the end); with run, the whole notebook runs again
     
     CRITICAL: When the user reports errors, use the existing notebook filename, do NOT create a new notebook.
 
@@ -325,7 +323,7 @@ app "JupyterNotebookClaude" do
     - Tell them to run `!pip install PACKAGE_NAME` in a notebook cell
     - Wait for confirmation before proceeding
 
-    Keep track of whether Jupyter is running and notebooks are created to avoid repeating initialization steps.
+    Keep track of the notebooks created to avoid repeating initialization steps.
     
     When you need to find existing notebooks:
     - Use `list_jupyter_notebooks` to see all available notebooks
@@ -340,18 +338,16 @@ app "JupyterNotebookClaude" do
     CRITICAL TOOL EXECUTION RULES:
     1. When you call a tool, you will receive the result immediately
     2. After receiving a tool result, you MUST continue processing:
-       - If more tools need to be called (e.g., create notebook after starting Jupyter), call them
+       - If more tools need to be called (e.g., add cells after creating the notebook), call them
        - Only after ALL necessary tools are executed, return your final response
     3. NEVER return a response immediately after calling a single tool if more tools are needed
-    4. NEVER call `run_jupyter` if the result already says "JupyterLab is running" — it is idempotent and does not need to be called again
+    4. Creating and running a notebook does not need JupyterLab: do not call `run_jupyter` for it. Call it only when the user asks to start or stop JupyterLab; the notebook's link opens JupyterLab when the user clicks it
     5. NEVER restart Jupyter just because a notebook already exists — reuse the existing notebook
     6. If you find yourself about to call the same tool you just called, STOP and return a response instead
 
     MULTI-STEP TOOL EXECUTION EXAMPLE:
     - User asks to create a notebook
-    - You call `run_jupyter` with command "run"
-    - You receive result: "JupyterLab is running" with access URL
-    - You MUST then call `create_jupyter_notebook` with a filename
+    - You call `create_jupyter_notebook` with a filename
     - You receive result: "Notebook created" OR "Notebook already exists"
     - In BOTH cases, proceed to add cells — do NOT restart Jupyter or recreate the notebook
     - NOW you return the final response with all information
@@ -426,19 +422,12 @@ app "JupyterNotebookClaude" do
   features do
     library_search false
     disabled !CONFIG["ANTHROPIC_API_KEY"]
-    monadic true  # Uses Session State for notebook context tracking
     easy_submit false
     auto_speech false
     jupyter true
     math true
     initiate_from_assistant true
     group "Anthropic"
-  end
-
-  context_schema do
-    field :topics, icon: "fa-tags", label: "Topics", description: "Main subjects and analysis goals"
-    field :code, icon: "fa-code", label: "Code", description: "Key libraries and techniques used"
-    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important findings and results"
   end
 
   tools do

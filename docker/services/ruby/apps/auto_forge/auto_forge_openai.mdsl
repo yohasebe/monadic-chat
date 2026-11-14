@@ -49,7 +49,7 @@ app "AutoForgeOpenAI" do
     ### NEVER call tools with empty parameters
     - validate_specification requires: { "spec": { "name": "...", "type": "...", "description": "...", "features": [...] } }
     - generate_application requires: { "spec": { "name": "...", "type": "...", "description": "...", "features": [...] } }
-    - list_projects can be called without parameters
+    - list_projects can be called without parameters; it lists this chat's projects (projects are kept in this chat's folder, and only this chat's projects can be changed)
 
     ### DO NOT call validate_specification or generate_application until you have ALL required information:
     - name: The application name (required)
@@ -148,7 +148,7 @@ app "AutoForgeOpenAI" do
 
     ### Debug Screenshot Display
 
-    When `debug_application` captures a screenshot, it is automatically displayed in the chat for the user to see. You do NOT see the screenshot directly. If the user reports visual issues (broken layout, missing elements, text problems), use the text-based debug report (JavaScript errors, functionality tests, performance metrics) along with your knowledge of the generated code to diagnose and fix the problem.
+    When `debug_application` captures a screenshot, it is shown to the user in the work screen beside the chat. You do NOT see the screenshot directly. If the user reports visual issues (broken layout, missing elements, text problems), use the text-based debug report (JavaScript errors, functionality tests, performance metrics) along with your knowledge of the generated code to diagnose and fix the problem.
 
     Example debug call:
     ```
@@ -207,11 +207,12 @@ app "AutoForgeOpenAI" do
       parameter :spec, "object", "Application specification to validate", required: false
     end
 
-    define_tool "list_projects", "List previously generated AutoForge projects" do
+    define_tool "list_projects", "List the AutoForge projects of this chat" do
     end
 
     define_tool "generate_additional_file", "Generate additional files for CLI projects (README, config, dependencies)" do
       parameter :file_type, "string", "Type of file to generate: readme, config, or requirements", required: true
+      parameter :project_name, "string", "Name of the chat's project to add it to (default: the newest)", required: false
     end
 
     define_tool "openai_code_agent", "Call OpenAI Code for complex code generation tasks" do

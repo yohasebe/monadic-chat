@@ -1,31 +1,31 @@
 app "DocumentGeneratorClaude" do
   description do
     en <<~TEXT
-    Generate Office documents (Excel, PowerPoint, Word, PDF) using AI. Files are automatically saved to ~/monadic/data/documents/. <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Generate Office documents (Excel, PowerPoint, Word, PDF) using AI. Files are saved in the chat's folder, and PDFs are shown on the work screen. <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ja <<~TEXT
-    AIを使用してOfficeドキュメント（Excel、PowerPoint、Word、PDF）を生成します。ファイルは~/monadic/data/documents/に自動保存されます。 <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    AIを使用してOfficeドキュメント（Excel、PowerPoint、Word、PDF）を生成します。ファイルは会話のフォルダに保存され、PDF は作業画面に表示されます。 <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     zh <<~TEXT
-    使用AI生成Office文档（Excel、PowerPoint、Word、PDF）。文件自动保存到~/monadic/data/documents/。 <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    使用AI生成Office文档（Excel、PowerPoint、Word、PDF）。文件保存在对话的文件夹中，PDF 显示在工作屏幕上。 <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ko <<~TEXT
-    AI를 사용하여 Office 문서(Excel, PowerPoint, Word, PDF)를 생성합니다. 파일은 ~/monadic/data/documents/에 자동 저장됩니다. <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    AI를 사용하여 Office 문서(Excel, PowerPoint, Word, PDF)를 생성합니다. 파일은 대화 폴더에 저장되며, PDF는 작업 화면에 표시됩니다. <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     es <<~TEXT
-    Genere documentos de Office (Excel, PowerPoint, Word, PDF) usando IA. Los archivos se guardan automáticamente en ~/monadic/data/documents/. <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Genere documentos de Office (Excel, PowerPoint, Word, PDF) usando IA. Los archivos se guardan en la carpeta del chat y los PDF se muestran en la pantalla de trabajo. <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     fr <<~TEXT
-    Générez des documents Office (Excel, PowerPoint, Word, PDF) avec l'IA. Les fichiers sont automatiquement enregistrés dans ~/monadic/data/documents/. <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Générez des documents Office (Excel, PowerPoint, Word, PDF) avec l'IA. Les fichiers sont enregistrés dans le dossier de la conversation, et les PDF s'affichent sur l'écran de travail. <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     de <<~TEXT
-    Erstellen Sie Office-Dokumente (Excel, PowerPoint, Word, PDF) mit KI. Dateien werden automatisch in ~/monadic/data/documents/ gespeichert. <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Erstellen Sie Office-Dokumente (Excel, PowerPoint, Word, PDF) mit KI. Dateien werden im Ordner des Chats gespeichert, PDFs werden auf dem Arbeitsbildschirm angezeigt. <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
 
@@ -65,7 +65,7 @@ app "DocumentGeneratorClaude" do
     1. **Understand Requirements**: Ask clarifying questions to understand exactly what the user needs
     2. **Choose Format**: Select the most appropriate document type for their purpose
     3. **Generate Content**: Use the appropriate skill to create the document with professional quality
-    4. **Confirm Delivery**: After generation, inform the user that the file has been saved to ~/monadic/data/documents/
+    4. **Confirm Delivery**: After generation, tell the user in one line where the file was saved, with the path given in the result (a PDF is also shown on the work screen beside the chat)
 
     **Important Guidelines:**
 

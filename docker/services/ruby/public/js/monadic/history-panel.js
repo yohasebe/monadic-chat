@@ -99,13 +99,6 @@
     return !!(r && (r.sent || r.queued));
   }
 
-  // A request for another chat (window.sendChatSwitch).
-  function sendSwitch(payload) {
-    if (typeof window.sendChatSwitch !== 'function') return send(payload);
-    const r = window.sendChatSwitch(payload);
-    return !!(r && (r.sent || r.queued));
-  }
-
   function requestList(offset) {
     send({ message: 'HISTORY_LIST', query: view.q, app: view.app, unused_days: view.unused, offset: offset || 0 },
       { silentDrop: true });
@@ -153,7 +146,7 @@
     if (resuming) return;
     const payload = { message: 'HISTORY_RESUME', chat_id: chatId };
     resuming = true;
-    if (sendSwitch(payload)) setStatus(t('opening', 'Opening the chat…'), 'busy');
+    if (send(payload)) setStatus(t('opening', 'Opening the chat…'), 'busy');
     else resuming = null;
   }
 
@@ -253,13 +246,12 @@
     name.disabled = !!item.open;
     const text = el('span', 'sfp-text');
     text.appendChild(el('span', 'sfp-label', displayName(item)));
-    if (item.heading_recent) text.appendChild(el('span', 'sfp-meta history-topic', item.heading_recent));
     const meta = [appName(item.app_name), t('messages', '{n} messages', { n: item.message_count || 0 }), formatTime(item.last_activity_at)]
       .filter(Boolean).join(' · ');
     text.appendChild(el('span', 'sfp-meta', meta));
     name.appendChild(text);
     if (item.open) {
-      name.appendChild(el('span', 'mc-badge ' + (item.here ? 'mc-badge--green' : 'mc-badge--grey') + ' history-open-badge ms-auto',
+      name.appendChild(el('span', 'mc-badge ' + (item.here ? 'mc-badge--blue' : 'mc-badge--grey') + ' history-open-badge ms-auto',
         item.here ? t('here', 'Shown now') : t('open', 'Open in another window')));
     }
     name.addEventListener('click', function () { if (!item.open) resume(item.chat_id); });
@@ -440,6 +432,9 @@
       const lc = window.LayoutController;
       const narrow = window.UIConfig && typeof window.UIConfig.isTabletView === 'function' ? window.UIConfig.isTabletView() : window.innerWidth < 768;
       if (data.success && lc && narrow) lc.setMenuHidden(true);
+      if (data.success && window.Workbench && typeof window.Workbench.expectResumed === 'function') {
+        window.Workbench.expectResumed(data.chat_id);
+      }
       refreshSoon();
       return;
     }

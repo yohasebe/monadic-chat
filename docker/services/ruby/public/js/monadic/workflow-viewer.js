@@ -42,12 +42,12 @@ const WorkflowViewer = (function () {
       prompt:   dk ? '#3b1f5e' : '#ede9fe',  model:      dk ? '#1a3a2a' : '#dcfce7',
       tool:     dk ? '#4a2c1a' : '#ffedd5',  toolGroup:  dk ? '#3d2a14' : '#fff7ed',
       agent:    dk ? '#3b1a1a' : '#fee2e2',  feature:    dk ? '#2a2a2a' : '#f3f4f6',
-      context:  dk ? '#3a3520' : '#fef9c3',
+      history:  dk ? '#3a3520' : '#fef9c3',
       speech:   dk ? '#134e4a' : '#ccfbf1',
       inputBdr:    dk ? '#3b82f6' : '#3b82f6',  responseBdr: dk ? '#3b82f6' : '#3b82f6',
       promptBdr:   dk ? '#8b5cf6' : '#7c3aed',  modelBdr:    dk ? '#22c55e' : '#16a34a',
       toolBdr:     dk ? '#f97316' : '#ea580c',  agentBdr:    dk ? '#ef4444' : '#dc2626',
-      featureBdr:  dk ? '#6b7280' : '#9ca3af',  contextBdr:  dk ? '#eab308' : '#ca8a04',
+      featureBdr:  dk ? '#6b7280' : '#9ca3af',  historyBdr:  dk ? '#eab308' : '#ca8a04',
       speechBdr:   dk ? '#14b8a6' : '#0d9488',
       text:    v('--text-primary', '#333'),
       textSub: dk ? '#9ca3af' : '#6b7280',
@@ -92,13 +92,22 @@ const WorkflowViewer = (function () {
     viewStates[currentApp] = {
       scale: view.scale || 1,
       tx: (view.translate ? view.translate.x : 0),
-      ty: (view.translate ? view.translate.y : 0)
+      ty: (view.translate ? view.translate.y : 0),
+      cw: container.clientWidth,
+      ch: container.clientHeight
     };
   }
 
   function restoreViewState() {
     if (!graph || !currentApp || !viewStates[currentApp]) return false;
     var vs = viewStates[currentApp];
+    // A view kept for a container of another size (the settings panel shown
+    // again at its full height, the side panel opened or closed) would leave
+    // the graph small in a corner or cut off: it is fitted afresh instead.
+    if (Math.abs(container.clientWidth - vs.cw) > 2 || Math.abs(container.clientHeight - vs.ch) > 2) {
+      delete viewStates[currentApp];
+      return false;
+    }
     graph.getView().scaleAndTranslate(vs.scale, vs.tx, vs.ty);
     // A saved state can still be wrong for the CURRENT container size (e.g.
     // captured in floating mode, restored inline). Report failure so the
@@ -474,24 +483,7 @@ const WorkflowViewer = (function () {
     });
     sideEdges.push({ from: responseId, to: hId, dashed: true, noArrow: true, direction: 'left' });
 
-    // ── Monadic Context — only when context_schema has fields ──
-    var ctx = data.context_schema;
-    var hasContext = ctx && ctx.fields && ctx.fields.length > 0;
-    var cId = hasContext ? nid() : null;
-    if (hasContext) {
-      var contextBody = ctx.fields.map(function (f) { return f.label || f.name; });
-      nodes.push({
-        id: cId, type: 'context', heading: 'Monadic Context',
-        body: contextBody,
-        flow: false, sideOf: responseId, side: 'left'
-      });
-      sideEdges.push({ from: responseId, to: cId, dashed: true, direction: 'left' });
-    }
-
     var feedbackEdges = [{ from: hId, to: inputId }];
-    if (hasContext) {
-      feedbackEdges.push({ from: cId, to: inputId });
-    }
 
     return {
       nodes: nodes, flowEdges: flowEdges, sideEdges: sideEdges,
@@ -519,8 +511,7 @@ const WorkflowViewer = (function () {
     case 'feature':
       return makeStyle(c.feature, c.featureBdr);
     case 'history':
-    case 'context':
-      return makeStyle(c.context, c.contextBdr);
+      return makeStyle(c.history, c.historyBdr);
     default:
       return makeStyle(c.feature, c.featureBdr);
     }
@@ -561,7 +552,7 @@ const WorkflowViewer = (function () {
         var minW;
         if (hasScrollText) minW = 320;
         else if (n.isToolContainer) minW = 240;
-        else if (n.type === 'feature' || n.type === 'context' || n.type === 'history') minW = 200;
+        else if (n.type === 'feature' || n.type === 'history') minW = 200;
         else minW = 220;
 
         // Determine size
@@ -1008,11 +999,24 @@ const WorkflowViewer = (function () {
     return Math.max(MIN_PANEL_H, available);
   }
 
-  function applyInlineHeight() {
-    if (currentMode !== 'inline' || !panelEl) return;
+  // The height the inline panel takes where it is now: what the user set,
+  // within what the viewport leaves above the Start Session button.
+  function inlineHeight() {
     var available = computeInlineHeight();
     var saved = loadInlineHeight();
-    var h = (saved && saved > 0) ? Math.min(saved, available) : available;
+    return (saved && saved > 0) ? Math.min(saved, available) : available;
+  }
+
+  // True when the inline panel is shown at another height than its place
+  // gives it now (it was sized while hidden, or where it stood before).
+  function inlineHeightStale() {
+    if (currentMode !== 'inline' || !panelEl || panelEl.offsetParent === null) return false;
+    return Math.abs(panelEl.getBoundingClientRect().height - inlineHeight()) > 2;
+  }
+
+  function applyInlineHeight() {
+    if (currentMode !== 'inline' || !panelEl) return;
+    var h = inlineHeight();
     panelEl.style.height = h + 'px';
     panelEl.style.maxHeight = 'none';
     if (graph) {
@@ -1383,19 +1387,15 @@ const WorkflowViewer = (function () {
       'prompt': ['input', 'prompt'],
       'model': ['input', 'prompt', 'model'],
       'tools': ['input', 'prompt', 'model', 'toolGroup'],
-      'response': ['input', 'prompt', 'model', 'response'],
-      'context': ['response', 'context']
+      'response': ['input', 'prompt', 'model', 'response']
     };
 
     var activeNodes = nodeMap[stage] || [];
     var primaryNode = activeNodes[activeNodes.length - 1];
 
     // Pulse-glow on primary node.
-    // 'context' stage arrives after 'done' with no subsequent clear,
-    // so limit its pulse to 3 cycles then settle to a static glow.
-    var pulseCycles = (stage === 'context') ? 3 : 0;
     if (primaryNode && cellsByType[primaryNode]) {
-      applyHighlight(cellsByType[primaryNode], 'wv-node-active', pulseCycles);
+      applyHighlight(cellsByType[primaryNode], 'wv-node-active', 0);
     }
 
     // Flow-animate edges along the chain
@@ -1578,6 +1578,9 @@ const WorkflowViewer = (function () {
           if (skipNextResize || !graph || !container || container.clientWidth === 0) return;
           clearTimeout(resizeTimer);
           resizeTimer = setTimeout(function () {
+            // Shown again where it has another height to take: sized and
+            // fitted afresh.
+            if (inlineHeightStale()) { applyInlineHeight(); return; }
             if (!restoreViewState()) fitGraphToContainer();
           }, 80);
         }).observe(container);
@@ -1782,6 +1785,7 @@ const WorkflowViewer = (function () {
           container.innerHTML = '';
           createGraph();
           renderGraph(buildGraphData(data, getExpanded()));
+          if (inlineHeightStale()) applyInlineHeight();
         })
         .catch(function (err) {
           container.innerHTML = '<div class="workflow-viewer-message"><i class="fas fa-exclamation-triangle me-2"></i>Failed: ' + (err.message || '?') + '</div>';

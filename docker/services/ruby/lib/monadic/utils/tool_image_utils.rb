@@ -2,12 +2,50 @@
 
 require 'base64'
 require 'fileutils'
+require 'securerandom'
 require_relative 'environment'
 require_relative 'shared_path_guard'
+require_relative '../turn_state'
 
 module Monadic
   module Utils
     module ToolImageUtils
+      # An image a tool makes only for the model to look at (a diagram's
+      # preview) is named with this prefix: it is removed once it is read.
+      FOR_MODEL_PREFIX = "model_view_"
+      # One not read (a model that takes no images, a reply that failed) is
+      # removed when it is older than this, in seconds.
+      FOR_MODEL_MAX_AGE = 600
+
+      # A new name for such an image (suffix: what tells several of one call
+      # apart, such as "_tile1").
+      def self.for_model_name(suffix = nil)
+        "#{FOR_MODEL_PREFIX}#{Time.now.to_i}_#{SecureRandom.hex(4)}#{suffix}.png"
+      end
+
+      # Gives a file directly in the shared folder (name) such a name;
+      # returns the new name, or nil when it could not be renamed.
+      def self.for_model!(name)
+        return nil unless single_name?(name)
+
+        view = for_model_name
+        SharedPathGuard.rename_file!(File.join(Environment.data_path, name), File.join(Environment.data_path, view))
+        view
+      rescue SharedPathGuard::InvalidPath, SystemCallError
+        nil
+      end
+
+      # Removes the images for the model that were never read.
+      def self.sweep_for_model
+        Dir.glob(File.join(Environment.data_path, "#{FOR_MODEL_PREFIX}*.png")).each do |path|
+          next if Time.now - File.lstat(path).mtime < FOR_MODEL_MAX_AGE
+
+          SharedPathGuard.delete_file!(path)
+        rescue SharedPathGuard::InvalidPath, SystemCallError
+          next
+        end
+      end
+
       # Read an image file from the shared data directory and return base64-encoded data.
       # @param filename [String] image filename relative to data_path
       # @param max_base64_size [Integer] maximum allowed size of base64 string in bytes (default 5 MB)
@@ -22,6 +60,8 @@ module Monadic
         # A plain file of the shared folder, never through a link.
         raw_data = SharedPathGuard.read_bytes!(image_path, limit: max_base64_size * 3 / 4)
         return nil unless raw_data
+
+        SharedPathGuard.delete_file!(image_path) if filename.start_with?(FOR_MODEL_PREFIX)
 
         # Sent only when the bytes start with an image signature, typed by it
         # and not by the name: text such as the config env file is not sent.
@@ -79,14 +119,14 @@ module Monadic
       #   1. The most recent uploaded image in the session (data URL → file).
       #   2. An explicit image_path argument (a real filename), ignoring the
       #      literal placeholder "image_path" that models sometimes emit.
-      #   3. last_image_key in the session (a previously materialized filename).
+      #   3. The image the app used last: its state's "last_images" (a
+      #      deleted turn's image is not used again).
       #
       # @param session [Hash] the WebSocket session (provides :messages and fallbacks)
       # @param image_path [String, nil] filename passed by the tool call, if any
-      # @param last_image_key [Symbol, nil] session key holding a prior filename
       # @return [String, nil] the bare filename on the shared volume, or nil
       # @raise [ImageMaterializationError] if an upload exists but cannot be written
-      def self.materialize_session_image(session, image_path: nil, last_image_key: nil)
+      def self.materialize_session_image(session, image_path: nil)
         materialized = nil
 
         # A freshly uploaded image always wins. Resolve it first regardless of
@@ -116,12 +156,23 @@ module Monadic
           materialized = image_path
         end
 
-        # Fall back to a previously materialized image for this app.
-        if materialized.nil? && last_image_key && session && session[last_image_key]
-          materialized = session[last_image_key]
+        if materialized.nil? && session
+          materialized = Array(Monadic::TurnState.data_of(session, "last_images")).first&.to_s
         end
 
         materialized
+      end
+
+      # Names the image a tool used in the app's state ("last_images"), for
+      # the next call to use again; not kept when the app has no state tools
+      # or the change is refused.
+      def self.remember_image(app, session, image_path)
+        return unless session && app.respond_to?(:monadic_save_state)
+
+        name = File.basename(image_path.to_s)
+        return if Array(Monadic::TurnState.data_of(session, "last_images")) == [name]
+
+        app.monadic_save_state(key: "last_images", payload: [name], session: session)
       end
 
       # Names this process wrote with write_data_url_to_shared and has not

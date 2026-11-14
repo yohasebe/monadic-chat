@@ -130,6 +130,24 @@ RSpec.describe MonadicSharedTools::WebSearchTools do
     ensure
       FileUtils.rm_rf(shared) if shared
     end
+
+    it "keeps the page in a run folder of the reply's chat, so it goes with that turn" do
+      shared = File.realpath(Dir.mktmpdir('web-content-'))
+      allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(shared)
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared)
+      allow(Monadic::Utils::Environment).to receive(:state_path).and_return(File.join(shared, '.state'))
+      response = double('HTTP response', code: '200', body: 'Page')
+      allow(response).to receive(:[]).with('Content-Type').and_return('text/html')
+      allow(Net::HTTP).to receive(:start).and_yield(double('HTTP client', request: response))
+      chat = Monadic::Workspace::Ids.generate(:chat)
+
+      result = instance.fetch_web_content(url: 'https://example.com', workbench: Struct.new(:chat_id).new(chat))
+      expect(result[:filepath]).to match(%r{\Aconversations/[^/]+/artifacts/j_[a-z0-9]+/web_content_\d{8}_\d{6}\.txt\z})
+      expect(File.read(result[:full_path])).to eq('Page')
+      expect(File.read(File.join(shared, result[:filepath]))).to eq('Page')
+    ensure
+      FileUtils.rm_rf(shared) if shared
+    end
   end
 
   describe '#tavily_search' do

@@ -30,7 +30,7 @@ module DeepSeekHelper
   # this file.
   WEBSEARCH_TOOLS = Monadic::SharedTools::TavilyDefinitions::TOOLS
 
-  # JSON format instruction for monadic mode (required by DeepSeek API)
+  # JSON format instruction for json mode (required by DeepSeek API)
   JSON_FORMAT_PROMPT = <<~TEXT
 
     IMPORTANT: You must respond in valid JSON format. Your response should be a properly formatted JSON object.
@@ -256,13 +256,7 @@ module DeepSeekHelper
 
     body["temperature"] = temperature
 
-    # Determine if we need to add JSON format instruction
-    # Handle both string "true" and boolean true values
-    # Note: monadic mode does NOT require JSON format - it uses tools for state management
-    # Only explicit json mode requires JSON format
-    is_monadic = obj["monadic"].to_s == "true"
     is_json = obj["json"].to_s == "true"
-    needs_json_prompt = is_json  # Only json mode needs JSON format, not monadic
 
     system_message_modified = false
     messages_containing_img = false
@@ -279,8 +273,8 @@ module DeepSeekHelper
         )
         # Add websearch prompt if enabled
         content += "\n\n---\n\n" + WEBSEARCH_PROMPT if websearch
-        # Add JSON format prompt if monadic/json mode (required by DeepSeek API)
-        content += "\n\n---\n\n" + JSON_FORMAT_PROMPT if needs_json_prompt
+        # Add JSON format prompt in json mode (required by DeepSeek API)
+        content += "\n\n---\n\n" + JSON_FORMAT_PROMPT if is_json
         { "role" => msg["role"], "content" => content }
       else
         # Images are attached only to user messages: DeepSeek answers 400 for an
@@ -382,8 +376,6 @@ module DeepSeekHelper
 
     obj = session[:parameters]
 
-    # Define monadic/json mode flags for consistent checking
-    is_monadic = obj["monadic"].to_s == "true"
     is_json = obj["json"].to_s == "true"
 
     buffer = String.new.force_encoding("UTF-8")
@@ -516,7 +508,6 @@ module DeepSeekHelper
                   elsif is_json
                     # Suppress fragments for json mode only - content will be processed after completion
                     # The raw JSON fragments should not be shown to the user
-                    # Note: monadic mode uses normal streaming since responses are natural language
                   elsif fragment.length > 0
                     res = {
                       "type" => "fragment",
@@ -610,8 +601,7 @@ module DeepSeekHelper
 
       parse_deepseek_json_function_call(content, text_result, tools) unless dsml_result
       
-      # Process JSON responses only for explicit json mode (not monadic mode)
-      # Monadic mode uses tools for state management and returns natural language
+      # Process JSON responses only for json mode
       if is_json
         choice = text_result["choices"][0]
         if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop" || choice["finish_reason"].nil?
@@ -1300,18 +1290,8 @@ module DeepSeekHelper
     [entry, error_stop]
   end
 
-  # Terminal tools that signal the end of a tool-calling sequence
-  # After these tools are executed, the model should not call more tools
-  TERMINAL_TOOLS = %w[
-    save_learning_progress
-    save_conversation_analysis
-    save_diagnosis_progress
-    save_analysis_result
-  ].freeze
-
   def process_functions(app, session, tools, context, call_depth, &block)
     obj = session[:parameters]
-    terminal_tool_called = false
 
     tools.each do |tool_call|
       function_name = tool_call.dig("function", "name")
@@ -1319,11 +1299,6 @@ module DeepSeekHelper
 
       record_tool_call(session, function_name)
       block&.call({ "type" => "tool_executing", "content" => function_name })
-
-      if TERMINAL_TOOLS.include?(function_name)
-        terminal_tool_called = true
-        DebugHelper.debug("DeepSeek: Terminal tool '#{function_name}' called - will disable tools in next request", category: :api, level: :debug)
-      end
 
       tool_entry, error_stop = invoke_deepseek_tool_function(app, session, tool_call, function_name, &block)
       context << tool_entry if tool_entry
@@ -1346,31 +1321,6 @@ module DeepSeekHelper
       res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
       block&.call res
       return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected." } }] }]
-    end
-
-    # If terminal tool was called, do NOT make another api_request
-    # The terminal tool signals that the assistant's turn is complete
-    # Making another request would cause empty response and "content_not_found" error
-    if terminal_tool_called
-      Monadic::Utils::ExtraLogger.log { "[DeepSeek] Terminal tool called - sending DONE and ending turn" }
-      # Send DONE message to signal completion to frontend
-      # This is necessary because previous html message may have had more_coming=true
-      done_res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-      block&.call done_res
-
-      # Return a properly structured response that websocket.rb can process
-      # without triggering content_not_found error
-      # The response must have choices[0].message.content structure
-      final_response = {
-        "choices" => [{
-          "message" => {
-            "role" => "assistant",
-            "content" => ""  # Empty content is OK, will not trigger error
-          },
-          "finish_reason" => "stop"
-        }]
-      }
-      return [final_response]
     end
 
     sleep RETRY_DELAY

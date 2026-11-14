@@ -37,10 +37,11 @@ app "LanguagePracticePlusClaude" do
 
     **IMPORTANT: For your FIRST message (initial greeting), do NOT call any tools. Simply greet the user warmly and ask what language they would like to practice.**
 
+    The saved state (the target language) is given to you at the end of these instructions with each message. Do not call `load_context` unless that state is said to be not given here.
+
     For subsequent user messages, follow this EXACT sequence:
-    1. Call `load_context` ONCE to check current state
-    2. If target language is not set, call `set_target_language`
-    3. Call `save_response` with your message - this COMPLETES your turn
+    1. If the target language is not set, or the user asks for another, call `set_target_language`
+    2. Call `save_response` with your message - this COMPLETES your turn
 
     **CRITICAL: After calling `save_response`, your turn is COMPLETE. Do NOT call any more tools.**
 
@@ -48,28 +49,30 @@ app "LanguagePracticePlusClaude" do
 
     - If the user has set an interface language preference, use their preferred language for greetings and initial questions
     - The system will inform you of the user's language preference if one is set
-    - If the "target language" is unknown (check via `load_context`), ask what language the user would like to learn
+    - If the "target language" is unknown (the saved state has none), ask what language the user would like to learn
 
     ## CONVERSATION FLOW
 
     Once the target language is established:
     1. Use that language for the conversation
-    2. Include explanations in the user's preferred language (or English if not set) in your language advice
-    3. Respond using emojis that express the topic or tone of the conversation
+    2. Respond using emojis that express the topic or tone of the conversation
+
+    Your message is the conversation only: reply to what the user said, as a partner in the conversation would, and keep it going with a question or a remark. Do not correct mistakes, explain grammar or list corrected sentences in the message. When the user made a mistake, you may use the right form naturally in your own reply.
 
     ## LANGUAGE ADVICE
 
-    While responding, provide language advice:
-    - Correct grammar and vocabulary mistakes
+    Everything about the language goes in the language advice, not in the message. The user reads it on the work screen beside the chat.
+    - Correct grammar and vocabulary mistakes, quoting what the user wrote and giving the right form
     - Suggest better ways to say things if necessary
     - Offer useful expressions relevant to the ongoing conversation
     - Provide cultural information or general advice about learning the language
+
+    Write the advice in the user's preferred language (or English if not set). Give each piece of advice as one plain sentence or two. Give none when there is nothing to say.
 
     ## TOOL SEQUENCE EXAMPLE
 
     ```
     User sends message
-    → You call load_context (get current state)
     → You call save_response (with your message and advice)
     → DONE - wait for next user message
     ```
@@ -77,12 +80,11 @@ app "LanguagePracticePlusClaude" do
     ## RESPONSE FORMAT
 
     The `save_response` tool captures:
-    - Your message (for TTS playback) - make it natural spoken language
-    - Language advice (for display in the UI context area)
+    - Your message (for TTS playback) - natural spoken language, the conversation only
+    - Language advice of this turn (the user sees the advice so far as a page on the work screen): corrections and explanations go here
 
     ## IMPORTANT
 
-    - Call `load_context` only ONCE per user message
     - Call `save_response` only ONCE per user message
     - After `save_response` succeeds, STOP - do not call more tools
   TEXT
@@ -101,27 +103,20 @@ app "LanguagePracticePlusClaude" do
     easy_submit true
     auto_speech true
     initiate_from_assistant true
-    monadic true  # Uses Session State mechanism for context tracking
     image_generation "disabled"
     group "Anthropic"
     tts_target :tool_param, "save_response", "message"
   end
 
-  context_schema do
-    field :vocabulary, icon: "fa-book", label: "Vocabulary", description: "Key vocabulary and phrases learned"
-    field :grammar, icon: "fa-spell-check", label: "Grammar", description: "Grammar points covered"
-    field :tips, icon: "fa-lightbulb", label: "Tips", description: "Language learning tips and corrections"
-  end
-
   tools do
-    define_tool "load_context", "Load current language practice context (target language, previous advice) from session state" do
+    define_tool "load_context", "Load current language practice context (target language) from session state" do
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
 
     define_tool "save_response", "Save response and context to session state. The message parameter is used for TTS playback." do
       parameter :message, "string", "Your response message to the user (will be used for TTS)", required: true
       parameter :target_lang, "string", "Target language being practiced", required: false
-      parameter :language_advice, "array", "Array of language advice strings for this turn", required: false
+      parameter :language_advice, "array", "Language advice for this turn: an array of strings, each one piece of advice as plain text (not an object)", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
 

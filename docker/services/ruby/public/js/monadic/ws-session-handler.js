@@ -3,8 +3,6 @@
  *
  * Handles session-level WebSocket messages that don't involve
  * streaming state or audio playback:
- * - chat_context / context_extraction_started / context_extraction_ended /
- *   context_update: Context panel lifecycle
  * - language_updated: Conversation language changes with RTL support
  * - processing_status / system_info: System message display
  * - stt: Speech-to-text completion
@@ -17,50 +15,6 @@
  */
 (function() {
 'use strict';
-
-/**
- * Handle "context_extraction_started" WebSocket message.
- * Shows loading state in the context panel while the chat's extraction runs.
- * @param {Object} data - Message data with chat and job
- */
-function handleContextExtractionStarted(data) {
-  if (typeof ContextPanel !== "undefined") {
-    ContextPanel.extractionStarted(data);
-    if (window.debugWebSocket) console.log("[WS] Context extraction started");
-  }
-}
-
-/**
- * Handle "context_extraction_ended" WebSocket message (an extraction that
- * gave no context).
- * @param {Object} data - Message data with chat and job
- */
-function handleContextExtractionEnded(data) {
-  if (typeof ContextPanel !== "undefined") ContextPanel.extractionEnded(data);
-}
-
-/**
- * Handle "context_update" WebSocket message.
- * Updates context panel with the chat's context (not one of another chat,
- * nor one older than shown).
- * @param {Object} data - Message data with chat, version, context and optional schema
- */
-function handleContextUpdate(data) {
-  if (typeof ContextPanel === "undefined" || !data || ContextPanel.chat === null || data.chat !== ContextPanel.chat) return;
-  if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
-    WorkflowViewer.setStage('context');
-  }
-  ContextPanel.contextChanged(data);
-  if (window.debugWebSocket) console.log("[WS] Context panel updated:", data.context, "schema:", data.schema);
-}
-
-/**
- * Handle "chat_context" WebSocket message: the chat the tab is in, with its context.
- * @param {Object} data - Message data with chat, version, context, schema and switch
- */
-function handleChatContext(data) {
-  if (typeof ContextPanel !== "undefined") ContextPanel.chatEntered(data);
-}
 
 /**
  * Handle "language_updated" WebSocket message.
@@ -461,10 +415,6 @@ function handleSampleSuccess(data) {
 
 // Export for browser environment
 window.WsSessionHandler = {
-  handleContextExtractionStarted,
-  handleContextExtractionEnded,
-  handleContextUpdate,
-  handleChatContext,
   handleLanguageUpdated,
   handleProcessingStatus,
   handleSystemInfo,

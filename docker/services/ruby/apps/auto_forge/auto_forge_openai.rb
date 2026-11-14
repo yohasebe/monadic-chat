@@ -11,7 +11,12 @@ class AutoForgeOpenAI < MonadicApp
   include AutoForgeTools
   include Monadic::Agents::OpenAICodeAgent
 
+  # The code agent of this app's provider, for everything it generates.
+  def forge_agent
+    :openai
+  end
+
   def generate_application(spec:)
-    super(spec: spec, agent: :openai)
+    super(spec: spec, agent: forge_agent)
   end
 end

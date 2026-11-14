@@ -16,6 +16,7 @@ const i18n = require('./i18n');
 const installOptions = require('./install_options.config');
 const opReferences = require('./op_references');
 const { createRevealHandler, createTrashHandler, showSharedPath, NO_ANSWER } = require('./shared_folder_reveal');
+const { copyAddressItems } = require('./context_menu_copy');
 const { writeStreamNoFollow, readStreamNoFollow, openReadNoFollow } = require('./no_follow_files');
 const { monadicShEnv, monadicInvocation } = require('./monadic_env');
 const { keepWarnings, createLineBuffer } = require('./build_output');
@@ -1689,9 +1690,12 @@ function initializeApp() {
       // Useful extras
       showSaveImageAs: true,
       showCopyImage: true,
-      showCopyImageAddress: true,
       showInspectElement: true,
-      showSearchWithGoogle: false
+      showSearchWithGoogle: false,
+      // Addresses are copied as plain text (see context_menu_copy.js)
+      showCopyLink: false,
+      showCopyImageAddress: false,
+      prepend: (_actions, props) => copyAddressItems(props, clipboard)
     });
 
     // Menu Bar Mode: show Dock (and menu bar) when any window is focused,
@@ -1856,11 +1860,8 @@ function initializeApp() {
               'Building', 'Stopped', false);
             break;
           // JupyterLab commands
-          case 'start-jupyter':
-            openMainWindow();
-            dockerManager.runCommand('start-jupyter',
-              formatMessage(null, 'messages.startingJupyterLab'),
-              'Starting', 'Running');
+          case 'open-jupyter':
+            openJupyterLab();
             break;
           case 'stop-jupyter':
             openMainWindow();
@@ -2718,11 +2719,8 @@ function updateApplicationMenu() {
             type: 'separator'
           },
           {
-            label: i18n.t('menu.startJupyterLab'),
-            click: () => {
-              openMainWindow();
-              dockerManager.runCommand('start-jupyter', formatMessage(null, 'messages.startingJupyterLab'), 'Starting', 'Running');
-            },
+            label: i18n.t('menu.openJupyterLab'),
+            click: () => openJupyterLab(),
             enabled: (currentStatus === 'Running' || currentStatus === 'Ready') && metRequirements
           },
           {
@@ -3124,13 +3122,13 @@ ipcMain.handle('get-translations', async (_e, lang) => {
 // light value is unchanged; dark is the page's dark body (tokens.css
 // --bg-body).
 function consoleBackground() {
-  return nativeTheme.shouldUseDarkColors ? '#1a1a1a' : '#f0f0f0';
+  return nativeTheme.shouldUseDarkColors ? '#18191b' : '#f0f0f0';
 }
 
 // The settings window's own background: its page's body color in light and
 // in dark (tokens.css --bg-panel).
 function settingsBackground() {
-  return nativeTheme.shouldUseDarkColors ? '#2a2a2a' : '#f5f5f7';
+  return nativeTheme.shouldUseDarkColors ? '#25272a' : '#f5f5f7';
 }
 
 function createMainWindow() {
@@ -3445,6 +3443,27 @@ function openBrowser(url, outside = false, forceOpen = false) {
 // (Removed duplicate openWebViewWindow; unified earlier definition is used)
     });
   }, interval);
+}
+
+// JupyterLab in the system browser: started first unless it answers
+// (run_jupyter.sh), then opened only once it answers.
+const JUPYTER_URL = 'http://127.0.0.1:8889';
+
+function jupyterAnswers() {
+  return new Promise((resolve) => {
+    const request = require('http').get(`${JUPYTER_URL}/api/status`, { timeout: 3000 }, (response) => {
+      response.resume();
+      resolve(response.statusCode === 200);
+    });
+    request.on('timeout', () => request.destroy());
+    request.on('error', () => resolve(false));
+  });
+}
+
+async function openJupyterLab() {
+  openMainWindow();
+  await dockerManager.runCommand('start-jupyter', formatMessage(null, 'messages.startingJupyterLab'), 'Starting', 'Running');
+  if (await jupyterAnswers()) shell.openExternal(`${JUPYTER_URL}/lab/tree`);
 }
 
 function openNoVNCWindow() {

@@ -81,6 +81,166 @@ RSpec.describe "the workbench when a reply is recorded" do
     end
   end
 
+  # A provider call whose tool changes the app's state by turn
+  # (Monadic::TurnState), then answers with text.
+  def state_app(running, answer: "Noted")
+    require_relative "../../../lib/monadic/shared_tools/monadic_session_state"
+    Object.new.tap do |app|
+      app.define_singleton_method(:api_request) do |_role, session, &_block|
+        request = Monadic::Workspace::RequestContext.current
+        running[0] = Monadic::Workbench::Caller.new(chat_id: session[:chat_id], epoch: Monadic::Workspace::Chats.epoch(session[:chat_id]),
+                                                    request_id: request.request_id, session: session)
+        Class.new { include Monadic::SharedTools::MonadicSessionState }.new
+             .monadic_save_state(key: "notes", payload: { "a" => 1 }, session: session)
+        answer ? [{ "choices" => [{ "message" => { "content" => answer }, "finish_reason" => "stop" }] }] : []
+      end
+      app.define_singleton_method(:settings) { {} }
+    end
+  end
+
+  it "gives what the reply changed in its app's state to its message, and lets it go when the reply has none" do
+    running = []
+    allow(Monadic::TurnState::Notes).to receive(:refresh)
+    allow(Monadic::Workbench::Caller).to receive(:current) { running[0] }
+    Monadic::TurnState.reset!
+    stub_const("APPS", { "FakeApp" => state_app(running) })
+    session[:parameters] = { "app_name" => "FakeApp" }
+    thread = host.send(:handle_ws_streaming, nil, { "message" => "note", "app_name" => "FakeApp" }, session, queue)
+    host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+    thread.join(5)
+    expect(session[:messages].last["state_changes"]).to eq([{ "app" => "FakeApp", "kind" => "value", "key" => "notes",
+                                                              "op" => "set", "data" => { "a" => 1 } }])
+    expect(Monadic::TurnState::Notes).to have_received(:refresh).with(session, show: true, tab: "tab-1").once
+
+    stub_const("APPS", { "FakeApp" => state_app(running, answer: nil) })
+    thread = host.send(:handle_ws_streaming, nil, { "message" => "again", "app_name" => "FakeApp" }, session, queue)
+    host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+    thread.join(5)
+    expect(session[:messages].count { |m| m["state_changes"] }).to eq(1)
+  end
+
+  # A provider call whose tool leaves the text to speak (tts_target), then
+  # answers with the text given.
+  def speaking_app(spoken, answer: "")
+    Object.new.tap do |app|
+      app.define_singleton_method(:api_request) do |_role, session, &_block|
+        session[:tts_text] = spoken
+        [{ "choices" => [{ "message" => { "content" => answer }, "finish_reason" => "stop" }] }]
+      end
+      app.define_singleton_method(:settings) { {} }
+    end
+  end
+
+  def reply_of(app, message)
+    stub_const("APPS", { "FakeApp" => app })
+    session[:parameters] = { "app_name" => "FakeApp" }
+    thread = host.send(:handle_ws_streaming, nil, { "message" => message, "app_name" => "FakeApp" }, session, queue)
+    host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+    thread.join(5)
+    session[:messages].last
+  end
+
+  it "takes the text a tool left to speak as the reply when the reply has no text, without its speech directive" do
+    message = reply_of(speaking_app("<<TTS:Voice: warm.>>\nGood try!"), "hello")
+
+    expect(message).to include("role" => "assistant", "text" => "Good try!")
+    expect(session[:tts_text]).to be_nil
+  end
+
+  it "keeps the reply's own text, and does not carry the text to speak to the next reply" do
+    first = reply_of(speaking_app("Spoken", answer: "Written"), "one")
+    expect(first["text"]).to eq("Written")
+
+    plain = Object.new.tap do |app|
+      app.define_singleton_method(:api_request) { |_role, _session, &_block| [{ "choices" => [{ "message" => { "content" => "Next" }, "finish_reason" => "stop" }] }] }
+      app.define_singleton_method(:settings) { {} }
+    end
+    expect(reply_of(plain, "two")["text"]).to eq("Next")
+    expect(session[:tts_text]).to be_nil
+  end
+
+  describe "the state a reply changed, and its Cancel" do
+    let(:running) { [] }
+
+    before do
+      allow(Monadic::Workbench::Caller).to receive(:current) { running[0] }
+      Monadic::TurnState.reset!
+      stub_const("APPS", { "FakeApp" => state_app(running) })
+      session[:parameters] = { "app_name" => "FakeApp" }
+    end
+
+    def start_reply
+      host.send(:handle_ws_streaming, nil, { "message" => "note", "app_name" => "FakeApp" }, session, queue)
+    end
+
+    def notes
+      Monadic::TurnState.value(session, "notes")
+    end
+
+    def next_reply_can_write
+      thread = start_reply
+      host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+      thread.join(5)
+      session[:messages].last.key?("state_changes")
+    end
+
+    it "lets the changes go when the reply is stopped before it is taken to be recorded" do
+      thread = start_reply
+      wait_for_answer_made(thread)
+      host.send(:stop_reply_work, thread)
+      host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+      thread.join(5)
+
+      expect(session[:messages].none? { |m| m.key?("state_changes") }).to be(true)
+      expect(notes[:found]).to be(false)
+      expect(next_reply_can_write).to be(true)
+    end
+
+    it "keeps the changes when the stop comes after the reply was taken to be recorded" do
+      thread = start_reply
+      wait_for_answer_made(thread)
+      allow(Monadic::Workbench::Made).to receive(:seal).and_wrap_original do |original, *args|
+        WebSocketHelper::Replies.cancel(thread[:reply_handle])
+        original.call(*args)
+      end
+      host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+      thread.join(5)
+
+      expect(session[:messages].last["state_changes"]).to include(a_hash_including("key" => "notes"))
+      expect(notes).to include(found: true, data: { "a" => 1 })
+    end
+
+    it "lets the changes go when the message fails before it joins the chat" do
+      thread = start_reply
+      wait_for_answer_made(thread)
+      allow(host).to receive(:send_or_broadcast) do |msg, *_|
+        raise IOError, "the page went away" if JSON.parse(msg)["type"] == "html"
+
+        broadcasts << JSON.parse(msg)
+      end
+      host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+      thread.join(5)
+
+      expect(session[:messages].none? { |m| m.key?("state_changes") }).to be(true)
+      expect(notes[:found]).to be(false)
+      allow(host).to receive(:send_or_broadcast) { |msg, *_| broadcasts << JSON.parse(msg) }
+      expect(next_reply_can_write).to be(true)
+    end
+
+    it "gives the changes to one message only: the answer is taken to be recorded once, and sealed once" do
+      thread = start_reply
+      wait_for_answer_made(thread)
+      handle = thread[:reply_handle]
+      host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+      thread.join(5)
+      request_id = session[:messages].find { |m| m["role"] == "user" }["request_id"]
+
+      expect(session[:messages].count { |m| m.key?("state_changes") }).to eq(1)
+      expect(handle.take_for_saving).to be(false)
+      expect(Monadic::TurnState.seal(request_id, session)).to be_nil
+    end
+  end
+
   it "gives the files the reply showed to its message before it is sent" do
     require_relative "../../../lib/monadic/shared_tools/workbench_tools"
     File.write(File.join(shared, "plan.md"), "# Plan")
@@ -92,6 +252,26 @@ RSpec.describe "the workbench when a reply is recorded" do
     expect(message["workbench_shown"]).to match([a_hash_including("path" => "plan.md", "render" => "markdown")])
     sent = broadcasts.find { |m| m["type"] == "html" }
     expect(sent["content"]["workbench_shown"]).to eq(message["workbench_shown"])
+  end
+
+  it "gives what the reply made in the chat's folder to its message" do
+    require_relative "../../../lib/monadic/shared_tools/workbench_tools"
+    app = Object.new.tap do |made_app|
+      made_app.define_singleton_method(:api_request) do |_role, session, &_block|
+        request = Monadic::Workspace::RequestContext.current
+        caller = Monadic::Workbench::Caller.new(chat_id: session[:chat_id], epoch: Monadic::Workspace::Chats.epoch(session[:chat_id]),
+                                                request_id: request.request_id, session: session, tab: request.tab,
+                                                generation: request.generation)
+        Class.new { include MonadicSharedTools::WorkbenchTools }.new.put_on_workbench(name: "draft.md", content: "x", workbench: caller)
+        [{ "choices" => [{ "message" => { "content" => "Done" }, "finish_reason" => "stop" }] }]
+      end
+      made_app.define_singleton_method(:settings) { {} }
+    end
+    stub_const("APPS", { "FakeApp" => app })
+    thread = host.send(:handle_ws_streaming, nil, { "message" => "write", "app_name" => "FakeApp" }, session, queue)
+    host.send(:handle_ws_html, nil, { "type" => "HTML" }, session, thread, queue)
+    thread.join(5)
+    expect(session[:messages].last["workbench_made"]).to match([%r{\Aconversations/[^/]+/workbench/draft\.md\z}])
   end
 
   it "keeps nothing of a reply that ended without a message for the next one" do
@@ -123,6 +303,7 @@ RSpec.describe "the workbench when a reply is recorded" do
     expect(view["approvals"].keys).to eq([item[:id]])
     expect(message["artifacts"]).to eq([board.item(item[:id])["artifact"].slice(*Monadic::Workbench::Record::FIELDS)])
     expect(broadcasts.find { |m| m["type"] == "html" }.dig("content", "artifacts")).to eq(message["artifacts"])
+    expect(message["workbench_made"]).to eq([message["artifacts"].first["path"]])
   end
 
   it "gives the page an address to save a copy of what the message records, in the connection's turn" do
@@ -137,14 +318,21 @@ RSpec.describe "the workbench when a reply is recorded" do
     expect(File.binread(File.join(shared, entry["path"]))).to eq(png)
   end
 
-  it "keeps the image of a reply that ends without its message, and closes that reply" do
+  it "moves the image of a reply that ends without its message to the trash, and closes that reply" do
     stub_const("APPS", { "FakeApp" => offering_app(store, png) })
     thread = host.send(:handle_ws_streaming, nil, { "message" => "a cat", "app_name" => "FakeApp" }, session, queue)
     wait_for_answer_made(thread)
+    board = Monadic::Workbench::Board.for(session[:chat_id])
+    item = board.snapshot[:items].first
+    placed = board.item(item[:id])
+    path = placed.dig("artifact", "path")
     host.send(:stop_reply_work, thread)
-    item = Monadic::Workbench::Board.for(session[:chat_id]).snapshot[:items].first
-    expect(item[:mid]).to be_nil
-    request_id = Monadic::Workbench::Board.for(session[:chat_id]).item(item[:id]).dig("origin", "request_id")
-    expect(Monadic::Workbench::Offer.closed?(request_id)).to be(true)
+
+    expect(Monadic::Workbench::Offer.closed?(placed.dig("origin", "request_id"))).to be(true)
+    expect(board.snapshot[:items]).to be_empty
+    expect(File.exist?(File.join(Monadic::Utils::Environment.data_path, path))).to be(false)
+    folder = path.split("/").first(2).join("/")
+    trashed = Dir.glob(File.join(Monadic::Utils::Environment.data_path, folder, "trash", "*stopped-*", "**", "*"))
+    expect(trashed.map { |f| File.basename(f) }).to include(File.basename(path))
   end
 end

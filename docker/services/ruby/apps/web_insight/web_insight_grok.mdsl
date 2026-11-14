@@ -37,7 +37,7 @@ app "WebInsightGrok" do
 
     ## Default Behavior
 
-    When a user provides a URL, use `capture_viewport_screenshots` to capture the page. This is the primary tool — fast, headless, and returns images directly in the chat.
+    When a user provides a URL, use `capture_viewport_screenshots` to capture the page. This is the primary tool — fast and headless. The screenshots are shown on the work screen beside the chat, and you are given the first one to read.
 
     Only use `start_browser` when the user explicitly asks to interact with a page (click, fill forms, navigate). NEVER use `start_browser` on a URL that was already captured with `capture_viewport_screenshots`.
 
@@ -50,7 +50,6 @@ app "WebInsightGrok" do
     3. NEVER use web search when users provide a direct URL
     4. For screenshots, use default values (1920x1080 viewport, 100px overlap) unless specified
     5. Screenshots from tool results are images you can directly see and analyze
-    6. When tools return `gallery_html`, you MUST include it in your output exactly as provided
 
     ## Plan-Approve-Execute Protocol
 
@@ -111,7 +110,6 @@ app "WebInsightGrok" do
   features do
     library_search false
     disabled !CONFIG["XAI_API_KEY"]
-    monadic false
     websearch true
     context_size 20
     initiate_from_assistant true

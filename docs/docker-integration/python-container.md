@@ -6,8 +6,8 @@ Monadic Chat runs Python tools in `monadic-chat-python-container`. AI agents exe
 
 **Actions → Install Options** in the console lets you add optional components to the Python container:
 
-- **LaTeX**: Install LaTeX (minimal set for diagrams). TeX Live with CJK support, needed by Concept Visualizer and Syntax Tree. These two apps are available only when LaTeX is installed and an OpenAI or Anthropic API key is set
-- **Python Libraries (CPU)**: nltk, spaCy (3.7.5), gensim, mediapipe (CPU), transformers (CPU only). `scikit-learn` is always included
+- **LaTeX**: Install LaTeX (minimal set for diagrams). TeX Live with CJK support, needed by Concept Visualizer. The app is available only when LaTeX is installed and an OpenAI or Anthropic API key is set
+- **Python Libraries (CPU)**: nltk, spaCy (3.7.5), gensim, mediapipe (CPU), transformers (CPU only), Plotly static images (kaleido + Chromium: a Plotly chart in a notebook is saved with a PNG beside it, which the work screen shows). `scikit-learn` is always included
 - **Music Analysis**: librosa + madmom, used by Music Lab
 - **System Tools (CLI)**: ImageMagick (`convert`/`mogrify`)
 

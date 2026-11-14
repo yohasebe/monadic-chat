@@ -10,6 +10,22 @@
 @layer base {
 
 :root {
+  /* ============================================ */
+  /* Palette: five families, each one scale (soft background, line,
+     mid, strong fill, strong fill on hover, text). Every color token
+     below takes its value from here; the dark theme redefines the scale. */
+  /* ============================================ */
+  --pal-accent-soft: #e9eff7;  --pal-accent-line: #c9d6e8;  --pal-accent-mid: #6a92c8;
+  --pal-accent-strong: #3a68a6; --pal-accent-strong-hover: #2f5891; --pal-accent-text: #335d93;
+  --pal-green-soft: #e7f1eb;   --pal-green-line: #c4dacc;   --pal-green-mid: #5c9a77;
+  --pal-green-strong: #3a7a58; --pal-green-strong-hover: #2f6849; --pal-green-text: #326a4c;
+  --pal-amber-soft: #f7f0de;   --pal-amber-line: #e3d3a9;   --pal-amber-mid: #ecc04f;
+  --pal-amber-strong: #b3862a; --pal-amber-strong-hover: #9a7322; --pal-amber-text: #765917;
+  --pal-red-soft: #f8eaeb;     --pal-red-line: #e5c3c6;     --pal-red-mid: #c45a66;
+  --pal-red-strong: #a83d49;   --pal-red-strong-hover: #91333e; --pal-red-text: #8f2f3a;
+  --pal-grey-soft: #eef0f2;    --pal-grey-line: #dadee2;    --pal-grey-mid: #8b939b;
+  --pal-grey-strong: #6e7781;  --pal-grey-strong-hover: #5c646d; --pal-grey-text: #58616b;
+
   /* Transition Durations - Matching existing values */
   --transition-fast: 200ms;     /* Used for quick interactions */
   --transition-normal: 300ms;    /* Standard transitions */
@@ -56,25 +72,25 @@
   /* Background Colors */
   --bg-primary: #ffffff;
   --bg-secondary: #f0f0f0;
-  --bg-body: #DCDCDC;
-  --bg-panel: #F8F8F8;
+  --bg-body: #dfe1e3;
+  --bg-panel: #f9fafb;
   --bg-card-assistant: #fcedee;
   --bg-card-user: #f6f8ff;
   --bg-card-system: #ffffff;
   --bg-code: #f8f8f8;
   --bg-blockquote: #f8f8f8;
   --bg-hover: #f2f2f2;
-  --bg-navbar: #F8F8F8;
+  --bg-navbar: #f9fafb;
   --bg-input: #ffffff;
 
   /* Text Colors */
-  --text-primary: #333;
-  --text-secondary: #777;
+  --text-primary: #2a2e33;
+  --text-secondary: #6b737b;
   --text-tertiary: #666;
   --text-quaternary: #555;
   --text-muted: #999;
-  --text-link: #2268cf;
-  --text-link-hover: #174890;
+  --text-link: var(--pal-accent-strong);
+  --text-link-hover: var(--pal-accent-strong-hover);
 
   /* Border Colors */
   --border-primary: #ced4da;
@@ -82,58 +98,58 @@
   --border-tertiary: #ddd;
   --border-strong: #555;
   --border-medium: #999;
-  --border-light: #d0d0d0;
+  --border-light: #d5d9dd;
 
   /* Accent Colors (remain consistent across themes) */
-  --accent-amber: #ffc107;
-  --accent-red: #DC4C64;
-  --accent-blue: #4CACDC;
-  --accent-green: #22ad50;
+  --accent-amber: var(--pal-amber-mid);
+  --accent-red: var(--pal-red-mid);
+  --accent-blue: var(--pal-accent-mid);
+  --accent-green: var(--pal-green-mid);
 
   /* Role & Icon Colors */
-  --color-icon-primary: #ffc107;
-  --color-assistant: rgb(220, 76, 100);
-  --color-user: #4CACDC;
-  --color-system: #22ad50;
-  --color-info: #2196f3;
-  --color-link: #0d6efd;
-  --color-link-hover: #0a58ca;
+  --color-icon-primary: var(--pal-amber-mid);
+  --color-assistant: var(--pal-red-mid);
+  --color-user: var(--pal-accent-mid);
+  --color-system: var(--pal-green-mid);
+  --color-info: var(--pal-accent-strong);
+  --color-link: var(--pal-accent-strong);
+  --color-link-hover: var(--pal-accent-strong-hover);
 
   /* Status Colors */
-  --status-error: #dc3545;
-  --status-warning: #fd7e14;
-  --status-info: #0dcaf0;
-  --status-success: #198754;
+  --status-error: var(--pal-red-strong);
+  --status-warning: var(--pal-amber-strong);
+  --status-info: var(--pal-accent-strong);
+  --status-success: var(--pal-green-strong);
 
   /* Button Colors - Unified for consistency */
-  --btn-warning: #ffa726;
-  --btn-danger: #ef5350;
-  --btn-info: #29b6f6;
+  --btn-warning: var(--pal-amber-strong);
+  --btn-danger: var(--pal-red-strong);
+  --btn-info: var(--pal-accent-mid);
 
   /* Primary and secondary buttons (.btn-primary, .btn-secondary). Hover is
      the @media (hover: hover) rule. Active is what the :active/.active rule
      sets; a pressed button is also hovered, and the hover rule can win.
      The focus values are colors for the focus ring, not whole shadows. */
-  --btn-primary-bg: #007bff;
-  --btn-primary-hover-bg: #0069d9;
-  --btn-primary-hover-border: #0062cc;
-  --btn-primary-active-bg: #0056b3;
-  --btn-primary-active-border: #004085;
-  --btn-primary-disabled-bg: #6c9bd1;
-  --btn-primary-focus-shadow-color: rgba(0, 123, 255, 0.25);
+  --btn-primary-bg: var(--pal-accent-strong);
+  --btn-primary-hover-bg: var(--pal-accent-strong-hover);
+  --btn-primary-hover-border: var(--pal-accent-strong-hover);
+  --btn-primary-active-bg: var(--pal-accent-strong-hover);
+  --btn-primary-active-border: var(--pal-accent-text);
+  --btn-primary-disabled-bg: var(--pal-accent-mid);
+  --btn-primary-focus-shadow-color: color-mix(in srgb, var(--pal-accent-mid) 35%, transparent);
   /* .btn-success (Continue Session): the green as vivid as the primary blue */
-  --btn-success-bg: #28a745;
-  --btn-success-hover-bg: #218838;
-  --btn-success-hover-border: #1e7e34;
-  --btn-success-active-bg: #1e7e34;
-  --btn-success-active-border: #1c7430;
-  --btn-success-focus-shadow-color: rgba(40, 167, 69, 0.25);
-  --btn-secondary-bg: #78828c;
+  --btn-success-bg: var(--pal-green-strong);
+  --btn-success-hover-bg: var(--pal-green-strong-hover);
+  --btn-success-hover-border: var(--pal-green-strong-hover);
+  --btn-success-active-bg: var(--pal-green-strong-hover);
+  --btn-success-active-border: var(--pal-green-text);
+  --btn-success-focus-shadow-color: color-mix(in srgb, var(--pal-green-mid) 35%, transparent);
+  --btn-secondary-bg: var(--pal-grey-strong);
   --btn-secondary-text: #ffffff;
-  --btn-secondary-hover-bg: #5a6268;
-  --btn-secondary-hover-border: #545b62;
+  --btn-secondary-hover-bg: var(--pal-grey-strong-hover);
+  --btn-secondary-hover-border: var(--pal-grey-strong-hover);
   --btn-secondary-hover-text: #ffffff;
-  --btn-secondary-focus-shadow-color: rgba(113, 128, 150, 0.25);
+  --btn-secondary-focus-shadow-color: color-mix(in srgb, var(--pal-grey-mid) 35%, transparent);
 
   /* Modal dialogs. In light mode the Web UI's modals take these from
      Bootstrap and the h5 rule; the values here are for the app's own windows,
@@ -155,7 +171,7 @@
 
   /* Component-specific */
   --scrollbar-thumb: #999;
-  --scrollbar-track: #DCDCDC;
+  --scrollbar-track: #dfe1e3;
   --spinner-bg: #777;
   --code-text: #555;
   --inline-code-bg: rgba(0, 0, 0, 0.05);
@@ -176,40 +192,40 @@
   /* Turn badges and other small labels: a tinted ground, a deeper text of the
      same hue and a thin border, like the app list's badges. User is blue and
      assistant red, as the role icons; neutral is for labels with no role. */
-  --chip-user-bg: #e6f3fb;
-  --chip-user-border: #c2e0f1;
-  --chip-user-color: #1f6f9c;
-  --chip-assistant-bg: #fce9ed;
-  --chip-assistant-border: #f1c9d2;
-  --chip-assistant-color: #a83249;
-  --chip-neutral-bg: #f1f3f5;
-  --chip-neutral-border: #dee2e6;
-  --chip-neutral-color: #495057;
+  --chip-user-bg: var(--pal-accent-soft);
+  --chip-user-border: var(--pal-accent-line);
+  --chip-user-color: var(--pal-accent-text);
+  --chip-assistant-bg: var(--pal-red-soft);
+  --chip-assistant-border: var(--pal-red-line);
+  --chip-assistant-color: var(--pal-red-text);
+  --chip-neutral-bg: var(--pal-grey-soft);
+  --chip-neutral-border: var(--pal-grey-line);
+  --chip-neutral-color: var(--pal-grey-text);
 
   --tool-group-badge-bg: #e6f3fb;
   --tool-group-badge-color: #1f78a8;
 
   /* Alert Message Colors */
-  --alert-info-bg: #e3f2fd;
-  --alert-info-color: #1565c0;
-  --alert-info-accent: #1976d2;
-  --alert-error-bg: #ffebee;
-  --alert-error-color: #c62828;
-  --alert-error-accent: #d32f2f;
+  --alert-info-bg: var(--pal-accent-soft);
+  --alert-info-color: var(--pal-accent-text);
+  --alert-info-accent: var(--pal-accent-strong);
+  --alert-error-bg: var(--pal-red-soft);
+  --alert-error-color: var(--pal-red-text);
+  --alert-error-accent: var(--pal-red-strong);
 
   /* Focus Colors */
-  --focus-outline: #4A90E2;
-  --focus-shadow: rgba(74, 144, 226, 0.3);
-  --focus-shadow-light: rgba(74, 144, 226, 0.15);
+  --focus-outline: var(--pal-accent-mid);
+  --focus-shadow: color-mix(in srgb, var(--pal-accent-mid) 30%, transparent);
+  --focus-shadow-light: color-mix(in srgb, var(--pal-accent-mid) 15%, transparent);
 
   /* Voice Button Colors */
-  --voice-btn-bg: #5bc0de;
-  --voice-btn-border: #46b8da;
-  --voice-btn-hover-bg: #39b3d7;
-  --voice-btn-hover-border: #31b0d5;
+  --voice-btn-bg: var(--pal-accent-mid);
+  --voice-btn-border: var(--pal-accent-mid);
+  --voice-btn-hover-bg: var(--pal-accent-strong);
+  --voice-btn-hover-border: var(--pal-accent-strong);
 
   /* TTS Indicator */
-  --tts-active-color: #DC4C64;
+  --tts-active-color: var(--pal-red-mid);
 
   /* Navbar */
   --navbar-border: #d5d5d5;
@@ -221,8 +237,8 @@
   --json-text-dark: #212529;
 
   /* Dropdown Highlight */
-  --dropdown-highlight-bg: #f2f8ff;
-  --dropdown-highlight-accent: #3377ff;
+  --dropdown-highlight-bg: var(--pal-accent-soft);
+  --dropdown-highlight-accent: var(--pal-accent-strong);
 }
 
 /* ============================================ */
@@ -232,31 +248,43 @@
 /* ============================================ */
 
 .dark-theme {
+  /* Palette (dark): the same families and steps, for dark grounds. */
+  --pal-accent-soft: #222c39;  --pal-accent-line: #3a4d66;  --pal-accent-mid: #86a9d8;
+  --pal-accent-strong: #4d7cbc; --pal-accent-strong-hover: #5c8ac8; --pal-accent-text: #adc5e6;
+  --pal-green-soft: #1f2e26;   --pal-green-line: #355343;   --pal-green-mid: #6fae8a;
+  --pal-green-strong: #478a66; --pal-green-strong-hover: #539672; --pal-green-text: #a5d1b5;
+  --pal-amber-soft: #332c1b;   --pal-amber-line: #594a26;   --pal-amber-mid: #d4ab57;
+  --pal-amber-strong: #c19437; --pal-amber-strong-hover: #cca046; --pal-amber-text: #e4c88a;
+  --pal-red-soft: #38272a;     --pal-red-line: #643e45;     --pal-red-mid: #d77a85;
+  --pal-red-strong: #b4505b;   --pal-red-strong-hover: #c05d68; --pal-red-text: #e9a9b1;
+  --pal-grey-soft: #2c2f33;    --pal-grey-line: #464b51;    --pal-grey-mid: #8e969e;
+  --pal-grey-strong: #5c656f;  --pal-grey-strong-hover: #68717b; --pal-grey-text: #bec4ca;
+
   /* Background Colors */
   --bg-primary: #1a1a1a;
   --bg-secondary: #333333;
-  --bg-body: #1a1a1a;
-  --bg-panel: #2a2a2a;
+  --bg-body: #18191b;
+  --bg-panel: #25272a;
   --bg-card-assistant: #3d3d3d;
   --bg-card-user: #424242;
   --bg-card-system: #2a2a2a;
   --bg-code: #2a2a2a;
   --bg-blockquote: #2a2a2a;
   --bg-hover: #3a3a3a;
-  --bg-navbar: #2a2a2a;
+  --bg-navbar: #25272a;
   --bg-input: #2a2a2a;
 
   /* Text Colors */
-  --text-primary: #f5f5f5;
-  --text-secondary: #d0d0d0;
+  --text-primary: #eceef0;
+  --text-secondary: #a7aeb5;
   --text-tertiary: #b8b8b8;
   --text-quaternary: #e0e0e0;
   --text-muted: #999;
   /* Bootstrap's secondary text (.text-muted, .form-text, ...) follows its
      own dark switch (data-bs-theme), which the Web UI does not use. */
   --bs-secondary-color: var(--text-muted);
-  --text-link: #6b9bd8;
-  --text-link-hover: #8fb3e8;
+  --text-link: var(--pal-accent-strong);
+  --text-link-hover: var(--pal-accent-strong-hover);
 
   /* Border Colors */
   --border-primary: #4a4a4a;
@@ -264,31 +292,31 @@
   --border-tertiary: #444;
   --border-strong: #5a5a5a;
   --border-medium: #444;
-  --border-light: #3a3a3a;
+  --border-light: #3a3e43;
 
   /* Accent Colors (slightly adjusted for dark mode visibility) */
-  --accent-amber: #ffc107;
-  --accent-red: #e56b7f;
-  --accent-blue: #6bc2e8;
-  --accent-green: #4cd374;
+  --accent-amber: var(--pal-amber-mid);
+  --accent-red: var(--pal-red-mid);
+  --accent-blue: var(--pal-accent-mid);
+  --accent-green: var(--pal-green-mid);
 
   /* Role & Icon Colors (link colors adjusted for dark mode) */
-  --color-link: #6b9bd8;
-  --color-link-hover: #8fb3e8;
+  --color-link: var(--pal-accent-strong);
+  --color-link-hover: var(--pal-accent-strong-hover);
 
   /* Status Colors (adjusted for dark mode) */
-  --status-error: #f47983;
-  --status-warning: #ff9f50;
-  --status-info: #4fd8f0;
-  --status-success: #5bc47f;
+  --status-error: var(--pal-red-strong);
+  --status-warning: var(--pal-amber-strong);
+  --status-info: var(--pal-accent-strong);
+  --status-success: var(--pal-green-strong);
 
   /* Button Colors - Adjusted for dark mode visibility */
-  --btn-warning: #ffb84d;
-  --btn-danger: #ff6b6b;
-  --btn-info: #52c9ff;
+  --btn-warning: var(--pal-amber-strong);
+  --btn-danger: var(--pal-red-strong);
+  --btn-info: var(--pal-accent-mid);
 
   /* Primary and secondary buttons */
-  --btn-secondary-bg: #5a6470;
+  --btn-secondary-bg: var(--pal-grey-strong);
   --btn-secondary-text: #e5e7eb;
 
   /* Modal dialogs */
@@ -325,40 +353,40 @@
   --badge-category-label: #b0b0b0;
 
   /* Tool Group Badge — blue family, aligned with Capabilities */
-  --chip-user-bg: #233640;
-  --chip-user-border: #355365;
-  --chip-user-color: #93cdea;
-  --chip-assistant-bg: #3a2a2e;
-  --chip-assistant-border: #5a3a42;
-  --chip-assistant-color: #eaa8b4;
-  --chip-neutral-bg: #333333;
-  --chip-neutral-border: #4a4a4a;
-  --chip-neutral-color: #d0d0d0;
+  --chip-user-bg: var(--pal-accent-soft);
+  --chip-user-border: var(--pal-accent-line);
+  --chip-user-color: var(--pal-accent-text);
+  --chip-assistant-bg: var(--pal-red-soft);
+  --chip-assistant-border: var(--pal-red-line);
+  --chip-assistant-color: var(--pal-red-text);
+  --chip-neutral-bg: var(--pal-grey-soft);
+  --chip-neutral-border: var(--pal-grey-line);
+  --chip-neutral-color: var(--pal-grey-text);
 
   --tool-group-badge-bg: #233640;
   --tool-group-badge-color: #93cdea;
 
   /* Alert Message Colors */
-  --alert-info-bg: #1a3050;
-  --alert-info-color: #8fb3e8;
-  --alert-info-accent: #6b9bd8;
-  --alert-error-bg: #4a2020;
-  --alert-error-color: #f47983;
-  --alert-error-accent: #ff6b6b;
+  --alert-info-bg: var(--pal-accent-soft);
+  --alert-info-color: var(--pal-accent-text);
+  --alert-info-accent: var(--pal-accent-strong);
+  --alert-error-bg: var(--pal-red-soft);
+  --alert-error-color: var(--pal-red-text);
+  --alert-error-accent: var(--pal-red-strong);
 
   /* Focus Colors */
-  --focus-outline: #6b9bd8;
-  --focus-shadow: rgba(107, 155, 216, 0.3);
-  --focus-shadow-light: rgba(107, 155, 216, 0.15);
+  --focus-outline: var(--pal-accent-mid);
+  --focus-shadow: color-mix(in srgb, var(--pal-accent-mid) 30%, transparent);
+  --focus-shadow-light: color-mix(in srgb, var(--pal-accent-mid) 15%, transparent);
 
   /* Voice Button Colors */
-  --voice-btn-bg: #3a8da8;
-  --voice-btn-border: #2a7d98;
-  --voice-btn-hover-bg: #4a9db8;
-  --voice-btn-hover-border: #3a8da8;
+  --voice-btn-bg: var(--pal-accent-mid);
+  --voice-btn-border: var(--pal-accent-mid);
+  --voice-btn-hover-bg: var(--pal-accent-strong);
+  --voice-btn-hover-border: var(--pal-accent-strong);
 
   /* TTS Indicator */
-  --tts-active-color: #e56b7f;
+  --tts-active-color: var(--pal-red-mid);
 
   /* Navbar */
   --navbar-border: #4a4a4a;
@@ -370,8 +398,8 @@
   --json-text-dark: #e0e0e0;
 
   /* Dropdown Highlight */
-  --dropdown-highlight-bg: #2a3a4a;
-  --dropdown-highlight-accent: #6b9bd8;
+  --dropdown-highlight-bg: var(--pal-accent-soft);
+  --dropdown-highlight-accent: var(--pal-accent-strong);
 
   /* Shadows need to be lighter in dark mode */
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -382,29 +410,17 @@
 
 } /* end @layer base */
 
-/* === Badge color system: one accent-derived tint set for ALL badges =======
-   Every badge (category, status, confidence) uses a soft tinted background +
-   accent-colored text + a visible accent border — a single refined treatment,
-   colored by SEMANTIC family (red/blue/green/amber/grey). Replaces the earlier
-   flat solid-fill status badges. Defined last so it supersedes the vivid rules
-   above. */
+/* === Badge color system: one tint set for ALL badges ======================
+   Every badge (category, status, confidence) uses a soft tinted background,
+   a visible border and text of the same family, colored by SEMANTIC family
+   (red/blue/green/amber/grey), each taken from the palette above. */
 :root {
-  --bdg-red-bg: #fce9ed;   --bdg-red-bd: #f1c9d2;   --bdg-red-fg: #b1374f;
-  --bdg-blue-bg: #e6f3fb;  --bdg-blue-bd: #c2e0f1;  --bdg-blue-fg: #1f78a8;
-  --bdg-green-bg: #e6f6ec; --bdg-green-bd: #c2e6cf; --bdg-green-fg: #1e7d3f;
-  --bdg-amber-bg: #fdf3d9; --bdg-amber-bd: #f0e0a8; --bdg-amber-fg: #8a6d1a;
-  --bdg-grey-bg: #eef0f2;  --bdg-grey-bd: #dcdfe3;  --bdg-grey-fg: #5f6b76;
+  --bdg-red-bg: var(--pal-red-soft);       --bdg-red-bd: var(--pal-red-line);       --bdg-red-fg: var(--pal-red-text);
+  --bdg-blue-bg: var(--pal-accent-soft);   --bdg-blue-bd: var(--pal-accent-line);   --bdg-blue-fg: var(--pal-accent-text);
+  --bdg-green-bg: var(--pal-green-soft);   --bdg-green-bd: var(--pal-green-line);   --bdg-green-fg: var(--pal-green-text);
+  --bdg-amber-bg: var(--pal-amber-soft);   --bdg-amber-bd: var(--pal-amber-line);   --bdg-amber-fg: var(--pal-amber-text);
+  --bdg-grey-bg: var(--pal-grey-soft);     --bdg-grey-bd: var(--pal-grey-line);     --bdg-grey-fg: var(--pal-grey-text);
   /* Category vars point at the shared tokens (single source of truth). */
-  --badge-tools-bg: var(--bdg-red-bg); --badge-tools-border: var(--bdg-red-bd); --badge-tools-color: var(--bdg-red-fg);
-  --badge-capabilities-bg: var(--bdg-blue-bg); --badge-capabilities-border: var(--bdg-blue-bd); --badge-capabilities-color: var(--bdg-blue-fg);
-  --tool-group-badge-bg: var(--bdg-blue-bg); --tool-group-badge-color: var(--bdg-blue-fg);
-}
-.dark-theme {
-  --bdg-red-bg: #3a2a2e;   --bdg-red-bd: #5a3a42;   --bdg-red-fg: #eaa8b4;
-  --bdg-blue-bg: #233640;  --bdg-blue-bd: #355365;  --bdg-blue-fg: #93cdea;
-  --bdg-green-bg: #233a2c; --bdg-green-bd: #355f43; --bdg-green-fg: #8fd6a6;
-  --bdg-amber-bg: #3a3320; --bdg-amber-bd: #5f5530; --bdg-amber-fg: #e8cf8f;
-  --bdg-grey-bg: #2e3338;  --bdg-grey-bd: #444b52;  --bdg-grey-fg: #b8c0c8;
   --badge-tools-bg: var(--bdg-red-bg); --badge-tools-border: var(--bdg-red-bd); --badge-tools-color: var(--bdg-red-fg);
   --badge-capabilities-bg: var(--bdg-blue-bg); --badge-capabilities-border: var(--bdg-blue-bd); --badge-capabilities-color: var(--bdg-blue-fg);
   --tool-group-badge-bg: var(--bdg-blue-bg); --tool-group-badge-color: var(--bdg-blue-fg);

@@ -25,22 +25,6 @@
  * Maps "error" to "danger" for Bootstrap consistency.
  * @param {string} alertType - Alert type (success, warning, error, info, etc.)
  */
-// Status message color map (must override Bootstrap @layer !important)
-var STATUS_COLORS = {
-  success:   '#1a8a4a',
-  warning:   '#c47a00',
-  danger:    '#c62828',
-  info:      '#1565c0',
-  secondary: '#546e7a'
-};
-var STATUS_COLORS_DARK = {
-  success:   '#7fd89f',
-  warning:   '#f59e0b',
-  danger:    '#ef5350',
-  info:      '#60a5fa',
-  secondary: '#d0d0d0'
-};
-
 function setAlertClass(alertType) {
   if (alertType === undefined) alertType = "error";
 
@@ -66,10 +50,9 @@ function setAlertClass(alertType) {
 
   el.classList.add("text-" + alertType);
 
-  // Apply color via inline style with !important to override Bootstrap @layer
-  var isDark = document.documentElement.classList.contains('dark-theme');
-  var palette = isDark ? STATUS_COLORS_DARK : STATUS_COLORS;
-  var color = palette[alertType] || palette.secondary;
+  // Inline with !important to override Bootstrap's @layer; the color is a
+  // palette token, so it follows a theme switch by itself.
+  var color = window.StatusConfig ? window.StatusConfig.getTextColor(alertType) : 'var(--text-secondary)';
   el.style.setProperty('color', color, 'important');
 }
 
@@ -259,16 +242,6 @@ function deleteMessage(mid) {
     mids.delete(mid);
   }
 }
-
-// The status color is set inline for the theme of the moment, so a theme
-// switch colors the status shown now again, for its kind.
-window.addEventListener('theme-applied', function() {
-  var el = $id('status-message');
-  var kind = el && (el.className.match(/\btext-(\S+)/) || [])[1];
-  if (!kind) return;
-  var palette = document.documentElement.classList.contains('dark-theme') ? STATUS_COLORS_DARK : STATUS_COLORS;
-  el.style.setProperty('color', palette[kind] || palette.secondary, 'important');
-});
 
 // Export for browser environment
 window.setAlert = setAlert;

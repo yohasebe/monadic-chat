@@ -187,6 +187,30 @@ RSpec.describe 'WebSocketHelper privacy export (block D.2)' do
       expect(parsed['messages'][1]['text']).to eq('Drafted to <<EMAIL_ADDRESS_1>>.')
     end
 
+    it "masks the names an app keeps its items by in its state, keeping the state's form" do
+      session[:monadic_state] = {
+        'NovelWriterOpenAI' => {
+          novel_context: { data: { 'characters' => { 'John Smith' => { 'role' => 'hero, friend of John Smith' } } },
+                           version: 2, updated_at: 'now' }
+        }
+      }
+      harness.send(:handle_ws_privacy_export, :conn, session, { 'mode' => 'masked_only' })
+      parsed = JSON.parse(Base64.strict_decode64(harness.sent.last['content_base64']))
+      entry = parsed['monadic_state']['NovelWriterOpenAI']['novel_context']
+      expect(entry['data']).to eq('characters' => { '<<PERSON_1>>' => { 'role' => 'hero, friend of <<PERSON_1>>' } })
+      expect(entry['version']).to eq(2)
+    end
+
+    it 'refuses a masked file where two names of an app state would become one' do
+      session[:monadic_state] = {
+        'NovelWriterOpenAI' => {
+          novel_context: { data: { 'characters' => { 'John Smith' => 1, '<<PERSON_1>>' => 2 } } }
+        }
+      }
+      harness.send(:handle_ws_privacy_export, :conn, session, { 'mode' => 'masked_only' })
+      expect(harness.sent.last['content_base64']).to be_nil
+    end
+
     it 'returns restored payload with the table attached' do
       harness.send(:handle_ws_privacy_export, :conn, session, { 'mode' => 'restored' })
       payload = harness.sent.last

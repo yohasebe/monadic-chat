@@ -148,7 +148,7 @@
 
 ### 図解・可視化アプリ
 
-Mermaid.js、Draw.io、LaTeX/TikZ を使って自然言語の説明から図を作成するアプリです。ライブブラウザプレビューと視覚的な自己検証に対応しています。詳細は[図解・可視化アプリ](../apps/diagram-apps.md)を参照してください。
+Mermaid.js、Draw.io、RSyntaxTree、LaTeX/TikZ を使って自然言語の説明から図を作成するアプリです。ライブブラウザプレビューと視覚的な自己検証に対応しています。詳細は[図解・可視化アプリ](../apps/diagram-apps.md)を参照してください。
 
 - Mermaid Grapher
 - DrawIO Grapher

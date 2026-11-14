@@ -115,6 +115,45 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
       end
     end
 
+    context 'with an app that puts its work on the work screen' do
+      before do
+        stub_const("APPS", {
+          'MailComposer' => double(settings: { work_screen: 'drafts' }),
+          'Coding' => double(settings: { work_screen: 'code' }),
+          'Translate' => double(settings: { work_screen: 'translations' }),
+          'Odd' => double(settings: { work_screen: 'nothing like this' }),
+          'Chat' => double(settings: {})
+        })
+      end
+
+      def work_screen_for(app_name)
+        described_class.build_injections(session: { parameters: { 'app_name' => app_name } }, options: {})
+                       .find { |r| r[:name] == :work_screen }
+      end
+
+      it 'tells the model to put each draft, and each revision of it, on the work screen' do
+        text = work_screen_for('MailComposer')[:content]
+        expect(text).to include('write_section', '"draft" as the section', 'same title and section')
+        expect(text).not_to include('put_on_workbench')
+        expect(text).to include('Do not repeat the draft in the chat')
+      end
+
+      it 'tells the model to put code with its explanation on the work screen' do
+        expect(work_screen_for('Coding')[:content]).to include('write_section', '"code" as the section', 'fenced code block')
+      end
+
+      it 'tells the model to put a long translation on the work screen and answer a short one in the chat' do
+        text = work_screen_for('Translate')[:content]
+        expect(text).to include('write_section', '"translation" as the section', 'longer than a few sentences', 'answered in the chat')
+      end
+
+      it 'says nothing for an app without it, or with a way that is not known' do
+        expect(work_screen_for('Chat')).to be_nil
+        expect(work_screen_for('Odd')).to be_nil
+        expect(work_screen_for('Missing')).to be_nil
+      end
+    end
+
     context 'with Knowledge Base RAG toggle' do
       # Gate: the RAG header injects only when the active app actually exposes
       # library_search. A KB-capable app and a non-KB app exercise both sides so
@@ -231,21 +270,11 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
         expect(result[0][:content]).to include('\\begin{itemize}')  # Includes limitations
       end
 
-      it 'includes math prompt with extra escaping for monadic mode' do
-        session = {
-          parameters: { "math" => true, "monadic" => true }
-        }
-        options = {}
+      it 'gives a monadic app the same math prompt as any other app' do
+        plain = described_class.build_injections(session: { parameters: { "math" => true } }, options: {})
+        monadic = described_class.build_injections(session: { parameters: { "math" => true, "monadic" => true } }, options: {})
 
-        result = described_class.build_injections(session: session, options: options)
-
-        expect(result.length).to eq(1)
-        expect(result[0][:name]).to eq(:math)
-        expect(result[0][:content]).not_to include(described_class::MATH_DISABLED_PROMPT)
-        expect(result[0][:content]).to include('LaTeX notation')
-        expect(result[0][:content]).to include('\\\\frac')  # Double backslash (literal) for JSON escaping
-        expect(result[0][:content]).to include('Make sure to escape properly')
-        expect(result[0][:content]).not_to include('\\begin{itemize}')  # No limitations section
+        expect(monadic[0][:content]).to eq(plain[0][:content])
       end
 
       it 'includes math prompt with extra escaping for jupyter mode' do
@@ -277,7 +306,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
           expect(content).to include('plain text or Unicode', '```latex')
           expect(content).to include('\[ \]', '\( \)', '$$', '$')
           expect(content).not_to include(described_class::MATH_BASE_PROMPT)
-          expect(content).not_to include(described_class::MATH_MONADIC_PROMPT)
+          expect(content).not_to include(described_class::MATH_JUPYTER_PROMPT)
           expect(content).not_to include(described_class::MATH_REGULAR_PROMPT)
         end
       end
@@ -444,8 +473,13 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
         # "plain prose only in the reply").
         expect(names).not_to include(:plain_voice_enforcement)
         addendum = result.find { |r| r[:name] == :expressive_speech }[:content]
-        # Default is non-Monadic → sentinel variant.
         expect(addendum).to include('<<TTS:')
+      end
+
+      it 'excludes the addendum when the reply is JSON as a whole' do
+        session = { parameters: { 'auto_speech' => true, 'tts_provider' => 'openai-tts-4o', 'json' => true } }
+        result = described_class.build_injections(session: session, options: {})
+        expect(result.map { |r| r[:name] }).not_to include(:expressive_speech)
       end
 
       it 'excludes the addendum when parameters is missing entirely' do
@@ -785,6 +819,23 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
           expect(result.map { |r| r[:name] }).to eq([:math_disabled])
         }.not_to raise_error
       end
+    end
+  end
+
+  describe 'the state notes page' do
+    it 'names the page when there is one, as a page to read and not to write' do
+      allow(Monadic::TurnState::Notes).to receive(:current).and_return('conversations/x/notes/context.md')
+      result = described_class.build_injections(session: { parameters: {} }, options: {})
+      rule = result.find { |r| r[:name] == :state_notes }
+
+      expect(rule[:content]).to include('conversations/x/notes/context.md', 'do not write to this file')
+    end
+
+    it 'says nothing when there is no page' do
+      allow(Monadic::TurnState::Notes).to receive(:current).and_return(nil)
+      result = described_class.build_injections(session: { parameters: {} }, options: {})
+
+      expect(result.map { |r| r[:name] }).not_to include(:state_notes)
     end
   end
 end

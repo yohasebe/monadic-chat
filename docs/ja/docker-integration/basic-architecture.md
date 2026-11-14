@@ -24,13 +24,13 @@ Monadic Chat のサーバーと Web 画面を動かします。どのアプリ�
 ### Python コンテナ（`monadic-chat-python-container`） :id=python-container
 アプリのための Python のコード、コマンドラインのツール、JupyterLab を動かします。
 - **ポート**：8889（JupyterLab）
-- **使うアプリ**：Code Interpreter、Jupyter Notebook、Research Assistant、Math Tutor、Video Describer、Syntax Tree、Concept Visualizer、Mermaid Grapher、DrawIO Grapher、Web Insight、Auto Forge、Knowledge Base のファイルの取り込み
+- **使うアプリ**：Code Interpreter、Jupyter Notebook、Research Assistant、Math Tutor、Video Describer、Concept Visualizer、Mermaid Grapher、Web Insight、Auto Forge、Knowledge Base のファイルの取り込み
 - 追加のコンポーネント（LaTeX、Python のライブラリ、ImageMagick）は **Actions → Install Options** で加えます。[Python コンテナ](python-container.md)を参照してください。
 
 ### Selenium コンテナ（`monadic-chat-selenium-container`） :id=selenium-container
 アプリが操作する Chromium ブラウザーを動かし、Web ページを開いたりスクリーンショットを撮ったりします。
 - **ポート**：7900（**Open → Open noVNC** でのブラウザーの表示）。WebDriver（4444）には、ほかのコンテナからだけつながります
-- **使うアプリ**：Web Insight、Research Assistant、Auto Forge、Mermaid Grapher、DrawIO Grapher
+- **使うアプリ**：Web Insight、Research Assistant、Auto Forge、Mermaid Grapher
 
 ### Qdrant コンテナ（`monadic-chat-qdrant-container`） :id=qdrant-container
 ベクトルデータベース [Qdrant](https://qdrant.tech) を動かします。Knowledge Base、PDF Database、ヘルプのデータを保存します。[ベクトルデータベース](vector-database.md)を参照してください。
@@ -60,13 +60,13 @@ Knowledge Base Quality Pack をインストールしたときだけあります�
 
 **Python コンテナ**：
 - コードの実行（Code Interpreter、Jupyter Notebook）
-- LaTeX による図（Syntax Tree、Concept Visualizer）
+- LaTeX による図（Concept Visualizer）
 - 動画の分析（Video Describer）
 - Knowledge Base へのファイルの取り込み（PDF と Office のファイル）
 
 **Selenium コンテナ**：
 - Web ページを開く、スクリーンショットを撮る（Web Insight、Research Assistant、Auto Forge）
-- 図のプレビュー（Mermaid Grapher、DrawIO Grapher）
+- 図のプレビュー（Mermaid Grapher）
 
 **Qdrant と Embeddings のコンテナ**：
 - Knowledge Base

@@ -144,7 +144,7 @@ app "JupyterNotebookOpenAI" do
     The user needs the link to access the notebook in JupyterLab.
 
     ## Using OpenAI Code Agent
-    For complex coding tasks in notebooks, you can delegate to OpenAI Code using `gpt5_codex_agent`.
+    For complex coding tasks in notebooks, you can delegate to OpenAI Code using `openai_code_agent`.
     This specialized model excels at:
     - Writing complex data analysis pipelines
     - Creating machine learning workflows

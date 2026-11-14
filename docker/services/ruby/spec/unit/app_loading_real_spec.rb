@@ -520,7 +520,7 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
         websearch_agent tavily_search generate_video_with_gemini generate_video_with_veo
         generate_image_with_openai generate_image_with_gemini generate_image_with_grok
         generate_image_with_gemini
-        gpt5_codex_agent grok_code_agent openai_code_agent
+        grok_code_agent openai_code_agent
         save_context get_context update_context remove_from_context clear_context
         load_context add_topics add_people add_notes
         save_research_progress load_research_progress add_finding add_research_topics

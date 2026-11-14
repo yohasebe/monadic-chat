@@ -72,7 +72,7 @@ app "CodeInterpreterOpenAI" do
     - Before assuming a user-provided file is missing, list the folder with `run_bash_command(command: "ls /data/")` or read it directly with `run_code` using `/data/FILENAME`. Do not regenerate sample data when the user has supplied a real file.
 
     ## Using OpenAI Code Agent
-    For complex coding tasks, you can delegate to OpenAI Code using `gpt5_codex_agent`.
+    For complex coding tasks, you can delegate to OpenAI Code using `openai_code_agent`.
     This specialized model excels at:
     - Writing complex algorithms and data structures
     - Code refactoring and optimization

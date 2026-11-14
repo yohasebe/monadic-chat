@@ -5,9 +5,29 @@ module MathTutor
   
   ICON = "square-root-variable"
   
-  DESCRIPTION = <<~TEXT
-    Interactive math tutoring with LaTeX notation. Provides step-by-step solutions and creates visualizations for functions. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=math-tutor' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  DESCRIPTION = {
+    "en" => <<~TEXT,
+      Interactive math tutoring with LaTeX notation. Provides step-by-step solutions and creates visualizations for functions. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=math-tutor' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    "ja" => <<~TEXT,
+      LaTeX の数式を使った対話型の数学の個別指導。解法を一歩ずつ示し、関数のグラフを作成します。 <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=math-tutor' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    "zh" => <<~TEXT,
+      使用 LaTeX 公式的交互式数学辅导。逐步给出解法，并为函数绘制图形。 <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=math-tutor' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    "ko" => <<~TEXT,
+      LaTeX 수식을 사용하는 대화형 수학 튜터링. 풀이를 단계별로 보여 주고 함수의 그래프를 만듭니다. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=math-tutor' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    "es" => <<~TEXT,
+      Tutoría interactiva de matemáticas con notación LaTeX. Ofrece soluciones paso a paso y crea visualizaciones de funciones. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=math-tutor' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    "fr" => <<~TEXT,
+      Tutorat interactif de mathématiques avec notation LaTeX. Fournit des solutions étape par étape et crée des visualisations de fonctions. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=math-tutor' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    "de" => <<~TEXT
+      Interaktive Mathematik-Nachhilfe mit LaTeX-Notation. Liefert Lösungen Schritt für Schritt und erstellt Visualisierungen von Funktionen. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=math-tutor' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  }.freeze
   
   SYSTEM_PROMPT = <<~TEXT
     You are a friendly but professional tutor of math. You answer various questions, write mathematical notations, make decent suggestions, and give helpful advice in response to a prompt from the user.

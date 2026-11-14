@@ -62,7 +62,7 @@ app "TranslateCohere" do
        - The system will inform you of the user's language preference if one is set
 
     2. **Translation requests**:
-       - Provide the translation directly in natural language (NOT in JSON format)
+       - Provide the translation directly
        - Check for vocabulary entries in parentheses and use add_vocabulary_entry to save them
        - Use saved vocabulary for consistent translations
 
@@ -73,7 +73,6 @@ app "TranslateCohere" do
 
     ## RESPONSE FORMAT
 
-    Respond with natural language translations. Do NOT use JSON format in your responses.
     Always include:
     - The translation (a long one goes on the work screen instead, as said below)
     - Romanization/pronunciation when translating to non-Latin scripts

@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 require_relative 'browser_owner'
+require_relative '../utils/shared_path_guard'
+require_relative '../utils/tool_image_utils'
+require_relative '../workbench/chat_output'
 
 module MonadicSharedTools
   module WebAutomation
@@ -329,7 +332,8 @@ module MonadicSharedTools
       @captured_screenshots = []
     end
 
-    def capture_viewport_screenshots(url:, viewport_width: nil, viewport_height: nil, overlap: nil, preset: nil)
+    def capture_viewport_screenshots(url:, viewport_width: nil, viewport_height: nil, overlap: nil, preset: nil,
+                                     session: nil, workbench: nil)
       # Check if Selenium is available
       if error = check_selenium_or_error
         return error
@@ -369,6 +373,11 @@ module MonadicSharedTools
         screenshots = output_lines.select { |line| line.strip.start_with?("- ") }
                                  .map { |line| line.strip[2..-1] }
 
+        # The model is given the first one; the captures are kept in the
+        # chat's folder.
+        view = model_view_of(screenshots.first)
+        screenshots = keep_captures(screenshots, session, workbench)
+
         # Store in session
         @captured_screenshots ||= []
         @captured_screenshots.concat(screenshots)
@@ -380,9 +389,7 @@ module MonadicSharedTools
           filenames: screenshots.join("\n"),
           work_screen: CAPTURES_NOTE
         }
-
-        # Send the first screenshot as _image for LLM vision (Claude)
-        response[:_image] = screenshots.first if screenshots.first
+        response[:_image] = view || screenshots.first if screenshots.first
 
         response
       elsif output.include?("ERROR:")
@@ -637,7 +644,7 @@ module MonadicSharedTools
       response
     end
 
-    def browser_screenshot
+    def browser_screenshot(session: nil, workbench: nil)
       if limit_error = browser_action_guard!("screenshot")
         return limit_error
       end
@@ -654,7 +661,16 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      attach_screenshot!(response, result)
+      # Asked for: a copy is kept in the chat's folder, for the user to be
+      # shown when they want it.
+      view = model_view_of(result[:screenshot])
+      kept = keep_captures([result[:screenshot]].compact, session, workbench).first
+      if kept && kept != result[:screenshot]
+        response[:screenshot] = kept
+        response[:work_screen] = CAPTURES_NOTE
+      end
+      response[:_image] = view || result[:screenshot] if result[:screenshot]
+      response[:work_screen] ||= SCREENSHOT_NOTE
 
       response
     end
@@ -907,15 +923,53 @@ module MonadicSharedTools
     CAPTURES_NOTE = 'The chat does not show these screenshots; they are in the shared folder. ' \
                     'When the user wants to see one, show it with show_on_workbench.'
 
-    # The screenshot an action took: the model gets it; the chat does not
-    # show it.
+    # The screenshot an action took: the model gets it, under a name by
+    # which it is removed once read (ToolImageUtils); the chat does not
+    # show it, and nothing of it stays in the shared folder.
     def attach_screenshot!(response, result)
       shot = result[:screenshot]
       return unless shot
 
-      response[:screenshot] = shot
-      response[:_image] = shot
+      Monadic::Utils::ToolImageUtils.sweep_for_model
+      response[:_image] = Monadic::Utils::ToolImageUtils.for_model!(shot) || shot
       response[:work_screen] ||= SCREENSHOT_NOTE
+    end
+
+    # A copy of a screenshot (a name directly in the shared folder) for the
+    # model to see, removed once read; nil when it cannot be made.
+    def model_view_of(shot)
+      return nil unless shot.is_a?(String) && File.basename(shot) == shot
+
+      folder = Monadic::Utils::Environment.data_path
+      view = Monadic::Utils::ToolImageUtils.for_model_name
+      Monadic::Utils::ToolImageUtils.sweep_for_model
+      Monadic::Utils::SharedPathGuard.copy_file!(File.join(folder, shot), File.join(folder, view))
+      view
+    rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+      nil
+    end
+
+    # Moves screenshots a capture left directly in the shared folder into a
+    # run folder of the chat; returns their paths there (the names as they
+    # were, without a chat or when one cannot be moved).
+    def keep_captures(names, session, workbench)
+      return names if names.empty?
+
+      app_name = session.respond_to?(:[]) ? session.dig(:parameters, 'app_name') : nil
+      job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench,
+                                                      app_name: app_name || self.class.name)
+      return names unless job
+
+      folder = Monadic::Utils::Environment.data_path
+      names.map do |name|
+        next name unless name.is_a?(String) && File.basename(name) == name
+
+        kept = File.join(job[:relative], name)
+        Monadic::Utils::SharedPathGuard.rename_file!(File.join(folder, name), File.join(folder, kept))
+        kept
+      rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+        name
+      end
     end
   end
 end

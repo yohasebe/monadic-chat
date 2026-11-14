@@ -39,8 +39,8 @@ module MermaidGrapherTools
     # Unique per call, so concurrent previews never share a file name
     timestamp = "#{Time.now.to_i}_#{SecureRandom.hex(4)}"
     html_filename = "mermaid_live_#{timestamp}.html"
-    preview_name = "#{Monadic::Utils::ToolImageUtils::FOR_MODEL_PREFIX}#{timestamp}"
-    screenshot_filename = "#{preview_name}.png"
+    screenshot_filename = Monadic::Utils::ToolImageUtils.for_model_name
+    preview_name = screenshot_filename.delete_suffix(".png")
     shared_volume = Monadic::Utils::Environment.shared_volume
     html_path = File.join(shared_volume, html_filename)
     Monadic::Utils::SharedPathGuard.write_file!(html_path, build_mermaid_html(sanitized_code))
@@ -299,7 +299,7 @@ module MermaidGrapherTools
   # images, older than PREVIEW_IMAGE_MAX_AGE seconds
   def cleanup_old_mermaid_files
     shared_volume = Monadic::Utils::Environment.shared_volume
-    ["mermaid_live_*.html", "mermaid_test_*.html", "#{Monadic::Utils::ToolImageUtils::FOR_MODEL_PREFIX}*.png"].each do |pattern|
+    %w[mermaid_live_*.html mermaid_test_*.html].each do |pattern|
       Dir.glob(File.join(shared_volume, pattern)).each do |f|
         # Another preview may remove its own file meanwhile
         next if Time.now - File.lstat(f).mtime < PREVIEW_IMAGE_MAX_AGE
@@ -309,6 +309,7 @@ module MermaidGrapherTools
         next
       end
     end
+    Monadic::Utils::ToolImageUtils.sweep_for_model
   end
 
   # Removes the page one preview or check wrote, once it is done with it

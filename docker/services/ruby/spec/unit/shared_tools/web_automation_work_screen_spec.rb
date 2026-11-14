@@ -45,6 +45,10 @@ RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work scree
     allow(owner).to receive(:start_worker)
     owner.runner = ->(_, _) { '{"success": true}' }
     app.instance_variable_set(:@browser_action_count, 0)
+    # The shared folder: a temporary one, never the user's.
+    @shared = File.realpath(FileUtils.mkdir_p(File.join(root, "data")).first)
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@shared)
+    allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(@shared)
     # The work screen as start_browser tells it (a stand-in: each case says
     # what placing the browser does).
     stub_const("Monadic::WorkScreen", Module.new {
@@ -83,12 +87,55 @@ RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work scree
     browser_back: {}, browser_forward: {}, annotate_elements: { selectors: ["#a"] }
   }.freeze
 
+  describe "what stays in the shared folder" do
+    let(:png) { "\x89PNG\r\n\x1A\n".b + "x" }
+    let(:prefix) { Monadic::Utils::ToolImageUtils::FOR_MODEL_PREFIX }
+
+    before { File.binwrite(File.join(@shared, "shot.png"), png) }
+
+    it "is nothing of an action's screenshot once the model has been given it" do
+      place(open_browser)
+      result = act(:browser_scroll)
+
+      expect(result[:_image]).to start_with(prefix)
+      expect(Dir.children(@shared)).to eq([result[:_image]])
+      expect(Monadic::Utils::ToolImageUtils.encode_image_for_api(result[:_image])).to include(media_type: "image/png")
+      expect(Dir.children(@shared)).to eq([])
+    end
+
+    it "is a screenshot the model asked for, in the chat's folder and not at the top" do
+      place(open_browser)
+      FileUtils.mkdir_p(File.join(@shared, "conversations", "c", "artifacts", "j1"))
+      job = { relative: "conversations/c/artifacts/j1", path: File.join(@shared, "conversations", "c", "artifacts", "j1") }
+      allow(Monadic::Workbench::ChatOutput).to receive(:run_folder).and_return(job)
+
+      result = act(:browser_screenshot)
+
+      expect(result[:screenshot]).to eq("conversations/c/artifacts/j1/shot.png")
+      expect(File.binread(File.join(@shared, result[:screenshot]))).to eq(png)
+      expect(result[:work_screen]).to include("show_on_workbench")
+      expect(Dir.children(@shared).sort).to eq(["conversations", result[:_image]].sort)
+    end
+
+    it "removes the model's images that were never read, when they are old" do
+      stale = File.join(@shared, "#{prefix}1_aaaa.png")
+      File.binwrite(stale, png)
+      past = Time.now - Monadic::Utils::ToolImageUtils::FOR_MODEL_MAX_AGE - 1
+      File.utime(past, past, stale)
+      place(open_browser)
+
+      act(:browser_scroll)
+
+      expect(File.exist?(stale)).to be false
+    end
+  end
+
   ACTIONS.each do |tool, args|
     it "#{tool} gives the model the screenshot and leaves it out of the chat" do
       place(open_browser)
       result = act(tool, **args)
       expect(result[:_image]).to eq("shot.png")
-      expect(result[:screenshot]).to eq("shot.png")
+      expect(result).not_to have_key(:screenshot)
       expect(result).not_to have_key(:gallery_html)
       expect(result[:work_screen]).to include("the chat does not show it")
     end

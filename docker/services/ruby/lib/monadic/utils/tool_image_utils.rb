@@ -2,6 +2,7 @@
 
 require 'base64'
 require 'fileutils'
+require 'securerandom'
 require_relative 'environment'
 require_relative 'shared_path_guard'
 require_relative '../turn_state'
@@ -12,6 +13,38 @@ module Monadic
       # An image a tool makes only for the model to look at (a diagram's
       # preview) is named with this prefix: it is removed once it is read.
       FOR_MODEL_PREFIX = "model_view_"
+      # One not read (a model that takes no images, a reply that failed) is
+      # removed when it is older than this, in seconds.
+      FOR_MODEL_MAX_AGE = 600
+
+      # A new name for such an image (suffix: what tells several of one call
+      # apart, such as "_tile1").
+      def self.for_model_name(suffix = nil)
+        "#{FOR_MODEL_PREFIX}#{Time.now.to_i}_#{SecureRandom.hex(4)}#{suffix}.png"
+      end
+
+      # Gives a file directly in the shared folder (name) such a name;
+      # returns the new name, or nil when it could not be renamed.
+      def self.for_model!(name)
+        return nil unless single_name?(name)
+
+        view = for_model_name
+        SharedPathGuard.rename_file!(File.join(Environment.data_path, name), File.join(Environment.data_path, view))
+        view
+      rescue SharedPathGuard::InvalidPath, SystemCallError
+        nil
+      end
+
+      # Removes the images for the model that were never read.
+      def self.sweep_for_model
+        Dir.glob(File.join(Environment.data_path, "#{FOR_MODEL_PREFIX}*.png")).each do |path|
+          next if Time.now - File.lstat(path).mtime < FOR_MODEL_MAX_AGE
+
+          SharedPathGuard.delete_file!(path)
+        rescue SharedPathGuard::InvalidPath, SystemCallError
+          next
+        end
+      end
 
       # Read an image file from the shared data directory and return base64-encoded data.
       # @param filename [String] image filename relative to data_path

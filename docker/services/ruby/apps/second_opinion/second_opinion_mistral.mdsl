@@ -121,11 +121,6 @@ app "SecondOpinionMistral" do
       - Single provider -> `second_opinion_agent`
       - Multiple providers or comparison -> `parallel_second_opinions`
 
-      I have access to web search when needed. I will use it when:
-      - You ask about current events or recent information
-      - You need facts about specific people, companies, or organizations
-      - You want the latest information on any topic
-      - The question would benefit from up-to-date sources
     TEXT
 
   features do

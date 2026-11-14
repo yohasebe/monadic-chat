@@ -741,7 +741,8 @@ module MonadicDSL
     # explicitly opts in. This prevents unexpected thinking token generation
     # and tool call loops. Apps that benefit from reasoning should declare
     # reasoning_effort "low"/"medium"/"high" in their MDSL llm block.
-    effort = state.settings[:reasoning_effort] || "none"
+    # It may be written in the llm block or in features; features wins.
+    effort = state.features[:reasoning_effort] || state.settings[:reasoning_effort] || "none"
     class_def << "        @settings[:reasoning_effort] = #{effort.inspect}\n"
 
     # reasoning_content ("disabled"/"enabled") is independent of

@@ -116,7 +116,6 @@ app "ResearchAssistantGemini" do
     code_runs_in_chat_folder true
     disabled !CONFIG["GEMINI_API_KEY"]
     websearch true
-    reasoning_effort "low"
     easy_submit false
     auto_speech false
     initiate_from_assistant true

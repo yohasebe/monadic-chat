@@ -5365,6 +5365,12 @@ i.fas.fa-bolt,
     border-color: var(--pal-amber-strong);
   }
 
+  /* The voice button keeps its own colour on hover */
+  #voice.btn-warning:hover:not(:disabled) {
+    background-color: var(--voice-btn-hover-bg);
+    border-color: var(--voice-btn-hover-border);
+  }
+
   /* Secondary buttons - add background color change */
   .btn-secondary:hover:not(:disabled),
   #theme-system:hover:not(:disabled),

@@ -126,6 +126,19 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
         })
       end
 
+      it "names the work screen as the user's interface does" do
+        names = described_class::WORK_SCREEN_NAMES
+        source = File.read(File.expand_path('../../../public/js/i18n/translations.js', __dir__))
+        in_page = source.scan(/^  (\w+): \{$/).flatten.zip(source.scan(/ workScreen: "([^"]+)"/).flatten).to_h
+        expect(in_page.reject { |lang, _| lang == 'en' }).to eq(names)
+
+        said = described_class.build_injections(session: { parameters: { 'ui_language' => 'ja' } }, options: {})
+        expect(said.map { |i| i[:name] }).to include(:work_screen_name)
+        expect(said.find { |i| i[:name] == :work_screen_name }[:content]).to include(names['ja'])
+        english = described_class.build_injections(session: { parameters: { 'ui_language' => 'en' } }, options: {})
+        expect(english.map { |i| i[:name] }).not_to include(:work_screen_name)
+      end
+
       def work_screen_for(app_name)
         described_class.build_injections(session: { parameters: { 'app_name' => app_name } }, options: {})
                        .find { |r| r[:name] == :work_screen }

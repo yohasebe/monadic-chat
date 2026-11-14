@@ -359,6 +359,18 @@ module Monadic
             WORK_SCREEN_PROMPTS[Monadic::Utils::SystemPromptInjector.work_screen_mode(session)]
           }
         },
+        # The work screen by the name the user's interface gives it
+        {
+          name: :work_screen_name,
+          priority: 28,
+          condition: ->(session, _options) {
+            WORK_SCREEN_NAMES.key?(session&.dig(:parameters, "ui_language").to_s)
+          },
+          generator: ->(session, _options) {
+            "In your replies, call the work screen #{WORK_SCREEN_NAMES[session.dig(:parameters, 'ui_language').to_s]}: " \
+              "that is its name in the user's interface."
+          }
+        },
         # What the app's tools can do now (CapabilityNotes), last so the
         # prompt before it stays the same from request to request.
         {
@@ -416,6 +428,17 @@ module Monadic
       ].freeze
 
       # The page is made from the state: it is read, never written.
+      # The work screen's name in each interface language other than
+      # English (sidePane.workScreen of the page's translations)
+      WORK_SCREEN_NAMES = {
+        "ja" => "作業画面",
+        "zh" => "工作画面",
+        "ko" => "작업 화면",
+        "es" => "Pantalla de trabajo",
+        "fr" => "Écran de travail",
+        "de" => "Arbeitsbildschirm"
+      }.freeze
+
       STATE_NOTES_PROMPT = "The state this app keeps is shown to the user as a page on the work screen, in the shared " \
                            "folder: %<path>s. It is made again from the state after each reply, so it is only read: " \
                            "to change what it shows, change the state with your tools, and do not write to this file."

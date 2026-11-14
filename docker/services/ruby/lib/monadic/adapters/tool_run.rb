@@ -39,9 +39,11 @@ module ToolRun
   # error_text: the result an exception becomes (the exception is given).
   # refuse: a refusal of the provider's own (a String), asked once the tool
   #   is known to have been offered; nil runs the tool.
+  # amend: what the provider makes of the result before it is counted and
+  #   returned (the result is given).
   # speech: the reply's text is taken from the tool that takes it
   #   (tts_target); a failure there leaves the tool's result as it is.
-  def run_tool_call(app, session, function_name, arguments, call_id:, error_text:, refuse: nil, speech: false, &block)
+  def run_tool_call(app, session, function_name, arguments, call_id:, error_text:, refuse: nil, amend: nil, speech: false, &block)
     settings = APPS[app]&.settings
     given = tool_arguments_given(function_name, arguments, session, settings).dup
     method_obj = begin
@@ -64,7 +66,10 @@ module ToolRun
     rescue StandardError => e
       error_text.call(e)
     end
-    send_verification_notification(session, &block) if function_name == 'report_verification'
+    if function_name == 'report_verification' && respond_to?(:send_verification_notification, true)
+      send_verification_notification(session, &block)
+    end
+    value = amend.call(value) if amend
 
     speech_of(app, session, function_name, given, value) if speech
     bind_workbench_look(value, call_id)

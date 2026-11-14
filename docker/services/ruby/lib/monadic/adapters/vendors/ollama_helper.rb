@@ -818,59 +818,18 @@ module OllamaHelper
         memo[k.to_sym] = v
       end
 
-      # Expand vocabulary ${TOKEN}s before the tool runs; before :session
-      # injection so the session object is never walked. No-op without vocabulary.
-      converted = tool_arguments_given(function_name, converted, session, APPS[app]&.settings)
-
-      # Inject session for tools that need it
-      method_obj = APPS[app].method(function_name.to_sym) rescue nil
-      if method_obj && method_obj.parameters.any? { |type, name| name == :session }
-        converted[:session] = session
-      end
-      Monadic::Workbench::Caller.inject!(converted, method_obj, session)
-
-      begin
-        refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
-        function_return = if refusal
-                           # Run only the tools offered to the model in the latest request;
-                           # this also covers calls parsed from the text.
-                           refusal
-                         elsif function_name == "request_tool"
-                           Monadic::Utils::ProgressiveToolManager.handle_request_tool(
-                             session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: converted
-                           )
-                         elsif converted.empty?
-                           APPS[app].public_send(function_name.to_sym)
-                         else
-                           APPS[app].public_send(function_name.to_sym, **converted)
-                         end
-      rescue StandardError => e
-        function_return = "ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"
-      end
-
-      # Collect gallery HTML for tool-generated images
-      if function_return.is_a?(Hash) && function_return[:gallery_html]
-        session[:tool_html_fragments] ||= []
-        session[:tool_html_fragments] << function_return[:gallery_html]
-      end
-
-      # Check for repeated errors
-      if handle_function_error(session, function_return, function_name, &block)
-        context << {
-          "role" => "tool",
-          "content" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
-        }
-        next
-      end
-
       # Ollama's tool calls carry no id: the look a result is (if any) is
       # known by one made here, kept beside the result and never sent.
-      look_call = function_return.is_a?(Monadic::Workbench::Look::Result) ? "call_#{SecureRandom.hex(6)}" : nil
-      bind_workbench_look(function_return, look_call) if look_call
+      made_id = "call_#{SecureRandom.hex(6)}"
+      result = run_tool_call(
+        app, session, function_name, converted, call_id: made_id,
+        error_text: ->(e) { "ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}" }, &block
+      )
+      function_return = result.value
       context << {
         "role" => "tool",
         "content" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s,
-        "_look_call" => look_call
+        "_look_call" => (made_id if !result.stop && function_return.is_a?(Monadic::Workbench::Look::Result))
       }.compact
     end
 

@@ -121,21 +121,29 @@ module Monadic
         "## #{label}#{changed}\n\n#{body}"
       end
 
+      # An entry of a list: a line, or, for a list that declares the
+      # entry's name or fields, a heading with its fields under it.
       def entry(item, list, turns)
         data = item[:data]
-        unless data.is_a?(Hash)
-          turn = turns[item[:by]]
-          return "- #{inline(data)}#{turn ? " (turn #{turn})" : ''}"
+        turn = turns[item[:by]]
+        unless data.is_a?(Hash) && (list[:name] || list[:fields])
+          return "- #{inline(line(data))}#{turn ? " (turn #{turn})" : ''}"
         end
 
         name = data[list[:name].to_s] || data.values.first
-        turn = turns[item[:by]]
         heading = "### #{inline(name)}#{turn ? " (turn #{turn})" : ''}"
         fields = (list[:fields] || {}).filter_map do |field, label|
           text = data[field.to_s]
           "- **#{label}**: #{inline(text)}" unless blank?(text)
         end
         ([heading] + fields).join("\n")
+      end
+
+      # An entry as one line: its text, or its values in the order given.
+      def line(data)
+        return data unless data.is_a?(Hash)
+
+        data.values.reject { |value| blank?(value) }.map { |value| value.is_a?(String) ? value.strip : value.to_json }.join(' — ')
       end
 
       # The number of each reply among the chat's replies, by its mid.

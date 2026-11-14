@@ -239,6 +239,21 @@ RSpec.describe "the Monadic apps' state by turn" do
     end
   end
 
+  describe "an entry the model gave as an object, in a list that declares no fields" do
+    it "is one line of its values, not a heading" do
+      session[:parameters]["app_name"] = "ResearchAssistantOpenAI"
+      stub_const("APPS", { "ResearchAssistantOpenAI" => double(settings: {}) })
+      research = Class.new { include ResearchAssistantSessionState }.new
+      run_reply do
+        research.save_research_progress(current_topic: "T", findings: [{ "finding" => "A", "source" => "s1" }], session: session)
+      end
+
+      page = Monadic::TurnState::Notes.render(session, research.send(:state_notes), research)
+      expect(page).to include("## Findings\n\n- A — s1 (turn 1)")
+      expect(page).not_to include("###")
+    end
+  end
+
   describe "what the model is given of the state with each request" do
     let(:translate) { Class.new { include TranslateTools }.new }
 

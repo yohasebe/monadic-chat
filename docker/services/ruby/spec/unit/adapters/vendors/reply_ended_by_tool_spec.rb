@@ -4,6 +4,10 @@ require_relative "../../../spec_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/openai_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/claude_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/cohere_helper"
+require_relative "../../../../lib/monadic/adapters/vendors/deepseek_helper"
+require_relative "../../../../lib/monadic/adapters/vendors/ollama_helper"
+require_relative "../../../../lib/monadic/adapters/vendors/grok_helper"
+require_relative "../../../../lib/monadic/adapters/vendors/gemini_helper"
 require_relative "../../../../lib/monadic/utils/tts_text_extractor"
 
 # A reply whose tool took the reply's text (tts_target) ends with that tool:
@@ -88,6 +92,109 @@ RSpec.describe "A reply ended by the tool that takes its text" do
         [{ "role" => "tool", "tool_call_id" => "c1", "content" => [] }, false]
       end
       call = { "id" => "c1", "function" => { "name" => "save_translation", "arguments" => "{}" } }
+      [h, h.process_functions("Speaker", session, [call], [], 1) { |event| events << event }]
+    end
+
+    it "ends the reply without asking again" do
+      h, results = run(ends: true)
+
+      expect(results).to eq(ended)
+      expect(h).not_to have_received(:api_request)
+    end
+
+    it "asks again after any other tool" do
+      h, = run(ends: false)
+
+      expect(h).to have_received(:api_request).once
+    end
+  end
+
+  describe DeepSeekHelper do
+    def run(ends:)
+      h = helper(DeepSeekHelper)
+      stub_const("DeepSeekHelper::RETRY_DELAY", 0)
+      allow(h).to receive(:invoke_deepseek_tool_function) do
+        tool_ran(session, ends: ends)
+        [{ "role" => "tool", "tool_call_id" => "c1", "name" => "save_response", "content" => "{}" }, false]
+      end
+      call = { "id" => "c1", "function" => { "name" => "save_response", "arguments" => "{}" } }
+      [h, h.send(:process_functions, "Speaker", session, [call], [], 1) { |event| events << event }]
+    end
+
+    it "ends the reply without asking again" do
+      h, results = run(ends: true)
+
+      expect(results).to eq(ended)
+      expect(h).not_to have_received(:api_request)
+      expect(events.last).to include("type" => "message", "content" => "DONE")
+    end
+
+    it "asks again after any other tool" do
+      h, = run(ends: false)
+
+      expect(h).to have_received(:api_request).once
+    end
+  end
+
+  describe OllamaHelper do
+    def run(ends:)
+      h = helper(OllamaHelper)
+      stub_const("OllamaHelper::RETRY_DELAY", 0)
+      allow(h).to receive(:run_tool_call) do
+        tool_ran(session, ends: ends)
+        ToolRun::Result.new(name: "save_response", value: '{"success":true}', images: nil, stop: false)
+      end
+      call = { "function" => { "name" => "save_response", "arguments" => {} } }
+      [h, h.process_functions("Speaker", session, [call], [], 1) { |event| events << event }]
+    end
+
+    it "ends the reply without asking again" do
+      h, results = run(ends: true)
+
+      expect(results).to eq(ended)
+      expect(h).not_to have_received(:api_request)
+    end
+
+    it "asks again after any other tool" do
+      h, = run(ends: false)
+
+      expect(h).to have_received(:api_request).once
+    end
+  end
+
+  describe GrokHelper do
+    def run(ends:)
+      h = helper(GrokHelper)
+      allow(h).to receive(:invoke_grok_tool_function) do
+        tool_ran(session, ends: ends)
+        [{ "call_id" => "c1", "name" => "save_response", "content" => '{"success":true}' }, false, '{"success":true}']
+      end
+      call = { "id" => "c1", "function" => { "name" => "save_response", "arguments" => "{}" } }
+      [h, h.process_functions("Speaker", session, [call], [], 1) { |event| events << event }]
+    end
+
+    it "ends the reply without asking again" do
+      h, results = run(ends: true)
+
+      expect(results).to eq(ended)
+      expect(h).not_to have_received(:api_request)
+    end
+
+    it "asks again after any other tool" do
+      h, = run(ends: false)
+
+      expect(h).to have_received(:api_request).once
+    end
+  end
+
+  describe GeminiHelper do
+    def run(ends:)
+      h = helper(GeminiHelper)
+      allow(h).to receive(:run_tool_call) do
+        tool_ran(session, ends: ends)
+        ToolRun::Result.new(name: "save_response", value: '{"success":true}', images: nil, stop: false)
+      end
+      call = { "name" => "save_response", "args" => {} }
       [h, h.process_functions("Speaker", session, [call], [], 1) { |event| events << event }]
     end
 

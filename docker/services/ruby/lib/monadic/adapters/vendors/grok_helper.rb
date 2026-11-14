@@ -629,7 +629,7 @@ module GrokHelper
       error_text.call(e)
     end
     result = run_tool_call(
-      app, session, function_name, argument_hash, call_id: tool_call["id"], speech: true,
+      app, session, function_name, argument_hash, call_id: tool_call["id"],
       amend: grok_follow_up, error_text: error_text, &block
     )
     function_return = result.value
@@ -1763,6 +1763,10 @@ module GrokHelper
       block&.call res
       return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected. Stopping." } }] }]
     end
+
+    # The tool that takes the reply's text ended the reply.
+    ended = Monadic::Utils::TtsTextExtractor.reply_ended(session, &block)
+    return ended if ended
 
     # CORRECT FLOW: Send tool results back to Grok to get natural language response
     # According to documentation, we must send tool results with function_call_output back to Grok

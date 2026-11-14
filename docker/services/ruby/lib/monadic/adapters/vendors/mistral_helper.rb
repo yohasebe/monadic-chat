@@ -883,6 +883,10 @@ module MistralHelper
         return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected. Stopping." } }] }]
       end
 
+      # The tool that takes the reply's text ended the reply.
+      ended = Monadic::Utils::TtsTextExtractor.reply_ended(session, &block)
+      return ended if ended
+
       # Carry this round's reasoning across the tool-call recursion (which
       # re-enters api_request with a fresh local `thinking`) so the final
       # answer's Thinking panel reflects the whole trace. Mirrors DeepSeek/Grok.

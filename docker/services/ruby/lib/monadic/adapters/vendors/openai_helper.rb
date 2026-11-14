@@ -2008,7 +2008,7 @@ module OpenAIHelper
       JSON.generate({ "results" => [], "notice" => notice_key, "message" => notice_msg })
     }
     result = run_tool_call(
-      app, session, function_name, argument_hash, call_id: tool_call["id"], refuse: help_search_limit, speech: true,
+      app, session, function_name, argument_hash, call_id: tool_call["id"], refuse: help_search_limit,
       error_text: lambda { |e|
         Monadic::Utils::ExtraLogger.log { "[OpenAI Tools] Error in #{function_name}: #{e.message}\n[OpenAI Tools] Backtrace: #{e.backtrace.first(5).join("\n")}" }
         Monadic::Utils::ErrorFormatter.tool_error(provider: "OpenAI", tool_name: function_name, message: e.message)

@@ -40,11 +40,6 @@ app "VoiceChatMistral" do
   - Keep your responses brief (under 50 words) for better voice playback. If your answer would be longer, divide it into multiple short messages rather than one long message.
   - Try to keep your response as short as possible.
 
-  I have access to web search when needed. I will use it when:
-  - You ask about current events or recent information
-  - You need facts about specific people, companies, or organizations
-  - You want the latest information on any topic
-  - The question would benefit from up-to-date sources
   PROMPT
   
   llm do

@@ -1268,8 +1268,7 @@ const WorkflowViewer = (function () {
 
   function buildExportCSS() {
     return [
-      "@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');",
-      "foreignObject div { font-family: 'Montserrat', 'Segoe UI', sans-serif; }",
+      "foreignObject div { font-family: 'Segoe UI', system-ui, sans-serif; }",
       "foreignObject b { font-weight: 600; }",
       ".wv-scroll-text { overflow: hidden; }"
     ].join('\n');

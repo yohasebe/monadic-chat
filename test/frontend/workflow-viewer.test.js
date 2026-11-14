@@ -990,7 +990,9 @@ describe('WorkflowViewer.exportSvg', () => {
     await loadAndInjectSvg();
     const result = window.WorkflowViewer.exportSvg();
     expect(result).toContain('<style');
-    expect(result).toContain('Montserrat');
+    expect(result).toContain('font-family');
+    expect(result).not.toContain('@import');
+    expect(result).not.toContain('fonts.googleapis.com');
     delete global.fetch;
   });
 

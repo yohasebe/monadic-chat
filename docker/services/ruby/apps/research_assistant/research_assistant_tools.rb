@@ -17,7 +17,6 @@ module ResearchAssistantSessionState
 
   # Save research progress and context to session state.
   #
-  # @param message [String] Response message to the user
   # @param current_topic [String] The current research topic
   # @param research_topics [Array<String>] Research topics explored
   # @param search_history [Array<String>] Searches performed with brief results
@@ -26,7 +25,7 @@ module ResearchAssistantSessionState
   # @param notes [Array<String>] Research notes and observations
   # @param session [Hash] Session object (automatically provided)
   # @return [String] JSON response with success status
-  def save_research_progress(message:, current_topic: nil, research_topics: nil,
+  def save_research_progress(current_topic: nil, research_topics: nil,
                              search_history: nil, findings: nil, sources: nil, notes: nil, session: nil)
     existing = load_research_internal(session)
 
@@ -36,8 +35,7 @@ module ResearchAssistantSessionState
       search_history: search_history || existing[:search_history] || [],
       findings: findings || existing[:findings] || [],
       sources: sources || existing[:sources] || [],
-      notes: notes || existing[:notes] || [],
-      last_message: message
+      notes: notes || existing[:notes] || []
     }
 
     monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
@@ -55,8 +53,7 @@ module ResearchAssistantSessionState
       search_history: [],
       findings: [],
       sources: [],
-      notes: [],
-      last_message: nil
+      notes: []
     }
     monadic_load_record(key: STATE_KEY, lists: LISTS, default: default_context, session: session)
   end
@@ -164,8 +161,7 @@ module ResearchAssistantSessionState
       search_history: data["search_history"] || [],
       findings: data["findings"] || [],
       sources: data["sources"] || [],
-      notes: data["notes"] || [],
-      last_message: data["last_message"]
+      notes: data["notes"] || []
     }
   rescue StandardError
     {
@@ -174,8 +170,7 @@ module ResearchAssistantSessionState
       search_history: [],
       findings: [],
       sources: [],
-      notes: [],
-      last_message: nil
+      notes: []
     }
   end
 end

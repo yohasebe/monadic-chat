@@ -37,8 +37,7 @@ app "MathTutorDeepSeek" do
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
 
-    define_tool "save_learning_progress", "Save response and learning progress to session state" do
-      parameter :message, "string", "Your response message to the student", required: true
+    define_tool "save_learning_progress", "Save the learning progress to session state, before the response is written in the chat" do
       parameter :current_problem, "string", "The problem currently being worked on", required: false
       parameter :problems_solved, "array", "Problems solved with solution methods (accumulated)", required: false
       parameter :concepts_covered, "array", "Mathematical concepts covered (accumulated)", required: false

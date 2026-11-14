@@ -14,7 +14,6 @@ module MathTutorTools
 
   # Save learning progress and context to session state.
   #
-  # @param message [String] Response message to the user
   # @param current_problem [String] The current problem being worked on
   # @param problems_solved [Array<String>] Problems solved with brief descriptions
   # @param concepts_covered [Array<String>] Mathematical concepts covered
@@ -22,7 +21,7 @@ module MathTutorTools
   # @param learning_notes [Array<String>] Important notes about the student's progress
   # @param session [Hash] Session object (automatically provided)
   # @return [String] JSON response with success status
-  def save_learning_progress(message:, current_problem: nil, problems_solved: nil,
+  def save_learning_progress(current_problem: nil, problems_solved: nil,
                              concepts_covered: nil, weak_areas: nil, learning_notes: nil, session: nil)
     existing = load_progress_internal(session)
 
@@ -31,8 +30,7 @@ module MathTutorTools
       problems_solved: problems_solved || existing[:problems_solved] || [],
       concepts_covered: concepts_covered || existing[:concepts_covered] || [],
       weak_areas: weak_areas || existing[:weak_areas] || [],
-      learning_notes: learning_notes || existing[:learning_notes] || [],
-      last_message: message
+      learning_notes: learning_notes || existing[:learning_notes] || []
     }
 
     # Save to session state
@@ -56,8 +54,7 @@ module MathTutorTools
       problems_solved: [],
       concepts_covered: [],
       weak_areas: [],
-      learning_notes: [],
-      last_message: nil
+      learning_notes: []
     }
     monadic_load_record(key: STATE_KEY, lists: LISTS, default: default_context, session: session)
   end
@@ -144,8 +141,7 @@ module MathTutorTools
       problems_solved: data["problems_solved"] || [],
       concepts_covered: data["concepts_covered"] || [],
       weak_areas: data["weak_areas"] || [],
-      learning_notes: data["learning_notes"] || [],
-      last_message: data["last_message"]
+      learning_notes: data["learning_notes"] || []
     }
   rescue StandardError
     {
@@ -153,8 +149,7 @@ module MathTutorTools
       problems_solved: [],
       concepts_covered: [],
       weak_areas: [],
-      learning_notes: [],
-      last_message: nil
+      learning_notes: []
     }
   end
 

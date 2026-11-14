@@ -126,7 +126,7 @@ RSpec.describe "the Monadic apps' state by turn" do
       first = run_reply { research.add_finding(finding: "A", source: "s1", session: session) }
       run_reply { research.add_finding(finding: "B", session: session) }
       run_reply do
-        research.save_research_progress(message: "m", current_topic: "T", session: session)
+        research.save_research_progress(current_topic: "T", session: session)
       end
       delete(first)
       expect(progress["findings"]).to eq(["B"])

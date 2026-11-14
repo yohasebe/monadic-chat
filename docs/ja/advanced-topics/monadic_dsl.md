@@ -170,6 +170,7 @@ features do
   context_size 20         # Number of recent messages sent to the model
   auto_speech false       # Enable automatic text-to-speech for assistant messages
   easy_submit true        # Enable submitting messages with Enter key (without clicking Send)
+  show_thinking false     # Do not show the model's thinking by default (apps that answer by voice)
   math true               # Enable mathematical notation rendering using KaTeX
   abc true                # Enable ABC music notation rendering and playback
   mermaid true            # Tell the model how to write Mermaid diagrams (they are drawn in every app)

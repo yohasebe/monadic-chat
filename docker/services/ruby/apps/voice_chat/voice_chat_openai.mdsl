@@ -59,6 +59,7 @@ app "VoiceChatOpenAI" do
   display_name "Voice Chat"
   
   features do
+    show_thinking false
     websearch true
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit true

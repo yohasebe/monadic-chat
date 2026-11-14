@@ -93,6 +93,7 @@ app "VoiceInterpreterOpenAI" do
   TEXT
 
   features do
+    show_thinking false
     library_search false
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit true

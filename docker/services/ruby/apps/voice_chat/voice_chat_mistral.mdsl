@@ -54,6 +54,7 @@ app "VoiceChatMistral" do
   display_name "Voice Chat"
   
   features do
+    show_thinking false
     websearch false
     disabled !CONFIG["MISTRAL_API_KEY"]
     easy_submit true

@@ -4,6 +4,7 @@ require_relative '../turn_state'
 require_relative '../workbench/document'
 require_relative '../workbench/board'
 require_relative '../workbench/channel'
+require_relative '../workbench/outputs'
 require_relative '../workspace/folders'
 require_relative '../utils/shared_path_guard'
 
@@ -24,6 +25,8 @@ module Monadic
     # and may add lines made from other things (its private
     # state_notes_extra(session): { label => text }), and a line the page
     # begins with (its private state_notes_lead(session): Markdown).
+    # The page ends with the files the chat's replies made, whatever the
+    # app.
     module Notes
       DIRNAME = 'notes'
 
@@ -110,10 +113,22 @@ module Monadic
         parts << section('Settings', turns[value[:by]], lines.join("\n")) unless lines.empty?
         parts.concat(lists)
 
+        files = files_made(session)
+        parts << section('Files made in this chat', nil, files.join("\n")) unless files.empty?
+
         lead = app.respond_to?(:state_notes_lead, true) ? app.send(:state_notes_lead, session) : nil
         parts.unshift(lead) unless blank?(lead)
 
         "# #{declaration[:title]}\n\n#{parts.join("\n\n")}\n"
+      end
+
+      # The files the chat's replies made that are there now (a plot, a
+      # document, a diagram), each by its name and the turn that made it:
+      # they are on the work screen beside this page.
+      def files_made(session)
+        Monadic::Workbench::Outputs.in_chat(session).map do |file|
+          "- `#{File.basename(file[:path])}` (turn #{file[:turn]})"
+        end
       end
 
       def section(label, turn, body)

@@ -374,9 +374,10 @@ module MonadicSharedTools
                                  .map { |line| line.strip[2..-1] }
 
         # The model is given the first one; the captures are kept in the
-        # chat's folder.
+        # chat's folder and shown on the work screen.
         view = model_view_of(screenshots.first)
         screenshots = keep_captures(screenshots, session, workbench)
+        shown = show_captures(screenshots, workbench)
 
         # Store in session
         @captured_screenshots ||= []
@@ -387,7 +388,7 @@ module MonadicSharedTools
           message: "Successfully captured #{screenshots.length} screenshots.",
           screenshots: screenshots,
           filenames: screenshots.join("\n"),
-          work_screen: CAPTURES_NOTE
+          work_screen: shown ? CAPTURES_SHOWN_NOTE : CAPTURES_NOTE
         }
         response[:_image] = view || screenshots.first if screenshots.first
 
@@ -922,6 +923,8 @@ module MonadicSharedTools
                       'The user sees the browser on the work screen.'
     CAPTURES_NOTE = 'The chat does not show these screenshots; they are in the shared folder. ' \
                     'When the user wants to see one, show it with show_on_workbench.'
+    CAPTURES_SHOWN_NOTE = 'These screenshots are shown on the work screen beside the chat; the chat does not ' \
+                          'show them. In your reply, do not put them in the text.'
 
     # The screenshot an action took: the model gets it, under a name by
     # which it is removed once read (ToolImageUtils); the chat does not
@@ -947,6 +950,16 @@ module MonadicSharedTools
       view
     rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
       nil
+    end
+
+    # Shows captures kept in the chat's folder on the work screen, the
+    # first one last so that it is the one in view; true when every one is
+    # shown.
+    def show_captures(paths, workbench)
+      kept = paths.select { |path| path.is_a?(String) && File.basename(path) != path }
+      return false if kept.empty? || kept.length != paths.length
+
+      kept.reverse.map { |path| Monadic::Workbench::ChatOutput.show(path, workbench) }.all?
     end
 
     # Moves screenshots a capture left directly in the shared folder into a

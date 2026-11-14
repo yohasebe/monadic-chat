@@ -37,7 +37,7 @@ app "WebInsightClaude" do
 
     ## Default Behavior
 
-    When a user provides a URL, use `capture_viewport_screenshots` to capture the page. This is the primary tool — fast, headless, and returns images directly in the chat.
+    When a user provides a URL, use `capture_viewport_screenshots` to capture the page. This is the primary tool — fast and headless. The screenshots are shown on the work screen beside the chat, and you are given the first one to read.
 
     Only use `start_browser` when the user explicitly asks to interact with a page (click, fill forms, navigate). NEVER use `start_browser` on a URL that was already captured with `capture_viewport_screenshots`.
 

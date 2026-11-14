@@ -177,4 +177,18 @@ RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work scree
     expect(result).not_to have_key(:gallery_html)
     expect(result[:work_screen]).to include("show_on_workbench")
   end
+
+  it "capture_viewport_screenshots shows what it kept in the chat's folder on the work screen, the first one in view" do
+    allow(owner).to receive(:with_job).and_yield
+    app.mock_response = "SUCCESS: captured\n- v1.png\n- v2.png\n"
+    allow(app).to receive(:keep_captures) { |names, *| names.map { |name| "conversations/c/artifacts/j1/#{name}" } }
+    shown = []
+    allow(Monadic::Workbench::ChatOutput).to receive(:show) { |path, _| shown << path }
+
+    result = Monadic::Workspace::RequestContext.with(request) { app.capture_viewport_screenshots(url: "https://example.com") }
+
+    expect(shown).to eq(["conversations/c/artifacts/j1/v2.png", "conversations/c/artifacts/j1/v1.png"])
+    expect(result[:work_screen]).to include("shown on the work screen")
+    expect(result[:work_screen]).not_to include("show_on_workbench")
+  end
 end

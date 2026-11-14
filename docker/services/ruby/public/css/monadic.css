@@ -6870,6 +6870,8 @@ body.side-pane-resizing {
   color: var(--text-primary);
   line-height: 1.6;
   padding: 0.25rem 0.5rem 0.5rem;
+  /* A long address breaks where the column ends. */
+  overflow-wrap: anywhere;
 }
 .workbench-rendered .workbench-markdown p {
   margin: 0.5em 0;

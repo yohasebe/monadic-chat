@@ -35,6 +35,25 @@ RSpec.describe MonadicSharedTools::ScratchBrowser do
     expect(commands[2]).to eq(%w[--action stop --managed --session-id wd-job])
   end
 
+  it 'removes the screenshots its actions left in the shared folder, and nothing else' do
+    Dir.mktmpdir('scratch-shots') do |dir|
+      shared = File.realpath(dir)
+      allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(shared)
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared)
+      %w[browser_1.png browser_2.png browser_3.png browser_9.png kept.png].each { |n| File.write(File.join(shared, n), 'x') }
+      owner.runner = lambda do |args, _|
+        next stop_reply if args.include?('stop')
+        next '{"success": true, "session_id": "wd-job", "screenshot": "browser_1.png"}' if args.include?('start')
+
+        '{"success": true, "screenshot": "kept.png", "screenshots": ["browser_2.png", "browser_3.png", "../x.png"]}'
+      end
+
+      described_class.with_session('u') { |run, _| run.call(%w[--action full_screenshot]) }
+
+      expect(Dir.children(shared).sort).to eq(%w[browser_9.png kept.png])
+    end
+  end
+
   it 'closes the session when the job raises' do
     expect { described_class.with_session('u') { raise 'boom' } }.to raise_error('boom')
     expect(commands.last).to include('stop')

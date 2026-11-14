@@ -143,6 +143,26 @@ RSpec.describe "A Gemini chat with a word table" do
         .to eq("Unknown <<PERSON_2>>, Ada Lovelace.\n\nDone Eve.")
     end
 
+    it "runs the calls that arrived whole when the reply then ends with a malformed call" do
+      ending = { "candidates" => [{ "finishReason" => "MALFORMED_FUNCTION_CALL", "finishMessage" => "Function call is empty" }] }
+      replies = [[chunk(true, [{ "functionCall" => { "name" => "read_file_from_shared_folder", "args" => { "filepath" => "notes.txt" } } }], nil),
+                  ",\n#{JSON.pretty_generate(ending)}\n", "]"],
+                 answering("Read.")]
+      posting { replies.shift }
+      reply = Array(chat.api_request("user", session) { |_| }).last
+      expect(tool_app.given).to eq(["notes.txt"])
+      expect(sent.size).to eq(2)
+      expect(reply.dig("choices", 0, "message", "content")).to eq("Read.")
+    end
+
+    it "says the call was invalid when the reply holds nothing but a malformed call" do
+      ending = { "candidates" => [{ "finishReason" => "MALFORMED_FUNCTION_CALL" }] }
+      posting { ["[#{JSON.pretty_generate(ending)}\n", "]"] }
+      reply = Array(chat.api_request("user", session) { |_| }).last
+      expect(tool_app.given).to be_nil
+      expect(reply.dig("choices", 0, "message", "content")).to include("invalid function call")
+    end
+
     it "makes the request it sends again for a notebook from the conversation as it was" do
       calls = 0
       allow(chat).to receive(:process_json_data) do

@@ -10,6 +10,8 @@ RUN apt-get update && \
     # fiddle (shared-folder writes through openat) is built against libffi;
     # the runtime stage already has libffi8 from the base image
     libffi-dev \
+    # the openssl gem is built against these headers
+    libssl-dev \
     ca-certificates gnupg lsb-release \
     # RSyntaxTree (Syntax Tree) draws with Pango and librsvg through
     # GObject introspection; its gems are built against these headers

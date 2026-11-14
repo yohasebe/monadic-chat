@@ -6,6 +6,7 @@ require "sinatra/base"
 require "tempfile"
 require_relative "../../../lib/monadic/utils/pdf_text_extractor"
 require_relative "../../../lib/monadic/utils/error_formatter"
+require_relative "../../../lib/monadic/workspace/attachments"
 
 # POST /pdf, run from the route file itself in an app of its own.
 RSpec.describe "POST /pdf" do
@@ -54,6 +55,31 @@ RSpec.describe "POST /pdf" do
     expect(store).to have_received(:store_embeddings).with(hash_including(title: "T", items: 1), [hash_including(text: "chunk")])
     expect(made.size).to eq(1)
     expect(made.first.path).to be_nil
+  end
+
+  it "takes a file name outside ASCII as the title and returns it" do
+    pdf = double("PDF2Text", extract: nil, split_text: [{ "text" => "chunk", "tokens" => 3 }])
+    allow(PDF2Text).to receive(:new).and_return(pdf)
+    named = Rack::Test::UploadedFile.new(upload.path, "application/pdf", original_filename: "統計の基礎.pdf")
+
+    post "/pdf", { "pdfFile" => named }
+    expect(JSON.parse(last_response.body)).to include("success" => true, "filename" => "統計の基礎.pdf")
+    expect(store).to have_received(:store_embeddings) do |doc, _items|
+      expect(doc[:title]).to eq("統計の基礎.pdf")
+      expect { doc.to_json }.not_to raise_error
+    end
+  end
+
+  it "keeps a title outside ASCII as it was typed" do
+    pdf = double("PDF2Text", extract: nil, split_text: [{ "text" => "chunk", "tokens" => 3 }])
+    allow(PDF2Text).to receive(:new).and_return(pdf)
+
+    post "/pdf", { "pdfFile" => upload, "pdfTitle" => "統計/基礎" }
+    expect(JSON.parse(last_response.body)["success"]).to be true
+    expect(store).to have_received(:store_embeddings) do |doc, _items|
+      expect(doc[:title]).to eq("統計/基礎")
+      expect { doc.to_json }.not_to raise_error
+    end
   end
 
   it "removes its temporary copy when the extraction fails, and scrubs the error" do

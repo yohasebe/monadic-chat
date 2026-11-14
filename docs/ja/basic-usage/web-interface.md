@@ -51,7 +51,7 @@ API の応答の最大トークン数を制限します（既定：4000）。
 高度な思考に対応したモデルで、推論の深さを調整します。推論が必須の適応型モデルは、推論の設定をオフにしても、アプリが構造化出力を使っていても推論を続けるため、これらの設定で推論のコストがなくなるわけではありません。そうしたモデルでは、推論なしを指定したアプリは、そのモデルの最も低い段階で動きます。思考の表示を隠しても、変わるのは表示だけです。表示名はプロバイダごとの呼び方に合わせて変わります（OpenAI：Reasoning Effort、Anthropic：Thinking Level、Google：Thinking Mode、xAI：Reasoning Effort、DeepSeek：Reasoning Mode）。
 
 **Show Thinking** <br />
-モデルの思考・推論の過程を、各応答の中の折りたためる「Thinking Process」パネルとして表示するかどうかを切り替えます。思考に対応したモデルでだけ表示され、推論の設定と連動します。推論が「None」のときにオンにすると、そのモデルの最も低い思考の段階に上がり、推論を「None」に戻すとオフになります。[Live Conversation](../apps/chat-apps.md#live-conversation) では、リアルタイムのモデルが推論の過程を出さないため、表示されません。
+モデルの思考・推論の過程を、各応答の中の折りたためる「Thinking Process」パネルとして表示するかどうかを切り替えます。思考に対応したモデルでだけ表示され、推論の設定と連動します。推論が「None」のときにオンにすると、そのモデルの最も低い思考の段階に上がり、推論を「None」に戻すとオフになります。音声で答えるアプリ（Voice Chat、Voice Interpreter、Language Practice、Language Practice Plus）は、思考を表示しない設定で始まります。切り替えのないモデルでも同じです。[Live Conversation](../apps/chat-apps.md#live-conversation) では、リアルタイムのモデルが推論の過程を出さないため、表示されません。
 
 **パラメータ**<br />
 Temperature、Presence Penalty、Frequency Penalty

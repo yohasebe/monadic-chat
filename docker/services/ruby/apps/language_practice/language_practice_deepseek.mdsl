@@ -51,6 +51,7 @@ app "LanguagePracticeDeepSeek" do
   display_name "Language Practice"
   
   features do
+    show_thinking false
     disabled !CONFIG["DEEPSEEK_API_KEY"]
     temperature 0.5
     context_size 100

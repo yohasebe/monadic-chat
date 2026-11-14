@@ -9,49 +9,46 @@ document.addEventListener('DOMContentLoaded', function() {
     return text === '' || text === '{}' || text === '[]';
   }
   
-  // Function to handle empty objects
-  function handleEmptyObjects() {
-    const jsonItems = document.querySelectorAll('.json-item');
-    
-    jsonItems.forEach(item => {
+  // An empty object of a JSON tree (kept in cards of earlier versions) does
+  // not open: within root, or the whole document.
+  function handleEmptyObjects(root) {
+    (root || document).querySelectorAll('.json-item').forEach(item => {
       const header = item.querySelector('.json-header');
       const content = item.querySelector('.json-content');
-      
+
       if (header && content && isEmptyContent(content)) {
-        // Mark the parent json-item as empty
         item.classList.add('empty-object');
-        
-        // Remove click handler from header
         header.onclick = null;
-        
-        // Hide the content completely
         content.style.display = 'none';
       }
     });
   }
-  
-  // Function to style "no value" text
-  function styleNoValueText() {
-    const spans = document.querySelectorAll('.json-item span');
-    
-    spans.forEach(span => {
+
+  // "no value" in such a tree is shown as one
+  function styleNoValueText(root) {
+    (root || document).querySelectorAll('.json-item span').forEach(span => {
       if (span.textContent.trim() === 'no value') {
         span.classList.add('no-value');
       }
     });
   }
-  
+
   // Run on page load
   handleEmptyObjects();
   styleNoValueText();
-  
-  // Also run when new content is added (for dynamic updates)
+
+  // New content: only what was added is looked at, and only when it holds
+  // such a tree. A reply that streams adds nodes many times a second.
   const observer = new MutationObserver(function(mutations) {
     mutations.forEach(function(mutation) {
-      if (mutation.addedNodes.length) {
-        handleEmptyObjects();
-        styleNoValueText();
-      }
+      mutation.addedNodes.forEach(function(node) {
+        if (node.nodeType !== 1) return;
+        const root = node.closest('.json-item') || node;
+        if (!root.matches('.json-item') && !root.querySelector('.json-item')) return;
+        const scope = root.matches('.json-item') ? root.parentNode || root : root;
+        handleEmptyObjects(scope);
+        styleNoValueText(scope);
+      });
     });
   });
 

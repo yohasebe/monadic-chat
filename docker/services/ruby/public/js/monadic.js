@@ -4192,11 +4192,20 @@ document.addEventListener("DOMContentLoaded", function () {
         new bootstrap.Tooltip(el, { delay: { show: 0, hide: 0 }, container: 'body' });
       });
       // Observe for new elements and initialize tooltips on them
-      const tooltipObserver = new MutationObserver(function() {
-        discourseEl.querySelectorAll('.card-header [title]').forEach(function(el) {
-          if (!bootstrap.Tooltip.getInstance(el)) {
-            new bootstrap.Tooltip(el, { delay: { show: 0, hide: 0 }, container: 'body' });
-          }
+      // Only what was added is looked at: a reply that streams adds text to
+      // one card many times a second, and has no header in it.
+      const tooltipObserver = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          mutation.addedNodes.forEach(function(node) {
+            if (node.nodeType !== 1) return;
+            const targets = Array.from(node.querySelectorAll('.card-header [title]'));
+            if (node.matches('.card-header [title]')) targets.push(node);
+            targets.forEach(function(el) {
+              if (!bootstrap.Tooltip.getInstance(el)) {
+                new bootstrap.Tooltip(el, { delay: { show: 0, hide: 0 }, container: 'body' });
+              }
+            });
+          });
         });
       });
       tooltipObserver.observe(discourseEl, { childList: true, subtree: true });

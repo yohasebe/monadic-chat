@@ -254,12 +254,36 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
       expect(Monadic::Utils::DegradationNotifier).to have_received(:report)
     end
 
-    it "returns :failed and reports when monadic.sh cannot be located (no silent compose fallback)" do
-      allow(described_class).to receive(:find_monadic_sh).and_return(nil)
-      expect(described_class).not_to receive(:`)
-      expect(described_class.start_service(:python)).to eq(:failed)
-      expect(Monadic::Utils::DegradationNotifier).to have_received(:report)
-        .with(hash_including(component: "container:python", severity: :error))
+    context "without monadic.sh (inside the Ruby container)" do
+      before { allow(described_class).to receive(:find_monadic_sh).and_return(nil) }
+
+      it "starts a container that exists and is stopped" do
+        allow(described_class).to receive(:container_running?).with(:python).and_return(false, true)
+        expect(described_class).to receive(:system)
+          .with("docker", "start", "monadic-chat-python-container", out: File::NULL, err: File::NULL)
+        expect(described_class.start_service(:python)).to eq(:started)
+        expect(Monadic::Utils::DegradationNotifier).not_to have_received(:report)
+      end
+
+      it "leaves a running container as it is" do
+        allow(described_class).to receive(:container_running?).with(:python).and_return(true)
+        expect(described_class).not_to receive(:system)
+        expect(described_class.start_service(:python)).to eq(:already_running)
+      end
+
+      it "returns :failed and reports when the container does not come up" do
+        allow(described_class).to receive(:container_running?).with(:python).and_return(false)
+        allow(described_class).to receive(:system)
+        expect(described_class.start_service(:python)).to eq(:failed)
+        expect(Monadic::Utils::DegradationNotifier).to have_received(:report)
+          .with(hash_including(component: "container:python", severity: :error))
+      end
+
+      it "does not start the privacy container the user turned off" do
+        stub_const("CONFIG", { "PRIVACY_FILTER" => "false" })
+        expect(described_class).not_to receive(:system)
+        expect(described_class.start_service(:privacy)).to eq(:disabled)
+      end
     end
 
     it "returns :failed for unknown services" do

@@ -231,14 +231,7 @@ module Monadic
         return :failed unless COMPOSE_SERVICES[service]
 
         monadic_sh = find_monadic_sh
-        unless monadic_sh
-          DegradationNotifier.report(
-            component: "container:#{service_name}",
-            message: "cannot start dependency container: monadic.sh not found",
-            severity: :error
-          )
-          return :failed
-        end
+        return start_existing_container(service) unless monadic_sh
 
         output = `bash #{Shellwords.escape(monadic_sh)} ensure-service #{service_name} 2>/dev/null`.strip
 
@@ -276,6 +269,26 @@ module Monadic
           )
           :failed
         end
+      end
+
+      # Without monadic.sh (inside the Ruby container): a container that
+      # exists and is stopped is started as it is. One that was never
+      # created cannot be made from here.
+      def start_existing_container(service)
+        return :disabled if service == :privacy && defined?(CONFIG) && CONFIG["PRIVACY_FILTER"].to_s == "false"
+        return :already_running if container_running?(service)
+
+        name = CONTAINER_NAMES[service]
+        system("docker", "start", name, out: File::NULL, err: File::NULL) if name
+        return :started if container_running?(service)
+
+        DegradationNotifier.report(
+          component: "container:#{service}",
+          message: "container is not running and could not be started; dependent app features will be unavailable. " \
+                   "Stop and start Monadic Chat to bring it up.",
+          severity: :error
+        )
+        :failed
       end
 
       # Locate monadic.sh in dev or packaged app environments.

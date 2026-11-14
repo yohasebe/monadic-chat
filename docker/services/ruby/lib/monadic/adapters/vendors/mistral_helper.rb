@@ -1261,42 +1261,6 @@ module MistralHelper
     args_hash = {}
     args.each { |k, v| args_hash[k.to_sym] = v }
 
-    # Expand vocabulary ${TOKEN}s before the tool runs; before :session
-    # injection so the session object is never walked. No-op without vocabulary.
-    args_hash = tool_arguments_given(function_name, args_hash, session, APPS[app]&.settings)
-
-    # Inject session for tools that need it
-    method_obj = APPS[app].method(function_name.to_sym) rescue nil
-    if method_obj && method_obj.parameters.any? { |_type, name| name == :session }
-      args_hash[:session] = session
-    end
-    Monadic::Workbench::Caller.inject!(args_hash, method_obj, session)
-
-    # Call the function
-    begin
-      refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
-      function_return = if refusal
-                          # Run only the tools offered to the model in the latest request.
-                          refusal
-                        elsif function_name == "request_tool"
-                          Monadic::Utils::ProgressiveToolManager.handle_request_tool(
-                            session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: args_hash
-                          )
-                        elsif args_hash.empty?
-                          APPS[app].public_send(function_name.to_sym)
-                        else
-                          APPS[app].public_send(function_name.to_sym, **args_hash)
-                        end
-    rescue StandardError => e
-      function_return = Monadic::Utils::ErrorFormatter.tool_error(
-        provider: "Mistral",
-        tool_name: function_name,
-        message: e.message
-      )
-    end
-
-    send_verification_notification(session, &block) if function_name == "report_verification"
-
     # Reactive Tavily gate (defense in depth — pairs with the proactive
     # gate at the top of api_request). The proactive gate handles "key
     # missing at session start"; this reactive branch handles the rarer
@@ -1304,8 +1268,11 @@ module MistralHelper
     # rate-limit ban, billing lapse. Setting the session flag short-
     # circuits subsequent tool emissions for this session so the model
     # does not retry tavily_* on every turn.
-    if function_name.to_s.start_with?("tavily_") && function_return.to_s.downcase.include?("bearer token not found")
-      function_return = {
+    tavily_key_rejected = lambda { |function_return|
+      next function_return unless function_name.to_s.start_with?("tavily_") &&
+                                  function_return.to_s.downcase.include?("bearer token not found")
+
+      amended = {
         error: "tavily_api_key_missing",
         message: "Tavily API call failed with 'Bearer token not found'. Please verify that TAVILY_API_KEY is configured, or continue the research without live web search."
       }
@@ -1318,12 +1285,17 @@ module MistralHelper
         )
       rescue StandardError
       end
-    end
+      amended
+    }
+    result = run_tool_call(
+      app, session, function_name, args_hash, call_id: tool_call["id"], amend: tavily_key_rejected,
+      error_text: ->(e) { Monadic::Utils::ErrorFormatter.tool_error(provider: "Mistral", tool_name: function_name, message: e.message) },
+      &block
+    )
+    function_return = result.value
 
-    bind_workbench_look(function_return, tool_call["id"])
-
-    # Check for repeated errors
-    if handle_function_error(session, function_return, function_name, &block)
+    # The same error too often: the round ends with what the tool said.
+    if result.stop
       content = function_return.to_s
       content = content.encode('UTF-8', invalid: :replace, undef: :replace, replace: '?') unless content.valid_encoding?
 
@@ -1336,25 +1308,15 @@ module MistralHelper
       return [entry, true, nil]
     end
 
-    # Store gallery_html for server-side injection
-    if function_return.is_a?(Hash) && function_return[:gallery_html]
-      session[:tool_html_fragments] ||= []
-      session[:tool_html_fragments] << function_return[:gallery_html]
-    end
-
-    # Collect _image for visual self-verification
-    images = nil
-    if function_return.is_a?(Hash) && function_return[:_image]
-      images = Array(function_return[:_image])
-      clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
-      content = JSON.generate(clean_return)
-    else
-      content = if function_return.is_a?(Hash) || function_return.is_a?(Array)
-                  JSON.generate(function_return)
-                else
-                  function_return.to_s
-                end
-    end
+    # A result with images for the model goes without its private keys
+    images = result.images
+    content = if images
+                JSON.generate(result.without_private_keys)
+              elsif function_return.is_a?(Hash) || function_return.is_a?(Array)
+                JSON.generate(function_return)
+              else
+                function_return.to_s
+              end
 
     content = "No result returned" if content.nil? || content.empty?
     content = content.encode('UTF-8', invalid: :replace, undef: :replace, replace: '?') unless content.valid_encoding?

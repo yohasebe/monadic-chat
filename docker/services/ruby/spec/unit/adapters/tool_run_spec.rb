@@ -110,15 +110,28 @@ RSpec.describe ToolRun do
     expect(session[:tool_html_fragments]).to eq(["<p>g</p>"])
   end
 
-  it "takes the reply's speech only when asked, and keeps the tool's result when that fails" do
+  it "takes the reply's speech from the tool, with what the tool returned, and keeps the tool's result when that fails" do
     allow(Monadic::Utils::TtsTextExtractor).to receive(:extract_tts_text).and_raise("no speech")
 
     expect(run("plain").value).to eq("said x")
-    expect(Monadic::Utils::TtsTextExtractor).not_to have_received(:extract_tts_text)
-
-    expect(run("plain", {}, speech: true).value).to eq("said x")
     expect(Monadic::Utils::TtsTextExtractor).to have_received(:extract_tts_text)
       .with(hash_including(function_name: "plain", function_return: "said x"))
+  end
+
+  it "marks the reply ended when the tool an app names for the reply's text succeeded" do
+    allow(app).to receive(:settings).and_return({ tts_target: [:tool_param, "with_session", "text"] })
+
+    run("with_session", { text: "the reply" })
+    expect(session[:tts_text]).to eq("the reply")
+    expect(session[:tts_reply_ended]).to be(true)
+  end
+
+  it "does not mark the reply ended when that tool failed, or for any other tool" do
+    allow(app).to receive(:settings).and_return({ tts_target: [:tool_param, "broken", "text"] })
+
+    run("broken", { text: "the reply" })
+    run("plain", { text: "other" })
+    expect(session[:tts_reply_ended]).to be_nil
   end
 
   it "says to stop once the same error has come back too often" do

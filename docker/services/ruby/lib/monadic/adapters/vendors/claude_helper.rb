@@ -1875,7 +1875,7 @@ module ClaudeHelper
     Monadic::Utils::ExtraLogger.log { "Argument hash after conversion: #{argument_hash.inspect}\nApp instance class: #{APPS[app].class}\nMethod exists?: #{APPS[app].respond_to?(tool_name.to_sym)}" }
 
     result = run_tool_call(
-      app, session, tool_name, argument_hash, call_id: tool_call["id"], speech: true,
+      app, session, tool_name, argument_hash, call_id: tool_call["id"],
       amend: ->(value) { value || "Empty result" },
       error_text: lambda { |e|
         Monadic::Utils::ExtraLogger.log { "ERROR calling function: #{e.class} - #{e.message}\nBacktrace: #{e.backtrace.first(5).join("\n")}" }

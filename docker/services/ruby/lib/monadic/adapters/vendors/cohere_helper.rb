@@ -1364,7 +1364,7 @@ module CohereHelper
     argument_hash = {} if function_name == "check_environment" && argument_hash.empty?
 
     result = run_tool_call(
-      app, session, function_name, argument_hash, call_id: tool_call_id, speech: true,
+      app, session, function_name, argument_hash, call_id: tool_call_id,
       error_text: lambda { |e|
         Monadic::Utils::ExtraLogger.log { "[Cohere Tools] Function execution error: #{e.message}" }
         Monadic::Utils::ErrorFormatter.tool_error(provider: "Cohere", tool_name: function_name, message: e.message)

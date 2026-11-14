@@ -3398,7 +3398,7 @@ module GeminiHelper
         # by one made here, kept beside the result and never sent.
         made_id = "call_#{SecureRandom.hex(6)}"
         run = run_tool_call(
-          app, session, function_name, argument_hash, call_id: made_id, speech: true,
+          app, session, function_name, argument_hash, call_id: made_id,
           error_text: ->(e) { gemini_tool_error_text(e, function_name, &block) }, &block
         )
         function_return = run.value
@@ -3577,6 +3577,10 @@ module GeminiHelper
       block&.call res
       return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected." } }] }]
     end
+
+    # The tool that takes the reply's text ended the reply.
+    ended = Monadic::Utils::TtsTextExtractor.reply_ended(session, &block)
+    return ended if ended
 
     # Make the API request with the tool results
     Monadic::Utils::ExtraLogger.log { "[process_functions] Making recursive api_request('tool') with #{session[:parameters]['tool_results']&.length || 0} tool results, call_depth=#{call_depth}" }

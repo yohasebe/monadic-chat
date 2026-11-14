@@ -42,9 +42,13 @@ module ToolRun
   #   runs the tool.
   # amend: what the provider makes of the result before it is counted and
   #   returned (the result is given).
-  # speech: the reply's text is taken from the tool that takes it
-  #   (tts_target); a failure there leaves the tool's result as it is.
-  def run_tool_call(app, session, function_name, arguments, call_id:, error_text:, refuse: nil, amend: nil, speech: false, &block)
+  #
+  # The reply's text is taken from the tool an app names for it
+  # (tts_target): when that tool succeeded, the reply ends with it, and the
+  # provider's round does not ask the model again
+  # (TtsTextExtractor.reply_ended). A failure to take the text leaves the
+  # tool's result as it is.
+  def run_tool_call(app, session, function_name, arguments, call_id:, error_text:, refuse: nil, amend: nil, &block)
     settings = APPS[app]&.settings
     given = arguments
     value = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name) || refuse&.call
@@ -65,7 +69,7 @@ module ToolRun
     end
     value = amend.call(value) if amend
 
-    speech_of(app, session, function_name, given, value) if speech
+    speech_of(app, session, function_name, given, value)
     bind_workbench_look(value, call_id)
     images = nil
     if value.is_a?(Hash)

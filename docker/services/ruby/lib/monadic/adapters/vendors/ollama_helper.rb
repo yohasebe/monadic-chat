@@ -842,6 +842,10 @@ module OllamaHelper
       return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected." } }] }]
     end
 
+    # The tool that takes the reply's text ended the reply.
+    ended = Monadic::Utils::TtsTextExtractor.reply_ended(session, &block)
+    return ended if ended
+
     sleep RETRY_DELAY
     api_request("tool", session, call_depth: call_depth, &block)
   end

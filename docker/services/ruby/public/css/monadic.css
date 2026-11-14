@@ -6857,6 +6857,36 @@ body.side-pane-resizing {
   margin-top: var(--spacing-xs);
   color: var(--text-secondary);
 }
+/* Markdown reads as a chat card's text does: the same color, line height
+   and spacing of paragraphs and lists (.card-text), with room around it. */
+.workbench-rendered .workbench-markdown {
+  color: var(--text-primary);
+  line-height: 1.6;
+  padding: 0.25rem 0.5rem 0.5rem;
+}
+.workbench-rendered .workbench-markdown p {
+  margin: 0.5em 0;
+}
+.workbench-rendered .workbench-markdown ul,
+.workbench-rendered .workbench-markdown ol {
+  margin: 1em 0;
+}
+.workbench-rendered .workbench-markdown li ul,
+.workbench-rendered .workbench-markdown li ol {
+  margin: 0.6em 0 0.4em 0;
+}
+.workbench-rendered .workbench-markdown li {
+  margin-bottom: 0.5em;
+}
+.workbench-rendered .workbench-markdown li:last-child {
+  margin-bottom: 0;
+}
+.workbench-rendered .workbench-markdown li > p:first-child {
+  margin-top: 0;
+}
+.workbench-rendered .workbench-markdown li > p:last-child {
+  margin-bottom: 0;
+}
 .workbench-rendered .workbench-markdown > :last-child {
   margin-bottom: 0;
 }

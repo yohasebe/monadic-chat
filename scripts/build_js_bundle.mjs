@@ -68,7 +68,6 @@ const FILES = [
   "js/monadic/ui-config.js",
   "js/monadic/ui-state.js",
   "js/monadic/error-handler.js",
-  "js/monadic/dom-cache.js",
   "js/monadic/dom-helpers.js",
   "js/monadic/layout-controller.js",
   "js/monadic/main-tabs.js",

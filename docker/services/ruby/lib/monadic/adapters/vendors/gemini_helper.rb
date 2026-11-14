@@ -2121,8 +2121,10 @@ module GeminiHelper
         body.delete("toolConfig")
       end
 
-      # Check if user message contains URLs and add URL Context tool if needed
-      if role == "user" && message.is_a?(String) && message != ""
+      # A URL in the user's message: Gemini reads it itself (url_context),
+      # unless the request offers the app's own tools. The two cannot go in
+      # one request, and the app's tools then open the URL.
+      if role == "user" && message.is_a?(String) && message != "" && !has_function_declarations
         url_pattern = %r{https?://[^\s<>"{}|\\^\[\]`]+}
         if use_native_websearch && message.match?(url_pattern)
           DebugHelper.debug("Gemini: URLs detected in message, adding URL Context tool", category: :api, level: :debug)

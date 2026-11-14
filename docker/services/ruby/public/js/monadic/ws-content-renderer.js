@@ -121,13 +121,8 @@
 
   // ── KaTeX ──────────────────────────────────────────────────────────
 
-  var katexMacros = {
-    "\\R": "\\mathbb{R}",
-    "\\N": "\\mathbb{N}",
-    "\\Z": "\\mathbb{Z}",
-    "\\Q": "\\mathbb{Q}",
-    "\\C": "\\mathbb{C}"
-  };
+  // The page's macros (markdown-renderer.js, loaded before this file)
+  var katexMacros = window.MarkdownRenderer.katexMacros;
 
   function renderKatexInHTML(html) {
     if (typeof katex === 'undefined') return html;

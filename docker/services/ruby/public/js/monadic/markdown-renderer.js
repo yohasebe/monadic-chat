@@ -9,6 +9,17 @@
 (function(window) {
   'use strict';
 
+  // The macros every formula of the page is drawn with: the number sets,
+  // and \mboxed{...}, a box around several lines (apps tell the model of it).
+  const katexMacros = {
+    "\\R": "\\mathbb{R}",
+    "\\N": "\\mathbb{N}",
+    "\\Z": "\\mathbb{Z}",
+    "\\Q": "\\mathbb{Q}",
+    "\\C": "\\mathbb{C}",
+    "\\mboxed": "\\boxed{\\begin{array}{l}#1\\end{array}}"
+  };
+
   // markdown-it instance (will be initialized when markdown-it is loaded)
   let md = null;
 
@@ -257,7 +268,6 @@
       // 6-9. Restore placeholders (replacing directly with KaTeX-rendered HTML)
       // A placeholder is put back by its whole number (10 is not 1 followed
       // by 0), with its text as it is ($ in it is not a replacement pattern).
-      var katexMacros = { "\\R": "\\mathbb{R}", "\\N": "\\mathbb{N}", "\\Z": "\\mathbb{Z}", "\\Q": "\\mathbb{Q}", "\\C": "\\mathbb{C}" };
       mathBlocks.forEach((content, index) => {
         var rendered;
         if (typeof katex !== 'undefined') {
@@ -433,6 +443,7 @@
   };
 
   // Export to global scope
+  MarkdownRenderer.katexMacros = katexMacros;
   window.MarkdownRenderer = MarkdownRenderer;
 
 })(window);

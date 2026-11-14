@@ -5942,7 +5942,7 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 .verify-row { margin-top: 0.4rem; }
 .verify-list { margin: 0.2rem 0 0.2rem 1.1rem; padding: 0; }
 .verify-rec { color: #6c757d; font-weight: 500; }
-.verify-weak { color: var(--accent-amber); font-weight: 500; }
+.verify-weak { color: var(--pal-amber-text); font-weight: 500; }
 .verify-muted { color: #6c757d; }
 .verify-error { color: var(--accent-red); }
 

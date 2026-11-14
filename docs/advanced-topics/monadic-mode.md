@@ -22,7 +22,7 @@ Session State needs no setting. An app has it when it defines tools that read an
 
 ## State Notes :id=state-notes
 
-An app can show its state to the user as a page on the [work screen](../basic-usage/web-interface.md#work-screen): its state notes, kept in the chat's folder as `notes/<title>.md`. The page is made from the state after a reply that changed it, when a turn is deleted, and when the chat is continued from the history or read from a file. Each part names the turn that changed it last. When the state holds nothing to show, the page is removed.
+An app can show its state to the user as a page on the [work screen](../basic-usage/web-interface.md#work-screen): its state notes, kept in the chat's folder as `notes/<title>.md`. The page is made from the state after a reply that changed it or made a file, when a turn is deleted, and when the chat is continued from the history or read from a file. Each part names the turn that changed it last. The page ends with the files the chat's replies made, such as a plot or a diagram, each with the turn that made it. When the state holds nothing to show, the page is removed.
 
 The page is for reading. The model changes the state with the app's tools, and the page follows.
 

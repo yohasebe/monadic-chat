@@ -92,6 +92,21 @@ RSpec.describe Monadic::TurnState::Notes do
                                "The Quest (`the-quest.md`).\n\n## Settings")
   end
 
+  it "ends with the files the chat's replies made, by name and turn" do
+    run_reply { writer.save_novel_context(grand_plot: "A quest", language: "English", session: session) }
+    expect(page).not_to include("Files made in this chat")
+
+    allow(Monadic::Workbench::Outputs).to receive(:in_chat)
+      .and_return([{ path: "conversations/c/artifacts/j1/plot.png", turn: 2 }])
+    expect(page).to end_with("## Files made in this chat\n\n- `plot.png` (turn 2)\n")
+  end
+
+  it "is not made of files alone" do
+    allow(Monadic::Workbench::Outputs).to receive(:in_chat)
+      .and_return([{ path: "conversations/c/artifacts/j1/plot.png", turn: 1 }])
+    expect(described_class.refresh(session, show: true)).to be_nil
+  end
+
   it "is made again when a turn is deleted, and goes when nothing is left" do
     run_reply { writer.save_novel_context(grand_plot: "A quest", session: session) }
     added = run_reply { writer.add_character(name: "Alice", specification: "brave", role: "hero", session: session) }

@@ -35,7 +35,6 @@ RSpec.describe 'code that runs in a run folder of the chat' do
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data)
     allow(Monadic::Utils::Environment).to receive(:state_path).and_return(@state)
     allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(true)
-    stub_const('MonadicApp::COMMAND_DELAY', 0)
     stub_const('APPS', {
                  'CodeInterpreterOpenAI' => double(settings: { code_runs_in_chat_folder: true }),
                  'MathTutorOpenAI' => double(settings: {})

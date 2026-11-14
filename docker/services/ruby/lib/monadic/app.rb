@@ -111,9 +111,6 @@ class MonadicApp
   # shared volume in the local computer to share with the containers
   LOCAL_SHARED_VOL = File.expand_path(File.join(Dir.home, "monadic", "data"))
 
-  # delay to wait for the command execution
-  COMMAND_DELAY = 1.0
-
   AI_USER_INITIAL_PROMPT = <<~PROMPT
       You are generating a response from the perspective of the human user in an ongoing conversation with an AI assistant.
       
@@ -547,9 +544,6 @@ class MonadicApp
       workdir = run_dir ? File.join(SHARED_VOL, run_dir[:relative]) : nil
       stdout, stderr, status = self.capture_command([*command_argv, filename], timeout: 180, container: :python, chdir: workdir)
 
-      # Wait briefly for filesystem synchronization
-      sleep COMMAND_DELAY
-
       if status.success?
         # The content digest of each file after execution
         local_files2 = shared_file_digests(files_dir)
@@ -768,9 +762,6 @@ class MonadicApp
            end
 
     stdout, stderr, status = Monadic::Shell.bash(container: :python, body: body)
-
-    # Wait briefly for filesystem synchronization
-    sleep COMMAND_DELAY
 
     if status.success?
       stdout

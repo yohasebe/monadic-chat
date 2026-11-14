@@ -19,10 +19,10 @@ Mermaid Grapher has OpenAI, Claude, Gemini and Grok variants. All use `MermaidGr
 2. Writes `mermaid_live_<time>_<hex>.html` to the shared folder.
 3. Opens a session of its own through `ScratchBrowser` (`lib/monadic/shared_tools/scratch_browser.rb`), which takes a slot from `BrowserOwner` and closes the session when the preview returns.
 4. Waits 3 seconds, then `--action check_render_error`: Mermaid's error graphic makes the tool fail with "Diagram render error".
-5. `--action full_screenshot` saves `mermaid_preview_<time>_<hex>.png`, or several tiles for a tall diagram.
-6. Returns the file names under `_image`, so the model sees the screenshot. No `gallery_html` is sent; the chat shows the diagram as SVG from the client-side `MarkdownRenderer`.
+5. `--action full_screenshot` saves `model_view_<time>_<hex>.png` (`ToolImageUtils::FOR_MODEL_PREFIX`), or several tiles for a tall diagram.
+6. Returns the file names under `_image`, so the model sees the screenshot; an image of that name is removed once the vendor helper has read it, and the browser's own `browser_*.png` files when the session closes. No `gallery_html` is sent; the chat shows the diagram as SVG from the client-side `MarkdownRenderer`.
 
-Afterwards the preview removes its own page, and pages and `mermaid_preview_*.png` files older than 600 seconds (`PREVIEW_IMAGE_MAX_AGE`) that earlier runs left.
+Afterwards the preview removes its own page, and pages and `model_view_*.png` files older than 600 seconds (`PREVIEW_IMAGE_MAX_AGE`) that earlier runs left.
 
 ## Normalization
 

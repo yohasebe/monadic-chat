@@ -9,6 +9,10 @@ require_relative '../turn_state'
 module Monadic
   module Utils
     module ToolImageUtils
+      # An image a tool makes only for the model to look at (a diagram's
+      # preview) is named with this prefix: it is removed once it is read.
+      FOR_MODEL_PREFIX = "model_view_"
+
       # Read an image file from the shared data directory and return base64-encoded data.
       # @param filename [String] image filename relative to data_path
       # @param max_base64_size [Integer] maximum allowed size of base64 string in bytes (default 5 MB)
@@ -23,6 +27,8 @@ module Monadic
         # A plain file of the shared folder, never through a link.
         raw_data = SharedPathGuard.read_bytes!(image_path, limit: max_base64_size * 3 / 4)
         return nil unless raw_data
+
+        SharedPathGuard.delete_file!(image_path) if filename.start_with?(FOR_MODEL_PREFIX)
 
         # Sent only when the bytes start with an image signature, typed by it
         # and not by the name: text such as the config env file is not sent.

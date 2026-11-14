@@ -1610,11 +1610,6 @@ module OpenAIHelper
         next
       end
 
-      begin
-        break if /\Rdata: [DONE]\R/ =~ buffer
-      rescue StandardError
-        next
-      end
 
       # Skip encoding cleanup - buffer.valid_encoding? check above is sufficient
       # Encoding cleanup with replace: "" can delete valid bytes from incomplete multibyte characters

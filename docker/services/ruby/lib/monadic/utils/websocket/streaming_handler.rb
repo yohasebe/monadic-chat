@@ -413,9 +413,8 @@ module WebSocketHelper
           text = fragment["content"]
           buffer << text unless text.empty? || text == "DONE"
 
-          segments = WebSocketHelper.segment_sentences(buffer.join)
-
           Monadic::Utils::ExtraLogger.log {
+            segments = WebSocketHelper.segment_sentences(buffer.join)
             msg = "[DEBUG] Fragment received: buffer_text='#{buffer.join[0..100]}...', segments=#{segments.size}"
             segments.each_with_index do |seg, i|
               msg += "\n[DEBUG]   segment[#{i}]: '#{seg[0..50]}...'"

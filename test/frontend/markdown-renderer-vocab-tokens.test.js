@@ -53,6 +53,13 @@ describeFn('MarkdownRenderer vocabulary token protection (${TOKEN})', () => {
     delete window.katex;
   });
 
+  test('draws \\mboxed{...} as a box around its lines', () => {
+    const result = MarkdownRenderer.render('$$\\mboxed{x = 2 \\\\ x = 3}$$');
+    expect(result).toContain('fbox');
+    expect(result).toContain('mtable');
+    expect(result).not.toContain('#cc0000');
+  });
+
   test('sanity: markdown-it + katex are loaded (full render path, not fallback)', () => {
     const result = MarkdownRenderer.render('The formula $a+b$ here');
     // markdown-it wraps prose in <p>; the fallback path would not.
@@ -127,8 +134,11 @@ describeFn('WsContentRenderer.renderKatexInHTML vocabulary token protection', ()
   beforeEach(() => {
     jest.resetModules();
     delete window.WsContentRenderer;
+    delete window.MarkdownRenderer;
     window.katex = require('../../docker/services/ruby/public/vendor/js/katex.min.js');
 
+    // The page loads markdown-renderer.js first: it holds the macros.
+    require('../../docker/services/ruby/public/js/monadic/markdown-renderer.js');
     const ns = require('../../docker/services/ruby/public/js/monadic/ws-content-renderer.js');
     // renderKatexInHTML is not exported on the namespace; exercise it through
     // applyMath on a DOM element, which calls renderKatexInHTML on innerHTML.
@@ -142,7 +152,15 @@ describeFn('WsContentRenderer.renderKatexInHTML vocabulary token protection', ()
 
   afterEach(() => {
     delete window.WsContentRenderer;
+    delete window.MarkdownRenderer;
     delete window.katex;
+  });
+
+  test('draws \\mboxed{...} as a box around its lines', () => {
+    const result = renderKatexInHTML('<p>$$\\mboxed{x = 2 \\\\ x = 3}$$</p>');
+    expect(result).toContain('fbox');
+    expect(result).toContain('mtable');
+    expect(result).not.toContain('#cc0000');
   });
 
   test('preserves ${TODAY} literally and does not render it as math', () => {

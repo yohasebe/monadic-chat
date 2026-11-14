@@ -38,24 +38,18 @@ module ToolRun
   # call_id: the provider's id of the call, for a look's image to follow it.
   # error_text: the result an exception becomes (the exception is given).
   # refuse: a refusal of the provider's own (a String), asked once the tool
-  #   is known to have been offered; nil runs the tool.
+  #   is known to have been offered and before the arguments are read; nil
+  #   runs the tool.
   # amend: what the provider makes of the result before it is counted and
   #   returned (the result is given).
   # speech: the reply's text is taken from the tool that takes it
   #   (tts_target); a failure there leaves the tool's result as it is.
   def run_tool_call(app, session, function_name, arguments, call_id:, error_text:, refuse: nil, amend: nil, speech: false, &block)
     settings = APPS[app]&.settings
-    given = tool_arguments_given(function_name, arguments, session, settings).dup
-    method_obj = begin
-      APPS[app].method(function_name.to_sym)
-    rescue StandardError
-      nil
-    end
-    given[:session] = session if method_obj&.parameters&.any? { |_type, name| name == :session }
-    Monadic::Workbench::Caller.inject!(given, method_obj, session)
-
+    given = arguments
     value = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name) || refuse&.call
     value ||= begin
+      given = tool_arguments_as_taken(app, session, function_name, arguments, settings)
       if function_name == 'request_tool'
         Monadic::Utils::ProgressiveToolManager.handle_request_tool(
           session: session, app_name: app, app_settings: settings || {}, argument_hash: given
@@ -84,6 +78,20 @@ module ToolRun
   end
 
   private
+
+  # The arguments as the tool takes them: the app's own words and the
+  # chat's hidden words put back, then the session and the work screen's
+  # caller from the server, whatever the model wrote in their places.
+  def tool_arguments_as_taken(app, session, function_name, arguments, settings)
+    given = tool_arguments_given(function_name, arguments, session, settings).dup
+    method_obj = begin
+      APPS[app].method(function_name.to_sym)
+    rescue StandardError
+      nil
+    end
+    given[:session] = session if method_obj&.parameters&.any? { |_type, name| name == :session }
+    Monadic::Workbench::Caller.inject!(given, method_obj, session)
+  end
 
   def speech_of(app, session, function_name, given, value)
     Monadic::Utils::TtsTextExtractor.extract_tts_text(

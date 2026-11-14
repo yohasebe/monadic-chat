@@ -6,12 +6,11 @@ LABEL project=$PROJECT_TAG
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    build-essential wget curl git pandoc \
+    build-essential wget curl git \
     # fiddle (shared-folder writes through openat) is built against libffi;
     # the runtime stage already has libffi8 from the base image
     libffi-dev \
     ca-certificates gnupg lsb-release \
-    postgresql postgresql-contrib libpq-dev \
     # RSyntaxTree (Syntax Tree) draws with Pango and librsvg through
     # GObject introspection; its gems are built against these headers
     pkg-config libglib2.0-dev libgirepository1.0-dev libcairo2-dev \
@@ -55,7 +54,6 @@ LABEL com.monadic.gems_hash=$GEMS_FINGERPRINT
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ca-certificates curl gnupg lsb-release \
-    postgresql-client \
     ffmpeg \
     # RSyntaxTree (Syntax Tree): its drawing libraries, and the fonts it
     # names for Latin, CJK and other scripts

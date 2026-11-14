@@ -187,7 +187,7 @@ Backups of your computer (such as Time Machine) and sync services that hold `~/m
 The **History** tab lists the kept chats, the latest activity first, and is shown while chats are kept.
 
 - The search box finds chats by their names and by the words in them. **Show more** adds older chats.
-- Each chat shows its name (or its first and latest topics), the app, the number of messages and when it last had a new message.
+- Each chat shows its name (or its first topic), the app, the number of messages and when it last had a new message.
 - Click a chat to continue it in this tab with its messages, app, model and settings. The app's tools are set up anew, and Auto speech and Start from assistant are off for the continued chat. The chat that was in this tab stays in the history. On a narrow window, the conversation is shown after the chat is continued.
 - The **⋯** button of a chat holds **Continue**, **Name** and **Remove from the history**. **Name** gives the chat a name (up to 120 characters); press Enter to save it or Esc to cancel. **Remove from the history** asks you to confirm in the row. A removed chat can no longer be read from Monadic Chat; files the chat made in the shared folder, exported files and backups of your computer are not removed.
 - A chat open in a tab is marked "Open in a tab" and can be neither continued nor removed from another tab. To continue or remove it, start a new chat in the tab that has it open.

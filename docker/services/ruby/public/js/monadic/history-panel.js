@@ -246,7 +246,6 @@
     name.disabled = !!item.open;
     const text = el('span', 'sfp-text');
     text.appendChild(el('span', 'sfp-label', displayName(item)));
-    if (item.heading_recent) text.appendChild(el('span', 'sfp-meta history-topic', item.heading_recent));
     const meta = [appName(item.app_name), t('messages', '{n} messages', { n: item.message_count || 0 }), formatTime(item.last_activity_at)]
       .filter(Boolean).join(' · ');
     text.appendChild(el('span', 'sfp-meta', meta));

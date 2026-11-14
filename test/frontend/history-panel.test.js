@@ -87,6 +87,15 @@ describe('History tab', () => {
     delete window.HistoryPanel;
   });
 
+  it('shows every chat on two lines: its name, then the app, the count and the time', () => {
+    list([item(), item({ chat_id: 'c_bbbbbbbbbbbbbbbb', heading_recent: null })]);
+    rows().forEach((row) => {
+      const lines = Array.from(row.querySelectorAll('.sfp-text > span'));
+      expect(lines.map((line) => line.className)).toEqual(['sfp-label', 'sfp-meta']);
+      expect(lines[0].textContent).toBe('Plan a trip');
+    });
+  });
+
   it('shows the tab only while the server keeps a history, and leaves it when it stops', () => {
     list([], { enabled: false });
     expect(document.getElementById('side-tab-history').hidden).toBe(true);

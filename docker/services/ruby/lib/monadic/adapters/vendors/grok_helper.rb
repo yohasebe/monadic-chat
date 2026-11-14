@@ -614,75 +614,39 @@ module GrokHelper
       memo[k.to_sym] = v
     end
 
-    # Expand vocabulary ${TOKEN}s before the tool runs; before :session
-    # injection so the session object is never walked. No-op without vocabulary.
-    argument_hash = tool_arguments_given(function_name, argument_hash, session, APPS[app]&.settings)
-
-    # Inject session for tools that need it
-    method_obj = APPS[app].method(function_name.to_sym) rescue nil
-    if method_obj && method_obj.parameters.any? { |_type, name| name == :session }
-      argument_hash[:session] = session
-    end
-    Monadic::Workbench::Caller.inject!(argument_hash, method_obj, session)
-
-    # Execute function
-    begin
-      refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
-      function_return = if refusal
-        # Run only the tools offered to the model in the latest request.
-        refusal
-      elsif function_name == "request_tool"
-        Monadic::Utils::ProgressiveToolManager.handle_request_tool(
-          session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: argument_hash
-        )
-      else
-        APPS[app].public_send(function_name.to_sym, **argument_hash)
-      end
-      send_verification_notification(session, &block) if function_name == "report_verification"
-
-      # Fix HTML-escaped SVG files (Grok-specific)
-      fix_grok_svg_escaping(function_name, function_return)
-
-      # Store Jupyter notebook filename
-      store_grok_notebook_filename(function_name, function_return, obj)
-
-      # Store image/video filenames
-      store_grok_media_filename(function_name, function_return, obj, session)
-
-      Monadic::Utils::ExtraLogger.log { "Tool executed: #{function_name}, result: #{workbench_loggable(function_return).to_s[0..200]}..." }
-
-      Monadic::Utils::TtsTextExtractor.extract_tts_text(
-        app: app, function_name: function_name,
-        argument_hash: argument_hash, session: session
-      )
-    rescue StandardError => e
+    error_text = lambda { |e|
       DebugHelper.debug("Function call error in #{function_name}: #{e.message}", category: :api, level: :error)
-      function_return = Monadic::Utils::ErrorFormatter.tool_error(
-        provider: "xAI", tool_name: function_name, message: e.message
-      )
+      Monadic::Utils::ErrorFormatter.tool_error(provider: "xAI", tool_name: function_name, message: e.message)
+    }
+    # What Grok's results need: an SVG file written with its markup escaped
+    # put right, and the notebook or the media file a tool made remembered.
+    grok_follow_up = lambda do |function_return|
+      fix_grok_svg_escaping(function_name, function_return)
+      store_grok_notebook_filename(function_name, function_return, obj)
+      store_grok_media_filename(function_name, function_return, obj, session)
+      function_return
+    rescue StandardError => e
+      error_text.call(e)
     end
+    result = run_tool_call(
+      app, session, function_name, argument_hash, call_id: tool_call["id"], speech: true,
+      amend: grok_follow_up, error_text: error_text, &block
+    )
+    function_return = result.value
+    Monadic::Utils::ExtraLogger.log { "Tool executed: #{function_name}, result: #{workbench_loggable(function_return).to_s[0..200]}..." }
 
-    bind_workbench_look(function_return, tool_call["id"])
-
-    # Check for repeated errors
-    if handle_function_error(session, function_return, function_name, &block)
+    # The same error too often: the round ends with what the tool said.
+    if result.stop
       error_result = { "call_id" => tool_call["id"], "name" => function_name, "content" => function_return.to_s }
       return [error_result, true]
     end
 
-    # Collect _image for screenshot injection
-    if function_return.is_a?(Hash) && function_return[:_image]
-      session[:pending_tool_images] = Array(function_return[:_image])
-      clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
-      content_str = JSON.generate(clean_return)
+    # A result with images for the model goes without its private keys
+    if result.images
+      session[:pending_tool_images] = result.images
+      content_str = JSON.generate(result.without_private_keys)
     else
       content_str = function_return.to_s
-    end
-
-    # Store gallery_html for server-side injection
-    if function_return.is_a?(Hash) && function_return[:gallery_html]
-      session[:tool_html_fragments] ||= []
-      session[:tool_html_fragments] << function_return[:gallery_html]
     end
 
     tool_result = { "call_id" => tool_call["id"], "name" => function_name, "content" => content_str }

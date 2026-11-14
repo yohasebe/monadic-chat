@@ -1874,63 +1874,19 @@ module ClaudeHelper
 
     Monadic::Utils::ExtraLogger.log { "Argument hash after conversion: #{argument_hash.inspect}\nApp instance class: #{APPS[app].class}\nMethod exists?: #{APPS[app].respond_to?(tool_name.to_sym)}" }
 
-    app_instance = APPS[app]
-
-    # Expand vocabulary ${TOKEN}s (e.g. ${SHARED}) before the tool runs; before
-    # :session injection so the session object is never walked. No-op without
-    # a vocabulary block.
-    argument_hash = tool_arguments_given(tool_name, argument_hash, session, app_instance&.settings)
-
-    # Inject session for tools that need it (e.g., monadic state tools)
-    method_obj = app_instance.method(tool_name.to_sym) rescue nil
-    if method_obj && method_obj.parameters.any? { |type, name| name == :session }
-      argument_hash[:session] = session
-    end
-    Monadic::Workbench::Caller.inject!(argument_hash, method_obj, session)
-
-    if (refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, tool_name))
-      # Run only the tools offered to the model in the latest request.
-      tool_return = refusal
-    elsif tool_name == "request_tool"
-      # request_tool has no Ruby method: it is the progressive-disclosure meta-tool.
-      tool_return = Monadic::Utils::ProgressiveToolManager.handle_request_tool(
-        session: session, app_name: app, app_settings: (app_instance&.settings || {}), argument_hash: argument_hash
-      )
-    else
-      begin
-        if argument_hash.empty?
-          tool_return = app_instance.public_send(tool_name.to_sym)
-        else
-          tool_return = app_instance.public_send(tool_name.to_sym, **argument_hash)
-        end
-
-        Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{tool_name} returned: #{workbench_loggable(tool_return).to_s[0..500]}" }
-
-        send_verification_notification(session, &block) if tool_name == "report_verification"
-
-        Monadic::Utils::TtsTextExtractor.extract_tts_text(
-          app: app,
-          function_name: tool_name,
-          argument_hash: argument_hash,
-          session: session,
-          function_return: tool_return
-        )
-      rescue => e
+    result = run_tool_call(
+      app, session, tool_name, argument_hash, call_id: tool_call["id"], speech: true,
+      amend: ->(value) { value || "Empty result" },
+      error_text: lambda { |e|
         Monadic::Utils::ExtraLogger.log { "ERROR calling function: #{e.class} - #{e.message}\nBacktrace: #{e.backtrace.first(5).join("\n")}" }
-        tool_return = Monadic::Utils::ErrorFormatter.tool_error(
-          provider: "Claude",
-          tool_name: tool_name,
-          message: e.message
-        )
-      end
-    end
+        Monadic::Utils::ErrorFormatter.tool_error(provider: "Claude", tool_name: tool_name, message: e.message)
+      }, &block
+    )
+    tool_return = result.value
+    Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{tool_name} returned: #{workbench_loggable(tool_return).to_s[0..500]}" }
 
-    unless tool_return
-      tool_return = "Empty result"
-    end
-
-    # Check for repeated errors (same pattern as OpenAI helper)
-    if handle_function_error(session, tool_return, tool_name, &block)
+    # The same error too often: the round ends with what the tool said.
+    if result.stop
       # Return [entry, true] to signal error stop to orchestrator
       entry = {
         type: "tool_result",
@@ -1954,8 +1910,6 @@ module ClaudeHelper
       end
     end
 
-    Monadic::Utils::ExtraLogger.log { "Tool return: #{workbench_loggable(tool_return).to_s[0..200]}..." }
-    bind_workbench_look(tool_return, tool_call["id"])
 
     tool_result_entry = {
       type: "tool_result",
@@ -1983,12 +1937,6 @@ module ClaudeHelper
       tool_result_entry[:content] = result_content
     else
       tool_result_entry[:content] = tool_return.is_a?(Hash) || tool_return.is_a?(Array) ? JSON.generate(tool_return) : tool_return.to_s
-    end
-
-    # Store gallery_html for server-side injection (bypasses LLM text reproduction)
-    if tool_return.is_a?(Hash) && tool_return[:gallery_html]
-      session[:tool_html_fragments] ||= []
-      session[:tool_html_fragments] << tool_return[:gallery_html]
     end
 
     [tool_result_entry, false]

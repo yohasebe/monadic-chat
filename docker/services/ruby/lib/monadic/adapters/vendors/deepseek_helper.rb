@@ -1290,18 +1290,8 @@ module DeepSeekHelper
     [entry, error_stop]
   end
 
-  # Terminal tools that signal the end of a tool-calling sequence
-  # After these tools are executed, the model should not call more tools
-  TERMINAL_TOOLS = %w[
-    save_learning_progress
-    save_conversation_analysis
-    save_diagnosis_progress
-    save_analysis_result
-  ].freeze
-
   def process_functions(app, session, tools, context, call_depth, &block)
     obj = session[:parameters]
-    terminal_tool_called = false
 
     tools.each do |tool_call|
       function_name = tool_call.dig("function", "name")
@@ -1309,11 +1299,6 @@ module DeepSeekHelper
 
       record_tool_call(session, function_name)
       block&.call({ "type" => "tool_executing", "content" => function_name })
-
-      if TERMINAL_TOOLS.include?(function_name)
-        terminal_tool_called = true
-        DebugHelper.debug("DeepSeek: Terminal tool '#{function_name}' called - will disable tools in next request", category: :api, level: :debug)
-      end
 
       tool_entry, error_stop = invoke_deepseek_tool_function(app, session, tool_call, function_name, &block)
       context << tool_entry if tool_entry
@@ -1336,31 +1321,6 @@ module DeepSeekHelper
       res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
       block&.call res
       return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected." } }] }]
-    end
-
-    # If terminal tool was called, do NOT make another api_request
-    # The terminal tool signals that the assistant's turn is complete
-    # Making another request would cause empty response and "content_not_found" error
-    if terminal_tool_called
-      Monadic::Utils::ExtraLogger.log { "[DeepSeek] Terminal tool called - sending DONE and ending turn" }
-      # Send DONE message to signal completion to frontend
-      # This is necessary because previous html message may have had more_coming=true
-      done_res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-      block&.call done_res
-
-      # Return a properly structured response that websocket.rb can process
-      # without triggering content_not_found error
-      # The response must have choices[0].message.content structure
-      final_response = {
-        "choices" => [{
-          "message" => {
-            "role" => "assistant",
-            "content" => ""  # Empty content is OK, will not trigger error
-          },
-          "finish_reason" => "stop"
-        }]
-      }
-      return [final_response]
     end
 
     sleep RETRY_DELAY

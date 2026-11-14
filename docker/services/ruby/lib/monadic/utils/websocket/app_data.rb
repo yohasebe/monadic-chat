@@ -131,7 +131,7 @@ module WebSocketHelper
         elsif p == "disabled"
           # Keep disabled as a string for compatibility with frontend
           apps[k][p] = m.to_s
-        elsif ["auto_speech", "easy_submit", "initiate_from_assistant", "math", "mermaid", "abc", "pdf_vector_storage", "websearch", "jupyter", "image_generation", "video", "audio_upload", "library_save", "library_search"].include?(p.to_s)
+        elsif ["auto_speech", "easy_submit", "initiate_from_assistant", "math", "mermaid", "abc", "pdf_vector_storage", "websearch", "jupyter", "image_generation", "video", "audio_upload", "library_save", "library_search", "show_thinking"].include?(p.to_s)
           # Preserve boolean values for feature flags
           # These need to be actual booleans, not strings, for proper JavaScript evaluation
           apps[k][p] = m

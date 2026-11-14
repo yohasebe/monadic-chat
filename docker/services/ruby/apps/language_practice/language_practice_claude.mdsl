@@ -52,6 +52,7 @@ app "LanguagePracticeClaude" do
   display_name "Language Practice"
   
   features do
+    show_thinking false
     disabled !CONFIG["ANTHROPIC_API_KEY"]
     temperature 0.5
     context_size 100

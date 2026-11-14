@@ -388,8 +388,15 @@ module WebSocketHelper
       sentinel_state = sentinel_hold_back_active ? :scanning : :passthrough
       sentinel_held = +""
 
+      # Show Thinking off (the user's toggle, or the app's default where the
+      # model has no toggle): the model's thinking is not sent to the page
+      # as it streams, as it is not attached to the reply.
+      thinking_hidden = [false, "false"].include?(obj["show_thinking"])
+
       prev_texts_for_tts = []
       responses = app_obj.api_request("user", session) do |fragment|
+        next if thinking_hidden && %w[thinking reasoning].include?(fragment["type"])
+
         next if chat_changed.call
 
         # DEBUG: Log all fragment arrivals

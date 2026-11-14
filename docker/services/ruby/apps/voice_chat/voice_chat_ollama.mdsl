@@ -56,6 +56,7 @@ app "VoiceChatOllama" do
   display_name "Voice Chat"
 
   features do
+    show_thinking false
     websearch false
     easy_submit true
     auto_speech true

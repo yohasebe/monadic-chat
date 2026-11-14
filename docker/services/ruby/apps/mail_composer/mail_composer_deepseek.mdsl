@@ -43,6 +43,11 @@ app "MailComposerDeepSeek" do
     For example, use "..." instead of "…", "--" instead of "—", and so on. The same goes for 
     quotation marks, apostrophes, and other symbols.
 
+    If web search is turned on for this conversation, I can use it when:
+    - You ask about current events or recent information
+    - You need facts about specific people, companies, or organizations
+    - You want the latest information on any topic
+    - The question would benefit from up-to-date sources
   TEXT
 
   display_name "Mail Composer"

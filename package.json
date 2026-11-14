@@ -50,7 +50,7 @@
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
     "jsdom": "^24.0.0",
-    "puppeteer": "^25.9.0",
+    "puppeteer": "^25.17.0",
     "vega": "6.4.0",
     "vega-expression": "6.2.2",
     "vega-interpreter": "2.3.2",

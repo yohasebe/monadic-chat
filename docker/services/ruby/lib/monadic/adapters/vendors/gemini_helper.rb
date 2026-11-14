@@ -2468,6 +2468,13 @@ module GeminiHelper
                 "[MALFORMED_FUNCTION_CALL]\n  finishMessage (first 300 chars): #{finish_message&.[](0..300)}"
               }
 
+              # The calls that arrived whole before the malformed one are run;
+              # the model is asked again with their results.
+              if tool_calls.any?
+                finish_reason = "stop"
+                next
+              end
+
               # If fragments were already streamed, complete the stream
               if fragment_sequence > 0
                 res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }

@@ -22,7 +22,8 @@ module Monadic
     # (key and values: the fields of one value, for an app that has them;
     # lists: its collections of items, in the order they were added)
     # and may add lines made from other things (its private
-    # state_notes_extra(session): { label => text }).
+    # state_notes_extra(session): { label => text }), and a line the page
+    # begins with (its private state_notes_lead(session): Markdown).
     module Notes
       DIRNAME = 'notes'
 
@@ -108,6 +109,9 @@ module Monadic
         (extra || {}).each { |label, text| lines << "- **#{label}**: #{inline(text)}" unless blank?(text) }
         parts << section('Settings', turns[value[:by]], lines.join("\n")) unless lines.empty?
         parts.concat(lists)
+
+        lead = app.respond_to?(:state_notes_lead, true) ? app.send(:state_notes_lead, session) : nil
+        parts.unshift(lead) unless blank?(lead)
 
         "# #{declaration[:title]}\n\n#{parts.join("\n\n")}\n"
       end

@@ -82,6 +82,16 @@ RSpec.describe Monadic::TurnState::Notes do
     expect(text).to include("### Alice (turn 2)\n- **Role**: hero\n- **Description**: brave")
   end
 
+  it "begins with where the story itself is, once it has a document" do
+    run_reply { writer.save_novel_context(grand_plot: "A quest", language: "English", session: session) }
+    expect(page).not_to include("The story is a document")
+
+    allow(Monadic::Workbench::Document).to receive(:titles)
+      .and_return([["The Quest", "conversations/c/documents/the-quest.md"]])
+    expect(page).to start_with("# Story notes\n\nThe story is a document of its own on the work screen: " \
+                               "The Quest (`the-quest.md`).\n\n## Settings")
+  end
+
   it "is made again when a turn is deleted, and goes when nothing is left" do
     run_reply { writer.save_novel_context(grand_plot: "A quest", session: session) }
     added = run_reply { writer.add_character(name: "Alice", specification: "brave", role: "hero", session: session) }

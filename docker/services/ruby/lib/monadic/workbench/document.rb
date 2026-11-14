@@ -166,6 +166,30 @@ module Monadic
         nil
       end
 
+      # The title of the document at path, for the work screen to name it
+      # by; nil for a file that is not a document.
+      def shown_title(path)
+        File.basename(File.dirname(path.to_s)) == DIRNAME && File.extname(path.to_s) == '.md' ? title_of(path) : nil
+      end
+
+      # Every document of the chat as [title, path], in the order of their
+      # names.
+      def titles(session)
+        folder = Monadic::Workspace::Folders.lookup(session)
+        return [] unless folder && folder[:status] == :ready
+
+        dir = Monadic::Workspace::Folders.real_path(File.join(folder[:relative_dir], DIRNAME), :directory)
+        return [] unless dir
+
+        Dir.children(dir).select { |name| name.end_with?('.md') }.sort.filter_map do |name|
+          path = File.join(folder[:relative_dir], DIRNAME, name)
+          title = title_of(path)
+          title && [title, path]
+        end
+      rescue SystemCallError
+        []
+      end
+
       # Puts every document of the chat folder of session together again
       # (after a turn was deleted), and refreshes those the work screen
       # shows. Returns the paths written.

@@ -136,6 +136,15 @@ module NovelWriterTools
     { "Written so far" => data["text_amount_so_far"].to_s, "Progress" => data["progress"] }
   end
 
+  # Where the story itself is: its title and its file, beside these notes.
+  def state_notes_lead(session)
+    stories = Monadic::Workbench::Document.titles(session)
+    return nil if stories.empty?
+
+    listed = stories.map { |title, path| "#{title} (`#{File.basename(path)}`)" }.join(", ")
+    "The story is a document of its own on the work screen: #{listed}."
+  end
+
   # The story's settings now (a Hash with string keys).
   def novel_settings(session)
     data = JSON.parse(monadic_load_state(key: STATE_KEY, default: {}, session: session))["data"]

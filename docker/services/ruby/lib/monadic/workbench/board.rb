@@ -643,7 +643,9 @@ module Monadic
           id: item['id'], kind: 'file', actor: item.dig('origin', 'actor'), mid: item['mid'],
           name: entry['name'], path: entry['path'], preview: entry['preview'], content_type: entry['content_type'],
           size: entry['size'], sha256: entry['sha256'], version: entry['sha256'], status: file_status(item),
-          render: Monadic::Workspace::SharedFolderPreview.render_for(entry['path'])
+          render: Monadic::Workspace::SharedFolderPreview.render_for(entry['path']),
+          # A document is named by its title where its file's name is not it.
+          title: defined?(Document) ? Document.shown_title(entry['path']) : nil
         }
       end
 

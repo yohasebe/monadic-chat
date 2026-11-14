@@ -141,6 +141,19 @@ RSpec.describe Monadic::Workbench::Document do
     expect(bodies(File.join(folder, "documents", "notes.md"))).to eq([["1", "A note."]])
   end
 
+  it "lists the chat's documents by title, and names one by its title on the work screen" do
+    reply("吾輩は猫である", ["1", "Text."])
+    reply("Notes", ["1", "A note."])
+    path = @last.first[:path]
+
+    expect(described_class.titles(session).map(&:first)).to contain_exactly("吾輩は猫である", "Notes")
+    expect(described_class.titles({})).to eq([])
+    expect(described_class.shown_title(path)).to eq("Notes")
+    expect(described_class.shown_title(@last.first[:section_path])).to be_nil
+    board = Monadic::Workbench::Board.for(chat).snapshot[:items].find { |item| item[:path] == path }
+    expect(board[:title]).to eq("Notes")
+  end
+
   it "records a line for the reply's message that opens the document at its section" do
     message = reply("Story", ["2", "Two."])
     expect(message["workbench_shown"]).to contain_exactly(include("path" => @last.first[:path], "section" => "2"))

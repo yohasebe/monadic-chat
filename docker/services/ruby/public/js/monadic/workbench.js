@@ -216,8 +216,9 @@
     return button(saveLabel(), className, () => download(artifactId));
   }
 
+  // A document is named by its title; every other file by its name.
   function label(item) {
-    return item.kind === 'browser' ? t('ui.workbench.browser', 'Browser') : (item.name || '');
+    return item.kind === 'browser' ? t('ui.workbench.browser', 'Browser') : (item.title || item.name || '');
   }
 
   function tab(id, label) {

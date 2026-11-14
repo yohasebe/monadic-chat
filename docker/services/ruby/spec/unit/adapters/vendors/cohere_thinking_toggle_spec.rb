@@ -49,16 +49,17 @@ RSpec.describe 'CohereHelper thinking toggle persistence' do
     expect(resp[0]["choices"][0]["message"]).not_to have_key("thinking")
   end
 
-  # command-a-plus (a reasoning model) returns 422 INVALID_TOOL_GENERATION when
-  # `thinking: {type: "disabled"}` is sent alongside tools;
-  # dropping the thinking key (Cohere default) succeeds.
+  # A reasoning model returns 422 INVALID_TOOL_GENERATION when
+  # `thinking: {type: "disabled"}` is sent alongside tools; it is sent with
+  # thinking enabled within a small budget instead.
   describe '#drop_incompatible_thinking! (422 guard)' do
     let(:tools) { [{ "type" => "function", "function" => { "name" => "request_tool" } }] }
 
-    it 'drops thinking:disabled when tools are present' do
+    it 'sends the least thinking, within a budget, when thinking is disabled and tools are present' do
       body = { "tools" => tools, "thinking" => { "type" => "disabled" } }
       helper.send(:drop_incompatible_thinking!, body)
-      expect(body).not_to have_key("thinking")
+      expect(body["thinking"]).to eq("type" => "enabled", "token_budget" => CohereHelper::LEAST_THINKING_BUDGET)
+      expect(CohereHelper::LEAST_THINKING_BUDGET).to be_between(1, 1024)
     end
 
     it 'keeps thinking:disabled when there are no tools' do

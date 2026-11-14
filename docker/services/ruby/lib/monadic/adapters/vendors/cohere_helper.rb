@@ -997,19 +997,20 @@ module CohereHelper
     [res]
   end
 
-  # A Cohere reasoning model (e.g. command-a-plus) rejects a tool request sent
-  # with thinking explicitly disabled: `thinking: {type: "disabled"}` together
-  # with `tools` returns 422 "INVALID_TOOL_GENERATION". Verified against the
-  # live API — omitting the thinking key (letting Cohere default) succeeds, as
-  # does enabling it. Since body["thinking"] is only ever set for reasoning
-  # models, drop the explicit disable whenever tools are present so an app that
-  # pins reasoning_effort "disabled" (e.g. Chat) can still use tools.
+  # A Cohere reasoning model rejects a tool request sent with thinking
+  # explicitly disabled: `thinking: {type: "disabled"}` together with `tools`
+  # returns 422 "INVALID_TOOL_GENERATION". An app that asks for no reasoning
+  # (e.g. Chat) and has tools is given the least of it instead: thinking
+  # enabled within a small budget, after which the model goes on to its
+  # reply. Left to the default (no budget), the model can think without end.
+  LEAST_THINKING_BUDGET = 512
+
   private def drop_incompatible_thinking!(body)
     return body unless body.is_a?(Hash)
 
     if body["tools"].is_a?(Array) && !body["tools"].empty? && body.dig("thinking", "type") == "disabled"
-      body.delete("thinking")
-      Monadic::Utils::ExtraLogger.log { "[Cohere] Dropped thinking:disabled because tools are present (avoids 422 INVALID_TOOL_GENERATION)" }
+      body["thinking"] = { "type" => "enabled", "token_budget" => LEAST_THINKING_BUDGET }
+      Monadic::Utils::ExtraLogger.log { "[Cohere] thinking:disabled with tools is refused (422); sent with a budget of #{LEAST_THINKING_BUDGET} tokens instead" }
     end
     body
   end

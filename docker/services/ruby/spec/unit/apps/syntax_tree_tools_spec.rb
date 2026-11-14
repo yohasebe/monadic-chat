@@ -73,12 +73,24 @@ RSpec.describe SyntaxTreeOpenAI do
     it "keeps only the SVG, in a run folder of the chat's folder, and shows it on the work screen" do
       rsyntaxtree
       result = app.render_syntax_tree(bracket_notation: notation, language: 'english', workbench: workbench)
-      path = result[%r{conversations/\S+/artifacts/j_[a-z0-9]+/syntax_tree\.svg}]
+      path = result[%r{conversations/\S+/artifacts/j_[a-z0-9]+/John-runs\.svg}]
       expect(path).not_to be_nil
-      expect(Dir.children(File.join(@data, File.dirname(path)))).to eq(['syntax_tree.svg'])
+      expect(Dir.children(File.join(@data, File.dirname(path)))).to eq(['John-runs.svg'])
       expect(MonadicSharedTools::WorkbenchTools).to have_received(:show_file).with(path, workbench)
       expect(result).to include('shown on the work screen')
       expect(Dir.children(@data)).to eq(['conversations'])
+    end
+
+    it 'names the drawing by the words of the tree, in any script, and plainly when there is none' do
+      rsyntaxtree
+      named = lambda do |text|
+        result = app.render_syntax_tree(bracket_notation: text, language: 'english', workbench: workbench)
+        File.basename(result[%r{conversations/\S+\.svg}])
+      end
+      expect(named.call('[S [NP [Det The] [N cat]] [VP [V sat] [PP [P on] [NP ^the mat.]]]]')).to eq('The-cat-sat-on-the-mat.svg')
+      expect(named.call('[S [NP 猫が] [VP 寝た]]')).to eq('猫が-寝た.svg')
+      expect(named.call("[S [NP #{'word ' * 20}]]")).to eq("#{(['word'] * 8).join('-')}.svg")
+      expect(named.call('[S [NP] [VP]]')).to eq('syntax-tree.svg')
     end
 
     it 'draws the notation as given, in the app style, outside the bundle' do
@@ -106,9 +118,9 @@ RSpec.describe SyntaxTreeOpenAI do
     it 'keeps the LaTeX source too when asked' do
       rsyntaxtree
       result = app.render_syntax_tree(bracket_notation: notation, language: 'english', tikz: true, workbench: workbench)
-      folder = File.join(@data, File.dirname(result[%r{conversations/\S+/syntax_tree\.svg}]))
-      expect(Dir.children(folder).sort).to eq(['syntax_tree.svg', 'syntax_tree.tex'])
-      expect(result).to include('syntax_tree.tex')
+      folder = File.join(@data, File.dirname(result[%r{conversations/\S+/John-runs\.svg}]))
+      expect(Dir.children(folder).sort).to eq(['John-runs.svg', 'John-runs.tex'])
+      expect(result).to include('John-runs.tex')
     end
 
     it 'gives back what is wrong in the notation, with its hint, and keeps nothing' do

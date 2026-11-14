@@ -8,9 +8,10 @@ module SyntaxTreeTools
   include MonadicHelper
   include MonadicSharedTools::FileOperations
 
-  # What a drawing leaves in its run folder.
-  OUTPUT_NAME = "syntax_tree.svg"
-  TIKZ_NAME = "syntax_tree.tex"
+  # The name of a drawing whose notation holds no word to name it by, and
+  # the longest name taken from its words.
+  PLAIN_NAME = "syntax-tree"
+  NAME_LENGTH = 40
   # The RSyntaxTree command. It is not in the app's bundle (its drawing
   # libraries are built in the Ruby container only), so it runs outside it.
   COMMAND = "rsyntaxtree"
@@ -27,7 +28,8 @@ module SyntaxTreeTools
   RIGHT_TO_LEFT = %w[arabic hebrew persian farsi urdu yiddish ar he fa ur yi].freeze
 
   # Draws the tree as an SVG in a run folder of the chat's folder
-  # (artifacts/j_<id>/syntax_tree.svg) and shows it on the work screen.
+  # (artifacts/j_<id>/<the words of the tree>.svg) and shows it on the work
+  # screen.
   # Notation the drawing cannot read is not drawn: what is wrong in it, with
   # a hint, comes back to be fixed. tikz: also keep the tree as LaTeX
   # (forest) source.
@@ -48,7 +50,8 @@ module SyntaxTreeTools
       job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench, app_name: app_name)
       return "❌ The syntax tree could not be kept: there is no chat folder to keep it in." unless job
 
-      formats = tikz ? { "svg" => OUTPUT_NAME, "tikz" => TIKZ_NAME } : { "svg" => OUTPUT_NAME }
+      base = output_base(notation)
+      formats = tikz ? { "svg" => "#{base}.svg", "tikz" => "#{base}.tex" } : { "svg" => "#{base}.svg" }
       formats.each do |format, name|
         failure = draw(input, style, format, dir)
         if failure
@@ -59,9 +62,9 @@ module SyntaxTreeTools
         Monadic::Workbench::ChatOutput.keep(job, name, drawn)
       end
 
-      path = File.join(job[:relative], OUTPUT_NAME)
+      path = File.join(job[:relative], formats["svg"])
       shown = Monadic::Workbench::ChatOutput.show(path, workbench) ? " It is shown on the work screen beside the chat." : ""
-      source = tikz ? " Its LaTeX (forest) source is #{File.join(job[:relative], TIKZ_NAME)}; movement paths are not in it." : ""
+      source = tikz ? " Its LaTeX (forest) source is #{File.join(job[:relative], formats["tikz"])}; movement paths are not in it." : ""
       "The syntax tree was drawn as #{path}.#{shown}#{source}\n" \
         "The notation, indented, to show the user exactly as it is in a text code block:\n#{indented(notation)}"
     end
@@ -71,6 +74,15 @@ module SyntaxTreeTools
   end
 
   private
+
+  # A file name for the drawing from the words of the tree (the text of the
+  # nodes with no node below them), in their order: letters and digits of
+  # any script, joined by hyphens.
+  def output_base(notation)
+    words = notation.scan(/\[[^\[\]\s]+\s+([^\[\]]+)\]/).flatten.join(" ")
+    base = words.unicode_normalize(:nfc).gsub(/[^\p{L}\p{N}]+/, "-")[0, NAME_LENGTH].to_s.gsub(/\A-+|-+\z/, "")
+    base.empty? ? PLAIN_NAME : base
+  end
 
   # The notation with each node that has nodes below it opened on a line of
   # its own, its nodes indented two spaces under it, and its closing

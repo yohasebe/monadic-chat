@@ -1974,25 +1974,12 @@ module OpenAIHelper
       memo
     end
 
-    skip_function_execution = false
-    function_return = nil
+    # Monadic Help's documentation search: its arguments kept within bounds,
+    # and a repeated query or a third search of a request answered without
+    # running it.
+    help_search_limit = lambda {
+      next unless function_name == "find_help_topics" && app.to_s == "MonadicHelpOpenAI"
 
-    # Run only the tools offered to the model in the latest request.
-    if (refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name))
-      function_return = refusal
-      skip_function_execution = true
-    end
-
-    # request_tool has no Ruby method: it is the progressive-disclosure meta-tool.
-    # Unlock the requested skill so its tools become visible on the next round.
-    if !skip_function_execution && function_name == "request_tool"
-      function_return = Monadic::Utils::ProgressiveToolManager.handle_request_tool(
-        session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: argument_hash
-      )
-      skip_function_execution = true
-    end
-
-    if !skip_function_execution && function_name == "find_help_topics" && app.to_s == "MonadicHelpOpenAI"
       obj["help_topics_call_count"] = obj["help_topics_call_count"].to_i + 1
       call_count = obj["help_topics_call_count"]
 
@@ -2014,56 +2001,23 @@ module OpenAIHelper
       duplicate_query = !downcased_query.empty? && obj["help_topics_prev_queries"].include?(downcased_query)
       obj["help_topics_prev_queries"] << downcased_query unless downcased_query.empty?
 
-      if duplicate_query || call_count > 2
-        skip_function_execution = true
-        notice_key = call_count > 2 ? "search_limit_reached" : "duplicate_query_skipped"
-        notice_msg = call_count > 2 ? "Documentation search limited to two calls per request." : "Duplicate documentation search skipped."
-        function_return = JSON.generate({ "results" => [], "notice" => notice_key, "message" => notice_msg })
-      end
-    end
+      next unless duplicate_query || call_count > 2
 
-    unless skip_function_execution
-      begin
-        # Expand vocabulary ${TOKEN}s (e.g. ${SHARED}) to real paths before the
-        # tool runs. Done before :session injection so the session object is
-        # never walked. No-op when the app declares no vocabulary.
-        argument_hash = tool_arguments_given(function_name, argument_hash, session, APPS[app]&.settings)
-
-        method_obj = APPS[app].method(function_name.to_sym) rescue nil
-        if method_obj && method_obj.parameters.any? { |type, name| name == :session }
-          argument_hash[:session] = session
-        end
-        Monadic::Workbench::Caller.inject!(argument_hash, method_obj, session)
-
-        if argument_hash.empty?
-          function_return = APPS[app].public_send(function_name.to_sym)
-        else
-          function_return = APPS[app].public_send(function_name.to_sym, **argument_hash)
-        end
-
-        Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{function_name} returned: #{workbench_loggable(function_return).to_s[0..500]}" }
-        bind_workbench_look(function_return, tool_call["id"])
-
-        send_verification_notification(session, &block) if function_name == "report_verification"
-
-        Monadic::Utils::TtsTextExtractor.extract_tts_text(
-          app: app,
-          function_name: function_name,
-          argument_hash: argument_hash,
-          session: session,
-          function_return: function_return
-        )
-      rescue StandardError => e
+      notice_key = call_count > 2 ? "search_limit_reached" : "duplicate_query_skipped"
+      notice_msg = call_count > 2 ? "Documentation search limited to two calls per request." : "Duplicate documentation search skipped."
+      JSON.generate({ "results" => [], "notice" => notice_key, "message" => notice_msg })
+    }
+    result = run_tool_call(
+      app, session, function_name, argument_hash, call_id: tool_call["id"], refuse: help_search_limit, speech: true,
+      error_text: lambda { |e|
         Monadic::Utils::ExtraLogger.log { "[OpenAI Tools] Error in #{function_name}: #{e.message}\n[OpenAI Tools] Backtrace: #{e.backtrace.first(5).join("\n")}" }
-        function_return = Monadic::Utils::ErrorFormatter.tool_error(
-          provider: "OpenAI",
-          tool_name: function_name,
-          message: e.message
-        )
-      end
-    end
+        Monadic::Utils::ErrorFormatter.tool_error(provider: "OpenAI", tool_name: function_name, message: e.message)
+      }, &block
+    )
+    function_return = result.value
+    Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{function_name} returned: #{workbench_loggable(function_return).to_s[0..500]}" }
 
-    if handle_function_error(session, function_return, function_name, &block)
+    if result.stop
       context << {
         tool_call_id: tool_call["id"],
         role: "tool",
@@ -2073,17 +2027,11 @@ module OpenAIHelper
       return [function_return, function_name, argument_hash, pending_tool_images]
     end
 
-    if function_return.is_a?(Hash) && function_return[:_image]
-      pending_tool_images = Array(function_return[:_image])
-      clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
-      serialized = JSON.generate(clean_return)
+    if result.images
+      pending_tool_images = result.images
+      serialized = JSON.generate(result.without_private_keys)
     else
       serialized = function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
-    end
-
-    if function_return.is_a?(Hash) && function_return[:gallery_html]
-      session[:tool_html_fragments] ||= []
-      session[:tool_html_fragments] << function_return[:gallery_html]
     end
 
     context << {

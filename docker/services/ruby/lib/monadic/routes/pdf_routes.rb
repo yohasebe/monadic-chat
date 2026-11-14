@@ -54,15 +54,12 @@ post "/pdf" do
 
     return error_json("No text could be extracted from the PDF file") if chunks.empty?
 
-    doc_data = { items: 0, metadata: {} }
+    # The browser's file name arrives as bytes with no encoding.
+    filename = Monadic::Workspace::Attachments.display_name(params["pdfFile"]["filename"])
+    title = params["pdfTitle"].to_s
+    doc_data = { items: 0, metadata: {}, title: title.empty? ? filename : title }
     items_data = []
     chunks.each do |i|
-      title = if params["pdfTitle"].to_s != ""
-                params["pdfTitle"]
-              else
-                params["pdfFile"]["filename"]
-              end
-      doc_data[:title] = title
       doc_data[:items] += 1
       items_data << { text: i["text"], metadata: { tokens: i["tokens"] } }
     end
@@ -70,7 +67,7 @@ post "/pdf" do
     # Embeddings are computed locally via the embeddings_service container
     # so no provider API key is required for the store_embeddings call.
     store.store_embeddings(doc_data, items_data)
-    { success: true, filename: params["pdfFile"]["filename"] }.to_json
+    { success: true, filename: filename }.to_json
   rescue Monadic::VectorStore::BackendError => e
     error_json(Monadic::Utils::ErrorFormatter.scrub_identifiers("Vector store error: #{e.message}"))
   rescue Monadic::Embeddings::ClientError => e

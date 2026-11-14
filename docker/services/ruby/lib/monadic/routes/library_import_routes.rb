@@ -55,8 +55,9 @@ post "/library/import" do
   return error_json("No file selected. Please choose a file to upload.") unless params["libraryFile"]
 
   file = params["libraryFile"]
-  filename = File.basename(file["filename"].to_s)
-  return error_json("Missing filename") if filename.empty?
+  return error_json("Missing filename") if file["filename"].to_s.empty?
+  # The browser's file name arrives as bytes with no encoding.
+  filename = Monadic::Workspace::Attachments.display_name(file["filename"])
 
   # Reject oversized uploads up front so we never write them to disk or
   # spawn the python extractor on something we will not finish.

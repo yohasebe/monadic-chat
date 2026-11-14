@@ -2,6 +2,11 @@ app "MusicAnalystGemini" do
   description do
     en "Evaluate a recorded performance: objective features (tempo/key/chords) plus Gemini's interpretive critique of the music and playing (Gemini)"
     ja "録音された演奏を評価する：客観的特徴（テンポ/調/コード）と、Geminiによる楽曲・演奏の解釈的講評 (Gemini)"
+    zh "评估录制的演奏：客观特征（速度/调性/和弦）加上 Gemini 对乐曲与演奏的诠释性点评 (Gemini)"
+    ko "녹음된 연주를 평가합니다: 객관적 특징(템포/조/코드)과 곡과 연주에 대한 Gemini의 해석적 강평 (Gemini)"
+    es "Evalúa una interpretación grabada: rasgos objetivos (tempo/tonalidad/acordes) más la crítica interpretativa de Gemini sobre la música y la ejecución (Gemini)"
+    fr "Évaluez une interprétation enregistrée : caractéristiques objectives (tempo/tonalité/accords) et critique interprétative de Gemini sur la musique et le jeu (Gemini)"
+    de "Bewertet eine aufgenommene Darbietung: objektive Merkmale (Tempo/Tonart/Akkorde) und Geminis interpretierende Kritik an Musik und Spiel (Gemini)"
   end
 
   icon "headphones"

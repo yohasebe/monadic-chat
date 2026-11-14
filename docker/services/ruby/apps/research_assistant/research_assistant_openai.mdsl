@@ -63,7 +63,7 @@ app "ResearchAssistantOpenAI" do
     ## Code Generation with OpenAI Code Agent
     For complex coding tasks, prefer using the OpenAI Code agent:
     1. Call request_tool("openai_code_agent") to unlock
-    2. Call gpt5_codex_agent with task description
+    2. Call openai_code_agent with task description
 
     ## PDF Document Search
     When answering questions about uploaded PDFs, check the document store first. Include citation footer with: Doc Title, Snippet tokens, and Snippet position.
@@ -220,7 +220,7 @@ app "ResearchAssistantOpenAI" do
       parameter :data_structure, "string", "Data structure or format information", required: false
       visibility "conditional"
       unlock_when tool_request: "openai_code_agent"
-      unlock_hint "Call request_tool(\"gpt5_codex_agent\") when you need to generate analysis code."
+      unlock_hint "Call request_tool(\"openai_code_agent\") when you need to generate analysis code."
     end
   end
 end

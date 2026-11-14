@@ -46,7 +46,7 @@ app "CodingAssistantOpenAI" do
   3. Use `list_files_in_shared_folder` to explore the directory structure
 
   ## Using OpenAI Code Agent
-  For complex coding tasks, you can delegate to OpenAI Code using `gpt5_codex_agent`.
+  For complex coding tasks, you can delegate to OpenAI Code using `openai_code_agent`.
   This specialized model excels at:
   - Writing complete applications
   - Complex refactoring

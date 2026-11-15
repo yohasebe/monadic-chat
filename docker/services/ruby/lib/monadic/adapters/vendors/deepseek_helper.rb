@@ -182,7 +182,11 @@ module DeepSeekHelper
       # reasoning survives into the displayed message and the persistent
       # thinking toggle disappears once tools are involved.
       session[:deepseek_reasoning] = nil
-      session[:deepseek_round_text_mid] = nil
+      # The turn's tool rounds so far (each call with its results), and the
+      # texts written before them: every round goes back with the next
+      # request, so the model sees what it has already done.
+      session[:deepseek_round_text_mids] = nil
+      session[:parameters]&.delete("function_returns")
     end
 
     num_retrial = 0
@@ -261,11 +265,11 @@ module DeepSeekHelper
 
     system_message_modified = false
     messages_containing_img = false
-    # The text the model wrote before this round's tool call goes in the
+    # The text the model wrote before a tool call of this turn goes in the
     # message that carries the call (function_returns), not as a message of
     # its own.
-    round_text_mid = role == "tool" ? session[:deepseek_round_text_mid] : nil
-    context = context.reject { |msg| msg && round_text_mid && msg["mid"] == round_text_mid }
+    round_text_mids = role == "tool" ? Array(session[:deepseek_round_text_mids]) : []
+    context = context.reject { |msg| msg && round_text_mids.include?(msg["mid"]) }
     body["messages"] = context.compact.map do |msg|
       if !system_message_modified && msg["role"] == "system"
         system_message_modified = true
@@ -1111,14 +1115,15 @@ module DeepSeekHelper
           # For the requests after this round: the text goes with the call
           # in this round's, and with its reasoning in the later ones.
           text_before_tools = content_before_tools.to_s
-          session[:deepseek_round_text_mid] = request_id
+          (session[:deepseek_round_text_mids] ||= []) << request_id
           assistant_message["reasoning_content"] = reasoning_content unless reasoning_content.empty?
 
           DebugHelper.debug("DeepSeek: Saved assistant message before native tool call (#{content_before_tools.length} chars)", category: :api, level: :debug)
         end
       end
 
-      context = []
+      # After the turn's earlier rounds.
+      context = Array(session[:parameters]&.[]("function_returns")).dup
       assistant_msg = {
         "role" => "assistant",
         "content" => text_before_tools,

@@ -352,6 +352,9 @@ module MistralHelper
     if role == "user"
       session[:call_depth_per_turn] = 0
       session[:parallel_dispatch_called] = nil
+      # The turn's tool rounds so far go back with every later request of
+      # the turn, so the model sees what it has already done.
+      %w[earlier_tool_rounds tool_calls_message function_returns].each { |key| session[:parameters]&.delete(key) }
       # Reset the cross-round reasoning accumulator. Magistral emits its trace
       # before a tool call; the recursion re-enters api_request with a fresh
       # local `thinking`, so without accumulating here only the final round's
@@ -872,7 +875,12 @@ module MistralHelper
         end
       end
 
-      # Update session with function returns and tool calls message
+      # Update session with function returns and tool calls message, the
+      # round before them kept with the turn's earlier rounds.
+      if session[:parameters]["tool_calls_message"]
+        (session[:parameters]["earlier_tool_rounds"] ||= []) <<
+          [session[:parameters]["tool_calls_message"], session[:parameters]["function_returns"]]
+      end
       session[:parameters]["function_returns"] = function_returns
       session[:parameters]["tool_calls_message"] = tool_calls_message
 
@@ -1215,21 +1223,23 @@ module MistralHelper
     end
 
     if role == "tool"
-      body["messages"] << obj["tool_calls_message"] if obj["tool_calls_message"]
-
-      returns = obj["function_returns"].map do |resp|
-        resp_role = resp[:role] || resp["role"] || "tool"
-        if resp_role == "user"
-          { "role" => "user", "content" => resp[:content] || resp["content"] }
-        else
-          content = resp[:content] || resp["content"] || "No result returned"
-          {
-            "role" => "tool",
-            "content" => content.to_s,
-            "tool_call_id" => resp[:tool_call_id] || resp["tool_call_id"],
-            "name" => resp[:name] || resp["name"]
-          }
-        end
+      # Each round of the turn: the message with its calls, then their results.
+      rounds = Array(obj["earlier_tool_rounds"]) + [[obj["tool_calls_message"], obj["function_returns"]]]
+      returns = rounds.flat_map do |calls_message, results|
+        [calls_message, *Array(results).map do |resp|
+          resp_role = resp[:role] || resp["role"] || "tool"
+          if resp_role == "user"
+            { "role" => "user", "content" => resp[:content] || resp["content"] }
+          else
+            content = resp[:content] || resp["content"] || "No result returned"
+            {
+              "role" => "tool",
+              "content" => content.to_s,
+              "tool_call_id" => resp[:tool_call_id] || resp["tool_call_id"],
+              "name" => resp[:name] || resp["name"]
+            }
+          end
+        end].compact
       end
       # Each look's image follows the results, in a message of its own.
       body["messages"].concat(with_workbench_looks(returns, session, tool_id: method(:chat_tool_call_id)) do |looks|

@@ -18,6 +18,13 @@ Enter a message in the text area and click the **Send** button to send it. For v
 
 ?> The **Role** selector sets the role of the message. Normally, select **User**. **User (to add to past messages)** and **Assistant (to add to past messages)** add a message to the conversation without sending it, and **System (to provide additional direction)** adds an instruction. For more information, see the [FAQ](../faq/faq-user-interface.md).
 
+![The Role selector](../assets/images/figures/role-selector.svg)
+
+1. **User**: an ordinary message, sent to the AI.
+2. **User (to add to past messages)**: added to the conversation as your message, without being sent.
+3. **Assistant (to add to past messages)**: added to the conversation as the AI's reply, without being sent.
+4. **System (to provide additional direction)**: added to the conversation as an instruction.
+
 ## Uploading Images :id=uploading-images
 
 Image uploads are supported for vision-capable models (OpenAI, Anthropic Claude, xAI Grok, Google Gemini, Mistral, Cohere, DeepSeek, and Ollama vision models).
@@ -71,7 +78,11 @@ Click **Open URL** below the message box and enter an address that starts with `
 - **Open in the work screen** opens the page in the chat's browser on the [work screen](web-interface.md#work-screen). In an app that has browser tools, or that can look at the work screen, the assistant reads the page from there.
 - **Take in as text** reads the page's text into the message box in Markdown format.
 
-<!-- SCREENSHOT: URL input dialog where user enters a web address, with extracted content appearing as Markdown in the message input area -->
+![The Open URL dialog](../assets/images/figures/url-dialog.svg)
+
+1. The address of the page.
+2. **Take in as text**: reads the page's text into your message.
+3. **Open in the work screen**: opens the page on the work screen.
 
 ## Anonymize :id=anonymize
 

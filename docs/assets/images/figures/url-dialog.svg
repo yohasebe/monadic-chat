@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="500" height="308" viewBox="0 0 500 308" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
+  <title>The Open URL dialog</title>
+  <defs>
+    <symbol id="i-solid-globe" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M352 192Q352 159 349 128H163Q160 159 160 192Q160 225 163 256H349Q352 225 352 192ZM381 256H504H381H504Q512 225 512 192Q512 159 504 128H381Q384 159 384 192Q384 225 381 256ZM493 288H377H493H377Q361 386 321 440Q381 423 426 384Q470 344 493 288ZM344 288H168H344H168Q177 343 195 383Q211 418 228 434Q245 449 256 448Q267 449 284 434Q301 418 317 383Q335 343 344 288ZM135 288H19H135H19Q42 344 86 384Q131 423 191 440Q151 386 135 288ZM8 256H131H8H131Q128 225 128 192Q128 159 131 128H8Q0 159 0 192Q0 225 8 256ZM195 1Q177 41 168 96H344Q335 41 317 1Q301 -34 284 -50Q267 -65 256 -64Q245 -65 228 -50Q211 -34 195 1ZM135 96Q151 -2 191 -56Q131 -39 86 0Q42 40 19 96H135ZM493 96Q470 40 426 0Q381 -39 322 -56Q361 -2 377 96H494Z"/></symbol>
+  </defs>
+  <rect x="0.5" y="0.5" width="499" height="307" rx="12" fill="#eef0f2" stroke="#dadee2"/>
+  <rect x="20" y="20" width="460" height="268" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <use href="#i-solid-globe" x="38.0" y="37.0" width="15.0" height="15" fill="#2a2e33"/>
+  <text x="62.0" y="50.0" font-size="15" fill="#2a2e33" font-weight="700">Open URL</text>
+  <line x1="20" y1="68" x2="480" y2="68" stroke="#dadee2"/>
+  <text x="38.0" y="96.0" font-size="13" fill="#2a2e33">Label (Optional)</text>
+  <rect x="38.0" y="106.0" width="424.0" height="30.0" rx="5" fill="#ffffff" stroke="#ced4da"/>
+  <text x="48.0" y="126.0" font-size="12" fill="#8b939b">Text placed at the top of the webpage contents</text>
+  <text x="38.0" y="164.0" font-size="13" fill="#2a2e33">URL of the page</text>
+  <rect x="38.0" y="174.0" width="424.0" height="30.0" rx="5" fill="#ffffff" stroke="#ced4da"/>
+  <text x="48.0" y="194.0" font-size="12" fill="#8b939b">A URL starting with http:// or https://</text>
+  <circle cx="450.0" cy="161.0" r="9" fill="#2a2e33"/>
+  <text x="450.0" y="165.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">1</text>
+  <line x1="20" y1="224" x2="480" y2="224" stroke="#dadee2"/>
+  <rect x="257.6" y="246" width="204.4" height="28" rx="4" fill="#3a68a6"/>
+  <text x="359.8" y="264.7" font-size="13" fill="#ffffff" text-anchor="middle">Open in the work screen</text>
+  <rect x="108.7" y="246" width="141.0" height="28" rx="4" fill="#6e7781"/>
+  <text x="179.1" y="264.7" font-size="13" fill="#ffffff" text-anchor="middle">Take in as text</text>
+  <rect x="31.1" y="246" width="69.6" height="28" rx="4" fill="#6e7781"/>
+  <text x="65.9" y="264.7" font-size="13" fill="#ffffff" text-anchor="middle">Cancel</text>
+  <circle cx="179.1" cy="233.0" r="9" fill="#2a2e33"/>
+  <text x="179.1" y="237.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">2</text>
+  <circle cx="359.8" cy="233.0" r="9" fill="#2a2e33"/>
+  <text x="359.8" y="237.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">3</text>
+</svg>

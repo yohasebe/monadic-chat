@@ -439,6 +439,80 @@ def side_column(table, color, title):
 
 
 
+def url_dialog(table, color, title):
+    """The dialog of the Open URL button."""
+    figure = Figure(color, title)
+    html = read('views', 'index.erb')
+    modal = html[html.index('id="urlModal"'):html.index('id="urlModal"') + 2600]
+    keys = re.findall(I18N, modal) + re.findall(r'data-i18n-placeholder="([^"]+)"', modal)
+    wanted = ['ui.modals.fromURL', 'ui.modals.labelOptional', 'ui.modals.urlToFetch', 'ui.cancel',
+              'ui.modals.takeInAsText', 'ui.modals.openInWorkScreen', 'ui.modals.urlLabelPlaceholder',
+              'ui.modals.urlAddressPlaceholder']
+    missing = [key for key in wanted if key not in keys]
+    if missing:
+        raise SystemExit('the Open URL dialog no longer has %s' % ', '.join(missing))
+    word = lambda key: label(table, key)  # noqa: E731
+    quiet, line = color('pal-grey-text'), color('pal-grey-line')
+    x, y, width = 20, 20, 460
+    figure.add('<rect x="%d" y="%d" width="%d" height="268" rx="6" fill="#ffffff" stroke="%s"/>' % (x, y, width, line))
+    figure.icon('fa-solid', 'fa-globe', x + 18, y + 17, 15)
+    figure.text(x + 42, y + 30, word('ui.modals.fromURL'), 15, None, '700')
+    figure.add('<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s"/>' % (x, y + 48, x + width, y + 48, line))
+    figure.text(x + 18, y + 76, word('ui.modals.labelOptional'), 13)
+    figure.field(x + 18, y + 86, width - 36, 30)
+    figure.text(x + 28, y + 106, word('ui.modals.urlLabelPlaceholder'), 12, color('pal-grey-mid'))
+    figure.text(x + 18, y + 144, word('ui.modals.urlToFetch'), 13)
+    figure.field(x + 18, y + 154, width - 36, 30)
+    figure.text(x + 28, y + 174, word('ui.modals.urlAddressPlaceholder'), 12, color('pal-grey-mid'))
+    figure.callout(x + width - 30, y + 154 - 13)
+    figure.add('<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s"/>' % (x, y + 204, x + width, y + 204, line))
+    # The footer's buttons, from the right as the dialog has them
+    right, marks = x + width - 18, []
+    for key, fill, ink, mark in [('ui.modals.openInWorkScreen', 'pal-accent-strong', '#ffffff', True),
+                                 ('ui.modals.takeInAsText', 'pal-grey-strong', '#ffffff', True),
+                                 ('ui.cancel', 'pal-grey-strong', '#ffffff', False)]:
+        text = word(key)
+        w = text_width(text) + 22
+        figure.add('<rect x="%.1f" y="%d" width="%.1f" height="%d" rx="4" fill="%s"/>'
+                   % (right - w, y + 226, w, BUTTON_HEIGHT, color(fill)))
+        figure.text(right - w / 2, y + 226 + BUTTON_HEIGHT / 2 + TEXT * 0.36, text, TEXT, ink, None, 'middle')
+        if mark:
+            marks.append(right - w / 2)
+        right -= w + 8
+    for cx in sorted(marks):                      # numbered from the left, as they are read
+        figure.callout(cx, y + 213)
+    figure.grow(x + width, y + 268)
+    return figure
+
+
+def role_selector(table, color, title):
+    """The Role selector, open."""
+    figure = Figure(color, title)
+    html = read('views', 'index.erb')
+    values = re.findall(r'<option value="([a-z-]+)">', element(html, 'select', 'select-role'))
+    names = {'user': 'user', 'sample-user': 'sampleUser', 'sample-assistant': 'sampleAssistant',
+             'sample-system': 'sampleSystem'}
+    if values != list(names):
+        raise SystemExit('the Role selector has %s; the figure draws %s' % (values, list(names)))
+    options = [label(table, 'ui.roleOptions.%s' % names[value]) for value in values]
+    quiet, line = color('pal-grey-text'), color('pal-grey-line')
+    x, y = 20, 20
+    width = max(text_width(text) for text in options) + 50
+    start = x + figure.text(x, y + BUTTON_HEIGHT / 2 + TEXT * 0.36, label(table, 'ui.role'), TEXT, quiet) + 10
+    figure.select(start, y, options[0], width)
+    figure.add('<rect x="%.1f" y="%d" width="%.1f" height="%d" rx="5" fill="#ffffff" stroke="%s"/>'
+               % (start, y + 34, width, len(options) * 28 + 8, line))
+    for i, text in enumerate(options):
+        top = y + 38 + i * 28
+        if i == 0:
+            figure.add('<rect x="%.1f" y="%d" width="%.1f" height="28" rx="3" fill="%s"/>'
+                       % (start + 4, top, width - 8, color('pal-grey-soft')))
+        figure.text(start + 12, top + 19, text)
+        figure.callout(start + width + 18, top + 14)
+    figure.grow(start + width + 30, y + 42 + len(options) * 28)
+    return figure
+
+
 # ---- the architecture ---------------------------------------------------------
 SERVICES = ['ruby', 'python', 'selenium', 'qdrant', 'embeddings', 'privacy', 'extractor']
 
@@ -613,6 +687,8 @@ FIGURES = {
     'knowledge-base': (knowledge_base, {'en': 'Knowledge Base panel', 'ja': 'Knowledge Base のパネル'}),
     'live-conversation': (live_conversation, {'en': 'Live Conversation controls', 'ja': 'Live Conversation の操作欄'}),
     'side-column': (side_column, {'en': 'Tabs of the side column', 'ja': '右側の列のタブ'}),
+    'url-dialog': (url_dialog, {'en': 'The Open URL dialog', 'ja': 'URL を開くダイアログ'}),
+    'role-selector': (role_selector, {'en': 'The Role selector', 'ja': '役割の選択'}),
     'architecture': (architecture, {'en': 'Monadic Chat architecture', 'ja': 'Monadic Chat の構成'}),
 }
 

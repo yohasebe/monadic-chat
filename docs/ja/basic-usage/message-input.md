@@ -18,6 +18,13 @@
 
 ?> **Role** セレクタはメッセージの役割を選びます。通常は **User** を選びます。**User (to add to past messages)** と **Assistant (to add to past messages)** は、送らずに会話にメッセージを加えます。**System (to provide additional direction)** は指示を加えます。詳しくは [FAQ](../faq/faq-user-interface.md) を参照してください。
 
+![役割の選択](../assets/images/figures/role-selector.svg)
+
+1. **ユーザー**：AI に送る、ふつうのメッセージ。
+2. **ユーザー（過去のメッセージに追加）**：送らずに、あなたのメッセージとして会話に足します。
+3. **アシスタント（過去のメッセージに追加）**：送らずに、AI の返答として会話に足します。
+4. **システム（追加の指示を提供）**：指示として会話に足します。
+
 ## 画像のアップロード :id=uploading-images
 
 画像アップロードは、ビジョン機能を持つモデル（OpenAI、Anthropic Claude、xAI Grok、Google Gemini、Mistral、Cohere、DeepSeek、Ollama のビジョンモデル）で利用できます。
@@ -71,7 +78,11 @@ Responses APIを使用するモデルでは、ローカルファイルのアッ�
 - **作業画面で開く**：会話のブラウザーで、そのページを[作業画面](web-interface.md#work-screen)に開きます。ブラウザーの道具を持つアプリや、作業画面を見られるアプリでは、アシスタントがそこからページを読みます。
 - **テキストとして取り込む**：ページの文を Markdown 形式でメッセージ欄に読み込みます。
 
-<!-- SCREENSHOT: URLを開くダイアログ - URL入力フィールドと「作業画面で開く」「テキストとして取り込む」ボタン -->
+![URL を開くダイアログ](../assets/images/figures/url-dialog.svg)
+
+1. ページのアドレス。
+2. **テキストとして取り込む**：ページのテキストをメッセージに読み込みます。
+3. **作業画面で開く**：ページを作業画面に開きます。
 
 ## 匿名化 :id=anonymize
 

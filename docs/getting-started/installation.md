@@ -96,7 +96,7 @@ For detailed usage instructions, see the [Web Interface](../basic-usage/web-inte
 
 ## Updating Monadic Chat :id=update
 
-<!-- SCREENSHOT: Monadic Chat menu showing File menu with Check for Updates option -->
+![The File menu](../assets/images/figures/menu-file.svg)
 
 Monadic Chat checks for updates when it starts (when it is online).
 

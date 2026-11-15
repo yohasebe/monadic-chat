@@ -30,13 +30,13 @@ Exit Monadic Chat.
 
 ## Console Menu Items
 
-<!-- SCREENSHOT: Console menu bar showing File, Edit, Actions, Open, Help and Window menus -->
+![The File menu](../assets/images/figures/menu-file.svg)
 
 The console has a menu bar with the menus File, Edit, Actions, Open, Help and Window. On macOS, the File menu is shown under the name Monadic Chat. Edit has the usual editing commands, Help opens the documentation, and Window has Minimize, Close and Reload.
 
 ### Actions Menu
 
-<!-- SCREENSHOT: Actions menu dropdown showing Install Options, Start, Stop, Restart, Build options, JupyterLab controls, and Document DB import/export options -->
+![The Actions menu](../assets/images/figures/menu-actions.svg)
 
 The build commands are available while Monadic Chat is stopped, the JupyterLab commands while it is running, and the Document DB commands while it is stopped.
 
@@ -84,7 +84,7 @@ Export the entire Document DB to the shared folder. A confirmation dialog offers
 
 ### Open Menu
 
-<!-- SCREENSHOT: Open menu dropdown showing Open Console, Open Browser, Open noVNC, Open Shared Folder, Open Config Folder, Open Log Folder, and Settings options -->
+![The Open menu](../assets/images/figures/menu-open.svg)
 
 **Open Console** <br />
 Open the Monadic Chat console.

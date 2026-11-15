@@ -38,7 +38,7 @@ $ rm monadic-chat_*.AppImage
 
 <!-- tabs:end -->
 
-<!-- SCREENSHOT: Monadic Chatメニュー - FileメニューにRemove Images/Containers/Dataがある様子 -->
+![File メニュー](../assets/images/figures/menu-file.svg)
 
 ## ユーザーデータ :id=user-data
 

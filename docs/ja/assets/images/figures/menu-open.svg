@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="463" height="294" viewBox="0 0 463 294" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
+  <title>Open メニュー</title>
+  <defs>
+
+  </defs>
+  <rect x="0.5" y="0.5" width="462" height="293" rx="12" fill="#eef0f2" stroke="#dadee2"/>
+  <rect x="20" y="20" width="423.0" height="32" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <text x="66.0" y="41.0" font-size="13" fill="#2a2e33" text-anchor="middle">ファイル</text>
+  <text x="127.0" y="41.0" font-size="13" fill="#2a2e33" text-anchor="middle">編集</text>
+  <text x="194.5" y="41.0" font-size="13" fill="#2a2e33" text-anchor="middle">アクション</text>
+  <rect x="239.0" y="24" width="46.0" height="24" rx="4" fill="#dadee2"/>
+  <text x="262.0" y="41.0" font-size="13" fill="#2a2e33" font-weight="600" text-anchor="middle">開く</text>
+  <text x="316.5" y="41.0" font-size="13" fill="#2a2e33" text-anchor="middle">ヘルプ</text>
+  <text x="390.5" y="41.0" font-size="13" fill="#2a2e33" text-anchor="middle">ウィンドウ</text>
+  <rect x="239.0" y="58" width="173.0" height="216" rx="6" fill="#ffffff" stroke="#8b939b"/>
+  <text x="255.0" y="82.0" font-size="13" fill="#2a2e33">コンソールを開く</text>
+  <text x="255.0" y="108.0" font-size="13" fill="#2a2e33">ブラウザ</text>
+  <text x="255.0" y="134.0" font-size="13" fill="#2a2e33">noVNC を開く</text>
+  <line x1="249.0" y1="147.5" x2="402.0" y2="147.5" stroke="#dadee2"/>
+  <text x="255.0" y="171.0" font-size="13" fill="#2a2e33">共有フォルダ</text>
+  <text x="255.0" y="197.0" font-size="13" fill="#2a2e33">設定フォルダを開く</text>
+  <text x="255.0" y="223.0" font-size="13" fill="#2a2e33">ログフォルダを開く</text>
+  <line x1="249.0" y1="236.5" x2="402.0" y2="236.5" stroke="#dadee2"/>
+  <text x="255.0" y="260.0" font-size="13" fill="#2a2e33">設定</text>
+</svg>

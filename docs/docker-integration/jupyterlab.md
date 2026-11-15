@@ -11,7 +11,7 @@ JupyterLab also starts when you open a notebook from the page: click a notebook'
 - JupyterLab opens at [http://localhost:8889](http://localhost:8889) (or [http://127.0.0.1:8889](http://127.0.0.1:8889))
 - No password or token is required; JupyterLab is reachable only from your computer
 
-<!-- SCREENSHOT: Monadic Chat Actions menu showing Open JupyterLab and Stop JupyterLab options -->
+![The Actions menu](../assets/images/figures/menu-actions.svg)
 
 JupyterLab starts in the shared folder (`/monadic/data`), so the files you place in `~/monadic/data` are available there.
 

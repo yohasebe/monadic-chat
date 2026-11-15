@@ -43,7 +43,7 @@ RSpec.describe "Web app and requests from other sites" do
     factory = lambda do |filename, _type|
       Tempfile.new(["RackMultipart", File.extname(filename.to_s)]).tap { |file| made << file }
     end
-    upload = lambda do |name, headers, path: "/upload_audio", field: "audioFile"|
+    upload = lambda do |name, headers, path: "/document", field: "docFile"|
       env = { input: form.call(field, name, "ID3"), "CONTENT_TYPE" => "multipart/form-data; boundary=B",
               "HTTP_HOST" => "localhost:4567", "rack.multipart.tempfile_factory" => factory }.merge(headers)
       status = req.post("http://localhost:4567#{path}", env).status
@@ -59,12 +59,11 @@ RSpec.describe "Web app and requests from other sites" do
       end
     end
     out = {
-      "upload_other_site" => upload.call("a.mp3", { "HTTP_ORIGIN" => "http://evil.example" }),
-      "upload_null_origin" => upload.call("b.mp3", { "HTTP_ORIGIN" => "null" }),
-      "upload_rebinding" => upload.call("c.mp3", { "HTTP_HOST" => "evil.example:4567", "HTTP_ORIGIN" => "http://evil.example:4567" }),
-      "upload_own_page" => upload.call("d.mp3", { "HTTP_ORIGIN" => "http://localhost:4567" }),
-      "upload_no_origin" => upload.call("e.mp3", {}),
-      "document_other_site" => upload.call("f.txt", { "HTTP_ORIGIN" => "http://evil.example" }, path: "/document", field: "docFile"),
+      "upload_other_site" => upload.call("a.txt", { "HTTP_ORIGIN" => "http://evil.example" }),
+      "upload_null_origin" => upload.call("b.txt", { "HTTP_ORIGIN" => "null" }),
+      "upload_rebinding" => upload.call("c.txt", { "HTTP_HOST" => "evil.example:4567", "HTTP_ORIGIN" => "http://evil.example:4567" }),
+      "upload_own_page" => upload.call("d.txt", { "HTTP_ORIGIN" => "http://localhost:4567" }),
+      "upload_no_origin" => upload.call("e.txt", {}),
       "attachment_other_site" => upload.call("g.mp4", { "HTTP_ORIGIN" => "http://evil.example" }, path: "/attachments?tab_id=t1", field: "file"),
       "ws_other_site" => ws.call({ "HTTP_ORIGIN" => "http://evil.example" }),
       "ws_null_origin" => ws.call({ "HTTP_ORIGIN" => "null" }),
@@ -93,7 +92,7 @@ RSpec.describe "Web app and requests from other sites" do
     # Each upload is capped before its body is read: a request declaring one
     # byte over the limit is refused, an ordinary one is not.
     caps = { "/pdf" => [PDF_UPLOAD_MAX_BYTES, "pdfFile"], "/document" => [DOCUMENT_UPLOAD_MAX_BYTES, "docFile"],
-             "/upload_audio" => [AUDIO_UPLOAD_MAX_BYTES, "audioFile"], "/load" => [SESSION_LOAD_MAX_BYTES, "file"],
+             "/load" => [SESSION_LOAD_MAX_BYTES, "file"],
              "/library/import" => [LIBRARY_IMPORT_MAX_BYTES + 1_000_000, "libraryFile"] }
     out["caps"] = caps.to_h do |path, (limit, field)|
       over = req.post("http://localhost:4567#{path}", input: form.call(field, "x.mp3", "ID3"),
@@ -195,7 +194,7 @@ RSpec.describe "Web app and requests from other sites" do
 
 
   it "caps every upload before reading it, and lets an ordinary one through" do
-    expect(@result["caps"].keys).to contain_exactly("/pdf", "/document", "/upload_audio", "/load", "/library/import")
+    expect(@result["caps"].keys).to contain_exactly("/pdf", "/document", "/load", "/library/import")
     @result["caps"].each do |path, r|
       expect(r["over"]).to eq(413), path
       expect(r["over_reason"]).to eq("too_large"), path
@@ -211,7 +210,7 @@ RSpec.describe "Web app and requests from other sites" do
   end
 
   it "refuses uploads from other sites, null origins and rebinding pages, and writes nothing" do
-    %w[upload_other_site upload_null_origin upload_rebinding document_other_site attachment_other_site].each do |key|
+    %w[upload_other_site upload_null_origin upload_rebinding attachment_other_site].each do |key|
       expect(@result[key]).to eq({ "status" => 403, "written" => false }), key
     end
   end

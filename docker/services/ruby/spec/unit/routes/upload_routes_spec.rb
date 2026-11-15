@@ -4,43 +4,6 @@ require "spec_helper"
 require "json"
 
 RSpec.describe "Upload Routes Logic" do
-  describe "Audio upload extension validation" do
-    let(:allowed_exts) { %w[.mp3 .wav .m4a .ogg .flac .mid .midi] }
-
-    it "accepts all allowed audio extensions" do
-      allowed_exts.each do |ext|
-        expect(allowed_exts).to include(ext), "Expected #{ext} to be allowed"
-      end
-    end
-
-    it "rejects unsupported extensions" do
-      rejected = %w[.exe .bat .sh .rb .py .js .html .pdf .doc .zip .rar]
-      rejected.each do |ext|
-        expect(allowed_exts).not_to include(ext), "Expected #{ext} to be rejected"
-      end
-    end
-
-    it "validates extension case-insensitively by downcasing" do
-      filename = "recording.MP3"
-      ext = File.extname(filename).downcase
-      expect(allowed_exts).to include(ext)
-    end
-
-    it "handles filenames with multiple dots" do
-      filename = "my.recording.file.wav"
-      ext = File.extname(filename).downcase
-      expect(ext).to eq(".wav")
-      expect(allowed_exts).to include(ext)
-    end
-
-    it "rejects files with no extension" do
-      filename = "audiofile"
-      ext = File.extname(filename).downcase
-      expect(ext).to eq("")
-      expect(allowed_exts).not_to include(ext)
-    end
-  end
-
   describe "Path traversal prevention" do
     it "strips directory components from filenames" do
       dangerous_inputs = [

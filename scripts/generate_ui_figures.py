@@ -1350,7 +1350,7 @@ FIGURES = {
     'voice-input': (voice_input, {'en': 'Voice input', 'ja': '音声入力'}),
     'web-interface': (web_interface, {'en': 'The web interface', 'ja': 'Web インターフェース'}),
     'system-settings': (system_settings, {'en': 'System settings', 'ja': 'システム設定'}),
-    'speech-panel': (speech_panel, {'en': 'Speech panel', 'ja': 'Speech パネル'}),
+    'speech-panel': (speech_panel, {'en': 'Speech panel', 'ja': '音声パネル'}),
     'attachments': (attachments, {'en': 'Files attached to a message', 'ja': 'メッセージに添付したファイル'}),
     'sent-attachments': (sent_attachments, {'en': 'A sent message with attachments', 'ja': '添付つきで送ったメッセージ'}),
     'file-dialog': (file_dialog, {'en': 'The Text from file dialog', 'ja': 'ファイルからテキストを読み込むダイアログ'}),

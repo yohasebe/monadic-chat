@@ -8,7 +8,7 @@
 
 アシスタントから話しかけてくる会話で、語学を練習するアプリです。アシスタントの応答は読み上げられます。声で答えるときは、右矢印キーを押すか音声入力のボタンをクリックすると話し始められ、もう一度ボタンをクリックすると終わります。話した内容はそのまま送信されます。
 
-Language Practice の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。音声の設定は [Speech パネル](../basic-usage/web-interface.md#speech-settings-panel)を参照してください。
+Language Practice の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。音声の設定は [音声パネル](../basic-usage/web-interface.md#speech-settings-panel)を参照してください。
 
 
 ## Language Practice Plus
@@ -33,4 +33,4 @@ Translate の対応プロバイダーは[モデル対応状況の表](../basic-u
 
 話した内容を別の言語に翻訳し、その訳を音声で聞けるアプリです。アシスタントは、まず翻訳先の言語を尋ね、その後は話した内容を翻訳して、訳だけを読み上げます。言語と、フレーズごとの原文と訳は、[作業画面](../basic-usage/web-interface.md#work-screen)に **Interpreter notes** のページとしてまとめられます。
 
-Voice Interpreter の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。音声の設定は [Speech パネル](../basic-usage/web-interface.md#speech-settings-panel)を参照してください。
+Voice Interpreter の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。音声の設定は [音声パネル](../basic-usage/web-interface.md#speech-settings-panel)を参照してください。

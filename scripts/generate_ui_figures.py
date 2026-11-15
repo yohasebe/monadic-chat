@@ -542,11 +542,6 @@ def architecture(table, color, title, language):
 
     figure.add('<rect x="480" y="258" width="300" height="228" rx="8" fill="#ffffff" stroke="%s" stroke-width="2"/>' % brown)
     heading(498, 286, word['server'], 'fa-server', brown)
-    # The language the server is written in, as a tab on the box's edge
-    ruby = color('pal-red-strong')
-    figure.add('<rect x="678" y="245" width="88" height="26" rx="13" fill="#ffffff" stroke="%s" stroke-width="1.5"/>' % ruby)
-    figure.icon('fas', 'fa-gem', 692, 251, 13, ruby)
-    figure.text(712, 263, 'Ruby', 13, ruby, '700')
     py = 302
     for i, key in enumerate(['apps', 'adapters', 'tools']):
         figure.add('<rect x="500" y="%d" width="260" height="32" rx="6" fill="%s"/>' % (py, yellow))
@@ -554,7 +549,12 @@ def architecture(table, color, title, language):
         if i < 2:
             arrow(630, py + 34, 630, py + 50)
         py += 52
-    figure.text(630, 474, word['mcp'], 12, quiet, None, 'middle')
+    figure.text(630, 466, word['mcp'], 12, quiet, None, 'middle')
+    # The language the server is written in, as a tab on the box's edge
+    ruby = color('pal-red-strong')
+    figure.add('<rect x="496" y="473" width="88" height="26" rx="13" fill="#ffffff" stroke="%s" stroke-width="1.5"/>' % ruby)
+    figure.icon('fas', 'fa-gem', 510, 479, 13, ruby)
+    figure.text(530, 491, 'Ruby', 13, ruby, '700')
     arrow(428, 372, 478, 372, both=True)             # the server uses the services
 
     # Below: the folder both sides share, and models that run here

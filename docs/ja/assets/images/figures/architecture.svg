@@ -86,9 +86,6 @@
   <rect x="480" y="258" width="300" height="228" rx="8" fill="#ffffff" stroke="#b3862a" stroke-width="2"/>
   <use href="#i-solid-server" x="498.0" y="273.0" width="15.0" height="15" fill="#b3862a"/>
   <text x="521.0" y="286.0" font-size="15" fill="#2a2e33" font-weight="700">Monadic Chat サーバー</text>
-  <rect x="678" y="245" width="88" height="26" rx="13" fill="#ffffff" stroke="#a83d49" stroke-width="1.5"/>
-  <use href="#i-solid-gem" x="692.0" y="251.0" width="13.0" height="13" fill="#a83d49"/>
-  <text x="712.0" y="263.0" font-size="13" fill="#a83d49" font-weight="700">Ruby</text>
   <rect x="500" y="302" width="260" height="32" rx="6" fill="#ecc04f"/>
   <text x="630.0" y="323.0" font-size="13" fill="#2a2e33" font-weight="700" text-anchor="middle">アプリ</text>
   <line x1="630" y1="336" x2="630" y2="352" stroke="#6e7781" stroke-width="1.5" marker-end="url(#arrow)"/>
@@ -97,7 +94,10 @@
   <line x1="630" y1="388" x2="630" y2="404" stroke="#6e7781" stroke-width="1.5" marker-end="url(#arrow)"/>
   <rect x="500" y="406" width="260" height="32" rx="6" fill="#ecc04f"/>
   <text x="630.0" y="427.0" font-size="13" fill="#2a2e33" font-weight="700" text-anchor="middle">ツール</text>
-  <text x="630.0" y="474.0" font-size="12" fill="#58616b" text-anchor="middle">MCP サーバー</text>
+  <text x="630.0" y="466.0" font-size="12" fill="#58616b" text-anchor="middle">MCP サーバー</text>
+  <rect x="496" y="473" width="88" height="26" rx="13" fill="#ffffff" stroke="#a83d49" stroke-width="1.5"/>
+  <use href="#i-solid-gem" x="510.0" y="479.0" width="13.0" height="13" fill="#a83d49"/>
+  <text x="530.0" y="491.0" font-size="13" fill="#a83d49" font-weight="700">Ruby</text>
   <line x1="428" y1="372" x2="478" y2="372" stroke="#6e7781" stroke-width="1.5" marker-end="url(#arrow)" marker-start="url(#arrow-back)"/>
   <rect x="40" y="560" width="500" height="100" rx="6" fill="#ffffff" stroke="#8b939b" stroke-dasharray="6 4"/>
   <use href="#i-solid-folder-open" x="58.0" y="577.0" width="16.9" height="15" fill="#b3862a"/>

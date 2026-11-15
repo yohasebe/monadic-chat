@@ -148,7 +148,7 @@ System、Light、Dark。
 これらは、音声を自分で扱う [Live Conversation](../apps/chat-apps.md#live-conversation) では表示されません。
 
 **音声**<br />
-下の [Speech パネル](#speech-settings-panel)を参照してください。
+下の [音声パネル](#speech-settings-panel)を参照してください。
 
 ## 作業画面 :id=work-screen
 
@@ -178,7 +178,7 @@ AI が新しいものを表示すると、作業画面はそれを表示しま�
 
 ## 音声パネル :id=speech-settings-panel
 
-![Speech パネル](../assets/images/figures/speech-panel.svg)
+![音声パネル](../assets/images/figures/speech-panel.svg)
 
 1. **音声認識モデル**：話した内容を文字にするモデル。
 2. **テキスト読み上げプロバイダー**：返答を読み上げるサービス。

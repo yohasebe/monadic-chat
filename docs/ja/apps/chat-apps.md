@@ -25,13 +25,13 @@ AI と会話をするアプリです。AI は適切な絵文字を付けて応�
 
 ![Voice Chat app icon](../assets/icons/voice-chat.png ':size=40')
 
-声で AI と会話するアプリです。話した内容は Speech パネルで選んだ **Speech-to-Text Model** で文字に起こされ、応答は同じパネルで選んだ **Text-to-Speech Provider** で読み上げられます。読み上げの既定はブラウザ内蔵の Web Speech API で、API キーは要りません。代わりに OpenAI、ElevenLabs、Gemini、Mistral、xAI Grok の声も選べます。会話のプロバイダーと音声のプロバイダーは自由に組み合わせられます（例：会話は Claude、声は xAI Grok）。
+声で AI と会話するアプリです。話した内容は音声パネルで選んだ **Speech-to-Text Model** で文字に起こされ、応答は同じパネルで選んだ **Text-to-Speech Provider** で読み上げられます。読み上げの既定はブラウザ内蔵の Web Speech API で、API キーは要りません。代わりに OpenAI、ElevenLabs、Gemini、Mistral、xAI Grok の声も選べます。会話のプロバイダーと音声のプロバイダーは自由に組み合わせられます（例：会話は Claude、声は xAI Grok）。
 
 話している間は波形が表示されます。文字起こしのモデルが確からしさの値を返すときは、話し終えた後に p-value が表示されます。[音声入力](../basic-usage/message-input.md#speech-input)を参照してください。
 
-Voice Chat の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。音声の設定は [Speech パネル](../basic-usage/web-interface.md#speech-settings-panel)を参照してください。
+Voice Chat の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。音声の設定は [音声パネル](../basic-usage/web-interface.md#speech-settings-panel)を参照してください。
 
-**Expressive Speech**：Auto Speech がオンで、対応する読み上げのプロバイダーを選んでいると、Text-to-Speech Provider のメニューの下に ✨ **Expressive Speech** のバッジが表示されます。応答は、間・笑い・声の指示などの表現を付けて読み上げられ、これらはテキストには現れません。やり方はプロバイダーによって違います。[Speech パネル](../basic-usage/web-interface.md#speech-settings-panel)を参照してください。
+**Expressive Speech**：Auto Speech がオンで、対応する読み上げのプロバイダーを選んでいると、Text-to-Speech Provider のメニューの下に ✨ **Expressive Speech** のバッジが表示されます。応答は、間・笑い・声の指示などの表現を付けて読み上げられ、これらはテキストには現れません。やり方はプロバイダーによって違います。[音声パネル](../basic-usage/web-interface.md#speech-settings-panel)を参照してください。
 
 プロバイダーのリアルタイム speech-to-speech API に音声を直接送る、途切れないハンズフリーの会話については、下の [Live Conversation](#live-conversation) を参照してください。
 
@@ -53,7 +53,7 @@ OpenAI、xAI Grok、Google Gemini の 3 つの版があります。それぞれ�
 
 **使い方**：`Start` をクリックすると会話が始まります。あとは自然に話してください。話し終わりは自動で検出され（音声区間検出）、ターンが進みます。`End` をクリックするとセッションが終わります。このアプリにはテキストの入力欄はありません。ヘッドホンをお勧めします。スピーカーだと、アシスタントの声がマイクに入り、意図しないターンが始まることがあります。
 
-**声と速度**：アシスタントの声は、アプリの操作欄にあるメニューで選びます（Speech パネルの読み上げの設定は使われません）。選べる声の数は、OpenAI が 10（既定：alloy）、xAI が 26（既定：eve）、Gemini が 30（既定：Kore）です。再生速度のスライダー（0.25〜1.5）は OpenAI だけで使えます。声の選択はプロバイダーごとに記憶されます。
+**声と速度**：アシスタントの声は、アプリの操作欄にあるメニューで選びます（音声パネルの読み上げの設定は使われません）。選べる声の数は、OpenAI が 10（既定：alloy）、xAI が 26（既定：eve）、Gemini が 30（既定：Kore）です。再生速度のスライダー（0.25〜1.5）は OpenAI だけで使えます。声の選択はプロバイダーごとに記憶されます。
 
 **ターン判定**（OpenAI 版のみ）：話し終わりの判定の方法を選べます。既定は無音で判定します。「By meaning」の 3 つのモード（patient・balanced・quick）では、話の内容がまとまったと聞こえるまでモデルが待ちます。違いがどれくらい出るかは、言語や話し方によって変わるので、両方を試してください。選択は記憶され、次のセッションから使われます。
 

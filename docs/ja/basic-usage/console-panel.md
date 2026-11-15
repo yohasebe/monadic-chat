@@ -204,7 +204,7 @@ Text-to-Speech辞書ファイルのパスを入力します。辞書ファイル
 **自動TTS最大バイト数** <br />
 自動音声読み上げ（post-completionモード）で読み上げるテキストの最大サイズ（バイト単位）を設定します（既定：500）。この上限を超えるテキストは一部のみ再生されるか、スキップされます。
 
-?> Speech-to-Textモデルの選択は、この設定ウィンドウではなくWeb UIの Speech パネルで行います。[Speech パネル](./web-interface.md#speech-settings-panel)を参照してください。
+?> Speech-to-Textモデルの選択は、この設定ウィンドウではなくWeb UI の音声パネルで行います。[音声パネル](./web-interface.md#speech-settings-panel)を参照してください。
 
 ### サービス
 

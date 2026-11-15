@@ -47,7 +47,7 @@ Start の後、コンソールには動いているコンテナと、それぞ�
 
 ## JupyterLab
 
-**Actions → Open JupyterLab** で、Python コンテナの共有フォルダ（`/monadic/data`）で動く JupyterLab が開きます。JupyterLab の Launcher で `Terminal` をクリックすると、コンテナのシェルが開きます。[JupyterLab との連携](jupyterlab.md)を参照してください。
+**アクション → JupyterLab を開く** で、Python コンテナの共有フォルダ（`/monadic/data`）で動く JupyterLab が開きます。JupyterLab の Launcher で `Terminal` をクリックすると、コンテナのシェルが開きます。[JupyterLab との連携](jupyterlab.md)を参照してください。
 
 ## よく使う操作
 

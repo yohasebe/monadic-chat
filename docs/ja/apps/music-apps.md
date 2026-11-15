@@ -19,7 +19,7 @@
 - **ウォーキングベース**: クロマティック・アプローチノート付きジャズ・ウォーキングベース、ボサノバ2ビートフィール
 - **包括的な音楽理論**: 46種のコード、メジャー・マイナー・ペンタトニック・ブルースなど各種スケール、全チャーチモード、スラッシュコード、エンハーモニック・スペリング対応
 
-音声と MIDI の分析には、オプションの **Music Analysis** パッケージ（librosa + madmom）が必要です。**Actions → Install Options** でオンにし、Python コンテナを再ビルドしてください。
+音声と MIDI の分析には、オプションの **Music Analysis** パッケージ（librosa + madmom）が必要です。**アクション → インストールオプション** でオンにし、Python コンテナを再ビルドしてください。
 
 Music TutorはOpenAI、Claude、Gemini、Grokで利用可能です。
 
@@ -36,6 +36,6 @@ Music TutorはOpenAI、Claude、Gemini、Grokで利用可能です。
 
 解釈的講評は音声をモノラル・低帯域で分析するため、音質・ミックス/マスタリング・ステレオ像は評価しません。テンポやキーは計測された特徴から得られます（推定値です）。講評は実音声（mp3, wav, m4a, ogg, flac）が対象で、MIDIファイルは計測された特徴のみ対応です。
 
-音声と MIDI のファイルの特徴の計測には、オプションの **Music Analysis** パッケージ（librosa + madmom）が必要です。**Actions → Install Options** でオンにし、Python コンテナを再ビルドしてください。
+音声と MIDI のファイルの特徴の計測には、オプションの **Music Analysis** パッケージ（librosa + madmom）が必要です。**アクション → インストールオプション** でオンにし、Python コンテナを再ビルドしてください。
 
 Music AnalystはGeminiで利用可能です。

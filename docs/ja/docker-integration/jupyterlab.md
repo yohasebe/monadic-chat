@@ -4,7 +4,7 @@ Monadic Chat は、Python によるデータの分析と可視化の環境であ
 
 ## JupyterLab の起動
 
-Monadic Chat のコンソールで **Actions → Open JupyterLab** を選びます。JupyterLab が動いていなければ起動し、ブラウザーで開きます。このメニューは、Monadic Chat が動いている間に使えます。
+Monadic Chat のコンソールで **アクション → JupyterLab を開く** を選びます。JupyterLab が動いていなければ起動し、ブラウザーで開きます。このメニューは、Monadic Chat が動いている間に使えます。
 
 ページからノートブックを開いたときにも、JupyterLab が起動します。会話の中のノートブックのリンクか、[作業画面](../basic-usage/web-interface.md#work-screen)に表示したノートブックの下の **JupyterLab で開く** を押してください。ページは JupyterLab を起動していることを表示し、準備ができるとノートブックを開きます。履歴から会話を開いたときや、AI がノートブックを作って実行したときには、JupyterLab は起動しません。
 
@@ -19,7 +19,7 @@ JupyterLab は共有フォルダ（`/monadic/data`）で起動するので、`~/
 
 ## JupyterLab の停止
 
-**Actions → Stop JupyterLab** を選びます。ブラウザーのタブを閉じても JupyterLab は動き続け、Monadic Chat を止めると止まります。
+**アクション → JupyterLabを停止** を選びます。ブラウザーのタブを閉じても JupyterLab は動き続け、Monadic Chat を止めると止まります。
 
 ## Jupyter Notebook アプリの利用
 

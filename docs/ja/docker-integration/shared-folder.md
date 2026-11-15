@@ -2,7 +2,7 @@
 
 Monadic Chat を最初に起動すると、`~/monadic/data` ディレクトリが作られます。これが、Monadic Chat の Docker コンテナとファイルを共有するための共有フォルダです。
 
-Monadic Chat のコンソールの `Shared Folder` ボタン（または **Open → Open Shared Folder**）で、共有フォルダが OS のファイルマネージャーで開きます。
+Monadic Chat のコンソールの `Shared Folder` ボタン（または **開く → 共有フォルダ**）で、共有フォルダが OS のファイルマネージャーで開きます。
 
 <!-- SCREENSHOT: Monadic Chatコンソール - 上部にStart/Stopボタン、中央にログ表示エリア、下部にShared Folderボタンが配置されている様子 -->
 

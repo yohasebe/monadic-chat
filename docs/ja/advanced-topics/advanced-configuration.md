@@ -4,7 +4,7 @@
 
 ## インストールオプション :id=install-options
 
-**Actions → Install Options** で、Settings ウィンドウの **Install Options** の項目が開きます。ここで、追加のコンポーネントを選べます。
+**アクション → インストールオプション** で、Settings ウィンドウの **インストールオプション** の項目が開きます。ここで、追加のコンポーネントを選べます。
 
 - **LaTeX**：**Install LaTeX (minimal set for diagrams)**。Concept Visualizer に必要です
 - **Python Libraries (CPU)**：nltk、spaCy、gensim、mediapipe、transformers
@@ -23,7 +23,7 @@
 
 ### 再ビルド処理
 
-オプションを保存しても、再ビルドは始まりません。Python のオプションを反映するには、**Actions → Build Python Container** を実行します。新しいイメージはまずビルドされて確認され、確認に通ったときだけ今のイメージと入れ替わります。進み具合はメインのコンソールに表示されます。
+オプションを保存しても、再ビルドは始まりません。Python のオプションを反映するには、**アクション → Pythonコンテナをビルド** を実行します。新しいイメージはまずビルドされて確認され、確認に通ったときだけ今のイメージと入れ替わります。進み具合はメインのコンソールに表示されます。
 
 保存したオプションがまだイメージに入っていないと、次の **Start** で再ビルドするかを尋ねられます。選べるのは **Rebuild and Start**、**Start Anyway**、**Cancel** です。
 

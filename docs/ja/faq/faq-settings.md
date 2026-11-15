@@ -19,7 +19,7 @@ Monadic ChatでOllamaを使用する詳細については、[Ollamaの利用](..
 
 追加アプリの開発や、既存アプリの変更などを行っている場合は、ログフォルダ内の `server.log` の内容を確認してください。エラーメッセージが表示されている場合は、その内容に基づいて、アプリのコードの修正を行ってください。
 
-`pysetup.sh` を使ってPythonコンテナにライブラリを追加している場合は、そのエラーは `docker_build_python.log`（**Build All** を実行したときは `docker_build.log`）に出ます。エラーメッセージを確認して、スクリプトを修正してください。
+`pysetup.sh` を使ってPythonコンテナにライブラリを追加している場合は、そのエラーは `docker_build_python.log`（**すべてビルド** を実行したときは `docker_build.log`）に出ます。エラーメッセージを確認して、スクリプトを修正してください。
 
 ---
 
@@ -41,7 +41,7 @@ Monadic ChatでOllamaを使用する詳細については、[Ollamaの利用](..
 
 ##### Q: LaTeXを使うConcept Visualizerを有効にするにはどうすればよいですか？ :id=enable-latex
 
-**A**: **Actions → Install Options** を開いて **Install LaTeX (minimal set for diagrams)** をオンにし、Pythonコンテナを再構築してください。再構築時にTeX Liveのパッケージの組（XeLaTeX/LuaLaTeX）、dvisvgm/pdf2svg、Ghostscript、CJKフォントパッケージがインストールされ、Concept Visualizerで日本語・中国語・韓国語を含む図が描画できるようになります。このアプリはOpenAIとAnthropic Claude向けに提供されており、LaTeX のオプションがオンで、どちらかのAPIキーが設定されているときに使えます。
+**A**: **アクション → インストールオプション** を開いて **Install LaTeX (minimal set for diagrams)** をオンにし、Pythonコンテナを再構築してください。再構築時にTeX Liveのパッケージの組（XeLaTeX/LuaLaTeX）、dvisvgm/pdf2svg、Ghostscript、CJKフォントパッケージがインストールされ、Concept Visualizerで日本語・中国語・韓国語を含む図が描画できるようになります。このアプリはOpenAIとAnthropic Claude向けに提供されており、LaTeX のオプションがオンで、どちらかのAPIキーが設定されているときに使えます。
 
 ---
 

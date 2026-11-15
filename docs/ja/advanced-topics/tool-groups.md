@@ -104,7 +104,7 @@
 
 **使っているアプリ**：Web Insight、AutoForge、Research Assistant（OpenAI、Claude、Gemini、Grok）
 
-Selenium のコンテナは Monadic Chat とともに起動します。グループが表示されないときは、起動が終わるまで待ってください。Selenium のイメージがないときは、**Actions → Build All** でダウンロードします。
+Selenium のコンテナは Monadic Chat とともに起動します。グループが表示されないときは、起動が終わるまで待ってください。Selenium のイメージがないときは、**アクション → すべてビルド** でダウンロードします。
 
 ブラウザーのセッションは、同時に 3 つまで開けます（たとえば、会話のブラウザーと図のプレビュー）。すべて使われているときは、新しいセッションを待たずに、数秒で断ります。
 
@@ -165,7 +165,7 @@ Selenium のコンテナは Monadic Chat とともに起動します。グルー
 
 ### エラーメッセージ
 
-ツールを実行できないときは、エラーのメッセージに、何が足りないか（たとえば "Selenium container is not running"）と、どう直すか（たとえば、コンテナの起動を待つ、Selenium のイメージがなければ **Actions → Build All** を実行する）が書かれます。
+ツールを実行できないときは、エラーのメッセージに、何が足りないか（たとえば "Selenium container is not running"）と、どう直すか（たとえば、コンテナの起動を待つ、Selenium のイメージがなければ **アクション → すべてビルド** を実行する）が書かれます。
 
 ## ツールグループを使ったアプリの作成
 

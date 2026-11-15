@@ -4,16 +4,16 @@ Monadic Chat は `monadic-chat-python-container` で Python のツールを動�
 
 ## Install Options
 
-コンソールの **Actions → Install Options** で、Python コンテナに追加のコンポーネントを加えられます。
+コンソールの **アクション → インストールオプション** で、Python コンテナに追加のコンポーネントを加えられます。
 
 - **LaTeX**：Install LaTeX (minimal set for diagrams)。CJK に対応した TeX Live で、Concept Visualizer に必要です。このアプリは、LaTeX をインストールし、OpenAI か Anthropic の API キーを設定したときだけ使えます
 - **Python Libraries (CPU)**：nltk、spaCy (3.7.5)、gensim、mediapipe (CPU)、transformers (CPU only)、Plotly static images（kaleido と Chromium。ノートブックの Plotly のグラフに PNG を添えて保存し、作業画面でその PNG が表示されます）。`scikit-learn` は常に入っています
 - **Music Analysis**：librosa + madmom。Music Tutor と Music Analyst が使います
 - **System Tools (CLI)**：ImageMagick（`convert`/`mogrify`）
 
-オプションを保存しても、コンテナは再ビルドされません。次の Start で **Rebuild and Start** が示されます。**Actions → Build Python Container** なら、すぐに再ビルドします。新しいイメージは、ビルドが成功したときだけ今のイメージと入れ替わります。進み具合はコンソールに表示され、`~/monadic/log/` に次のファイルが書かれます。
+オプションを保存しても、コンテナは再ビルドされません。次の Start で **Rebuild and Start** が示されます。**アクション → Pythonコンテナをビルド** なら、すぐに再ビルドします。新しいイメージは、ビルドが成功したときだけ今のイメージと入れ替わります。進み具合はコンソールに表示され、`~/monadic/log/` に次のファイルが書かれます。
 
-- `docker_build_python.log`：最後に行った Python コンテナのビルド（**Rebuild and Start** か **Build Python Container**）の出力。Start のときの全体のビルドで Python コンテナを作るときは、出力は `docker_build.log` に入ります
+- `docker_build_python.log`：最後に行った Python コンテナのビルド（**Rebuild and Start** か **Pythonコンテナをビルド**）の出力。Start のときの全体のビルドで Python コンテナを作るときは、出力は `docker_build.log` に入ります
 - `python_health.json`：新しいイメージで使えるツール（`pdflatex`、`convert`）とライブラリ。ビルドが成功した後に書かれます
 - `python_meta.json`：最後に成功したビルドの版、オプションなどの詳細
 
@@ -23,7 +23,7 @@ nltk と spaCy のオプションは、ライブラリだけを入れます。NL
 
 `~/monadic/config/pysetup.sh` を作ると、自分で選んだライブラリ、データ、OS のパッケージを Python コンテナに加えられます。このスクリプトは Python コンテナのビルドの最後の手順として実行されるので、入れたものはイメージに含まれます。スクリプトそのものはイメージに残りません。
 
-- スクリプトを作ったり直したりした後は、**Actions → Build Python Container** を選んでください
+- スクリプトを作ったり直したりした後は、**アクション → Pythonコンテナをビルド** を選んでください
 - スクリプトはビルドの中で root として実行されます。エラーで終わるとビルドが失敗し、今のイメージがそのまま残ります。出力は上記のビルドのログにあります。コマンドの失敗で止まるよう、スクリプトの最初に `set -euo pipefail` を書いてください
 - ビルドの間は共有フォルダを使えないので、イメージの中に入れてください（たとえば `uv pip`、`nltk.download`、`spacy download` の既定の場所）
 

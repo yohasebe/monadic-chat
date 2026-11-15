@@ -40,15 +40,16 @@ After uploading the image, a thumbnail of the uploaded image appears below the m
 
 Attached images are downscaled in the browser before sending (long side up to 2000px, short side up to 768px). For full-resolution analysis of fine details, place the image file in the shared folder instead and ask the AI to analyze it — apps with the image-analysis skill read the original file directly and can be asked to use original fidelity.
 
-<!-- SCREENSHOT: Chat showing user message with attached image thumbnail and AI response analyzing the image content -->
+![A sent message with attachments](../assets/images/figures/sent-attachments.svg)
+
+1. An image, shown in the card of the message it was sent with.
+2. A PDF, shown by its name.
 
 ## Uploading PDFs :id=uploading-pdfs
 
 Some providers (OpenAI, Anthropic Claude, Google Gemini) support PDF uploads. Click the **Image/PDF** button to attach a PDF file.
 
 ?> **Anthropic Claude**: Claude apps support direct PDF upload for AI content recognition.
-
-<!-- SCREENSHOT: Chat showing user message with attached PDF file indicator and AI response discussing the PDF content -->
 
 The PDF is sent with the message it is attached to, and stays in the conversation history for later turns.
 
@@ -72,7 +73,7 @@ In apps that analyze video or transcribe audio, the **Image** button also takes 
 
 Click the **Text from file** button to select a document file. The contents of the selected file are loaded into the text area. Supported file formats include PDF, Word files (`.docx`), Excel files (`.xlsx`), PowerPoint files (`.pptx`), and various text files (`.txt`, `.md`, `.html`, etc).
 
-<!-- SCREENSHOT: File selection dialog allowing user to choose a document file, with extracted text appearing in the message input area -->
+![The Text from file dialog](../assets/images/figures/file-dialog.svg)
 
 ## Opening a URL :id=reading-text-from-urls
 
@@ -108,7 +109,6 @@ To use voice input, click the **Speech Input** button to start voice input, and 
 
 With speech-to-text models that report it, **Last Speech-to-Text p-value** is displayed after voice input: the confidence of the transcription, on a scale from 0 to 1. The closer it is to 1, the more confident the result.
 
-
 ## Speech-to-Text Model Selection :id=speech-to-text-model-selection
 
 Select the Speech-to-Text model in the web UI's Speech panel. Models are available from several providers — see the [Speech Panel](/basic-usage/web-interface.md#speech-settings-panel) for them (each option is enabled when its provider's API key is set).
@@ -122,7 +122,11 @@ A streaming mode is available for the **GPT Realtime Whisper ⚡** entry in the 
 - When you click **Stop**, the final transcript is appended to whatever you had in the text area, and the grey preview clears.
 - **Easy submit** sends the message once, with the final transcript only — not with intermediate partials.
 
-<!-- SCREENSHOT: Message input area during realtime streaming — grey italic partial text visible inside the textarea while the user is speaking -->
+![Live transcript in the message box](../assets/images/figures/realtime-text.svg)
+
+1. The text you typed.
+2. The live preview of what is being heard, in grey.
+3. Stops the recording.
 
 **When to use streaming vs batch.** Streaming mode gives immediate visual feedback during long utterances and is well-suited for live note-taking or dictation flows. The standard batch path is more cost-efficient for short utterances, and every other model in the dropdown uses it.
 

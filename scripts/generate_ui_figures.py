@@ -579,6 +579,112 @@ def attachments(table, color, title):
     return figure
 
 
+def file_dialog(table, color, title):
+    """The dialog of the Text from file button."""
+    figure = Figure(color, title)
+    html = read('views', 'index.erb')
+    modal = html[html.index('id="docModal"'):html.index('id="audioUploadModal"')]
+    keys = re.findall(I18N, modal) + re.findall(r'data-i18n-placeholder="([^"]+)"', modal)
+    wanted = ['ui.modals.fromFile', 'ui.modals.labelOptional', 'ui.modals.docLabelPlaceholder',
+              'ui.modals.documentToConvert', 'ui.cancel', 'ui.modals.convert']
+    missing = [key for key in wanted if key not in keys]
+    style, icon = re.search(r'<i class="(fa-brands|fab|fa-solid|fas) (fa-[a-z0-9-]+)"', modal).groups()
+    if missing or 'type="file"' not in modal:
+        raise SystemExit('the Text from file dialog no longer has %s' % (', '.join(missing) or 'its file field'))
+    word = lambda key: label(table, key)  # noqa: E731
+    line = color('pal-grey-line')
+    x, y = 20, 20
+    width = max(460, text_width(word('ui.modals.documentToConvert')) + 52)
+    figure.add('<rect x="%d" y="%d" width="%.1f" height="268" rx="6" fill="#ffffff" stroke="%s"/>' % (x, y, width, line))
+    icon_width = figure.icon(style, icon, x + 18, y + 17, 15)
+    figure.text(x + 18 + icon_width + 8, y + 30, word('ui.modals.fromFile'), 15, None, '700')
+    figure.add('<line x1="%d" y1="%d" x2="%.1f" y2="%d" stroke="%s"/>' % (x, y + 48, x + width, y + 48, line))
+    figure.text(x + 18, y + 76, word('ui.modals.labelOptional'), 13)
+    figure.field(x + 18, y + 86, width - 36, 30)
+    figure.text(x + 28, y + 106, word('ui.modals.docLabelPlaceholder'), 12, color('pal-grey-mid'))
+    figure.text(x + 18, y + 144, word('ui.modals.documentToConvert'), 13)
+    # The browser draws the file field; its own words are not the page's
+    figure.field(x + 18, y + 154, width - 36, 30)
+    figure.add('<rect x="%d" y="%d" width="96" height="30" rx="5" fill="%s" stroke="%s"/>'
+               % (x + 18, y + 154, color('pal-grey-soft'), color('border-color')))
+    figure.lines(x + 30, y + 165, [72])
+    figure.lines(x + 128, y + 165, [150])
+    figure.add('<line x1="%d" y1="%d" x2="%.1f" y2="%d" stroke="%s"/>' % (x, y + 204, x + width, y + 204, line))
+    right = x + width - 18
+    for key, fill in [('ui.modals.convert', 'pal-accent-strong'), ('ui.cancel', 'pal-grey-strong')]:
+        text = word(key)
+        w = text_width(text) + 22
+        figure.add('<rect x="%.1f" y="%d" width="%.1f" height="%d" rx="4" fill="%s"/>'
+                   % (right - w, y + 226, w, BUTTON_HEIGHT, color(fill)))
+        figure.text(right - w / 2, y + 226 + BUTTON_HEIGHT / 2 + TEXT * 0.36, text, TEXT, '#ffffff', None, 'middle')
+        right -= w + 8
+    figure.grow(x + width, y + 268)
+    return figure
+
+
+def card(figure, x, y, width, height, role, icon, name):
+    """A message card: a white header over a body in the role's color."""
+    color = figure.color
+    figure.add('<rect x="%d" y="%d" width="%d" height="%d" rx="6" fill="#ffffff" stroke="%s"/>'
+               % (x, y, width, height, color('border-color')))
+    figure.add('<path d="M%d %d H%d V%d A6 6 0 0 1 %d %d H%d A6 6 0 0 1 %d %d Z" fill="%s"/>'
+               % (x + 1, y + 40, x + width - 1, y + height - 6, x + width - 7, y + height - 1, x + 7, x + 1,
+                  y + height - 6, color('bg-card-%s' % role)))
+    figure.add('<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s"/>' % (x, y + 40, x + width, y + 40, color('border-color')))
+    figure.icon('fas', icon, x + 14, y + 12, 16, color('color-%s' % role))
+    figure.text(x + 40, y + 25, name, 14, color('color-%s' % role), '700')
+    figure.grow(x + width, y + height)
+
+
+def sent_attachments(table, color, title):
+    """A sent message with an image and a PDF, and the reply under it."""
+    figure = Figure(color, title)
+    source = read('public', 'js', 'monadic', 'card-renderer.js')
+    for needed in ('roleIcon = "fa-face-smile"', 'roleIcon = "fa-robot"', 'class="base64-image', 'class="pdf-preview',
+                   'fa-file-pdf'):
+        if needed not in source:
+            raise SystemExit('card-renderer.js no longer draws a card with %s' % needed)
+    x, y, width = 20, 20, 520
+    card(figure, x, y, width, 196, 'user', 'fa-face-smile', 'User')
+    figure.lines(x + 16, y + 58, [width - 200])
+    # The image as the card shows it, and the PDF as a line with its name
+    figure.add('<rect x="%d" y="%d" width="150" height="84" rx="4" fill="#ffffff" stroke="%s"/>'
+               % (x + 16, y + 78, color('border-color')))
+    figure.icon('fas', 'fa-image', x + 16 + 59, y + 78 + 26, 32, color('pal-grey-mid'))
+    figure.callout(x + 16 + 150 + 16, y + 88)
+    pdf_width = figure.icon('fas', 'fa-file-pdf', x + 16, y + 172, 14, color('pal-red-strong'))
+    name_width = figure.text(x + 16 + pdf_width + 8, y + 184, 'report.pdf')
+    figure.callout(x + 16 + pdf_width + 8 + name_width + 18, y + 179)
+    card(figure, x, y + 208, width, 106, 'assistant', 'fa-robot', 'Assistant')
+    figure.lines(x + 16, y + 208 + 58, [width - 60, width - 140])
+    return figure
+
+
+def realtime_text(table, color, title):
+    """The message box while a streaming model writes what it hears."""
+    figure = Figure(color, title)
+    recording = read('public', 'js', 'monadic', 'recording.js')
+    if "webUIi18n.t('ui.stopButton')" not in recording or 'fa-microphone' not in recording:
+        raise SystemExit('recording.js no longer names the Stop button as the streaming figure reads it')
+    x, y, width = 20, 34, 520
+    figure.field(x, y, width, 72)
+    # What was typed, then what is being heard: lighter, and still changing
+    for i, (w, fill) in enumerate([(width - 150, 'pal-grey-mid'), (width - 230, 'pal-grey-line'), (160, 'pal-grey-line')]):
+        figure.add('<rect x="%d" y="%d" width="%d" height="8" rx="4" fill="%s"/>' % (x + 14, y + 16 + i * 18, w, color(fill)))
+    figure.callout(x + width - 150 + 30, y + 20)
+    figure.callout(x + width - 230 + 30, y + 38)
+    row = y + 72 + 14
+    stop = label(table, 'ui.stopButton')
+    w = 9 + 13 * 0.75 + 5 + text_width(stop) + 12
+    figure.add('<rect x="%d" y="%d" width="%.1f" height="%d" rx="4" fill="%s"/>'
+               % (x, row, w, BUTTON_HEIGHT, color('pal-red-strong')))
+    iw = figure.icon('fas', 'fa-microphone', x + 9, row + (BUTTON_HEIGHT - TEXT) / 2, TEXT, '#ffffff')
+    figure.text(x + 9 + iw + 5, row + BUTTON_HEIGHT / 2 + TEXT * 0.36, stop, TEXT, '#ffffff')
+    figure.callout(x + w + 16, row + BUTTON_HEIGHT / 2)
+    figure.grow(x + width, row + BUTTON_HEIGHT)
+    return figure
+
+
 def page_keys(wanted):
     """The label keys a figure shows, each one named by the page's markup."""
     html = read('views', 'index.erb')
@@ -1246,6 +1352,9 @@ FIGURES = {
     'system-settings': (system_settings, {'en': 'System settings', 'ja': 'システム設定'}),
     'speech-panel': (speech_panel, {'en': 'Speech panel', 'ja': 'Speech パネル'}),
     'attachments': (attachments, {'en': 'Files attached to a message', 'ja': 'メッセージに添付したファイル'}),
+    'sent-attachments': (sent_attachments, {'en': 'A sent message with attachments', 'ja': '添付つきで送ったメッセージ'}),
+    'file-dialog': (file_dialog, {'en': 'The Text from file dialog', 'ja': 'ファイルからテキストを読み込むダイアログ'}),
+    'realtime-text': (realtime_text, {'en': 'Live transcript in the message box', 'ja': 'メッセージ入力欄に出る書き起こし'}),
     'menu-file': (desktop_menu('file'), {'en': 'The File menu', 'ja': 'File メニュー'}),
     'menu-actions': (desktop_menu('actions'), {'en': 'The Actions menu', 'ja': 'Actions メニュー'}),
     'menu-open': (desktop_menu('open'), {'en': 'The Open menu', 'ja': 'Open メニュー'}),

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="440" height="370" viewBox="0 0 440 370" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
+  <title>Speech panel</title>
+  <defs>
+    <symbol id="i-solid-comment-dots" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M256 0Q328 1 385 28Q443 56 477 103Q511 150 512 208Q511 266 477 313Q443 360 385 388Q328 415 256 416Q184 415 127 388Q69 360 35 313Q1 266 0 208Q1 139 48 87Q43 50 26 24Q18 10 11 3Q8 -1 6 -3Q6 -4 5 -4Q5 -4 5 -5Q5 -5 5 -5Q5 -5 5 -5Q5 -5 5 -5Q5 -5 5 -5Q5 -5 5 -5Q5 -5 5 -5Q5 -5 5 -5Q5 -5 5 -5Q-2 -12 1 -22Q6 -32 16 -32Q60 -30 98 -13Q133 3 152 18Q200 0 256 0ZM128 240Q142 240 151 231Q160 222 160 208Q160 194 151 185Q142 176 128 176Q114 176 105 185Q96 194 96 208Q96 222 105 231Q114 240 128 240ZM256 240Q270 240 279 231Q288 222 288 208Q288 194 279 185Q270 176 256 176Q242 176 233 185Q224 194 224 208Q224 222 233 231Q242 240 256 240ZM352 208Q352 222 361 231Q370 240 384 240Q398 240 407 231Q416 222 416 208Q416 194 407 185Q398 176 384 176Q370 176 361 185Q352 194 352 208Z"/></symbol>
+  </defs>
+  <rect x="0.5" y="0.5" width="439" height="369" rx="12" fill="#eef0f2" stroke="#dadee2"/>
+  <rect x="20" y="20" width="400" height="330" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <use href="#i-solid-comment-dots" x="64.0" y="36.0" width="15.0" height="15" fill="#ecc04f"/>
+  <text x="88.0" y="49.0" font-size="15" fill="#2a2e33" font-weight="600">Speech</text>
+  <text x="64.0" y="82.0" font-size="13" fill="#2a2e33" font-weight="600">Speech-to-Text Model</text>
+  <circle cx="42.0" cy="78.0" r="9" fill="#2a2e33"/>
+  <text x="42.0" y="82.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">1</text>
+  <rect x="64.0" y="92.0" width="336.0" height="28.0" rx="5" fill="#ffffff" stroke="#ced4da"/>
+  <rect x="74" y="102" width="140" height="8" rx="4" fill="#dadee2"/>
+  <path d="M382.0 104.0 l4 5 l4 -5 z" fill="#6e7781"/>
+  <text x="64.0" y="154.0" font-size="13" fill="#2a2e33" font-weight="600">Text-to-Speech Provider</text>
+  <circle cx="42.0" cy="150.0" r="9" fill="#2a2e33"/>
+  <text x="42.0" y="154.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">2</text>
+  <rect x="64.0" y="164.0" width="336.0" height="28.0" rx="5" fill="#ffffff" stroke="#ced4da"/>
+  <rect x="74" y="174" width="140" height="8" rx="4" fill="#dadee2"/>
+  <path d="M382.0 176.0 l4 5 l4 -5 z" fill="#6e7781"/>
+  <text x="64.0" y="226.0" font-size="13" fill="#2a2e33" font-weight="600">Web Speech API Voice</text>
+  <circle cx="42.0" cy="222.0" r="9" fill="#2a2e33"/>
+  <text x="42.0" y="226.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">3</text>
+  <rect x="64.0" y="236.0" width="336.0" height="28.0" rx="5" fill="#ffffff" stroke="#ced4da"/>
+  <rect x="74" y="246" width="140" height="8" rx="4" fill="#dadee2"/>
+  <path d="M382.0 248.0 l4 5 l4 -5 z" fill="#6e7781"/>
+  <text x="64.0" y="298.0" font-size="13" fill="#2a2e33" font-weight="600">TTS Speed (1.00)</text>
+  <circle cx="42.0" cy="294.0" r="9" fill="#2a2e33"/>
+  <text x="42.0" y="298.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">4</text>
+  <rect x="64" y="316" width="336" height="5" rx="2.5" fill="#dadee2"/><circle cx="232" cy="318" r="7" fill="#3a68a6"/>
+</svg>

@@ -31,7 +31,15 @@ You can change the language at any time during a conversation. The choice is sto
 
 ## System Settings Screen :id=system-settings-screen
 
-<!-- SCREENSHOT: System settings panel showing Base App selector, Model dropdown, reasoning controls, token limits, and parameters -->
+![System settings](../assets/images/figures/system-settings.svg)
+
+1. **Base App**: the app of the session.
+2. **Max Context Size** and **Max Output Tokens**: how many messages stay in the context, and how long a reply can be. Each has a switch.
+3. **Model**: the model to use. **All** lists every model of the provider.
+4. **Reasoning Effort** and **Show Thinking**: how deeply the model reasons, and whether its thinking is shown.
+5. **Temperature** and the other parameters.
+6. **Initial Prompt for AI Assistant**: the system prompt, which you can read and edit.
+7. **Start Session**: starts the conversation with these settings.
 
 This screen is where you choose the app and model for a session and adjust the conversation parameters. Once a session starts, the bar at the top has two tabs, **Current settings** and **Session**: **Current settings** shows this screen and **Session** shows the conversation, where you left it. **Continue Session** under the settings also goes back to the conversation. After you open a chat from the history, **Session** continues it, as **Continue Session** does. The bar also shows the app, the model and badges.
 
@@ -161,7 +169,12 @@ When the AI shows something new, the work screen shows it, unless you are typing
 
 ## Speech Panel :id=speech-settings-panel
 
-<!-- SCREENSHOT: Speech panel showing Speech-to-Text model selector, Text-to-Speech provider and voice dropdowns, and TTS speed slider -->
+![Speech panel](../assets/images/figures/speech-panel.svg)
+
+1. **Speech-to-Text Model**: the model that writes down what you say.
+2. **Text-to-Speech Provider**: the service that reads replies aloud.
+3. The voice of the chosen provider.
+4. **TTS Speed**: how fast replies are read.
 
 !> **Note:** To use the speech feature, you need to use the Google Chrome, Microsoft Edge, or Safari browser.
 

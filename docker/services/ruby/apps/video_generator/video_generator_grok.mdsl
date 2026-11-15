@@ -125,6 +125,7 @@ app "VideoGeneratorGrok" do
   TEXT
 
   features do
+    max_tool_rounds 10
     library_save false
     library_search false
     disabled !CONFIG["XAI_API_KEY"]

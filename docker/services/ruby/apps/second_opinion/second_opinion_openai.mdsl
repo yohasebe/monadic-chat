@@ -129,6 +129,7 @@ app "SecondOpinionOpenAI" do
     TEXT
 
   features do
+    max_tool_rounds 10
     websearch true
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false

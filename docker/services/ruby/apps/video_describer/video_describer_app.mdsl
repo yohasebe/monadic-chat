@@ -93,6 +93,7 @@ app "VideoDescriberApp" do
   include_modules "VideoAnalyzeAgent"
 
   features do
+    max_tool_rounds 10
     library_search false
     disabled !CONFIG["OPENAI_API_KEY"]
     temperature 0.0

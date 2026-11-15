@@ -70,6 +70,7 @@ app "ChatOpenAI" do
   display_name "Chat"
 
   features do
+    max_tool_rounds 10
     disabled !CONFIG["OPENAI_API_KEY"]
     websearch true
     easy_submit false

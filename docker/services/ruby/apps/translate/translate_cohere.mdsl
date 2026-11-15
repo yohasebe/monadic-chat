@@ -114,6 +114,7 @@ app "TranslateCohere" do
   end
   
   features do
+    max_tool_rounds 10
     work_screen "translations"
     disabled !CONFIG["COHERE_API_KEY"]
     easy_submit false

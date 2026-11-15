@@ -93,6 +93,7 @@ app "VoiceInterpreterOpenAI" do
   TEXT
 
   features do
+    max_tool_rounds 10
     show_thinking false
     library_search false
     disabled !CONFIG["OPENAI_API_KEY"]

@@ -2,6 +2,7 @@
 
 require 'json'
 require_relative '../utils/tool_dispatch_guard'
+require_relative '../utils/error_pattern_detector'
 require_relative '../utils/progressive_tool_manager'
 require_relative '../utils/error_formatter'
 require_relative '../utils/tts_text_extractor'
@@ -51,7 +52,8 @@ module ToolRun
   def run_tool_call(app, session, function_name, arguments, call_id:, error_text:, refuse: nil, amend: nil, &block)
     settings = APPS[app]&.settings
     given = arguments
-    value = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name) || refuse&.call
+    value = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name) || refuse&.call ||
+            ErrorPatternDetector.repeat_refusal(session, function_name, arguments)
     value ||= begin
       given = tool_arguments_as_taken(app, session, function_name, arguments, settings)
       if function_name == 'request_tool'

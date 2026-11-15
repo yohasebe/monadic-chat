@@ -484,7 +484,7 @@ module GrokHelper
     obj = session[:parameters]
 
     # Force text-only response when force-stop is active
-    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= tool_round_limit(session, MAX_FUNC_CALLS)
       body.delete("tools")
       body.delete("tool_choice")
     end
@@ -559,7 +559,7 @@ module GrokHelper
         end)
 
         session[:call_depth_per_turn] += 1
-        if session[:call_depth_per_turn] > MAX_FUNC_CALLS
+        if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS)
           return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
             provider: "xAI", message: "Maximum function call depth exceeded"
           ) }]
@@ -1487,7 +1487,7 @@ module GrokHelper
     if tools.any? && tools.any? { |_, tool| tool["completed"] }
       session[:call_depth_per_turn] += 1
 
-      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
+      if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS)
         return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
           provider: "xAI",
           message: "Maximum function call depth exceeded"
@@ -1738,7 +1738,7 @@ module GrokHelper
     (obj["function_returns"] ||= []).concat(tool_results)
 
     # Check if we've reached max call depth
-    if call_depth >= MAX_FUNC_CALLS
+    if call_depth >= tool_round_limit(session, MAX_FUNC_CALLS)
       summary = "Completed #{tool_results.length} tool execution(s):\n\n"
       tool_results.each do |result|
         result_content = (result['content'] || result[:content]).to_s

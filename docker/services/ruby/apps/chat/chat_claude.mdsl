@@ -80,6 +80,7 @@ app "ChatClaude" do
   display_name "Chat"
 
   features do
+    max_tool_rounds 10
     websearch true
     disabled !CONFIG["ANTHROPIC_API_KEY"]
     easy_submit false

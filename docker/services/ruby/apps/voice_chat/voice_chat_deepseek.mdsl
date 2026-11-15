@@ -54,6 +54,7 @@ app "VoiceChatDeepSeek" do
   display_name "Voice Chat"
   
   features do
+    max_tool_rounds 10
     show_thinking false
     websearch false
     disabled !CONFIG["DEEPSEEK_API_KEY"]

@@ -99,6 +99,7 @@ app "LanguagePracticePlusClaude" do
   display_name "Language Practice Plus"
 
   features do
+    max_tool_rounds 10
     show_thinking false
     disabled !CONFIG["ANTHROPIC_API_KEY"]
     easy_submit true

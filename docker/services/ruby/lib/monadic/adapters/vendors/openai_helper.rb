@@ -1136,7 +1136,7 @@ module OpenAIHelper
       end
     end
 
-    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= tool_round_limit(session, MAX_FUNC_CALLS)
       responses_body.delete("tools")
       responses_body.delete("tool_choice")
     end
@@ -1745,7 +1745,7 @@ module OpenAIHelper
   private def assemble_openai_chat_tool_results(app, session, tools_hash, result, &block)
     session[:call_depth_per_turn] += 1
 
-    if session[:call_depth_per_turn] > MAX_FUNC_CALLS
+    if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS)
       # Send notice fragment
       res = {
         "type" => "fragment",
@@ -2776,7 +2776,7 @@ module OpenAIHelper
     obj = session[:parameters]
     session[:call_depth_per_turn] += 1
 
-    if session[:call_depth_per_turn] > MAX_FUNC_CALLS
+    if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS)
       res = {
         "type" => "fragment",
         "content" => "NOTICE: Maximum function call depth exceeded"

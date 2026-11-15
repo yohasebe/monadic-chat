@@ -78,6 +78,7 @@ app "ChatCohere" do
   display_name "Chat"
 
   features do
+    max_tool_rounds 10
     websearch false
     disabled !CONFIG["COHERE_API_KEY"]
     easy_submit false

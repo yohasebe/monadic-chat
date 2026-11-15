@@ -59,6 +59,7 @@ app "MailComposerCohere" do
   end
   
   features do
+    max_tool_rounds 10
     work_screen "drafts"
     websearch false
     disabled !CONFIG["COHERE_API_KEY"]

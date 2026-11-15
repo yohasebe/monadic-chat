@@ -58,6 +58,7 @@ app "MailComposerOpenAI" do
   end
   
   features do
+    max_tool_rounds 10
     work_screen "drafts"
     websearch true
     disabled !CONFIG["OPENAI_API_KEY"]

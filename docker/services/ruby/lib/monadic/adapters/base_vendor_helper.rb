@@ -285,6 +285,16 @@ module BaseVendorHelper
     request && Monadic::Workbench::Look::Ledger.of_request(request.chat_id, request.request_id)
   end
 
+  # The tool rounds one user turn may take: the app's own number
+  # (max_tool_rounds in its features), never more than the provider's.
+  def tool_round_limit(session, provider_limit)
+    params = session.respond_to?(:[]) ? session[:parameters] : nil
+    name = params.respond_to?(:[]) ? (params["app_name"] || params[:app_name]) : nil
+    settings = defined?(APPS) && name && APPS[name].respond_to?(:settings) ? APPS[name].settings : nil
+    own = settings.respond_to?(:[]) ? (settings[:max_tool_rounds] || settings["max_tool_rounds"]).to_i : 0
+    own.positive? ? [own, provider_limit].min : provider_limit
+  end
+
   # messages (a request's copy) with, after each run of tool results, one
   # user message holding the images of the looks those results answer, and
   # after the last run one holding the looks whose results are not in

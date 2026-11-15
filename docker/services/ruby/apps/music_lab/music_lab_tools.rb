@@ -58,8 +58,11 @@ module MusicLabTools
   end
 
   # The features measured from an uploaded audio or MIDI file.
-  def analyze_audio_file(file_path:, session: nil)
-    result = measure_music_features(file_path)
+  def analyze_audio_file(file_path: nil, attachment_id: nil, session: nil, workbench: nil)
+    file = music_file(file_path: file_path, attachment_id: attachment_id, session: session, workbench: workbench)
+    return "Error: #{file[:error]}" if file[:error]
+
+    result = measure_music_features(file[:relative])
     return result["error"] if result["package_needed"]
 
     result["success"] ? format_analysis_result(result) : "Error: #{result['error'] || 'Unknown error'}"

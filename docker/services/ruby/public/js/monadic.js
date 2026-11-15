@@ -3416,33 +3416,19 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Audio/MIDI upload submit
+  // Audio/MIDI upload submit: the file is attached to the chat, as with
+  // the attach button, and goes with the next message.
   $on($id("uploadAudioBtn"), "click", async function () {
     const file = $id("audioFile").files[0];
     if (!file) return;
     try {
       document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = true; });
       $show($id("audio-upload-spinner"));
-      const response = await formHandlers.uploadAudioFile(file);
-      if (response && response.success) {
-        const filename = response.filename;
-        const message = ($id("message") || {}).value.replace(/\n+$/, "");
-        const instruction = `Please analyze the file: ${filename}`;
-        { const el = $id("message"); if (el) el.value = message ? `${message}\n\n${instruction}` : instruction; }
-        if (uiUtils && uiUtils.autoResize) {
-          uiUtils.autoResize($id('message'), 100);
-        }
-        $hide($id("audio-upload-spinner"));
-        document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).hide();
-        { const el = $id("message"); if (el) el.focus(); }
-      } else {
-        const errorMsg = response && response.error ? response.error : "Upload failed";
-        $hide($id("audio-upload-spinner"));
-        document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).hide();
-        setAlert(errorMsg, "error");
-      }
+      await window.uploadVideoAttachment(file, 'audio');
+      $hide($id("audio-upload-spinner"));
+      document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });
+      bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).hide();
+      { const el = $id("message"); if (el) el.focus(); }
     } catch (error) {
       $hide($id("audio-upload-spinner"));
       document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });

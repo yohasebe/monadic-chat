@@ -16,7 +16,9 @@ const MAX_IMAGES = 5;    // Maximum number of images to keep in memory
 // The same lists the server accepts for each purpose (FileTypes); a spec
 // checks that they agree.
 const VIDEO_EXTENSIONS = ['.mp4', '.m4v', '.mov', '.webm', '.mkv', '.avi'];
-const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.wav', '.ogg', '.opus', '.flac', '.aac', '.webm'];
+const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.wav', '.ogg', '.opus', '.flac', '.aac', '.webm', '.mid', '.midi'];
+// Standard MIDI files: attached as audio, in the apps that analyze music only.
+const MIDI_EXTENSIONS = ['.mid', '.midi'];
 // Every attachment of the next message, videos and audio alike (the names
 // say "video" from when only videos were attached).
 let videoAttachments = []; // [{ attachment_id, name, size, purpose }]
@@ -39,8 +41,23 @@ function appTakesVideoAttachments(appName) {
   return appImportsToolGroup(appName, 'video_analysis');
 }
 
+// An app that analyzes music files (its audio_upload setting).
+function appAnalyzesMusicFiles(appName) {
+  const app = (typeof apps !== 'undefined' && apps) ? apps[appName] : null;
+  return Boolean(app) && (app.audio_upload === true || app.audio_upload === 'true');
+}
+
 function appTakesAudioAttachments(appName) {
-  return appImportsToolGroup(appName, 'audio_transcription');
+  return appImportsToolGroup(appName, 'audio_transcription') || appAnalyzesMusicFiles(appName);
+}
+
+// The audio extensions an app takes as attachments: MIDI only where music
+// is analyzed.
+function audioExtensionsFor(appName) {
+  if (!appTakesAudioAttachments(appName)) return [];
+  return appAnalyzesMusicFiles(appName)
+    ? AUDIO_EXTENSIONS
+    : AUDIO_EXTENSIONS.filter(function (ext) { return !MIDI_EXTENSIONS.includes(ext); });
 }
 
 function hasExtension(file, extensions) {
@@ -60,7 +77,7 @@ function isAudioFile(file) {
 // (it goes the usual way). A video app takes .webm as a video.
 function attachmentPurposeFor(file, appName) {
   if (isVideoFile(file) && appTakesVideoAttachments(appName)) return 'video';
-  if (isAudioFile(file) && appTakesAudioAttachments(appName)) return 'audio';
+  if (hasExtension(file, audioExtensionsFor(appName))) return 'audio';
   return null;
 }
 
@@ -337,7 +354,7 @@ if (selectFileButton) {
     }
     // Apps that transcribe audio take an audio file, as an attachment.
     if (appTakesAudioAttachments(currentApp) && imageFileEl) {
-      imageFileEl.setAttribute('accept', imageFileEl.getAttribute('accept') + ',' + AUDIO_EXTENSIONS.join(','));
+      imageFileEl.setAttribute('accept', imageFileEl.getAttribute('accept') + ',' + audioExtensionsFor(currentApp).join(','));
       const audioNote = getTranslation('ui.fileToImportAudio', 'Audio (.mp3, .m4a, .wav, .ogg, .flac, ...)');
       if (imageFileLabel) imageFileLabel.textContent = imageFileLabel.textContent + ' / ' + audioNote;
     }
@@ -816,6 +833,7 @@ window.limitImageCount = limitImageCount;
 window.clearAllImages = clearAllImages;
 window.appTakesVideoAttachments = appTakesVideoAttachments;
 window.appTakesAudioAttachments = appTakesAudioAttachments;
+window.audioExtensionsFor = audioExtensionsFor;
 window.attachmentPurposeFor = attachmentPurposeFor;
 window.isVideoFile = isVideoFile;
 window.isAudioFile = isAudioFile;

@@ -32,6 +32,51 @@ RSpec.describe Monadic::Utils::MusicFeatures do
     end
   end
 
+  describe "#music_file" do
+    let(:attachment_id) { Monadic::Workspace::Ids.generate(:attachment) }
+    let(:record) { { relative_path: "conversations/c1/attachments/song.mp3", path: "/somewhere/song.mp3", purpose: "audio" } }
+    let(:shown) { [] }
+
+    before do
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return("/data")
+      allow(Monadic::Workbench::ChatOutput).to receive(:show) { |path, workbench| shown << [path, workbench] }
+      found = record
+      app.define_singleton_method(:resolve_audio_attachment) do |id, session|
+        (@asked ||= []) << [id, session]
+        found
+      end
+      app.singleton_class.send(:attr_reader, :asked)
+    end
+
+    it "finds a file attached to the chat by its id, also when the id is given as the path" do
+      expect(app.music_file(attachment_id: attachment_id, session: :s))
+        .to eq(relative: "conversations/c1/attachments/song.mp3", absolute: "/somewhere/song.mp3")
+      expect(app.music_file(file_path: attachment_id, session: :s)).to include(relative: "conversations/c1/attachments/song.mp3")
+      expect(app.asked).to eq([[attachment_id, :s], [attachment_id, :s]])
+    end
+
+    it "finds a file of the shared folder by its path" do
+      expect(app.music_file(file_path: "sub/piece.mid")).to eq(relative: "sub/piece.mid", absolute: "/data/sub/piece.mid")
+      expect(app.asked).to be_nil
+    end
+
+    it "shows audio on the work screen of the reply, and not MIDI" do
+      app.music_file(attachment_id: attachment_id, workbench: :w)
+      app.music_file(file_path: "piece.mid", workbench: :w)
+      expect(shown).to eq([["conversations/c1/attachments/song.mp3", :w]])
+    end
+
+    it "says why a file cannot be used" do
+      expect(app.music_file(file_path: "../song.mp3")).to include(:error)
+      expect(app.music_file).to include(:error)
+      app.define_singleton_method(:resolve_audio_attachment) do |_id, _session|
+        raise Monadic::Workspace::Attachments::Unusable.new(:not_in_request, "This file was not attached to a message of this chat.")
+      end
+      expect(app.music_file(attachment_id: attachment_id)).to eq(error: "This file was not attached to a message of this chat.")
+      expect(shown).to be_empty
+    end
+  end
+
   describe "#measure_music_features" do
     it "runs the analyzer once in the Python container and gives its result" do
       expect(app.measure_music_features("song.mp3")).to eq("success" => true, "tempo" => { "bpm" => 120 })

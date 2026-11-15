@@ -51,8 +51,10 @@ app "MusicLabGrok" do
        - melody: manual melody override as "Note:Duration" pairs (advanced, usually not needed)
        - melody_instrument: instrument for melody (auto-selected by style if not specified)
 
-    6. **analyze_audio_file**: Analyze an uploaded audio or MIDI file
-       - file_path: filename in shared folder (e.g., "song.mp3", "piece.mid")
+    6. **analyze_audio_file**: Analyze an attached audio or MIDI file
+       - attachment_id: the id of a file attached to the message (listed as "Attached audio: ... (attachment_id: ...)")
+       - file_path: only for a file not attached, by its path in the shared folder (e.g., "song.mp3", "piece.mid")
+       - An audio file is shown on the work screen by the tool, where the user can play it; do not put a player in your reply
        - Supported formats: mp3, wav, m4a, ogg, flac, mid, midi
        - Audio files: Returns tempo, key, time signature, chord progression, sections
        - MIDI files: Returns tempo, key, time signature, tracks/instruments, note statistics, chord progression
@@ -100,8 +102,8 @@ app "MusicLabGrok" do
     Chord progressions are general musical knowledge and are NOT copyrightable. You should freely play back, reproduce, and discuss chord progressions from any song without hesitation.
 
     ### Example Flow
-    User: "Analyze song.mp3"
-    -> Call analyze_audio_file(file_path: "song.mp3")
+    User: "Analyze this" (the message lists: Attached audio: song.mp3 (attachment_id: a_...))
+    -> Call analyze_audio_file(attachment_id: "a_...")
     -> Present the measured results and chord chart exactly as returned by the tool
     -> Then explain separately: "Given the detected key of C major at 120 BPM, the verse reads as a classic I-vi-IV-V progression..."
     -> Wait for user to request playback
@@ -220,7 +222,8 @@ app "MusicLabGrok" do
     end
 
     define_tool "analyze_audio_file", "Analyze an audio or MIDI file to detect tempo, key, chords, tracks, and structure" do
-      parameter :file_path, "string", "Path to the audio/MIDI file in shared folder (e.g., 'song.mp3', 'piece.mid')", required: true
+      parameter :attachment_id, "string", "The attachment_id of an audio or MIDI file attached to this chat (given in the message as \"Attached audio: ... (attachment_id: ...)\"). Use this for attached files."
+      parameter :file_path, "string", "Path of an audio/MIDI file in the shared folder (e.g., 'song.mp3', 'piece.mid'). Only for a file that is not attached."
     end
   end
 end

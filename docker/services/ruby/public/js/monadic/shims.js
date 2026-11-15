@@ -380,18 +380,6 @@ window.shims.formHandlers = {
         modal.removeEventListener('hidden.bs.modal', onHidden);
       });
     }
-  },
-
-  uploadAudioFile: function (file) {
-    if (!file) return Promise.reject(new Error("Please select an audio or MIDI file"));
-
-    const formData = new FormData();
-    formData.append("audioFile", file);
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 60000);
-    return window.monadicFetch.postJson("/upload_audio", formData, { signal: controller.signal })
-      .finally(() => clearTimeout(timer));
   }
 };
 

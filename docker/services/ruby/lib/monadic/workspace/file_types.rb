@@ -24,6 +24,7 @@ module Monadic
       ADTS = ->(head) { head.getbyte(0) == 0xFF && head.getbyte(1) && (head.getbyte(1) & 0xF6) == 0xF0 }
       FLAC = ->(head) { head.start_with?('fLaC'.b) }
       OGG = ->(head) { head.start_with?('OggS'.b) }
+      MIDI = ->(head) { head.start_with?('MThd'.b) }
 
       PURPOSES = {
         'video' => {
@@ -42,7 +43,10 @@ module Monadic
           '.opus' => OGG,
           '.flac' => FLAC,
           '.aac' => ->(head) { ADTS.call(head) || ID3.call(head) },
-          '.webm' => EBML
+          '.webm' => EBML,
+          # Standard MIDI files, for the apps that analyze music
+          '.mid' => MIDI,
+          '.midi' => MIDI
         }.freeze
       }.freeze
 

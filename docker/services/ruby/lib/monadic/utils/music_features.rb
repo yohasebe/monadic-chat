@@ -3,6 +3,8 @@
 require "json"
 require "shellwords"
 require_relative "environment"
+require_relative "../workspace"
+require_relative "../workbench/chat_output"
 
 module Monadic
   module Utils
@@ -20,6 +22,34 @@ module Monadic
       PACKAGE_NEEDED = "❌ Measuring the features of an audio file needs the optional Music Analysis package " \
                        "(librosa + madmom). Turn it on under Actions → Install Options and rebuild " \
                        "the Python container."
+
+      # The music file a tool was given: a file attached to the chat
+      # (attachment_id) or a file of the shared folder (file_path), as
+      # { relative:, absolute: } (its path in the shared folder, and where
+      # this process reads it), or { error: }. Audio is shown on the work
+      # screen of the reply, so the user can listen while reading.
+      def music_file(file_path: nil, attachment_id: nil, session: nil, workbench: nil)
+        id = attachment_id.to_s.strip
+        # Models sometimes pass the attachment id as the file name.
+        id = file_path.to_s.strip if id.empty? && Monadic::Workspace::Ids.valid?(:attachment, file_path.to_s.strip)
+        relative, absolute =
+          if id.empty?
+            path = MusicFeatures.path_in_shared_folder(file_path)
+            return { error: "Give the attachment_id of an attached file, or the path of a file in the shared folder." } unless path
+
+            inside = path.delete_prefix("#{SHARED_FOLDER}/")
+            [inside, File.join(Environment.data_path, inside)]
+          else
+            record = resolve_audio_attachment(id, session)
+            [record[:relative_path], record[:path]]
+          end
+        if AUDIO_EXTENSIONS.include?(File.extname(relative).delete_prefix(".").downcase)
+          Monadic::Workbench::ChatOutput.show(relative, workbench)
+        end
+        { relative: relative, absolute: absolute }
+      rescue Monadic::Workspace::Attachments::Unusable => e
+        { error: e.message }
+      end
 
       # The analyzer's result ("success" => true, with the features), or
       # "success" => false with "error"; "package_needed" => true when the

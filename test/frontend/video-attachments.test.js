@@ -157,6 +157,25 @@ describe('audio attachments', () => {
     expect(window.attachmentPurposeFor({ name: 'clip.webm' }, 'VideoDescriberApp')).toBe('video');
   });
 
+  it('are offered, with MIDI, by an app that analyzes music files', () => {
+    load({ toolGroups: [] });
+    global.apps.VideoDescriberApp.audio_upload = true;
+    expect(window.appTakesAudioAttachments('VideoDescriberApp')).toBe(true);
+    expect(window.attachmentPurposeFor({ name: 'song.mp3' }, 'VideoDescriberApp')).toBe('audio');
+    expect(window.attachmentPurposeFor({ name: 'piece.MID' }, 'VideoDescriberApp')).toBe('audio');
+    expect(window.attachmentPurposeFor({ name: 'piece.midi' }, 'VideoDescriberApp')).toBe('audio');
+    expect(window.audioExtensionsFor('VideoDescriberApp')).toEqual(expect.arrayContaining(['.mp3', '.mid', '.midi']));
+  });
+
+  it('leave MIDI out in an app that only transcribes audio', () => {
+    load({ toolGroups: [{ name: 'audio_transcription', available: true }] });
+    expect(window.attachmentPurposeFor({ name: 'piece.mid' }, 'VideoDescriberApp')).toBeNull();
+    expect(window.audioExtensionsFor('VideoDescriberApp')).not.toContain('.mid');
+    expect(window.audioExtensionsFor('VideoDescriberApp')).toContain('.mp3');
+    load({ toolGroups: [] });
+    expect(window.audioExtensionsFor('VideoDescriberApp')).toEqual([]);
+  });
+
   it('upload as audio and are kept as audio', async () => {
     load({ toolGroups: [{ name: 'audio_transcription', available: true }] });
     window.monadicFetch.postJson.mockResolvedValue({ attachment_id: 'a_9', name: 'talk.mp3', size: 1, purpose: 'audio' });

@@ -24,8 +24,11 @@ module MusicAnalystTools
   CRITIQUE_AUDIO_EXTS = %w[mp3 mpeg m4a mp4 wav ogg flac].freeze
 
   # The measured lens: features estimated by signal processing.
-  def analyze_audio_features(file_path:, session: nil)
-    result = measure_music_features(file_path)
+  def analyze_audio_features(file_path: nil, attachment_id: nil, session: nil, workbench: nil)
+    file = music_file(file_path: file_path, attachment_id: attachment_id, session: session, workbench: workbench)
+    return "❌ Audio feature analysis failed: #{file[:error]}" if file[:error]
+
+    result = measure_music_features(file[:relative])
     if result["package_needed"]
       return "#{result['error']} The interpretive critique (critique_audio) works without it."
     end
@@ -36,18 +39,17 @@ module MusicAnalystTools
   end
 
   # INTERPRETIVE lens: Gemini listens and critiques the music/performance.
-  def critique_audio(file_path:, focus: nil, session: nil)
-    filename = File.basename(file_path.to_s)
-    ext = File.extname(filename).delete_prefix(".").downcase
+  def critique_audio(file_path: nil, attachment_id: nil, focus: nil, session: nil, workbench: nil)
+    file = music_file(file_path: file_path, attachment_id: attachment_id, session: session, workbench: workbench)
+    return "❌ Audio critique failed: #{file[:error]}" if file[:error]
+
+    ext = File.extname(file[:relative]).delete_prefix(".").downcase
     unless CRITIQUE_AUDIO_EXTS.include?(ext)
       return "❌ critique_audio supports audio only (#{CRITIQUE_AUDIO_EXTS.join(', ')}). " \
              "For MIDI, use analyze_audio_features."
     end
 
-    # The Ruby process reads the file directly, so resolve to the mode-correct
-    # shared-volume path (container: /monadic/data, host: ~/monadic/data).
-    abs_path = File.join(Monadic::Utils::Environment.data_path, filename)
-    AudioAnalysisAgent.analyze(audio_path: abs_path, prompt: build_critique_prompt(focus), model: critique_model)
+    AudioAnalysisAgent.analyze(audio_path: file[:absolute], prompt: build_critique_prompt(focus), model: critique_model)
   rescue StandardError => e
     "❌ Audio critique failed: #{e.message}"
   end

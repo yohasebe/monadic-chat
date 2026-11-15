@@ -431,4 +431,24 @@ RSpec.describe ErrorPatternDetector do
       expect { described_class.mark_last_tool_errored(fresh_session) }.not_to raise_error
     end
   end
+
+  describe '.begin_turn' do
+    it 'does not count the tool calls of the turn before toward a cycle' do
+      session = { parameters: {} }
+      8.times { described_class.record_tool_call(session, 'list_files') }
+      expect(described_class.tool_call_cycle_detected?(session)).to be(true)
+      described_class.begin_turn(session)
+      expect(described_class.tool_call_cycle_detected?(session)).to be(false)
+    end
+
+    it 'lets a turn use tools after the turn before was stopped' do
+      session = { parameters: { 'stop_retrying' => true, 'model' => 'm' } }
+      described_class.begin_turn(session)
+      expect(session[:parameters]).to eq('model' => 'm')
+    end
+
+    it 'takes a session with no parameters' do
+      expect { described_class.begin_turn({}) }.not_to raise_error
+    end
+  end
 end

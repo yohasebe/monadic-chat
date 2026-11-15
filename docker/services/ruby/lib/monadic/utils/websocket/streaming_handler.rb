@@ -394,6 +394,7 @@ module WebSocketHelper
       thinking_hidden = [false, "false"].include?(obj["show_thinking"])
 
       prev_texts_for_tts = []
+      ErrorPatternDetector.begin_turn(session)
       responses = app_obj.api_request("user", session) do |fragment|
         next if thinking_hidden && %w[thinking reasoning].include?(fragment["type"])
 

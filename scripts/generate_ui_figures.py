@@ -678,6 +678,93 @@ def speech_panel(table, color, title):
     return figure
 
 
+def web_interface(table, color, title):
+    """The whole page: where each part of it is."""
+    figure = Figure(color, title)
+    page_keys(['ui.configSummaryLabel', 'ui.mainTabs.session', 'ui.dialog'])
+    word = lambda key: plain(label(table, key))  # noqa: E731
+    ink, quiet, line = color('text-primary'), color('pal-grey-text'), color('pal-grey-line')
+    blue, amber = color('pal-accent-strong'), color('pal-amber-mid')
+
+    def panel(px, py, w, h):
+        figure.add('<rect x="%d" y="%d" width="%d" height="%d" rx="6" fill="#ffffff" stroke="%s"/>' % (px, py, w, h, line))
+
+    # The bar at the top
+    panel(20, 34, 860, 46)
+    figure.add('<rect x="34" y="45" width="24" height="24" rx="5" fill="%s"/>' % amber)
+    used = figure.text(68, 63, 'Monadic', 17, ink, '600')
+    figure.text(68 + used + 5, 63, 'Chat', 17, color('pal-amber-strong'), '700')
+    figure.callout(90, 21)
+    status = word('ui.messages.readyForInput')
+    sw = text_width(status) + 46
+    figure.add('<rect x="%.1f" y="45" width="%.1f" height="24" rx="4" fill="%s" stroke="%s"/>'
+               % (820 - sw, sw, color('pal-grey-soft'), line))
+    figure.icon('fas', 'fa-circle-check', 830 - sw, 51, 12, color('pal-green-strong'))
+    figure.text(848 - sw, 62, status)
+    figure.callout(820 - sw / 2, 21)
+    figure.add('<rect x="832" y="45" width="36" height="24" rx="4" fill="#ffffff" stroke="%s"/>' % blue)
+    figure.icon('fas', 'fa-bars', 844, 51, 12, blue)
+    figure.callout(850, 21)
+
+    # The conversation's side
+    figure.add('<rect x="20" y="106" width="520" height="40" rx="6" fill="%s"/>' % line)
+    tx = 28
+    for key, chosen in (('ui.configSummaryLabel', False), ('ui.mainTabs.session', True)):
+        text = word(key)
+        w = text_width(text, 13, '600') + 24
+        if chosen:
+            figure.add('<rect x="%.1f" y="112" width="%.1f" height="28" rx="5" fill="#ffffff"/>' % (tx, w))
+        figure.text(tx + w / 2, 131, text, 13, ink if chosen else quiet, '600' if chosen else None, 'middle')
+        tx += w + 4
+    tx += 10
+    tx += figure.icon('fas', 'fa-comment', tx, 119, 13, ink) + 6
+    tx += figure.text(tx, 131, 'Chat', 13, ink, '700') + 10
+    figure.add('<rect x="%.1f" y="122" width="90" height="8" rx="4" fill="%s"/>' % (tx, color('pal-grey-mid')))
+    figure.callout(520, 93)
+
+    panel(20, 158, 520, 300)
+    used = figure.icon('fas', 'fa-comments', 36, 172, 14, amber)
+    figure.text(36 + used + 8, 184, word('ui.dialog'), 14, None, '600')
+    figure.callout(520, 172)
+    for top, icon, name, tint, ground in ((198, 'fa-face-smile', 'User', color('color-user'), color('bg-card-user')),
+                                         (310, 'fa-robot', 'Assistant', color('color-assistant'), color('bg-card-assistant'))):
+        figure.add('<rect x="36" y="%d" width="488" height="96" rx="6" fill="%s" stroke="%s"/>' % (top, ground, line))
+        figure.add('<path d="M42 %d H518 A6 6 0 0 1 524 %d V%d H36 V%d A6 6 0 0 1 42 %d Z" fill="#ffffff"/>'
+                   % (top, top + 6, top + 32, top + 6, top))
+        figure.add('<rect x="36" y="%d" width="488" height="96" rx="6" fill="none" stroke="%s"/>' % (top, line))
+        used = figure.icon('fas', icon, 48, top + 9, 14, tint)
+        figure.text(48 + used + 8, top + 21, name, 13, tint, '700')
+        figure.lines(50, top + 48, [430, 330] if name == 'User' else [440, 380])
+
+    figure.field(20, 470, 520, 56)
+    figure.callout(520, 484)
+    bx = 20
+    for w, fill in ((70, amber), (130, amber), (92, amber), (84, amber), (92, amber)):
+        figure.add('<rect x="%d" y="538" width="%d" height="26" rx="4" fill="%s"/>' % (bx, w, fill))
+        bx += w + 8
+    figure.add('<rect x="20" y="576" width="70" height="26" rx="4" fill="%s"/>' % blue)
+    figure.add('<rect x="98" y="576" width="76" height="26" rx="4" fill="%s"/>' % color('pal-grey-strong'))
+
+    # The side column
+    figure.add('<rect x="560" y="106" width="320" height="40" rx="6" fill="%s"/>' % line)
+    tx = 568
+    for i, key in enumerate(side_tabs()):
+        text = label(table, key)
+        w = text_width(text, 13, '600') + 24
+        if i == 0:
+            figure.add('<rect x="%.1f" y="112" width="%.1f" height="28" rx="5" fill="#ffffff"/>' % (tx, w))
+        figure.text(tx + w / 2, 131, text, 13, ink if i == 0 else quiet, '600' if i == 0 else None, 'middle')
+        tx += w + 4
+    figure.callout(860, 93)
+    for top, h in ((158, 150), (320, 110), (442, 160)):
+        panel(560, top, 320, h)
+        figure.add('<rect x="576" y="%d" width="120" height="10" rx="5" fill="%s"/>' % (top + 16, color('pal-grey-mid')))
+        figure.lines(576, top + 42, [270, 220, 250][:max(1, (h - 50) // 22)])
+    figure.callout(860, 172)
+    figure.grow(880, 602)
+    return figure
+
+
 # ---- the architecture ---------------------------------------------------------
 SERVICES = ['ruby', 'python', 'selenium', 'qdrant', 'embeddings', 'privacy', 'extractor']
 
@@ -855,6 +942,7 @@ FIGURES = {
     'url-dialog': (url_dialog, {'en': 'The Open URL dialog', 'ja': 'URL を開くダイアログ'}),
     'role-selector': (role_selector, {'en': 'The Role selector', 'ja': '役割の選択'}),
     'voice-input': (voice_input, {'en': 'Voice input', 'ja': '音声入力'}),
+    'web-interface': (web_interface, {'en': 'The web interface', 'ja': 'Web インターフェース'}),
     'system-settings': (system_settings, {'en': 'System settings', 'ja': 'システム設定'}),
     'speech-panel': (speech_panel, {'en': 'Speech panel', 'ja': 'Speech パネル'}),
     'attachments': (attachments, {'en': 'Files attached to a message', 'ja': 'メッセージに添付したファイル'}),

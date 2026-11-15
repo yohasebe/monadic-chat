@@ -458,7 +458,8 @@ ARCHITECTURE = {
     'en': {
         'computer': 'Your computer', 'desktop': 'Desktop app', 'desktop_1': 'Starts and stops the containers',
         'desktop_2': 'Settings and API keys', 'web': 'Web interface', 'conversation': 'Conversation',
-        'local': 'Local models', 'docker': 'Docker containers', 'server': 'Monadic Chat server',
+        'local': 'Local models', 'local_1': 'Runs outside Docker, on your GPU',
+        'local_2': 'No API key needed', 'docker': 'Docker containers', 'server': 'Monadic Chat server',
         'apps': 'Apps', 'adapters': 'Model adapters', 'tools': 'Tools', 'mcp': 'MCP server',
         'python': 'Runs code · JupyterLab', 'selenium': 'A browser for the apps',
         'qdrant': 'Vector database', 'embeddings': 'Turns text into vectors',
@@ -470,7 +471,8 @@ ARCHITECTURE = {
     'ja': {
         'computer': 'あなたのコンピューター', 'desktop': 'デスクトップアプリ', 'desktop_1': 'コンテナの起動と停止',
         'desktop_2': '設定と API キー', 'web': 'Web インターフェース', 'conversation': '会話',
-        'local': 'ローカルのモデル', 'docker': 'Docker コンテナ', 'server': 'Monadic Chat サーバー',
+        'local': 'ローカルのモデル', 'local_1': 'Docker の外で、GPU を使って動く',
+        'local_2': 'API キーは不要', 'docker': 'Docker コンテナ', 'server': 'Monadic Chat サーバー',
         'apps': 'アプリ', 'adapters': 'モデルとの接続', 'tools': 'ツール', 'mcp': 'MCP サーバー',
         'python': 'コードの実行・JupyterLab', 'selenium': 'アプリが操作するブラウザー',
         'qdrant': 'ベクトルデータベース', 'embeddings': 'テキストをベクトルに変換',
@@ -505,7 +507,7 @@ def architecture(table, color, title, language):
         figure.add('<rect x="%d" y="%d" width="%d" height="%d" rx="6" fill="none" stroke="%s"/>' % (x, y, w, h, line))
         heading(x + 18, y + 27, name, icon, tint, 14, None, style)
         for i, text in enumerate(note or []):
-            figure.text(x + 18, y + 48 + i * 18, text, 12, quiet)
+            figure.text(x + 18, y + 48 + i * 18, text, 12, ink if i == 0 and len(note) > 2 else quiet)
 
     def chip(x, y, text, stroke, fill, width=None, weight=None):
         w = width or text_width(text, 12) + 22
@@ -563,7 +565,7 @@ def architecture(table, color, title, language):
     heading(58, 590, word['shared'], 'fa-folder-open', brown, 15)
     figure.text(58, 614, word['shared_note'], 12, quiet)
     figure.text(58, 634, '~/monadic/data  ⇄  /monadic/data', 12, quiet)
-    card(560, 560, 240, 100, local, 'fa-microchip', brown, [word['local']])
+    card(560, 560, 240, 100, local, 'fa-microchip', brown, [word['local'], word['local_1'], word['local_2']])
 
     # Lines: each one straight, none over a box, and long enough to show its line
     arrow(165, 162, 165, 208)                        # the desktop app runs the containers

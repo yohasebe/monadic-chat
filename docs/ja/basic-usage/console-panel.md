@@ -15,7 +15,7 @@ Monadic Chatを停止します。
 **Restart** <br />
 Monadic Chatを再起動します。
 
-**Open Browser** <br />
+**ブラウザ** <br />
 Monadic ChatをWebブラウザで開きます。
 アクセス URL: [http://localhost:4567](http://localhost:4567)
 
@@ -40,7 +40,7 @@ Monadic Chatを終了します。
 
 ビルドのコマンドは Monadic Chat が止まっているとき、JupyterLab のコマンドは動いているとき、ドキュメント DB のコマンドは止まっているときに使えます。
 
-**Install Options** <br />
+**インストールオプション** <br />
 設定ウィンドウの Install Options パネルを開きます。サービスコンテナにインストールするオプションパッケージ（LaTeX、Pythonライブラリ、伏せる名前を探す追加言語など）を選択できます。
 
 **Start** <br />
@@ -52,53 +52,53 @@ Monadic Chatを停止します。
 **Restart** <br />
 Monadic Chatを再起動します。
 
-**Build All** <br />
+**すべてビルド** <br />
 Ruby と Python のイメージをビルドのキャッシュなしでビルドし、ほかのビルド済みのイメージをダウンロードし、ユーザーが定義したコンテナもビルドします。
 
-**Build Ruby Container** <br />
+**Rubyコンテナをビルド** <br />
 Monadic Chat を動かすイメージとコンテナ（`monadic-chat-ruby-container`）を、ビルドのキャッシュなしでビルドします。
 
-**Build Python Container** <br />
+**Pythonコンテナをビルド** <br />
 AI エージェントが使うイメージとコンテナ（`monadic-chat-python-container`）を、ビルドのキャッシュなしでビルドします。
 
-**Build User Containers** <br />
+**ユーザーコンテナをビルド** <br />
 ユーザーが定義したコンテナ（[Dockerコンテナの追加](../advanced-topics/adding-containers.md)を参照）を、ビルドのキャッシュなしでビルドします。通常の Start ではビルドされないので、定義を追加・変更した後はこのコマンドを使います。
 
-**Build Privacy Container** <br />
+**プライバシーコンテナをビルド** <br />
 [匿名化](../advanced-topics/anonymization.md)のために名前を探すコンテナ（`monadic-chat-privacy-container`）のイメージをダウンロードします。`PRIVACY_FILTER=false` を設定していないときに使えます。
 
-**Build Extractor Container** <br />
+**Extractor コンテナをビルド** <br />
 Knowledge Base Quality Pack が使うコンテナ（`monadic-chat-extractor-container`）のイメージをダウンロードします。Quality Pack をインストールしているときに使えます。
 
-**Open JupyterLab** <br />
+**JupyterLab を開く** <br />
 JupyterLab（[http://localhost:8889](http://localhost:8889)）をブラウザーで開きます。動いていなければ、先に起動します。詳細は[JupyterLabとの連携](../docker-integration/jupyterlab.md)を参照してください。
 
-**Stop JupyterLab** <br />
+**JupyterLabを停止** <br />
 JupyterLabを停止します。
 
-**Import Document DB** <br />
+**ドキュメントDBをインポート** <br />
 ドキュメント DB（ナレッジベースに保存した会話・PDF・その他の Knowledge Base エントリすべて）を、共有フォルダ内の書き出したファイルから取り込みます。会話の履歴はドキュメント DB に含まれず、変わりません。実行前に、現在の DB を置き換えることを警告する確認ダイアログ（**Replace and Import**）が表示されます。受け入れられるファイル名は `monadic-qdrant.tar.gz`（平文）または `monadic-qdrant.tar.gz.enc`（暗号化、エクスポート時のパスフレーズを入力するよう促されます）です。
 
-**Export Document DB** <br />
+**ドキュメントDBをエクスポート** <br />
 ドキュメント DB 全体を共有フォルダにエクスポートします。確認ダイアログには 2 つの選択肢があります: **Encrypt and Export**（デフォルト — パスフレーズを尋ね、`monadic-qdrant.tar.gz.enc` を書き出します）と **Export Plain**（暗号化せずに `monadic-qdrant.tar.gz` を書き出します。ナレッジベースに保存した会話と PDF が平文で含まれることを強く警告）。エクスポートには[会話の履歴](web-interface.md#chat-history-panel)は含まれません。マシン外に出る可能性があるエクスポートは暗号化版を使ってください。暗号化フォーマットとインポート／復号の挙動の詳細は [匿名化](../advanced-topics/anonymization.md#document-db-export-import) を参照してください。
 
 ### Open メニュー
 
 ![Open メニュー](../assets/images/figures/menu-open.svg)
 
-**Open Console** <br />
+**コンソールを開く** <br />
 Monadic Chatのコンソールを開きます。
 
-**Open Browser** <br />
+**ブラウザ** <br />
 Monadic Chatをデフォルトブラウザで開きます。アクセスURL: [http://localhost:4567](http://localhost:4567)
 
-**Open noVNC** <br />
+**noVNC を開く** <br />
 noVNCビューアウィンドウ（`http://localhost:7900`）を開き、Seleniumコンテナ内で動作しているブラウザの画面を表示します。Web自動操作の様子をリアルタイムで確認（および操作）できます。Monadic Chatの実行中に利用できます。
 
-**Open Shared Folder** <br />
+**共有フォルダ** <br />
 ホストコンピュータとDockerコンテナ間で共有されるフォルダーを開きます。共有フォルダはファイルのインポートやエクスポート、追加アプリの導入に使用します。フォルダ構成と各サブフォルダ（`apps`、`helpers`、`scripts`）の役割については[共有フォルダ](../docker-integration/shared-folder.md)を参照してください。
 
-**Open Config Folder** <br />
+**設定フォルダを開く** <br />
 Monadic Chatの設定ファイルが保存されているフォルダを開きます。このフォルダ内には下記のファイルが含まれます。
 
 - `env`: 設定のファイル（設定ウィンドウで設定）
@@ -108,7 +108,7 @@ Monadic Chatの設定ファイルが保存されているフォルダを開き�
 - `TTS_DICT.csv`: 音声合成の辞書。設定ウィンドウで辞書を指定すると、ここに写されます
 - `compose.yml`: Docker Compose設定ファイル（ユーザーコンテナがあるときに生成）
 
-**Open Log Folder** <br />
+**ログフォルダを開く** <br />
 Monadic Chatのログファイルが保存されているフォルダを開きます。このフォルダ内には下記のファイルが含まれます。
 
 - `docker_build.log`: Dockerビルドのログファイル（Python コンテナは `docker_build_python.log`）
@@ -124,16 +124,16 @@ Monadic Chatの設定ウィンドウを開きます。Webインターフェー�
 
 ### File メニュー
 
-**About Monadic Chat** <br />
+**Monadic Chatについて** <br />
 アプリケーションのバージョン情報を表示します。
 
-**Check for Updates** <br />
+**アップデートを確認** <br />
 アプリケーションの更新を確認します。新しい版があると、**Download & Install** のあるダイアログが表示されます。ダウンロードが終わったら、**Restart Now** でインストールするか、**Later** を選びます。
 
-**Remove Images/Containers/Data** <br />
+**イメージ/コンテナ/データを削除** <br />
 Monadic Chat の Docker イメージ、コンテナ、ボリューム（Knowledge Base のデータ）を削除します。`~/monadic` のファイルは残ります。
 
-**How to Uninstall** <br />
+**アンインストール方法** <br />
 お使いのOSに応じた完全なアンインストール手順を記載したオンラインドキュメントを開きます。
 
 **Quit** <br />
@@ -141,7 +141,7 @@ Monadic Chat の Docker イメージ、コンテナ、ボリューム（Knowledg
 
 ## 設定パネル :id=settings-panel
 
-変更は、サイドバーの下の **Save** で保存します（保存していない変更があるまま閉じると、保存するかを尋ねます）。設定ウィンドウはサイドバーからアクセスできる次のセクションに分かれています: **General**、**System**、**API Keys**、**Voice & Audio**、**Services**、**Install Options**、**Actions**、**About**。
+変更は、サイドバーの下の **Save** で保存します（保存していない変更があるまま閉じると、保存するかを尋ねます）。設定ウィンドウはサイドバーからアクセスできる次のセクションに分かれています: **General**、**System**、**API Keys**、**Voice & Audio**、**Services**、**インストールオプション**、**アクション**、**About**。
 
 ### General（一般）
 
@@ -163,7 +163,7 @@ Monadic Chat の Docker イメージ、コンテナ、ボリューム（Knowledg
 コンソールウィンドウを表示する代わりに、メニューバーに常駐させます（macOS）。
 
 **Notify When a Reply Arrives in the Background** <br />
-内部ブラウザのウィンドウを閉じると、ウィンドウは隠れ、会話はそのまま残ります。**Open Browser** か、メニューバー（システムトレイ）のメニューの **Web UI を表示** で、ウィンドウが戻ります。閉じたときに作っていた返事は受け取り続け、届くと通知が出ます。通知を押しても、ウィンドウが戻ります。通知に会話の文は入りません。ウィンドウを隠すときに、音声入力と Live の会話を止め、音声の再生も止めます。隠れている間は音声を鳴らさず、マイクも使えません。会話を終えるときは、**Reset** を使うか、メニューバーのメニューで **Web UI を閉じる** を選ぶか、Monadic Chat を終了します。この設定をオフにすると、通知を出さずに隠します。
+内部ブラウザのウィンドウを閉じると、ウィンドウは隠れ、会話はそのまま残ります。**ブラウザ** か、メニューバー（システムトレイ）のメニューの **Web UI を表示** で、ウィンドウが戻ります。閉じたときに作っていた返事は受け取り続け、届くと通知が出ます。通知を押しても、ウィンドウが戻ります。通知に会話の文は入りません。ウィンドウを隠すときに、音声入力と Live の会話を止め、音声の再生も止めます。隠れている間は音声を鳴らさず、マイクも使えません。会話を終えるときは、**Reset** を使うか、メニューバーのメニューで **Web UI を閉じる** を選ぶか、Monadic Chat を終了します。この設定をオフにすると、通知を出さずに隠します。
 
 **Extra Logging** <br />
 詳しいログ情報を有効にするかどうかを選択します。有効にすると、APIリクエストとレスポンスの詳細がログに記録されます。ログファイルは `~/monadic/log/extra.log` に保存されます。
@@ -212,7 +212,7 @@ MCPサーバーが使用するネットワークポートです（デフォル�
 
 ### Install Options（インストールオプション）
 
-Python コンテナにインストールするオプションパッケージを選択します: LaTeX、Pythonライブラリ（NLTK、spaCy、gensim、MediaPipe、Transformers）、音楽分析（librosa、madmom）、システムツール（ImageMagick）。保存しても再ビルドは行われません。次回の起動時に**Rebuild and Start**が提示されるか、**Actions → Build Python Container** から手動で実行します。
+Python コンテナにインストールするオプションパッケージを選択します: LaTeX、Pythonライブラリ（NLTK、spaCy、gensim、MediaPipe、Transformers）、音楽分析（librosa、madmom）、システムツール（ImageMagick）。保存しても再ビルドは行われません。次回の起動時に**Rebuild and Start**が提示されるか、**アクション → Pythonコンテナをビルド** から手動で実行します。
 
 同じパネルには、さらに 2 つのグループがあります。
 
@@ -225,4 +225,4 @@ Docker の状態を表示し、Actions メニューの操作を提供します�
 
 ### About（情報）
 
-アプリケーションのバージョン、**Check for Updates**、ホームページとソースコードへのリンクを表示します。
+アプリケーションのバージョン、**アップデートを確認**、ホームページとソースコードへのリンクを表示します。

@@ -25,11 +25,11 @@ Monadic Chat のサーバーと Web 画面を動かします。どのアプリ�
 アプリのための Python のコード、コマンドラインのツール、JupyterLab を動かします。
 - **ポート**：8889（JupyterLab）
 - **使うアプリ**：Code Interpreter、Jupyter Notebook、Research Assistant、Math Tutor、Video Describer、Concept Visualizer、Mermaid Grapher、Web Insight、Auto Forge、Knowledge Base のファイルの取り込み
-- 追加のコンポーネント（LaTeX、Python のライブラリ、ImageMagick）は **Actions → Install Options** で加えます。[Python コンテナ](python-container.md)を参照してください。
+- 追加のコンポーネント（LaTeX、Python のライブラリ、ImageMagick）は **アクション → インストールオプション** で加えます。[Python コンテナ](python-container.md)を参照してください。
 
 ### Selenium コンテナ（`monadic-chat-selenium-container`） :id=selenium-container
 アプリが操作する Chromium ブラウザーを動かし、Web ページを開いたりスクリーンショットを撮ったりします。
-- **ポート**：7900（**Open → Open noVNC** でのブラウザーの表示）。WebDriver（4444）には、ほかのコンテナからだけつながります
+- **ポート**：7900（**開く → noVNC を開く** でのブラウザーの表示）。WebDriver（4444）には、ほかのコンテナからだけつながります
 - **使うアプリ**：Web Insight、Research Assistant、Auto Forge、Mermaid Grapher
 
 ### Qdrant コンテナ（`monadic-chat-qdrant-container`） :id=qdrant-container
@@ -98,7 +98,7 @@ Monadic Chat は、ローカルの LLM として [Ollama](https://ollama.com) �
 ## 更新と再ビルド :id=rebuilding-process
 
 - アプリを更新した後の最初の Start で、Ruby コンテナが再ビルドされます（ビルドのキャッシュを使うので短時間です）。ほかのコンテナは、更新で定義が変わったものだけが更新されます
-- **Actions → Build Ruby Container** と **Actions → Build Python Container** は、キャッシュを使わずに一からビルドします
+- **アクション → Rubyコンテナをビルド** と **アクション → Pythonコンテナをビルド** は、キャッシュを使わずに一からビルドします
 - Start の進み具合はコンソールに表示されます。起動ごとのまとめは `~/monadic/log/docker_startup.log` に書かれます
 
 ## 起動時のヘルスチェック :id=startup-health

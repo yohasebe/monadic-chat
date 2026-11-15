@@ -8,13 +8,13 @@ Docker コンテナを追加するには、`~/monadic/data/services` または `
 - `Dockerfile`
 - コンテナで必要なそのほかのファイル
 
-ビルドするには、**Actions → Build User Containers** を選びます。次のことが行われます。
+ビルドするには、**アクション → ユーザーコンテナをビルド** を選びます。次のことが行われます。
 
 1. それらの `services` フォルダにある `compose.yml` をすべて探す
 2. `--no-cache` でコンテナをビルドする
 3. ビルドのログを `~/monadic/log/docker_build.log` に書く
 
-Start では、ユーザーのコンテナは再ビルドされません。コンテナの定義を加えたり変えたりしたら、もう一度 **Build User Containers** を実行してください。
+Start では、ユーザーのコンテナは再ビルドされません。コンテナの定義を加えたり変えたりしたら、もう一度 **ユーザーコンテナをビルド** を実行してください。
 
 ユーザーのコンテナがあると、Monadic Chat は `~/monadic/config/compose.yml` を書き出し、システムのコンテナとユーザーのコンテナをまとめて扱います。コンテナは Start でいっしょに起動し、いっしょに止まります。
 
@@ -71,7 +71,7 @@ CMD ["tail", "-f", "/dev/null"]
 
 ## 参考
 
-リポジトリにあるシステムのコンテナが、そのまま完全な例になります。たとえば [GitHub](https://github.com/yohasebe/monadic-chat) の `docker/services/python/compose.yml` と `docker/services/python/Dockerfile` です。ただし、compose の `profiles`、`image`、`cache_from`、**Install Options** で決まるビルド引数は、システムのコンテナだけに要るもので、ユーザーのコンテナには要りません。
+リポジトリにあるシステムのコンテナが、そのまま完全な例になります。たとえば [GitHub](https://github.com/yohasebe/monadic-chat) の `docker/services/python/compose.yml` と `docker/services/python/Dockerfile` です。ただし、compose の `profiles`、`image`、`cache_from`、**インストールオプション** で決まるビルド引数は、システムのコンテナだけに要るもので、ユーザーのコンテナには要りません。
 
 ## トラブルシューティング
 

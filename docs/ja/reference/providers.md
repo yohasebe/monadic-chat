@@ -23,7 +23,7 @@ Monadic Chatはマルチプロバイダー環境として設計されていま�
 
 ## APIキーの設定
 
-各プロバイダーにはそれぞれのAPIキーが必要です。キーは**Settings**ウィンドウ（**Open → Settings**）の**API Keys**の項目で入力するか、`~/monadic/config/env`に直接記述します。パネルとファイルは同じ設定を編集します。キー変数の一覧は[設定リファレンス](/ja/reference/configuration.md#api-keys)を、パネル自体の説明は[コンソールパネル](/ja/basic-usage/console-panel.md)を参照してください。
+各プロバイダーにはそれぞれのAPIキーが必要です。キーは**Settings**ウィンドウ（**開く → 設定**）の**API Keys**の項目で入力するか、`~/monadic/config/env`に直接記述します。パネルとファイルは同じ設定を編集します。キー変数の一覧は[設定リファレンス](/ja/reference/configuration.md#api-keys)を、パネル自体の説明は[コンソールパネル](/ja/basic-usage/console-panel.md)を参照してください。
 
 各プロバイダーのアプリとUIオプションは、そのキーを設定すると選択可能になります。まず1つのキーから始めて、後からプロバイダーを追加していくこともできます。
 

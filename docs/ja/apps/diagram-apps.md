@@ -63,4 +63,4 @@ Syntax Tree の対応プロバイダーは[モデル対応状況の表](../basic
 
 図は、共有フォルダの会話のフォルダに SVG と LaTeX のソースで保存され、チャットの横の作業画面に表示されます。SVG はベクターグラフィックのエディターで編集できます。
 
-Concept Visualizer には LaTeX が必要です。**Actions → Install Options** で **Install LaTeX (minimal set for diagrams)** をオンにし、Python コンテナを再ビルドしてください。対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
+Concept Visualizer には LaTeX が必要です。**アクション → インストールオプション** で **Install LaTeX (minimal set for diagrams)** をオンにし、Python コンテナを再ビルドしてください。対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。

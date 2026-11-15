@@ -31,7 +31,7 @@
 //           Dockerfile ARG name that monadic.sh passes via --build-arg)
 //   label → English fallback when no i18n key is set
 //   group → 'python' (Python Libraries CPU), 'system' (apt),
-//           'music' (Music Lab requirement), 'tools' (CLI utilities)
+//           'music' (Music Tutor requirement), 'tools' (CLI utilities)
 const PYTHON_OPTIONS = Object.freeze([
   Object.freeze({ id: 'install-latex',        env: 'INSTALL_LATEX',       label: 'LaTeX (minimal set for diagrams)', group: 'system' }),
   Object.freeze({ id: 'pyopt-nltk',           env: 'PYOPT_NLTK',          label: 'nltk',                              group: 'python' }),

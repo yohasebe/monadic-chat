@@ -88,7 +88,7 @@
       },
       "music": {
         "title": "Análisis musical",
-        "help": "Requerido para Music Lab. Instala bibliotecas de análisis de audio (detección de acordes, estimación de tempo/tonalidad, etc.).",
+        "help": "Requerido para Music Tutor y Music Analyst. Instala bibliotecas de análisis de audio (detección de acordes, estimación de tempo/tonalidad, etc.).",
         "items": {
           "librosa": "librosa + madmom"
         }

@@ -1,12 +1,12 @@
-# Music Lab と Music Analyst
+# Music Tutor と Music Analyst
 
-2 つの音楽のアプリです。手を動かして音楽理論を学ぶ Music Lab と、録音された演奏を評価する Music Analyst です。
+2 つの音楽のアプリです。Music Tutor は、解説と、鳴らせる楽譜や伴奏パターンで音楽理論を教えます。Music Analyst は、音声や MIDI のファイルを分析し、録音された演奏を講評します。テキストの説明から新しい音楽を音声ファイルとして作るには、[Music Generator](music-generator.md) をご利用ください。
 
-## Music Lab :id=music-lab
+## Music Tutor :id=music-tutor
 
-![Music Lab app icon](../assets/icons/music.png ':size=40')
+![Music Tutor app icon](../assets/icons/music.png ':size=40')
 
-コード・スケール・音程・進行を実際に鳴らし、バッキングトラックを生成しながら音楽理論を手を動かして学ぶラボです。AIが音楽理論の概念を解説し、音声サンプルをブラウザ内で直接再生します。既存の録音の音楽性や演奏を評価したい場合は、Music Analystをご利用ください。
+コード・スケール・音程・進行を実際に鳴らし、バッキングトラックを生成しながら、手を動かして音楽理論を学びます。AIが音楽理論の概念を解説し、例を楽譜として書きます。楽譜はブラウザ内で再生できます。既存の録音の音楽性や演奏を評価したい場合は、Music Analystをご利用ください。
 
 **主な機能：**
 - **音声/MIDI分析**: 音声ファイル（mp3, wav, m4a, ogg, flac）やMIDIファイル（mid, midi）をアップロードして、テンポ・キー・拍子・コード進行・楽曲構造を検出。MIDI分析ではトラック・楽器情報も抽出
@@ -19,21 +19,21 @@
 
 音声と MIDI の分析には、オプションの **Music Analysis** パッケージ（librosa + madmom）が必要です。**Actions → Install Options** でオンにし、Python コンテナを再ビルドしてください。
 
-Music LabはOpenAI、Claude、Gemini、Grokで利用可能です。
+Music TutorはOpenAI、Claude、Gemini、Grokで利用可能です。
 
 ## Music Analyst :id=music-analyst
 
 ![Music Analyst app icon](../assets/icons/music.png ':size=40')
 
-録音された演奏を、計測の結果と、曲と演奏への講評の 2 つの面から評価します。コードやスケールを鳴らして音楽理論を学ぶ場合は、Music Labをご利用ください。
+録音された演奏を、計測の結果と、曲と演奏への講評の 2 つの面から評価します。コードやスケールを鳴らして音楽理論を学ぶ場合は、Music Tutorをご利用ください。
 
 **主な機能：**
-- **客観的特徴**: アップロードした音声またはMIDIファイルから、信号処理によりテンポ・キー・拍子・コード進行・楽曲構造を抽出
+- **計測された特徴**: アップロードした音声またはMIDIファイルから、信号処理によりテンポ・キー・拍子・コード進行・楽曲構造を推定
 - **解釈的講評**: Geminiが音声を聴き、全体の性格やムード、ジャンルや楽器編成、演奏の質（表現、ダイナミクス、フレージング、タイミング、エネルギー）について、長所・短所・総合評価とともにコメント
 - **計測の結果と講評**：計測の結果、講評、またはその両方を頼めます。両方のときは、別々の節に分けて示されます
 
-解釈的講評は音声をモノラル・低帯域で分析するため、音質・ミックス/マスタリング・ステレオ像は評価しません。正確なテンポやキーは客観的特徴分析から得られます。講評は実音声（mp3, wav, m4a, ogg, flac）が対象で、MIDIファイルは客観的分析のみ対応です。
+解釈的講評は音声をモノラル・低帯域で分析するため、音質・ミックス/マスタリング・ステレオ像は評価しません。テンポやキーは計測された特徴から得られます（推定値です）。講評は実音声（mp3, wav, m4a, ogg, flac）が対象で、MIDIファイルは計測された特徴のみ対応です。
 
-音声と MIDI のファイルの客観的な分析には、オプションの **Music Analysis** パッケージ（librosa + madmom）が必要です。**Actions → Install Options** でオンにし、Python コンテナを再ビルドしてください。
+音声と MIDI のファイルの特徴の計測には、オプションの **Music Analysis** パッケージ（librosa + madmom）が必要です。**Actions → Install Options** でオンにし、Python コンテナを再ビルドしてください。
 
 Music AnalystはGeminiで利用可能です。

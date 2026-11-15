@@ -46,7 +46,7 @@ Monadic Chatの機能と組み込みアプリケーションの基本を学び�
 *   [Web・メディア分析アプリ](/ja/apps/analysis-apps.md)
 *   [Knowledge Base](/ja/apps/knowledge-base.md)
 *   [コーディング・ノートブックアプリ](/ja/apps/coding-apps.md)
-*   [Music Lab と Music Analyst](/ja/apps/music-apps.md)
+*   [Music Tutor と Music Analyst](/ja/apps/music-apps.md)
 *   [Auto Forge](/ja/apps/auto_forge.md)
 
 ## Docker連携

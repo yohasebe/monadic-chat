@@ -41,7 +41,7 @@ The table below shows which apps are available for which AI model providers.
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | |
 | Auto Forge | ✅ | ✅ | | | | ✅ | | |
-| Music Lab | ✅ | ✅ | | | ✅ | ✅ | | |
+| Music Tutor | ✅ | ✅ | | | ✅ | ✅ | | |
 | Music Analyst | | | | | ✅ | | | |
 | Document Generator | | ✅ | | | | | | |
 | Monadic Chat Help | ✅ | | | | | | | |
@@ -80,7 +80,7 @@ Apps that create images, videos, diagrams, music or documents, and Chat Plus, Se
 | Coding Assistant | ✅ |
 | Jupyter Notebook | ✅ |
 | Auto Forge | |
-| Music Lab | |
+| Music Tutor | |
 | Music Analyst | |
 | Document Generator | |
 | Monadic Chat Help | ✅ |
@@ -174,11 +174,11 @@ Write and execute code in a sandboxed Docker environment, manage files in the sh
 - Coding Assistant
 - Jupyter Notebook
 
-### Music Lab & Music Analyst
+### Music Tutor & Music Analyst
 
-Learn music theory hands-on with playable examples and backing tracks, and evaluate recorded performances with measured features and interpretive critique. See [Music Lab & Music Analyst](../apps/music-apps.md).
+Learn music theory hands-on with playable examples and backing tracks, and evaluate recorded performances with measured features and interpretive critique. See [Music Tutor & Music Analyst](../apps/music-apps.md).
 
-- Music Lab
+- Music Tutor
 - Music Analyst
 
 ### Auto Forge

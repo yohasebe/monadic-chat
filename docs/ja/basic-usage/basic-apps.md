@@ -41,7 +41,7 @@
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | |
 | Auto Forge | ✅ | ✅ | | | | ✅ | | |
-| Music Lab | ✅ | ✅ | | | ✅ | ✅ | | |
+| Music Tutor | ✅ | ✅ | | | ✅ | ✅ | | |
 | Music Analyst | | | | | ✅ | | | |
 | Document Generator | | ✅ | | | | | | |
 | Monadic Chat Help | ✅ | | | | | | | |
@@ -80,7 +80,7 @@
 | Coding Assistant | ✅ |
 | Jupyter Notebook | ✅ |
 | Auto Forge | |
-| Music Lab | |
+| Music Tutor | |
 | Music Analyst | |
 | Document Generator | |
 | Monadic Chat Help | ✅ |
@@ -174,11 +174,11 @@ Mermaid.js、Draw.io、RSyntaxTree、LaTeX/TikZ を使って自然言語の説�
 - Coding Assistant
 - Jupyter Notebook
 
-### Music Lab と Music Analyst
+### Music Tutor と Music Analyst
 
-演奏可能なサンプルとバッキングトラックで音楽理論を実践的に学び、録音された演奏を計測された特徴量と解釈的な批評の両面から評価できます。詳細は[Music Lab と Music Analyst](../apps/music-apps.md)を参照してください。
+演奏可能なサンプルとバッキングトラックで音楽理論を実践的に学び、録音された演奏を計測された特徴量と解釈的な批評の両面から評価できます。詳細は[Music Tutor と Music Analyst](../apps/music-apps.md)を参照してください。
 
-- Music Lab
+- Music Tutor
 - Music Analyst
 
 ### Auto Forge

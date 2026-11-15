@@ -29,7 +29,7 @@ RSpec.describe 'Tool Method Behavior' do
   end
 
   # ============================================
-  # Music Lab Tools
+  # Music Tutor Tools
   # ============================================
   describe 'MusicLab Tools' do
     let(:app_class) do

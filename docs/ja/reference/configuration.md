@@ -156,7 +156,7 @@ Python のコンテナに入れる追加のパッケージを選びます。変�
 | `PYOPT_NLTK` | Natural Language Toolkit | 自然言語処理 | `false` |
 | `PYOPT_SPACY` | spaCy（自然言語処理のライブラリ） | 高度な自然言語処理 | `false` |
 | `PYOPT_GENSIM` | トピックモデルのライブラリ | テキストの分析 | `false` |
-| `PYOPT_LIBROSA` | Music Analysis：librosa と madmom（soundfile、midiutil、pretty_midi を含む） | Music Lab、Music Analyst | `false` |
+| `PYOPT_LIBROSA` | Music Analysis：librosa と madmom（soundfile、midiutil、pretty_midi を含む） | Music Tutor、Music Analyst | `false` |
 | `PYOPT_MEDIAPIPE` | 画像認識のフレームワーク（CPU） | 画像の処理 | `false` |
 | `PYOPT_TRANSFORMERS` | Hugging Face Transformers と Accelerate（CPU） | 深層学習の自然言語処理 | `false` |
 | `PYOPT_PLOTLY_STATIC` | kaleido と Chromium：ノートブックの Plotly のグラフに PNG を添えて保存する | 作業画面に表示するノートブックの Plotly のグラフ | `false` |

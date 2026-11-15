@@ -23,7 +23,7 @@ RSpec.describe 'Tool Method Invocation Validation' do
   # Format: { app_class_name => { tool_name => { required_args } } }
   let(:apps_with_tools) do
     {
-      # Music Lab - replaced Chord Accompanist
+      # Music Tutor - replaced Chord Accompanist
       'MusicLabOpenAI' => {
         # All tools require send_command to Python container, so just test respond_to
       },

@@ -79,7 +79,7 @@
       },
       "music": {
         "title": "音楽分析",
-        "help": "Music Lab に必要。音声分析ライブラリ（コード検出、テンポ/キー推定など）をインストールします。",
+        "help": "Music Tutor と Music Analyst に必要。音声分析ライブラリ（コード検出、テンポ/キー推定など）をインストールします。",
         "items": {
           "librosa": "librosa + madmom"
         }

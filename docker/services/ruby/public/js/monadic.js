@@ -4183,33 +4183,9 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Initialize tooltips with delegated observation for dynamically added elements
-  {
-    const discourseEl = $id("discourse");
-    if (discourseEl) {
-      // Initialize tooltips on existing elements
-      discourseEl.querySelectorAll('.card-header [title]').forEach(function(el) {
-        new bootstrap.Tooltip(el, { delay: { show: 0, hide: 0 }, container: 'body' });
-      });
-      // Observe for new elements and initialize tooltips on them
-      // Only what was added is looked at: a reply that streams adds text to
-      // one card many times a second, and has no header in it.
-      const tooltipObserver = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-          mutation.addedNodes.forEach(function(node) {
-            if (node.nodeType !== 1) return;
-            const targets = Array.from(node.querySelectorAll('.card-header [title]'));
-            if (node.matches('.card-header [title]')) targets.push(node);
-            targets.forEach(function(el) {
-              if (!bootstrap.Tooltip.getInstance(el)) {
-                new bootstrap.Tooltip(el, { delay: { show: 0, hide: 0 }, container: 'body' });
-              }
-            });
-          });
-        });
-      });
-      tooltipObserver.observe(discourseEl, { childList: true, subtree: true });
-    }
+  // The tooltips of the cards' controls, made when the pointer comes to one
+  if (window.uiUtils && window.uiUtils.showCardTooltipsOnHover) {
+    window.uiUtils.showCardTooltipsOnHover($id("discourse"));
   }
 
   // Add global function to clean up all tooltips

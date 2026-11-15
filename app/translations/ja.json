@@ -131,8 +131,7 @@
     "stopJupyterLab": "JupyterLabを停止",
     "importDocumentDB": "ドキュメントDBをインポート",
     "exportDocumentDB": "ドキュメントDBをエクスポート",
-    "open": "開く",
-    "openConsole": "コンソールを開く"
+    "open": "開く"
   },
   "tray": {
     "show": "表示",

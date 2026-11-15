@@ -124,8 +124,7 @@
     "stopJupyterLab": "JupyterLab stoppen",
     "importDocumentDB": "Document DB importieren",
     "exportDocumentDB": "Document DB exportieren",
-    "open": "Öffnen",
-    "openConsole": "Konsole öffnen"
+    "open": "Öffnen"
   },
   "tray": {
     "show": "Anzeigen",

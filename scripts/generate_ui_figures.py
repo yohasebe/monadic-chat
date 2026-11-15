@@ -416,10 +416,10 @@ def live_conversation(table, color, title):
     return figure
 
 
-def side_column(table, color, title):
-    """The tabs of the side column."""
-    figure = Figure(color, title)
-    x, y = 20, 34
+def side_tab_strip(figure, table, x, y, marks):
+    """The side column's tabs with the work screen's chosen; returns where the strip ends."""
+    color = figure.color
+    strip = len(figure.parts)
     figure.add('<rect x="%d" y="%d" width="{w}" height="38" rx="6" fill="%s"/>' % (x, y, color('pal-grey-line')))
     tx = x + 6
     for i, key in enumerate(side_tabs()):
@@ -429,14 +429,89 @@ def side_column(table, color, title):
             figure.add('<rect x="%.1f" y="%.1f" width="%.1f" height="28" rx="5" fill="#ffffff"/>' % (tx, y + 5, width))
         figure.text(tx + width / 2, y + 24, text, 14, None if i == 1 else color('pal-grey-text'),
                     '600' if i == 1 else None, 'middle')
-        figure.callout(tx + width / 2, y - 13)
+        if marks:
+            figure.callout(tx + width / 2, y - 13)
         tx += width + 4
-    panel_width = max(tx + 6 - x, 420)
-    figure.parts[0] = figure.parts[0].replace('{w}', '%d' % panel_width)
+    return strip, tx + 6
+
+
+def side_column(table, color, title):
+    """The tabs of the side column."""
+    figure = Figure(color, title)
+    x, y = 20, 34
+    strip, right = side_tab_strip(figure, table, x, y, True)
+    panel_width = max(right - x, 420)
+    figure.parts[strip] = figure.parts[strip].replace('{w}', '%d' % panel_width)
     figure.add('<rect x="%d" y="%d" width="%d" height="120" rx="6" fill="#ffffff" stroke="%s"/>'
                % (x, y + 48, panel_width, color('pal-grey-line')))
     figure.lines(x + 16, y + 66, [panel_width - 60, panel_width - 140, panel_width - 90, panel_width - 200])
     figure.grow(x + panel_width, y + 168)
+    return figure
+
+
+def work_screen(table, color, title):
+    """The work screen: its items, the steps through them, and a drawn file with its switch."""
+    figure = Figure(color, title)
+    source = read('public', 'js', 'monadic', 'workbench.js')
+    for needed in ("t('ui.workbench.browser'", "t('ui.workbench.itemOf'", "t('ui.workbench.viewDrawn'",
+                   "t('ui.workbench.viewSource'", "'fa-solid fa-xmark'", "'fa-solid fa-chevron-left'",
+                   "'fa-solid fa-chevron-right'"):
+        if needed not in source:
+            raise SystemExit('workbench.js no longer has %s' % needed)
+    if 'id="workbench-items"' not in read('views', 'index.erb'):
+        raise SystemExit('the page no longer has the work screen items')
+    word = lambda key: label(table, key)  # noqa: E731
+    quiet, line = color('pal-grey-text'), color('pal-grey-line')
+    x, y, width = 20, 20, 480
+    strip, right = side_tab_strip(figure, table, x, y, False)
+    width = max(right - x, width)
+    figure.parts[strip] = figure.parts[strip].replace('{w}', '%d' % width)
+    # The row of items: the browser, an image the AI made, and the file shown, which can be taken away
+    row = y + 66
+    figure.add('<rect x="%d" y="%d" width="%d" height="38" rx="6" fill="#ffffff" stroke="%s"/>' % (x, row, width, line))
+    ix = x + 6
+    for i, name in enumerate([word('ui.workbench.browser'), 'chart.png', 'notes.md']):
+        w = text_width(name, TEXT, '600' if i == 2 else None) + 24
+        if i == 2:
+            figure.add('<rect x="%.1f" y="%d" width="%.1f" height="28" rx="5" fill="%s" stroke="%s"/>'
+                       % (ix, row + 5, w, color('pal-grey-soft'), line))
+        figure.text(ix + 12, row + 24, name, TEXT, None if i == 2 else quiet, '600' if i == 2 else None)
+        if i == 0:
+            figure.callout(ix + w / 2, row - 13)
+        ix += w + 4
+    figure.icon('fa-solid', 'fa-xmark', ix + 4, row + 12, 14, quiet)
+    figure.callout(ix + 10, row - 13)
+    # ‹ Item 3 of 3 ›
+    step = row + 52
+    for bx, arrow in ((x, 'fa-chevron-left'), (None, 'fa-chevron-right')):
+        if bx is None:
+            bx = x + 40 + 10 + where + 10
+        figure.add('<rect x="%d" y="%d" width="40" height="%d" rx="4" fill="#ffffff" stroke="%s"/>'
+                   % (bx, step, BUTTON_HEIGHT, color('pal-grey-strong')))
+        figure.icon('fa-solid', arrow, bx + 15, step + (BUTTON_HEIGHT - 12) / 2, 12, color('pal-grey-strong'))
+        if arrow == 'fa-chevron-left':
+            where = figure.text(x + 50, step + BUTTON_HEIGHT / 2 + TEXT * 0.36,
+                                word('ui.workbench.itemOf').replace('{n}', '3').replace('{total}', '3'), TEXT, quiet)
+    figure.callout(x + 40 + 10 + where + 10 + 40 + 20, step + BUTTON_HEIGHT / 2)
+    # The switch between the file drawn and its lines, then the file drawn
+    mode = step + BUTTON_HEIGHT + 14
+    mx = x
+    for i, key in enumerate(('ui.workbench.viewDrawn', 'ui.workbench.viewSource')):
+        text = word(key)
+        w = text_width(text) + 28
+        figure.add('<rect x="%.1f" y="%d" width="%.1f" height="%d" rx="4" fill="%s" stroke="%s"/>'
+                   % (mx, mode, w, BUTTON_HEIGHT, color('pal-grey-strong') if i == 0 else '#ffffff', color('pal-grey-strong')))
+        figure.text(mx + 13, mode + BUTTON_HEIGHT / 2 + TEXT * 0.36, text, TEXT,
+                    '#ffffff' if i == 0 else color('pal-grey-strong'))
+        mx += w
+    figure.callout(mx + 20, mode + BUTTON_HEIGHT / 2)
+    view = mode + BUTTON_HEIGHT + 12
+    figure.add('<rect x="%d" y="%d" width="%d" height="128" rx="6" fill="#ffffff" stroke="%s"/>' % (x, view, width, line))
+    figure.add('<rect x="%d" y="%d" width="%d" height="12" rx="6" fill="%s"/>'
+               % (x + 18, view + 20, 150, color('pal-grey-mid')))
+    figure.lines(x + 18, view + 48, [width - 70, width - 120, width - 90, width - 200])
+    figure.callout(x + width - 24, view + 24)
+    figure.grow(x + width, view + 128)
     return figure
 
 
@@ -1345,6 +1420,7 @@ FIGURES = {
     'knowledge-base': (knowledge_base, {'en': 'Knowledge Base panel', 'ja': 'ナレッジベースパネル'}),
     'live-conversation': (live_conversation, {'en': 'Live Conversation controls', 'ja': 'Live Conversation の操作欄'}),
     'side-column': (side_column, {'en': 'Tabs of the side column', 'ja': '右側の列のタブ'}),
+    'work-screen': (work_screen, {'en': 'The work screen', 'ja': '作業画面'}),
     'url-dialog': (url_dialog, {'en': 'The Open URL dialog', 'ja': 'URL を開くダイアログ'}),
     'role-selector': (role_selector, {'en': 'The Role selector', 'ja': '役割の選択'}),
     'voice-input': (voice_input, {'en': 'Voice input', 'ja': '音声入力'}),

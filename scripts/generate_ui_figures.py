@@ -512,7 +512,7 @@ def architecture(table, color, title, language):
             figure.text(x + 18, y + 48 + i * 18, text, 12, ink if i == 0 and len(note) > 2 else quiet)
 
     def chip(x, y, text, stroke, fill, width=None, weight=None):
-        w = width or text_width(text, 12) + 22
+        w = width or text_width(text, 12, weight) + 16
         figure.add('<rect x="%.1f" y="%d" width="%.1f" height="24" rx="12" fill="none" stroke="%s"/>' % (x, y, w, stroke))
         figure.text(x + w / 2, y + 16.5, text, 12, fill, weight, 'middle')
         return w
@@ -591,10 +591,10 @@ def architecture(table, color, title, language):
     figure.grow(1150, 684)
     head = color('pal-grey-strong')
     figure.extra_defs = (
-        '<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" '
-        'markerHeight="9" orient="auto"><path d="M0 1 L10 5 L0 9 z" fill="%s"/></marker>'
-        '<marker id="arrow-back" viewBox="0 0 10 10" refX="1" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" '
-        'markerHeight="9" orient="auto"><path d="M10 1 L0 5 L10 9 z" fill="%s"/></marker>' % (head, head))
+        '<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="12" '
+        'markerHeight="12" orient="auto"><path d="M0 1 L10 5 L0 9 z" fill="%s"/></marker>'
+        '<marker id="arrow-back" viewBox="0 0 10 10" refX="1" refY="5" markerUnits="userSpaceOnUse" markerWidth="12" '
+        'markerHeight="12" orient="auto"><path d="M10 1 L0 5 L10 9 z" fill="%s"/></marker>' % (head, head))
     figure.ground = '#ffffff'
     return figure
 

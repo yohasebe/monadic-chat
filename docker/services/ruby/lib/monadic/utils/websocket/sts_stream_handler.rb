@@ -2,6 +2,7 @@
 
 require "timeout"
 require_relative "../error_formatter"
+require_relative "../error_pattern_detector"
 
 # Streaming speech-to-speech (STS) bridge to OpenAI's Realtime endpoint.
 #
@@ -136,6 +137,11 @@ module WebSocketHelper
   # shape (OpenAI/xAI) and Gemini's functionDeclarations — provider-specific
   # payload dialects stay in the builders, shared semantics here.
   STS_TOOLS_TIMEOUT = 10
+  # The responses with tool calls one utterance of the user may lead to;
+  # calls of a later response are refused, and after STS_TOOL_ROUNDS_GRACE
+  # refused responses no further response is asked for.
+  STS_TOOL_ROUNDS = 10
+  STS_TOOL_ROUNDS_GRACE = 2
   STS_TOOLS_RUN_CODE_TIMEOUT = 30
 
   # Host for the instance-method shared tools (apps include them the same
@@ -2240,7 +2246,8 @@ module WebSocketHelper
     batch[call_id] = true
     queue.enqueue([:tool_call, { rid: rid, call_id: call_id, name: name,
                                  arguments: payload["arguments"].to_s,
-                                 parsed_arguments: parsed }])
+                                 parsed_arguments: parsed,
+                                 refusal: sts_tool_refusal(turns[rid], rid, name, parsed) }])
     # Tool-use visibility: tell the client a tool started. The
     # call_id lets the client match done/error to the same badge even when
     # one response carries several calls with the same name.
@@ -2273,9 +2280,28 @@ module WebSocketHelper
     end
   end
 
+  # What a call is answered with in place of running its tool, or nil: the
+  # utterance has led to too many responses with tool calls, or the same
+  # call was made again with nothing new in between (as in a typed turn,
+  # ErrorPatternDetector.repeat_refusal). Decided where calls are detected,
+  # one at a time, and kept with the turn the calls belong to.
+  def sts_tool_refusal(turn, rid, name, arguments)
+    return nil unless turn.is_a?(Hash)
+
+    rounds = (turn[:tool_round_ids] ||= {})
+    rounds[rid] = true
+    if rounds.size > STS_TOOL_ROUNDS
+      turn[:tool_rounds_over] = rounds.size - STS_TOOL_ROUNDS
+      return "❌ `#{name}` was not run: this reply has reached its limit of #{STS_TOOL_ROUNDS} rounds of tool calls. " \
+             "Answer with the results you have, and say what is left to do."
+    end
+    ErrorPatternDetector.repeat_refusal(turn, name, arguments)
+  end
+
   def sts_execute_tool_safely(call, state, _ws_session_id, sess)
     entry = Array(state[:offered_tool_names]).include?(call[:name]) ? STS_TOOLS[call[:name]] : nil
     return "❌ Unknown tool: #{call[:name]}" unless entry
+    return call[:refusal] if call[:refusal]
 
     args = call[:parsed_arguments] || {}
     timeout = call[:name] == "run_code" ? STS_TOOLS_RUN_CODE_TIMEOUT : STS_TOOLS_TIMEOUT
@@ -2371,6 +2397,10 @@ module WebSocketHelper
     return if batch_turn && !state[:turn].equal?(batch_turn) # (b)
 
     (state[:tool_batch_turns] || {}).delete(rid)
+    # The utterance's tool rounds are used up and the model still calls
+    # tools: no further response is asked for.
+    return if batch_turn && batch_turn[:tool_rounds_over].to_i > STS_TOOL_ROUNDS_GRACE
+
     sts_create_tool_continuation(conn, state)
   end
 

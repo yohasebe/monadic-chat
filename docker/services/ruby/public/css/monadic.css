@@ -6225,7 +6225,9 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 #lc-live-current {
   border-left-color: #6d5fa8;
 }
-#lc-live-current .lc-live-text {
+/* Both zones in the same size: what the user said is read as easily as the
+   reply. */
+.lc-live-zone .lc-live-text {
   font-size: 1.05rem;
 }
 

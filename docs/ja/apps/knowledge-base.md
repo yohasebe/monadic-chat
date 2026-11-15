@@ -35,7 +35,7 @@ Knowledge Base に保存も検索もしないアプリがあります（Translat
 - **名前の変更**：Conversation Viewer を開き、タイトルの横の鉛筆のアイコンをクリックして編集し、保存します。
 - **最近の保存と件数**：サイドバーに最近の保存と全体の件数が表示されます。Browse の表では、検索、範囲での絞り込み、並べ替えができます。
 - **Conversation Viewer**：行をクリックすると、その項目のすべてのメッセージが表示されます。システムプロンプトは折りたたまれています。
-- **アプリでの検索**：Knowledge Base パネルの **Use Knowledge Base for retrieval (this session)** をオンにすると、モデルが回答の途中で Knowledge Base を検索できます。見つかるのは、今のアプリの項目と `Global` の項目です。このスイッチは既定でオフで、最後の選択が記憶されます。Live Conversation では、代わりにアプリの **Tools** のスイッチを使います。
+- **アプリでの検索**：Knowledge Base パネルの **Use Knowledge Base for retrieval (this session)** をオンにすると、モデルが回答の途中で Knowledge Base を検索できます。見つかるのは、今のアプリの項目と `Global` の項目です。このスイッチは既定でオフで、最後の選択が記憶されます。Live Conversation では、代わりにアプリの **検索と計算** のスイッチを使います。
 - **Knowledge Base のバッジ**：セッションが Knowledge Base を読める間、会話の見出しに緑の「Knowledge Base」バッジが表示されます。検索のスイッチがオンのときに表示されます。
 
 ?> Knowledge Base は、テキストをお使いのコンピューターの上でベクトルに変換し、Qdrant に保存します。取り込みと検索に API キーは要りません。[ベクトルデータベース](../docker-integration/vector-database.md)を参照してください。

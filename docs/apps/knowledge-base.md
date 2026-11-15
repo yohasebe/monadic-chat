@@ -35,7 +35,7 @@ Each entry belongs either to the app and provider it was saved in (for example `
 - **Rename**: open the Conversation Viewer, click the pencil icon next to the title, edit, and save.
 - **Recent saves and counts**: the sidebar shows the most recent saves and the total counts. The Browse table can be searched, filtered by scope, and sorted.
 - **Conversation Viewer**: click a row to see every message of the entry. The system prompt is folded.
-- **Retrieval in apps**: turn on **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel to let the model search the Knowledge Base while answering. It finds the entries of the current app and the `Global` entries. The switch is off by default, and your last choice is remembered. Live Conversation uses its own **Tools** switch instead.
+- **Retrieval in apps**: turn on **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel to let the model search the Knowledge Base while answering. It finds the entries of the current app and the `Global` entries. The switch is off by default, and your last choice is remembered. Live Conversation uses its own **Search and compute** switch instead.
 - **Knowledge Base badge**: the conversation header shows a green "Knowledge Base" badge while the retrieval switch is on and the session can read from the Knowledge Base.
 
 ?> The Knowledge Base converts text into vectors on your computer and stores them in Qdrant, so importing and searching need no API key. See [Vector Database](../docker-integration/vector-database.md).

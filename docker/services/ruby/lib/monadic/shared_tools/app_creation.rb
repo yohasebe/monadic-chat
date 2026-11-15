@@ -34,7 +34,7 @@ module MonadicSharedTools
     #
     # @example List all apps
     #   list_monadic_apps()
-    #   # => {success: true, apps: [{name: "ChatPlus", variants: ["openai", "claude", ...], ...}, ...]}
+    #   # => {success: true, apps: [{name: "Chat", variants: ["openai", "claude", ...], ...}, ...]}
     def list_monadic_apps
       begin
         # Determine apps directory based on environment
@@ -61,7 +61,7 @@ module MonadicSharedTools
           # Find MDSL files for this app
           mdsl_files = Dir.glob(File.join(app_path, '*.mdsl'))
           variants = mdsl_files.map do |mdsl_file|
-            # Extract variant name from filename (e.g., "chat_plus_openai.mdsl" -> "openai")
+            # Extract variant name from filename (e.g., "chat_openai.mdsl" -> "openai")
             basename = File.basename(mdsl_file, '.mdsl')
             basename.split('_').last
           end.sort
@@ -124,12 +124,12 @@ module MonadicSharedTools
     # Returns complete configuration, tools, and metadata for the specified
     # application and provider variant.
     #
-    # @param app_name [String] Name of the app (e.g., "chat_plus", "code_interpreter")
+    # @param app_name [String] Name of the app (e.g., "chat", "code_interpreter")
     # @param variant [String] Provider variant (e.g., "openai", "claude"). Optional.
     # @return [Hash] Success status and app information
     #
-    # @example Get Chat Plus OpenAI info
-    #   get_app_info(app_name: "chat_plus", variant: "openai")
+    # @example Get Chat OpenAI info
+    #   get_app_info(app_name: "chat", variant: "openai")
     #   # => {success: true, app: {...}, mdsl_content: "...", tools: [...]}
     #
     # @example Get first variant of Code Interpreter

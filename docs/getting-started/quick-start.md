@@ -62,9 +62,9 @@ The AI will search the web and provide current information.
 
 ## Step 3: Explore Context Management
 
-### 3.1 Try Chat Plus
+### 3.1 Try Chat
 
-1. From the app menu, select **Chat Plus**
+1. From the app menu, select **Chat**
 2. Have a conversation about planning a trip:
 
 ```
@@ -81,7 +81,7 @@ I'm interested in technology and anime. Can you adjust the recommendations?
 
 ### 3.2 Understanding Session State
 
-The Chat Plus app keeps a context alongside the conversation. Deleting a turn takes back what that turn added:
+The Chat app keeps a context alongside the conversation. Deleting a turn takes back what that turn added:
 - **Topics**: Main subjects discussed
 - **People**: Names of people mentioned
 - **Notes**: Important facts and preferences to remember

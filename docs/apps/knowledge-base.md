@@ -4,7 +4,7 @@ Save chat sessions and import documents into one searchable library.
 
 The Knowledge Base holds conversations and documents: conversation transcripts, PDFs, Office files, Markdown, and source code. The Knowledge Base browser shows all of it, and apps can search it as described under the scope model below.
 
-?> The Knowledge Base is separate from the [PDF Database](../basic-usage/pdf_storage.md), which stores PDFs for the OpenAI versions of Chat Plus and Research Assistant. Content imported into one is not visible in the other.
+?> The Knowledge Base is separate from the [PDF Database](../basic-usage/pdf_storage.md), which stores PDFs for the OpenAI version of Research Assistant. Content imported into one is not visible in the other.
 
 **Two ways to add content:**
 

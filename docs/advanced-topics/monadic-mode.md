@@ -34,7 +34,7 @@ These built-in apps keep Session State:
 
 | App | Tools | State notes |
 |-----|-------|-------------|
-| Chat Plus | `get_context`, `update_context`, `remove_from_context`, `clear_context` (the `session_context` group) | Context |
+| Chat | `get_context`, `update_context`, `remove_from_context`, `clear_context` (the `session_context` group) | Context |
 | Research Assistant | `load_research_progress`, `save_research_progress` | Research notes |
 | Math Tutor | `load_learning_progress`, `save_learning_progress` | Learning notes |
 | Novel Writer | `load_novel_context`, `save_novel_context` | Story notes |

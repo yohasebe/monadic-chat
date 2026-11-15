@@ -75,10 +75,10 @@ RSpec.describe "Monadic Apps Context Display", :e2e, :no_api do
     end
   end
   
-  describe "Chat Plus context display" do
+  describe "Chat context display" do
     it "shows reasoning and topics in context for GPT-5" do
       payload = {
-        "app" => "chat_plus_openai",
+        "app" => "chat_openai",
         "model" => "gpt-5",
         "messages" => [
           { "role" => "user", "content" => "Tell me about Tokyo" }
@@ -110,7 +110,7 @@ RSpec.describe "Monadic Apps Context Display", :e2e, :no_api do
     it "preserves context for all monadic apps using Responses API" do
       monadic_apps = [
         "language_practice_plus_openai",
-        "chat_plus_openai",
+        "chat_openai",
         "novel_writer_openai",
         "voice_interpreter_openai",
         "translate_openai"
@@ -148,7 +148,7 @@ RSpec.describe "Monadic Apps Context Display", :e2e, :no_api do
     it "preserves context for all monadic apps using Chat Completions API" do
       monadic_apps = [
         "language_practice_plus_openai",
-        "chat_plus_openai",
+        "chat_openai",
         "novel_writer_openai",
         "voice_interpreter_openai",
         "translate_openai"

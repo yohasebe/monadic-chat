@@ -2,7 +2,7 @@
 
 PDF Database は、一部のアプリに、会話中に AI が検索できる PDF の保存先を提供します。PDF はコンピューター上で処理・保存され、保存にも検索にも API キーは要りません。
 
-?> **PDF Database と Knowledge Base の違い** — この2つは別の機能です。**PDF Database** パネルは、これを持つアプリ（OpenAI 版の Chat Plus と Research Assistant）でだけ表示され、アプリごとに PDF を持ちます。[Knowledge Base](../apps/knowledge-base.md) は、保存した会話とインポートしたドキュメントの別のライブラリです。一方に取り込んだ PDF がもう一方に現れることはありません。
+?> **PDF Database と Knowledge Base の違い** — この2つは別の機能です。**PDF Database** パネルは、これを持つアプリ（OpenAI 版の Research Assistant）でだけ表示されます。[Knowledge Base](../apps/knowledge-base.md) は、保存した会話とインポートしたドキュメントの別のライブラリです。一方に取り込んだ PDF がもう一方に現れることはありません。
 
 ## 仕組み
 

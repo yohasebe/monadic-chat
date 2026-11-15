@@ -4,7 +4,7 @@
 
 Knowledge Base には、会話と文書（会話の記録、PDF、Office のファイル、Markdown、ソースコード）を入れられます。Knowledge Base の一覧の画面はそのすべてを表示し、各アプリは下の「範囲の決まり」のとおりに検索できます。
 
-?> Knowledge Base は、Chat Plus と Research Assistant の OpenAI 版で使う [PDF Database](../basic-usage/pdf_storage.md) とは別のものです。一方に取り込んだ内容は、もう一方には表示されません。
+?> Knowledge Base は、Research Assistant の OpenAI 版で使う [PDF Database](../basic-usage/pdf_storage.md) とは別のものです。一方に取り込んだ内容は、もう一方には表示されません。
 
 **内容を加える 2 つの方法：**
 

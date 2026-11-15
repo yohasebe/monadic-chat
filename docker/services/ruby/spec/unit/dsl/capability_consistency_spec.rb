@@ -135,13 +135,6 @@ NEITHER_MDSLS = %w[
   auto_forge/auto_forge_claude.mdsl
   auto_forge/auto_forge_grok.mdsl
   auto_forge/auto_forge_openai.mdsl
-  chat_plus/chat_plus_claude.mdsl
-  chat_plus/chat_plus_cohere.mdsl
-  chat_plus/chat_plus_deepseek.mdsl
-  chat_plus/chat_plus_gemini.mdsl
-  chat_plus/chat_plus_grok.mdsl
-  chat_plus/chat_plus_mistral.mdsl
-  chat_plus/chat_plus_openai.mdsl
   concept_visualizer/concept_visualizer_claude.mdsl
   concept_visualizer/concept_visualizer_openai.mdsl
   document_generator/document_generator_claude.mdsl
@@ -282,7 +275,7 @@ RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
     {
       'KB search'    => [KB_SEARCH_MDSLS, 53],
       'KB save only' => [KB_SAVE_ONLY_MDSLS, 24],
-      'Neither'      => [NEITHER_MDSLS, 52]
+      'Neither'      => [NEITHER_MDSLS, 45]
     }.each do |label, (list, expected_size)|
       it "#{label}: list size is #{expected_size}" do
         expect(list.size).to eq(expected_size),

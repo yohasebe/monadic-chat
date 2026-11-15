@@ -153,10 +153,11 @@ module WebSocketHelper
     Monadic::Utils::Privacy::Words.restore!(session, payload.key?('word_table') ? payload['word_table'] || {} : nil)
 
     params = (payload['parameters'] || {}).merge('initiate_from_assistant' => false, 'auto_speech' => false)
+    params['app_name'] = Monadic::Utils::AppNames.current(params['app_name']) if params['app_name']
     params['ui_language'] ||= ui_language if ui_language
     session[:parameters] = params
     session[:messages] = Array(payload['messages']).map do |m|
-      m.merge('html' => m['text'], 'active' => true, 'app_name' => m['app_name'] || params['app_name'])
+      m.merge('html' => m['text'], 'active' => true, 'app_name' => Monadic::Utils::AppNames.current(m['app_name'] || params['app_name']))
     end
     # The app state the chat began with (Monadic::TurnState::Form's base);
     # what its replies changed comes back with their messages.

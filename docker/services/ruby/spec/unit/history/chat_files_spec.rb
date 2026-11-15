@@ -115,7 +115,7 @@ RSpec.describe "Files of a chat" do
     # The provider's answer, and what an answer's tools do while it is
     # written, with the words of the chat being answered. Killed here, the
     # process is in the middle of the answer.
-    app_name = "ChatPlusOpenAI"
+    app_name = "ChatOpenAI"
     words = nil
     target = false
     APPS[app_name].singleton_class.prepend(Module.new do

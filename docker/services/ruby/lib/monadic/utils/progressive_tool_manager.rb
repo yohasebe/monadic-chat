@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "set"
+require_relative "app_names"
 
 module Monadic
   module Utils
@@ -411,7 +412,7 @@ module Monadic
         data.each do |app_name, unlocked|
           names = Array(unlocked).map(&:to_s).reject(&:empty?)
           next if names.empty?
-          state = ensure_state(session, app_name)
+          state = ensure_state(session, AppNames.current(app_name))
           names.each { |n| state[:unlocked] << n unless state[:unlocked].include?(n) }
         end
       end

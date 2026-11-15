@@ -155,7 +155,8 @@ def live_conversation_keys():
 class Icons:
     """Outlines of the icons the page shows, from its icon font."""
     FILES = {'fas': 'fa-solid-900.woff2', 'fa-solid': 'fa-solid-900.woff2',
-             'far': 'fa-regular-400.woff2', 'fa-regular': 'fa-regular-400.woff2'}
+             'far': 'fa-regular-400.woff2', 'fa-regular': 'fa-regular-400.woff2',
+             'fab': 'fa-brands-400.woff2'}
     fonts = {}
 
     def __init__(self):
@@ -479,8 +480,9 @@ ARCHITECTURE = {
         'requests': 'API リクエスト',
     },
 }
-SERVICE_ICONS = {'python': 'fa-code', 'selenium': 'fa-globe', 'qdrant': 'fa-database',
-                 'embeddings': 'fa-diagram-project', 'privacy': 'fa-user-secret', 'extractor': 'fa-file-lines'}
+SERVICE_ICONS = {'python': ('fab', 'fa-python'), 'selenium': ('fab', 'fa-chrome'), 'qdrant': ('fas', 'fa-database'),
+                 'embeddings': ('fas', 'fa-diagram-project'), 'privacy': ('fas', 'fa-user-secret'),
+                 'extractor': ('fas', 'fa-file-lines')}
 
 
 def architecture(table, color, title, language):
@@ -491,17 +493,17 @@ def architecture(table, color, title, language):
     blue, yellow, brown, green = (color('pal-accent-strong'), color('pal-amber-mid'), color('pal-amber-strong'),
                                   color('pal-green-strong'))
 
-    def heading(x, y, name, icon, tint, size=15, fill=None):
-        x += figure.icon('fas', icon, x, y - 13, size, tint) + 8
+    def heading(x, y, name, icon, tint, size=15, fill=None, style='fas'):
+        x += figure.icon(style, icon, x, y - 13, size, tint) + 8
         figure.text(x, y, name, size, fill or ink, '700')
 
-    def card(x, y, w, h, name, icon, tint, note=None, ground='#ffffff'):
+    def card(x, y, w, h, name, icon, tint, note=None, ground='#ffffff', style='fas'):
         """A part: white, with its kind's color down the whole of its left edge."""
         figure.add('<rect x="%d" y="%d" width="%d" height="%d" rx="6" fill="%s"/>' % (x, y, w, h, tint))
         figure.add('<path d="M%d %d H%d A6 6 0 0 1 %d %d V%d A6 6 0 0 1 %d %d H%d Z" fill="%s"/>'
                    % (x + 5, y, x + w - 6, x + w, y + 6, y + h - 6, x + w - 6, y + h, x + 5, ground))
         figure.add('<rect x="%d" y="%d" width="%d" height="%d" rx="6" fill="none" stroke="%s"/>' % (x, y, w, h, line))
-        heading(x + 18, y + 27, name, icon, tint, 14)
+        heading(x + 18, y + 27, name, icon, tint, 14, None, style)
         for i, text in enumerate(note or []):
             figure.text(x + 18, y + 48 + i * 18, text, 12, quiet)
 
@@ -530,16 +532,21 @@ def architecture(table, color, title, language):
 
     # Docker: the services on the left, the server on the right (it faces the cloud)
     figure.add('<rect x="40" y="210" width="760" height="304" rx="10" fill="#ffffff" stroke="%s" stroke-width="1.5"/>' % blue)
-    heading(58, 238, word['docker'], 'fa-cubes', blue, 15, color('pal-accent-text'))
+    heading(58, 238, word['docker'], 'fa-docker', blue, 16, color('pal-accent-text'), 'fab')
     known = services()
     for i, name in enumerate(s for s in known if s != 'ruby'):
         col, row = i % 2, i // 2
-        card(60 + col * 188, 258 + row * 80, 176, 68, name.capitalize(), SERVICE_ICONS[name], blue,
-             [word[name]], color('pal-grey-soft'))
+        style, icon = SERVICE_ICONS[name]
+        card(60 + col * 188, 258 + row * 80, 176, 68, name.capitalize(), icon, blue,
+             [word[name]], color('pal-grey-soft'), style)
 
     figure.add('<rect x="480" y="258" width="300" height="228" rx="8" fill="#ffffff" stroke="%s" stroke-width="2"/>' % brown)
     heading(498, 286, word['server'], 'fa-server', brown)
-    figure.text(764, 286, 'Ruby', 12, quiet, None, 'end')
+    # The language the server is written in, as a tab on the box's edge
+    ruby = color('pal-red-strong')
+    figure.add('<rect x="692" y="245" width="72" height="26" rx="13" fill="%s"/>' % ruby)
+    figure.icon('fas', 'fa-gem', 704, 251, 13, '#ffffff')
+    figure.text(724, 263, 'Ruby', 13, '#ffffff', '700')
     py = 302
     for i, key in enumerate(['apps', 'adapters', 'tools']):
         figure.add('<rect x="500" y="%d" width="260" height="32" rx="6" fill="%s"/>' % (py, yellow))

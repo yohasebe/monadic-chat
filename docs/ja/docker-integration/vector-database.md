@@ -28,7 +28,7 @@ Monadic Chat には、Knowledge Base、PDF Database、ヘルプの文書を意�
 Knowledge Base にファイルを取り込むときの流れです。
 
 1. **テキストの抽出**：
-   - PDF は、Knowledge Base Quality Pack をインストールしてあり、動いていれば、Extractor コンテナの [Docling](https://github.com/docling-project/docling)（レイアウトの解析と OCR）で処理されます。そうでなければ、PDF のテキストと表の抽出を Python コンテナで行います。このとき OCR は行わないので、スキャンした画像だけの PDF からはテキストを取り出せません
+   - PDF は、Knowledge Base 品質パックをインストールしてあり、動いていれば、Extractor コンテナの [Docling](https://github.com/docling-project/docling)（レイアウトの解析と OCR）で処理されます。そうでなければ、PDF のテキストと表の抽出を Python コンテナで行います。このとき OCR は行わないので、スキャンした画像だけの PDF からはテキストを取り出せません
    - Office のファイル（`.docx`、`.xlsx`、`.pptx`）は Python コンテナで読み込まれます
    - Markdown とソースコードはそのまま読み込まれます
    - テキストは区切りに分けられます。Markdown は見出しで、ソースコードはトップレベルの定義で分けます
@@ -64,4 +64,4 @@ Knowledge Base の各項目は、保存したアプリ（とプロバイダー�
 
 ## Monadic Chat Help での使い方 :id=use-in-monadic-help
 
-Monadic Chat Help アプリは、同じ Qdrant と Embeddings のコンテナでヘルプのデータを検索します。ヘルプのデータは、Monadic Chat Info パネルの **Help Data** からインストールします。インストールに API キーは要りません。Monadic Chat Help アプリ自体は OpenAI を使うので、このアプリで会話するには OpenAI の API キーが要ります。[ヘルプシステム](../advanced-topics/help-system.md)を参照してください。
+Monadic Chat Help アプリは、同じ Qdrant と Embeddings のコンテナでヘルプのデータを検索します。ヘルプのデータは、Monadic Chat情報パネルの **ヘルプデータ** からインストールします。インストールに API キーは要りません。Monadic Chat Help アプリ自体は OpenAI を使うので、このアプリで会話するには OpenAI の API キーが要ります。[ヘルプシステム](../advanced-topics/help-system.md)を参照してください。

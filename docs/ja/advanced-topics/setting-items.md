@@ -91,7 +91,7 @@ featuresブロック内のすべての設定はオプションです：
 `sts_vad_*` は省略するとプロバイダ既定値が使われます。またすべてのプロバイダがすべてのキーを解釈するわけではありません（xAI は `sts_vad_prefix_ms` を無視します）。OpenAI 変種の Live Conversation では `sts_vad_type` / `sts_vad_eagerness` をユーザーがターン判定セレクタから選ぶこともでき、選択した値は次のセッションで MDSL の既定より優先されます。
 
 #### コンテキスト管理
-- `context_size` - モデルに送る直近のメッセージの数。Web の画面の **Max Context Size** の欄の値にもなります
+- `context_size` - モデルに送る直近のメッセージの数。Web の画面の **最大コンテキストサイズ** の欄の値にもなります
 - `toggle` - 応答の中の `<div class='toggle'>` のブロックを、折りたためる節として表示
 - `prompt_suffix` - すべてのユーザーメッセージに追加されるテキスト
 
@@ -117,18 +117,18 @@ end
 
 ## システムレベル設定
 
-これらは MDSL ファイルではなく、**Settings** ウィンドウ（**開く → 設定**）で設定します。項目は General、System、API Keys、Voice & Audio、Services、Install Options、Actions、About です。設定できるものの例：
+これらは MDSL ファイルではなく、**設定** ウィンドウ（**開く → 設定**）で設定します。項目は一般、システム、APIキー、音声・オーディオ、サービス、インストールオプション、アクション、「Monadic Chatについて」です。設定できるものの例：
 
 - 各プロバイダー、ElevenLabs、Tavily の API キー
-- UI の言語、Browser Mode、Launch at Login、Menu Bar Mode、Notify When a Reply Arrives in the Background
-- Extra Logging
-- TTS の辞書のファイルと、Auto Speech の大きさの上限
+- UI言語、ブラウザモード、ログイン時に起動、メニューバーモード、裏で届いた返事を通知
+- 追加ログ
+- TTS の辞書のファイルと、自動音声の大きさの上限
 - MCP サーバーとそのポート
-- [Install Options](./advanced-configuration.md#install-options)（伏せる名前を探す言語、Knowledge Base Quality Pack を含む）
+- [インストールオプション](./advanced-configuration.md#install-options)（伏せる名前を探す言語、Knowledge Base 品質パックを含む）
 
 設定は `~/monadic/config/env` に保存され、セッションをまたいで保たれます。
 
-音声認識（STT）のモデルは、Settings ウィンドウや MDSL ファイルではなく、Web の画面の **Speech** パネルで選びます。選んだものはブラウザーの Cookie に保存されます。
+音声認識（STT）のモデルは、設定ウィンドウや MDSL ファイルではなく、Web の画面の音声パネルで選びます。選んだものはブラウザーの Cookie に保存されます。
 
 ## 完全な例
 

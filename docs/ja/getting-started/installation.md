@@ -105,7 +105,7 @@ Monadic Chat は、起動時（オンラインのとき）に更新を確認し�
 ## 高度な設定 :id=advanced-configuration
 
 以下を含む高度な設定オプション：
-- Install Options（LaTeX、Pythonライブラリなど）
+- インストールオプション（LaTeX、Pythonライブラリなど）
 - 再ビルド手順
 - 環境変数
 

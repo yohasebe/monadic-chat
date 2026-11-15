@@ -41,7 +41,7 @@ Monadic Chatを終了します。
 ビルドのコマンドは Monadic Chat が止まっているとき、JupyterLab のコマンドは動いているとき、ドキュメント DB のコマンドは止まっているときに使えます。
 
 **インストールオプション** <br />
-設定ウィンドウの Install Options パネルを開きます。サービスコンテナにインストールするオプションパッケージ（LaTeX、Pythonライブラリ、伏せる名前を探す追加言語など）を選択できます。
+設定ウィンドウのインストールオプションの項目を開きます。サービスコンテナにインストールするオプションパッケージ（LaTeX、Pythonライブラリ、伏せる名前を探す追加言語など）を選択できます。
 
 **Start** <br />
 Monadic Chatを起動します。初回起動時はDocker上での環境構築のため少し時間がかかります。
@@ -68,7 +68,7 @@ AI エージェントが使うイメージとコンテナ（`monadic-chat-python
 [匿名化](../advanced-topics/anonymization.md)のために名前を探すコンテナ（`monadic-chat-privacy-container`）のイメージをダウンロードします。`PRIVACY_FILTER=false` を設定していないときに使えます。
 
 **Extractor コンテナをビルド** <br />
-Knowledge Base Quality Pack が使うコンテナ（`monadic-chat-extractor-container`）のイメージをダウンロードします。Quality Pack をインストールしているときに使えます。
+Knowledge Base 品質パックが使うコンテナ（`monadic-chat-extractor-container`）のイメージをダウンロードします。品質パックをインストールしているときに使えます。
 
 **JupyterLab を開く** <br />
 JupyterLab（[http://localhost:8889](http://localhost:8889)）をブラウザーで開きます。動いていなければ、先に起動します。詳細は[JupyterLabとの連携](../docker-integration/jupyterlab.md)を参照してください。
@@ -117,7 +117,7 @@ Monadic Chatのログファイルが保存されているフォルダを開き�
 - `command.log`: Monadic Chatのコマンド実行およびコード実行ログファイル
 - `jupyter.log`: Jupyterノートブックに追加されたセルのログファイル
 
-設定パネルで`Extra Logging`を有効にすると、`extra.log`が追加され、Monadic Chatの起動から終了までのチャットがストリーミングされるJSONオブジェクト単位で記録されます。デバッグ用です。
+設定ウィンドウで **追加ログ** を有効にすると、`extra.log`が追加され、Monadic Chatの起動から終了までのチャットがストリーミングされるJSONオブジェクト単位で記録されます。デバッグ用です。
 
 **Settings** <br />
 Monadic Chatの設定ウィンドウを開きます。Webインターフェースのシステム設定画面とは別のものです。

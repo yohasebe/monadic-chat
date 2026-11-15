@@ -42,7 +42,7 @@ Knowledge Base、PDF Database、ヘルプの検索のために、`intfloat/multi
 [匿名化](../advanced-topics/anonymization.md)のために名前を見つけます。匿名化は、選んだ語を、会話が送る文の中でプレースホルダーに置き換えます。ローカルで動き、API キーは要りません。
 
 ### Extractor コンテナ（`monadic-chat-extractor-container`） :id=extractor-container
-Knowledge Base Quality Pack をインストールしたときだけあります（**Actions → Install Options → Install Knowledge Base Quality Pack**）。Knowledge Base にファイルを取り込むとき、[Docling](https://github.com/docling-project/docling) で PDF からテキストを取り出します（レイアウトの解析と OCR を含みます）。このコンテナが無いときは、PDF からのテキストの抽出を Python コンテナで行います。このとき OCR は行わないので、スキャンした画像だけの PDF からはテキストを取り出せません。
+Knowledge Base 品質パックをインストールしたときだけあります（**アクション → インストールオプション → Knowledge Base 品質パックをインストール**）。Knowledge Base にファイルを取り込むとき、[Docling](https://github.com/docling-project/docling) で PDF からテキストを取り出します（レイアウトの解析と OCR を含みます）。このコンテナが無いときは、PDF からのテキストの抽出を Python コンテナで行います。このとき OCR は行わないので、スキャンした画像だけの PDF からはテキストを取り出せません。
 
 ## アプリごとに必要なコンテナ :id=container-requirements
 
@@ -87,7 +87,7 @@ Monadic Chat は、ローカルの LLM として [Ollama](https://ollama.com) �
 
 ### コンテナの起動 :id=container-dependencies
 - Start を押すと、Ruby、Python、Selenium、Qdrant、Embeddings、Privacy のコンテナが起動します。Extractor コンテナは、インストールしてあれば起動します
-- Web 画面は Ruby コンテナの準備ができるとすぐに開きます。Knowledge Base とヘルプの検索は、Qdrant と Embeddings の起動が終わると使えます（初回の起動は、埋め込みのモデルを読み込むので時間がかかります）。ヘルプの検索には、Monadic Chat Info パネルの **Help Data** からインストールしたヘルプのデータも要ります
+- Web 画面は Ruby コンテナの準備ができるとすぐに開きます。Knowledge Base とヘルプの検索は、Qdrant と Embeddings の起動が終わると使えます（初回の起動は、埋め込みのモデルを読み込むので時間がかかります）。ヘルプの検索には、Monadic Chat情報パネルの **ヘルプデータ** からインストールしたヘルプのデータも要ります
 - アプリに必要なコンテナが止まっていれば、そのアプリを選んだときに Monadic Chat が起動し直します
 
 ### 共有するデータのボリューム :id=shared-volumes

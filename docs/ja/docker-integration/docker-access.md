@@ -40,7 +40,7 @@ Start の後、コンソールには動いているコンテナと、それぞ�
   docker exec -it monadic-chat-privacy-container bash
   ```
 
-- **Extractor コンテナ**（`monadic-chat-extractor-container`）：Knowledge Base Quality Pack の文書の抽出（インストールしたときだけあります）
+- **Extractor コンテナ**（`monadic-chat-extractor-container`）：Knowledge Base 品質パックの文書の抽出（インストールしたときだけあります）
   ```shell
   docker exec -it monadic-chat-extractor-container bash
   ```

@@ -55,7 +55,7 @@ python -m nltk.downloader popular
 python -m spacy download en_core_web_lg
 ```
 
-`nltk` と `spaCy` の行には、対応する Install Options をオンにしておく必要があります。
+`nltk` と `spaCy` の行には、対応するインストールオプションをオンにしておく必要があります。
 
 よく使う NLTK のデータと、英語の spaCy のモデル：
 

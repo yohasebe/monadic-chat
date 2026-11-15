@@ -128,7 +128,7 @@ Monadic Chatの設定ウィンドウを開きます。Webインターフェー�
 アプリケーションのバージョン情報を表示します。
 
 **アップデートを確認** <br />
-アプリケーションの更新を確認します。新しい版があると、**Download & Install** のあるダイアログが表示されます。ダウンロードが終わったら、**Restart Now** でインストールするか、**Later** を選びます。
+アプリケーションの更新を確認します。新しい版があると、**ダウンロードしてインストール** のあるダイアログが表示されます。ダウンロードが終わったら、**今すぐ再起動** でインストールするか、**後で** を選びます。
 
 **イメージ/コンテナ/データを削除** <br />
 Monadic Chat の Docker イメージ、コンテナ、ボリューム（Knowledge Base のデータ）を削除します。`~/monadic` のファイルは残ります。
@@ -147,29 +147,29 @@ Monadic Chat の Docker イメージ、コンテナ、ボリューム（Knowledg
 
 ![設定：一般](../assets/images/figures/settings-general.svg)
 
-**UI Language** <br />
+**UI言語** <br />
 コンソールと設定ウィンドウの表示言語を選択します。
 
-**Browser Mode** <br />
+**ブラウザモード** <br />
 コンソールからMonadic Chatを開く際に使用するブラウザを選択します。"Internal Browser"は組み込みのElectronブラウザウィンドウを開き、"External Browser"はシステムのデフォルトWebブラウザを開きます。
 
-**Syntax Highlighting Theme** <br />
+**構文ハイライト テーマ** <br />
 コードブロックでのシンタックスハイライトのテーマを選択します。デフォルトは`github-light`です。
 
 ### システム
 
 ![設定：システム](../assets/images/figures/settings-system.svg)
 
-**Launch at Login** <br />
+**ログイン時に起動** <br />
 コンピュータへのログイン時にMonadic Chatを自動的に起動します。
 
-**Menu Bar Mode** <br />
+**メニューバーモード** <br />
 コンソールウィンドウを表示する代わりに、メニューバーに常駐させます（macOS）。
 
-**Notify When a Reply Arrives in the Background** <br />
+**裏で届いた返事を通知** <br />
 内部ブラウザのウィンドウを閉じると、ウィンドウは隠れ、会話はそのまま残ります。**ブラウザ** か、メニューバー（システムトレイ）のメニューの **Web UI を表示** で、ウィンドウが戻ります。閉じたときに作っていた返事は受け取り続け、届くと通知が出ます。通知を押しても、ウィンドウが戻ります。通知に会話の文は入りません。ウィンドウを隠すときに、音声入力と Live の会話を止め、音声の再生も止めます。隠れている間は音声を鳴らさず、マイクも使えません。会話を終えるときは、**Reset** を使うか、メニューバーのメニューで **Web UI を閉じる** を選ぶか、Monadic Chat を終了します。この設定をオフにすると、通知を出さずに隠します。
 
-**Extra Logging** <br />
+**追加ログ** <br />
 詳しいログ情報を有効にするかどうかを選択します。有効にすると、APIリクエストとレスポンスの詳細がログに記録されます。ログファイルは `~/monadic/log/extra.log` に保存されます。
 
 ### APIキー
@@ -198,10 +198,10 @@ Monadic Chat の Docker イメージ、コンテナ、ボリューム（Knowledg
 
 ![設定：音声・オーディオ](../assets/images/figures/settings-voice.svg)
 
-**TTS Dictionary File Path** <br />
+**TTS辞書ファイルパス** <br />
 Text-to-Speech辞書ファイルのパスを入力します。辞書ファイルはCSV形式で、置き換えられる文字列と音声合成に使用される文字列のカンマ区切りのエントリが含まれています（ヘッダ行は不要）。Text-to-Speechを使用する際、テキスト内の置き換えられる文字列は音声合成用の文字列に置き換えられます。
 
-**Auto TTS Max Bytes** <br />
+**自動TTS最大バイト数** <br />
 自動音声読み上げ（post-completionモード）で読み上げるテキストの最大サイズ（バイト単位）を設定します（既定：500）。この上限を超えるテキストは一部のみ再生されるか、スキップされます。
 
 ?> Speech-to-Textモデルの選択は、この設定ウィンドウではなくWeb UIの Speech パネルで行います。[Speech パネル](./web-interface.md#speech-settings-panel)を参照してください。
@@ -210,24 +210,28 @@ Text-to-Speech辞書ファイルのパスを入力します。辞書ファイル
 
 ![設定：サービス](../assets/images/figures/settings-services.svg)
 
-**Enable MCP Server** <br />
+**MCPサーバーを有効化** <br />
 Model Context Protocol（MCP）サーバーを有効にします。Monadic Chatのツールを外部のAIアシスタントから利用できるようになります。詳細は[MCP連携](../advanced-topics/mcp-integration.md)を参照してください。
 
-**MCP Server Port** <br />
+**MCPサーバーポート** <br />
 MCPサーバーが使用するネットワークポートです（デフォルト: `3100`）。他のサービスとポートが競合する場合のみ変更してください。
 
 ### インストールオプション
 
-Python コンテナにインストールするオプションパッケージを選択します: LaTeX、Pythonライブラリ（NLTK、spaCy、gensim、MediaPipe、Transformers）、音楽分析（librosa、madmom）、システムツール（ImageMagick）。保存しても再ビルドは行われません。次回の起動時に**Rebuild and Start**が提示されるか、**アクション → Pythonコンテナをビルド** から手動で実行します。
+![設定：インストールオプション](../assets/images/figures/settings-install-options.svg)
+
+Python コンテナにインストールするオプションパッケージを選択します: LaTeX、Pythonライブラリ（NLTK、spaCy、gensim、MediaPipe、Transformers）、音楽分析（librosa、madmom）、システムツール（ImageMagick）。保存しても再ビルドは行われません。次回の起動時に**再ビルドして起動**が提示されるか、**アクション → Pythonコンテナをビルド** から手動で実行します。
 
 同じパネルには、さらに 2 つのグループがあります。
 
-- **Name Finder — Additional Languages**：英語のほかに伏せる名前を探す言語（ドイツ語、スペイン語、フランス語、イタリア語、日本語、オランダ語、ポルトガル語、中国語）。保存すると、再ビルドなしで反映されます。
-- **Knowledge Base Quality Pack (Docling)**：文書の取り込みの質を上げる extractor のコンテナと、その OCR の言語（英語、日本語、中国語、韓国語）をインストールします。[Knowledge Base](../apps/knowledge-base.md) を参照してください。
+- **名前の検出 — 追加言語**：英語のほかに伏せる名前を探す言語（ドイツ語、スペイン語、フランス語、イタリア語、日本語、オランダ語、ポルトガル語、中国語）。保存すると、再ビルドなしで反映されます。
+- **Knowledge Base 品質パック (Docling)**：文書の取り込みの質を上げる extractor のコンテナと、その OCR の言語（英語、日本語、中国語、韓国語）をインストールします。[Knowledge Base](../apps/knowledge-base.md) を参照してください。
 
 ### アクション
 
-Docker の状態を表示し、Actions メニューの操作を提供します：Start、Stop、Restart、コンテナのビルド（ビルドの前にコンテナを止める必要があります）、JupyterLab の起動と停止、ドキュメント DB の Import と Export。操作を実行すると、保存していない設定を先に保存します。
+![設定：アクション](../assets/images/figures/settings-actions.svg)
+
+Docker の状態を表示し、アクション メニューの操作を提供します：開始、停止、再起動、コンテナのビルド（ビルドの前にコンテナを止める必要があります）、JupyterLab の起動と停止、ドキュメント DB のインポートとエクスポート。操作を実行すると、保存していない設定を先に保存します。
 
 ### Monadic Chatについて
 

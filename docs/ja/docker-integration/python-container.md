@@ -11,9 +11,9 @@ Monadic Chat は `monadic-chat-python-container` で Python のツールを動�
 - **Music Analysis**：librosa + madmom。Music Tutor と Music Analyst が使います
 - **System Tools (CLI)**：ImageMagick（`convert`/`mogrify`）
 
-オプションを保存しても、コンテナは再ビルドされません。次の Start で **Rebuild and Start** が示されます。**アクション → Pythonコンテナをビルド** なら、すぐに再ビルドします。新しいイメージは、ビルドが成功したときだけ今のイメージと入れ替わります。進み具合はコンソールに表示され、`~/monadic/log/` に次のファイルが書かれます。
+オプションを保存しても、コンテナは再ビルドされません。次の Start で **再ビルドして起動** が示されます。**アクション → Pythonコンテナをビルド** なら、すぐに再ビルドします。新しいイメージは、ビルドが成功したときだけ今のイメージと入れ替わります。進み具合はコンソールに表示され、`~/monadic/log/` に次のファイルが書かれます。
 
-- `docker_build_python.log`：最後に行った Python コンテナのビルド（**Rebuild and Start** か **Pythonコンテナをビルド**）の出力。Start のときの全体のビルドで Python コンテナを作るときは、出力は `docker_build.log` に入ります
+- `docker_build_python.log`：最後に行った Python コンテナのビルド（**再ビルドして起動** か **Pythonコンテナをビルド**）の出力。Start のときの全体のビルドで Python コンテナを作るときは、出力は `docker_build.log` に入ります
 - `python_health.json`：新しいイメージで使えるツール（`pdflatex`、`convert`）とライブラリ。ビルドが成功した後に書かれます
 - `python_meta.json`：最後に成功したビルドの版、オプションなどの詳細
 

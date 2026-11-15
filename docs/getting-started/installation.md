@@ -35,15 +35,11 @@ Open PowerShell as administrator and run:
 > wsl --install -d Ubuntu
 ```
 
-<!-- SCREENSHOT: PowerShell window showing WSL installation progress with Ubuntu being installed -->
-
 Restart your computer. Set up Ubuntu username and password when prompted.
 
 2. **Install Docker Desktop**
 
 Download from [Docker Desktop](https://docs.docker.com/desktop/) and install.
-
-<!-- SCREENSHOT: Docker Desktop for Windows download page showing Windows installer download button -->
 
 Accept the service agreement and use recommended settings.
 

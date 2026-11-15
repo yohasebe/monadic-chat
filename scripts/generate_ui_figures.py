@@ -929,13 +929,32 @@ def settings_parts(category):
     groups = []
     for chunk in panel.split('<div class="setting-group"')[1:]:
         name = re.search(r'<label\b[^>]*?(?:data-i18n="([^"]+)")?>([^<]*)</label>', chunk)
-        kind = ('checkbox' if 'type="checkbox"' in chunk else 'secret' if 'type="password"' in chunk
-                else 'file' if 'file-picker-row' in chunk else 'select' if '<select' in chunk else 'field')
+        checks = re.findall(r'<input type="checkbox"[^>]*>\s*<label\b[^>]*?(?:data-i18n="([^"]+)")?>([^<]*)</label>', chunk)
+        actions = re.findall(r'class="action-btn"[^>]*>\s*' + APP_ICON + r'></i>\s*<span data-i18n="([^"]+)">', chunk)
+        if not name and '<small' in chunk:
+            groups.append({'kind': 'remark', 'key': None, 'text': '', 'extra': None, 'note': True})
+            continue
+        if not name:
+            raise SystemExit('app/settings.html: a setting of %s has no name the figure can read' % category)
         extra = None
-        if kind == 'file':
-            extra = re.search(r'<button type="button"[^>]*data-i18n="([^"]+)"', chunk).group(1)
-        elif kind == 'secret':
-            extra = re.search(APP_ICON, chunk).groups()
+        if checks and chunk.index('type="checkbox"') < chunk.index('<label'):
+            kind = 'checkbox'
+        elif checks:
+            kind, extra = 'checks', checks
+        elif actions:
+            kind, extra = 'actions', actions
+        elif 'action-status-badge' in chunk:
+            kind = 'status'
+        elif 'type="password"' in chunk:
+            kind, extra = 'secret', re.search(APP_ICON, chunk).groups()
+        elif 'file-picker-row' in chunk:
+            kind, extra = 'file', re.search(r'<button type="button"[^>]*data-i18n="([^"]+)"', chunk).group(1)
+        elif '<select' in chunk:
+            kind = 'select'
+        elif '<input' in chunk:
+            kind = 'field'
+        else:
+            kind = 'note'
         groups.append({'kind': kind, 'key': name.group(1), 'text': name.group(2), 'extra': extra,
                        'note': '<small' in chunk})
     return items, footer, groups
@@ -959,7 +978,9 @@ def settings_window(category):
         cy += 38
         for group in groups:
             text = label(words, group['key']) if group['key'] else group['text']
-            if group['kind'] == 'checkbox':
+            if group['kind'] == 'remark':
+                pass
+            elif group['kind'] == 'checkbox':
                 figure.checkbox(cx, cy - 4, text)
                 cy += 26
             else:
@@ -980,10 +1001,39 @@ def settings_window(category):
                     figure.icon(group['extra'][0], group['extra'][1], cx + wide - 22.5, cy + 7.5, TEXT, quiet)
                 elif group['kind'] == 'select':
                     figure.select(cx, cy, '', wide)
-                else:
+                elif group['kind'] == 'field':
                     figure.field(cx, cy, 120, BUTTON_HEIGHT)
+                elif group['kind'] == 'status':
+                    state = app_translations(language)['status']['running']
+                    state_width = text_width(state, TEXT, '600') + 24
+                    figure.add('<rect x="%.1f" y="%.1f" width="%.1f" height="24" rx="12" fill="#ffffff" stroke="%s"/>'
+                               % (cx, cy, state_width, color('pal-green-strong')))
+                    figure.text(cx + state_width / 2, cy + 16.5, state, TEXT, color('pal-green-strong'), '600', 'middle')
+                elif group['kind'] == 'checks':
+                    if group['note']:
+                        figure.lines(cx, cy + 2, [wide * 0.72])
+                        cy += 18
+                    for key, plain_text in group['extra']:
+                        figure.checkbox(cx, cy - 4, label(words, key) if key else plain_text)
+                        cy += 24
+                    cy -= BUTTON_HEIGHT + 4
+                elif group['kind'] == 'actions':
+                    ax = cx
+                    for style, icon, key in group['extra']:
+                        text = label(words, key)
+                        key_width = figure.icons.ratio(figure.icons.use(style, icon)) * TEXT
+                        action_width = 10 + key_width + 6 + text_width(text) + 13
+                        if ax + action_width > cx + wide:
+                            ax, cy = cx, cy + BUTTON_HEIGHT + 6
+                        figure.add('<rect x="%.1f" y="%.1f" width="%.1f" height="%d" rx="4" fill="#ffffff" stroke="%s"/>'
+                                   % (ax, cy, action_width, BUTTON_HEIGHT, color('pal-grey-mid')))
+                        figure.icon(style, icon, ax + 10, cy + 7.5, TEXT, quiet)
+                        figure.text(ax + 10 + key_width + 6, cy + 18.5, text)
+                        ax += action_width + 6
+                if group['kind'] == 'note':
+                    cy -= BUTTON_HEIGHT + 8
                 cy += BUTTON_HEIGHT + 6
-            if group['note']:
+            if group['note'] and group['kind'] != 'checks':
                 figure.lines(cx, cy + 2, [wide * 0.72])
                 cy += 16
             cy += 12
@@ -1203,6 +1253,8 @@ FIGURES = {
     'settings-general': (settings_window('general'), {'en': 'Settings: General', 'ja': '設定：一般'}),
     'settings-system': (settings_window('system'), {'en': 'Settings: System', 'ja': '設定：システム'}),
     'settings-services': (settings_window('services'), {'en': 'Settings: Services', 'ja': '設定：サービス'}),
+    'settings-install-options': (settings_window('install-options'), {'en': 'Settings: Install Options', 'ja': '設定：インストールオプション'}),
+    'settings-actions': (settings_window('actions'), {'en': 'Settings: Actions', 'ja': '設定：アクション'}),
     'settings-api-keys': (settings_window('api-keys'), {'en': 'Settings: API Keys', 'ja': '設定：API キー'}),
     'settings-voice': (settings_window('voice'), {'en': 'Settings: Voice & Audio', 'ja': '設定：音声'}),
     'architecture': (architecture, {'en': 'Monadic Chat architecture', 'ja': 'Monadic Chat の構成'}),

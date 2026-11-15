@@ -760,6 +760,48 @@ def realtime_text(table, color, title):
     return figure
 
 
+def status_example(name, key):
+    """The icon and kind the page shows a status with, read from where it sets that status."""
+    source = read('public', 'js', 'monadic', name)
+    at = source.find("'%s'" % key)
+    call = source.find('setAlert(', at) if at >= 0 else -1
+    if call < 0 or call - at > 400:
+        raise SystemExit('%s no longer shows %s as a status' % (name, key))
+    found = re.match(r"""setAlert\(`<i class=['"](?:fas|fa-solid) (fa-[a-z0-9-]+)['"][^`]*`,\s*['"]([a-z]+)['"]\)""",
+                     source[call:call + 240])
+    if not found:
+        raise SystemExit('%s shows %s in a way the figure does not read' % (name, key))
+    icon, kind = found.groups()
+    return icon, 'danger' if kind == 'error' else kind
+
+
+def status_kinds(table, color, title):
+    """The kinds of status the top bar shows, each with an example from the page."""
+    figure = Figure(color, title)
+    config = read('public', 'js', 'monadic', 'status-config.js')
+    colors = dict(re.findall(r"(\w+): \{ icon: '[^']+', color: 'var\(--([a-z0-9-]+)\)' \}", config))
+    examples = [('websocket-handlers.js', 'ui.messages.readyForInput'),
+                ('ws-streaming-handler.js', 'ui.messages.responding'),
+                ('websocket-handlers.js', 'ui.messages.operationCanceled'),
+                ('ws-ai-user-handler.js', 'ui.messages.aiUserRequiresConversation'),
+                ('ws-visibility-handler.js', 'ui.messages.connected'),
+                ('websocket-handlers.js', 'ui.messages.voiceRecognitionFinished')]
+    x, y, width = 20, 20, 340
+    for i, (name, key) in enumerate(examples):
+        icon, kind = status_example(name, key)
+        if kind not in colors:
+            raise SystemExit('status-config.js no longer colors the %s status' % kind)
+        ink = color(colors[kind])
+        row = y + i * 46
+        figure.add('<rect x="%d" y="%d" width="%d" height="36" rx="6" fill="#ffffff" stroke="%s"/>'
+                   % (x, row, width, color('pal-grey-line')))
+        iw = figure.icon('fa-solid', icon, x + 14, row + 11, 14, ink)
+        figure.text(x + 14 + iw + 8, row + 23, label(table, key), TEXT, ink)
+        figure.callout(x + width + 22, row + 18)
+    figure.grow(x + width + 31, y + (len(examples) - 1) * 46 + 36)
+    return figure
+
+
 def page_keys(wanted):
     """The label keys a figure shows, each one named by the page's markup."""
     html = read('views', 'index.erb')
@@ -1421,6 +1463,7 @@ FIGURES = {
     'live-conversation': (live_conversation, {'en': 'Live Conversation controls', 'ja': 'Live Conversation の操作欄'}),
     'side-column': (side_column, {'en': 'Tabs of the side column', 'ja': '右側の列のタブ'}),
     'work-screen': (work_screen, {'en': 'The work screen', 'ja': '作業画面'}),
+    'status-kinds': (status_kinds, {'en': 'Kinds of status', 'ja': '状態表示の種類'}),
     'url-dialog': (url_dialog, {'en': 'The Open URL dialog', 'ja': 'URL を開くダイアログ'}),
     'role-selector': (role_selector, {'en': 'The Role selector', 'ja': '役割の選択'}),
     'voice-input': (voice_input, {'en': 'Voice input', 'ja': '音声入力'}),

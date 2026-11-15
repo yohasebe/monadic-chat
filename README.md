@@ -16,7 +16,7 @@
 
   ---
 
-  <img src="https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docs/assets/images/basic-architecture.png" width="800px" alt="Monadic Chat Architecture">
+  <img src="docs/assets/images/figures/architecture.svg" width="800px" alt="Monadic Chat architecture">
 
 </div>
 

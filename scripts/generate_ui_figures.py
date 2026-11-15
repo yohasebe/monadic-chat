@@ -207,6 +207,8 @@ class Figure:
         self.parts = []
         self.number = 0
         self.width = self.height = 0
+        self.extra_defs = ''
+        self.ground = None
 
     def add(self, svg):
         self.parts.append(svg)
@@ -283,10 +285,11 @@ class Figure:
 
     def svg(self, pad=20):
         width, height = self.width + pad, self.height + pad
-        ground = '<rect width="%.0f" height="%.0f" rx="8" fill="%s"/>' % (width, height, self.color('pal-grey-soft'))
+        ground = '<rect width="%.0f" height="%.0f" rx="8" fill="%s"/>' % (
+            width, height, self.ground or self.color('pal-grey-soft'))
         return ('<svg xmlns="http://www.w3.org/2000/svg" width="%.0f" height="%.0f" viewBox="0 0 %.0f %.0f" '
                 'font-family="%s">\n  <title>%s</title>\n  <defs>\n%s\n  </defs>\n  %s\n</svg>\n'
-                % (width, height, width, height, FONT, escape(self.title), self.icons.symbols(),
+                % (width, height, width, height, FONT, escape(self.title), self.icons.symbols() + ('\n    ' + self.extra_defs if self.extra_defs else ''),
                    '\n  '.join([ground] + self.parts)))
 
 
@@ -424,12 +427,179 @@ def side_column(table, color, title):
     return figure
 
 
+
+# ---- the architecture ---------------------------------------------------------
+SERVICES = ['ruby', 'python', 'selenium', 'qdrant', 'embeddings', 'privacy', 'extractor']
+
+
+def services():
+    """The services of docker/services, which the diagram must know one by one."""
+    folder = os.path.join(ROOT, 'docker', 'services')
+    found = sorted(name for name in os.listdir(folder)
+                   if os.path.exists(os.path.join(folder, name, 'Dockerfile')))
+    if found != sorted(SERVICES):
+        raise SystemExit('docker/services has %s; the architecture figure draws %s' % (found, sorted(SERVICES)))
+    return SERVICES
+
+
+def providers():
+    """The chat providers' names as the app shows them, the local one apart."""
+    source = read('lib', 'monadic', 'dsl', 'provider_config.rb')
+    table = source[source.index('PROVIDER_INFO = {'):]
+    names = re.findall(r'"([a-z]+)" => \{.*?display_group: \'([^\']+)\'', table, re.S)
+    cloud = [name for key, name in names if key != 'ollama']
+    if not cloud or 'ollama' not in dict(names):
+        raise SystemExit('provider_config.rb no longer lists the providers as the architecture figure reads them')
+    return cloud, dict(names)['ollama']
+
+
+ARCHITECTURE = {
+    'en': {
+        'computer': 'Your computer', 'desktop': 'Desktop app', 'desktop_1': 'Starts and stops the containers',
+        'desktop_2': 'Settings and API keys', 'web': 'Web interface', 'conversation': 'Conversation',
+        'local': 'Local models', 'docker': 'Docker containers', 'server': 'Monadic Chat server',
+        'apps': 'Apps', 'adapters': 'Model adapters', 'tools': 'Tools', 'mcp': 'MCP server',
+        'python': 'Runs code · JupyterLab', 'selenium': 'A browser for the apps',
+        'qdrant': 'Vector database', 'embeddings': 'Turns text into vectors',
+        'privacy': 'Finds names to hide', 'extractor': 'Reads PDFs (optional)',
+        'shared': 'Shared folder', 'shared_note': 'your files and what the apps make',
+        'cloud': 'Language model APIs', 'cloud_note': 'chat · speech · images · video',
+        'requests': 'API requests',
+    },
+    'ja': {
+        'computer': 'あなたのコンピューター', 'desktop': 'デスクトップアプリ', 'desktop_1': 'コンテナの起動と停止',
+        'desktop_2': '設定と API キー', 'web': 'Web インターフェース', 'conversation': '会話',
+        'local': 'ローカルのモデル', 'docker': 'Docker コンテナ', 'server': 'Monadic Chat サーバー',
+        'apps': 'アプリ', 'adapters': 'モデルとの接続', 'tools': 'ツール', 'mcp': 'MCP サーバー',
+        'python': 'コードの実行・JupyterLab', 'selenium': 'アプリが操作するブラウザー',
+        'qdrant': 'ベクトルデータベース', 'embeddings': 'テキストをベクトルに変換',
+        'privacy': '伏せる名前を見つける', 'extractor': 'PDF の読み取り（任意）',
+        'shared': '共有フォルダ', 'shared_note': 'あなたのファイルと、アプリが作るもの',
+        'cloud': '言語モデルの API', 'cloud_note': 'チャット・音声・画像・動画',
+        'requests': 'API リクエスト',
+    },
+}
+SERVICE_ICONS = {'python': 'fa-code', 'selenium': 'fa-globe', 'qdrant': 'fa-database',
+                 'embeddings': 'fa-diagram-project', 'privacy': 'fa-user-secret', 'extractor': 'fa-file-lines'}
+
+
+def architecture(table, color, title, language):
+    """The whole system: what runs on the computer, and what is asked of the cloud."""
+    figure = Figure(color, title)
+    word = ARCHITECTURE[language]
+    ink, quiet = color('text-primary'), color('pal-grey-text')
+
+    def frame(x, y, w, h, family, name, icon=None, dashed=False):
+        figure.add('<rect x="%d" y="%d" width="%d" height="%d" rx="10" fill="%s" stroke="%s" stroke-width="1.5"%s/>'
+                   % (x, y, w, h, color('pal-%s-soft' % family), color('pal-%s-line' % family),
+                      ' stroke-dasharray="6 4"' if dashed else ''))
+        tx = x + 16
+        if icon:
+            tx += figure.icon('fas', icon, tx, y + 14, 15, color('pal-%s-strong' % family)) + 8
+        figure.text(tx, y + 27, name, 15, color('pal-%s-text' % family), '700')
+        figure.grow(x + w, y + h)
+
+    def card(x, y, w, h, name, note=None, icon=None, family='grey', size=14):
+        figure.add('<rect x="%d" y="%d" width="%d" height="%d" rx="8" fill="#ffffff" stroke="%s"/>'
+                   % (x, y, w, h, color('pal-%s-line' % family)))
+        tx = x + 14
+        if icon:
+            tx += figure.icon('fas', icon, tx, y + 13, 14, color('pal-%s-strong' % family)) + 8
+        figure.text(tx, y + 25, name, size, ink, '600')
+        for i, line in enumerate(note or []):
+            figure.text(x + 14, y + 46 + i * 18, line, 12, quiet)
+
+    def chip(x, y, text, family='accent', width=None):
+        w = width or text_width(text, 12) + 20
+        figure.add('<rect x="%.1f" y="%d" width="%.1f" height="24" rx="12" fill="%s" stroke="%s"/>'
+                   % (x, y, w, color('pal-%s-soft' % family), color('pal-%s-line' % family)))
+        figure.text(x + w / 2, y + 16.5, text, 12, color('pal-%s-text' % family), None, 'middle')
+        return w
+
+    def arrow(x1, y1, x2, y2, both=False, dashed=False):
+        figure.add('<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="1.6"%s marker-end="url(#arrow)"%s/>'
+                   % (x1, y1, x2, y2, color('pal-grey-strong'), ' stroke-dasharray="5 4"' if dashed else '',
+                      ' marker-start="url(#arrow-back)"' if both else ''))
+
+    cloud, local = providers()
+    # Your computer: what you use, at the top
+    frame(20, 20, 800, 624, 'grey', word['computer'], 'fa-laptop')
+    card(40, 64, 220, 96, word['desktop'], [word['desktop_1'], word['desktop_2']], 'fa-desktop', 'accent')
+    card(280, 64, 520, 96, word['web'], None, 'fa-window-maximize', 'accent')
+    cx = 294
+    for text in [word['conversation'], label(table, 'ui.sidePane.workScreen'), label(table, 'ui.sidePane.files'),
+                 label(table, 'ui.sidePane.history'),
+                 re.sub(r'<[^>]+>\s*', '', label(table, 'ui.knowledgeBase')).strip()]:
+        cx += chip(cx, 118, text) + 6
+
+    # Docker: the services on the left, the server on the right (it faces the cloud)
+    frame(40, 196, 760, 304, 'green', word['docker'], 'fa-cubes')
+    known = services()
+    for i, name in enumerate(s for s in known if s != 'ruby'):
+        col, row = i % 2, i // 2
+        x, y = 60 + col * 186, 244 + row * 80
+        figure.add('<rect x="%d" y="%d" width="174" height="68" rx="8" fill="#ffffff" stroke="%s"/>'
+                   % (x, y, color('pal-green-line')))
+        figure.icon('fas', SERVICE_ICONS[name], x + 12, y + 12, 14, color('pal-green-strong'))
+        figure.text(x + 34, y + 24, name.capitalize(), 14, ink, '600')
+        figure.text(x + 12, y + 48, word[name], 12, quiet)
+
+    figure.add('<rect x="460" y="244" width="320" height="228" rx="8" fill="#ffffff" stroke="%s" stroke-width="1.5"/>'
+               % color('pal-amber-strong'))
+    figure.icon('fas', 'fa-server', 476, 259, 15, color('pal-amber-strong'))
+    figure.text(500, 272, word['server'], 15, ink, '700')
+    figure.text(764, 272, 'Ruby', 12, quiet, None, 'end')
+    py = 290
+    for i, key in enumerate(['apps', 'adapters', 'tools']):
+        figure.add('<rect x="480" y="%d" width="280" height="34" rx="6" fill="%s" stroke="%s"/>'
+                   % (py, color('pal-amber-soft'), color('pal-amber-line')))
+        figure.text(620, py + 22, word[key], 13, color('pal-amber-text'), '600', 'middle')
+        if i < 2:
+            arrow(620, py + 35, 620, py + 45)
+        py += 46
+    figure.text(620, 452, word['mcp'], 12, quiet, None, 'middle')
+    arrow(436, 358, 458, 358, both=True)             # the server uses the services
+
+    # Below: the folder both sides share, and models that run here
+    figure.add('<rect x="40" y="524" width="500" height="100" rx="10" fill="#ffffff" stroke="%s" stroke-dasharray="6 4"/>'
+               % color('pal-grey-mid'))
+    figure.icon('fas', 'fa-folder-open', 58, 542, 18, color('pal-amber-strong'))
+    figure.text(88, 557, word['shared'], 15, ink, '700')
+    figure.text(58, 582, word['shared_note'], 12, quiet)
+    figure.text(58, 602, '~/monadic/data  ⇄  /monadic/data', 12, quiet)
+    card(560, 524, 240, 100, local, [word['local']], 'fa-microchip', 'amber')
+
+    # Lines: each one straight, none over a box
+    arrow(150, 160, 150, 194)                        # the desktop app runs the containers
+    arrow(620, 160, 620, 242, both=True)             # the page and the server
+    arrow(240, 500, 240, 522, both=True, dashed=True)  # the containers and the shared folder
+    arrow(680, 472, 680, 522, both=True)             # the server and local models
+
+    # The cloud, beside the server
+    frame(860, 196, 250, 304, 'red', word['cloud'], 'fa-cloud')
+    figure.text(876, 244, word['cloud_note'], 12, quiet)
+    step = min(30, (500 - 16 - 262) // len(cloud))
+    for i, name in enumerate(cloud):
+        chip(876, 262 + i * step, name, 'red', 218)
+    arrow(780, 358, 858, 358, both=True)             # API requests
+
+    figure.grow(1110, 644)
+    arrows = ('<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">'
+              '<path d="M0 0 L10 5 L0 10 z" fill="%s"/></marker>'
+              '<marker id="arrow-back" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto">'
+              '<path d="M10 0 L0 5 L10 10 z" fill="%s"/></marker>' % (color('pal-grey-strong'), color('pal-grey-strong')))
+    figure.extra_defs = arrows
+    figure.ground = '#ffffff'
+    return figure
+
+
 FIGURES = {
     'input-buttons': (input_buttons, {'en': 'Buttons under the message box', 'ja': 'メッセージ入力欄の下のボタン'}),
     'message-buttons': (message_buttons, {'en': "Buttons of an assistant's card", 'ja': 'アシスタントのカードのボタン'}),
     'knowledge-base': (knowledge_base, {'en': 'Knowledge Base panel', 'ja': 'Knowledge Base のパネル'}),
     'live-conversation': (live_conversation, {'en': 'Live Conversation controls', 'ja': 'Live Conversation の操作欄'}),
     'side-column': (side_column, {'en': 'Tabs of the side column', 'ja': '右側の列のタブ'}),
+    'architecture': (architecture, {'en': 'Monadic Chat architecture', 'ja': 'Monadic Chat の構成'}),
 }
 
 
@@ -440,7 +610,10 @@ def main():
             os.makedirs(OUT[language], exist_ok=True)
             path = os.path.join(OUT[language], '%s.svg' % name)
             with open(path, 'w', encoding='utf-8') as f:
-                f.write(draw(tables[language], color, titles[language]).svg())
+                arguments = (tables[language], color, titles[language])
+                if draw is architecture:
+                    arguments += (language,)
+                f.write(draw(*arguments).svg())
             print(os.path.relpath(path, ROOT))
 
 

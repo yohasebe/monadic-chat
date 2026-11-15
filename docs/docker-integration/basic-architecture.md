@@ -6,7 +6,7 @@ Both you and the AI agent can use the containers. You can ask the agent in natur
 
 The shared folder connects your computer and the containers: you place files there for the agent, and the agent saves the files it produces there.
 
-![Basic Architecture](../assets/images/basic-architecture.png ':size=800')
+![Monadic Chat architecture](../assets/images/figures/architecture.svg)
 
 ## Local Operation :id=local-operation
 

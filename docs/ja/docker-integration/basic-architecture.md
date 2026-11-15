@@ -6,7 +6,7 @@ Monadic Chat は、言語モデルの API と合わせて、いくつかの Dock
 
 共有フォルダは、お使いのコンピューターとコンテナをつなぎます。エージェントに渡すファイルをここに置き、エージェントが作ったファイルもここに保存されます。
 
-![Basic Architecture](../assets/images/basic-architecture.png ':size=800')
+![Monadic Chat の構成](../assets/images/figures/architecture.svg)
 
 ## ローカルでの動作 :id=local-operation
 

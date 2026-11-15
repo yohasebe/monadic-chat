@@ -425,11 +425,12 @@ def analyze_midi(params):
     note_names_list = ["C", "C#", "D", "D#", "E", "F",
                        "F#", "G", "G#", "A", "A#", "B"]
     for inst in midi.instruments:
+        track_name = _track_name(inst.name)
         note_count = len(inst.notes)
         if note_count == 0:
             if inst.is_drum:
                 tracks.append({
-                    "name": inst.name or "Drums",
+                    "name": track_name or "Drums",
                     "program": inst.program,
                     "instrument": "Drum Kit",
                     "note_count": 0,
@@ -450,7 +451,7 @@ def analyze_midi(params):
             inst_name = pretty_midi.program_to_instrument_name(inst.program)
 
         tracks.append({
-            "name": inst.name or inst_name,
+            "name": track_name or inst_name,
             "program": inst.program,
             "instrument": inst_name,
             "note_count": note_count,
@@ -744,6 +745,45 @@ ACTIONS = {
 }
 
 
+def _track_name(name):
+    """A MIDI track's name as text.
+
+    MIDI text is read byte for byte as Latin-1, so a name written in
+    Shift_JIS or UTF-8 arrives garbled. Latin-1 text has no characters in
+    0x80-0x9F, so a name that has them is decoded again from its bytes.
+    Names are often padded to a fixed width.
+    """
+    name = name or ""
+    if any(0x80 <= ord(c) <= 0x9F for c in name):
+        try:
+            raw = name.encode("latin-1")
+        except UnicodeEncodeError:
+            raw = None
+        for encoding in ("utf-8", "cp932"):
+            if raw is None:
+                break
+            try:
+                name = raw.decode(encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+    return name.strip()
+
+
+def _plain(value):
+    """A NumPy number or array as the plain Python value JSON can carry."""
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
+def to_json(result):
+    """The one line the analyzer prints for a result."""
+    return json.dumps(result, default=_plain)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Music Analyzer")
     parser.add_argument("action", choices=ACTIONS.keys(), help="Action to perform")
@@ -775,7 +815,7 @@ def main():
 
     try:
         result = ACTIONS[args.action](params)
-        print(json.dumps(result))
+        print(to_json(result))
     except Exception as e:
         print(json.dumps({"success": False, "error": str(e)}))
         sys.exit(1)

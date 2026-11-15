@@ -496,9 +496,11 @@ def architecture(table, color, title, language):
         figure.text(x, y, name, size, fill or ink, '700')
 
     def card(x, y, w, h, name, icon, tint, note=None, ground='#ffffff'):
-        """A part: white, with its kind's color as a bar on the left."""
-        figure.add('<rect x="%d" y="%d" width="%d" height="%d" rx="6" fill="%s" stroke="%s"/>' % (x, y, w, h, ground, line))
-        figure.add('<rect x="%d" y="%d" width="4" height="%d" rx="2" fill="%s"/>' % (x, y + 8, h - 16, tint))
+        """A part: white, with its kind's color down the whole of its left edge."""
+        figure.add('<rect x="%d" y="%d" width="%d" height="%d" rx="6" fill="%s"/>' % (x, y, w, h, tint))
+        figure.add('<path d="M%d %d H%d A6 6 0 0 1 %d %d V%d A6 6 0 0 1 %d %d H%d Z" fill="%s"/>'
+                   % (x + 5, y, x + w - 6, x + w, y + 6, y + h - 6, x + w - 6, y + h, x + 5, ground))
+        figure.add('<rect x="%d" y="%d" width="%d" height="%d" rx="6" fill="none" stroke="%s"/>' % (x, y, w, h, line))
         heading(x + 18, y + 27, name, icon, tint, 14)
         for i, text in enumerate(note or []):
             figure.text(x + 18, y + 48 + i * 18, text, 12, quiet)
@@ -562,13 +564,14 @@ def architecture(table, color, title, language):
     arrow(240, 516, 240, 558, both=True, dashed=True)  # the containers and the shared folder
     arrow(680, 488, 680, 558, both=True)             # the server and local models
 
-    # The cloud, beside the server: outside the computer, so drawn dark
-    figure.add('<rect x="880" y="210" width="230" height="304" rx="10" fill="%s"/>' % ink)
-    heading(898, 240, word['cloud'], 'fa-cloud', yellow, 15, '#ffffff')
-    figure.text(898, 262, word['cloud_note'], 12, '#c9ced4')
+    # The cloud, beside the server and outside the computer's frame
+    figure.add('<rect x="880" y="210" width="230" height="304" rx="10" fill="#ffffff" stroke="%s" stroke-width="1.5"/>'
+               % color('pal-grey-strong'))
+    heading(898, 240, word['cloud'], 'fa-cloud', color('pal-grey-strong'), 15)
+    figure.text(898, 262, word['cloud_note'], 12, quiet)
     step = min(30, (514 - 16 - 280) // len(cloud))
     for i, name in enumerate(cloud):
-        chip(898, 280 + i * step, name, '#8b939b', '#ffffff', 194)
+        chip(898, 280 + i * step, name, color('pal-grey-mid'), ink, 194)
     arrow(782, 372, 878, 372, both=True)             # API requests
 
     figure.grow(1110, 680)

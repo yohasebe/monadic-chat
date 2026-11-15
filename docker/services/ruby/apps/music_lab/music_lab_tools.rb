@@ -62,7 +62,7 @@ module MusicLabTools
     file = music_file(file_path: file_path, attachment_id: attachment_id, session: session, workbench: workbench)
     return "Error: #{file[:error]}" if file[:error]
 
-    result = measure_music_features(file[:relative])
+    result = measure_music_features(file)
     return result["error"] if result["package_needed"]
 
     result["success"] ? format_analysis_result(result) : "Error: #{result['error'] || 'Unknown error'}"

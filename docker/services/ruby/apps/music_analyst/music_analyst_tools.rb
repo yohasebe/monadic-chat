@@ -28,7 +28,7 @@ module MusicAnalystTools
     file = music_file(file_path: file_path, attachment_id: attachment_id, session: session, workbench: workbench)
     return "❌ Audio feature analysis failed: #{file[:error]}" if file[:error]
 
-    result = measure_music_features(file[:relative])
+    result = measure_music_features(file)
     if result["package_needed"]
       return "#{result['error']} The interpretive critique (critique_audio) works without it."
     end

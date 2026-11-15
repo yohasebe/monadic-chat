@@ -1,6 +1,15 @@
 # Monadic Chat Web Interface
 
-<!-- SCREENSHOT: Main web interface showing chat area, sidebar with settings, and status indicators -->
+![The web interface](../assets/images/figures/web-interface.svg)
+
+1. The name of the app. Click it to reset the chat (the current app is kept).
+2. The status: what Monadic Chat is doing now.
+3. Shows or hides the sidebar.
+4. **Current settings** and **Session**, with the app and model of the session. See [System Settings Screen](#system-settings-screen).
+5. The conversation, one card for each message. See [Message Cards](#message-cards).
+6. The message box and its buttons. See [Message Input](message-input.md).
+7. The sidebar's tabs: **Menu**, **Work screen**, **Files** and **History**.
+8. The panels of the chosen tab. See [Sidebar Panels](#info-panel).
 
 The web interface is made up of the conversation area, the message input area, and a set of side panels.
 

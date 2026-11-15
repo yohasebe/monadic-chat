@@ -1,12 +1,12 @@
-# Music Lab & Music Analyst
+# Music Tutor & Music Analyst
 
-Two complementary music apps: an interactive lab for learning music theory hands-on, and an analyst that evaluates recorded performances.
+Two music apps: Music Tutor teaches music theory with explanations, playable scores, and backing patterns, and Music Analyst analyzes audio or MIDI files and gives interpretive feedback on recorded performances. To make new music as an audio file from a text description, use [Music Generator](music-generator.md).
 
-## Music Lab :id=music-lab
+## Music Tutor :id=music-tutor
 
-![Music Lab app icon](../assets/icons/music.png ':size=40')
+![Music Tutor app icon](../assets/icons/music.png ':size=40')
 
-An interactive lab for learning music theory hands-on: play chords, scales, intervals, and progressions, and generate backing tracks to hear concepts in action. The AI explains music concepts and renders audio examples directly in the browser. To evaluate the musicality and performance of an existing recording, use the Music Analyst app instead.
+Learn music theory hands-on: play chords, scales, intervals, and progressions, and generate backing tracks to hear concepts in action. The AI explains music concepts and writes its examples as scores that play in the browser. To evaluate the musicality and performance of an existing recording, use the Music Analyst app instead.
 
 **Key Features:**
 - **Audio/MIDI analysis**: Upload audio files (mp3, wav, m4a, ogg, flac) or MIDI files (mid, midi) to detect tempo, key, time signature, chord progressions, and song structure. MIDI analysis also extracts track/instrument information.
@@ -19,21 +19,21 @@ An interactive lab for learning music theory hands-on: play chords, scales, inte
 
 Audio and MIDI analysis require the optional **Music Analysis** package (librosa + madmom). Turn it on in **Actions → Install Options** and rebuild the Python container.
 
-Music Lab is available for OpenAI, Claude, Gemini, and Grok.
+Music Tutor is available for OpenAI, Claude, Gemini, and Grok.
 
 ## Music Analyst :id=music-analyst
 
 ![Music Analyst app icon](../assets/icons/music.png ':size=40')
 
-Evaluate a recorded performance from two complementary angles: objective measured features and an interpretive critique of the music and playing. To play, generate, and learn music theory hands-on, use the Music Lab app.
+Evaluate a recorded performance from two complementary angles: features measured from the file and an interpretive critique of the music and playing. To play, generate, and learn music theory hands-on, use the Music Tutor app.
 
 **Key Features:**
-- **Objective features**: Extract tempo, key, time signature, chord progression, and song structure from an uploaded audio or MIDI file via signal processing.
+- **Measured features**: Estimate tempo, key, time signature, chord progression, and song structure from an uploaded audio or MIDI file by signal processing.
 - **Interpretive critique**: Gemini listens to the audio and comments on character and mood, genre and instrumentation, and performance qualities (expression, dynamics, phrasing, timing, energy), with strengths, weaknesses, and an overall evaluation.
-- **Complementary lenses**: Ask for objective facts, an interpretive critique, or both — the two are presented as clearly separated sections.
+- **Complementary lenses**: Ask for the measured features, an interpretive critique, or both — the two are presented as clearly separated sections.
 
-The interpretive critique analyzes audio in mono at reduced bandwidth, so it does not judge audio fidelity, mix/mastering, or stereo imaging; exact tempo and key come from the objective feature analysis. Critique applies to real audio (mp3, wav, m4a, ogg, flac); MIDI files use objective analysis only.
+The interpretive critique analyzes audio in mono at reduced bandwidth, so it does not judge audio fidelity, mix/mastering, or stereo imaging; tempo and key come from the measured features, which are estimates. Critique applies to real audio (mp3, wav, m4a, ogg, flac); MIDI files get the measured features only.
 
-Objective analysis of audio and MIDI files requires the optional **Music Analysis** package (librosa + madmom). Turn it on in **Actions → Install Options** and rebuild the Python container.
+The measured features of audio and MIDI files require the optional **Music Analysis** package (librosa + madmom). Turn it on in **Actions → Install Options** and rebuild the Python container.
 
 Music Analyst is available for Gemini.

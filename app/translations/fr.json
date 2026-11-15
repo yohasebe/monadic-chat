@@ -77,7 +77,7 @@
       },
       "music": {
         "title": "Analyse musicale",
-        "help": "Requis pour Music Lab. Installe les bibliothèques d'analyse audio (détection d'accords, estimation du tempo/tonalité, etc.).",
+        "help": "Requis pour Music Tutor et Music Analyst. Installe les bibliothèques d'analyse audio (détection d'accords, estimation du tempo/tonalité, etc.).",
         "items": {
           "librosa": "librosa + madmom"
         }

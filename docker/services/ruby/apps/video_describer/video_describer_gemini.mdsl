@@ -1,31 +1,31 @@
 app "VideoDescriberGemini" do
   description do
     en <<~TEXT
-    Analyze and describe video content. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Describe what happens in a video and transcribe its speech, with timestamps. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ja <<~TEXT
-    ビデオコンテンツの分析と説明。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    動画で起きていることを説明し、話されている内容を時刻付きで書き起こします。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     zh <<~TEXT
-    分析和描述视频内容。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    描述视频中发生的内容，并附时间戳转写其中的语音。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ko <<~TEXT
-    비디오 콘텐츠 분석 및 설명. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    동영상에서 일어나는 일을 설명하고, 음성을 타임스탬프와 함께 받아씁니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     es <<~TEXT
-    Analizar y describir contenido de video. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Describe lo que ocurre en un vídeo y transcribe lo que se dice, con marcas de tiempo. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     fr <<~TEXT
-    Analyser et décrire le contenu vidéo. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Décrit ce qui se passe dans une vidéo et transcrit ses paroles, avec horodatage. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     de <<~TEXT
-    Videoinhalte analysieren und beschreiben. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Beschreibt, was in einem Video geschieht, und transkribiert das Gesprochene mit Zeitstempeln. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   

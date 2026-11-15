@@ -1,16 +1,16 @@
 app "MusicLabOpenAI" do
   description do
-    en "Learn music theory hands-on: play chords, scales, and progressions and generate backing tracks (OpenAI)"
-    ja "コード・スケール・進行を鳴らし、バッキングトラックを生成しながら音楽理論を学ぶラボ (OpenAI)"
-    zh "动手学习乐理：弹奏和弦、音阶与和声进行，并生成伴奏音轨 (OpenAI)"
-    ko "코드·스케일·진행을 직접 연주하고 반주 트랙을 생성하며 음악 이론을 배우는 랩 (OpenAI)"
-    es "Aprende teoría musical de forma práctica: toca acordes, escalas y progresiones y genera pistas de acompañamiento (OpenAI)"
-    fr "Apprenez la théorie musicale par la pratique : jouez des accords, des gammes et des progressions et générez des pistes d'accompagnement (OpenAI)"
-    de "Musiktheorie praktisch lernen: Akkorde, Tonleitern und Progressionen spielen und Begleitspuren erzeugen (OpenAI)"
+    en "Learn music theory with explanations, playable scores, and backing patterns, from your questions or audio/MIDI files (OpenAI)"
+    ja "質問や音声・MIDIファイルをもとに、解説と、鳴らせる楽譜や伴奏パターンで音楽理論を学ぶ (OpenAI)"
+    zh "根据你的提问或音频/MIDI文件，通过讲解、可播放的乐谱和伴奏型学习乐理 (OpenAI)"
+    ko "질문이나 오디오/MIDI 파일을 바탕으로, 설명과 재생할 수 있는 악보, 반주 패턴으로 음악 이론을 배웁니다 (OpenAI)"
+    es "Aprende teoría musical con explicaciones, partituras reproducibles y patrones de acompañamiento, a partir de tus preguntas o de archivos de audio/MIDI (OpenAI)"
+    fr "Apprenez la théorie musicale avec des explications, des partitions jouables et des motifs d'accompagnement, à partir de vos questions ou de fichiers audio/MIDI (OpenAI)"
+    de "Musiktheorie lernen mit Erklärungen, abspielbaren Noten und Begleitmustern, ausgehend von Ihren Fragen oder Audio-/MIDI-Dateien (OpenAI)"
   end
 
   icon "music"
-  display_name "Music Lab"
+  display_name "Music Tutor"
 
   system_prompt <<~TEXT
     You are an expert music theory advisor and educator. You help users understand music concepts by providing clear explanations and generating audio examples using specialized tools.

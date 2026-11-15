@@ -88,7 +88,7 @@
       },
       "music": {
         "title": "音乐分析",
-        "help": "Music Lab 需要。安装音频分析库（和弦检测、节拍/调性估算等）。",
+        "help": "Music Tutor 和 Music Analyst 需要。安装音频分析库（和弦检测、节拍/调性估算等）。",
         "items": {
           "librosa": "librosa + madmom"
         }

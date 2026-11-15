@@ -8,7 +8,7 @@ Monadic Chat は `monadic-chat-python-container` で Python のツールを動�
 
 - **LaTeX**：Install LaTeX (minimal set for diagrams)。CJK に対応した TeX Live で、Concept Visualizer に必要です。このアプリは、LaTeX をインストールし、OpenAI か Anthropic の API キーを設定したときだけ使えます
 - **Python Libraries (CPU)**：nltk、spaCy (3.7.5)、gensim、mediapipe (CPU)、transformers (CPU only)、Plotly static images（kaleido と Chromium。ノートブックの Plotly のグラフに PNG を添えて保存し、作業画面でその PNG が表示されます）。`scikit-learn` は常に入っています
-- **Music Analysis**：librosa + madmom。Music Lab が使います
+- **Music Analysis**：librosa + madmom。Music Tutor と Music Analyst が使います
 - **System Tools (CLI)**：ImageMagick（`convert`/`mogrify`）
 
 オプションを保存しても、コンテナは再ビルドされません。次の Start で **Rebuild and Start** が示されます。**Actions → Build Python Container** なら、すぐに再ビルドします。新しいイメージは、ビルドが成功したときだけ今のイメージと入れ替わります。進み具合はコンソールに表示され、`~/monadic/log/` に次のファイルが書かれます。
@@ -134,7 +134,7 @@ Monadic Chat に付属するツールは `/monadic/scripts/` にあり、PATH �
 ├── utilities/          # System utilities (e.g., sysinfo.sh, run_jupyter.sh)
 ├── cli_tools/          # CLI tools (e.g., content_fetcher.py)
 ├── converters/         # Converters (pdf2txt.py, office2txt.py, etc.)
-├── music/              # Music Lab tools (music_analyzer.py, etc.)
+├── music/              # Music Tutor tools (music_analyzer.py, etc.)
 └── services/           # Services (jupyter_controller.py)
 ```
 

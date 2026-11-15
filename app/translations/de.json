@@ -77,7 +77,7 @@
       },
       "music": {
         "title": "Musikanalyse",
-        "help": "Erforderlich für Music Lab. Installiert Audioanalyse-Bibliotheken (Akkorderkennung, Tempo-/Tonarterkennung usw.).",
+        "help": "Erforderlich für Music Tutor und Music Analyst. Installiert Audioanalyse-Bibliotheken (Akkorderkennung, Tempo-/Tonarterkennung usw.).",
         "items": {
           "librosa": "librosa + madmom"
         }

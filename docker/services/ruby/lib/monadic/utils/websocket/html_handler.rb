@@ -59,7 +59,7 @@ module WebSocketHelper
 
           text = content["text"] || content["message"]["content"]
 
-          # Append tool HTML fragments (e.g., ABC notation from Music Lab).
+          # Append tool HTML fragments (e.g., ABC notation from Music Tutor).
           # Tools store HTML in session[:tool_html_fragments]; the ABC block
           # extraction below will handle them through the normal pipeline.
           if session[:tool_html_fragments]

@@ -156,7 +156,7 @@ These options choose optional packages for the Python container. After changing 
 | `PYOPT_NLTK` | Natural Language Toolkit | NLP applications | `false` |
 | `PYOPT_SPACY` | spaCy NLP library | Advanced NLP tasks | `false` |
 | `PYOPT_GENSIM` | Topic modeling library | Text analysis | `false` |
-| `PYOPT_LIBROSA` | Music Analysis: librosa and madmom, with soundfile, midiutil and pretty_midi | Music Lab, Music Analyst | `false` |
+| `PYOPT_LIBROSA` | Music Analysis: librosa and madmom, with soundfile, midiutil and pretty_midi | Music Tutor, Music Analyst | `false` |
 | `PYOPT_MEDIAPIPE` | Computer vision framework (CPU) | Vision applications | `false` |
 | `PYOPT_TRANSFORMERS` | Hugging Face Transformers and Accelerate (CPU) | Deep learning NLP | `false` |
 | `PYOPT_PLOTLY_STATIC` | kaleido and Chromium: a Plotly chart in a notebook is saved with a PNG beside it | Plotly charts in notebooks shown in the work screen | `false` |

@@ -577,6 +577,107 @@ def attachments(table, color, title):
     return figure
 
 
+def page_keys(wanted):
+    """The label keys a figure shows, each one named by the page's markup."""
+    html = read('views', 'index.erb')
+    missing = [key for key in wanted if 'data-i18n="%s"' % key not in html]
+    if missing:
+        raise SystemExit('views/index.erb no longer names %s' % ', '.join(missing))
+
+
+def plain(text):
+    """A label without the markup some translations carry."""
+    return re.sub(r'<[^>]+>\s*', '', text).strip()
+
+
+def system_settings(table, color, title):
+    """The settings a session starts with."""
+    figure = Figure(color, title)
+    page_keys(['ui.baseApp', 'ui.maxContextSize', 'ui.maxOutputTokens', 'ui.model', 'ui.showAllModels',
+               'ui.reasoningEffort', 'ui.showThinking', 'ui.temperature', 'ui.initialPromptAssistant'])
+    word = lambda key: plain(label(table, key))  # noqa: E731
+    quiet, line = color('pal-grey-text'), color('pal-grey-line')
+    x, y, width = 20, 20, 700
+    figure.add('<rect x="%d" y="%d" width="%d" height="372" rx="6" fill="#ffffff" stroke="%s"/>' % (x, y, width, line))
+
+    def name(key, lx, ly):
+        """A setting's name, with its mark before it."""
+        figure.callout(lx - 22, ly - 4)
+        return figure.text(lx, ly, word(key), 13, None, '600')
+
+    def switch(sx, sy, on=True):
+        figure.add('<rect x="%d" y="%d" width="28" height="15" rx="7.5" fill="%s"/><circle cx="%d" cy="%.1f" r="5.5" fill="#ffffff"/>'
+                   % (sx, sy, color('pal-accent-mid') if on else color('pal-grey-mid'), sx + (20 if on else 8), sy + 7.5))
+
+    def blank_select(sx, sy, w, bar):
+        """A selector whose value is not the figure's subject."""
+        figure.field(sx, sy, w, BUTTON_HEIGHT)
+        figure.add('<rect x="%d" y="%d" width="%d" height="8" rx="4" fill="%s"/>' % (sx + 10, sy + 10, bar, line))
+        figure.add('<path d="M%.1f %.1f l4 5 l4 -5 z" fill="%s"/>' % (sx + w - 18, sy + 12, color('pal-grey-strong')))
+
+    first, second = x + 44, x + 330
+    # The app, and how much of the conversation and of a reply is kept
+    name('ui.baseApp', first, y + 34)
+    figure.select(first, y + 44, 'Chat', 230)
+    name('ui.maxContextSize', second, y + 34)
+    switch(second, y + 51)
+    figure.field(second + 36, y + 44, 70, BUTTON_HEIGHT, '100')
+    figure.text(second + 180, y + 34, word('ui.maxOutputTokens'), 13, None, '600')
+    switch(second + 180, y + 51, False)
+    figure.field(second + 216, y + 44, 70, BUTTON_HEIGHT, '4000')
+    # The model, and how it reasons
+    used = name('ui.model', first, y + 108)
+    switch(first + used + 16, y + 97, False)
+    figure.text(first + used + 52, y + 108, word('ui.showAllModels'), 12, quiet)
+    blank_select(first, y + 118, 230, 130)
+    name('ui.reasoningEffort', second, y + 108)
+    blank_select(second, y + 118, 140, 60)
+    switch(second + 180, y + 125)
+    figure.text(second + 216, y + 137, word('ui.showThinking'), 13)
+    # Temperature
+    name('ui.temperature', first, y + 184)
+    figure.add('<rect x="%d" y="%d" width="230" height="5" rx="2.5" fill="%s"/><circle cx="%d" cy="%d" r="7" fill="%s"/>'
+               % (first, y + 200, line, first + 69, y + 202, color('pal-accent-strong')))
+    # The initial prompt, folded
+    figure.add('<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s"/>' % (x, y + 232, x + width, y + 232, line))
+    figure.icon('fas', 'fa-chevron-right', first, y + 251, 11, quiet)
+    figure.callout(first - 22, y + 258)
+    figure.text(first + 18, y + 262, word('ui.initialPromptAssistant'), 13, None, '600')
+    figure.lines(first + 18, y + 280, [width - 150, width - 260])
+    # Start
+    figure.add('<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s"/>' % (x, y + 322, x + width, y + 322, line))
+    figure.button(first, y + 334, 'primary', 'fas', 'fa-rocket', label(table, 'ui.session.startSession'), mark=False)
+    figure.callout(first - 22, y + 348)
+    figure.grow(x + width, y + 372)
+    return figure
+
+
+def speech_panel(table, color, title):
+    """The Speech panel of the menu."""
+    figure = Figure(color, title)
+    page_keys(['ui.speech', 'ui.speechToTextModel', 'ui.textToSpeechProvider', 'ui.webSpeechVoice', 'ui.ttsSpeed'])
+    word = lambda key: plain(label(table, key))  # noqa: E731
+    line = color('pal-grey-line')
+    x, y, width = 20, 20, 400
+    figure.add('<rect x="%d" y="%d" width="%d" height="330" rx="6" fill="#ffffff" stroke="%s"/>' % (x, y, width, line))
+    figure.icon('fas', 'fa-comment-dots', x + 44, y + 16, 15, color('pal-amber-mid'))
+    figure.text(x + 68, y + 29, word('ui.speech'), 15, None, '600')
+    row = y + 62
+    for key in ('ui.speechToTextModel', 'ui.textToSpeechProvider', 'ui.webSpeechVoice'):
+        figure.text(x + 44, row, word(key), 13, None, '600')
+        figure.callout(x + 22, row - 4)
+        figure.field(x + 44, row + 10, width - 64, BUTTON_HEIGHT)
+        figure.add('<rect x="%d" y="%d" width="140" height="8" rx="4" fill="%s"/>' % (x + 54, row + 20, line))
+        figure.add('<path d="M%.1f %.1f l4 5 l4 -5 z" fill="%s"/>' % (x + width - 38, row + 22, color('pal-grey-strong')))
+        row += 72
+    figure.text(x + 44, row, '%s (1.00)' % word('ui.ttsSpeed'), 13, None, '600')
+    figure.callout(x + 22, row - 4)
+    figure.add('<rect x="%d" y="%d" width="%d" height="5" rx="2.5" fill="%s"/><circle cx="%d" cy="%d" r="7" fill="%s"/>'
+               % (x + 44, row + 18, width - 64, line, x + 44 + (width - 64) // 2, row + 20, color('pal-accent-strong')))
+    figure.grow(x + width, y + 330)
+    return figure
+
+
 # ---- the architecture ---------------------------------------------------------
 SERVICES = ['ruby', 'python', 'selenium', 'qdrant', 'embeddings', 'privacy', 'extractor']
 
@@ -754,6 +855,8 @@ FIGURES = {
     'url-dialog': (url_dialog, {'en': 'The Open URL dialog', 'ja': 'URL を開くダイアログ'}),
     'role-selector': (role_selector, {'en': 'The Role selector', 'ja': '役割の選択'}),
     'voice-input': (voice_input, {'en': 'Voice input', 'ja': '音声入力'}),
+    'system-settings': (system_settings, {'en': 'System settings', 'ja': 'システム設定'}),
+    'speech-panel': (speech_panel, {'en': 'Speech panel', 'ja': 'Speech パネル'}),
     'attachments': (attachments, {'en': 'Files attached to a message', 'ja': 'メッセージに添付したファイル'}),
     'architecture': (architecture, {'en': 'Monadic Chat architecture', 'ja': 'Monadic Chat の構成'}),
 }

@@ -2,30 +2,30 @@
 
 ## コンソールボタン項目
 
-<!-- SCREENSHOT: コンソールパネルのメインウィンドウ。Start、Stop、Restart、Open Browser、Shared Folder、Quitボタンとステータス表示エリアを含む -->
+![コンソールの窓](../assets/images/figures/console-window.svg)
 
-コンソールパネルはMonadic Chatのメイン制御インターフェースです。現在のステータス（Stopped、Starting、Startedなど）を表示し、一般的な操作へのクイックアクセスボタンを提供します。
+コンソールパネルはMonadic Chatのメイン制御インターフェースです。現在のステータス（停止中、起動中、起動済みなど）を表示し、一般的な操作へのクイックアクセスボタンを提供します。
 
-**Start** <br />
+**開始** <br />
 Monadic Chatを起動します。初回起動時はDocker上での環境構築のため少し時間がかかります。
 
-**Stop** <br />
+**停止** <br />
 Monadic Chatを停止します。
 
-**Restart** <br />
+**再起動** <br />
 Monadic Chatを再起動します。
 
 **ブラウザ** <br />
 Monadic ChatをWebブラウザで開きます。
 アクセス URL: [http://localhost:4567](http://localhost:4567)
 
-**Shared Folder** <br />
+**共有フォルダ** <br />
 ホストコンピュータとDockerコンテナ間で共有されるフォルダーを開きます。共有フォルダはファイルのインポートやエクスポート、追加アプリの導入に使用します。フォルダ構成と各サブフォルダ（`apps`、`helpers`、`scripts`）の役割については[共有フォルダ](../docker-integration/shared-folder.md)を参照してください。
 
-**Settings** <br />
+**設定** <br />
 下記の[設定パネル](#settings-panel)を開きます。
 
-**Quit** <br />
+**終了** <br />
 Monadic Chatを終了します。
 
 ## コンソールメニュー項目
@@ -141,9 +141,11 @@ Monadic Chat の Docker イメージ、コンテナ、ボリューム（Knowledg
 
 ## 設定パネル :id=settings-panel
 
-変更は、サイドバーの下の **Save** で保存します（保存していない変更があるまま閉じると、保存するかを尋ねます）。設定ウィンドウはサイドバーからアクセスできる次のセクションに分かれています: **General**、**System**、**API Keys**、**Voice & Audio**、**Services**、**インストールオプション**、**アクション**、**About**。
+変更は、サイドバーの下の **保存** で保存します（保存していない変更があるまま閉じると、保存するかを尋ねます）。設定ウィンドウはサイドバーからアクセスできる次のセクションに分かれています: **一般**、**システム**、**APIキー**、**音声・オーディオ**、**サービス**、**インストールオプション**、**アクション**、**Monadic Chatについて**。
 
-### General（一般）
+### 一般
+
+![設定：一般](../assets/images/figures/settings-general.svg)
 
 **UI Language** <br />
 コンソールと設定ウィンドウの表示言語を選択します。
@@ -154,7 +156,9 @@ Monadic Chat の Docker イメージ、コンテナ、ボリューム（Knowledg
 **Syntax Highlighting Theme** <br />
 コードブロックでのシンタックスハイライトのテーマを選択します。デフォルトは`github-light`です。
 
-### System（システム）
+### システム
+
+![設定：システム](../assets/images/figures/settings-system.svg)
 
 **Launch at Login** <br />
 コンピュータへのログイン時にMonadic Chatを自動的に起動します。
@@ -168,9 +172,9 @@ Monadic Chat の Docker イメージ、コンテナ、ボリューム（Knowledg
 **Extra Logging** <br />
 詳しいログ情報を有効にするかどうかを選択します。有効にすると、APIリクエストとレスポンスの詳細がログに記録されます。ログファイルは `~/monadic/log/extra.log` に保存されます。
 
-<!-- SCREENSHOT: 設定パネル。API Keysセクションを表示し、OPENAI_API_KEY、ANTHROPIC_API_KEY、COHERE_API_KEY、GEMINI_API_KEY、MISTRAL_API_KEY、XAI_API_KEY、DEEPSEEK_API_KEY、ELEVENLABS_API_KEY、TAVILY_API_KEYの入力フィールドを含む -->
+### APIキー
 
-### API Keys（APIキー）
+![設定：APIキー](../assets/images/figures/settings-api-keys.svg)
 
 使用したいプロバイダーのキーを入力します。アカウントを持っているものだけ設定すれば十分です。OpenAIのキーは対応範囲が広く、チャットモデルに加えて画像生成・Speech-to-Text・Text-to-Speechにも同じキーが使われるため、最初に用意する価値が最も高いキーです。
 
@@ -190,9 +194,9 @@ Monadic Chat の Docker イメージ、コンテナ、ボリューム（Knowledg
 
 `TAVILY_API_KEY`だけは特定のプロバイダーに紐づきません。**URLを開く**のテキストの取り込み（Seleniumの代替）と、ネイティブ検索機能を持たないプロバイダーでのWeb検索に使われます — 対象プロバイダーは[プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)を参照してください。
 
-<!-- SCREENSHOT: 設定パネル。Voice & Audioセクションを表示し、TTS Dictionary File PathとAuto TTS Max Bytesの入力フィールドを含む -->
+### 音声・オーディオ
 
-### Voice & Audio（音声）
+![設定：音声・オーディオ](../assets/images/figures/settings-voice.svg)
 
 **TTS Dictionary File Path** <br />
 Text-to-Speech辞書ファイルのパスを入力します。辞書ファイルはCSV形式で、置き換えられる文字列と音声合成に使用される文字列のカンマ区切りのエントリが含まれています（ヘッダ行は不要）。Text-to-Speechを使用する際、テキスト内の置き換えられる文字列は音声合成用の文字列に置き換えられます。
@@ -202,7 +206,9 @@ Text-to-Speech辞書ファイルのパスを入力します。辞書ファイル
 
 ?> Speech-to-Textモデルの選択は、この設定ウィンドウではなくWeb UIの Speech パネルで行います。[Speech パネル](./web-interface.md#speech-settings-panel)を参照してください。
 
-### Services（サービス）
+### サービス
+
+![設定：サービス](../assets/images/figures/settings-services.svg)
 
 **Enable MCP Server** <br />
 Model Context Protocol（MCP）サーバーを有効にします。Monadic Chatのツールを外部のAIアシスタントから利用できるようになります。詳細は[MCP連携](../advanced-topics/mcp-integration.md)を参照してください。
@@ -210,7 +216,7 @@ Model Context Protocol（MCP）サーバーを有効にします。Monadic Chat�
 **MCP Server Port** <br />
 MCPサーバーが使用するネットワークポートです（デフォルト: `3100`）。他のサービスとポートが競合する場合のみ変更してください。
 
-### Install Options（インストールオプション）
+### インストールオプション
 
 Python コンテナにインストールするオプションパッケージを選択します: LaTeX、Pythonライブラリ（NLTK、spaCy、gensim、MediaPipe、Transformers）、音楽分析（librosa、madmom）、システムツール（ImageMagick）。保存しても再ビルドは行われません。次回の起動時に**Rebuild and Start**が提示されるか、**アクション → Pythonコンテナをビルド** から手動で実行します。
 
@@ -219,10 +225,10 @@ Python コンテナにインストールするオプションパッケージを�
 - **Name Finder — Additional Languages**：英語のほかに伏せる名前を探す言語（ドイツ語、スペイン語、フランス語、イタリア語、日本語、オランダ語、ポルトガル語、中国語）。保存すると、再ビルドなしで反映されます。
 - **Knowledge Base Quality Pack (Docling)**：文書の取り込みの質を上げる extractor のコンテナと、その OCR の言語（英語、日本語、中国語、韓国語）をインストールします。[Knowledge Base](../apps/knowledge-base.md) を参照してください。
 
-### Actions（アクション）
+### アクション
 
 Docker の状態を表示し、Actions メニューの操作を提供します：Start、Stop、Restart、コンテナのビルド（ビルドの前にコンテナを止める必要があります）、JupyterLab の起動と停止、ドキュメント DB の Import と Export。操作を実行すると、保存していない設定を先に保存します。
 
-### About（情報）
+### Monadic Chatについて
 
 アプリケーションのバージョン、**アップデートを確認**、ホームページとソースコードへのリンクを表示します。

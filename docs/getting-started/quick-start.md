@@ -34,7 +34,7 @@ Click **Start** in the console and wait until the **System** status shows **Star
 
 ### 2.1 Select the Chat App
 
-1. Click the **Open Browser** button in the console. The web interface opens
+1. Click the **Browser** button in the console. The web interface opens
 2. From the app menu, select **Chat** under the OpenAI group
 
 ### 2.2 Start Chatting

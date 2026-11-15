@@ -544,9 +544,9 @@ def architecture(table, color, title, language):
     heading(498, 286, word['server'], 'fa-server', brown)
     # The language the server is written in, as a tab on the box's edge
     ruby = color('pal-red-strong')
-    figure.add('<rect x="692" y="245" width="72" height="26" rx="13" fill="%s"/>' % ruby)
-    figure.icon('fas', 'fa-gem', 704, 251, 13, '#ffffff')
-    figure.text(724, 263, 'Ruby', 13, '#ffffff', '700')
+    figure.add('<rect x="678" y="245" width="88" height="26" rx="13" fill="#ffffff" stroke="%s" stroke-width="1.5"/>' % ruby)
+    figure.icon('fas', 'fa-gem', 692, 251, 13, ruby)
+    figure.text(712, 263, 'Ruby', 13, ruby, '700')
     py = 302
     for i, key in enumerate(['apps', 'adapters', 'tools']):
         figure.add('<rect x="500" y="%d" width="260" height="32" rx="6" fill="%s"/>' % (py, yellow))

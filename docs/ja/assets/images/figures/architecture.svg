@@ -86,9 +86,9 @@
   <rect x="480" y="258" width="300" height="228" rx="8" fill="#ffffff" stroke="#b3862a" stroke-width="2"/>
   <use href="#i-solid-server" x="498.0" y="273.0" width="15.0" height="15" fill="#b3862a"/>
   <text x="521.0" y="286.0" font-size="15" fill="#2a2e33" font-weight="700">Monadic Chat サーバー</text>
-  <rect x="692" y="245" width="72" height="26" rx="13" fill="#a83d49"/>
-  <use href="#i-solid-gem" x="704.0" y="251.0" width="13.0" height="13" fill="#ffffff"/>
-  <text x="724.0" y="263.0" font-size="13" fill="#ffffff" font-weight="700">Ruby</text>
+  <rect x="678" y="245" width="88" height="26" rx="13" fill="#ffffff" stroke="#a83d49" stroke-width="1.5"/>
+  <use href="#i-solid-gem" x="692.0" y="251.0" width="13.0" height="13" fill="#a83d49"/>
+  <text x="712.0" y="263.0" font-size="13" fill="#a83d49" font-weight="700">Ruby</text>
   <rect x="500" y="302" width="260" height="32" rx="6" fill="#ecc04f"/>
   <text x="630.0" y="323.0" font-size="13" fill="#2a2e33" font-weight="700" text-anchor="middle">アプリ</text>
   <line x1="630" y1="336" x2="630" y2="352" stroke="#6e7781" stroke-width="1.5" marker-end="url(#arrow)"/>

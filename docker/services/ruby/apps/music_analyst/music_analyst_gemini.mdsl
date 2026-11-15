@@ -62,6 +62,7 @@ app "MusicAnalystGemini" do
   end
 
   features do
+    max_tool_rounds 10
     library_save false
     library_search false
     audio_upload true

@@ -129,6 +129,7 @@ app "SecondOpinionMistral" do
     TEXT
 
   features do
+    max_tool_rounds 10
     websearch false
     disabled !CONFIG["MISTRAL_API_KEY"]
     easy_submit false

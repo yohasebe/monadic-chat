@@ -32,13 +32,27 @@ RSpec.describe "BaseVendorHelper#tool_round_limit" do
     expect(helper.tool_round_limit(nil, 20)).to eq(20)
   end
 
-  it "is 10 for the conversation apps and the provider's for an app of many steps" do
+  describe "the apps' own limits" do
     apps = File.expand_path("../../../apps", __dir__)
-    %w[chat voice_chat language_practice language_practice_plus translate voice_interpreter mail_composer].each do |dir|
-      Dir.glob(File.join(apps, dir, "*.mdsl")).each do |file|
-        expect(File.read(file)).to match(/^\s+max_tool_rounds 10$/), file
+    many_steps = %w[auto_forge jupyter_notebook code_interpreter coding_assistant research_assistant math_tutor
+                    mermaid_grapher document_generator novel_writer web_insight live_conversation]
+    limits = Dir.glob(File.join(apps, "*", "*.mdsl")).group_by { |file| File.basename(File.dirname(file)) }
+                .transform_values { |files| files.map { |file| File.read(file)[/^\s+max_tool_rounds (\d+)$/, 1]&.to_i } }
+
+    it "names every app" do
+      expect(limits.keys.size).to be > 20
+    end
+
+    limits.each do |app, values|
+      if many_steps.include?(app)
+        it "leaves #{app}, an app of many steps, at the provider's limit in every variant" do
+          expect(values.uniq).to eq([nil])
+        end
+      else
+        it "gives #{app} 10 rounds in every variant" do
+          expect(values.uniq).to eq([10])
+        end
       end
     end
-    expect(Dir.glob(File.join(apps, "auto_forge", "*.mdsl")).map { |f| File.read(f) }).to all(satisfy { |t| !t.include?("max_tool_rounds") })
   end
 end

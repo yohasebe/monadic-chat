@@ -11,7 +11,7 @@ Monadic Chat のコンソールで **アクション → JupyterLab を開く** 
 - JupyterLab は [http://localhost:8889](http://localhost:8889)（または [http://127.0.0.1:8889](http://127.0.0.1:8889)）で開きます
 - パスワードやトークンは要りません。JupyterLab には、お使いのコンピューターからだけ接続できます
 
-![Actions メニュー](../assets/images/figures/menu-actions.svg)
+![アクション メニュー](../assets/images/figures/menu-actions.svg)
 
 JupyterLab は共有フォルダ（`/monadic/data`）で起動するので、`~/monadic/data` に置いたファイルをそこで使えます。
 

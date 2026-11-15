@@ -148,7 +148,11 @@ module MusicAnalystTools
     # MIDI files additionally carry per-track instrument info.
     tracks = result["tracks"]
     if tracks.is_a?(Array) && tracks.any?
-      names = tracks.map { |t| t["name"] || t["instrument"] }.compact
+      # A track's name is often the song's title, so the instrument is said too.
+      names = tracks.map do |t|
+        name, instrument = t["name"].to_s.strip, t["instrument"].to_s.strip
+        name.empty? || instrument.empty? || name == instrument ? [name, instrument].reject(&:empty?).first : "#{name} (#{instrument})"
+      end.compact
       lines << "- Tracks: #{names.join(', ')}" if names.any?
     end
 

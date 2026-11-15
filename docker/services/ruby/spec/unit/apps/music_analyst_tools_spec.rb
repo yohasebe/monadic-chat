@@ -218,7 +218,7 @@ RSpec.describe MusicAnalystTools do
       allow(tool).to receive(:send_command).and_return(json)
 
       result = tool.analyze_audio_features(file_path: "song.mid")
-      expect(result).to include("Tracks: Piano, Bass")
+      expect(result).to include("Tracks: Piano (Acoustic Grand), Bass")
     end
 
     it 'drops spurious brief No-Chord blips but keeps longer N.C. spans (and survives nil duration)' do

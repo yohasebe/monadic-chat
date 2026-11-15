@@ -487,108 +487,97 @@ def architecture(table, color, title, language):
     """The whole system: what runs on the computer, and what is asked of the cloud."""
     figure = Figure(color, title)
     word = ARCHITECTURE[language]
-    ink, quiet = color('text-primary'), color('pal-grey-text')
+    ink, quiet, line = color('text-primary'), color('pal-grey-text'), color('pal-grey-line')
+    blue, yellow, brown, green = (color('pal-accent-strong'), color('pal-amber-mid'), color('pal-amber-strong'),
+                                  color('pal-green-strong'))
 
-    def frame(x, y, w, h, family, name, icon=None, dashed=False):
-        figure.add('<rect x="%d" y="%d" width="%d" height="%d" rx="10" fill="%s" stroke="%s" stroke-width="1.5"%s/>'
-                   % (x, y, w, h, color('pal-%s-soft' % family), color('pal-%s-line' % family),
-                      ' stroke-dasharray="6 4"' if dashed else ''))
-        tx = x + 16
-        if icon:
-            tx += figure.icon('fas', icon, tx, y + 14, 15, color('pal-%s-strong' % family)) + 8
-        figure.text(tx, y + 27, name, 15, color('pal-%s-text' % family), '700')
-        figure.grow(x + w, y + h)
+    def heading(x, y, name, icon, tint, size=15, fill=None):
+        x += figure.icon('fas', icon, x, y - 13, size, tint) + 8
+        figure.text(x, y, name, size, fill or ink, '700')
 
-    def card(x, y, w, h, name, note=None, icon=None, family='grey', size=14):
-        figure.add('<rect x="%d" y="%d" width="%d" height="%d" rx="8" fill="#ffffff" stroke="%s"/>'
-                   % (x, y, w, h, color('pal-%s-line' % family)))
-        tx = x + 14
-        if icon:
-            tx += figure.icon('fas', icon, tx, y + 13, 14, color('pal-%s-strong' % family)) + 8
-        figure.text(tx, y + 25, name, size, ink, '600')
-        for i, line in enumerate(note or []):
-            figure.text(x + 14, y + 46 + i * 18, line, 12, quiet)
+    def card(x, y, w, h, name, icon, tint, note=None, ground='#ffffff'):
+        """A part: white, with its kind's color as a bar on the left."""
+        figure.add('<rect x="%d" y="%d" width="%d" height="%d" rx="6" fill="%s" stroke="%s"/>' % (x, y, w, h, ground, line))
+        figure.add('<rect x="%d" y="%d" width="4" height="%d" rx="2" fill="%s"/>' % (x, y + 8, h - 16, tint))
+        heading(x + 18, y + 27, name, icon, tint, 14)
+        for i, text in enumerate(note or []):
+            figure.text(x + 18, y + 48 + i * 18, text, 12, quiet)
 
-    def chip(x, y, text, family='accent', width=None):
-        w = width or text_width(text, 12) + 20
-        figure.add('<rect x="%.1f" y="%d" width="%.1f" height="24" rx="12" fill="%s" stroke="%s"/>'
-                   % (x, y, w, color('pal-%s-soft' % family), color('pal-%s-line' % family)))
-        figure.text(x + w / 2, y + 16.5, text, 12, color('pal-%s-text' % family), None, 'middle')
+    def chip(x, y, text, stroke, fill, width=None):
+        w = width or text_width(text, 12) + 22
+        figure.add('<rect x="%.1f" y="%d" width="%.1f" height="24" rx="12" fill="none" stroke="%s"/>' % (x, y, w, stroke))
+        figure.text(x + w / 2, y + 16.5, text, 12, fill, None, 'middle')
         return w
 
     def arrow(x1, y1, x2, y2, both=False, dashed=False):
-        figure.add('<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="1.6"%s marker-end="url(#arrow)"%s/>'
+        figure.add('<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="1.5"%s marker-end="url(#arrow)"%s/>'
                    % (x1, y1, x2, y2, color('pal-grey-strong'), ' stroke-dasharray="5 4"' if dashed else '',
                       ' marker-start="url(#arrow-back)"' if both else ''))
 
     cloud, local = providers()
     # Your computer: what you use, at the top
-    frame(20, 20, 800, 624, 'grey', word['computer'], 'fa-laptop')
-    card(40, 64, 220, 96, word['desktop'], [word['desktop_1'], word['desktop_2']], 'fa-desktop', 'accent')
-    card(280, 64, 520, 96, word['web'], None, 'fa-window-maximize', 'accent')
-    cx = 294
+    figure.add('<rect x="20" y="20" width="800" height="660" rx="12" fill="%s" stroke="%s"/>' % (color('pal-grey-soft'), line))
+    heading(38, 48, word['computer'], 'fa-laptop', quiet, 15, quiet)
+    card(40, 64, 220, 96, word['desktop'], 'fa-desktop', blue, [word['desktop_1'], word['desktop_2']])
+    card(280, 64, 520, 96, word['web'], 'fa-window-maximize', blue)
+    cx = 298
     for text in [word['conversation'], label(table, 'ui.sidePane.workScreen'), label(table, 'ui.sidePane.files'),
                  label(table, 'ui.sidePane.history'),
                  re.sub(r'<[^>]+>\s*', '', label(table, 'ui.knowledgeBase')).strip()]:
-        cx += chip(cx, 118, text) + 6
+        cx += chip(cx, 118, text, blue, color('pal-accent-text')) + 6
 
     # Docker: the services on the left, the server on the right (it faces the cloud)
-    frame(40, 196, 760, 304, 'green', word['docker'], 'fa-cubes')
+    figure.add('<rect x="40" y="210" width="760" height="304" rx="10" fill="#ffffff" stroke="%s" stroke-width="1.5"/>' % green)
+    heading(58, 238, word['docker'], 'fa-cubes', green, 15, color('pal-green-text'))
     known = services()
     for i, name in enumerate(s for s in known if s != 'ruby'):
         col, row = i % 2, i // 2
-        x, y = 60 + col * 186, 244 + row * 80
-        figure.add('<rect x="%d" y="%d" width="174" height="68" rx="8" fill="#ffffff" stroke="%s"/>'
-                   % (x, y, color('pal-green-line')))
-        figure.icon('fas', SERVICE_ICONS[name], x + 12, y + 12, 14, color('pal-green-strong'))
-        figure.text(x + 34, y + 24, name.capitalize(), 14, ink, '600')
-        figure.text(x + 12, y + 48, word[name], 12, quiet)
+        card(60 + col * 188, 258 + row * 80, 176, 68, name.capitalize(), SERVICE_ICONS[name], green,
+             [word[name]], color('pal-grey-soft'))
 
-    figure.add('<rect x="460" y="244" width="320" height="228" rx="8" fill="#ffffff" stroke="%s" stroke-width="1.5"/>'
-               % color('pal-amber-strong'))
-    figure.icon('fas', 'fa-server', 476, 259, 15, color('pal-amber-strong'))
-    figure.text(500, 272, word['server'], 15, ink, '700')
-    figure.text(764, 272, 'Ruby', 12, quiet, None, 'end')
-    py = 290
+    figure.add('<rect x="480" y="258" width="300" height="228" rx="8" fill="#ffffff" stroke="%s" stroke-width="2"/>' % brown)
+    heading(498, 286, word['server'], 'fa-server', brown)
+    figure.text(764, 286, 'Ruby', 12, quiet, None, 'end')
+    py = 302
     for i, key in enumerate(['apps', 'adapters', 'tools']):
-        figure.add('<rect x="480" y="%d" width="280" height="34" rx="6" fill="%s" stroke="%s"/>'
-                   % (py, color('pal-amber-soft'), color('pal-amber-line')))
-        figure.text(620, py + 22, word[key], 13, color('pal-amber-text'), '600', 'middle')
+        figure.add('<rect x="500" y="%d" width="260" height="32" rx="6" fill="%s"/>' % (py, yellow))
+        figure.text(630, py + 21, word[key], 13, ink, '700', 'middle')
         if i < 2:
-            arrow(620, py + 35, 620, py + 45)
-        py += 46
-    figure.text(620, 452, word['mcp'], 12, quiet, None, 'middle')
-    arrow(436, 358, 458, 358, both=True)             # the server uses the services
+            arrow(630, py + 34, 630, py + 50)
+        py += 52
+    figure.text(630, 474, word['mcp'], 12, quiet, None, 'middle')
+    arrow(428, 372, 478, 372, both=True)             # the server uses the services
 
     # Below: the folder both sides share, and models that run here
-    figure.add('<rect x="40" y="524" width="500" height="100" rx="10" fill="#ffffff" stroke="%s" stroke-dasharray="6 4"/>'
+    figure.add('<rect x="40" y="560" width="500" height="100" rx="6" fill="#ffffff" stroke="%s" stroke-dasharray="6 4"/>'
                % color('pal-grey-mid'))
-    figure.icon('fas', 'fa-folder-open', 58, 542, 18, color('pal-amber-strong'))
-    figure.text(88, 557, word['shared'], 15, ink, '700')
-    figure.text(58, 582, word['shared_note'], 12, quiet)
-    figure.text(58, 602, '~/monadic/data  ⇄  /monadic/data', 12, quiet)
-    card(560, 524, 240, 100, local, [word['local']], 'fa-microchip', 'amber')
+    heading(58, 590, word['shared'], 'fa-folder-open', brown, 15)
+    figure.text(58, 614, word['shared_note'], 12, quiet)
+    figure.text(58, 634, '~/monadic/data  ⇄  /monadic/data', 12, quiet)
+    card(560, 560, 240, 100, local, 'fa-microchip', brown, [word['local']])
 
-    # Lines: each one straight, none over a box
-    arrow(150, 160, 150, 194)                        # the desktop app runs the containers
-    arrow(620, 160, 620, 242, both=True)             # the page and the server
-    arrow(240, 500, 240, 522, both=True, dashed=True)  # the containers and the shared folder
-    arrow(680, 472, 680, 522, both=True)             # the server and local models
+    # Lines: each one straight, none over a box, and long enough to show its line
+    arrow(150, 162, 150, 208)                        # the desktop app runs the containers
+    arrow(630, 162, 630, 256, both=True)             # the page and the server
+    arrow(240, 516, 240, 558, both=True, dashed=True)  # the containers and the shared folder
+    arrow(680, 488, 680, 558, both=True)             # the server and local models
 
-    # The cloud, beside the server
-    frame(860, 196, 250, 304, 'red', word['cloud'], 'fa-cloud')
-    figure.text(876, 244, word['cloud_note'], 12, quiet)
-    step = min(30, (500 - 16 - 262) // len(cloud))
+    # The cloud, beside the server: outside the computer, so drawn dark
+    figure.add('<rect x="880" y="210" width="230" height="304" rx="10" fill="%s"/>' % ink)
+    heading(898, 240, word['cloud'], 'fa-cloud', yellow, 15, '#ffffff')
+    figure.text(898, 262, word['cloud_note'], 12, '#c9ced4')
+    step = min(30, (514 - 16 - 280) // len(cloud))
     for i, name in enumerate(cloud):
-        chip(876, 262 + i * step, name, 'red', 218)
-    arrow(780, 358, 858, 358, both=True)             # API requests
+        chip(898, 280 + i * step, name, '#8b939b', '#ffffff', 194)
+    arrow(782, 372, 878, 372, both=True)             # API requests
 
-    figure.grow(1110, 644)
-    arrows = ('<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">'
-              '<path d="M0 0 L10 5 L0 10 z" fill="%s"/></marker>'
-              '<marker id="arrow-back" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto">'
-              '<path d="M10 0 L0 5 L10 10 z" fill="%s"/></marker>' % (color('pal-grey-strong'), color('pal-grey-strong')))
-    figure.extra_defs = arrows
+    figure.grow(1110, 680)
+    head = color('pal-grey-strong')
+    figure.extra_defs = (
+        '<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" '
+        'markerHeight="9" orient="auto"><path d="M0 1 L10 5 L0 9 z" fill="%s"/></marker>'
+        '<marker id="arrow-back" viewBox="0 0 10 10" refX="1" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" '
+        'markerHeight="9" orient="auto"><path d="M10 1 L0 5 L10 9 z" fill="%s"/></marker>' % (head, head))
     figure.ground = '#ffffff'
     return figure
 

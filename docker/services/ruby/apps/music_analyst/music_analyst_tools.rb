@@ -1,19 +1,21 @@
 # frozen_string_literal: true
 
 require "json"
-require "shellwords"
 require_relative "../../lib/monadic/utils/environment"
 require_relative "../../lib/monadic/agents/audio_analysis_agent"
+require_relative "../../lib/monadic/utils/music_features"
 
 # Tools for the Music Analyst app: two complementary lenses on an uploaded
 # audio file.
-#   - analyze_audio_features: OBJECTIVE / measured (DSP via music_analyzer.py)
+#   - analyze_audio_features: measured features (DSP via music_analyzer.py)
 #   - critique_audio:         INTERPRETIVE / qualitative (Gemini audio understanding)
 #
 # The DSP feature extraction is provider-independent (Python). The qualitative
 # critique is Gemini-specific (see AudioAnalysisAgent), so this module is only
 # included into the Gemini variant — Provider Independence is preserved.
 module MusicAnalystTools
+  include Monadic::Utils::MusicFeatures
+
   # Fallback Gemini model for qualitative critique when the SSOT default is
   # unavailable. Must support audio input; gemini-3.6-flash does.
   CRITIQUE_MODEL_FALLBACK = "gemini-3.6-flash"
@@ -21,34 +23,14 @@ module MusicAnalystTools
   # critique_audio is for real audio only; MIDI has no waveform to "listen" to.
   CRITIQUE_AUDIO_EXTS = %w[mp3 mpeg m4a mp4 wav ogg flac].freeze
 
-  # OBJECTIVE lens: deterministic feature extraction via signal processing.
+  # The measured lens: features estimated by signal processing.
   def analyze_audio_features(file_path:, session: nil)
-    filename = File.basename(file_path.to_s)
-    ext = File.extname(filename).delete_prefix(".").downcase
-    # Audio (not MIDI) feature extraction needs the optional Audio Analysis
-    # package (librosa + madmom). If it isn't installed, fail with a clear,
-    # actionable message instead of a cryptic analyzer crash. MIDI uses
-    # pretty_midi and self-reports its own missing dependency, so it falls
-    # through to the script.
-    if CRITIQUE_AUDIO_EXTS.include?(ext) && !audio_analysis_package_enabled?
-      return "❌ Objective audio analysis needs the optional Audio Analysis package " \
-             "(librosa + madmom). Enable it under Actions → Install Options and rebuild " \
-             "the Python container. The interpretive critique (critique_audio) works without it."
+    result = measure_music_features(file_path)
+    if result["package_needed"]
+      return "#{result['error']} The interpretive critique (critique_audio) works without it."
     end
-    # send_command targets the python container, where the shared volume is
-    # always mounted at /monadic/data regardless of host/container mode.
-    container_path = "/monadic/data/#{filename}"
-    params = JSON.generate({ "file_path" => container_path })
-    cmd = "python3 /monadic/scripts/music/music_analyzer.py analyze --params #{Shellwords.escape(params)}"
-    stdout = send_command(command: cmd, container: "python")
-    result = extract_json(stdout)
 
-    if result.is_a?(Hash) && result["success"]
-      format_features(result)
-    else
-      msg = result.is_a?(Hash) ? result["error"] : "Unknown error"
-      "❌ Audio feature analysis failed: #{msg}"
-    end
+    result["success"] ? format_features(result) : "❌ Audio feature analysis failed: #{result['error'] || 'Unknown error'}"
   rescue StandardError => e
     "❌ Audio feature analysis failed: #{e.message}"
   end
@@ -71,14 +53,6 @@ module MusicAnalystTools
   end
 
   private
-
-  # The optional "librosa + madmom" install option (Actions → Install Options)
-  # is recorded as PYOPT_LIBROSA in the runtime config. Without it the Python
-  # audio path can't run, so we gate on it to give an actionable message.
-  def audio_analysis_package_enabled?
-    defined?(CONFIG) && CONFIG.respond_to?(:[]) &&
-      CONFIG["PYOPT_LIBROSA"].to_s.strip.downcase == "true"
-  end
 
   # Resolve the audio-capable Gemini model from the SSOT (providerDefaults),
   # falling back to a known-good model, as the agents do (ModelSpec accessor
@@ -130,10 +104,10 @@ module MusicAnalystTools
     prompt
   end
 
-  # Compact objective summary using the music_analyzer.py JSON schema
+  # Compact summary of the measured features using the music_analyzer.py JSON schema
   # (tempo/key/time_signature are nested objects; chords/sections are arrays).
   def format_features(result)
-    lines = ["**Objective features** (measured via signal processing):"]
+    lines = ["**Measured features** (estimated by signal processing):"]
 
     if (dur = result["duration_seconds"])
       lines << "- Duration: #{(dur / 60).to_i}:#{format('%02d', (dur % 60).to_i)}"
@@ -178,19 +152,6 @@ module MusicAnalystTools
 
     lines << "- Summary: #{result['description']}" if result["description"]
     lines.join("\n")
-  end
-
-  # The Python analyzer prints JSON, sometimes with a wrapping success message;
-  # extract the outermost JSON object defensively.
-  def extract_json(output)
-    return output if output.is_a?(Hash)
-    text = output.to_s
-    start = text.index("{")
-    finish = text.rindex("}")
-    return { "success" => false, "error" => "No JSON in analyzer output" } unless start && finish && finish > start
-    JSON.parse(text[start..finish])
-  rescue JSON::ParserError => e
-    { "success" => false, "error" => "Parse error: #{e.message}" }
   end
 end
 

@@ -197,8 +197,10 @@ BUTTON_HEIGHT = 28
 TEXT = 13
 
 
-def text_width(text, size=TEXT):
-    return sum(size * (1.0 if ord(ch) > 0x2E7F else 0.56) for ch in text)
+def text_width(text, size=TEXT, weight=None):
+    """An estimate, on the generous side: the reader's fonts decide the real width."""
+    latin = 0.67 if weight in ('600', '700') else 0.61
+    return sum(size * (1.0 if ord(ch) > 0x2E7F else latin) for ch in text)
 
 
 class Figure:
@@ -221,7 +223,7 @@ class Figure:
         self.add('<text x="%.1f" y="%.1f" font-size="%d" fill="%s"%s%s>%s</text>' % (
             x, y, size, fill or self.color('text-primary'),
             ' font-weight="%s"' % weight if weight else '', ' text-anchor="%s"' % anchor if anchor else '', escape(text)))
-        return text_width(text, size)
+        return text_width(text, size, weight)
 
     def icon(self, style, name, x, y, size=TEXT, fill=None):
         key = self.icons.use(style, name)
@@ -245,7 +247,7 @@ class Figure:
         pad = 9
         key = self.icons.use(style, icon)
         icon_width = TEXT * self.icons.ratio(key)
-        width = pad + icon_width + 5 + text_width(text) + pad
+        width = pad + icon_width + 5 + text_width(text) + pad + 3
         self.add('<rect x="%.1f" y="%.1f" width="%.1f" height="%d" rx="4" fill="%s"/>'
                  % (x, y, width, BUTTON_HEIGHT, self.color(fill)))
         self.icon(style, icon, x + pad, y + (BUTTON_HEIGHT - TEXT) / 2, TEXT, ink)
@@ -288,7 +290,7 @@ class Figure:
         width, height = self.width + pad, self.height + pad
         ground = '<rect width="%.0f" height="%.0f" rx="8" fill="%s"/>' % (
             width, height, self.ground or self.color('pal-grey-soft'))
-        return ('<svg xmlns="http://www.w3.org/2000/svg" width="%.0f" height="%.0f" viewBox="0 0 %.0f %.0f" '
+        return ('<svg xmlns="http://www.w3.org/2000/svg" role="img" width="%.0f" height="%.0f" viewBox="0 0 %.0f %.0f" '
                 'font-family="%s">\n  <title>%s</title>\n  <defs>\n%s\n  </defs>\n  %s\n</svg>\n'
                 % (width, height, width, height, FONT, escape(self.title), self.icons.symbols() + ('\n    ' + self.extra_defs if self.extra_defs else ''),
                    '\n  '.join([ground] + self.parts)))
@@ -458,7 +460,7 @@ ARCHITECTURE = {
     'en': {
         'computer': 'Your computer', 'desktop': 'Desktop app', 'desktop_1': 'Starts and stops the containers',
         'desktop_2': 'Settings and API keys', 'web': 'Web interface', 'conversation': 'Conversation',
-        'local': 'Local models', 'local_1': 'Runs outside Docker, on your GPU',
+        'local': 'Local models', 'local_1': 'Outside Docker, on your GPU',
         'local_2': 'No API key needed', 'docker': 'Docker containers', 'server': 'Monadic Chat server',
         'apps': 'Apps', 'adapters': 'Model adapters', 'tools': 'Tools', 'mcp': 'MCP server',
         'python': 'Runs code · JupyterLab', 'selenium': 'A browser for the apps',
@@ -474,7 +476,7 @@ ARCHITECTURE = {
         'local': 'ローカルのモデル', 'local_1': 'Docker の外で、GPU を使って動く',
         'local_2': 'API キーは不要', 'docker': 'Docker コンテナ', 'server': 'Monadic Chat サーバー',
         'apps': 'アプリ', 'adapters': 'モデルとの接続', 'tools': 'ツール', 'mcp': 'MCP サーバー',
-        'python': 'コードの実行・JupyterLab', 'selenium': 'アプリが操作するブラウザー',
+        'python': 'コード実行・JupyterLab', 'selenium': 'アプリ用のブラウザー',
         'qdrant': 'ベクトルデータベース', 'embeddings': 'テキストをベクトルに変換',
         'privacy': '伏せる名前を見つける', 'extractor': 'PDF の読み取り（任意）',
         'shared': '共有フォルダ', 'shared_note': 'あなたのファイルと、アプリが作るもの',
@@ -522,7 +524,7 @@ def architecture(table, color, title, language):
 
     cloud, local = providers()
     # Your computer: what you use, at the top
-    figure.add('<rect x="20" y="20" width="800" height="660" rx="12" fill="%s" stroke="%s"/>' % (color('pal-grey-soft'), line))
+    figure.add('<rect x="20" y="20" width="800" height="664" rx="12" fill="%s" stroke="%s"/>' % (color('pal-grey-soft'), line))
     heading(38, 48, word['computer'], 'fa-laptop', quiet, 15, quiet)
     card(40, 64, 250, 96, word['desktop'], 'fa-desktop', green, [word['desktop_1'], word['desktop_2']])
     card(310, 64, 490, 96, word['web'], 'fa-window-maximize', green)
@@ -534,7 +536,7 @@ def architecture(table, color, title, language):
 
     # Docker: the services on the left, the server on the right (it faces the cloud)
     figure.add('<rect x="40" y="210" width="760" height="304" rx="10" fill="#ffffff" stroke="%s" stroke-width="1.5"/>' % blue)
-    heading(58, 238, word['docker'], 'fa-docker', blue, 16, color('pal-accent-text'), 'fab')
+    heading(58, 238, word['docker'], 'fa-docker', blue, 15, color('pal-accent-text'), 'fab')
     known = services()
     for i, name in enumerate(s for s in known if s != 'ruby'):
         col, row = i % 2, i // 2
@@ -542,7 +544,7 @@ def architecture(table, color, title, language):
         card(60 + col * 188, 258 + row * 80, 176, 68, name.capitalize(), icon, blue,
              [word[name]], color('pal-grey-soft'), style)
 
-    figure.add('<rect x="480" y="258" width="300" height="228" rx="8" fill="#ffffff" stroke="%s" stroke-width="2"/>' % brown)
+    figure.add('<rect x="480" y="258" width="300" height="228" rx="8" fill="#ffffff" stroke="%s" stroke-width="1.5"/>' % brown)
     heading(498, 286, word['server'], 'fa-server', brown)
     py = 302
     for i, key in enumerate(['apps', 'adapters', 'tools']):
@@ -560,18 +562,21 @@ def architecture(table, color, title, language):
     arrow(428, 372, 478, 372, both=True)             # the server uses the services
 
     # Below: the folder both sides share, and models that run here
-    figure.add('<rect x="40" y="560" width="500" height="100" rx="6" fill="#ffffff" stroke="%s" stroke-dasharray="6 4"/>'
+    figure.add('<rect x="40" y="564" width="500" height="100" rx="6" fill="#ffffff" stroke="%s" stroke-dasharray="6 4"/>'
                % color('pal-grey-mid'))
-    heading(58, 590, word['shared'], 'fa-folder-open', brown, 15)
-    figure.text(58, 614, word['shared_note'], 12, quiet)
-    figure.text(58, 634, '~/monadic/data  ⇄  /monadic/data', 12, quiet)
-    card(560, 560, 240, 100, local, 'fa-microchip', brown, [word['local'], word['local_1'], word['local_2']])
+    heading(58, 594, word['shared'], 'fa-folder-open', brown, 15)
+    figure.text(58, 618, word['shared_note'], 12, quiet)
+    # The folder's two names, joined by a drawn mark (a character's shape varies with the font)
+    px = 58 + figure.text(58, 638, '~/monadic/data', 12, quiet) + 8
+    px += figure.icon('fas', 'fa-right-left', px, 628, 11, quiet) + 8
+    figure.text(px, 638, '/monadic/data', 12, quiet)
+    card(560, 564, 240, 100, local, 'fa-microchip', brown, [word['local'], word['local_1'], word['local_2']])
 
     # Lines: each one straight, none over a box, and long enough to show its line
     arrow(165, 162, 165, 208)                        # the desktop app runs the containers
     arrow(630, 162, 630, 256, both=True)             # the page and the server
-    arrow(240, 516, 240, 558, both=True, dashed=True)  # the containers and the shared folder
-    arrow(680, 488, 680, 558, both=True)             # the server and local models
+    arrow(240, 516, 240, 562, both=True, dashed=True)  # the containers and the shared folder
+    arrow(680, 488, 680, 562, both=True)             # the server and local models
 
     # The cloud, beside the server and outside the computer's frame
     figure.add('<rect x="880" y="210" width="270" height="304" rx="10" fill="#ffffff" stroke="%s" stroke-width="1.5"/>'
@@ -583,7 +588,7 @@ def architecture(table, color, title, language):
         chip(902, 282 + i * step, name, color('pal-grey-mid'), ink, 226, '700')
     arrow(782, 372, 878, 372, both=True)             # API requests
 
-    figure.grow(1150, 680)
+    figure.grow(1150, 684)
     head = color('pal-grey-strong')
     figure.extra_defs = (
         '<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" '

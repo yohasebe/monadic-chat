@@ -76,11 +76,11 @@ module SyntaxTreeTools
   private
 
   # A file name for the drawing from the words of the tree (the text of the
-  # nodes with no node below them), in their order: letters and digits of
-  # any script, joined by hyphens.
+  # nodes with no node below them), in their order: letters, the marks
+  # joined to them, and digits of any script, joined by hyphens.
   def output_base(notation)
     words = notation.scan(/\[[^\[\]\s]+\s+([^\[\]]+)\]/).flatten.join(" ")
-    base = words.unicode_normalize(:nfc).gsub(/[^\p{L}\p{N}]+/, "-")[0, NAME_LENGTH].to_s.gsub(/\A-+|-+\z/, "")
+    base = words.unicode_normalize(:nfc).gsub(/[^\p{L}\p{M}\p{N}]+/, "-")[0, NAME_LENGTH].to_s.gsub(/\A-+|-+\z/, "")
     base.empty? ? PLAIN_NAME : base
   end
 

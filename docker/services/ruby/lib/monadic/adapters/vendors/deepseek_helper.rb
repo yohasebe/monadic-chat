@@ -182,6 +182,7 @@ module DeepSeekHelper
       # reasoning survives into the displayed message and the persistent
       # thinking toggle disappears once tools are involved.
       session[:deepseek_reasoning] = nil
+      session[:deepseek_round_text_mid] = nil
     end
 
     num_retrial = 0
@@ -260,6 +261,11 @@ module DeepSeekHelper
 
     system_message_modified = false
     messages_containing_img = false
+    # The text the model wrote before this round's tool call goes in the
+    # message that carries the call (function_returns), not as a message of
+    # its own.
+    round_text_mid = role == "tool" ? session[:deepseek_round_text_mid] : nil
+    context = context.reject { |msg| msg && round_text_mid && msg["mid"] == round_text_mid }
     body["messages"] = context.compact.map do |msg|
       if !system_message_modified && msg["role"] == "system"
         system_message_modified = true
@@ -286,7 +292,13 @@ module DeepSeekHelper
         # What the work screen shows follows the message's text.
         observation = observation_for(session, msg)
         if images.empty?
-          { "role" => msg["role"], "content" => Monadic::Workbench::Observation.appended(msg["text"], observation) }
+          sent = { "role" => msg["role"], "content" => Monadic::Workbench::Observation.appended(msg["text"], observation) }
+          # Text written before a tool call goes back with the reasoning it
+          # came with, which thinking mode requires of a turn that used tools.
+          if msg["role"] == "assistant" && msg["reasoning_content"] && deepseek_thinking_on?(obj)
+            sent["reasoning_content"] = msg["reasoning_content"]
+          end
+          sent
         else
           messages_containing_img = true
           content = [{ "type" => "text", "text" => msg["text"] }]
@@ -1065,6 +1077,10 @@ module DeepSeekHelper
 
       DebugHelper.debug("DeepSeek tools_data after processing: #{tools_data.inspect}", category: :api, level: :debug)
 
+      thinking_on = deepseek_thinking_on?(obj)
+      reasoning_content = thinking_on ? text_result&.dig("choices", 0, "message", "reasoning_content").to_s : ""
+      text_before_tools = nil
+
       # Save any content from text_result to session BEFORE processing tool calls
       if text_result
         content_before_tools = text_result.dig("choices", 0, "message", "content")
@@ -1092,6 +1108,12 @@ module DeepSeekHelper
 
           block&.call html_res
 
+          # For the requests after this round: the text goes with the call
+          # in this round's, and with its reasoning in the later ones.
+          text_before_tools = content_before_tools.to_s
+          session[:deepseek_round_text_mid] = request_id
+          assistant_message["reasoning_content"] = reasoning_content unless reasoning_content.empty?
+
           DebugHelper.debug("DeepSeek: Saved assistant message before native tool call (#{content_before_tools.length} chars)", category: :api, level: :debug)
         end
       end
@@ -1099,7 +1121,7 @@ module DeepSeekHelper
       context = []
       assistant_msg = {
         "role" => "assistant",
-        "content" => nil,
+        "content" => text_before_tools,
         "tool_calls" => tools_data.map do |tool|
           {
             "id" => tool["id"],
@@ -1109,9 +1131,8 @@ module DeepSeekHelper
         end
       }
 
-      if deepseek_thinking_on?(obj)
-        reasoning_content = text_result&.dig("choices", 0, "message", "reasoning_content")
-        if reasoning_content && !reasoning_content.empty?
+      if thinking_on
+        unless reasoning_content.empty?
           assistant_msg["reasoning_content"] = reasoning_content
           DebugHelper.debug("DeepSeek: Including reasoning_content in tool call context (#{reasoning_content.length} chars)", category: :api, level: :debug)
 

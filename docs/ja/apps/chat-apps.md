@@ -25,13 +25,13 @@ AI と会話をするアプリです。AI は適切な絵文字を付けて応�
 
 ![Voice Chat app icon](../assets/icons/voice-chat.png ':size=40')
 
-声で AI と会話するアプリです。話した内容は音声パネルで選んだ **Speech-to-Text Model** で文字に起こされ、応答は同じパネルで選んだ **Text-to-Speech Provider** で読み上げられます。読み上げの既定はブラウザ内蔵の Web Speech API で、API キーは要りません。代わりに OpenAI、ElevenLabs、Gemini、Mistral、xAI Grok の声も選べます。会話のプロバイダーと音声のプロバイダーは自由に組み合わせられます（例：会話は Claude、声は xAI Grok）。
+声で AI と会話するアプリです。話した内容は音声パネルで選んだ **音声認識モデル** で文字に起こされ、応答は同じパネルで選んだ **テキスト読み上げプロバイダー** で読み上げられます。読み上げの既定はブラウザ内蔵の Web Speech API で、API キーは要りません。代わりに OpenAI、ElevenLabs、Gemini、Mistral、xAI Grok の声も選べます。会話のプロバイダーと音声のプロバイダーは自由に組み合わせられます（例：会話は Claude、声は xAI Grok）。
 
 話している間は波形が表示されます。文字起こしのモデルが確からしさの値を返すときは、話し終えた後に p-value が表示されます。[音声入力](../basic-usage/message-input.md#speech-input)を参照してください。
 
 Voice Chat の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。音声の設定は [音声パネル](../basic-usage/web-interface.md#speech-settings-panel)を参照してください。
 
-**Expressive Speech**：Auto Speech がオンで、対応する読み上げのプロバイダーを選んでいると、Text-to-Speech Provider のメニューの下に ✨ **Expressive Speech** のバッジが表示されます。応答は、間・笑い・声の指示などの表現を付けて読み上げられ、これらはテキストには現れません。やり方はプロバイダーによって違います。[音声パネル](../basic-usage/web-interface.md#speech-settings-panel)を参照してください。
+**エクスプレッシブスピーチ**：自動音声がオンで、対応する読み上げのプロバイダーを選んでいると、**テキスト読み上げプロバイダー** のメニューの下に ✨ **エクスプレッシブスピーチ** のバッジが表示されます。応答は、間・笑い・声の指示などの表現を付けて読み上げられ、これらはテキストには現れません。やり方はプロバイダーによって違います。[音声パネル](../basic-usage/web-interface.md#speech-settings-panel)を参照してください。
 
 プロバイダーのリアルタイム speech-to-speech API に音声を直接送る、途切れないハンズフリーの会話については、下の [Live Conversation](#live-conversation) を参照してください。
 
@@ -110,4 +110,4 @@ Research Assistant の対応プロバイダーは[モデル対応状況の表](.
 
 Monadic Chat について、機能・使い方・問題の解決のしかたを、どの言語でも質問できます。アシスタントは Monadic Chat のドキュメントを検索し、それにもとづいて答えます。
 
-ドキュメントの検索には、Monadic Chat Info パネルの **Help Data** からインストールするヘルプデータを使います。Monadic Chat Help は OpenAI を使うので、OpenAI の API キーが必要です。[ヘルプシステム](../advanced-topics/help-system.md)を参照してください。
+ドキュメントの検索には、Monadic Chat情報パネルの **ヘルプデータ** からインストールするヘルプデータを使います。Monadic Chat Help は OpenAI を使うので、OpenAI の API キーが必要です。[ヘルプシステム](../advanced-topics/help-system.md)を参照してください。

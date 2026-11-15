@@ -26,13 +26,13 @@ Knowledge Base には、会話と文書（会話の記録、PDF、Office のフ�
 | PDF | `.pdf` |
 | Office | `.docx`、`.xlsx`、`.pptx` |
 
-PDF からはテキストと表が取り出されます。Knowledge Base Quality Pack を入れているときは、レイアウトの解析と OCR が使われます。入れていないときは、画像だけの PDF からはテキストが取り出されません。
+PDF からはテキストと表が取り出されます。Knowledge Base 品質パックを入れているときは、レイアウトの解析と OCR が使われます。入れていないときは、画像だけの PDF からはテキストが取り出されません。
 
 Knowledge Base に保存も検索もしないアプリがあります（Translate、Mail Composer など）。それらのアプリでは、Save ボタンと検索のスイッチは使えません。[語を伏せている](../advanced-topics/anonymization.md)会話は保存できませんが、検索するアプリでは検索はできます。
 
 **範囲の決まり：**
 
-それぞれの項目は、保存したときのアプリとプロバイダー（例：`Chat (OpenAI)`）か、`Global` のどちらかに属します。アプリが Knowledge Base を検索するとき、アプリだけの項目は、同じアプリとプロバイダーからしか見つかりません。`Chat (OpenAI)` からは `Chat (Claude)` で保存した項目は見つからず、その逆も同じです。`Global` の項目は、Knowledge Base を検索するすべてのアプリから見つかります。Browse の表の回転のアイコン、または Conversation Viewer の **Make Global** / **Make app-only** で切り替えます。
+それぞれの項目は、保存したときのアプリとプロバイダー（例：`Chat (OpenAI)`）か、`Global` のどちらかに属します。アプリが Knowledge Base を検索するとき、アプリだけの項目は、同じアプリとプロバイダーからしか見つかりません。`Chat (OpenAI)` からは `Chat (Claude)` で保存した項目は見つからず、その逆も同じです。`Global` の項目は、Knowledge Base を検索するすべてのアプリから見つかります。Browse の表の回転のアイコン、または Conversation Viewer の **Global にする** / **App-only にする** で切り替えます。
 
 **そのほかの機能：**
 

@@ -101,8 +101,8 @@ OPENAI_API_KEY=op://Dev/OpenAI/credential
 | `ROUGE_THEME` | シンタックスハイライトのテーマ | `github:light` | [使えるテーマ](../basic-usage/syntax-highlighting.md)を参照 |
 | `PRIVACY_FILTER` | 匿名化のために名前を探す Privacy のコンテナをダウンロードし、起動する | `true` | `true`、`false` |
 | `PRIVACY_LANGS` | Privacy のコンテナが英語のほかに読み込む言語 | `en` | カンマ区切りのコード（`en`、`de`、`es`、`fr`、`it`、`ja`、`nl`、`pt`、`zh`） |
-| `EXTRACTOR_SERVICE` | Knowledge Base Quality Pack のコンテナを使う | `false` | `true`、`false` |
-| `EXTRACTOR_LANGS` | Knowledge Base Quality Pack の OCR の言語 | `en,ja,zh,ko` | カンマ区切りのコード |
+| `EXTRACTOR_SERVICE` | Knowledge Base 品質パックのコンテナを使う | `false` | `true`、`false` |
+| `EXTRACTOR_LANGS` | Knowledge Base 品質パックの OCR の言語 | `en,ja,zh,ko` | カンマ区切りのコード |
 | `LIBRARY_IMPORT_MAX_BYTES` | Knowledge Base が取り込むファイルの最大の大きさ（バイト） | `104857600`（100 MiB） | 数 |
 | `GEMINI_MAX_INLINE_PDF_MB` | Gemini にそのまま送る PDF の最大の大きさ（MB） | `20` | 数 |
 
@@ -112,10 +112,10 @@ OPENAI_API_KEY=op://Dev/OpenAI/credential
 
 | 変数 | 説明 | 既定 | 範囲・選択肢 |
 |------|------|------|--------------|
-| `TTS_DICT_PATH` | TTS の読みの辞書（CSV）のパス。Settings ウィンドウ（"TTS Dictionary File Path"）で設定します。ファイルは `~/monadic/config/TTS_DICT.csv` に写され、サーバーはそれを読みます | （任意） | ファイルのパス |
-| `AUTO_TTS_MAX_BYTES` | 応答の後に Auto Speech が読み上げる最大の量（バイト）。長い文は文の切れ目で切ります | `400` | 数 |
+| `TTS_DICT_PATH` | TTS の読みの辞書（CSV）のパス。設定ウィンドウ（「TTS辞書ファイルパス」）で設定します。ファイルは `~/monadic/config/TTS_DICT.csv` に写され、サーバーはそれを読みます | （任意） | ファイルのパス |
+| `AUTO_TTS_MAX_BYTES` | 応答の後に自動音声が読み上げる最大の量（バイト）。長い文は文の切れ目で切ります | `400` | 数 |
 
-> **注意**：音声認識のモデルは環境変数では設定しません。Web の画面の **Speech** パネルで選び、選んだものはブラウザーの Cookie に保存されます。
+> **注意**：音声認識のモデルは環境変数では設定しません。Web の画面の音声パネルで選び、選んだものはブラウザーの Cookie に保存されます。
 
 ## ヘルプシステム設定 :id=help-system-settings
 
@@ -148,7 +148,7 @@ OPENAI_API_KEY=op://Dev/OpenAI/credential
 
 ## インストールオプション :id=install-options
 
-Python のコンテナに入れる追加のパッケージを選びます。変えた後は、**アクション → Pythonコンテナをビルド** で作り直してください。同じ Install Options のパネルにある 伏せる名前を探す言語と Knowledge Base Quality Pack は、[システム設定](#system-settings)にあります。
+Python のコンテナに入れる追加のパッケージを選びます。変えた後は、**アクション → Pythonコンテナをビルド** で作り直してください。同じインストールオプションの項目にある、伏せる名前を探す言語と Knowledge Base 品質パックは、[システム設定](#system-settings)にあります。
 
 | 変数 | 説明 | 必要なアプリ | 既定 |
 |------|------|--------------|------|
@@ -164,8 +164,8 @@ Python のコンテナに入れる追加のパッケージを選びます。変�
 
 ### インストールオプションの設定方法
 
-**Settings ウィンドウで（推奨）：**
-1. **アクション → インストールオプション** を選びます。Settings ウィンドウが Install Options の項目で開きます
+**設定ウィンドウで（推奨）：**
+1. **アクション → インストールオプション** を選びます。設定ウィンドウがインストールオプションの項目で開きます
 2. 使うオプションをオンにします
 3. **Save** をクリックします
 4. **アクション → Pythonコンテナをビルド** を選びます

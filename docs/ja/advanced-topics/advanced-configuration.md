@@ -1,24 +1,24 @@
 # 高度な設定
 
-このページでは、Install Options、起動、ビルドのログ、ブラウザーのタブ、環境変数について説明します。
+このページでは、インストールオプション、起動、ビルドのログ、ブラウザーのタブ、環境変数について説明します。
 
 ## インストールオプション :id=install-options
 
-**アクション → インストールオプション** で、Settings ウィンドウの **インストールオプション** の項目が開きます。ここで、追加のコンポーネントを選べます。
+**アクション → インストールオプション** で、設定ウィンドウの **インストールオプション** の項目が開きます。ここで、追加のコンポーネントを選べます。
 
 - **LaTeX**：**Install LaTeX (minimal set for diagrams)**。Concept Visualizer に必要です
 - **Python Libraries (CPU)**：nltk、spaCy、gensim、mediapipe、transformers
 - **Music Analysis**：librosa + madmom。音楽の分析のアプリに必要です
 - **System Tools (CLI)**：ImageMagick（`convert` / `mogrify`）
 - **Name Finder — Additional Languages**：伏せる名前を探すときに英語のほかに扱う言語（[匿名化](anonymization.md)）。保存すると効き、再ビルドは要りません
-- **Knowledge Base Quality Pack (Docling)**：レイアウトの解析と OCR で PDF からテキストを取り出す、別のコンテナ。OCR の言語も選べます
+- **Knowledge Base 品質パック (Docling)**：レイアウトの解析と OCR で PDF からテキストを取り出す、別のコンテナ。OCR の言語も選べます
 
 オプションの一覧は[設定リファレンス](/ja/reference/configuration.md)の表にあります。
 
 ### パネルの動作
 
 - **Save** を押してもウィンドウは閉じません。Save のボタンに、少しの間チェックの印が出ます。
-- 保存していない変更があるままウィンドウを閉じると、ダイアログで **Close**（変更を捨てる）と **Save and Close** を選べます。
+- 保存していない変更があるままウィンドウを閉じると、ダイアログで **閉じる**（変更を捨てる）と **保存して閉じる** を選べます。
 - ラベル、説明、ダイアログは、UI の言語で表示されます。
 
 ### 再ビルド処理

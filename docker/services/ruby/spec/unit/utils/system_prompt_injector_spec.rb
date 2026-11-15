@@ -603,6 +603,15 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
   describe '.build_library_rag_prompt' do
     let(:session) { { parameters: { 'library_rag_enabled' => true } } }
 
+    it 'asks for a search when the question may be about what is stored, and none when it plainly is not' do
+      allow(described_class).to receive(:library_inventory_block).and_return(nil)
+      out = described_class.build_library_rag_prompt(session)
+      expect(out).to include('Call `library_search` first when the question may be about what the user has stored')
+      expect(out).to include('When you cannot tell whether the stored content is relevant, search.')
+      expect(out).to include('Answer without searching when the question plainly has nothing to do with the stored content')
+      expect(out).not_to include('BEFORE answering substantive factual questions')
+    end
+
     it 'always includes the directive header even when the inventory is unavailable' do
       allow(described_class).to receive(:library_inventory_block).and_return(nil)
       out = described_class.build_library_rag_prompt(session)
@@ -674,11 +683,13 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
   end
 
   describe '.library_inventory_block' do
-    it 'returns nil when the Library is empty' do
+    it 'says that nothing is stored when the Library is empty' do
       allow(Monadic::Library::Inventory).to receive(:summarize).and_return(
         { total: 0, by_source: {}, by_content_type: {} }
       )
-      expect(described_class.library_inventory_block).to be_nil
+      expect(described_class.library_inventory_block).to eq(
+        'Knowledge Base inventory: nothing is stored yet. Do not call `library_search`.'
+      )
     end
 
     it 'enumerates source and content_type counts without hard-coding any specific source name' do

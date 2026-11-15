@@ -116,7 +116,9 @@ module Monadic
       # for any topic the user may have stored content about. Without this
       # rule the model often answers from training knowledge even when the
       # Knowledge Base contains an authoritative passage, which violates the
-      # user's opt-in expectation. The directive also pins the citation
+      # user's opt-in expectation. A question that plainly has nothing to do
+      # with what is stored is answered without a search, so a reply does
+      # not wait for one that cannot help. The directive also pins the citation
       # format so the frontend's mc:conv: link interception keeps
       # round-tripping back to the source conversation.
       #
@@ -128,9 +130,10 @@ module Monadic
       LIBRARY_RAG_HEADER = <<~PROMPT.strip
         Knowledge Base RAG is enabled for this session. The user has stored content in the project-wide Knowledge Base and expects you to use it.
 
-        - BEFORE answering substantive factual questions, call `library_search` first to check whether the Knowledge Base contains relevant prior content. This applies even when you believe you already know the answer from your training data.
+        - Call `library_search` first when the question may be about what the user has stored: their documents, notes or earlier conversations, or a topic the inventory below suggests is there. This applies even when you believe you already know the answer from your training data. When you cannot tell whether the stored content is relevant, search.
+        - Answer without searching when the question plainly has nothing to do with the stored content, or is purely conversational (greetings, clarifications, formatting requests, etc.).
         - When `library_search` returns hits, base your answer on the retrieved passages and preserve the markdown citation links `[Title](mc:conv:<id>)` exactly as they appear so the user can click through to the original conversation.
-        - Only fall back to your general knowledge when `library_search` returns no relevant hits, or when the question is purely conversational (greetings, clarifications, formatting requests, etc.).
+        - Fall back to your general knowledge when `library_search` returns no relevant hits.
         - You may issue multiple `library_search` calls in a single turn with different queries when the user's question spans several topics.
       PROMPT
 
@@ -524,7 +527,8 @@ module Monadic
 
           store = Monadic::Library::Store.new
           inv = Monadic::Library::Inventory.summarize(store: store, app_name: app_name)
-          return nil if inv[:total].to_i.zero?
+          # Nothing stored: said, so the model does not search for nothing.
+          return "Knowledge Base inventory: nothing is stored yet. Do not call `library_search`." if inv[:total].to_i.zero?
 
           lines = ["Knowledge Base inventory (currently stored):"]
           lines << "Total entries: #{inv[:total]}"

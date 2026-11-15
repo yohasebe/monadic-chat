@@ -3,6 +3,7 @@
 require "json"
 require "shellwords"
 require_relative "environment"
+require_relative "shared_path_guard"
 require_relative "../workspace"
 require_relative "../workbench/chat_output"
 
@@ -34,11 +35,13 @@ module Monadic
         id = file_path.to_s.strip if id.empty? && Monadic::Workspace::Ids.valid?(:attachment, file_path.to_s.strip)
         relative, absolute =
           if id.empty?
-            path = MusicFeatures.path_in_shared_folder(file_path)
-            return { error: "Give the attachment_id of an attached file, or the path of a file in the shared folder." } unless path
+            # The shared folder's own boundary: no path that leaves it, by
+            # its name or through a link.
+            given = file_path.to_s.strip
+            seen = SharedPathGuard.command_path(given, container: "python", must_exist: false)
+            return { error: "Give the attachment_id of an attached file, or the path of a file in the shared folder." } unless seen
 
-            inside = path.delete_prefix("#{SHARED_FOLDER}/")
-            [inside, File.join(Environment.data_path, inside)]
+            [seen.delete_prefix("#{SHARED_FOLDER}/"), SharedPathGuard.resolve_in_shared(given, must_exist: false)]
           else
             record = resolve_audio_attachment(id, session)
             [record[:relative_path], record[:path]]
@@ -51,31 +54,18 @@ module Monadic
         { error: e.message }
       end
 
-      # The analyzer's result ("success" => true, with the features), or
-      # "success" => false with "error"; "package_needed" => true when the
-      # Music Analysis package is off.
-      def measure_music_features(file_path)
-        path = MusicFeatures.path_in_shared_folder(file_path)
-        return { "success" => false, "error" => "The file must be in the shared folder." } unless path
-
-        extension = File.extname(path).delete_prefix(".").downcase
+      # The analyzer's result for a file music_file found ("success" => true,
+      # with the features), or "success" => false with "error";
+      # "package_needed" => true when the Music Analysis package is off.
+      def measure_music_features(file)
+        extension = File.extname(file[:relative]).delete_prefix(".").downcase
         if AUDIO_EXTENSIONS.include?(extension) && !MusicFeatures.package_enabled?
           return { "success" => false, "error" => PACKAGE_NEEDED, "package_needed" => true }
         end
 
-        params = JSON.generate({ "file_path" => path })
+        params = JSON.generate({ "file_path" => "#{SHARED_FOLDER}/#{file[:relative]}" })
         command = "python3 /monadic/scripts/music/music_analyzer.py analyze --params #{Shellwords.escape(params)}"
         MusicFeatures.parse(send_command(command: command, container: "python"))
-      end
-
-      # The file's path in the Python container: a path in the shared folder,
-      # given with or without the folder in front. nil for a path that leaves
-      # the folder.
-      def self.path_in_shared_folder(file_path)
-        relative = file_path.to_s.strip.delete_prefix("#{SHARED_FOLDER}/")
-        return nil if relative.empty? || relative.start_with?("/") || relative.split("/").include?("..")
-
-        "#{SHARED_FOLDER}/#{relative}"
       end
 
       # The Music Analysis install option, recorded as PYOPT_LIBROSA.

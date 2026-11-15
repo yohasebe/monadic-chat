@@ -435,7 +435,7 @@ module OllamaHelper
 
     # Add tool definitions if available and within call depth limit
     tools_config = obj["tools"]
-    if tools_config && session[:call_depth_per_turn].to_i < MAX_FUNC_CALLS
+    if tools_config && session[:call_depth_per_turn].to_i < tool_round_limit(session, MAX_FUNC_CALLS)
       formatted_tools = format_tools_for_ollama(tools_config)
       # Ollama sources tools from obj["tools"] (frontend), so PTD filtering must
       # run here: hide conditional tools not yet unlocked, then annotate the
@@ -459,7 +459,7 @@ module OllamaHelper
     # whether the app declares any tools of its own. The call-depth
     # cap above still applies — once the limit is reached, neither
     # app tools nor websearch tools are sent (the model must wrap up).
-    if websearch && session[:call_depth_per_turn].to_i < MAX_FUNC_CALLS
+    if websearch && session[:call_depth_per_turn].to_i < tool_round_limit(session, MAX_FUNC_CALLS)
       body["tools"] ||= []
       body["tools"].concat(WEBSEARCH_TOOLS)
     end
@@ -718,8 +718,8 @@ module OllamaHelper
     if accumulated_tool_calls.any?
       session[:call_depth_per_turn] = session[:call_depth_per_turn].to_i + 1
 
-      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
-        res = { "type" => "error", "content" => "ERROR: Maximum function call depth exceeded (#{MAX_FUNC_CALLS})" }
+      if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS)
+        res = { "type" => "error", "content" => "ERROR: Maximum function call depth exceeded (#{tool_round_limit(session, MAX_FUNC_CALLS)})" }
         block&.call res
         return [res]
       end

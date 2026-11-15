@@ -289,10 +289,41 @@ module ErrorPatternDetector
     session[:tool_call_sequence] = []
   end
 
+  # The same call again: a tool called with the same arguments is not run a
+  # third time while the turn makes no call it has not made before. Returns
+  # what the model is told in place of a result, or nil when the call runs.
+  REPEAT_LIMIT = 3
+
+  def self.repeat_refusal(session, function_name, arguments)
+    return nil unless session.respond_to?(:[]=)
+
+    state = (session[:tool_call_repeats] ||= { seen: {}, counts: Hash.new(0) })
+    signature = [function_name.to_s, canonical(arguments)]
+    unless state[:seen][signature]
+      state[:seen][signature] = true
+      state[:counts].clear
+    end
+    return nil if (state[:counts][signature] += 1) < REPEAT_LIMIT
+
+    "❌ `#{function_name}` was already called #{REPEAT_LIMIT - 1} times in this reply with the same arguments, " \
+      "and nothing new was done in between, so it was not run again. " \
+      "Use the results you have and write your answer."
+  end
+
+  # Arguments in one form whatever the order or the kind of their keys.
+  def self.canonical(value)
+    case value
+    when Hash then value.map { |k, v| [k.to_s, canonical(v)] }.sort_by(&:first)
+    when Array then value.map { |v| canonical(v) }
+    else value
+    end
+  end
+
   # A new user turn: the tool calls of the turn before are not counted
   # toward a cycle, and a turn stopped for one does not stop this one.
   def self.begin_turn(session)
     reset_tool_tracking(session)
+    session.delete(:tool_call_repeats) if session.respond_to?(:delete)
     params = session[:parameters]
     params.delete("stop_retrying") if params.respond_to?(:delete)
   end

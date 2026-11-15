@@ -53,6 +53,7 @@ app "LanguagePracticeCohere" do
   display_name "Language Practice"
   
   features do
+    max_tool_rounds 10
     show_thinking false
     disabled !CONFIG["COHERE_API_KEY"]
     temperature 0.5

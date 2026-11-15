@@ -1535,7 +1535,7 @@ module GeminiHelper
       # (e.g., after parallel dispatch or verification sets call_depth_per_turn = FORCE_STOP_DEPTH).
       # Without this, Gemini ignores the "Do NOT call any more tools" text instruction
       # and attempts tool calls, which hit MAX_FUNC_CALLS and truncate the response.
-      if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+      if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= tool_round_limit(session, MAX_FUNC_CALLS)
         body.delete("tools")
         body.delete("toolConfig")
       end
@@ -2657,7 +2657,7 @@ module GeminiHelper
       end
 
       session[:call_depth_per_turn] += 1
-      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
+      if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS)
         error_content = Monadic::Utils::ErrorFormatter.api_error(
           provider: "Gemini",
           message: "Maximum function call depth exceeded"

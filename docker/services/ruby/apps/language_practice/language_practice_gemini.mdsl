@@ -51,6 +51,7 @@ app "LanguagePracticeGemini" do
   display_name "Language Practice"
   
   features do
+    max_tool_rounds 10
     show_thinking false
     disabled !CONFIG["GEMINI_API_KEY"]
     context_size 100

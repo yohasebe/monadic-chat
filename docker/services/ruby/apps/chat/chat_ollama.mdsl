@@ -53,6 +53,7 @@ app "ChatOllama" do
   display_name "Chat"
   
   features do
+    max_tool_rounds 10
     easy_submit false
     auto_speech false
     initiate_from_assistant false

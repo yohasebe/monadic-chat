@@ -978,7 +978,7 @@ module CohereHelper
     Monadic::Utils::ExtraLogger.log { "Cohere SSOT capabilities for #{obj['model']}: model=#{body['model']}, messages=#{body['messages']&.size}" }
 
     # Force text-only response when force-stop is active
-    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= tool_round_limit(session, MAX_FUNC_CALLS)
       body.delete("tools")
       body.delete("tool_choice")
     end
@@ -1323,7 +1323,7 @@ module CohereHelper
       }
 
       session[:call_depth_per_turn] += 1
-      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
+      if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS)
         return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
           provider: "Cohere",
           message: "Maximum function call depth exceeded"

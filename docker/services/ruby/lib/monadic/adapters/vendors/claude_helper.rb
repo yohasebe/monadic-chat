@@ -1237,7 +1237,7 @@ module ClaudeHelper
     end
 
     # Force text-only response when force-stop is active
-    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= tool_round_limit(session, MAX_FUNC_CALLS)
       body.delete("tools")
       body.delete("tool_choice")
     end
@@ -1620,7 +1620,7 @@ module ClaudeHelper
              end
 
     # Process tool calls if any exist
-    if tool_calls.any? && session[:call_depth_per_turn] <= MAX_FUNC_CALLS
+    if tool_calls.any? && session[:call_depth_per_turn] <= tool_round_limit(session, MAX_FUNC_CALLS)
       # Preserve pre-tool text so it can be prepended to the final response.
       # Without this, streamed text from Round 1 (e.g. mathematical explanation)
       # is lost when Round 2 (post-tool) replaces the temp-card content.
@@ -1642,7 +1642,7 @@ module ClaudeHelper
     end
 
     if text_result || tool_calls.any?
-      if session[:call_depth_per_turn] > MAX_FUNC_CALLS && tool_calls.any?
+      if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS) && tool_calls.any?
         res = { "type" => "fragment", "content" => "NOTICE: Maximum function call depth exceeded" }
         block&.call res
 

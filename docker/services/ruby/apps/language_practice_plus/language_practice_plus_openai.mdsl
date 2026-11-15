@@ -99,6 +99,7 @@ app "LanguagePracticePlusOpenAI" do
   display_name "Language Practice Plus"
 
   features do
+    max_tool_rounds 10
     show_thinking false
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit true

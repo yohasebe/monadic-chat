@@ -54,6 +54,7 @@ app "VoiceChatMistral" do
   display_name "Voice Chat"
   
   features do
+    max_tool_rounds 10
     show_thinking false
     websearch false
     disabled !CONFIG["MISTRAL_API_KEY"]

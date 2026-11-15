@@ -1157,7 +1157,7 @@ module DeepSeekHelper
       # helpers: at MAX_FUNC_CALLS the next request goes without tools, so
       # the model answers in text.
       session[:call_depth_per_turn] = session[:call_depth_per_turn].to_i + 1
-      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
+      if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS)
         return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
           provider: "DeepSeek", message: "Maximum function call depth exceeded"
         ) }]
@@ -1210,7 +1210,7 @@ module DeepSeekHelper
     # is sent only while the table is unchanged).
     hiding = hide_words_in_request!(body, session)
 
-    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= tool_round_limit(session, MAX_FUNC_CALLS)
       body.delete("tools")
       body.delete("tool_choice")
     end

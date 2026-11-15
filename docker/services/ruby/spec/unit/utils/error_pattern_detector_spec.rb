@@ -451,4 +451,48 @@ RSpec.describe ErrorPatternDetector do
       expect { described_class.begin_turn({}) }.not_to raise_error
     end
   end
+
+  describe '.repeat_refusal' do
+    let(:session) { {} }
+
+    def call(name, arguments = {})
+      described_class.repeat_refusal(session, name, arguments)
+    end
+
+    it 'runs a call twice and refuses the third with the same arguments' do
+      expect(call('list_files', { 'path' => '.' })).to be_nil
+      expect(call('list_files', { 'path' => '.' })).to be_nil
+      expect(call('list_files', { 'path' => '.' })).to match(/\A❌ `list_files` was already called 2 times/)
+    end
+
+    it 'takes the same arguments in another order or with symbol keys as the same call' do
+      2.times { call('write', { 'name' => 'a', 'mode' => 'w' }) }
+      expect(call('write', { mode: 'w', name: 'a' })).to start_with('❌')
+    end
+
+    it 'runs a call with other arguments' do
+      2.times { call('write', { 'name' => 'a' }) }
+      expect(call('write', { 'name' => 'b' })).to be_nil
+    end
+
+    it 'runs a call again after the turn made a call it had not made before' do
+      2.times { call('look') }
+      expect(call('edit', { 'text' => 'one' })).to be_nil
+      expect(call('look')).to be_nil
+      expect(call('edit', { 'text' => 'two' })).to be_nil
+      expect(call('look')).to be_nil
+    end
+
+    it 'refuses when the same calls only alternate' do
+      results = 3.times.flat_map { [call('update', { 'x' => 1 }), call('put', { 'y' => 2 })] }
+      expect(results.first(5)).to all(be_nil)
+      expect(results.last).to start_with('❌')
+    end
+
+    it 'counts a new turn from the start' do
+      2.times { call('list_files') }
+      described_class.begin_turn(session)
+      expect(call('list_files')).to be_nil
+    end
+  end
 end

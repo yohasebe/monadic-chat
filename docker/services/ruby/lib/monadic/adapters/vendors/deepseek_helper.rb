@@ -172,8 +172,9 @@ module DeepSeekHelper
   def api_request(role, session, call_depth: 0, &block)
     Monadic::Utils::ExtraLogger.log { "[DeepSeek] api_request called: role=#{role}, call_depth=#{call_depth}" }
 
-    # Reset parallel dispatch guard and call depth for new user turn
-    if role == "user"
+    # Reset parallel dispatch guard and call depth for new user turn (not
+    # for a request made again within the turn, which has a call depth)
+    if role == "user" && call_depth.zero?
       session[:call_depth_per_turn] = 0
       session[:parallel_dispatch_called] = nil
       # Reset the cross-round reasoning accumulator (see the tool branch and the

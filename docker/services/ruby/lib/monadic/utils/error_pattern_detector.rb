@@ -289,6 +289,14 @@ module ErrorPatternDetector
     session[:tool_call_sequence] = []
   end
 
+  # A new user turn: the tool calls of the turn before are not counted
+  # toward a cycle, and a turn stopped for one does not stop this one.
+  def self.begin_turn(session)
+    reset_tool_tracking(session)
+    params = session[:parameters]
+    params.delete("stop_retrying") if params.respond_to?(:delete)
+  end
+
   def self.tool_cycle_message(session)
     cycle = detect_tool_call_cycle(session)
     return nil unless cycle

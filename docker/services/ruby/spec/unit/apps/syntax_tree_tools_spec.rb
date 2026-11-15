@@ -89,6 +89,8 @@ RSpec.describe SyntaxTreeOpenAI do
       end
       expect(named.call('[S [NP [Det The] [N cat]] [VP [V sat] [PP [P on] [NP ^the mat.]]]]')).to eq('The-cat-sat-on-the-mat.svg')
       expect(named.call('[S [NP 猫が] [VP 寝た]]')).to eq('猫が-寝た.svg')
+      expect(named.call('[S [NP बिल्ली] [VP सोई]]')).to eq('बिल्ली-सोई.svg')
+      expect(named.call('[S [NP ../../etc/passwd]]')).to eq('etc-passwd.svg')
       expect(named.call("[S [NP #{'word ' * 20}]]")).to eq("#{(['word'] * 8).join('-')}.svg")
       expect(named.call('[S [NP] [VP]]')).to eq('syntax-tree.svg')
     end

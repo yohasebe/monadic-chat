@@ -158,6 +158,32 @@ function setupTooltips(container) {
 }
 
 /**
+ * Shows the tooltip of a card header's control when the pointer or the focus
+ * comes to it. The tooltip is made then, so a control added later, or one
+ * whose tooltip was removed, needs nothing done for it.
+ * @param {HTMLElement} container - Element the cards are added to
+ */
+function showCardTooltipsOnHover(container) {
+  if (!container || container._cardTooltipsOnHover) return;
+  container._cardTooltipsOnHover = true;
+  var show = function(event) {
+    if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+    var target = event.target;
+    var el = target && target.closest
+      ? target.closest('.card-header [title], .card-header [data-bs-original-title]')
+      : null;
+    if (!el || !container.contains(el) || bootstrap.Tooltip.getInstance(el)) return;
+    try {
+      new bootstrap.Tooltip(el, { delay: { show: 0, hide: 0 }, container: 'body' }).show();
+    } catch (e) {
+      console.warn('Tooltip initialization error:', e);
+    }
+  };
+  container.addEventListener('mouseover', show);
+  container.addEventListener('focusin', show);
+}
+
+/**
  * Removes all tooltip elements from the DOM
  * Helps prevent memory leaks from lingering tooltips
  * Includes error handling for Electron compatibility
@@ -381,6 +407,7 @@ window.uiUtils = {
   setupTextarea,
   adjustScrollButtons,
   setupTooltips,
+  showCardTooltipsOnHover,
   cleanupAllTooltips,
   adjustImageUploadButton,
   simulateEscapeKey,

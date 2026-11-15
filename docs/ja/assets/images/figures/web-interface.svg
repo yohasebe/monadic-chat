@@ -25,12 +25,12 @@
   <circle cx="850.0" cy="21.0" r="9" fill="#2a2e33"/>
   <text x="850.0" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">3</text>
   <rect x="20" y="106" width="520" height="40" rx="6" fill="#dadee2"/>
-  <text x="72.5" y="131.0" font-size="13" fill="#58616b" text-anchor="middle">現在の設定</text>
-  <rect x="121.0" y="112" width="89.0" height="28" rx="5" fill="#ffffff"/>
-  <text x="165.5" y="131.0" font-size="13" fill="#2a2e33" font-weight="600" text-anchor="middle">セッション</text>
-  <use href="#i-solid-comment" x="224.0" y="119.0" width="13.0" height="13" fill="#2a2e33"/>
-  <text x="243.0" y="131.0" font-size="13" fill="#2a2e33" font-weight="700">Chat</text>
-  <rect x="287.8" y="122" width="90" height="8" rx="4" fill="#8b939b"/>
+  <text x="68.0" y="131.0" font-size="12" fill="#58616b" text-anchor="middle">現在の設定</text>
+  <rect x="112.0" y="112" width="80.0" height="28" rx="5" fill="#ffffff"/>
+  <text x="152.0" y="131.0" font-size="12" fill="#2a2e33" font-weight="600" text-anchor="middle">セッション</text>
+  <use href="#i-solid-comment" x="206.0" y="119.0" width="13.0" height="13" fill="#2a2e33"/>
+  <text x="225.0" y="131.0" font-size="13" fill="#2a2e33" font-weight="700">Chat</text>
+  <rect x="269.8" y="122" width="90" height="8" rx="4" fill="#8b939b"/>
   <circle cx="520.0" cy="93.0" r="9" fill="#2a2e33"/>
   <text x="520.0" y="97.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">4</text>
   <rect x="20" y="158" width="520" height="300" rx="6" fill="#ffffff" stroke="#dadee2"/>
@@ -63,11 +63,11 @@
   <rect x="20" y="576" width="70" height="26" rx="4" fill="#3a68a6"/>
   <rect x="98" y="576" width="76" height="26" rx="4" fill="#6e7781"/>
   <rect x="560" y="106" width="320" height="40" rx="6" fill="#dadee2"/>
-  <rect x="568.0" y="112" width="76.0" height="28" rx="5" fill="#ffffff"/>
-  <text x="606.0" y="131.0" font-size="13" fill="#2a2e33" font-weight="600" text-anchor="middle">メニュー</text>
-  <text x="686.0" y="131.0" font-size="13" fill="#58616b" text-anchor="middle">作業画面</text>
-  <text x="766.0" y="131.0" font-size="13" fill="#58616b" text-anchor="middle">ファイル</text>
-  <text x="833.0" y="131.0" font-size="13" fill="#58616b" text-anchor="middle">履歴</text>
+  <rect x="568.0" y="112" width="68.0" height="28" rx="5" fill="#ffffff"/>
+  <text x="602.0" y="131.0" font-size="12" fill="#2a2e33" font-weight="600" text-anchor="middle">メニュー</text>
+  <text x="674.0" y="131.0" font-size="12" fill="#58616b" text-anchor="middle">作業画面</text>
+  <text x="746.0" y="131.0" font-size="12" fill="#58616b" text-anchor="middle">ファイル</text>
+  <text x="806.0" y="131.0" font-size="12" fill="#58616b" text-anchor="middle">履歴</text>
   <circle cx="860.0" cy="93.0" r="9" fill="#2a2e33"/>
   <text x="860.0" y="97.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">7</text>
   <rect x="560" y="158" width="320" height="150" rx="6" fill="#ffffff" stroke="#dadee2"/>

@@ -711,10 +711,10 @@ def web_interface(table, color, title):
     tx = 28
     for key, chosen in (('ui.configSummaryLabel', False), ('ui.mainTabs.session', True)):
         text = word(key)
-        w = text_width(text, 13, '600') + 24
+        w = text_width(text, 12, '600') + 20
         if chosen:
             figure.add('<rect x="%.1f" y="112" width="%.1f" height="28" rx="5" fill="#ffffff"/>' % (tx, w))
-        figure.text(tx + w / 2, 131, text, 13, ink if chosen else quiet, '600' if chosen else None, 'middle')
+        figure.text(tx + w / 2, 131, text, 12, ink if chosen else quiet, '600' if chosen else None, 'middle')
         tx += w + 4
     tx += 10
     tx += figure.icon('fas', 'fa-comment', tx, 119, 13, ink) + 6
@@ -750,10 +750,10 @@ def web_interface(table, color, title):
     tx = 568
     for i, key in enumerate(side_tabs()):
         text = label(table, key)
-        w = text_width(text, 13, '600') + 24
+        w = text_width(text, 12, '600') + 20
         if i == 0:
             figure.add('<rect x="%.1f" y="112" width="%.1f" height="28" rx="5" fill="#ffffff"/>' % (tx, w))
-        figure.text(tx + w / 2, 131, text, 13, ink if i == 0 else quiet, '600' if i == 0 else None, 'middle')
+        figure.text(tx + w / 2, 131, text, 12, ink if i == 0 else quiet, '600' if i == 0 else None, 'middle')
         tx += w + 4
     figure.callout(860, 93)
     for top, h in ((158, 150), (320, 110), (442, 160)):

@@ -6166,27 +6166,27 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
    (#e5e5ea/#f8f9fa). While live, the hue shifts to a muted brick with a
    soft pulse — "recording" without alarm-red urgency. */
 .btn-lc {
-  background-color: #6d5fa8;
-  border-color: #6d5fa8;
+  background-color: var(--btn-live-bg);
+  border-color: var(--btn-live-bg);
   color: #fff;
 }
 .btn-lc:hover, .btn-lc:focus {
-  background-color: #5d5090;
-  border-color: #5d5090;
+  background-color: var(--btn-live-hover-bg);
+  border-color: var(--btn-live-hover-bg);
   color: #fff;
 }
 .btn-lc.btn-lc-live {
-  background-color: #a94442;
-  border-color: #a94442;
+  background-color: var(--pal-red-strong);
+  border-color: var(--pal-red-strong);
   animation: lc-live-pulse 2s ease-in-out infinite;
 }
 .btn-lc.btn-lc-live:hover, .btn-lc.btn-lc-live:focus {
-  background-color: #8f3a38;
-  border-color: #8f3a38;
+  background-color: var(--pal-red-strong-hover);
+  border-color: var(--pal-red-strong-hover);
 }
 @keyframes lc-live-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(169, 68, 66, 0.35); }
-  50% { box-shadow: 0 0 0 6px rgba(169, 68, 66, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pal-red-strong) 35%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--pal-red-strong) 0%, transparent); }
 }
 
 /* Usage note shown while the conversation is empty (explicit Start/Stop
@@ -6221,14 +6221,28 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 }
 .lc-live-zone .lc-live-role {
   font-size: inherit;
-  color: var(--bs-secondary-color, #6c757d);
   margin-bottom: 0.15rem;
+}
+.lc-live-zone .lc-live-role i {
+  margin-right: 0.4rem;
+}
+/* A zone in the colors of its role's card. */
+.lc-live-zone[data-role="user"] {
+  border-left-color: var(--color-user);
+  background-color: var(--bg-card-user);
+}
+.lc-live-zone[data-role="user"] .lc-live-role i {
+  color: var(--color-user);
+}
+.lc-live-zone[data-role="assistant"] {
+  border-left-color: var(--color-assistant);
+  background-color: var(--bg-card-assistant);
+}
+.lc-live-zone[data-role="assistant"] .lc-live-role i {
+  color: var(--color-assistant);
 }
 .lc-live-prev {
   opacity: 0.65;
-}
-#lc-live-current {
-  border-left-color: #6d5fa8;
 }
 /* Both zones in the same size: what the user said is read as easily as the
    reply. */

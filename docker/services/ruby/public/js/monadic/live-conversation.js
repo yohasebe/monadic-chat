@@ -424,10 +424,17 @@
     }
   }
 
-  function zoneText(role) {
-    return role === 'user'
-      ? t('ui.messages.lcRoleUser', 'You')
-      : t('ui.messages.lcRoleAssistant', 'Assistant');
+  // A zone's role, shown as a card shows it: the same icon, name and color.
+  function renderRole(roleEl, role) {
+    roleEl.replaceChildren();
+    if (!role) return;
+    const user = role === 'user';
+    const icon = document.createElement('i');
+    icon.className = 'fas ' + (user ? 'fa-face-smile' : 'fa-robot');
+    const name = document.createElement('span');
+    name.className = 'fw-bold ' + (user ? 'user-color' : 'assistant-color');
+    name.textContent = user ? 'User' : 'Assistant';
+    roleEl.append(icon, name);
   }
 
   // Tool badges in the live view: the same semantics as the folded
@@ -442,9 +449,9 @@
   function renderZone(zone, entry, highlightChar) {
     const roleEl = zone.querySelector('.lc-live-role');
     const textEl = zone.querySelector('.lc-live-text');
-    if (roleEl) {
-      roleEl.textContent = entry.role ? zoneText(entry.role) : '';
-    }
+    if (roleEl) renderRole(roleEl, entry.role);
+    // The zone takes the colors of its role's card.
+    if (entry.role) { zone.dataset.role = entry.role; } else { delete zone.dataset.role; }
     if (textEl) {
       // Paragraph split: same "\n\n" semantics as the folded card.
       // The CURRENT zone may also carry the speech-highlight span.

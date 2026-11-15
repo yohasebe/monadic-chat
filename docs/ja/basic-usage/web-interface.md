@@ -86,7 +86,7 @@ AI ユーザー機能のシステムプロンプトを表示・編集します�
 新しいチャットを始めるか、今の会話を続けます。
 
 **セッションの表示バッジ**<br />
-上部のバーには、効いている機能のバッジが表示されます：**Web Search**、**Math**、**Knowledge Base**、今の推論の段階（オフでないとき）。Knowledge Base のバッジは、セッションが Knowledge Base を読むときに表示されます。つまり、**Use Knowledge Base for retrieval (this session)** がオンのときです。[Live Conversation](../apps/chat-apps.md#live-conversation) では、いくつかの設定に画面の部品がないため、それに当たるバッジは出ません。
+上部のバーには、効いている機能のバッジが表示されます：**Web Search**、**Math**、**Knowledge Base**、今の推論の段階（オフでないとき）。Knowledge Base のバッジは、セッションが Knowledge Base を読むときに表示されます。つまり、**このセッションでナレッジベース検索を使う** がオンのときです。[Live Conversation](../apps/chat-apps.md#live-conversation) では、いくつかの設定に画面の部品がないため、それに当たるバッジは出ません。
 
 ページの上部のバーには、会話の状態が出ます。
 
@@ -123,11 +123,11 @@ AI ユーザー機能のシステムプロンプトを表示・編集します�
 **AIアシスタント & AIユーザー**<br />
 アシスタントと AI ユーザー機能が使っているモデルと、今のセッションの統計（メッセージ数とトークン数）。
 
-**PDF Database**<br />
+**PDFデータベース**<br />
 PDF データベースを持つアプリでだけ表示されます。下の [PDF データベースパネル](#pdf-database-display-panel)を参照してください。
 
-**Knowledge Base**<br />
-今の会話を Knowledge Base に **Save** し、**Browse** で中を見て、**Use Knowledge Base for retrieval (this session)** をオン・オフします。[Knowledge Base](../apps/knowledge-base.md) を参照してください。
+**ナレッジベース**<br />
+今の会話を Knowledge Base に **保存** し、**一覧** で中を見て、**このセッションでナレッジベース検索を使う** をオン・オフします。[Knowledge Base](../apps/knowledge-base.md) を参照してください。
 
 **セッション操作**<br />
 - **リセット**：アプリの選択は残したまま、今の会話を消し、パラメータを既定に戻します。ページが保存しているデータも消して最初のアプリの選択に戻るには、内部ブラウザの **Reset All** を使います
@@ -212,7 +212,7 @@ Gemini TTS では、文にない「Oh,」のような言葉や笑いが音声に
 
 ?> このパネルは、PDF データベースを持つアプリを選んだときにだけ表示されます。
 
-**Import** をクリックして PDF を取り込みます。題名を付けられます（空のときはファイル名を使います）。複数の PDF を取り込めます。**Refresh** で一覧を更新し、PDF の横のゴミ箱のアイコンでその PDF を、**Clear All** でアプリのすべての PDF を、それぞれ確認のうえ削除します。
+**ファイルをインポート** をクリックして PDF を取り込みます。題名を付けられます（空のときはファイル名を使います）。複数の PDF を取り込めます。**Refresh** で一覧を更新し、PDF の横のゴミ箱のアイコンでその PDF を、**Clear All** でアプリのすべての PDF を、それぞれ確認のうえ削除します。
 
 PDF はコンピューター上に保存されます。バックアップは **ドキュメントDBをエクスポート**、復元は **ドキュメントDBをインポート**（Actions メニュー）で行います。詳しくは [PDF データベース](./pdf_storage.md)を参照してください。
 

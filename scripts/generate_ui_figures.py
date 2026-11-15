@@ -1342,7 +1342,7 @@ def architecture(table, color, title, language):
 FIGURES = {
     'input-buttons': (input_buttons, {'en': 'Buttons under the message box', 'ja': 'メッセージ入力欄の下のボタン'}),
     'message-buttons': (message_buttons, {'en': "Buttons of an assistant's card", 'ja': 'アシスタントのカードのボタン'}),
-    'knowledge-base': (knowledge_base, {'en': 'Knowledge Base panel', 'ja': 'Knowledge Base のパネル'}),
+    'knowledge-base': (knowledge_base, {'en': 'Knowledge Base panel', 'ja': 'ナレッジベースパネル'}),
     'live-conversation': (live_conversation, {'en': 'Live Conversation controls', 'ja': 'Live Conversation の操作欄'}),
     'side-column': (side_column, {'en': 'Tabs of the side column', 'ja': '右側の列のタブ'}),
     'url-dialog': (url_dialog, {'en': 'The Open URL dialog', 'ja': 'URL を開くダイアログ'}),

@@ -1,38 +1,9 @@
 # frozen_string_literal: false
 
-# File upload routes: audio, documents, and web page fetching
+# Routes that turn a document or a web page into text for the message
 
-ALLOWED_AUDIO_EXTS = %w[.mp3 .wav .m4a .ogg .flac .mid .midi].freeze
-
-# Largest uploads accepted, checked before the body is read (config.ru).
-AUDIO_UPLOAD_MAX_BYTES = 500_000_000
+# Largest upload accepted, checked before the body is read (config.ru).
 DOCUMENT_UPLOAD_MAX_BYTES = 200_000_000
-
-post "/upload_audio" do
-  content_type :json
-  if params["audioFile"]
-    begin
-      file_handler = params["audioFile"]["tempfile"]
-      filename = File.basename(params["audioFile"]["filename"])
-      ext = File.extname(filename).downcase
-      unless ALLOWED_AUDIO_EXTS.include?(ext)
-        file_handler.close
-        return error_json("Unsupported file type: #{ext}")
-      end
-      user_data_dir = Monadic::Utils::Environment.data_path
-      dest_path = File.join(user_data_dir, filename)
-      # Never through a link in its place (code a model runs could have made one)
-      Monadic::Utils::SharedPathGuard.write_file!(dest_path, file_handler, mode: "wb")
-      file_handler.close
-      utf8_filename = filename.force_encoding("UTF-8")
-      { success: true, filename: utf8_filename }.to_json
-    rescue => e
-      error_json("Upload failed: #{e.message}")
-    end
-  else
-    error_json("No file selected")
-  end
-end
 
 # Convert a document file to text. Always returns JSON (see JSON routes
 # in docs_dev/developer/anti_pattern_lints.md).

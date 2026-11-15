@@ -152,7 +152,7 @@ RSpec.describe Monadic::Workspace::ChatRequestScope do
      'use Rack::Session::CappedPool'].each do |later|
       expect(config.index(later)).to be > scope_at
     end
-    %w[AttachmentRoutes::PATH /pdf /document /upload_audio /fetch_webpage].each do |path|
+    %w[AttachmentRoutes::PATH /pdf /document /fetch_webpage].each do |path|
       expect(config[scope_at, 400]).to include(path)
     end
   end

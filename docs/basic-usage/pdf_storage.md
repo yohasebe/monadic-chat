@@ -2,7 +2,7 @@
 
 The PDF Database gives some apps a store of PDFs that the AI can search during conversations. The PDFs are processed and stored on your computer; no API key is needed to store or search them.
 
-?> **PDF Database vs. Knowledge Base** — these are two separate features. The **PDF Database** panel is shown only for the apps that have it (the OpenAI versions of Chat Plus and Research Assistant), and each app keeps its own PDFs. The [Knowledge Base](../apps/knowledge-base.md) is a separate library of saved conversations and imported documents. A PDF imported into one is not visible in the other.
+?> **PDF Database vs. Knowledge Base** — these are two separate features. The **PDF Database** panel is shown only for the app that has it (the OpenAI version of Research Assistant). The [Knowledge Base](../apps/knowledge-base.md) is a separate library of saved conversations and imported documents. A PDF imported into one is not visible in the other.
 
 ## How It Works
 

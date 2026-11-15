@@ -95,10 +95,6 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
       prompt: 'Say hello.',
       expectation: 'The AI responded with text (any greeting or response is acceptable)'
     },
-    'ChatPlus' => {
-      prompt: 'Say hello.',
-      expectation: 'The AI responded with text (any greeting or response is acceptable)'
-    },
 
     # Code apps - verify code generation capability
     'CodeInterpreter' => {

@@ -14,7 +14,6 @@ The table below shows which apps are available for which AI model providers.
 | App | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Ollama |
 |-----|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:------:|
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Live Conversation | ✅ | | | | ✅ | ✅ | | |
 | Wikipedia | ✅ | | | | | | | |
@@ -48,12 +47,11 @@ The table below shows which apps are available for which AI model providers.
 
 ## Knowledge Base Save by App :id=kb-by-app
 
-Apps that create images, videos, diagrams, music or documents, and Chat Plus, Second Opinion, Translate and Mail Composer, do not save to the Knowledge Base; the output of the former is saved in the shared folder (`~/monadic/data`). A chat that hides words cannot be saved in any app ([Anonymization](../advanced-topics/anonymization.md#knowledge-base)). To keep a conversation, use **Export**. To see what is saved in the Knowledge Base, click **Browse** in the Knowledge Base panel.
+Apps that create images, videos, diagrams, music or documents, and Second Opinion, Translate and Mail Composer, do not save to the Knowledge Base; the output of the former is saved in the shared folder (`~/monadic/data`). A chat that hides words cannot be saved in any app ([Anonymization](../advanced-topics/anonymization.md#knowledge-base)). To keep a conversation, use **Export**. To see what is saved in the Knowledge Base, click **Browse** in the Knowledge Base panel.
 
 | App | Knowledge Base Save |
 |-----|:--:|
 | Chat | ✅ |
-| Chat Plus | |
 | Voice Chat | ✅ |
 | Live Conversation | ✅ |
 | Wikipedia | ✅ |
@@ -107,7 +105,6 @@ Each app is documented in detail on its own page. Follow the links below for des
 General-purpose conversation apps, from standard and voice chat to math tutoring, second opinions, web-based research, and the built-in documentation assistant. See [Chat & Assistant Apps](../apps/chat-apps.md).
 
 - Chat
-- Chat Plus
 - Voice Chat
 - Live Conversation
 - Wikipedia

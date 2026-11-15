@@ -81,7 +81,7 @@ module Monadic
           title: payload['title'],
           source: payload['source'],
           language: payload['language'],
-          scope_app: payload['scope_app'],
+          scope_app: Monadic::Utils::AppNames.current(payload['scope_app']),
           turns_count: payload['turns_count'],
           messages_count: payload['messages_count'],
           created_at: payload['created_at'],
@@ -106,7 +106,7 @@ module Monadic
             limit: 256, offset: cursor
           )
           page[:points].each do |p|
-            scope = (p['payload'] || {})['scope_app'].to_s
+            scope = Monadic::Utils::AppNames.current((p['payload'] || {})['scope_app'].to_s)
             scope = Store::SCOPE_GLOBAL if scope.empty?
             by_scope[scope] += 1
           end
@@ -191,7 +191,7 @@ module Monadic
           source: payload['source'],
           language: payload['language'],
           license: payload['license'],
-          scope_app: payload['scope_app'],
+          scope_app: Monadic::Utils::AppNames.current(payload['scope_app']),
           messages_count: payload['messages_count'],
           turns_count: payload['turns_count'],
           duration_seconds: payload['duration_seconds'],

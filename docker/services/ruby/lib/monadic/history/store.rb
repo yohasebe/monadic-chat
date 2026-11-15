@@ -5,6 +5,7 @@ require 'time'
 require 'fileutils'
 require 'sqlite3'
 require_relative '../utils/secret_redactor'
+require_relative '../utils/app_names'
 
 module Monadic
   module History
@@ -158,8 +159,10 @@ module Monadic
           args.concat([like] * 4)
         end
         unless app_name.to_s.empty?
-          conditions << 'app_name = ?'
-          args << app_name.to_s
+          # With the chats kept under the names the app took the place of.
+          names = Monadic::Utils::AppNames.with_former(app_name)
+          conditions << "app_name IN (#{(['?'] * names.size).join(', ')})"
+          args.concat(names)
         end
         if unused_before
           conditions << 'last_activity_at < ?'
@@ -172,7 +175,7 @@ module Monadic
               created_at, updated_at, last_activity_at, revision, message_count
             FROM history_chats #{where} ORDER BY last_activity_at DESC, chat_id LIMIT ? OFFSET ?
           SQL
-        end || []
+        end.to_a.each { |row| row['app_name'] = Monadic::Utils::AppNames.current(row['app_name']) }
       end
 
       # The apps the kept chats are of, by name.
@@ -180,7 +183,7 @@ module Monadic
         rows = synchronize(create: false) do |db|
           db.execute('SELECT DISTINCT app_name FROM history_chats WHERE app_name IS NOT NULL ORDER BY app_name')
         end
-        Array(rows).map { |row| row['app_name'] }
+        Array(rows).map { |row| Monadic::Utils::AppNames.current(row['app_name']) }.uniq.sort
       end
 
       # Removes the chat and keeps a tombstone, so nothing of it is written

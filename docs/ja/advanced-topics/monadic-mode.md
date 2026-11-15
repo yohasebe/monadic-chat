@@ -34,7 +34,7 @@ Session State に設定は要りません。状態を読むツールと保存す
 
 | アプリ | ツール | 状態ノート |
 |--------|--------|------------|
-| Chat Plus | `get_context`、`update_context`、`remove_from_context`、`clear_context`（`session_context` のグループ） | Context |
+| Chat | `get_context`、`update_context`、`remove_from_context`、`clear_context`（`session_context` のグループ） | Context |
 | Research Assistant | `load_research_progress`、`save_research_progress` | Research notes |
 | Math Tutor | `load_learning_progress`、`save_learning_progress` | Learning notes |
 | Novel Writer | `load_novel_context`、`save_novel_context` | Story notes |

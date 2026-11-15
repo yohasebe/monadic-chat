@@ -452,7 +452,6 @@ module ResponseEvaluator
   # App purposes for AI evaluation context
   APP_PURPOSES = {
     'Chat' => 'General conversation and Q&A',
-    'ChatPlus' => 'Enhanced conversation with additional capabilities',
     'CodeInterpreter' => 'Execute and explain code',
     'CodingAssistant' => 'Write and explain code',
     'JupyterNotebook' => 'Interactive notebook-style computing',
@@ -569,12 +568,6 @@ module ResponseEvaluator
       # Very permissive - just needs to be a reasonable response
       pass_patterns: [
         /.{20,}/  # At least 20 chars of content
-      ]
-    },
-
-    'ChatPlus' => {
-      pass_patterns: [
-        /.{20,}/
       ]
     },
 

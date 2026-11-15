@@ -341,7 +341,7 @@ module MonadicSharedTools
               {
                 name: :app_name,
                 type: "string",
-                description: "Name of the app (e.g., 'chat_plus', 'code_interpreter')",
+                description: "Name of the app (e.g., 'chat', 'code_interpreter')",
                 required: true
               },
               {

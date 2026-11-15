@@ -169,7 +169,6 @@ RSpec.describe 'MDSL Web Search Default Settings' do
   # context is worth the extra latency on native providers."
   CHAT_STYLE_APPS_AND_PROVIDERS = {
     'voice_chat' => %w[claude cohere deepseek gemini grok mistral ollama openai],
-    'chat_plus' => %w[claude cohere deepseek gemini grok mistral openai],
     'second_opinion' => %w[claude cohere deepseek gemini grok mistral openai],
     'mail_composer' => %w[claude cohere deepseek gemini grok mistral ollama openai]
   }.freeze

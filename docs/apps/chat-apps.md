@@ -1,31 +1,24 @@
 # Chat & Assistant Apps
 
-General-purpose conversation and assistant apps: standard and metadata-enriched chat, voice conversation, and assistants for encyclopedic lookup, math, second opinions, research, and Monadic Chat itself.
+General-purpose conversation and assistant apps: chat, voice conversation, and assistants for encyclopedic lookup, math, second opinions, research, and Monadic Chat itself.
 
 ## Chat
 
 ![Chat app icon](../assets/icons/chat.png ':size=40')
 
-Have a standard conversation with the AI, which responds with appropriate emojis. Web search is available for models that support tool calling; whether a provider uses its built-in search or the Tavily API (requires a `TAVILY_API_KEY`) is shown in the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities).
+Have a conversation with the AI, which responds with appropriate emojis. Web search is available for models that support tool calling; whether a provider uses its built-in search or the Tavily API (requires a `TAVILY_API_KEY`) is shown in the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities).
 
-With `Open URL` below the message box, you can open a web page on the work screen or read its text into your message, with any provider.
-
-Availability for this app follows the [App Availability by Provider](../basic-usage/basic-apps.md#app-availability) table.
-
-
-## Chat Plus
-
-![Chat app icon](../assets/icons/chat-plus.png ':size=40')
-
-A chat that keeps track of the conversation. As the AI responds, it updates these lists, shown on the [work screen](../basic-usage/web-interface.md#work-screen) as the **Context** page:
+<span id="chat-plus"></span>Chat keeps track of the conversation. As the AI responds, it updates these lists, shown on the [work screen](../basic-usage/web-interface.md#work-screen) as the **Context** page:
 
 - **Topics**: The topics discussed so far.
 - **People**: The people mentioned in the conversation.
 - **Notes**: Key facts and preferences to remember.
 
-Deleting a turn takes back what that turn added to the lists.
+Deleting a turn takes back what that turn added to the lists. The lists are kept with models that support tool calling; the Ollama version does not keep them.
 
-Chat Plus also has web search. The OpenAI version can search the PDFs in the [PDF Database](../basic-usage/pdf_storage.md) and cite them.
+With `Open URL` below the message box, you can open a web page on the work screen or read its text into your message, with any provider.
+
+Availability for this app follows the [App Availability by Provider](../basic-usage/basic-apps.md#app-availability) table.
 
 
 ## Voice Chat :id=voice-chat

@@ -3,12 +3,10 @@
 # Shared file operations tools for Monadic Chat applications
 # Provides unified file operations across all apps with Unicode support
 #
-# This module integrates the best features from Chat Plus and Coding Assistant:
-# - Unicode filename support (from Chat Plus)
-# - Structured Hash responses (from Coding Assistant)
-# - Automatic directory creation (from Coding Assistant)
-# - Comprehensive error handling (from both)
-# - Filepath-based interface for maximum flexibility
+# - Unicode filename support
+# - Structured Hash responses
+# - Automatic directory creation
+# - Filepath-based interface
 
 require 'fileutils'
 require_relative '../utils/shared_path_guard'

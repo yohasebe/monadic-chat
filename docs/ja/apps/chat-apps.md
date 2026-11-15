@@ -1,31 +1,24 @@
 # チャット・アシスタントアプリ
 
-汎用的な会話・アシスタント系のアプリです。標準のチャット、会話の情報を記録するチャット、音声での会話のほか、百科事典の検索・数学・セカンドオピニオン・リサーチ・Monadic Chat 自体のヘルプのアシスタントがあります。
+汎用的な会話・アシスタント系のアプリです。チャット、音声での会話のほか、百科事典の検索・数学・セカンドオピニオン・リサーチ・Monadic Chat 自体のヘルプのアシスタントがあります。
 
 ## Chat
 
 ![Chat app icon](../assets/icons/chat.png ':size=40')
 
-AI と標準的な会話をするアプリです。AI は適切な絵文字を付けて応答します。tool calling に対応したモデルでは Web 検索を使えます。プロバイダー自身の検索と Tavily API（`TAVILY_API_KEY` が必要）のどちらを使うかは、[プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)を参照してください。
+AI と会話をするアプリです。AI は適切な絵文字を付けて応答します。tool calling に対応したモデルでは Web 検索を使えます。プロバイダー自身の検索と Tavily API（`TAVILY_API_KEY` が必要）のどちらを使うかは、[プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)を参照してください。
 
-メッセージ入力欄の下の `URLを開く` で、Web ページを作業画面に開くか、そのテキストをメッセージに読み込めます。どのプロバイダーでも使えます。
-
-本アプリの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
-
-
-## Chat Plus
-
-![Chat app icon](../assets/icons/chat-plus.png ':size=40')
-
-会話の内容を記録しながら進めるチャットです。AI は応答のたびに次の一覧を更新し、一覧は[作業画面](../basic-usage/web-interface.md#work-screen)に **Context** のページとして表示されます。
+<span id="chat-plus"></span>Chat は、会話の内容を記録しながら進めます。AI は応答のたびに次の一覧を更新し、一覧は[作業画面](../basic-usage/web-interface.md#work-screen)に **Context** のページとして表示されます。
 
 - **Topics**：ここまでの会話で取り上げたトピック
 - **People**：会話に出てきた人物
 - **Notes**：覚えておくべき事実や好み
 
-ターンを削除すると、そのターンが一覧に足したものは元に戻ります。
+ターンを削除すると、そのターンが一覧に足したものは元に戻ります。一覧は、tool calling に対応したモデルで記録されます。Ollama 版では記録されません。
 
-Chat Plus では、Web 検索も使えます。OpenAI 版では、[PDF Database](../basic-usage/pdf_storage.md) の PDF を検索して引用できます。
+メッセージ入力欄の下の `URLを開く` で、Web ページを作業画面に開くか、そのテキストをメッセージに読み込めます。どのプロバイダーでも使えます。
+
+本アプリの対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。
 
 
 ## Voice Chat :id=voice-chat

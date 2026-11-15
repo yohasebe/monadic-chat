@@ -14,7 +14,6 @@
 | アプリ | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Ollama |
 |-------|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:------:|
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Live Conversation | ✅ | | | | ✅ | ✅ | | |
 | Wikipedia | ✅ | | | | | | | |
@@ -48,12 +47,11 @@
 
 ## アプリ別の Knowledge Base 保存 :id=kb-by-app
 
-画像・動画・図・音楽・文書を作るアプリ、Chat Plus、Second Opinion、Translate、Mail Composer は Knowledge Base に保存しません。画像などの出力は共有フォルダ（`~/monadic/data`）に保存されます。語を伏せている会話は、どのアプリでも保存できません（[匿名化](../advanced-topics/anonymization.md#knowledge-base)）。会話を残すには **Export** を使います。Knowledge Base に保存したものを見るには、Knowledge Base パネルの **Browse** をクリックします。
+画像・動画・図・音楽・文書を作るアプリ、Second Opinion、Translate、Mail Composer は Knowledge Base に保存しません。画像などの出力は共有フォルダ（`~/monadic/data`）に保存されます。語を伏せている会話は、どのアプリでも保存できません（[匿名化](../advanced-topics/anonymization.md#knowledge-base)）。会話を残すには **Export** を使います。Knowledge Base に保存したものを見るには、Knowledge Base パネルの **Browse** をクリックします。
 
 | アプリ | Knowledge Base 保存 |
 |-----|:--:|
 | Chat | ✅ |
-| Chat Plus | |
 | Voice Chat | ✅ |
 | Live Conversation | ✅ |
 | Wikipedia | ✅ |
@@ -107,7 +105,6 @@
 標準チャットや音声チャットから、数学の学習支援、セカンドオピニオン、Web検索を使ったリサーチ、組み込みのドキュメントアシスタントまでを含む汎用会話アプリです。詳細は[チャット・アシスタントアプリ](../apps/chat-apps.md)を参照してください。
 
 - Chat
-- Chat Plus
 - Voice Chat
 - Live Conversation
 - Wikipedia

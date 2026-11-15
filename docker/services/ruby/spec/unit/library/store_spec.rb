@@ -136,7 +136,7 @@ RSpec.describe Monadic::Library::Store do
       expect(vector_store).to receive(:search) do |args|
         filter = args[:filter]
         expect(filter[:must]).to include(
-          { key: 'scope_app', match: { any: %w[ChatOpenAI Global] } }
+          { key: 'scope_app', match: { any: %w[ChatOpenAI ChatPlusOpenAI Global] } }
         )
       end
       store.search(collection: 'library_turns', vector: vec, app_name: 'ChatOpenAI')
@@ -241,7 +241,7 @@ RSpec.describe Monadic::Library::Store do
       allow(vector_store).to receive(:scroll).and_return(page)
       expect(vector_store).to receive(:scroll).with(
         collection: 'library_summaries',
-        filter: { must: [{ key: 'scope_app', match: { any: %w[ChatOpenAI Global] } }] },
+        filter: { must: [{ key: 'scope_app', match: { any: %w[ChatOpenAI ChatPlusOpenAI Global] } }] },
         limit: 50, offset: 'cur-prev', with_vectors: false
       )
       store.scroll(
@@ -307,8 +307,8 @@ RSpec.describe Monadic::Library::Store do
     end
 
     it 'returns a match.any filter that includes the literal app name + Global' do
-      f = store.scope_filter('ChatOpenAI')
-      expect(f[:must].first[:match][:any]).to eq(%w[ChatOpenAI Global])
+      f = store.scope_filter('MathTutorOpenAI')
+      expect(f[:must].first[:match][:any]).to eq(%w[MathTutorOpenAI Global])
     end
   end
 end

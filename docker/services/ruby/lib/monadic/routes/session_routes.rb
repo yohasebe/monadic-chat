@@ -28,7 +28,7 @@ PRIVACY_SYNTH_APP_KEYS = %w[
 
 def privacy_synthesize_session(header, body, mode)
   header ||= {}
-  app_name = header["app_name"] || "Chat"
+  app_name = Monadic::Utils::AppNames.current(header["app_name"] || "Chat")
   messages = body["messages"] || []
 
   # Prefer parameters embedded in the body (newer rich exports preserve the
@@ -48,7 +48,7 @@ def privacy_synthesize_session(header, body, mode)
                  end
                  base
                end
-  parameters["app_name"] ||= app_name
+  parameters["app_name"] = Monadic::Utils::AppNames.current(parameters["app_name"] || app_name)
   parameters["imported_from"] = "privacy_export"
   parameters["imported_mode"] = mode
 
@@ -199,6 +199,8 @@ post "/load" do
         # Force initiate_from_assistant and auto_speech to false to prevent unwanted auto-behaviors on import
         # (deletion is not enough because app defaults will override missing keys)
         imported_params = json_data["parameters"].dup
+        # A file made with an app that has since been merged into another.
+        imported_params["app_name"] = Monadic::Utils::AppNames.current(imported_params["app_name"])
         imported_params["initiate_from_assistant"] = false
         imported_params["auto_speech"] = false
         imported[:parameters] = imported_params
@@ -237,7 +239,7 @@ post "/load" do
         # replaced: it keeps the upstream socket billing, and its Stop-time
         # merge span would point into the OLD canon and fold the imported
         # history (same invariant as RESET's teardown).
-        app_name = json_data["parameters"]["app_name"]
+        app_name = imported_params["app_name"]
         imported[:messages] = json_data["messages"].uniq.map do |msg|
           # Skip invalid messages
           next unless msg["role"] && msg["text"]
@@ -323,11 +325,11 @@ post "/load" do
                                                                                     terms: terms_to_restore)
         imported[:word_table] = word_table if word_table
 
-        Monadic::Utils::ExtraLogger.log { "JSON import: #{imported[:messages].size} messages read for app '#{json_data['parameters']['app_name']}'" }
+        Monadic::Utils::ExtraLogger.log { "JSON import: #{imported[:messages].size} messages read for app '#{app_name}'" }
         token = WebSocketHelper.stage_import(tab_id, imported)
 
         older_words = older_registry.empty? && terms_to_restore.empty? ? 0 : word_table['active'].size
-        { success: true, app_name: json_data['parameters']['app_name'], import_token: token, older_words: older_words,
+        { success: true, app_name: app_name, import_token: token, older_words: older_words,
           state_dropped: state_changes_dropped }.to_json
       rescue Monadic::Utils::Privacy::WordTable::Invalid => e
         error_json("Import error: the file's word table could not be read: #{e.message}")

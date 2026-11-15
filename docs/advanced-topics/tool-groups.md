@@ -90,7 +90,7 @@ The lists of apps below name the built-in apps that import each group.
 - Remove specific items from the context
 - The context is shown as a page on the work screen; see [State Notes](./monadic-mode.md#state-notes)
 
-**Apps using this**: Chat Plus
+**Apps using this**: Chat
 
 ### Groups With Requirements
 

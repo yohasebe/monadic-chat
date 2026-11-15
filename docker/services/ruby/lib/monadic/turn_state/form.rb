@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require_relative '../utils/app_names'
 
 module Monadic
   module TurnState
@@ -63,7 +64,7 @@ module Monadic
         return nil unless entry.is_a?(Hash)
 
         e = entry.transform_keys(&:to_s)
-        app = e['app']
+        app = Monadic::Utils::AppNames.current(e['app'])
         kind = e['kind']
         op = e['op']
         return nil unless app.is_a?(String) && APP.match?(app) && !RESERVED_APPS.include?(app)
@@ -125,13 +126,15 @@ module Monadic
 
         dropped = 0
         base = state.each_with_object({}) do |(app_key, entries), out|
-          app = app_key.to_s
+          app = Monadic::Utils::AppNames.current(app_key.to_s)
           next if RESERVED_APPS.include?(app)
           next dropped += 1 unless APP.match?(app) && entries.is_a?(Hash)
 
-          kept = entries.each_with_object({}) do |(key, entry), app_out|
+          # An app and one it took the place of may both be in a file: their
+          # keys are kept together, and a key both have is kept once.
+          kept = entries.each_with_object(out[app] || {}) do |(key, entry), app_out|
             checked = base_entry(key.to_s, entry)
-            checked ? app_out[key.to_s] = checked : dropped += 1
+            checked && !app_out.key?(key.to_s) ? app_out[key.to_s] = checked : dropped += 1
           end
           out[app] = kept unless kept.empty?
         end

@@ -42,8 +42,7 @@ Groups without a note are always visible. A provider list after a group or tool 
 | App | Providers | Imported groups | App tools |
 |---|---|---|---|
 | Auto Forge | OpenAI, Claude, Grok | `web_automation` (conditional), `planning` (OpenAI, Grok only), `verification` (OpenAI, Grok only) | `generate_application`, `validate_specification`, `list_projects`, `generate_additional_file`, `claude_code_agent` (Claude), `debug_application`, `finish_task`, `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
-| Chat | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | — | — |
-| Chat Plus | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek | `session_context`, `file_operations` | — |
+| Chat | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | `session_context`, `file_operations` (both except Ollama) | — |
 | Code Interpreter | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek | `python_execution`, `file_reading`, `planning`, `verification`, `parallel_python_execution`, `image_analysis` (conditional) | `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
 | Coding Assistant | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | `file_operations`, `planning` | `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
 | Concept Visualizer | OpenAI, Claude | `planning` | `generate_concept_diagram`, `list_diagram_examples` |

@@ -6,7 +6,8 @@ A figure's layout is written here. What it shows is read from the page:
   (docker/services/ruby/views/index.erb and public/js/monadic/*.js),
 - the label's text from the page's translations (public/js/i18n/translations.js),
 - the colors from the page's tokens (public/css/tokens.css),
-- an icon's outline from the icon font the page loads (public/vendor/webfonts).
+- an icon's outline from the icon font the page loads (public/vendor/webfonts),
+  read only when the file is the one bin/assets_list.sh pins by its sha256.
 A control that is renamed changes its figure; one that is removed stops this
 script.
 
@@ -17,6 +18,8 @@ Run from the repository root:
 Needs python3 with fontTools, and node (for the translations and to read the
 compressed font). Edit this file, not the generated SVGs.
 """
+import hashlib
+import io
 import json
 import os
 import re
@@ -48,6 +51,23 @@ from fontTools.ttLib import TTFont  # noqa: E402
 def read(*parts):
     with open(os.path.join(RUBY, *parts), encoding='utf-8') as f:
         return f.read()
+
+
+def vendor(folder, name):
+    """A third-party file of public/vendor, only as bin/assets_list.sh pins it.
+
+    These files are downloaded, not tracked; the list (tracked) names each
+    one's sha256. A file that differs from its entry stops this script.
+    """
+    entry = re.search(r'"[a-z]+,[^,"]+,%s,([0-9a-f]{64})"' % re.escape(name), read('bin', 'assets_list.sh'))
+    if not entry:
+        raise SystemExit('bin/assets_list.sh has no entry for %s' % name)
+    path = os.path.join(RUBY, 'public', 'vendor', folder, name)
+    with open(path, 'rb') as f:
+        data = f.read()
+    if hashlib.sha256(data).hexdigest() != entry.group(1):
+        raise SystemExit('%s is not the file bin/assets_list.sh pins; download the assets again' % path)
+    return data
 
 
 # ---- the page's own definitions -------------------------------------------
@@ -139,7 +159,7 @@ class Icons:
     fonts = {}
 
     def __init__(self):
-        css = read('public', 'vendor', 'css', 'all.min.css')
+        css = vendor('css', 'all.min.css').decode('utf-8')
         # One rule may name several icons: .fa-a,.fa-b{--fa:"\f000"}
         self.codes = {}
         for selectors, code in re.findall(r'((?:\.fa-[a-z0-9-]+,?)+)\{--fa:"\\([0-9a-f]+)"', css):
@@ -150,8 +170,9 @@ class Icons:
     def use(self, style, name):
         key = '%s-%s' % (self.FILES[style].split('-')[1], name[3:])
         if key not in self.used:
-            font = Icons.fonts.setdefault(
-                self.FILES[style], TTFont(os.path.join(RUBY, 'public', 'vendor', 'webfonts', self.FILES[style])))
+            if self.FILES[style] not in Icons.fonts:
+                Icons.fonts[self.FILES[style]] = TTFont(io.BytesIO(vendor('webfonts', self.FILES[style])))
+            font = Icons.fonts[self.FILES[style]]
             glyph_name = font.getBestCmap()[self.codes[name]]
             glyphs = font.getGlyphSet()
             pen = SVGPathPen(glyphs)

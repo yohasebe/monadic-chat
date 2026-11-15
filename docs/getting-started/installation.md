@@ -90,7 +90,7 @@ After installation:
 
 1. Click **Settings** in the console, open **API Keys**, enter the keys for the AI services you want to use, and click **Save**
 2. Click **Start**. The first start downloads the prebuilt images and builds the Ruby and Python images, which takes 10–30 minutes depending on your internet connection and computer. Later starts reuse them
-3. When everything is ready, the **System** status in the console shows **Started** in green, and **Open Browser** becomes available
+3. When everything is ready, the **System** status in the console shows **Started** in green, and the **Browser** button becomes available
 
 For detailed usage instructions, see the [Web Interface](../basic-usage/web-interface.md) section.
 

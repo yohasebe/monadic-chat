@@ -37,6 +37,7 @@ Coding Assistant の対応プロバイダーは[モデル対応状況の表](../
 AI に Jupyter のノートブックを作らせ、頼んだとおりにセルを加えて実行させるアプリです。AI は今のノートブックを覚えているので、いくつものターンにわたって同じノートブックの編集と実行を続けられます。コードは Python コンテナで実行され、ノートブックは共有フォルダに保存されます。AI がノートブックを作ったり変えたりするたびに、ノートブックが[作業画面](../basic-usage/web-interface.md#work-screen)に表示されます。JupyterLab で開くためのアドレスも示されます。
 
 ?> JupyterLab は、ページからノートブックを開いたときや、コンソールの **アクション** メニューの **JupyterLab を開く** を選んだときに起動します。**JupyterLabを停止** で止まります。AI に起動や停止を頼むこともできます。[JupyterLab](../docker-integration/jupyterlab.md) を参照してください。
-<br /><br /><!-- SCREENSHOT: Actionsメニュー - Open JupyterLabとStop JupyterLabのメニュー項目が表示されている様子 -->
+
+![アクション メニュー](../assets/images/figures/menu-actions.svg)
 
 Jupyter Notebook の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。

@@ -2,7 +2,7 @@
 
 ## Console Button Items
 
-<!-- SCREENSHOT: Console panel main window showing Start, Stop, Restart, Open Browser, Shared Folder, and Quit buttons with status display area -->
+![The console window](../assets/images/figures/console-window.svg)
 
 The console panel is the main control interface for Monadic Chat. It displays the current status (Stopped, Starting, Started, etc.) and provides quick access buttons for common operations.
 
@@ -15,7 +15,7 @@ Stop Monadic Chat.
 **Restart** <br />
 Restart Monadic Chat.
 
-**Open Browser** <br />
+**Browser** <br />
 Open Monadic Chat in a web browser.
 Access URL: [http://localhost:4567](http://localhost:4567)
 
@@ -145,6 +145,8 @@ Click **Save** at the bottom of the sidebar to save your changes (closing the wi
 
 ### General
 
+![Settings: General](../assets/images/figures/settings-general.svg)
+
 **UI Language** <br />
 Select the display language of the console and settings window.
 
@@ -155,6 +157,8 @@ Select the browser to use when opening Monadic Chat from the console. "Internal 
 Select the theme for code syntax highlighting. The default is `github-light`.
 
 ### System
+
+![Settings: System](../assets/images/figures/settings-system.svg)
 
 **Launch at Login** <br />
 Start Monadic Chat automatically when you log in to your computer.
@@ -168,9 +172,9 @@ Closing the internal browser window hides it, and the conversation stays as it i
 **Extra Logging** <br />
 Select whether to enable additional logging. When enabled, API requests and responses are logged in detail. The log file is saved as `~/monadic/log/extra.log`.
 
-<!-- SCREENSHOT: Settings panel showing API Keys section with input fields for OPENAI_API_KEY, ANTHROPIC_API_KEY, COHERE_API_KEY, GEMINI_API_KEY, MISTRAL_API_KEY, XAI_API_KEY, DEEPSEEK_API_KEY, ELEVENLABS_API_KEY, and TAVILY_API_KEY -->
-
 ### API Keys
+
+![Settings: API Keys](../assets/images/figures/settings-api-keys.svg)
 
 Enter a key for each provider you want to use — configure only the ones you have an account with. OpenAI covers the most ground, since the same key serves its chat models, image generation, speech-to-text and text-to-speech, which makes it the most useful one to start with.
 
@@ -190,9 +194,9 @@ For what each key enables and which apps require it, see [Configuration](../refe
 
 `TAVILY_API_KEY` is the one key not tied to a single provider: it backs taking in a page's text from **Open URL** as an alternative to Selenium, and web search in apps whose provider has no native search — see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities).
 
-<!-- SCREENSHOT: Settings panel showing Voice & Audio section with TTS Dictionary File Path input field and Auto TTS Max Bytes input -->
-
 ### Voice & Audio
+
+![Settings: Voice & Audio](../assets/images/figures/settings-voice.svg)
 
 **TTS Dictionary File Path** <br />
 Enter the path to the text-to-speech dictionary file. The dictionary file is in CSV format and contains comma-separated entries of strings to be replaced and the strings to be used for speech synthesis (no header row is required). When using text-to-speech, the strings to be replaced in the text are replaced with the strings for speech synthesis.
@@ -203,6 +207,8 @@ Set the maximum text size (in bytes) for automatic text-to-speech playback in po
 ?> The speech-to-text model is selected in the web UI's Speech panel, not in this settings window. See [Speech Panel](./web-interface.md#speech-settings-panel).
 
 ### Services
+
+![Settings: Services](../assets/images/figures/settings-services.svg)
 
 **Enable MCP Server** <br />
 Enable the Model Context Protocol (MCP) server, which exposes Monadic Chat's tools to external AI assistants. See [MCP Integration](../advanced-topics/mcp-integration.md).

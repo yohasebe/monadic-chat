@@ -6,6 +6,8 @@ A figure's layout is written here. What it shows is read from the page:
   (docker/services/ruby/views/index.erb and public/js/monadic/*.js),
 - the label's text from the page's translations (public/js/i18n/translations.js),
 - the colors from the page's tokens (public/css/tokens.css),
+- the desktop app's windows and menus from app/ (index.html, settings.html, main.js)
+  and their texts from the app's translations,
 - an icon's outline from the icon font the page loads (public/vendor/webfonts),
   read only when the file is the one bin/assets_list.sh pins by its sha256.
 A control that is renamed changes its figure; one that is removed stops this
@@ -156,7 +158,7 @@ class Icons:
     """Outlines of the icons the page shows, from its icon font."""
     FILES = {'fas': 'fa-solid-900.woff2', 'fa-solid': 'fa-solid-900.woff2',
              'far': 'fa-regular-400.woff2', 'fa-regular': 'fa-regular-400.woff2',
-             'fab': 'fa-brands-400.woff2'}
+             'fab': 'fa-brands-400.woff2', 'fa-brands': 'fa-brands-400.woff2'}
     fonts = {}
 
     def __init__(self):
@@ -241,7 +243,7 @@ class Figure:
     def button(self, x, y, kind, style, icon, text, mark=True):
         fills = {'warning': ('pal-amber-mid', None), 'primary': ('pal-accent-strong', '#ffffff'),
                  'secondary': ('pal-grey-strong', '#ffffff'), 'info': ('pal-accent-mid', None),
-                 'live': ('btn-live-bg', '#ffffff')}
+                 'live': ('btn-live-bg', '#ffffff'), 'disabled': ('pal-grey-line', self.color('pal-grey-text'))}
         fill, ink = fills[kind]
         ink = ink or self.color('text-primary')
         pad = 9
@@ -841,6 +843,178 @@ def desktop_menu(opened):
     return draw
 
 
+# ---- the desktop app's windows -------------------------------------------------
+APP_ICON = r'<i class="(fa-solid|fas|fa-brands|fab) (fa-[a-z0-9-]+)"'
+
+
+def app_source(name):
+    with open(os.path.join(ROOT, 'app', name), encoding='utf-8') as f:
+        return f.read()
+
+
+def app_table(name, variable, languages):
+    """A window's translations: the table is the file's first statement."""
+    code = """
+      const vm = require('vm'), fs = require('fs');
+      const source = fs.readFileSync(process.argv[1], 'utf8');
+      const table = source.slice(0, source.indexOf('\\n};') + 3);
+      process.stdout.write(vm.runInNewContext(table + '\\n;JSON.stringify(Object.fromEntries(' +
+        process.argv[3] + '.map(l => [l, ' + process.argv[2] + '[l]])))'));
+    """
+    out = subprocess.run(['node', '-e', code, os.path.join(ROOT, 'app', name), variable, json.dumps(languages)],
+                         capture_output=True, check=True)
+    return json.loads(out.stdout)
+
+
+def console_parts():
+    """The console window as app/index.html builds it: its status labels and its buttons."""
+    html = app_source('index.html')
+    head = html[html.index('<div class="status-wrapper">'):html.index('<div class="message-wrapper">')]
+    group = html[html.index('<div class="button-group">'):]
+    group = group[:group.index('</div>')]
+    name = re.search(APP_ICON + r'></i> <b>([^<]+)</b>', head)
+    states = re.findall(r'<span id="\w+Label" data-i18n="([^"]+)">\s*' + APP_ICON, head)
+    buttons = re.findall(r'<button id="(\w+)"( disabled)? data-i18n="([^"]+)">' + APP_ICON, group)
+    if not (name and len(states) == 2 and buttons):
+        raise SystemExit('app/index.html no longer builds the console window as its figure reads it')
+    return name.groups(), states, buttons
+
+
+def console_window(table, color, title, language):
+    """The console window while Monadic Chat is running."""
+    figure = Figure(color, title)
+    words = app_table('webUITranslations.js', 'webUITranslations', LANGUAGES)[language]
+    status = app_translations(language)['status']
+    (style, icon, name), states, buttons = console_parts()
+    ink, green, line = color('text-primary'), color('pal-green-strong'), color('pal-grey-line')
+    x, y, pad = 20, 20, 16
+    # The buttons decide the window's width; Start is off while the server runs
+    bx, by = x + pad, y + 196
+    for button_id, _, key, b_style, b_icon in buttons:
+        kind = 'disabled' if button_id == 'start' else 'warning'
+        bx += figure.button(bx, by, kind, b_style, b_icon, label(words, key), mark=False) + 6
+    width = bx - 6 + pad - x
+    figure.parts.insert(0, '<rect x="%d" y="%d" width="%.1f" height="%d" rx="8" fill="#ffffff" stroke="%s"/>'
+                        % (x, y, width, 196 + BUTTON_HEIGHT + pad, color('pal-grey-mid')))
+    # The status line
+    cx, cy = x + pad, y + 14
+    cx += figure.icon(style, icon, cx, cy, 14, ink) + 6
+    cx += figure.text(cx, cy + 12, name, 14, ink, '700') + 22
+    for (key, s_style, s_icon), state in zip(states, ('running', 'started')):
+        cx += figure.icon(s_style, s_icon, cx, cy, 14, ink) + 6
+        cx += figure.text(cx, cy + 12, label(words, key), 14, ink) + 8
+        cx += figure.text(cx, cy + 12, status[state], 14, green, '600') + 20
+    # The messages, and the log under them
+    inner = width - pad * 2
+    figure.add('<rect x="%d" y="%d" width="%.1f" height="90" rx="5" fill="#ffffff" stroke="%s"/>'
+               % (x + pad, y + 44, inner, color('border-color')))
+    figure.lines(x + pad + 14, y + 60, [inner * 0.62, inner * 0.44, inner * 0.7, inner * 0.3])
+    figure.add('<rect x="%d" y="%d" width="%.1f" height="42" rx="5" fill="%s" stroke="%s"/>'
+               % (x + pad, y + 142, inner, color('pal-grey-soft'), line))
+    figure.lines(x + pad + 14, y + 154, [inner * 0.5, inner * 0.36])
+    figure.grow(x + width, y + 196 + BUTTON_HEIGHT + pad)
+    return figure
+
+
+def settings_parts(category):
+    """The settings window as app/settings.html builds it: its categories, and one panel's settings."""
+    html = app_source('settings.html')
+    items = re.findall(r'<li data-category="([a-z-]+)"[^>]*>\s*' + APP_ICON + r'></i>\s*<span data-i18n="([^"]+)">', html)
+    footer = re.findall(r'<button type="button" id="(?:save|close)-settings-btn">\s*' + APP_ICON
+                        + r'></i>\s*<span data-i18n="([^"]+)">', html)
+    start = html.find('id="panel-%s"' % category)
+    if not items or len(footer) != 2 or start < 0:
+        raise SystemExit('app/settings.html no longer builds the %s settings as their figure reads them' % category)
+    panel = html[start:html.index('<!-- Panel:', start)]
+    groups = []
+    for chunk in panel.split('<div class="setting-group"')[1:]:
+        name = re.search(r'<label\b[^>]*?(?:data-i18n="([^"]+)")?>([^<]*)</label>', chunk)
+        kind = ('checkbox' if 'type="checkbox"' in chunk else 'secret' if 'type="password"' in chunk
+                else 'file' if 'file-picker-row' in chunk else 'select' if '<select' in chunk else 'field')
+        extra = None
+        if kind == 'file':
+            extra = re.search(r'<button type="button"[^>]*data-i18n="([^"]+)"', chunk).group(1)
+        elif kind == 'secret':
+            extra = re.search(APP_ICON, chunk).groups()
+        groups.append({'kind': kind, 'key': name.group(1), 'text': name.group(2), 'extra': extra,
+                       'note': '<small' in chunk})
+    return items, footer, groups
+
+
+def settings_window(category):
+    def draw(table, color, title, language):
+        """The settings window with one category open."""
+        words = app_table('settingsTranslations.js', 'settingsTranslations', LANGUAGES)[language]
+        items, footer, groups = settings_parts(category)
+        chosen = [item for item in items if item[0] == category][0]
+        figure = Figure(color, {'en': 'Settings: %s', 'ja': '設定：%s'}[language] % label(words, chosen[3]))
+        ink, quiet, line = color('text-primary'), color('pal-grey-text'), color('pal-grey-line')
+        x, y = 20, 20
+        side = max(text_width(label(words, key), TEXT, '600') for _, _, _, key in items) + 66
+        wide = 400
+        # The panel's settings, drawn first: they decide the window's height
+        cx, cy = x + side + 24, y + 22
+        cx_icon = figure.icon(chosen[1], chosen[2], cx, cy, 17, ink)
+        figure.text(cx + cx_icon + 9, cy + 15, label(words, chosen[3]), 17, ink, '700')
+        cy += 38
+        for group in groups:
+            text = label(words, group['key']) if group['key'] else group['text']
+            if group['kind'] == 'checkbox':
+                figure.checkbox(cx, cy - 4, text)
+                cy += 26
+            else:
+                figure.text(cx, cy + 11, text, TEXT, ink, '600')
+                cy += 20
+                if group['kind'] == 'file':
+                    button = label(words, group['extra'])
+                    button_width = text_width(button) + 26
+                    figure.field(cx, cy, wide - button_width - 8, BUTTON_HEIGHT)
+                    figure.add('<rect x="%.1f" y="%.1f" width="%.1f" height="%d" rx="4" fill="%s"/>'
+                               % (cx + wide - button_width, cy, button_width, BUTTON_HEIGHT, line))
+                    figure.text(cx + wide - button_width / 2, cy + 18, button, TEXT, ink, None, 'middle')
+                elif group['kind'] == 'secret':
+                    figure.field(cx, cy, wide - 38, BUTTON_HEIGHT)
+                    figure.add(''.join('<circle cx="%.1f" cy="%.1f" r="2.6" fill="%s"/>' % (cx + 14 + i * 10, cy + 14, quiet)
+                                       for i in range(12)))
+                    figure.field(cx + wide - 30, cy, 30, BUTTON_HEIGHT)
+                    figure.icon(group['extra'][0], group['extra'][1], cx + wide - 22.5, cy + 7.5, TEXT, quiet)
+                elif group['kind'] == 'select':
+                    figure.select(cx, cy, '', wide)
+                else:
+                    figure.field(cx, cy, 120, BUTTON_HEIGHT)
+                cy += BUTTON_HEIGHT + 6
+            if group['note']:
+                figure.lines(cx, cy + 2, [wide * 0.72])
+                cy += 16
+            cy += 12
+        height = max(cy + 6 - y, len(items) * 34 + 80)
+        # The window, the categories and the two buttons under them
+        figure.parts.insert(0, '<rect x="%d" y="%d" width="%.1f" height="%.1f" rx="8" fill="#ffffff" stroke="%s"/>'
+                            % (x, y, side + 24 + wide + 24, height, color('pal-grey-mid')))
+        figure.parts.insert(1, '<path d="M%.1f %d h-%.1f a8 8 0 0 0 -8 8 v%.1f a8 8 0 0 0 8 8 h%.1f z" fill="%s"/>'
+                            % (x + side, y + 0.5, side - 8.5, height - 17, side - 8.5, color('pal-grey-soft')))
+        figure.add('<line x1="%.1f" y1="%d" x2="%.1f" y2="%.1f" stroke="%s"/>' % (x + side, y, x + side, y + height, line))
+        iy = y + 12
+        for name, style, icon, key in items:
+            active = name == category
+            if active:
+                figure.add('<rect x="%d" y="%d" width="%.1f" height="30" rx="6" fill="%s"/>' % (x + 8, iy, side - 16, line))
+            key_width = figure.icons.ratio(figure.icons.use(style, icon)) * 14
+            figure.icon(style, icon, x + 30 - key_width / 2, iy + 8, 14, ink if active else quiet)
+            figure.text(x + 50, iy + 20, label(words, key), TEXT, ink, '600' if active else None)
+            iy += 32
+        figure.add('<line x1="%d" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s"/>'
+                   % (x, y + height - 50, x + side, y + height - 50, line))
+        bx = x + 12
+        for (style, icon, key), kind in zip(footer, ('primary', 'secondary')):
+            bx += figure.button(bx, y + height - 39, kind, style, icon, label(words, key), mark=False) + 8
+        if bx - 8 > x + side - 8:
+            raise SystemExit('the settings figure: the two buttons no longer fit under the categories')
+        figure.grow(x + side + 24 + wide + 24, y + height)
+        return figure
+    return draw
+
+
 # ---- the architecture ---------------------------------------------------------
 SERVICES = ['ruby', 'python', 'selenium', 'qdrant', 'embeddings', 'privacy', 'extractor']
 
@@ -1025,6 +1199,12 @@ FIGURES = {
     'menu-file': (desktop_menu('file'), {'en': 'The File menu', 'ja': 'File メニュー'}),
     'menu-actions': (desktop_menu('actions'), {'en': 'The Actions menu', 'ja': 'Actions メニュー'}),
     'menu-open': (desktop_menu('open'), {'en': 'The Open menu', 'ja': 'Open メニュー'}),
+    'console-window': (console_window, {'en': 'The console window', 'ja': 'コンソールの窓'}),
+    'settings-general': (settings_window('general'), {'en': 'Settings: General', 'ja': '設定：一般'}),
+    'settings-system': (settings_window('system'), {'en': 'Settings: System', 'ja': '設定：システム'}),
+    'settings-services': (settings_window('services'), {'en': 'Settings: Services', 'ja': '設定：サービス'}),
+    'settings-api-keys': (settings_window('api-keys'), {'en': 'Settings: API Keys', 'ja': '設定：API キー'}),
+    'settings-voice': (settings_window('voice'), {'en': 'Settings: Voice & Audio', 'ja': '設定：音声'}),
     'architecture': (architecture, {'en': 'Monadic Chat architecture', 'ja': 'Monadic Chat の構成'}),
 }
 
@@ -1037,7 +1217,7 @@ def main():
             path = os.path.join(OUT[language], '%s.svg' % name)
             with open(path, 'w', encoding='utf-8') as f:
                 arguments = (tables[language], color, titles[language])
-                if draw is architecture or draw.__name__ == 'draw':
+                if draw in (architecture, console_window) or draw.__name__ == 'draw':
                     arguments += (language,)
                 f.write(draw(*arguments).svg())
             print(os.path.relpath(path, ROOT))

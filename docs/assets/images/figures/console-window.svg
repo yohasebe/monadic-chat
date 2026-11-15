@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="754" height="280" viewBox="0 0 754 280" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
+  <title>The console window</title>
+  <defs>
+    <symbol id="i-brands-docker" viewBox="0 -448 640 512"><path transform="scale(1 -1)" d="M350 212H284H350H284V271H350V212ZM350 416H284H350H284V355H350V416ZM428 271H362H428H362V212H428V271ZM272 343H206H272H206V283H272V343ZM350 343H284H350H284V283H350V343ZM627 243Q615 251 594 253Q574 255 554 252Q549 287 513 315L499 325L489 311Q475 289 473 260Q471 231 486 207Q472 198 437 196H2Q-4 157 7 113Q18 69 46 34Q102 -32 212 -32Q331 -32 415 21Q499 73 540 172Q558 170 585 178Q612 185 631 217Q634 222 639 232Q639 233 640 234L627 243ZM116 271H50H116H50V212H116V271ZM194 271H128H194H128V212H194V271ZM272 271H206H272H206V212H272V271ZM194 343H128H194H128V283H194V343Z"/></symbol>
+    <symbol id="i-solid-folder-open" viewBox="0 -448 576 512"><path transform="scale(1 -1)" d="M89 224 0 72 89 224 0 72V352Q1 379 19 397Q37 415 64 416H182Q208 416 227 397L253 371Q272 352 299 352H416Q443 351 461 333Q479 315 480 288V256H144Q108 255 89 224ZM116 208Q126 223 144 224H544Q562 223 572 208Q580 192 572 176L460 -16Q450 -31 432 -32H32Q14 -31 4 -16Q-4 0 4 16L116 208Z"/></symbol>
+    <symbol id="i-solid-play" viewBox="0 -448 384 512"><path transform="scale(1 -1)" d="M73 409Q49 423 25 410Q1 396 0 368V16Q1 -12 25 -26Q49 -39 73 -25L361 151Q383 165 384 192Q383 218 361 233L73 409Z"/></symbol>
+    <symbol id="i-solid-robot" viewBox="0 -448 640 512"><path transform="scale(1 -1)" d="M320 448Q334 448 343 439Q352 430 352 416V352H472Q503 351 523 331Q543 311 544 280V8Q543 -23 523 -43Q503 -63 472 -64H168Q137 -63 117 -43Q97 -23 96 8V280Q97 311 117 331Q137 351 168 352H288V416Q288 430 297 439Q306 448 320 448ZM208 64Q193 63 192 48Q193 33 208 32H240Q255 33 256 48Q255 63 240 64H208ZM304 64Q289 63 288 48Q289 33 304 32H336Q351 33 352 48Q351 63 336 64H304ZM400 64Q385 63 384 48Q385 33 400 32H432Q447 33 448 48Q447 63 432 64H400ZM264 192Q263 215 244 227Q224 237 204 227Q185 215 184 192Q185 169 204 157Q224 147 244 157Q263 169 264 192ZM416 152Q439 153 451 172Q461 192 451 212Q439 231 416 232Q393 231 381 212Q371 192 381 172Q393 153 416 152ZM48 224H64H48H64V32H48Q28 33 14 46Q1 60 0 80V176Q1 196 14 210Q28 223 48 224ZM592 224Q612 223 626 210Q639 196 640 176V80Q639 60 626 46Q612 33 592 32H576V224H592Z"/></symbol>
+    <symbol id="i-solid-rotate-right" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M464 224H472H464H472Q494 226 496 248V376Q495 392 481 398Q467 404 455 393L413 351Q369 395 312 409Q255 423 199 409Q142 394 98 350Q54 306 39 249Q25 192 39 135Q54 78 98 34Q142 -10 199 -25Q256 -39 313 -25Q370 -10 414 34Q424 43 424 56Q424 69 414 79Q405 88 392 88Q379 88 369 79Q320 32 256 32Q192 32 143 79Q96 128 96 192Q96 256 143 305Q192 352 255 352Q319 352 368 306L327 265Q316 253 322 239Q328 225 344 224H464Z"/></symbol>
+    <symbol id="i-solid-server" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M64 416Q37 415 19 397Q1 379 0 352V288Q1 261 19 243Q37 225 64 224H448Q475 225 493 243Q511 261 512 288V352Q511 379 493 397Q475 415 448 416H64ZM344 344Q366 342 368 320Q366 298 344 296Q322 298 320 320Q322 342 344 344ZM392 320Q394 342 416 344Q438 342 440 320Q438 298 416 296Q394 298 392 320ZM64 160Q37 159 19 141Q1 123 0 96V32Q1 5 19 -13Q37 -31 64 -32H448Q475 -31 493 -13Q511 5 512 32V96Q511 123 493 141Q475 159 448 160H64ZM344 88Q366 86 368 64Q366 42 344 40Q322 42 320 64Q322 86 344 88ZM400 64Q402 86 424 88Q446 86 448 64Q446 42 424 40Q402 42 400 64Z"/></symbol>
+    <symbol id="i-solid-sliders" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M0 32Q0 18 9 9Q18 0 32 0H87Q96 -22 116 -35Q135 -48 160 -48Q185 -48 204 -35Q224 -22 233 0H480Q494 0 503 9Q512 18 512 32Q512 46 503 55Q494 64 480 64H233Q224 86 204 99Q185 112 160 112Q135 112 116 99Q96 86 87 64H32Q18 64 9 55Q0 46 0 32ZM128 32Q128 46 137 55Q146 64 160 64Q174 64 183 55Q192 46 192 32Q192 18 183 9Q174 0 160 0Q146 0 137 9Q128 18 128 32ZM320 192Q320 206 329 215Q338 224 352 224Q366 224 375 215Q384 206 384 192Q384 178 375 169Q366 160 352 160Q338 160 329 169Q320 178 320 192ZM352 272Q327 272 308 259Q288 246 279 224H32Q18 224 9 215Q0 206 0 192Q0 178 9 169Q18 160 32 160H279Q288 138 308 125Q327 112 352 112Q377 112 396 125Q416 138 425 160H480Q494 160 503 169Q512 178 512 192Q512 206 503 215Q494 224 480 224H425Q416 246 396 259Q377 272 352 272ZM192 320Q178 320 169 329Q160 338 160 352Q160 366 169 375Q178 384 192 384Q206 384 215 375Q224 366 224 352Q224 338 215 329Q206 320 192 320ZM265 384Q256 406 236 419Q217 432 192 432Q167 432 148 419Q128 406 119 384H32Q18 384 9 375Q0 366 0 352Q0 338 9 329Q18 320 32 320H119Q128 298 148 285Q167 272 192 272Q217 272 236 285Q256 298 265 320H480Q494 320 503 329Q512 338 512 352Q512 366 503 375Q494 384 480 384H265Z"/></symbol>
+    <symbol id="i-solid-stop" viewBox="0 -448 384 512"><path transform="scale(1 -1)" d="M0 320Q1 347 19 365Q37 383 64 384H320Q347 383 365 365Q383 347 384 320V64Q383 37 365 19Q347 1 320 0H64Q37 1 19 19Q1 37 0 64V320Z"/></symbol>
+    <symbol id="i-solid-window-maximize" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M64 416Q37 415 19 397Q1 379 0 352V32Q1 5 19 -13Q37 -31 64 -32H448Q475 -31 493 -13Q511 5 512 32V352Q511 379 493 397Q475 415 448 416H64ZM96 352H416H96H416Q430 352 439 343Q448 334 448 320Q448 306 439 297Q430 288 416 288H96Q82 288 73 297Q64 306 64 320Q64 334 73 343Q82 352 96 352Z"/></symbol>
+    <symbol id="i-solid-xmark" viewBox="0 -448 384 512"><path transform="scale(1 -1)" d="M343 297Q352 307 352 320Q352 333 343 343Q333 352 320 352Q307 352 297 343L192 237L87 343Q77 352 64 352Q51 352 41 343Q32 333 32 320Q32 307 41 297L147 192L41 87Q32 77 32 64Q32 51 41 41Q51 32 64 32Q77 32 87 41L192 147L297 41Q307 32 320 32Q333 32 343 41Q352 51 352 64Q352 77 343 87L237 192L343 297Z"/></symbol>
+  </defs>
+  <rect x="0.5" y="0.5" width="753" height="279" rx="12" fill="#eef0f2" stroke="#dadee2"/>
+  <rect x="20" y="20" width="713.5" height="240" rx="8" fill="#ffffff" stroke="#8b939b"/>
+  <rect x="36.0" y="216.0" width="75.4" height="28" rx="4" fill="#dadee2"/>
+  <use href="#i-solid-play" x="45.0" y="223.5" width="9.8" height="13" fill="#58616b"/>
+  <text x="59.8" y="234.7" font-size="13" fill="#58616b">Start</text>
+  <rect x="117.4" y="216.0" width="67.5" height="28" rx="4" fill="#ecc04f"/>
+  <use href="#i-solid-stop" x="126.4" y="223.5" width="9.8" height="13" fill="#2a2e33"/>
+  <text x="141.2" y="234.7" font-size="13" fill="#2a2e33">Stop</text>
+  <rect x="190.9" y="216.0" width="94.5" height="28" rx="4" fill="#ecc04f"/>
+  <use href="#i-solid-rotate-right" x="199.9" y="223.5" width="13.0" height="13" fill="#2a2e33"/>
+  <text x="217.9" y="234.7" font-size="13" fill="#2a2e33">Restart</text>
+  <rect x="291.4" y="216.0" width="94.5" height="28" rx="4" fill="#ecc04f"/>
+  <use href="#i-solid-window-maximize" x="300.4" y="223.5" width="13.0" height="13" fill="#2a2e33"/>
+  <text x="318.4" y="234.7" font-size="13" fill="#2a2e33">Browser</text>
+  <rect x="391.9" y="216.0" width="143.7" height="28" rx="4" fill="#ecc04f"/>
+  <use href="#i-solid-folder-open" x="400.9" y="223.5" width="14.6" height="13" fill="#2a2e33"/>
+  <text x="420.5" y="234.7" font-size="13" fill="#2a2e33">Shared Folder</text>
+  <rect x="541.6" y="216.0" width="102.4" height="28" rx="4" fill="#ecc04f"/>
+  <use href="#i-solid-sliders" x="550.6" y="223.5" width="13.0" height="13" fill="#2a2e33"/>
+  <text x="568.6" y="234.7" font-size="13" fill="#2a2e33">Settings</text>
+  <rect x="650.0" y="216.0" width="67.5" height="28" rx="4" fill="#ecc04f"/>
+  <use href="#i-solid-xmark" x="659.0" y="223.5" width="9.8" height="13" fill="#2a2e33"/>
+  <text x="673.8" y="234.7" font-size="13" fill="#2a2e33">Quit</text>
+  <use href="#i-solid-robot" x="36.0" y="34.0" width="17.5" height="14" fill="#2a2e33"/>
+  <text x="59.5" y="46.0" font-size="14" fill="#2a2e33" font-weight="700">Monadic Chat</text>
+  <use href="#i-brands-docker" x="194.1" y="34.0" width="17.5" height="14" fill="#2a2e33"/>
+  <text x="217.6" y="46.0" font-size="14" fill="#2a2e33">Docker</text>
+  <text x="276.8" y="46.0" font-size="14" fill="#3a7a58" font-weight="600">Running</text>
+  <use href="#i-solid-server" x="362.5" y="34.0" width="14.0" height="14" fill="#2a2e33"/>
+  <text x="382.5" y="46.0" font-size="14" fill="#2a2e33">System</text>
+  <text x="441.7" y="46.0" font-size="14" fill="#3a7a58" font-weight="600">Started</text>
+  <rect x="36" y="64" width="681.5" height="90" rx="5" fill="#ffffff" stroke="#ced4da"/>
+  <rect x="50.0" y="80.0" width="422.5" height="8" rx="4" fill="#dadee2"/>
+  <rect x="50.0" y="96.0" width="299.9" height="8" rx="4" fill="#dadee2"/>
+  <rect x="50.0" y="112.0" width="477.1" height="8" rx="4" fill="#dadee2"/>
+  <rect x="50.0" y="128.0" width="204.5" height="8" rx="4" fill="#dadee2"/>
+  <rect x="36" y="162" width="681.5" height="42" rx="5" fill="#eef0f2" stroke="#dadee2"/>
+  <rect x="50.0" y="174.0" width="340.8" height="8" rx="4" fill="#dadee2"/>
+  <rect x="50.0" y="190.0" width="245.3" height="8" rx="4" fill="#dadee2"/>
+</svg>

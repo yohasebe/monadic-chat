@@ -97,7 +97,7 @@
   <text x="630.0" y="466.0" font-size="12" fill="#58616b" text-anchor="middle">MCP サーバー</text>
   <rect x="496" y="473" width="88" height="26" rx="13" fill="#ffffff" stroke="#a83d49" stroke-width="1.5"/>
   <use href="#i-solid-gem" x="510.0" y="479.0" width="13.0" height="13" fill="#a83d49"/>
-  <text x="530.0" y="491.0" font-size="13" fill="#a83d49" font-weight="700">Ruby</text>
+  <text x="530.0" y="491.0" font-size="13" fill="#2a2e33" font-weight="700">Ruby</text>
   <line x1="428" y1="372" x2="478" y2="372" stroke="#6e7781" stroke-width="1.5" marker-end="url(#arrow)" marker-start="url(#arrow-back)"/>
   <rect x="40" y="560" width="500" height="100" rx="6" fill="#ffffff" stroke="#8b939b" stroke-dasharray="6 4"/>
   <use href="#i-solid-folder-open" x="58.0" y="577.0" width="16.9" height="15" fill="#b3862a"/>
@@ -119,18 +119,18 @@
   <text x="928.8" y="242.0" font-size="15" fill="#2a2e33" font-weight="700">言語モデルの API</text>
   <text x="902.0" y="264.0" font-size="12" fill="#58616b">チャット・音声・画像・動画</text>
   <rect x="902.0" y="282" width="226.0" height="24" rx="12" fill="none" stroke="#8b939b"/>
-  <text x="1015.0" y="298.5" font-size="12" fill="#2a2e33" text-anchor="middle">Anthropic</text>
+  <text x="1015.0" y="298.5" font-size="12" fill="#2a2e33" font-weight="700" text-anchor="middle">Anthropic</text>
   <rect x="902.0" y="312" width="226.0" height="24" rx="12" fill="none" stroke="#8b939b"/>
-  <text x="1015.0" y="328.5" font-size="12" fill="#2a2e33" text-anchor="middle">Google</text>
+  <text x="1015.0" y="328.5" font-size="12" fill="#2a2e33" font-weight="700" text-anchor="middle">Google</text>
   <rect x="902.0" y="342" width="226.0" height="24" rx="12" fill="none" stroke="#8b939b"/>
-  <text x="1015.0" y="358.5" font-size="12" fill="#2a2e33" text-anchor="middle">Cohere</text>
+  <text x="1015.0" y="358.5" font-size="12" fill="#2a2e33" font-weight="700" text-anchor="middle">Cohere</text>
   <rect x="902.0" y="372" width="226.0" height="24" rx="12" fill="none" stroke="#8b939b"/>
-  <text x="1015.0" y="388.5" font-size="12" fill="#2a2e33" text-anchor="middle">Mistral</text>
+  <text x="1015.0" y="388.5" font-size="12" fill="#2a2e33" font-weight="700" text-anchor="middle">Mistral</text>
   <rect x="902.0" y="402" width="226.0" height="24" rx="12" fill="none" stroke="#8b939b"/>
-  <text x="1015.0" y="418.5" font-size="12" fill="#2a2e33" text-anchor="middle">DeepSeek</text>
+  <text x="1015.0" y="418.5" font-size="12" fill="#2a2e33" font-weight="700" text-anchor="middle">DeepSeek</text>
   <rect x="902.0" y="432" width="226.0" height="24" rx="12" fill="none" stroke="#8b939b"/>
-  <text x="1015.0" y="448.5" font-size="12" fill="#2a2e33" text-anchor="middle">xAI</text>
+  <text x="1015.0" y="448.5" font-size="12" fill="#2a2e33" font-weight="700" text-anchor="middle">xAI</text>
   <rect x="902.0" y="462" width="226.0" height="24" rx="12" fill="none" stroke="#8b939b"/>
-  <text x="1015.0" y="478.5" font-size="12" fill="#2a2e33" text-anchor="middle">OpenAI</text>
+  <text x="1015.0" y="478.5" font-size="12" fill="#2a2e33" font-weight="700" text-anchor="middle">OpenAI</text>
   <line x1="782" y1="372" x2="878" y2="372" stroke="#6e7781" stroke-width="1.5" marker-end="url(#arrow)" marker-start="url(#arrow-back)"/>
 </svg>

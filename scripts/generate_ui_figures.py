@@ -507,10 +507,10 @@ def architecture(table, color, title, language):
         for i, text in enumerate(note or []):
             figure.text(x + 18, y + 48 + i * 18, text, 12, quiet)
 
-    def chip(x, y, text, stroke, fill, width=None):
+    def chip(x, y, text, stroke, fill, width=None, weight=None):
         w = width or text_width(text, 12) + 22
         figure.add('<rect x="%.1f" y="%d" width="%.1f" height="24" rx="12" fill="none" stroke="%s"/>' % (x, y, w, stroke))
-        figure.text(x + w / 2, y + 16.5, text, 12, fill, None, 'middle')
+        figure.text(x + w / 2, y + 16.5, text, 12, fill, weight, 'middle')
         return w
 
     def arrow(x1, y1, x2, y2, both=False, dashed=False):
@@ -554,7 +554,7 @@ def architecture(table, color, title, language):
     ruby = color('pal-red-strong')
     figure.add('<rect x="496" y="473" width="88" height="26" rx="13" fill="#ffffff" stroke="%s" stroke-width="1.5"/>' % ruby)
     figure.icon('fas', 'fa-gem', 510, 479, 13, ruby)
-    figure.text(530, 491, 'Ruby', 13, ruby, '700')
+    figure.text(530, 491, 'Ruby', 13, ink, '700')
     arrow(428, 372, 478, 372, both=True)             # the server uses the services
 
     # Below: the folder both sides share, and models that run here
@@ -578,7 +578,7 @@ def architecture(table, color, title, language):
     figure.text(902, 264, word['cloud_note'], 12, quiet)
     step = min(30, (514 - 16 - 280) // len(cloud))
     for i, name in enumerate(cloud):
-        chip(902, 282 + i * step, name, color('pal-grey-mid'), ink, 226)
+        chip(902, 282 + i * step, name, color('pal-grey-mid'), ink, 226, '700')
     arrow(782, 372, 878, 372, both=True)             # API requests
 
     figure.grow(1150, 680)

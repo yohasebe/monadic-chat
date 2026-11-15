@@ -31,7 +31,10 @@ Image uploads are supported for vision-capable models (OpenAI, Anthropic Claude,
 
 Click **Image** (or **Image/PDF** for models that support PDF) to select an image. Supported formats: JPG, JPEG, PNG, GIF, WebP. Up to 5 images can be attached to a message.
 
-<!-- SCREENSHOT: File upload dialog showing image format options (JPG, JPEG, PNG, GIF, WebP) -->
+![Files attached to a message](../assets/images/figures/attachments.svg)
+
+1. The attached file. Click its name to look at it before sending.
+2. Removes the file from the message.
 
 After uploading the image, a thumbnail of the uploaded image appears below the message input area with a delete button (×). The image is sent along with your text prompt, and the attachments are cleared once the message is sent.
 
@@ -96,11 +99,15 @@ To use voice input, click the **Speech Input** button to start voice input, and 
 
 [Live Conversation](../apps/chat-apps.md#live-conversation) does not use this path: it has neither text input nor a Speech Input button — the microphone streams continuously while the session is open.
 
-<!-- SCREENSHOT: Message input area during voice recording showing animated waveform and Stop button -->
+![Voice input](../assets/images/figures/voice-input.svg)
+
+1. What you said is written into the message box.
+2. The confidence of the last transcription, when the speech-to-text model returns one.
+3. While recording, the **Speech Input** button reads **Stop**. Click it to end the recording.
+4. The level of your voice.
 
 With speech-to-text models that report it, **Last Speech-to-Text p-value** is displayed after voice input: the confidence of the transcription, on a scale from 0 to 1. The closer it is to 1, the more confident the result.
 
-<!-- SCREENSHOT: Message input area showing transcribed text with p-value confidence score displayed below -->
 
 ## Speech-to-Text Model Selection :id=speech-to-text-model-selection
 

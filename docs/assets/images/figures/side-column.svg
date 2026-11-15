@@ -3,22 +3,22 @@
   <defs>
 
   </defs>
-  <rect width="460" height="222" rx="8" fill="#eef0f2"/>
+  <rect x="0.5" y="0.5" width="459" height="221" rx="12" fill="#eef0f2" stroke="#dadee2"/>
   <rect x="20" y="34" width="420" height="38" rx="6" fill="#dadee2"/>
   <text x="56.1" y="58.0" font-size="14" fill="#58616b" text-anchor="middle">Menu</text>
-  <circle cx="56.1" cy="21.0" r="9" fill="#a83d49"/>
+  <circle cx="56.1" cy="21.0" r="9" fill="#2a2e33"/>
   <text x="56.1" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">1</text>
   <rect x="90.2" y="39.0" width="119.9" height="28" rx="5" fill="#ffffff"/>
   <text x="150.1" y="58.0" font-size="14" fill="#2a2e33" font-weight="600" text-anchor="middle">Work screen</text>
-  <circle cx="150.1" cy="21.0" r="9" fill="#a83d49"/>
+  <circle cx="150.1" cy="21.0" r="9" fill="#2a2e33"/>
   <text x="150.1" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">2</text>
   <text x="248.4" y="58.0" font-size="14" fill="#58616b" text-anchor="middle">Files</text>
-  <circle cx="248.4" cy="21.0" r="9" fill="#a83d49"/>
+  <circle cx="248.4" cy="21.0" r="9" fill="#2a2e33"/>
   <text x="248.4" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">3</text>
   <text x="329.7" y="58.0" font-size="14" fill="#58616b" text-anchor="middle">History</text>
-  <circle cx="329.7" cy="21.0" r="9" fill="#a83d49"/>
+  <circle cx="329.7" cy="21.0" r="9" fill="#2a2e33"/>
   <text x="329.7" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">4</text>
-  <rect x="20" y="82" width="420" height="120" rx="6" fill="#ffffff"/>
+  <rect x="20" y="82" width="420" height="120" rx="6" fill="#ffffff" stroke="#dadee2"/>
   <rect x="36.0" y="100.0" width="360.0" height="8" rx="4" fill="#dadee2"/>
   <rect x="36.0" y="116.0" width="280.0" height="8" rx="4" fill="#dadee2"/>
   <rect x="36.0" y="132.0" width="330.0" height="8" rx="4" fill="#dadee2"/>

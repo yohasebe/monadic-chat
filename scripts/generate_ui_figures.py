@@ -235,7 +235,7 @@ class Figure:
     def callout(self, cx, cy):
         """A numbered mark; the document's list says what each number is."""
         self.number += 1
-        self.add('<circle cx="%.1f" cy="%.1f" r="9" fill="%s"/>' % (cx, cy, self.color('pal-red-strong')))
+        self.add('<circle cx="%.1f" cy="%.1f" r="9" fill="%s"/>' % (cx, cy, self.color('text-primary')))
         self.text(cx, cy + 4, str(self.number), 11, '#ffffff', '700', 'middle')
 
     def button(self, x, y, kind, style, icon, text, mark=True):
@@ -288,8 +288,11 @@ class Figure:
 
     def svg(self, pad=20):
         width, height = self.width + pad, self.height + pad
-        ground = '<rect width="%.0f" height="%.0f" rx="8" fill="%s"/>' % (
-            width, height, self.ground or self.color('pal-grey-soft'))
+        if self.ground:
+            ground = '<rect width="%.0f" height="%.0f" fill="%s"/>' % (width, height, self.ground)
+        else:
+            ground = ('<rect x="0.5" y="0.5" width="%.0f" height="%.0f" rx="12" fill="%s" stroke="%s"/>'
+                      % (width - 1, height - 1, self.color('pal-grey-soft'), self.color('pal-grey-line')))
         return ('<svg xmlns="http://www.w3.org/2000/svg" role="img" width="%.0f" height="%.0f" viewBox="0 0 %.0f %.0f" '
                 'font-family="%s">\n  <title>%s</title>\n  <defs>\n%s\n  </defs>\n  %s\n</svg>\n'
                 % (width, height, width, height, FONT, escape(self.title), self.icons.symbols() + ('\n    ' + self.extra_defs if self.extra_defs else ''),
@@ -320,8 +323,11 @@ def message_buttons(table, color, title):
     width, x, y = 520, 20, 34
     figure.add('<rect x="%d" y="%d" width="%d" height="118" rx="6" fill="#ffffff" stroke="%s"/>'
                % (x, y, width, color('border-color')))
-    figure.add('<rect x="%d" y="%d" width="%d" height="40" rx="6" fill="%s"/>' % (x, y, width, color('pal-grey-soft')))
-    figure.add('<rect x="%d" y="%d" width="%d" height="78" fill="%s"/>' % (x + 1, y + 40, width - 2, color('bg-card-assistant')))
+    # The card's body in its role's color, under a white header
+    figure.add('<path d="M%d %d H%d V%d A6 6 0 0 1 %d %d H%d A6 6 0 0 1 %d %d Z" fill="%s"/>'
+               % (x + 1, y + 40, x + width - 1, y + 112, x + width - 7, y + 117, x + 7, x + 1, y + 112,
+                  color('bg-card-assistant')))
+    figure.add('<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s"/>' % (x, y + 40, x + width, y + 40, color('border-color')))
     figure.icon('fas', 'fa-robot', x + 14, y + 12, 16, color('color-assistant'))
     figure.text(x + 40, y + 25, 'Assistant', 14, color('color-assistant'), '700')
     cx = x + width - 14
@@ -350,7 +356,8 @@ def knowledge_base(table, color, title):
     """The Knowledge Base panel of the menu."""
     figure = Figure(color, title)
     x, y, width = 20, 20, 400
-    figure.add('<rect x="%d" y="%d" width="%d" height="166" rx="6" fill="#ffffff"/>' % (x, y, width))
+    figure.add('<rect x="%d" y="%d" width="%d" height="166" rx="6" fill="#ffffff" stroke="%s"/>'
+               % (x, y, width, color('pal-grey-line')))
     figure.icon('fas', 'fa-book', x + 14, y + 16, 15, color('pal-amber-mid'))
     figure.text(x + 38, y + 29, re.sub(r'<[^>]+>\s*', '', label(table, 'ui.knowledgeBase')).strip(), 15, None, '600')
     specs = page_buttons(['library-save', 'library-browse'])
@@ -424,7 +431,8 @@ def side_column(table, color, title):
         tx += width + 4
     panel_width = max(tx + 6 - x, 420)
     figure.parts[0] = figure.parts[0].replace('{w}', '%d' % panel_width)
-    figure.add('<rect x="%d" y="%d" width="%d" height="120" rx="6" fill="#ffffff"/>' % (x, y + 48, panel_width))
+    figure.add('<rect x="%d" y="%d" width="%d" height="120" rx="6" fill="#ffffff" stroke="%s"/>'
+               % (x, y + 48, panel_width, color('pal-grey-line')))
     figure.lines(x + 16, y + 66, [panel_width - 60, panel_width - 140, panel_width - 90, panel_width - 200])
     figure.grow(x + panel_width, y + 168)
     return figure

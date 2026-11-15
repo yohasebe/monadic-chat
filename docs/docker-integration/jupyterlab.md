@@ -15,8 +15,6 @@ JupyterLab also starts when you open a notebook from the page: click a notebook'
 
 JupyterLab starts in the shared folder (`/monadic/data`), so the files you place in `~/monadic/data` are available there.
 
-<!-- SCREENSHOT: JupyterLab terminal window showing command prompt at /monadic/data directory -->
-
 ## Stopping JupyterLab
 
 Choose **Actions → Stop JupyterLab**. JupyterLab keeps running when you close its browser tab, and it stops when Monadic Chat stops.

@@ -218,6 +218,8 @@ The network port for the MCP server (default: `3100`). Change it only if the por
 
 ### Install Options
 
+![Settings: Install Options](../assets/images/figures/settings-install-options.svg)
+
 Select optional packages to be installed in the Python container: LaTeX, Python libraries (NLTK, spaCy, gensim, MediaPipe, Transformers), music analysis (librosa, madmom), and system tools (ImageMagick). Saving records the choice but does not rebuild anything: the next Start offers **Rebuild and Start**, or you can rebuild straight away with **Actions → Build Python Container**.
 
 The same panel holds two more groups:
@@ -226,6 +228,8 @@ The same panel holds two more groups:
 - **Knowledge Base Quality Pack (Docling)**: install the extractor container for higher-quality document import, with its OCR languages (English, Japanese, Chinese, Korean). See [Knowledge Base](../apps/knowledge-base.md).
 
 ### Actions
+
+![Settings: Actions](../assets/images/figures/settings-actions.svg)
 
 Shows the Docker status and provides the operations of the Actions menu: Start, Stop and Restart; the container builds (containers must be stopped before building); Start and Stop JupyterLab; and Import and Export of the Document DB. Running an action saves your unsaved settings first.
 

@@ -35,15 +35,11 @@ PowerShellを管理者として開き、以下を実行：
 > wsl --install -d Ubuntu
 ```
 
-<!-- SCREENSHOT: PowerShellでのWSLインストール画面 - wsl --install -d Ubuntuコマンドの実行中とインストール進行状況が表示されている様子 -->
-
 コンピューターを再起動。プロンプトが表示されたらUbuntuのユーザー名とパスワードを設定してください。
 
 2. **Docker Desktopのインストール**
 
 [Docker Desktop](https://docs.docker.com/desktop/)からダウンロードしてインストール。
-
-<!-- SCREENSHOT: Docker Desktopダウンロードページ - Windows用のDocker Desktop Installer.exeのダウンロードボタンが表示されている様子 -->
 
 サービス契約に同意し、推奨設定を使用してください。
 
@@ -100,9 +96,9 @@ AppImage は FUSE を使って自身をマウントします。現在のディ�
 
 Monadic Chat は、起動時（オンラインのとき）に更新を確認します。
 
-1. 新しい版があると、コンソールに **Download & Install** ボタンが表示されます。自分で確認するときは、File メニュー（macOS では Monadic Chat メニュー）の **アップデートを確認** を選びます
-2. **Download & Install** をクリックすると、更新がバックグラウンドでダウンロードされ、進捗がコンソールに表示されます
-3. ダウンロードが終わったら、**Restart Now** でインストールするか、**Later** を選びます
+1. 新しい版があると、コンソールに **ダウンロードしてインストール** ボタンが表示されます。自分で確認するときは、File メニュー（macOS では Monadic Chat メニュー）の **アップデートを確認** を選びます
+2. **ダウンロードしてインストール** をクリックすると、更新がバックグラウンドでダウンロードされ、進捗がコンソールに表示されます
+3. ダウンロードが終わったら、**今すぐ再起動** でインストールするか、**後で** を選びます
 
 [1.0.0-beta.44 のリリースページ](https://github.com/yohasebe/monadic-chat/releases/tag/v1.0.0-beta.44)から手動でダウンロードすることも、[すべてのリリース](https://github.com/yohasebe/monadic-chat/releases)を見ることもできます。
 

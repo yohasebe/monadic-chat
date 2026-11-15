@@ -15,8 +15,6 @@ Monadic Chat のコンソールで **アクション → JupyterLab を開く** 
 
 JupyterLab は共有フォルダ（`/monadic/data`）で起動するので、`~/monadic/data` に置いたファイルをそこで使えます。
 
-<!-- SCREENSHOT: JupyterLab terminal window showing command prompt at /monadic/data directory -->
-
 ## JupyterLab の停止
 
 **アクション → JupyterLabを停止** を選びます。ブラウザーのタブを閉じても JupyterLab は動き続け、Monadic Chat を止めると止まります。

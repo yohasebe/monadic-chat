@@ -58,7 +58,7 @@ Monadic ChatでOllamaを使用する詳細については、[Ollamaの利用](..
 
 ##### Q: 再構築のログやヘルスチェックの結果はどこで確認できますか？ :id=rebuild-logs
 
-**A**: Install Optionsの保存は設定の更新のみを行います。再構築自体は、次回のStart時（「Rebuild and Start」を選べるダイアログが表示されます）または `Actions → Build Python Container` の実行時に行われます。ビルド関連のファイルは `~/monadic/log/` に保存されます：
+**A**: インストールオプションの保存は設定の更新のみを行います。再構築自体は、次回の開始時（「再ビルドして起動」を選べるダイアログが表示されます）または `アクション → Pythonコンテナをビルド` の実行時に行われます。ビルド関連のファイルは `~/monadic/log/` に保存されます：
 
 - `docker_build_python.log` — Dockerビルドの出力（`pysetup.sh` の出力も含みます）
 - `python_health.json` — ビルド後のヘルスチェック結果

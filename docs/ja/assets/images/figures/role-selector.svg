@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="403" height="194" viewBox="0 0 403 194" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
+  <title>役割の選択</title>
+  <defs>
+
+  </defs>
+  <rect x="0.5" y="0.5" width="402" height="193" rx="12" fill="#eef0f2" stroke="#dadee2"/>
+  <text x="20.0" y="38.7" font-size="13" fill="#58616b">役割</text>
+  <rect x="56.0" y="20.0" width="297.0" height="28.0" rx="5" fill="#ffffff" stroke="#ced4da"/>
+  <text x="65.0" y="38.7" font-size="13" fill="#2a2e33">ユーザー</text>
+  <path d="M335.0 32.0 l4 5 l4 -5 z" fill="#6e7781"/>
+  <rect x="56.0" y="54" width="297.0" height="120" rx="5" fill="#ffffff" stroke="#dadee2"/>
+  <rect x="60.0" y="58" width="289.0" height="28" rx="3" fill="#eef0f2"/>
+  <text x="68.0" y="77.0" font-size="13" fill="#2a2e33">ユーザー</text>
+  <circle cx="371.0" cy="72.0" r="9" fill="#2a2e33"/>
+  <text x="371.0" y="76.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">1</text>
+  <text x="68.0" y="105.0" font-size="13" fill="#2a2e33">ユーザー（過去のメッセージに追加）</text>
+  <circle cx="371.0" cy="100.0" r="9" fill="#2a2e33"/>
+  <text x="371.0" y="104.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">2</text>
+  <text x="68.0" y="133.0" font-size="13" fill="#2a2e33">アシスタント（過去のメッセージに追加）</text>
+  <circle cx="371.0" cy="128.0" r="9" fill="#2a2e33"/>
+  <text x="371.0" y="132.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">3</text>
+  <text x="68.0" y="161.0" font-size="13" fill="#2a2e33">システム（追加の指示を提供）</text>
+  <circle cx="371.0" cy="156.0" r="9" fill="#2a2e33"/>
+  <text x="371.0" y="160.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">4</text>
+</svg>

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="520" height="368" viewBox="0 0 520 368" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
+  <title>The work screen</title>
+  <defs>
+    <symbol id="i-solid-chevron-left" viewBox="0 -448 320 512"><path transform="scale(1 -1)" d="M9 215Q0 205 0 192Q0 179 9 169L201 -23Q211 -32 224 -32Q237 -32 247 -23Q256 -13 256 0Q256 13 247 23L77 192L247 361Q256 371 256 384Q256 397 247 407Q237 416 224 416Q211 416 201 407L9 215Z"/></symbol>
+    <symbol id="i-solid-chevron-right" viewBox="0 -448 320 512"><path transform="scale(1 -1)" d="M311 215Q320 205 320 192Q320 179 311 169L119 -23Q109 -32 96 -32Q83 -32 73 -23Q64 -13 64 0Q64 13 73 23L243 192L73 361Q64 371 64 384Q64 397 73 407Q83 416 96 416Q109 416 119 407L311 215Z"/></symbol>
+    <symbol id="i-solid-xmark" viewBox="0 -448 384 512"><path transform="scale(1 -1)" d="M343 297Q352 307 352 320Q352 333 343 343Q333 352 320 352Q307 352 297 343L192 237L87 343Q77 352 64 352Q51 352 41 343Q32 333 32 320Q32 307 41 297L147 192L41 87Q32 77 32 64Q32 51 41 41Q51 32 64 32Q77 32 87 41L192 147L297 41Q307 32 320 32Q333 32 343 41Q352 51 352 64Q352 77 343 87L237 192L343 297Z"/></symbol>
+  </defs>
+  <rect x="0.5" y="0.5" width="519" height="367" rx="12" fill="#eef0f2" stroke="#dadee2"/>
+  <rect x="20" y="20" width="480" height="38" rx="6" fill="#dadee2"/>
+  <text x="56.1" y="44.0" font-size="14" fill="#58616b" text-anchor="middle">Menu</text>
+  <rect x="90.2" y="25.0" width="119.9" height="28" rx="5" fill="#ffffff"/>
+  <text x="150.1" y="44.0" font-size="14" fill="#2a2e33" font-weight="600" text-anchor="middle">Work screen</text>
+  <text x="248.4" y="44.0" font-size="14" fill="#58616b" text-anchor="middle">Files</text>
+  <text x="329.7" y="44.0" font-size="14" fill="#58616b" text-anchor="middle">History</text>
+  <rect x="20" y="86" width="480" height="38" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <text x="38.0" y="110.0" font-size="13" fill="#58616b">Browser</text>
+  <circle cx="65.8" cy="73.0" r="9" fill="#2a2e33"/>
+  <text x="65.8" y="77.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">1</text>
+  <text x="121.5" y="110.0" font-size="13" fill="#58616b">chart.png</text>
+  <rect x="208.9" y="91" width="93.7" height="28" rx="5" fill="#eef0f2" stroke="#dadee2"/>
+  <text x="220.9" y="110.0" font-size="13" fill="#2a2e33" font-weight="600">notes.md</text>
+  <use href="#i-solid-xmark" x="310.6" y="98.0" width="10.5" height="14" fill="#58616b"/>
+  <circle cx="316.6" cy="73.0" r="9" fill="#2a2e33"/>
+  <text x="316.6" y="77.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">2</text>
+  <rect x="20" y="138" width="40" height="28" rx="4" fill="#ffffff" stroke="#6e7781"/>
+  <use href="#i-solid-chevron-left" x="35.0" y="146.0" width="7.5" height="12" fill="#6e7781"/>
+  <text x="70.0" y="156.7" font-size="13" fill="#58616b">Item 3 of 3</text>
+  <rect x="167" y="138" width="40" height="28" rx="4" fill="#ffffff" stroke="#6e7781"/>
+  <use href="#i-solid-chevron-right" x="182.2" y="146.0" width="7.5" height="12" fill="#6e7781"/>
+  <circle cx="227.2" cy="152.0" r="9" fill="#2a2e33"/>
+  <text x="227.2" y="156.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">3</text>
+  <rect x="20.0" y="180" width="67.7" height="28" rx="4" fill="#6e7781" stroke="#6e7781"/>
+  <text x="33.0" y="198.7" font-size="13" fill="#ffffff">Drawn</text>
+  <rect x="87.7" y="180" width="115.2" height="28" rx="4" fill="#ffffff" stroke="#6e7781"/>
+  <text x="100.7" y="198.7" font-size="13" fill="#6e7781">Source code</text>
+  <circle cx="222.9" cy="194.0" r="9" fill="#2a2e33"/>
+  <text x="222.9" y="198.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">4</text>
+  <rect x="20" y="220" width="480" height="128" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <rect x="38" y="240" width="150" height="12" rx="6" fill="#8b939b"/>
+  <rect x="38.0" y="268.0" width="410.0" height="8" rx="4" fill="#dadee2"/>
+  <rect x="38.0" y="284.0" width="360.0" height="8" rx="4" fill="#dadee2"/>
+  <rect x="38.0" y="300.0" width="390.0" height="8" rx="4" fill="#dadee2"/>
+  <rect x="38.0" y="316.0" width="280.0" height="8" rx="4" fill="#dadee2"/>
+  <circle cx="476.0" cy="244.0" r="9" fill="#2a2e33"/>
+  <text x="476.0" y="248.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">5</text>
+</svg>

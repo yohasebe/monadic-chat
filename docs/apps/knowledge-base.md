@@ -6,6 +6,12 @@ The Knowledge Base holds conversations and documents: conversation transcripts, 
 
 ?> The Knowledge Base is separate from the [PDF Database](../basic-usage/pdf_storage.md), which stores PDFs for the OpenAI version of Research Assistant. Content imported into one is not visible in the other.
 
+![Knowledge Base panel](../assets/images/figures/knowledge-base.svg)
+
+1. **Save**: saves the current conversation to the Knowledge Base.
+2. **Browse**: opens the Knowledge Base browser.
+3. **Use Knowledge Base for retrieval (this session)**: lets the model search the Knowledge Base while answering.
+
 **Two ways to add content:**
 
 1. **Save the current chat session**: the **Save** button in the Knowledge Base panel of the sidebar saves the current conversation to the Knowledge Base.

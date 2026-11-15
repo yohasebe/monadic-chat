@@ -42,6 +42,15 @@ Talk with the AI in a continuous, hands-free voice conversation. Unlike [Voice C
 
 Three variants are available, one per provider: OpenAI, xAI Grok, and Google Gemini. A variant can be selected only when its provider's API key is configured.
 
+![Live Conversation controls](../assets/images/figures/live-conversation.svg)
+
+1. **Voice**: the assistant's voice.
+2. **Speed**: the playback speed (OpenAI only).
+3. **Cards while talking**: shows the conversation as cards during the conversation.
+4. **Search and compute**: lets the assistant call tools during the conversation.
+5. **Turn detection**: how the end of your utterance is decided (OpenAI only).
+6. **Start**: opens the conversation; the same button ends it.
+
 **How it works**: Click `Start` to open the conversation, then speak naturally — the end of each utterance is detected automatically (voice activity detection) and the turn proceeds on its own. Click `End` to close the session. There is no text input in this app. Headphones are recommended: with speakers, the assistant's voice feeds back into the microphone and can trigger unintended turns.
 
 **Voice and speed**: Pick the assistant's voice from the selector in the app's control row (the text-to-speech settings in the Speech panel do not apply here). The number of available voices is 10 for OpenAI (default: alloy), 26 for xAI (default: eve), and 30 for Gemini (default: Kore). A playback speed slider (0.25–1.5) is available for OpenAI only. Your voice choice is remembered per provider.

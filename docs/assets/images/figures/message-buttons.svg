@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="172" viewBox="0 0 560 172" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
+  <title>Buttons of an assistant&#x27;s card</title>
+  <defs>
+    <symbol id="i-regular-trash-can" viewBox="0 -448 448 512"><path transform="scale(1 -1)" d="M171 396 152 368 171 396 152 368H297L278 396Q275 400 271 400H177Q173 400 170 396ZM318 423 354 368 318 423 354 368H368H424Q446 366 448 344Q446 322 424 320H416V16Q415 -18 393 -41Q370 -63 336 -64H112Q78 -63 55 -41Q33 -18 32 16V320H24Q2 322 0 344Q2 366 24 368H32H94L131 423Q148 447 177 448H271Q300 447 317 423ZM80 320V16V320V16Q80 2 89 -7Q98 -16 112 -16H336Q350 -16 359 -7Q368 2 368 16V320H80ZM160 256V48V256V48Q159 33 144 32Q129 33 128 48V256Q129 271 144 272Q159 271 160 256ZM240 256V48V256V48Q239 33 224 32Q209 33 208 48V256Q209 271 224 272Q239 271 240 256ZM320 256V48V256V48Q319 33 304 32Q289 33 288 48V256Q289 271 304 272Q319 271 320 256Z"/></symbol>
+    <symbol id="i-solid-copy" viewBox="0 -448 448 512"><path transform="scale(1 -1)" d="M208 448H332H208H332Q352 448 366 434L434 366Q448 352 448 332V112Q447 92 434 78Q420 65 400 64H208Q188 65 174 78Q161 92 160 112V400Q161 420 174 434Q188 447 208 448ZM48 320H128H48H128V256H64V0H256V32H320V-16Q319 -36 306 -50Q292 -63 272 -64H48Q28 -63 14 -50Q1 -36 0 -16V272Q1 292 14 306Q28 319 48 320Z"/></symbol>
+    <symbol id="i-solid-pen-to-square" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M472 426Q454 443 432 443Q410 443 392 426L362 396L460 298L490 328Q507 346 507 368Q507 390 490 408L472 426ZM172 206Q163 197 159 184L129 96Q125 82 135 71Q146 61 160 65L249 95Q261 99 270 108L438 276L340 374L172 206ZM96 384Q55 383 28 356Q1 329 0 288V32Q1 -9 28 -36Q55 -63 96 -64H352Q393 -63 420 -36Q447 -9 448 32V128Q448 142 439 151Q430 160 416 160Q402 160 393 151Q384 142 384 128V32Q384 18 375 9Q366 0 352 0H96Q82 0 73 9Q64 18 64 32V288Q64 302 73 311Q82 320 96 320H192Q206 320 215 329Q224 338 224 352Q224 366 215 375Q206 384 192 384H96Z"/></symbol>
+    <symbol id="i-solid-play" viewBox="0 -448 384 512"><path transform="scale(1 -1)" d="M73 409Q49 423 25 410Q1 396 0 368V16Q1 -12 25 -26Q49 -39 73 -25L361 151Q383 165 384 192Q383 218 361 233L73 409Z"/></symbol>
+    <symbol id="i-solid-robot" viewBox="0 -448 640 512"><path transform="scale(1 -1)" d="M320 448Q334 448 343 439Q352 430 352 416V352H472Q503 351 523 331Q543 311 544 280V8Q543 -23 523 -43Q503 -63 472 -64H168Q137 -63 117 -43Q97 -23 96 8V280Q97 311 117 331Q137 351 168 352H288V416Q288 430 297 439Q306 448 320 448ZM208 64Q193 63 192 48Q193 33 208 32H240Q255 33 256 48Q255 63 240 64H208ZM304 64Q289 63 288 48Q289 33 304 32H336Q351 33 352 48Q351 63 336 64H304ZM400 64Q385 63 384 48Q385 33 400 32H432Q447 33 448 48Q447 63 432 64H400ZM264 192Q263 215 244 227Q224 237 204 227Q185 215 184 192Q185 169 204 157Q224 147 244 157Q263 169 264 192ZM416 152Q439 153 451 172Q461 192 451 212Q439 231 416 232Q393 231 381 212Q371 192 381 172Q393 153 416 152ZM48 224H64H48H64V32H48Q28 33 14 46Q1 60 0 80V176Q1 196 14 210Q28 223 48 224ZM592 224Q612 223 626 210Q639 196 640 176V80Q639 60 626 46Q612 33 592 32H576V224H592Z"/></symbol>
+    <symbol id="i-solid-stop" viewBox="0 -448 384 512"><path transform="scale(1 -1)" d="M0 320Q1 347 19 365Q37 383 64 384H320Q347 383 365 365Q383 347 384 320V64Q383 37 365 19Q347 1 320 0H64Q37 1 19 19Q1 37 0 64V320Z"/></symbol>
+  </defs>
+  <rect width="560" height="172" rx="8" fill="#eef0f2"/>
+  <rect x="20" y="34" width="520" height="118" rx="6" fill="#ffffff" stroke="#ced4da"/>
+  <rect x="20" y="34" width="520" height="40" rx="6" fill="#eef0f2"/>
+  <rect x="21" y="74" width="518" height="78" fill="#fcedee"/>
+  <use href="#i-solid-robot" x="34.0" y="46.0" width="20.0" height="16" fill="#c45a66"/>
+  <text x="60.0" y="59.0" font-size="14" fill="#c45a66" font-weight="700">Assistant</text>
+  <circle cx="520.0" cy="54.0" r="6" fill="#5c9a77"/>
+  <rect x="470.0" y="43.0" width="30" height="22" rx="4" fill="#f8eaeb" stroke="#e5c3c6"/>
+  <text x="485.0" y="59.0" font-size="13" fill="#8f2f3a" font-weight="600" text-anchor="middle">T1</text>
+  <use href="#i-solid-pen-to-square" x="439.0" y="46.0" width="15.0" height="15" fill="#6e7781"/>
+  <use href="#i-regular-trash-can" x="409.9" y="46.0" width="13.1" height="15" fill="#6e7781"/>
+  <use href="#i-solid-stop" x="382.6" y="46.0" width="11.2" height="15" fill="#6e7781"/>
+  <use href="#i-solid-play" x="355.4" y="46.0" width="11.2" height="15" fill="#6e7781"/>
+  <use href="#i-solid-copy" x="326.2" y="46.0" width="13.1" height="15" fill="#6e7781"/>
+  <circle cx="332.8" cy="21.0" r="9" fill="#a83d49"/>
+  <text x="332.8" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">1</text>
+  <circle cx="361.0" cy="21.0" r="9" fill="#a83d49"/>
+  <text x="361.0" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">2</text>
+  <circle cx="388.2" cy="21.0" r="9" fill="#a83d49"/>
+  <text x="388.2" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">3</text>
+  <circle cx="416.4" cy="21.0" r="9" fill="#a83d49"/>
+  <text x="416.4" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">4</text>
+  <circle cx="446.5" cy="21.0" r="9" fill="#a83d49"/>
+  <text x="446.5" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">5</text>
+  <circle cx="485.0" cy="21.0" r="9" fill="#a83d49"/>
+  <text x="485.0" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">6</text>
+  <circle cx="520.0" cy="21.0" r="9" fill="#a83d49"/>
+  <text x="520.0" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">7</text>
+  <rect x="36.0" y="92.0" width="460.0" height="8" rx="4" fill="#dadee2"/>
+  <rect x="36.0" y="108.0" width="400.0" height="8" rx="4" fill="#dadee2"/>
+  <rect x="36.0" y="124.0" width="300.0" height="8" rx="4" fill="#dadee2"/>
+</svg>

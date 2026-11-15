@@ -2,7 +2,15 @@
 
 After starting the server and selecting an app and configuring it, click the **Start Session** button to display the following screen.
 
-<!-- SCREENSHOT: Message input interface showing text area, Send button, Speech Input button, Image/PDF upload button, Text from file button, Open URL button, and Role selector -->
+![Buttons under the message box](../assets/images/figures/input-buttons.svg)
+
+1. **Image** (or **Attach file**, depending on the model): attaches an image or a PDF to the message. See [Uploading Images](#uploading-images).
+2. **Text from file**: reads the text of a document into the message. See [Reading Text from Document Files](#reading-text-from-document-files).
+3. **Open URL**: opens a web page on the work screen, or reads its text into the message. See [Opening a URL](#reading-text-from-urls).
+4. **Anonymize**: finds names in the message and lets you choose what to hide. See [Anonymize](#anonymize).
+5. **Speech Input**: records your voice and writes what you said into the message. See [Speech Input](#speech-input).
+6. **Send**: sends the message.
+7. **Clear**: empties the message box.
 
 Enter a message in the text area and click the **Send** button to send it. For voice input, see [Speech Input](#speech-input) below.
 

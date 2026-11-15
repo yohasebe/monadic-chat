@@ -765,6 +765,81 @@ def web_interface(table, color, title):
     return figure
 
 
+# ---- the desktop app --------------------------------------------------------
+def app_translations(language):
+    with open(os.path.join(ROOT, 'app', 'translations', '%s.json' % language), encoding='utf-8') as f:
+        return json.load(f)
+
+
+def app_menus():
+    """The desktop app's menus as app/main.js builds them: [(key, [item key | None for a separator])]."""
+    with open(os.path.join(ROOT, 'app', 'main.js'), encoding='utf-8') as f:
+        source = f.read()
+    start = source.index('const menu = Menu.buildFromTemplate([')
+    template = source[start:source.index('\n  ]);', start)]
+    heads = list(re.finditer(r"label: i18n\.t\('menu\.(\w+)'\),\s*\n\s*submenu: \[", template))
+    if not heads:
+        raise SystemExit('app/main.js no longer builds its menus as the menu figures read them')
+    menus = []
+    for i, head in enumerate(heads):
+        chunk = template[head.end():heads[i + 1].start() if i + 1 < len(heads) else len(template)]
+        items = [m.group(1) or m.group(3) and 'role:' + m.group(3)
+                 for m in re.finditer(r"label: i18n\.t\('menu\.(\w+)'\)|(type: 'separator')|role: '(\w+)'", chunk)]
+        while items and items[-1] is None:
+            items.pop()
+        menus.append((head.group(1), items))
+    return menus
+
+
+def desktop_menu(opened):
+    def draw(table, color, title, language):
+        """The menu bar with one menu open."""
+        figure = Figure(color, title)
+        words = app_translations(language)['menu']
+        menus = app_menus()
+        names = [key for key, _ in menus]
+        if opened not in names:
+            raise SystemExit('app/main.js has no %s menu' % opened)
+        ink, quiet, line = color('text-primary'), color('pal-grey-text'), color('pal-grey-line')
+        items = [item for item in dict(menus)[opened] if item is None or not item.startswith('role:')]
+        labels = [words[item] for item in items if item]
+        width = max(text_width(text) for text in labels) + 56
+        # The bar
+        x, y = 20, 20
+        bar = []
+        cx = x + 10
+        for key in names:
+            text = words[key]
+            w = text_width(text, 13, '600') + 20
+            bar.append((key, text, cx, w))
+            cx += w + 2
+        bar_width = max(cx + 8 - x, 0)
+        open_x = [bx for key, _, bx, _ in bar if key == opened][0]
+        total = max(bar_width, open_x - x + width + 20)
+        figure.add('<rect x="%d" y="%d" width="%.1f" height="32" rx="6" fill="#ffffff" stroke="%s"/>' % (x, y, total, line))
+        for key, text, bx, w in bar:
+            if key == opened:
+                figure.add('<rect x="%.1f" y="%d" width="%.1f" height="24" rx="4" fill="%s"/>' % (bx, y + 4, w, line))
+            figure.text(bx + w / 2, y + 21, text, 13, ink, '600' if key == opened else None, 'middle')
+        # The open menu
+        height = sum(11 if item is None else 26 for item in items) + 12
+        top = y + 38
+        figure.add('<rect x="%.1f" y="%d" width="%.1f" height="%d" rx="6" fill="#ffffff" stroke="%s"/>'
+                   % (open_x, top, width, height, color('pal-grey-mid')))
+        cy = top + 6
+        for item in items:
+            if item is None:
+                figure.add('<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s"/>'
+                           % (open_x + 10, cy + 5.5, open_x + width - 10, cy + 5.5, line))
+                cy += 11
+            else:
+                figure.text(open_x + 16, cy + 18, words[item])
+                cy += 26
+        figure.grow(x + total, top + height)
+        return figure
+    return draw
+
+
 # ---- the architecture ---------------------------------------------------------
 SERVICES = ['ruby', 'python', 'selenium', 'qdrant', 'embeddings', 'privacy', 'extractor']
 
@@ -946,6 +1021,9 @@ FIGURES = {
     'system-settings': (system_settings, {'en': 'System settings', 'ja': 'システム設定'}),
     'speech-panel': (speech_panel, {'en': 'Speech panel', 'ja': 'Speech パネル'}),
     'attachments': (attachments, {'en': 'Files attached to a message', 'ja': 'メッセージに添付したファイル'}),
+    'menu-file': (desktop_menu('file'), {'en': 'The File menu', 'ja': 'File メニュー'}),
+    'menu-actions': (desktop_menu('actions'), {'en': 'The Actions menu', 'ja': 'Actions メニュー'}),
+    'menu-open': (desktop_menu('open'), {'en': 'The Open menu', 'ja': 'Open メニュー'}),
     'architecture': (architecture, {'en': 'Monadic Chat architecture', 'ja': 'Monadic Chat の構成'}),
 }
 
@@ -958,7 +1036,7 @@ def main():
             path = os.path.join(OUT[language], '%s.svg' % name)
             with open(path, 'w', encoding='utf-8') as f:
                 arguments = (tables[language], color, titles[language])
-                if draw is architecture:
+                if draw is architecture or draw.__name__ == 'draw':
                     arguments += (language,)
                 f.write(draw(*arguments).svg())
             print(os.path.relpath(path, ROOT))

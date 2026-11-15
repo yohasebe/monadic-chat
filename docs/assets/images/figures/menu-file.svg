@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="443" height="331" viewBox="0 0 443 331" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
+  <title>The File menu</title>
+  <defs>
+
+  </defs>
+  <rect x="0.5" y="0.5" width="442" height="330" rx="12" fill="#eef0f2" stroke="#dadee2"/>
+  <rect x="20" y="20" width="402.6" height="32" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <rect x="30.0" y="24" width="54.8" height="24" rx="4" fill="#dadee2"/>
+  <text x="57.4" y="41.0" font-size="13" fill="#2a2e33" font-weight="600" text-anchor="middle">File</text>
+  <text x="114.3" y="41.0" font-size="13" fill="#2a2e33" text-anchor="middle">Edit</text>
+  <text x="184.2" y="41.0" font-size="13" fill="#2a2e33" text-anchor="middle">Actions</text>
+  <text x="254.1" y="41.0" font-size="13" fill="#2a2e33" text-anchor="middle">Open</text>
+  <text x="310.9" y="41.0" font-size="13" fill="#2a2e33" text-anchor="middle">Help</text>
+  <text x="376.5" y="41.0" font-size="13" fill="#2a2e33" text-anchor="middle">Window</text>
+  <rect x="30.0" y="58" width="286.0" height="253" rx="6" fill="#ffffff" stroke="#8b939b"/>
+  <text x="46.0" y="82.0" font-size="13" fill="#2a2e33">About Monadic Chat</text>
+  <line x1="40.0" y1="95.5" x2="306.0" y2="95.5" stroke="#dadee2"/>
+  <text x="46.0" y="119.0" font-size="13" fill="#2a2e33">Check for Updates</text>
+  <text x="46.0" y="145.0" font-size="13" fill="#2a2e33">Remove Images/Containers/Data</text>
+  <text x="46.0" y="171.0" font-size="13" fill="#2a2e33">How to Uninstall</text>
+  <line x1="40.0" y1="184.5" x2="306.0" y2="184.5" stroke="#dadee2"/>
+  <text x="46.0" y="208.0" font-size="13" fill="#2a2e33">Window</text>
+  <text x="46.0" y="234.0" font-size="13" fill="#2a2e33">Minimize</text>
+  <text x="46.0" y="260.0" font-size="13" fill="#2a2e33">Close</text>
+  <line x1="40.0" y1="273.5" x2="306.0" y2="273.5" stroke="#dadee2"/>
+  <text x="46.0" y="297.0" font-size="13" fill="#2a2e33">Quit</text>
+</svg>

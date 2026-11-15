@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="465" height="294" viewBox="0 0 465 294" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
+  <title>The Open menu</title>
+  <defs>
+
+  </defs>
+  <rect x="0.5" y="0.5" width="464" height="293" rx="12" fill="#eef0f2" stroke="#dadee2"/>
+  <rect x="20" y="20" width="425.4" height="32" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <text x="57.4" y="41.0" font-size="13" fill="#2a2e33" text-anchor="middle">File</text>
+  <text x="114.3" y="41.0" font-size="13" fill="#2a2e33" text-anchor="middle">Edit</text>
+  <text x="184.2" y="41.0" font-size="13" fill="#2a2e33" text-anchor="middle">Actions</text>
+  <rect x="226.7" y="24" width="54.8" height="24" rx="4" fill="#dadee2"/>
+  <text x="254.1" y="41.0" font-size="13" fill="#2a2e33" font-weight="600" text-anchor="middle">Open</text>
+  <text x="310.9" y="41.0" font-size="13" fill="#2a2e33" text-anchor="middle">Help</text>
+  <text x="376.5" y="41.0" font-size="13" fill="#2a2e33" text-anchor="middle">Window</text>
+  <rect x="226.7" y="58" width="198.7" height="216" rx="6" fill="#ffffff" stroke="#8b939b"/>
+  <text x="242.7" y="82.0" font-size="13" fill="#2a2e33">Open Console</text>
+  <text x="242.7" y="108.0" font-size="13" fill="#2a2e33">Open Browser</text>
+  <text x="242.7" y="134.0" font-size="13" fill="#2a2e33">Open noVNC</text>
+  <line x1="236.7" y1="147.5" x2="415.4" y2="147.5" stroke="#dadee2"/>
+  <text x="242.7" y="171.0" font-size="13" fill="#2a2e33">Open Shared Folder</text>
+  <text x="242.7" y="197.0" font-size="13" fill="#2a2e33">Open Config Folder</text>
+  <text x="242.7" y="223.0" font-size="13" fill="#2a2e33">Open Log Folder</text>
+  <line x1="236.7" y1="236.5" x2="415.4" y2="236.5" stroke="#dadee2"/>
+  <text x="242.7" y="260.0" font-size="13" fill="#2a2e33">Settings</text>
+</svg>

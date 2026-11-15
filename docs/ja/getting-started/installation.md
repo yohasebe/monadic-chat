@@ -96,7 +96,7 @@ AppImage は FUSE を使って自身をマウントします。現在のディ�
 
 ## Monadic Chatの更新 :id=update
 
-<!-- SCREENSHOT: Monadic Chatメニュー - FileメニューにCheck for Updatesがある様子 -->
+![File メニュー](../assets/images/figures/menu-file.svg)
 
 Monadic Chat は、起動時（オンラインのとき）に更新を確認します。
 

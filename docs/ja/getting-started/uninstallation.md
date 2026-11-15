@@ -38,7 +38,7 @@ $ rm monadic-chat_*.AppImage
 
 <!-- tabs:end -->
 
-![File メニュー](../assets/images/figures/menu-file.svg)
+![ファイル メニュー](../assets/images/figures/menu-file.svg)
 
 ## ユーザーデータ :id=user-data
 

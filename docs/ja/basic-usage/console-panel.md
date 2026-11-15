@@ -30,13 +30,13 @@ Monadic Chatを終了します。
 
 ## コンソールメニュー項目
 
-![File メニュー](../assets/images/figures/menu-file.svg)
+![ファイル メニュー](../assets/images/figures/menu-file.svg)
 
 コンソールには、File、Edit、Actions、Open、Help、Window のメニューがあります。macOS では、File メニューは Monadic Chat という名前で表示されます。Edit には通常の編集のコマンド、Help には文書を開くコマンド、Window には Minimize、Close、Reload があります。
 
 ### Actions メニュー
 
-![Actions メニュー](../assets/images/figures/menu-actions.svg)
+![アクション メニュー](../assets/images/figures/menu-actions.svg)
 
 ビルドのコマンドは Monadic Chat が止まっているとき、JupyterLab のコマンドは動いているとき、ドキュメント DB のコマンドは止まっているときに使えます。
 
@@ -84,7 +84,7 @@ JupyterLabを停止します。
 
 ### Open メニュー
 
-![Open メニュー](../assets/images/figures/menu-open.svg)
+![開く メニュー](../assets/images/figures/menu-open.svg)
 
 **コンソールを開く** <br />
 Monadic Chatのコンソールを開きます。

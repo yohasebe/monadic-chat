@@ -794,8 +794,9 @@ def app_menus():
 def desktop_menu(opened):
     def draw(table, color, title, language):
         """The menu bar with one menu open."""
-        figure = Figure(color, title)
         words = app_translations(language)['menu']
+        # The figure's title names the menu as the app does
+        figure = Figure(color, {'en': 'The %s menu', 'ja': '%s メニュー'}[language] % words[opened])
         menus = app_menus()
         names = [key for key, _ in menus]
         if opened not in names:

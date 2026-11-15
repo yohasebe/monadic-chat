@@ -150,15 +150,15 @@ RSpec.describe MusicAnalystTools do
   end
 
   describe '#analyze_audio_features' do
-    # The audio path is gated on the optional Audio Analysis package; treat it
+    # The audio path is gated on the optional Music Analysis package; treat it
     # as installed for the formatting/parsing tests below.
     before { stub_const("CONFIG", { "PYOPT_LIBROSA" => "true" }) }
 
-    it 'points the user to Install Options when the Audio Analysis package is off (audio file)' do
+    it 'points the user to Install Options when the Music Analysis package is off (audio file)' do
       stub_const("CONFIG", { "PYOPT_LIBROSA" => "false" })
       expect(tool).not_to receive(:send_command)
       result = tool.analyze_audio_features(file_path: "song.mp3")
-      expect(result).to match(/❌.*Audio Analysis package/)
+      expect(result).to match(/❌.*Music Analysis package/)
       expect(result).to match(/Install Options/)
     end
 

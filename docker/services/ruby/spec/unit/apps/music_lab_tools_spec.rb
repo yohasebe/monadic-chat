@@ -365,7 +365,7 @@ RSpec.describe 'MusicLabTools' do
   describe '#analyze_audio_file' do
     let(:instance) { MusicLabOpenAI.new }
 
-    # The audio path is gated on the optional Audio Analysis package; treat it
+    # The audio path is gated on the optional Music Analysis package; treat it
     # as installed for the path/format tests below (merge-preserve other config).
     before do
       base = defined?(CONFIG) && CONFIG.is_a?(Hash) ? CONFIG : {}
@@ -376,12 +376,12 @@ RSpec.describe 'MusicLabTools' do
       expect(instance).to respond_to(:analyze_audio_file)
     end
 
-    it 'points the user to Install Options when the Audio Analysis package is off (audio file)' do
+    it 'points the user to Install Options when the Music Analysis package is off (audio file)' do
       base = defined?(CONFIG) && CONFIG.is_a?(Hash) ? CONFIG : {}
       stub_const("CONFIG", base.merge("PYOPT_LIBROSA" => "false"))
       expect(instance).not_to receive(:send_command)
       result = instance.analyze_audio_file(file_path: "song.mp3")
-      expect(result).to match(/❌.*Audio Analysis package/)
+      expect(result).to match(/❌.*Music Analysis package/)
       expect(result).to match(/Install Options/)
     end
 

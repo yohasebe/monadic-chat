@@ -1,8 +1,11 @@
 require 'json'
 require 'shellwords'
 require_relative '../../lib/monadic/workbench/chat_output'
+require_relative '../../lib/monadic/utils/music_features'
 
 module MusicLabTools
+  include Monadic::Utils::MusicFeatures
+
   def play_chord(chord_name:, voicing: nil, instrument: nil, octave: nil, session: nil, workbench: nil)
     params = { "chord_name" => chord_name }
     params["voicing"] = voicing if voicing
@@ -54,50 +57,17 @@ module MusicLabTools
     run_music_action("backing", params, session, workbench)
   end
 
-  # Audio (not MIDI) analysis needs the optional Audio Analysis package
-  # (librosa + madmom). MIDI uses pretty_midi and self-reports, so it is not
-  # gated here.
-  AUDIO_EXTS_NEEDING_LIBROSA = %w[mp3 mpeg m4a mp4 wav ogg flac].freeze
-
+  # The features measured from an uploaded audio or MIDI file.
   def analyze_audio_file(file_path:, session: nil)
-    ext = File.extname(file_path.to_s).delete_prefix(".").downcase
-    if AUDIO_EXTS_NEEDING_LIBROSA.include?(ext) && !audio_analysis_package_enabled?
-      return "❌ Objective audio analysis needs the optional Audio Analysis package " \
-             "(librosa + madmom). Enable it under Actions → Install Options and rebuild " \
-             "the Python container."
-    end
-    # Normalize path to /monadic/data/ (the shared folder inside the container)
-    container_path = if file_path.start_with?("/monadic/data")
-                       file_path
-                     else
-                       "/monadic/data/#{file_path}"
-                     end
+    result = measure_music_features(file_path)
+    return result["error"] if result["package_needed"]
 
-    params = { "file_path" => container_path }
-    json_params = JSON.generate(params)
-    cmd = "python3 /monadic/scripts/music/music_analyzer.py analyze --params #{Shellwords.escape(json_params)}"
-    stdout = send_command(command: cmd, container: "python")
-    result = parse_music_result(stdout)
-
-    if result.is_a?(Hash) && result["success"]
-      format_analysis_result(result)
-    else
-      error_msg = result.is_a?(Hash) ? result["error"] : "Unknown error"
-      "Error: #{error_msg}"
-    end
+    result["success"] ? format_analysis_result(result) : "Error: #{result['error'] || 'Unknown error'}"
   rescue => e
     "Error: Audio analysis failed: #{e.message}"
   end
 
   private
-
-  # The optional "librosa + madmom" install option (Actions → Install Options)
-  # is recorded as PYOPT_LIBROSA in the runtime config; gate on it to give an
-  # actionable message instead of a cryptic analyzer crash.
-  def audio_analysis_package_enabled?
-    defined?(CONFIG) && CONFIG.respond_to?(:[]) &&
-      CONFIG["PYOPT_LIBROSA"].to_s.strip.downcase == "true"
-  end
 
   def run_music_action(action, params, session, workbench)
     cmd = build_music_command(action, params)

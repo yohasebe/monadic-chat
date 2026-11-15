@@ -809,6 +809,9 @@ module CohereHelper
     if role == "user"
       session[:call_depth_per_turn] = 0
       session[:parallel_dispatch_called] = nil
+      # The turn's tool rounds so far go back with every later request of
+      # the turn, so the model sees what it has already done.
+      session[:parameters]&.delete("tool_results")
       # Reset the cross-round tool_plan accumulator (see the tool branch and
       # build_cohere_text_response). Some reasoning models (e.g. command-a-plus)
       # emit their reasoning as tool_plan on tool rounds rather than as
@@ -1312,12 +1315,12 @@ module CohereHelper
       # is accepted by every model, so leave it out universally. (The streamed
       # tool_plan is still captured above for the thinking panel — that is a
       # display concern, separate from what we send back.)
-      context = [
-        {
-          "role" => "assistant",
-          "tool_calls" => accumulated_tool_calls
-        }
-      ]
+      # After the turn's earlier rounds.
+      context = Array(session[:parameters]&.[]("tool_results")).dup
+      context << {
+        "role" => "assistant",
+        "tool_calls" => accumulated_tool_calls
+      }
 
       session[:call_depth_per_turn] += 1
       if session[:call_depth_per_turn] > MAX_FUNC_CALLS

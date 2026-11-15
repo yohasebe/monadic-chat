@@ -330,6 +330,9 @@ module OllamaHelper
     if role == "user"
       session[:call_depth_per_turn] = 0
       session[:tool_call_sequence] = []
+      # The turn's tool rounds so far go back with every later request of
+      # the turn, so the model sees what it has already done.
+      session[:parameters]&.delete("function_returns")
       # Reset the cross-round reasoning accumulator. Reasoning models emit their
       # trace before a tool call; process_functions recurses with a fresh local
       # thinking_texts, so without accumulating here only the final round's
@@ -724,10 +727,12 @@ module OllamaHelper
       # Build context from current session messages for tool result
       # re-invocation, as the model reads them (a user message's attachments
       # described after its text, as in the request for the message).
+      # In a later round of the turn, the rounds before it are there already.
       context_size = obj["context_size"].to_i
-      context = [session[:messages].first]
-      if session[:messages].size > 1
-        context += model_facing_context(session[:messages][1..].last(context_size))
+      context = Array(obj["function_returns"]).dup
+      if context.empty?
+        context = [session[:messages].first]
+        context += model_facing_context(session[:messages][1..].last(context_size)) if session[:messages].size > 1
       end
 
       # Add assistant message with tool_calls to context

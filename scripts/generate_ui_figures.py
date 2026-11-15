@@ -520,21 +520,21 @@ def architecture(table, color, title, language):
     # Your computer: what you use, at the top
     figure.add('<rect x="20" y="20" width="800" height="660" rx="12" fill="%s" stroke="%s"/>' % (color('pal-grey-soft'), line))
     heading(38, 48, word['computer'], 'fa-laptop', quiet, 15, quiet)
-    card(40, 64, 220, 96, word['desktop'], 'fa-desktop', blue, [word['desktop_1'], word['desktop_2']])
-    card(280, 64, 520, 96, word['web'], 'fa-window-maximize', blue)
+    card(40, 64, 220, 96, word['desktop'], 'fa-desktop', green, [word['desktop_1'], word['desktop_2']])
+    card(280, 64, 520, 96, word['web'], 'fa-window-maximize', green)
     cx = 298
     for text in [word['conversation'], label(table, 'ui.sidePane.workScreen'), label(table, 'ui.sidePane.files'),
                  label(table, 'ui.sidePane.history'),
                  re.sub(r'<[^>]+>\s*', '', label(table, 'ui.knowledgeBase')).strip()]:
-        cx += chip(cx, 118, text, blue, color('pal-accent-text')) + 6
+        cx += chip(cx, 118, text, green, color('pal-green-text')) + 6
 
     # Docker: the services on the left, the server on the right (it faces the cloud)
-    figure.add('<rect x="40" y="210" width="760" height="304" rx="10" fill="#ffffff" stroke="%s" stroke-width="1.5"/>' % green)
-    heading(58, 238, word['docker'], 'fa-cubes', green, 15, color('pal-green-text'))
+    figure.add('<rect x="40" y="210" width="760" height="304" rx="10" fill="#ffffff" stroke="%s" stroke-width="1.5"/>' % blue)
+    heading(58, 238, word['docker'], 'fa-cubes', blue, 15, color('pal-accent-text'))
     known = services()
     for i, name in enumerate(s for s in known if s != 'ruby'):
         col, row = i % 2, i // 2
-        card(60 + col * 188, 258 + row * 80, 176, 68, name.capitalize(), SERVICE_ICONS[name], green,
+        card(60 + col * 188, 258 + row * 80, 176, 68, name.capitalize(), SERVICE_ICONS[name], blue,
              [word[name]], color('pal-grey-soft'))
 
     figure.add('<rect x="480" y="258" width="300" height="228" rx="8" fill="#ffffff" stroke="%s" stroke-width="2"/>' % brown)

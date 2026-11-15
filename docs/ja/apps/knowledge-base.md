@@ -6,6 +6,12 @@ Knowledge Base には、会話と文書（会話の記録、PDF、Office のフ�
 
 ?> Knowledge Base は、Research Assistant の OpenAI 版で使う [PDF Database](../basic-usage/pdf_storage.md) とは別のものです。一方に取り込んだ内容は、もう一方には表示されません。
 
+![Knowledge Base のパネル](../assets/images/figures/knowledge-base.svg)
+
+1. **保存**：今の会話を Knowledge Base に保存します。
+2. **一覧**：Knowledge Base のブラウザーを開きます。
+3. **このセッションでナレッジベース検索を使う**：モデルが回答の途中で Knowledge Base を検索できるようにします。
+
 **内容を加える 2 つの方法：**
 
 1. **今のチャットのセッションを保存する**：サイドバーの Knowledge Base パネルの **Save** ボタンで、今の会話を Knowledge Base に保存します。

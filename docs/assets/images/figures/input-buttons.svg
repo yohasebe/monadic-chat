@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="593" height="220" viewBox="0 0 593 220" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
+  <title>Buttons under the message box</title>
+  <defs>
+    <symbol id="i-solid-eraser" viewBox="0 -448 576 512"><path transform="scale(1 -1)" d="M291 391 57 157 291 391 57 157Q39 138 39 112Q39 87 57 67L137 -13Q156 -32 183 -32H288H512Q526 -32 535 -23Q544 -14 544 0Q544 14 535 23Q526 32 512 32H388L519 163Q537 182 537 208Q537 233 519 253L381 391Q362 409 336 409Q311 409 291 391ZM297 32H288H297H183L103 112L227 237L365 99L297 32Z"/></symbol>
+    <symbol id="i-solid-file-arrow-up" viewBox="0 -448 384 512"><path transform="scale(1 -1)" d="M64 448Q37 447 19 429Q1 411 0 384V0Q1 -27 19 -45Q37 -63 64 -64H320Q347 -63 365 -45Q383 -27 384 0V288H256Q242 288 233 297Q224 306 224 320V448H64ZM256 448V320V448V320H384L256 448ZM216 40Q214 18 192 16Q170 18 168 40V142L137 111Q120 97 103 111Q89 128 103 145L175 217Q192 231 209 217L281 145Q295 128 281 111Q264 97 247 111L216 142V40Z"/></symbol>
+    <symbol id="i-solid-globe" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M352 192Q352 159 349 128H163Q160 159 160 192Q160 225 163 256H349Q352 225 352 192ZM381 256H504H381H504Q512 225 512 192Q512 159 504 128H381Q384 159 384 192Q384 225 381 256ZM493 288H377H493H377Q361 386 321 440Q381 423 426 384Q470 344 493 288ZM344 288H168H344H168Q177 343 195 383Q211 418 228 434Q245 449 256 448Q267 449 284 434Q301 418 317 383Q335 343 344 288ZM135 288H19H135H19Q42 344 86 384Q131 423 191 440Q151 386 135 288ZM8 256H131H8H131Q128 225 128 192Q128 159 131 128H8Q0 159 0 192Q0 225 8 256ZM195 1Q177 41 168 96H344Q335 41 317 1Q301 -34 284 -50Q267 -65 256 -64Q245 -65 228 -50Q211 -34 195 1ZM135 96Q151 -2 191 -56Q131 -39 86 0Q42 40 19 96H135ZM493 96Q470 40 426 0Q381 -39 322 -56Q361 -2 377 96H494Z"/></symbol>
+    <symbol id="i-solid-image" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M0 352Q1 379 19 397Q37 415 64 416H448Q475 415 493 397Q511 379 512 352V32Q511 5 493 -13Q475 -31 448 -32H64Q37 -31 19 -13Q1 5 0 32V352ZM324 245Q316 256 304 256Q291 256 284 245L197 118L171 151Q163 160 152 160Q141 160 133 151L69 71Q61 59 66 46Q73 33 88 32H184H424Q438 32 445 45Q451 58 444 69L324 245ZM112 256Q139 257 154 280Q166 304 154 328Q139 351 112 352Q85 351 70 328Q58 304 70 280Q85 257 112 256Z"/></symbol>
+    <symbol id="i-solid-microphone" viewBox="0 -448 384 512"><path transform="scale(1 -1)" d="M192 448Q151 447 124 420Q97 393 96 352V192Q97 151 124 124Q151 97 192 96Q233 97 260 124Q287 151 288 192V352Q287 393 260 420Q233 447 192 448ZM64 232Q62 254 40 256Q18 254 16 232V192Q17 124 60 76Q102 28 168 18V-16H120Q98 -18 96 -40Q98 -62 120 -64H192H264Q286 -62 288 -40Q286 -18 264 -16H216V18Q282 28 324 76Q367 124 368 192V232Q366 254 344 256Q322 254 320 232V192Q319 138 283 101Q246 65 192 64Q138 65 101 101Q65 138 64 192V232Z"/></symbol>
+    <symbol id="i-solid-paper-plane" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M498 442Q514 431 512 411L448 -5Q445 -20 432 -28Q418 -35 404 -29L284 20L216 -54Q200 -69 180 -62Q161 -53 160 -32V52Q160 58 164 62L332 245Q340 256 331 267Q321 276 309 268L106 87L18 131Q1 140 0 159Q0 178 16 188L464 444Q482 453 498 442Z"/></symbol>
+    <symbol id="i-solid-user-secret" viewBox="0 -448 448 512"><path transform="scale(1 -1)" d="M224 432Q215 433 209 438Q208 438 208 438Q201 446 176 448Q153 447 137 420Q120 394 110 359Q74 352 53 342Q32 332 32 320Q35 298 97 284Q96 278 96 272Q96 246 105 224H45Q33 223 32 211Q32 208 33 206L72 109Q39 84 20 47Q0 10 0 -34Q0 -47 9 -55Q17 -64 30 -64H418Q431 -64 439 -55Q448 -47 448 -34Q448 10 428 47Q409 84 376 109L415 206Q416 208 416 211Q415 223 403 224H343Q352 246 352 272Q352 278 351 284Q413 298 416 320Q416 332 395 342Q374 352 338 359Q328 394 311 420Q295 447 272 448Q247 446 240 438Q240 438 240 438Q239 438 239 438Q233 433 224 432ZM280 224H268H280H268Q241 225 231 250Q229 255 224 255Q219 255 217 250Q207 225 181 224H168Q151 224 140 236Q128 247 128 264V278Q171 272 224 272Q277 272 320 278V264Q320 247 308 236Q297 224 280 224ZM192 128 208 96 192 128 208 96 176 -32 128 160 192 128ZM320 160 272 -32 320 160 272 -32 240 96 256 128 320 160Z"/></symbol>
+  </defs>
+  <rect width="593" height="220" rx="8" fill="#eef0f2"/>
+  <rect x="20" y="20" width="553.3" height="64" rx="6" fill="#ffffff" stroke="#ced4da"/>
+  <rect x="20.0" y="114.0" width="72.4" height="28" rx="4" fill="#ecc04f"/>
+  <use href="#i-solid-image" x="29.0" y="121.5" width="13.0" height="13" fill="#2a2e33"/>
+  <text x="47.0" y="132.7" font-size="13" fill="#2a2e33">Image</text>
+  <circle cx="56.2" cy="101.0" r="9" fill="#a83d49"/>
+  <text x="56.2" y="105.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">1</text>
+  <rect x="100.4" y="114.0" width="134.7" height="28" rx="4" fill="#ecc04f"/>
+  <use href="#i-solid-file-arrow-up" x="109.4" y="121.5" width="9.8" height="13" fill="#2a2e33"/>
+  <text x="124.2" y="132.7" font-size="13" fill="#2a2e33">Text from file</text>
+  <circle cx="167.7" cy="101.0" r="9" fill="#a83d49"/>
+  <text x="167.7" y="105.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">2</text>
+  <rect x="243.1" y="114.0" width="94.2" height="28" rx="4" fill="#ecc04f"/>
+  <use href="#i-solid-globe" x="252.1" y="121.5" width="13.0" height="13" fill="#2a2e33"/>
+  <text x="270.1" y="132.7" font-size="13" fill="#2a2e33">Open URL</text>
+  <circle cx="290.2" cy="101.0" r="9" fill="#a83d49"/>
+  <text x="290.2" y="105.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">3</text>
+  <rect x="345.3" y="114.0" width="99.9" height="28" rx="4" fill="#ecc04f"/>
+  <use href="#i-solid-user-secret" x="354.3" y="121.5" width="11.4" height="13" fill="#2a2e33"/>
+  <text x="370.7" y="132.7" font-size="13" fill="#2a2e33">Anonymize</text>
+  <circle cx="395.3" cy="101.0" r="9" fill="#a83d49"/>
+  <text x="395.3" y="105.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">4</text>
+  <rect x="453.2" y="114.0" width="120.1" height="28" rx="4" fill="#ecc04f"/>
+  <use href="#i-solid-microphone" x="462.2" y="121.5" width="9.8" height="13" fill="#2a2e33"/>
+  <text x="477.0" y="132.7" font-size="13" fill="#2a2e33">Speech Input</text>
+  <circle cx="513.3" cy="101.0" r="9" fill="#a83d49"/>
+  <text x="513.3" y="105.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">5</text>
+  <rect x="20.0" y="172.0" width="65.1" height="28" rx="4" fill="#3a68a6"/>
+  <use href="#i-solid-paper-plane" x="29.0" y="179.5" width="13.0" height="13" fill="#ffffff"/>
+  <text x="47.0" y="190.7" font-size="13" fill="#ffffff">Send</text>
+  <circle cx="52.6" cy="159.0" r="9" fill="#a83d49"/>
+  <text x="52.6" y="163.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">6</text>
+  <rect x="93.1" y="172.0" width="74.0" height="28" rx="4" fill="#6e7781"/>
+  <use href="#i-solid-eraser" x="102.1" y="179.5" width="14.6" height="13" fill="#ffffff"/>
+  <text x="121.7" y="190.7" font-size="13" fill="#ffffff">Clear</text>
+  <circle cx="130.1" cy="159.0" r="9" fill="#a83d49"/>
+  <text x="130.1" y="163.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">7</text>
+</svg>

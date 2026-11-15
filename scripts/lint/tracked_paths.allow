@@ -42,6 +42,7 @@ config/jest/jest.config.js
 lib/**/*.rb
 rakelib/*.rake
 scripts/**/*.{rb,js,mjs,sh}
+scripts/generate_ui_figures.py
 scripts/lint/{tracked_paths,shared_writes}.allow
 
 # --- Electron app -----------------------------------------------------------
@@ -111,7 +112,7 @@ docker/services/ruby/spec/unit/README_model_sync.md
 docker/services/ruby/spec/unit/scripts/generators/README_video_generator_gemini.md
 docs/.nojekyll
 docs/index.html
-docs/**/*.{md,png,svg,jpg}
+docs/**/*.{md,png,svg}
 docs/**/favicon/{favicon.ico,site.webmanifest}
 docs/**/.gitkeep
 docs/assets/images/workflows/manifest.json

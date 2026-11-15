@@ -73,7 +73,25 @@ The bar at the top shows badges for the features in effect: **Web Search**, **Ma
 
 The top bar of the page shows the conversation status.
 
+## Message Cards :id=message-cards
+
+Each message of the conversation is a card. The header of an assistant's card has these buttons:
+
+![Buttons of an assistant's card](../assets/images/figures/message-buttons.svg)
+
+1. **Copy**: copies the message's text.
+2. **Start TTS**: reads the message aloud.
+3. **Stop TTS**: stops the reading.
+4. **Delete**: deletes the message, or the message and those after it.
+5. **Edit**: lets you change the message's text.
+6. The turn the message belongs to.
+7. Green while the message is within the context sent to the model.
+
+A user's card has **Copy**, **Delete** and **Edit**.
+
 ## Sidebar Panels :id=info-panel
+
+![Tabs of the side column](../assets/images/figures/side-column.svg)
 
 The sidebar has four tabs at the top: **Menu**, which holds the following panels from top to bottom, **Work screen** (see [Work Screen](#work-screen) below), **Files** (see [Files Tab](#shared-folder-panel)) and **History** (see [History Tab](#chat-history-panel), shown while chats are kept). The page opens on Menu. Click a panel's title to collapse or expand it.
 

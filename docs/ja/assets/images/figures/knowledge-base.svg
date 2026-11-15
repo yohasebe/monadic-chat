@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" role="img" width="440" height="206" viewBox="0 0 440 206" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
-  <title>Knowledge Base のパネル</title>
+  <title>ナレッジベースパネル</title>
   <defs>
     <symbol id="i-solid-book" viewBox="0 -448 448 512"><path transform="scale(1 -1)" d="M96 448Q55 447 28 420Q1 393 0 352V32Q1 -9 28 -36Q55 -63 96 -64H384H416Q430 -64 439 -55Q448 -46 448 -32Q448 -18 439 -9Q430 0 416 0V64Q430 64 439 73Q448 82 448 96V416Q448 430 439 439Q430 448 416 448H384ZM96 64H352H96H352V0H96Q82 0 73 9Q64 18 64 32Q64 46 73 55Q82 64 96 64ZM128 304Q129 319 144 320H336Q351 319 352 304Q351 289 336 288H144Q129 289 128 304ZM144 256H336H144H336Q351 255 352 240Q351 225 336 224H144Q129 225 128 240Q129 255 144 256Z"/></symbol>
     <symbol id="i-solid-bookmark" viewBox="0 -448 384 512"><path transform="scale(1 -1)" d="M0 400V-40V400V-40Q2 -62 24 -64Q32 -64 38 -60L192 48L346 -60Q352 -64 360 -64Q382 -62 384 -40V400Q383 420 370 434Q356 447 336 448H48Q28 447 14 434Q1 420 0 400Z"/></symbol>

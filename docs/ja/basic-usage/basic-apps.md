@@ -47,7 +47,7 @@
 
 ## アプリ別の Knowledge Base 保存 :id=kb-by-app
 
-画像・動画・図・音楽・文書を作るアプリ、Second Opinion、Translate、Mail Composer は Knowledge Base に保存しません。画像などの出力は共有フォルダ（`~/monadic/data`）に保存されます。語を伏せている会話は、どのアプリでも保存できません（[匿名化](../advanced-topics/anonymization.md#knowledge-base)）。会話を残すには **Export** を使います。Knowledge Base に保存したものを見るには、Knowledge Base パネルの **Browse** をクリックします。
+画像・動画・図・音楽・文書を作るアプリ、Second Opinion、Translate、Mail Composer は Knowledge Base に保存しません。画像などの出力は共有フォルダ（`~/monadic/data`）に保存されます。語を伏せている会話は、どのアプリでも保存できません（[匿名化](../advanced-topics/anonymization.md#knowledge-base)）。会話を残すには **Export** を使います。Knowledge Base に保存したものを見るには、ナレッジベースパネルの **一覧** をクリックします。
 
 | アプリ | Knowledge Base 保存 |
 |-----|:--:|
@@ -161,7 +161,7 @@ Mermaid.js、Draw.io、RSyntaxTree、LaTeX/TikZ を使って自然言語の説�
 
 ### Knowledge Base
 
-保存した会話とインポートしたドキュメント（PDF、Office、Markdown、ソースコード）をプロジェクト全体で共有するライブラリです。各エントリは保存したアプリから検索でき、`Global` スコープに切り替えると、Knowledge Base を検索するほかのアプリからも（**Use Knowledge Base for retrieval (this session)** がオンのとき）検索できます。詳細は[Knowledge Base](../apps/knowledge-base.md)を参照してください。
+保存した会話とインポートしたドキュメント（PDF、Office、Markdown、ソースコード）をプロジェクト全体で共有するライブラリです。各エントリは保存したアプリから検索でき、`Global` スコープに切り替えると、Knowledge Base を検索するほかのアプリからも（**このセッションでナレッジベース検索を使う** がオンのとき）検索できます。詳細は[Knowledge Base](../apps/knowledge-base.md)を参照してください。
 
 ### コーディング・ノートブックアプリ
 

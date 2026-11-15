@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1130" height="664" viewBox="0 0 1130 664" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
+  <title>Monadic Chat architecture</title>
+  <defs>
+    <symbol id="i-solid-cloud" viewBox="0 -448 640 512"><path transform="scale(1 -1)" d="M0 112Q2 51 42 10Q83 -30 144 -32H512Q566 -31 603 5Q639 42 640 96Q639 143 611 177Q582 212 538 221Q544 238 544 256Q543 297 516 324Q489 351 448 352Q418 352 395 336Q373 372 337 394Q301 415 256 416Q188 414 143 369Q98 324 96 256Q96 252 96 248Q96 248 96 248Q53 232 27 196Q1 160 0 112Z"/></symbol>
+    <symbol id="i-solid-code" viewBox="0 -448 640 512"><path transform="scale(1 -1)" d="M393 447Q380 450 368 444Q357 438 353 425L225 -23Q222 -36 228 -48Q234 -59 247 -63Q260 -66 272 -60Q283 -54 287 -41L415 407Q418 420 412 432Q406 443 393 447ZM473 327Q464 317 464 304Q464 291 473 281L563 192L473 103Q464 93 464 80Q464 67 473 57Q483 48 496 48Q509 48 519 57L631 169Q640 179 640 192Q640 205 631 215L519 327Q509 336 496 336Q483 336 473 327ZM167 327Q157 336 144 336Q131 336 121 327L9 215Q0 205 0 192Q0 179 9 169L121 57Q131 48 144 48Q157 48 167 57Q176 67 176 80Q176 93 167 103L77 192L167 281Q176 291 176 304Q176 317 167 327Z"/></symbol>
+    <symbol id="i-solid-cubes" viewBox="0 -448 576 512"><path transform="scale(1 -1)" d="M291 399 369 370 291 399 369 370 288 338 207 370 285 399Q288 400 291 399ZM136 355V243V355V243Q134 243 132 242L36 206Q2 191 0 153V34Q1 -1 34 -17L130 -59Q152 -69 175 -59L288 -10L402 -59Q424 -69 447 -59L543 -17Q575 -2 576 34V153Q574 191 540 206L444 242Q442 243 440 243Q440 243 440 243V355Q438 393 404 408L308 444Q288 452 268 444L172 408Q138 393 136 355ZM392 237 310 206 392 237 310 206V295L392 327V237ZM155 197 233 167 155 197 233 167 152 136 71 167 149 197Q152 198 155 197ZM174 -7V93V-7V93L256 125V29L174 -7ZM421 197Q424 198 427 197L505 167L424 136L343 167L421 197ZM523 27 446 -7 523 27 446 -7V93L528 125V34Q528 29 523 27Z"/></symbol>
+    <symbol id="i-solid-database" viewBox="0 -448 448 512"><path transform="scale(1 -1)" d="M448 368V320V368V320Q446 286 382 263Q319 241 224 240Q129 241 66 263Q2 286 0 320V368Q2 402 66 425Q129 447 224 448Q319 447 382 425Q446 402 448 368ZM393 233Q425 244 448 262V160Q446 126 382 103Q319 81 224 80Q129 81 66 103Q2 126 0 160V262Q23 244 55 233Q125 209 224 208Q323 209 393 233ZM0 102Q23 84 55 73Q125 49 224 48Q323 49 393 73Q425 84 448 102V16Q446 -18 382 -41Q319 -63 224 -64Q129 -63 66 -41Q2 -18 0 16V102Z"/></symbol>
+    <symbol id="i-solid-desktop" viewBox="0 -448 576 512"><path transform="scale(1 -1)" d="M64 448Q37 447 19 429Q1 411 0 384V96Q1 69 19 51Q37 33 64 32H240L229 0H160Q146 0 137 -9Q128 -18 128 -32Q128 -46 137 -55Q146 -64 160 -64H416Q430 -64 439 -55Q448 -46 448 -32Q448 -18 439 -9Q430 0 416 0H347L336 32H512Q539 33 557 51Q575 69 576 96V384Q575 411 557 429Q539 447 512 448H64ZM512 384V160V384V160H64V384H512Z"/></symbol>
+    <symbol id="i-solid-diagram-project" viewBox="0 -448 576 512"><path transform="scale(1 -1)" d="M0 368Q1 388 14 402Q28 415 48 416H144Q164 415 178 402Q191 388 192 368V352H384V368Q385 388 398 402Q412 415 432 416H528Q548 415 562 402Q575 388 576 368V272Q575 252 562 238Q548 225 528 224H432Q412 225 398 238Q385 252 384 272V288H192V272Q192 269 192 267L272 160H368Q388 159 402 146Q415 132 416 112V16Q415 -4 402 -18Q388 -31 368 -32H272Q252 -31 238 -18Q225 -4 224 16V112Q224 115 224 117L144 224H48Q28 225 14 238Q1 252 0 272V368Z"/></symbol>
+    <symbol id="i-solid-file-lines" viewBox="0 -448 384 512"><path transform="scale(1 -1)" d="M64 448Q37 447 19 429Q1 411 0 384V0Q1 -27 19 -45Q37 -63 64 -64H320Q347 -63 365 -45Q383 -27 384 0V288H256Q242 288 233 297Q224 306 224 320V448H64ZM256 448V320V448V320H384L256 448ZM112 192H272H112H272Q287 191 288 176Q287 161 272 160H112Q97 161 96 176Q97 191 112 192ZM112 128H272H112H272Q287 127 288 112Q287 97 272 96H112Q97 97 96 112Q97 127 112 128ZM112 64H272H112H272Q287 63 288 48Q287 33 272 32H112Q97 33 96 48Q97 63 112 64Z"/></symbol>
+    <symbol id="i-solid-folder-open" viewBox="0 -448 576 512"><path transform="scale(1 -1)" d="M89 224 0 72 89 224 0 72V352Q1 379 19 397Q37 415 64 416H182Q208 416 227 397L253 371Q272 352 299 352H416Q443 351 461 333Q479 315 480 288V256H144Q108 255 89 224ZM116 208Q126 223 144 224H544Q562 223 572 208Q580 192 572 176L460 -16Q450 -31 432 -32H32Q14 -31 4 -16Q-4 0 4 16L116 208Z"/></symbol>
+    <symbol id="i-solid-globe" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M352 192Q352 159 349 128H163Q160 159 160 192Q160 225 163 256H349Q352 225 352 192ZM381 256H504H381H504Q512 225 512 192Q512 159 504 128H381Q384 159 384 192Q384 225 381 256ZM493 288H377H493H377Q361 386 321 440Q381 423 426 384Q470 344 493 288ZM344 288H168H344H168Q177 343 195 383Q211 418 228 434Q245 449 256 448Q267 449 284 434Q301 418 317 383Q335 343 344 288ZM135 288H19H135H19Q42 344 86 384Q131 423 191 440Q151 386 135 288ZM8 256H131H8H131Q128 225 128 192Q128 159 131 128H8Q0 159 0 192Q0 225 8 256ZM195 1Q177 41 168 96H344Q335 41 317 1Q301 -34 284 -50Q267 -65 256 -64Q245 -65 228 -50Q211 -34 195 1ZM135 96Q151 -2 191 -56Q131 -39 86 0Q42 40 19 96H135ZM493 96Q470 40 426 0Q381 -39 322 -56Q361 -2 377 96H494Z"/></symbol>
+    <symbol id="i-solid-laptop" viewBox="0 -448 640 512"><path transform="scale(1 -1)" d="M128 416Q101 415 83 397Q65 379 64 352V96H128V352H512V96H576V352Q575 379 557 397Q539 415 512 416H128ZM19 64Q2 62 0 45Q1 12 23 -10Q44 -31 77 -32H563Q596 -31 618 -10Q639 12 640 45Q638 62 621 64H19Z"/></symbol>
+    <symbol id="i-solid-microchip" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M176 424Q174 446 152 448Q130 446 128 424V384Q101 383 83 365Q65 347 64 320H24Q2 318 0 296Q2 274 24 272H64V216H24Q2 214 0 192Q2 170 24 168H64V112H24Q2 110 0 88Q2 66 24 64H64Q65 37 83 19Q101 1 128 0V-40Q130 -62 152 -64Q174 -62 176 -40V0H232V-40Q234 -62 256 -64Q278 -62 280 -40V0H336V-40Q338 -62 360 -64Q382 -62 384 -40V0Q411 1 429 19Q447 37 448 64H488Q510 66 512 88Q510 110 488 112H448V168H488Q510 170 512 192Q510 214 488 216H448V272H488Q510 274 512 296Q510 318 488 320H448Q447 347 429 365Q411 383 384 384V424Q382 446 360 448Q338 446 336 424V384H280V424Q278 446 256 448Q234 446 232 424V384H176V424ZM160 320H352H160H352Q366 320 375 311Q384 302 384 288V96Q384 82 375 73Q366 64 352 64H160Q146 64 137 73Q128 82 128 96V288Q128 302 137 311Q146 320 160 320ZM352 288H160H352H160V96H352V288Z"/></symbol>
+    <symbol id="i-solid-server" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M64 416Q37 415 19 397Q1 379 0 352V288Q1 261 19 243Q37 225 64 224H448Q475 225 493 243Q511 261 512 288V352Q511 379 493 397Q475 415 448 416H64ZM344 344Q366 342 368 320Q366 298 344 296Q322 298 320 320Q322 342 344 344ZM392 320Q394 342 416 344Q438 342 440 320Q438 298 416 296Q394 298 392 320ZM64 160Q37 159 19 141Q1 123 0 96V32Q1 5 19 -13Q37 -31 64 -32H448Q475 -31 493 -13Q511 5 512 32V96Q511 123 493 141Q475 159 448 160H64ZM344 88Q366 86 368 64Q366 42 344 40Q322 42 320 64Q322 86 344 88ZM400 64Q402 86 424 88Q446 86 448 64Q446 42 424 40Q402 42 400 64Z"/></symbol>
+    <symbol id="i-solid-user-secret" viewBox="0 -448 448 512"><path transform="scale(1 -1)" d="M224 432Q215 433 209 438Q208 438 208 438Q201 446 176 448Q153 447 137 420Q120 394 110 359Q74 352 53 342Q32 332 32 320Q35 298 97 284Q96 278 96 272Q96 246 105 224H45Q33 223 32 211Q32 208 33 206L72 109Q39 84 20 47Q0 10 0 -34Q0 -47 9 -55Q17 -64 30 -64H418Q431 -64 439 -55Q448 -47 448 -34Q448 10 428 47Q409 84 376 109L415 206Q416 208 416 211Q415 223 403 224H343Q352 246 352 272Q352 278 351 284Q413 298 416 320Q416 332 395 342Q374 352 338 359Q328 394 311 420Q295 447 272 448Q247 446 240 438Q240 438 240 438Q239 438 239 438Q233 433 224 432ZM280 224H268H280H268Q241 225 231 250Q229 255 224 255Q219 255 217 250Q207 225 181 224H168Q151 224 140 236Q128 247 128 264V278Q171 272 224 272Q277 272 320 278V264Q320 247 308 236Q297 224 280 224ZM192 128 208 96 192 128 208 96 176 -32 128 160 192 128ZM320 160 272 -32 320 160 272 -32 240 96 256 128 320 160Z"/></symbol>
+    <symbol id="i-solid-window-maximize" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M64 416Q37 415 19 397Q1 379 0 352V32Q1 5 19 -13Q37 -31 64 -32H448Q475 -31 493 -13Q511 5 512 32V352Q511 379 493 397Q475 415 448 416H64ZM96 352H416H96H416Q430 352 439 343Q448 334 448 320Q448 306 439 297Q430 288 416 288H96Q82 288 73 297Q64 306 64 320Q64 334 73 343Q82 352 96 352Z"/></symbol>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#6e7781"/></marker><marker id="arrow-back" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M10 0 L0 5 L10 10 z" fill="#6e7781"/></marker>
+  </defs>
+  <rect width="1130" height="664" rx="8" fill="#ffffff"/>
+  <rect x="20" y="20" width="800" height="624" rx="10" fill="#eef0f2" stroke="#dadee2" stroke-width="1.5"/>
+  <use href="#i-solid-laptop" x="36.0" y="34.0" width="18.8" height="15" fill="#6e7781"/>
+  <text x="62.8" y="47.0" font-size="15" fill="#58616b" font-weight="700">Your computer</text>
+  <rect x="40" y="64" width="220" height="96" rx="8" fill="#ffffff" stroke="#c9d6e8"/>
+  <use href="#i-solid-desktop" x="54.0" y="77.0" width="15.8" height="14" fill="#3a68a6"/>
+  <text x="77.8" y="89.0" font-size="14" fill="#2a2e33" font-weight="600">Desktop app</text>
+  <text x="54.0" y="110.0" font-size="12" fill="#58616b">Starts and stops the containers</text>
+  <text x="54.0" y="128.0" font-size="12" fill="#58616b">Settings and API keys</text>
+  <rect x="280" y="64" width="520" height="96" rx="8" fill="#ffffff" stroke="#c9d6e8"/>
+  <use href="#i-solid-window-maximize" x="294.0" y="77.0" width="14.0" height="14" fill="#3a68a6"/>
+  <text x="316.0" y="89.0" font-size="14" fill="#2a2e33" font-weight="600">Web interface</text>
+  <rect x="294.0" y="118" width="100.6" height="24" rx="12" fill="#e9eff7" stroke="#c9d6e8"/>
+  <text x="344.3" y="134.5" font-size="12" fill="#335d93" text-anchor="middle">Conversation</text>
+  <rect x="400.6" y="118" width="93.9" height="24" rx="12" fill="#e9eff7" stroke="#c9d6e8"/>
+  <text x="447.6" y="134.5" font-size="12" fill="#335d93" text-anchor="middle">Work screen</text>
+  <rect x="500.6" y="118" width="53.6" height="24" rx="12" fill="#e9eff7" stroke="#c9d6e8"/>
+  <text x="527.4" y="134.5" font-size="12" fill="#335d93" text-anchor="middle">Files</text>
+  <rect x="560.2" y="118" width="67.0" height="24" rx="12" fill="#e9eff7" stroke="#c9d6e8"/>
+  <text x="593.7" y="134.5" font-size="12" fill="#335d93" text-anchor="middle">History</text>
+  <rect x="633.2" y="118" width="114.1" height="24" rx="12" fill="#e9eff7" stroke="#c9d6e8"/>
+  <text x="690.2" y="134.5" font-size="12" fill="#335d93" text-anchor="middle">Knowledge Base</text>
+  <rect x="40" y="196" width="760" height="304" rx="10" fill="#e7f1eb" stroke="#c4dacc" stroke-width="1.5"/>
+  <use href="#i-solid-cubes" x="56.0" y="210.0" width="16.9" height="15" fill="#3a7a58"/>
+  <text x="80.9" y="223.0" font-size="15" fill="#326a4c" font-weight="700">Docker containers</text>
+  <rect x="60" y="244" width="174" height="68" rx="8" fill="#ffffff" stroke="#c4dacc"/>
+  <use href="#i-solid-code" x="72.0" y="256.0" width="17.5" height="14" fill="#3a7a58"/>
+  <text x="94.0" y="268.0" font-size="14" fill="#2a2e33" font-weight="600">Python</text>
+  <text x="72.0" y="292.0" font-size="12" fill="#58616b">Runs code · JupyterLab</text>
+  <rect x="246" y="244" width="174" height="68" rx="8" fill="#ffffff" stroke="#c4dacc"/>
+  <use href="#i-solid-globe" x="258.0" y="256.0" width="14.0" height="14" fill="#3a7a58"/>
+  <text x="280.0" y="268.0" font-size="14" fill="#2a2e33" font-weight="600">Selenium</text>
+  <text x="258.0" y="292.0" font-size="12" fill="#58616b">A browser for the apps</text>
+  <rect x="60" y="324" width="174" height="68" rx="8" fill="#ffffff" stroke="#c4dacc"/>
+  <use href="#i-solid-database" x="72.0" y="336.0" width="12.2" height="14" fill="#3a7a58"/>
+  <text x="94.0" y="348.0" font-size="14" fill="#2a2e33" font-weight="600">Qdrant</text>
+  <text x="72.0" y="372.0" font-size="12" fill="#58616b">Vector database</text>
+  <rect x="246" y="324" width="174" height="68" rx="8" fill="#ffffff" stroke="#c4dacc"/>
+  <use href="#i-solid-diagram-project" x="258.0" y="336.0" width="15.8" height="14" fill="#3a7a58"/>
+  <text x="280.0" y="348.0" font-size="14" fill="#2a2e33" font-weight="600">Embeddings</text>
+  <text x="258.0" y="372.0" font-size="12" fill="#58616b">Turns text into vectors</text>
+  <rect x="60" y="404" width="174" height="68" rx="8" fill="#ffffff" stroke="#c4dacc"/>
+  <use href="#i-solid-user-secret" x="72.0" y="416.0" width="12.2" height="14" fill="#3a7a58"/>
+  <text x="94.0" y="428.0" font-size="14" fill="#2a2e33" font-weight="600">Privacy</text>
+  <text x="72.0" y="452.0" font-size="12" fill="#58616b">Finds names to hide</text>
+  <rect x="246" y="404" width="174" height="68" rx="8" fill="#ffffff" stroke="#c4dacc"/>
+  <use href="#i-solid-file-lines" x="258.0" y="416.0" width="10.5" height="14" fill="#3a7a58"/>
+  <text x="280.0" y="428.0" font-size="14" fill="#2a2e33" font-weight="600">Extractor</text>
+  <text x="258.0" y="452.0" font-size="12" fill="#58616b">Reads PDFs (optional)</text>
+  <rect x="460" y="244" width="320" height="228" rx="8" fill="#ffffff" stroke="#b3862a" stroke-width="1.5"/>
+  <use href="#i-solid-server" x="476.0" y="259.0" width="15.0" height="15" fill="#b3862a"/>
+  <text x="500.0" y="272.0" font-size="15" fill="#2a2e33" font-weight="700">Monadic Chat server</text>
+  <text x="764.0" y="272.0" font-size="12" fill="#58616b" text-anchor="end">Ruby</text>
+  <rect x="480" y="290" width="280" height="34" rx="6" fill="#f7f0de" stroke="#e3d3a9"/>
+  <text x="620.0" y="312.0" font-size="13" fill="#765917" font-weight="600" text-anchor="middle">Apps</text>
+  <line x1="620" y1="325" x2="620" y2="335" stroke="#6e7781" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="480" y="336" width="280" height="34" rx="6" fill="#f7f0de" stroke="#e3d3a9"/>
+  <text x="620.0" y="358.0" font-size="13" fill="#765917" font-weight="600" text-anchor="middle">Model adapters</text>
+  <line x1="620" y1="371" x2="620" y2="381" stroke="#6e7781" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="480" y="382" width="280" height="34" rx="6" fill="#f7f0de" stroke="#e3d3a9"/>
+  <text x="620.0" y="404.0" font-size="13" fill="#765917" font-weight="600" text-anchor="middle">Tools</text>
+  <text x="620.0" y="452.0" font-size="12" fill="#58616b" text-anchor="middle">MCP server</text>
+  <line x1="436" y1="358" x2="458" y2="358" stroke="#6e7781" stroke-width="1.6" marker-end="url(#arrow)" marker-start="url(#arrow-back)"/>
+  <rect x="40" y="524" width="500" height="100" rx="10" fill="#ffffff" stroke="#8b939b" stroke-dasharray="6 4"/>
+  <use href="#i-solid-folder-open" x="58.0" y="542.0" width="20.2" height="18" fill="#b3862a"/>
+  <text x="88.0" y="557.0" font-size="15" fill="#2a2e33" font-weight="700">Shared folder</text>
+  <text x="58.0" y="582.0" font-size="12" fill="#58616b">your files and what the apps make</text>
+  <text x="58.0" y="602.0" font-size="12" fill="#58616b">~/monadic/data  ⇄  /monadic/data</text>
+  <rect x="560" y="524" width="240" height="100" rx="8" fill="#ffffff" stroke="#e3d3a9"/>
+  <use href="#i-solid-microchip" x="574.0" y="537.0" width="14.0" height="14" fill="#b3862a"/>
+  <text x="596.0" y="549.0" font-size="14" fill="#2a2e33" font-weight="600">Ollama</text>
+  <text x="574.0" y="570.0" font-size="12" fill="#58616b">Local models</text>
+  <line x1="150" y1="160" x2="150" y2="194" stroke="#6e7781" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <line x1="620" y1="160" x2="620" y2="242" stroke="#6e7781" stroke-width="1.6" marker-end="url(#arrow)" marker-start="url(#arrow-back)"/>
+  <line x1="240" y1="500" x2="240" y2="522" stroke="#6e7781" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arrow)" marker-start="url(#arrow-back)"/>
+  <line x1="680" y1="472" x2="680" y2="522" stroke="#6e7781" stroke-width="1.6" marker-end="url(#arrow)" marker-start="url(#arrow-back)"/>
+  <rect x="860" y="196" width="250" height="304" rx="10" fill="#f8eaeb" stroke="#e5c3c6" stroke-width="1.5"/>
+  <use href="#i-solid-cloud" x="876.0" y="210.0" width="18.8" height="15" fill="#a83d49"/>
+  <text x="902.8" y="223.0" font-size="15" fill="#8f2f3a" font-weight="700">Language model APIs</text>
+  <text x="876.0" y="244.0" font-size="12" fill="#58616b">chat · speech · images · video</text>
+  <rect x="876.0" y="262" width="218.0" height="24" rx="12" fill="#f8eaeb" stroke="#e5c3c6"/>
+  <text x="985.0" y="278.5" font-size="12" fill="#8f2f3a" text-anchor="middle">Anthropic</text>
+  <rect x="876.0" y="292" width="218.0" height="24" rx="12" fill="#f8eaeb" stroke="#e5c3c6"/>
+  <text x="985.0" y="308.5" font-size="12" fill="#8f2f3a" text-anchor="middle">Google</text>
+  <rect x="876.0" y="322" width="218.0" height="24" rx="12" fill="#f8eaeb" stroke="#e5c3c6"/>
+  <text x="985.0" y="338.5" font-size="12" fill="#8f2f3a" text-anchor="middle">Cohere</text>
+  <rect x="876.0" y="352" width="218.0" height="24" rx="12" fill="#f8eaeb" stroke="#e5c3c6"/>
+  <text x="985.0" y="368.5" font-size="12" fill="#8f2f3a" text-anchor="middle">Mistral</text>
+  <rect x="876.0" y="382" width="218.0" height="24" rx="12" fill="#f8eaeb" stroke="#e5c3c6"/>
+  <text x="985.0" y="398.5" font-size="12" fill="#8f2f3a" text-anchor="middle">DeepSeek</text>
+  <rect x="876.0" y="412" width="218.0" height="24" rx="12" fill="#f8eaeb" stroke="#e5c3c6"/>
+  <text x="985.0" y="428.5" font-size="12" fill="#8f2f3a" text-anchor="middle">xAI</text>
+  <rect x="876.0" y="442" width="218.0" height="24" rx="12" fill="#f8eaeb" stroke="#e5c3c6"/>
+  <text x="985.0" y="458.5" font-size="12" fill="#8f2f3a" text-anchor="middle">OpenAI</text>
+  <line x1="780" y1="358" x2="858" y2="358" stroke="#6e7781" stroke-width="1.6" marker-end="url(#arrow)" marker-start="url(#arrow-back)"/>
+</svg>

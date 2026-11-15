@@ -132,6 +132,10 @@
      The focus values are colors for the focus ring, not whole shadows. */
   --btn-primary-bg: var(--pal-accent-strong);
   --btn-primary-hover-bg: var(--pal-accent-strong-hover);
+  /* The Live Conversation button: a hue no family of the palette has, in
+     the strength of the palette's strong tones. */
+  --btn-live-bg: #5e3fa6;
+  --btn-live-hover-bg: #523790;
   --btn-primary-hover-border: var(--pal-accent-strong-hover);
   --btn-primary-active-bg: var(--pal-accent-strong-hover);
   --btn-primary-active-border: var(--pal-accent-text);
@@ -259,6 +263,8 @@
   --pal-red-strong: #b4505b;   --pal-red-strong-hover: #c05d68; --pal-red-text: #e9a9b1;
   --pal-grey-soft: #2c2f33;    --pal-grey-line: #464b51;    --pal-grey-mid: #8e969e;
   --pal-grey-strong: #5c656f;  --pal-grey-strong-hover: #68717b; --pal-grey-text: #bec4ca;
+  --btn-live-bg: #6f4ebc;
+  --btn-live-hover-bg: #7e60c3;
 
   /* Background Colors */
   --bg-primary: #1a1a1a;

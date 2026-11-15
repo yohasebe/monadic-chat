@@ -520,9 +520,9 @@ def architecture(table, color, title, language):
     # Your computer: what you use, at the top
     figure.add('<rect x="20" y="20" width="800" height="660" rx="12" fill="%s" stroke="%s"/>' % (color('pal-grey-soft'), line))
     heading(38, 48, word['computer'], 'fa-laptop', quiet, 15, quiet)
-    card(40, 64, 220, 96, word['desktop'], 'fa-desktop', green, [word['desktop_1'], word['desktop_2']])
-    card(280, 64, 520, 96, word['web'], 'fa-window-maximize', green)
-    cx = 298
+    card(40, 64, 250, 96, word['desktop'], 'fa-desktop', green, [word['desktop_1'], word['desktop_2']])
+    card(310, 64, 490, 96, word['web'], 'fa-window-maximize', green)
+    cx = 328
     for text in [word['conversation'], label(table, 'ui.sidePane.workScreen'), label(table, 'ui.sidePane.files'),
                  label(table, 'ui.sidePane.history'),
                  re.sub(r'<[^>]+>\s*', '', label(table, 'ui.knowledgeBase')).strip()]:
@@ -559,22 +559,22 @@ def architecture(table, color, title, language):
     card(560, 560, 240, 100, local, 'fa-microchip', brown, [word['local']])
 
     # Lines: each one straight, none over a box, and long enough to show its line
-    arrow(150, 162, 150, 208)                        # the desktop app runs the containers
+    arrow(165, 162, 165, 208)                        # the desktop app runs the containers
     arrow(630, 162, 630, 256, both=True)             # the page and the server
     arrow(240, 516, 240, 558, both=True, dashed=True)  # the containers and the shared folder
     arrow(680, 488, 680, 558, both=True)             # the server and local models
 
     # The cloud, beside the server and outside the computer's frame
-    figure.add('<rect x="880" y="210" width="230" height="304" rx="10" fill="#ffffff" stroke="%s" stroke-width="1.5"/>'
+    figure.add('<rect x="880" y="210" width="270" height="304" rx="10" fill="#ffffff" stroke="%s" stroke-width="1.5"/>'
                % color('pal-grey-strong'))
-    heading(898, 240, word['cloud'], 'fa-cloud', color('pal-grey-strong'), 15)
-    figure.text(898, 262, word['cloud_note'], 12, quiet)
+    heading(902, 242, word['cloud'], 'fa-cloud', color('pal-grey-strong'), 15)
+    figure.text(902, 264, word['cloud_note'], 12, quiet)
     step = min(30, (514 - 16 - 280) // len(cloud))
     for i, name in enumerate(cloud):
-        chip(898, 280 + i * step, name, color('pal-grey-mid'), ink, 194)
+        chip(902, 282 + i * step, name, color('pal-grey-mid'), ink, 226)
     arrow(782, 372, 878, 372, both=True)             # API requests
 
-    figure.grow(1110, 680)
+    figure.grow(1150, 680)
     head = color('pal-grey-strong')
     figure.extra_defs = (
         '<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" '

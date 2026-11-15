@@ -109,7 +109,9 @@
   <rect x="560" y="560" width="240" height="100" rx="6" fill="none" stroke="#dadee2"/>
   <use href="#i-solid-microchip" x="578.0" y="574.0" width="14.0" height="14" fill="#b3862a"/>
   <text x="600.0" y="587.0" font-size="14" fill="#2a2e33" font-weight="700">Ollama</text>
-  <text x="578.0" y="608.0" font-size="12" fill="#58616b">Local models</text>
+  <text x="578.0" y="608.0" font-size="12" fill="#2a2e33">Local models</text>
+  <text x="578.0" y="626.0" font-size="12" fill="#58616b">Runs outside Docker, on your GPU</text>
+  <text x="578.0" y="644.0" font-size="12" fill="#58616b">No API key needed</text>
   <line x1="165" y1="162" x2="165" y2="208" stroke="#6e7781" stroke-width="1.5" marker-end="url(#arrow)"/>
   <line x1="630" y1="162" x2="630" y2="256" stroke="#6e7781" stroke-width="1.5" marker-end="url(#arrow)" marker-start="url(#arrow-back)"/>
   <line x1="240" y1="516" x2="240" y2="558" stroke="#6e7781" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)" marker-start="url(#arrow-back)"/>

@@ -88,7 +88,16 @@ Start a new chat or continue your current conversation.
 **Session Indicator Badges**<br />
 The bar at the top shows badges for the features in effect: **Web Search**, **Math**, **Knowledge Base**, and the current reasoning effort (when it is not off). The Knowledge Base badge appears while **Use Knowledge Base for retrieval (this session)** is on. In [Live Conversation](../apps/chat-apps.md#live-conversation), some of these settings have no UI, so the corresponding badges do not appear.
 
-The top bar of the page shows the conversation status.
+The top bar of the page shows the conversation status. Its color tells what kind of status it is:
+
+![Kinds of status](../assets/images/figures/status-kinds.svg)
+
+1. Green: ready, or a step is done.
+2. Amber: the AI is working on a reply.
+3. Amber: something stopped or needs your attention.
+4. Red: something failed or cannot be done now.
+5. Blue: information, such as the connection to the server.
+6. Grey: a step of your own input is done.
 
 ## Message Cards :id=message-cards
 

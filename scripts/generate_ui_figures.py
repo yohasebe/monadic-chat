@@ -513,6 +513,70 @@ def role_selector(table, color, title):
     return figure
 
 
+def voice_input(table, color, title):
+    """The message box while recording, and the confidence value after it."""
+    figure = Figure(color, title)
+    recording = read('public', 'js', 'monadic', 'recording.js')
+    if "webUIi18n.t('ui.stopButton')" not in recording or 'fa-microphone' not in recording:
+        raise SystemExit('recording.js no longer names the Stop button as the voice figure reads it')
+    handlers = read('public', 'js', 'monadic', 'websocket-handlers.js')
+    value = re.search(r"pValueEl\.textContent = '([^']+)' \+ data\.logprob", handlers)
+    if not value:
+        raise SystemExit('websocket-handlers.js no longer writes the p-value line as the voice figure reads it')
+    x, y, width = 20, 34, 520
+    figure.field(x, y, width, 64)
+    figure.callout(x + width - 20, y - 13)
+    figure.lines(x + 14, y + 16, [width - 150, width - 260])
+    figure.text(x, y + 88, value.group(1) + '0.95', 12, color('pal-grey-text'))
+    figure.callout(x + width - 20, y + 84)
+    row = y + 128
+    # While recording the button is the danger kind and reads Stop
+    stop = label(table, 'ui.stopButton')
+    w = 9 + 13 * 0.75 + 5 + text_width(stop) + 12
+    figure.add('<rect x="%d" y="%d" width="%.1f" height="%d" rx="4" fill="%s"/>'
+               % (x, row, w, BUTTON_HEIGHT, color('pal-red-strong')))
+    iw = figure.icon('fas', 'fa-microphone', x + 9, row + (BUTTON_HEIGHT - TEXT) / 2, TEXT, '#ffffff')
+    figure.text(x + 9 + iw + 5, row + BUTTON_HEIGHT / 2 + TEXT * 0.36, stop, TEXT, '#ffffff')
+    figure.callout(x + w / 2, row - 13)
+    # The level of the voice, beside the button
+    heights = [6, 12, 20, 9, 16, 24, 14, 7, 18, 22, 11, 5, 15, 21, 10, 8, 17, 13, 6, 19]
+    bx = x + w + 14
+    for i, h in enumerate(heights):
+        figure.add('<rect x="%.1f" y="%.1f" width="4" height="%d" rx="2" fill="%s"/>'
+                   % (bx + i * 7, row + (BUTTON_HEIGHT - h) / 2, h, color('pal-accent-mid')))
+    figure.callout(bx + len(heights) * 7 / 2, row - 13)
+    figure.grow(x + width, row + BUTTON_HEIGHT)
+    return figure
+
+
+def attachments(table, color, title):
+    """Files attached to the message, above the message box."""
+    figure = Figure(color, title)
+    source = read('public', 'js', 'monadic', 'select_image.js')
+    for needed in ('attachment-chip-name', 'remove-file', 'fa-file-pdf', 'fa-image', 'fa-times'):
+        if needed not in source:
+            raise SystemExit('select_image.js no longer makes an attachment chip with %s' % needed)
+    x, y, width = 20, 34, 520
+    cx = x
+    for icon, name in (('fa-image', 'photo.png'), ('fa-file-pdf', 'report.pdf')):
+        w = 12 + 13 + 6 + text_width(name) + 12
+        figure.add('<rect x="%.1f" y="%d" width="%.1f" height="%d" rx="4" fill="#ffffff" stroke="%s"/>'
+                   % (cx, y, w + 30, BUTTON_HEIGHT, color('border-color')))
+        iw = figure.icon('fas', icon, cx + 12, y + (BUTTON_HEIGHT - TEXT) / 2, TEXT, color('pal-grey-strong'))
+        figure.text(cx + 12 + iw + 6, y + BUTTON_HEIGHT / 2 + TEXT * 0.36, name)
+        figure.add('<rect x="%.1f" y="%d" width="22" height="20" rx="3" fill="%s"/>'
+                   % (cx + w + 4, y + 4, color('pal-grey-strong')))
+        figure.icon('fas', 'fa-times', cx + w + 10.5, y + 8.5, 11, '#ffffff')
+        if cx == x:                               # the two parts of a chip, marked once
+            figure.callout(cx + (w - 4) / 2, y - 13)
+            figure.callout(cx + w + 15, y - 13)
+        cx += w + 30 + 10
+    figure.field(x, y + 40, width, 64)
+    figure.lines(x + 14, y + 56, [width - 180])
+    figure.grow(x + width, y + 104)
+    return figure
+
+
 # ---- the architecture ---------------------------------------------------------
 SERVICES = ['ruby', 'python', 'selenium', 'qdrant', 'embeddings', 'privacy', 'extractor']
 
@@ -689,6 +753,8 @@ FIGURES = {
     'side-column': (side_column, {'en': 'Tabs of the side column', 'ja': '右側の列のタブ'}),
     'url-dialog': (url_dialog, {'en': 'The Open URL dialog', 'ja': 'URL を開くダイアログ'}),
     'role-selector': (role_selector, {'en': 'The Role selector', 'ja': '役割の選択'}),
+    'voice-input': (voice_input, {'en': 'Voice input', 'ja': '音声入力'}),
+    'attachments': (attachments, {'en': 'Files attached to a message', 'ja': 'メッセージに添付したファイル'}),
     'architecture': (architecture, {'en': 'Monadic Chat architecture', 'ja': 'Monadic Chat の構成'}),
 }
 

@@ -32,6 +32,22 @@ RSpec.describe MusicAnalystTools do
       expect(tool.critique_audio(file_path: "perf.mp3")).to eq("critique text")
     end
 
+    it 'reads a file attached to the chat from where the chat keeps it' do
+      id = Monadic::Workspace::Ids.generate(:attachment)
+      tool.define_singleton_method(:resolve_audio_attachment) do |_id, _session|
+        { relative_path: "conversations/c1/attachments/perf.mp3", path: "/kept/perf.mp3" }
+      end
+      allow(AudioAnalysisAgent).to receive(:analyze) { |audio_path:, **| audio_path }
+      expect(tool.critique_audio(attachment_id: id)).to eq("/kept/perf.mp3")
+    end
+
+    it 'says why an attached file cannot be used' do
+      tool.define_singleton_method(:resolve_audio_attachment) do |_id, _session|
+        raise Monadic::Workspace::Attachments::Unusable.new(:unknown, "No such attachment.")
+      end
+      expect(tool.critique_audio(attachment_id: Monadic::Workspace::Ids.generate(:attachment))).to match(/❌.*No such attachment/)
+    end
+
     it 'weaves a requested focus into the prompt' do
       allow(Monadic::Utils::Environment).to receive(:data_path).and_return("/monadic/data")
       allow(AudioAnalysisAgent).to receive(:analyze) { |prompt:, **_| prompt }

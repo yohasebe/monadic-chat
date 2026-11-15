@@ -358,28 +358,6 @@ function showModalWithFocus(modalId, focusElementId, cleanupFn) {
   }
 }
 
-/**
- * Uploads an audio or MIDI file for analysis
- * @param {File} file - The audio/MIDI file to upload
- * @returns {Promise} - Promise resolving to the upload response
- */
-async function uploadAudioFile(file) {
-  if (!file) {
-    throw new Error("Please select an audio or MIDI file");
-  }
-  const formData = new FormData();
-  formData.append("audioFile", file);
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 60000);
-  try {
-    return await window.monadicFetch.postJson("/upload_audio", formData, {
-      signal: controller.signal
-    });
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 // What the page says when an import is done: that it was imported, and,
 // when the file held app state that did not fit, how many entries of it
 // were left out (state_dropped from the import route). t: the translator.
@@ -399,7 +377,6 @@ window.formHandlers = {
   fetchWebpage,
   importSession,
   importNotice,
-  uploadAudioFile,
   setupUrlValidation,
   setupFileValidation,
   showModalWithFocus

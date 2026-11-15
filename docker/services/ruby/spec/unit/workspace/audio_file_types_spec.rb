@@ -12,7 +12,8 @@ RSpec.describe "Audio attachments by extension and leading bytes" do
     "a.m4a" => "0000001c667479704d344120", "a.mp3" => "494433040000000000235453",
     "b.mp3" => "fffb50c400000a2c432e5594", # no ID3 tag: the first MPEG frame
     "a.ogg" => "4f6767530002000000000000", "a.opus" => "4f6767530002000000000000",
-    "a.wav" => "52494646ce58010057415645", "a.webm" => "1a45dfa39f4286810142f781"
+    "a.wav" => "52494646ce58010057415645", "a.webm" => "1a45dfa39f4286810142f781",
+    "a.mid" => "4d54686400000006000100020060", "a.midi" => "4d54686400000006000100020060" # MThd, format 1
   }.freeze
 
   def check(name, hex)
@@ -27,6 +28,7 @@ RSpec.describe "Audio attachments by extension and leading bytes" do
     expect { check("song.mp3", HEADS["a.wav"]) }.to raise_error(Monadic::Workspace::FileTypes::Rejected) { |e| expect(e.reason).to eq(:content) }
     expect { check("song.flac", HEADS["a.ogg"]) }.to raise_error(Monadic::Workspace::FileTypes::Rejected)
     expect { check("notes.mp3", "4c6f72656d20697073756d") }.to raise_error(Monadic::Workspace::FileTypes::Rejected)
+    expect { check("piece.mid", HEADS["a.mp3"]) }.to raise_error(Monadic::Workspace::FileTypes::Rejected) { |e| expect(e.reason).to eq(:content) }
   end
 
   it "refuses an extension it does not take as audio" do

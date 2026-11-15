@@ -21,4 +21,33 @@ describe('AbcPlayer', () => {
   test('plays from the sounds it carries', () => {
     expect(AbcPlayer.SOUNDFONT_URL).toBe('/vendor/soundfont/FluidR3_GM/');
   });
+  test('gives the controls one compact size wherever they are put', () => {
+    const holder = document.createElement('div');
+    const loaded = [];
+    window.ABCJS = { synth: {
+      supportsAudio: () => true,
+      SynthController: function () {
+        this.load = (element) => {
+          loaded.push(element);
+          element.innerHTML = '<div class="abcjs-inline-audio"><button class="abcjs-btn"><svg></svg></button>' +
+            '<button class="abcjs-btn"><svg></svg></button><span class="abcjs-midi-progress-background"></span>' +
+            '<span class="abcjs-midi-clock"></span></div>';
+        };
+        this.setTune = () => {};
+      }
+    } };
+    try {
+      expect(AbcPlayer.attach(holder, {}, null)).not.toBeNull();
+      expect(loaded).toEqual([holder]);
+      expect(holder.querySelector('.abcjs-inline-audio').style.height).toBe('26px');
+      holder.querySelectorAll('.abcjs-btn').forEach((button) => {
+        expect(button.style.width).toBe('28px');
+        expect(button.style.height).toBe('26px');
+        expect(button.querySelector('svg').style.width).toBe('100%');
+      });
+      expect(holder.querySelector('.abcjs-midi-clock').style.fontSize).toBe('16px');
+    } finally {
+      delete window.ABCJS;
+    }
+  });
 });

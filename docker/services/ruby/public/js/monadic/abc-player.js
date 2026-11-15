@@ -52,7 +52,27 @@
       displayLoop: true, displayRestart: true, displayPlay: true, displayProgress: true, displayWarp: true
     });
     control.setTune(visualObj, false, { soundFontUrl: SOUNDFONT_URL });
+    compact(holder);
     return control;
+  }
+
+  // The controls at one compact size wherever they are shown (a card or the
+  // work screen), set on the elements themselves: the page's layered styles
+  // do not reach abcjs's own.
+  function compact(holder) {
+    const bar = holder.querySelector('.abcjs-inline-audio');
+    if (!bar) return;
+    Object.assign(bar.style, { height: '26px', padding: '0 5px', boxSizing: 'border-box' });
+    holder.querySelectorAll('.abcjs-btn').forEach(function (button) {
+      Object.assign(button.style, { width: '28px', height: '26px', padding: '4px', boxSizing: 'border-box' });
+    });
+    holder.querySelectorAll('.abcjs-btn svg').forEach(function (icon) {
+      Object.assign(icon.style, { width: '100%', height: '100%' });
+    });
+    const track = holder.querySelector('.abcjs-midi-progress-background');
+    if (track) track.style.height = '10px';
+    const clock = holder.querySelector('.abcjs-midi-clock');
+    if (clock) clock.style.fontSize = '16px';
   }
 
   // A tune of the work screen: its controls in holder, from its text (the

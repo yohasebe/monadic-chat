@@ -3,16 +3,33 @@
  *
  * The "Use Knowledge Base for retrieval" switch is remembered per app:
  * turning it on in one app leaves it off in the others, and coming back to
- * the app turns it on again.
+ * the app turns it on again. An app change reaches the switch through
+ * applyAppCapabilityClasses (monadic.js), which every path that changes the
+ * app calls; the test runs the real function.
  */
 
+const fs = require('fs');
+const path = require('path');
+
+function loadCapabilityFunction() {
+  const source = fs.readFileSync(path.join(__dirname, '../../docker/services/ruby/public/js/monadic.js'), 'utf8');
+  const start = source.search(/function\s+applyAppCapabilityClasses\s*\(/);
+  let depth = 0;
+  let i = source.indexOf('{', start);
+  for (; i < source.length; i++) {
+    if (source[i] === '{') depth++;
+    else if (source[i] === '}' && --depth === 0) break;
+  }
+  // eslint-disable-next-line no-new-func
+  return new Function(`${source.slice(start, i + 1)}; return applyAppCapabilityClasses;`)();
+}
+
 describe('Knowledge Base retrieval switch per app', () => {
-  let handlers;
   let sent;
 
   function chooseApp(name) {
     document.getElementById('apps').value = name;
-    (handlers['app:changed'] || []).forEach((fn) => fn());
+    window.applyAppCapabilityClasses(name);
   }
 
   function toggle() {
@@ -34,18 +51,17 @@ describe('Knowledge Base retrieval switch per app', () => {
       </select>
       <input type="checkbox" id="library-rag-toggle">`;
     document.getElementById('apps').value = 'ChatOpenAI';
-    handlers = {};
     sent = [];
-    window.SessionState = {
-      on: (event, fn) => { (handlers[event] = handlers[event] || []).push(fn); }
-    };
+    window.apps = { ChatOpenAI: {}, MailComposerOpenAI: {} };
+    window.applyAppCapabilityClasses = loadCapabilityFunction();
     window.safeWsSend = (body) => { sent.push(body); return { sent: true, state: 'OPEN' }; };
     require('../../docker/services/ruby/public/js/monadic/library-panel.js');
     window.libraryPanel.init();
   });
 
   afterEach(() => {
-    delete window.SessionState;
+    delete window.apps;
+    delete window.applyAppCapabilityClasses;
     delete window.safeWsSend;
     delete window.libraryPanel;
   });

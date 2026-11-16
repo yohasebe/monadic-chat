@@ -1791,17 +1791,9 @@ module OpenAIHelper
 
     new_results = process_functions(app, session, tools, context, session[:call_depth_per_turn], &block)
 
-    # Check if we should stop retrying due to repeated errors
-    if should_stop_for_errors?(session)
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-      block&.call res
-      if result
-        result["choices"][0]["finish_reason"] = "stop"
-        return [result]
-      else
-        return [res]
-      end
-    end
+    # A turn stopped for repeated errors or a tool cycle ends with the stop
+    # reply process_functions returned (FunctionCallErrorHandler#stop_reply).
+    result["choices"][0]["finish_reason"] = "stop" if result && should_stop_for_errors?(session)
 
     # return Array
     if result && new_results

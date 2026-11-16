@@ -568,7 +568,7 @@ end
 
 ### Provider-Specific Considerations :id=provider-specific-considerations
 
-- **Function Limits**: Up to 20 function calls per conversation turn (30 with Mistral)
+- **Function Limits**: Up to 20 function calls per conversation turn
 - **Code Execution**: All providers use `run_code` from the `:python_execution` group
 - **Array Parameters**: OpenAI requires `items` property for arrays
 - **Error Prevention**: Built-in error pattern detection prevents infinite retry loops

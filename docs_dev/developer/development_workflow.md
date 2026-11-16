@@ -163,7 +163,7 @@ grep -A5 "tools do" apps/your_app/your_app_provider.mdsl
 
 #### Provider-Specific Considerations :id=provider-considerations
 
-- **Function Limits**: Up to 20 function calls per turn (30 with Mistral)
+- **Function Limits**: Up to 20 function calls per turn
 - **Code Execution**: All providers use `run_code` for code execution
 - **Array Parameters**: OpenAI requires `items` property for array parameters
 

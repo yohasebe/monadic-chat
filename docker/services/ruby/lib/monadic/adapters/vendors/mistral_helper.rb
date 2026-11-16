@@ -22,7 +22,7 @@ module MistralHelper
   include InteractionUtils
   include MonadicPerformance
   include FunctionCallErrorHandler
-  MAX_FUNC_CALLS = 30
+  MAX_FUNC_CALLS = 20
   API_ENDPOINT   = "https://api.mistral.ai/v1"
   define_timeouts "MISTRAL", open: 5, read: 600, write: 120
 

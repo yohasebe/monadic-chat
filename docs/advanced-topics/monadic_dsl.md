@@ -171,6 +171,7 @@ features do
   auto_speech false       # Enable automatic text-to-speech for assistant messages
   easy_submit true        # Enable submitting messages with Enter key (without clicking Send)
   show_thinking false     # Do not show the model's thinking by default (apps that answer by voice)
+  max_tool_rounds 10      # At most this many rounds of tool calls in a turn (otherwise the provider cap, 20)
   math true               # Enable mathematical notation rendering using KaTeX
   abc true                # Enable ABC music notation rendering and playback
   mermaid true            # Tell the model how to write Mermaid diagrams (they are drawn in every app)
@@ -568,7 +569,7 @@ end
 
 ### Provider-Specific Considerations :id=provider-specific-considerations
 
-- **Function Limits**: Up to 20 function calls per conversation turn
+- **Function Limits**: Up to 20 rounds of function calls per conversation turn, or fewer with `max_tool_rounds`
 - **Code Execution**: All providers use `run_code` from the `:python_execution` group
 - **Array Parameters**: OpenAI requires `items` property for arrays
 - **Error Prevention**: Built-in error pattern detection prevents infinite retry loops

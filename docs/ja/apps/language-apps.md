@@ -8,7 +8,7 @@
 
 アシスタントから話しかけてくる会話で、語学を練習するアプリです。アシスタントは、まず練習したい言語を尋ねます。アシスタントの応答は読み上げられます。声で答えるときは、右矢印キーを押すか音声入力のボタンをクリックすると話し始められ、もう一度ボタンをクリックすると終わります。話した内容はそのまま送信されます。
 
-返答は会話に専念します。言葉の使い方についての訂正や助言は、練習している言語とともに、[作業画面](../basic-usage/web-interface.md#work-screen)に **Practice notes** のページとしてまとめられます。Ollama 版では、アシスタントは会話だけを行います。Practice notes のページはなく、説明が必要なときは返答の中で行います。
+返答は会話に専念します。言葉の使い方についての訂正や助言は、練習している言語とともに、[作業画面](../basic-usage/web-interface.md#work-screen)に **Practice notes** のページとしてまとめられます。`tools` の能力を持たない Ollama のモデルでは、アシスタントは会話だけを行います。Practice notes のページはありません。
 
 Language Practice の対応プロバイダーは[モデル対応状況の表](../basic-usage/basic-apps.md#app-availability)を参照してください。音声の設定は [音声パネル](../basic-usage/web-interface.md#speech-settings-panel)を参照してください。
 

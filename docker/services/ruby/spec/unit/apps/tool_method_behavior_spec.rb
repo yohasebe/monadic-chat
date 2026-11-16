@@ -260,15 +260,13 @@ RSpec.describe 'Tool Method Behavior' do
       end
     end
 
-    it 'has the practice tools for the providers that call tools, and none for Ollama' do
+    it 'has the practice tools for every provider' do
       tools = %i[load_context save_response set_target_language]
-      %w[OpenAI Claude Gemini Grok MistralAI DeepSeek Cohere].each do |provider|
+      %w[OpenAI Claude Gemini Grok MistralAI DeepSeek Cohere Ollama].each do |provider|
         name = "LanguagePractice#{provider}"
         skip "#{name} not loaded" unless Object.const_defined?(name)
         expect(Object.const_get(name).instance_methods).to include(*tools), "#{name} lacks the practice tools"
       end
-      skip 'LanguagePracticeOllama not loaded' unless Object.const_defined?('LanguagePracticeOllama')
-      expect(Object.const_get('LanguagePracticeOllama').instance_methods & tools).to eq([])
     end
   end
 

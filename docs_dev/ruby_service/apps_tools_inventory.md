@@ -42,7 +42,7 @@ Groups without a note are always visible. A provider list after a group or tool 
 | App | Providers | Imported groups | App tools |
 |---|---|---|---|
 | Auto Forge | OpenAI, Claude, Grok | `web_automation` (conditional), `planning` (OpenAI, Grok only), `verification` (OpenAI, Grok only) | `generate_application`, `validate_specification`, `list_projects`, `generate_additional_file`, `claude_code_agent` (Claude), `debug_application`, `finish_task`, `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
-| Chat | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | `session_context`, `file_operations` (both except Ollama) | — |
+| Chat | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | `session_context`, `file_operations` | — |
 | Code Interpreter | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek | `python_execution`, `file_reading`, `planning`, `verification`, `parallel_python_execution`, `image_analysis` (conditional) | `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
 | Coding Assistant | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | `file_operations`, `planning` | `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
 | Concept Visualizer | OpenAI, Claude | `planning` | `generate_concept_diagram`, `list_diagram_examples` |
@@ -50,7 +50,7 @@ Groups without a note are always visible. A provider list after a group or tool 
 | DrawIO Grapher | OpenAI, Claude, Gemini, Grok | `planning` | `preview_drawio`, `write_drawio_file` |
 | Image Generator | OpenAI, Gemini, Grok | `planning` | `generate_image_with_gemini` (Gemini), `monadic_load_state`, `generate_image_with_grok` (Grok), `generate_image_with_openai` (OpenAI) |
 | Jupyter Notebook | OpenAI, Claude, Gemini, Grok | `jupyter_operations`, `python_execution`, `file_operations`, `file_reading`, `planning`, `verification` | `monadic_load_state`, `create_and_populate_jupyter_notebook` (Gemini, Grok), `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
-| Language Practice | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | — | `load_context` (OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek), `save_response` (OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek), `set_target_language` (OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek) |
+| Language Practice | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | — | `load_context`, `save_response`, `set_target_language` |
 | Live Conversation | OpenAI, Gemini, Grok | — | — |
 | Mail Composer | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | `file_operations` | — |
 | Math Tutor | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek | `python_execution`, `file_reading`, `planning` | `load_learning_progress`, `save_learning_progress`, `add_solved_problem`, `add_concepts`, `add_weak_areas`, `add_learning_notes` |

@@ -60,7 +60,7 @@ Monadic Chat は、Ollama の `/api/show` からモデルごとの能力を読�
 | 能力 | 使えるようになること |
 |------|----------------------|
 | **vision** | 画像の入力。画像のボタンは、この能力を持つモデルのときだけ表示されます。 |
-| **tools** | ツールの呼び出し。Web 検索と、Coding Assistant・Mail Composer・Knowledge Base のツールの機能です。 |
+| **tools** | ツールの呼び出し。Web 検索、Knowledge Base の検索、Chat の会話の記録、Language Practice の Practice notes、Coding Assistant・Mail Composer のツールの機能です。 |
 | **thinking** | 推論の出力。思考のパネルに表示されます。**思考過程を表示** で、オンとオフを切り替えます。 |
 
 構造化出力（JSON スキーマに沿った生成）は、どのモデルでも使えます。
@@ -77,7 +77,7 @@ ollama show <model-name>
 
 ## ツールを呼び出せないモデル
 
-選んだモデルが `tools` の能力を持たないときは、サイドバーに黄色の **No tool calling** の表示が出ます。そのモデルでは、Web 検索と、Coding Assistant・Mail Composer・Knowledge Base のツールの機能は使えません。ふつうの会話には問題なく使えます。
+選んだモデルが `tools` の能力を持たないときは、サイドバーに黄色の **No tool calling** の表示が出ます。Monadic Chat はそのモデルにツールを送りません。Web 検索、Knowledge Base の検索、Chat の会話の記録、Language Practice の Practice notes、Coding Assistant・Mail Composer のツールの機能は使えません。ふつうの会話には問題なく使えます。
 
 ## 使えるアプリ
 
@@ -85,14 +85,13 @@ Ollama のグループには、次のアプリがあります。
 
 | アプリ | 説明 |
 |--------|------|
-| **Chat** | 一般的な会話。画像を扱えるモデルを選ぶと、画像も受け付けます。 |
+| **Chat** | 一般的な会話。会話のトピック・人物・メモを作業画面に記録します。画像を扱えるモデルを選ぶと、画像も受け付けます。 |
 | **Coding Assistant** | プログラミングの手助け。共有フォルダのファイルの操作もできます。 |
-| **Knowledge Base** | Knowledge Base の操作。項目の検索・一覧・範囲の変更・取り込み・削除ができます。 |
-| **Language Practice** | 外国語での会話の練習と添削。 |
+| **Language Practice** | 外国語での会話の練習。訂正と助言は作業画面にまとめられます。 |
 | **Mail Composer** | メールの作成の手助け。共有フォルダのファイルの操作もできます。 |
 | **Voice Chat** | 声での会話。 |
 
-Coding Assistant、Mail Composer、Knowledge Base には、`tools` の能力を持つモデルが必要です。
+これらのアプリは、ほかのプロバイダーと同じ定義です。ツールの機能には `tools` の能力を持つモデルが必要で、持たないモデルではふつうの会話になります。
 
 ## 技術的な詳細
 

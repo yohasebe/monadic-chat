@@ -1,3 +1,56 @@
+- [November, 2026] 1.0.0-beta.45
+  - Security
+    - The browser tool does not read what is typed in password and other secret fields **(rebuild the Python container)**
+    - The desktop app keeps the protections the server sets for its pages
+  - Changes you may notice
+    - The Privacy Filter and Private chats are replaced by `Anonymize`; every chat is kept in the chat history: **delete a chat you do not want to keep**
+    - The PDF Database is removed: **import PDFs into the Knowledge Base** (earlier PDFs are not moved)
+    - Every app can save to and search the Knowledge Base; `Use Knowledge Base for retrieval (this session)` is off by default and remembered for each app
+    - Chat Plus is merged into Chat, Language Practice Plus into Language Practice, and Music Lab is called Music Tutor; chats made with the old apps open in the new ones
+    - The Session Context panel is removed: apps show their state as notes on the work screen
+    - What the apps make is saved in the chat's folder in `conversations/` and shown on the work screen
+    - Code Interpreter, Research Assistant and Math Tutor run code in the chat's folder: **read your own files by their full path (`/monadic/data/...`)**
+    - Deleting a turn also takes back the app's state and moves the files the reply made to the chat's `trash` folder
+    - The Jupyter apps run notebooks without starting JupyterLab; `Start JupyterLab` is `Open JupyterLab`
+    - Syntax Tree no longer needs LaTeX
+    - A turn ends after 20 rounds of tool calls (10 in many apps), and a repeated identical tool call is refused
+    - Ollama apps are defined as for the other providers; models without the tools capability answer as a plain chat
+    - Language Practice writes its advice in the interface language
+    - The sidebar has `Menu`, `Work screen`, `Files` and `History` tabs
+    - A chat's browser closes on `Reset`, an app change, an import or after 5 minutes unused; of the Selenium container's ports, only noVNC (7900) is open
+    - Closing the desktop app's Web UI window keeps the conversation and its reply
+    - MCP: the Knowledge Base tools use the web interface's Knowledge Base; `knowledge_base` takes `all` or an app name, and `level` is removed
+    - The web interface and exported workflow SVGs load no fonts from the internet
+  - New
+    - `Anonymize` hides chosen words in what a chat sends and puts them back in replies; `Masked` and `Restored` exports
+    - A conversation file that holds words marked for the Privacy Filter opens with them hidden: **check them in the `Anonymize` panel**
+    - The work screen shows the chat's browser, images, PDFs, text and code, audio, video, notebooks, and draws Markdown, tables, SVG, HTML, Mermaid, draw.io, Vega-Lite and ABC files
+    - The model is told what the work screen shows and can look at the item shown
+    - The `History` tab narrows chats by app and date and removes several at once
+    - `Plotly static images` in `Install Options` keeps a PNG of each Plotly chart in a notebook **(rebuild the Python container)**
+    - The music apps take attached audio and MIDI files
+  - Fixed
+    - `Cancel` stops a reply while tools are running
+    - A dropped connection during a reply gives the page back for input
+    - Streamed replies no longer lose words
+    - Earlier replies are no longer duplicated or dropped with Ollama, Mistral and DeepSeek
+    - Long chains of tool calls work with every provider
+    - The reasoning effort chosen for a Claude model is used
+    - A reply with many formulas or code blocks shows each in its place
+    - A chat continued from the history or an import keeps its own app
+    - A stopped container an app needs is started again
+    - The Selenium container starts with macOS Screen Sharing on
+    - MIDI files with Japanese track names are analyzed **(rebuild the Python container)**
+    - PDF and Knowledge Base imports take non-ASCII file names
+    - AutoForge adds files to a project made earlier in the chat
+    - `Copy Link` and `Copy Image Address` in the desktop app copy the address
+  - For developers
+    - The `monadic`, `turn_state` and `context_schema` settings are no longer used: **remove them from your apps**; an app keeps state with its tools
+    - `privacy do` in an app's MDSL has no effect and the server warns when the app is loaded: **remove it, and add `library_save false` and `library_search false` to `features` to keep the Knowledge Base off in that app**
+    - New `features`: `work_screen` (`"drafts"`, `"translations"` or `"code"`), `code_runs_in_chat_folder`, `show_thinking false` and `max_tool_rounds`; `reasoning_effort` written in `features` is used
+    - MCP: `monadic_agent` sends its task to the model as the user's message
+    - `PDF_RAG_TOKENS` and `PDF_RAG_OVERLAP_LINES` are no longer used
+
 - [October, 2026] 1.0.0-beta.44
   - Security
     - Tool calls are limited to the tools given to the model

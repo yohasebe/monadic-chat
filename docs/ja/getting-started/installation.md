@@ -24,7 +24,7 @@ Dockerアイコンをアプリケーションフォルダにドラッグして�
 
 2. **Monadic Chatのダウンロードとインストール**
 
-📦 [Monadic Chat 1.0.0-beta.44 をダウンロード（macOS）](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.44/Monadic.Chat-1.0.0-beta.44-arm64.dmg)
+📦 [Monadic Chat 1.0.0-beta.45 をダウンロード（macOS）](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.45/Monadic.Chat-1.0.0-beta.45-arm64.dmg)
 
 ### **Windows**
 
@@ -45,7 +45,7 @@ PowerShellを管理者として開き、以下を実行：
 
 3. **Monadic Chatのダウンロードとインストール**
 
-📦 [Monadic Chat 1.0.0-beta.44 をダウンロード（Windows）](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.44/Monadic.Chat.Setup.1.0.0-beta.44.exe)
+📦 [Monadic Chat 1.0.0-beta.45 をダウンロード（Windows）](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.45/Monadic.Chat.Setup.1.0.0-beta.45.exe)
 
 ### **Linux**
 
@@ -65,7 +65,7 @@ Omarchy では、代わりに `omarchy-setup-security-sudoless-docker` を実行
 
 2. **Monadic Chatのダウンロード**
 
-📦 [Monadic Chat 1.0.0-beta.44 をダウンロード（Linux x86_64）](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.44/monadic-chat_1.0.0-beta.44_x86_64.AppImage) — [arm64](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.44/monadic-chat_1.0.0-beta.44_arm64.AppImage)
+📦 [Monadic Chat 1.0.0-beta.45 をダウンロード（Linux x86_64）](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.45/monadic-chat_1.0.0-beta.45_x86_64.AppImage) — [arm64](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.45/monadic-chat_1.0.0-beta.45_arm64.AppImage)
 
 3. **実行権限を付けて起動**
 
@@ -100,7 +100,7 @@ Monadic Chat は、起動時（オンラインのとき）に更新を確認し�
 2. **ダウンロードしてインストール** をクリックすると、更新がバックグラウンドでダウンロードされ、進捗がコンソールに表示されます
 3. ダウンロードが終わったら、**今すぐ再起動** でインストールするか、**後で** を選びます
 
-[1.0.0-beta.44 のリリースページ](https://github.com/yohasebe/monadic-chat/releases/tag/v1.0.0-beta.44)から手動でダウンロードすることも、[すべてのリリース](https://github.com/yohasebe/monadic-chat/releases)を見ることもできます。
+[1.0.0-beta.45 のリリースページ](https://github.com/yohasebe/monadic-chat/releases/tag/v1.0.0-beta.45)から手動でダウンロードすることも、[すべてのリリース](https://github.com/yohasebe/monadic-chat/releases)を見ることもできます。
 
 ## 高度な設定 :id=advanced-configuration
 

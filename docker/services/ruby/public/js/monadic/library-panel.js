@@ -118,6 +118,18 @@
   function ragOnFor(app) {
     return !!app && readRagApps().indexOf(app) >= 0;
   }
+  // Put the state remembered for the app into the switch, and tell the
+  // server when it changes. Called for every app change through
+  // applyAppCapabilityClasses (monadic.js), and once at start.
+  function applyRagForApp(app) {
+    var toggle = (typeof document !== 'undefined') ? document.getElementById('library-rag-toggle') : null;
+    if (!toggle) return;
+    var on = ragOnFor(app || currentAppName());
+    if (toggle.checked === on) return;
+    toggle.checked = on;
+    setRagToggle(on);
+    if (typeof window.updateConfigSummary === 'function') window.updateConfigSummary();
+  }
   function rememberRag(app, enabled) {
     if (!app) return;
     try {
@@ -1756,17 +1768,6 @@
         // tracks the toggle immediately.
         if (typeof window.updateConfigSummary === 'function') window.updateConfigSummary();
       };
-      // Each app chosen gets the state remembered for it.
-      var applyRagForApp = function () {
-        var on = ragOnFor(currentAppName());
-        if (ragToggle.checked === on) return;
-        ragToggle.checked = on;
-        setRagToggle(on);
-        if (typeof window.updateConfigSummary === 'function') window.updateConfigSummary();
-      };
-      if (window.SessionState && typeof window.SessionState.on === 'function') {
-        window.SessionState.on('app:changed', applyRagForApp);
-      }
       applyRagForApp();
     }
 
@@ -1918,6 +1919,7 @@
     requestStats: requestStats,
     requestRagState: requestRagState,
     setRagToggle: setRagToggle,
+    applyRagForApp: applyRagForApp,
     setScopeApp: setScopeApp,
     deleteConversation: deleteConversation,
     openSaveModal: openSaveModal,

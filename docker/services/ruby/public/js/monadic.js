@@ -198,9 +198,8 @@ function applyAppCapabilityClasses(appName) {
   // disabled state + tooltip so a control a user expects (KB retrieval toggle)
   // is shown disabled-with-reason rather than vanishing
   // on apps that don't support it. The Save button is disabled independently in
-  // updateSaveButtonAvailability(). `.checked` is intentionally left untouched:
-  // the backend already gates RAG injection on capability, so clobbering it
-  // here would desync the toggle from the preserved preference on capable apps.
+  // updateSaveButtonAvailability(). The switch's state is the one remembered
+  // for the app (library-panel.js).
   const setControlAvailability = (el, available, reason) => {
     if (!el) return;
     el.disabled = !available;
@@ -210,6 +209,9 @@ function applyAppCapabilityClasses(appName) {
     document.getElementById("library-rag-toggle"), isKbSearch,
     "Knowledge Base retrieval is not available in this app."
   );
+  if (window.libraryPanel && typeof window.libraryPanel.applyRagForApp === "function") {
+    window.libraryPanel.applyRagForApp(appName);
+  }
 }
 window.applyAppCapabilityClasses = applyAppCapabilityClasses;
 

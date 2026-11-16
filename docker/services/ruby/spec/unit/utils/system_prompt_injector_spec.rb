@@ -603,12 +603,13 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
   describe '.build_library_rag_prompt' do
     let(:session) { { parameters: { 'library_rag_enabled' => true } } }
 
-    it 'asks for a search when the question may be about what is stored, and none when it plainly is not' do
+    it 'asks for a search when the question is about what is stored, and none on a topic the inventory does not show' do
       allow(described_class).to receive(:library_inventory_block).and_return(nil)
       out = described_class.build_library_rag_prompt(session)
-      expect(out).to include('Call `library_search` first when the question may be about what the user has stored')
-      expect(out).to include('When you cannot tell whether the stored content is relevant, search.')
-      expect(out).to include('Answer without searching when the question plainly has nothing to do with the stored content')
+      expect(out).to include('Call `library_search` first when the question is about what the user has stored')
+      expect(out).to include('a general question on a topic the inventory does not show')
+      expect(out).not_to include('When you cannot tell whether the stored content is relevant, search.')
+      expect(out).not_to include('expects you to use it')
       expect(out).not_to include('BEFORE answering substantive factual questions')
     end
 

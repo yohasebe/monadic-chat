@@ -111,14 +111,11 @@ module Monadic
       PROMPT
 
       # Library RAG prompt header — injected when the per-session "Use
-      # Knowledge Base" toggle is on. The user has explicitly opted in, so
-      # the LLM should treat library_search as the primary source of truth
-      # for any topic the user may have stored content about. Without this
-      # rule the model often answers from training knowledge even when the
-      # Knowledge Base contains an authoritative passage, which violates the
-      # user's opt-in expectation. A question that plainly has nothing to do
-      # with what is stored is answered without a search, so a reply does
-      # not wait for one that cannot help. The directive also pins the citation
+      # Knowledge Base" toggle is on. The LLM treats library_search as the
+      # source of truth for topics the user has stored content about, even
+      # when it could answer from training knowledge. A question on a topic
+      # the inventory does not show is answered without a search, so a
+      # reply does not wait for one that cannot help. The directive also pins the citation
       # format so the frontend's mc:conv: link interception keeps
       # round-tripping back to the source conversation.
       #
@@ -128,10 +125,10 @@ module Monadic
       # available filter parameters. This lets the LLM make targeted
       # `library_search` calls instead of blind cross-corpus queries.
       LIBRARY_RAG_HEADER = <<~PROMPT.strip
-        Knowledge Base RAG is enabled for this session. The user has stored content in the project-wide Knowledge Base and expects you to use it.
+        Knowledge Base RAG is enabled for this session. The user has stored content in the project-wide Knowledge Base; the inventory below shows what is there.
 
-        - Call `library_search` first when the question may be about what the user has stored: their documents, notes or earlier conversations, or a topic the inventory below suggests is there. This applies even when you believe you already know the answer from your training data. When you cannot tell whether the stored content is relevant, search.
-        - Answer without searching when the question plainly has nothing to do with the stored content, or is purely conversational (greetings, clarifications, formatting requests, etc.).
+        - Call `library_search` first when the question is about what the user has stored: their documents, notes or earlier conversations, or a topic the inventory below shows is there. This applies even when you believe you already know the answer from your training data.
+        - Answer without searching when the question has nothing to do with the stored content: a general question on a topic the inventory does not show, or a conversational message (greetings, clarifications, formatting requests, etc.).
         - When `library_search` returns hits, base your answer on the retrieved passages and preserve the markdown citation links `[Title](mc:conv:<id>)` exactly as they appear so the user can click through to the original conversation.
         - Fall back to your general knowledge when `library_search` returns no relevant hits.
         - You may issue multiple `library_search` calls in a single turn with different queries when the user's question spans several topics.

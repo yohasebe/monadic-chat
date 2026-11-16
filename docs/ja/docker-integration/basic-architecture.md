@@ -33,10 +33,10 @@ Monadic Chat のサーバーと Web 画面を動かします。どのアプリ�
 - **使うアプリ**：Web Insight、Research Assistant、Auto Forge、Mermaid Grapher
 
 ### Qdrant コンテナ（`monadic-chat-qdrant-container`） :id=qdrant-container
-ベクトルデータベース [Qdrant](https://qdrant.tech) を動かします。Knowledge Base、PDF Database、ヘルプのデータを保存します。[ベクトルデータベース](vector-database.md)を参照してください。
+ベクトルデータベース [Qdrant](https://qdrant.tech) を動かします。Knowledge Base とヘルプのデータを保存します。[ベクトルデータベース](vector-database.md)を参照してください。
 
 ### Embeddings コンテナ（`monadic-chat-embeddings-container`） :id=embeddings-container
-Knowledge Base、PDF Database、ヘルプの検索のために、`intfloat/multilingual-e5-base` モデルでテキストをベクトルに変換します。CPU で動き、API キーは要りません。
+Knowledge Base とヘルプの検索のために、`intfloat/multilingual-e5-base` モデルでテキストをベクトルに変換します。CPU で動き、API キーは要りません。
 
 ### Privacy コンテナ（`monadic-chat-privacy-container`） :id=privacy-container
 [匿名化](../advanced-topics/anonymization.md)のために名前を見つけます。匿名化は、選んだ語を、会話が送る文の中でプレースホルダーに置き換えます。ローカルで動き、API キーは要りません。
@@ -70,7 +70,6 @@ Knowledge Base 品質パックをインストールしたときだけありま�
 
 **Qdrant と Embeddings のコンテナ**：
 - Knowledge Base
-- PDF Database
 - Monadic Chat Help
 
 ?> 独自のコンテナを加える方法は、[Docker コンテナの追加](../advanced-topics/adding-containers.md)を参照してください。

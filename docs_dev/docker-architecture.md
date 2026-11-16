@@ -55,7 +55,7 @@ Start runs `docker compose … ${ALL_PROFILES_UP} up -d`. `ALL_PROFILES_UP` is
 
 When an app needs a service that is not running, it is started on demand.
 The `ContainerDependencies` module (`lib/monadic/utils/container_dependencies.rb`) determines
-which services each app needs based on MDSL settings (tool groups, jupyter flag, pdf_vector_storage).
+which services each app needs based on MDSL settings (tool groups, jupyter flag).
 
 Manual startup: `monadic.sh ensure-service <name>` (e.g. `python`, `selenium`, `privacy`)
 

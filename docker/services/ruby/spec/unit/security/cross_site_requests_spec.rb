@@ -91,7 +91,7 @@ RSpec.describe "Web app and requests from other sites" do
     end
     # Each upload is capped before its body is read: a request declaring one
     # byte over the limit is refused, an ordinary one is not.
-    caps = { "/pdf" => [PDF_UPLOAD_MAX_BYTES, "pdfFile"], "/document" => [DOCUMENT_UPLOAD_MAX_BYTES, "docFile"],
+    caps = { "/document" => [DOCUMENT_UPLOAD_MAX_BYTES, "docFile"],
              "/load" => [SESSION_LOAD_MAX_BYTES, "file"],
              "/library/import" => [LIBRARY_IMPORT_MAX_BYTES + 1_000_000, "libraryFile"] }
     out["caps"] = caps.to_h do |path, (limit, field)|
@@ -194,7 +194,7 @@ RSpec.describe "Web app and requests from other sites" do
 
 
   it "caps every upload before reading it, and lets an ordinary one through" do
-    expect(@result["caps"].keys).to contain_exactly("/pdf", "/document", "/load", "/library/import")
+    expect(@result["caps"].keys).to contain_exactly("/document", "/load", "/library/import")
     @result["caps"].each do |path, r|
       expect(r["over"]).to eq(413), path
       expect(r["over_reason"]).to eq("too_large"), path

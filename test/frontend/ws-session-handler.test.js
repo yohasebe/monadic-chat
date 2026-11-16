@@ -31,11 +31,7 @@ beforeEach(() => {
     <button id="voice"></button>
     <div id="amplitude" style="display: none;"></div>
     <input type="checkbox" id="check-easy-submit" />
-    <div id="pdf-titles"></div>
     <div id="cancel_query"></div>
-    <div id="pdfDeleteConfirmation"></div>
-    <div id="pdfToDelete"></div>
-    <button id="pdfDeleteConfirmed"></button>
   `;
 
   // Mock bootstrap
@@ -67,7 +63,6 @@ beforeEach(() => {
   window.autoScroll = true;
   window.debugWebSocket = false;
   window.ws = { send: jest.fn() };
-  window.sendPdfWsMessage = jest.fn();
   window.MarkdownRenderer = {
     render: jest.fn().mockReturnValue('<p>rendered</p>'),
     applyRenderers: jest.fn()
@@ -459,50 +454,6 @@ describe('ws-session-handler', () => {
     });
   });
 
-  describe('handlePDFTitles', () => {
-    it('renders PDF titles as rows', () => {
-      handlers.handlePDFTitles({ content: ['doc1.pdf', 'doc2.pdf'] });
-
-      var pdfTitles = document.getElementById('pdf-titles');
-      expect(pdfTitles.innerHTML).toContain('doc1.pdf');
-    });
-
-    it('renders empty state when no PDFs', () => {
-      handlers.handlePDFTitles({ content: [] });
-
-      var pdfTitles = document.getElementById('pdf-titles');
-      expect(pdfTitles.innerHTML).toContain('No PDFs imported');
-    });
-
-    it('escapes HTML in titles', () => {
-      handlers.handlePDFTitles({ content: ['<script>xss</script>'] });
-
-      var pdfTitles = document.getElementById('pdf-titles');
-      expect(pdfTitles.innerHTML).toContain('&lt;script');
-      expect(pdfTitles.innerHTML).not.toContain('<script>xss');
-    });
-  });
-
-  describe('handlePDFDeleted', () => {
-    it('shows success alert and refreshes list', () => {
-      handlers.handlePDFDeleted({ res: 'success', content: 'Deleted doc.pdf' });
-
-      expect(global.setAlert).toHaveBeenCalledWith(
-        expect.stringContaining('Deleted doc.pdf'),
-        'info'
-      );
-      expect(window.sendPdfWsMessage).toHaveBeenCalledWith(
-        { message: 'PDF_TITLES' }
-      );
-    });
-
-    it('shows error alert on failure', () => {
-      handlers.handlePDFDeleted({ res: 'error', content: 'Failed to delete' });
-
-      expect(global.setAlert).toHaveBeenCalledWith('Failed to delete', 'error');
-    });
-  });
-
   describe('handleChangeStatus', () => {
     it('adds active class for active messages', () => {
       var card = document.createElement('div');
@@ -573,7 +524,6 @@ describe('ws-session-handler', () => {
       const expectedHandlers = [
         'handleLanguageUpdated', 'handleProcessingStatus', 'handleSystemInfo',
         'handleSTT', 'handleSTTPartial', 'clearSTTPartialOverlay',
-        'handlePDFTitles', 'handlePDFDeleted',
         'handleChangeStatus', 'handleSuccess', 'handleSampleSuccess'
       ];
       expectedHandlers.forEach(name => {

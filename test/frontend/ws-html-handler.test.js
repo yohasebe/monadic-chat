@@ -32,7 +32,6 @@ beforeEach(() => {
   createDOMElement('button', 'voice');
   createDOMElement('button', 'doc');
   createDOMElement('button', 'url');
-  createDOMElement('button', 'pdf-import');
   createDOMElement('select', 'select-role');
   createDOMElement('div', 'temp-card');
   createDOMElement('div', 'indicator');

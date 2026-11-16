@@ -1931,27 +1931,13 @@ module OpenAIHelper
     api_request("tool", session, call_depth: session[:call_depth_per_turn], &block)
   end
 
-  # Remove duplicate tool calls and suppress repeated local PDF DB tool calls.
+  # Remove duplicate tool calls (the same function with the same arguments).
   private def filter_openai_duplicate_tools(tools)
-    local_pdf_tools = %w[find_closest_text get_text_snippet list_titles find_closest_doc get_text_snippets]
-    seen_functions = {}
-    seen_local_group = false
-
+    seen = {}
     tools.select do |tc|
-      fname = tc.dig('function', 'name').to_s
-      args_sig = tc.dig('function', 'arguments').to_s
-      sig = fname + '|' + args_sig
-      next false if seen_functions[sig]
-      seen_functions[sig] = true
-
-      if local_pdf_tools.include?(fname)
-        if seen_local_group
-          DebugHelper.debug("Suppressing repeated local PDF tool call: #{fname}", category: :api, level: :info) rescue nil
-          next false
-        end
-        seen_local_group = true
-      end
-      true
+      sig = tc.dig('function', 'name').to_s + '|' + tc.dig('function', 'arguments').to_s
+      next false if seen[sig]
+      seen[sig] = true
     end
   end
 

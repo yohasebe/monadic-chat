@@ -8,29 +8,15 @@ require_relative '../embeddings'
 
 module Monadic
   module Pdf
-    # Storage facade for user-uploaded PDFs. Backed by Qdrant collections
-    # (pdf_docs and pdf_items) and the embeddings_service container.
-    #
-    # PDFs are scoped to an `app_key` so different apps see only their own
-    # uploads. The default app_key 'global' is used by the generic /pdf
-    # upload endpoint; app-specific tools should construct a Store with the
-    # app's normalised name.
+    # Storage of the MCP server's knowledge bases (lib/monadic/mcp/conduit.rb).
+    # Backed by Qdrant collections (pdf_docs and pdf_items) and the
+    # embeddings_service container. Each knowledge base is an `app_key`;
+    # the default one is 'global'.
     class Store
       Schema = Monadic::VectorStore::Schema
 
       COLLECTIONS = [Schema::PDF_DOCS, Schema::PDF_ITEMS].freeze
       DEFAULT_APP_KEY = 'global'
-
-      # The tools offered to apps with pdf_vector_storage: name =>
-      # [description, { parameter => JSON type }]. doc_id is the point id
-      # this store gives a document, a UUID string.
-      TOOLS = {
-        'find_closest_text' => ['Find the closest text snippets in local PDF database', { 'text' => 'string', 'top_n' => 'integer' }],
-        'get_text_snippet' => ['Retrieve one text snippet from a document by position', { 'doc_id' => 'string', 'position' => 'integer' }],
-        'list_titles' => ['List all document titles in local PDF database', {}],
-        'find_closest_doc' => ['Find the closest documents in local PDF database', { 'text' => 'string', 'top_n' => 'integer' }],
-        'get_text_snippets' => ['Retrieve all snippets of a document', { 'doc_id' => 'string' }]
-      }.freeze
 
       def initialize(app_key: DEFAULT_APP_KEY,
                      vector_store: Monadic::VectorStore.default_backend,

@@ -577,7 +577,7 @@ window.loadedApp = "Chat";
       const sendBtnEl = $id("send");
       if (userPanelEl && userPanelEl.style.display !== "none" && sendBtnEl && sendBtnEl.disabled) {
 
-        ["send", "clear", "image-file", "voice", "doc", "url", "pdf-import", "ai_user"].forEach(function(id) {
+        ["send", "clear", "image-file", "voice", "doc", "url", "ai_user"].forEach(function(id) {
           const el = $id(id);
           if (el) el.disabled = false;
         });
@@ -1071,20 +1071,6 @@ window.loadedApp = "Chat";
         const wih = window.WsInfoHandler;
         if (wih && typeof wih.handleInfo === 'function') {
           wih.handleInfo(data);
-        }
-        break;
-      }
-      case "pdf_titles": {
-        const wsh = window.WsSessionHandler;
-        if (wsh && typeof wsh.handlePDFTitles === 'function') {
-          wsh.handlePDFTitles(data);
-        }
-        break;
-      }
-      case "pdf_deleted": {
-        const wsh = window.WsSessionHandler;
-        if (wsh && typeof wsh.handlePDFDeleted === 'function') {
-          wsh.handlePDFDeleted(data);
         }
         break;
       }

@@ -3,25 +3,25 @@ module ResearchAssistant
 
   DESCRIPTION = {
     "en" => <<~TEXT,
-      Research assistant grounded in your PDFs. Persist documents in the local PDF database and get answers with citations from their contents; web search is available as an option when needed. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+      Research assistant that searches the web and reads your documents, and answers with citations. Documents imported into the Knowledge Base can be searched when Knowledge Base retrieval is on. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     "ja" => <<~TEXT,
-      手元の PDF に基づくリサーチアシスタント。文書をローカルの PDF データベースに保存し、その内容からの引用付きで回答を得られます。必要に応じてウェブ検索も使えます。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+      ウェブを検索し、手元の文書を読んで、引用付きで答えるリサーチアシスタント。ナレッジベースに取り込んだ文書は、ナレッジベース検索をオンにすると検索できます。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     "zh" => <<~TEXT,
-      以您的 PDF 为依据的研究助手。将文档保存到本地 PDF 数据库，并获得附有文档内容引用的回答；需要时还可以使用网络搜索。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+      搜索网络、阅读您的文档并给出带引用回答的研究助手。开启知识库检索后，可以检索导入知识库的文档。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     "ko" => <<~TEXT,
-      사용자의 PDF를 바탕으로 하는 리서치 어시스턴트. 문서를 로컬 PDF 데이터베이스에 저장하고, 그 내용을 인용한 답변을 받을 수 있습니다. 필요하면 웹 검색도 사용할 수 있습니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+      웹을 검색하고 사용자의 문서를 읽어 인용과 함께 답하는 리서치 어시스턴트. 지식 베이스 검색을 켜면 지식 베이스에 가져온 문서를 검색할 수 있습니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     "es" => <<~TEXT,
-      Asistente de investigación basado en tus PDF. Guarda documentos en la base de datos local de PDF y obtén respuestas con citas de su contenido; la búsqueda web está disponible como opción cuando se necesita. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+      Asistente de investigación que busca en la web, lee tus documentos y responde con citas. Los documentos importados a la base de conocimiento se pueden buscar cuando la búsqueda en la base de conocimiento está activada. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     "fr" => <<~TEXT,
-      Assistant de recherche fondé sur vos PDF. Conservez des documents dans la base de données PDF locale et obtenez des réponses avec des citations de leur contenu ; la recherche web est disponible en option si nécessaire. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+      Assistant de recherche qui cherche sur le web, lit vos documents et répond avec des citations. Les documents importés dans la base de connaissances peuvent être consultés lorsque la recherche dans la base de connaissances est activée. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     "de" => <<~TEXT
-      Rechercheassistent auf Grundlage Ihrer PDFs. Speichern Sie Dokumente in der lokalen PDF-Datenbank und erhalten Sie Antworten mit Zitaten aus deren Inhalt; bei Bedarf steht die Websuche als Option zur Verfügung. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+      Rechercheassistent, der im Web sucht, Ihre Dokumente liest und mit Zitaten antwortet. In die Wissensdatenbank importierte Dokumente lassen sich durchsuchen, wenn die Wissensdatenbank-Suche eingeschaltet ist. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   }.freeze
 end

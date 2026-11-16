@@ -279,7 +279,7 @@ function _handleFinalAssistantMessage(data) {
     msgEl.disabled = false;
   }
   // Re-enable all input controls
-  ["send", "clear", "image-file", "voice", "doc", "url", "pdf-import", "select-role"].forEach(function(id) {
+  ["send", "clear", "image-file", "voice", "doc", "url", "select-role"].forEach(function(id) {
     const el = $id(id);
     if (el) el.disabled = false;
   });

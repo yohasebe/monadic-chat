@@ -32,7 +32,6 @@ beforeEach(() => {
   createDOMElement('button', 'url');
   createDOMElement('button', 'ai_user');
   createDOMElement('select', 'select-role');
-  createDOMElement('button', 'pdf-import');
   createDOMElement('div', 'cancel_query');
 
   // Mock global functions

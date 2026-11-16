@@ -6,8 +6,7 @@
 #
 # One entry per line: path | text the line contains | where it writes | why
 # where: state, log, config, system-temp, shared-root, build-time, test-only
-docker/services/ruby/lib/monadic.rb | FileUtils.mkdir_p(File.dirname(legacy_volume_marker)) | log | notice marker in the log folder
-docker/services/ruby/lib/monadic.rb | File.write(legacy_volume_marker | log | notice marker in the log folder
+docker/services/ruby/lib/monadic.rb | FileUtils.mkdir_p(Monadic::Utils::Environment.log_path) | log | the log folder at startup
 docker/services/ruby/lib/monadic/shell.rb | File.open(log_path | log | command log
 docker/services/ruby/lib/monadic/workspace/artifacts.rb | Dir.mkdir(root, 0o700) | state | folder of kept artifacts (state folder)
 docker/services/ruby/lib/monadic/workspace/publications.rb | Dir.mkdir(root, 0o700) | state | folder of publications (state folder)
@@ -54,7 +53,6 @@ docker/services/ruby/lib/monadic/help/installation.rb | FileUtils.mkdir_p(@direc
 docker/services/ruby/lib/monadic/help/installation.rb | File.open(File.join(@directory, "#{name}.lock"), mode | state | help install locks (state folder)
 docker/services/ruby/lib/monadic/help/installation.rb | Tempfile.create(['progress-' | state | help install journal (state folder)
 docker/services/ruby/lib/monadic/help/installation.rb | File.rename(file.path | state | help install journal (state folder)
-docker/services/ruby/lib/monadic/routes/pdf_routes.rb | Tempfile.new("temp_pdf") | system-temp | the system's temporary folder
 docker/services/ruby/apps/drawio_grapher/drawio_grapher_tools.rb | FileUtils.mkdir_p(data_dir) | shared-root | the shared folder itself
 docker/services/ruby/apps/auto_forge/auto_forge.rb | File.open(local, 'wb') | system-temp | patch work folder (Dir.mktmpdir)
 docker/services/ruby/apps/auto_forge/auto_forge.rb | File.write(diff, patch_text) | system-temp | patch work folder (Dir.mktmpdir)

@@ -183,7 +183,6 @@ end
 features do
   # The following features are tied to specific system components:
 
-  pdf_vector_storage true # Enable PDF file upload and vector storage for RAG (Retrieval-Augmented Generation)
   toggle true             # Render <div class='toggle'> blocks in assistant messages as collapsible show/hide sections
   jupyter true            # Enable access to Jupyter notebook interface
   code_runs_in_chat_folder true # run_code runs each run in a folder of the chat's folder;

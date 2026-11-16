@@ -860,11 +860,6 @@ module OllamaHelper
 
   private
 
-  # Detect whether an Ollama model supports the `think:true` parameter.
-  # Primary source: Ollama's /api/show endpoint returns a `capabilities`
-  # array per model (e.g. ["completion","vision","tools","thinking"]).
-  # Fallback: if the API call fails, fall back to a name-based heuristic
-  # so thinking-named models still work when Ollama is temporarily flaky.
   # Whether the model can call tools, as Ollama reports it (/api/show);
   # without that report the model is taken to be able to.
   def supports_tools?(model_name)
@@ -873,6 +868,11 @@ module OllamaHelper
     caps ? caps[:capabilities].include?("tools") : true
   end
 
+  # Detect whether an Ollama model supports the `think:true` parameter.
+  # Primary source: Ollama's /api/show endpoint returns a `capabilities`
+  # array per model (e.g. ["completion","vision","tools","thinking"]).
+  # Fallback: if the API call fails, fall back to a name-based heuristic
+  # so thinking-named models still work when Ollama is temporarily flaky.
   def supports_thinking?(model_name)
     return false unless model_name.is_a?(String)
     caps = OllamaHelper.fetch_model_capabilities(model_name)

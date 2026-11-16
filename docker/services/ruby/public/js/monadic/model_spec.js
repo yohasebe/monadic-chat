@@ -1499,14 +1499,14 @@ const modelSpec = {
   // Ollama models (local inference)
   // NOTE: Ollama model capabilities are normally fetched dynamically via
   // /api/ollama/models (see model_loader.js). This static entry exists only
-  // as a safety net — it ensures the recommended model's image upload and
-  // thinking panel still work if Ollama was unreachable at page load.
+  // as a safety net — it ensures the default model's tools and thinking panel
+  // still work if Ollama was unreachable at page load.
   // Dynamic entries override this when Ollama is available.
-  "qwen3-vl:8b-thinking": {
-    "context_window": [1, 262144],
+  "gpt-oss:20b": {
+    "context_window": [1, 131072],
     "max_output_tokens": [1, 32768],
     "tool_capability": true,
-    "vision_capability": true,
+    "vision_capability": false,
     "supports_thinking": true
   },
 
@@ -1955,7 +1955,7 @@ const providerDefaults = {
     "vision": ["deepseek-flash"]
   },
   "ollama": {
-    "chat": ["gemma4:e4b", "qwen3-vl:8b-thinking"]
+    "chat": ["gpt-oss:20b"]
   },
   "elevenlabs": {
     "tts": ["eleven_v3", "eleven_multilingual_v2", "eleven_flash_v2_5", "eleven_v4", "eleven_v4_turbo"],

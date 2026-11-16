@@ -16,8 +16,6 @@ module Monadic
       # Collection identifiers
       HELP_DOCS = 'help_docs'
       HELP_ITEMS = 'help_items'
-      PDF_DOCS = 'pdf_docs'
-      PDF_ITEMS = 'pdf_items'
 
       # Library collections. The Library subsystem stores conversations
       # and documents as a hierarchical embedding tree:
@@ -38,7 +36,7 @@ module Monadic
       ].freeze
 
       ALL_COLLECTIONS = (
-        [HELP_DOCS, HELP_ITEMS, PDF_DOCS, PDF_ITEMS] + LIBRARY_COLLECTIONS
+        [HELP_DOCS, HELP_ITEMS] + LIBRARY_COLLECTIONS
       ).freeze
 
       # Per-collection definition. Each entry says how to bootstrap the
@@ -58,21 +56,6 @@ module Monadic
             { field: 'doc_id', schema: 'integer' },
             { field: 'language', schema: 'keyword' },
             { field: 'position', schema: 'integer' }
-          ]
-        },
-        PDF_DOCS => {
-          vectors: { 'content' => { size: EMBEDDING_DIMENSION, distance: DISTANCE } },
-          payload_indexes: [
-            { field: 'title', schema: 'text' },
-            { field: 'app_key', schema: 'keyword' }
-          ]
-        },
-        PDF_ITEMS => {
-          vectors: { 'content' => { size: EMBEDDING_DIMENSION, distance: DISTANCE } },
-          payload_indexes: [
-            { field: 'doc_id', schema: 'keyword' },
-            { field: 'position', schema: 'integer' },
-            { field: 'app_key', schema: 'keyword' }
           ]
         },
         LIBRARY_SUMMARIES => {

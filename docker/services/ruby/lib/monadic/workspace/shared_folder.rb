@@ -71,7 +71,7 @@ module Monadic
         /\A\d{10}\.json\z/,             # notebook cells sent in one go
         /\Ajupyter_cells_\d{8}_\d{6}_[0-9a-f]{8}\.json\z/, # the same, as it is named now
         /\A\d{10}\.pdf\z/,              # a PDF copied for text extraction
-        /\Apdf2text_[0-9a-f]{16}\.pdf\z/, # the same, as it is named now
+        /\Apdf2text_[0-9a-f]{16}\.pdf\z/, # the same, as it was named later
         /\.md\.json\z/,                 # text extraction output
         /\Asyntree_\d+\./,              # syntax tree drawing steps
         /\.part-\d+\z/                  # a copy that was not finished

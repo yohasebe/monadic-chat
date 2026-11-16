@@ -56,10 +56,12 @@ Conduit exposes the following `monadic_*` tools. Each tool's full input schema i
 - `monadic_second_opinion` — **grade**: ask one or more providers to score (1–10) and critique a response you already have
 - `monadic_confidence` — **assess by agreement**: fan a question out to several distinct providers and judge how much their independent answers agree, returning a confidence level (high/medium/low), the points of agreement and disagreement, and a recommendation (trust/verify/escalate)
 
-**Knowledge base (local PDF knowledge base)**
-- `monadic_search_kb` — semantic search over an imported knowledge base
-- `monadic_list_kb` — list imported documents
-- `monadic_import_kb` — import text or a PDF into a knowledge base
+**Knowledge Base** (the same [Knowledge Base](../apps/knowledge-base.md) the web interface uses)
+- `monadic_search_kb` — semantic search over the Knowledge Base
+- `monadic_list_kb` — list the entries of the Knowledge Base
+- `monadic_import_kb` — import text, or a file in the shared folder (PDF, Markdown, Word, Excel, PowerPoint, source code), as a Global entry
+
+These tools and the `knowledge_base` argument of `monadic_query`, `monadic_parallel_query` and `monadic_confidence` read every entry by default (`all`). Give an app name, such as `ChatOpenAI`, to read only that app's entries and the Global ones.
 
 **Analysis (input)**
 - `monadic_analyze_image` — describe or answer questions about an image

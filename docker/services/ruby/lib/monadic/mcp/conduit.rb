@@ -7,6 +7,7 @@ require_relative 'cost_guard'
 require_relative 'job_store'
 require_relative '../embeddings/errors'
 require_relative '../vector_store/errors'
+require_relative '../library'
 require_relative 'conduit_agent'
 require_relative '../agents/second_opinion_agent'
 require_relative '../agents/image_analysis_agent'
@@ -181,9 +182,9 @@ module Monadic
                 },
                 knowledge_base: {
                   type: "string",
-                  description: "Optional KB namespace. When set, the latest user message is " \
-                               "used to retrieve relevant chunks from the local Knowledge Base " \
-                               "and inject them as grounding context (data stays local)."
+                  description: "Optional. Ground the answer in the Knowledge Base: 'all' searches every " \
+                               "entry, an app name (e.g. ChatOpenAI) searches that app's entries and the " \
+                               "Global ones. The latest user message is the query (data stays local)."
                 },
                 privacy: {
                   type: "boolean",
@@ -279,7 +280,9 @@ module Monadic
                 },
                 knowledge_base: {
                   type: "string",
-                  description: "Optional KB namespace to ground every provider's answer."
+                  description: "Optional. Ground the answer in the Knowledge Base: 'all' searches every " \
+                               "entry, an app name (e.g. ChatOpenAI) searches that app's entries and the " \
+                               "Global ones. The latest user message is the query (data stays local)."
                 },
                 privacy: {
                   type: "boolean",
@@ -420,7 +423,9 @@ module Monadic
                 temperature: { type: "number", description: "Optional sampling temperature for the panel." },
                 knowledge_base: {
                   type: "string",
-                  description: "Optional KB namespace to ground every panel member's answer."
+                  description: "Optional. Ground the answer in the Knowledge Base: 'all' searches every " \
+                               "entry, an app name (e.g. ChatOpenAI) searches that app's entries and the " \
+                               "Global ones. The latest user message is the query (data stays local)."
                 },
                 privacy: {
                   type: "boolean",
@@ -434,26 +439,23 @@ module Monadic
           },
           {
             name: "monadic_search_kb",
-            description: "Semantic search over a local PDF Knowledge Base (Qdrant + " \
-                         "multilingual-e5 embeddings). Returns the most relevant chunks for a " \
-                         "query. Runs entirely on your machine (no provider API, no token " \
-                         "cost). Use it to ground answers in your own documents.",
+            description: "Semantic search over the Knowledge Base (the Library the web " \
+                         "interface saves conversations and imported documents to; Qdrant + " \
+                         "multilingual-e5 embeddings). Returns the most relevant passages with " \
+                         "their entry titles. Runs entirely on your machine (no provider API, no " \
+                         "token cost).",
             input_schema: {
               type: "object",
               properties: {
                 query: { type: "string", description: "The text to search for." },
                 knowledge_base: {
                   type: "string",
-                  description: "KB namespace (app key). Defaults to 'global' (the generic " \
-                               "PDF upload namespace)."
+                  description: "Whose entries: 'all' (default) or an app name (e.g. ChatOpenAI) " \
+                               "for that app's entries and the Global ones."
                 },
                 top_n: {
                   type: "integer",
                   description: "Number of results to return (1-50, default 5)."
-                },
-                level: {
-                  type: "string",
-                  description: "'item' for text chunks (default) or 'doc' for document-level hits."
                 }
               },
               required: ["query"],
@@ -463,13 +465,14 @@ module Monadic
           },
           {
             name: "monadic_list_kb",
-            description: "List the documents stored in a local PDF Knowledge Base namespace.",
+            description: "List the entries of the Knowledge Base, newest first.",
             input_schema: {
               type: "object",
               properties: {
                 knowledge_base: {
                   type: "string",
-                  description: "KB namespace (app key). Defaults to 'global'."
+                  description: "Whose entries: 'all' (default) or an app name (e.g. ChatOpenAI) " \
+                               "for that app's entries and the Global ones."
                 }
               },
               additionalProperties: false
@@ -478,26 +481,22 @@ module Monadic
           },
           {
             name: "monadic_import_kb",
-            description: "Import a document into a local PDF Knowledge Base namespace " \
-                         "(chunk + embed + store). Provide `text` for raw text (no extra " \
-                         "containers needed) or `path` to a local .pdf file (extracted via the " \
-                         "python container). Embeddings are computed locally — no provider " \
-                         "token cost. Synchronous.",
+            description: "Import a document into the Knowledge Base as a Global entry, so every " \
+                         "app that searches the Knowledge Base can find it. Provide `text` " \
+                         "(Markdown or plain text) or `path` to a file in the shared folder " \
+                         "(PDF, Markdown, Word, Excel, PowerPoint or source code). Embeddings " \
+                         "are computed locally — no provider token cost. Synchronous.",
             input_schema: {
               type: "object",
               properties: {
-                title: { type: "string", description: "Title for the stored document." },
+                title: { type: "string", description: "Title of the entry." },
                 text: {
                   type: "string",
-                  description: "Raw text to import. Use this OR `path`."
+                  description: "Text to import. Use this OR `path`."
                 },
                 path: {
                   type: "string",
-                  description: "Absolute path to a local .pdf file to import. Use this OR `text`."
-                },
-                knowledge_base: {
-                  type: "string",
-                  description: "KB namespace (app key). Defaults to 'global'."
+                  description: "Path to a file in the shared folder. Use this OR `text`."
                 }
               },
               required: ["title"],
@@ -2304,147 +2303,85 @@ module Monadic
         text.is_a?(String) && text.start_with?("ERROR:")
       end
 
-      # ---- Knowledge Base (local PDF KB via Monadic::Pdf::Store) ----------
+      # ---- Knowledge Base (the Library the web interface saves to) --------
 
-      DEFAULT_KB = "global"
       KB_MAX_TOP_N = 50
+      KB_LIST_LIMIT = 500
 
       def handle_search_kb(arguments)
         query = (arguments["query"] || arguments[:query]).to_s
         raise ArgumentError, "query is required" if query.empty?
 
-        kb = kb_namespace(arguments)
         top_n = (arguments["top_n"] || arguments[:top_n]).to_i
         top_n = 5 if top_n <= 0
         top_n = KB_MAX_TOP_N if top_n > KB_MAX_TOP_N
-        level = (arguments["level"] || arguments[:level]).to_s
-        level = "item" unless %w[item doc].include?(level)
-
-        store = kb_store(kb)
-        hits = level == "doc" ? store.find_closest_doc(query, top_n: top_n)
-                              : store.find_closest_text(query, top_n: top_n)
-
-        { knowledge_base: kb, level: level, count: hits.size, results: hits }
+        hits = Monadic::Library::Retriever.cascade_search(
+          query, store: kb_store, app_name: kb_scope(arguments), top_n: top_n
+        )
+        results = hits.map do |h|
+          { title: h[:conversation_title], conversation_id: h[:conversation_id],
+            source: h[:conversation_source], text: h[:text], score: h[:score] }
+        end
+        { knowledge_base: kb_label(arguments), count: results.size, results: results }
       rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
-        { knowledge_base: kb, success: false,
-          error: "❌ Knowledge Base unavailable: #{e.message} (is qdrant/embeddings running?)" }
+        kb_unavailable(arguments, e)
       end
 
       def handle_list_kb(arguments)
-        kb = kb_namespace(arguments)
-        store = kb_store(kb)
-        documents = store.list_titles
-        { knowledge_base: kb, count: documents.size, documents: documents }
+        entries = Monadic::Library::Manager.list_conversations(
+          store: kb_store, app_name: kb_scope(arguments), limit: KB_LIST_LIMIT
+        )
+        { knowledge_base: kb_label(arguments), count: entries.size, entries: entries }
       rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
-        { knowledge_base: kb, success: false,
-          error: "❌ Knowledge Base unavailable: #{e.message} (is qdrant/embeddings running?)" }
+        kb_unavailable(arguments, e)
       end
 
+      # Imports into the Global scope, so every app that searches the
+      # Knowledge Base can find the entry.
       def handle_import_kb(arguments)
         title = (arguments["title"] || arguments[:title]).to_s
         raise ArgumentError, "title is required" if title.empty?
 
-        kb = kb_namespace(arguments)
         text = (arguments["text"] || arguments[:text]).to_s
         path = (arguments["path"] || arguments[:path]).to_s
-
-        chunks, source =
+        conversation, source =
           if !text.empty?
-            [chunk_text(text), "text"]
+            [Monadic::Library::Importers::Markdown.import(text, title: title), "text"]
           elsif !path.empty?
-            path = resolve_shared_path(path, extensions: %w[.pdf])
-            [extract_pdf_chunks(path), path]
+            path = resolve_shared_path(path, extensions: Monadic::Library::FileImporter.supported_extensions)
+            [Monadic::Library::FileImporter.build_conversation(path: path, options: { title: title }), path]
           else
             raise ArgumentError, "provide either `text` or `path`"
           end
 
-        raise "no text could be extracted to import" if chunks.empty?
-
-        store = kb_store(kb)
-        doc_data = { title: title, items: chunks.size, metadata: { source: source } }
-        items_data = chunks.map do |c|
-          { text: (c["text"] || c[:text]), metadata: { tokens: (c["tokens"] || c[:tokens]) } }
-        end
-        doc_id = store.store_embeddings(doc_data, items_data)
-
-        { knowledge_base: kb, doc_id: doc_id, title: title, chunks: chunks.size, source: source }
+        result = Monadic::Library::Manager.import_conversation(
+          store: kb_store, conversation: conversation, scope_app: Monadic::Library::Store::SCOPE_GLOBAL
+        )
+        { conversation_id: result[:conversation_id], title: title, source: source, counts: result[:counts] }
       rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
-        { knowledge_base: kb, success: false,
-          error: "❌ Knowledge Base unavailable: #{e.message} (is qdrant/embeddings running?)" }
+        kb_unavailable(arguments, e)
       end
 
       # ---- Knowledge Base helpers ----------------------------------------
 
-      def kb_namespace(arguments)
-        ns = (arguments["knowledge_base"] || arguments[:knowledge_base]).to_s.strip
-        ns.empty? ? DEFAULT_KB : ns
+      # The app whose entries (and the Global ones) a call reads; nil reads
+      # every entry ('all' or no value).
+      def kb_scope(arguments)
+        value = (arguments["knowledge_base"] || arguments[:knowledge_base]).to_s.strip
+        value.empty? || value.casecmp?("all") ? nil : value
       end
 
-      def kb_store(knowledge_base)
-        require_relative '../pdf'
-        Monadic::Pdf::Store.new(app_key: knowledge_base)
+      def kb_label(arguments)
+        kb_scope(arguments) || "all"
       end
 
-      # Token-based line chunker mirroring PDF2Text#split_text, but for arbitrary
-      # text (no PDF / python container needed).
-      def chunk_text(text, max_tokens: kb_chunk_tokens, overlap_lines: kb_overlap_lines, separator: "\n")
-        return chunk_text_by_length(text) unless tokenizer_available?
-
-        tok = MonadicApp::TOKENIZER
-        lines = text.split(separator)
-        chunks = []
-        current = []
-        current_tokens = 0
-
-        lines.each do |line|
-          line_token_count = tok.get_tokens_sequence(line).size
-          if current_tokens + line_token_count > max_tokens && !current.empty?
-            chunks << { "text" => current.join(separator).strip, "tokens" => current_tokens }
-            current = current.last(overlap_lines)
-            current_tokens = tok.get_tokens_sequence(current.join(separator)).size
-          end
-          current << line.strip
-          current_tokens += line_token_count
-        end
-        chunks << { "text" => current.join(separator).strip, "tokens" => current_tokens } unless current.empty?
-        chunks.reject { |c| c["text"].to_s.empty? }
+      def kb_store
+        Monadic::Library::Store.new
       end
 
-      # Fallback chunker when the tokenizer is unavailable: split on ~max_chars.
-      def chunk_text_by_length(text, max_chars: 8000)
-        text.scan(/.{1,#{max_chars}}/m).map { |slice| { "text" => slice.strip, "tokens" => nil } }
-            .reject { |c| c["text"].empty? }
-      end
-
-      def extract_pdf_chunks(path)
-        path = resolve_shared_path(path, extensions: %w[.pdf])
-
-        require_relative '../utils/pdf_text_extractor'
-        pdf = PDF2Text.new(path: path, max_tokens: kb_chunk_tokens, separator: "\n",
-                           overwrap_lines: kb_overlap_lines)
-        pdf.extract
-        pdf.split_text
-      end
-
-      # PDF_RAG_TOKENS / PDF_RAG_OVERLAP_LINES are read from CONFIG at call
-      # time: the constants in pdf_text_extractor.rb are set from ENV before
-      # ~/monadic/config/env is loaded, so they only carry the defaults.
-      def kb_chunk_tokens
-        kb_pdf_setting("PDF_RAG_TOKENS", defined?(RAG_TOKENS) ? RAG_TOKENS : 4000)
-      end
-
-      def kb_overlap_lines
-        kb_pdf_setting("PDF_RAG_OVERLAP_LINES", defined?(RAG_OVERLAP_LINES) ? RAG_OVERLAP_LINES : 4)
-      end
-
-      def kb_pdf_setting(key, default)
-        value = defined?(CONFIG) ? CONFIG[key] : nil
-        number = Integer(value.to_s, exception: false)
-        number && number >= 0 ? number : default
-      end
-
-      def tokenizer_available?
-        defined?(MonadicApp) && defined?(MonadicApp::TOKENIZER) && MonadicApp::TOKENIZER
+      def kb_unavailable(arguments, error)
+        { knowledge_base: kb_label(arguments), success: false,
+          error: "❌ Knowledge Base unavailable: #{error.message} (is qdrant/embeddings running?)" }
       end
 
       # ---- Query helpers --------------------------------------------------
@@ -2490,7 +2427,7 @@ module Monadic
         kb = knowledge_base.to_s.strip
         unless kb.empty?
           begin
-            kb_context, grounded = retrieve_kb_context(messages, kb)
+            kb_context, grounded = retrieve_kb_context(messages, { "knowledge_base" => kb })
           rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
             return { provider: provider, model: model, success: false,
                      error: "❌ Knowledge Base unavailable: #{e.message} (grounding requested)" }
@@ -2635,11 +2572,13 @@ module Monadic
       DEFAULT_PRIVACY_MASK_TYPES = %i[person email phone credit_card ip iban us_ssn].freeze
 
       # Search the KB with the latest user turn. Returns [context_block, grounded?].
-      def retrieve_kb_context(messages, knowledge_base)
+      def retrieve_kb_context(messages, arguments)
         user_text = messages.reverse.find { |m| m["role"].to_s == "user" }&.dig("content").to_s
         return ["", false] if user_text.empty?
 
-        hits = kb_store(knowledge_base).find_closest_text(user_text, top_n: KB_GROUNDING_TOP_N)
+        hits = Monadic::Library::Retriever.cascade_search(
+          user_text, store: kb_store, app_name: kb_scope(arguments), top_n: KB_GROUNDING_TOP_N
+        )
         context = hits.map { |h| (h[:text] || h["text"]).to_s }.reject(&:empty?).join("\n\n")
         return ["", false] if context.empty?
 

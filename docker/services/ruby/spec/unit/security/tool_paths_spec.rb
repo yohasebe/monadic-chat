@@ -348,14 +348,15 @@ RSpec.describe 'Tool input boundaries' do
 
     it 'passes a canonical shared PDF to import and rejects CWD PDFs' do
       pdf = fixture('日本語 folder/file name.pdf')
-      allow(conduit).to receive(:extract_pdf_chunks).and_call_original
-      expect(conduit).to receive(:extract_pdf_chunks).with(pdf).and_return([{ text: 'text' }])
-      store = double(store_embeddings: 'doc')
-      allow(conduit).to receive(:kb_store).and_return(store)
-      expect(conduit.handle_import_kb('path' => '日本語 folder/file name.pdf', 'title' => 'test')[:doc_id]).to eq('doc')
+      expect(Monadic::Library::FileImporter).to receive(:build_conversation)
+        .with(path: pdf, options: { title: 'test' }).and_return({ 'conversation_id' => 'c1' })
+      expect(Monadic::Library::Manager).to receive(:import_conversation)
+        .and_return({ conversation_id: 'c1', counts: {} })
+      allow(conduit).to receive(:kb_store).and_return(double('store'))
+      expect(conduit.handle_import_kb('path' => '日本語 folder/file name.pdf', 'title' => 'test')[:conversation_id]).to eq('c1')
       fixture('cwd.pdf', root: @outside)
       Dir.chdir(@outside) do
-        expect { conduit.extract_pdf_chunks('cwd.pdf') }.to raise_error(ArgumentError)
+        expect { conduit.handle_import_kb('path' => 'cwd.pdf', 'title' => 'test') }.to raise_error(ArgumentError)
       end
     end
   end

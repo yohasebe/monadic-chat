@@ -6,8 +6,7 @@ Front ends:
 
 - **Knowledge Base sidebar panel** (`public/js/monadic/library-panel.js`): Save, Browse, Import file, rename, scope, delete and the "Use Knowledge Base" toggle, over the WebSocket messages in `lib/monadic/utils/websocket/library_handler.rb` and the HTTP import route.
 - **`library_search` shared tool** (`lib/monadic/shared_tools/library_search.rb`): retrieval from inside a chat turn.
-
-The MCP server's knowledge bases (`pdf_docs` / `pdf_items`) are a separate store; see [MCP Knowledge Base Store](#mcp-knowledge-base-store).
+- **MCP server** (`lib/monadic/mcp/conduit.rb`): search, list and import for MCP clients; see [MCP Server](#mcp-server).
 
 ## Collections
 
@@ -154,12 +153,9 @@ The tool group counts as available when the embeddings service answers its healt
 
 The frontend opens the Conversation Viewer when an `mc:conv:` link is clicked.
 
-## MCP Knowledge Base Store
+## MCP Server
 
-`Monadic::Pdf::Store` (`lib/monadic/pdf/store.rb`) is the store of the MCP server's knowledge bases (`search_kb`, `list_kb`, `import_kb` in `lib/monadic/mcp/conduit.rb`). It keeps documents in `pdf_docs` (one point per document) and `pdf_items` (one point per chunk). Every query filters on the store's `app_key`, which is the tool's `knowledge_base` argument (default `global`).
-
-- A PDF given to `import_kb` is split by `PDF2Text` into chunks with overlapping lines. `PDF2Text#pdf2text` copies the file into the shared folder as `pdf2text_<random hex>.pdf` for the Python container, deletes the copy when the extraction ends, and stops the extraction after `PDF2Text::EXTRACT_TIMEOUT` (600 s). Pages are joined in page order.
-- `Pdf::Store` creates its collections before any read and, once per process, adds the schema's payload indexes (`doc_id` as keyword, `app_key`) to collections made earlier, through `VectorStore::Bootstrap` as the Library store does.
+The MCP server's `monadic_search_kb`, `monadic_list_kb` and `monadic_import_kb` (`lib/monadic/mcp/conduit.rb`) use the same store: search through `Retriever.cascade_search`, the list through `Manager.list_conversations`, and import through `Importers::Markdown` (text) or `FileImporter` (a file in the shared folder) and `Manager.import_conversation`, always into the Global scope. Their `knowledge_base` argument, and that of the chat tools' grounding, is the `app_name` passed to the scope filter; empty or `all` passes nil (every entry).
 
 ## Files
 
@@ -179,7 +175,6 @@ lib/monadic/library/
   schema.rb, version.rb
 lib/monadic/vector_store/schema.rb
 lib/monadic/embeddings/client.rb
-lib/monadic/pdf/store.rb
 lib/monadic/routes/library_import_routes.rb
 lib/monadic/shared_tools/library_search.rb
 lib/monadic/utils/websocket/library_handler.rb

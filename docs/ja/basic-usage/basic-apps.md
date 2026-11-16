@@ -21,7 +21,6 @@
 | Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Language Practice Plus | ✅ | ✅ | | | | | | |
 | Translate | ✅ | | ✅ | ✅ | | | | |
 | Voice Interpreter | ✅ | | ✅ | | | | | |
 | Novel Writer | ✅ | | | ✅ | | | ✅ | |
@@ -85,7 +84,6 @@
 音声での会話練習、テキストの翻訳、音声の通訳を行う語学学習向けアプリです。詳細は[語学学習アプリ](../apps/language-apps.md)を参照してください。
 
 - Language Practice
-- Language Practice Plus
 - Translate
 - Voice Interpreter
 

@@ -464,7 +464,7 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
       
       # Apps that use auto-discovery and don't need explicit tool mentions
       auto_discovery_apps = %w[
-        code_interpreter jupyter_notebook chat language_practice_plus
+        code_interpreter jupyter_notebook chat language_practice
         research_assistant speech_draft_helper second_opinion
         video_describer drawio_grapher mermaid_grapher novel_writer
         math_tutor image_generator video_generator monadic_help
@@ -527,11 +527,15 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
         add_search add_sources add_research_notes
         request_tool
       ]
-      
+
+      # Variants that keep a plain conversation and call no tools
+      variants_without_tools = %w[language_practice_ollama.mdsl]
+
       app_dirs.each do |app_dir|
         mdsl_files = Dir.glob(File.join(app_dir, "*.mdsl"))
+                        .reject { |file| variants_without_tools.include?(File.basename(file)) }
         ruby_files = Dir.glob(File.join(app_dir, "*_tools.rb"))
-        
+
         next if mdsl_files.length <= 1 || ruby_files.empty?
         
         # Extract core tools from Ruby implementation

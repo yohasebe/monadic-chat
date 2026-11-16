@@ -14,13 +14,13 @@ RSpec.describe "Monadic Apps Context Display", :e2e, :no_api do
     stop_monadic_chat_server
   end
   
-  describe "Language Practice Plus context display" do
+  describe "Language Practice context display" do
     it "shows language advice in context section for GPT-5" do
       # This would require Selenium or similar for full E2E
       # For now, we'll test the API response directly
       
       payload = {
-        "app" => "language_practice_plus_openai",
+        "app" => "language_practice_openai",
         "model" => "gpt-5",
         "messages" => [
           { "role" => "user", "content" => "Hello, I want to learn Japanese" }
@@ -49,7 +49,7 @@ RSpec.describe "Monadic Apps Context Display", :e2e, :no_api do
     
     it "shows language advice in context section for GPT-4.1" do
       payload = {
-        "app" => "language_practice_plus_openai",
+        "app" => "language_practice_openai",
         "model" => "gpt-4.1",
         "messages" => [
           { "role" => "user", "content" => "Hello, I want to learn Japanese" }
@@ -109,7 +109,7 @@ RSpec.describe "Monadic Apps Context Display", :e2e, :no_api do
   describe "Regression test for context loss bug" do
     it "preserves context for all monadic apps using Responses API" do
       monadic_apps = [
-        "language_practice_plus_openai",
+        "language_practice_openai",
         "chat_openai",
         "novel_writer_openai",
         "voice_interpreter_openai",
@@ -147,7 +147,7 @@ RSpec.describe "Monadic Apps Context Display", :e2e, :no_api do
     
     it "preserves context for all monadic apps using Chat Completions API" do
       monadic_apps = [
-        "language_practice_plus_openai",
+        "language_practice_openai",
         "chat_openai",
         "novel_writer_openai",
         "voice_interpreter_openai",

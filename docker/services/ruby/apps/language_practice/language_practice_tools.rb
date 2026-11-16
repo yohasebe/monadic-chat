@@ -1,13 +1,15 @@
 # frozen_string_literal: true
 
-# Language Practice Plus tools using Monadic Session State mechanism.
+# Language Practice tools using Monadic Session State mechanism.
+# Included by the app's definitions for the providers that call tools
+# (include_modules); the Ollama version keeps a plain conversation.
 # Keeps the practice's settings (target language, last message) as state, and
 # the advice given as a log shown on the practice's notes.
 # Uses tts_target to extract message for TTS from save_response tool.
 
 require_relative "../../lib/monadic/utils/tts_instruction_extractor"
 
-module LanguagePracticePlusTools
+module LanguagePracticeStateTools
   include MonadicHelper
   include Monadic::SharedTools::MonadicSessionState
 
@@ -77,16 +79,4 @@ module LanguagePracticePlusTools
   rescue StandardError
     { target_lang: nil, last_message: nil }
   end
-end
-
-# Class definition for Language Practice Plus app with OpenAI
-class LanguagePracticePlusOpenAI < MonadicApp
-  include OpenAIHelper if defined?(OpenAIHelper)
-  include LanguagePracticePlusTools
-end
-
-# Class definition for Language Practice Plus app with Claude
-class LanguagePracticePlusClaude < MonadicApp
-  include ClaudeHelper if defined?(ClaudeHelper)
-  include LanguagePracticePlusTools
 end

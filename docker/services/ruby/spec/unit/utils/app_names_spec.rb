@@ -32,6 +32,13 @@ RSpec.describe Monadic::Utils::AppNames do
     expect(described_class.with_former("MathTutorClaude")).to eq(%w[MathTutorClaude])
   end
 
+  it "gives Language Practice for the former Language Practice Plus" do
+    expect(described_class.current("LanguagePracticePlusOpenAI")).to eq("LanguagePracticeOpenAI")
+    expect(described_class.current("LanguagePracticePlusClaude")).to eq("LanguagePracticeClaude")
+    expect(described_class.with_former("LanguagePracticeOpenAI")).to include("LanguagePracticeOpenAI", "LanguagePracticePlusOpenAI")
+    expect(described_class.with_former("LanguagePracticeGemini")).to eq(%w[LanguagePracticeGemini])
+  end
+
   describe "the state a chat keeps" do
     let(:form) { Monadic::TurnState::Form }
     let(:entry) { { "data" => { "topics" => ["a"] }, "version" => 1, "updated_at" => "2026-01-01T00:00:00Z" } }

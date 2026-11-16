@@ -53,10 +53,10 @@ RSpec.describe 'Tool-Prompt Consistency Validation' do
       ruby_patterns: ['syntax_tree_tools.rb'],
       expected_tools: %w[render_syntax_tree]
     },
-    'language_practice_plus' => {
-      mdsl_patterns: ['language_practice_plus_*.mdsl'],
-      ruby_patterns: ['language_practice_plus_tools.rb'],
-      expected_tools: %w[set_target_language]
+    'language_practice' => {
+      mdsl_patterns: ['language_practice_*.mdsl'],
+      ruby_patterns: ['language_practice_tools.rb'],
+      expected_tools: %w[set_target_language save_response load_context]
     }
   }.freeze
 

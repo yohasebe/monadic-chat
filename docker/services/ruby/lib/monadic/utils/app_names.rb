@@ -10,7 +10,9 @@ module Monadic
     module AppNames
       RENAMED = %w[OpenAI Claude Gemini Grok Mistral DeepSeek Cohere].to_h do |provider|
         ["ChatPlus#{provider}", "Chat#{provider}"]
-      end.freeze
+      end.merge(
+        %w[OpenAI Claude].to_h { |provider| ["LanguagePracticePlus#{provider}", "LanguagePractice#{provider}"] }
+      ).freeze
 
       FORMER = RENAMED.each_with_object({}) { |(old, now), out| (out[now] ||= []) << old }
                       .transform_values(&:freeze).freeze

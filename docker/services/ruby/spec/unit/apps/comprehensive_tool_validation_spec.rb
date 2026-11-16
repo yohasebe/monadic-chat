@@ -58,10 +58,10 @@ RSpec.describe 'Comprehensive Tool Validation' do
       agents: %w[openai_code_agent grok_code_agent],
       providers: %w[OpenAI Claude Gemini Grok]
     },
-    'language_practice_plus' => {
+    'language_practice' => {
       tools: %w[set_target_language save_response load_context],
       agents: [],
-      providers: %w[OpenAI Claude]
+      providers: %w[OpenAI Claude Gemini Grok Mistral Cohere DeepSeek]
     },
     'math_tutor' => {
       tools: %w[add_concepts add_learning_notes add_solved_problem add_weak_areas load_learning_progress save_learning_progress],

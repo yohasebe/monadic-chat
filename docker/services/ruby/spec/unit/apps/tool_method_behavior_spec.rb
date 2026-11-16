@@ -234,23 +234,23 @@ RSpec.describe 'Tool Method Behavior' do
   end
 
   # ============================================
-  # Language Practice Plus Tools
+  # Language Practice Tools
   # ============================================
-  describe 'LanguagePracticePlus Tools' do
+  describe 'LanguagePractice Tools' do
     before(:all) do
-      tools_file = File.join(File.expand_path('../../../apps/language_practice_plus', __dir__), 'language_practice_plus_tools.rb')
+      tools_file = File.join(File.expand_path('../../../apps/language_practice', __dir__), 'language_practice_tools.rb')
       require tools_file if File.exist?(tools_file)
     end
 
     let(:app_class) do
-      Object.const_get('LanguagePracticePlusOpenAI') if Object.const_defined?('LanguagePracticePlusOpenAI')
+      Object.const_get('LanguagePracticeOpenAI') if Object.const_defined?('LanguagePracticeOpenAI')
     end
 
     let(:instance) { app_class&.new }
 
     describe '#set_target_language' do
       it 'accepts target_lang setting' do
-        skip 'LanguagePracticePlusOpenAI not loaded' unless instance
+        skip 'LanguagePracticeOpenAI not loaded' unless instance
         skip 'set_target_language not defined' unless instance.respond_to?(:set_target_language)
 
         # Note: parameter is :target_lang, not :language
@@ -258,6 +258,17 @@ RSpec.describe 'Tool Method Behavior' do
 
         expect(result).to be_a(Hash).or be_a(String)
       end
+    end
+
+    it 'has the practice tools for the providers that call tools, and none for Ollama' do
+      tools = %i[load_context save_response set_target_language]
+      %w[OpenAI Claude Gemini Grok MistralAI DeepSeek Cohere].each do |provider|
+        name = "LanguagePractice#{provider}"
+        skip "#{name} not loaded" unless Object.const_defined?(name)
+        expect(Object.const_get(name).instance_methods).to include(*tools), "#{name} lacks the practice tools"
+      end
+      skip 'LanguagePracticeOllama not loaded' unless Object.const_defined?('LanguagePracticeOllama')
+      expect(Object.const_get('LanguagePracticeOllama').instance_methods & tools).to eq([])
     end
   end
 

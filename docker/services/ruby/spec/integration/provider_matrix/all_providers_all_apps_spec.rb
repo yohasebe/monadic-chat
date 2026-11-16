@@ -169,10 +169,6 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
       prompt: 'How do you say "thank you" in Spanish?',
       expectation: 'Response about Spanish or languages'
     },
-    'LanguagePracticePlus' => {
-      prompt: 'Teach me to count to 3 in Italian.',
-      expectation: 'Language-related response'
-    },
 
     # Specialized apps
     'MusicLab' => {

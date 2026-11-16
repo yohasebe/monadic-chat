@@ -122,8 +122,8 @@ module Monadic
           {
             name: "monadic_query",
             description: "Send a one-shot query to a specific provider's chat model and " \
-                         "return the text response. Uses Monadic's own provider helpers " \
-                         "(your local API keys, data stays local). Spends provider tokens; " \
+                         "return the text response. Uses Monadic's own provider helpers and " \
+                         "your API keys; the messages are sent to that provider. Spends provider tokens; " \
                          "every call is gated by a platform-side token budget (see " \
                          "monadic_status.conduit_budget). Provide either `message` (a single " \
                          "user prompt) or `messages` (a full role/content conversation).",

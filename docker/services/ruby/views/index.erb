@@ -406,24 +406,6 @@
             </div><!-- end #ai-status-panel-body -->
           </div>
 
-          <div id="pdf-panel" class="mb-3 rounded shaded-panel overflow-hidden" style="display: none;">
-            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#pdf-panel-body" aria-expanded="true">
-              <span class="text" data-i18n="ui.pdfDatabase"><i class="fas fa-file-pdf"></i> PDF Database</span>
-              <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
-            </h5>
-            <div id="pdf-panel-body" class="collapse show px-3 pb-3">
-            <div id="local-pdf-section">
-              <div class="like-h6"><i class="fas fa-database"></i> Local PDF <small class="text-muted" id="local-pdf-info"></small></div>
-              <div class="d-flex gap-2 flex-wrap mt-2">
-                <button class="btn btn-sm btn-warning text-nowrap" id="pdf-import" title="Import PDF file to local database" data-i18n="ui.importFile" data-i18n-title="ui.pdfImportFile"><i class="fas fa-file-arrow-up"></i> Import</button>
-                <button id="local-pdf-refresh" class="btn btn-sm btn-secondary text-nowrap" title="Refresh local PDF list" data-i18n-title="ui.pdfRefreshLocal"><i class="fa-solid fa-rotate"></i> Refresh</button>
-                <button id="local-pdf-clear" class="btn btn-sm btn-secondary text-nowrap" title="Clear all PDFs from local database" data-i18n-title="ui.pdfClearLocal"><i class="fa-regular fa-trash-can"></i> Clear All</button>
-              </div>
-              <div class="mt-2" id="pdf-titles"></div>
-            </div>
-            </div><!-- end #pdf-panel-body -->
-          </div>
-
           <div id="library-panel" class="mb-3 rounded shaded-panel overflow-hidden">
             <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#library-panel-body" aria-expanded="true">
               <span class="text" data-i18n="ui.knowledgeBase"><i class="fas fa-book"></i> Knowledge Base</span>
@@ -1388,25 +1370,6 @@
       </div>
     </div>
 
-    <!-- Modal -->
-    <div class="modal fade" id="pdfDeleteConfirmation" tabindex="-1" aria-labelledby="pdfDeleteConfirmationLabel" aria-hidden="true">
-      <div class="modal-dialog modal-confirm">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="pdfDeleteConfirmationLabel"><i class="fa-regular fa-trash-can"></i> <span data-i18n="ui.modals.deletePDF">Delete PDF</span></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <span data-i18n="ui.modals.pdfDeleteConfirmation">Are you sure you want to delete</span> <span class="fw-bold text-secondary-styled" id="pdfToDelete"></span>?
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
-            <button type="button" id="pdfDeleteConfirmed" class="btn btn-sm btn-outline-danger" data-i18n="ui.modals.confirm">Confirm</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Message Delete Confirmation Modal -->
     <div class="modal fade" id="deleteConfirmation" tabindex="-1" aria-labelledby="deleteConfirmationLabel" aria-hidden="true">
       <div class="modal-dialog">
@@ -1469,33 +1432,6 @@
               <button id="import-button" type="submit" value="load" class="btn btn-sm btn-primary" disabled data-i18n="ui.modals.load">Load</button>
             </div>
           </form>
-        </div>
-      </div>
-    </div>
-
-    <div class="modal fade" id="fileModal" tabindex="-1" aria-labelledby="fileModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="fileModalLabel"><i class="fas fa-file"></i> <span data-i18n="ui.modals.importFile">Import File</span></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <label class="form-label" for="file-title" data-i18n="ui.modals.fileTitleOptional">File Title (Optional)</label>
-            <div class="mb-3">
-              <input class="form-control form-control-sm" id="file-title" placeholder=""></input>
-            </div>
-            <!-- Storage selection is configured globally via Settings panel (PDF Storage Mode) -->
-            <label for="fileFile" class="form-label" data-i18n="ui.modals.fileToImport">File to import</label>
-            <input class="form-control form-control-sm" id="fileFile" type="file" name="fileFile">
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
-            <div class="spinner-border" role="status" id="file-spinner" style="display: none;">
-              <span class="visually-hidden">Loading . . .</span>
-            </div>
-            <button type="submit" id="uploadFile" value="file" class="btn btn-sm btn-primary" disabled data-i18n="ui.import">Import</button>
-          </div>
         </div>
       </div>
     </div>

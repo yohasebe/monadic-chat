@@ -60,18 +60,6 @@ RSpec.describe Monadic::Pdf::Store do
     end
   end
 
-  describe 'TOOLS' do
-    it 'declare doc_id with the type of the ids the store gives' do
-      allow(store).to receive(:scroll).and_return({ points: [{ 'id' => SecureRandom.uuid, 'payload' => { 'title' => 'T' } }], next: nil })
-      id = pdf.list_titles.first[:doc_id]
-      json_type = { String => 'string', Integer => 'integer' }.fetch(id.class)
-      described_class::TOOLS.each_value do |(_desc, params)|
-        expect(params['doc_id']).to eq(json_type) if params.key?('doc_id')
-      end
-      expect(described_class::TOOLS.values.count { |(_d, p)| p.key?('doc_id') }).to eq(2)
-    end
-  end
-
   describe '#any_docs?' do
     it 'returns true when the count for this app_key is positive' do
       allow(store).to receive(:count).with(

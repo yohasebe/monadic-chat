@@ -68,7 +68,6 @@ All settings in the features block are optional:
 - `initiate_from_assistant` - Start conversation with AI message
 
 #### Content Features
-- `pdf_vector_storage` - Enable PDF database functionality for RAG (Retrieval-Augmented Generation). Shows PDF import button and database panel in the UI
 - `websearch` - Enable web search capability
 - `image_generation` - Enable AI image generation capabilities. Accepts:
   - `true` - Image generation and editing

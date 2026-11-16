@@ -1,6 +1,6 @@
 # ベクトルデータベース
 
-Monadic Chat には、Knowledge Base、PDF Database、ヘルプの文書を意味で検索するためのベクトルデータベースがあります。このページでは、その使われ方を説明します。
+Monadic Chat には、Knowledge Base とヘルプの文書を意味で検索するためのベクトルデータベースがあります。このページでは、その使われ方を説明します。
 
 ## 概要 :id=overview
 
@@ -8,7 +8,7 @@ Monadic Chat には、Knowledge Base、PDF Database、ヘルプの文書を意�
 - お使いのコンピューターで、テキストをベクトル（埋め込み）に変換します
 - ベクトルを、テキストの出どころの情報と一緒に Qdrant コンテナに保存します
 - キーワードの一致ではなく、意味の近さでテキストを探します
-- Knowledge Base、PDF Database、Monadic Chat Help アプリが使います
+- Knowledge Base と Monadic Chat Help アプリが使います
 
 埋め込みと検索はローカルで行われ、API キーは要りません。
 
@@ -45,7 +45,6 @@ Knowledge Base にファイルを取り込むときの流れです。
 ## 保存されるもの :id=database-schema
 
 - **Knowledge Base**：保存した会話と取り込んだファイル（文書とその区切り）
-- **PDF Database**：[PDF Database](../basic-usage/pdf_storage.md) のパネルから取り込んだ PDF。アプリごとに、そのアプリで取り込んだ PDF だけが見えます。PDF Database は Knowledge Base とは別です
 - **ヘルプのデータ**：Monadic Chat の文書。Monadic Chat Help アプリが使います
 
 ## 範囲 :id=visibility

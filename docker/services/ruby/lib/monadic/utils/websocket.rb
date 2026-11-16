@@ -26,7 +26,6 @@ require_relative 'websocket/tts_handler'
 require_relative 'websocket/message_editor'
 require_relative 'websocket/audio_handler'
 require_relative 'websocket/audio_stream_handler'
-require_relative 'websocket/pdf_handler'
 require_relative 'websocket/workbench_handler'
 require_relative 'websocket/jupyter_handler'
 require_relative 'websocket/library_handler'
@@ -242,12 +241,6 @@ module WebSocketHelper
           drop_queued_replies(queue)
 
           handle_ws_cancel(Thread.current[:websocket_session_id])
-        when "PDF_TITLES"
-          handle_ws_pdf_titles(connection, obj, session)
-        when "DELETE_PDF"
-          handle_ws_delete_pdf(connection, obj, session)
-        when "DELETE_ALL_PDFS"
-          handle_ws_delete_all_pdfs(connection, obj, session)
         when "LIBRARY_LIST"
           handle_ws_library_list(connection, obj, session)
         when "LIBRARY_DELETE"

@@ -12,7 +12,6 @@
     - [メッセージ入力](/ja/basic-usage/message-input.md)
     - [Workflow Viewer](/ja/basic-usage/workflow-viewer.md)
     - [基本アプリ](/ja/basic-usage/basic-apps.md)
-    - [PDF Database](/ja/basic-usage/pdf_storage.md)
     - [シンタックス・ハイライト](/ja/basic-usage/syntax-highlighting.md)
 
 - **アプリ**

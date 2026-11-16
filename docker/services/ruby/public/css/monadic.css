@@ -2314,7 +2314,7 @@ pre code {
   margin-bottom: 1rem;
 }
 
-#monadic-info-panel, #ai-status-panel, #pdf-panel, #control-panel, #theme-panel, #interaction-panel, #voice-panel {
+#monadic-info-panel, #ai-status-panel, #control-panel, #theme-panel, #interaction-panel, #voice-panel {
   border: none;
   border-bottom: 1px solid var(--border-light);
   margin-bottom: 1rem;
@@ -2435,29 +2435,6 @@ h1 {
   max-width: 100%; /* Ensure it doesn't exceed the syntree container width */
   height: auto; /* Maintain aspect ratio */
   display: block; /* Remove any default inline spacing */
-}
-
-#pdf-titles {
-  border: none;
-  background: transparent;
-}
-
-/* Local PDF row styling */
-
-.pdf-db-row {
-  background: #fff;
-  padding: 8px 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  margin-bottom: 10px;
-}
-
-.pdf-db-row:hover {
-  background: #f7f7f7;
-}
-
-.pdf-db-name {
-  color: #555;
 }
 
 /* Custom dropdown styling */
@@ -5233,7 +5210,7 @@ i.fas.fa-bolt,
   }
   
   /* Optimize panel spacing on mobile */
-  #monadic-info-panel, #control-panel, #ai-status-panel, #voice-panel, #pdf-panel {
+  #monadic-info-panel, #control-panel, #ai-status-panel, #voice-panel {
     margin-bottom: 0.6rem; /* Further reduce space between panels */
     padding-top: 0.6rem; /* Less padding to reduce overall spacing */
     padding-bottom: 0.6rem;

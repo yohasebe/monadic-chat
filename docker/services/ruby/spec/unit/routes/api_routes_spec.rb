@@ -112,14 +112,6 @@ RSpec.describe "API Routes helpers" do
         expect(result["auto_speech"]).to be false
       end
 
-      it "normalizes pdf capability from pdf_vector_storage" do
-        settings = { pdf_vector_storage: true }
-
-        result = described_class.wv_extract_features(settings)
-
-        expect(result["pdf"]).to be true
-      end
-
       it "normalizes pdf capability from pdf_upload" do
         settings = { pdf_upload: true }
 
@@ -129,7 +121,7 @@ RSpec.describe "API Routes helpers" do
       end
 
       it "does not override explicit pdf: true with normalization" do
-        settings = { pdf: true, pdf_vector_storage: false }
+        settings = { pdf: true, pdf_upload: false }
 
         result = described_class.wv_extract_features(settings)
 

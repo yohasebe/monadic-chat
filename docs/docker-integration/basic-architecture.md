@@ -33,10 +33,10 @@ Runs a Chromium browser that the apps control to open web pages and take screens
 - **Used by**: Web Insight, Research Assistant, Auto Forge, Mermaid Grapher
 
 ### Qdrant Container (`monadic-chat-qdrant-container`) :id=qdrant-container
-Runs the [Qdrant](https://qdrant.tech) vector database. It stores the Knowledge Base, the PDF Database, and the help data. See [Vector Database](vector-database.md).
+Runs the [Qdrant](https://qdrant.tech) vector database. It stores the Knowledge Base and the help data. See [Vector Database](vector-database.md).
 
 ### Embeddings Container (`monadic-chat-embeddings-container`) :id=embeddings-container
-Converts text into vectors with the `intfloat/multilingual-e5-base` model, for searching the Knowledge Base, the PDF Database, and the help data. It runs on the CPU and needs no API key.
+Converts text into vectors with the `intfloat/multilingual-e5-base` model, for searching the Knowledge Base and the help data. It runs on the CPU and needs no API key.
 
 ### Privacy Container (`monadic-chat-privacy-container`) :id=privacy-container
 Finds names for [Anonymization](../advanced-topics/anonymization.md), which replaces the words you choose with placeholders in the text a chat sends. It runs locally and needs no API key.
@@ -70,7 +70,6 @@ These apps use only the Ruby container (plus Qdrant and Embeddings, which always
 
 **Qdrant + Embeddings Containers**:
 - Knowledge Base
-- PDF Database
 - Monadic Chat Help
 
 ?> To add your own containers, see [Adding Docker Containers](../advanced-topics/adding-containers.md).

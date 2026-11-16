@@ -67,7 +67,6 @@ featuresブロック内のすべての設定はオプションです：
 - `initiate_from_assistant` - AIメッセージで会話を開始
 
 #### コンテンツ機能
-- `pdf_vector_storage` - RAG（検索拡張生成）のためのPDFデータベース機能を有効化。UIにPDFインポートボタンとデータベースパネルを表示
 - `websearch` - ウェブ検索機能を有効化
 - `image_generation` - AI画像生成機能を有効化。以下の値を受け付けます：
   - `true` - 画像の生成と編集

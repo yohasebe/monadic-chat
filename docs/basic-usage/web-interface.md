@@ -132,9 +132,6 @@ Links to the homepage and GitHub, the current version, the **Conversation Langua
 **AI Assistant & AI User**<br />
 The models in use for the assistant and for the AI User feature, and the statistics of the current session (message and token counts).
 
-**PDF Database**<br />
-Shown only for apps with a PDF database. See [PDF Database Panel](#pdf-database-display-panel) below.
-
 **Knowledge Base**<br />
 **Save** the current conversation to the Knowledge Base, **Browse** it, and turn **Use Knowledge Base for retrieval (this session)** on or off. See [Knowledge Base](../apps/knowledge-base.md).
 
@@ -222,16 +219,6 @@ Select the voice for speech synthesis. Available voices depend on the selected p
 
 **TTS Speed**<br />
 Adjust the playback speed of synthesized speech (0.7 to 1.2).
-
-## PDF Database Panel :id=pdf-database-display-panel
-
-<!-- SCREENSHOT: PDF database panel listing uploaded PDFs with display names and delete icons -->
-
-?> This panel is displayed only when an app with a PDF database is selected.
-
-Click **Import** to upload a PDF; you can give it a title (if you leave it empty, the file name is used). Multiple PDF files can be uploaded. **Refresh** updates the list, the trash can icon next to a PDF removes it, and **Clear All** removes every PDF of the app, each after a confirmation.
-
-PDFs are stored on your computer. Back them up with **Export Document DB** and restore them with **Import Document DB** (Actions menu). For more information, see [PDF Database](./pdf_storage.md).
 
 ## History Tab :id=chat-history-panel
 

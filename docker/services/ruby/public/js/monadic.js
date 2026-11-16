@@ -133,25 +133,6 @@ function broadcastParamsUpdate(reason = null) {
 
 window.broadcastParamsUpdate = broadcastParamsUpdate;
 
-// Helper for WS messages that target the per-app PDF store. Injects the
-// currently-selected app name so the server can resolve the namespace
-// even when the session has not been hydrated yet (UPDATE_PARAMS race).
-function sendPdfWsMessage(payload) {
-  let appName = '';
-  try {
-    const apps = document.getElementById('apps');
-    if (apps && apps.value) appName = apps.value;
-  } catch (_) { /* no-op */ }
-  const merged = Object.assign({}, payload || {});
-  if (appName && !merged.app_name) merged.app_name = appName;
-  // PDF_TITLES / DELETE_PDF / DELETE_ALL_PDFS are all idempotent
-  // (added to the wrapper's default set in H7.7) so safeWsSend
-  // auto-classifies them. We delegate alert/queue policy to the
-  // wrapper instead of swallowing the error here.
-  window.safeWsSend(merged);
-}
-window.sendPdfWsMessage = sendPdfWsMessage;
-
 // Helper function to get formatted provider name from group
 function getProviderFromGroup(group) {
   if (!group) return "OpenAI";
@@ -2193,13 +2174,6 @@ document.addEventListener("DOMContentLoaded", function () {
       return !!value;
     });
 
-    if (toBool(apps[appValue]["pdf_vector_storage"])) {
-      $show($id("pdf-panel"));
-      sendPdfWsMessage({ message: "PDF_TITLES" });
-    } else {
-      $hide($id("pdf-panel"));
-    }
-
     if (toBool(apps[appValue]["audio_upload"])) {
       $show($id("audio-upload"));
     } else {
@@ -2700,7 +2674,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Ensure UI controls are properly enabled by default
     // This prevents UI getting stuck in disabled state
     function ensureControlsEnabled() {
-      document.querySelectorAll("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import, #audio-upload").forEach(function(_el) { _el.disabled = false; });
+      document.querySelectorAll("#send, #clear, #image-file, #voice, #doc, #url, #audio-upload").forEach(function(_el) { _el.disabled = false; });
       { const el = $id("message"); if (el) el.disabled = false; }
       { const el = $id("select-role"); if (el) el.disabled = false; }
       $hide($id("monadic-spinner"));
@@ -2824,7 +2798,7 @@ document.addEventListener("DOMContentLoaded", function () {
       webUIi18n.t('ui.messagePlaceholder') : "Type your message . . .";
     { const el = $id("message"); if (el) el.setAttribute("placeholder", placeholderText); }
     { const el = $id("message"); if (el) el.disabled = false; }
-    document.querySelectorAll("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").forEach(function(_el) { _el.disabled = false; });
+    document.querySelectorAll("#send, #clear, #image-file, #voice, #doc, #url").forEach(function(_el) { _el.disabled = false; });
     { const el = $id("ai_user_provider"); if (el) el.disabled = false; }
     { const el = $id("ai_user"); if (el) el.disabled = false; }
     { const el = $id("select-role"); if (el) el.disabled = false; }
@@ -3182,90 +3156,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  $on($id("loadModal"), "shown.bs.modal", function () {
-    { const el = $id("file-title"); if (el) el.focus(); }
-  });
-  
   $on($id("loadModal"), "hidden.bs.modal", function () {
     // Reset form state when modal is closed
     { const el = $id('file-load'); if (el) el.value = ''; }
     { const el = $id('import-button'); if (el) el.disabled = true; }
     $hide($id("load-spinner"));
-  });
-
-  $on($id("pdf-import"), "click", function(event) {
-    event.preventDefault();
-    { const el = $id("file-title"); if (el) el.value = ""; }
-    { const el = $id("fileFile"); if (el) el.value = ""; }
-    bootstrap.Modal.getOrCreateInstance($id("fileModal")).show();
-
-    // Set a friendly placeholder for file title
-    try {
-      const ph = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.fileTitlePlaceholder') : 'File name will be used if not provided';
-      { const el = $id("file-title"); if (el) el.setAttribute('placeholder', ph); }
-    } catch (_) { console.warn("[PDF Modal] Placeholder setup failed:", _); }
-  });
-
-  let fileTitle = "";
-
-  // Ensure event handler is properly attached when document is ready
-  document.addEventListener("click", async function (e) { const _delegateTarget = e.target.closest("#uploadFile"); if (!_delegateTarget) return;
-    e.preventDefault();
-    
-    const fileInput = $id("fileFile");
-    const file = fileInput.files[0];
-    
-    // Check if formHandlers is available
-    if (typeof formHandlers === 'undefined' || !formHandlers.uploadPdf) {
-      setAlert(typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.uploadNotAvailable') : 'Upload functionality not available', "error");
-      return;
-    }
-    
-    try {
-      // Disable UI elements during upload
-      document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = true; });
-      $show($id("file-spinner"));
-      
-      fileTitle = ($id("file-title") || {}).value;
-      
-      // Use the form handlers module if available, otherwise fallback
-      const response = await formHandlers.uploadPdf(file, fileTitle);
-      
-      // Process the response
-      if (response && response.success) {
-        // Clean up UI
-        $hide($id("file-spinner"));
-        document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance($id("fileModal")).hide();
-        sendPdfWsMessage({ message: "PDF_TITLES" });
-        const uploadedFilename = response.filename || "PDF file";
-        const uploadMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.uploadSuccess') : 'uploaded successfully';
-        setAlert(`<i class='fa-solid fa-circle-check'></i> "${uploadedFilename}" ${uploadMsg}`, "success");
-      } else {
-        // Show error message from API
-        const errorMessage = response && response.error ? response.error : "Failed to process PDF";
-        
-        // Clean up UI
-        $hide($id("file-spinner"));
-        document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance($id("fileModal")).hide();
-        
-        setAlert(`${errorMessage}`, "error");
-      }
-      
-    } catch (error) {
-      console.error("Error uploading PDF:", error);
-      
-      // Clean up UI on error
-      $hide($id("file-spinner"));
-      document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = false; });
-      bootstrap.Modal.getOrCreateInstance($id("fileModal")).hide();
-      
-      // Show appropriate error message
-      const errorMessage = error.statusText || error.message || "Unknown error";
-      const uploadErrorMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.uploadError') : 'Error uploading file';
-      setAlert(`${uploadErrorMsg}: ${errorMessage}`, "error");
-    }
   });
 
   $on($id("doc"), "click", function(event) {
@@ -3435,30 +3330,6 @@ document.addEventListener("DOMContentLoaded", function () {
       bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).hide();
       setAlert("Upload error: " + (error.statusText || error.message || "Unknown error"), "error");
     }
-  });
-
-  // Fetch and display local PDF storage presence
-  async function refreshPdfStorageStatus() {
-    try {
-      const statusResp = await fetch('/api/pdf_storage_status');
-      const res = statusResp.ok ? await statusResp.json() : null;
-      if (!res || !res.success) return;
-      { const el = $id("local-pdf-info"); if (el) el.textContent = res.local_present ? '(ready)' : ''; }
-      if (window.ws) sendPdfWsMessage({ message: "PDF_TITLES" });
-    } catch (_) { /* ignore */ }
-  }
-  setTimeout(refreshPdfStorageStatus, 700);
-
-  // Local PDF controls
-  document.addEventListener('click', function(e) { if (!e.target.closest('#local-pdf-refresh')) return;
-    e.preventDefault();
-    if (window.ws) sendPdfWsMessage({ message: "PDF_TITLES" });
-  });
-  document.addEventListener('click', function(e) { if (!e.target.closest('#local-pdf-clear')) return;
-    e.preventDefault();
-    const msg = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.clearAllLocalPdfs') : 'Clear all Local PDFs?';
-    if (!confirm(msg)) return;
-    if (window.ws) sendPdfWsMessage({ message: "DELETE_ALL_PDFS" });
   });
 
   $on($id("url"), "click", function(event) {
@@ -4145,26 +4016,6 @@ document.addEventListener("DOMContentLoaded", function () {
         if (loadButton) loadButton.disabled = false;
       } else {
         if (loadButton) loadButton.disabled = true;
-      }
-    });
-  }
-
-  const fileFile = $id('fileFile');
-  const fileButton = $id('uploadFile');
-
-  // Use the form handlers module for file upload validation
-  if (formHandlers && formHandlers.setupFileValidation) {
-    formHandlers.setupFileValidation(
-      $id('fileFile'),
-      $id('uploadFile')
-    );
-  } else {
-    // Fallback to direct event handler
-    fileFile.addEventListener('change', function () {
-      if (fileFile.files.length > 0) {
-        if (fileButton) fileButton.disabled = false;
-      } else {
-        if (fileButton) fileButton.disabled = true;
       }
     });
   }

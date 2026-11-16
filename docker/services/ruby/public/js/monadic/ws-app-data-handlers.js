@@ -624,12 +624,6 @@ function handleAppsMessage(data) {
           window.updateAppBadges(firstValidApp);
         }
 
-        if (firstValidApp === "PDF") {
-          if (window.ws) {
-            window.sendPdfWsMessage({ message: "PDF_TITLES" });
-          }
-        }
-
         // Call proceedWithAppChange directly to ensure proper initialization
         // Use setTimeout to ensure DOM and all dependencies are ready
         if (!fromParamUpdate) {

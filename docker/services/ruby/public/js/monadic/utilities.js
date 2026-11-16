@@ -1026,8 +1026,6 @@ window.loadParams = function(params, calledFor = "loadParams") {
 }
 
 function resetParams() {
-  const pdfTitles = $id("pdf-titles");
-  if (pdfTitles) pdfTitles.innerHTML = '';
   // Use a local copy of originalParams to avoid reference issues
   const originalParamsCopy = originalParams ? JSON.parse(JSON.stringify(originalParams)) : {};
   params = Object.assign({}, originalParamsCopy);
@@ -1043,15 +1041,6 @@ function resetParams() {
       return !!value;
     });
 
-    const pdfPanel = $id("pdf-panel");
-    const pdfVisible = (toBool(params["pdf"]) || toBool(params["pdf_vector_storage"]));
-    $toggle(pdfPanel, pdfVisible);
-    // The list was cleared at the top of resetParams; re-fetch so the panel
-    // shows the current PDFs (or the "No PDFs imported" empty state) instead of
-    // a bare blank region until the user manually refreshes.
-    if (pdfVisible && window.ws && typeof window.sendPdfWsMessage === "function") {
-      window.sendPdfWsMessage({ message: "PDF_TITLES" });
-    }
     const audioUpload = $id("audio-upload");
     $toggle(audioUpload, toBool(params["audio_upload"]));
     // Reset the flag after loading is complete

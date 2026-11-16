@@ -178,7 +178,7 @@ get "/api/app/:name/graph" do
     input_types = ["text"]
     # Image input: explicit vision flag OR image-to-X upload (upload_only).
     input_types << "image" if s[:image] || s["image"] || wv_accepts_image_upload?(s)
-    input_types << "pdf" if s[:pdf] || s["pdf"] || s[:pdf_vector_storage] || s["pdf_vector_storage"] || s[:pdf_upload] || s["pdf_upload"]
+    input_types << "pdf" if s[:pdf] || s["pdf"] || s[:pdf_upload] || s["pdf_upload"]
 
     {
       app_name: s[:app_name] || s["app_name"],

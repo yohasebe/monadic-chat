@@ -65,9 +65,6 @@ app "ResearchAssistantOpenAI" do
     1. Call request_tool("openai_code_agent") to unlock
     2. Call openai_code_agent with task description
 
-    ## PDF Document Search
-    When answering questions about uploaded PDFs, check the document store first. Include citation footer with: Doc Title, Snippet tokens, and Snippet position.
-
     ## Tool Usage (Important)
     - Call tools with purpose - avoid repeated calls with same parameters
     - After completing tool calls, provide your response
@@ -140,7 +137,6 @@ app "ResearchAssistantOpenAI" do
     auto_speech false
     initiate_from_assistant true
     math true
-    pdf_vector_storage true
   end
 
   tools do

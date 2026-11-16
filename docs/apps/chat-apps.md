@@ -101,7 +101,7 @@ Second Opinion is available wherever the [availability table](../basic-usage/bas
 
 An assistant for academic and scientific research. It searches the web, reads and analyzes the sources, and keeps the topics, findings, sources, and searches of the session, shown on the work screen as the **Research notes** page. Use it to find current information, check facts, and summarize a topic. Charts and other files its Python code makes are saved in the chat's folder and shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat; the reply names them with their paths.
 
-Research Assistant availability matches the [availability table](../basic-usage/basic-apps.md#app-availability). Whether web search uses the provider's own search or the Tavily API (requires `TAVILY_API_KEY`) is shown in the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities). The OpenAI version can also search the PDFs in the [PDF Database](../basic-usage/pdf_storage.md). To read a web page into your message, see [Reading Text from URLs](../basic-usage/message-input.md#reading-text-from-urls).
+Research Assistant availability matches the [availability table](../basic-usage/basic-apps.md#app-availability). Whether web search uses the provider's own search or the Tavily API (requires `TAVILY_API_KEY`) is shown in the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities). To read a web page into your message, see [Reading Text from URLs](../basic-usage/message-input.md#reading-text-from-urls).
 
 
 ## Monadic Chat Help

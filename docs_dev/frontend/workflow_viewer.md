@@ -73,8 +73,8 @@ var ACRONYMS = { pdf: 'PDF', html: 'HTML', api: 'API', url: 'URL', tts: 'TTS', s
 
 Returns JSON with app pipeline data. Key normalization in `wv_extract_features`:
 
-- `pdf_vector_storage` and `pdf_upload` are normalized to `pdf` (matching `BadgeBuilder.normalize_feature_names`)
-- `input_types` also checks these aliases for PDF capability detection
+- `pdf_upload` is normalized to `pdf` (matching `BadgeBuilder.normalize_feature_names`)
+- `input_types` also checks this alias for PDF capability detection
 
 ### Feature Flags
 

@@ -120,7 +120,7 @@ function handleError(data) {
     handled = wsHandlers.handleErrorMessage(translatedData);
   } else {
     // Fallback to inline handling
-    ["send", "clear", "image-file", "voice", "doc", "url", "pdf-import", "ai_user"].forEach(function(id) {
+    ["send", "clear", "image-file", "voice", "doc", "url", "ai_user"].forEach(function(id) {
       const el = $id(id);
       if (el) el.disabled = false;
     });

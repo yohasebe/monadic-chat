@@ -30,7 +30,6 @@ beforeEach(() => {
   createDOMElement('button', 'voice');
   createDOMElement('button', 'doc');
   createDOMElement('button', 'url');
-  createDOMElement('button', 'pdf-import');
   createDOMElement('select', 'select-role');
   createDOMElement('div', 'user-panel');
   const tempCard = createDOMElement('div', 'temp-card');

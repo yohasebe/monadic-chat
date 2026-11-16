@@ -15,6 +15,7 @@
     - Syntax Tree no longer needs LaTeX
     - A turn ends after 20 rounds of tool calls (10 in many apps), and a repeated identical tool call is refused
     - Ollama apps are defined as for the other providers; models without the tools capability answer as a plain chat
+    - The default Ollama model is `gpt-oss:20b`
     - Language Practice writes its advice in the interface language
     - The sidebar has `Menu`, `Work screen`, `Files` and `History` tabs
     - A chat's browser closes on `Reset`, an app change, an import or after 5 minutes unused; of the Selenium container's ports, only noVNC (7900) is open
@@ -35,6 +36,8 @@
     - Streamed replies no longer lose words
     - Earlier replies are no longer duplicated or dropped with Ollama, Mistral and DeepSeek
     - Long chains of tool calls work with every provider
+    - Ollama apps no longer repeat a tool call or end a reply empty
+    - A reply stopped for repeated tool calls names the tools
     - The reasoning effort chosen for a Claude model is used
     - A reply with many formulas or code blocks shows each in its place
     - A chat continued from the history or an import keeps its own app

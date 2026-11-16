@@ -184,7 +184,8 @@ module Monadic
                   type: "string",
                   description: "Optional. Ground the answer in the Knowledge Base: 'all' searches every " \
                                "entry, an app name (e.g. ChatOpenAI) searches that app's entries and the " \
-                               "Global ones. The latest user message is the query (data stays local)."
+                               "Global ones. The latest user message is the query; the search runs " \
+                               "locally, and the passages found are sent to the provider with the question."
                 },
                 privacy: {
                   type: "boolean",
@@ -282,7 +283,8 @@ module Monadic
                   type: "string",
                   description: "Optional. Ground the answer in the Knowledge Base: 'all' searches every " \
                                "entry, an app name (e.g. ChatOpenAI) searches that app's entries and the " \
-                               "Global ones. The latest user message is the query (data stays local)."
+                               "Global ones. The latest user message is the query; the search runs " \
+                               "locally, and the passages found are sent to the provider with the question."
                 },
                 privacy: {
                   type: "boolean",
@@ -425,7 +427,8 @@ module Monadic
                   type: "string",
                   description: "Optional. Ground the answer in the Knowledge Base: 'all' searches every " \
                                "entry, an app name (e.g. ChatOpenAI) searches that app's entries and the " \
-                               "Global ones. The latest user message is the query (data stays local)."
+                               "Global ones. The latest user message is the query; the search runs " \
+                               "locally, and the passages found are sent to the provider with the question."
                 },
                 privacy: {
                   type: "boolean",

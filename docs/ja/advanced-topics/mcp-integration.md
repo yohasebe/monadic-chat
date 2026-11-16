@@ -61,7 +61,7 @@ Conduit は以下の `monadic_*` ツールを公開します。各ツールの�
 - `monadic_list_kb` — Knowledge Base の項目の一覧
 - `monadic_import_kb` — テキスト、または共有フォルダのファイル（PDF、Markdown、Word、Excel、PowerPoint、ソースコード）を Global の項目として取り込み
 
-これらの道具と、`monadic_query`・`monadic_parallel_query`・`monadic_confidence` の `knowledge_base` 引数は、既定ではすべての項目を読みます（`all`）。`ChatOpenAI` のようにアプリの名前を渡すと、そのアプリの項目と Global の項目だけを読みます。
+これらの道具と、`monadic_query`・`monadic_parallel_query`・`monadic_confidence` の `knowledge_base` 引数は、既定ではすべての項目を読みます（`all`）。`ChatOpenAI` のようにアプリの名前を渡すと、そのアプリの項目と Global の項目だけを読みます。`knowledge_base` を渡したチャットの道具は、検索を手元で行い、見つかった文章を質問と一緒にプロバイダーへ送ります。
 
 **解析（入力）**
 - `monadic_analyze_image` — 画像の説明・質問応答

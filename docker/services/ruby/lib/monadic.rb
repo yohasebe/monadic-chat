@@ -70,7 +70,6 @@ helpers InteractionUtils
 require_relative "monadic/utils/websocket"
 helpers WebSocketHelper
 
-require_relative "monadic/utils/pdf_text_extractor"
 require_relative "monadic/utils/debug_helper"
 require_relative "monadic/utils/extra_logger"
 require_relative "monadic/utils/json_repair"

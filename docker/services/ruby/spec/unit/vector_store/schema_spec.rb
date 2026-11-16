@@ -5,10 +5,9 @@ require 'monadic/vector_store/schema'
 
 RSpec.describe Monadic::VectorStore::Schema do
   describe 'collection identifiers' do
-    it 'enumerates Help/Pdf and Library collections in ALL_COLLECTIONS' do
+    it 'enumerates Help and Library collections in ALL_COLLECTIONS' do
       expect(described_class::ALL_COLLECTIONS).to contain_exactly(
         'help_docs', 'help_items',
-        'pdf_docs', 'pdf_items',
         'library_summaries', 'library_turns', 'library_messages'
       )
     end
@@ -53,7 +52,7 @@ RSpec.describe Monadic::VectorStore::Schema do
     end
 
     it 'indexes doc_id on item-level collections so per-document scrolls are fast' do
-      %w[help_items pdf_items].each do |coll|
+      %w[help_items].each do |coll|
         fields = described_class::DEFINITIONS[coll][:payload_indexes].map { |i| i[:field] }
         expect(fields).to include('doc_id'), "expected doc_id index on #{coll}"
       end

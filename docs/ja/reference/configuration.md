@@ -15,7 +15,6 @@
 - [開発設定](#development-settings)
 - [コンテナ設定](#container-settings)
 - [インストールオプション](#install-options)
-- [PDF 処理設定](#pdf-processing-settings)
 
 ## 設定優先度 :id=configuration-priority
 
@@ -191,15 +190,6 @@ PYOPT_LIBROSA=true
 
 - NLTK と spaCy のオプションが入れるのはパッケージだけです。データセットとモデルは、Python のイメージのビルドの最後に実行される `~/monadic/config/pysetup.sh` でダウンロードしてください
 - ビルドに失敗したときは、今のイメージがそのまま使われます
-
-## PDF処理設定 :id=pdf-processing-settings
-
-この設定は、MCP サーバーが Knowledge Base に取り込む PDF に使われます。Web の画面で取り込む PDF には、決まった断片の大きさが使われます。
-
-| 変数 | 説明 | 既定 |
-|------|------|------|
-| `PDF_RAG_TOKENS` | PDF の断片 1 つのトークン数 | `4000` |
-| `PDF_RAG_OVERLAP_LINES` | PDF の断片が重なる行数 | `4` |
 
 ## 設定例
 

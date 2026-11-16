@@ -867,28 +867,35 @@ RSpec.describe Monadic::MCP::Conduit do
   end
 
   describe "knowledge base tools" do
-    let(:store) { double("PdfStore") }
+    let(:store) { double("LibraryStore") }
+    let(:retriever) { Monadic::Library::Retriever }
+    let(:manager) { Monadic::Library::Manager }
 
     before { allow(described_class).to receive(:kb_store).and_return(store) }
 
     describe "monadic_search_kb" do
-      it "searches text chunks and returns hits with the namespace" do
-        expect(store).to receive(:find_closest_text).with("neural nets", top_n: 5)
-          .and_return([{ text: "chunk A", similarity: 0.9, doc_id: "d1" }])
+      it "searches every entry by default and returns passages with their titles" do
+        expect(retriever).to receive(:cascade_search).with("neural nets", store: store, app_name: nil, top_n: 5)
+          .and_return([{ text: "chunk A", score: 0.9, conversation_id: "c1", conversation_title: "Paper",
+                         conversation_source: "pdf" }])
         result = described_class.call("monadic_search_kb", { "query" => "neural nets" })
-        expect(result[:knowledge_base]).to eq("global")
-        expect(result[:level]).to eq("item")
+        expect(result[:knowledge_base]).to eq("all")
         expect(result[:count]).to eq(1)
-        expect(result[:results].first[:text]).to eq("chunk A")
+        expect(result[:results].first).to include(text: "chunk A", title: "Paper", conversation_id: "c1")
       end
 
-      it "honors a custom namespace, top_n and doc level" do
-        expect(described_class).to receive(:kb_store).with("papers").and_return(store)
-        expect(store).to receive(:find_closest_doc).with("q", top_n: 3).and_return([])
+      it "searches one app's entries and the Global ones when it names the app" do
+        expect(retriever).to receive(:cascade_search).with("q", store: store, app_name: "ChatOpenAI", top_n: 3)
+          .and_return([])
         result = described_class.call("monadic_search_kb", {
-          "query" => "q", "knowledge_base" => "papers", "top_n" => 3, "level" => "doc"
+          "query" => "q", "knowledge_base" => "ChatOpenAI", "top_n" => 3
         })
-        expect(result[:level]).to eq("doc")
+        expect(result[:knowledge_base]).to eq("ChatOpenAI")
+      end
+
+      it "takes 'all' as every entry" do
+        expect(retriever).to receive(:cascade_search).with("q", store: store, app_name: nil, top_n: 5).and_return([])
+        described_class.call("monadic_search_kb", { "query" => "q", "knowledge_base" => "All" })
       end
 
       it "requires a query" do
@@ -897,7 +904,7 @@ RSpec.describe Monadic::MCP::Conduit do
       end
 
       it "returns a structured error when the vector store is down" do
-        allow(store).to receive(:find_closest_text)
+        allow(retriever).to receive(:cascade_search)
           .and_raise(Monadic::VectorStore::BackendError.new("connection refused"))
         result = described_class.call("monadic_search_kb", { "query" => "q" })
         expect(result[:success]).to be false
@@ -905,7 +912,7 @@ RSpec.describe Monadic::MCP::Conduit do
       end
 
       it "returns the same structured error when the embeddings service is down" do
-        allow(store).to receive(:find_closest_text)
+        allow(retriever).to receive(:cascade_search)
           .and_raise(Monadic::Embeddings::ClientError.new("embeddings unreachable"))
         result = described_class.call("monadic_search_kb", { "query" => "q" })
         expect(result[:success]).to be false
@@ -914,30 +921,27 @@ RSpec.describe Monadic::MCP::Conduit do
     end
 
     describe "monadic_list_kb" do
-      it "lists stored documents" do
-        allow(store).to receive(:list_titles)
-          .and_return([{ doc_id: "d1", title: "Paper", items: 12 }])
-        result = described_class.call("monadic_list_kb", { "knowledge_base" => "papers" })
-        expect(result[:knowledge_base]).to eq("papers")
+      it "lists the entries the scope sees" do
+        expect(manager).to receive(:list_conversations).with(store: store, app_name: "ChatOpenAI", limit: 500)
+          .and_return([{ conversation_id: "c1", title: "Paper" }])
+        result = described_class.call("monadic_list_kb", { "knowledge_base" => "ChatOpenAI" })
+        expect(result[:knowledge_base]).to eq("ChatOpenAI")
         expect(result[:count]).to eq(1)
-        expect(result[:documents].first[:title]).to eq("Paper")
+        expect(result[:entries].first[:title]).to eq("Paper")
       end
     end
 
     describe "monadic_import_kb" do
-      it "imports raw text: chunks, stores, and reports the doc_id" do
-        expect(store).to receive(:store_embeddings) do |doc_data, items_data|
-          expect(doc_data[:title]).to eq("Notes")
-          expect(items_data).to all(include(:text))
-          "doc-123"
+      it "imports text as a Global entry with the title" do
+        expect(manager).to receive(:import_conversation) do |store:, conversation:, scope_app:|
+          expect(scope_app).to eq(Monadic::Library::Store::SCOPE_GLOBAL)
+          expect(conversation.dig("conversation_metadata", "title")).to eq("Notes")
+          { conversation_id: "c-123", counts: { summaries: 1 } }
         end
         result = described_class.call("monadic_import_kb", {
-          "title" => "Notes", "text" => "line one\nline two\nline three"
+          "title" => "Notes", "text" => "line one\n\nline two"
         })
-        expect(result[:doc_id]).to eq("doc-123")
-        expect(result[:title]).to eq("Notes")
-        expect(result[:chunks]).to be > 0
-        expect(result[:source]).to eq("text")
+        expect(result).to include(conversation_id: "c-123", title: "Notes", source: "text")
       end
 
       it "requires a title" do
@@ -950,18 +954,11 @@ RSpec.describe Monadic::MCP::Conduit do
           .to raise_error(ArgumentError, /text.*or.*path/)
       end
 
-      it "rejects a non-pdf path" do
-        expect { described_class.call("monadic_import_kb", { "title" => "T", "path" => "/tmp/foo.txt" }) }
-          .to raise_error(ArgumentError, /must point to a \.pdf/)
+      it "rejects a path outside the shared folder" do
+        expect(manager).not_to receive(:import_conversation)
+        expect { described_class.call("monadic_import_kb", { "title" => "T", "path" => "/etc/hosts.md" }) }
+          .to raise_error(StandardError)
       end
-    end
-  end
-
-  describe ".chunk_text" do
-    it "splits text into chunks with text + token fields" do
-      chunks = described_class.chunk_text("a\nb\nc\nd", max_tokens: 1)
-      expect(chunks).not_to be_empty
-      expect(chunks).to all(include("text"))
     end
   end
 
@@ -1958,7 +1955,8 @@ RSpec.describe Monadic::MCP::Conduit do
     after { Monadic::MCP::CostGuard.reset! }
 
     it "injects KB context into the system prompt and flags grounded" do
-      allow(store).to receive(:find_closest_text).with("explain X", top_n: 4)
+      allow(Monadic::Library::Retriever).to receive(:cascade_search)
+        .with("explain X", store: store, app_name: "kb1", top_n: 4)
         .and_return([{ text: "X is a documented thing" }])
       captured = nil
       allow(host).to receive(:send_query) { |body, **| captured = body; "answer" }
@@ -1976,7 +1974,7 @@ RSpec.describe Monadic::MCP::Conduit do
     end
 
     it "fails closed when the KB is unavailable" do
-      allow(store).to receive(:find_closest_text)
+      allow(Monadic::Library::Retriever).to receive(:cascade_search)
         .and_raise(Monadic::VectorStore::BackendError.new("connection refused"))
       expect(host).not_to receive(:send_query)
       result = described_class.call("monadic_query", {

@@ -104,7 +104,7 @@ RSpec.describe Monadic::Library::Store do
 
     it 'rejects non-Library collections' do
       expect {
-        store.upsert_points(collection: 'pdf_docs', points: [valid_point])
+        store.upsert_points(collection: 'help_docs', points: [valid_point])
       }.to raise_error(ArgumentError, /not a Library collection/)
     end
 
@@ -266,7 +266,7 @@ RSpec.describe Monadic::Library::Store do
 
     it 'rejects non-Library collections' do
       expect {
-        store.scroll(collection: 'pdf_docs')
+        store.scroll(collection: 'help_docs')
       }.to raise_error(ArgumentError, /not a Library collection/)
     end
   end

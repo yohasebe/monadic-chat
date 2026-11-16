@@ -5,7 +5,7 @@ require "tiktoken_ruby"
 # Native Ruby tokenizer using tiktoken_ruby (Rust binding).
 # Drop-in replacement for the former FlaskAppClient that called
 # Python tiktoken via HTTP.  The public API is kept identical so
-# that callers (streaming_handler, pdf_text_extractor, etc.) need
+# that callers (streaming_handler, etc.) need
 # no changes.
 class Tokenizer
   DEFAULT_ENCODING = "o200k_base"

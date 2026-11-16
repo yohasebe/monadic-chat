@@ -15,7 +15,6 @@ Values are taken as written: `$VAR`, `${VAR}` and `$(...)` in a value are not ex
 - [Development Settings](#development-settings)
 - [Container Settings](#container-settings)
 - [Install Options](#install-options)
-- [PDF Processing Settings](#pdf-processing-settings)
 
 ## Configuration Priority
 
@@ -191,15 +190,6 @@ The options of the last build are written to `~/monadic/log/python_build_options
 
 - NLTK and spaCy options install packages only; download datasets and models in `~/monadic/config/pysetup.sh`, which runs at the end of the Python image build
 - A failed build keeps the current image
-
-## PDF Processing Settings
-
-These settings apply to PDFs that the MCP server imports into the Knowledge Base. PDFs imported in the web interface use their own fixed chunk sizes.
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PDF_RAG_TOKENS` | Tokens per PDF chunk | `4000` |
-| `PDF_RAG_OVERLAP_LINES` | Line overlap between PDF chunks | `4` |
 
 ## Configuration Examples
 

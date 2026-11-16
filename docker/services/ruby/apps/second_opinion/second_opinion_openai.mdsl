@@ -135,8 +135,6 @@ app "SecondOpinionOpenAI" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    library_save false
-    library_search false
   end
 
   tools do

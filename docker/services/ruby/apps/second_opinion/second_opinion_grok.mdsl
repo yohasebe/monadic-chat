@@ -136,8 +136,6 @@ app "SecondOpinionGrok" do
     auto_speech false
     initiate_from_assistant false
     group "xAI"
-    library_save false
-    library_search false
   end
 
   tools do

@@ -104,22 +104,27 @@
     return send('LIBRARY_SUGGEST_TITLE', { contents: { messages: msgs } }, { silentDrop: true });
   }
 
-  // Persist the user's preferred default for the RAG toggle across
-  // sessions/page loads. The server still owns the per-session state
-  // (and the first-message lock), but this lets users avoid flipping
-  // the toggle every time they open a new session. Stored as 'on' or
-  // 'off' so unset/legacy values fall through to the server default.
-  var RAG_DEFAULT_KEY = 'monadic.library.ragDefault';
-  function readRagDefault() {
+  // The RAG toggle is remembered per app: turning it on in one app does
+  // not turn it on in another, and an app the user never turned it on in
+  // starts with it off. Stored as a list of the apps it is on in.
+  var RAG_APPS_KEY = 'monadic.library.ragApps';
+  function readRagApps() {
     try {
-      if (typeof window === 'undefined' || !window.localStorage) return null;
-      return window.localStorage.getItem(RAG_DEFAULT_KEY);
-    } catch (e) { return null; }
+      if (typeof window === 'undefined' || !window.localStorage) return [];
+      var list = JSON.parse(window.localStorage.getItem(RAG_APPS_KEY) || '[]');
+      return Array.isArray(list) ? list : [];
+    } catch (e) { return []; }
   }
-  function writeRagDefault(enabled) {
+  function ragOnFor(app) {
+    return !!app && readRagApps().indexOf(app) >= 0;
+  }
+  function rememberRag(app, enabled) {
+    if (!app) return;
     try {
       if (typeof window === 'undefined' || !window.localStorage) return;
-      window.localStorage.setItem(RAG_DEFAULT_KEY, enabled ? 'on' : 'off');
+      var list = readRagApps().filter(function (name) { return name !== app; });
+      if (enabled) list.push(app);
+      window.localStorage.setItem(RAG_APPS_KEY, JSON.stringify(list));
     } catch (e) { /* private mode / quota — silently ignore */ }
   }
   function setScopeApp(conversationId, scopeApp) {
@@ -1743,22 +1748,26 @@
     if (ragToggle) {
       ragToggle.onchange = function () {
         var on = ragToggle.checked;
-        // Push the preference to localStorage *and* to the server so
-        // the next session inherits the same default and the current
+        // Remember it for this app, and tell the server so the current
         // session reflects it immediately.
-        writeRagDefault(on);
+        rememberRag(currentAppName(), on);
         setRagToggle(on);
         // Refresh the header summary bar so its "Knowledge Base" badge
         // tracks the toggle immediately.
         if (typeof window.updateConfigSummary === 'function') window.updateConfigSummary();
       };
-      // Apply the persisted default on first paint. We only push it
-      // upstream when the user previously chose ON — pushing OFF would
-      // be a no-op since OFF is the server's default anyway.
-      if (readRagDefault() === 'on') {
-        ragToggle.checked = true;
-        setRagToggle(true);
+      // Each app chosen gets the state remembered for it.
+      var applyRagForApp = function () {
+        var on = ragOnFor(currentAppName());
+        if (ragToggle.checked === on) return;
+        ragToggle.checked = on;
+        setRagToggle(on);
+        if (typeof window.updateConfigSummary === 'function') window.updateConfigSummary();
+      };
+      if (window.SessionState && typeof window.SessionState.on === 'function') {
+        window.SessionState.on('app:changed', applyRagForApp);
       }
+      applyRagForApp();
     }
 
     // Browse-modal controls

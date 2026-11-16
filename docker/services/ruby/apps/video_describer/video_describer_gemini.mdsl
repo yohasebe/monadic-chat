@@ -89,7 +89,6 @@ app "VideoDescriberGemini" do
 
   features do
     max_tool_rounds 10
-    library_search false
     disabled !CONFIG["GEMINI_API_KEY"]
     group "Google"
     easy_submit false

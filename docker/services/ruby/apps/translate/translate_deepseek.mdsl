@@ -129,8 +129,6 @@ app "TranslateDeepSeek" do
     auto_speech false
     initiate_from_assistant true
     group "DeepSeek"
-    library_save false
-    library_search false
   end
 
   tools do

@@ -89,7 +89,6 @@ app "VideoDescriberGrok" do
 
   features do
     max_tool_rounds 10
-    library_search false
     disabled !CONFIG["XAI_API_KEY"]
     group "xAI"
     easy_submit false

@@ -117,7 +117,6 @@ app "WebInsightOpenAI" do
   end
 
   features do
-    library_search false
     disabled !CONFIG["OPENAI_API_KEY"]
     websearch true
     context_size 20

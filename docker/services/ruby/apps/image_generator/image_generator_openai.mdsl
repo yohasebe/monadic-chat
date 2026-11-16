@@ -105,8 +105,6 @@ app "ImageGeneratorOpenAI" do
 
   features do
     max_tool_rounds 10
-    library_save false
-    library_search false
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false
     auto_speech false

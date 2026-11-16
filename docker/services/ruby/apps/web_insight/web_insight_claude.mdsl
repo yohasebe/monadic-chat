@@ -108,7 +108,6 @@ app "WebInsightClaude" do
   end
 
   features do
-    library_search false
     disabled !CONFIG["ANTHROPIC_API_KEY"]
     websearch true
     context_size 20

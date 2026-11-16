@@ -45,43 +45,10 @@ The table below shows which apps are available for which AI model providers.
 | Document Generator | | ✅ | | | | | | |
 | Monadic Chat Help | ✅ | | | | | | | |
 
-## Knowledge Base Save by App :id=kb-by-app
+## Knowledge Base in Apps :id=kb-by-app
 
-Apps that create images, videos, diagrams, music or documents, and Second Opinion, Translate and Mail Composer, do not save to the Knowledge Base; the output of the former is saved in the shared folder (`~/monadic/data`). A chat that hides words cannot be saved in any app ([Anonymization](../advanced-topics/anonymization.md#knowledge-base)). To keep a conversation, use **Export**. To see what is saved in the Knowledge Base, click **Browse** in the Knowledge Base panel.
+Every app can save its conversation to the Knowledge Base and search it. An app searches only after you turn on **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel. The switch is remembered for each app: turning it on in one app does not turn it on in another. Live Conversation searches through its own **Search and compute** switch. A chat that hides words cannot be saved in any app ([Anonymization](../advanced-topics/anonymization.md#knowledge-base)). To keep a conversation as a file, use **Export**. To see what is saved in the Knowledge Base, click **Browse** in the Knowledge Base panel.
 
-| App | Knowledge Base Save |
-|-----|:--:|
-| Chat | ✅ |
-| Voice Chat | ✅ |
-| Live Conversation | ✅ |
-| Wikipedia | ✅ |
-| Math Tutor | ✅ |
-| Second Opinion | |
-| Research Assistant | ✅ |
-| Language Practice | ✅ |
-| Language Practice Plus | ✅ |
-| Translate | |
-| Voice Interpreter | ✅ |
-| Novel Writer | ✅ |
-| Image Generator | |
-| Video Generator | |
-| Music Generator | |
-| Mail Composer | |
-| Mermaid Grapher | |
-| DrawIO Grapher | |
-| Syntax Tree | |
-| Concept Visualizer | |
-| Speech Draft Helper | ✅ |
-| Web Insight | ✅ |
-| Video Describer | ✅ |
-| Code Interpreter | ✅ |
-| Coding Assistant | ✅ |
-| Jupyter Notebook | ✅ |
-| Auto Forge | |
-| Music Tutor | |
-| Music Analyst | |
-| Document Generator | |
-| Monadic Chat Help | ✅ |
 
 ## Provider Capabilities Overview :id=provider-capabilities
 
@@ -161,7 +128,7 @@ Capture and interact with web pages through a controlled browser, and analyze th
 
 ### Knowledge Base
 
-A unified, project-wide library of saved conversations and imported documents (PDF, Office, Markdown, source code). An entry is retrievable from the app that saved it, or, once it is scoped `Global`, from the other apps that search the Knowledge Base (with **Use Knowledge Base for retrieval (this session)** on). See [Knowledge Base](../apps/knowledge-base.md).
+A unified, project-wide library of saved conversations and imported documents (PDF, Office, Markdown, source code). An entry is retrievable from the app that saved it, or, once it is scoped `Global`, from the other apps (with **Use Knowledge Base for retrieval (this session)** on). See [Knowledge Base](../apps/knowledge-base.md).
 
 ### Coding & Notebook Apps
 

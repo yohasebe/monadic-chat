@@ -45,43 +45,10 @@
 | Document Generator | | ✅ | | | | | | |
 | Monadic Chat Help | ✅ | | | | | | | |
 
-## アプリ別の Knowledge Base 保存 :id=kb-by-app
+## アプリと Knowledge Base :id=kb-by-app
 
-画像・動画・図・音楽・文書を作るアプリ、Second Opinion、Translate、Mail Composer は Knowledge Base に保存しません。画像などの出力は共有フォルダ（`~/monadic/data`）に保存されます。語を伏せている会話は、どのアプリでも保存できません（[匿名化](../advanced-topics/anonymization.md#knowledge-base)）。会話を残すには **Export** を使います。Knowledge Base に保存したものを見るには、ナレッジベースパネルの **一覧** をクリックします。
+どのアプリでも、会話を Knowledge Base に保存し、検索できます。検索するのは、ナレッジベースパネルの **このセッションでナレッジベース検索を使う** をオンにしたときだけです。このスイッチはアプリごとに記憶されます。あるアプリでオンにしても、ほかのアプリではオフのままです。Live Conversation は、アプリの **検索と計算** のスイッチで検索します。語を伏せている会話は、どのアプリでも保存できません（[匿名化](../advanced-topics/anonymization.md#knowledge-base)）。会話をファイルに残すには **エクスポート** を使います。Knowledge Base に保存したものを見るには、ナレッジベースパネルの **一覧** をクリックします。
 
-| アプリ | Knowledge Base 保存 |
-|-----|:--:|
-| Chat | ✅ |
-| Voice Chat | ✅ |
-| Live Conversation | ✅ |
-| Wikipedia | ✅ |
-| Math Tutor | ✅ |
-| Second Opinion | |
-| Research Assistant | ✅ |
-| Language Practice | ✅ |
-| Language Practice Plus | ✅ |
-| Translate | |
-| Voice Interpreter | ✅ |
-| Novel Writer | ✅ |
-| Image Generator | |
-| Video Generator | |
-| Music Generator | |
-| Mail Composer | |
-| Mermaid Grapher | |
-| DrawIO Grapher | |
-| Syntax Tree | |
-| Concept Visualizer | |
-| Speech Draft Helper | ✅ |
-| Web Insight | ✅ |
-| Video Describer | ✅ |
-| Code Interpreter | ✅ |
-| Coding Assistant | ✅ |
-| Jupyter Notebook | ✅ |
-| Auto Forge | |
-| Music Tutor | |
-| Music Analyst | |
-| Document Generator | |
-| Monadic Chat Help | ✅ |
 
 ## プロバイダー機能概要 :id=provider-capabilities
 
@@ -161,7 +128,7 @@ Mermaid.js、Draw.io、RSyntaxTree、LaTeX/TikZ を使って自然言語の説�
 
 ### Knowledge Base
 
-保存した会話とインポートしたドキュメント（PDF、Office、Markdown、ソースコード）をプロジェクト全体で共有するライブラリです。各エントリは保存したアプリから検索でき、`Global` スコープに切り替えると、Knowledge Base を検索するほかのアプリからも（**このセッションでナレッジベース検索を使う** がオンのとき）検索できます。詳細は[Knowledge Base](../apps/knowledge-base.md)を参照してください。
+保存した会話とインポートしたドキュメント（PDF、Office、Markdown、ソースコード）をプロジェクト全体で共有するライブラリです。各エントリは保存したアプリから検索でき、`Global` スコープに切り替えると、ほかのアプリからも（**このセッションでナレッジベース検索を使う** がオンのとき）検索できます。詳細は[Knowledge Base](../apps/knowledge-base.md)を参照してください。
 
 ### コーディング・ノートブックアプリ
 

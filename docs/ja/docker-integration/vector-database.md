@@ -50,7 +50,7 @@ Knowledge Base にファイルを取り込むときの流れです。
 
 ## 範囲 :id=visibility
 
-Knowledge Base の各項目は、保存したアプリ（とプロバイダー）か、`Global` のどちらかに属します。Knowledge Base の一覧の画面は、すべての項目を表示します。Knowledge Base の検索に対応するアプリは、ナレッジベースパネルの **このセッションでナレッジベース検索を使う** がオンのときだけ Knowledge Base を検索し、そのアプリで保存した項目と `Global` の項目を見つけます。Live Conversation は、専用の **Tools** の切り替えで検索します。Knowledge Base のページの[範囲の仕組み](/ja/apps/knowledge-base.md)も参照してください。
+Knowledge Base の各項目は、保存したアプリ（とプロバイダー）か、`Global` のどちらかに属します。Knowledge Base の一覧の画面は、すべての項目を表示します。アプリは、ナレッジベースパネルの **このセッションでナレッジベース検索を使う** がオンのときだけ Knowledge Base を検索し、そのアプリで保存した項目と `Global` の項目を見つけます。Live Conversation は、専用の **Tools** の切り替えで検索します。Knowledge Base のページの[範囲の仕組み](/ja/apps/knowledge-base.md)も参照してください。
 
 ## Knowledge Base での使い方 :id=use-in-knowledge-base
 

@@ -50,7 +50,7 @@ When a file is imported into the Knowledge Base:
 
 ## Scope :id=visibility
 
-Each Knowledge Base entry belongs either to the app (and provider) it was saved in, or to `Global`. The Knowledge Base browser shows every entry. Apps that support Knowledge Base search use it only when **Use Knowledge Base for retrieval (this session)** is on in the Knowledge Base panel, and they find the entries saved in that app and the `Global` entries. Live Conversation searches it through its own **Tools** switch. See the [scope model](/apps/knowledge-base.md) on the Knowledge Base page.
+Each Knowledge Base entry belongs either to the app (and provider) it was saved in, or to `Global`. The Knowledge Base browser shows every entry. Apps search the Knowledge Base only when **Use Knowledge Base for retrieval (this session)** is on in the Knowledge Base panel, and they find the entries saved in that app and the `Global` entries. Live Conversation searches it through its own **Tools** switch. See the [scope model](/apps/knowledge-base.md) on the Knowledge Base page.
 
 ## Use in the Knowledge Base :id=use-in-knowledge-base
 

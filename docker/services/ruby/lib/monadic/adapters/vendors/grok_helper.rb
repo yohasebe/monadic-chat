@@ -1737,26 +1737,6 @@ module GrokHelper
     # the model on the next API call. Mirrors the Claude / OpenAI fix.
     (obj["function_returns"] ||= []).concat(tool_results)
 
-    # Check if we've reached max call depth
-    if call_depth >= tool_round_limit(session, MAX_FUNC_CALLS)
-      summary = "Completed #{tool_results.length} tool execution(s):\n\n"
-      tool_results.each do |result|
-        result_content = (result['content'] || result[:content]).to_s
-        result_name = result['name'] || result[:name]
-        summary += "- #{result_name}: #{result_content[0..100]}#{result_content.length > 100 ? '...' : ''}\n"
-      end
-
-      return replies_as_is([{
-        "choices" => [{
-          "message" => {
-            "role" => "assistant",
-            "content" => summary
-          },
-          "finish_reason" => "stop"
-        }]
-      }])
-    end
-
     # Check if we should stop due to repeated errors
     if should_stop_for_errors?(session)
       res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }

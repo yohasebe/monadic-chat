@@ -3579,11 +3579,7 @@ module GeminiHelper
     end
 
     # Stop if repeated errors detected
-    if should_stop_for_errors?(session)
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-      block&.call res
-      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected." } }] }]
-    end
+    return stop_reply(session, &block) if should_stop_for_errors?(session)
 
     # The tool that takes the reply's text ended the reply.
     ended = Monadic::Utils::TtsTextExtractor.reply_ended(session, &block)

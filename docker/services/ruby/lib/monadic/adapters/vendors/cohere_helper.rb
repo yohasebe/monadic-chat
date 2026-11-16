@@ -1490,10 +1490,7 @@ module CohereHelper
     # Store tool results and check for error stopping
     obj["tool_results"] = context
 
-    if should_stop_for_errors?(session)
-      block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected. Stopping." } }] }]
-    end
+    return stop_reply(session, &block) if should_stop_for_errors?(session)
 
     block&.call({ "type" => "wait", "content" => "<i class='fas fa-check-circle'></i> FUNCTION CALLS COMPLETE" })
     block&.call({ "type" => "clear_fragments" })

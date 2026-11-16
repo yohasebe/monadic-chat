@@ -11,7 +11,7 @@ This page describes the safeguards that stop a tool loop: repeated tool errors, 
   - a Hash with `success: false` (symbol or string key);
   - a string containing `"success":false` or `"success": false`.
 - `handle_function_error` records the error in `ErrorPatternDetector`, marks the last recorded tool call as errored, and, when the detector says to stop, sends the suggestion as a fragment and sets `session[:parameters]["stop_retrying"] = true`.
-- `should_stop_for_errors?` is true when `stop_retrying` is set or a tool call cycle is detected. `stop_message_for_session` returns the cycle message or the error suggestion.
+- `should_stop_for_errors?` is true when `stop_retrying` is set or a tool call cycle is detected. `stop_reply` ends the turn: it names the tools of a cycle, or reports repeated errors (their suggestion was sent when they stopped).
 - `reset_error_tracking(session)` clears the error history, the tool call sequence and `stop_retrying`.
 
 Tool methods return errors as strings starting with `❌`.

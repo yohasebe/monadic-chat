@@ -66,8 +66,6 @@ app "MailComposerDeepSeek" do
     easy_submit false
     auto_speech false
     group "DeepSeek"
-    library_save false
-    library_search false
   end
 
   tools do

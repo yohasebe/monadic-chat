@@ -153,8 +153,6 @@ app "SecondOpinionGemini" do
     auto_speech false
     initiate_from_assistant true
     group "Google"
-    library_save false
-    library_search false
   end
 
   tools do

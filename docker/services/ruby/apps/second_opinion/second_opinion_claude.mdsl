@@ -136,8 +136,6 @@ app "SecondOpinionClaude" do
     auto_speech false
     initiate_from_assistant true
     group "Anthropic"
-    library_save false
-    library_search false
   end
 
   tools do

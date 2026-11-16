@@ -66,8 +66,6 @@ app "MailComposerClaude" do
     easy_submit false
     auto_speech false
     group "Anthropic"
-    library_save false
-    library_search false
   end
 
   tools do

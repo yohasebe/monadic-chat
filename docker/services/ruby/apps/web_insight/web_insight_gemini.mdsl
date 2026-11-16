@@ -108,7 +108,6 @@ app "WebInsightGemini" do
   end
 
   features do
-    library_search false
     disabled !CONFIG["GEMINI_API_KEY"]
     websearch true
     context_size 20

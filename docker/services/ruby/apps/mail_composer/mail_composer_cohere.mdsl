@@ -67,8 +67,6 @@ app "MailComposerCohere" do
     easy_submit false
     auto_speech false
     group "Cohere"
-    library_save false
-    library_search false
   end
 
   tools do

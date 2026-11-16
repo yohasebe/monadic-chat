@@ -66,8 +66,6 @@ app "MailComposerMistral" do
     easy_submit false
     auto_speech false
     group "Mistral"
-    library_save false
-    library_search false
   end
 
   tools do

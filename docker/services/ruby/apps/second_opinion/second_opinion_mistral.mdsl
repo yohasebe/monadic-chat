@@ -136,8 +136,6 @@ app "SecondOpinionMistral" do
     auto_speech false
     initiate_from_assistant false
     group "Mistral"
-    library_save false
-    library_search false
   end
 
   tools do

@@ -330,7 +330,6 @@ app "CodeInterpreterClaude" do
 
   features do
     code_runs_in_chat_folder true
-    library_search false
     disabled !CONFIG["ANTHROPIC_API_KEY"]
     easy_submit false
     auto_speech false

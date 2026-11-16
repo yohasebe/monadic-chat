@@ -1213,10 +1213,11 @@ module MonadicSharedTools
             description: "Search the project-wide Knowledge Base (Library) for passages relevant " \
                          "to a query. Returns turn-level snippets with conversation citations as " \
                          "[Title](mc:conv:<id>) markdown links — preserve them verbatim in your " \
-                         "reply so the user can click through to the original conversation. The " \
-                         "user has explicitly enabled Knowledge Base RAG for this session, so " \
-                         "prefer this tool over your training knowledge for any topic the user " \
-                         "may have stored content about. The system prompt lists what's currently " \
+                         "reply so the user can click through to the original conversation. Use " \
+                         "it for questions about what the user has stored (their documents, notes " \
+                         "or earlier conversations), even when you could answer from training " \
+                         "knowledge; answer a question on a topic the stored entries do not cover " \
+                         "without it. The system prompt lists what's currently " \
                          "in the Knowledge Base by `source` and `content_type`; use those keys " \
                          "with the optional narrowing parameters when the answer is likely in a " \
                          "specific slice of the Library.",

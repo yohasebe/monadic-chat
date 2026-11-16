@@ -35,7 +35,7 @@ Tool methods return errors as strings starting with `❌`.
 
 ## Tool Call Limit per Turn (`MAX_FUNC_CALLS`)
 
-Each vendor helper defines `MAX_FUNC_CALLS` (20; 30 in the Mistral helper). `session[:call_depth_per_turn]` is reset to 0 when the user sends a message and increases with each round of tool calls. When the limit is reached, the helper ends the tool loop: most helpers send a "Maximum function call depth exceeded" notice and end the turn; the Claude helper removes `tools` and `tool_choice` so the model answers in text.
+Each vendor helper defines `MAX_FUNC_CALLS` (20); an app's `max_tool_rounds` lowers it (`BaseVendorHelper#tool_round_limit`). `session[:call_depth_per_turn]` is reset to 0 when the user sends a message and increases with each round of tool calls. When it reaches the limit, the helper's next request has no tools, so the model answers in text; a round beyond the limit ends the turn with a "Maximum function call depth exceeded" notice.
 
 ## Debugging
 

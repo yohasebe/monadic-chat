@@ -55,4 +55,12 @@ RSpec.describe "BaseVendorHelper#tool_round_limit" do
       end
     end
   end
+
+  it "gives every provider the same cap of tool rounds" do
+    caps = Dir[File.expand_path("../../../lib/monadic/adapters/vendors/*_helper.rb", __dir__)].to_h do |path|
+      [File.basename(path), File.read(path)[/^\s*MAX_FUNC_CALLS\s*=\s*(\d+)/, 1]]
+    end.compact.reject { |_, v| v.nil? }
+    expect(caps.size).to be >= 8
+    expect(caps.values.uniq).to eq(["20"]), "caps differ: #{caps.inspect}"
+  end
 end

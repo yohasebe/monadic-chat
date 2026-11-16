@@ -62,8 +62,17 @@ module LanguagePracticeStateTools
 
   # What the model is given of the state with each request, as load_context
   # returns it (Monadic::TurnState::ModelState).
+  # The advice is written in the language of the user's interface, named
+  # here so the model does not take it from the language being practised.
   def state_for_model(session)
-    { data: Monadic::TurnState::ModelState.from_tool(load_context(session: session)), load_tool: "load_context" }
+    data = Monadic::TurnState::ModelState.from_tool(load_context(session: session)) || {}
+    { data: data.merge("advice_language" => advice_language(session)), load_tool: "load_context" }
+  end
+
+  def advice_language(session)
+    code = session.respond_to?(:dig) ? session.dig(:parameters, "ui_language").to_s : ""
+    entry = defined?(Monadic::Utils::LanguageConfig) ? Monadic::Utils::LanguageConfig::LANGUAGES[code] : nil
+    entry ? entry[:english] : "English"
   end
 
   # The practice's notes on the work screen (Monadic::TurnState::Notes).

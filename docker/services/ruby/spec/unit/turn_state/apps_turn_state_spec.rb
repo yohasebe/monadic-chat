@@ -174,7 +174,13 @@ RSpec.describe "the Monadic apps' state by turn" do
       declared = practice.send(:state_for_model, session)
 
       expect(declared[:load_tool]).to eq("load_context")
-      expect(JSON.parse(JSON.generate(declared[:data]))).to eq(JSON.parse(practice.load_context(session: session))["data"])
+      stored = JSON.parse(practice.load_context(session: session))["data"]
+      expect(JSON.parse(JSON.generate(declared[:data]))).to eq(stored.merge("advice_language" => "English"))
+    end
+
+    it "names the interface's language as the advice language" do
+      session[:parameters]["ui_language"] = "ja"
+      expect(practice.send(:state_for_model, session)[:data]["advice_language"]).to eq("Japanese")
     end
 
     it "shows the language and the advice on its notes" do

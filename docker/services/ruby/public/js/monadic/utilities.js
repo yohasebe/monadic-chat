@@ -1081,6 +1081,9 @@ function setParams() {
   const websearchEl = $id("websearch");
   const modelEl = $id("model");
   params["model"] = modelEl ? modelEl.value : null;
+  // The interface language, for what an app writes in the user's own
+  // language (Language Practice's advice).
+  params["ui_language"] = document.cookie.match(/ui-language=([^;]+)/)?.[1] || "en";
   if (websearchEl && websearchEl.checked && modelSpec[params["model"]]?.["tool_capability"]) {
     params["websearch"] = true;
   } else {

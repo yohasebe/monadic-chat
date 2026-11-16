@@ -35,6 +35,16 @@ RSpec.describe OllamaHelper do
     it 'reads a last record that has no newline' do
       expect(read([records.join.chomp]).first).to eq("Grüß dich")
     end
+
+    it 'ends with an error when the stream reports one, without running the tools it named' do
+      chunks = [%({"message":{"tool_calls":[{"function":{"name":"write_section","arguments":{}}}]}}\n),
+                %({"error":"model runner stopped"}\n)]
+      out = []
+      res = helper.send(:process_json_data, "ChatOllama", { parameters: {}, messages: [] }, chunks, 0) { |r| out << r }
+      expect(res.first).to include("type" => "error")
+      expect(res.first["content"]).to include("model runner stopped")
+      expect(out.map { |r| r["type"] }).to eq(["error"])
+    end
   end
 
   describe 'a tool round' do

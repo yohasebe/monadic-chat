@@ -634,7 +634,8 @@ module OllamaHelper
     show_thinking_enabled = show_thinking_param.nil? ||
                              ![false, "false"].include?(show_thinking_param)
 
-    buffer = String.new
+    buffer = String.new.b
+    stream_error = nil
     texts = []
     thinking_texts = []
     accumulated_tool_calls = []
@@ -644,6 +645,12 @@ module OllamaHelper
     # Ollama streams one JSON record per line; a chunk of the body can hold
     # several records or part of one, so records are read by line.
     handle = lambda do |json|
+      # An error after the stream began arrives as a record of its own.
+      if json["error"]
+        stream_error ||= json["error"].to_s
+        next
+      end
+
       finish_reason = json["done"] ? "stop" : nil
 
       # Detect tool calls (Ollama sends them in the done:true chunk)
@@ -717,6 +724,13 @@ module OllamaHelper
       rescue JSON::ParserError
         Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Unreadable record skipped (#{buffer.bytesize} bytes)" }
       end
+    end
+
+    if stream_error
+      Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Error record: #{stream_error}" }
+      res = { "type" => "error", "content" => "API ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(stream_error)}" }
+      block&.call res
+      return [res]
     end
 
     Monadic::Utils::ExtraLogger.log { "Total fragments processed: #{texts.length}\nTool calls accumulated: #{accumulated_tool_calls.length}" }

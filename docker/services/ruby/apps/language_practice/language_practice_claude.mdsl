@@ -70,7 +70,7 @@ app "LanguagePracticeClaude" do
     - Offer useful expressions relevant to the ongoing conversation
     - Provide cultural information or general advice about learning the language
 
-    Write the advice in the user's preferred language (or English if not set). Give each piece of advice as one plain sentence or two. Give none when there is nothing to say.
+    Write the advice in the user's own language, never in the language being practised, even when the user writes in it: the language set for responses when one is set; otherwise the language the user used outside the practice (for example to name the language to practise); otherwise English. For example, a user who wrote "Spanish, please" and then a sentence in Spanish gets the advice in English. Give each piece of advice as one plain sentence or two. Give none when there is nothing to say.
 
     ## TOOL SEQUENCE EXAMPLE
 
@@ -119,7 +119,7 @@ app "LanguagePracticeClaude" do
     define_tool "save_response", "Save response and context to session state. The message parameter is used for TTS playback." do
       parameter :message, "string", "Your response message to the user (will be used for TTS)", required: true
       parameter :target_lang, "string", "Target language being practiced", required: false
-      parameter :language_advice, "array", "Language advice for this turn: an array of strings, each one piece of advice as plain text (not an object)", required: false
+      parameter :language_advice, "array", "Language advice for this turn: an array of strings, each one piece of advice as plain text (not an object), written in the user's own language (English unless it is known), never in the language being practised", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
 

@@ -238,5 +238,15 @@ RSpec.describe OpenAIHelper do
 
       expect(session[:parameters]['function_returns'].length).to eq(original_length)
     end
+
+    it 'ends a stopped turn with the stop reply of process_functions' do
+      stop = [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated tool call cycle detected (second_tool)." } }] }]
+      allow(helper).to receive(:process_functions).and_return(stop)
+      session[:parameters]["stop_retrying"] = true
+
+      result = helper.send(:assemble_openai_chat_tool_results, 'TestApp', session, tools_hash, nil)
+
+      expect(result).to eq(stop)
+    end
   end
 end

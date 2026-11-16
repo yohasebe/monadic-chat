@@ -26,11 +26,7 @@ module OllamaHelper
   #
   # Registration policy: tools are added to body["tools"] only when
   # TAVILY_API_KEY is configured AND the user has toggled web search
-  # on for this app instance. Tool calling is a hard requirement for
-  # Monadic Chat's Ollama support (see memory
-  # `feedback_ollama_tool_calling_required.md`) — if the model can't
-  # tool call, the user is running an unsupported Ollama model and
-  # many other features would already be broken anyway.
+  # on for this app instance, and only for a model that can call tools.
   WEBSEARCH_TOOLS = Monadic::SharedTools::TavilyDefinitions::TOOLS
   WEBSEARCH_PROMPT = Monadic::SharedTools::TavilyDefinitions::PROMPT
 
@@ -366,11 +362,9 @@ module OllamaHelper
     # TAVILY_API_KEY is absent the UI toggle is silently treated as
     # off — the tools are never registered, the system prompt does
     # not advertise them, and the LLM cannot try to call them. The
-    # gate is required because Ollama models that can tool-call (the
-    # only supported Ollama models — see
-    # feedback_ollama_tool_calling_required.md) will otherwise dispatch
-    # tavily_search and surface "Tavily API key is not configured"
-    # mid-conversation.
+    # gate is required because a model that can call tools would
+    # otherwise call tavily_search and surface "Tavily API key is not
+    # configured" mid-conversation.
     websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?(obj)
 
     message = obj["message"].to_s
@@ -647,65 +641,82 @@ module OllamaHelper
     finish_reason = nil
     fragment_sequence = 0
 
-    body.each do |chunk|
-      begin
-        buffer << chunk
-        json = JSON.parse(buffer)
-        buffer = String.new
-        finish_reason = json["done"] ? "stop" : nil
+    # Ollama streams one JSON record per line; a chunk of the body can hold
+    # several records or part of one, so records are read by line.
+    handle = lambda do |json|
+      finish_reason = json["done"] ? "stop" : nil
 
-        # Detect tool calls (Ollama sends them in the done:true chunk)
-        if json.dig("message", "tool_calls")
-          json["message"]["tool_calls"].each do |tc|
-            accumulated_tool_calls << tc
-          end
-          Monadic::Utils::ExtraLogger.log { "Tool calls detected: #{accumulated_tool_calls.length}" }
+      # Detect tool calls (Ollama sends them in the done:true chunk)
+      if json.dig("message", "tool_calls")
+        json["message"]["tool_calls"].each do |tc|
+          accumulated_tool_calls << tc
         end
+        Monadic::Utils::ExtraLogger.log { "Tool calls detected: #{accumulated_tool_calls.length}" }
+      end
 
-        # Thinking fragment (Ollama 0.9+ separate `thinking` field when think:true)
-        # A single chunk may carry either `content` or `thinking` (or neither),
-        # so we check and dispatch each independently.
-        #
-        # Respect the user's "Show Thinking" toggle: skip emitting thinking
-        # fragments to the frontend when disabled. Some Ollama models
-        # (e.g. qwen3-vl:*-thinking) emit reasoning regardless of the `think`
-        # API parameter, so backend-side filtering is the reliable place to
-        # honor the user's UI preference. The fragments are still accumulated
-        # internally so `reasoning_content` remains available.
-        thinking_fragment = json.dig("message", "thinking").to_s
-        if !thinking_fragment.empty?
-          emit_thinking = show_thinking_enabled
-          if emit_thinking
-            res = { "type" => "thinking", "content" => thinking_fragment }
-            block&.call res
-          end
-          thinking_texts << thinking_fragment
-        end
-
-        content_fragment = json.dig("message", "content").to_s
-        if !content_fragment.empty?
-          res = {
-            "type" => "fragment",
-            "content" => content_fragment,
-            "sequence" => fragment_sequence,
-            "timestamp" => Time.now.to_f,
-            "is_first" => fragment_sequence == 0
-          }
-
-          Monadic::Utils::ExtraLogger.log { "Fragment: sequence=#{fragment_sequence}, length=#{content_fragment.length}, content=#{content_fragment.inspect}" }
-
-          fragment_sequence += 1
+      # Thinking fragment (Ollama 0.9+ separate `thinking` field when think:true)
+      # A single chunk may carry either `content` or `thinking` (or neither),
+      # so we check and dispatch each independently.
+      #
+      # Respect the user's "Show Thinking" toggle: skip emitting thinking
+      # fragments to the frontend when disabled. Some Ollama models
+      # (e.g. qwen3-vl:*-thinking) emit reasoning regardless of the `think`
+      # API parameter, so backend-side filtering is the reliable place to
+      # honor the user's UI preference. The fragments are still accumulated
+      # internally so `reasoning_content` remains available.
+      thinking_fragment = json.dig("message", "thinking").to_s
+      if !thinking_fragment.empty?
+        emit_thinking = show_thinking_enabled
+        if emit_thinking
+          res = { "type" => "thinking", "content" => thinking_fragment }
           block&.call res
-          texts << content_fragment
         end
-      rescue JSON::ParserError
-        # Incomplete JSON, continue buffering
+        thinking_texts << thinking_fragment
+      end
+
+      content_fragment = json.dig("message", "content").to_s
+      if !content_fragment.empty?
+        res = {
+          "type" => "fragment",
+          "content" => content_fragment,
+          "sequence" => fragment_sequence,
+          "timestamp" => Time.now.to_f,
+          "is_first" => fragment_sequence == 0
+        }
+
+        Monadic::Utils::ExtraLogger.log { "Fragment: sequence=#{fragment_sequence}, length=#{content_fragment.length}, content=#{content_fragment.inspect}" }
+
+        fragment_sequence += 1
+        block&.call res
+        texts << content_fragment
+      end
+    end
+
+    body.each do |chunk|
+      buffer << chunk.to_s.b
+      while (newline = buffer.index("\n"))
+        line = buffer.slice!(0..newline).force_encoding(Encoding::UTF_8).strip
+        next if line.empty?
+
+        begin
+          handle.call(JSON.parse(line))
+        rescue JSON::ParserError
+          Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Unreadable record skipped (#{line.bytesize} bytes)" }
+        end
       end
     rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Error: #{e.message}" }
       Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
       # Connection dropped mid-stream — invalidate cached endpoint
       OllamaHelper.reset_endpoint_cache
+    end
+    # The last record may end without a newline.
+    unless buffer.strip.empty?
+      begin
+        handle.call(JSON.parse(buffer.force_encoding(Encoding::UTF_8)))
+      rescue JSON::ParserError
+        Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Unreadable record skipped (#{buffer.bytesize} bytes)" }
+      end
     end
 
     Monadic::Utils::ExtraLogger.log { "Total fragments processed: #{texts.length}\nTool calls accumulated: #{accumulated_tool_calls.length}" }
@@ -741,6 +752,9 @@ module OllamaHelper
           }
         }
       end
+      # The round's reasoning goes back with its calls (Ollama's tool use
+      # with thinking models expects thinking, content and calls together).
+      assistant_msg["thinking"] = thinking_texts.join("") unless thinking_texts.empty?
       context << assistant_msg
 
       # Carry this round's reasoning across the tool-call recursion (which
@@ -790,7 +804,7 @@ module OllamaHelper
 
   # A message of a tool round as Ollama reads it. The user's message (a
   # session message here) keeps what the work screen shows, and its images;
-  # the assistant's message keeps the tool calls it made and each result
+  # the assistant's message keeps its reasoning and the tool calls it made, and each result
   # names its tool, or the model sees results of calls it never made and
   # makes them again.
   def tool_round_entry(msg, session)
@@ -799,7 +813,10 @@ module OllamaHelper
     if msg["role"] == "user" && msg["images"].is_a?(Array) && !msg["images"].empty?
       entry["images"] = msg["images"].filter_map { |img| img["data"].to_s.split(",")[1] }
     end
-    entry["tool_calls"] = msg["tool_calls"] if msg["role"] == "assistant" && msg["tool_calls"]
+    if msg["role"] == "assistant"
+      entry["thinking"] = msg["thinking"] if msg["thinking"]
+      entry["tool_calls"] = msg["tool_calls"] if msg["tool_calls"]
+    end
     entry["tool_name"] = msg["tool_name"] if msg["role"] == "tool" && msg["tool_name"]
     entry
   end

@@ -26,7 +26,7 @@ Session State に設定は要りません。状態を読むツールと保存す
 
 ページは読むためのものです。モデルはアプリのツールで状態を変え、ページはそれに合わせて変わります。
 
-ページにログを載せるアプリもあります。ログは利用者が読むために足していく文で、モデルは読み返しません。Language Practice Plus の助言や、Voice Interpreter のフレーズがそうです。
+ページにログを載せるアプリもあります。ログは利用者が読むために足していく文で、モデルは読み返しません。Language Practice の助言や、Voice Interpreter のフレーズがそうです。
 
 ## Session Stateアプリ
 
@@ -40,7 +40,7 @@ Session State に設定は要りません。状態を読むツールと保存す
 | Novel Writer | `load_novel_context`、`save_novel_context` | Story notes |
 | Translate | `load_translation_context`、`save_translation_context`、語彙のツール | Translation notes |
 | Voice Interpreter | `load_context`、`save_translation`、`set_target_language` | Interpreter notes |
-| Language Practice Plus | `load_context`、`save_response`、`set_target_language` | Practice notes |
+| Language Practice | `load_context`、`save_response`、`set_target_language` | Practice notes |
 | Jupyter Notebook、Video Generator | `monadic_load_state`（保存はアプリが自分で行います） | — |
 
 ## Session Stateアプリの作成

@@ -9,7 +9,7 @@ require_relative "../../../lib/monadic/substitution/vocabulary"
 require_relative "../../../lib/monadic/utils/tool_image_utils"
 require_relative "../../../apps/translate/translate_tools"
 require_relative "../../../apps/research_assistant/research_assistant_tools"
-require_relative "../../../apps/language_practice_plus/language_practice_plus_tools"
+require_relative "../../../apps/language_practice/language_practice_tools"
 require_relative "../../../apps/voice_interpreter/voice_interpreter_tools"
 require_relative "../../../lib/monadic/turn_state/notes"
 require_relative "../../../lib/monadic/turn_state/model_state"
@@ -135,9 +135,9 @@ RSpec.describe "the Monadic apps' state by turn" do
     end
   end
 
-  describe "Language Practice Plus's advice" do
-    let(:app) { "LanguagePracticePlusOpenAI" }
-    let(:practice) { Class.new { include LanguagePracticePlusTools }.new }
+  describe "Language Practice's advice" do
+    let(:app) { "LanguagePracticeOpenAI" }
+    let(:practice) { Class.new { include LanguagePracticeStateTools }.new }
 
     def advice
       Monadic::TurnState.items(session, "language_advice").map { |item| item[:data] }

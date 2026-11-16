@@ -26,7 +26,7 @@ An app can show its state to the user as a page on the [work screen](../basic-us
 
 The page is for reading. The model changes the state with the app's tools, and the page follows.
 
-Some apps also keep a log on the page: texts that are added for the user to read and that the model does not read back, such as the advice of Language Practice Plus and the phrases of Voice Interpreter.
+Some apps also keep a log on the page: texts that are added for the user to read and that the model does not read back, such as the advice of Language Practice and the phrases of Voice Interpreter.
 
 ## Session State Apps
 
@@ -40,7 +40,7 @@ These built-in apps keep Session State:
 | Novel Writer | `load_novel_context`, `save_novel_context` | Story notes |
 | Translate | `load_translation_context`, `save_translation_context`, and vocabulary tools | Translation notes |
 | Voice Interpreter | `load_context`, `save_translation`, `set_target_language` | Interpreter notes |
-| Language Practice Plus | `load_context`, `save_response`, `set_target_language` | Practice notes |
+| Language Practice | `load_context`, `save_response`, `set_target_language` | Practice notes |
 | Jupyter Notebook, Video Generator | `monadic_load_state` (the app saves the state itself) | — |
 
 ## Creating a Session State App

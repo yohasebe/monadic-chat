@@ -64,7 +64,7 @@ RSpec.describe "Streaming a reply with Show Thinking off" do
 
     it "is declared off by the apps that answer by voice" do
       root = File.expand_path("../../../../apps", __dir__)
-      files = %w[voice_interpreter voice_chat language_practice language_practice_plus]
+      files = %w[voice_interpreter voice_chat language_practice]
               .flat_map { |dir| Dir[File.join(root, dir, "*.mdsl")] }
 
       expect(files).not_to be_empty

@@ -468,7 +468,6 @@ module ResponseEvaluator
     'SyntaxTree' => 'Sentence syntax analysis',
     'MathTutor' => 'Mathematics teaching and problem solving',
     'LanguagePractice' => 'Language learning practice',
-    'LanguagePracticePlus' => 'Enhanced language learning with tools',
     'MusicLab' => 'Music theory advice with audio examples',
     'SecondOpinion' => 'Get alternative AI perspective',
     'ImageGenerator' => 'Image generation',

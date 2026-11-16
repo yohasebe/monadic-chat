@@ -26,8 +26,8 @@ RSpec.describe "Monadic Responses API JSON Handling" do
       expect(parsed["context"]).to have_key("language_advice")
     end
     
-    it "handles Language Practice Plus JSON format" do
-      # Actual format from Language Practice Plus
+    it "handles Language Practice JSON format" do
+      # Actual format from Language Practice
       language_practice_json = {
         "message" => "いいですね！初級で、目的は趣味、そしてアニメが好きなんですね😊📺",
         "context" => {

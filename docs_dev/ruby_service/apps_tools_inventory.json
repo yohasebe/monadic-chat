@@ -410,8 +410,6 @@
       "app_creation": 0
     },
     "apps_with_no_tools": [
-      "language_practice",
-      "language_practice_plus",
       "translate",
       "voice_chat",
       "voice_interpreter"

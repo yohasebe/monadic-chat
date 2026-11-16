@@ -97,8 +97,6 @@ KB_SEARCH_MDSLS = %w[
   language_practice/language_practice_mistral.mdsl
   language_practice/language_practice_ollama.mdsl
   language_practice/language_practice_openai.mdsl
-  language_practice_plus/language_practice_plus_claude.mdsl
-  language_practice_plus/language_practice_plus_openai.mdsl
   mail_composer/mail_composer_claude.mdsl
   mail_composer/mail_composer_cohere.mdsl
   mail_composer/mail_composer_deepseek.mdsl
@@ -272,7 +270,7 @@ RSpec.describe 'MonadicDSL capability consistency (Phase 5)' do
     # situation we want to surface in code review. Update these when
     # consciously moving an app between groups.
     {
-      'KB search'    => [KB_SEARCH_MDSLS, 119],
+      'KB search'    => [KB_SEARCH_MDSLS, 117],
       'KB save only' => [KB_SAVE_ONLY_MDSLS, 3],
       'Neither'      => [NEITHER_MDSLS, 0]
     }.each do |label, (list, expected_size)|

@@ -209,7 +209,7 @@ app "MonadicHelpOpenAI" do
        - Text-to-speech: Speech Draft Helper app
        - Graphs/Charts: Math Tutor (mathematical), Mermaid Grapher (diagrams)
        - PDF / document handling: Knowledge Base (import the file via the Browse modal's "Import file" button)
-       - Voice interaction: Voice Chat apps AND Language Practice/Language Practice Plus (has Enter key support)
+       - Voice interaction: Voice Chat apps AND Language Practice (has Enter key support)
        - Writing assistance (NON-CODE): Mail Composer (emails), Novel Writer (creative writing)
        - Research: Research Assistant (general research), Wikipedia (encyclopedia lookups)
        - IMPORTANT: Match the app purpose to the user's need - don't suggest unrelated apps

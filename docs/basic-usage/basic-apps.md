@@ -21,7 +21,6 @@ The table below shows which apps are available for which AI model providers.
 | Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Language Practice Plus | ✅ | ✅ | | | | | | |
 | Translate | ✅ | | ✅ | ✅ | | | | |
 | Voice Interpreter | ✅ | | ✅ | | | | | |
 | Novel Writer | ✅ | | | ✅ | | | ✅ | |
@@ -85,7 +84,6 @@ General-purpose conversation apps, from standard and voice chat to math tutoring
 Apps for practicing languages in spoken conversation, translating text, and interpreting speech into another language. See [Language Learning Apps](../apps/language-apps.md).
 
 - Language Practice
-- Language Practice Plus
 - Translate
 - Voice Interpreter
 

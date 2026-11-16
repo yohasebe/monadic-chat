@@ -9,6 +9,7 @@ from music_generator import (
     _voice_lead,
     action_backing,
     build_abc_chord,
+    build_key_abc_map,
     midi_to_abc_note,
     parse_chord_with_bass,
     CHORD_TYPES,
@@ -206,10 +207,10 @@ class TestBassPattern:
         pattern = _bass_pattern(48, style, "m7", next_bass_midi=next_bass)
         assert _pattern_units(pattern) == 8
 
-    def test_use_flats(self):
-        """Bass patterns should respect enharmonic spelling."""
-        pattern = _bass_pattern(53, "bossa", "m7", use_flats=True)  # F3
-        # Should not contain sharps
+    def test_key_aware_spelling(self):
+        """In a flat key, a bass pattern spells its notes with flats, not sharps."""
+        _key, key_abc_notes = build_key_abc_map(10)  # B-flat major
+        pattern = _bass_pattern(53, "bossa", "m7", key_abc_notes=key_abc_notes)  # F3
         assert "^" not in pattern
 
 
@@ -340,5 +341,6 @@ class TestBackingTrackIntegration:
         })
         assert result["success"]
         abc = result["abc"]
-        # Should use _B (Bb) notation, not ^A
-        assert "_B" in abc or "_b" in abc
+        # The key signature carries the flats: B-flat is written B under K:Bb, never as A-sharp
+        assert "K:Bb" in abc
+        assert "^A" not in abc and "^a" not in abc

@@ -539,14 +539,7 @@ module OllamaHelper
           elsif msg["role"] == "system" && system_message
             system_message
           else
-            # The user's message (a session message here) keeps what the
-            # work screen shows, and its images.
-            content = msg["content"] || msg["text"] || ""
-            entry = { "role" => msg["role"], "content" => Monadic::Workbench::Observation.appended(content, observation_for(session, msg)) }
-            if msg["role"] == "user" && msg["images"].is_a?(Array) && !msg["images"].empty?
-              entry["images"] = msg["images"].filter_map { |img| img["data"].to_s.split(",")[1] }
-            end
-            entry
+            tool_round_entry(msg, session)
           end
         end
       end
@@ -795,6 +788,22 @@ module OllamaHelper
     end
   end
 
+  # A message of a tool round as Ollama reads it. The user's message (a
+  # session message here) keeps what the work screen shows, and its images;
+  # the assistant's message keeps the tool calls it made and each result
+  # names its tool, or the model sees results of calls it never made and
+  # makes them again.
+  def tool_round_entry(msg, session)
+    content = msg["content"] || msg["text"] || ""
+    entry = { "role" => msg["role"], "content" => Monadic::Workbench::Observation.appended(content, observation_for(session, msg)) }
+    if msg["role"] == "user" && msg["images"].is_a?(Array) && !msg["images"].empty?
+      entry["images"] = msg["images"].filter_map { |img| img["data"].to_s.split(",")[1] }
+    end
+    entry["tool_calls"] = msg["tool_calls"] if msg["role"] == "assistant" && msg["tool_calls"]
+    entry["tool_name"] = msg["tool_name"] if msg["role"] == "tool" && msg["tool_name"]
+    entry
+  end
+
   def process_functions(app, session, tool_calls, context, call_depth, &block)
     obj = session[:parameters]
 
@@ -836,6 +845,7 @@ module OllamaHelper
       function_return = result.value
       context << {
         "role" => "tool",
+        "tool_name" => function_name,
         "content" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s,
         "_look_call" => (made_id if !result.stop && function_return.is_a?(Monadic::Workbench::Look::Result))
       }.compact

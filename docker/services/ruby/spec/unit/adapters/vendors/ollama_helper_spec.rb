@@ -10,6 +10,25 @@ RSpec.describe OllamaHelper do
     end.new
   end
 
+  describe 'a tool round' do
+    let(:call) { { "function" => { "name" => "write_section", "arguments" => { "section" => "draft" } } } }
+
+    it 'keeps the tool calls the assistant made' do
+      entry = helper.send(:tool_round_entry, { "role" => "assistant", "content" => "", "tool_calls" => [call] }, {})
+      expect(entry["tool_calls"]).to eq([call])
+    end
+
+    it 'names the tool of each result' do
+      entry = helper.send(:tool_round_entry, { "role" => "tool", "tool_name" => "write_section", "content" => "{}" }, {})
+      expect(entry).to include("role" => "tool", "tool_name" => "write_section", "content" => "{}")
+    end
+
+    it 'adds neither to a user message' do
+      entry = helper.send(:tool_round_entry, { "role" => "user", "text" => "Write it" }, {})
+      expect(entry.keys).to contain_exactly("role", "content")
+    end
+  end
+
   describe 'constants' do
     describe 'DEFAULT_MODEL' do
       it 'is defined as a non-empty string' do

@@ -10,12 +10,39 @@ RSpec.describe OllamaHelper do
     end.new
   end
 
+  describe 'reading the stream' do
+    def read(chunks)
+      out = []
+      res = helper.send(:process_json_data, "ChatOllama", { parameters: {}, messages: [] }, chunks, 0) { |r| out << r }
+      [res.dig(0, "choices", 0, "message", "content"), out]
+    end
+
+    let(:records) do
+      [{ "message" => { "content" => "Grüß" } }, { "message" => { "content" => " dich" } },
+       { "message" => { "content" => "" }, "done" => true }].map { |r| "#{JSON.generate(r)}\n" }
+    end
+
+    it 'reads several records that arrive in one chunk' do
+      expect(read([records.join]).first).to eq("Grüß dich")
+    end
+
+    it 'reads a record split across chunks, even inside a character' do
+      bytes = records.join.b
+      cut = bytes.index("ü".b) + 1
+      expect(read([bytes[0...cut], bytes[cut..]]).first).to eq("Grüß dich")
+    end
+
+    it 'reads a last record that has no newline' do
+      expect(read([records.join.chomp]).first).to eq("Grüß dich")
+    end
+  end
+
   describe 'a tool round' do
     let(:call) { { "function" => { "name" => "write_section", "arguments" => { "section" => "draft" } } } }
 
-    it 'keeps the tool calls the assistant made' do
-      entry = helper.send(:tool_round_entry, { "role" => "assistant", "content" => "", "tool_calls" => [call] }, {})
-      expect(entry["tool_calls"]).to eq([call])
+    it 'keeps the reasoning and the tool calls of the assistant' do
+      entry = helper.send(:tool_round_entry, { "role" => "assistant", "content" => "", "thinking" => "Draft it.", "tool_calls" => [call] }, {})
+      expect(entry).to include("thinking" => "Draft it.", "tool_calls" => [call])
     end
 
     it 'names the tool of each result' do

@@ -433,9 +433,12 @@ module OllamaHelper
       body["think"] = true
     end
 
-    # Add tool definitions if available and within call depth limit
+    # Add tool definitions if available and within call depth limit. A model
+    # that cannot call tools gets none: the same app then holds a plain
+    # conversation with it.
     tools_config = obj["tools"]
-    if tools_config && session[:call_depth_per_turn].to_i < tool_round_limit(session, MAX_FUNC_CALLS)
+    tools_allowed = supports_tools?(obj["model"]) && session[:call_depth_per_turn].to_i < tool_round_limit(session, MAX_FUNC_CALLS)
+    if tools_config && tools_allowed
       formatted_tools = format_tools_for_ollama(tools_config)
       # Ollama sources tools from obj["tools"] (frontend), so PTD filtering must
       # run here: hide conditional tools not yet unlocked, then annotate the
@@ -459,7 +462,7 @@ module OllamaHelper
     # whether the app declares any tools of its own. The call-depth
     # cap above still applies — once the limit is reached, neither
     # app tools nor websearch tools are sent (the model must wrap up).
-    if websearch && session[:call_depth_per_turn].to_i < tool_round_limit(session, MAX_FUNC_CALLS)
+    if websearch && tools_allowed
       body["tools"] ||= []
       body["tools"].concat(WEBSEARCH_TOOLS)
     end
@@ -862,6 +865,14 @@ module OllamaHelper
   # array per model (e.g. ["completion","vision","tools","thinking"]).
   # Fallback: if the API call fails, fall back to a name-based heuristic
   # so thinking-named models still work when Ollama is temporarily flaky.
+  # Whether the model can call tools, as Ollama reports it (/api/show);
+  # without that report the model is taken to be able to.
+  def supports_tools?(model_name)
+    return true unless model_name.is_a?(String)
+    caps = OllamaHelper.fetch_model_capabilities(model_name)
+    caps ? caps[:capabilities].include?("tools") : true
+  end
+
   def supports_thinking?(model_name)
     return false unless model_name.is_a?(String)
     caps = OllamaHelper.fetch_model_capabilities(model_name)

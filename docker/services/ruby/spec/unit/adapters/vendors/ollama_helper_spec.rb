@@ -271,6 +271,25 @@ RSpec.describe OllamaHelper do
     end
   end
 
+  describe '#supports_tools?' do
+    it 'is true when Ollama reports the tools capability' do
+      allow(OllamaHelper).to receive(:fetch_model_capabilities).with("any-model")
+        .and_return({ capabilities: ["completion", "tools"], context_length: 8192, fetched_at: Time.now })
+      expect(helper.send(:supports_tools?, "any-model")).to be true
+    end
+
+    it 'is false when Ollama reports a model without it' do
+      allow(OllamaHelper).to receive(:fetch_model_capabilities).with("any-model")
+        .and_return({ capabilities: ["completion", "vision"], context_length: 8192, fetched_at: Time.now })
+      expect(helper.send(:supports_tools?, "any-model")).to be false
+    end
+
+    it 'takes the model to be able to when Ollama gives no report' do
+      allow(OllamaHelper).to receive(:fetch_model_capabilities).and_return(nil)
+      expect(helper.send(:supports_tools?, "any-model")).to be true
+    end
+  end
+
   describe '#supports_thinking?' do
     context 'when API capabilities are available' do
       it 'returns true when capabilities include "thinking"' do

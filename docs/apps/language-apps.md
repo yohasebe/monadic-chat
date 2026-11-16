@@ -8,7 +8,7 @@ Apps for practicing, translating, and interpreting languages, with speech synthe
 
 Practice a language in a conversation that the assistant starts. The assistant first asks which language you want to practice. The assistant's replies are read aloud. To answer by voice, press the Right Arrow key or click the voice input button to start speaking, and click the button again to finish; your speech is then sent.
 
-The replies keep to the conversation. Corrections and advice on your language use are collected on the [work screen](../basic-usage/web-interface.md#work-screen) as the **Practice notes** page, together with the language you practice. In the Ollama version, the assistant only converses: there is no Practice notes page, and explanations, when needed, are given in the reply.
+The replies keep to the conversation. Corrections and advice on your language use are collected on the [work screen](../basic-usage/web-interface.md#work-screen) as the **Practice notes** page, together with the language you practice. With an Ollama model without the `tools` capability, the assistant only converses: there is no Practice notes page.
 
 Language Practice supports the providers indicated in the [availability table](../basic-usage/basic-apps.md#app-availability). For the speech settings, see [Speech Panel](../basic-usage/web-interface.md#speech-settings-panel).
 

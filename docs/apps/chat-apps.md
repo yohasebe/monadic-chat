@@ -14,7 +14,7 @@ Have a conversation with the AI, which responds with appropriate emojis. Web sea
 - **People**: The people mentioned in the conversation.
 - **Notes**: Key facts and preferences to remember.
 
-Deleting a turn takes back what that turn added to the lists. The lists are kept with models that support tool calling; the Ollama version does not keep them.
+Deleting a turn takes back what that turn added to the lists. The lists are kept with models that support tool calling; with an Ollama model without the `tools` capability, they are not kept.
 
 With `Open URL` below the message box, you can open a web page on the work screen or read its text into your message, with any provider.
 

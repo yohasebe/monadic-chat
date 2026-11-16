@@ -528,12 +528,8 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
         request_tool
       ]
 
-      # Variants that keep a plain conversation and call no tools
-      variants_without_tools = %w[language_practice_ollama.mdsl]
-
       app_dirs.each do |app_dir|
         mdsl_files = Dir.glob(File.join(app_dir, "*.mdsl"))
-                        .reject { |file| variants_without_tools.include?(File.basename(file)) }
         ruby_files = Dir.glob(File.join(app_dir, "*_tools.rb"))
 
         next if mdsl_files.length <= 1 || ruby_files.empty?

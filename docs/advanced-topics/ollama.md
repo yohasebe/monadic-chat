@@ -60,7 +60,7 @@ Monadic Chat reads each model's capabilities from Ollama's `/api/show` endpoint 
 | Capability | What it enables |
 |------------|-----------------|
 | **vision** | Image input. The image button appears only for these models. |
-| **tools** | Tool calling: web search and the tool features of Coding Assistant, Mail Composer and Knowledge Base. |
+| **tools** | Tool calling: web search, Knowledge Base search, the conversation records of Chat, the Practice notes of Language Practice, and the tool features of Coding Assistant and Mail Composer. |
 | **thinking** | Reasoning output, shown in the thinking panel. The Show Thinking toggle turns it on and off. |
 
 Structured output (generation constrained by a JSON schema) works with every model.
@@ -77,7 +77,7 @@ When `/api/show` gives no answer for a model, Monadic Chat guesses from the mode
 
 ## Models Without Tool Calling
 
-When the selected model does not have the `tools` capability, the sidebar shows a yellow **No tool calling** indicator. Web search and the tool features of Coding Assistant, Mail Composer and Knowledge Base do not work with that model. For plain conversation, such a model works without problems.
+When the selected model does not have the `tools` capability, the sidebar shows a yellow **No tool calling** indicator. Monadic Chat sends that model no tools: web search, Knowledge Base search, the conversation records of Chat, the Practice notes of Language Practice and the tool features of Coding Assistant and Mail Composer do not work with it. For plain conversation, such a model works without problems.
 
 ## Available Apps
 
@@ -85,14 +85,13 @@ The following apps are available in the Ollama group:
 
 | App | Description |
 |-----|-------------|
-| **Chat** | General conversation. Accepts images when a vision model is selected. |
+| **Chat** | General conversation. Keeps the topics, people and notes of the conversation on the work screen. Accepts images when a vision model is selected. |
 | **Coding Assistant** | Help with programming, including file operations in the shared folder. |
-| **Knowledge Base** | Work with the Knowledge Base: search, list, change scope, import and delete entries. |
-| **Language Practice** | Conversation practice in a foreign language, with corrections. |
+| **Language Practice** | Conversation practice in a foreign language. Corrections and advice are collected on the work screen. |
 | **Mail Composer** | Help with writing emails, including file operations in the shared folder. |
 | **Voice Chat** | Conversation by voice. |
 
-Coding Assistant, Mail Composer and Knowledge Base need a model with the `tools` capability.
+These apps are defined as for the other providers. Their tool features need a model with the `tools` capability; with a model without it, they hold a plain conversation.
 
 ## Technical Details
 

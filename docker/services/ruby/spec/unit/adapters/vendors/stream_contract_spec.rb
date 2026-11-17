@@ -187,6 +187,11 @@ RSpec.describe "Reading a streamed reply (every provider)" do
           helper.process_json_data(app: "SpecApp", session: session, query: {}, res: res, call_depth: 0, &sink)
         end
       end],
+      "OpenAI Responses" => [StreamContract::Responses, :sse, lambda do |spec, chunks|
+        spec.read_with(OpenAIHelper, chunks) do |helper, session, res, sink|
+          helper.process_responses_api_data(app: "SpecApp", session: session, query: {}, res: res, call_depth: 0, &sink)
+        end
+      end],
       "DeepSeek" => [StreamContract::ChatCompletions, :sse, lambda do |spec, chunks|
         spec.read_with(DeepSeekHelper, chunks) do |helper, session, res, sink|
           helper.process_json_data(app: "SpecApp", session: session, query: {}, res: res, call_depth: 0, &sink)

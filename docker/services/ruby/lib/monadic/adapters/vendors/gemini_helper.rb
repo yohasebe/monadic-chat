@@ -739,13 +739,12 @@ module GeminiHelper
     # Filter out "none" — Gemini doesn't support it; valid values are minimal/low/medium/high.
     # When "none", use the budget branch below to apply can_disable.
     gemini_reasoning = options["reasoning_effort"]
-    gemini_reasoning = nil if gemini_reasoning == "none"
-
-    if thinking_level_config && gemini_reasoning != nil
-      thinking_level = gemini_reasoning || options["thinking_level"] || thinking_level_config[:default]
-      is_thinking_model = true
+    if thinking_level_config && (gemini_reasoning || !Monadic::Utils::ModelSpec.get_thinking_budget(model))
+      thinking_level = gemini_thinking_level(model, gemini_reasoning || options["thinking_level"])
+      is_thinking_model = true if thinking_level
       Monadic::Utils::ExtraLogger.log { "GeminiHelper: Detected thinking-level model #{model} with thinking_level=#{thinking_level}" }
     end
+    gemini_reasoning = nil if gemini_reasoning == "none"
     
     # Thinking budget via reasoning_effort (for models with thinking_budget support)
     if !is_thinking_model && (gemini_reasoning || Monadic::Utils::ModelSpec.supports_thinking?(model) || model =~ /2\.5.*preview/i)
@@ -1644,6 +1643,23 @@ module GeminiHelper
   # --- Private helper methods extracted from api_request ---
 
   private
+  # The thinking level to send for a model with levels (model_spec.js
+  # thinking_level: [levels, default]): the requested one if the model takes
+  # it, else its default. "none" is nil where the catalog can turn thinking
+  # off by budget, else the lowest level. nil for a model without levels.
+  def gemini_thinking_level(model, requested)
+    config = Monadic::Utils::ModelSpec.get_thinking_level_options(model)
+    return nil unless config
+
+    levels = Array(config[:options]).map(&:to_s)
+    if requested.to_s == "none"
+      return nil if Monadic::Utils::ModelSpec.get_thinking_budget(model)&.[]("can_disable")
+
+      return levels.first
+    end
+    levels.include?(requested.to_s) ? requested.to_s : config[:default].to_s
+  end
+
 
   # Resolve model capabilities: web search, thinking, tools, streaming (SSOT-based)
   def resolve_gemini_model_capabilities(obj, model_name)
@@ -1665,7 +1681,7 @@ module GeminiHelper
       Monadic::Utils::ModelSpec.get_thinking_budget(model_name)&.[]("can_disable")
     reasoning_effort = nil if reasoning_effort == "none" && !disable_thinking
     if thinking_level_config && !disable_thinking
-      thinking_level = reasoning_effort || obj["thinking_level"] || thinking_level_config[:default]
+      thinking_level = gemini_thinking_level(model_name, obj["reasoning_effort"] || obj["thinking_level"])
       reasoning_effort = nil  # Avoid mixing thinking_budget and thinking_level
     end
     is_thinking_model = thinking_level_config ? true : (!reasoning_effort.nil? && !reasoning_effort.empty?)
@@ -1750,17 +1766,15 @@ module GeminiHelper
       if thinking_level
         model_for_budget = model_name || obj["model"]
         thinking_budget = Monadic::Utils::ModelSpec.get_thinking_budget(model_for_budget)
-        budget_tokens = nil
-        if thinking_budget && thinking_budget["presets"] && thinking_budget["presets"][thinking_level]
-          budget_tokens = thinking_budget["presets"][thinking_level]
-        else
-          budget_tokens = thinking_level == "high" ? 20000 : 8000
-        end
-
-        body["generationConfig"]["thinkingConfig"] = {
-          "thinkingBudget" => budget_tokens,
-          "includeThoughts" => include_thoughts
-        }
+        # A level the catalog gives a budget for is sent as that budget;
+        # any other is sent as the level itself.
+        budget_tokens = thinking_budget&.dig("presets", thinking_level)
+        body["generationConfig"]["thinkingConfig"] =
+          if budget_tokens
+            { "thinkingBudget" => budget_tokens, "includeThoughts" => include_thoughts }
+          else
+            { "thinkingLevel" => thinking_level, "includeThoughts" => include_thoughts }
+          end
       # Thinking budget (for models with thinking_budget support)
       elsif is_thinking_model && reasoning_effort
         model = obj["model"]

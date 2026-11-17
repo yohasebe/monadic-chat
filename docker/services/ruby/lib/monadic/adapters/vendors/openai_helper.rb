@@ -2769,15 +2769,14 @@ module OpenAIHelper
 
     # Build reasoning entries using original structure when available
     reasoning_entries = state[:reasoning_segments].filter_map do |segment|
-      text = segment[:text].to_s.strip
-      next if text.empty?
+      # The original reasoning item goes back as it came, also when its
+      # summary is empty: what the model needs of it is not the summary.
+      original_item = segment[:id] && state[:reasoning_items_raw][segment[:id]]
+      next original_item.transform_keys(&:to_s) if original_item
 
-      # Use original reasoning item if available (preserves summary structure)
-      segment_id = segment[:id]
-      if segment_id && state[:reasoning_items_raw][segment_id]
-        original_item = state[:reasoning_items_raw][segment_id]
-        # Preserve original structure (may have summary or content)
-        original_item.transform_keys(&:to_s)
+      text = segment[:text].to_s.strip
+      if text.empty?
+        nil
       else
         # Fallback to content structure
         {

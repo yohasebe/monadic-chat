@@ -256,4 +256,26 @@ RSpec.describe OpenAIHelper do
       expect(context.map { |c| [c[:tool_call_id], c[:content]] }).to eq([%w[a result], %w[b result]])
     end
   end
+
+  describe '#process_responses_api_data with a reasoning item whose summary is empty' do
+    it 'sends the item back with the call' do
+      item = { "type" => "reasoning", "id" => "rs_1", "summary" => [], "encrypted_content" => "opaque" }
+      call = { "type" => "function_call", "id" => "fc_1", "call_id" => "call_1", "name" => "t", "arguments" => "{}" }
+      events = [{ "type" => "response.output_item.added", "item" => item.merge("summary" => []) },
+                { "type" => "response.output_item.done", "item" => item },
+                { "type" => "response.output_item.added", "item" => call.merge("arguments" => "") },
+                { "type" => "response.output_item.done", "item" => call },
+                { "type" => "response.completed", "response" => { "id" => "r", "status" => "completed" } }]
+      stream = events.map { |e| "data: #{JSON.generate(e)}\n\n" }.join
+      context = nil
+      allow(helper).to receive(:process_functions) do |_app, _session, _calls, given, _depth|
+        context = given
+        []
+      end
+      session = { parameters: { "app_name" => "TestApp", "model" => "m" }, messages: [], call_depth_per_turn: 0 }
+      helper.process_responses_api_data(app: "TestApp", session: session, query: {}, res: [stream], call_depth: 0) { |_| }
+      kept = context.flat_map { |m| Array(m["reasoning_items"]) }
+      expect(kept.map { |r| r["id"] }).to eq(["rs_1"])
+    end
+  end
 end

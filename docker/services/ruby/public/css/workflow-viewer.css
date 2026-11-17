@@ -76,9 +76,9 @@
    transitions, logical separator margin) lives on the shared
    `.wv-panel-controls .btn` rule so both modes share one visual language. */
 #workflow-viewer-panel.wv-panel-inline .wv-panel-controls .btn {
-  width: 32px !important;
-  height: 32px !important;
-  font-size: 15px !important;
+  width: 28px !important;
+  height: 28px !important;
+  font-size: 14px !important;
 }
 
 /* --- Panel Header (drag handle) --- */
@@ -121,14 +121,14 @@
 }
 
 .wv-panel-controls .btn {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   min-width: 0; /* defeat the global `button, .btn { min-width: 3.5rem }` in monadic.css */
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1;
   border-width: 1px;
   border-color: rgba(128, 128, 128, 0.3);
@@ -170,14 +170,14 @@
    own `.btn-outline-secondary.active` rules without `!important`. */
 /* The same square as the panel's buttons. */
 #wv-mode-segment .btn {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   min-width: 0;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1;
   border-color: rgba(128, 128, 128, 0.3);
   color: var(--text-secondary, #6c757d);

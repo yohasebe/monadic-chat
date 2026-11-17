@@ -38,6 +38,10 @@
     - Long chains of tool calls work with every provider
     - Ollama apps no longer repeat a tool call or end a reply empty
     - A reply stopped for repeated tool calls names the tools
+    - Gemini and Mistral replies no longer lose text or garble non-English characters
+    - An error during a reply ends it as an error, and no tool called before the error runs
+    - Every tool the model calls at once runs, with OpenAI, Mistral and DeepSeek too
+    - Replies follow the language of your message also after tool calls, with every provider
     - The reasoning effort chosen for a Claude model is used
     - A reply with many formulas or code blocks shows each in its place
     - A chat continued from the history or an import keeps its own app

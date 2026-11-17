@@ -74,6 +74,7 @@ describe('ws-app-data-handlers', () => {
         document.getElementById('tts-provider').appendChild(option);
       });
       // STT options
+      createDOMOption('elevenlabs-stt-scribe-v3');
       createDOMOption('elevenlabs-stt-scribe-v2');
       createDOMOption('elevenlabs-stt-scribe');
     });
@@ -106,6 +107,7 @@ describe('ws-app-data-handlers', () => {
       expect(document.getElementById('elevenlabs-multilingual-provider-option').disabled).toBe(false);
       expect(document.getElementById('elevenlabs-v3-provider-option').disabled).toBe(false);
       expect(document.getElementById('elevenlabs-v4-turbo-provider-option').disabled).toBe(false);
+      expect(document.getElementById('elevenlabs-stt-scribe-v3').disabled).toBe(false);
       expect(document.getElementById('elevenlabs-stt-scribe-v2').disabled).toBe(false);
       expect(document.getElementById('elevenlabs-stt-scribe').disabled).toBe(false);
     });
@@ -119,6 +121,7 @@ describe('ws-app-data-handlers', () => {
       expect(document.getElementById('elevenlabs-multilingual-provider-option').disabled).toBe(true);
       expect(document.getElementById('elevenlabs-v3-provider-option').disabled).toBe(true);
       expect(document.getElementById('elevenlabs-v4-provider-option').disabled).toBe(true);
+      expect(document.getElementById('elevenlabs-stt-scribe-v3').disabled).toBe(true);
       expect(document.getElementById('elevenlabs-stt-scribe-v2').disabled).toBe(true);
     });
 

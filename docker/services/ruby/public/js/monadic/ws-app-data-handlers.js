@@ -30,6 +30,7 @@ function handleElevenLabsVoices(data) {
   const voices = data["content"];
 
   const sttOptionIds = [
+    "elevenlabs-stt-scribe-v3",
     "elevenlabs-stt-scribe-v2",
     "elevenlabs-stt-scribe"
   ];

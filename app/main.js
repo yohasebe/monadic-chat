@@ -15,6 +15,7 @@ const i18n = require('./i18n');
 // with `app/settings.html`'s build-state badges.
 const installOptions = require('./install_options.config');
 const opReferences = require('./op_references');
+const keyCheck = require('./key_check');
 const { createRevealHandler, createTrashHandler, showSharedPath, NO_ANSWER } = require('./shared_folder_reveal');
 const { copyAddressItems } = require('./context_menu_copy');
 const { writeStreamNoFollow, readStreamNoFollow, openReadNoFollow } = require('./no_follow_files');
@@ -4035,83 +4036,6 @@ function checkPendingUpdates() {
   return false;
 }
 
-// Update ENV file settings; if a key is missing, set default value (do not override TTS_DICT_PATH if present)
-function checkAndUpdateEnvFile() {
-    const envPath = getEnvPath();
-    if (!envPath) return false;
-
-    let envConfig = readEnvFile(envPath);
-
-    // Set default values if not already specified
-    if (!envConfig.ROUGE_THEME) {
-        envConfig.ROUGE_THEME = 'github:light';
-    }
-
-    // STT_MODEL is now managed via Web UI Cookie, not ENV config
-
-    if (!envConfig.EMBEDDING_MODEL) {
-        envConfig.EMBEDDING_MODEL = 'text-embedding-3-large';
-    }
-
-    // Load default models from model_spec.js providerDefaults (SSOT)
-    const modelSpecPath = app.isPackaged
-        ? path.join(process.resourcesPath, 'app', 'docker', 'services', 'ruby', 'public', 'js', 'monadic', 'model_spec.js')
-        : path.join(__dirname, '..', 'docker', 'services', 'ruby', 'public', 'js', 'monadic', 'model_spec.js');
-    try {
-        const modelSpec = require(modelSpecPath);
-        const defaults = modelSpec.providerDefaults || {};
-
-        const providerMap = {
-            'OPENAI_DEFAULT_MODEL': 'openai',
-            'ANTHROPIC_DEFAULT_MODEL': 'anthropic',
-            'COHERE_DEFAULT_MODEL': 'cohere',
-            'GEMINI_DEFAULT_MODEL': 'gemini',
-            'MISTRAL_DEFAULT_MODEL': 'mistral',
-            'GROK_DEFAULT_MODEL': 'xai',
-            'DEEPSEEK_DEFAULT_MODEL': 'deepseek'
-        };
-
-        for (const [envVar, providerKey] of Object.entries(providerMap)) {
-            if (!envConfig[envVar] && defaults[providerKey]?.chat?.[0]) {
-                envConfig[envVar] = defaults[providerKey].chat[0];
-            }
-        }
-    } catch (error) {
-        console.error('Warning: Could not load providerDefaults from model_spec.js:', error.message);
-    }
-
-    // Do not override TTS_DICT_PATH if it already exists
-    if (envConfig.TTS_DICT_PATH === undefined) {
-        envConfig.TTS_DICT_PATH = '';
-    }
-
-    if (envConfig.EXTRA_LOGGING === undefined) {
-      envConfig.EXTRA_LOGGING = 'false';
-    }
-
-    // Port settings are no longer user-configurable
-    // Docker containers use hardcoded ports
-    envConfig.RUBY_PORT = '4567';
-    envConfig.JUPYTER_PORT = '8889';
-
-    // Check for the presence of any API key
-    const api_list = [
-        'OPENAI_API_KEY',
-        'ANTHROPIC_API_KEY',
-        'COHERE_API_KEY',
-        'GEMINI_API_KEY',
-        'XAI_API_KEY',
-        'DEEPSEEK_API_KEY',
-        'ELEVENLABS_API_KEY',
-        'TAVILY_API_KEY'
-    ];
-    const hasApiKey = api_list.some(key => envConfig[key]);
-    
-    // Save updated config to file
-    writeEnvFile(envPath, envConfig);
-    return hasApiKey;
-}
-
 // Save the settings received from the settings UI
 function saveSettings(data) {
     const envPath = getEnvPath();
@@ -4214,6 +4138,60 @@ function isSettingsSender(event) {
 ipcMain.on('request-settings', (event) => {
   if (!isSettingsSender(event)) return;
   sendSettingsToRenderer(event.sender);
+});
+
+// providerDefaults from model_spec.js, or null when it cannot be read.
+function loadProviderDefaults() {
+  const modelSpecPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'app', 'docker', 'services', 'ruby', 'public', 'js', 'monadic', 'model_spec.js')
+    : path.join(__dirname, '..', 'docker', 'services', 'ruby', 'public', 'js', 'monadic', 'model_spec.js');
+  try {
+    return require(modelSpecPath).providerDefaults || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// Checks the key typed in a Settings row (saved or not) with its provider.
+// An op:// reference is read from 1Password: the value already read for the
+// same reference is reused, and any other is read once for this check only,
+// never added to the values handed to the Ruby container. One check at a
+// time, so 1Password prompts do not pile up. The answer carries status codes
+// and default model ids only.
+let keyCheckQueue = Promise.resolve();
+const keyChecksInFlight = new Set();
+ipcMain.handle('check-api-key', async (event, payload) => {
+  if (!isSettingsSender(event)) return null;
+  const envKey = payload && typeof payload.envKey === 'string' ? payload.envKey : '';
+  const value = payload && typeof payload.value === 'string' ? payload.value.trim() : '';
+  if (!Object.prototype.hasOwnProperty.call(keyCheck.PROVIDERS, envKey)) return { status: 'unsupported' };
+  if (keyChecksInFlight.has(envKey)) return { status: 'busy' };
+  keyChecksInFlight.add(envKey);
+  const run = keyCheckQueue.then(async () => {
+    try {
+      let key = value;
+      if (opReferences.isReference(value)) {
+        key = secretCache.lookup(envKey, value);
+        if (!key) {
+          const { value: read, failure } = await opReferences.resolveOne(value);
+          if (!read) return { status: 'opFailed', reason: failure || 'failed' };
+          key = read;
+        }
+      }
+      return await keyCheck.checkKey({
+        envKey,
+        key,
+        providerDefaults: loadProviderDefaults(),
+        env: loadSettings()
+      });
+    } catch (_) {
+      return { status: 'unexpected' };
+    } finally {
+      keyChecksInFlight.delete(envKey);
+    }
+  });
+  keyCheckQueue = run.catch(() => {});
+  return run;
 });
 
 // Handle check-for-updates request from settings window

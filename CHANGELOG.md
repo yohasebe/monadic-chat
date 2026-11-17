@@ -34,6 +34,7 @@
     - `Plotly static images` in `Install Options` keeps a PNG of each Plotly chart in a notebook **(rebuild the Python container)**
     - The music apps take attached audio and MIDI files
     - New models: Gemini 4 Hydrogen, Gemini 4 Carbon, Claude Fable 5.2, GPT-6.1 Terra, GPT Image 2.6 Flare and Sunburst, and ElevenLabs Scribe v3
+    - Settings > API Keys can check each key with its provider and show whether the provider's default models are in that key's model list
   - Fixed
     - `Cancel` stops a reply while tools are running
     - A dropped connection during a reply gives the page back for input

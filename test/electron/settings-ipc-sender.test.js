@@ -37,7 +37,7 @@ describe('settings IPC', () => {
     expect(check({ sender: destroyed.webContents, senderFrame: destroyed.webContents.mainFrame })).toBe(false);
   });
 
-  test.each(['request-settings', 'save-settings', 'select-tts-dict'])('%s checks the sender before anything else', (channel) => {
+  test.each(['request-settings', 'save-settings', 'select-tts-dict', 'check-api-key'])('%s checks the sender before anything else', (channel) => {
     const m = source.match(new RegExp(`ipcMain\\.(?:on|handle)\\('${channel}', (?:async )?\\(event[^)]*\\) => \\{\\n((?:\\s*//.*\\n)*)\\s*(.*)`));
     expect(m).not.toBeNull();
     expect(m[2]).toMatch(/^if \(!isSettingsSender\(event\)\) return/);

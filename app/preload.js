@@ -90,6 +90,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Save settings to the main process; resolves to { success } once the
   // env file write has actually completed (or failed)
   saveSettings: (data) => ipcRenderer.invoke('save-settings', data),
+  checkApiKey: (envKey, value) => ipcRenderer.invoke('check-api-key', { envKey, value }),
 
   // Close settings window
   closeSettings: () => ipcRenderer.send('close-settings'),

@@ -12,6 +12,7 @@ require_relative "../workbench/observation"
 require_relative "../workbench/look"
 require_relative "../workbench/look/availability"
 require_relative "tool_run"
+require_relative "stream_records"
 
 # BaseVendorHelper
 # Shared utilities for vendor helpers. Provides macros for common patterns

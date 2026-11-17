@@ -634,7 +634,7 @@ module OllamaHelper
     show_thinking_enabled = show_thinking_param.nil? ||
                              ![false, "false"].include?(show_thinking_param)
 
-    buffer = String.new.b
+    records = StreamRecords.new(:ndjson)
     stream_error = nil
     texts = []
     thinking_texts = []
@@ -699,32 +699,21 @@ module OllamaHelper
       end
     end
 
-    body.each do |chunk|
-      buffer << chunk.to_s.b
-      while (newline = buffer.index("\n"))
-        line = buffer.slice!(0..newline).force_encoding(Encoding::UTF_8).strip
-        next if line.empty?
+    read = lambda do |line|
+      handle.call(JSON.parse(line))
+    rescue JSON::ParserError
+      Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Unreadable record skipped (#{line.bytesize} bytes)" }
+    end
 
-        begin
-          handle.call(JSON.parse(line))
-        rescue JSON::ParserError
-          Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Unreadable record skipped (#{line.bytesize} bytes)" }
-        end
-      end
+    body.each do |chunk|
+      records.feed(chunk, &read)
     rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Error: #{e.message}" }
       Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
       # Connection dropped mid-stream — invalidate cached endpoint
       OllamaHelper.reset_endpoint_cache
     end
-    # The last record may end without a newline.
-    unless buffer.strip.empty?
-      begin
-        handle.call(JSON.parse(buffer.force_encoding(Encoding::UTF_8)))
-      rescue JSON::ParserError
-        Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Unreadable record skipped (#{buffer.bytesize} bytes)" }
-      end
-    end
+    records.finish(&read)
 
     if stream_error
       Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Error record: #{stream_error}" }

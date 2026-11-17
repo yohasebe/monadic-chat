@@ -7,6 +7,7 @@ require_relative "../../../../lib/monadic/adapters/vendors/gemini_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/mistral_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/ollama_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/cohere_helper"
+require_relative "../../../../lib/monadic/adapters/vendors/claude_helper"
 
 # What every provider's reader of a streamed reply does, whatever the chunks
 # the reply arrives in: the text comes whole, every call of a round is run,
@@ -86,6 +87,34 @@ module StreamContract
     def error(message) = { "type" => "message-end", "delta" => { "finish_reason" => "ERROR", "error" => message } }
   end
 
+  module Claude
+    module_function
+
+    def start = { "type" => "message_start", "message" => { "id" => "m", "usage" => { "input_tokens" => 1 } } }
+
+    def text(pieces)
+      [start, { "type" => "content_block_start", "index" => 0, "content_block" => { "type" => "text", "text" => "" } }] +
+        pieces.map { |p| { "type" => "content_block_delta", "index" => 0, "delta" => { "type" => "text_delta", "text" => p } } } +
+        [{ "type" => "content_block_stop", "index" => 0 },
+         { "type" => "message_delta", "delta" => { "stop_reason" => "end_turn" }, "usage" => { "output_tokens" => 1 } },
+         { "type" => "message_stop" }]
+    end
+
+    def calls(calls)
+      [start] + calls.each_with_index.flat_map do |(name, args), i|
+        json = JSON.generate(args)
+        [{ "type" => "content_block_start", "index" => i,
+           "content_block" => { "type" => "tool_use", "id" => "toolu_#{i}", "name" => name, "input" => {} } },
+         { "type" => "content_block_delta", "index" => i, "delta" => { "type" => "input_json_delta", "partial_json" => json[0, 3] } },
+         { "type" => "content_block_delta", "index" => i, "delta" => { "type" => "input_json_delta", "partial_json" => json[3..] } },
+         { "type" => "content_block_stop", "index" => i }]
+      end + [{ "type" => "message_delta", "delta" => { "stop_reason" => "tool_use" }, "usage" => { "output_tokens" => 1 } },
+             { "type" => "message_stop" }]
+    end
+
+    def error(message) = { "type" => "error", "error" => { "type" => "overloaded_error", "message" => message } }
+  end
+
   module Ollama
     module_function
 
@@ -134,6 +163,11 @@ RSpec.describe "Reading a streamed reply (every provider)" do
       end],
       "Cohere" => [StreamContract::Cohere, :ndjson, lambda do |spec, chunks|
         spec.read_with(CohereHelper, chunks) do |helper, session, res, sink|
+          helper.process_json_data(app: "SpecApp", session: session, query: {}, res: res, call_depth: 0, &sink)
+        end
+      end],
+      "Claude" => [StreamContract::Claude, :sse, lambda do |spec, chunks|
+        spec.read_with(ClaudeHelper, chunks) do |helper, session, res, sink|
           helper.process_json_data(app: "SpecApp", session: session, query: {}, res: res, call_depth: 0, &sink)
         end
       end],

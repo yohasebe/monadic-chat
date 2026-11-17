@@ -1345,33 +1345,30 @@ module GeminiHelper
       # requires the model turn holding the functionCall (with its thoughtSignature)
       # to immediately precede the tool results; the results go under role "user"
       # (role "function" is accepted by 2.5 but rejected by Gemini 3 models).
-      fc_parts = obj["tool_results"].filter_map { |result|
-        fc = result["functionCall"]
-        next unless fc
-        part = { "functionCall" => fc }
-        part["thoughtSignature"] = result["thoughtSignature"] if result["thoughtSignature"]
-        part
-      }
-      if fc_parts.any?
-        last = body["contents"].last
-        if last && last["role"] == "model"
-          # Merge into the existing model turn (keeps role alternation valid)
-          (last["parts"] ||= []).concat(fc_parts)
-        else
-          body["contents"] << { "role" => "model", "parts" => fc_parts }
+      # Each round of the turn (the results of one round share its call
+      # depth): its calls, then their results, in order.
+      obj["tool_results"].chunk_while { |a, b| a["call_depth"] == b["call_depth"] }.each do |round|
+        fc_parts = round.filter_map do |result|
+          fc = result["functionCall"]
+          next unless fc
+
+          part = { "functionCall" => fc }
+          part["thoughtSignature"] = result["thoughtSignature"] if result["thoughtSignature"]
+          part
         end
-      end
+        if fc_parts.any?
+          last = body["contents"].last
+          if last && last["role"] == "model"
+            # Merge into the existing model turn (keeps role alternation valid)
+            (last["parts"] ||= []).concat(fc_parts)
+          else
+            body["contents"] << { "role" => "model", "parts" => fc_parts }
+          end
+        end
 
-      # Add tool results as functionResponse parts under role "user"
-      parts = obj["tool_results"].map { |result|
-        result["functionResponse"] ? { "functionResponse" => result["functionResponse"] } : nil
-      }.compact
-
-      if parts.any?
-        body["contents"] << {
-          "role" => "user",
-          "parts" => parts
-        }
+        # The results as functionResponse parts under role "user"
+        parts = round.filter_map { |result| { "functionResponse" => result["functionResponse"] } if result["functionResponse"] }
+        body["contents"] << { "role" => "user", "parts" => parts } if parts.any?
       end
 
       # Each look's image follows the results, in a user turn of its own

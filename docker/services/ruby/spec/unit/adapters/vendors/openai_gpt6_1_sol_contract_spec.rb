@@ -40,8 +40,8 @@ RSpec.describe 'GPT-6.1 Sol request contract' do
     expect(spec.get_model_property(model, 'supports_pdf_upload')).to be(true)
   end
 
-  it 'is the OpenAI chat default, with GPT-6 Sol kept as a choice' do
-    expect(spec.default_chat_model('openai')).to eq(model)
+  it 'is offered for OpenAI chat after the default, with GPT-6 Sol kept as a choice' do
+    expect(spec.get_provider_models('openai', 'chat')[1]).to eq(model)
     expect(spec.get_provider_models('openai', 'chat')).to include('gpt-6-sol')
   end
 

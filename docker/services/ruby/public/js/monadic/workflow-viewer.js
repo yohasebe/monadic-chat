@@ -162,14 +162,14 @@ const WorkflowViewer = (function () {
   }
 
   // ── Layout constants ───────────────────────────────────────
-  // The diagram's text is drawn at the page's text size when the view is
-  // at scale 1 (see fitGraphToContainer).
+  // Boxes are as wide as their text and the gaps small, so that the whole
+  // diagram fitted to the panel keeps its text large.
   var FONT_SIZE = 15;
-  var LINE_H = 26;
-  var HEAD_H = 30;
-  var PAD = 12;
-  var SIDE_GAP = 40;
-  var OVERLAP_GAP = 12;
+  var LINE_H = 22;
+  var HEAD_H = 24;
+  var PAD = 10;
+  var SIDE_GAP = 28;
+  var OVERLAP_GAP = 10;
 
   // ── Style helpers ──────────────────────────────────────────
   function makeStyle(fill, stroke, extra) {
@@ -259,6 +259,20 @@ const WorkflowViewer = (function () {
     }
 
     return html;
+  }
+
+  // The width of a label as the browser draws it (the same font and size),
+  // measured off screen; 0 where nothing is drawn.
+  var measureEl = null;
+  function labelWidth(html) {
+    if (!measureEl) {
+      measureEl = document.createElement('div');
+      measureEl.style.cssText = 'position:absolute;left:-10000px;top:0;visibility:hidden;white-space:nowrap;' +
+        'font-family:Montserrat, sans-serif;font-size:' + FONT_SIZE + 'px';
+      document.body.appendChild(measureEl);
+    }
+    measureEl.innerHTML = html;
+    return measureEl.scrollWidth || 0;
   }
 
   function calcSize(bodyCount, minW, opts) {
@@ -476,9 +490,9 @@ const WorkflowViewer = (function () {
       nodes.push({
         id: fId, type: 'feature', heading: 'Features',
         body: onFeatures.map(function (f) { return titleCase(f.replace(/_/g, ' ')); }),
-        flow: false, sideOf: modelId, side: 'right'
+        flow: false, sideOf: modelId, side: 'left'
       });
-      sideEdges.push({ from: modelId, to: fId, dashed: true, noArrow: true, direction: 'right' });
+      sideEdges.push({ from: modelId, to: fId, dashed: true, noArrow: true, direction: 'left' });
     }
 
     // ── Message History — always shown, left of Response ─────────
@@ -555,12 +569,13 @@ const WorkflowViewer = (function () {
           });
         }
 
-        // Determine width
+        // Determine width: the text's, within a smallest width per kind
         var minW;
-        if (hasScrollText) minW = 360;
-        else if (n.isToolContainer) minW = 280;
-        else if (n.type === 'feature' || n.type === 'history') minW = 230;
-        else minW = 250;
+        if (hasScrollText) minW = 320;
+        else if (n.isToolContainer) minW = 160;
+        else if (n.type === 'feature' || n.type === 'history') minW = 140;
+        else minW = 150;
+        if (!hasScrollText) minW = Math.max(minW, labelWidth(lbl) + PAD * 2 + 4);
 
         // Determine size
         var size;
@@ -594,6 +609,13 @@ const WorkflowViewer = (function () {
       });
     });
 
+    // The flow column's boxes take one width: the widest of them.
+    var flowCells = graphData.nodes.filter(function (n) { return n.flow; })
+      .map(function (n) { return cellMap[n.id]; })
+      .filter(function (c) { return c && c.geometry; });
+    var flowW = flowCells.reduce(function (w, c) { return Math.max(w, c.geometry.width); }, 0);
+    flowCells.forEach(function (c) { c.geometry.width = flowW; });
+
     // Step 2: hierarchical layout on flow nodes only.
     // Hide side nodes so the layout engine ignores them.
     sideNodes.forEach(function (sn) {
@@ -603,9 +625,9 @@ const WorkflowViewer = (function () {
 
     var layout = new HierarchicalLayout(graph);
     layout.orientation = 'north';
-    layout.intraCellSpacing = 24;
-    layout.interRankCellSpacing = 32;
-    layout.interHierarchySpacing = 24;
+    layout.intraCellSpacing = 18;
+    layout.interRankCellSpacing = 22;
+    layout.interHierarchySpacing = 18;
     layout.disableEdgeStyle = false;
     layout.execute(parent);
 
@@ -665,7 +687,7 @@ const WorkflowViewer = (function () {
             var sg = sc.geometry;
             sg.x = (direction === 'right') ? colX : pg.x - sg.width - SIDE_GAP;
             sg.y = yOff;
-            yOff += sg.height + 12;
+            yOff += sg.height + OVERLAP_GAP;
           });
           nextY = yOff;
         });
@@ -753,18 +775,8 @@ const WorkflowViewer = (function () {
     });
   }
 
-  // The smallest scale at which the diagram's text is as large as the page's.
-  function readableScale() {
-    var bodyPx = parseFloat(window.getComputedStyle(document.body).fontSize) || 14;
-    return bodyPx / FONT_SIZE;
-  }
-
-  // Shows the diagram in the panel. By default its text keeps the page's
-  // size: a diagram larger than the panel shows its top part, and the rest
-  // is reached by dragging or zooming out. all: the whole diagram, however
-  // small its text becomes (the fit button).
-  function fitGraphToContainer(opts) {
-    opts = opts || {};
+  // Shows the whole diagram in the panel.
+  function fitGraphToContainer() {
     if (!graph || !container) return;
     var view = graph.getView();
     view.scaleAndTranslate(1, 0, 0);
@@ -772,11 +784,10 @@ const WorkflowViewer = (function () {
     if (!bounds || bounds.width === 0 || bounds.height === 0) return;
     var cw = container.clientWidth, ch = container.clientHeight;
     if (cw === 0 || ch === 0) return;
-    var pad = 24;
+    var pad = 12;
     var sx = (cw - pad * 2) / bounds.width;
     var sy = (ch - pad * 2) / bounds.height;
-    var scale = Math.min(sx, sy, 1.2);
-    placeGraph(Math.max(scale, opts.all ? 0.15 : readableScale()));
+    placeGraph(Math.max(Math.min(sx, sy, 1.5), 0.15));
   }
 
   // ── Click handling ───────────────────────────────────────────
@@ -1553,7 +1564,7 @@ const WorkflowViewer = (function () {
       var zi = $id('wv-zoom-in'), zo = $id('wv-zoom-out'), zf = $id('wv-zoom-fit');
       $on(zi, 'click', function () { if (graph) graph.zoomIn(); });
       $on(zo, 'click', function () { if (graph) graph.zoomOut(); });
-      $on(zf, 'click', function () { fitGraphToContainer({ all: true }); });
+      $on(zf, 'click', function () { fitGraphToContainer(); });
       var saveBtn = $id('wv-save-svg');
       $on(saveBtn, 'click', function () { self.downloadSvg(); });
       setupTooltips(); setupClickHandler(); buildLegend();

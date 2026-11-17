@@ -76,9 +76,9 @@
    transitions, logical separator margin) lives on the shared
    `.wv-panel-controls .btn` rule so both modes share one visual language. */
 #workflow-viewer-panel.wv-panel-inline .wv-panel-controls .btn {
-  width: 30px !important;
-  height: 30px !important;
-  font-size: 14px !important;
+  width: 32px !important;
+  height: 32px !important;
+  font-size: 15px !important;
 }
 
 /* --- Panel Header (drag handle) --- */
@@ -116,7 +116,7 @@
 .wv-panel-controls {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
@@ -152,7 +152,14 @@
 }
 
 .wv-panel-controls .ms-2 {
-  margin-left: 6px !important;
+  margin-left: 0 !important;
+}
+
+/* A clicked button keeps no ring; the keyboard's focus still shows one. */
+.wv-panel-controls .btn:focus:not(:focus-visible),
+#wv-mode-segment .btn:focus:not(:focus-visible) {
+  box-shadow: none;
+  outline: none;
 }
 
 /* --- Segment Control (display-mode picker in #config) ---
@@ -161,9 +168,17 @@
    visual language as the panel header buttons for cross-component
    consistency. Higher specificity (#id + .btn) wins against Bootstrap's
    own `.btn-outline-secondary.active` rules without `!important`. */
+/* The same square as the panel's buttons. */
 #wv-mode-segment .btn {
+  width: 32px;
+  height: 32px;
   min-width: 0;
-  padding: 4px 10px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  line-height: 1;
   border-color: rgba(128, 128, 128, 0.3);
   color: var(--text-secondary, #6c757d);
   background-color: transparent;

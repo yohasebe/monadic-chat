@@ -405,4 +405,26 @@ RSpec.describe "Reading a streamed reply (every provider)" do
         .to eq(%w[first second])
     end
   end
+
+  # A tool that only answers.
+  class PlainApp < OfferApp
+    def first_tool(**)
+      @ran << "first_tool"
+      "done"
+    end
+  end
+
+  it "Mistral: sends a round's thinking back with its calls" do
+    @chat = Monadic::Workspace::Ids.generate(:chat)
+    @tool_app = PlainApp.new(nil)
+    stub_const("APPS", { "SpecApp" => @tool_app })
+    stub_const("CONFIG", CONFIG.merge("MISTRAL_API_KEY" => "k"))
+    thought = { "id" => "r", "choices" => [{ "index" => 0, "delta" => { "content" => [
+      { "type" => "thinking", "thinking" => [{ "type" => "text", "text" => "Look it up first." }] }
+    ] } }] }
+    read_mistral([sse([thought] + StreamContract::ChatCompletions.calls(StreamContract::CALLS.first(1)))])
+    rounds = Array(@session[:parameters]["earlier_tool_rounds"]).map(&:first) + [@session[:parameters]["tool_calls_message"]]
+    content = rounds.compact.first["content"]
+    expect(content).to include({ "type" => "thinking", "thinking" => [{ "type" => "text", "text" => "Look it up first." }] })
+  end
 end

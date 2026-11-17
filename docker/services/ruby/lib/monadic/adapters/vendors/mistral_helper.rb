@@ -823,9 +823,18 @@ module MistralHelper
 
       # Create assistant message with tool calls for Mistral's message ordering
       # Note: Mistral requires content field even if empty for tool calls
+      # The round's thinking goes back with its calls, as the history's
+      # earlier turns do: Magistral stops reasoning without it.
+      round_thinking = thinking.join
+      call_content = if round_thinking.strip.empty?
+                       content_buffer
+                     else
+                       [{ "type" => "thinking", "thinking" => [{ "type" => "text", "text" => round_thinking }] },
+                        ({ "type" => "text", "text" => content_buffer } unless content_buffer.to_s.empty?)].compact
+                     end
       tool_calls_message = {
         "role" => "assistant",
-        "content" => content_buffer,
+        "content" => call_content,
         "tool_calls" => tool_calls.map do |tc|
           {
             "id" => tc["id"],
@@ -841,7 +850,7 @@ module MistralHelper
             session: session,
             app_name: app,
             app_settings: APPS[app].settings,
-            text: tool_calls_message["content"]
+            text: content_buffer
           )
         rescue StandardError => e
           DebugHelper.debug("Mistral progressive tools: failed to capture tool requests due to #{e.message}", category: :api, level: :warning)

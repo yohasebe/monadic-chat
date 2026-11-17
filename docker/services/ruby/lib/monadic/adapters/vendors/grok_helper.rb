@@ -355,25 +355,25 @@ module GrokHelper
       context_messages << { "role" => "user", "content" => [{ "type" => "text", "text" => initial_message }] }
     end
 
-    # Handle tool role - send tool results back
+    # Handle tool role - send tool results back: each round of the turn, its
+    # calls then their results, in order.
     if role == "tool" && obj["function_returns"]
-      if obj["assistant_function_calls"]
-        context_messages << {
-          "role" => "assistant",
-          "content" => [{"type" => "text", "text" => ""}],
-          "assistant_function_calls" => obj["assistant_function_calls"]
-        }
-      end
-
-      tool_messages = obj["function_returns"].map do |result|
-        {
-          "role" => "tool",
-          "content" => result["content"] || result[:content],
-          "tool_call_id" => result["call_id"] || result["tool_call_id"] || result[:call_id] || result[:tool_call_id]
-        }
+      rounds = Array(obj["earlier_tool_rounds"]) + [[obj["assistant_function_calls"], obj["function_returns"]]]
+      returns = rounds.flat_map do |calls, results|
+        call_message = if calls&.any?
+                         { "role" => "assistant", "content" => [{ "type" => "text", "text" => "" }],
+                           "assistant_function_calls" => calls }
+                       end
+        [call_message, *Array(results).map do |result|
+          {
+            "role" => "tool",
+            "content" => result["content"] || result[:content],
+            "tool_call_id" => result["call_id"] || result["tool_call_id"] || result[:call_id] || result[:tool_call_id]
+          }
+        end].compact
       end
       # Each look's image follows the results, in a message of its own.
-      context_messages.concat(with_workbench_looks(tool_messages, session, tool_id: method(:chat_tool_call_id)) do |looks|
+      context_messages.concat(with_workbench_looks(returns, session, tool_id: method(:chat_tool_call_id)) do |looks|
         chat_look_message(looks)
       end)
 
@@ -549,11 +549,7 @@ module GrokHelper
           { "id" => fc["call_id"] || fc["id"], "function" => { "name" => fc["name"], "arguments" => fc["arguments"] || "{}" } }
         end
 
-        # Accumulate across multi-turn tool rounds within a single user request.
-        # Without the `||= [] + ...` pattern, each new tool round would overwrite
-        # prior rounds' calls and the model would lose the history of what it
-        # already called. Mirrors the Claude / OpenAI multi-turn context fix.
-        (obj["assistant_function_calls"] ||= []).concat(function_calls.map do |fc|
+        start_grok_tool_round(obj, function_calls.map do |fc|
           { "type" => "function_call", "id" => fc["id"], "call_id" => fc["call_id"] || fc["id"],
             "name" => fc["name"], "arguments" => fc["arguments"] || "{}" }
         end)
@@ -935,6 +931,16 @@ module GrokHelper
   end
 
   # Connect to xAI Responses API and get a response
+  # A new round of tool calls: the round before it (its calls and their
+  # results) is kept, in order, with the turn's earlier rounds.
+  private def start_grok_tool_round(obj, calls)
+    if Array(obj["assistant_function_calls"]).any?
+      (obj["earlier_tool_rounds"] ||= []) << [obj["assistant_function_calls"], Array(obj["function_returns"])]
+    end
+    obj["assistant_function_calls"] = calls
+    obj["function_returns"] = []
+  end
+
   def api_request(role, session, call_depth: 0, disable_streaming: false, &block)
     # Reset call_depth counter and tool state for each new user turn
     if role == "user"
@@ -943,6 +949,7 @@ module GrokHelper
       session[:images_injected_this_turn] = Set.new
       session[:parameters]["function_returns"] = nil
       session[:parameters]["assistant_function_calls"] = nil
+      session[:parameters]["earlier_tool_rounds"] = nil
       # Reset the cross-round reasoning accumulator. Grok emits its reasoning
       # summary before a tool call; without accumulating it across the
       # tool-call recursion, only the final (often reasoning-free) round's
@@ -1481,8 +1488,7 @@ module GrokHelper
 
       if tool_calls.any?
         # Store assistant function calls in Responses API format for context.
-        # Accumulate across rounds so prior turns' calls remain visible.
-        (obj["assistant_function_calls"] ||= []).concat(tools.filter_map do |item_id, tool_data|
+        start_grok_tool_round(obj, tools.filter_map do |item_id, tool_data|
           next unless tool_data["completed"]
           {
             "type" => "function_call",
@@ -1703,9 +1709,7 @@ module GrokHelper
       return Monadic::Workbench::Offer.end_reply(returned, &block)
     end
 
-    # Store tool results in session for API request.
-    # Accumulate across rounds so prior turns' results remain visible to
-    # the model on the next API call. Mirrors the Claude / OpenAI fix.
+    # This round's results; the earlier rounds are in earlier_tool_rounds.
     (obj["function_returns"] ||= []).concat(tool_results)
 
     # Check if we should stop due to repeated errors

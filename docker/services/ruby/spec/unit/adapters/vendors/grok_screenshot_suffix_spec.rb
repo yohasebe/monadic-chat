@@ -3,9 +3,9 @@
 require "spec_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/grok_helper"
 
-# The prompt suffix goes on the user's message only. The request that
-# returns a tool's results may end with a screenshot taken after them: that
-# message keeps its own text, and the user's message is not written into it.
+# The prompt suffix goes on the user's message only, in every request of the
+# turn. The request that returns a tool's results may end with a screenshot
+# taken after them: that message keeps its own text.
 RSpec.describe "Grok prompt suffix and a screenshot after a tool" do
   let(:helper) { Class.new(MonadicApp) { include GrokHelper }.new }
   let(:suffix) { "Answer briefly." }
@@ -22,7 +22,7 @@ RSpec.describe "Grok prompt suffix and a screenshot after a tool" do
     expect(messages.last["content"].first["text"]).to eq("Open the page\n\n#{suffix}")
   end
 
-  it "leaves the screenshot's own text after a tool, and adds no suffix there" do
+  it "leaves the screenshot's own text after a tool, and keeps the suffix on the user's message" do
     allow(Monadic::Utils::ToolImageUtils).to receive(:encode_image_for_api)
       .and_return({ media_type: "image/png", base64_data: "AAAA" })
     obj = { "model" => "grok-4", "function_returns" => [{ "call_id" => "c1", "content" => "clicked" }] }
@@ -31,6 +31,8 @@ RSpec.describe "Grok prompt suffix and a screenshot after a tool" do
     shot = messages.last
     expect(shot["role"]).to eq("user")
     expect(shot["content"].first["text"]).to start_with("[Screenshot of the browser")
-    expect(JSON.generate(messages)).not_to include(suffix)
+    expect(JSON.generate(shot)).not_to include(suffix)
+    user = messages.find { |m| m["role"] == "user" && JSON.generate(m).include?("Open the page") }
+    expect(user["content"].first["text"]).to eq("Open the page\n\n#{suffix}")
   end
 end

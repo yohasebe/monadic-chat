@@ -319,8 +319,10 @@ module DeepSeekHelper
       end
     end
 
-    # Handle initiate_from_assistant case where only system message exists
-    if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
+    # Handle initiate_from_assistant case where only system message exists:
+    # the greeting, which takes no suffix.
+    is_initial_greeting = body["messages"].length == 1 && body["messages"][0]["role"] == "system"
+    if is_initial_greeting
       body["messages"] << {
         "role" => "user",
         "content" => "Please proceed according to your system instructions and introduce yourself."
@@ -331,19 +333,16 @@ module DeepSeekHelper
 
     configure_deepseek_tools(body, app, obj, websearch, session)
 
-    # Detect initiate_from_assistant initial greeting (skip prompt_suffix)
-    is_initial_greeting = body["messages"].length == 2 &&
-                          body["messages"][0]["role"] == "system" &&
-                          body["messages"][1]["role"] == "user" &&
-                          session[:messages].length <= 2
+    # The turn's message takes the suffix in every request of the turn, also
+    # those that send tool results back after it.
+    unless is_initial_greeting
+      turn_message = body["messages"].reverse.find { |m| m["role"] == "user" }
+      append_deepseek_prompt_suffix(turn_message, obj["prompt_suffix"] || APPS[app].settings["prompt_suffix"])
+    end
 
     if role == "tool"
       body["messages"] += with_workbench_looks(obj["function_returns"], session,
                                                tool_id: method(:chat_tool_call_id)) { |looks| chat_look_message(looks) }
-    elsif role == "user" && !is_initial_greeting
-      if (suffix = APPS[app].settings["prompt_suffix"])
-        append_deepseek_prompt_suffix(body["messages"].last, suffix)
-      end
     end
 
     configure_deepseek_reasoning(body, obj, is_json, role)

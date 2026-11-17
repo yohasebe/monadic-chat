@@ -941,6 +941,8 @@ module ClaudeHelper
   # Build body["messages"] from context, handle images, PDFs, and initiate_from_assistant.
   # Returns true on success, or an Array (early return) on vision/PDF error.
   private def build_claude_messages(body, context, obj, model, role, session, &block)
+    # The greeting: the chat has no user message yet.
+    greeting = context.compact.none? { |msg| msg["role"] == "user" }
     messages = context.compact.map do |msg|
       content = [{ "type" => "text", "text" => msg["text"] }]
       # What the work screen shows, as a text element of its own.
@@ -1016,6 +1018,18 @@ module ClaudeHelper
         "role" => "user",
         "content" => [{ "type" => "text", "text" => "Please proceed according to your system instructions and introduce yourself." }]
       }
+    end
+
+    # The turn's message takes the suffix in every request of the turn (the
+    # rounds of tool calls are added after it); the greeting takes none.
+    unless greeting
+      turn_message = body["messages"].reverse.find { |m| m["role"] == "user" }
+      own_text = Array(turn_message&.dig("content")).find { |c| c.is_a?(Hash) && c["type"] == "text" }
+      if own_text
+        own_text["text"] = Monadic::Utils::SystemPromptInjector.augment_user_message(
+          base_message: own_text["text"], session: session, options: { prompt_suffix: obj["prompt_suffix"] }
+        )
+      end
     end
 
     nil # success — messages set in body

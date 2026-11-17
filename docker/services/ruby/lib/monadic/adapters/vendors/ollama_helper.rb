@@ -507,13 +507,12 @@ module OllamaHelper
       message
     end
 
-    # Handle initiate_from_assistant case where only system message exists
-    if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
-      body["messages"] << {
-        "role" => "user",
-        "content" => "Please proceed according to your system instructions and introduce yourself."
-      }
-    end
+    # Handle initiate_from_assistant case where only system message exists:
+    # the greeting, which takes no suffix.
+    greeting_request = { "role" => "user",
+                         "content" => "Please proceed according to your system instructions and introduce yourself." }
+    is_initial_greeting = body["messages"].length == 1 && body["messages"][0]["role"] == "system"
+    body["messages"] << greeting_request.dup if is_initial_greeting
 
     if role == "tool"
       # When processing tool results, use the function_returns context
@@ -537,17 +536,23 @@ module OllamaHelper
           end
         end
       end
-    elsif role == "user"
-      # Use unified system prompt injector for user message augmentation
-      if body["messages"].last && body["messages"].last["content"]
-        augmented_content = Monadic::Utils::SystemPromptInjector.augment_user_message(
-          base_message: body["messages"].last["content"],
-          session: session,
-          options: {
-            prompt_suffix: settings[:prompt_suffix]
-          }
+      # A greeting's request goes with its rounds too.
+      if body["messages"].none? { |m| m["role"] == "user" }
+        system_index = body["messages"].index { |m| m["role"] == "system" } || -1
+        body["messages"].insert(system_index + 1, greeting_request.dup)
+      end
+    end
+
+    # The turn's message takes the suffix in every request of the turn, also
+    # those that send tool results back after it (it is the last user message
+    # before the turn's first tool call).
+    unless is_initial_greeting
+      first_call = body["messages"].index { |m| m["tool_calls"] } || body["messages"].length
+      turn_message = body["messages"][0...first_call].reverse.find { |m| m["role"] == "user" }
+      if turn_message && turn_message["content"]
+        turn_message["content"] = Monadic::Utils::SystemPromptInjector.augment_user_message(
+          base_message: turn_message["content"], session: session, options: { prompt_suffix: obj["prompt_suffix"] }
         )
-        body["messages"].last["content"] = augmented_content
       end
     end
 

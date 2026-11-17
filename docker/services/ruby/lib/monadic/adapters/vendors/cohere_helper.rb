@@ -501,8 +501,8 @@ module CohereHelper
       end
     end
 
-    # Detect initiate_from_assistant initial greeting
-    is_initial_greeting = messages.length == 1 && messages[0]["role"] == "system"
+    # The greeting of initiate_from_assistant: the chat has no user message yet.
+    is_initial_greeting = session[:messages].none? { |m| m["role"] == "user" }
 
     # The current user message, sent apart from the context: in the request
     # that returns a tool's results too (before them), found by its request.

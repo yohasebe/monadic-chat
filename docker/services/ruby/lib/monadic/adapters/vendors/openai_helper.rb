@@ -737,6 +737,9 @@ module OpenAIHelper
       end
     end
 
+    # The turn's own message, before the rounds of tool calls that follow it.
+    turn_message = body["messages"].last
+
     if role == "tool"
       body["messages"] += with_workbench_looks(obj["function_returns"], session, tool_id: method(:chat_tool_call_id)) do |looks|
         { role: "user",
@@ -807,12 +810,10 @@ module OpenAIHelper
     is_initial_greeting = body["messages"].length == 1 &&
                           (body["messages"][0]["role"] == "system" || body["messages"][0]["role"] == "developer")
 
-    # Only a user message takes the suffix. After a tool call the last
-    # message is the tool's result (its content a String, its keys symbols or,
-    # through HashWithIndifferentAccess parameters, strings too).
-    last_message = body["messages"].last
-    last_is_user = last_message.is_a?(Hash) && last_message["role"].to_s == "user" && last_message["content"].is_a?(Array)
-    if last_text.to_s != "" && last_is_user && !is_initial_greeting
+    # The turn's message takes the suffix in every request of the turn, also
+    # those that send tool results back after it.
+    turn_is_user = turn_message.is_a?(Hash) && turn_message["role"].to_s == "user" && turn_message["content"].is_a?(Array)
+    if last_text.to_s != "" && turn_is_user && !is_initial_greeting
       augmented_text = Monadic::Utils::SystemPromptInjector.augment_user_message(
         base_message: last_text.to_s,
         session: session,
@@ -824,7 +825,7 @@ module OpenAIHelper
       # The message's own text (its first text element) takes the suffix
       # (and the image references); a text element added after it (the work
       # screen observation) stays.
-      own_text = body["messages"].last["content"].find { |content_item| content_item["type"] == "text" }
+      own_text = turn_message["content"].find { |content_item| content_item["type"] == "text" }
       own_text["text"] = augmented_text if own_text && own_text["text"] != augmented_text
     end
 

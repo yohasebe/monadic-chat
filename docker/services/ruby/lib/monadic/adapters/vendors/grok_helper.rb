@@ -355,6 +355,9 @@ module GrokHelper
       context_messages << { "role" => "user", "content" => [{ "type" => "text", "text" => initial_message }] }
     end
 
+    # The turn's own message, before the rounds of tool calls that follow it.
+    turn_message = context_messages.last
+
     # Handle tool role - send tool results back: each round of the turn, its
     # calls then their results, in order.
     if role == "tool" && obj["function_returns"]
@@ -414,21 +417,18 @@ module GrokHelper
                          context_messages[0]["role"] == "system" &&
                          context_messages[1]["role"] == "user" &&
                          session[:messages].length <= 1
-    # Only the request for the user's message ends with it: the one that
-    # returns a tool's results ends with them, or with a screenshot taken
-    # after them (a message of its own, not the user's).
-    if last_text != "" && prompt_suffix.to_s != "" && !is_initial_greeting && role != "tool"
+    # The turn's message takes the suffix in every request of the turn, also
+    # those that send tool results back after it.
+    if last_text != "" && prompt_suffix.to_s != "" && !is_initial_greeting && turn_message&.dig("role") == "user"
       new_text = last_text + "\n\n" + prompt_suffix.strip
-      if context_messages.dig(-1, "content")
-        last_content = context_messages.last["content"]
-        if last_content.is_a?(Array)
-          # The message's own text (its first text element) takes the
-          # suffix; the work screen observation after it stays.
-          own_text = last_content.find { |content_item| content_item["type"] == "text" }
-          own_text["text"] = new_text if own_text
-        elsif last_content.is_a?(String)
-          context_messages.last["content"] = new_text
-        end
+      turn_content = turn_message["content"]
+      if turn_content.is_a?(Array)
+        # The message's own text (its first text element) takes the
+        # suffix; the work screen observation after it stays.
+        own_text = turn_content.find { |content_item| content_item["type"] == "text" }
+        own_text["text"] = new_text if own_text
+      elsif turn_content.is_a?(String)
+        turn_message["content"] = new_text
       end
     end
 

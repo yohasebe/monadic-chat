@@ -1212,6 +1212,21 @@ module MistralHelper
       end
     end
 
+    # The turn's message takes the suffix in every request of the turn (the
+    # rounds of tool calls are added after it); the greeting has none.
+    if (turn_message = body["messages"].reverse.find { |m| m["role"] == "user" })
+      add_suffix = lambda do |text|
+        Monadic::Utils::SystemPromptInjector.augment_user_message(
+          base_message: text, session: session, options: { prompt_suffix: obj["prompt_suffix"] }
+        )
+      end
+      if turn_message["content"].is_a?(String)
+        turn_message["content"] = add_suffix.call(turn_message["content"])
+      elsif (own_text = Array(turn_message["content"]).find { |c| c.is_a?(Hash) && c["type"] == "text" })
+        own_text["text"] = add_suffix.call(own_text["text"])
+      end
+    end
+
     # Handle initiate_from_assistant case where only system message exists
     if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
       body["messages"] << {

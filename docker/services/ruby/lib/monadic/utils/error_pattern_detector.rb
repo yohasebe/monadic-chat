@@ -319,11 +319,15 @@ module ErrorPatternDetector
     end
   end
 
-  # A new user turn: the tool calls of the turn before are not counted
-  # toward a cycle, and a turn stopped for one does not stop this one.
+  # A new user turn: the tool calls and errors of the turn before are not
+  # counted toward a cycle or a repeated error, and a turn stopped for one
+  # does not stop this one.
   def self.begin_turn(session)
     reset_tool_tracking(session)
-    session.delete(:tool_call_repeats) if session.respond_to?(:delete)
+    if session.respond_to?(:delete)
+      session.delete(:tool_call_repeats)
+      session.delete(:error_patterns)
+    end
     params = session[:parameters]
     params.delete("stop_retrying") if params.respond_to?(:delete)
   end

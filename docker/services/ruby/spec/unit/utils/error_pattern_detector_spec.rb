@@ -450,6 +450,16 @@ RSpec.describe ErrorPatternDetector do
     it 'takes a session with no parameters' do
       expect { described_class.begin_turn({}) }.not_to raise_error
     end
+
+    it 'does not count the errors of the turn before toward a repeated error' do
+      session = { parameters: {} }
+      described_class.initialize_session(session)
+      described_class.add_error(session, 'Error: file not found', 'read_file')
+      described_class.begin_turn(session)
+      described_class.initialize_session(session)
+      2.times { described_class.add_error(session, 'Error: file not found', 'read_file') }
+      expect(described_class.should_stop_retrying?(session)).to be(false)
+    end
   end
 
   describe '.repeat_refusal' do

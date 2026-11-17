@@ -1291,7 +1291,8 @@ module ClaudeHelper
     # Processing JSON data for app: #{app}, call depth: #{call_depth}
 
     obj = session[:parameters]
-    buffer = String.new
+    records = StreamRecords.new(:sse)
+    stream_error = nil
     texts = []
     fragment_sequence = 0  # Sequence number for fragments to ensure ordering
     thinking = []
@@ -1307,295 +1308,257 @@ module ClaudeHelper
 
     content_type = "text"
 
-    res.each do |chunk|
-      chunk_count += 1
-      chunk = chunk.force_encoding("UTF-8")
-      buffer << chunk
+    # Each record of the stream. A proc, not a lambda: its returns end the reply.
+    handle = proc do |json|
 
-      if buffer.valid_encoding? == false
-        next
+      Monadic::Utils::ExtraLogger.log_json("Claude stream chunk", json)
+
+      # An error inside the stream (content filtering, overload) ends the reply.
+      if json.dig("type") == "error"
+        stream_error = "#{json.dig("error", "type")}: #{json.dig("error", "message")}"
+        throw :claude_stream_end
       end
 
-      begin
-        break if /\Rdata: \[DONE\]\R/ =~ buffer
-      rescue StandardError
-        next
-      end
+      # Capture usage from message lifecycle events
+      if json.dig("type") == "message_start"
+        usage = json.dig("message", "usage")
+        if usage
+          usage_input_tokens = usage["input_tokens"] if usage.key?("input_tokens")
+          usage_output_tokens = usage["output_tokens"] if usage.key?("output_tokens")
+          usage_total_tokens = (usage_input_tokens.to_i + usage_output_tokens.to_i) if usage_input_tokens && usage_output_tokens
+        end
+        # Present only under the thinking-binding-controls beta. A
+        # non-empty array means the API dropped replayed thinking blocks:
+        # "prefix_binding_mismatch" says the history changed under them
+        # (a tools rewrite mid tool-loop, an edited turn), and
+        # "model_binding_mismatch" says the conversation switched models.
+        # Logged so the three-step migration check has something to read.
+        log_claude_input_transformations(json.dig("message", "input_transformations"))
+      elsif json.dig("type") == "message_delta"
+        usage = json["usage"]
+        if usage
+          usage_input_tokens = usage["input_tokens"] if usage.key?("input_tokens")
+          usage_output_tokens = usage["output_tokens"] if usage.key?("output_tokens")
+          usage_total_tokens = (usage_input_tokens.to_i + usage_output_tokens.to_i) if usage_input_tokens && usage_output_tokens
 
-      # Skip encoding cleanup - buffer.valid_encoding? check above is sufficient
-      # Encoding cleanup with replace: "" can delete valid bytes from incomplete multibyte characters
-      # that will become complete when the next chunk arrives
-      # buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
-      # buffer.encode!("UTF-8", "UTF-16")
-
-      scanner = StringScanner.new(buffer)
-      # Use multiline mode (m flag) to allow . to match newlines within JSON
-      # One event is one line ending in a newline (JSON escapes the newlines
-      # inside it). An event whose line has not fully arrived stays in the
-      # buffer for the next chunk: a chunk can end anywhere, also right
-      # after a "}" inside the event.
-      pattern = /data: (\{.*?\})(?=\n)/m
-      until scanner.eos?
-        matched = scanner.scan_until(pattern)
-        if matched
-          json_data = scanner[1]
-          begin
-            json = JSON.parse(json_data)
-
-            Monadic::Utils::ExtraLogger.log_json("Claude stream chunk", json)
-
-            # Handle API errors (including content filtering)
-            if json.dig("type") == "error"
-              error_type = json.dig("error", "type")
-              error_message = json.dig("error", "message")
-
-              formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-                provider: "Claude",
-                message: "#{error_type}: #{error_message}"
-              )
-
-              res = { "type" => "error", "content" => formatted_error }
-              block&.call res
-
-              # Return error result immediately
-              return [{
-                "choices" => [{
-                  "finish_reason" => "error",
-                  "message" => {
-                    "content" => formatted_error
-                  }
-                }]
-              }]
+          # Advisor Tool bills sub-inference under usage.iterations[] with
+          # type "advisor_message". Top-level usage already excludes advisor
+          # tokens (per Anthropic docs), so we only log the breakdown here
+          # rather than adjust the aggregate. This keeps token accounting
+          # consistent with non-advisor requests while making the cost of
+          # advisor calls visible in debug logs.
+          iterations = usage["iterations"]
+          if iterations.is_a?(Array) && !iterations.empty?
+            advisor_iters  = iterations.select { |it| it.is_a?(Hash) && it["type"] == "advisor_message" }
+            executor_iters = iterations.select { |it| it.is_a?(Hash) && it["type"] == "message" }
+            if advisor_iters.any?
+              advisor_in  = advisor_iters.sum { |it| it["input_tokens"].to_i }
+              advisor_out = advisor_iters.sum { |it| it["output_tokens"].to_i }
+              executor_in  = executor_iters.sum { |it| it["input_tokens"].to_i }
+              executor_out = executor_iters.sum { |it| it["output_tokens"].to_i }
+              Monadic::Utils::ExtraLogger.log {
+                "Claude: usage.iterations breakdown\n" \
+                "  advisor_calls: #{advisor_iters.length}\n" \
+                "  advisor  input: #{advisor_in}, output: #{advisor_out}\n" \
+                "  executor input: #{executor_in}, output: #{executor_out}\n" \
+                "  top-level reflects executor only"
+              }
             end
-
-            # Capture usage from message lifecycle events
-            if json.dig("type") == "message_start"
-              usage = json.dig("message", "usage")
-              if usage
-                usage_input_tokens = usage["input_tokens"] if usage.key?("input_tokens")
-                usage_output_tokens = usage["output_tokens"] if usage.key?("output_tokens")
-                usage_total_tokens = (usage_input_tokens.to_i + usage_output_tokens.to_i) if usage_input_tokens && usage_output_tokens
-              end
-              # Present only under the thinking-binding-controls beta. A
-              # non-empty array means the API dropped replayed thinking blocks:
-              # "prefix_binding_mismatch" says the history changed under them
-              # (a tools rewrite mid tool-loop, an edited turn), and
-              # "model_binding_mismatch" says the conversation switched models.
-              # Logged so the three-step migration check has something to read.
-              log_claude_input_transformations(json.dig("message", "input_transformations"))
-            elsif json.dig("type") == "message_delta"
-              usage = json["usage"]
-              if usage
-                usage_input_tokens = usage["input_tokens"] if usage.key?("input_tokens")
-                usage_output_tokens = usage["output_tokens"] if usage.key?("output_tokens")
-                usage_total_tokens = (usage_input_tokens.to_i + usage_output_tokens.to_i) if usage_input_tokens && usage_output_tokens
-
-                # Advisor Tool bills sub-inference under usage.iterations[] with
-                # type "advisor_message". Top-level usage already excludes advisor
-                # tokens (per Anthropic docs), so we only log the breakdown here
-                # rather than adjust the aggregate. This keeps token accounting
-                # consistent with non-advisor requests while making the cost of
-                # advisor calls visible in debug logs.
-                iterations = usage["iterations"]
-                if iterations.is_a?(Array) && !iterations.empty?
-                  advisor_iters  = iterations.select { |it| it.is_a?(Hash) && it["type"] == "advisor_message" }
-                  executor_iters = iterations.select { |it| it.is_a?(Hash) && it["type"] == "message" }
-                  if advisor_iters.any?
-                    advisor_in  = advisor_iters.sum { |it| it["input_tokens"].to_i }
-                    advisor_out = advisor_iters.sum { |it| it["output_tokens"].to_i }
-                    executor_in  = executor_iters.sum { |it| it["input_tokens"].to_i }
-                    executor_out = executor_iters.sum { |it| it["output_tokens"].to_i }
-                    Monadic::Utils::ExtraLogger.log {
-                      "Claude: usage.iterations breakdown\n" \
-                      "  advisor_calls: #{advisor_iters.length}\n" \
-                      "  advisor  input: #{advisor_in}, output: #{advisor_out}\n" \
-                      "  executor input: #{executor_in}, output: #{executor_out}\n" \
-                      "  top-level reflects executor only"
-                    }
-                  end
-                end
-              end
-            end
-
-            # Skip content_block_stop - it causes excessive line breaks with web search
-            # Web search returns multiple content blocks, each triggering this event
-            # if json.dig("type") == "content_block_stop"
-            #   res = { "type" => "fragment", "content" => "\n\n" }
-            #   block&.call res
-            # end
-
-            # Handle content type changes
-            new_content_type = json.dig("content_block", "type")
-            if new_content_type == "tool_use" || new_content_type == "server_tool_use"
-              # Prevent duplicate tool_use registration from repeated content_block_start events
-              tool_use_id = json["content_block"]["id"]
-              unless tool_calls.any? { |tc| tc["id"] == tool_use_id }
-                json["content_block"]["input"] = ""
-                tool_calls << json["content_block"]
-
-                Monadic::Utils::ExtraLogger.log { "Claude: #{new_content_type} registered\n  id: #{json["content_block"]["id"]}\n  name: #{json["content_block"]["name"]}" }
-              else
-                Monadic::Utils::ExtraLogger.log { "Claude: Skipping duplicate #{new_content_type}\n  id: #{tool_use_id}" }
-              end
-
-              # Check for file_id in Skills output
-              if json["content_block"]["output"] && json["content_block"]["output"]["file_id"]
-                tool_calls.last["file_id"] = json["content_block"]["output"]["file_id"]
-              end
-            elsif new_content_type == "advisor_tool_result"
-              # Advisor Tool (advisor_20260301) server-side sub-inference result.
-              # Arrives fully formed in a single content_block_start event (no deltas).
-              # We surface the advice to the UI so users can see the planner's output,
-              # and we intentionally do NOT append to tool_calls — the advisor is a
-              # server-executed tool whose invocation is tracked by the paired
-              # server_tool_use block.
-              advisor_content = json.dig("content_block", "content")
-              advisor_result_type = advisor_content.is_a?(Hash) ? advisor_content["type"] : nil
-              tool_use_id = json.dig("content_block", "tool_use_id")
-
-              if advisor_result_type == "advisor_result"
-                advice_text = advisor_content["text"].to_s
-                Monadic::Utils::ExtraLogger.log { "Claude: advisor_tool_result received\n  tool_use_id: #{tool_use_id}\n  length: #{advice_text.length} chars" }
-                if advice_text.length > 0
-                  block&.call({ "type" => "wait", "content" => "<i class='fas fa-user-tie'></i> ADVISOR CONSULTED" })
-                end
-              elsif advisor_result_type == "advisor_redacted_result"
-                Monadic::Utils::ExtraLogger.log { "Claude: advisor_tool_result (redacted) received\n  tool_use_id: #{tool_use_id}" }
-                block&.call({ "type" => "wait", "content" => "<i class='fas fa-user-tie'></i> ADVISOR CONSULTED" })
-              elsif advisor_result_type == "advisor_tool_result_error"
-                error_code = advisor_content["error_code"]
-                Monadic::Utils::ExtraLogger.log { "Claude: advisor_tool_result error\n  code: #{error_code}\n  tool_use_id: #{tool_use_id}" }
-              end
-            elsif new_content_type == "bash_code_execution_tool_result" || new_content_type == "text_editor_code_execution_tool_result"
-              # Handle Skills tool results (file_id can be in different locations depending on the tool type)
-              tool_use_id = json.dig("content_block", "tool_use_id")
-
-              # Try different paths for file_id based on the tool result type
-              file_id = nil
-              if new_content_type == "bash_code_execution_tool_result"
-                content_array = json.dig("content_block", "content", "content")
-                if content_array.is_a?(Array)
-                  content_array.each do |item|
-                    if item["type"] == "bash_code_execution_output" && item["file_id"]
-                      file_id = item["file_id"]
-                      break
-                    end
-                  end
-                end
-              elsif new_content_type == "text_editor_code_execution_tool_result"
-                # text_editor result may have file_id in content.file_ids array
-                file_ids = json.dig("content_block", "content", "file_ids")
-                file_id = file_ids.first if file_ids.is_a?(Array) && !file_ids.empty?
-              end
-
-              Monadic::Utils::ExtraLogger.log { "Claude: #{new_content_type} received\n  tool_use_id: #{tool_use_id}\n  file_id found: #{file_id.inspect}" }
-
-              if file_id
-                # Find the matching tool call by tool_use_id
-                matching_tool = tool_calls.find { |tc| tc["id"] == tool_use_id }
-                if matching_tool
-                  matching_tool["file_id"] = file_id
-
-                  Monadic::Utils::ExtraLogger.log { "Claude: file_id extracted and attached\n  file_id: #{file_id}\n  tool_use_id: #{tool_use_id}\n  tool_name: #{matching_tool["name"]}" }
-                else
-                  Monadic::Utils::ExtraLogger.log { "Claude: WARNING - No matching tool call found for tool_use_id: #{tool_use_id}" }
-                end
-              end
-            end
-            content_type = new_content_type if new_content_type
-
-            if content_type == "tool_use"
-              if json.dig("delta", "partial_json")
-
-                fragment = json.dig("delta", "partial_json").to_s
-
-                tool_calls.last["input"] << fragment
-                
-                # Debug logging for tool input accumulation
-                Monadic::Utils::ExtraLogger.log { "[Tool Input Fragment] Length: #{fragment.length}, Content: #{fragment[0..100].inspect}\n[Tool Input Total] Length: #{tool_calls.last["input"].length}" }
-              end
-              if json.dig("delta", "stop_reason")
-                stop_reason = json.dig("delta", "stop_reason")
-                case stop_reason
-                when "tool_use"
-                  finish_reason = "tool_use"
-                  res1 = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-                  block&.call res1
-                when "pause_turn"
-                  finish_reason = "pause_turn"
-                when "refusal"
-                  finish_reason = "refusal"
-                when "stop_sequence"
-                  finish_reason = "stop_sequence"
-                when "model_context_window_exceeded"
-                  finish_reason = "model_context_window_exceeded"
-                end
-              end
-            else
-              # Handle text content
-              if json.dig("delta", "text")
-                fragment = json.dig("delta", "text").to_s
-                
-                if fragment.length > 0
-                  texts << fragment
-
-                  res = {
-                    "type" => "fragment",
-                    "content" => fragment,
-                    "sequence" => fragment_sequence,
-                    "timestamp" => Time.now.to_f,
-                    "is_first" => fragment_sequence == 0
-                  }
-                  fragment_sequence += 1
-                  block&.call res
-                end
-              elsif json.dig("delta", "thinking")
-                fragment = json.dig("delta", "thinking").to_s
-                thinking << fragment
-
-                res = {
-                  "type" => "thinking",
-                  "content" => fragment
-                }
-                block&.call res
-              elsif json.dig("delta", "signature")
-                fragment = json.dig("delta", "signature").to_s
-                thinking_signature = fragment
-              elsif json.dig("delta", "redacted_thinking")
-                fragment = json.dig("delta", "redacted_thinking").to_s
-                redacted_thinking << fragment
-              end
-
-              # Handle stop reasons
-              if json.dig("delta", "stop_reason")
-                stop_reason = json.dig("delta", "stop_reason")
-                case stop_reason
-                when "max_tokens"
-                  finish_reason = "length"
-                when "end_turn"
-                  finish_reason = "stop"
-                when "pause_turn"
-                  finish_reason = "pause_turn"
-                when "refusal"
-                  finish_reason = "refusal"
-                when "stop_sequence"
-                  finish_reason = "stop_sequence"
-                when "model_context_window_exceeded"
-                  finish_reason = "model_context_window_exceeded"
-                end
-              end
-            end
-          rescue JSON::ParserError
-            # if the JSON parsing fails, the next chunk should be appended to the buffer
-            # and the loop should continue to the next iteration
           end
-        else
-          buffer = scanner.rest
-          break
         end
       end
-    rescue StandardError => e
-      Monadic::Utils::ExtraLogger.log { "[Claude Streaming] Error: #{e.message}\n[Claude Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
+
+      # Skip content_block_stop - it causes excessive line breaks with web search
+      # Web search returns multiple content blocks, each triggering this event
+      # if json.dig("type") == "content_block_stop"
+      #   res = { "type" => "fragment", "content" => "\n\n" }
+      #   block&.call res
+      # end
+
+      # Handle content type changes
+      new_content_type = json.dig("content_block", "type")
+      if new_content_type == "tool_use" || new_content_type == "server_tool_use"
+        # Prevent duplicate tool_use registration from repeated content_block_start events
+        tool_use_id = json["content_block"]["id"]
+        unless tool_calls.any? { |tc| tc["id"] == tool_use_id }
+          json["content_block"]["input"] = ""
+          tool_calls << json["content_block"]
+
+          Monadic::Utils::ExtraLogger.log { "Claude: #{new_content_type} registered\n  id: #{json["content_block"]["id"]}\n  name: #{json["content_block"]["name"]}" }
+        else
+          Monadic::Utils::ExtraLogger.log { "Claude: Skipping duplicate #{new_content_type}\n  id: #{tool_use_id}" }
+        end
+
+        # Check for file_id in Skills output
+        if json["content_block"]["output"] && json["content_block"]["output"]["file_id"]
+          tool_calls.last["file_id"] = json["content_block"]["output"]["file_id"]
+        end
+      elsif new_content_type == "advisor_tool_result"
+        # Advisor Tool (advisor_20260301) server-side sub-inference result.
+        # Arrives fully formed in a single content_block_start event (no deltas).
+        # We surface the advice to the UI so users can see the planner's output,
+        # and we intentionally do NOT append to tool_calls — the advisor is a
+        # server-executed tool whose invocation is tracked by the paired
+        # server_tool_use block.
+        advisor_content = json.dig("content_block", "content")
+        advisor_result_type = advisor_content.is_a?(Hash) ? advisor_content["type"] : nil
+        tool_use_id = json.dig("content_block", "tool_use_id")
+
+        if advisor_result_type == "advisor_result"
+          advice_text = advisor_content["text"].to_s
+          Monadic::Utils::ExtraLogger.log { "Claude: advisor_tool_result received\n  tool_use_id: #{tool_use_id}\n  length: #{advice_text.length} chars" }
+          if advice_text.length > 0
+            block&.call({ "type" => "wait", "content" => "<i class='fas fa-user-tie'></i> ADVISOR CONSULTED" })
+          end
+        elsif advisor_result_type == "advisor_redacted_result"
+          Monadic::Utils::ExtraLogger.log { "Claude: advisor_tool_result (redacted) received\n  tool_use_id: #{tool_use_id}" }
+          block&.call({ "type" => "wait", "content" => "<i class='fas fa-user-tie'></i> ADVISOR CONSULTED" })
+        elsif advisor_result_type == "advisor_tool_result_error"
+          error_code = advisor_content["error_code"]
+          Monadic::Utils::ExtraLogger.log { "Claude: advisor_tool_result error\n  code: #{error_code}\n  tool_use_id: #{tool_use_id}" }
+        end
+      elsif new_content_type == "bash_code_execution_tool_result" || new_content_type == "text_editor_code_execution_tool_result"
+        # Handle Skills tool results (file_id can be in different locations depending on the tool type)
+        tool_use_id = json.dig("content_block", "tool_use_id")
+
+        # Try different paths for file_id based on the tool result type
+        file_id = nil
+        if new_content_type == "bash_code_execution_tool_result"
+          content_array = json.dig("content_block", "content", "content")
+          if content_array.is_a?(Array)
+            content_array.each do |item|
+              if item["type"] == "bash_code_execution_output" && item["file_id"]
+                file_id = item["file_id"]
+                break
+              end
+            end
+          end
+        elsif new_content_type == "text_editor_code_execution_tool_result"
+          # text_editor result may have file_id in content.file_ids array
+          file_ids = json.dig("content_block", "content", "file_ids")
+          file_id = file_ids.first if file_ids.is_a?(Array) && !file_ids.empty?
+        end
+
+        Monadic::Utils::ExtraLogger.log { "Claude: #{new_content_type} received\n  tool_use_id: #{tool_use_id}\n  file_id found: #{file_id.inspect}" }
+
+        if file_id
+          # Find the matching tool call by tool_use_id
+          matching_tool = tool_calls.find { |tc| tc["id"] == tool_use_id }
+          if matching_tool
+            matching_tool["file_id"] = file_id
+
+            Monadic::Utils::ExtraLogger.log { "Claude: file_id extracted and attached\n  file_id: #{file_id}\n  tool_use_id: #{tool_use_id}\n  tool_name: #{matching_tool["name"]}" }
+          else
+            Monadic::Utils::ExtraLogger.log { "Claude: WARNING - No matching tool call found for tool_use_id: #{tool_use_id}" }
+          end
+        end
+      end
+      content_type = new_content_type if new_content_type
+
+      if content_type == "tool_use"
+        if json.dig("delta", "partial_json")
+
+          fragment = json.dig("delta", "partial_json").to_s
+
+          tool_calls.last["input"] << fragment
+          
+          # Debug logging for tool input accumulation
+          Monadic::Utils::ExtraLogger.log { "[Tool Input Fragment] Length: #{fragment.length}, Content: #{fragment[0..100].inspect}\n[Tool Input Total] Length: #{tool_calls.last["input"].length}" }
+        end
+        if json.dig("delta", "stop_reason")
+          stop_reason = json.dig("delta", "stop_reason")
+          case stop_reason
+          when "tool_use"
+            finish_reason = "tool_use"
+            res1 = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+            block&.call res1
+          when "pause_turn"
+            finish_reason = "pause_turn"
+          when "refusal"
+            finish_reason = "refusal"
+          when "stop_sequence"
+            finish_reason = "stop_sequence"
+          when "model_context_window_exceeded"
+            finish_reason = "model_context_window_exceeded"
+          end
+        end
+      else
+        # Handle text content
+        if json.dig("delta", "text")
+          fragment = json.dig("delta", "text").to_s
+          
+          if fragment.length > 0
+            texts << fragment
+
+            res = {
+              "type" => "fragment",
+              "content" => fragment,
+              "sequence" => fragment_sequence,
+              "timestamp" => Time.now.to_f,
+              "is_first" => fragment_sequence == 0
+            }
+            fragment_sequence += 1
+            block&.call res
+          end
+        elsif json.dig("delta", "thinking")
+          fragment = json.dig("delta", "thinking").to_s
+          thinking << fragment
+
+          res = {
+            "type" => "thinking",
+            "content" => fragment
+          }
+          block&.call res
+        elsif json.dig("delta", "signature")
+          fragment = json.dig("delta", "signature").to_s
+          thinking_signature = fragment
+        elsif json.dig("delta", "redacted_thinking")
+          fragment = json.dig("delta", "redacted_thinking").to_s
+          redacted_thinking << fragment
+        end
+
+        # Handle stop reasons
+        if json.dig("delta", "stop_reason")
+          stop_reason = json.dig("delta", "stop_reason")
+          case stop_reason
+          when "max_tokens"
+            finish_reason = "length"
+          when "end_turn"
+            finish_reason = "stop"
+          when "pause_turn"
+            finish_reason = "pause_turn"
+          when "refusal"
+            finish_reason = "refusal"
+          when "stop_sequence"
+            finish_reason = "stop_sequence"
+          when "model_context_window_exceeded"
+            finish_reason = "model_context_window_exceeded"
+          end
+        end
+      end
+    end
+
+    catch(:claude_stream_end) do
+      read = lambda do |data, _event|
+        throw :claude_stream_end if data.strip == "[DONE]"
+
+        handle.call(JSON.parse(data))
+      rescue JSON::ParserError
+        Monadic::Utils::ExtraLogger.log { "[Claude Streaming] Unreadable record skipped (#{data.bytesize} bytes)" }
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[Claude Streaming] Error: #{e.message}\n[Claude Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
+      end
+
+      res.each do |chunk|
+        chunk_count += 1
+        records.feed(chunk, &read)
+      end
+      records.finish(&read)
+    end
+
+    if stream_error
+      Monadic::Utils::ExtraLogger.log { "[Claude Streaming] Error record: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(stream_error)}" }
+      return StreamRecords.error_reply("Claude", stream_error, &block)
     end
 
     thinking_result = if thinking.empty?

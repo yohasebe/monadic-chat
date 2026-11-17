@@ -608,21 +608,21 @@ describe('WorkflowViewer graph structure', () => {
       await loadAppWithData(SAMPLE_FULL);
     });
 
-    test('flow nodes should have width of 250', () => {
+    test('flow nodes take the smallest width, 150, where no text is measured', () => {
       const inputNode = insertedVertices.find(v => v.value.includes('User Input'));
-      expect(inputNode.geometry.width).toBe(250);
+      expect(inputNode.geometry.width).toBe(150);
     });
 
-    test('Tools node should have width of 280', () => {
+    test('Tools node takes the smallest width, 160, where no text is measured', () => {
       const toolNode = insertedVertices.find(v => v.value.includes('Tools'));
-      expect(toolNode.geometry.width).toBe(280);
+      expect(toolNode.geometry.width).toBe(160);
     });
 
-    test('Feature/History nodes should have width of 230', () => {
+    test('Feature/History nodes take the smallest width, 140, where no text is measured', () => {
       const featNode = insertedVertices.find(v => v.value.includes('Features'));
-      expect(featNode.geometry.width).toBe(230);
+      expect(featNode.geometry.width).toBe(140);
       const histNode = insertedVertices.find(v => v.value.includes('Message History'));
-      expect(histNode.geometry.width).toBe(230);
+      expect(histNode.geometry.width).toBe(140);
     });
   });
 

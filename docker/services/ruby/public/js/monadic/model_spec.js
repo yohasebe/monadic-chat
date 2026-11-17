@@ -706,7 +706,7 @@ const modelSpec = {
   "claude-haiku-4-5-20251001": {
     "context_window" : [1, 200000],
     "api_version": "2023-06-01",
-    "max_output_tokens" : [[1, 8192], 8192],
+    "max_output_tokens" : [[1, 64000], 64000],
     "tool_capability": true,
     "vision_capability": true,
     "supports_thinking": false,
@@ -1568,27 +1568,27 @@ const modelSpec = {
     // not on every call, so none is sent. Inline tags in the text still work.
     "tts_style_directive": "omit"
   },
-  // Stops 2026-11-17.
+  // Stops 2026-12-18.
   "gemini-3.1-flash-tts-preview": {
     "deprecated": true,
-    "sunset_date": "2026-11-17",
+    "sunset_date": "2026-12-18",
     "successor": "gemini-3.8-flash-tts",
     "tts_capability": true,
     "tts_family": "gemini"
   },
-  // Stops 2026-11-17.
+  // Stops 2026-12-18.
   "gemini-2.5-flash-preview-tts": {
     "deprecated": true,
-    "sunset_date": "2026-11-17",
+    "sunset_date": "2026-12-18",
     "successor": "gemini-3.8-flash-tts",
     "tts_capability": true,
     "tts_family": "gemini",
     "tts_pace_prefix": true
   },
-  // Stops 2026-11-17.
+  // Stops 2026-12-18.
   "gemini-2.5-pro-preview-tts": {
     "deprecated": true,
-    "sunset_date": "2026-11-17",
+    "sunset_date": "2026-12-18",
     "successor": "gemini-3.8-flash-tts",
     "tts_capability": true,
     "tts_family": "gemini",
@@ -1918,7 +1918,7 @@ const providerDefaults = {
     // Veo 3.1, its predecessor, is listed by Google to stop 2026-10-22.
     "video": ["gemini-omni-1.1-flash"],
     "music": ["lyria-3.5", "lyria-3-clip-preview"],
-    // The preview TTS models (deprecated, stop 2026-11-17) are not offered.
+    // The preview TTS models (deprecated, stop 2026-12-18) are not offered.
     "tts": ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts"]
   },
   "cohere": {

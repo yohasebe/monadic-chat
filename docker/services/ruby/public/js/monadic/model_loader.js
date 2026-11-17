@@ -47,6 +47,35 @@
     }
   }
 
+  // The Ollama models installed now, for an Ollama app just chosen: models
+  // pulled or removed, or Ollama started, after the page loaded. When the
+  // list differs from the one the page has, every Ollama app takes the new
+  // list and the chosen app is set up again with it.
+  let refreshingOllama = false;
+  window.refreshOllamaModels = async function refreshOllamaModels(appValue) {
+    const apps = window.apps || {};
+    const app = apps[appValue];
+    if (refreshingOllama || !app || String(app.group || '').toLowerCase() !== 'ollama') return false;
+    refreshingOllama = true;
+    try {
+      const models = await loadOllamaCapabilities();
+      const names = Object.keys(models);
+      if (names.length === 0) return false;
+      let current = [];
+      try { current = JSON.parse(app.models || '[]'); } catch (_) { current = []; }
+      if (JSON.stringify(current) === JSON.stringify(names)) return false;
+
+      Object.assign(window.modelSpec, models);
+      Object.keys(apps).forEach((key) => {
+        if (String(apps[key].group || '').toLowerCase() === 'ollama') apps[key].models = JSON.stringify(names);
+      });
+      if (typeof window.proceedWithAppChange === 'function') window.proceedWithAppChange(appValue);
+      return true;
+    } finally {
+      refreshingOllama = false;
+    }
+  };
+
   // Initialize model specifications
   async function initializeModels() {
     const models = await loadModelSpec();

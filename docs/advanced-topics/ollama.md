@@ -53,7 +53,7 @@ ollama pull <model-name>
 ollama rm <model-name>
 ```
 
-Installed models appear in the model menu of the Ollama apps. If a model you just added does not appear, or Ollama was started after Monadic Chat, reload the web interface.
+Installed models appear in the model menu of the Ollama apps. The menu is read again from Ollama each time an Ollama app is chosen, so a model added while Monadic Chat is running appears when you choose the app again.
 
 ## Model Capabilities :id=model-capabilities
 
@@ -99,4 +99,4 @@ These apps are defined as for the other providers. Their tool features need a mo
 
 - **Default model**: `gpt-oss:20b`. To change it, set `OLLAMA_DEFAULT_MODEL` in `~/monadic/config/env`.
 - **Connection**: The backend connects to `host.docker.internal:11434`, and to `localhost:11434` when that fails.
-- **Model list**: The list of models is read from Ollama when the web interface loads.
+- **Model list**: The list of models is read from Ollama when the web interface loads and each time an Ollama app is chosen.

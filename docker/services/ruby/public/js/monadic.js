@@ -2043,6 +2043,9 @@ document.addEventListener("DOMContentLoaded", function () {
       window.currentLLMProvider = getProviderFromGroup(selectedApp.group).toLowerCase();
     }
 
+    // An Ollama app shows the models installed now, not those of when the page loaded.
+    if (typeof window.refreshOllamaModels === 'function') window.refreshOllamaModels(appValue);
+
     // Always enable AI User button (error message will be shown if conversation not started)
     { const el = $id("ai_user"); if (el) el.disabled = false; }
     // Set title with translation when available

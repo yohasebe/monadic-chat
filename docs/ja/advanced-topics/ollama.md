@@ -53,7 +53,7 @@ ollama pull <model-name>
 ollama rm <model-name>
 ```
 
-インストールしたモデルは、Ollama のアプリのモデルのメニューに表示されます。加えたばかりのモデルが表示されないときや、Monadic Chat より後に Ollama を起動したときは、Web の画面を再読み込みしてください。
+インストールしたモデルは、Ollama のアプリのモデルのメニューに表示されます。メニューは Ollama のアプリを選ぶたびに Ollama から読み直すので、Monadic Chat の起動中に加えたモデルは、アプリを選び直すと表示されます。
 
 ## モデルの能力 :id=model-capabilities
 
@@ -99,4 +99,4 @@ Ollama のグループには、次のアプリがあります。
 
 - **既定のモデル**：`gpt-oss:20b` です。変えるときは `~/monadic/config/env` の `OLLAMA_DEFAULT_MODEL` で設定します。
 - **接続**：バックエンドは `host.docker.internal:11434` に接続し、つながらないときは `localhost:11434` に接続します。
-- **モデルの一覧**：Web の画面を読み込むときに、モデルの一覧を Ollama から読み取ります。
+- **モデルの一覧**：Web の画面を読み込むときと、Ollama のアプリを選ぶたびに、モデルの一覧を Ollama から読み取ります。

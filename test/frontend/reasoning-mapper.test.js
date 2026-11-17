@@ -32,6 +32,10 @@ global.modelSpec = {
   'grok-4.20-0309-reasoning': {
     reasoning_effort: [['low', 'high'], 'low']
   },
+  'gemini-levels': {
+    supports_thinking_level: true,
+    reasoning_effort: [['low', 'medium', 'high', 'xhigh'], 'low']
+  },
   'deepseek-reasoner': {
     reasoning_content: ['disabled', 'enabled'],
     reasoning_effort: [['none', 'low', 'high', 'max'], 'high']
@@ -131,6 +135,12 @@ describe('ReasoningMapper', () => {
     test('Grok maps reasoning_effort directly', () => {
       const result = ReasoningMapper.mapToProviderParameter('xAI', 'grok-4.20-0309-reasoning', 'low');
       expect(result).toEqual({ reasoning_effort: 'low' });
+    });
+
+    test('Gemini thinking levels carry the choice in both keys, so an app default does not win', () => {
+      expect(ReasoningMapper.mapToProviderParameter('Google', 'gemini-levels', 'xhigh'))
+        .toEqual({ thinking_level: 'xhigh', reasoning_effort: 'xhigh' });
+      expect(ReasoningMapper.mapToProviderParameter('Google', 'gemini-levels', 'minimal')).toBeNull();
     });
 
     test('DeepSeek turns thinking off for none and on at the chosen level otherwise', () => {

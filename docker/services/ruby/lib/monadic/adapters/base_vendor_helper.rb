@@ -604,6 +604,18 @@ module BaseVendorHelper
       return item unless role == "assistant"
 
       return item.merge(key.("content") => hide_words_in_content(item[key.("content")], snapshot, budget, :model))
+    when "reasoning"
+      # A reasoning item (OpenAI's, Grok's): the text of its summary and
+      # content, kept as the model wrote it; its encrypted part is opaque.
+      return %w[summary content].each_with_object(item.dup) do |name, out|
+        parts = item[key.(name)]
+        next unless parts.is_a?(Array)
+
+        out[key.(name)] = parts.map do |part|
+          text_key = part.is_a?(Hash) && (part.key?(:text) ? :text : "text")
+          text_key && part[text_key].is_a?(String) ? part.merge(text_key => snapshot.from_model(part[text_key], budget)) : part
+        end
+      end
     end
     case role
     when "tool"
@@ -612,9 +624,12 @@ module BaseVendorHelper
       calls = item[key.("tool_calls")]
       origin = role == "assistant" && calls.is_a?(Array) ? :model : :raw
       out = item.merge(key.("content") => hide_words_in_content(item[key.("content")], snapshot, budget, origin))
-      # A model's reasoning, kept as the model wrote it (DeepSeek's).
-      reasoning = item[key.("reasoning_content")]
-      out[key.("reasoning_content")] = snapshot.from_model(reasoning, budget) if reasoning.is_a?(String)
+      # A model's reasoning, kept as the model wrote it (DeepSeek's
+      # reasoning_content, Ollama's thinking).
+      %w[reasoning_content thinking].each do |name|
+        reasoning = item[key.(name)]
+        out[key.(name)] = snapshot.from_model(reasoning, budget) if reasoning.is_a?(String)
+      end
       if calls.is_a?(Array)
         out[key.("tool_calls")] = calls.map do |call|
           function = call.is_a?(Hash) ? (call[:function] || call["function"]) : nil

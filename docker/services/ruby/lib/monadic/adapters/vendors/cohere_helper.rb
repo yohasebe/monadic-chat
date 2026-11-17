@@ -1425,20 +1425,27 @@ module CohereHelper
 
     block&.call({ "type" => "wait", "content" => "<i class='fas fa-cogs'></i> PROCESSING FUNCTION RESULTS" })
 
-    tool_calls.each do |tool_call|
+    tool_calls.each_with_index do |tool_call, index|
       function_name = tool_call.dig("function", "name")
       next if function_name.nil?
 
       record_tool_call(session, function_name)
       block&.call({ "type" => "tool_executing", "content" => function_name })
 
-      tool_entry, error_stop, images = invoke_cohere_tool_function(app, session, tool_call, function_name, &block)
+      tool_entry, _error_stop, images = invoke_cohere_tool_function(app, session, tool_call, function_name, &block)
       pending_tool_images = images if images&.any?
+      context << tool_entry if tool_entry
 
-      if tool_entry
-        context << tool_entry
-        next if error_stop
+      # An image was put on the work screen: the reply ends, and the calls
+      # not run are answered as such.
+      next unless (offered = take_offer(session))
+
+      tool_calls.drop(index + 1).each do |skipped|
+        context << { "role" => "tool", "tool_call_id" => skipped["id"],
+                     "content" => [{ "type" => "text", "text" => Monadic::Workbench::Offered.not_executed }] }
       end
+      obj["tool_results"] = context
+      return Monadic::Workbench::Offer.end_reply(offered, &block)
     end
 
     # Capture tool requests for progressive disclosure

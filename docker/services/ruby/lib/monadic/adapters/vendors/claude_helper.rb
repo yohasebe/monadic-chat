@@ -2002,7 +2002,7 @@ module ClaudeHelper
       msg
     }
 
-    tools.each do |tool_call|
+    tools.each_with_index do |tool_call, index|
       tool_name = tool_call["name"]
       record_tool_call(session, tool_name)
       block&.call({ "type" => "tool_executing", "content" => tool_name })
@@ -2013,10 +2013,20 @@ module ClaudeHelper
       # Invoke the tool function and build the result entry
       # Returns [tool_result_entry, error_stop]
       tool_result_entry, error_stop = invoke_claude_tool_function(app, session, tool_call, tool_name, &block)
-      if tool_result_entry
-        content << tool_result_entry
-        next if error_stop # stop_retrying flag is set
+      content << tool_result_entry if tool_result_entry
+
+      # An image was put on the work screen: the reply ends, and the calls
+      # not run are answered as such.
+      next unless (offered = take_offer(session))
+
+      tools.drop(index + 1).each do |skipped|
+        next if skipped["type"] == "server_tool_use"
+
+        content << { type: "tool_result", tool_use_id: skipped["id"], content: Monadic::Workbench::Offered.not_executed }
       end
+      context << { role: "user", content: content }
+      obj["function_returns"] = context
+      return Monadic::Workbench::Offer.end_reply(offered, &block)
     end
 
     # Only add tool results message if there are actual results to send

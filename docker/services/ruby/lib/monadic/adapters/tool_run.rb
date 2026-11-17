@@ -79,8 +79,19 @@ module ToolRun
       images = Array(value[:_image]) if value[:_image]
     end
 
+    # An image put on the work screen for this reply ends the reply: the
+    # provider's round takes it with take_offer.
+    session[:workbench_offered] = (value if value.is_a?(Monadic::Workbench::Offered) && value.for?(session))
+
     Result.new(name: function_name, value: value, images: images,
                stop: handle_function_error(session, value, function_name, &block))
+  end
+
+  # The image the tool call just run put on the work screen for this reply,
+  # or nil; taken once. The round then gives every call it did not run
+  # Offered.not_executed and ends with Offer.end_reply.
+  def take_offer(session)
+    session.delete(:workbench_offered)
   end
 
   private

@@ -71,6 +71,9 @@ This document defines the canonical property names used across providers in `mod
 - native_multiturn_reasoning: boolean
   - Cohere-specific. When `true`, a reasoning model handles the native Cohere v2 multi-turn tool flow with reasoning on, so `cohere_helper`'s single-text flattening workaround is bypassed. Set on models verified to keep the native message array. Absent/false → the flattening workaround applies.
 
+- advisor_models: array of model IDs
+  - The advisor models this model accepts when it runs a request with the advisor tool. `claude_helper` leaves the tool out when the app's advisor is not listed (the API returns 400 for it). Without the property, the app's advisor is sent as configured.
+
 - rejects_forced_tool_choice: boolean
   - The model returns 400 on `tool_choice` `{type: any}` / `{type: tool}`. `claude_helper` sends `{type: auto}` where it would otherwise send `any`.
 

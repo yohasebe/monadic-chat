@@ -2201,7 +2201,7 @@ module OpenAIHelper
     Monadic::Utils::ExtraLogger.log_json("Processing responses API query (Call depth: #{call_depth})", workbench_loggable(query))
 
     obj = session[:parameters]
-    buffer = String.new
+    records = StreamRecords.new(:sse)
     chunk_count = 0
 
     state = {
@@ -2223,89 +2223,46 @@ module OpenAIHelper
       fragment_sequence: 0,  # Sequence number for fragments to ensure ordering
       streaming_model: nil
     }
-    res.each do |chunk|
-      event_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    early = catch(:openai_responses_end) do
+      read = lambda do |data, event|
+        throw :openai_responses_end if data.strip == "[DONE]" || event == "done"
 
-      chunk = chunk.force_encoding("UTF-8")
-      buffer << chunk
-      chunk_count += 1
-      
+        event_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        json = JSON.parse(data)
 
-      if buffer.valid_encoding? == false
-        next
-      end
+        Monadic::Utils::ExtraLogger.log_json("Responses API chunk", json)
 
-      begin
-        # Check for completion patterns
-        if /\Rdata: \[DONE\]\R/ =~ buffer || /\Revent: done\R/ =~ buffer
-          break
+        # Check if response model differs from requested model
+        response_model = json["model"]
+        requested_model = query["original_user_model"] || query["model"]
+        check_model_switch(response_model, requested_model, session, &block)
+
+        # Store the model for use throughout streaming
+        state[:streaming_model] = response_model || requested_model
+
+        # Dispatch event to handler; returns nil (continue), :skip (next), or Array (early return)
+        event_type = json["type"]
+        result = dispatch_openai_response_event(json, event_type, state, query, obj, &block)
+        throw :openai_responses_end, result if result.is_a?(Array)
+
+        if CONFIG["EXTRA_LOGGING"]
+          duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - event_start) * 1000).round(1)
+          DebugHelper.debug("[ResponsesTiming] app=#{app} event=#{event_type.inspect} duration_ms=#{duration_ms}", category: :metrics, level: :info)
         end
-      rescue StandardError
-        next
+      rescue JSON::ParserError
+        Monadic::Utils::ExtraLogger.log { "[OpenAI Events] Unreadable record skipped (#{data.bytesize} bytes)" }
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[OpenAI Events] Error: #{e.message}\n[OpenAI Events] Backtrace: #{e.backtrace.first(5).join("\n")}" }
       end
 
-      # Skip encoding cleanup - buffer.valid_encoding? check above is sufficient
-      # Encoding cleanup with replace: "" can delete valid bytes from incomplete multibyte characters
-      # that will become complete when the next chunk arrives
-      # buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
-      # buffer.encode!("UTF-8", "UTF-16")
-
-      scanner = StringScanner.new(buffer)
-      # One event is one line ending in a newline (JSON escapes the newlines
-      # inside it). An event whose line has not fully arrived stays in the
-      # buffer for the next chunk: a chunk can end anywhere, also right
-      # after a "}" inside the event.
-      pattern = /data: (\{.*?\})(?=\n)/m
-
-      until scanner.eos?
-        matched = scanner.scan_until(pattern)
-        if matched
-          json_data = scanner[1]
-          begin
-            # Log raw JSON data before parsing (for debugging delta issues)
-            if Monadic::Utils::ExtraLogger.enabled?
-              if json_data.include?("output_text.delta") && (json_data.include?("き") || json_data.include?("れ"))
-                Monadic::Utils::ExtraLogger.log { "[RAW JSON BEFORE PARSE] #{json_data}" }
-              end
-            end
-
-            json = JSON.parse(json_data)
-
-            Monadic::Utils::ExtraLogger.log_json("Responses API chunk", json)
-
-            # Check if response model differs from requested model
-            response_model = json["model"]
-            requested_model = query["original_user_model"] || query["model"]
-            check_model_switch(response_model, requested_model, session, &block)
-
-            # Store the model for use throughout streaming
-            state[:streaming_model] = response_model || requested_model
-
-            # Dispatch event to handler; returns nil (continue), :skip (next), or Array (early return)
-            event_type = json["type"]
-            result = dispatch_openai_response_event(json, event_type, state, query, obj, &block)
-            if result == :skip
-              next
-            elsif result.is_a?(Array)
-              return result
-            end
-            
-          rescue JSON::ParserError => e
-            # JSON parsing error, continue to next iteration
-          rescue StandardError => e
-            Monadic::Utils::ExtraLogger.log { "[OpenAI Events] Error: #{e.message}\n[OpenAI Events] Backtrace: #{e.backtrace.first(5).join("\n")}" }
-          end
-          if CONFIG["EXTRA_LOGGING"]
-            duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - event_start) * 1000).round(1)
-            DebugHelper.debug("[ResponsesTiming] app=#{app} event=#{event_type.inspect} duration_ms=#{duration_ms}", category: :metrics, level: :info)
-          end
-        else
-          break
-        end
+      res.each do |chunk|
+        chunk_count += 1
+        records.feed(chunk, &read)
       end
-
-      buffer = scanner.rest
+      records.finish(&read)
+      nil
     end
+    return early if early
 
     # Handle tool calls if any were collected
     tool_result = assemble_openai_tool_results_from_responses(app, session, state, &block)
@@ -2700,17 +2657,11 @@ module OpenAIHelper
       end
       state[:finish_reason] = "stop"
 
-    when "response.error"
-      # Error occurred
-      error_msg = json.dig("error", "message") || "Unknown error"
-      formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-        provider: "OpenAI",
-        message: error_msg
-      )
-      res = { "type" => "error", "content" => formatted_error }
-      block&.call res
-
-      return [res]
+    when "response.error", "response.failed", "error"
+      # An error inside the stream ends the reply as that error.
+      error_msg = json.dig("error", "message") || json.dig("response", "error", "message") || json["message"] || "Unknown error"
+      Monadic::Utils::ExtraLogger.log { "[OpenAI Events] Error record: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(error_msg.to_s)}" }
+      return StreamRecords.error_reply("OpenAI", error_msg, &block)
 
     else
       # Unknown event type

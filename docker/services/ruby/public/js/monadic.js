@@ -1827,6 +1827,10 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('model_change');
     }
+    // The workflow diagram names the model chosen.
+    if (typeof window.WorkflowViewer !== 'undefined' && window.WorkflowViewer.refresh) {
+      window.WorkflowViewer.refresh();
+    }
     // Update collapsed summary bar if visible
     if (typeof updateConfigSummary === 'function' && ($id("config-summary") && $id("config-summary").offsetParent !== null)) {
       updateConfigSummary();

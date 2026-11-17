@@ -657,6 +657,23 @@ describe('WorkflowViewer graph structure', () => {
     });
   });
 
+  describe('Model node', () => {
+    afterEach(() => { delete window.params; });
+
+    test('names the model chosen in the settings when it is one of the app\'s', async () => {
+      window.params = { model: 'gpt-4o-mini' };
+      await loadAppWithData(SAMPLE_FULL);
+      expect(insertedVertices.some(v => v.value.includes('gpt-4o-mini'))).toBe(true);
+    });
+
+    test('names the app\'s first model when the one chosen is not the app\'s', async () => {
+      window.params = { model: 'another-model' };
+      await loadAppWithData(SAMPLE_FULL);
+      expect(insertedVertices.some(v => v.value.includes('another-model'))).toBe(false);
+      expect(insertedVertices.some(v => v.value.includes('gpt-4o'))).toBe(true);
+    });
+  });
+
   // Runtime-aware features: the Workflow Viewer reads window.params at
   // render time, so STT/TTS nodes and the Expressive Speech entry reflect
   // the user's live settings, not just the MDSL-declared defaults.

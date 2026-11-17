@@ -1103,7 +1103,9 @@ module CohereHelper
     fragment_sequence = 0  # Sequence number for fragments to ensure ordering
     tool_calls = []
     finish_reason = nil
-    buffer = String.new
+    # Asked for as application/json, the stream is one JSON object per line.
+    records = StreamRecords.new(:ndjson)
+    stream_error = nil
     current_tool_call = nil
     accumulated_tool_calls = []
     citations = []  # Store citation data
@@ -1114,178 +1116,163 @@ module CohereHelper
     usage_output_tokens = nil
     usage_total_tokens = nil
 
-    res.each do |chunk|
-      chunk = chunk.force_encoding("UTF-8")
-      buffer << chunk
+    # Each record of the stream.
+    handle = lambda do |json|
+      Monadic::Utils::ExtraLogger.log_json("Cohere stream chunk", json)
 
-      if buffer.valid_encoding? == false
-        next
-      end
+      # Handle different event types from v2 streaming API
+      case json["type"]
+      when "message-start"
+        accumulated_tool_calls = []
+      when "content-start"
+      when "content-delta"
+        if content = json.dig("delta", "message", "content")
+          # Handle thinking content for reasoning models (Command A Reasoning)
+          if thinking = content["thinking"]
+            unless thinking.strip.empty?
+              # Store thinking content for final response
+              thinking_content << thinking
 
-      # Skip encoding cleanup - buffer.valid_encoding? check above is sufficient
-      # Encoding cleanup with replace: "" can delete valid bytes from incomplete multibyte characters
-      # that will become complete when the next chunk arrives
-      # buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
-      # buffer.encode!("UTF-8", "UTF-16")
+              # Send thinking content to UI (like Claude/OpenAI/Mistral)
+              res = {
+                "type" => "thinking",
+                "content" => thinking
+              }
+              block&.call res
 
-      scanner = StringScanner.new(buffer)
-      # One event is one line ending in a newline (JSON escapes the newlines
-      # inside it). An event whose line has not fully arrived stays in the
-      # buffer for the next chunk: a chunk can end anywhere, also right
-      # after a "}" inside the event.
-      pattern = /(\{.*?\})(?=\n)/
-      until scanner.eos?
-        matched = scanner.scan_until(pattern)
-        if matched
-          begin
-            json_data = scanner[1]
-            json = JSON.parse(json_data)
+              # Debug logging
+              DebugHelper.debug("Cohere thinking: #{thinking}", category: :api, level: :debug) if CONFIG["EXTRA_LOGGING"]
+            end
+          end
 
-            Monadic::Utils::ExtraLogger.log_json("Cohere stream chunk", json)
+          # Also check for text content (both thinking and text can be present)
+          if text = content["text"]
+            texts << text
 
-            # Handle different event types from v2 streaming API
-            case json["type"]
-            when "message-start"
-              buffer = ""
-              accumulated_tool_calls = []
-            when "content-start"
-            when "content-delta"
-              if content = json.dig("delta", "message", "content")
-                # Handle thinking content for reasoning models (Command A Reasoning)
-                if thinking = content["thinking"]
-                  unless thinking.strip.empty?
-                    # Store thinking content for final response
-                    thinking_content << thinking
+            # Debug logging for text content
+            if CONFIG["EXTRA_LOGGING"]
+              DebugHelper.debug("Cohere text fragment received: #{text.length} chars", category: :api, level: :debug)
+            end
 
-                    # Send thinking content to UI (like Claude/OpenAI/Mistral)
-                    res = {
-                      "type" => "thinking",
-                      "content" => thinking
-                    }
-                    block&.call res
-
-                    # Debug logging
-                    DebugHelper.debug("Cohere thinking: #{thinking}", category: :api, level: :debug) if CONFIG["EXTRA_LOGGING"]
-                  end
-                end
-
-                # Also check for text content (both thinking and text can be present)
-                if text = content["text"]
-                  buffer += text
-                  texts << text
-
-                  # Debug logging for text content
-                  if CONFIG["EXTRA_LOGGING"]
-                    DebugHelper.debug("Cohere text fragment received: #{text.length} chars", category: :api, level: :debug)
-                  end
-
-                  unless text.strip.empty?
-                    if text.length > 0
-                      res = {
-                        "type" => "fragment",
-                        "content" => text,
-                        "sequence" => fragment_sequence,
-                        "timestamp" => Time.now.to_f,
-                        "is_first" => fragment_sequence == 0
-                      }
-                      fragment_sequence += 1
-                      block&.call res
-                    end
-                  end
-                end
-              end
-            when "tool-plan-delta"
-              if text = json.dig("delta", "message", "tool_plan")
-                # Store tool_plan separately - it's internal reasoning, not user-facing content
-                # Do NOT add to buffer or texts as those are for user-facing response
-                # Do NOT send to UI - tool_plan is internal and should never be displayed
-                tool_plan_content << text
-
-                # Debug logging only - do NOT send fragments to UI
-                if CONFIG["EXTRA_LOGGING"]
-                  DebugHelper.debug("Cohere tool_plan: #{text}", category: :api, level: :debug)
-                end
-              end
-            when "tool-call-start"
-              tool_call_data = json.dig("delta", "message", "tool_calls")
-              current_tool_call = tool_call_data.dup
-              
-              # Ensure there's a valid arguments field even if empty
-              if current_tool_call && current_tool_call["function"] && !current_tool_call["function"]["arguments"]
-                current_tool_call["function"]["arguments"] = "{}"
-              end
-            when "tool-call-delta"
-              if current_tool_call && args = json.dig("delta", "message", "tool_calls", "function", "arguments")
-                current_tool_call["function"]["arguments"] += args
-              end
-            when "tool-call-end"
-              if current_tool_call
-                # Ensure arguments is a valid JSON string
-                if current_tool_call["function"] && current_tool_call["function"]["arguments"]
-                  begin
-                    # Try to parse to validate JSON and pretty print it
-                    parsed = JSON.parse(current_tool_call["function"]["arguments"])
-                    current_tool_call["function"]["arguments"] = JSON.generate(parsed)
-                  rescue JSON::ParserError
-                    # If not valid JSON, use an empty object
-                    current_tool_call["function"]["arguments"] = "{}"
-                  end
-                end
-                
-                accumulated_tool_calls << current_tool_call
-                current_tool_call = nil
-                res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+            unless text.strip.empty?
+              if text.length > 0
+                res = {
+                  "type" => "fragment",
+                  "content" => text,
+                  "sequence" => fragment_sequence,
+                  "timestamp" => Time.now.to_f,
+                  "is_first" => fragment_sequence == 0
+                }
+                fragment_sequence += 1
                 block&.call res
               end
-            when "citation-start"
-              # Capture citation information
-              if citation_data = json.dig("delta", "message", "citations")
-                citations << citation_data
-              end
-            when "citation-end"
-              # Citation end marker - no action needed
-            when "message-end"
-              if json.dig("delta", "finish_reason")
-                finish_reason = case json["delta"]["finish_reason"]
-                                when "MAX_TOKENS"
-                                  "length"
-                                when "COMPLETE"
-                                  "stop"
-                                else
-                                  json["delta"]["finish_reason"]
-                                end
-                
-                # Log error details if finish_reason is ERROR
-                if json["delta"]["finish_reason"] == "ERROR"
-                  error_lines = ["\n=== COHERE API ERROR ===", "Finish reason: ERROR"]
-                  error_lines << "Error message: #{json["delta"]["error"]}" if json["delta"]["error"]
-                  error_lines << "Usage info: #{json["delta"]["usage"].inspect}" if json["delta"]["usage"]
-                  error_lines << "Full delta: #{json["delta"].inspect}"
-                  error_lines << "=== END ERROR ===\n"
-                  Monadic::Utils::ExtraLogger.log { error_lines.join("\n") }
-                end
-                # Capture usage if present on message-end
-                if json["delta"]["usage"].is_a?(Hash)
-                  usage = json["delta"]["usage"]
-                  usage_input_tokens = usage["prompt_tokens"] || usage["input_tokens"] || usage_input_tokens
-                  usage_output_tokens = usage["completion_tokens"] || usage["output_tokens"] || usage_output_tokens
-                  usage_total_tokens = usage["total_tokens"] || (usage_input_tokens.to_i + usage_output_tokens.to_i if usage_input_tokens && usage_output_tokens) || usage_total_tokens
-                end
-              end
             end
-          rescue JSON::ParserError => e
-            # if the JSON parsing fails, the next chunk should be appended to the buffer
-            # and the loop should continue to the next iteration
           end
-        else
-          buffer = scanner.rest
-          break
+        end
+      when "tool-plan-delta"
+        if text = json.dig("delta", "message", "tool_plan")
+          # Store tool_plan separately - it's internal reasoning, not user-facing content
+          # Do NOT add to texts as those are for user-facing response
+          # Do NOT send to UI - tool_plan is internal and should never be displayed
+          tool_plan_content << text
+
+          # Debug logging only - do NOT send fragments to UI
+          if CONFIG["EXTRA_LOGGING"]
+            DebugHelper.debug("Cohere tool_plan: #{text}", category: :api, level: :debug)
+          end
+        end
+      when "tool-call-start"
+        tool_call_data = json.dig("delta", "message", "tool_calls")
+        current_tool_call = tool_call_data.dup
+        
+        # Ensure there's a valid arguments field even if empty
+        if current_tool_call && current_tool_call["function"] && !current_tool_call["function"]["arguments"]
+          current_tool_call["function"]["arguments"] = "{}"
+        end
+      when "tool-call-delta"
+        if current_tool_call && args = json.dig("delta", "message", "tool_calls", "function", "arguments")
+          current_tool_call["function"]["arguments"] += args
+        end
+      when "tool-call-end"
+        if current_tool_call
+          # Ensure arguments is a valid JSON string
+          if current_tool_call["function"] && current_tool_call["function"]["arguments"]
+            begin
+              # Try to parse to validate JSON and pretty print it
+              parsed = JSON.parse(current_tool_call["function"]["arguments"])
+              current_tool_call["function"]["arguments"] = JSON.generate(parsed)
+            rescue JSON::ParserError
+              # If not valid JSON, use an empty object
+              current_tool_call["function"]["arguments"] = "{}"
+            end
+          end
+          
+          accumulated_tool_calls << current_tool_call
+          current_tool_call = nil
+          res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+          block&.call res
+        end
+      when "citation-start"
+        # Capture citation information
+        if citation_data = json.dig("delta", "message", "citations")
+          citations << citation_data
+        end
+      when "citation-end"
+        # Citation end marker - no action needed
+      when "message-end"
+        if json.dig("delta", "finish_reason")
+          finish_reason = case json["delta"]["finish_reason"]
+                          when "MAX_TOKENS"
+                            "length"
+                          when "COMPLETE"
+                            "stop"
+                          else
+                            json["delta"]["finish_reason"]
+                          end
+          
+          # Log error details if finish_reason is ERROR
+          if json["delta"]["finish_reason"] == "ERROR"
+            error_lines = ["\n=== COHERE API ERROR ===", "Finish reason: ERROR"]
+            error_lines << "Error message: #{json["delta"]["error"]}" if json["delta"]["error"]
+            error_lines << "Usage info: #{json["delta"]["usage"].inspect}" if json["delta"]["usage"]
+            error_lines << "Full delta: #{json["delta"].inspect}"
+            error_lines << "=== END ERROR ===\n"
+            Monadic::Utils::ExtraLogger.log { error_lines.join("\n") }
+            stream_error = json["delta"]["error"] || "The reply ended with an error"
+            throw :cohere_stream_end
+          end
+          # Capture usage if present on message-end
+          if json["delta"]["usage"].is_a?(Hash)
+            usage = json["delta"]["usage"]
+            usage_input_tokens = usage["prompt_tokens"] || usage["input_tokens"] || usage_input_tokens
+            usage_output_tokens = usage["completion_tokens"] || usage["output_tokens"] || usage_output_tokens
+            usage_total_tokens = usage["total_tokens"] || (usage_input_tokens.to_i + usage_output_tokens.to_i if usage_input_tokens && usage_output_tokens) || usage_total_tokens
+          end
         end
       end
-    rescue StandardError => e
-      Monadic::Utils::ExtraLogger.log { "[Cohere Streaming] Error: #{e.message}" }
-      Monadic::Utils::ExtraLogger.log { "[Cohere Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     end
+
+    catch(:cohere_stream_end) do
+      read = lambda do |data|
+        json = JSON.parse(data)
+        if json["type"] == "error" || json["error"]
+          stream_error = json["error"].is_a?(Hash) ? json["error"]["message"] : (json["error"] || json["message"])
+          Monadic::Utils::ExtraLogger.log { "[Cohere Streaming] Error record: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(stream_error.to_s)}" }
+          throw :cohere_stream_end
+        end
+        handle.call(json)
+      rescue JSON::ParserError
+        Monadic::Utils::ExtraLogger.log { "[Cohere Streaming] Unreadable record skipped (#{data.bytesize} bytes)" }
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[Cohere Streaming] Error: #{e.message}" }
+        Monadic::Utils::ExtraLogger.log { "[Cohere Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
+      end
+
+      res.each { |chunk| records.feed(chunk, &read) }
+      records.finish(&read)
+    end
+
+    return StreamRecords.error_reply("Cohere", stream_error, &block) if stream_error
 
     # Prepare final result from accumulated text
     result = texts.empty? ? nil : texts.join("")

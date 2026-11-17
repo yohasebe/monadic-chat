@@ -6,6 +6,7 @@ require_relative "../../../../lib/monadic/adapters/vendors/deepseek_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/gemini_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/mistral_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/ollama_helper"
+require_relative "../../../../lib/monadic/adapters/vendors/cohere_helper"
 
 # What every provider's reader of a streamed reply does, whatever the chunks
 # the reply arrives in: the text comes whole, every call of a round is run,
@@ -60,6 +61,31 @@ module StreamContract
     def error(message) = { "error" => { "code" => 503, "message" => message } }
   end
 
+  module Cohere
+    module_function
+
+    def text(pieces)
+      [{ "type" => "message-start", "delta" => { "message" => { "role" => "assistant" } } }] +
+        pieces.map { |p| { "type" => "content-delta", "index" => 0, "delta" => { "message" => { "content" => { "text" => p } } } } } +
+        [{ "type" => "message-end", "delta" => { "finish_reason" => "COMPLETE" } }]
+    end
+
+    def calls(calls)
+      [{ "type" => "message-start", "delta" => { "message" => { "role" => "assistant" } } }] +
+        calls.each_with_index.flat_map do |(name, args), i|
+          json = JSON.generate(args)
+          [{ "type" => "tool-call-start", "index" => i, "delta" => { "message" => { "tool_calls" => {
+            "id" => "call_#{i}", "type" => "function", "function" => { "name" => name, "arguments" => "" }
+          } } } },
+           { "type" => "tool-call-delta", "index" => i, "delta" => { "message" => { "tool_calls" => { "function" => { "arguments" => json[0, 3] } } } } },
+           { "type" => "tool-call-delta", "index" => i, "delta" => { "message" => { "tool_calls" => { "function" => { "arguments" => json[3..] } } } } },
+           { "type" => "tool-call-end", "index" => i }]
+        end + [{ "type" => "message-end", "delta" => { "finish_reason" => "TOOL_CALL" } }]
+    end
+
+    def error(message) = { "type" => "message-end", "delta" => { "finish_reason" => "ERROR", "error" => message } }
+  end
+
   module Ollama
     module_function
 
@@ -103,6 +129,11 @@ RSpec.describe "Reading a streamed reply (every provider)" do
       end],
       "Gemini" => [StreamContract::Gemini, :sse, lambda do |spec, chunks|
         spec.read_with(GeminiHelper, chunks) do |helper, session, res, sink|
+          helper.process_json_data(app: "SpecApp", session: session, query: {}, res: res, call_depth: 0, &sink)
+        end
+      end],
+      "Cohere" => [StreamContract::Cohere, :ndjson, lambda do |spec, chunks|
+        spec.read_with(CohereHelper, chunks) do |helper, session, res, sink|
           helper.process_json_data(app: "SpecApp", session: session, query: {}, res: res, call_depth: 0, &sink)
         end
       end],

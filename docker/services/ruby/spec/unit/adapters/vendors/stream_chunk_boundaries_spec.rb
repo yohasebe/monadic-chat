@@ -67,7 +67,8 @@ RSpec.describe "Streamed answers cut into chunks" do
     end
     events << { "type" => "content-end", "index" => 0 }
     events << { "type" => "message-end", "delta" => { "finish_reason" => "COMPLETE" } }
-    events.map { |e| "event: #{e['type']}\ndata: #{JSON.generate(e)}\n\n" }.join
+    # Asked for as application/json: one JSON object per line.
+    events.map { |e| "#{JSON.generate(e)}\n" }.join
   end
 
   attr_accessor :builder_reader

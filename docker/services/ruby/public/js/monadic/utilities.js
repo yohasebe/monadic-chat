@@ -134,6 +134,9 @@ function listModels(models, openai = false, opts = {}) {
     const spec = (typeof window !== 'undefined' && window.modelSpec) ? window.modelSpec[m] : null;
     if (!spec) return true;
     if (spec.supports_speech_to_speech) return allowSts;
+    // A chat model that can also transcribe (it has a context window, e.g.
+    // gemini-3.8-flash) stays: only speech and music models are dropped.
+    if (spec.context_window) return true;
     return !(spec.stt_capability || spec.tts_capability || spec.music_capability ||
              spec.supports_realtime_streaming);
   });

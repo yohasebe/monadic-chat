@@ -33,7 +33,8 @@ global.modelSpec = {
     reasoning_effort: [['low', 'high'], 'low']
   },
   'deepseek-reasoner': {
-    reasoning_content: ['disabled', 'enabled']
+    reasoning_content: ['disabled', 'enabled'],
+    reasoning_effort: [['none', 'low', 'high', 'max'], 'high']
   },
   'sonar-reasoning': {
     reasoning_effort: [['minimal', 'low', 'medium', 'high'], 'medium']
@@ -100,9 +101,9 @@ describe('ReasoningMapper', () => {
       expect(options).toEqual(['low', 'high']);
     });
 
-    test('DeepSeek returns limited options', () => {
+    test('DeepSeek returns the levels its spec lists', () => {
       const options = ReasoningMapper.getAvailableOptions('DeepSeek', 'deepseek-reasoner');
-      expect(options).toEqual(['minimal', 'medium']);
+      expect(options).toEqual(['none', 'low', 'high', 'max']);
     });
   });
 
@@ -132,12 +133,12 @@ describe('ReasoningMapper', () => {
       expect(result).toEqual({ reasoning_effort: 'low' });
     });
 
-    test('DeepSeek maps to enabled/disabled', () => {
-      const mediumResult = ReasoningMapper.mapToProviderParameter('DeepSeek', 'deepseek-reasoner', 'medium');
-      expect(mediumResult).toEqual({ reasoning_content: 'enabled' });
-
-      const minimalResult = ReasoningMapper.mapToProviderParameter('DeepSeek', 'deepseek-reasoner', 'minimal');
-      expect(minimalResult).toEqual({ reasoning_content: 'disabled' });
+    test('DeepSeek turns thinking off for none and on at the chosen level otherwise', () => {
+      expect(ReasoningMapper.mapToProviderParameter('DeepSeek', 'deepseek-reasoner', 'low'))
+        .toEqual({ reasoning_content: 'enabled', reasoning_effort: 'low' });
+      expect(ReasoningMapper.mapToProviderParameter('DeepSeek', 'deepseek-reasoner', 'none'))
+        .toEqual({ reasoning_content: 'disabled' });
+      expect(ReasoningMapper.mapToProviderParameter('DeepSeek', 'deepseek-reasoner', 'medium')).toBeNull();
     });
 
     test('Unsupported combinations return null', () => {
@@ -162,9 +163,9 @@ describe('ReasoningMapper', () => {
       expect(result).toBe('medium');
     });
 
-    test('DeepSeek returns medium', () => {
+    test('DeepSeek returns spec default', () => {
       const result = ReasoningMapper.getDefaultValue('DeepSeek', 'deepseek-reasoner');
-      expect(result).toBe('medium');
+      expect(result).toBe('high');
     });
 
   });

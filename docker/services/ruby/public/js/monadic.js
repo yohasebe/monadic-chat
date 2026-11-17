@@ -1693,12 +1693,11 @@ document.addEventListener("DOMContentLoaded", function () {
         
         // Don't override reasoning_effort if we're loading from params
         if (!window.isLoadingParams) {
-          // Map the app's reasoning_content default to a dropdown value. For
-          // DeepSeek the options are ['minimal'(=disabled), 'medium'(=enabled)].
+          // An app whose reasoning_content default is "disabled" starts
+          // DeepSeek's dropdown on "none" (thinking off).
           let appReasoningDefault = null;
-          if (pendingAppRc && provider === "DeepSeek") {
-            appReasoningDefault = (pendingAppRc === "disabled") ? "minimal" : "medium";
-            if (!availableOptions.includes(appReasoningDefault)) appReasoningDefault = null;
+          if (pendingAppRc === "disabled" && provider === "DeepSeek" && availableOptions.includes("none")) {
+            appReasoningDefault = "none";
           }
           // Set the value - app-change default wins, else preserve existing
           // value if valid, otherwise use the provider default.

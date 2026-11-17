@@ -65,7 +65,7 @@ class ReasoningMapper {
       case 'xAI':
         return spec.hasOwnProperty('reasoning_effort');
       case 'DeepSeek':
-        return spec.hasOwnProperty('reasoning_content');
+        return spec.hasOwnProperty('reasoning_effort');
       case 'Cohere':
         return spec.reasoning_model === true || spec.supports_thinking === true;
       default:
@@ -122,8 +122,8 @@ class ReasoningMapper {
           break;
 
         case 'DeepSeek':
-          if (spec.reasoning_content) {
-            options = ['minimal', 'medium']; // Only these two options
+          if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0])) {
+            options = spec.reasoning_effort[0];
           }
           break;
 
@@ -242,15 +242,12 @@ class ReasoningMapper {
   }
   
   static _mapDeepSeek(spec, uiValue) {
-    if (!spec.reasoning_content) return null;
-    
-    // DeepSeek: medium -> "enabled", minimal -> "disabled"
-    if (uiValue === 'medium' || uiValue === 'high') {
-      return { reasoning_content: 'enabled' };
-    } else if (uiValue === 'minimal' || uiValue === 'low') {
-      return { reasoning_content: 'disabled' };
-    }
-    return null;
+    if (!spec.reasoning_effort || !Array.isArray(spec.reasoning_effort[0])) return null;
+    if (!spec.reasoning_effort[0].includes(uiValue)) return null;
+
+    // "none" turns thinking off; any other level turns it on at that level.
+    if (uiValue === 'none') return { reasoning_content: 'disabled' };
+    return { reasoning_content: 'enabled', reasoning_effort: uiValue };
   }
   
   static _mapCohere(spec, uiValue) {
@@ -292,7 +289,10 @@ class ReasoningMapper {
         return 'low';
         
       case 'DeepSeek':
-        return 'medium'; // Maps to "enabled"
+        if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort) && spec.reasoning_effort.length >= 2) {
+          return spec.reasoning_effort[1];
+        }
+        return null;
 
       case 'Cohere':
         // Cohere reasoning models default to "enabled"

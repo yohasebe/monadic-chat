@@ -754,9 +754,11 @@ module DeepSeekHelper
     Array(Monadic::Utils::ModelSpec.get_model_property(model.to_s, "reasoning_content")).map(&:to_s).include?("enabled")
   end
 
-  # True when this request runs with thinking on.
+  # True when this request runs with thinking on: reasoning_content
+  # "disabled" or effort "none" turns it off.
   def deepseek_thinking_on?(obj)
-    deepseek_thinking_switch?(obj["model"]) && obj["reasoning_content"].to_s != "disabled"
+    deepseek_thinking_switch?(obj["model"]) &&
+      obj["reasoning_content"].to_s != "disabled" && obj["reasoning_effort"].to_s != "none"
   end
 
   def configure_deepseek_reasoning(body, obj, is_json, role)
@@ -767,10 +769,12 @@ module DeepSeekHelper
       thinking_type = deepseek_thinking_on?(obj) ? "enabled" : "disabled"
       body["thinking"] = { "type" => thinking_type }
 
+      # The effort goes beside thinking, not in it, and only one the model
+      # takes (model_spec.js: [options, default]).
       if thinking_type == "enabled"
         effort = obj["reasoning_effort"].to_s
-        levels = Array(Monadic::Utils::ModelSpec.get_model_property(model, "reasoning_effort")).map(&:to_s)
-        body["thinking"]["reasoning_effort"] = effort if levels.include?(effort)
+        levels = Array(Monadic::Utils::ModelSpec.get_reasoning_effort_options(model)&.dig(:options)).map(&:to_s)
+        body["reasoning_effort"] = effort if effort != "none" && levels.include?(effort)
       end
     end
 

@@ -643,7 +643,7 @@ module GrokHelper
 
     # A result with images for the model goes without its private keys
     if result.images
-      session[:pending_tool_images] = result.images
+      (session[:pending_tool_images] ||= []).concat(result.images)
       content_str = JSON.generate(result.without_private_keys)
     else
       content_str = function_return.to_s

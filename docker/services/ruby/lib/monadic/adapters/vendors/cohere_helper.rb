@@ -1433,7 +1433,7 @@ module CohereHelper
       block&.call({ "type" => "tool_executing", "content" => function_name })
 
       tool_entry, _error_stop, images = invoke_cohere_tool_function(app, session, tool_call, function_name, &block)
-      pending_tool_images = images if images&.any?
+      (pending_tool_images ||= []).concat(images) if images&.any?
       context << tool_entry if tool_entry
 
       # An image was put on the work screen: the reply ends, and the calls

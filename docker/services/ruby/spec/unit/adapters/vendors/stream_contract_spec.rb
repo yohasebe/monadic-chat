@@ -9,6 +9,7 @@ require_relative "../../../../lib/monadic/adapters/vendors/ollama_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/cohere_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/claude_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/grok_helper"
+require_relative "../../../../lib/monadic/adapters/vendors/openai_helper"
 
 # What every provider's reader of a streamed reply does, whatever the chunks
 # the reply arrives in: the text comes whole, every call of a round is run,
@@ -181,6 +182,11 @@ RSpec.describe "Reading a streamed reply (every provider)" do
   # returns [text shown, names of the calls run, error shown or nil].
   def self.readers
     {
+      "OpenAI Chat Completions" => [StreamContract::ChatCompletions, :sse, lambda do |spec, chunks|
+        spec.read_with(OpenAIHelper, chunks) do |helper, session, res, sink|
+          helper.process_json_data(app: "SpecApp", session: session, query: {}, res: res, call_depth: 0, &sink)
+        end
+      end],
       "DeepSeek" => [StreamContract::ChatCompletions, :sse, lambda do |spec, chunks|
         spec.read_with(DeepSeekHelper, chunks) do |helper, session, res, sink|
           helper.process_json_data(app: "SpecApp", session: session, query: {}, res: res, call_depth: 0, &sink)

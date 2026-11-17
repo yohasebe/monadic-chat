@@ -1596,127 +1596,109 @@ module OpenAIHelper
     # Determine reasoning model solely via model_spec
     reasoning_model = Monadic::Utils::ModelSpec.model_has_property?(obj["model"], "reasoning_effort")
 
-    buffer = String.new
+    records = StreamRecords.new(:sse)
+    stream_error = nil
     texts = {}
     fragment_sequence = 0  # Sequence number for fragments to ensure ordering
-    tools = {}
+    tool_calls = []
     finish_reason = nil
 
-    res.each do |chunk|
-      chunk = chunk.force_encoding("UTF-8")
-      buffer << chunk
+    # Each record of the stream: one JSON object per data line.
+    handle = lambda do |json|
 
-      if buffer.valid_encoding? == false
-        next
+      Monadic::Utils::ExtraLogger.log_json("Chat API chunk", json)
+
+      # Check if response model differs from requested model
+      response_model = json["model"]
+      requested_model = query["original_user_model"] || query["model"]
+      check_model_switch(response_model, requested_model, session, &block)
+
+      finish_reason = json.dig("choices", 0, "finish_reason")
+      case finish_reason
+      when "length"
+        finish_reason = "length"
+      when "stop"
+        finish_reason = "stop"
+      else
+        finish_reason = nil
       end
 
+      # Check if the delta contains 'content' (indicating a text fragment) or 'tool_calls'
+      if json.dig("choices", 0, "delta", "content")
+        # Merge text fragments based on "id"
+        id = json["id"]
+        texts[id] ||= json
+        choice = texts[id]["choices"][0]
+        # The message gets its own text: the first delta's text is appended
+        # below like every other, and must not be the string sent as a fragment.
+        choice["message"] ||= choice["delta"].except("content")
+        choice["message"]["content"] ||= String.new
+        fragment = json.dig("choices", 0, "delta", "content").to_s
+        choice["message"]["content"] << fragment
+        next if !fragment || fragment == ""
 
-      # Skip encoding cleanup - buffer.valid_encoding? check above is sufficient
-      # Encoding cleanup with replace: "" can delete valid bytes from incomplete multibyte characters
-      # that will become complete when the next chunk arrives
-      # buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
-      # buffer.encode!("UTF-8", "UTF-16")
+        if fragment.length > 0
+          res = {
+            "type" => "fragment",
+            "content" => fragment,
+            "sequence" => fragment_sequence,
+            "timestamp" => Time.now.to_f,
+            "is_first" => fragment_sequence == 0
+          }
+          fragment_sequence += 1
+          block&.call res
+        end
 
-      scanner = StringScanner.new(buffer)
-      # Use multiline mode (m flag) to allow . to match newlines within JSON
-      # One event is one line ending in a newline (JSON escapes the newlines
-      # inside it). An event whose line has not fully arrived stays in the
-      # buffer for the next chunk: a chunk can end anywhere, also right
-      # after a "}" inside the event.
-      pattern = /data: (\{.*?\})(?=\n)/m
-      until scanner.eos?
-        matched = scanner.scan_until(pattern)
-        if matched
-          json_data = scanner[1]
-          begin
-            # Log raw JSON data before parsing (for debugging delta issues)
-            if Monadic::Utils::ExtraLogger.enabled?
-              if json_data.include?("delta") && (json_data.include?("き") || json_data.include?("れ"))
-                Monadic::Utils::ExtraLogger.log { "[RAW JSON BEFORE PARSE - Chat API] #{json_data}" }
-              end
-            end
+        texts[id]["choices"][0].delete("delta")
+      end
 
-            json = JSON.parse(json_data)
-
-            Monadic::Utils::ExtraLogger.log_json("Chat API chunk", json)
-
-            # Check if response model differs from requested model
-            response_model = json["model"]
-            requested_model = query["original_user_model"] || query["model"]
-            check_model_switch(response_model, requested_model, session, &block)
-
-            finish_reason = json.dig("choices", 0, "finish_reason")
-            case finish_reason
-            when "length"
-              finish_reason = "length"
-            when "stop"
-              finish_reason = "stop"
-            else
-              finish_reason = nil
-            end
-
-            # Check if the delta contains 'content' (indicating a text fragment) or 'tool_calls'
-            if json.dig("choices", 0, "delta", "content")
-              # Merge text fragments based on "id"
-              id = json["id"]
-              texts[id] ||= json
-              choice = texts[id]["choices"][0]
-              choice["message"] ||= choice["delta"].dup
-              # Use String.new to create mutable string (file has frozen_string_literal: true)
-              choice["message"]["content"] ||= String.new
-              fragment = json.dig("choices", 0, "delta", "content").to_s
-              choice["message"]["content"] << fragment
-              next if !fragment || fragment == ""
-
-              if fragment.length > 0
-                res = {
-                  "type" => "fragment",
-                  "content" => fragment,
-                  "sequence" => fragment_sequence,
-                  "timestamp" => Time.now.to_f,
-                  "is_first" => fragment_sequence == 0
-                }
-                fragment_sequence += 1
-                block&.call res
-              end
-
-              texts[id]["choices"][0].delete("delta")
-            end
-
-            if json.dig("choices", 0, "delta", "tool_calls")
-              res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-              block&.call res
-              
-
-              tid = json.dig("choices", 0, "delta", "tool_calls", 0, "id")
-
-              if tid
-                tools[tid] = json
-                tools[tid]["choices"][0]["message"] ||= tools[tid]["choices"][0]["delta"].dup
-                tools[tid]["choices"][0].delete("delta")
-              else
-                new_tool_call = json.dig("choices", 0, "delta", "tool_calls", 0)
-                existing_tool_call = tools.values.last.dig("choices", 0, "message")
-                existing_tool_call["tool_calls"][0]["function"]["arguments"] << new_tool_call["function"]["arguments"]
-              end
-            end
-          rescue JSON::ParserError
-            # if the JSON parsing fails, the next chunk should be appended to the buffer
-            # and the loop should continue to the next iteration
+      # Several calls can come in one delta; each has its index, and the later
+      # parts of its arguments come with the same index.
+      if (call_deltas = json.dig("choices", 0, "delta", "tool_calls"))
+        block&.call({ "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" })
+        call_deltas.each_with_index do |call_delta, position|
+          index = call_delta["index"] || position
+          if call_delta["id"]
+            tool_calls[index] = { "id" => call_delta["id"], "type" => call_delta["type"] || "function",
+                                  "function" => { "name" => call_delta.dig("function", "name").to_s,
+                                                  "arguments" => +call_delta.dig("function", "arguments").to_s } }
+          elsif (more = call_delta.dig("function", "arguments")) && tool_calls[index]
+            tool_calls[index]["function"]["arguments"] << more
           end
-        else
-          buffer = scanner.rest
-          break
         end
       end
-    rescue StandardError => e
-      Monadic::Utils::ExtraLogger.log { "[OpenAI Streaming] Error: #{e.message}\n[OpenAI Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
+    end
+
+    catch(:openai_chat_stream_end) do
+      read = lambda do |data, _event|
+        throw :openai_chat_stream_end if data.strip == "[DONE]"
+
+        json = JSON.parse(data)
+        if json["error"]
+          stream_error = json["error"].is_a?(Hash) ? json["error"]["message"] : json["error"]
+          throw :openai_chat_stream_end
+        end
+        handle.call(json)
+      rescue JSON::ParserError
+        Monadic::Utils::ExtraLogger.log { "[OpenAI Streaming] Unreadable record skipped (#{data.bytesize} bytes)" }
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[OpenAI Streaming] Error: #{e.message}\n[OpenAI Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
+      end
+
+      res.each { |chunk| records.feed(chunk, &read) }
+      records.finish(&read)
+    end
+
+    if stream_error
+      Monadic::Utils::ExtraLogger.log { "[OpenAI Streaming] Error record: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(stream_error.to_s)}" }
+      return StreamRecords.error_reply("OpenAI", stream_error, &block)
     end
 
     result = texts.empty? ? nil : texts.first[1]
 
-    if tools.any?
-      assemble_openai_chat_tool_results(app, session, tools, result, &block)
+    tool_calls.compact!
+    if tool_calls.any?
+      assemble_openai_chat_tool_results(app, session, tool_calls, result, &block)
     elsif result
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
@@ -1742,7 +1724,7 @@ module OpenAIHelper
   # model would see only the latest turn's tool_use in the next request
   # and hallucinate that earlier tool work never happened. This mirrors
   # the Claude fix in claude_helper.rb#assemble_claude_tool_context.
-  private def assemble_openai_chat_tool_results(app, session, tools_hash, result, &block)
+  private def assemble_openai_chat_tool_results(app, session, tool_calls, result, &block)
     session[:call_depth_per_turn] += 1
 
     if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS)
@@ -1780,16 +1762,11 @@ module OpenAIHelper
     previous_returns = session[:parameters] && session[:parameters]["function_returns"]
     context = previous_returns.is_a?(Array) ? previous_returns.dup : []
 
-    if result
-      merged = result["choices"][0]["message"].merge(tools_hash.first[1]["choices"][0]["message"])
-      context << merged
-    else
-      context << tools_hash.first[1].dig("choices", 0, "message")
-    end
+    # Every call of the round goes back with the text written before it.
+    call_message = { "role" => "assistant", "content" => nil, "tool_calls" => tool_calls }
+    context << (result ? result["choices"][0]["message"].merge(call_message.except("content")) : call_message)
 
-    tools = tools_hash.first[1].dig("choices", 0, "message", "tool_calls")
-
-    new_results = process_functions(app, session, tools, context, session[:call_depth_per_turn], &block)
+    new_results = process_functions(app, session, tool_calls, context, session[:call_depth_per_turn], &block)
 
     # A turn stopped for repeated errors or a tool cycle ends with the stop
     # reply process_functions returned (FunctionCallErrorHandler#stop_reply).

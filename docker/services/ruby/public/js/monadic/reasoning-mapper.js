@@ -208,8 +208,10 @@ class ReasoningMapper {
   static _mapGemini(spec, uiValue) {
     // Gemini 3: thinking level
     if (spec.supports_thinking_level) {
+      // Both keys carry the choice: the server reads reasoning_effort
+      // first, and the app's default would otherwise stay in it.
       if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0]) && spec.reasoning_effort[0].includes(uiValue)) {
-        return { thinking_level: uiValue };
+        return { thinking_level: uiValue, reasoning_effort: uiValue };
       }
       return null;
     }

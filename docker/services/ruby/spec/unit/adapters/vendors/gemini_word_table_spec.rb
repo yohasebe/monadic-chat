@@ -87,18 +87,21 @@ RSpec.describe "A Gemini chat with a word table" do
       session[:messages] = [{ "role" => "system", "text" => "S", "active" => true }]
     end
 
-    def chunk(first, parts, finish)
-      object = { "candidates" => [{ "content" => { "role" => "model", "parts" => parts }, "finishReason" => finish }] }
-      "#{first ? '[' : ",\n"}#{JSON.pretty_generate(object)}\n"
+    def event(object)
+      "data: #{JSON.generate(object)}\n\n"
+    end
+
+    def chunk(parts, finish)
+      event({ "candidates" => [{ "content" => { "role" => "model", "parts" => parts }, "finishReason" => finish }] })
     end
 
     def calling(name, arguments, text: nil)
       parts = [({ "text" => text } if text), { "functionCall" => { "name" => name, "args" => arguments } }].compact
-      [chunk(true, parts, "STOP"), "]"]
+      [chunk(parts, "STOP")]
     end
 
     def answering(text)
-      [chunk(true, [{ "text" => text }], "STOP"), "]"]
+      [chunk([{ "text" => text }], "STOP")]
     end
 
     def posting(before_sending: nil, &answer)
@@ -145,8 +148,8 @@ RSpec.describe "A Gemini chat with a word table" do
 
     it "runs the calls that arrived whole when the reply then ends with a malformed call" do
       ending = { "candidates" => [{ "finishReason" => "MALFORMED_FUNCTION_CALL", "finishMessage" => "Function call is empty" }] }
-      replies = [[chunk(true, [{ "functionCall" => { "name" => "read_file_from_shared_folder", "args" => { "filepath" => "notes.txt" } } }], nil),
-                  ",\n#{JSON.pretty_generate(ending)}\n", "]"],
+      replies = [[chunk([{ "functionCall" => { "name" => "read_file_from_shared_folder", "args" => { "filepath" => "notes.txt" } } }], nil),
+                  event(ending)],
                  answering("Read.")]
       posting { replies.shift }
       reply = Array(chat.api_request("user", session) { |_| }).last
@@ -157,7 +160,7 @@ RSpec.describe "A Gemini chat with a word table" do
 
     it "says the call was invalid when the reply holds nothing but a malformed call" do
       ending = { "candidates" => [{ "finishReason" => "MALFORMED_FUNCTION_CALL" }] }
-      posting { ["[#{JSON.pretty_generate(ending)}\n", "]"] }
+      posting { [event(ending)] }
       reply = Array(chat.api_request("user", session) { |_| }).last
       expect(tool_app.given).to be_nil
       expect(reply.dig("choices", 0, "message", "content")).to include("invalid function call")

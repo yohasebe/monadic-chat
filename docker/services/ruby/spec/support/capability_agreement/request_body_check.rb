@@ -126,8 +126,7 @@ RSpec.describe "Capability note in the request body" do
 
   def gemini_stream(call)
     part = call ? { "functionCall" => { "name" => called_tool, "args" => called_args } } : { "text" => "Done." }
-    "[#{JSON.pretty_generate({ 'candidates' => [{ 'content' => { 'role' => 'model', 'parts' => [part] },
-                                                  'finishReason' => 'STOP' }] })}\n]"
+    sse([{ "candidates" => [{ "content" => { "role" => "model", "parts" => [part] }, "finishReason" => "STOP" }] }])
   end
 
   def cohere_stream(call)

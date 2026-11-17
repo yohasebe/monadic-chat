@@ -217,7 +217,7 @@ RSpec.describe "the Gemini image tool on the workbench" do
         parts = []
         parts << { "text" => before } unless before.empty?
         parts << { "functionCall" => { "name" => "generate_image_with_gemini", "args" => args }, "thoughtSignature" => "s" }
-        chunk = "[#{JSON.pretty_generate({ "candidates" => [{ "content" => { "parts" => parts, "role" => "model" } }] })}\n"
+        chunk = "data: #{JSON.generate({ "candidates" => [{ "content" => { "parts" => parts, "role" => "model" } }] })}\n\n"
         session[:call_depth_per_turn] = 0
         reply = in_reply do
           host.process_json_data(app: "ImageGeneratorGemini", session: session, query: {}, res: [chunk], call_depth: 0) { |_| }

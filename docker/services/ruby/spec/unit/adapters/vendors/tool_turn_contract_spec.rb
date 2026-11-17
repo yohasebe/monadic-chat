@@ -48,7 +48,7 @@ RSpec.describe "A turn with a tool call (every provider)" do
 
   # The turn, the model answering the first request with one call and the
   # second with text; the request bodies it sent.
-  def turn(name, greeting: false)
+  def turn(name, greeting: false, answers: nil, kept: {})
     helper_module, provider, key, format, kind = PROVIDERS.fetch(name)
     helper = Class.new(MonadicApp) { include helper_module }.new
     allow(helper).to receive(:sleep)
@@ -57,7 +57,7 @@ RSpec.describe "A turn with a tool call (every provider)" do
     stub_const("CONFIG", CONFIG.merge(key => "k").compact) if key
     allow(OllamaHelper).to receive(:find_endpoint).and_return("http://localhost:11434/api")
     allow(OllamaHelper).to receive(:fetch_model_capabilities).and_return({ capabilities: %w[completion tools] })
-    answers = [encode(kind, format.calls([["first_tool", {}]])), encode(kind, format.text(["Done."]))]
+    answers = (answers || [format.calls([["first_tool", {}]]), format.text(["Done."])]).map { |a| encode(kind, a) }
     bodies = []
     chain = double("http")
     %i[timeout headers via].each { |m| allow(chain).to receive(m).and_return(chain) }
@@ -77,14 +77,14 @@ RSpec.describe "A turn with a tool call (every provider)" do
     session = { parameters: { "app_name" => "SpecApp", "model" => model, "message" => "What is the weather?",
                               "context_size" => "5", "max_tokens" => "1000", "temperature" => "0.5",
                               "prompt_suffix" => SUFFIX, "tools" => app.settings["tools"] },
-                messages: [{ "role" => "system", "text" => "S", "active" => true }] }
+                messages: [{ "role" => "system", "text" => "S", "active" => true }] }.merge(kept)
     # As a reply runs: in its chat, for its request.
     chat = Monadic::Workspace::Ids.generate(:chat)
     session[Monadic::Workspace::Chats::SESSION_KEY] = chat
     Monadic::Workspace::RequestContext.with(Monadic::Workspace::RequestContext.new(chat_id: chat)) do
       @events = []
       session[:parameters].merge!("message" => "", "initiate_from_assistant" => true) if greeting
-      helper.api_request("user", session) { |e| @events << e.slice("type", "content") if e.is_a?(Hash) }
+      @reply = helper.api_request("user", session) { |e| @events << e.slice("type", "content") if e.is_a?(Hash) }
     end
     [bodies, app]
   end
@@ -107,5 +107,10 @@ RSpec.describe "A turn with a tool call (every provider)" do
       expect(bodies.first).not_to be_nil
       expect(JSON.generate(bodies.first)).not_to include(SUFFIX)
     end
+  end
+
+  it "Mistral: shows no text kept from an earlier turn when the reply is empty" do
+    turn("Mistral", answers: [StreamContract::ChatCompletions.text([""])], kept: { mistral_pre_tool_content: "Stale guess." })
+    expect(@reply.inspect).not_to include("Stale guess.")
   end
 end

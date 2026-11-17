@@ -461,6 +461,7 @@ const modelSpec = {
     "structured_output": true,
     "structured_output_mode": "json_schema",
     "beta_flags": [],
+    "advisor_models": ["claude-mythos-5-2", "claude-fable-5-2", "claude-mythos-5-1", "claude-fable-5-1"],
     "unavailable_fallback": "claude-opus-5-5"
   },
   "claude-fable-5": {

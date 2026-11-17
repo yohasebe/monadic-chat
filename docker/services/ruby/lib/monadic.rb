@@ -448,7 +448,6 @@ def init_apps
     app_name = app.settings["app_name"]
 
     system_prompt_suffix = DEFAULT_PROMPT_SUFFIX.dup
-    prompt_suffix = ""
     response_suffix = ""
 
     # Always provide code formatting guidance
@@ -491,15 +490,6 @@ def init_apps
       RSUFFIX
     end
 
-    if app.settings["mermaid"]
-      # the blank line at the beginning is important!
-      prompt_suffix << <<~PSUFFIX
-
-        Make sure to follow the format requirement specified in the initial prompt when using Mermaid diagrams. Do not make an inference about the diagram syntax from the previous messages.
-
-        Note that you should not include parentheses in the Mermaid code. For instance, the following code does not render correctly: `A --> B[Prepare Filling (e.g., Ganache or Buttercream)]`
-      PSUFFIX
-    end
 
     # the blank line at the beginning is important!
     prompt_suffix = <<~PSUFFIX

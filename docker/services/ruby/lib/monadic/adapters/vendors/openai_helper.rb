@@ -1879,6 +1879,7 @@ module OpenAIHelper
       return Monadic::Workbench::Offer.end_reply(function_return, &block)
     end
 
+    answer_openai_duplicate_calls(called, tools, context)
     inject_openai_vision_images(context, session, pending_tool_images)
 
     obj["function_returns"] = context
@@ -1903,6 +1904,19 @@ module OpenAIHelper
       sig = tc.dig('function', 'name').to_s + '|' + tc.dig('function', 'arguments').to_s
       next false if seen[sig]
       seen[sig] = true
+    end
+  end
+
+  # A call dropped as a duplicate is answered with the result of the call it
+  # repeats: the next request answers every call the model made.
+  private def answer_openai_duplicate_calls(called, run, context)
+    results = context.each_with_object({}) { |c, h| h[c[:tool_call_id] || c["tool_call_id"]] = c }
+    called.each do |call|
+      next if results.key?(call["id"])
+
+      same = run.find { |r| r["function"] == call["function"] }
+      source = same && results[same["id"]]
+      context << source.merge(tool_call_id: call["id"]) if source
     end
   end
 

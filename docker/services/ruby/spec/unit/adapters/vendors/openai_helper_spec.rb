@@ -238,4 +238,22 @@ RSpec.describe OpenAIHelper do
       expect(result).to eq(stop)
     end
   end
+
+  describe '#process_functions with a call made twice' do
+    it 'runs it once and answers both of its ids' do
+      session = { parameters: { "app_name" => "TestApp" }, call_depth_per_turn: 1 }
+      ran = []
+      allow(helper).to receive(:invoke_openai_tool_function) do |_app, _session, _obj, call, context, images|
+        ran << call["id"]
+        context << { tool_call_id: call["id"], role: "tool", name: "t", content: "result" }
+        ["result", "t", {}, images]
+      end
+      allow(helper).to receive(:api_request).and_return([])
+      call = { "type" => "function", "function" => { "name" => "t", "arguments" => '{"a":1}' } }
+      context = []
+      helper.send(:process_functions, 'TestApp', session, [call.merge("id" => "a"), call.merge("id" => "b")], context, 1)
+      expect(ran).to eq(["a"])
+      expect(context.map { |c| [c[:tool_call_id], c[:content]] }).to eq([%w[a result], %w[b result]])
+    end
+  end
 end

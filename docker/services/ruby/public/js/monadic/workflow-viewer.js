@@ -374,7 +374,9 @@ const WorkflowViewer = (function () {
     flowEdges.push({ from: inputId, to: promptId });
 
     // 3. Model — expandable
-    var modelLabel = (data.models && data.models[0]) || 'model';
+    // The model chosen in the settings, where it is one of the app's.
+    var models = data.models || [];
+    var modelLabel = (params.model && models.indexOf(params.model) >= 0) ? params.model : (models[0] || 'model');
     var modelId = nid();
     var core = data.core || {};
     var modelExp = expanded.has('model');

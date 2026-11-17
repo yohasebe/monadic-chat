@@ -220,10 +220,27 @@ module ErrorPatternDetector
     end
   end
 
+  # Attaches a call's arguments to its entry (the latest one of that name
+  # without them), so that calls of one tool with different arguments, such
+  # as listing one folder after another, are not taken for a cycle.
+  def self.note_arguments(session, function_name, arguments)
+    seq = session[:tool_call_sequence]
+    return unless seq
+
+    entry = seq.reverse_each.find { |e| e.is_a?(Hash) && e[:name] == function_name.to_s && !e.key?(:args) }
+    entry[:args] = canonical(arguments) if entry
+  end
+
   # Return the function name for a sequence entry, accepting either Hash
   # form (current) or String form (legacy / direct array assignment).
   def self.entry_name(entry)
     entry.is_a?(Hash) ? entry[:name] : entry.to_s
+  end
+
+  # What two entries must share to count as the same call: the name, and the
+  # arguments where they were noted.
+  def self.entry_key(entry)
+    entry.is_a?(Hash) && entry.key?(:args) ? [entry[:name], entry[:args]] : entry_name(entry)
   end
 
   # Return whether a sequence entry was marked as errored.
@@ -258,24 +275,21 @@ module ErrorPatternDetector
       # Try permissive window first (larger). If it matches, we've hit the
       # all-success ceiling and should stop regardless of errors.
       if seq.length >= permissive_needed
-        recent       = seq.last(permissive_needed)
-        recent_names = recent.map { |e| entry_name(e) }
-        cycle        = recent_names.first(cycle_len)
-        if recent_names.each_slice(cycle_len).all? { |slice| slice == cycle }
-          return cycle
+        recent = seq.last(permissive_needed)
+        keys   = recent.map { |e| entry_key(e) }
+        if keys.each_slice(cycle_len).all? { |slice| slice == keys.first(cycle_len) }
+          return recent.first(cycle_len).map { |e| entry_name(e) }
         end
       end
 
       # Strict window: smaller, requires ≥1 errored call to fire.
       next if seq.length < strict_needed
-      recent       = seq.last(strict_needed)
-      recent_names = recent.map { |e| entry_name(e) }
-      cycle        = recent_names.first(cycle_len)
-      is_cycle     = recent_names.each_slice(cycle_len).all? { |slice| slice == cycle }
-      next unless is_cycle
+      recent = seq.last(strict_needed)
+      keys   = recent.map { |e| entry_key(e) }
+      next unless keys.each_slice(cycle_len).all? { |slice| slice == keys.first(cycle_len) }
       next unless recent.any? { |e| entry_errored?(e) }
 
-      return cycle
+      return recent.first(cycle_len).map { |e| entry_name(e) }
     end
 
     nil

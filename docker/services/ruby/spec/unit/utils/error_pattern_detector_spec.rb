@@ -505,4 +505,24 @@ RSpec.describe ErrorPatternDetector do
       expect(call('list_files')).to be_nil
     end
   end
+
+  describe '.note_arguments' do
+    let(:session) { { parameters: {} } }
+
+    def run(name, args)
+      described_class.record_tool_call(session, name)
+      described_class.note_arguments(session, name, args)
+    end
+
+    it 'does not take calls of one tool with different arguments for a cycle' do
+      %w[/ apps conversations helpers library scripts services data].each { |dir| run('list_files', { directory: dir }) }
+      run('list_files', { directory: 'more' })
+      expect(described_class.detect_tool_call_cycle(session)).to be_nil
+    end
+
+    it 'still takes the same call over and over for a cycle' do
+      9.times { run('list_files', { 'directory' => '/' }) }
+      expect(described_class.detect_tool_call_cycle(session)).to eq(['list_files'])
+    end
+  end
 end

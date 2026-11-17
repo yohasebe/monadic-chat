@@ -231,9 +231,11 @@ RSpec.describe "Reading a streamed reply (every provider)" do
   def read_mistral(chunks)
     helper = Class.new(MonadicApp) { include MistralHelper }.new
     ran = []
-    allow(helper).to receive(:invoke_mistral_tool_function) do |_app, _session, _call, name|
-      ran << name
-      [{ "role" => "tool", "tool_call_id" => "x", "name" => name, "content" => "done" }, false, nil]
+    unless @tool_app
+      allow(helper).to receive(:invoke_mistral_tool_function) do |_app, _session, _call, name|
+        ran << name
+        [{ "role" => "tool", "tool_call_id" => "x", "name" => name, "content" => "done" }, false, nil]
+      end
     end
     answers = [chunks, [sse(StreamContract::ChatCompletions.text(["ok"])), "data: [DONE]\n\n"]]
     chain = double("http")
@@ -246,13 +248,14 @@ RSpec.describe "Reading a streamed reply (every provider)" do
     allow(HTTP).to receive(:headers).and_return(chain)
     allow(HTTP).to receive(:timeout).and_return(chain)
     stub_const("CONFIG", { "MISTRAL_API_KEY" => "k" })
-    stub_const("APPS", { "SpecApp" => double("app", settings: {}) })
-    session = { parameters: { "app_name" => "SpecApp", "model" => "mistral-medium-latest", "message" => "Go",
-                              "context_size" => "5", "max_tokens" => "1000", "temperature" => "0.5" },
-                messages: [{ "role" => "system", "text" => "S", "active" => true }] }
+    stub_const("APPS", { "SpecApp" => double("app", settings: {}) }) unless @tool_app
+    session = new_session
+    session[:parameters].merge!("model" => "mistral-medium-latest", "message" => "Go",
+                                "context_size" => "5", "max_tokens" => "1000", "temperature" => "0.5")
+    session[:messages] = [{ "role" => "system", "text" => "S", "active" => true }]
     shown = +""
     error = nil
-    helper.api_request("user", session) do |e|
+    @reply = helper.api_request("user", session) do |e|
       next unless e.is_a?(Hash)
 
       shown << e["content"].to_s if e["type"] == "fragment" && ran.empty?
@@ -261,14 +264,18 @@ RSpec.describe "Reading a streamed reply (every provider)" do
     [shown, ran, error]
   end
 
+  # @tool_app: when set, the round runs the app's real tools (the stream's
+  # calls are offered to it) and the reply the helper returned is kept.
   def read_with(helper_module, chunks)
     helper = Class.new(MonadicApp) { include helper_module }.new
     ran = nil
-    allow(helper).to receive(:process_functions) do |*args|
-      ran = args[2]
-      [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "" } }] }]
+    unless @tool_app
+      allow(helper).to receive(:process_functions) do |*args|
+        ran = args[2]
+        [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "" } }] }]
+      end
     end
-    session = { parameters: { "app_name" => "SpecApp", "model" => "m" }, messages: [], call_depth_per_turn: 0 }
+    session = new_session
     shown = +""
     error = nil
     sink = proc do |e|
@@ -277,8 +284,17 @@ RSpec.describe "Reading a streamed reply (every provider)" do
       shown << e["content"].to_s if e["type"] == "fragment"
       error = e["content"] if e["type"] == "error"
     end
-    yield(helper, session, chunks, sink)
+    @reply = yield(helper, session, chunks, sink)
     [shown, call_names(ran), error]
+  end
+
+  def new_session
+    session = { parameters: { "app_name" => "SpecApp", "model" => "m" }, messages: [], call_depth_per_turn: 0 }
+    return session unless @tool_app
+
+    session[Monadic::Workspace::Chats::SESSION_KEY] = @chat
+    Monadic::Utils::ToolDispatchGuard.record!(session, "SpecApp", StreamContract::CALLS.map { |name, _| { "name" => name } })
+    session
   end
 
   def encode(kind, objects)
@@ -305,6 +321,49 @@ RSpec.describe "Reading a streamed reply (every provider)" do
         expect(ran).to be_empty
         expect(error).to include(StreamContract::ERROR)
       end
+    end
+  end
+
+  # A tool that put an image on the work screen for this reply.
+  class OfferApp
+    attr_reader :ran
+
+    def initialize(offer)
+      @offer = offer
+      @ran = []
+    end
+
+    def settings
+      { "tools" => StreamContract::CALLS.map do |name, _|
+        { "type" => "function", "function" => { "name" => name, "parameters" => { "type" => "object", "properties" => {} } } }
+      end }
+    end
+
+    def first_tool(**)
+      @ran << "first_tool"
+      @offer
+    end
+
+    def second_tool(**)
+      @ran << "second_tool"
+      "done"
+    end
+  end
+
+  readers.each do |name, (format, kind, reader)|
+    it "#{name}: ends the reply with the image a call put on the work screen, and runs no other call" do
+      @chat = Monadic::Workspace::Ids.generate(:chat)
+      request = Monadic::Workspace::RequestContext.new(chat_id: @chat)
+      offer = Monadic::Workbench::Offered.new(chat_id: @chat, request_id: request.request_id, item_id: "i_1",
+                                              path: "image.png", entry: { "id" => "a_1" })
+      @tool_app = OfferApp.new(offer)
+      stub_const("APPS", { "SpecApp" => @tool_app })
+      stub_const("CONFIG", CONFIG.merge("MISTRAL_API_KEY" => "k")) if name == "Mistral"
+      Monadic::Workspace::RequestContext.with(request) do
+        reader.call(self, [encode(kind, format.calls(StreamContract::CALLS))])
+      end
+      expect(@tool_app.ran).to eq(["first_tool"])
+      expect(Monadic::Workbench::Offer.ended_reply?(@reply)).to be(true)
     end
   end
 end

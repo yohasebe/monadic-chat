@@ -797,19 +797,28 @@ module MistralHelper
       # Process tool calls
       function_returns = []
       pending_tool_images = nil
-      tool_calls.each do |tool_call|
-        next unless tool_call # Skip nil entries
-
+      offered = nil
+      tool_calls = tool_calls.compact
+      tool_calls.each_with_index do |tool_call, index|
         function_name = tool_call.dig("function", "name")
         next if function_name.nil?
 
-      record_tool_call(session, function_name)
+        record_tool_call(session, function_name)
         block&.call({ "type" => "tool_executing", "content" => function_name })
 
-        tool_entry, error_stop, images = invoke_mistral_tool_function(app, session, tool_call, function_name, &block)
+        tool_entry, _error_stop, images = invoke_mistral_tool_function(app, session, tool_call, function_name, &block)
         function_returns << tool_entry if tool_entry
         pending_tool_images = images if images
-        next if error_stop
+
+        # An image was put on the work screen: the reply ends after this
+        # round is kept, and the calls not run are answered as such.
+        next unless (offered = take_offer(session))
+
+        tool_calls.drop(index + 1).each do |skipped|
+          function_returns << { tool_call_id: skipped["id"], role: "tool", name: skipped.dig("function", "name"),
+                                content: Monadic::Workbench::Offered.not_executed }
+        end
+        break
       end
 
       # Create assistant message with tool calls for Mistral's message ordering
@@ -866,6 +875,7 @@ module MistralHelper
       end
       session[:parameters]["function_returns"] = function_returns
       session[:parameters]["tool_calls_message"] = tool_calls_message
+      return Monadic::Workbench::Offer.end_reply(offered, &block) if offered
 
       # Check if we should stop due to repeated errors
       return stop_reply(session, &block) if should_stop_for_errors?(session)

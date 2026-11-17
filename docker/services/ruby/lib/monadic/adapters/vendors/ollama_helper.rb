@@ -828,7 +828,7 @@ module OllamaHelper
     res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
     block&.call res
 
-    tool_calls.each do |tool_call|
+    tool_calls.each_with_index do |tool_call, index|
       function_name = tool_call.dig("function", "name")
       next unless function_name
 
@@ -867,6 +867,17 @@ module OllamaHelper
         "content" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s,
         "_look_call" => (made_id if !result.stop && function_return.is_a?(Monadic::Workbench::Look::Result))
       }.compact
+
+      # An image was put on the work screen: the reply ends, and the calls
+      # not run are answered as such.
+      next unless (offered = take_offer(session))
+
+      tool_calls.drop(index + 1).each do |skipped|
+        context << { "role" => "tool", "tool_name" => skipped.dig("function", "name"),
+                     "content" => Monadic::Workbench::Offered.not_executed }
+      end
+      obj["function_returns"] = context
+      return Monadic::Workbench::Offer.end_reply(offered, &block)
     end
 
     obj["function_returns"] = context

@@ -1245,15 +1245,26 @@ module DeepSeekHelper
   def process_functions(app, session, tools, context, call_depth, &block)
     obj = session[:parameters]
 
-    tools.each do |tool_call|
+    tools.each_with_index do |tool_call, index|
       function_name = tool_call.dig("function", "name")
       next if function_name.nil?
 
       record_tool_call(session, function_name)
       block&.call({ "type" => "tool_executing", "content" => function_name })
 
-      tool_entry, error_stop = invoke_deepseek_tool_function(app, session, tool_call, function_name, &block)
+      tool_entry, _error_stop = invoke_deepseek_tool_function(app, session, tool_call, function_name, &block)
       context << tool_entry if tool_entry
+
+      # An image was put on the work screen: the reply ends, and the calls
+      # not run are answered as such.
+      if (offered = take_offer(session))
+        tools.drop(index + 1).each do |skipped|
+          context << { "role" => "tool", "tool_call_id" => skipped["id"], "name" => skipped.dig("function", "name"),
+                       "content" => Monadic::Workbench::Offered.not_executed }
+        end
+        obj["function_returns"] = context
+        return Monadic::Workbench::Offer.end_reply(offered, &block)
+      end
 
       # A web-search call blocked by the Web Search toggle must not spiral into
       # repeated attempts with other web tools ("Repeated errors"). Force the
@@ -1262,8 +1273,6 @@ module DeepSeekHelper
          !Monadic::SharedTools::TavilyDefinitions.websearch_requested?(obj)
         obj["_skip_tools_next_request"] = true
       end
-
-      next if error_stop
     end
 
     obj["function_returns"] = context

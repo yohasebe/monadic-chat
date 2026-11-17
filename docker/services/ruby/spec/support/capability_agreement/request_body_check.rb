@@ -143,7 +143,8 @@ RSpec.describe "Capability note in the request body" do
                 [{ "type" => "content-delta", "delta" => { "message" => { "content" => { "text" => "Done." } } } },
                  { "type" => "message-end", "delta" => { "finish_reason" => "COMPLETE" } }]
               end
-    sse(events, named: true)
+    # Asked for as application/json: one JSON object per line.
+    events.map { |e| "#{JSON.generate(e)}\n" }.join
   end
 
   def ollama_stream(call)

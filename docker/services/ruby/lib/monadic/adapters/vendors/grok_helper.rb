@@ -549,7 +549,7 @@ module GrokHelper
           { "id" => fc["call_id"] || fc["id"], "function" => { "name" => fc["name"], "arguments" => fc["arguments"] || "{}" } }
         end
 
-        start_grok_tool_round(obj, function_calls.map do |fc|
+        start_grok_tool_round(obj, grok_reasoning_to_replay(output) + function_calls.map do |fc|
           { "type" => "function_call", "id" => fc["id"], "call_id" => fc["call_id"] || fc["id"],
             "name" => fc["name"], "arguments" => fc["arguments"] || "{}" }
         end)
@@ -931,6 +931,12 @@ module GrokHelper
   end
 
   # Connect to xAI Responses API and get a response
+  # The round's reasoning items that go back with its calls: those that
+  # carry the encrypted reasoning (the model's own context, not its summary).
+  private def grok_reasoning_to_replay(output)
+    output.select { |item| item["type"] == "reasoning" && item["encrypted_content"] }
+  end
+
   # A new round of tool calls: the round before it (its calls and their
   # results) is kept, in order, with the turn's earlier rounds.
   private def start_grok_tool_round(obj, calls)
@@ -1142,6 +1148,11 @@ module GrokHelper
     body["presence_penalty"] = presence_penalty if presence_penalty
     body["frequency_penalty"] = frequency_penalty if frequency_penalty
     body["max_output_tokens"] = max_tokens if max_tokens
+    # A reasoning model's reasoning comes back encrypted, to go back with the
+    # calls it led to (the request is not stored on the server).
+    if (Monadic::Utils::ModelSpec.model_has_property?(model, "reasoning_effort") rescue false)
+      body["include"] = ["reasoning.encrypted_content"]
+    end
 
 
     if obj["response_format"]
@@ -1231,6 +1242,7 @@ module GrokHelper
 
     records = StreamRecords.new(:sse)
     stream_error = nil
+    output_items = []
     texts = {}
     tools = {}
     finish_reason = nil
@@ -1314,6 +1326,7 @@ module GrokHelper
       when "response.output_item.done"
         # Output item completed
         item = json["item"]
+        output_items << item if item.is_a?(Hash)
         if item && item["type"] == "function_call"
           item_id = item["id"]
           if item_id
@@ -1487,8 +1500,9 @@ module GrokHelper
       end
 
       if tool_calls.any?
-        # Store assistant function calls in Responses API format for context.
-        start_grok_tool_round(obj, tools.filter_map do |item_id, tool_data|
+        # Store assistant function calls in Responses API format for context,
+        # after the reasoning that led to them.
+        start_grok_tool_round(obj, grok_reasoning_to_replay(output_items) + tools.filter_map do |item_id, tool_data|
           next unless tool_data["completed"]
           {
             "type" => "function_call",

@@ -42,4 +42,16 @@ RSpec.describe "Grok tool rounds of a turn" do
       .to eq([[["c1"], ["c1"]]])
     expect(obj["function_returns"]).to eq([])
   end
+
+  it "sends a round's encrypted reasoning back before its calls" do
+    reasoning = { "type" => "reasoning", "id" => "rs_1", "summary" => [], "encrypted_content" => "opaque" }
+    obj = {}
+    helper.send(:start_grok_tool_round, obj, helper.send(:grok_reasoning_to_replay, [reasoning, call("c1")]) + [call("c1")])
+    obj["function_returns"] = [{ "call_id" => "c1", "content" => "one" }]
+    session = { parameters: obj, messages: [] }
+    context = [{ "role" => "system", "text" => "S" }, { "role" => "user", "text" => "Go" }]
+    messages, = helper.send(:build_grok_messages, context, "tool", obj, session, {}, nil, nil, nil)
+    types = helper.convert_messages_to_input(messages).map { |item| item["type"] }.compact
+    expect(types.last(3)).to eq(%w[reasoning function_call function_call_output])
+  end
 end

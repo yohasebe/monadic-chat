@@ -1222,7 +1222,8 @@ module GrokHelper
       obj = session[:parameters]
     end
 
-    buffer = String.new
+    records = StreamRecords.new(:sse)
+    stream_error = nil
     texts = {}
     tools = {}
     finish_reason = nil
@@ -1234,253 +1235,223 @@ module GrokHelper
     usage_output_tokens = nil
     usage_total_tokens = nil
 
-    res.each do |chunk|
-      chunk = chunk.force_encoding("UTF-8")
-      buffer << chunk
+    # Each record of the stream. A proc, not a lambda: its returns end the reply.
+    handle = proc do |json|
 
-      if buffer.valid_encoding? == false
+      Monadic::Utils::ExtraLogger.log { JSON.pretty_generate(json) }
+
+      # Check if response model differs from requested model
+      response_model = json["model"]
+      requested_model = query["original_user_model"] || query["model"]
+      check_model_switch(response_model, requested_model, session, &block)
+
+      # Handle different event types for Responses API
+      event_type = json["type"]
+
+      case event_type
+      when "response.created"
+        # Response created - log for debugging
+        Monadic::Utils::ExtraLogger.log { "Grok response.created" }
+
+      when "response.in_progress"
+        # xAI sends proper delta events, so skip in_progress to avoid duplication
         next
-      end
 
-      begin
-        # Check for completion patterns
-        if /\Rdata: \[DONE\]\R/ =~ buffer || /\Revent: done\R/ =~ buffer
-          break
-        end
-      rescue StandardError
-        next
-      end
+      when "response.output_text.delta"
+        # Text fragment from streaming
+        fragment = json["delta"]
 
-      scanner = StringScanner.new(buffer)
-      # Responses API uses SSE format with data: prefix
-      # Use multiline mode (m flag) to allow . to match newlines within JSON
-      # One event is one line ending in a newline (JSON escapes the newlines
-      # inside it). An event whose line has not fully arrived stays in the
-      # buffer for the next chunk: a chunk can end anywhere, also right
-      # after a "}" inside the event.
-      pattern = /data: (\{.*?\})(?=\n)/m
+        if fragment && !fragment.empty?
+          id = json["response_id"] || json["item_id"] || "default"
+          texts[id] ||= String.new
 
-      until scanner.eos?
-        matched = scanner.scan_until(pattern)
-        if matched
-          json_data = scanner[1]
-          begin
-            json = JSON.parse(json_data)
+          texts[id] << fragment
 
-            Monadic::Utils::ExtraLogger.log { JSON.pretty_generate(json) }
-
-            # Check if response model differs from requested model
-            response_model = json["model"]
-            requested_model = query["original_user_model"] || query["model"]
-            check_model_switch(response_model, requested_model, session, &block)
-
-            # Handle different event types for Responses API
-            event_type = json["type"]
-
-            case event_type
-            when "response.created"
-              # Response created - log for debugging
-              Monadic::Utils::ExtraLogger.log { "Grok response.created" }
-
-            when "response.in_progress"
-              # xAI sends proper delta events, so skip in_progress to avoid duplication
-              next
-
-            when "response.output_text.delta"
-              # Text fragment from streaming
-              fragment = json["delta"]
-
-              if fragment && !fragment.empty?
-                id = json["response_id"] || json["item_id"] || "default"
-                texts[id] ||= String.new
-
-                texts[id] << fragment
-
-                if fragment.length > 0
-                  res_event = {
-                    "type" => "fragment",
-                    "content" => fragment,
-                    "sequence" => fragment_sequence,
-                    "timestamp" => Time.now.to_f,
-                    "is_first" => fragment_sequence == 0
-                  }
-                  fragment_sequence += 1
-                  block&.call res_event
-                end
-              end
-
-            when "response.output_text.done"
-              # Text output completed - finalize text
-              text = json["text"]
-              if text
-                id = json["item_id"] || "default"
-                texts[id] = text  # Final text
-              end
-
-            when "response.output_item.added"
-              # New output item added
-              item = json["item"]
-              if item && item["type"] == "function_call"
-                # Store the function name and ID for later use
-                item_id = item["id"]
-                if item_id
-                  tools[item_id] ||= {}
-                  tools[item_id]["name"] = item["name"] if item["name"]
-                  tools[item_id]["call_id"] = item["call_id"] if item["call_id"]
-                  tools[item_id]["arguments"] ||= ""
-                end
-                res_event = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-                block&.call res_event
-              end
-
-            when "response.output_item.done"
-              # Output item completed
-              item = json["item"]
-              if item && item["type"] == "function_call"
-                item_id = item["id"]
-                if item_id
-                  tools[item_id] ||= {}
-                  tools[item_id]["name"] = item["name"] if item["name"]
-                  tools[item_id]["arguments"] = item["arguments"] if item["arguments"]
-                  tools[item_id]["call_id"] = item["call_id"] if item["call_id"]
-                  tools[item_id]["completed"] = true
-                end
-              end
-
-            when "response.function_call_arguments.delta", "response.function_call.arguments.delta", "response.function_call.delta"
-              # Tool call arguments fragment
-              item_id = json["item_id"]
-              delta = json["delta"]
-
-              if item_id && delta
-                tools[item_id] ||= {}
-                tools[item_id]["arguments"] ||= ""
-                tools[item_id]["arguments"] += delta
-              end
-
-            when "response.function_call_arguments.done", "response.function_call.arguments.done", "response.function_call.done"
-              # Tool call arguments completed
-              item_id = json["item_id"]
-              arguments = json["arguments"]
-              name = json["name"]
-
-              if item_id
-                tools[item_id] ||= {}
-                tools[item_id]["arguments"] = arguments if arguments
-                tools[item_id]["name"] = name if name
-                tools[item_id]["completed"] = true
-              end
-
-            when "response.reasoning_summary_text.delta"
-              # Reasoning summary delta (streaming)
-              rid = json["item_id"] || current_reasoning_id
-              delta = json["delta"]
-
-              if delta && !delta.to_s.empty?
-                current_reasoning_id = rid if rid
-                reasoning_content << delta.to_s
-
-                # Send reasoning delta to frontend (like Claude's thinking)
-                res_event = {
-                  "type" => "thinking",
-                  "content" => delta.to_s
-                }
-                block&.call res_event
-              end
-
-            when "response.reasoning_summary_text.done", "response.reasoning_summary_part.done"
-              # Reasoning summary completed - text is already accumulated from deltas
-              rid = json["item_id"] || current_reasoning_id
-              if rid
-                current_reasoning_id = nil
-              end
-
-            when "response.web_search_call.in_progress"
-              # Web search started
-              res_event = { "type" => "wait", "content" => "<i class='fas fa-search'></i> SEARCHING WEB" }
-              block&.call res_event
-
-            when "response.web_search_call.searching"
-              # Web search in progress - could show progress if needed
-
-            when "response.web_search_call.completed"
-              # Web search completed
-              Monadic::Utils::ExtraLogger.log { "Grok web search completed: item_id=#{json["item_id"]}" }
-
-            when "response.completed", "response.done"
-              # Response completed - extract usage and set finish_reason
-              response_data = json["response"] || json
-              # Capture usage if present
-              usage = response_data["usage"] || json["usage"]
-              if usage.is_a?(Hash)
-                usage_input_tokens = usage["input_tokens"] || usage["prompt_tokens"] || usage_input_tokens
-                usage_output_tokens = usage["output_tokens"] || usage["completion_tokens"] || usage_output_tokens
-                usage_total_tokens = usage["total_tokens"] || (usage_input_tokens.to_i + usage_output_tokens.to_i if usage_input_tokens && usage_output_tokens) || usage_total_tokens
-              end
-
-              finish_reason = response_data["stop_reason"] || json["stop_reason"] || "stop"
-
-            when "response.error"
-              # Error occurred
-              error_msg = json.dig("error", "message") || "Unknown error"
-              formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-                provider: "xAI",
-                message: error_msg
-              )
-              res_event = { "type" => "error", "content" => formatted_error }
-              block&.call res_event
-
-              return [res_event]
-
-            else
-              # Handle legacy format fallback (choices[0].delta.reasoning_content)
-              if json.dig("choices", 0, "delta", "reasoning_content")
-                reasoning = json.dig("choices", 0, "delta", "reasoning_content")
-                unless reasoning.to_s.strip.empty? || reasoning == "Thinking..."
-                  reasoning_content << reasoning
-                  res_event = {
-                    "type" => "thinking",
-                    "content" => reasoning
-                  }
-                  block&.call res_event
-                end
-              elsif json.dig("choices", 0, "delta", "content")
-                # Legacy chat completions format fallback
-                fragment = json.dig("choices", 0, "delta", "content").to_s
-                if fragment.length > 0
-                  id = json["id"] || "default"
-                  texts[id] ||= String.new
-                  texts[id] << fragment
-                  res_event = {
-                    "type" => "fragment",
-                    "content" => fragment,
-                    "sequence" => fragment_sequence,
-                    "timestamp" => Time.now.to_f,
-                    "is_first" => fragment_sequence == 0
-                  }
-                  fragment_sequence += 1
-                  block&.call res_event
-                end
-              elsif event_type
-                Monadic::Utils::ExtraLogger.log { "Grok unknown event type: #{event_type}" }
-              end
-            end
-
-          rescue JSON::ParserError
-            # if the JSON parsing fails, the next chunk should be appended to the buffer
-            # and the loop should continue to the next iteration
-          rescue StandardError => e
-            Monadic::Utils::ExtraLogger.log { "[Grok Events] Error: #{e.message}\n[Grok Events] Backtrace: #{e.backtrace.first(5).join("\n")}" }
+          if fragment.length > 0
+            res_event = {
+              "type" => "fragment",
+              "content" => fragment,
+              "sequence" => fragment_sequence,
+              "timestamp" => Time.now.to_f,
+              "is_first" => fragment_sequence == 0
+            }
+            fragment_sequence += 1
+            block&.call res_event
           end
-        else
-          buffer = scanner.rest
-          break
+        end
+
+      when "response.output_text.done"
+        # Text output completed - finalize text
+        text = json["text"]
+        if text
+          id = json["item_id"] || "default"
+          texts[id] = text  # Final text
+        end
+
+      when "response.output_item.added"
+        # New output item added
+        item = json["item"]
+        if item && item["type"] == "function_call"
+          # Store the function name and ID for later use
+          item_id = item["id"]
+          if item_id
+            tools[item_id] ||= {}
+            tools[item_id]["name"] = item["name"] if item["name"]
+            tools[item_id]["call_id"] = item["call_id"] if item["call_id"]
+            tools[item_id]["arguments"] ||= ""
+          end
+          res_event = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+          block&.call res_event
+        end
+
+      when "response.output_item.done"
+        # Output item completed
+        item = json["item"]
+        if item && item["type"] == "function_call"
+          item_id = item["id"]
+          if item_id
+            tools[item_id] ||= {}
+            tools[item_id]["name"] = item["name"] if item["name"]
+            tools[item_id]["arguments"] = item["arguments"] if item["arguments"]
+            tools[item_id]["call_id"] = item["call_id"] if item["call_id"]
+            tools[item_id]["completed"] = true
+          end
+        end
+
+      when "response.function_call_arguments.delta", "response.function_call.arguments.delta", "response.function_call.delta"
+        # Tool call arguments fragment
+        item_id = json["item_id"]
+        delta = json["delta"]
+
+        if item_id && delta
+          tools[item_id] ||= {}
+          tools[item_id]["arguments"] ||= ""
+          tools[item_id]["arguments"] += delta
+        end
+
+      when "response.function_call_arguments.done", "response.function_call.arguments.done", "response.function_call.done"
+        # Tool call arguments completed
+        item_id = json["item_id"]
+        arguments = json["arguments"]
+        name = json["name"]
+
+        if item_id
+          tools[item_id] ||= {}
+          tools[item_id]["arguments"] = arguments if arguments
+          tools[item_id]["name"] = name if name
+          tools[item_id]["completed"] = true
+        end
+
+      when "response.reasoning_summary_text.delta"
+        # Reasoning summary delta (streaming)
+        rid = json["item_id"] || current_reasoning_id
+        delta = json["delta"]
+
+        if delta && !delta.to_s.empty?
+          current_reasoning_id = rid if rid
+          reasoning_content << delta.to_s
+
+          # Send reasoning delta to frontend (like Claude's thinking)
+          res_event = {
+            "type" => "thinking",
+            "content" => delta.to_s
+          }
+          block&.call res_event
+        end
+
+      when "response.reasoning_summary_text.done", "response.reasoning_summary_part.done"
+        # Reasoning summary completed - text is already accumulated from deltas
+        rid = json["item_id"] || current_reasoning_id
+        if rid
+          current_reasoning_id = nil
+        end
+
+      when "response.web_search_call.in_progress"
+        # Web search started
+        res_event = { "type" => "wait", "content" => "<i class='fas fa-search'></i> SEARCHING WEB" }
+        block&.call res_event
+
+      when "response.web_search_call.searching"
+        # Web search in progress - could show progress if needed
+
+      when "response.web_search_call.completed"
+        # Web search completed
+        Monadic::Utils::ExtraLogger.log { "Grok web search completed: item_id=#{json["item_id"]}" }
+
+      when "response.completed", "response.done"
+        # Response completed - extract usage and set finish_reason
+        response_data = json["response"] || json
+        # Capture usage if present
+        usage = response_data["usage"] || json["usage"]
+        if usage.is_a?(Hash)
+          usage_input_tokens = usage["input_tokens"] || usage["prompt_tokens"] || usage_input_tokens
+          usage_output_tokens = usage["output_tokens"] || usage["completion_tokens"] || usage_output_tokens
+          usage_total_tokens = usage["total_tokens"] || (usage_input_tokens.to_i + usage_output_tokens.to_i if usage_input_tokens && usage_output_tokens) || usage_total_tokens
+        end
+
+        finish_reason = response_data["stop_reason"] || json["stop_reason"] || "stop"
+
+      when "response.error", "response.failed", "error"
+
+        # An error inside the stream ends the reply as that error.
+
+        stream_error = json.dig("error", "message") || json.dig("response", "error", "message") || json["message"] || "Unknown error"
+
+        throw :grok_stream_end
+
+      else
+        # Handle legacy format fallback (choices[0].delta.reasoning_content)
+        if json.dig("choices", 0, "delta", "reasoning_content")
+          reasoning = json.dig("choices", 0, "delta", "reasoning_content")
+          unless reasoning.to_s.strip.empty? || reasoning == "Thinking..."
+            reasoning_content << reasoning
+            res_event = {
+              "type" => "thinking",
+              "content" => reasoning
+            }
+            block&.call res_event
+          end
+        elsif json.dig("choices", 0, "delta", "content")
+          # Legacy chat completions format fallback
+          fragment = json.dig("choices", 0, "delta", "content").to_s
+          if fragment.length > 0
+            id = json["id"] || "default"
+            texts[id] ||= String.new
+            texts[id] << fragment
+            res_event = {
+              "type" => "fragment",
+              "content" => fragment,
+              "sequence" => fragment_sequence,
+              "timestamp" => Time.now.to_f,
+              "is_first" => fragment_sequence == 0
+            }
+            fragment_sequence += 1
+            block&.call res_event
+          end
+        elsif event_type
+          Monadic::Utils::ExtraLogger.log { "Grok unknown event type: #{event_type}" }
         end
       end
-    rescue StandardError => e
-      DebugHelper.debug("JSON parsing error: #{e.message}", category: :api, level: :error)
-      DebugHelper.debug("Backtrace: #{e.backtrace.join("\n")}", category: :api, level: :debug)
-      DebugHelper.debug("Error details: #{e.inspect}", category: :api, level: :debug)
+    end
+
+    catch(:grok_stream_end) do
+      read = lambda do |data, event|
+        throw :grok_stream_end if data.strip == "[DONE]" || event == "done"
+
+        handle.call(JSON.parse(data))
+      rescue JSON::ParserError
+        Monadic::Utils::ExtraLogger.log { "[Grok Events] Unreadable record skipped (#{data.bytesize} bytes)" }
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[Grok Events] Error: #{e.message}\n[Grok Events] Backtrace: #{e.backtrace.first(5).join("\n")}" }
+      end
+
+      res.each { |chunk| records.feed(chunk, &read) }
+      records.finish(&read)
+    end
+
+    if stream_error
+      Monadic::Utils::ExtraLogger.log { "[Grok Events] Error record: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(stream_error.to_s)}" }
+      return StreamRecords.error_reply("xAI", stream_error, &block)
     end
 
     # Handle tool calls if any were collected

@@ -35,7 +35,7 @@ RSpec.describe 'Claude reasoning effort "none"' do
 
   it 'marks exactly the models whose API thinks when thinking is omitted' do
     flagged = claude_models.select { |m| spec.thinking_on_by_default?(m) }
-    expect(flagged).to contain_exactly('claude-fable-5-1', 'claude-fable-5', 'claude-opus-5-5',
+    expect(flagged).to contain_exactly('claude-fable-5-2', 'claude-fable-5-1', 'claude-fable-5', 'claude-opus-5-5',
                                        'claude-opus-5', 'claude-sonnet-5-5', 'claude-sonnet-5',
                                        'claude-haiku-5-5')
     # The flag only makes sense on adaptive-thinking models with an effort list.

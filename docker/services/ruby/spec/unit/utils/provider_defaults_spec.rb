@@ -39,7 +39,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
     end
 
     it 'returns the first model for xai code' do
-      expect(described_class.get_provider_default("xai", "code")).to eq("grok-build-0.1")
+      expect(described_class.get_provider_default("xai", "code")).to eq("grok-4.7")
     end
 
     it 'returns nil for non-existent provider' do
@@ -126,7 +126,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
     end
 
     it '.default_image_model returns the image default' do
-      expect(described_class.default_image_model("openai")).to eq("gpt-image-2")
+      expect(described_class.default_image_model("openai")).to eq("gpt-image-2.5-flare")
     end
 
     it '.default_video_model returns nil when OpenAI video category removed (Sora API shutdown)' do

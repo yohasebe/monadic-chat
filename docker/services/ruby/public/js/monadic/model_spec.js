@@ -1783,6 +1783,10 @@ const modelSpec = {
     "stt_capability": true,
     "sunset_date": "2027-02-26"
   },
+  "scribe_v3": {
+    "stt_capability": true,
+    "stt_provider": "elevenlabs"
+  },
   "scribe_v2": {
     "stt_capability": true,
     "stt_provider": "elevenlabs"

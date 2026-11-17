@@ -68,7 +68,7 @@ app "ImageGeneratorOpenAI" do
     PARAMETERS:
     - model: "gpt-image-2.5-flare" (default), "gpt-image-2.5-sunburst", "gpt-image-2.6-flare", "gpt-image-2.6-sunburst" or "gpt-image-2". Use the image model the user explicitly requested. Never change an explicitly requested model to satisfy a quality setting: if that model does not support the requested quality, explain the mismatch and ask the user to choose a supported quality or another model, and do not generate an image yet. When no image model was specified, use the default; if the user asks for a quality the default does not offer, pick a model that supports it and say which one you chose.
     - size: 1024x1024 (default), 1536x1024, 1024x1536; larger sizes up to 3840x2160 are available but cost proportionally more, so use them only when asked
-    - quality: auto (default), high, medium, low on every model; the 2.5 models also accept xhigh and max. An unsupported pairing is rejected before any request is sent. Use medium/low for faster, cheaper generations
+    - quality: auto (default), high, medium, low on every model; every model except gpt-image-2 also accepts xhigh and max. An unsupported pairing is rejected before any request is sent. Use medium/low for faster, cheaper generations
     - background: auto (default), transparent, opaque
 
     RESULT DISPLAY:
@@ -126,7 +126,7 @@ app "ImageGeneratorOpenAI" do
       }
       parameter :mask, "string", "Mask image filename for precise editing control", required: false
       parameter :size, "string", "Image dimensions. Larger sizes cost proportionally more.", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "size")
-      parameter :quality, "string", "Image quality level. xhigh and max are only accepted by the gpt-image-2.5 models.", required: false, enum: Monadic::Utils::ModelSpec.image_tool_options("openai", "quality")
+      parameter :quality, "string", "Image quality level. xhigh and max are not accepted by gpt-image-2.", required: false, enum: Monadic::Utils::ModelSpec.image_tool_options("openai", "quality")
       parameter :output_format, "string", "Output image format", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "output_format")
       parameter :background, "string", "Background setting; transparent requires png or webp", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "background")
       parameter :output_compression, "integer", "Compression level for JPEG/WEBP (1-100, never use with PNG)", required: false

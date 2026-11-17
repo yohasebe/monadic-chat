@@ -46,6 +46,7 @@
     - Every tool the model calls at once runs, with OpenAI, Mistral and DeepSeek too
     - Replies follow the language of your message also after tool calls, with every provider
     - The reasoning effort chosen for a Claude model is used
+    - A reply no longer shows reasoning from another chat
     - The thinking level chosen for a Gemini model is used
     - The reasoning effort chosen for a DeepSeek model is used, and DeepSeek reasoning can be turned off
     - Claude Fable models work in the apps that consult an advisor

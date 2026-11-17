@@ -140,27 +140,34 @@ const WorkflowViewer = (function () {
     container.innerHTML = '';
     createGraph();
     renderGraph(buildGraphData(currentData, getExpanded()), !!savedScale);
-    // Re-center graph at the preserved zoom level
-    if (savedScale && graph) {
-      var view = graph.getView();
-      view.scaleAndTranslate(1, 0, 0);
-      var bounds = graph.getGraphBounds();
-      if (bounds && bounds.width > 0 && bounds.height > 0) {
-        var cw = container.clientWidth, ch = container.clientHeight;
-        if (cw > 0 && ch > 0) {
-          var tx = -bounds.x + (cw / savedScale - bounds.width) / 2;
-          var ty = -bounds.y + (ch / savedScale - bounds.height) / 2;
-          view.scaleAndTranslate(savedScale, tx, ty);
-        }
-      }
-    }
+    // Placed again at the preserved zoom level
+    if (savedScale && graph) placeGraph(savedScale);
+  }
+
+  // Shows the diagram at scale: centred where it fits, from its top-left
+  // edge where it does not (the rest is reached by dragging).
+  function placeGraph(scale) {
+    var view = graph.getView();
+    view.scaleAndTranslate(1, 0, 0);
+    var bounds = graph.getGraphBounds();
+    if (!bounds || bounds.width === 0 || bounds.height === 0) return;
+    var cw = container.clientWidth, ch = container.clientHeight;
+    if (cw === 0 || ch === 0) return;
+    var pad = 24;
+    var spareW = cw / scale - bounds.width;
+    var spareH = ch / scale - bounds.height;
+    var tx = -bounds.x + (spareW >= 0 ? spareW / 2 : pad / scale);
+    var ty = -bounds.y + (spareH >= 0 ? spareH / 2 : pad / scale);
+    view.scaleAndTranslate(scale, tx, ty);
   }
 
   // ── Layout constants ───────────────────────────────────────
-  var FONT_SIZE = 12;
-  var LINE_H = 22;
-  var HEAD_H = 26;
-  var PAD = 10;
+  // The diagram's text is drawn at the page's text size when the view is
+  // at scale 1 (see fitGraphToContainer).
+  var FONT_SIZE = 15;
+  var LINE_H = 26;
+  var HEAD_H = 30;
+  var PAD = 12;
   var SIDE_GAP = 40;
   var OVERLAP_GAP = 12;
 
@@ -550,10 +557,10 @@ const WorkflowViewer = (function () {
 
         // Determine width
         var minW;
-        if (hasScrollText) minW = 320;
-        else if (n.isToolContainer) minW = 240;
-        else if (n.type === 'feature' || n.type === 'history') minW = 200;
-        else minW = 220;
+        if (hasScrollText) minW = 360;
+        else if (n.isToolContainer) minW = 280;
+        else if (n.type === 'feature' || n.type === 'history') minW = 230;
+        else minW = 250;
 
         // Determine size
         var size;
@@ -746,7 +753,18 @@ const WorkflowViewer = (function () {
     });
   }
 
-  function fitGraphToContainer() {
+  // The smallest scale at which the diagram's text is as large as the page's.
+  function readableScale() {
+    var bodyPx = parseFloat(window.getComputedStyle(document.body).fontSize) || 14;
+    return bodyPx / FONT_SIZE;
+  }
+
+  // Shows the diagram in the panel. By default its text keeps the page's
+  // size: a diagram larger than the panel shows its top part, and the rest
+  // is reached by dragging or zooming out. all: the whole diagram, however
+  // small its text becomes (the fit button).
+  function fitGraphToContainer(opts) {
+    opts = opts || {};
     if (!graph || !container) return;
     var view = graph.getView();
     view.scaleAndTranslate(1, 0, 0);
@@ -758,10 +776,7 @@ const WorkflowViewer = (function () {
     var sx = (cw - pad * 2) / bounds.width;
     var sy = (ch - pad * 2) / bounds.height;
     var scale = Math.min(sx, sy, 1.2);
-    scale = Math.max(scale, 0.15);
-    var tx = -bounds.x + (cw / scale - bounds.width) / 2;
-    var ty = -bounds.y + (ch / scale - bounds.height) / 2;
-    view.scaleAndTranslate(scale, tx, ty);
+    placeGraph(Math.max(scale, opts.all ? 0.15 : readableScale()));
   }
 
   // ── Click handling ───────────────────────────────────────────
@@ -1538,7 +1553,7 @@ const WorkflowViewer = (function () {
       var zi = $id('wv-zoom-in'), zo = $id('wv-zoom-out'), zf = $id('wv-zoom-fit');
       $on(zi, 'click', function () { if (graph) graph.zoomIn(); });
       $on(zo, 'click', function () { if (graph) graph.zoomOut(); });
-      $on(zf, 'click', function () { fitGraphToContainer(); });
+      $on(zf, 'click', function () { fitGraphToContainer({ all: true }); });
       var saveBtn = $id('wv-save-svg');
       $on(saveBtn, 'click', function () { self.downloadSvg(); });
       setupTooltips(); setupClickHandler(); buildLegend();

@@ -681,4 +681,25 @@ RSpec.describe OllamaHelper do
       expect(result).to be_a(Array)
     end
   end
+
+  describe 'the end of a streamed reply' do
+    let(:session) { { parameters: { "app_name" => "SpecApp", "model" => "m" }, messages: [], call_depth_per_turn: 0 } }
+
+    def read(last)
+      records = [{ "message" => { "role" => "assistant", "content" => "Part" }, "done" => false }, last]
+      helper.process_json_data("SpecApp", session, [records.map { |r| "#{JSON.generate(r)}\n" }.join], 0) { |_| }
+    end
+
+    it 'ends a reply cut at the length limit as such, with its usage' do
+      result = read({ "message" => { "role" => "assistant", "content" => "" }, "done" => true, "done_reason" => "length",
+                      "prompt_eval_count" => 12, "eval_count" => 30 })
+      expect(result.first.dig("choices", 0, "finish_reason")).to eq("length")
+      expect(result.first["usage"]).to eq("prompt_tokens" => 12, "completion_tokens" => 30, "total_tokens" => 42)
+    end
+
+    it 'ends a finished reply as stopped' do
+      result = read({ "message" => { "role" => "assistant", "content" => "" }, "done" => true, "done_reason" => "stop" })
+      expect(result.first.dig("choices", 0, "finish_reason")).to eq("stop")
+    end
+  end
 end

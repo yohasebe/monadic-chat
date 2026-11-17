@@ -302,7 +302,7 @@ module OllamaHelper
       end
     end
 
-    return "Error: Ollama is not reachable. (#{last_error.message})" if last_error
+    return "Error: Ollama is not reachable. (#{Monadic::Utils::ErrorFormatter.scrub_identifiers(last_error.message)})" if last_error
 
     if res&.status&.success?
       parsed = JSON.parse(res.body)
@@ -315,7 +315,7 @@ module OllamaHelper
         res.body.to_s
       end
       Monadic::Utils::ExtraLogger.log { "[Ollama API Error] #{error}" }
-      "ERROR: #{error}"
+      "ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(error.to_s)}"
     end
   rescue StandardError => e
     "Error: The request could not be completed. (#{e.message})"
@@ -600,7 +600,8 @@ module OllamaHelper
     if last_error
       error_message = "Ollama is not reachable. Please ensure Ollama is running. (#{last_error.message})"
       Monadic::Utils::ExtraLogger.log { "[Ollama] #{error_message}" }
-      res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
+      res = { "type" => "error",
+              "content" => Monadic::Utils::ErrorFormatter.network_error(provider: "Ollama", message: error_message) }
       block&.call res
       return [res]
     end
@@ -612,7 +613,8 @@ module OllamaHelper
         res.body.to_s
       end
       Monadic::Utils::ExtraLogger.log { "[Ollama API Error] #{error_report}" }
-      res = { "type" => "error", "content" => "API ERROR: #{error_report}" }
+      message = error_report.is_a?(Hash) ? (error_report["error"] || error_report).to_s : error_report.to_s
+      res = { "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(provider: "Ollama", message: message) }
       block&.call res
       return [res]
     end
@@ -640,6 +642,7 @@ module OllamaHelper
                              ![false, "false"].include?(show_thinking_param)
 
     records = StreamRecords.new(:ndjson)
+    usage = nil
     stream_error = nil
     texts = []
     thinking_texts = []
@@ -656,7 +659,12 @@ module OllamaHelper
         next
       end
 
-      finish_reason = json["done"] ? "stop" : nil
+      # A reply cut at the length limit ends as such, so the user can ask for more.
+      finish_reason = (json["done_reason"] == "length" ? "length" : "stop") if json["done"]
+      if json["done"]
+        usage = { "prompt_tokens" => json["prompt_eval_count"], "completion_tokens" => json["eval_count"] }.compact
+        usage["total_tokens"] = usage.values.sum unless usage.empty?
+      end
 
       # Detect tool calls (Ollama sends them in the done:true chunk)
       if json.dig("message", "tool_calls")
@@ -800,6 +808,7 @@ module OllamaHelper
           "finish_reason" => finish_reason
         }]
       }
+      result["usage"] = usage if usage && !usage.empty?
       [result]
     else
       res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }

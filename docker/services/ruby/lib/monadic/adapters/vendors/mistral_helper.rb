@@ -543,6 +543,8 @@ module MistralHelper
       # The turn's tool rounds so far go back with every later request of
       # the turn, so the model sees what it has already done.
       %w[earlier_tool_rounds tool_calls_message function_returns].each { |key| session[:parameters]&.delete(key) }
+      # Text written before an earlier turn's tool call is no answer of this one.
+      session.delete(:mistral_pre_tool_content)
       # Reset the cross-round reasoning accumulator. Magistral emits its trace
       # before a tool call; the recursion re-enters api_request with a fresh
       # local `thinking`, so without accumulating here only the final round's
@@ -767,8 +769,10 @@ module MistralHelper
       # Save the pre-tool content to session for later use
       # This prevents losing streamed content when tool calls trigger recursive api_request
       if content_buffer && !content_buffer.strip.empty?
-        session[:mistral_pre_tool_content] ||= ""
-        session[:mistral_pre_tool_content] += content_buffer
+        # Kept with the words of its own request put back: a later request
+        # of the turn hides them with its own table.
+        session[:mistral_pre_tool_content] = session[:mistral_pre_tool_content].to_s +
+                                             Monadic::Utils::Privacy::Words.put_back(content_buffer)
       end
 
       # Process each tool call

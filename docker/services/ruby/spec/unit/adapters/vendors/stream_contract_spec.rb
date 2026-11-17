@@ -8,6 +8,7 @@ require_relative "../../../../lib/monadic/adapters/vendors/mistral_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/ollama_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/cohere_helper"
 require_relative "../../../../lib/monadic/adapters/vendors/claude_helper"
+require_relative "../../../../lib/monadic/adapters/vendors/grok_helper"
 
 # What every provider's reader of a streamed reply does, whatever the chunks
 # the reply arrives in: the text comes whole, every call of a round is run,
@@ -115,6 +116,35 @@ module StreamContract
     def error(message) = { "type" => "error", "error" => { "type" => "overloaded_error", "message" => message } }
   end
 
+  # OpenAI Responses API and xAI Grok.
+  module Responses
+    module_function
+
+    def text(pieces)
+      [{ "type" => "response.created", "response" => { "id" => "r", "metadata" => {} } }] +
+        pieces.map { |p| { "type" => "response.output_text.delta", "item_id" => "m", "delta" => p } } +
+        [{ "type" => "response.output_text.done", "item_id" => "m", "text" => pieces.join },
+         { "type" => "response.completed", "response" => { "id" => "r", "status" => "completed" } }]
+    end
+
+    def calls(calls)
+      items = calls.each_with_index.map do |(name, args), i|
+        { "type" => "function_call", "id" => "fc_#{i}", "call_id" => "call_#{i}", "name" => name, "arguments" => JSON.generate(args) }
+      end
+      [{ "type" => "response.created", "response" => { "id" => "r", "metadata" => {} } }] +
+        items.flat_map do |item|
+          json = item["arguments"]
+          [{ "type" => "response.output_item.added", "item" => item.merge("arguments" => "") },
+           { "type" => "response.function_call_arguments.delta", "item_id" => item["id"], "delta" => json[0, 3] },
+           { "type" => "response.function_call_arguments.delta", "item_id" => item["id"], "delta" => json[3..] },
+           { "type" => "response.function_call_arguments.done", "item_id" => item["id"], "arguments" => json },
+           { "type" => "response.output_item.done", "item" => item }]
+        end + [{ "type" => "response.completed", "response" => { "id" => "r", "status" => "completed", "output" => items } }]
+    end
+
+    def error(message) = { "type" => "error", "message" => message }
+  end
+
   module Ollama
     module_function
 
@@ -169,6 +199,11 @@ RSpec.describe "Reading a streamed reply (every provider)" do
       "Claude" => [StreamContract::Claude, :sse, lambda do |spec, chunks|
         spec.read_with(ClaudeHelper, chunks) do |helper, session, res, sink|
           helper.process_json_data(app: "SpecApp", session: session, query: {}, res: res, call_depth: 0, &sink)
+        end
+      end],
+      "Grok" => [StreamContract::Responses, :sse, lambda do |spec, chunks|
+        spec.read_with(GrokHelper, chunks) do |helper, session, res, sink|
+          helper.process_responses_api_data(app: "SpecApp", session: session, query: {}, res: res, call_depth: 0, &sink)
         end
       end],
       "Ollama" => [StreamContract::Ollama, :ndjson, lambda do |spec, chunks|

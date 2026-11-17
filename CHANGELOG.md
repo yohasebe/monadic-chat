@@ -17,6 +17,7 @@
     - Ollama apps are defined as for the other providers; models without the tools capability answer as a plain chat
     - The default Ollama model is `gpt-oss:20b`
     - Default models: GPT Image 2.5 Flare for OpenAI images, Mistral Large 4 and Grok 4.7 for code, and Gemini Omni 1.2 Flash for Gemini videos
+    - Apps that name no model start with GPT-6.1 Terra (OpenAI) and Grok 4.3 (xAI); Coding Assistant, Code Interpreter, Jupyter Notebook and Second Opinion keep GPT-6.1 Sol and Grok 4.7
     - Mistral Medium 3.5 is no longer offered; chats that used it continue with Mistral Large 4
     - Language Practice writes its advice in the interface language
     - The sidebar has `Menu`, `Work screen`, `Files` and `History` tabs

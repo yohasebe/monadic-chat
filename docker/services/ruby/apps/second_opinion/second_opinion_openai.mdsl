@@ -38,6 +38,7 @@ app "SecondOpinionOpenAI" do
   
   llm do
     provider "openai"
+    model "gpt-6.1-sol"
     reasoning_effort "low"
     temperature 0.0
   end

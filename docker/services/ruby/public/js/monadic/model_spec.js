@@ -234,6 +234,7 @@ const modelSpec = {
     "supports_file_inputs": true,
     "skip_in_progress_events": true
   },
+  // PDF and document input (input_file) answered correctly in the app.
   "gpt-6.1-terra": {
     "context_window": [1, 1050000],
     "max_output_tokens": [1, 128000],
@@ -243,6 +244,8 @@ const modelSpec = {
     "supports_structured_output": true,
     "api_type": "responses",
     "supports_web_search": true,
+    "supports_pdf_upload": true,
+    "supports_file_inputs": true,
     "skip_in_progress_events": true
   },
   "gpt-6-sol": {
@@ -1971,7 +1974,9 @@ const modelSpec = {
  */
 const providerDefaults = {
   "openai": {
-    "chat": ["gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna", "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.5", "gpt-5.2"],
+    // Fast and less costly first; Coding Assistant, Code Interpreter, Jupyter
+    // Notebook and Second Opinion name gpt-6.1-sol in their MDSL.
+    "chat": ["gpt-6.1-terra", "gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna", "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.5", "gpt-5.2"],
     "code": ["gpt-6-sol", "gpt-5.6-sol", "gpt-5.4-mini"],
     "vision": ["gpt-6-luna", "gpt-5.6-luna", "gpt-5.4-mini"],
     "audio_transcription": ["gpt-transcribe"],
@@ -2011,7 +2016,9 @@ const providerDefaults = {
     "audio_transcription": ["voxtral-mini-transcribe-3-0"]
   },
   "xai": {
-    "chat": ["grok-4.7", "grok-4.6", "grok-4.5", "grok-4.20-0309-non-reasoning", "grok-4.3", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309"],
+    // Fast and less costly first; Coding Assistant, Code Interpreter, Jupyter
+    // Notebook, Second Opinion and AutoForge name grok-4.7 in their MDSL.
+    "chat": ["grok-4.3", "grok-4.7", "grok-4.6", "grok-4.5", "grok-4.20-0309-non-reasoning", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309"],
     "code": ["grok-4.7", "grok-build-0.1", "grok-4.6", "grok-4.5", "grok-4.3"],
     "vision": ["grok-4.7", "grok-4.6", "grok-4.5", "grok-4.3"],
     // Image models, cheapest first; the

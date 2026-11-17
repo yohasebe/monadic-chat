@@ -35,6 +35,7 @@ app "CodeInterpreterGrok" do
 
   llm do
     provider "xai"
+    model "grok-4.7"
     temperature 0.0
     reasoning_effort "low"
     tool_choice "auto"  # Default to auto, will be overridden when needed

@@ -42,8 +42,8 @@ RSpec.describe Monadic::Utils::ModelSpec do
   # The Ruby side must agree with model_spec.js on the xAI defaults; the two
   # stacks read the same file, so a drift here means the accessor broke.
   describe 'xAI provider defaults' do
-    it 'resolves grok-4.7 as the chat and vision default' do
-      expect(described_class.get_provider_default('xai', 'chat')).to eq('grok-4.7')
+    it 'resolves grok-4.3 as the chat default and grok-4.7 as the vision default' do
+      expect(described_class.get_provider_default('xai', 'chat')).to eq('grok-4.3')
       expect(described_class.default_vision_model('xai')).to eq('grok-4.7')
     end
 

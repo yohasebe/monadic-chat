@@ -2225,7 +2225,7 @@ module GeminiHelper
                               app:, session:, call_depth:, &block)
     # Use v1beta for thinking models or PDF handling, v1alpha for others
     endpoint = (is_thinking_model || has_pdf_part) ? "https://generativelanguage.googleapis.com/v1beta" : API_ENDPOINT
-    target_uri = "#{endpoint}/models/#{obj["model"]}:streamGenerateContent"
+    target_uri = "#{endpoint}/models/#{obj["model"]}:streamGenerateContent?alt=sse"
 
     http = HTTP.headers(headers.merge("x-goog-api-key" => api_key))
 
@@ -2371,7 +2371,8 @@ module GeminiHelper
                          (session[:parameters]["app_name"].to_s.include?("Image Generator") || 
                           session[:parameters]["app_name"].to_s.include?("Video Generator"))
 
-    buffer = String.new
+    records = StreamRecords.new(:sse)
+    stream_error = nil
     texts = []
     fragment_sequence = 0  # Sequence number for fragments to ensure ordering
     thinking_parts = []  # Store thinking content
@@ -2384,197 +2385,190 @@ module GeminiHelper
     usage_candidates_tokens = nil
     usage_total_tokens = nil
 
-    # Process streaming response chunks
-    res.each do |chunk|
-      # Check if we should stop processing due to STOP finish reason
-      break if finish_reason == "stop"
-      
-      chunk = chunk.force_encoding("UTF-8")
-      buffer << chunk
+    # Each record of the stream ("alt=sse": one JSON object per data line).
+    # A proc, not a lambda: its returns end the reply.
+    handle = proc do |json_obj|
 
-      if buffer.valid_encoding? == false
-        next
+      Monadic::Utils::ExtraLogger.log_json("Gemini streaming chunk", json_obj)
+
+      # Capture usage metadata if available
+      # Gemini may return usageMetadata with keys like promptTokenCount and candidatesTokenCount
+      usage_md = json_obj["usageMetadata"] || json_obj["usage_metadata"]
+      if usage_md.is_a?(Hash)
+        usage_prompt_tokens = usage_md["promptTokenCount"] || usage_md["prompt_tokens"] || usage_prompt_tokens
+        usage_candidates_tokens = usage_md["candidatesTokenCount"] || usage_md["completion_tokens"] || usage_candidates_tokens
+        # Some variants include totalTokenCount
+        usage_total_tokens = usage_md["totalTokenCount"] || (usage_prompt_tokens.to_i + usage_candidates_tokens.to_i if usage_prompt_tokens && usage_candidates_tokens) || usage_total_tokens
       end
 
+      candidates = json_obj["candidates"]
 
-      # Skip encoding cleanup - buffer.valid_encoding? check above is sufficient
-      # Encoding cleanup with replace: "" can delete valid bytes from incomplete multibyte characters
-      # that will become complete when the next chunk arrives
-      # buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
-      # buffer.encode!("UTF-8", "UTF-16")
-
-      if /^\[?(\{\s*"candidates":.*^\})\n/m =~ buffer
-        json = Regexp.last_match(1)
-        begin
-          json_obj = JSON.parse(json)
-
-          Monadic::Utils::ExtraLogger.log_json("Gemini streaming chunk", json_obj)
-
-          # Capture usage metadata if available
-          # Gemini may return usageMetadata with keys like promptTokenCount and candidatesTokenCount
-          usage_md = json_obj["usageMetadata"] || json_obj["usage_metadata"]
-          if usage_md.is_a?(Hash)
-            usage_prompt_tokens = usage_md["promptTokenCount"] || usage_md["prompt_tokens"] || usage_prompt_tokens
-            usage_candidates_tokens = usage_md["candidatesTokenCount"] || usage_md["completion_tokens"] || usage_candidates_tokens
-            # Some variants include totalTokenCount
-            usage_total_tokens = usage_md["totalTokenCount"] || (usage_prompt_tokens.to_i + usage_candidates_tokens.to_i if usage_prompt_tokens && usage_candidates_tokens) || usage_total_tokens
-          end
-
-          candidates = json_obj["candidates"]
-
-          candidates&.each do |candidate|
-            
-            # Check for URL Context metadata at candidate level
-            if candidate["urlContextMetadata"] &&
-               !candidate["urlContextMetadata"].empty? &&
-               @url_context_html.nil?
-              @url_context_html = build_url_context_html(candidate["urlContextMetadata"])
-            end
-            
-            # Check for grounding metadata at candidate level (skip empty objects)
-            if candidate["groundingMetadata"] &&
-               !candidate["groundingMetadata"].empty? &&
-               @grounding_html.nil?
-              @grounding_html = build_grounding_metadata_html(candidate["groundingMetadata"], source: "candidate")
-            end
-
-            finish_reason = candidate["finishReason"]
-            case finish_reason
-            when "MAX_TOKENS"
-              # Check if content is empty or contains only thinking signature
-              content_check = candidate["content"]
-              text_parts = content_check&.dig("parts")&.select { |p| p["text"] && !p["text"].empty? } || []
-
-              if text_parts.empty?
-                # Thinking consumed all tokens - return error
-                res = { "type" => "error", "content" => "The model's thinking process used all available tokens. Please try again with a simpler request." }
-                block&.call res
-                return [res]
-              end
-              finish_reason = "length"
-            when "STOP"
-              finish_reason = "stop"
-              # For thinking models, we should stop processing after receiving STOP
-              # to avoid infinite loops
-            when "SAFETY"
-              finish_reason = "safety"
-            when "CITATION"
-              finish_reason = "recitation"
-            when "MALFORMED_FUNCTION_CALL"
-              # Gemini returned a malformed function call
-              # With Gemini 3+ models, this should rarely occur
-              Monadic::Utils::ExtraLogger.log {
-                finish_message = candidate["finishMessage"]
-                "[MALFORMED_FUNCTION_CALL]\n  finishMessage (first 300 chars): #{finish_message&.[](0..300)}"
-              }
-
-              # The calls that arrived whole before the malformed one are run;
-              # the model is asked again with their results.
-              if tool_calls.any?
-                finish_reason = "stop"
-                next
-              end
-
-              # If fragments were already streamed, complete the stream
-              if fragment_sequence > 0
-                res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-                block&.call res
-                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => texts.join } }] }]
-              end
-
-              # Return error message
-              error_msg = "The model attempted an invalid function call. Please try again or switch to a different model."
-              res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-              block&.call res
-              return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }])
-            else
-              finish_reason = nil
-            end
-
-            content = candidate["content"]
-
-            next if (content.nil? || finish_reason == "recitation" || finish_reason == "safety")
-
-            content["parts"]&.each do |part|
-              # Process grounding metadata for web search results (part level)
-              if @grounding_html.nil? && (part["grounding_metadata"] || json_obj["groundingMetadata"])
-                grounding_data = part["grounding_metadata"] || json_obj["groundingMetadata"]
-                @grounding_html = build_grounding_metadata_html(grounding_data, source: "part")
-                json_obj.delete("groundingMetadata") if json_obj["groundingMetadata"]
-              end
-              
-              # Check if this part contains thinking content
-              if part["thought"] == true && part["text"]
-                thinking_fragment = part["text"]
-                thinking_parts << thinking_fragment
-                
-                # Send thinking content as a special type (similar to Claude)
-                res = {
-                  "type" => "thinking",
-                  "content" => thinking_fragment
-                }
-                block&.call res
-                # Skip thinking content - it's internal reasoning, not output
-                next
-              end
-              
-              # Also check for modelThinking field (alternative format)
-              if part["modelThinking"] && part["modelThinking"]["thought"]
-                thinking_fragment = part["modelThinking"]["thought"]
-                thinking_parts << thinking_fragment
-                
-                res = {
-                  "type" => "thinking",
-                  "content" => thinking_fragment
-                }
-                block&.call res
-                # Skip this part
-                next
-              end
-              
-              if part["text"]
-                fragment = process_gemini_stream_part(part["text"], session: session, is_media_generator: is_media_generator)
-                next if fragment.nil?
-
-                texts << fragment
-
-                if fragment.length > 0
-                  res = {
-                    "type" => "fragment",
-                    "content" => fragment,
-                    "sequence" => fragment_sequence,
-                    "timestamp" => Time.now.to_f,
-                    "is_first" => fragment_sequence == 0
-                  }
-                  fragment_sequence += 1
-                  block&.call res
-                end
-
-              elsif part["functionCall"]
-
-                fc = part["functionCall"].dup
-                # Gemini 3 returns a thoughtSignature as a sibling of functionCall.
-                # It must be echoed back verbatim on the reconstructed model turn or
-                # the follow-up request is rejected. Carried on an internal key so
-                # name/args consumers are unaffected.
-                fc["_thoughtSignature"] = part["thoughtSignature"] if part["thoughtSignature"]
-                tool_calls << fc
-                res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-                block&.call res
-              end
-            end
-          end
-        rescue JSON::ParserError
-          # if the JSON parsing fails, the next chunk should be appended to the buffer
-          # and the loop should continue to the next iteration
+      candidates&.each do |candidate|
+        
+        # Check for URL Context metadata at candidate level
+        if candidate["urlContextMetadata"] &&
+           !candidate["urlContextMetadata"].empty? &&
+           @url_context_html.nil?
+          @url_context_html = build_url_context_html(candidate["urlContextMetadata"])
         end
-        buffer = String.new
+        
+        # Check for grounding metadata at candidate level (skip empty objects)
+        if candidate["groundingMetadata"] &&
+           !candidate["groundingMetadata"].empty? &&
+           @grounding_html.nil?
+          @grounding_html = build_grounding_metadata_html(candidate["groundingMetadata"], source: "candidate")
+        end
+
+        finish_reason = candidate["finishReason"]
+        case finish_reason
+        when "MAX_TOKENS"
+          # Check if content is empty or contains only thinking signature
+          content_check = candidate["content"]
+          text_parts = content_check&.dig("parts")&.select { |p| p["text"] && !p["text"].empty? } || []
+
+          if text_parts.empty?
+            # Thinking consumed all tokens - return error
+            res = { "type" => "error", "content" => "The model's thinking process used all available tokens. Please try again with a simpler request." }
+            block&.call res
+            return [res]
+          end
+          finish_reason = "length"
+        when "STOP"
+          finish_reason = "stop"
+          # For thinking models, we should stop processing after receiving STOP
+          # to avoid infinite loops
+        when "SAFETY"
+          finish_reason = "safety"
+        when "CITATION"
+          finish_reason = "recitation"
+        when "MALFORMED_FUNCTION_CALL"
+          # Gemini returned a malformed function call
+          # With Gemini 3+ models, this should rarely occur
+          Monadic::Utils::ExtraLogger.log {
+            finish_message = candidate["finishMessage"]
+            "[MALFORMED_FUNCTION_CALL]\n  finishMessage (first 300 chars): #{finish_message&.[](0..300)}"
+          }
+
+          # The calls that arrived whole before the malformed one are run;
+          # the model is asked again with their results.
+          if tool_calls.any?
+            finish_reason = "stop"
+            next
+          end
+
+          # If fragments were already streamed, complete the stream
+          if fragment_sequence > 0
+            res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+            block&.call res
+            return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => texts.join } }] }]
+          end
+
+          # Return error message
+          error_msg = "The model attempted an invalid function call. Please try again or switch to a different model."
+          res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+          block&.call res
+          return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }])
+        else
+          finish_reason = nil
+        end
+
+        content = candidate["content"]
+
+        next if (content.nil? || finish_reason == "recitation" || finish_reason == "safety")
+
+        content["parts"]&.each do |part|
+          # Process grounding metadata for web search results (part level)
+          if @grounding_html.nil? && (part["grounding_metadata"] || json_obj["groundingMetadata"])
+            grounding_data = part["grounding_metadata"] || json_obj["groundingMetadata"]
+            @grounding_html = build_grounding_metadata_html(grounding_data, source: "part")
+            json_obj.delete("groundingMetadata") if json_obj["groundingMetadata"]
+          end
+          
+          # Check if this part contains thinking content
+          if part["thought"] == true && part["text"]
+            thinking_fragment = part["text"]
+            thinking_parts << thinking_fragment
+            
+            # Send thinking content as a special type (similar to Claude)
+            res = {
+              "type" => "thinking",
+              "content" => thinking_fragment
+            }
+            block&.call res
+            # Skip thinking content - it's internal reasoning, not output
+            next
+          end
+          
+          # Also check for modelThinking field (alternative format)
+          if part["modelThinking"] && part["modelThinking"]["thought"]
+            thinking_fragment = part["modelThinking"]["thought"]
+            thinking_parts << thinking_fragment
+            
+            res = {
+              "type" => "thinking",
+              "content" => thinking_fragment
+            }
+            block&.call res
+            # Skip this part
+            next
+          end
+          
+          if part["text"]
+            fragment = process_gemini_stream_part(part["text"], session: session, is_media_generator: is_media_generator)
+            next if fragment.nil?
+
+            texts << fragment
+
+            if fragment.length > 0
+              res = {
+                "type" => "fragment",
+                "content" => fragment,
+                "sequence" => fragment_sequence,
+                "timestamp" => Time.now.to_f,
+                "is_first" => fragment_sequence == 0
+              }
+              fragment_sequence += 1
+              block&.call res
+            end
+
+          elsif part["functionCall"]
+
+            fc = part["functionCall"].dup
+            # Gemini 3 returns a thoughtSignature as a sibling of functionCall.
+            # It must be echoed back verbatim on the reconstructed model turn or
+            # the follow-up request is rejected. Carried on an internal key so
+            # name/args consumers are unaffected.
+            fc["_thoughtSignature"] = part["thoughtSignature"] if part["thoughtSignature"]
+            tool_calls << fc
+            res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+            block&.call res
+          end
+        end
       end
-      
-    rescue StandardError => e
-      # Log error but continue processing
-      Monadic::Utils::ExtraLogger.log { "[Gemini] Error processing JSON data chunk: #{e.message}" }
     end
+
+    catch(:gemini_stream_end) do
+      read = lambda do |data, _event|
+        throw :gemini_stream_end if finish_reason == "stop"
+
+        json_obj = JSON.parse(data)
+        if json_obj["error"]
+          stream_error = json_obj["error"].is_a?(Hash) ? json_obj["error"]["message"] : json_obj["error"]
+          Monadic::Utils::ExtraLogger.log { "[Gemini] streaming error record: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(stream_error.to_s)}" }
+          throw :gemini_stream_end
+        end
+        handle.call(json_obj)
+      rescue JSON::ParserError
+        Monadic::Utils::ExtraLogger.log { "[Gemini] Unreadable record skipped (#{data.bytesize} bytes)" }
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[Gemini] Error processing JSON data chunk: #{e.message}" }
+      end
+
+      res.each { |chunk| records.feed(chunk, &read) }
+      records.finish(&read)
+    end
+
+    return StreamRecords.error_reply("Gemini", stream_error, &block) if stream_error
 
 
     result = []

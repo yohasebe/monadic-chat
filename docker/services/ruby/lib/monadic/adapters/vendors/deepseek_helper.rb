@@ -395,212 +395,170 @@ module DeepSeekHelper
 
     is_json = obj["json"].to_s == "true"
 
-    buffer = String.new.force_encoding("UTF-8")
     texts = {}
     tools = {}
+    tool_ids_by_index = {}
     finish_reason = nil
     fragment_sequence = 0
     @dsml_abort_streaming = false  # Flag for early abort on malformed DSML
 
     chunk_count = 0
-    res.each do |chunk|
-      # Check for early abort flag (set when malformed DSML detected)
-      break if @dsml_abort_streaming
+    stream_error = nil
+    records = StreamRecords.new(:sse)
 
-      begin
-        chunk_count += 1
-        chunk = chunk.force_encoding("UTF-8")
-        buffer << chunk
+    # Each record of the stream: one JSON object per data line.
+    handle = lambda do |json|
 
-        # Debug: Log first few chunks
-        if chunk_count <= 3
-          Monadic::Utils::ExtraLogger.log { "Chunk #{chunk_count}: #{chunk[0..100]}" }
-        end
+      Monadic::Utils::ExtraLogger.log { JSON.pretty_generate(json) }
 
-        if buffer.valid_encoding? == false
-          next
-        end
+      # Process finish reason
+      finish_reason = json.dig("choices", 0, "finish_reason")
+      DebugHelper.debug("DeepSeek finish_reason: #{finish_reason}", category: :api, level: :verbose) if finish_reason
+      
+      case finish_reason
+      when "length"
+        finish_reason = "length"
+      when "stop"
+        finish_reason = "stop"
+      when "tool_calls"
+        finish_reason = "function_call"
+        DebugHelper.debug("DeepSeek detected tool_calls finish reason", category: :api, level: :debug)
+      else
+        finish_reason = nil
+      end
 
-        # [DONE] ends the stream once what came with it has been read.
-        done = begin
-          /\Rdata: \[DONE\]\R/.match?(buffer)
-        rescue StandardError
-          next
-        end
-
-        buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
-        buffer.encode!("UTF-8", "UTF-16")
-
-        scanner = StringScanner.new(buffer)
-        # One event is one line ending in a newline (JSON escapes the newlines
-        # inside it). An event whose line has not fully arrived stays in the
-        # buffer for the next chunk: a chunk can end anywhere, also right
-        # after a "}" inside the event.
-        pattern = /data: (\{.*?\})(?=\n)/
+      # Process text content
+      if json.dig("choices", 0, "delta")
+        delta = json["choices"][0]["delta"]
         
-        until scanner.eos?
-          matched = scanner.scan_until(pattern)
-          if matched
-            json_data = scanner[1]
-            begin
-              json = JSON.parse(json_data)
+        if delta["reasoning_content"]
+          id = json["id"]
+          texts[id] ||= json
+          choice = texts[id]["choices"][0]
+          choice["message"] ||= delta.except("content", "reasoning_content")
+          choice["message"]["reasoning_content"] ||= ""
+          choice["message"]["content"] ||= ""
 
-              Monadic::Utils::ExtraLogger.log { JSON.pretty_generate(json) }
+          fragment = delta["reasoning_content"].to_s
+          choice["message"]["reasoning_content"] << fragment
 
-              # Process finish reason
-              finish_reason = json.dig("choices", 0, "finish_reason")
-              DebugHelper.debug("DeepSeek finish_reason: #{finish_reason}", category: :api, level: :verbose) if finish_reason
-              
-              case finish_reason
-              when "length"
-                finish_reason = "length"
-              when "stop"
-                finish_reason = "stop"
-              when "tool_calls"
-                finish_reason = "function_call"
-                DebugHelper.debug("DeepSeek detected tool_calls finish reason", category: :api, level: :debug)
-              else
-                finish_reason = nil
-              end
+          res = {
+            "type" => "thinking",
+            "content" => fragment
+          }
+          block&.call res
 
-              # Process text content
-              if json.dig("choices", 0, "delta")
-                delta = json["choices"][0]["delta"]
-                
-                if delta["reasoning_content"]
-                  id = json["id"]
-                  texts[id] ||= json
-                  choice = texts[id]["choices"][0]
-                  choice["message"] ||= delta.except("content", "reasoning_content")
-                  choice["message"]["reasoning_content"] ||= ""
-                  choice["message"]["content"] ||= ""
+          texts[id]["choices"][0].delete("delta")
+        elsif delta["content"]
+          id = json["id"]
+          texts[id] ||= json
+          choice = texts[id]["choices"][0]
+          choice["message"] ||= delta.except("content", "reasoning_content")
+          choice["message"]["content"] ||= ""
 
-                  fragment = delta["reasoning_content"].to_s
-                  choice["message"]["reasoning_content"] << fragment
+          fragment = delta["content"].to_s
+          choice["message"]["content"] << fragment
 
-                  res = {
-                    "type" => "thinking",
-                    "content" => fragment
-                  }
-                  block&.call res
+          # Check if DeepSeek is outputting function calls as text (DSML or JSON format)
+          if choice["message"]["content"].include?("<｜DSML｜") || choice["message"]["content"].include?("<|DSML|")
+            # DeepSeek is outputting function calls in DSML format, don't send fragments
+            # We'll handle this after the full message is received
 
-                  texts[id]["choices"][0].delete("delta")
-                elsif delta["content"]
-                  id = json["id"]
-                  texts[id] ||= json
-                  choice = texts[id]["choices"][0]
-                  choice["message"] ||= delta.except("content", "reasoning_content")
-                  choice["message"]["content"] ||= ""
+            # Early detection of malformed DSML loop pattern
+            # If we see multiple function_calls blocks, the model is stuck in a loop
+            dsml_fc_count = choice["message"]["content"].scan(/<[｜|]DSML[｜|]function_calls>/).length
+            dsml_invoke_count = choice["message"]["content"].scan(/<[｜|]DSML[｜|]invoke/).length
 
-                  fragment = delta["content"].to_s
-                  choice["message"]["content"] << fragment
+            # Abort early if we detect loop patterns:
+            # 1. More than 2 function_calls blocks (should only be 1)
+            # 2. More than 3 invoke tags without corresponding closing tags
+            content_so_far = choice["message"]["content"]
+            invoke_close_count = content_so_far.scan(/<[｜|]DSML[｜|]\/invoke>/).length +
+                                content_so_far.scan(/<\/[｜|]DSML[｜|]invoke>/).length
 
-                  # Check if DeepSeek is outputting function calls as text (DSML or JSON format)
-                  if choice["message"]["content"].include?("<｜DSML｜") || choice["message"]["content"].include?("<|DSML|")
-                    # DeepSeek is outputting function calls in DSML format, don't send fragments
-                    # We'll handle this after the full message is received
-
-                    # Early detection of malformed DSML loop pattern
-                    # If we see multiple function_calls blocks, the model is stuck in a loop
-                    dsml_fc_count = choice["message"]["content"].scan(/<[｜|]DSML[｜|]function_calls>/).length
-                    dsml_invoke_count = choice["message"]["content"].scan(/<[｜|]DSML[｜|]invoke/).length
-
-                    # Abort early if we detect loop patterns:
-                    # 1. More than 2 function_calls blocks (should only be 1)
-                    # 2. More than 3 invoke tags without corresponding closing tags
-                    content_so_far = choice["message"]["content"]
-                    invoke_close_count = content_so_far.scan(/<[｜|]DSML[｜|]\/invoke>/).length +
-                                        content_so_far.scan(/<\/[｜|]DSML[｜|]invoke>/).length
-
-                    if dsml_fc_count > 2 || (dsml_invoke_count > 3 && invoke_close_count == 0)
-                      # Abort streaming early - model is in infinite loop
-                      Monadic::Utils::ExtraLogger.log { "!!! EARLY ABORT: Detected DSML infinite loop during streaming !!!\n  function_calls blocks: #{dsml_fc_count}, invoke tags: #{dsml_invoke_count}, close tags: #{invoke_close_count}\n  Aborting stream to prevent long wait" }
-                      # Set a flag to break out of the streaming loop
-                      @dsml_abort_streaming = true
-                      break
-                    end
-                  elsif choice["message"]["content"] =~ /```json\s*\n?\s*\{.*"name"\s*:\s*"(tavily_search|tavily_fetch)"/m
-                    # DeepSeek is outputting function calls as JSON text, don't send fragments
-                    # We'll handle this after the full message is received
-                  elsif is_json
-                    # Suppress fragments for json mode only - content will be processed after completion
-                    # The raw JSON fragments should not be shown to the user
-                  elsif fragment.length > 0
-                    res = {
-                      "type" => "fragment",
-                      "content" => fragment,
-                      "sequence" => fragment_sequence,
-                      "timestamp" => Time.now.to_f,
-                      "is_first" => fragment_sequence == 0
-                    }
-                    fragment_sequence += 1
-                    block&.call res
-                  end
-
-                  texts[id]["choices"][0].delete("delta")
-                end
-
-                # Process tool calls
-                if delta["tool_calls"]
-                  DebugHelper.debug("DeepSeek tool call detected: #{delta["tool_calls"].inspect}", category: :api, level: :debug)
-                  DebugHelper.debug("Full JSON at tool call: #{json.inspect}", category: :api, level: :verbose)
-                  
-                  res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-                  block&.call res
-
-                  tid = json.dig("choices", 0, "delta", "tool_calls", 0, "id")
-
-                  if tid
-                    # Clone the json object
-                    tools[tid] = JSON.parse(JSON.generate(json))
-                    tools[tid]["choices"][0]["message"] ||= {}
-                    tools[tid]["choices"][0]["message"]["role"] = "assistant"
-                    tools[tid]["choices"][0]["message"]["content"] = ""
-                    tools[tid]["choices"][0]["message"]["tool_calls"] ||= []
-                    
-                    # Copy the tool call info from delta
-                    tool_call_delta = json.dig("choices", 0, "delta", "tool_calls", 0)
-                    if tool_call_delta
-                      new_tool_call = {
-                        "id" => tool_call_delta["id"],
-                        "type" => tool_call_delta["type"] || "function",
-                        "function" => {
-                          "name" => tool_call_delta.dig("function", "name") || "",
-                          "arguments" => tool_call_delta.dig("function", "arguments") || ""
-                        }
-                      }
-                      tools[tid]["choices"][0]["message"]["tool_calls"] << new_tool_call
-                    end
-                    
-                    tools[tid]["choices"][0].delete("delta")
-                  else
-                    # Accumulate arguments for existing tool call
-                    new_tool_call = json.dig("choices", 0, "delta", "tool_calls", 0)
-                    if tools.values.any? && new_tool_call && new_tool_call.dig("function", "arguments")
-                      last_tool = tools.values.last
-                      if last_tool && last_tool.dig("choices", 0, "message", "tool_calls", 0)
-                        last_tool["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"] += new_tool_call["function"]["arguments"]
-                      end
-                    end
-                  end
-                end
-              end
-            rescue JSON::ParserError => e
-              Monadic::Utils::ExtraLogger.log { "[DeepSeek] JSON parse error: #{e.message}" }
+            if dsml_fc_count > 2 || (dsml_invoke_count > 3 && invoke_close_count == 0)
+              # Abort streaming early - model is in infinite loop
+              Monadic::Utils::ExtraLogger.log { "!!! EARLY ABORT: Detected DSML infinite loop during streaming !!!\n  function_calls blocks: #{dsml_fc_count}, invoke tags: #{dsml_invoke_count}, close tags: #{invoke_close_count}\n  Aborting stream to prevent long wait" }
+              # Set a flag to break out of the streaming loop
+              @dsml_abort_streaming = true
+              throw :deepseek_stream_end
             end
-          else
-            break
+          elsif choice["message"]["content"] =~ /```json\s*\n?\s*\{.*"name"\s*:\s*"(tavily_search|tavily_fetch)"/m
+            # DeepSeek is outputting function calls as JSON text, don't send fragments
+            # We'll handle this after the full message is received
+          elsif is_json
+            # Suppress fragments for json mode only - content will be processed after completion
+            # The raw JSON fragments should not be shown to the user
+          elsif fragment.length > 0
+            res = {
+              "type" => "fragment",
+              "content" => fragment,
+              "sequence" => fragment_sequence,
+              "timestamp" => Time.now.to_f,
+              "is_first" => fragment_sequence == 0
+            }
+            fragment_sequence += 1
+            block&.call res
+          end
+
+          texts[id]["choices"][0].delete("delta")
+        end
+
+        # Process tool calls
+        if delta["tool_calls"]
+          DebugHelper.debug("DeepSeek tool call detected: #{delta["tool_calls"].inspect}", category: :api, level: :debug)
+          DebugHelper.debug("Full JSON at tool call: #{json.inspect}", category: :api, level: :verbose)
+          
+          res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+          block&.call res
+
+          # Several calls can come in one delta; each has its index, and the
+          # later parts of its arguments come with the same index.
+          Array(delta["tool_calls"]).each_with_index do |tool_call_delta, position|
+            index = tool_call_delta["index"] || position
+            if (tid = tool_call_delta["id"])
+              tool_ids_by_index[index] = tid
+              tools[tid] = { "choices" => [{ "message" => {
+                "role" => "assistant", "content" => "",
+                "tool_calls" => [{ "id" => tid, "type" => tool_call_delta["type"] || "function",
+                                   "function" => { "name" => tool_call_delta.dig("function", "name") || "",
+                                                   "arguments" => tool_call_delta.dig("function", "arguments") || "" } }]
+              } }] }
+            elsif (more = tool_call_delta.dig("function", "arguments"))
+              call = tools[tool_ids_by_index[index]] || tools.values.last
+              call&.dig("choices", 0, "message", "tool_calls", 0, "function")&.then { |f| f["arguments"] += more }
+            end
           end
         end
-
-        buffer = scanner.rest
-        break if done
-
-      rescue StandardError => e
-        Monadic::Utils::ExtraLogger.log { "[DeepSeek] Streaming error: #{e.message}\n#{e.backtrace&.first(3)&.join("\n")}" }
-        next
       end
     end
+
+    catch(:deepseek_stream_end) do
+      read = lambda do |data, _event|
+        throw :deepseek_stream_end if data.strip == "[DONE]"
+
+        json = JSON.parse(data)
+        if json["error"]
+          stream_error = json["error"].is_a?(Hash) ? json["error"]["message"] : json["error"]
+          Monadic::Utils::ExtraLogger.log { "[DeepSeek] streaming error record: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(stream_error.to_s)}" }
+          throw :deepseek_stream_end
+        end
+        handle.call(json)
+      rescue JSON::ParserError => e
+        Monadic::Utils::ExtraLogger.log { "[DeepSeek] JSON parse error: #{e.message}" }
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[DeepSeek] Streaming error: #{e.message}\n#{e.backtrace&.first(3)&.join("\n")}" }
+      end
+
+      res.each do |chunk|
+        chunk_count += 1
+        Monadic::Utils::ExtraLogger.log { "Chunk #{chunk_count}: #{chunk.to_s.byteslice(0, 100).scrub}" } if chunk_count <= 3
+        records.feed(chunk, &read)
+      end
+      records.finish(&read)
+    end
+
+    return StreamRecords.error_reply("DeepSeek", stream_error, &block) if stream_error
 
     Monadic::Utils::ExtraLogger.log do
       msg = "Total chunks received: #{chunk_count}"
@@ -1077,8 +1035,9 @@ module DeepSeekHelper
 
       DebugHelper.debug("DeepSeek tools before processing: #{tools.inspect}", category: :api, level: :verbose)
 
-      tools_data = tools.first[1].dig("choices", 0, "message", "tool_calls")
-      tools_data = [tools_data] if tools_data && !tools_data.is_a?(Array)
+      # Every call of the round: one entry per call from the stream, or one
+      # entry holding them all when they were written as text.
+      tools_data = tools.values.flat_map { |t| Array(t.dig("choices", 0, "message", "tool_calls")) }
 
       DebugHelper.debug("DeepSeek tools_data after processing: #{tools_data.inspect}", category: :api, level: :debug)
 

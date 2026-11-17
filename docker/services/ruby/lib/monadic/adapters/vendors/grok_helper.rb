@@ -642,7 +642,7 @@ module GrokHelper
       (session[:pending_tool_images] ||= []).concat(result.images)
       content_str = JSON.generate(result.without_private_keys)
     else
-      content_str = function_return.to_s
+      content_str = function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
     end
 
     tool_result = { "call_id" => tool_call["id"], "name" => function_name, "content" => content_str }
@@ -1759,6 +1759,9 @@ module GrokHelper
 
     # Post-process Grok's response to replace incorrect filenames and fix image paths
     postprocess_grok_response(new_results, obj)
+
+    # A request that failed ends the reply as its error, not as a success.
+    return new_results if new_results.is_a?(Array) && new_results.first.is_a?(Hash) && new_results.first["type"] == "error"
 
     # If Grok returns empty or inadequate response after tool execution, provide a fallback
     content_check = new_results&.dig(0, "choices", 0, "message", "content").to_s.strip

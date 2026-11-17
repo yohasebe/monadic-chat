@@ -3197,6 +3197,9 @@ module GeminiHelper
 
   # Assemble the final result combining initial text with tool call results
   def assemble_gemini_final_result(result:, new_results:, tool_calls:, session:, &block)
+    # A request that failed ends the reply as its error, not as its text.
+    return new_results if new_results.is_a?(Array) && new_results.first.is_a?(Hash) && new_results.first["type"] == "error"
+
     begin
       # More robust handling of different response structures
       # In a chat with a word table, each part of the reply is put back with

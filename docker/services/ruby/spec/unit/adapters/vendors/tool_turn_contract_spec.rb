@@ -57,14 +57,25 @@ RSpec.describe "A turn with a tool call (every provider)" do
     stub_const("CONFIG", CONFIG.merge(key => "k").compact) if key
     allow(OllamaHelper).to receive(:find_endpoint).and_return("http://localhost:11434/api")
     allow(OllamaHelper).to receive(:fetch_model_capabilities).and_return({ capabilities: %w[completion tools] })
-    answers = (answers || [format.calls([["first_tool", {}]]), format.text(["Done."])]).map { |a| encode(kind, a) }
+    # An answer is the model's stream, or an HTTP error ({ status:, body: }).
+    answers = (answers || [format.calls([["first_tool", {}]]), format.text(["Done."])]).map do |a|
+      a.is_a?(Hash) ? a : encode(kind, a)
+    end
     bodies = []
     chain = double("http")
     %i[timeout headers via].each { |m| allow(chain).to receive(m).and_return(chain) }
     allow(chain).to receive(:post) do |_uri, json:|
       bodies << JSON.parse(JSON.generate(json))
-      lines = [answers.shift || answers.last]
-      body = Object.new.tap { |o| o.define_singleton_method(:each) { |&blk| lines.each { |l| blk.call(l.dup) } } }
+      # The last answer is given again to every later request (a retry).
+      answer = answers.length > 1 ? answers.shift : answers.first
+      if answer.is_a?(Hash)
+        next double("res", status: HTTP::Response::Status.new(answer[:status]), body: answer[:body], code: answer[:status], headers: {})
+      end
+
+      body = Object.new.tap do |o|
+        o.define_singleton_method(:each) { |&blk| blk.call(answer.dup) }
+        o.define_singleton_method(:to_s) { answer.dup }
+      end
       double("res", status: HTTP::Response::Status.new(200), body: body, code: 200, headers: {})
     end
     allow(chain).to receive(:get) do
@@ -100,6 +111,19 @@ RSpec.describe "A turn with a tool call (every provider)" do
     it "#{name}: sends the turn's message with its suffix in both requests" do
       bodies, = turn(name)
       expect(bodies.map { |b| JSON.generate(b).include?(SUFFIX) }).to eq([true, true])
+    end
+
+    it "#{name}: ends the reply as the error of the request that sends the result back" do
+      format = PROVIDERS.fetch(name)[3]
+      # Grok sends a round's results back without streaming: its error is the HTTP response's.
+      failure = if name == "Grok"
+                  { status: 503, body: JSON.generate({ "error" => { "message" => "the service is overloaded" } }) }
+                else
+                  [format.error("the service is overloaded")]
+                end
+      turn(name, answers: [format.calls([["first_tool", {}]]), failure])
+      error = Array(@reply).find { |r| r.is_a?(Hash) && r["type"] == "error" }
+      expect(error&.dig("content")).to include("the service is overloaded"), "reply: #{@reply.inspect[0, 400]}"
     end
 
     it "#{name}: sends the greeting, which has no user message, without the suffix" do

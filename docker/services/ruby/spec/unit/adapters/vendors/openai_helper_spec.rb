@@ -182,19 +182,8 @@ RSpec.describe OpenAIHelper do
       }
     end
 
-    let(:tools_hash) do
-      [[
-        'call_round2',
-        {
-          'choices' => [{
-            'message' => {
-              'role' => 'assistant',
-              'content' => nil,
-              'tool_calls' => [{ 'id' => 'call_round2', 'function' => { 'name' => 'second_tool', 'arguments' => '{}' } }]
-            }
-          }]
-        }
-      ]]
+    let(:tool_calls) do
+      [{ 'id' => 'call_round2', 'function' => { 'name' => 'second_tool', 'arguments' => '{}' } }]
     end
 
     before do
@@ -205,7 +194,7 @@ RSpec.describe OpenAIHelper do
     end
 
     it 'starts with an empty context when no previous function_returns exist' do
-      helper.send(:assemble_openai_chat_tool_results, 'TestApp', session, tools_hash, nil)
+      helper.send(:assemble_openai_chat_tool_results, 'TestApp', session, tool_calls, nil)
       expect(@captured_context.length).to eq(1)
       expect(@captured_context.first['role']).to eq('assistant')
     end
@@ -218,7 +207,7 @@ RSpec.describe OpenAIHelper do
       ]
       session[:parameters]['function_returns'] = previous_returns
 
-      helper.send(:assemble_openai_chat_tool_results, 'TestApp', session, tools_hash, nil)
+      helper.send(:assemble_openai_chat_tool_results, 'TestApp', session, tool_calls, nil)
 
       # Round 1 (assistant + tool) + Round 2 assistant = 3 entries.
       expect(@captured_context.length).to eq(3)
@@ -234,7 +223,7 @@ RSpec.describe OpenAIHelper do
       session[:parameters]['function_returns'] = previous_returns
       original_length = previous_returns.length
 
-      helper.send(:assemble_openai_chat_tool_results, 'TestApp', session, tools_hash, nil)
+      helper.send(:assemble_openai_chat_tool_results, 'TestApp', session, tool_calls, nil)
 
       expect(session[:parameters]['function_returns'].length).to eq(original_length)
     end
@@ -244,7 +233,7 @@ RSpec.describe OpenAIHelper do
       allow(helper).to receive(:process_functions).and_return(stop)
       session[:parameters]["stop_retrying"] = true
 
-      result = helper.send(:assemble_openai_chat_tool_results, 'TestApp', session, tools_hash, nil)
+      result = helper.send(:assemble_openai_chat_tool_results, 'TestApp', session, tool_calls, nil)
 
       expect(result).to eq(stop)
     end

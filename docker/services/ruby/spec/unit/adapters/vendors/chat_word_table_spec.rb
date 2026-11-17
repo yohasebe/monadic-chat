@@ -43,6 +43,19 @@ RSpec.describe "A chat with a word table on a chat-shaped vendor" do
       expect(hidden["content"]).to be_nil
       expect(hidden.dig("tool_calls", 0, "function", "arguments")).to eq("who" => "<<PERSON_1>>")
     end
+
+    it "sends Ollama's thinking and a reasoning item's summary as the model wrote them" do
+      snapshot = table.snapshot
+      budget = Monadic::Utils::Privacy::WordTable::Budget.new
+      thought = { "role" => "assistant", "content" => "", "thinking" => "Ask Ada Lovelace",
+                  "tool_calls" => [{ "function" => { "name" => "f", "arguments" => {} } }] }
+      expect(helper.hide_words_in_item(thought, snapshot, budget)["thinking"]).to eq("Ask <<PERSON_1>>")
+      item = { "type" => "reasoning", "summary" => [{ "type" => "summary_text", "text" => "About Ada Lovelace" }],
+               "encrypted_content" => "opaque" }
+      hidden = helper.hide_words_in_item(item, snapshot, budget)
+      expect(hidden["summary"]).to eq([{ "type" => "summary_text", "text" => "About <<PERSON_1>>" }])
+      expect(hidden["encrypted_content"]).to eq("opaque")
+    end
   end
 
   shared_examples "a round of tool calls" do |tools_in_parameters: false|

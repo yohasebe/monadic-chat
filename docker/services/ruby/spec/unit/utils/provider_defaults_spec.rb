@@ -142,7 +142,7 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
     end
 
     it '.default_video_model for gemini returns Gemini Omni (Veo 3.1 stops 2026-10-22)' do
-      expect(described_class.default_video_model("gemini")).to eq("gemini-omni-1.1-flash")
+      expect(described_class.default_video_model("gemini")).to eq("gemini-omni-1.2-flash")
     end
 
     it '.default_image_model for xai returns grok-imagine-image' do

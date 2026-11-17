@@ -61,6 +61,25 @@ describe('chat model dropdown filter', () => {
     });
   });
 
+  it('keeps a chat model that can also transcribe', () => {
+    withSpec({ 'flash-chat': { context_window: [1048576], tool_capability: true, stt_capability: true } });
+
+    expect(listModels(['flash-chat'])).toContain('flash-chat');
+  });
+
+  // The first chat model of each provider is the default of every app that
+  // names no model; if the list dropped it, the next model (often a pricier
+  // one) would be used instead without a word.
+  it('keeps every provider\'s default chat model, with the real catalog', () => {
+    const catalog = require('../../docker/services/ruby/public/js/monadic/model_spec.js');
+    withSpec(catalog);
+    Object.entries(catalog.providerDefaults).forEach(([provider, kinds]) => {
+      if (provider === 'ollama' || !kinds.chat) return;
+      const first = kinds.chat[0];
+      expect([provider, listModels(kinds.chat).includes(`value="${first}"`)]).toEqual([provider, true]);
+    });
+  });
+
   it('drops them in the OpenAI grouped layout too', () => {
     withSpec({ 'gpt-realtime-whisper': { supports_realtime_streaming: true } });
 

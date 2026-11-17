@@ -48,6 +48,7 @@
     - The reasoning effort chosen for a Claude model is used
     - A reply no longer shows reasoning from another chat
     - The thinking level chosen for a Gemini model is used
+    - Gemini apps start with their default model, Gemini 3.8 Flash, instead of Gemini 4 Argon
     - The reasoning effort chosen for a DeepSeek model is used, and DeepSeek reasoning can be turned off
     - Claude Fable models work in the apps that consult an advisor
     - Looking through folders one after another no longer stops a reply as a repeated tool call

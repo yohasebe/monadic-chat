@@ -52,6 +52,7 @@ module ToolRun
   def run_tool_call(app, session, function_name, arguments, call_id:, error_text:, refuse: nil, amend: nil, &block)
     settings = APPS[app]&.settings
     given = arguments
+    ErrorPatternDetector.note_arguments(session, function_name, arguments)
     value = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name) || refuse&.call ||
             ErrorPatternDetector.repeat_refusal(session, function_name, arguments)
     value ||= begin

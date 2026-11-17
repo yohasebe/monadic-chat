@@ -16,7 +16,7 @@ RSpec.describe DeepSeekHelper do
     allow(Monadic::Utils::ModelSpec).to receive(:get_model_property)
       .with(switch_model, "reasoning_content").and_return(%w[disabled enabled])
     allow(Monadic::Utils::ModelSpec).to receive(:get_model_property)
-      .with(switch_model, "reasoning_effort").and_return(%w[high max])
+      .with(switch_model, "reasoning_effort").and_return([%w[none low high max], "high"])
     allow(Monadic::Utils::ModelSpec).to receive(:get_model_property)
       .with(plain_model, "reasoning_content").and_return(nil)
   end
@@ -28,19 +28,27 @@ RSpec.describe DeepSeekHelper do
       body
     end
 
-    it "turns thinking on with an effort the spec lists" do
-      body = configured({ "model" => switch_model, "reasoning_effort" => "max" })
-      expect(body["thinking"]).to eq({ "type" => "enabled", "reasoning_effort" => "max" })
+    it "turns thinking on and sends an effort the spec lists beside it" do
+      body = configured({ "model" => switch_model, "reasoning_effort" => "low" })
+      expect(body["thinking"]).to eq({ "type" => "enabled" })
+      expect(body["reasoning_effort"]).to eq("low")
     end
 
     it "leaves out an effort the spec does not list" do
-      body = configured({ "model" => switch_model, "reasoning_effort" => "low" })
-      expect(body["thinking"]).to eq({ "type" => "enabled" })
+      body = configured({ "model" => switch_model, "reasoning_effort" => "medium" })
+      expect(body).not_to have_key("reasoning_effort")
     end
 
     it "turns thinking off when reasoning_content is disabled" do
       body = configured({ "model" => switch_model, "reasoning_content" => "disabled", "reasoning_effort" => "max" })
       expect(body["thinking"]).to eq({ "type" => "disabled" })
+      expect(body).not_to have_key("reasoning_effort")
+    end
+
+    it "turns thinking off for effort none" do
+      body = configured({ "model" => switch_model, "reasoning_effort" => "none" })
+      expect(body["thinking"]).to eq({ "type" => "disabled" })
+      expect(body).not_to have_key("reasoning_effort")
     end
 
     it "sends no thinking setting for a model without the switch, by name or otherwise" do

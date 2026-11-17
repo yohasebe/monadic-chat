@@ -1447,7 +1447,7 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "reasoning_content": ["disabled", "enabled"],
-    "reasoning_effort": ["high", "max"]
+    "reasoning_effort": [["none", "low", "high", "max"], "high"]
   },
   // V4 series: unified models with thinking/non-thinking mode toggle
   "deepseek-v4-flash": {
@@ -1461,7 +1461,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "reasoning_content": ["disabled", "enabled"],
-    "reasoning_effort": ["high", "max"]
+    "reasoning_effort": [["none", "low", "high", "max"], "high"]
   },
   "deepseek-v4-pro": {
     "context_window" : [1, 1000000],
@@ -1472,7 +1472,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "reasoning_content": ["disabled", "enabled"],
-    "reasoning_effort": ["high", "max"]
+    "reasoning_effort": [["none", "low", "high", "max"], "high"]
   },
   // DeepSeek's only vision model. The "-exp" is the vendor's own marker for an
   // experimental release, so it is offered for image input but kept out of the
@@ -1494,7 +1494,7 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "reasoning_content": ["disabled", "enabled"],
-    "reasoning_effort": ["high", "max"]
+    "reasoning_effort": [["none", "low", "high", "max"], "high"]
   },
   // Ollama models (local inference)
   // NOTE: Ollama model capabilities are normally fetched dynamically via

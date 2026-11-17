@@ -783,6 +783,13 @@ const WorkflowViewer = (function () {
     });
   }
 
+  // The scale at which the diagram's text is as large as the page's: a small
+  // diagram fitted to the panel grows no larger than that.
+  function pageTextScale() {
+    var bodyPx = parseFloat(window.getComputedStyle(document.body).fontSize) || 14;
+    return bodyPx / FONT_SIZE;
+  }
+
   // Shows the whole diagram in the panel.
   function fitGraphToContainer() {
     if (!graph || !container) return;
@@ -795,7 +802,7 @@ const WorkflowViewer = (function () {
     var pad = 12;
     var sx = (cw - pad * 2) / bounds.width;
     var sy = (ch - pad * 2) / bounds.height;
-    placeGraph(Math.max(Math.min(sx, sy, 1.5), 0.15));
+    placeGraph(Math.max(Math.min(sx, sy, pageTextScale()), 0.15));
   }
 
   // ── Click handling ───────────────────────────────────────────

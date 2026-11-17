@@ -808,7 +808,7 @@ module MistralHelper
 
         tool_entry, _error_stop, images = invoke_mistral_tool_function(app, session, tool_call, function_name, &block)
         function_returns << tool_entry if tool_entry
-        pending_tool_images = images if images
+        (pending_tool_images ||= []).concat(images) if images
 
         # An image was put on the work screen: the reply ends after this
         # round is kept, and the calls not run are answered as such.

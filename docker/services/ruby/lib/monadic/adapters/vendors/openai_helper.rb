@@ -1993,7 +1993,7 @@ module OpenAIHelper
     end
 
     if result.images
-      pending_tool_images = result.images
+      pending_tool_images = Array(pending_tool_images) + result.images
       serialized = JSON.generate(result.without_private_keys)
     else
       serialized = function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s

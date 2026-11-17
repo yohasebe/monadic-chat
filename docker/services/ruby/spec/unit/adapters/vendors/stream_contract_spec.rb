@@ -253,6 +253,7 @@ RSpec.describe "Reading a streamed reply (every provider)" do
     session[:parameters].merge!("model" => "mistral-medium-latest", "message" => "Go",
                                 "context_size" => "5", "max_tokens" => "1000", "temperature" => "0.5")
     session[:messages] = [{ "role" => "system", "text" => "S", "active" => true }]
+    @session = session
     shown = +""
     error = nil
     @reply = helper.api_request("user", session) do |e|
@@ -275,7 +276,9 @@ RSpec.describe "Reading a streamed reply (every provider)" do
         [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "" } }] }]
       end
     end
+    allow(helper).to receive(:api_request).and_return([]) if @tool_app
     session = new_session
+    @session = session
     shown = +""
     error = nil
     sink = proc do |e|
@@ -364,6 +367,42 @@ RSpec.describe "Reading a streamed reply (every provider)" do
       end
       expect(@tool_app.ran).to eq(["first_tool"])
       expect(Monadic::Workbench::Offer.ended_reply?(@reply)).to be(true)
+    end
+  end
+
+  # Tools that each made an image for the model (a screenshot).
+  class ImageApp < OfferApp
+    def first_tool(**)
+      @ran << "first_tool"
+      { _image: "first.png", saved: true }
+    end
+
+    def second_tool(**)
+      @ran << "second_tool"
+      { _image: "second.png", saved: true }
+    end
+  end
+
+  readers.each do |name, (format, kind, reader)|
+    # DeepSeek's API takes no images.
+    next if name == "DeepSeek"
+
+    it "#{name}: gives the model the images of every call of a round" do
+      @chat = Monadic::Workspace::Ids.generate(:chat)
+      @tool_app = ImageApp.new(nil)
+      stub_const("APPS", { "SpecApp" => @tool_app })
+      stub_const("CONFIG", CONFIG.merge("MISTRAL_API_KEY" => "k")) if name == "Mistral"
+      allow(Monadic::Utils::ToolImageUtils).to receive(:encode_image_for_api) do |file|
+        { media_type: "image/png", base64_data: "IMAGE_OF_#{File.basename(file, '.png').upcase}" }
+      end
+      allow(OllamaHelper).to receive(:fetch_model_capabilities).and_return({ capabilities: %w[completion tools vision] })
+      reader.call(self, [encode(kind, format.calls(StreamContract::CALLS))])
+      # Sent with the results, or waiting to go with the next request.
+      sent = @session[:parameters].inspect
+      waiting = Array(@session[:pending_tool_images])
+      expect(@tool_app.ran).to eq(%w[first_tool second_tool])
+      expect(%w[first second].select { |n| sent.include?("IMAGE_OF_#{n.upcase}") || waiting.include?("#{n}.png") })
+        .to eq(%w[first second])
     end
   end
 end

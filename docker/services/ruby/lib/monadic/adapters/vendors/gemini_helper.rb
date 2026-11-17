@@ -3678,7 +3678,7 @@ module GeminiHelper
     else
       # Standard handling for other functions
       if function_return.is_a?(Hash) && function_return[:_image]
-        session[:pending_tool_images] = Array(function_return[:_image])
+        (session[:pending_tool_images] ||= []).concat(Array(function_return[:_image]))
         clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
         content = JSON.generate(clean_return)
       else

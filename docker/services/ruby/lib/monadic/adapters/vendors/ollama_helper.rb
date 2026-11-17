@@ -828,6 +828,7 @@ module OllamaHelper
     res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
     block&.call res
 
+    tool_images = []
     tool_calls.each_with_index do |tool_call, index|
       function_name = tool_call.dig("function", "name")
       next unless function_name
@@ -861,10 +862,12 @@ module OllamaHelper
         error_text: ->(e) { "ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}" }, &block
       )
       function_return = result.value
+      tool_images.concat(result.images) if result.images
+      returned = result.images ? result.without_private_keys : function_return
       context << {
         "role" => "tool",
         "tool_name" => function_name,
-        "content" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s,
+        "content" => returned.is_a?(Hash) || returned.is_a?(Array) ? JSON.generate(returned) : returned.to_s,
         "_look_call" => (made_id if !result.stop && function_return.is_a?(Monadic::Workbench::Look::Result))
       }.compact
 
@@ -878,6 +881,19 @@ module OllamaHelper
       end
       obj["function_returns"] = context
       return Monadic::Workbench::Offer.end_reply(offered, &block)
+    end
+
+    # Images a tool made for the model (a screenshot) go with the results,
+    # to a model that takes images.
+    if tool_images.any? && supports_vision?(obj["model"])
+      images = tool_images.filter_map do |name|
+        img = Monadic::Utils::ToolImageUtils.encode_image_for_api(name)
+        { "data" => "data:#{img[:media_type]};base64,#{img[:base64_data]}" } if img
+      end
+      if images.any?
+        context << { "role" => "user", "content" => "[Tool-generated image. Verify the visual output before presenting results.]",
+                     "images" => images }
+      end
     end
 
     obj["function_returns"] = context
@@ -901,6 +917,12 @@ module OllamaHelper
     return true unless model_name.is_a?(String)
     caps = OllamaHelper.fetch_model_capabilities(model_name)
     caps ? caps[:capabilities].include?("tools") : true
+  end
+
+  # Whether an Ollama model takes images (the vision capability).
+  def supports_vision?(model_name)
+    caps = model_name.is_a?(String) && OllamaHelper.fetch_model_capabilities(model_name)
+    caps ? caps[:capabilities].include?("vision") : false
   end
 
   # Detect whether an Ollama model supports the `think:true` parameter.

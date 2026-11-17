@@ -744,7 +744,15 @@ const WorkflowViewer = (function () {
           var fromCell = cellMap[fe.from], inputCell = cellMap[fe.to];
           if (fromCell && inputCell && fromCell.geometry && inputCell.geometry) {
             var fg = fromCell.geometry, ig = inputCell.geometry;
-            var leftX = Math.min(fg.x, ig.x) - 40 - idx * 20;
+            // The line goes up left of every box beside its way, so it
+            // crosses none.
+            var top = Math.min(fg.y, ig.y), bottom = Math.max(fg.y + fg.height, ig.y + ig.height);
+            var leftEdge = Object.keys(cellMap).reduce(function (x, id) {
+              var g = cellMap[id].geometry;
+              if (!g || g.y > bottom || g.y + g.height < top) return x;
+              return Math.min(x, g.x);
+            }, Math.min(fg.x, ig.x));
+            var leftX = leftEdge - 20 - idx * 16;
             var fbStyle = edgeStyle(true, false, {
               exitX: 0, exitY: 0.5,
               entryX: 0, entryY: 0.5

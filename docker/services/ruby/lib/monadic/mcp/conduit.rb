@@ -1897,7 +1897,7 @@ module Monadic
       def invoke_image_generator(provider, prompt:, aspect_ratio:, size:)
         case provider
         when "openai"
-          model = Monadic::Utils::ModelSpec.default_image_model("openai") || "gpt-image-2"
+          model = Monadic::Utils::ModelSpec.default_image_model("openai") || "gpt-image-2.5-flare"
           media_app_host.generate_image_with_openai(
             operation: "generate", model: model, prompt: prompt, size: (size || "1024x1024"), n: 1
           )

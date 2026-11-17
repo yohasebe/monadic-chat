@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Generates a video with Gemini Omni (gemini-omni-1.1-flash) and saves it in
+# Generates a video with Gemini Omni (gemini-omni-1.2-flash) and saves it in
 # the shared folder. The request itself is Monadic::Utils::GeminiOmniVideo;
 # this script reads the arguments, checks the image path, and prints one JSON
 # line on stdout (messages go to stderr).
@@ -28,7 +28,7 @@ end
 DATA_PATHS = ["/monadic/data/", "#{Dir.home}/monadic/data/"].freeze
 VALID_ASPECT_RATIOS = Monadic::Utils::GeminiOmniVideo::ASPECT_RATIOS
 VALID_DURATION_SECONDS = Monadic::Utils::GeminiOmniVideo::DURATIONS.to_a
-FALLBACK_VIDEO_MODEL = "gemini-omni-1.1-flash"
+FALLBACK_VIDEO_MODEL = "gemini-omni-1.2-flash"
 
 DEFAULT_OPTIONS = {
   aspect_ratio: "16:9",

@@ -348,6 +348,32 @@
       color: #333;
     }
 
+    /* API key check */
+    .key-check-row { margin-top: 6px; }
+
+    .key-check-btn {
+      background-color: var(--btn-secondary-bg, #78828c);
+      color: var(--btn-secondary-text, #ffffff);
+      border: none;
+      border-radius: 6px;
+      padding: 5px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .key-check-btn:hover:not(:disabled) {
+      background-color: var(--btn-secondary-hover-bg, #5a6268);
+    }
+
+    .key-check-btn:disabled { opacity: 0.5; cursor: progress; }
+
+    .key-check-result { font-size: 13px; line-height: 1.5; }
+    .key-check-result p { margin: 6px 0 4px; }
+    .key-check-models { border-collapse: collapse; }
+    .key-check-models td { padding: 2px 12px 2px 0; vertical-align: top; }
+    .key-check-models code { font-size: 13px; }
+
     /* TTS Dict file picker */
     .file-picker-row {
       display: flex;
@@ -1643,6 +1669,100 @@
       });
 
       // ─── API Key Visibility Toggles ───
+      // ─── API key check ───
+      // Each key row gets a Check button. The main process sends the key to
+      // its provider and answers with status codes and default model ids
+      // only; everything is shown with textContent.
+      const KEY_CHECK_STATUSES = ['accepted', 'rejected', 'forbidden', 'rateLimited', 'serviceError', 'timeout',
+        'unreachable', 'unexpected', 'invalidInput', 'opFailed', 'busy', 'unsupported'];
+      const KEY_CHECK_RESULTS = ['listed', 'notListed', 'notCheckable', 'unknown'];
+      const keyCheckText = (key) => settingsI18n.t('settings.keyCheck.' + key);
+
+      function renderKeyCheck(container, answer) {
+        const status = KEY_CHECK_STATUSES.includes(answer.status) ? answer.status : 'unexpected';
+        const line = document.createElement('p');
+        let text = (status === 'accepted' ? '✓ ' : '✗ ') + keyCheckText('status.' + status);
+        if (status === 'opFailed') {
+          const reason = ['opMissing', 'notSignedIn', 'cancelled', 'notFound', 'timeout', 'failed'].includes(answer.reason) ? answer.reason : 'failed';
+          text += ' (' + keyCheckText('op.' + reason) + ')';
+        }
+        line.textContent = text;
+        container.appendChild(line);
+        if (answer.defaultsUnavailable) {
+          const note = document.createElement('p');
+          note.textContent = keyCheckText('defaultsUnavailable');
+          container.appendChild(note);
+        }
+        const models = Array.isArray(answer.models) ? answer.models : [];
+        if (models.length === 0) return;
+        const heading = document.createElement('p');
+        heading.textContent = keyCheckText('heading');
+        container.appendChild(heading);
+        const table = document.createElement('table');
+        table.className = 'key-check-models';
+        models.forEach(row => {
+          const tr = document.createElement('tr');
+          const category = document.createElement('td');
+          const label = keyCheckText('categories.' + row.category);
+          category.textContent = label.startsWith('settings.') ? String(row.category) : label;
+          const model = document.createElement('td');
+          const code = document.createElement('code');
+          code.textContent = String(row.model);
+          model.appendChild(code);
+          if (row.source === 'env' && row.envName) {
+            model.appendChild(document.createTextNode(' (' + keyCheckText('envSource').replace('{name}', String(row.envName)) + ')'));
+          }
+          const result = document.createElement('td');
+          const value = KEY_CHECK_RESULTS.includes(row.result) ? row.result : 'unknown';
+          result.textContent = (value === 'listed' ? '✓ ' : value === 'notListed' ? '✗ ' : '– ') + keyCheckText('result.' + value);
+          tr.append(category, model, result);
+          table.appendChild(tr);
+        });
+        container.appendChild(table);
+      }
+
+      document.querySelectorAll('#panel-api-keys .api-key-field input').forEach(input => {
+        const group = input.closest('.setting-group');
+        const envKey = group.querySelector('label').textContent.trim();
+        const row = document.createElement('div');
+        row.className = 'key-check-row';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'key-check-btn';
+        button.setAttribute('data-i18n', 'settings.keyCheck.check');
+        button.textContent = keyCheckText('check');
+        button.title = keyCheckText('checkHint');
+        button.setAttribute('aria-description', keyCheckText('checkHint'));
+        const result = document.createElement('div');
+        result.className = 'key-check-result';
+        result.setAttribute('aria-live', 'polite');
+        row.appendChild(button);
+        group.append(row, result);
+
+        // A result belongs to the text it was checked with.
+        let checkId = 0;
+        input.addEventListener('input', () => {
+          checkId++;
+          result.replaceChildren();
+        });
+        button.addEventListener('click', async () => {
+          const mine = ++checkId;
+          button.disabled = true;
+          button.textContent = keyCheckText('checking');
+          result.replaceChildren();
+          let answer;
+          try {
+            answer = await window.electronAPI.checkApiKey(envKey, input.value);
+          } catch (_) {
+            answer = null;
+          }
+          button.disabled = false;
+          button.textContent = keyCheckText('check');
+          if (mine !== checkId) return;
+          renderKeyCheck(result, answer || { status: 'unexpected' });
+        });
+      });
+
       document.querySelectorAll('.toggle-api-key-visibility').forEach(button => {
         button.addEventListener('click', () => {
           const targetId = button.getAttribute('data-target');

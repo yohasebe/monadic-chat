@@ -192,6 +192,8 @@ Monadic Chat の Docker イメージ、コンテナ、ボリューム（Knowledg
 | `ELEVENLABS_API_KEY` | [elevenlabs.io/developers](https://elevenlabs.io/developers) |
 | `TAVILY_API_KEY` | [tavily.com](https://tavily.com/) |
 
+キーの下の**確認**を押すと、その欄のキーをその欄のプロバイダーに送り、受け付けられたかを表示します。モデルの一覧を持つプロバイダーでは、用途（会話・コード・画像生成など）ごとのプロバイダーの既定のモデルと、それがそのキーのモデル一覧にあるかも表示します。アプリが個別に指定しているモデルは表示されません。1Passwordの参照（`op://...`）で書いたキーは、確認のために1Passwordから読み出します。入力中のキーをそのまま確かめるので、保存する前にも確認でき、確認しても何も保存されません。`ELEVENLABS_API_KEY`と`TAVILY_API_KEY`はキーだけを確認します。
+
 `TAVILY_API_KEY`だけは特定のプロバイダーに紐づきません。**URLを開く**のテキストの取り込み（Seleniumの代替）と、ネイティブ検索機能を持たないプロバイダーでのWeb検索に使われます — 対象プロバイダーは[プロバイダー機能概要の表](../basic-usage/basic-apps.md#provider-capabilities)を参照してください。
 
 ### 音声・オーディオ

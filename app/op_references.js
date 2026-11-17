@@ -161,6 +161,19 @@ async function resolveReferences(refs, { op = locateOp(), runner = run, platform
   return { values, failures };
 }
 
+// Reads one reference for a one-off use (the Settings key check): a single
+// op call with no retry, so a cancelled prompt is not asked again. The
+// reference must be one line with no template braces, so the template holds
+// exactly one expression.
+async function resolveOne(ref, { op = locateOp(), runner = run, platform = process.platform } = {}) {
+  if (!isReference(ref) || /[\u0000-\u001f\u007f]/.test(ref) || /\{\{|\}\}/.test(ref)) return { failure: 'notFound' };
+  if (!op) return { failure: 'opMissing' };
+  const [cmd, args] = injectCall(op, platform);
+  const result = await runner(cmd, args, `{{ ${ref} }}`);
+  if (result.code === 0 && result.stdout) return { value: result.stdout.replace(/\n$/, '') };
+  return { failure: classify(result.stderr) };
+}
+
 // The Ruby container's start time from `monadic.sh ruby-started-at`, or null.
 // It identifies one start of the container, so anything else on stdout (a
 // failed command, a shell banner from WSL) must not be taken for it. Only the
@@ -179,6 +192,7 @@ class SecretCache {
   constructor({ resolver = resolveReferences } = {}) {
     this.resolver = resolver;
     this.signature = null;
+    this.refs = {};
     this.values = {};
     this.failures = {};
     this.deliveredFor = null;
@@ -202,10 +216,18 @@ class SecretCache {
     }
     const { values, failures } = await this.resolver(refs);
     this.signature = signature;
+    this.refs = { ...refs };
     this.values = values;
     this.failures = failures;
     this.deliveredFor = null;
     return { values, failures, fresh: true };
+  }
+
+  // The value read for key, only when it was read from this same reference.
+  // Changes nothing.
+  lookup(key, ref) {
+    if (!Object.prototype.hasOwnProperty.call(this.refs, key) || this.refs[key] !== ref) return null;
+    return typeof this.values[key] === 'string' && this.values[key] ? this.values[key] : null;
   }
 
   hasValues() {
@@ -219,6 +241,7 @@ class SecretCache {
 
   clear() {
     this.signature = null;
+    this.refs = {};
     this.values = {};
     this.failures = {};
     this.deliveredFor = null;
@@ -236,5 +259,6 @@ module.exports = {
   classify,
   startedAtFrom,
   resolveReferences,
+  resolveOne,
   SecretCache
 };

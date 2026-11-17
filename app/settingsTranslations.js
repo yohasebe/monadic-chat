@@ -81,6 +81,52 @@ const settingsTranslations = {
         actionExportDB: "Export",
         actionNote: "Executing an action will save any unsaved settings and close this window. Progress will be shown in the main window."
       },
+      keyCheck: {
+        check: "Check",
+        checking: "Checking…",
+        checkHint: "Sends the key in this field to this field's provider",
+        heading: "Default models of this provider (apps may name their own)",
+        envSource: "set by {name}",
+        defaultsUnavailable: "The list of default models could not be read.",
+        status: {
+          accepted: "Key accepted",
+          rejected: "Key rejected by the provider",
+          forbidden: "This key cannot use the check (no permission or a restriction); it may still be valid",
+          rateLimited: "Rate limited; try again later",
+          serviceError: "The provider had an error; try again later",
+          timeout: "No answer in time",
+          unreachable: "Could not reach the provider",
+          unexpected: "The provider's answer could not be read",
+          invalidInput: "Enter a key first",
+          opFailed: "Could not read the key from 1Password",
+          busy: "Already checking",
+          unsupported: "This key cannot be checked"
+        },
+        result: {
+          listed: "In this key's list",
+          notListed: "Not in this key's list",
+          notCheckable: "Not shown in the list",
+          unknown: "Unknown"
+        },
+        op: {
+          opMissing: "1Password CLI not found",
+          notSignedIn: "not signed in",
+          cancelled: "cancelled",
+          notFound: "reference not found",
+          timeout: "timed out",
+          failed: "failed"
+        },
+        categories: {
+          chat: "Chat",
+          code: "Code",
+          vision: "Vision",
+          image: "Image",
+          video: "Video",
+          tts: "Speech",
+          audio_transcription: "Transcription",
+          music: "Music"
+        }
+      },
       buttons: {
         showApiKeys: "Show API Keys",
         hideApiKeys: "Hide API Keys",
@@ -178,6 +224,52 @@ const settingsTranslations = {
         actionImportDB: "インポート",
         actionExportDB: "エクスポート",
         actionNote: "アクションを実行すると、未保存の設定を保存してこのウィンドウを閉じます。進捗はメインウィンドウに表示されます。"
+      },
+      keyCheck: {
+        check: "確認",
+        checking: "確認中…",
+        checkHint: "この欄のキーを、この欄の提供元に送って確かめます",
+        heading: "この提供元の既定のモデル（アプリが個別に指定する場合があります）",
+        envSource: "{name} で指定",
+        defaultsUnavailable: "既定のモデルの一覧を読めませんでした。",
+        status: {
+          accepted: "キーは受け付けられました",
+          rejected: "提供元がキーを拒否しました",
+          forbidden: "このキーでは確認できません（権限または制限）。キー自体は有効な場合があります",
+          rateLimited: "回数の制限に達しました。しばらくして再度お試しください",
+          serviceError: "提供元でエラーが起きました。しばらくして再度お試しください",
+          timeout: "時間内に応答がありませんでした",
+          unreachable: "提供元に接続できませんでした",
+          unexpected: "提供元の応答を読めませんでした",
+          invalidInput: "先にキーを入力してください",
+          opFailed: "1Password からキーを読めませんでした",
+          busy: "確認中です",
+          unsupported: "このキーは確認できません"
+        },
+        result: {
+          listed: "このキーの一覧にあります",
+          notListed: "このキーの一覧にありません",
+          notCheckable: "一覧には載りません",
+          unknown: "不明"
+        },
+        op: {
+          opMissing: "1Password CLI が見つかりません",
+          notSignedIn: "サインインしていません",
+          cancelled: "取り消されました",
+          notFound: "参照が見つかりません",
+          timeout: "時間切れ",
+          failed: "失敗"
+        },
+        categories: {
+          chat: "会話",
+          code: "コード",
+          vision: "画像の理解",
+          image: "画像生成",
+          video: "動画",
+          tts: "読み上げ",
+          audio_transcription: "文字起こし",
+          music: "音楽"
+        }
       },
       buttons: {
         showApiKeys: "APIキーを表示",
@@ -277,6 +369,52 @@ const settingsTranslations = {
         actionExportDB: "导出",
         actionNote: "执行操作将保存未保存的设置并关闭此窗口。进度将显示在主窗口中。"
       },
+      keyCheck: {
+        check: "检查",
+        checking: "检查中…",
+        checkHint: "将此栏中的密钥发送给此栏对应的提供商进行检查",
+        heading: "此提供商的默认模型（应用可能指定自己的模型）",
+        envSource: "由 {name} 设置",
+        defaultsUnavailable: "无法读取默认模型列表。",
+        status: {
+          accepted: "密钥已被接受",
+          rejected: "提供商拒绝了该密钥",
+          forbidden: "此密钥无法用于检查（无权限或受限），密钥本身可能仍有效",
+          rateLimited: "已达到速率限制，请稍后再试",
+          serviceError: "提供商出现错误，请稍后再试",
+          timeout: "未及时响应",
+          unreachable: "无法连接到提供商",
+          unexpected: "无法读取提供商的响应",
+          invalidInput: "请先输入密钥",
+          opFailed: "无法从 1Password 读取密钥",
+          busy: "正在检查",
+          unsupported: "无法检查此密钥"
+        },
+        result: {
+          listed: "在此密钥的列表中",
+          notListed: "不在此密钥的列表中",
+          notCheckable: "不在列表中显示",
+          unknown: "未知"
+        },
+        op: {
+          opMissing: "未找到 1Password CLI",
+          notSignedIn: "未登录",
+          cancelled: "已取消",
+          notFound: "未找到引用",
+          timeout: "超时",
+          failed: "失败"
+        },
+        categories: {
+          chat: "对话",
+          code: "代码",
+          vision: "图像理解",
+          image: "图像生成",
+          video: "视频",
+          tts: "语音合成",
+          audio_transcription: "转录",
+          music: "音乐"
+        }
+      },
       buttons: {
         showApiKeys: "显示API密钥",
         hideApiKeys: "隐藏API密钥",
@@ -374,6 +512,52 @@ const settingsTranslations = {
         actionImportDB: "가져오기",
         actionExportDB: "내보내기",
         actionNote: "작업을 실행하면 저장되지 않은 설정을 저장하고 이 창을 닫습니다. 진행 상황은 메인 창에 표시됩니다."
+      },
+      keyCheck: {
+        check: "확인",
+        checking: "확인 중…",
+        checkHint: "이 칸의 키를 이 칸의 제공자에게 보내 확인합니다",
+        heading: "이 제공자의 기본 모델 (앱이 자체 모델을 지정할 수 있음)",
+        envSource: "{name}에서 지정",
+        defaultsUnavailable: "기본 모델 목록을 읽을 수 없습니다.",
+        status: {
+          accepted: "키가 승인되었습니다",
+          rejected: "제공자가 키를 거부했습니다",
+          forbidden: "이 키로는 확인할 수 없습니다(권한 또는 제한). 키 자체는 유효할 수 있습니다",
+          rateLimited: "요청 한도에 도달했습니다. 잠시 후 다시 시도하세요",
+          serviceError: "제공자에서 오류가 발생했습니다. 잠시 후 다시 시도하세요",
+          timeout: "제한 시간 내에 응답이 없습니다",
+          unreachable: "제공자에 연결할 수 없습니다",
+          unexpected: "제공자의 응답을 읽을 수 없습니다",
+          invalidInput: "먼저 키를 입력하세요",
+          opFailed: "1Password에서 키를 읽을 수 없습니다",
+          busy: "확인 중입니다",
+          unsupported: "이 키는 확인할 수 없습니다"
+        },
+        result: {
+          listed: "이 키의 목록에 있음",
+          notListed: "이 키의 목록에 없음",
+          notCheckable: "목록에 표시되지 않음",
+          unknown: "알 수 없음"
+        },
+        op: {
+          opMissing: "1Password CLI를 찾을 수 없습니다",
+          notSignedIn: "로그인하지 않았습니다",
+          cancelled: "취소됨",
+          notFound: "참조를 찾을 수 없음",
+          timeout: "시간 초과",
+          failed: "실패"
+        },
+        categories: {
+          chat: "대화",
+          code: "코드",
+          vision: "이미지 이해",
+          image: "이미지 생성",
+          video: "동영상",
+          tts: "음성 합성",
+          audio_transcription: "전사",
+          music: "음악"
+        }
       },
       buttons: {
         showApiKeys: "API 키 표시",
@@ -473,6 +657,52 @@ const settingsTranslations = {
         actionExportDB: "Exportar",
         actionNote: "Ejecutar una acción guardará la configuración no guardada y cerrará esta ventana. El progreso se mostrará en la ventana principal."
       },
+      keyCheck: {
+        check: "Comprobar",
+        checking: "Comprobando…",
+        checkHint: "Envía la clave de este campo al proveedor de este campo",
+        heading: "Modelos predeterminados de este proveedor (las apps pueden indicar el suyo)",
+        envSource: "definido en {name}",
+        defaultsUnavailable: "No se pudo leer la lista de modelos predeterminados.",
+        status: {
+          accepted: "Clave aceptada",
+          rejected: "El proveedor rechazó la clave",
+          forbidden: "Esta clave no puede usar la comprobación (sin permiso o restringida); puede seguir siendo válida",
+          rateLimited: "Límite de solicitudes alcanzado; inténtelo más tarde",
+          serviceError: "El proveedor tuvo un error; inténtelo más tarde",
+          timeout: "Sin respuesta a tiempo",
+          unreachable: "No se pudo conectar con el proveedor",
+          unexpected: "No se pudo leer la respuesta del proveedor",
+          invalidInput: "Introduzca primero una clave",
+          opFailed: "No se pudo leer la clave de 1Password",
+          busy: "Ya se está comprobando",
+          unsupported: "Esta clave no se puede comprobar"
+        },
+        result: {
+          listed: "En la lista de esta clave",
+          notListed: "No está en la lista de esta clave",
+          notCheckable: "No aparece en la lista",
+          unknown: "Desconocido"
+        },
+        op: {
+          opMissing: "No se encontró 1Password CLI",
+          notSignedIn: "sin sesión iniciada",
+          cancelled: "cancelado",
+          notFound: "referencia no encontrada",
+          timeout: "tiempo agotado",
+          failed: "error"
+        },
+        categories: {
+          chat: "Chat",
+          code: "Código",
+          vision: "Visión",
+          image: "Imagen",
+          video: "Vídeo",
+          tts: "Voz",
+          audio_transcription: "Transcripción",
+          music: "Música"
+        }
+      },
       buttons: {
         showApiKeys: "Mostrar Claves API",
         hideApiKeys: "Ocultar Claves API",
@@ -571,6 +801,52 @@ const settingsTranslations = {
         actionExportDB: "Exporter",
         actionNote: "L'exécution d'une action enregistrera les paramètres non sauvegardés et fermera cette fenêtre. La progression sera affichée dans la fenêtre principale."
       },
+      keyCheck: {
+        check: "Vérifier",
+        checking: "Vérification…",
+        checkHint: "Envoie la clé de ce champ au fournisseur de ce champ",
+        heading: "Modèles par défaut de ce fournisseur (les apps peuvent indiquer le leur)",
+        envSource: "défini par {name}",
+        defaultsUnavailable: "Impossible de lire la liste des modèles par défaut.",
+        status: {
+          accepted: "Clé acceptée",
+          rejected: "Le fournisseur a refusé la clé",
+          forbidden: "Cette clé ne peut pas utiliser la vérification (droits ou restriction) ; elle peut rester valide",
+          rateLimited: "Limite de requêtes atteinte ; réessayez plus tard",
+          serviceError: "Le fournisseur a rencontré une erreur ; réessayez plus tard",
+          timeout: "Pas de réponse à temps",
+          unreachable: "Impossible de joindre le fournisseur",
+          unexpected: "Impossible de lire la réponse du fournisseur",
+          invalidInput: "Saisissez d'abord une clé",
+          opFailed: "Impossible de lire la clé depuis 1Password",
+          busy: "Vérification déjà en cours",
+          unsupported: "Cette clé ne peut pas être vérifiée"
+        },
+        result: {
+          listed: "Dans la liste de cette clé",
+          notListed: "Absent de la liste de cette clé",
+          notCheckable: "Non affiché dans la liste",
+          unknown: "Inconnu"
+        },
+        op: {
+          opMissing: "1Password CLI introuvable",
+          notSignedIn: "non connecté",
+          cancelled: "annulé",
+          notFound: "référence introuvable",
+          timeout: "délai dépassé",
+          failed: "échec"
+        },
+        categories: {
+          chat: "Chat",
+          code: "Code",
+          vision: "Vision",
+          image: "Image",
+          video: "Vidéo",
+          tts: "Synthèse vocale",
+          audio_transcription: "Transcription",
+          music: "Musique"
+        }
+      },
       buttons: {
         showApiKeys: "Afficher les Clés API",
         hideApiKeys: "Masquer les Clés API",
@@ -668,6 +944,52 @@ const settingsTranslations = {
         actionImportDB: "Importieren",
         actionExportDB: "Exportieren",
         actionNote: "Das Ausführen einer Aktion speichert nicht gespeicherte Einstellungen und schließt dieses Fenster. Der Fortschritt wird im Hauptfenster angezeigt."
+      },
+      keyCheck: {
+        check: "Prüfen",
+        checking: "Wird geprüft…",
+        checkHint: "Sendet den Schlüssel in diesem Feld an den Anbieter dieses Felds",
+        heading: "Standardmodelle dieses Anbieters (Apps können ein eigenes angeben)",
+        envSource: "gesetzt durch {name}",
+        defaultsUnavailable: "Die Liste der Standardmodelle konnte nicht gelesen werden.",
+        status: {
+          accepted: "Schlüssel akzeptiert",
+          rejected: "Der Anbieter hat den Schlüssel abgelehnt",
+          forbidden: "Dieser Schlüssel kann die Prüfung nicht verwenden (keine Berechtigung oder Einschränkung); er kann trotzdem gültig sein",
+          rateLimited: "Anfragelimit erreicht; später erneut versuchen",
+          serviceError: "Fehler beim Anbieter; später erneut versuchen",
+          timeout: "Keine Antwort in der Zeit",
+          unreachable: "Anbieter nicht erreichbar",
+          unexpected: "Die Antwort des Anbieters konnte nicht gelesen werden",
+          invalidInput: "Zuerst einen Schlüssel eingeben",
+          opFailed: "Schlüssel konnte nicht aus 1Password gelesen werden",
+          busy: "Wird bereits geprüft",
+          unsupported: "Dieser Schlüssel kann nicht geprüft werden"
+        },
+        result: {
+          listed: "In der Liste dieses Schlüssels",
+          notListed: "Nicht in der Liste dieses Schlüssels",
+          notCheckable: "Nicht in der Liste aufgeführt",
+          unknown: "Unbekannt"
+        },
+        op: {
+          opMissing: "1Password CLI nicht gefunden",
+          notSignedIn: "nicht angemeldet",
+          cancelled: "abgebrochen",
+          notFound: "Referenz nicht gefunden",
+          timeout: "Zeitüberschreitung",
+          failed: "fehlgeschlagen"
+        },
+        categories: {
+          chat: "Chat",
+          code: "Code",
+          vision: "Bildverständnis",
+          image: "Bild",
+          video: "Video",
+          tts: "Sprachausgabe",
+          audio_transcription: "Transkription",
+          music: "Musik"
+        }
       },
       buttons: {
         showApiKeys: "API-Schlüssel anzeigen",

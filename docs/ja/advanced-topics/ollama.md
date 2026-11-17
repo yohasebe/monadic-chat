@@ -22,7 +22,7 @@ ollama pull <model-name>
 
 使えるモデルは [Ollama Library](https://ollama.com/library) にあります。Monadic Chat のツールの機能を使うには、`tools` の能力を持つモデルを選んでください。[モデルの能力](#model-capabilities)を参照してください。
 
-Ollama のアプリは、既定のモデル `gpt-oss:20b` で確かめています。このモデルは、Docker が使う分とは別に約 13GB のメモリを使います。より小さいモデルでは、ツールを使う返答が最後まで完了しないことがあります。
+Ollama のアプリは、既定のモデル `gpt-oss:20b` で確かめています。このモデルは、Docker が使う分とは別に約 13GB のメモリを使います。より小さいモデルは、ツールを呼ばないことがあります。ファイルを保存した、作業画面を更新したと返答しても、実際には行われていないことがあります。
 
 ### 3. Ollama の起動
 
@@ -53,7 +53,7 @@ ollama pull <model-name>
 ollama rm <model-name>
 ```
 
-インストールしたモデルは、Ollama のアプリのモデルのメニューに表示されます。加えたばかりのモデルが表示されないときは、Web の画面を再読み込みしてください。
+インストールしたモデルは、Ollama のアプリのモデルのメニューに表示されます。加えたばかりのモデルが表示されないときや、Monadic Chat より後に Ollama を起動したときは、Web の画面を再読み込みしてください。
 
 ## モデルの能力 :id=model-capabilities
 
@@ -99,4 +99,4 @@ Ollama のグループには、次のアプリがあります。
 
 - **既定のモデル**：`gpt-oss:20b` です。変えるときは `~/monadic/config/env` の `OLLAMA_DEFAULT_MODEL` で設定します。
 - **接続**：バックエンドは `host.docker.internal:11434` に接続し、つながらないときは `localhost:11434` に接続します。
-- **モデルの一覧**：Ollama が動いている間、モデルの一覧を Ollama から読み取り、30 秒ごとに更新します。
+- **モデルの一覧**：Web の画面を読み込むときに、モデルの一覧を Ollama から読み取ります。

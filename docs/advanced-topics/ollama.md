@@ -22,7 +22,7 @@ ollama pull <model-name>
 
 Available models are listed in the [Ollama Library](https://ollama.com/library). For the tool features of Monadic Chat, choose a model with the `tools` capability; see [Model Capabilities](#model-capabilities).
 
-The Ollama apps are checked with `gpt-oss:20b`, the default model. It takes about 13 GB of memory in addition to what Docker uses. With smaller models, replies that use tools do not always complete.
+The Ollama apps are checked with `gpt-oss:20b`, the default model. It takes about 13 GB of memory in addition to what Docker uses. Smaller models do not always call the tools: a reply can say that it saved a file or updated the work screen when it did not.
 
 ### 3. Start Ollama
 
@@ -53,7 +53,7 @@ ollama pull <model-name>
 ollama rm <model-name>
 ```
 
-Installed models appear in the model menu of the Ollama apps. If a model you just added does not appear, reload the web interface.
+Installed models appear in the model menu of the Ollama apps. If a model you just added does not appear, or Ollama was started after Monadic Chat, reload the web interface.
 
 ## Model Capabilities :id=model-capabilities
 
@@ -99,4 +99,4 @@ These apps are defined as for the other providers. Their tool features need a mo
 
 - **Default model**: `gpt-oss:20b`. To change it, set `OLLAMA_DEFAULT_MODEL` in `~/monadic/config/env`.
 - **Connection**: The backend connects to `host.docker.internal:11434`, and to `localhost:11434` when that fails.
-- **Model list**: The list of models is read from Ollama while it is running and refreshed every 30 seconds.
+- **Model list**: The list of models is read from Ollama when the web interface loads.

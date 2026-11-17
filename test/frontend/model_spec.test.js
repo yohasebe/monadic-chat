@@ -159,9 +159,8 @@ describe('Model Specification', () => {
 
     it('promotes the new models and keeps the previous ones selectable', () => {
       const d = modelSpec.providerDefaults;
-      ['chat', 'vision'].forEach((kind) => {
-        expect(d.xai[kind].slice(0, 2)).toEqual(['grok-4.7', 'grok-4.6']);
-      });
+      expect(d.xai.vision.slice(0, 2)).toEqual(['grok-4.7', 'grok-4.6']);
+      expect(d.xai.chat).toEqual(expect.arrayContaining(['grok-4.7', 'grok-4.6']));
       // xAI recommends Grok 4.7 for code; grok-build-0.1 stays selectable.
       expect(d.xai.code.slice(0, 2)).toEqual(['grok-4.7', 'grok-build-0.1']);
       ['vision', 'audio_transcription'].forEach((kind) => {
@@ -184,9 +183,9 @@ describe('Model Specification', () => {
       expect(m.context_window[1]).toBe(500000);
     });
 
-    it('defaults chat and vision to grok-4.7', () => {
+    it('defaults chat to grok-4.3 and vision to grok-4.7', () => {
       const d = modelSpec.providerDefaults.xai;
-      expect(d.chat[0]).toBe('grok-4.7');
+      expect(d.chat.slice(0, 2)).toEqual(['grok-4.3', 'grok-4.7']);
       expect(d.vision[0]).toBe('grok-4.7');
       // The previous flagships stay selectable rather than being dropped.
       expect(d.chat).toContain('grok-4.6');

@@ -15,6 +15,7 @@ app "AutoForgeGrok" do
 
   llm do
     provider "xai"
+    model "grok-4.7"
     temperature 0.3
     reasoning_effort "low"
   end

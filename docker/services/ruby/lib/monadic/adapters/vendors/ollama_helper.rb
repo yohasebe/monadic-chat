@@ -717,9 +717,7 @@ module OllamaHelper
 
     if stream_error
       Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Error record: #{stream_error}" }
-      res = { "type" => "error", "content" => "API ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(stream_error)}" }
-      block&.call res
-      return [res]
+      return StreamRecords.error_reply("Ollama", stream_error, &block)
     end
 
     Monadic::Utils::ExtraLogger.log { "Total fragments processed: #{texts.length}\nTool calls accumulated: #{accumulated_tool_calls.length}" }

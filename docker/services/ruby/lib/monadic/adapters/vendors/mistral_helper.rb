@@ -346,6 +346,194 @@ module MistralHelper
         )
   end
 
+  # Reads a streamed reply record by record: its text, thinking, tool calls,
+  # finish reason and usage, and the error the stream reported if it did.
+  private def read_mistral_stream(response_body, obj, is_reasoning_model, &block)
+    records = StreamRecords.new(:sse)
+    stream_error = nil
+    content_buffer = ""
+    fragment_sequence = 0
+    thinking = []
+    tool_calls = []
+    finish_reason = nil
+    # Track usage if present (rare in streaming)
+    usage_prompt_tokens = nil
+    usage_completion_tokens = nil
+    usage_total_tokens = nil
+
+    handle = lambda do |json|
+      # Capture usage if present on this chunk
+      if json["usage"].is_a?(Hash)
+        usage_prompt_tokens = json.dig("usage", "prompt_tokens") || usage_prompt_tokens
+        usage_completion_tokens = json.dig("usage", "completion_tokens") || usage_completion_tokens
+        usage_total_tokens = json.dig("usage", "total_tokens") || usage_total_tokens
+      end
+
+      # Extract content from delta if present
+      if json["choices"] && json["choices"][0] && json["choices"][0]["delta"]
+        delta = json["choices"][0]["delta"]
+
+        # Check for new format thinking chunks (Magistral 2507/2509+)
+        if delta["type"] == "thinking" && delta["thinking"].is_a?(Array)
+          # Extract thinking text from structured format
+          thinking_text = delta["thinking"].filter_map do |chunk|
+            if chunk.is_a?(Hash) && chunk["type"] == "text"
+              chunk["text"]
+            end
+          end.join
+
+          unless thinking_text.empty?
+            thinking << thinking_text
+
+            # Send thinking content to frontend (like Claude/OpenAI)
+            res = {
+              "type" => "thinking",
+              "content" => thinking_text
+            }
+            block&.call res
+          end
+        end
+
+        # Magistral streams its reasoning INSIDE the content array:
+        #   delta.content = [{ "type" => "thinking",
+        #                      "thinking" => [{"type"=>"text","text"=>...}] }]
+        # while the final answer arrives as plain-string content deltas.
+        # Extract thinking items here — they feed the Thinking panel — and
+        # exclude them from the answer text below. Without this split the
+        # generic Array flattening looked at c["text"]/c["content"] (both
+        # nil for thinking items) and silently discarded the whole trace.
+        if delta["content"].is_a?(Array)
+          array_thinking_text = delta["content"].filter_map do |item|
+            next unless item.is_a?(Hash) && item["type"] == "thinking"
+
+            Array(item["thinking"]).filter_map do |chunk|
+              chunk["text"] if chunk.is_a?(Hash) && chunk["type"] == "text"
+            end.join
+          end.join
+
+          unless array_thinking_text.empty?
+            # Concatenate the round's whole trace into ONE block: the
+            # deltas arrive token-by-token, and pushing each as its own
+            # array element would render one word per paragraph in the
+            # panel (build joins blocks with "\n\n").
+            if thinking.empty?
+              thinking << +array_thinking_text
+            else
+              thinking.last << array_thinking_text
+            end
+            res = {
+              "type" => "thinking",
+              "content" => array_thinking_text
+            }
+            block&.call res
+          end
+        end
+
+        # Check if this delta contains content
+        if delta["content"]
+          content = delta["content"]
+
+          # Handle case where content might be an Array (some Mistral API
+          # responses). Thinking items were already extracted above —
+          # exclude them here so reasoning never leaks into the answer.
+          if content.is_a?(Array)
+            content = content.filter_map do |c|
+              next if c.is_a?(Hash) && c["type"] == "thinking"
+
+              c.is_a?(Hash) ? (c["text"] || c["content"] || "") : c.to_s
+            end.join
+          end
+          content = content.to_s unless content.is_a?(String)
+
+          # Buffer the answer only when the user asked for reasoning, so
+          # `<think>...</think>` text split across chunks can be put back
+          # together before it is shown. This follows the requested
+          # effort, not the value sent: a model that rejects "none" (GLM)
+          # is sent its lowest level even when no reasoning was asked for,
+          # and returns its reasoning as structured thinking parts, which
+          # are extracted separately — so its answer streams as usual.
+          if mistral_buffer_answer?(obj["model"], obj["reasoning_effort"], is_reasoning_model)
+            # Debug logging for reasoning model detection
+            if CONFIG["EXTRA_LOGGING"]
+              DebugHelper.debug("Mistral: Processing content for reasoning model: #{obj["model"]}", category: :api, level: :debug) if content_buffer.length == 0
+            end
+            # For reasoning models with reasoning active, collect all
+            # content and process thinking blocks later.
+            content_buffer += content
+
+            # Don't send content to client yet - we'll process it after streaming is complete
+            # This is necessary because <think> tags may be split across multiple chunks
+          else
+            # Non-Magistral models, process normally
+            content_buffer += content
+
+            # Send content to the client
+            if content.length > 0
+              res = {
+                "type" => "fragment",
+                "content" => content,
+                "sequence" => fragment_sequence,
+                "timestamp" => Time.now.to_f,
+                "is_first" => fragment_sequence == 0
+              }
+              fragment_sequence += 1
+              block&.call res
+            end
+          end
+        end
+
+        # Check for tool calls
+        # Several calls can come in one delta; each has its index.
+        Array(delta["tool_calls"]).each_with_index do |tool_call, position|
+          index = tool_call["index"] || position
+
+          if tool_calls[index].nil? || tool_call["id"]
+            # A new call
+            tool_calls[index] = {
+              "id" => tool_call["id"],
+              "function" => {
+                "name" => tool_call.dig("function", "name"),
+                "arguments" => tool_call.dig("function", "arguments") || ""
+              }
+            }
+            block&.call({ "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }) if tool_call["id"]
+          elsif tool_call.dig("function", "arguments")
+            # More of the arguments of a call already begun
+            tool_calls[index]["function"]["arguments"] += tool_call.dig("function", "arguments")
+          end
+        end
+
+        # Check for finish reason
+        if json["choices"] && json["choices"][0] && json["choices"][0]["finish_reason"]
+          finish_reason = json["choices"][0]["finish_reason"]
+        end
+      end
+    end
+
+    catch(:mistral_stream_end) do
+      read = lambda do |data, _event|
+        throw :mistral_stream_end if data.strip == "[DONE]"
+
+        json = JSON.parse(data)
+        if json["error"]
+          stream_error = json["error"].is_a?(Hash) ? json["error"]["message"] : json["error"]
+          Monadic::Utils::ExtraLogger.log { "[Mistral] streaming error chunk: #{json['error'].inspect}" }
+          throw :mistral_stream_end
+        end
+        handle.call(json)
+      rescue JSON::ParserError
+        Monadic::Utils::ExtraLogger.log { "[Mistral] Unreadable record skipped (#{data.bytesize} bytes)" }
+      end
+
+      response_body.each { |chunk| records.feed(chunk, &read) }
+      records.finish(&read)
+    end
+
+    { content: content_buffer, thinking: thinking, tool_calls: tool_calls, finish_reason: finish_reason,
+      usage_prompt_tokens: usage_prompt_tokens, usage_completion_tokens: usage_completion_tokens,
+      usage_total_tokens: usage_total_tokens, error: stream_error }
+  end
+
   def api_request(role, session, call_depth: 0, &block)
     # Reset call_depth counter for each new user turn
     # This allows unlimited user iterations while preventing infinite loops within a single response
@@ -567,217 +755,12 @@ module MistralHelper
     # Log response status if extra logging is enabled
     Monadic::Utils::ExtraLogger.log { "Response status: #{res.status}\nResponse headers: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(res.headers.to_h.to_s)}\nAbout to process streaming response..." }
 
-    # Process the response line by line
-    buffer = ""
-    content_buffer = ""
-    fragment_sequence = 0
-    thinking = []
-    tool_calls = []
-    finish_reason = nil
-    # Track usage if present (rare in streaming)
-    usage_prompt_tokens = nil
-    usage_completion_tokens = nil
-    usage_total_tokens = nil
+    stream = read_mistral_stream(res.body, obj, is_reasoning_model, &block)
+    return StreamRecords.error_reply("Mistral", stream[:error], &block) if stream[:error]
 
-    res.body.each do |chunk|
-      # Handle encoding issues
-      begin
-        chunk = chunk.force_encoding("UTF-8")
-        unless chunk.valid_encoding?
-          chunk = chunk.encode('UTF-8', invalid: :replace, undef: :replace, replace: '?')
-        end
-      rescue => e
-        DebugHelper.debug("Encoding error in chunk: #{e.message}", category: :api, level: :error)
-        next
-      end
-
-      if /\A\s*data:\s+\[DONE\]\s*\z/ =~ chunk
-        # Handle stream end
-        break
-      end
-
-      # Skip empty data chunks
-      next if /\A\s*data:\s*\z/ =~ chunk || chunk.strip.empty?
-
-      # Remove data: prefix if present
-      chunk.sub!(/\A\s*data:\s+/, "")
-
-      buffer += chunk
-      scanner = StringScanner.new(buffer)
-
-      while scanner.scan_until(/\{.*?\}(?=\n|\z)/m)
-        json_str = scanner.matched
-        begin
-          json = JSON.parse(json_str)
-
-          # Check for errors
-        if json["error"]
-          Monadic::Utils::ExtraLogger.log { "[Mistral] streaming error chunk: #{json['error'].inspect}" }
-          DebugHelper.debug("Mistral streaming error: #{json['error']['message'] || 'Unknown error'}", category: :api, level: :error)
-          next
-        end
-
-          # Capture usage if present on this chunk
-          if json["usage"].is_a?(Hash)
-            usage_prompt_tokens = json.dig("usage", "prompt_tokens") || usage_prompt_tokens
-            usage_completion_tokens = json.dig("usage", "completion_tokens") || usage_completion_tokens
-            usage_total_tokens = json.dig("usage", "total_tokens") || usage_total_tokens
-          end
-
-          # Extract content from delta if present
-          if json["choices"] && json["choices"][0] && json["choices"][0]["delta"]
-            delta = json["choices"][0]["delta"]
-
-            # Check for new format thinking chunks (Magistral 2507/2509+)
-            if delta["type"] == "thinking" && delta["thinking"].is_a?(Array)
-              # Extract thinking text from structured format
-              thinking_text = delta["thinking"].filter_map do |chunk|
-                if chunk.is_a?(Hash) && chunk["type"] == "text"
-                  chunk["text"]
-                end
-              end.join
-
-              unless thinking_text.empty?
-                thinking << thinking_text
-
-                # Send thinking content to frontend (like Claude/OpenAI)
-                res = {
-                  "type" => "thinking",
-                  "content" => thinking_text
-                }
-                block&.call res
-              end
-            end
-
-            # Magistral streams its reasoning INSIDE the content array:
-            #   delta.content = [{ "type" => "thinking",
-            #                      "thinking" => [{"type"=>"text","text"=>...}] }]
-            # while the final answer arrives as plain-string content deltas.
-            # Extract thinking items here — they feed the Thinking panel — and
-            # exclude them from the answer text below. Without this split the
-            # generic Array flattening looked at c["text"]/c["content"] (both
-            # nil for thinking items) and silently discarded the whole trace.
-            if delta["content"].is_a?(Array)
-              array_thinking_text = delta["content"].filter_map do |item|
-                next unless item.is_a?(Hash) && item["type"] == "thinking"
-
-                Array(item["thinking"]).filter_map do |chunk|
-                  chunk["text"] if chunk.is_a?(Hash) && chunk["type"] == "text"
-                end.join
-              end.join
-
-              unless array_thinking_text.empty?
-                # Concatenate the round's whole trace into ONE block: the
-                # deltas arrive token-by-token, and pushing each as its own
-                # array element would render one word per paragraph in the
-                # panel (build joins blocks with "\n\n").
-                if thinking.empty?
-                  thinking << +array_thinking_text
-                else
-                  thinking.last << array_thinking_text
-                end
-                res = {
-                  "type" => "thinking",
-                  "content" => array_thinking_text
-                }
-                block&.call res
-              end
-            end
-
-            # Check if this delta contains content
-            if delta["content"]
-              content = delta["content"]
-
-              # Handle case where content might be an Array (some Mistral API
-              # responses). Thinking items were already extracted above —
-              # exclude them here so reasoning never leaks into the answer.
-              if content.is_a?(Array)
-                content = content.filter_map do |c|
-                  next if c.is_a?(Hash) && c["type"] == "thinking"
-
-                  c.is_a?(Hash) ? (c["text"] || c["content"] || "") : c.to_s
-                end.join
-              end
-              content = content.to_s unless content.is_a?(String)
-
-              # Buffer the answer only when the user asked for reasoning, so
-              # `<think>...</think>` text split across chunks can be put back
-              # together before it is shown. This follows the requested
-              # effort, not the value sent: a model that rejects "none" (GLM)
-              # is sent its lowest level even when no reasoning was asked for,
-              # and returns its reasoning as structured thinking parts, which
-              # are extracted separately — so its answer streams as usual.
-              if mistral_buffer_answer?(obj["model"], obj["reasoning_effort"], is_reasoning_model)
-                # Debug logging for reasoning model detection
-                if CONFIG["EXTRA_LOGGING"]
-                  DebugHelper.debug("Mistral: Processing content for reasoning model: #{obj["model"]}", category: :api, level: :debug) if content_buffer.length == 0
-                end
-                # For reasoning models with reasoning active, collect all
-                # content and process thinking blocks later.
-                content_buffer += content
-
-                # Don't send content to client yet - we'll process it after streaming is complete
-                # This is necessary because <think> tags may be split across multiple chunks
-              else
-                # Non-Magistral models, process normally
-                content_buffer += content
-
-                # Send content to the client
-                if content.length > 0
-                  res = {
-                    "type" => "fragment",
-                    "content" => content,
-                    "sequence" => fragment_sequence,
-                    "timestamp" => Time.now.to_f,
-                    "is_first" => fragment_sequence == 0
-                  }
-                  fragment_sequence += 1
-                  block&.call res
-                end
-              end
-            end
-
-            # Check for tool calls
-            if delta["tool_calls"] && !delta["tool_calls"].empty?
-              tool_call = delta["tool_calls"][0]
-
-              # If this is a new tool call, create a new entry
-              if tool_call["index"] && (tool_calls[tool_call["index"]].nil? || tool_call["id"])
-                tool_calls[tool_call["index"]] = {
-                  "id" => tool_call["id"],
-                  "function" => {
-                    "name" => tool_call.dig("function", "name"),
-                    "arguments" => tool_call.dig("function", "arguments") || ""
-                  }
-                }
-              # Otherwise append to existing tool call
-              elsif tool_call["index"]
-                index = tool_call["index"]
-                if tool_call.dig("function", "arguments")
-                  tool_calls[index]["function"]["arguments"] += tool_call.dig("function", "arguments")
-                end
-              end
-
-              # If this is a new tool call, inform the client
-              if tool_call["index"] && tool_call["id"]
-                res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-                block&.call res
-              end
-            end
-
-            # Check for finish reason
-            if json["choices"] && json["choices"][0] && json["choices"][0]["finish_reason"]
-              finish_reason = json["choices"][0]["finish_reason"]
-            end
-          end
-        rescue JSON::ParserError
-          # Skip malformed JSON
-        end
-      end
-
-      # Keep any unprocessed content for next iteration
-      buffer = scanner.rest
-    end
+    content_buffer, thinking, tool_calls, finish_reason = stream.values_at(:content, :thinking, :tool_calls, :finish_reason)
+    usage_prompt_tokens, usage_completion_tokens, usage_total_tokens =
+      stream.values_at(:usage_prompt_tokens, :usage_completion_tokens, :usage_total_tokens)
 
     # Once done with the main content, process any tool calls
     if tool_calls && !tool_calls.empty?

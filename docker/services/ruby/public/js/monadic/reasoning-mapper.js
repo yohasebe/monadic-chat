@@ -243,12 +243,23 @@ class ReasoningMapper {
     return null;
   }
   
+  /**
+   * The reasoning choice a saved chat holds. A DeepSeek chat saved with
+   * thinking off may still carry the app's effort beside it.
+   */
+  static savedChoice(provider, params) {
+    if (!params) return null;
+    if (provider === 'DeepSeek' && params.reasoning_content === 'disabled') return 'none';
+    return params.reasoning_effort || null;
+  }
+
   static _mapDeepSeek(spec, uiValue) {
     if (!spec.reasoning_effort || !Array.isArray(spec.reasoning_effort[0])) return null;
     if (!spec.reasoning_effort[0].includes(uiValue)) return null;
 
     // "none" turns thinking off; any other level turns it on at that level.
-    if (uiValue === 'none') return { reasoning_content: 'disabled' };
+    // reasoning_effort carries the choice too, so a saved chat restores it.
+    if (uiValue === 'none') return { reasoning_content: 'disabled', reasoning_effort: 'none' };
     return { reasoning_content: 'enabled', reasoning_effort: uiValue };
   }
   

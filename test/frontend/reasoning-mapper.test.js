@@ -137,6 +137,12 @@ describe('ReasoningMapper', () => {
       expect(result).toEqual({ reasoning_effort: 'low' });
     });
 
+    test('A DeepSeek chat saved with thinking off restores to off, even with the app effort beside it', () => {
+      expect(ReasoningMapper.savedChoice('DeepSeek', { reasoning_content: 'disabled', reasoning_effort: 'low' })).toBe('none');
+      expect(ReasoningMapper.savedChoice('DeepSeek', { reasoning_content: 'enabled', reasoning_effort: 'max' })).toBe('max');
+      expect(ReasoningMapper.savedChoice('OpenAI', { reasoning_content: 'disabled', reasoning_effort: 'low' })).toBe('low');
+    });
+
     test('Gemini thinking levels carry the choice in both keys, so an app default does not win', () => {
       expect(ReasoningMapper.mapToProviderParameter('Google', 'gemini-levels', 'xhigh'))
         .toEqual({ thinking_level: 'xhigh', reasoning_effort: 'xhigh' });
@@ -147,7 +153,7 @@ describe('ReasoningMapper', () => {
       expect(ReasoningMapper.mapToProviderParameter('DeepSeek', 'deepseek-reasoner', 'low'))
         .toEqual({ reasoning_content: 'enabled', reasoning_effort: 'low' });
       expect(ReasoningMapper.mapToProviderParameter('DeepSeek', 'deepseek-reasoner', 'none'))
-        .toEqual({ reasoning_content: 'disabled' });
+        .toEqual({ reasoning_content: 'disabled', reasoning_effort: 'none' });
       expect(ReasoningMapper.mapToProviderParameter('DeepSeek', 'deepseek-reasoner', 'medium')).toBeNull();
     });
 

@@ -459,11 +459,11 @@ module OpenAIHelper
   end
 
   # Configure tools on the request body.
-  private def configure_openai_tools(body, obj, app, session, role, caps, use_responses_api)
-    skip_tools = caps[:non_tool_model] || (role == "tool" && !use_responses_api)
-
-    if skip_tools
-      Monadic::Utils::ExtraLogger.log { "OpenAI: Skipping tools because non_tool_model=#{caps[:non_tool_model]} or role='#{role}'" }
+  private def configure_openai_tools(body, obj, app, session, caps)
+    # A round that sends tool results back keeps the tools, so the model can
+    # call another one, as on every other provider.
+    if caps[:non_tool_model]
+      Monadic::Utils::ExtraLogger.log { "OpenAI: Skipping tools for a model without tool calling" }
       body.delete("tools")
       body.delete("response_format")
       return
@@ -1513,7 +1513,7 @@ module OpenAIHelper
 
     # Build base body and configure tools
     body = build_openai_base_body(model, obj, app, caps, max_completion_tokens, temperature, presence_penalty, frequency_penalty)
-    configure_openai_tools(body, obj, app, session, role, caps, use_responses_api)
+    configure_openai_tools(body, obj, app, session, caps)
 
     # Process images and build messages
     context = model_facing_context(context)

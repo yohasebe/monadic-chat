@@ -22,16 +22,13 @@ RSpec.describe "GPT-5 Responses API" do
   end
 
   describe "Tool continuation" do
-    it "continues passing tools for GPT-5 even after tool responses" do
-      # GPT-5 should keep tools available even when processing tool responses
-      use_responses_api = true
-      role = "tool"
-      non_tool_model = false
-      
-      # This logic from openai_helper.rb
-      skip_tools = non_tool_model || (role == "tool" && !use_responses_api)
-      
-      expect(skip_tools).to be false
+    it "keeps the tools in a round that sends tool results back, on both APIs" do
+      helper = Class.new { include OpenAIHelper }.new
+      tools = [{ "type" => "function", "function" => { "name" => "t", "parameters" => { "type" => "object", "properties" => {} } } }]
+      stub_const("APPS", { "SpecApp" => double("app", settings: { "tools" => tools }) })
+      body = {}
+      helper.send(:configure_openai_tools, body, {}, "SpecApp", { parameters: {} }, { non_tool_model: false })
+      expect(body["tools"]).not_to be_empty
     end
   end
 

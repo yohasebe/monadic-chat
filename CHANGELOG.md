@@ -16,6 +16,8 @@
     - A turn ends after 20 rounds of tool calls (10 in many apps), and a repeated identical tool call is refused
     - Ollama apps are defined as for the other providers; models without the tools capability answer as a plain chat
     - The default Ollama model is `gpt-oss:20b`
+    - Default models: GPT Image 2.5 Flare for OpenAI images, Mistral Large 4 and Grok 4.7 for code, and Gemini Omni 1.2 Flash for Gemini videos
+    - Mistral Medium 3.5 is no longer offered; chats that used it continue with Mistral Large 4
     - Language Practice writes its advice in the interface language
     - The sidebar has `Menu`, `Work screen`, `Files` and `History` tabs
     - A chat's browser closes on `Reset`, an app change, an import or after 5 minutes unused; of the Selenium container's ports, only noVNC (7900) is open
@@ -30,6 +32,7 @@
     - The `History` tab narrows chats by app and date and removes several at once
     - `Plotly static images` in `Install Options` keeps a PNG of each Plotly chart in a notebook **(rebuild the Python container)**
     - The music apps take attached audio and MIDI files
+    - New models: Gemini 4 Hydrogen, Gemini 4 Carbon, Claude Fable 5.2, GPT-6.1 Terra, GPT Image 2.6 Flare and Sunburst, and ElevenLabs Scribe v3
   - Fixed
     - `Cancel` stops a reply while tools are running
     - A dropped connection during a reply gives the page back for input
@@ -43,6 +46,10 @@
     - Every tool the model calls at once runs, with OpenAI, Mistral and DeepSeek too
     - Replies follow the language of your message also after tool calls, with every provider
     - The reasoning effort chosen for a Claude model is used
+    - The thinking level chosen for a Gemini model is used
+    - The reasoning effort chosen for a DeepSeek model is used, and DeepSeek reasoning can be turned off
+    - Claude Fable models work in the apps that consult an advisor
+    - Looking through folders one after another no longer stops a reply as a repeated tool call
     - A reply with many formulas or code blocks shows each in its place
     - A chat continued from the history or an import keeps its own app
     - A stopped container an app needs is started again

@@ -2375,8 +2375,10 @@ module GeminiHelper
     thinking_parts = []  # Store thinking content
     tool_calls = []
     finish_reason = nil
-    @grounding_html = nil  # Store grounding metadata HTML to append to response
-    @url_context_html = nil  # Store URL context metadata HTML to append to response
+    # The reply's sources, appended to it (the reply's own, not the app's:
+    # the app is shared by every chat).
+    grounding_html = nil
+    url_context_html = nil
     # Track usage metadata if provider returns it (non-streaming often)
     usage_prompt_tokens = nil
     usage_candidates_tokens = nil
@@ -2405,15 +2407,15 @@ module GeminiHelper
         # Check for URL Context metadata at candidate level
         if candidate["urlContextMetadata"] &&
            !candidate["urlContextMetadata"].empty? &&
-           @url_context_html.nil?
-          @url_context_html = build_url_context_html(candidate["urlContextMetadata"])
+           url_context_html.nil?
+          url_context_html = build_url_context_html(candidate["urlContextMetadata"])
         end
         
         # Check for grounding metadata at candidate level (skip empty objects)
         if candidate["groundingMetadata"] &&
            !candidate["groundingMetadata"].empty? &&
-           @grounding_html.nil?
-          @grounding_html = build_grounding_metadata_html(candidate["groundingMetadata"], source: "candidate")
+           grounding_html.nil?
+          grounding_html = build_grounding_metadata_html(candidate["groundingMetadata"], source: "candidate")
         end
 
         finish_reason = candidate["finishReason"]
@@ -2475,9 +2477,9 @@ module GeminiHelper
 
         content["parts"]&.each do |part|
           # Process grounding metadata for web search results (part level)
-          if @grounding_html.nil? && (part["grounding_metadata"] || json_obj["groundingMetadata"])
+          if grounding_html.nil? && (part["grounding_metadata"] || json_obj["groundingMetadata"])
             grounding_data = part["grounding_metadata"] || json_obj["groundingMetadata"]
-            @grounding_html = build_grounding_metadata_html(grounding_data, source: "part")
+            grounding_html = build_grounding_metadata_html(grounding_data, source: "part")
             json_obj.delete("groundingMetadata") if json_obj["groundingMetadata"]
           end
           
@@ -2756,14 +2758,14 @@ module GeminiHelper
       final_content = unwrap_single_markdown_code_block(final_content)
 
       # Append URL context metadata HTML if present
-      if @url_context_html
-        final_content += "\n\n" + @url_context_html
+      if url_context_html
+        final_content += "\n\n" + url_context_html
         Monadic::Utils::ExtraLogger.log { "[Gemini] Appended URL context metadata HTML to final response" }
       end
       
       # Append grounding metadata HTML if present
-      if @grounding_html
-        final_content += "\n\n" + @grounding_html
+      if grounding_html
+        final_content += "\n\n" + grounding_html
         Monadic::Utils::ExtraLogger.log { "[Gemini] Appended grounding metadata HTML to final response\n[Gemini] Final content length: #{final_content.length}" }
       else
         Monadic::Utils::ExtraLogger.log { "[Gemini] No grounding HTML to append" }

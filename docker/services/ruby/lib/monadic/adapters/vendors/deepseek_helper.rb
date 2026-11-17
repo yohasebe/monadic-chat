@@ -399,7 +399,9 @@ module DeepSeekHelper
     tool_ids_by_index = {}
     finish_reason = nil
     fragment_sequence = 0
-    @dsml_abort_streaming = false  # Flag for early abort on malformed DSML
+    # Set when malformed DSML ends the stream early (this reply's, not the
+    # app's: the app is shared by every chat).
+    dsml_abort_streaming = false
 
     chunk_count = 0
     stream_error = nil
@@ -479,7 +481,7 @@ module DeepSeekHelper
               # Abort streaming early - model is in infinite loop
               Monadic::Utils::ExtraLogger.log { "!!! EARLY ABORT: Detected DSML infinite loop during streaming !!!\n  function_calls blocks: #{dsml_fc_count}, invoke tags: #{dsml_invoke_count}, close tags: #{invoke_close_count}\n  Aborting stream to prevent long wait" }
               # Set a flag to break out of the streaming loop
-              @dsml_abort_streaming = true
+              dsml_abort_streaming = true
               throw :deepseek_stream_end
             end
           elsif choice["message"]["content"] =~ /```json\s*\n?\s*\{.*"name"\s*:\s*"(tavily_search|tavily_fetch)"/m
@@ -561,7 +563,7 @@ module DeepSeekHelper
 
     Monadic::Utils::ExtraLogger.log do
       msg = "Total chunks received: #{chunk_count}"
-      msg += "\n!!! Streaming was ABORTED due to malformed DSML loop !!!" if @dsml_abort_streaming
+      msg += "\n!!! Streaming was ABORTED due to malformed DSML loop !!!" if dsml_abort_streaming
       msg
     end
 

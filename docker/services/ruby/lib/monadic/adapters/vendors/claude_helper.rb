@@ -127,11 +127,6 @@ module ClaudeHelper
       (json["data"] || []).map { |m| m["id"] }.reject { |id| id.include?("claude-2") }
     end
 
-  def initialize
-    @thinking = nil
-    @signature = nil
-    super
-  end
 
   # (removed duplicate public send_query to keep a single SSOT-driven implementation)
 
@@ -1185,8 +1180,9 @@ module ClaudeHelper
 
     # Push the user message to the client as early as possible
     if user_turn_to_record?(role, message, session)
-      @thinking = nil
-      @signature = nil
+      # The turn's reasoning is the chat's: the app is shared by every chat.
+      session.delete(:claude_thinking)
+      session.delete(:claude_signature)
       res = { "type" => "user",
               "content" => {
                 "role" => role,
@@ -1587,8 +1583,8 @@ module ClaudeHelper
                                  redacted_thinking.join("")
                                end
 
-    @thinking = @thinking.to_s + thinking_result if thinking_result
-    @signature = thinking_signature if thinking_signature
+    session[:claude_thinking] = session[:claude_thinking].to_s + thinking_result if thinking_result
+    session[:claude_signature] = thinking_signature if thinking_signature
 
     text_result = if texts.empty?
                nil
@@ -1643,7 +1639,7 @@ module ClaudeHelper
       result = [{
         "choices" => [{
           "finish_reason" => finish_reason,
-          "message" => { "thinking" => @thinking, "content" => text_result }
+          "message" => { "thinking" => session[:claude_thinking], "content" => text_result }
         }]
       }]
 
@@ -1740,9 +1736,9 @@ module ClaudeHelper
     context = previous_returns.is_a?(Array) ? previous_returns.dup : []
     context << { "role" => "assistant", "content" => [] }
 
-    if thinking_result || @thinking.to_s != ""
-      thinking = thinking_result || @thinking.to_s
-      signature = thinking_signature || @signature
+    if thinking_result || session[:claude_thinking].to_s != ""
+      thinking = thinking_result || session[:claude_thinking].to_s
+      signature = thinking_signature || session[:claude_signature]
       context.last["content"] << {
         "type" => "thinking",
         "thinking" => thinking,

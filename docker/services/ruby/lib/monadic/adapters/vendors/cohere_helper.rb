@@ -1154,18 +1154,18 @@ module CohereHelper
               DebugHelper.debug("Cohere text fragment received: #{text.length} chars", category: :api, level: :debug)
             end
 
-            unless text.strip.empty?
-              if text.length > 0
-                res = {
-                  "type" => "fragment",
-                  "content" => text,
-                  "sequence" => fragment_sequence,
-                  "timestamp" => Time.now.to_f,
-                  "is_first" => fragment_sequence == 0
-                }
-                fragment_sequence += 1
-                block&.call res
-              end
+            # A piece of only spaces or a line break is shown too: it is
+            # what lies between the words around it.
+            unless text.empty?
+              res = {
+                "type" => "fragment",
+                "content" => text,
+                "sequence" => fragment_sequence,
+                "timestamp" => Time.now.to_f,
+                "is_first" => fragment_sequence == 0
+              }
+              fragment_sequence += 1
+              block&.call res
             end
           end
         end

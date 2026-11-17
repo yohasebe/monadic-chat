@@ -5,7 +5,7 @@ require "json"
 # Streams in each provider's format, for the specs that read replies the
 # way the providers send them.
 module StreamContract
-  TEXT = ["日本語の", "テキストと", " English words"].freeze
+  TEXT = ["日本語の", "テキストと", " ", "English words"].freeze
   CALLS = [["first_tool", { "n" => 1 }], ["second_tool", { "n" => 2 }]].freeze
   ERROR = "the service is overloaded"
 

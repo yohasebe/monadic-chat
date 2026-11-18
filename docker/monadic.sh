@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Add /usr/local/bin to the PATH
-export PATH=${PATH}:/usr/local/bin
+# Add the folders a Docker CLI is installed in (Docker Desktop, Homebrew,
+# other Docker-compatible runtimes) to the PATH
+export PATH=${PATH}:/usr/local/bin:/opt/homebrew/bin:~/.docker/bin
 
 # Read version from version.rb (reliable source in both dev and packaged app)
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
@@ -222,8 +223,6 @@ fi
 
 # Don't escape spaces - we'll quote the variable when using it
 
-# Define the paths to the support scripts
-SCRIPTS=("mac-start-docker.sh" "wsl2-start-docker.sh" "linux-start-docker.sh")
 
 normalize_path() {
   local path="$1"
@@ -563,34 +562,6 @@ ensure_data_dir() {
 
 }
 
-# Function to start Docker based on OS
-start_docker() {
-  case "${HOST_OS}" in
-  Darwin)
-    start_script="${ROOT_DIR}/services/support_scripts/${SCRIPTS[0]}"
-    ;;
-  Linux)
-    if [[ $(uname -r) == *microsoft* ]]; then
-      start_script="${ROOT_DIR}/services/support_scripts/${SCRIPTS[1]}"
-    else
-      start_script="${ROOT_DIR}/services/support_scripts/${SCRIPTS[2]}"
-    fi
-    ;;
-  *)
-    echo "Unsupported operating system: ${HOST_OS}" >&2
-    # exit 1
-    ;;
-  esac
-
-  if [[ -f "${start_script}" ]]; then
-    # return this function after the script has been executed without any errors
-    sh "${start_script}" && echo "[HTML]: <p>Starting Docker...</p>"
-  else
-    echo "Start script not found: ${start_script}" >&2
-    # exit 1
-  fi
-
-}
 
 # Function to build Ruby container only
 build_ruby_container() {
@@ -1481,7 +1452,7 @@ start_docker_compose() {
   local retries=0
   while ! ${DOCKER} info > /dev/null 2>&1; do
     if [ $retries -ge $RETRY_COUNT ]; then
-      echo "Docker did not start. Please start Docker Desktop manually."
+      echo "Docker did not start. Please start Docker Desktop or the Docker-compatible runtime you use."
       # exit 1
     fi
     retries=$((retries + 1))
@@ -2194,7 +2165,7 @@ stop)
     echo "[SERVER STOPPED]" &&
     echo "[HTML]: <p><b>Monadic Chat has been stopped.</b></p>"
   else
-    echo "[HTML]: <p>Docker Desktop is not running, skipping stop operation.</p>"
+    echo "[HTML]: <p>Docker is not running, skipping stop operation.</p>"
   fi
   ;;
 restart)

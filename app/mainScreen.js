@@ -148,7 +148,7 @@ function addCommandListeners() {
   });
 }
 
-// Function to update UI based on Docker Desktop status
+// Function to update UI based on Docker status
 function updateDockerStatusUI(isRunning) {
   const dockerStatusElement = document.getElementById('dockerStatus');
   const dockerLabelElement = document.getElementById('dockerLabel');
@@ -683,7 +683,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tipKey = isLinux ? 'messages.standaloneModeTipLinux' : 'messages.standaloneModeTip';
     const dockerTip = desktopText(tipKey)
       || (isLinux ? 'Please make sure Docker is running while using Monadic Chat.'
-                  : 'Please make sure Docker Desktop is running while using Monadic Chat.');
+                  : 'Please make sure Docker (Docker Desktop or a Docker-compatible runtime) is running while using Monadic Chat.');
     const pressStart = desktopText('messages.pressStartButton')
       || 'Press <b>start</b> button to initialize the server.';
     const initialMessage = `

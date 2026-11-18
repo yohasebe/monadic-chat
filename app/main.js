@@ -623,6 +623,13 @@ function showDockerMissingNotice() {
 }
 let wsl2Installed = false;
 
+// PATH with the folders a Docker CLI is installed in on macOS, after the
+// app's own (the same folders monadic.sh adds).
+function dockerSearchPath() {
+  const extra = ['/usr/local/bin', '/opt/homebrew/bin', path.join(os.homedir(), '.docker', 'bin')];
+  return [process.env.PATH || '', ...extra].filter(Boolean).join(':');
+}
+
 let dotenv;
 if (app.isPackaged) {
   dotenv = require('dotenv');
@@ -845,8 +852,10 @@ class DockerManager {
           });
         });
       } else if (os.platform() === 'darwin') {
-        exec('/usr/local/bin/docker -v', function (err, stdout) {
-          dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
+        // The Docker CLI where Docker Desktop, Homebrew and other runtimes
+        // put it; an app opened from the Finder has a short PATH.
+        exec('docker -v', { env: { ...process.env, PATH: dockerSearchPath() } }, function (err, stdout) {
+          dockerInstalled = !err && (stdout.includes('docker') || stdout.includes('Docker'));
           dockerMissing = !dockerInstalled;
           if (!dockerInstalled) {
             reportDockerMissing();

@@ -22,6 +22,7 @@ RSpec.describe 'JSON-route contract (no X-Requested-With)', :integration do
   before(:all) do
     require_relative '../../lib/monadic/utils/environment'
     require_relative '../../lib/monadic/version'
+    require_relative '../../lib/monadic/workspace'
 
     # Sinatra classic helper for the error JSON shape used by routes.
     Sinatra::Application.helpers do
@@ -56,9 +57,13 @@ RSpec.describe 'JSON-route contract (no X-Requested-With)', :integration do
     # File.open succeeds whether IN_CONTAINER is set or not. Without
     # this, IN_CONTAINER=true makes data_path resolve to /monadic/data
     # which only exists inside the production container.
-    @tmp_data_dir = Dir.mktmpdir('monadic-data-test')
+    @tmp_data_dir = File.realpath(Dir.mktmpdir('monadic-data-test'))
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@tmp_data_dir)
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(File.join(@tmp_data_dir, '.state'))
   end
+
+  # The chat UploadContext fixed for the upload (config.ru mounts it).
+  let(:chat_env) { { Monadic::Workspace::UploadContext::CHAT_KEY => Monadic::Workspace::Ids.generate(:chat) } }
 
   after do
     FileUtils.remove_entry(@tmp_data_dir) if @tmp_data_dir && Dir.exist?(@tmp_data_dir)
@@ -69,7 +74,7 @@ RSpec.describe 'JSON-route contract (no X-Requested-With)', :integration do
       file = Rack::Test::UploadedFile.new(
         StringIO.new("dummy"), 'application/octet-stream', original_filename: 'sample.txt'
       )
-      post '/document', { 'docFile' => file, 'docLabel' => '' }
+      post '/document', { 'docFile' => file, 'docLabel' => '' }, chat_env
 
       expect(last_response.content_type).to start_with('application/json')
     end
@@ -78,16 +83,28 @@ RSpec.describe 'JSON-route contract (no X-Requested-With)', :integration do
       file = Rack::Test::UploadedFile.new(
         StringIO.new("dummy"), 'text/plain', original_filename: 'sample.txt'
       )
-      post '/document', { 'docFile' => file, 'docLabel' => 'Note' }
+      post '/document', { 'docFile' => file, 'docLabel' => 'Note' }, chat_env
 
       data = JSON.parse(last_response.body)
       expect(data).to include('success' => true)
       expect(data['content']).to be_a(String)
       expect(data['content']).to include('Note')
+      # Kept as an attachment of the chat, nothing at the top of the shared folder
+      expect(Dir.glob(File.join(@tmp_data_dir, 'conversations', '*', 'inputs', '*__sample.txt')).size).to eq(1)
+      expect(Dir.children(@tmp_data_dir) - ['.state']).to eq(['conversations'])
+    end
+
+    it 'keeps nothing and says so when the page has no chat' do
+      file = Rack::Test::UploadedFile.new(StringIO.new("dummy"), 'text/plain', original_filename: 'sample.txt')
+      post '/document', { 'docFile' => file, 'docLabel' => '' }
+
+      data = JSON.parse(last_response.body)
+      expect(data).to include('success' => false)
+      expect(Dir.children(@tmp_data_dir) - ['.state']).to be_empty
     end
 
     it 'returns parseable JSON error when docFile is missing' do
-      post '/document', { 'docLabel' => 'no file' }
+      post '/document', { 'docLabel' => 'no file' }, chat_env
 
       expect(last_response.content_type).to start_with('application/json')
       data = JSON.parse(last_response.body)

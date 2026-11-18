@@ -88,10 +88,10 @@ use Rack::TempfileReaper
 # it.
 use Monadic::Workspace::UploadInMemory, paths: ["/load"]
 
-# Attachments: the chat fixed from the tab, then the size cap, both before
-# anything reads the request body.
+# Attachments and documents to convert: the chat fixed from the tab, then
+# the size cap, both before anything reads the request body.
 use Monadic::Workspace::UploadContext,
-    paths: [Monadic::Routes::AttachmentRoutes::PATH],
+    paths: [Monadic::Routes::AttachmentRoutes::PATH, "/document"],
     state_lookup: ->(tab_id) { WebSocketHelper.fetch_http_session_state(tab_id) }
 # Every upload, likewise capped before anything reads the body: Rack writes
 # file parts to disk while parsing, with no total limit of its own.

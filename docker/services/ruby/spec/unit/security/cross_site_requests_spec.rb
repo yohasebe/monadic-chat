@@ -33,6 +33,14 @@ RSpec.describe "Web app and requests from other sites" do
       end
     end)
     data = File.join(Dir.home, "monadic", "data")
+    # A page of a chat (its tab): a document it uploads is kept as that
+    # chat's attachment.
+    probe_chat = Monadic::Workspace::Ids.generate(:chat)
+    WebSocketHelper.singleton_class.prepend(Module.new do
+      define_method(:fetch_http_session_state) do |tab_id|
+        tab_id == "probe-tab" ? { chat_id: probe_chat, parameters: { "app_name" => "ChatOpenAI" } } : super(tab_id)
+      end
+    end)
     form = lambda do |field, name, body|
       "--B\r\nContent-Disposition: form-data; name=\"#{field}\"; filename=\"#{name}\"\r\n" \
         "Content-Type: application/octet-stream\r\n\r\n#{body}\r\n--B--\r\n"
@@ -43,11 +51,12 @@ RSpec.describe "Web app and requests from other sites" do
     factory = lambda do |filename, _type|
       Tempfile.new(["RackMultipart", File.extname(filename.to_s)]).tap { |file| made << file }
     end
-    upload = lambda do |name, headers, path: "/document", field: "docFile"|
+    upload = lambda do |name, headers, path: "/document?tab_id=probe-tab", field: "docFile"|
       env = { input: form.call(field, name, "ID3"), "CONTENT_TYPE" => "multipart/form-data; boundary=B",
               "HTTP_HOST" => "localhost:4567", "rack.multipart.tempfile_factory" => factory }.merge(headers)
       status = req.post("http://localhost:4567#{path}", env).status
-      { "status" => status, "written" => File.exist?(File.join(data, name)) }
+      kept = File.exist?(File.join(data, name)) || Dir.glob(File.join(data, "conversations", "*", "inputs", "*__#{name}")).any?
+      { "status" => status, "written" => kept }
     end
     ws = lambda do |headers|
       env = { "HTTP_HOST" => "localhost:4567", "HTTP_UPGRADE" => "websocket", "HTTP_CONNECTION" => "Upgrade",
@@ -65,6 +74,7 @@ RSpec.describe "Web app and requests from other sites" do
       "upload_own_page" => upload.call("d.txt", { "HTTP_ORIGIN" => "http://localhost:4567" }),
       "upload_no_origin" => upload.call("e.txt", {}),
       "attachment_other_site" => upload.call("g.mp4", { "HTTP_ORIGIN" => "http://evil.example" }, path: "/attachments?tab_id=t1", field: "file"),
+      "uploads_at_top" => %w[a.txt b.txt c.txt d.txt e.txt].select { |name| File.exist?(File.join(data, name)) },
       "ws_other_site" => ws.call({ "HTTP_ORIGIN" => "http://evil.example" }),
       "ws_null_origin" => ws.call({ "HTTP_ORIGIN" => "null" }),
       "ws_own_page" => ws.call({ "HTTP_ORIGIN" => "http://localhost:4567" }),
@@ -95,10 +105,12 @@ RSpec.describe "Web app and requests from other sites" do
              "/load" => [SESSION_LOAD_MAX_BYTES, "file"],
              "/library/import" => [LIBRARY_IMPORT_MAX_BYTES + 1_000_000, "libraryFile"] }
     out["caps"] = caps.to_h do |path, (limit, field)|
-      over = req.post("http://localhost:4567#{path}", input: form.call(field, "x.mp3", "ID3"),
+      # A document is sent from a chat's page (its tab).
+      url = "http://localhost:4567#{path}#{'?tab_id=probe-tab' if path == '/document'}"
+      over = req.post(url, input: form.call(field, "x.mp3", "ID3"),
                       "CONTENT_TYPE" => "multipart/form-data; boundary=B", "HTTP_HOST" => "localhost:4567",
                       "HTTP_ORIGIN" => "http://localhost:4567", "CONTENT_LENGTH" => (limit + 1).to_s)
-      small = req.post("http://localhost:4567#{path}", input: form.call(field, "x.mp3", "ID3"),
+      small = req.post(url, input: form.call(field, "x.mp3", "ID3"),
                        "CONTENT_TYPE" => "multipart/form-data; boundary=B", "HTTP_HOST" => "localhost:4567",
                        "HTTP_ORIGIN" => "http://localhost:4567")
       [path, { "over" => over.status, "over_reason" => (JSON.parse(over.body)["reason"] rescue nil), "small" => small.status }]
@@ -220,9 +232,10 @@ RSpec.describe "Web app and requests from other sites" do
     expect(@result["upload_tempfiles_left"]).to eq(0)
   end
 
-  it "still takes uploads from its own page and from programs" do
+  it "still takes uploads from its own page and from programs, kept in the chat's folder" do
     expect(@result["upload_own_page"]).to eq({ "status" => 200, "written" => true })
     expect(@result["upload_no_origin"]).to eq({ "status" => 200, "written" => true })
+    expect(@result["uploads_at_top"]).to eq([])
   end
 
   it "refuses WebSocket connections from other sites and lets its own page through" do

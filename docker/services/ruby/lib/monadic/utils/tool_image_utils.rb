@@ -23,12 +23,19 @@ module Monadic
         "#{FOR_MODEL_PREFIX}#{Time.now.to_i}_#{SecureRandom.hex(4)}#{suffix}.png"
       end
 
-      # Gives a file directly in the shared folder (name) such a name;
-      # returns the new name, or nil when it could not be renamed.
-      def self.for_model!(name)
-        return nil unless single_name?(name)
+      # Where a tool's image for the model may be, besides a name directly in
+      # the shared folder: a chat's browser folder or a run folder (of a chat
+      # or of the MCP server). Paths come from the tools' own output.
+      TOOL_IMAGE_DIR = %r{\A(?:conversations/[^/]+/(?:work/\.browser|artifacts/j_[a-z0-9]+)|mcp/artifacts/j_[a-z0-9]+)\z}
 
-        view = for_model_name
+      # Gives a tool's image (a name directly in the shared folder, or a path
+      # in one of the folders above) such a name, in the same folder; returns
+      # the new path, or nil when it could not be renamed.
+      def self.for_model!(name)
+        return nil unless tool_image_path?(name)
+
+        dir = File.dirname(name)
+        view = dir == "." ? for_model_name : File.join(dir, for_model_name)
         SharedPathGuard.rename_file!(File.join(Environment.data_path, name), File.join(Environment.data_path, view))
         view
       rescue SharedPathGuard::InvalidPath, SystemCallError
@@ -37,7 +44,8 @@ module Monadic
 
       # Removes the images for the model that were never read.
       def self.sweep_for_model
-        Dir.glob(File.join(Environment.data_path, "#{FOR_MODEL_PREFIX}*.png")).each do |path|
+        patterns = ["#{FOR_MODEL_PREFIX}*.png", "conversations/*/work/.browser/#{FOR_MODEL_PREFIX}*.png"]
+        Dir.glob(patterns.map { |pattern| File.join(Environment.data_path, pattern) }).each do |path|
           next if Time.now - File.lstat(path).mtime < FOR_MODEL_MAX_AGE
 
           SharedPathGuard.delete_file!(path)
@@ -52,16 +60,16 @@ module Monadic
       # @return [Hash, nil] { media_type: "image/png", base64_data: "..." } or nil
       def self.encode_image_for_api(filename, max_base64_size: 5 * 1024 * 1024)
         # The name comes from a tool's output: one name directly in the shared
-        # folder, nothing above it or below it.
-        return nil unless single_name?(filename)
+        # folder, or one in a chat's browser folder or a run folder.
+        return nil unless tool_image_path?(filename)
 
         image_path = File.join(Environment.data_path, filename)
 
         # A plain file of the shared folder, never through a link.
-        raw_data = SharedPathGuard.read_bytes!(image_path, limit: max_base64_size * 3 / 4)
+        raw_data = SharedPathGuard.read_bytes!(image_path, limit: max_base64_size * 3 / 4, strict: true)
         return nil unless raw_data
 
-        SharedPathGuard.delete_file!(image_path) if filename.start_with?(FOR_MODEL_PREFIX)
+        SharedPathGuard.delete_file!(image_path) if File.basename(filename).start_with?(FOR_MODEL_PREFIX)
 
         # Sent only when the bytes start with an image signature, typed by it
         # and not by the name: text such as the config env file is not sent.
@@ -74,6 +82,31 @@ module Monadic
 
         { media_type: media_type, base64_data: base64_data }
       rescue SharedPathGuard::InvalidPath, SystemCallError
+        nil
+      end
+
+      # A path in a chat's folder must be in the folder of the chat the
+      # request answers, so no name can reach another chat's images.
+      def self.tool_image_path?(path)
+        return single_name?(path) unless path.is_a?(String) && path.include?("/")
+        return false unless single_name?(File.basename(path)) && !path.split("/").include?("..")
+
+        dir = File.dirname(path)
+        return false unless dir.match?(TOOL_IMAGE_DIR)
+        return true unless dir.start_with?("conversations/")
+
+        folder = current_chat_folder
+        !folder.nil? && dir.start_with?("#{folder}/")
+      end
+
+      # The folder (relative to the shared folder) of the chat the current
+      # request answers, or nil.
+      def self.current_chat_folder
+        require_relative "../workspace/request_context"
+        require_relative "../workspace/ledger"
+        chat_id = Monadic::Workspace::RequestContext.current&.chat_id
+        chat_id && Monadic::Workspace::Ledger.default.workspace_for_chat(chat_id)&.dig(:relative_dir)
+      rescue StandardError
         nil
       end
 

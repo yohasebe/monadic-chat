@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'cgi'
+require 'shellwords'
 
 # Shared Python Execution Tools for Monadic Chat
 # Provides code execution, bash commands, and environment inspection
@@ -24,13 +25,6 @@ require_relative '../workbench/chat_output'
 module MonadicSharedTools
   module PythonExecution
     include MonadicHelper
-
-    # Supported image extensions for _image enrichment (SVG excluded — not supported by ToolImageUtils)
-    IMAGE_EXTENSIONS = %w[png jpg jpeg gif webp].freeze
-    # Maximum file size for _image injection (5 MB)
-    MAX_IMAGE_FILE_SIZE = 5 * 1024 * 1024
-    # Maximum number of images to inject per tool call
-    MAX_IMAGES_PER_CALL = 5
 
     # Execute program code and return the output
     #
@@ -60,10 +54,9 @@ module MonadicSharedTools
     #     extension: "rb"
     #   )
     #
-    # In an app whose MDSL sets `code_runs_in_chat_folder true`, the code
-    # runs in a run folder of the chat's folder: what it writes by a plain
-    # name stays there and is shown on the work screen beside the chat.
-    # Without a chat it runs from the shared folder.
+    # The code runs in a run folder of the chat's folder: what it writes by a
+    # plain name stays there and is shown on the work screen beside the
+    # chat. Without a chat it does not run.
     def run_code(code:, command:, extension:, session: nil, workbench: nil)
       # Validate inputs
       unless code && command && extension
@@ -82,36 +75,10 @@ module MonadicSharedTools
       end
 
       job = code_run_folder(session, workbench)
-      if job
-        output = super(code: code, command: command, extension: extension, session: session, run_dir: job)
-        return output + run_folder_notice(job, workbench)
-      end
+      return NO_CHAT_FOLDER unless job
 
-      # Call existing MonadicHelper implementation, passing the session
-      output_json = super(code: code, command: command, extension: extension, session: session)
-
-      # Parse output and store filename if successful (for continuous editing/analysis)
-      if session && output_json.is_a?(String)
-        begin
-          # MonadicHelper#run_code typically returns a JSON string with success and filename fields
-          parsed_output = JSON.parse(output_json)
-          if parsed_output["success"] && parsed_output["filename"]
-            session[:code_interpreter_last_output_file] = parsed_output["filename"]
-          end
-        rescue JSON::ParserError
-          # Attempt to extract filename from raw output if not JSON (e.g., from image generation)
-          if output_json =~ /File\(s\) generated.*?: ([^\s]+\.(?:png|jpg|jpeg|gif|svg|html))/i
-            filename = $1
-            session[:code_interpreter_last_output_file] = filename
-          elsif output_json =~ /Created HTML file: ([^\s]+?\.html)/i
-            filename = $1
-            session[:code_interpreter_last_output_file] = filename
-          end
-        end
-      end
-
-      # Enrich output with _image if image files were generated
-      enrich_with_images(output_json, session: session)
+      output = super(code: code, command: command, extension: extension, session: session, run_dir: job)
+      output + run_folder_notice(job, workbench)
     end
 
     # Execute a bash command in the Python container
@@ -130,7 +97,7 @@ module MonadicSharedTools
     #
     # @example Check Python version
     #   run_bash_command(command: "python --version")
-    def run_bash_command(command:)
+    def run_bash_command(command:, session: nil, workbench: nil)
       # Validate input
       unless command
         return {
@@ -159,8 +126,15 @@ module MonadicSharedTools
         }
       end
 
-      # Call existing MonadicHelper implementation
-      super(command: command)
+      # The command runs in a run folder of the chat's folder, so what it
+      # writes by a plain name stays in the chat (never at the top of the
+      # shared folder).
+      job = code_run_folder(session, workbench)
+      return NO_CHAT_FOLDER unless job
+
+      folder = File.join(Monadic::Utils::SharedPathGuard::CONTAINER_ROOT, job[:relative])
+      output = super(command: "cd #{Shellwords.escape(folder)} && #{command}")
+      output.to_s + run_folder_notice(job, workbench)
     end
 
     # Check the Python container environment configuration
@@ -206,14 +180,12 @@ module MonadicSharedTools
 
     private
 
-    # A run folder of the chat for this run, when the app keeps what its
-    # code makes in the chat's folder; nil otherwise.
+    NO_CHAT_FOLDER = "Error: There is no chat folder to run this in."
+
+    # A run folder of the chat for this run, or nil without a chat.
     def code_run_folder(session, workbench)
       app_name = session&.dig(:parameters, "app_name")
-      app = (APPS[app_name] if defined?(APPS) && app_name)
-      return nil unless app&.settings&.[](:code_runs_in_chat_folder)
-
-      Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench, app_name: app_name)
+      Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench, app_name: app_name || self.class.name)
     end
 
     # What the model is told of the files the run left: shown on the work
@@ -235,49 +207,5 @@ module MonadicSharedTools
       end
     end
 
-    # Post-process run_code output: detect generated images and store gallery HTML
-    # for server-side display via WebSocket (tool_html_fragments).
-    #
-    # Does NOT return _image key — vision injection into LLM context is intentionally
-    # omitted for code execution tools. Injecting images as "user" messages triggers
-    # additional API round-trips, causing tool-call loops. Gallery HTML ensures the
-    # user sees images correctly without LLM involvement.
-    #
-    # Apps that need the LLM to see screenshots (browser automation, diagram preview)
-    # return _image explicitly from their own tool methods.
-    def enrich_with_images(output, session: nil)
-      return output unless output.is_a?(String)
-
-      # Extract /data/filename.ext patterns from the output
-      image_basenames = output.scan(%r{/data/([\w\-. ]+\.(?:#{IMAGE_EXTENSIONS.join("|")}))})
-                              .flatten
-                              .uniq
-
-      return output if image_basenames.empty?
-
-      data_path = Monadic::Utils::Environment.data_path
-
-      # Filter: file must exist and be ≤ MAX_IMAGE_FILE_SIZE
-      valid_images = image_basenames.select do |basename|
-        full_path = File.join(data_path, basename)
-        File.exist?(full_path) && File.size(full_path) <= MAX_IMAGE_FILE_SIZE
-      end.first(MAX_IMAGES_PER_CALL)
-
-      return output if valid_images.empty?
-
-      # Store gallery HTML for server-side injection via WebSocket.
-      # This bypasses LLM filename hallucination — the correct <img> tags
-      # are appended to the response regardless of what the LLM writes.
-      if session
-        gallery_html = valid_images.map { |img|
-          "<div class=\"generated_image\"><img src=\"/data/#{CGI.escapeHTML(img.to_s)}\" /></div>"
-        }.join("\n")
-        session[:tool_html_fragments] ||= []
-        session[:tool_html_fragments] << gallery_html
-      end
-
-      # Return original text — no _image key, no vision injection
-      output
-    end
   end
 end

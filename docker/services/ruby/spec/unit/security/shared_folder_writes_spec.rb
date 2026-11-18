@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "../../../lib/monadic/workspace"
 require "tmpdir"
 require "fileutils"
 require "stringio"
@@ -107,10 +108,18 @@ RSpec.describe "Ruby-side writes into the shared folder" do
 
   describe "an app template (AppCreation)" do
     let(:tool) { Class.new { include MonadicSharedTools::AppCreation }.new }
+    # The template is kept in this chat's work folder.
+    let(:me) { Struct.new(:chat_id, :session).new(Monadic::Workspace::Ids.generate(:chat), {}) }
 
     before do
-      stub_const("MonadicSharedTools::AppCreation::LOCAL_SHARED_VOL", @root) unless defined?(MonadicSharedTools::AppCreation::LOCAL_SHARED_VOL)
-      stub_const("LOCAL_SHARED_VOL", @root)
+      allow(Monadic::Utils::Environment).to receive(:state_path).and_return(File.join(@root, ".state"))
+    end
+
+    it "is kept in the chat's work folder, and not made without a chat" do
+      result = tool.create_simple_app_template(app_name: "my_app", display_name: "X", workbench: me)
+      expect(result[:filepath]).to match(%r{\Aconversations/[^/]+/work/my_app_openai_template_\d{8}_\d{6}\.mdsl\z})
+      expect(tool.create_simple_app_template(app_name: "my_app", display_name: "X")[:success]).to be(false)
+      expect(Dir.children(@root).sort).to eq(%w[.state conversations helpers])
     end
 
     it "refuses a name with a line break or a provider that is not a plain name" do
@@ -124,8 +133,10 @@ RSpec.describe "Ruby-side writes into the shared folder" do
     it "writes the description and name so that loading the file runs none of them" do
       description = "TEXT\n$template_escaped = true\nen <<~'TEXT'\n\#{File.write('#{@root}/PWNED2', 'x')}\nrest"
       display_name = "A\" + `touch #{@root}/PWNED` + \""
-      result = tool.create_simple_app_template(app_name: "my_app", display_name: display_name, description: description)
+      result = tool.create_simple_app_template(app_name: "my_app", display_name: display_name, description: description,
+                                               workbench: me)
       expect(result[:success]).to be(true)
+      saved = File.join(@root, result[:filepath])
 
       calls = []
       recorder = Class.new(BasicObject) do
@@ -137,7 +148,7 @@ RSpec.describe "Ruby-side writes into the shared folder" do
         end
         define_method(:respond_to_missing?) { |*| true }
       end
-      recorder.new(calls).instance_eval(File.read(result[:full_path]), result[:full_path])
+      recorder.new(calls).instance_eval(File.read(saved), saved)
 
       expect($template_escaped).to be_nil
       expect(Dir.children(@root)).not_to include("PWNED", "PWNED2")

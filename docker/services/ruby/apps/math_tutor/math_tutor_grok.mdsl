@@ -16,7 +16,6 @@ app "MathTutorGrok" do
   end
   
   features do
-    code_runs_in_chat_folder true
     disabled !CONFIG["XAI_API_KEY"]
     easy_submit false
     auto_speech false

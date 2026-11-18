@@ -3,6 +3,7 @@
 require "spec_helper"
 require "json"
 require "tmpdir"
+require "fileutils"
 require_relative "../../../apps/mermaid_grapher/mermaid_grapher_tools"
 
 # Verifies that preview_mermaid treats a browser-side render error as a failure
@@ -65,10 +66,15 @@ RSpec.describe "MermaidGrapherTools#preview_mermaid render-error gating" do
     owner.reset!
     allow(owner).to receive(:observe).and_return({ sessions: [], max: 3 })
     owner.runner = ->(args, _) { tools.send_command(command: "web_navigator.py #{args.join(' ')}", container: "python") }
-    # Avoid touching the real shared volume / filesystem.
-    shared_dir = Dir.mktmpdir
+    # Avoid touching the real shared volume / filesystem. The preview's page
+    # goes in the chat's capture folder.
+    shared_dir = File.realpath(Dir.mktmpdir)
     allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(shared_dir)
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared_dir)
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(File.join(shared_dir, ".state"))
+    capture = "conversations/c/work/.browser"
+    FileUtils.mkdir_p(File.join(shared_dir, capture))
+    allow(owner).to receive(:capture_dir).and_return(capture)
   end
 
   context "when the browser rendered Mermaid's error graphic" do

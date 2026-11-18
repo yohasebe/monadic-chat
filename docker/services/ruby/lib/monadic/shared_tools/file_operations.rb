@@ -18,12 +18,18 @@ module MonadicSharedTools
 
     CHAT_FILES = Monadic::Workspace::ChatFiles
 
+    class HardLinked < StandardError; end
+
     # Read a file: one of this chat's (work/, inputs/, ...) or one the user
     # put in the shared folder outside conversations/. No link is followed
     # on the way, so none can lead into another chat's folder.
     def read_file_from_shared_folder(filepath:, workbench: nil)
       place = CHAT_FILES.for_read(filepath, caller: workbench, app_name: file_tools_app_name(workbench))
       content, stat = Monadic::Utils::SharedPathGuard.read_file!(place.full, strict: true) do |f|
+        # A file with another name elsewhere (a hard link) may be another
+        # chat's file: it is not read.
+        raise HardLinked if f.stat.nlink > 1
+
         [f.read.force_encoding("UTF-8"), f.stat]
       end
       {
@@ -40,6 +46,8 @@ module MonadicSharedTools
       }
     rescue CHAT_FILES::Refused => e
       { success: false, error: e.message, filepath: filepath }
+    rescue HardLinked
+      { success: false, error: "A file with more than one name (a hard link) is not read", filepath: filepath }
     rescue Monadic::Utils::SharedPathGuard::InvalidPath, Errno::ENOENT, Errno::EISDIR, Errno::ENOTDIR
       { success: false, error: "File not found", filepath: filepath }
     rescue Errno::EACCES
@@ -171,9 +179,13 @@ module MonadicSharedTools
       source = CHAT_FILES.for_read(filepath, caller: workbench, app_name: file_tools_app_name(workbench))
       return nil unless source.source == :shared
 
-      bytes = Monadic::Utils::SharedPathGuard.read_bytes!(source.full, strict: true)
+      bytes = Monadic::Utils::SharedPathGuard.read_file!(source.full, strict: true) do |f|
+        raise HardLinked if f.stat.nlink > 1
+
+        f.read
+      end
       { relative: source.relative, bytes: bytes.force_encoding("UTF-8") }
-    rescue CHAT_FILES::Refused, Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+    rescue CHAT_FILES::Refused, HardLinked, Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
       nil
     end
 

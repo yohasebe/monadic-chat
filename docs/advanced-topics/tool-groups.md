@@ -40,7 +40,7 @@ The lists of apps below name the built-in apps that import each group.
 - Write or append to files in the chat's work folder (`conversations/…/work/`), whatever place the AI names; the result gives the path each file was saved at
 - List files of the chat's work folder, or of a folder you made in the shared folder
 
-Other chats' folders are not read, written or listed.
+These tools do not read, write or list other chats' folders.
 
 **Apps using this**: Every app gets this group automatically.
 

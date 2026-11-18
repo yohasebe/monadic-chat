@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 require_relative "../../spec_helper"
+require 'fileutils'
+require 'tmpdir'
+require 'shellwords'
 require_relative "../../../lib/monadic/shared_tools/web_automation"
 
 # Minimal stubs for dependencies
@@ -37,6 +40,9 @@ RSpec.describe "MonadicSharedTools::WebAutomation" do
   end
 
   let(:app) { test_class.new }
+  let(:capture) { "conversations/c/work/.browser" }
+  let(:shared) { Dir.mktmpdir("web-automation-") }
+  after { FileUtils.rm_rf(shared) }
 
   # The action tools act on a browser this chat has open (BrowserOwner).
   before do
@@ -45,8 +51,17 @@ RSpec.describe "MonadicSharedTools::WebAutomation" do
     allow(owner).to receive(:current_work).and_return(["chat-spec", 0])
     allow(owner).to receive(:observe).and_return({ sessions: [], max: 3 })
     allow(owner).to receive(:start_worker)
-    # BrowserOwner's own commands (the close before a new start)
-    owner.runner = ->(_, _) { '{"success": true}' }
+    # The navigator in the Python container: what it was asked, and what it
+    # answers (the close before a new start goes through it too).
+    tool = app
+    owner.runner = lambda do |args, _|
+      tool.last_command = Shellwords.join(args)
+      tool.mock_response || '{"success": true, "session_id": "wd-spec"}'
+    end
+    # What the navigator saves goes in the chat's capture folder.
+    allow(owner).to receive(:capture_dir).and_return(capture)
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared)
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(File.join(shared, ".state"))
     owner.begin_start("chat-spec", 0)
     owner.finish_start("chat-spec", "wd-spec", 0)
   end
@@ -149,7 +164,7 @@ RSpec.describe "MonadicSharedTools::WebAutomation" do
 
     it "includes _image key when screenshot is present" do
       result = app.start_browser(url: "https://example.com")
-      expect(result[:_image]).to eq("screenshot_001.png")
+      expect(result[:_image]).to eq("#{capture}/screenshot_001.png")
     end
 
     it "leaves the screenshot out of the chat" do
@@ -185,13 +200,13 @@ RSpec.describe "MonadicSharedTools::WebAutomation" do
                end
 
         result = app.send(method, **args)
-        expect(result[:_image]).to eq("action_screenshot.png")
+        expect(result[:_image]).to eq("#{capture}/action_screenshot.png")
       end
     end
 
     it "browser_screenshot includes _image in response" do
       result = app.browser_screenshot
-      expect(result[:_image]).to eq("action_screenshot.png")
+      expect(result[:_image]).to eq("#{capture}/action_screenshot.png")
     end
 
     it "browser_select includes _image in response" do
@@ -203,7 +218,7 @@ RSpec.describe "MonadicSharedTools::WebAutomation" do
       })
 
       result = app.browser_select(selector: "#dropdown", value: "opt1")
-      expect(result[:_image]).to eq("select_screenshot.png")
+      expect(result[:_image]).to eq("#{capture}/select_screenshot.png")
     end
   end
 
@@ -230,7 +245,7 @@ RSpec.describe "MonadicSharedTools::WebAutomation" do
 
       it "includes _image in response" do
         result = app.annotate_elements(selectors: ["#btn1", ".nav-link", "#missing"])
-        expect(result[:_image]).to eq("annotated_001.png")
+        expect(result[:_image]).to eq("#{capture}/annotated_001.png")
       end
 
       it "leaves the annotated screenshot out of the chat" do

@@ -35,10 +35,6 @@ RSpec.describe 'code that runs in a run folder of the chat' do
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data)
     allow(Monadic::Utils::Environment).to receive(:state_path).and_return(@state)
     allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(true)
-    stub_const('APPS', {
-                 'CodeInterpreterOpenAI' => double(settings: { code_runs_in_chat_folder: true }),
-                 'MathTutorOpenAI' => double(settings: {})
-               })
     allow(MonadicSharedTools::WorkbenchTools).to receive(:show_file).and_return('{"status":"shown_in_work_screen"}')
     # The container: it sees the shared folder at /monadic/data, and the
     # code writes the files of `writes` where it runs.
@@ -76,16 +72,24 @@ RSpec.describe 'code that runs in a run folder of the chat' do
     expect(result).not_to include('work screen')
   end
 
-  it 'runs from the shared folder in an app that does not keep its output in the chat' do
-    app.run_code(code: "print(1)", command: 'python', extension: 'py', session: session_of('MathTutorOpenAI'), workbench: workbench)
-    expect(runs.first[:chdir]).to be_nil
-    expect(artifacts).to be_empty
+  it 'runs in a run folder of the chat in every app' do
+    app.run_code(code: 'x', command: 'python', extension: 'py', session: session_of('MathTutorOpenAI'),
+                 workbench: workbench)
+    expect(runs.first[:chdir]).to match(%r{\A/monadic/data/conversations/[^/]+/artifacts/j_[a-z0-9]+\z})
   end
 
-  it 'runs from the shared folder without a chat' do
-    app.run_code(code: "print(1)", command: 'python', extension: 'py', session: session_of('CodeInterpreterOpenAI'), workbench: nil)
-    expect(runs.first[:chdir]).to be_nil
-    expect(artifacts).to be_empty
+  it 'runs nothing without a chat, and writes nothing at the top of the shared folder' do
+    result = app.run_code(code: 'x', command: 'python', extension: 'py', session: {})
+    expect(result).to include('no chat folder')
+    expect(runs).to be_empty
+    expect(Dir.children(@data)).to be_empty
+  end
+
+  it 'runs a shell command in a run folder of the chat, and nothing without a chat' do
+    allow(app).to receive(:send_command) { |command:, **| runs << { command: command }; 'Command has been executed.' }
+    app.run_bash_command(command: 'touch out.txt', session: session_of('CodeInterpreterOpenAI'), workbench: workbench)
+    expect(runs.last[:command]).to match(%r{\Acd /monadic/data/conversations/[^/]+/artifacts/j_[a-z0-9]+ && touch out\.txt\z})
+    expect(app.run_bash_command(command: 'touch out.txt', session: {})).to include('no chat folder')
   end
 
   it 'runs a command in the container from the folder it is given' do

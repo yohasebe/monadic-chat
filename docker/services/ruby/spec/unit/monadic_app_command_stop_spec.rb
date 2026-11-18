@@ -128,12 +128,14 @@ RSpec.describe "MonadicApp commands that are stopped" do
       allow(app).to receive(:sleep)
     end
 
+    let(:run_dir) { { path: @dir, relative: "conversations/c/artifacts/j_1" } }
+
     it "does not run code again that ran over its time" do
       allow(app).to receive(:capture_command) do |*args, **|
         calls << args
         ["", "Command timed out after 180 seconds.", MonadicApp::TIMED_OUT]
       end
-      result = app.send(:send_code, code: "while True: pass", command: "python", extension: "py")
+      result = app.send(:send_code, code: "while True: pass", command: "python", extension: "py", run_dir: run_dir)
       expect(calls.size).to eq(1)
       expect(result).to include("timed out")
     end
@@ -143,7 +145,7 @@ RSpec.describe "MonadicApp commands that are stopped" do
         calls << args
         ["", "Traceback: boom", OpenStruct.new(success?: false)]
       end
-      app.send(:send_code, code: "raise SystemExit(1)", command: "python", extension: "py", max_retries: 2)
+      app.send(:send_code, code: "raise SystemExit(1)", command: "python", extension: "py", max_retries: 2, run_dir: run_dir)
       expect(calls.size).to eq(3)
     end
   end

@@ -82,7 +82,7 @@ JupyterLab も `/monadic/data` で起動するので、JupyterLab からも共�
 - **DrawIO Grapher**：図のファイル（`.drawio`）
 - **Web Insight**：Web ページのスクリーンショット（PNG）
 
-会話のアプリがその会話のために作るファイル（図、楽譜、音楽、読み上げの音声、画像、動画）は会話のフォルダ（`conversations/…/artifacts/`）に、AI がファイルの道具で書くファイルは作業フォルダ（`conversations/…/work/`）に保存されます。MCP サーバーから作ったファイルは `mcp/` の下に保存されます。ブラウザーの道具が撮る画面写しは、タイムスタンプや識別子を含む名前で、共有フォルダのいちばん上に保存されます。[ファイルのタブ](../basic-usage/web-interface.md#shared-folder-panel)で、各ファイルが何かを確かめ、要らなくなったものをごみ箱に移せます。
+会話のアプリがその会話のために作るファイル（図、楽譜、音楽、読み上げの音声、画像、動画）は会話のフォルダ（`conversations/…/artifacts/`）に、AI がファイルの道具で書くファイルは作業フォルダ（`conversations/…/work/`）に保存されます。ブラウザーの道具が撮る画面写しも会話のフォルダに、**ファイルからテキスト**で読み込んだ文書はその `inputs/` フォルダに保存され、コードは会話の実行用のフォルダから動き始めます。MCP サーバーから作ったファイルは `mcp/` の下に保存されます。これらは共有フォルダのいちばん上には保存されません。コンテナで動くコードは、共有フォルダのどこでも読み書きできます。[ファイルのタブ](../basic-usage/web-interface.md#shared-folder-panel)で、各ファイルが何かを確かめ、要らなくなったものをごみ箱に移せます。
 
 
 ## Monadic Chat のディレクトリ構造
@@ -100,6 +100,8 @@ Monadic Chat は起動するとき、次のフォルダが無ければ作りま�
 ├── log/            # ログファイル（server.log、docker_build.log など）
 └── state/          # Monadic Chat 自身の記録（編集しないでください）
 ```
+
+共有フォルダの `conversations/`（会話ごとのフォルダ。`inputs/`、`work/`、`artifacts/` を含む）と `mcp/`（MCP サーバーから作ったファイル）は、初めて要るときに作られます。
 
 
 `data` フォルダが共有フォルダで、Ruby、Python、Selenium、Extractor の各コンテナにマウントされます。その中の `apps`、`helpers`、`services` フォルダは、コンテナの中では読み取り専用です。これらのサブフォルダには、Monadic Chat に自分で加えるものを置きます。`apps`、`helpers`、`services` は本物のフォルダでなければなりません。どれかがリンクのときは、Monadic Chat は起動しません。共有フォルダの中のリンクであるファイルは読み書きせず、共有フォルダの外のフォルダを指すリンクはたどりません。追加のアプリの作り方は、[追加アプリの開発](../advanced-topics/develop_apps.md)を参照してください。

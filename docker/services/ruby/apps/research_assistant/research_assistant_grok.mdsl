@@ -121,7 +121,6 @@ app "ResearchAssistantGrok" do
   display_name "Research Assistant"
 
   features do
-    code_runs_in_chat_folder true
     disabled !CONFIG["XAI_API_KEY"]
     websearch true
     temperature 0.0

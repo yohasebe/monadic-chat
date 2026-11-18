@@ -455,17 +455,12 @@ class MonadicApp
         return "Error: JavaScript/Node.js execution is not currently supported. The Python container does not have Node.js installed. Please use Python code instead, or consider using the Code Interpreter app which may have broader language support."
       end
 
-      # Set appropriate paths based on environment
-      if run_dir
-        data_dir = run_dir[:path]
-        files_dir = run_dir[:path]
-      elsif Monadic::Utils::Environment.in_container?
-        data_dir = SHARED_VOL
-        files_dir = SHARED_VOL
-      else
-        data_dir = LOCAL_SHARED_VOL
-        files_dir = File.expand_path(File.join(Dir.home, "monadic", "data"))
-      end
+      # The code and what it writes stay in the run folder of the chat;
+      # without one nothing runs (never at the top of the shared folder).
+      return "Error: There is no chat folder to run this in." unless run_dir
+
+      data_dir = run_dir[:path]
+      files_dir = run_dir[:path]
 
       # Generate unique filename with timestamp and random suffix
       timestamp = Time.now.strftime("%Y%m%d_%H%M%S")
@@ -486,7 +481,7 @@ class MonadicApp
 
       # Run the code in the Python container (3 minutes at most). Stopped
       # (Cancel) or over its time, it stops there too.
-      workdir = run_dir ? File.join(SHARED_VOL, run_dir[:relative]) : nil
+      workdir = File.join(SHARED_VOL, run_dir[:relative])
       stdout, stderr, status = self.capture_command([*command_argv, filename], timeout: 180, container: :python, chdir: workdir)
 
       if status.success?
@@ -512,34 +507,12 @@ class MonadicApp
 
         # Prepare the success message with file information
         # Use explicit language to help LLMs understand whether images can be displayed
-        if run_dir
-          output = success.dup
-          unless changed_files.empty?
-            output += "\n\nFiles the code left in its folder: " +
-                      changed_files.map { |file| File.join(run_dir[:relative], File.basename(file)) }.join(", ")
-          end
-          output += "\n\nOutput: #{truncate_output(stdout)}" if stdout.strip.length.positive?
-        elsif !changed_files.empty?
-          file_paths = changed_files.map { |file| "/data/" + File.basename(file) }
-          image_files = file_paths.select { |f| f.match?(/\.(png|jpg|jpeg|gif|svg|webp)$/i) }
-
-          if image_files.any?
-            output = "#{success}\n\nIMAGE FILES CREATED (verified to exist):\n"
-            image_files.each { |f| output += "- #{f}\n" }
-            output += "\nThese images are automatically displayed in the chat. Do NOT include <img> tags in your response."
-
-            other_files = file_paths - image_files
-            if other_files.any?
-              output += "\n\nOther files: #{other_files.join(", ")}"
-            end
-          else
-            output = "#{success}; File(s) generated or modified: #{file_paths.join(", ")}"
-          end
-          output += "\n\nOutput: #{truncate_output(stdout)}" if stdout.strip.length.positive?
-        else
-          output = "#{success}\n\nNOTE: No image files were created. Do NOT display any images."
-          output += "\n\nOutput: #{truncate_output(stdout)}" if stdout.strip.length.positive?
+        output = success.dup
+        unless changed_files.empty?
+          output += "\n\nFiles the code left in its folder: " +
+                    changed_files.map { |file| File.join(run_dir[:relative], File.basename(file)) }.join(", ")
         end
+        output += "\n\nOutput: #{truncate_output(stdout)}" if stdout.strip.length.positive?
 
         # Remove the code file unless it is to be kept
         remove_code_file(created) unless keep_file
@@ -686,16 +659,17 @@ class MonadicApp
     ["", "Command timed out after #{timeout} seconds. This may happen with complex syntax trees or when using high reasoning effort settings. Consider simplifying the input or reducing reasoning_effort.", TIMED_OUT]
   end
 
-  def self.doc2markdown(filename)
-    basename = File.basename(filename)
-    extension = File.extname(basename).downcase
+  # The text of a document in the shared folder (relative, the path the
+  # ledger records for an attachment), read in the Python container.
+  def self.doc2markdown(relative_path)
+    extension = File.extname(relative_path.to_s).downcase
     require_relative 'shell'
 
-    # Safely escape the filename to prevent command injection. The
-    # escape lives at the boundary so the bash body inside the
-    # container reads the filename as a single argv element regardless
-    # of spaces / quotes / shell metacharacters.
-    escaped_basename = Monadic::Shell.escape(basename)
+    # Safely escape the path to prevent command injection. The escape
+    # lives at the boundary so the bash body inside the container reads
+    # it as a single argv element regardless of spaces / quotes / shell
+    # metacharacters.
+    escaped_basename = Monadic::Shell.escape(relative_path.to_s)
 
     body = case extension
            when ".pdf"

@@ -161,6 +161,15 @@ RSpec.describe 'The files of a chat' do
       end
     end
 
+    it "never reads a file that has another name elsewhere (a hard link into another chat's folder)" do
+      File.link(File.join(@data, @theirs), File.join(@data, 'innocent.md'))
+      result = tools.read_file_from_shared_folder(filepath: '/monadic/data/innocent.md', workbench: me)
+      expect(result[:success]).to be(false)
+      expect(result.to_s).not_to include('THEIR-SECRET')
+      appended = tools.write_file_to_shared_folder(filepath: 'innocent.md', content: 'x', mode: 'append', workbench: me)
+      expect(File.read(File.join(@data, appended[:saved_as]))).to eq('x')
+    end
+
     it "never reads another chat's folder through a link in the user's folders" do
       File.symlink(File.join(@data, File.dirname(@theirs)), File.join(@data, 'shortcut'))
       result = tools.read_file_from_shared_folder(filepath: '/monadic/data/shortcut/secret.md', workbench: me)

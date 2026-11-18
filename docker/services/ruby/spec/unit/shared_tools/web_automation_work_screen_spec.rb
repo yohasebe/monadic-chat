@@ -43,12 +43,19 @@ RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work scree
     allow(owner).to receive(:current_work).and_return([chat, Monadic::Workspace::Chats.epoch(chat)])
     allow(owner).to receive(:observe).and_return({ sessions: [], max: 3 })
     allow(owner).to receive(:start_worker)
-    owner.runner = ->(_, _) { '{"success": true}' }
+    # The navigator in the Python container (BrowserOwner.navigator).
+    tool = app
+    owner.runner = lambda do |args, _|
+      next '{"success": true}' if args.include?('stop')
+
+      tool.mock_response || '{"success": true, "session_id": "wd-spec"}'
+    end
     app.instance_variable_set(:@browser_action_count, 0)
     # The shared folder: a temporary one, never the user's.
     @shared = File.realpath(FileUtils.mkdir_p(File.join(root, "data")).first)
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@shared)
     allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(@shared)
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(File.join(root, "state"))
     # The work screen as start_browser tells it (a stand-in: each case says
     # what placing the browser does).
     stub_const("Monadic::WorkScreen", Module.new {
@@ -61,6 +68,11 @@ RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work scree
     Monadic::Workbench::Board.live = nil
     owner.reset!
     FileUtils.rm_rf(root)
+  end
+
+  # The chat's capture folder, where the navigator saves its screenshots.
+  def capture
+    @capture ||= owner.capture_dir(chat)
   end
 
   def open_browser
@@ -91,16 +103,31 @@ RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work scree
     let(:png) { "\x89PNG\r\n\x1A\n".b + "x" }
     let(:prefix) { Monadic::Utils::ToolImageUtils::FOR_MODEL_PREFIX }
 
-    before { File.binwrite(File.join(@shared, "shot.png"), png) }
+    before { File.binwrite(File.join(@shared, capture, "shot.png"), png) }
 
     it "is nothing of an action's screenshot once the model has been given it" do
       place(open_browser)
       result = act(:browser_scroll)
 
-      expect(result[:_image]).to start_with(prefix)
-      expect(Dir.children(@shared)).to eq([result[:_image]])
-      expect(Monadic::Utils::ToolImageUtils.encode_image_for_api(result[:_image])).to include(media_type: "image/png")
-      expect(Dir.children(@shared)).to eq([])
+      expect(result[:_image]).to start_with("#{capture}/#{prefix}")
+      expect(Dir.children(File.join(@shared, capture))).to eq([File.basename(result[:_image])])
+      encoded = Monadic::Workspace::RequestContext.with(request) do
+        Monadic::Utils::ToolImageUtils.encode_image_for_api(result[:_image])
+      end
+      expect(encoded).to include(media_type: "image/png")
+      expect(Dir.children(File.join(@shared, capture))).to eq([])
+      expect(Dir.children(@shared)).to eq(["conversations"])
+    end
+
+    it "is never read for another chat's request" do
+      place(open_browser)
+      result = act(:browser_scroll)
+      other = Monadic::Workspace::RequestContext.new(chat_id: Monadic::Workspace::Ids.generate(:chat))
+      encoded = Monadic::Workspace::RequestContext.with(other) do
+        Monadic::Utils::ToolImageUtils.encode_image_for_api(result[:_image])
+      end
+      expect(encoded).to be_nil
+      expect(File.exist?(File.join(@shared, result[:_image]))).to be true
     end
 
     it "is a screenshot the model asked for, in the chat's folder and not at the top" do
@@ -114,11 +141,12 @@ RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work scree
       expect(result[:screenshot]).to eq("conversations/c/artifacts/j1/shot.png")
       expect(File.binread(File.join(@shared, result[:screenshot]))).to eq(png)
       expect(result[:work_screen]).to include("show_on_workbench")
-      expect(Dir.children(@shared).sort).to eq(["conversations", result[:_image]].sort)
+      expect(Dir.children(@shared)).to eq(["conversations"])
+      expect(result[:_image]).to start_with("#{capture}/#{prefix}")
     end
 
     it "removes the model's images that were never read, when they are old" do
-      stale = File.join(@shared, "#{prefix}1_aaaa.png")
+      stale = File.join(@shared, capture, "#{prefix}1_aaaa.png")
       File.binwrite(stale, png)
       past = Time.now - Monadic::Utils::ToolImageUtils::FOR_MODEL_MAX_AGE - 1
       File.utime(past, past, stale)
@@ -134,7 +162,7 @@ RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work scree
     it "#{tool} gives the model the screenshot and leaves it out of the chat" do
       place(open_browser)
       result = act(tool, **args)
-      expect(result[:_image]).to eq("shot.png")
+      expect(result[:_image]).to eq("#{capture}/shot.png")
       expect(result).not_to have_key(:screenshot)
       expect(result).not_to have_key(:gallery_html)
       expect(result[:work_screen]).to include("the chat does not show it")
@@ -145,7 +173,7 @@ RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work scree
     open_browser
     result = act
     expect(result).not_to have_key(:gallery_html)
-    expect(result[:_image]).to eq("shot.png")
+    expect(result[:_image]).to eq("#{capture}/shot.png")
   end
 
   describe "#start_browser" do
@@ -156,7 +184,7 @@ RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work scree
     it "gives the model the screenshot and leaves it out of the chat" do
       allow(Monadic::WorkScreen).to receive(:browser_opened).and_return(nil)
       result = Monadic::Workspace::RequestContext.with(request) { app.start_browser(url: "https://example.com") }
-      expect(result[:_image]).to eq("start.png")
+      expect(result[:_image]).to eq("#{capture}/start.png")
       expect(result).not_to have_key(:gallery_html)
       expect(result[:work_screen]).to include("the chat does not show it")
     end
@@ -168,20 +196,24 @@ RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work scree
     end
   end
 
+  # The captures are written in a run folder of the chat.
+  let(:job) { { relative: "conversations/c/artifacts/j1", path: File.join(@shared, "conversations/c/artifacts/j1") } }
+
   it "capture_viewport_screenshots leaves its pictures out of the chat and says how to show one" do
     allow(owner).to receive(:with_job).and_yield
+    allow(Monadic::Workbench::ChatOutput).to receive(:run_folder).and_return(job)
     app.mock_response = "SUCCESS: captured\n- v1.png\n"
     result = Monadic::Workspace::RequestContext.with(request) { app.capture_viewport_screenshots(url: "https://example.com") }
     expect(result[:success]).to be(true)
-    expect(result[:screenshots]).to eq(["v1.png"])
+    expect(result[:screenshots]).to eq(["conversations/c/artifacts/j1/v1.png"])
     expect(result).not_to have_key(:gallery_html)
     expect(result[:work_screen]).to include("show_on_workbench")
   end
 
   it "capture_viewport_screenshots shows what it kept in the chat's folder on the work screen, the first one in view" do
     allow(owner).to receive(:with_job).and_yield
+    allow(Monadic::Workbench::ChatOutput).to receive(:run_folder).and_return(job)
     app.mock_response = "SUCCESS: captured\n- v1.png\n- v2.png\n"
-    allow(app).to receive(:keep_captures) { |names, *| names.map { |name| "conversations/c/artifacts/j1/#{name}" } }
     shown = []
     allow(Monadic::Workbench::ChatOutput).to receive(:show) { |path, _| shown << path }
 
@@ -190,5 +222,13 @@ RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work scree
     expect(shown).to eq(["conversations/c/artifacts/j1/v2.png", "conversations/c/artifacts/j1/v1.png"])
     expect(result[:work_screen]).to include("shown on the work screen")
     expect(result[:work_screen]).not_to include("show_on_workbench")
+  end
+
+  it "capture_viewport_screenshots takes nothing without a chat" do
+    allow(owner).to receive(:with_job).and_yield
+    allow(Monadic::Workbench::ChatOutput).to receive(:run_folder).and_return(nil)
+    result = Monadic::Workspace::RequestContext.with(request) { app.capture_viewport_screenshots(url: "https://example.com") }
+    expect(result[:success]).to be(false)
+    expect(Dir.children(@shared)).to be_empty
   end
 end

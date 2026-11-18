@@ -296,7 +296,8 @@ RSpec.describe MonadicSharedTools::BrowserOwner do
         .and_return(['out {"success": true, "sessions": ["x"], "max_sessions": 3}', "", double(success?: true)])
       expect(owner.observe).to eq(sessions: ['x'], max: 3)
       expect(Monadic::Shell).to have_received(:exec)
-        .with(container: :python, argv: %w[web_navigator.py --action status], timeout: described_class::STATUS_TIMEOUT)
+        .with(hash_including(container: :python, argv: %w[web_navigator.py --action status],
+                             timeout: described_class::STATUS_TIMEOUT))
     end
 
     it 'is nil when Selenium cannot be asked or reports no slots' do
@@ -309,30 +310,16 @@ RSpec.describe MonadicSharedTools::BrowserOwner do
     end
   end
 
-  # The browser tools, through a fake send_command (private, as in
-  # MonadicApp) and a fake Python container for BrowserOwner's own
-  # commands; both write to one log.
+  # The browser tools, through a fake Python container for every
+  # web_navigator command (BrowserOwner.navigator); one log.
   describe 'the browser tools' do
     let(:log) { [] }
     let(:app) do
-      commands = log
       Class.new do
         include MonadicSharedTools::WebAutomation
         attr_accessor :on_action
 
-        define_method(:commands) { commands }
-
         def check_selenium_or_error = nil
-
-        private
-
-        def send_command(command:, container:)
-          commands << command
-          return '{"success": true, "session_id": "wd-new", "screenshot": null}' if command.include?('--action start')
-
-          on_action&.call
-          '{"success": true}'
-        end
       end.new
     end
     let(:stop_reply) { '{"success": true}' }
@@ -353,9 +340,15 @@ RSpec.describe MonadicSharedTools::BrowserOwner do
       allow(owner).to receive(:close_later)
       # What a start tells the work screen is not what these look at.
       allow(Monadic::WorkScreen).to receive(:browser_opened) if defined?(Monadic::WorkScreen)
+      tool = app
       owner.runner = lambda do |args, _|
-        log << "web_navigator.py #{args.join(' ')}"
-        stop_reply
+        command = "web_navigator.py #{args.join(' ')}"
+        log << command
+        next stop_reply if command.include?('--action stop')
+        next '{"success": true, "session_id": "wd-new", "screenshot": null}' if command.include?('--action start')
+
+        tool.on_action&.call
+        '{"success": true}'
       end
     end
 

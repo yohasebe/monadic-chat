@@ -60,6 +60,7 @@ APPS = {} unless defined?(APPS)
 require 'fileutils'
 require_relative 'support/test_run_dir'
 require_relative '../lib/monadic/utils/environment'
+require_relative 'support/real_shared_folder_guard'
 require_relative '../lib/monadic/utils/privacy/egress_guard'
 Monadic::Utils::Environment.singleton_class.prepend(Module.new do
   def log_path

@@ -119,7 +119,6 @@ app "ResearchAssistantMistral" do
   display_name "Research Assistant"
 
   features do
-    code_runs_in_chat_folder true
     disabled !CONFIG["MISTRAL_API_KEY"]
     websearch !!CONFIG["TAVILY_API_KEY"]
     temperature 0.0

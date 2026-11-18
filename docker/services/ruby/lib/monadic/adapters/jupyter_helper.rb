@@ -363,19 +363,24 @@ module MonadicHelper
       end
     end
 
-    # The cells reach the Python container through a file in the shared
-    # folder; its name is the call's own (two chats can add cells in the same
-    # second), and it is removed once the container has read it.
-    tempfile = "jupyter_cells_#{Time.now.strftime('%Y%m%d_%H%M%S')}_#{SecureRandom.hex(4)}"
-    Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] Writing to temp file: #{tempfile}.json" }
-    write_to_file(filename: tempfile, extension: "json", text: cells_in_json)
+    # The cells reach the Python container through a file beside the
+    # notebook (in the chat's work folder); its name is the call's own (two
+    # chats can add cells in the same second), and it is removed once the
+    # container has read it.
+    notebook = shared_relative(filename)
+    return "Error: Invalid shared notebook path" unless notebook
 
-    shared_volume = if Monadic::Utils::Environment.in_container?
-                      MonadicApp::SHARED_VOL
-                    else
-                      MonadicApp::LOCAL_SHARED_VOL
-                    end
-    filepath = File.join(shared_volume, tempfile + ".json")
+    folder = File.dirname(notebook)
+    tempfile = File.join(folder == "." ? "" : folder,
+                         ".jupyter_cells_#{Time.now.strftime('%Y%m%d_%H%M%S')}_#{SecureRandom.hex(4)}").delete_prefix("/")
+    Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] Writing the cells beside the notebook" }
+    filepath = File.join(Monadic::Utils::Environment.data_path, "#{tempfile}.json")
+    begin
+      Monadic::Utils::SharedPathGuard.write_file!(filepath, cells_in_json, replace: false, strict: true)
+    rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+      return "Error: The cells could not be passed to the notebook."
+    end
+    shared_volume = Monadic::Utils::Environment.data_path
 
     success = false
     max_retrial = 20

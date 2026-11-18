@@ -52,7 +52,6 @@ docker/services/ruby/lib/monadic/help/installation.rb | FileUtils.mkdir_p(@direc
 docker/services/ruby/lib/monadic/help/installation.rb | File.open(File.join(@directory, "#{name}.lock"), mode | state | help install locks (state folder)
 docker/services/ruby/lib/monadic/help/installation.rb | Tempfile.create(['progress-' | state | help install journal (state folder)
 docker/services/ruby/lib/monadic/help/installation.rb | File.rename(file.path | state | help install journal (state folder)
-docker/services/ruby/apps/drawio_grapher/drawio_grapher_tools.rb | FileUtils.mkdir_p(data_dir) | shared-root | the shared folder itself
 docker/services/ruby/apps/auto_forge/auto_forge.rb | File.open(local, 'wb') | system-temp | patch work folder (Dir.mktmpdir)
 docker/services/ruby/apps/auto_forge/auto_forge.rb | File.write(diff, patch_text) | system-temp | patch work folder (Dir.mktmpdir)
 docker/services/ruby/apps/auto_forge/utils/directory_operations.rb | FileUtils.rm_rf(@test_dir) | test-only | the file's own self-test (Dir.mktmpdir)

@@ -2,6 +2,7 @@
 
 require_relative "../../spec_helper"
 require "tmpdir"
+require "fileutils"
 require_relative "../../../lib/monadic/shared_tools/scratch_browser"
 require_relative "../../../lib/monadic/adapters/selenium_helper"
 require_relative "../../../apps/mermaid_grapher/mermaid_grapher_tools"
@@ -35,12 +36,18 @@ RSpec.describe MonadicSharedTools::ScratchBrowser do
     expect(commands[2]).to eq(%w[--action stop --managed --session-id wd-job])
   end
 
-  it 'removes the screenshots its actions left in the shared folder, and nothing else' do
+  it "removes the screenshots its actions left in the chat's capture folder, and nothing else" do
     Dir.mktmpdir('scratch-shots') do |dir|
       shared = File.realpath(dir)
       allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(shared)
       allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared)
-      %w[browser_1.png browser_2.png browser_3.png browser_9.png kept.png].each { |n| File.write(File.join(shared, n), 'x') }
+      capture = 'conversations/c/work/.browser'
+      allow(owner).to receive(:capture_dir).and_return(capture)
+      folder = File.join(shared, capture)
+      FileUtils.mkdir_p(folder)
+      %w[browser_1.png browser_2.png browser_3.png browser_9.png kept.png].each { |n| File.write(File.join(folder, n), 'x') }
+      # A file of the same name outside the capture folder is not the job's.
+      File.write(File.join(shared, 'browser_2.png'), 'x')
       owner.runner = lambda do |args, _|
         next stop_reply if args.include?('stop')
         next '{"success": true, "session_id": "wd-job", "screenshot": "browser_1.png"}' if args.include?('start')
@@ -50,7 +57,8 @@ RSpec.describe MonadicSharedTools::ScratchBrowser do
 
       described_class.with_session('u') { |run, _| run.call(%w[--action full_screenshot]) }
 
-      expect(Dir.children(shared).sort).to eq(%w[browser_9.png kept.png])
+      expect(Dir.children(folder).sort).to eq(%w[browser_9.png kept.png])
+      expect(File.exist?(File.join(shared, 'browser_2.png'))).to be(true)
     end
   end
 

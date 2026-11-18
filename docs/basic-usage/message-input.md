@@ -71,7 +71,7 @@ In apps that analyze video or transcribe audio, the **Image** button also takes 
 
 ## Reading Text from Document Files :id=reading-text-from-document-files
 
-Click the **Text from file** button to select a document file. The contents of the selected file are loaded into the text area. Supported file formats include PDF, Word files (`.docx`), Excel files (`.xlsx`), PowerPoint files (`.pptx`), and various text files (`.txt`, `.md`, `.html`, etc).
+Click the **Text from file** button to select a document file. The contents of the selected file are loaded into the text area. Supported file formats include PDF, Word files (`.docx`), Excel files (`.xlsx`), PowerPoint files (`.pptx`), and various text files (`.txt`, `.md`, `.html`, etc). The file is kept in the chat's folder (`conversations/…/inputs/`).
 
 ![The Text from file dialog](../assets/images/figures/file-dialog.svg)
 

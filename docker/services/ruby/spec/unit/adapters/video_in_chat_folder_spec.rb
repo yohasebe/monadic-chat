@@ -60,12 +60,12 @@ RSpec.describe "Videos kept in the chat's folder", :no_api do
       expect(Dir.glob(File.join(@data, "conversations/*/artifacts/*"))).to be_empty
     end
 
-    it "saves at the top of the shared folder without a chat" do
+    it "makes nothing without a chat, and nothing at the top of the shared folder" do
       generator(host, "v.mp4")
       result = JSON.parse(call)
-      expect(result).not_to have_key("path")
-      expect(commands.first).not_to include("--out-dir")
-      expect(File.exist?(File.join(@data, "v.mp4"))).to be true
+      expect(result["success"]).to be false
+      expect(commands).to be_empty
+      expect(Dir.children(@data) - ["conversations"]).to be_empty
     end
   end
 

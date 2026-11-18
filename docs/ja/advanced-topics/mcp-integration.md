@@ -69,7 +69,7 @@ Conduit は以下の `monadic_*` ツールを公開します。各ツールの�
 - `monadic_analyze_audio` — 音声の定性的解析（例: 音楽批評）
 - `monadic_analyze_video` — 動画のフレーム抽出・ビジョン解析・音声文字起こし
 
-**生成（出力は共有ボリューム `~/monadic/data` に保存）**
+**生成（出力は共有ボリューム `~/monadic/data` の `mcp/` の下に、一回ずつ別のフォルダで保存。結果で保存したパスを返す）**
 - `monadic_speak` — テキスト読み上げ（TTS）
 - `monadic_generate_code` — 指定したプロバイダー（`openai`、`anthropic`、`xai`）のコードエージェントによるコード生成
 - `monadic_generate_image` — 画像生成

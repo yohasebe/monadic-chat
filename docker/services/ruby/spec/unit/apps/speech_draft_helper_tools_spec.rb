@@ -52,10 +52,10 @@ RSpec.describe SpeechDraftHelperOpenAI do
     expect(Dir.children(@data)).to eq(['conversations'])
   end
 
-  it 'makes the speech in the shared folder without a chat' do
+  it 'makes no speech without a chat, and nothing at the top of the shared folder' do
     result = app.text_to_speech(text: 'Thank you all')
-    expect(result).to match(/saved to \S+\.mp3/)
-    expect(Dir.children(@data).grep(/\.mp3\z/).size).to eq(1)
+    expect(result).to start_with('Error occurred:')
+    expect(Dir.children(@data)).to be_empty
   end
 
   it 'gives back what the command said, and leaves no run folder, when nothing was made' do

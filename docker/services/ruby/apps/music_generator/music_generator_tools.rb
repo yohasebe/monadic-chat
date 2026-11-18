@@ -67,11 +67,7 @@ module MusicGeneratorTools
                prompt: prompt, notice: Monadic::Workbench::ChatOutput.said("The track", kept[:paths].first, shown: kept[:shown]) }.to_json
     end
 
-    filepath = File.join(Monadic::Utils::Environment.shared_volume, filename)
-    Monadic::Utils::SharedPathGuard.write_file!(filepath, response.body.to_s)
-
-    { success: true, service: ELEVENLABS_MUSIC_SERVICE, filename: filename, mime_type: mime,
-      model: model_id, prompt: prompt }.to_json
+    { success: false, service: ELEVENLABS_MUSIC_SERVICE, error: "There is no chat folder to keep the track in." }.to_json
   rescue StandardError => e
     { success: false, service: ELEVENLABS_MUSIC_SERVICE,
       error: Monadic::Utils::ErrorFormatter.tool_error(

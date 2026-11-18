@@ -50,10 +50,9 @@ RSpec.describe "a file Claude made for a reply" do
     expect(kept[:shown]).to be false
   end
 
-  it "goes to documents/ when the reply has no chat folder" do
+  it "is not saved anywhere when the reply has no chat folder" do
     allow(Monadic::Workbench::Caller).to receive(:current).and_return(nil)
-    kept = host.send(:keep_provider_file, {}, "PK", "book.xlsx")
-    expect(File.read(File.join(@data, "documents", "book.xlsx"))).to eq("PK")
-    expect(kept[:shown]).to be false
+    expect(host.send(:keep_provider_file, {}, "PK", "book.xlsx")).to be_nil
+    expect(Dir.exist?(@data) ? Dir.children(@data) : []).to be_empty
   end
 end

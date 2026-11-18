@@ -20,10 +20,21 @@ require_relative '../../../apps/auto_forge/auto_forge_debugger'
 require_relative '../../../lib/monadic/adapters/jupyter_helper'
 require_relative '../../../lib/monadic/adapters/selenium_helper'
 require_relative '../../support/generator_script_loader'
+require_relative '../../../lib/monadic/workspace'
 
 RSpec.describe 'Tool input boundaries' do
   let(:guard) { Monadic::Utils::SharedPathGuard }
-  let(:helper) { Class.new { include MonadicSharedTools::FileOperations }.new }
+  # The file tools work for a chat: each call here is one of this chat's.
+  let(:chat_caller) { Struct.new(:chat_id, :session).new(Monadic::Workspace::Ids.generate(:chat), { parameters: { 'app_name' => 'Chat' } }) }
+  let(:helper) do
+    me = chat_caller
+    Class.new do
+      include MonadicSharedTools::FileOperations
+      %i[write_file_to_shared_folder read_file_from_shared_folder list_files_in_shared_folder].each do |name|
+        define_method(name) { |**args| super(**{ workbench: me }.merge(args)) }
+      end
+    end.new
+  end
   let(:audio) { Class.new { include AudioTranscriptionAgent }.new }
   let(:vision) { Class.new { include ImageAnalysisAgent }.new }
   let(:drawio) { Class.new { include DrawIOGrapher }.new }
@@ -44,6 +55,7 @@ RSpec.describe 'Tool input boundaries' do
     stub_const('Monadic::VectorStore::BackendError', Class.new(StandardError))
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@root)
     allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(@root)
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(File.join(@sandbox, 'state'))
     allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(false)
     allow(conduit).to receive(:required_analysis_provider).and_return('openai')
     allow(Monadic::MCP::CostGuard).to receive(:reserve!)
@@ -114,9 +126,9 @@ RSpec.describe 'Tool input boundaries' do
       allow(Monadic::Utils::Environment).to receive(:data_path).and_return(alias_root)
       result = helper.write_file_to_shared_folder(filepath: 'sub/new.txt', content: 'text')
       expect(result[:success]).to be(true)
-      expect(result[:filepath]).to eq('sub/new.txt')
-      expect(result[:full_path]).to eq('/monadic/data/sub/new.txt')
-      expect(guard.command_path('sub/new.txt', container: 'python')).to eq('/monadic/data/sub/new.txt')
+      expect(result[:saved_as]).to match(%r{\Aconversations/[^/]+/work/sub/new\.txt\z})
+      expect(result[:execution_path]).to eq("/monadic/data/#{result[:saved_as]}")
+      expect(guard.command_path(result[:saved_as], container: 'python')).to eq("/monadic/data/#{result[:saved_as]}")
     end
 
     it 'supports shared-relative and mount paths, Unicode, spaces and internal symlinks' do
@@ -200,18 +212,20 @@ RSpec.describe 'Tool input boundaries' do
   describe 'shared writes and diagrams' do
     it 'does not create missing parents through an external symlink' do
       outside_inputs('.txt').each do |path|
-        expect(helper.write_file_to_shared_folder(filepath: path, content: 'overwrite')[:success]).to be(false)
+        result = helper.write_file_to_shared_folder(filepath: path, content: 'overwrite')
+        expect(!result[:success] || result[:saved_as].match?(%r{\Aconversations/[^/]+/work/})).to be(true), path
       end
       expect(File.read(File.join(@outside, 'private.txt'))).to eq('fixture')
       expect(File.exist?(File.join(@outside, 'missing'))).to be(false)
     end
 
     it 'writes nothing outside when a folder it made is swapped for a link before the write' do
-      target = File.join(@root, 'new')
-      allow(Monadic::Utils::SharedPathGuard).to receive(:mkdir_p!).and_wrap_original do |original, path|
-        original.call(path).tap do
-          FileUtils.rm_rf(target)
-          File.symlink(@outside, target)
+      allow(Monadic::Utils::SharedPathGuard).to receive(:mkdir_p!).and_wrap_original do |original, path, **opts|
+        original.call(path, **opts).tap do
+          next unless File.basename(path) == 'new'
+
+          FileUtils.rm_rf(path)
+          File.symlink(@outside, path)
         end
       end
       result = helper.write_file_to_shared_folder(filepath: 'new/escape.txt', content: 'overwrite')
@@ -225,21 +239,23 @@ RSpec.describe 'Tool input boundaries' do
       ['helpers/x.rb', 'apps/x/x.mdsl', 'apps/x/helpers/y.rb', 'scripts/ruby', 'Helpers/x.rb', 'SCRIPTS/bash',
        './apps/x.rb', '/monadic/data/helpers/x.rb', 'innocent/x.rb', 'services/x/compose.yml',
        'Services/x/compose.yml'].each do |path|
+        # Refused, or kept in the chat's work folder: never where the name points.
         result = helper.write_file_to_shared_folder(filepath: path, content: 'puts :ran')
-        expect(result[:success]).to be(false), "#{path} was written"
+        expect(!result[:success] || result[:saved_as].match?(%r{\Aconversations/[^/]+/work/})).to be(true), "#{path} was written"
       end
       written = Dir.glob(File.join(@root, '{apps,helpers,scripts,services,Helpers,SCRIPTS,Services}', '**', '*'), File::FNM_DOTMATCH)
                    .select { |f| File.file?(f) }
       expect(written).to be_empty
-      # a name that only starts like one of them is an ordinary folder
-      expect(helper.write_file_to_shared_folder(filepath: 'apps-notes/x.txt', content: 'ok')[:success]).to be(true)
+      expect(Dir.children(File.join(@root, 'helpers'))).to be_empty
     end
 
     it 'writes nothing where a loaded folder really is, when that folder is a link' do
       FileUtils.mkdir_p(File.join(@root, 'ordinary'))
       File.symlink(File.join(@root, 'ordinary'), File.join(@root, 'helpers'))
-      expect(helper.write_file_to_shared_folder(filepath: 'helpers/probe.rb', content: 'x')[:success]).to be(false)
-      expect(helper.write_file_to_shared_folder(filepath: 'ordinary/probe.rb', content: 'x')[:success]).to be(false)
+      %w[helpers/probe.rb ordinary/probe.rb].each do |path|
+        result = helper.write_file_to_shared_folder(filepath: path, content: 'x')
+        expect(!result[:success] || result[:saved_as].match?(%r{\Aconversations/[^/]+/work/})).to be(true), path
+      end
       expect(Dir.children(File.join(@root, 'ordinary'))).to be_empty
     end
 
@@ -247,7 +263,8 @@ RSpec.describe 'Tool input boundaries' do
       FileUtils.mkdir_p(File.join(@root, 'notes'))
       target = fixture('notes/kept.txt', text: 'kept')
       File.symlink(target, File.join(@root, 'report.txt'))
-      expect(helper.write_file_to_shared_folder(filepath: 'report.txt', content: 'overwrite')[:success]).to be(false)
+      result = helper.write_file_to_shared_folder(filepath: 'report.txt', content: 'overwrite')
+      expect(!result[:success] || result[:saved_as].match?(%r{\Aconversations/[^/]+/work/})).to be(true)
       writer = Class.new { include MonadicHelper }.new
       stub_const('MonadicApp::LOCAL_SHARED_VOL', @root)
       expect(writer.send(:write_to_file, filename: 'report', extension: 'txt', text: 'overwrite')).to start_with('Error')
@@ -257,14 +274,19 @@ RSpec.describe 'Tool input boundaries' do
     it 'writes and appends valid Unicode subfolder names' do
       result = helper.write_file_to_shared_folder(filepath: '日本語 folder/new/file name.txt', content: 'first')
       expect(result[:success]).to be(true)
+      expect(result[:saved_as]).to end_with('/work/日本語 folder/new/file name.txt')
       expect(helper.write_file_to_shared_folder(filepath: result[:filepath], content: 'second', mode: 'append')[:success]).to be(true)
-      expect(File.read(File.join(@root, '日本語 folder/new/file name.txt'))).to eq('firstsecond')
+      expect(File.read(File.join(@root, result[:saved_as]))).to eq('firstsecond')
     end
 
     it 'uses shell metacharacters literally in shared writes and diagrams' do
       shell_names('.txt').each do |name|
-        expect(helper.write_file_to_shared_folder(filepath: name, content: 'literal')[:success]).to be(true)
-        expect(File.read(File.join(@root, name))).to eq('literal')
+        result = helper.write_file_to_shared_folder(filepath: name, content: 'literal')
+        # A name with a line break is refused; the others are kept as written.
+        next expect(result[:success]).to(be(false)) if name.include?("\n")
+
+        expect(result[:success]).to be(true)
+        expect(File.read(File.join(@root, result[:saved_as]))).to eq('literal')
       end
       shell_names('.drawio').each do |name|
         expect(drawio.write_drawio_file(content: '<mxfile/>', filename: name)).to include('saved successfully')

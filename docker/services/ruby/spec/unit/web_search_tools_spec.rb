@@ -108,9 +108,8 @@ RSpec.describe MonadicSharedTools::WebSearchTools do
   describe '#fetch_web_content' do
     let(:instance) { test_class.new }
 
-    it 'accepts URL and timeout parameters' do
-      # The page is saved into the shared folder: a temporary one here, never
-      # the user's.
+    it 'accepts URL and timeout parameters, and keeps nothing without a chat' do
+      # A temporary shared folder, never the user's.
       shared = Dir.mktmpdir('web-content-')
       allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(shared)
       allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared)
@@ -125,8 +124,10 @@ RSpec.describe MonadicSharedTools::WebSearchTools do
 
       result = instance.fetch_web_content(url: 'https://example.com', timeout: 10)
       expect(result).to be_a(Hash)
-      expect(result[:success]).to be true
-      expect(result[:url]).to eq('https://example.com')
+      # No chat here: the page is not kept, and nothing lands at the top.
+      expect(result[:success]).to be false
+      expect(result[:error]).to include('no chat folder')
+      expect(Dir.children(shared)).to be_empty
     ensure
       FileUtils.rm_rf(shared) if shared
     end

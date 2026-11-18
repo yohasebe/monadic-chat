@@ -208,25 +208,20 @@ module MonadicSharedTools
       end
     end
 
-    # Keeps a fetched page as a text file: in a run folder of the reply's
-    # chat (so it goes with the turn that fetched it), or else at the top of
-    # the shared folder. Returns [path in the shared folder, full path].
+    # Keeps a fetched page as a text file in a run folder of the reply's
+    # chat (so it goes with the turn that fetched it). Returns [path in the
+    # shared folder, full path]; raises NoChatFolder without a chat folder.
     def keep_web_content(body, session, workbench)
       name = "web_content_#{Time.now.strftime('%Y%m%d_%H%M%S')}.txt"
       app_name = session.respond_to?(:[]) ? session.dig(:parameters, 'app_name') : nil
       job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench, app_name: app_name || self.class.name)
-      if job
-        path = Monadic::Workbench::ChatOutput.keep(job, name, body)
-        return [path, File.join(Monadic::Utils::Environment.shared_volume, path)]
-      end
+      raise NoChatFolder, "There is no chat folder to keep the page in." unless job
 
-      # The Environment helper (a method call) resolves the shared volume
-      # from this module too, which the bare SHARED_VOL constants do not.
-      filepath = File.join(Monadic::Utils::Environment.shared_volume, name)
-      # Never through a link in its place (code a model runs could have made one)
-      Monadic::Utils::SharedPathGuard.write_file!(filepath, body)
-      [name, filepath]
+      path = Monadic::Workbench::ChatOutput.keep(job, name, body)
+      [path, File.join(Monadic::Utils::Environment.shared_volume, path)]
     end
+
+    class NoChatFolder < StandardError; end
 
     # Search the web using Tavily API
     #

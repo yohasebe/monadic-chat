@@ -10,7 +10,13 @@ RSpec.describe "Gemini video tool", :no_api do
   let(:session) { {} }
   let(:commands) { [] }
 
+  # The video goes in a run folder of the chat.
+  let(:job) { { path: "/data/conversations/c/artifacts/j_1", relative: "conversations/c/artifacts/j_1" } }
+
   def stub_generator(stdout:, stderr: "")
+    allow(Monadic::Workbench::ChatOutput).to receive(:run_folder).and_return(job)
+    allow(Monadic::Workbench::ChatOutput).to receive(:take).and_return(nil)
+    allow(Monadic::Workbench::ChatOutput).to receive(:drop_if_empty)
     allow(Monadic::Utils::ProgressBroadcaster).to receive(:with_progress) { |**_, &block| block.call }
     allow(host).to receive(:send_command) do |command:, container:, &block|
       commands << [command, container]
@@ -28,7 +34,15 @@ RSpec.describe "Gemini video tool", :no_api do
     command, container = commands.first
     expect(container).to eq("ruby")
     expect(Shellwords.split(command)).to eq(["video_generator_gemini.rb", "-p", "a boat", "-a", "9:16", "-d", "5",
-                                             "--negative-prompt", "people"])
+                                             "--negative-prompt", "people", "--out-dir", job[:path]])
+  end
+
+  it "makes nothing without a run folder" do
+    stub_generator(stdout: "{}")
+    allow(Monadic::Workbench::ChatOutput).to receive(:run_folder).and_return(nil)
+    result = JSON.parse(host.generate_video_with_gemini(prompt: "a boat"))
+    expect(result["success"]).to be false
+    expect(commands).to be_empty
   end
 
   it "reports a generator that printed no result" do

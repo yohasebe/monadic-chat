@@ -11,7 +11,7 @@ class SpeechDraftHelperOpenAI < MonadicApp
   # list_providers_and_voices is already available from MonadicHelper
   
   # The speech is made in a run folder of the chat's folder and shown on
-  # the work screen; without a chat, it goes to the shared folder.
+  # the work screen; without a chat, none is made.
   def text_to_speech(text:, provider: "openai", voice_id: nil, language: "en", instructions: nil, speed: 1.0,
                      session: nil, workbench: nil)
     app_name = (session && session.dig(:parameters, "app_name")) || self.class.name

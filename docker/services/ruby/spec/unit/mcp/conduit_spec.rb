@@ -8,6 +8,22 @@ require_relative "../../../lib/monadic/utils/privacy/pipeline"
 require_relative "../../../lib/monadic/mcp/conduit"
 
 RSpec.describe Monadic::MCP::Conduit do
+  # What the tools make goes under mcp/ of a shared folder of its own here,
+  # never the user's.
+  around do |example|
+    Dir.mktmpdir("conduit-shared-") do |dir|
+      @conduit_data = File.realpath(dir)
+      example.run
+    end
+  end
+
+  before do
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@conduit_data)
+    allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(@conduit_data)
+  end
+
+  MCP_RUN = %r{\Amcp/artifacts/j_[a-z0-9]+/}
+
   describe ".tools" do
     subject(:tools) { described_class.tools }
 
@@ -1351,8 +1367,9 @@ RSpec.describe Monadic::MCP::Conduit do
       result = described_class.call("monadic_speak", { "text" => "hello" })
       expect(result[:success]).to be true
       expect(result[:provider]).to eq("openai")
-      expect(result[:file]).to eq("1718967890.mp3")
-      expect(result[:note]).to match(%r{~/monadic/data/1718967890\.mp3})
+      expect(result[:file]).to match(/#{MCP_RUN}1718967890\.mp3\z/)
+      expect(result[:note]).to eq("Saved to ~/monadic/data/#{result[:file]}")
+      expect(Dir.children(@conduit_data)).to eq(["mcp"])
       expect(result[:budget][:tokens_spent]).to be > 0
     end
 
@@ -1362,7 +1379,7 @@ RSpec.describe Monadic::MCP::Conduit do
         .and_return("Text-to-speech audio saved to 42.wav (WAV format)")
       result = described_class.call("monadic_speak", { "text" => "hi", "provider" => "google" })
       expect(result[:provider]).to eq("gemini")
-      expect(result[:file]).to eq("42.wav")
+      expect(result[:file]).to match(/#{MCP_RUN}42\.wav\z/)
     end
 
     it "passes an explicit voice and speed through" do
@@ -1541,7 +1558,7 @@ RSpec.describe Monadic::MCP::Conduit do
       result = described_class.call("monadic_generate_image", { "prompt" => "a cat" })
       expect(result[:success]).to be true
       expect(result[:provider]).to eq("openai")
-      expect(result[:files]).to eq(["generate_gpt-image-2_123_0.png"])
+      expect(result[:files]).to match([a_string_matching(/#{MCP_RUN}generate_gpt-image-2_123_0\.png\z/)])
       expect(result[:budget][:tokens_spent]).to be > 0
     end
 
@@ -1552,7 +1569,7 @@ RSpec.describe Monadic::MCP::Conduit do
         .and_return(JSON.generate({ success: true, filename: "123.png", revised_prompt: "a fox" }))
       result = described_class.call("monadic_generate_image", { "prompt" => "fox", "provider" => "xai" })
       expect(result[:provider]).to eq("grok")
-      expect(result[:files]).to eq(["123.png"])
+      expect(result[:files]).to match([a_string_matching(/#{MCP_RUN}123\.png\z/)])
     end
 
     it "routes gemini through the gemini helper host (google alias)" do
@@ -1562,7 +1579,7 @@ RSpec.describe Monadic::MCP::Conduit do
         .and_return(JSON.generate({ success: true, filename: "g.png", model: "gemini" }))
       result = described_class.call("monadic_generate_image", { "prompt" => "p", "provider" => "google" })
       expect(result[:provider]).to eq("gemini")
-      expect(result[:files]).to eq(["g.png"])
+      expect(result[:files]).to match([a_string_matching(/#{MCP_RUN}g\.png\z/)])
     end
 
     it "maps a failed JSON result to a structured error" do
@@ -1584,8 +1601,8 @@ RSpec.describe Monadic::MCP::Conduit do
     end
 
     # The workbench is a chat's: an image made over MCP has no chat and is
-    # saved in the shared folder, as the base helpers do.
-    it "saves directly to the shared folder through the base helpers, never a chat's workbench" do
+    # saved in a run folder under mcp/, never at the top of the shared folder.
+    it "saves in a run folder under mcp/ through the base helpers, never a chat's workbench" do
       %i[generate_image_with_openai generate_image_with_grok].each do |name|
         expect(described_class.media_app_host.method(name).parameters.map(&:last)).not_to include(:workbench)
       end
@@ -1598,10 +1615,11 @@ RSpec.describe Monadic::MCP::Conduit do
       end
       %w[openai grok].each do |provider|
         result = described_class.call("monadic_generate_image", { "prompt" => "x", "provider" => provider })
-        expect(result[:files]).to eq(["x.png"])
+        expect(result[:files]).to match([a_string_matching(/#{MCP_RUN}x\.png\z/)])
       end
       expect(commands.size).to eq(2)
-      expect(commands).to all(satisfy { |c| !c.include?("--out-dir") })
+      expect(commands).to all(include("--out-dir")).and all(include("/mcp/artifacts/j_"))
+      expect(Dir.children(@conduit_data)).to eq(["mcp"])
     end
 
     it "requires a prompt" do

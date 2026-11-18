@@ -124,9 +124,11 @@ module Monadic
       #
       # @param session [Hash] the WebSocket session (provides :messages and fallbacks)
       # @param image_path [String, nil] filename passed by the tool call, if any
-      # @return [String, nil] the bare filename on the shared volume, or nil
+      # @param into [Hash, nil] the run folder (Workspace::Jobs) an upload is
+      #   written in; without one an upload is not written
+      # @return [String, nil] the image's path in the shared folder, or nil
       # @raise [ImageMaterializationError] if an upload exists but cannot be written
-      def self.materialize_session_image(session, image_path: nil)
+      def self.materialize_session_image(session, image_path: nil, into: nil)
         materialized = nil
 
         # A freshly uploaded image always wins. Resolve it first regardless of
@@ -142,7 +144,7 @@ module Monadic
             if data_url.is_a?(String) && data_url.start_with?("data:image/")
               # An upload is present: a failure here is an error to surface, not
               # a reason to silently downgrade to text-to-video.
-              materialized = write_data_url_to_shared(data_url, first_image["type"])
+              materialized = write_data_url_to_shared(data_url, first_image["type"], into: into)
             elsif first_image["filename"]
               materialized = first_image["filename"]
             elsif first_image["title"]
@@ -190,10 +192,13 @@ module Monadic
         false
       end
 
-      # Decode a "data:image/...;base64,..." URL and write it to the shared data
-      # directory. Returns the bare filename.
-      # @raise [ImageMaterializationError] on oversize payload or write failure
-      def self.write_data_url_to_shared(data_url, declared_mime = nil)
+      # Decode a "data:image/...;base64,..." URL and write it in the run
+      # folder into (Workspace::Jobs). Returns its path in the shared folder.
+      # @raise [ImageMaterializationError] on oversize payload, no run folder
+      #   or write failure
+      def self.write_data_url_to_shared(data_url, declared_mime = nil, into: nil)
+        raise ImageMaterializationError, "There is no chat folder to keep the uploaded image in." unless into
+
         require "securerandom"
         base64_data = data_url.split(",", 2).last
         binary = Base64.decode64(base64_data)
@@ -217,14 +222,11 @@ module Monadic
                 end
               end
 
-        dir = Environment.data_path
-        raise ImageMaterializationError, "Shared data directory is unavailable." unless dir
-
-        FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
         filename = "video_gen_temp_#{Time.now.to_i}_#{SecureRandom.hex(4)}#{ext}"
-        SharedPathGuard.write_file!(File.join(dir, filename), binary, replace: false)
-        @materialized_mutex.synchronize { @materialized[filename] = true }
-        filename
+        SharedPathGuard.write_file!(File.join(into[:path], filename), binary, replace: false, strict: true)
+        relative = File.join(into[:relative], filename)
+        @materialized_mutex.synchronize { @materialized[relative] = true }
+        relative
       rescue ImageMaterializationError
         raise
       rescue StandardError => e

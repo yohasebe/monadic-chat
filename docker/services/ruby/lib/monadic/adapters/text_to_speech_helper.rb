@@ -9,9 +9,11 @@ module MonadicHelper
   end
 
   # Speaks text into an audio file of the shared folder, named after the
-  # input and put beside it: in out_dir (a folder of the shared folder, such
-  # as a chat's run folder), or else at the top of the shared folder.
+  # input and put beside it in out_dir (a run folder of a chat, or of the
+  # MCP server). Without one nothing is made.
   def text_to_speech(provider: "openai", text: "", speed: 1.0, voice_id: "alloy", language: "auto", instructions: "", out_dir: nil)
+    return "Error occurred: there is no chat folder to keep the speech in." unless out_dir
+
     if CONFIG["TTS_DICT"] && !CONFIG["TTS_DICT"].empty?
       # Sort keys by length in descending order to process longer patterns first
       sorted_keys = CONFIG["TTS_DICT"].keys.sort_by { |k| -k.length }
@@ -27,7 +29,7 @@ module MonadicHelper
 
     text = text.gsub(/"/, '\"')
 
-    save_path = out_dir || Monadic::Utils::Environment.shared_volume
+    save_path = out_dir
 
     # Unique per call: Time.now.to_i has 1-second resolution, so concurrent
     # syntheses (e.g. parallel Conduit jobs) would otherwise collide on the

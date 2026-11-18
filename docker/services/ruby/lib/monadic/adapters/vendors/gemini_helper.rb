@@ -80,8 +80,8 @@ module GeminiHelper
 
     api_key = CONFIG["GEMINI_API_KEY"]
     return { success: false, error: "GEMINI_API_KEY not configured" }.to_json unless api_key
+    return { success: false, error: "There is no chat folder to keep the image in." }.to_json unless out_dir
 
-    shared_folder = Monadic::Utils::Environment.shared_volume
     model_id = IMAGE_GENERATION_MODELS[model] || model
 
     image_config = {}
@@ -239,32 +239,7 @@ module GeminiHelper
               else "png"
               end
         filename = "gemini3_image_#{Time.now.to_i}.#{ext}"
-        if out_dir
-          Monadic::Workbench::JobOutput.write!(out_dir, filename, Base64.decode64(b64))
-          return { success: true, filename: filename, model: model, prompt: prompt }.to_json
-        end
-
-        filepath = File.join(shared_folder, filename)
-        Monadic::Utils::SharedPathGuard.write_file!(filepath, Base64.decode64(b64))
-
-        # Add generated image to session for iterative editing
-        if session && session[:messages]
-          data_url = "data:#{mime};base64,#{b64}"
-          image_data = {
-            "title" => filename,
-            "data" => data_url
-          }
-
-          # Add as a new user message with the generated image
-          session[:messages] << {
-            "role" => "user",
-            "text" => "[Generated image: #{filename}]",
-            "images" => [image_data]
-          }
-
-          Monadic::Utils::ExtraLogger.log { "ImageGeneratorGemini: Added generated image to session\n  Filename: #{filename}\n  Session now has #{session[:messages].size} messages" }
-        end
-
+        Monadic::Workbench::JobOutput.write!(out_dir, filename, Base64.decode64(b64))
         return { success: true, filename: filename, model: model, prompt: prompt }.to_json
       end
 
@@ -292,10 +267,10 @@ module GeminiHelper
   # Python examples is the SDK's and is rejected with 400 here). The API may
   # still return MP3, so the saved file's extension follows the returned type. Uploaded images in the session
   # influence the composition (image-to-music, up to 10). Resolves the actual
-  # model id from providerDefaults.gemini.music (SSOT). In a chat, the track
-  # and its lyrics (a Markdown file) are kept in a run folder of the chat's
-  # folder and shown on the work screen; without one, the track goes to the
-  # shared folder.
+  # model id from providerDefaults.gemini.music (SSOT). The track and its
+  # lyrics (a Markdown file) are kept in a run folder of the chat's folder
+  # (or of the MCP server) and shown on the work screen; without one, the
+  # track is not kept.
   def generate_music_with_lyria(prompt:, lyria_model: nil, output_format: nil, session: nil, workbench: nil)
     require 'net/http'
     require 'json'
@@ -313,8 +288,6 @@ module GeminiHelper
     pro_model  = music_models&.[](0) || "lyria-3.5"
     clip_model = music_models&.[](1) || "lyria-3-clip-preview"
     model_id = lyria_model.to_s.downcase == "clip" ? clip_model : pro_model
-
-    shared_folder = Monadic::Utils::Environment.shared_volume
 
     # Text prompt + any user-uploaded images for image-to-music (max 10).
     parts = [{ text: prompt }]
@@ -377,9 +350,7 @@ module GeminiHelper
                model: model_id, prompt: prompt, notice: notice }.compact.to_json
     end
 
-    Monadic::Utils::SharedPathGuard.write_file!(File.join(shared_folder, filename), audio)
-    { success: true, service: "Google Lyria", filename: filename, mime_type: mime, lyrics: lyrics,
-      model: model_id, prompt: prompt }.to_json
+    { success: false, service: "Google Lyria", error: "There is no chat folder to keep the track in." }.to_json
   rescue StandardError => e
     { success: false, error: Monadic::Utils::ErrorFormatter.tool_error(
       provider: "Gemini",
@@ -3765,15 +3736,22 @@ module GeminiHelper
   # text-to-video, or image-to-video from an image in the shared folder or one
   # uploaded with the message. One video, 720p, 3 to 10 seconds. In a chat,
   # the video is saved in a run folder of the chat's folder and shown on the
-  # work screen; without one, at the top of the shared folder.
+  # work screen; without one, none is made.
   def generate_video_with_gemini(prompt:, image_path: nil, aspect_ratio: nil, duration: nil, negative_prompt: nil, session: nil,
                                  workbench: nil)
     # An uploaded image lives in the session as a data URL and is written to
     # the shared folder for the generator; a failure is reported instead of
     # silently making a text-to-video.
+    job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench,
+                                                    app_name: session&.dig(:parameters, "app_name") || "VideoGeneratorGemini")
+    unless job
+      return { "success" => false, "message" => "There is no chat folder to keep the video in.", "original_prompt" => prompt }.to_json
+    end
+
     begin
-      final_image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(session, image_path: image_path)
+      final_image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(session, image_path: image_path, into: job)
     rescue Monadic::Utils::ToolImageUtils::ImageMaterializationError => e
+      Monadic::Workbench::ChatOutput.drop_if_empty(job)
       return { "success" => false, "message" => e.message, "original_prompt" => prompt }.to_json
     end
 
@@ -3782,9 +3760,7 @@ module GeminiHelper
     parts += ["-a", aspect_ratio.to_s] unless aspect_ratio.to_s.strip.empty?
     parts += ["-d", duration.to_s] unless duration.to_s.strip.empty?
     parts += ["--negative-prompt", negative_prompt.to_s] unless negative_prompt.to_s.strip.empty?
-    job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench,
-                                                    app_name: session&.dig(:parameters, "app_name") || "VideoGeneratorGemini")
-    parts += ["--out-dir", job[:path]] if job
+    parts += ["--out-dir", job[:path]]
     if final_image_path && !final_image_path.empty?
       parts += ["-i", final_image_path]
       Monadic::Utils::ToolImageUtils.remember_image(self, session, final_image_path)
@@ -3879,7 +3855,7 @@ module GeminiHelper
     INSTRUCTIONS
   end
 
-  def generate_image_with_gemini(prompt:, operation: "generate", model: "gemini", aspect_ratio: nil, image_size: nil, session: nil)
+  def generate_image_with_gemini(prompt:, operation: "generate", model: "gemini", aspect_ratio: nil, image_size: nil, session: nil, out_dir: nil)
     require 'net/http'
     require 'json'
     require 'base64'
@@ -3888,7 +3864,8 @@ module GeminiHelper
     begin
       api_key = CONFIG["GEMINI_API_KEY"]
       return { success: false, error: "GEMINI_API_KEY not configured" }.to_json unless api_key
-      
+      return { success: false, error: "There is no chat folder to keep the image in." }.to_json unless out_dir
+
       # For editing operations, force use of Gemini model (Imagen doesn't support editing)
       if operation == "edit"
         model = "gemini"
@@ -3900,7 +3877,7 @@ module GeminiHelper
       if Monadic::Utils::ModelSpec.get_model_property(model, "image_generation") == true ||
          ["gemini-3.1-flash-image-preview", "gemini-3-pro-image-preview"].include?(model)
         # Pass session to support image editing
-        return generate_image_with_gemini_native(prompt: prompt, model: model, aspect_ratio: aspect_ratio, image_size: image_size, session: session)
+        return generate_image_with_gemini_native(prompt: prompt, model: model, aspect_ratio: aspect_ratio, image_size: image_size, session: session, out_dir: out_dir)
       end
 
       # The :predict path, used when the selected model is one this helper maps.
@@ -3908,11 +3885,12 @@ module GeminiHelper
       # models, which take the generateContent branch above — so this is
       # effectively dormant until an Imagen-style model returns.
       if IMAGE_GENERATION_MODELS.key?(model) && operation == "generate"
-        return generate_image_with_imagen_direct(prompt: prompt, model: model)
+        return generate_image_with_imagen_direct(prompt: prompt, model: model, out_dir: out_dir)
       end
       
-      # Set up shared folder path
-      shared_folder = Monadic::Utils::Environment.shared_volume
+      return { success: false, error: "There is no chat folder to keep the image in." }.to_json unless out_dir
+
+      shared_folder = out_dir
       
       # Prepare the request body with corrected structure
       request_body = {
@@ -4100,7 +4078,7 @@ module GeminiHelper
   # conversational generateContent path). No Imagen model is currently reachable
   # — 4.0 sunset on 2026-08-17 — so this is dormant and `model` has no default:
   # a caller must name the model it means, rather than inheriting a dead one.
-  def generate_image_with_imagen_direct(prompt:, model:, aspect_ratio: "1:1", sample_count: 1, person_generation: "ALLOW_ADULT")
+  def generate_image_with_imagen_direct(prompt:, model:, aspect_ratio: "1:1", sample_count: 1, person_generation: "ALLOW_ADULT", out_dir: nil)
     require 'net/http'
     require 'json'
     require 'base64'
@@ -4110,8 +4088,9 @@ module GeminiHelper
       return { success: false, error: "GEMINI_API_KEY not configured" }.to_json unless api_key
 
 
-      # Set up shared folder path
-      shared_folder = Monadic::Utils::Environment.shared_volume
+      return { success: false, error: "There is no chat folder to keep the image in." }.to_json unless out_dir
+
+      shared_folder = out_dir
 
       # Prepare the request body for Imagen
       request_body = {

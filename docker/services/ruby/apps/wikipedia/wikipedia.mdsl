@@ -2,31 +2,31 @@ app "WikipediaOpenAI" do
   display_name "Wikipedia"
   description do
     en <<~TEXT
-    Access and explore Wikipedia content. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=wikipedia" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Access and explore Wikipedia content. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=wikipedia" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ja <<~TEXT
-    Wikipediaコンテンツへのアクセスと探索。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=wikipedia" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Wikipediaコンテンツへのアクセスと探索。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/apps/chat-apps?id=wikipedia" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     zh <<~TEXT
-    访问和探索维基百科内容。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=wikipedia" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    访问和探索维基百科内容。 <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=wikipedia" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ko <<~TEXT
-    위키백과 콘텐츠 접근 및 탐색. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=wikipedia" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    위키백과 콘텐츠 접근 및 탐색. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=wikipedia" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     es <<~TEXT
-    Acceder y explorar contenido de Wikipedia. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=wikipedia" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Acceder y explorar contenido de Wikipedia. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=wikipedia" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     fr <<~TEXT
-    Accéder et explorer le contenu Wikipedia. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=wikipedia" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Accéder et explorer le contenu Wikipedia. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=wikipedia" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     de <<~TEXT
-    Wikipedia-Inhalte abrufen und erkunden. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=wikipedia" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Wikipedia-Inhalte abrufen und erkunden. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=wikipedia" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   icon "fa-wikipedia-w"

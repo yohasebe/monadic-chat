@@ -19,6 +19,23 @@ const WorkflowViewer = (function () {
   let currentApp = null;
   let pendingApp = null;
   let currentData = null;
+
+  // A message in the viewer (loading, or a failure), translated and set as
+  // text: what went wrong is not shown.
+  function showMessage(iconClass, key, fallback) {
+    if (!container) return;
+    var text = fallback;
+    if (typeof i18next !== 'undefined' && i18next.t) {
+      var v = i18next.t(key);
+      if (v && v !== key) text = v;
+    }
+    var box = document.createElement('div');
+    box.className = 'workflow-viewer-message';
+    var icon = document.createElement('i');
+    icon.className = iconClass;
+    box.append(icon, document.createTextNode(text));
+    container.replaceChildren(box);
+  }
   let expandedGroups = {};
   let tooltip = null;
   let initialised = false;
@@ -1812,7 +1829,7 @@ const WorkflowViewer = (function () {
       if (!container || !Graph || !name) return;
       saveViewState(); // Save current app's view before switching
       currentApp = name; currentData = null; updateTitle(null);
-      container.innerHTML = '<div class="workflow-viewer-message"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</div>';
+      showMessage('fas fa-spinner fa-spin me-2', 'ui.workflowViewerLoading', 'Loading…');
       fetch('/api/app/' + encodeURIComponent(name) + '/graph' + (typeof window.monadicTabQuery === 'function' ? window.monadicTabQuery() : ''))
         .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(function (data) {
@@ -1830,7 +1847,7 @@ const WorkflowViewer = (function () {
           if (inlineHeightStale()) applyInlineHeight();
         })
         .catch(function (err) {
-          container.innerHTML = '<div class="workflow-viewer-message"><i class="fas fa-exclamation-triangle me-2"></i>Failed: ' + (err.message || '?') + '</div>';
+          showMessage('fas fa-exclamation-triangle me-2', 'ui.workflowViewerGraphFailed', 'The workflow could not be shown.');
           console.error('[WorkflowViewer]', err);
         });
     },

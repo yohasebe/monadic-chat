@@ -1,31 +1,31 @@
 app "VoiceChatOllama" do
   description do
     en <<~TEXT
-    Conversational AI with voice input and output using local Ollama models. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Conversational AI with voice input and output using local Ollama models. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ja <<~TEXT
-    ローカルOllamaモデルを使用した音声入出力対応の会話AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    ローカルOllamaモデルを使用した音声入出力対応の会話AI。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     zh <<~TEXT
-    使用本地Ollama模型的语音输入输出对话AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    使用本地Ollama模型的语音输入输出对话AI。 <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ko <<~TEXT
-    로컬 Ollama 모델을 사용한 음성 입출력 대화 AI. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    로컬 Ollama 모델을 사용한 음성 입출력 대화 AI. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     es <<~TEXT
-    IA conversacional con voz usando modelos locales de Ollama. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversacional con voz usando modelos locales de Ollama. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     fr <<~TEXT
-    IA conversationnelle vocale avec modèles Ollama locaux. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversationnelle vocale avec modèles Ollama locaux. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     de <<~TEXT
-    Konversations-KI mit Sprache und lokalen Ollama-Modellen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Konversations-KI mit Sprache und lokalen Ollama-Modellen. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
 

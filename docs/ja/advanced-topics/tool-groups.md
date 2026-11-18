@@ -212,12 +212,12 @@ app "MyAssistantOpenAI" do
   # Groups the app can reach for when the conversation calls for them.
   reachable_skills :web_search_tools, :image_analysis
 
-  # Or reach for the curated pool of read-only safe groups in one line:
+  # Or reach for the curated pool of safe groups in one line:
   # reachable_skills :safe
 end
 ```
 
-`reachable_skills :group_a, :group_b` は、それぞれのグループを `import_shared_tools :group_a, visibility: "conditional"` で取り込むのと同じです。`reachable_skills :safe` は、読み取り専用のグループに展開されます：Web Search、File Reading、Image Analysis、Video Analysis、Audio Transcription、Session Context、Verification、Planning。
+`reachable_skills :group_a, :group_b` は、それぞれのグループを `import_shared_tools :group_a, visibility: "conditional"` で取り込むのと同じです。`reachable_skills :safe` は、Web Search、File Reading、Image Analysis、Video Analysis、Audio Transcription、Session Context、Verification、Planning に展開されます。どれもファイルを書きません。Session Context は会話自身のメモを変えます。
 
 使えるようになったスキルは、セッションを書き出すと保存され、読み込むと元に戻るので、保存した会話は同じツールで続けられます。
 

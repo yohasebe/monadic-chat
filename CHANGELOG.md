@@ -22,6 +22,7 @@
     - Default models: GPT Image 2.5 Flare for OpenAI images, Mistral Large 4 and Grok 4.7 for code, and Gemini Omni 1.2 Flash for Gemini videos
     - Apps that name no model start with GPT-6.1 Terra (OpenAI) and Grok 4.3 (xAI); Coding Assistant, Code Interpreter, Jupyter Notebook and Second Opinion keep GPT-6.1 Sol and Grok 4.7
     - Mistral Medium 3.5 is no longer offered; chats that used it continue with Mistral Large 4
+    - Gemini apps offer Gemini 3.8 Flash in place of Gemini 3.6 Flash, and Gemini speech-to-text uses Gemini 3.8 Flash
     - Language Practice writes its advice in the interface language
     - The sidebar has `Menu`, `Work screen`, `Files` and `History` tabs
     - A chat's browser closes on `Reset`, an app change, an import or after 5 minutes unused; of the Selenium container's ports, only noVNC (7900) is open
@@ -46,6 +47,8 @@
     - The export dialog, draw.io diagrams and the first setup follow the interface language
     - `Reset` on iOS offers to save the chat to the Knowledge Base
     - A workflow SVG of an app with a non-English name is saved under the app's name
+    - The workflow viewer's loading and error messages follow the interface language
+    - Claude apps with an advisor no longer tell a model that cannot use it to call it
     - A dropped connection during a reply gives the page back for input
     - Streamed replies no longer lose words
     - Earlier replies are no longer duplicated or dropped with Ollama, Mistral and DeepSeek

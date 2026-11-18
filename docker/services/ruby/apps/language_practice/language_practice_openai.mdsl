@@ -1,31 +1,31 @@
 app "LanguagePracticeOpenAI" do
   description do
     en <<~TEXT
-    Conversation practice in the language you are learning. Corrections and advice appear on the work screen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Conversation practice in the language you are learning. Corrections and advice appear on the work screen. <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ja <<~TEXT
-    学んでいる言語での会話練習。訂正と助言は作業画面に表示されます。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    学んでいる言語での会話練習。訂正と助言は作業画面に表示されます。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/apps/language-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     zh <<~TEXT
-    用您正在学习的语言进行会话练习。纠正和建议显示在工作画面上。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    用您正在学习的语言进行会话练习。纠正和建议显示在工作画面上。 <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ko <<~TEXT
-    배우고 있는 언어로 하는 회화 연습. 교정과 조언은 작업 화면에 표시됩니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    배우고 있는 언어로 하는 회화 연습. 교정과 조언은 작업 화면에 표시됩니다. <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     es <<~TEXT
-    Práctica de conversación en el idioma que aprendes. Las correcciones y los consejos aparecen en la pantalla de trabajo. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Práctica de conversación en el idioma que aprendes. Las correcciones y los consejos aparecen en la pantalla de trabajo. <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     fr <<~TEXT
-    Pratique de conversation dans la langue que vous apprenez. Les corrections et les conseils s’affichent sur l’écran de travail. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Pratique de conversation dans la langue que vous apprenez. Les corrections et les conseils s’affichent sur l’écran de travail. <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     de <<~TEXT
-    Gesprächsübung in der Sprache, die Sie lernen. Korrekturen und Tipps erscheinen im Arbeitsbildschirm. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Gesprächsübung in der Sprache, die Sie lernen. Korrekturen und Tipps erscheinen im Arbeitsbildschirm. <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
 

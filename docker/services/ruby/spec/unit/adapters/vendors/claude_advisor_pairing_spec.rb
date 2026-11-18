@@ -31,4 +31,18 @@ RSpec.describe 'Claude advisor pairing' do
   it 'sends the configured advisor when the executor lists no advisors' do
     expect(advisor_tools('spec-open-executor').map { |t| t['model'] }).to eq(['spec-advisor'])
   end
+
+  def system_after(model)
+    body = { 'model' => model, 'system' => [{ type: 'text', text: 'You have access to an `advisor` tool.' }] }
+    2.times { helper.send(:add_claude_advisor_tool, body, app) }
+    body['system'].map { |block| block[:text] }
+  end
+
+  it 'tells the model once that the advisor is not there when the tool is left out' do
+    expect(system_after('spec-strict-executor')).to eq(['You have access to an `advisor` tool.', ClaudeHelper::ADVISOR_UNAVAILABLE])
+  end
+
+  it 'adds nothing to the prompt when the tool is sent' do
+    expect(system_after('spec-open-executor')).to eq(['You have access to an `advisor` tool.'])
+  end
 end

@@ -1,31 +1,31 @@
 app "WebInsightGemini" do
   description do
     en <<~TEXT
-    Browse and capture web content with screenshots. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Browse and capture web content with screenshots. <a href="https://yohasebe.github.io/monadic-chat/#/apps/analysis-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ja <<~TEXT
-    スクリーンショット付きウェブコンテンツ閲覧。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    スクリーンショット付きウェブコンテンツ閲覧。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/apps/analysis-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     zh <<~TEXT
-    使用截图浏览和捕获网页内容。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    使用截图浏览和捕获网页内容。 <a href="https://yohasebe.github.io/monadic-chat/#/apps/analysis-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ko <<~TEXT
-    스크린샷으로 웹 콘텐츠 탐색 및 캡처. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    스크린샷으로 웹 콘텐츠 탐색 및 캡처. <a href="https://yohasebe.github.io/monadic-chat/#/apps/analysis-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     es <<~TEXT
-    Navegar y capturar contenido web con capturas de pantalla. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Navegar y capturar contenido web con capturas de pantalla. <a href="https://yohasebe.github.io/monadic-chat/#/apps/analysis-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     fr <<~TEXT
-    Parcourir et capturer du contenu web avec captures d'écran. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Parcourir et capturer du contenu web avec captures d'écran. <a href="https://yohasebe.github.io/monadic-chat/#/apps/analysis-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     de <<~TEXT
-    Web-Inhalte mit Screenshots durchsuchen und erfassen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Web-Inhalte mit Screenshots durchsuchen und erfassen. <a href="https://yohasebe.github.io/monadic-chat/#/apps/analysis-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
 
@@ -104,7 +104,7 @@ app "WebInsightGemini" do
 
   llm do
     provider "gemini"
-    model ["gemini-3.1-pro-preview", "gemini-3.6-flash"]
+    model ["gemini-3.1-pro-preview", "gemini-3.8-flash"]
   end
 
   features do

@@ -5,7 +5,7 @@ app "CodingAssistantOllama" do
     TEXT
 
     ja <<~TEXT
-    コードの提案と説明によるプログラミング支援。 <a href="https://yohasebe.github.io/monadic-chat/#/advanced-topics/ollama" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    コードの提案と説明によるプログラミング支援。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/advanced-topics/ollama" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     zh <<~TEXT

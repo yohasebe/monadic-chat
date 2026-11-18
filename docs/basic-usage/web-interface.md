@@ -56,10 +56,10 @@ This screen is where you choose the app and model for a session and adjust the c
 Select one of the basic apps. Each app has different default parameters and initial prompts. See [Base Apps](./basic-apps.md) for details.
 
 **Max Context Size** <br />
-The maximum number of messages to keep active in the conversation context (default: 100).
+The maximum number of messages to keep active in the conversation context. The field shows the value in use: 100 unless the app sets its own; the switch is on for apps that set one.
 
 **Max Output Tokens** <br />
-Limit the maximum number of tokens in the API response (default: 4000).
+Limit the maximum number of tokens in the API response. The field shows the value in use: the selected model's maximum output, or 4000 for a model with none listed. For a reasoning model the limit is set to its maximum and cannot be changed.
 
 **Model** <br />
 Select the AI model to use. Available models depend on the selected app; turn on **All** to list every model of the provider. Deprecated models are not listed.
@@ -126,7 +126,7 @@ The tabs, and the bar with **Current settings** above the conversation, stay at 
 **Monadic Chat Info**<br />
 Links to the homepage and GitHub, the current version, the **Conversation Language** selector, the **Web Search** and **Math Rendering** switches, the name and description of the current base app, **Help Data** (the help database used by the Monadic Chat Help app: its status and an install button), and the list of **Available Variables**.
 
-- **Web Search**: Allow the AI to search the web for current information. Available for models that support tool/function calling. In [Live Conversation](../apps/chat-apps.md#live-conversation), web search is part of the app's own Tools toggle instead (off by default).
+- **Web Search**: Allow the AI to search the web for current information. Available for models that support tool/function calling. In [Live Conversation](../apps/chat-apps.md#live-conversation), web search is part of the app's own **Search and compute** switch instead (off by default).
 - **Math Rendering**: Render mathematical expressions using KaTeX. When it is off, the model is asked to write formulas in plain text or Unicode, and to return LaTeX source, when you ask for it, in a code block.
 
 **AI Assistant & AI User**<br />
@@ -158,7 +158,7 @@ See [Speech Panel](#speech-settings-panel) below.
 
 ## Work Screen :id=work-screen
 
-The **Work screen** tab shows the browser the AI uses in the current conversation, as it draws, while the tab is shown. It is view only. When the AI opens a browser (for example in [Web Insight](../apps/analysis-apps.md#web-insight)), the sidebar switches to this tab.
+The **Work screen** tab shows the browser the AI uses in the current conversation, as it draws, while the tab is shown. It is view only. When the AI opens a browser (for example in [Web Insight](../apps/analysis-apps.md#web-insight)), the sidebar switches to this tab, unless you are typing or **Show new items in the work screen** is off; then the work screen only announces it.
 
 ![The work screen](../assets/images/figures/work-screen.svg)
 

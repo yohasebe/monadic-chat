@@ -567,7 +567,7 @@ end
 
 ### Provider-Specific Considerations :id=provider-specific-considerations
 
-- **Function Limits**: Up to 20 rounds of function calls per conversation turn, or fewer with `max_tool_rounds`
+- **Function Limits**: Up to 20 rounds of function calls per conversation turn, a round holding one or more calls, or fewer with `max_tool_rounds`
 - **Code Execution**: All providers use `run_code` from the `:python_execution` group
 - **Array Parameters**: OpenAI requires `items` property for arrays
 - **Error Prevention**: Built-in error pattern detection prevents infinite retry loops

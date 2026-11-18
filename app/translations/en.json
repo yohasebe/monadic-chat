@@ -342,6 +342,7 @@
       "notBuilt": "not yet built",
       "optionsChanged": "options changed ({{options}})",
       "pythonContainer": "Python container",
+      "privacyContainer": "Privacy container (name finder)",
       "minutes": "{{range}} min"
     }
   }

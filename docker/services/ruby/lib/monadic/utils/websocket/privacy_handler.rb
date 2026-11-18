@@ -52,6 +52,7 @@ module WebSocketHelper
     unless PRIVACY_EXPORT_CONTENT.include?(content_kind)
       send_to_client(connection, {
         "type" => "privacy_export_error",
+        "request_id" => export_request_id(obj),
         "error" => "invalid_content",
         "valid_content" => PRIVACY_EXPORT_CONTENT
       })
@@ -119,6 +120,7 @@ module WebSocketHelper
       if passphrase.empty?
         send_to_client(connection, {
           "type" => "privacy_export_error",
+          "request_id" => export_request_id(obj),
           "error" => "passphrase_required"
         })
         return
@@ -146,6 +148,7 @@ module WebSocketHelper
 
     send_to_client(connection, {
       "type" => "privacy_export_data",
+      "request_id" => export_request_id(obj),
       "mode" => legacy_mode,
       "encrypt" => encrypt,
       "content" => content_kind,
@@ -154,12 +157,19 @@ module WebSocketHelper
       "mime" => "application/json"
     })
   rescue Monadic::Utils::Privacy::ExportCipher::IntegrityError, Monadic::Utils::Privacy::ExportCipher::DecryptionError, ArgumentError,
-         Monadic::Utils::Privacy::Outbound::Refused => e
+         Monadic::Utils::Privacy::Outbound::Refused
     send_to_client(connection, {
       "type" => "privacy_export_error",
-      "error" => "export_failed",
-      "detail" => e.message
+      "request_id" => export_request_id(obj),
+      "error" => "export_failed"
     })
+  end
+
+  # The page's id for the export it asked for, given back with the answer
+  # so the page takes only the answer to the request it is waiting for.
+  private def export_request_id(obj)
+    id = obj.is_a?(Hash) ? obj["request_id"] : nil
+    id.is_a?(String) && id.match?(/\A[\w-]{1,64}\z/) ? id : nil
   end
 
   # Translate request params (new 2-axis form, or legacy 3-mode form) into

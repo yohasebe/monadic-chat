@@ -145,15 +145,24 @@
   }
 
   // A switch above the source that shows or hides it (the drawing stays).
+  // A button, so the keyboard reaches it; aria-expanded says whether the
+  // source is shown.
+  let toggleCount = 0;
   function sourceToggle(placeholder) {
     const label = t('toggleSource', 'Toggle Mermaid Diagram');
-    const toggle = element('div', 'sourcecode-toggle unselectable');
+    const toggle = element('button', 'sourcecode-toggle unselectable');
+    toggle.type = 'button';
     const icon = element('i', 'fa-solid fa-toggle-off');
+    icon.setAttribute('aria-hidden', 'true');
     toggle.append(icon, document.createTextNode(` ${label}`));
+    if (!placeholder.id) placeholder.id = `render-source-${++toggleCount}`;
+    toggle.setAttribute('aria-controls', placeholder.id);
+    toggle.setAttribute('aria-expanded', 'false');
     toggle.addEventListener('click', () => {
       const hidden = placeholder.style.display === 'none';
       placeholder.style.display = hidden ? '' : 'none';
       icon.className = hidden ? 'fa-solid fa-toggle-on' : 'fa-solid fa-toggle-off';
+      toggle.setAttribute('aria-expanded', hidden ? 'true' : 'false');
     });
     return toggle;
   }
@@ -198,9 +207,7 @@
     }, (error) => {
       if (drawn.get(placeholder) !== record) return;
       record.state = 'failed';
-      const alert = element('div', 'alert alert-danger');
-      alert.append(element('strong', null, t('diagramFailed', 'Mermaid Syntax Error:')), element('br'),
-        document.createTextNode(error && error.message ? error.message : ''));
+      const alert = window.WorkbenchRender.failureNotice(error, 'alert alert-danger');
       // Drawn again only when the user asks (a broken diagram is not
       // drawn over and over).
       const retry = element('button', 'btn btn-secondary btn-sm', t('retry', 'Try again'));

@@ -342,6 +342,7 @@
       "notBuilt": "未ビルド",
       "optionsChanged": "オプションの変更（{{options}}）",
       "pythonContainer": "Python コンテナ",
+      "privacyContainer": "Privacy コンテナ（名前の検出）",
       "minutes": "{{range}} 分"
     }
   }

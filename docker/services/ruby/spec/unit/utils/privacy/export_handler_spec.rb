@@ -123,6 +123,22 @@ RSpec.describe 'WebSocketHelper privacy export (block D.2)' do
       expect(harness.sent.last['error']).to eq('invalid_content')
     end
 
+    it 'gives back the request id the page sent, and none that is not a plain id' do
+      harness.send(:handle_ws_privacy_export, :conn, session,
+                   { 'encrypt' => false, 'content' => 'masked', 'request_id' => 'exp-1-abc' })
+      expect(harness.sent.last).to include('type' => 'privacy_export_data', 'request_id' => 'exp-1-abc')
+      harness.send(:handle_ws_privacy_export, :conn, session,
+                   { 'encrypt' => false, 'content' => 'leaky', 'request_id' => "x\n<b>" })
+      expect(harness.sent.last).to include('type' => 'privacy_export_error', 'request_id' => nil)
+    end
+
+    it 'says an export failed without the reason inside' do
+      allow(harness).to receive(:privacy_export_filename).and_raise(ArgumentError, 'internal detail')
+      harness.send(:handle_ws_privacy_export, :conn, session,
+                   { 'encrypt' => false, 'content' => 'masked', 'request_id' => 'exp-2' })
+      expect(harness.sent.last).to eq('type' => 'privacy_export_error', 'request_id' => 'exp-2', 'error' => 'export_failed')
+    end
+
     it 'rejects encrypted mode without passphrase' do
       harness.send(:handle_ws_privacy_export, :conn, session, { 'mode' => 'encrypted', 'passphrase' => '' })
       expect(harness.sent.last['type']).to eq('privacy_export_error')

@@ -11,8 +11,11 @@ module Monadic
     # Serves an image or a file of the workbench to the page at
     # /workbench/asset/<token> (ViewTokens), ahead of the application so
     # that the request is not written to the access log: the token in the
-    # address is the permission. A :download token serves it as a file to
-    # save (Content-Disposition: attachment).
+    # address is the permission. A :download token serves it once, as a
+    # file to save (application/octet-stream, Content-Disposition:
+    # attachment), never as something the browser shows; the other tokens
+    # serve it inline, never as an attachment. Either way the header names
+    # the file by its own name (disposition).
     #
     # Only a GET or HEAD sent by a page of this server (Sec-Fetch-Site:
     # same-origin) is served, and only while the token's tab still has the
@@ -59,14 +62,17 @@ module Monadic
         view = ViewTokens.view(token) or return plain(404, 'Not found')
         return plain(404, 'Not found') unless @live.call(view.tab) == view.generation
         return plain(404, 'Not found') unless view.epoch == Monadic::Workspace::Chats.epoch(view.chat_id)
+
+        ViewTokens.spend(token) if view.purpose == :download && env['REQUEST_METHOD'] == 'GET'
         return serve_file(env, view) if view.item_id
 
         read = Artifact.read(view.artifact_id, chat_id: view.chat_id)
         return plain(409, 'Changed') unless read[:record][:sha256] == view.sha256
 
         bytes = read[:bytes]
+        return saved(env, bytes, File.basename(read[:record][:copy_path])) if view.purpose == :download
+
         headers = HEADERS.merge('content-type' => read[:record][:content_type], 'content-length' => bytes.bytesize.to_s)
-        headers['content-disposition'] = attachment(File.basename(read[:record][:copy_path])) if view.purpose == :download
         [200, headers, env['REQUEST_METHOD'] == 'HEAD' ? [] : [bytes]]
       rescue Artifact::Changed
         plain(409, 'Changed')
@@ -77,15 +83,16 @@ module Monadic
       end
 
       def serve_file(env, view)
-        return plain(404, 'Not found') unless %i[view render].include?(view.purpose)
-
         board = Board.existing(view.chat_id) or return plain(404, 'Not found')
         return serve_render(env, board, view) if view.purpose == :render
 
         read = board.file_read(view.item_id, sha256: view.sha256)
         entry = read[:entry]
         bytes = read[:bytes]
-        headers = HEADERS.merge('content-type' => entry['content_type'])
+        return saved(env, bytes, File.basename(entry['path'])) if view.purpose == :download
+
+        headers = HEADERS.merge('content-type' => entry['content_type'],
+                                'content-disposition' => disposition('inline', File.basename(entry['path'])))
         bytes = text_shown(board, view, bytes, headers) if entry['preview'] == 'text'
         status, bytes = ranged(env, headers, bytes) if %w[audio video].include?(entry['preview'])
         headers['content-length'] = bytes.bytesize.to_s
@@ -156,11 +163,32 @@ module Monadic
         [206, bytes.byteslice(first, last - first + 1)]
       end
 
-      # The name is an image name of the ledger (ASCII letters, digits, _ -
-      # and one dot), so it needs no quoting beyond the encoded form.
-      def attachment(name)
-        encoded = name.bytes.map { |b| b.chr.match?(/[A-Za-z0-9._-]/) ? b.chr : format('%%%02X', b) }.join
-        "attachment; filename=\"#{encoded}\"; filename*=UTF-8''#{encoded}"
+      # The checked bytes as a file to save: the whole of it (no range),
+      # as bytes the browser does not show.
+      def saved(env, bytes, name)
+        headers = HEADERS.merge('content-type' => 'application/octet-stream',
+                                'content-disposition' => disposition('attachment', name),
+                                'content-length' => bytes.bytesize.to_s)
+        [200, headers, env['REQUEST_METHOD'] == 'HEAD' ? [] : [bytes]]
+      end
+
+      NAME_BYTES = 255 # the longest file name the file systems hold
+      FALLBACK_CHARS = 200
+
+      # Content-Disposition naming the file: filename*, every byte of the
+      # name (UTF-8, at most NAME_BYTES, cut at a character) percent-encoded
+      # but RFC 5987's attr-chars; filename, for clients that read only it,
+      # those of its characters that need no quoting (letters, digits and
+      # . _ - ( ) + and space; anything else, and a leading dot, as _).
+      # Neither can end the header or start another parameter.
+      def disposition(kind, name)
+        name = name.to_s.dup.force_encoding(Encoding::UTF_8)
+        name = name.scrub('_') unless name.valid_encoding?
+        name = name.byteslice(0, NAME_BYTES).scrub('') if name.bytesize > NAME_BYTES
+        encoded = name.bytes.map { |b| b.chr.match?(/[A-Za-z0-9!\#$&+\-.^_`|~]/) ? b.chr : format('%%%02X', b) }.join
+        fallback = name.gsub(/[^A-Za-z0-9._\-()+ ]/, '_').sub(/\A\./, '_')[0, FALLBACK_CHARS]
+        fallback = 'file' if fallback.strip.empty?
+        "#{kind}; filename=\"#{fallback}\"; filename*=UTF-8''#{encoded}"
       end
 
       def plain(status, text)

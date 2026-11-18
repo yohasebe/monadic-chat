@@ -4,10 +4,10 @@
  * The pane lists the items of the chat's workbench (the chat's browser,
  * each image the assistant made, each file of the shared folder opened
  * there) in the order they came, and shows the one selected; ← and → (and the
- * buttons beside the item) move along the row. An image shows with its
+ * buttons beside the item) move along the row. An item shows with its
  * path in the shared folder (every image is kept in the chat's folder
- * there) and "Save as…" (in the desktop app; "Download" in a browser); a
- * file shows as an image, as text with its line numbers, as audio or
+ * there) and "Save as…" (in the desktop app; "Download" in a browser),
+ * which saves the file under its own name; a file shows as an image, as text with its line numbers, as audio or
  * video, or as a PDF a page at a time (workbench-pdf.js). A text file of a
  * kind the work screen draws (Markdown, a table, SVG, a page, a diagram, a
  * chart: workbench-render.js) is drawn, with a switch to its lines. Each item's tab has a × that takes it off the workbench; the file
@@ -205,15 +205,20 @@
     }, { idempotent: true });
   }
 
-  // Asks the server for an address to save the image from; the file is
+  // Asks the server for an address to save an image (artifact_id) or a
+  // file item at the version shown (item_id and sha256) from; the file is
   // fetched when it comes (onDownload), so a failure never leaves the page.
-  function download(artifactId) {
-    if (!artifactId || typeof window.safeWsSend !== 'function') return;
-    window.safeWsSend({ message: 'WORKBENCH_DOWNLOAD', artifact_id: artifactId });
+  function download(ids) {
+    if (!ids || typeof window.safeWsSend !== 'function') return;
+    window.safeWsSend(Object.assign({ message: 'WORKBENCH_DOWNLOAD' }, ids));
   }
 
   function saveButton(artifactId, className) {
-    return button(saveLabel(), className, () => download(artifactId));
+    return button(saveLabel(), className, () => download({ artifact_id: artifactId }));
+  }
+
+  function fileSaveButton(item, className) {
+    return button(saveLabel(), className, () => download({ item_id: item.id, sha256: item.sha256 }));
   }
 
   // A document is named by its title; every other file by its name.
@@ -380,6 +385,8 @@
     info.appendChild(line);
     if (item.status === 'ok' && item.artifact_id) {
       info.appendChild(saveButton(item.artifact_id, 'btn-primary mt-2'));
+    } else if (item.status === 'ok' && item.kind === 'file' && item.sha256) {
+      info.appendChild(fileSaveButton(item, 'btn-primary mt-2'));
     }
     // A file is read again where it is shown (the board takes it at the
     // version it has now): after it changed, or whenever the user asks.
@@ -523,7 +530,13 @@
       // the browser cannot play it, and the name is shown instead.
       media.addEventListener('error', () => {
         if (drawn.retried) {
-          media.replaceWith(element('div', 'alert alert-warning mb-2', t('ui.workbench.notPlayable', 'This kind of file is not played on the work screen.')));
+          // Asked for again and still failing: a kind the browser does not
+          // play (MEDIA_ERR_SRC_NOT_SUPPORTED), or else a failure to get or
+          // decode it, which may pass when tried again.
+          const unsupported = media.error && media.error.code === 4;
+          media.replaceWith(element('div', 'alert alert-warning mb-2', unsupported
+            ? t('ui.workbench.notPlayable', 'This kind of file is not played on the work screen.')
+            : t('ui.workbench.playbackFailed', 'This file could not be played. Try again.')));
           return;
         }
         drawn.retried = true;
@@ -680,9 +693,8 @@
       } catch (e) {
         if (drawn.gone) return;
         drawn.unshowable = true;
-        box.replaceChildren(element('div', 'alert alert-warning small mb-2',
-          `${t('ui.workbench.renderFailed', 'This file could not be drawn.')} ${e && e.message ? e.message : ''}`.trim()),
-        button(t('ui.workbench.viewSource', 'Source'), 'btn-secondary', () => setMode(item, 'source')));
+        box.replaceChildren(window.WorkbenchRender.failureNotice(e, 'alert alert-warning mb-2'),
+          button(t('ui.workbench.viewSource', 'Source'), 'btn-secondary', () => setMode(item, 'source')));
       }
     });
     return wrap;
@@ -1716,10 +1728,15 @@
     else attach();
   }
 
-  // The address to save an image from: the file is fetched here and handed
+  // The address to save an image or a file from: it is fetched here and handed
   // to the browser as a download, so whatever the answer the page stays.
   async function onDownload(data) {
     if (!data) return;
+    if (data.status === 'refused' && data.reason === 'changed') {
+      warn(statusText('changed'));
+      askView(true);
+      return;
+    }
     if (data.status === 'refused' || !data.url) {
       warn(t('ui.workbench.refused', 'This was not accepted.'));
       return;
@@ -1749,7 +1766,7 @@
     const a = element('a');
     try {
       a.href = href;
-      a.download = String(data.name || 'image');
+      a.download = String(data.name || 'file');
       a.hidden = true;
       document.body.appendChild(a);
       a.click();

@@ -1024,6 +1024,38 @@ describe('WorkflowViewer.exportSvg', () => {
   test('exportSvg should be a public method', () => {
     expect(typeof window.WorkflowViewer.exportSvg).toBe('function');
   });
+
+  describe('the name of the saved file', () => {
+    async function savedName(names) {
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true, json: async () => Object.assign({}, SAMPLE_MINIMAL, names),
+      });
+      document.getElementById('workflow-viewer-panel').classList.remove('wv-panel-collapsed');
+      window.WorkflowViewer._doLoadApp('TestApp');
+      await new Promise(r => setTimeout(r, 0));
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      document.getElementById('workflow-viewer-container').appendChild(svg);
+      global.URL.createObjectURL = jest.fn(() => 'blob:x');
+      global.URL.revokeObjectURL = jest.fn();
+      let name = null;
+      const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function () { name = this.download; });
+      try {
+        window.WorkflowViewer.downloadSvg();
+      } finally {
+        click.mockRestore();
+        delete global.fetch;
+      }
+      return name;
+    }
+
+    test('comes from the display name', async () => {
+      expect(await savedName({ display_name: 'Music Generator', app_name: 'MusicGeneratorOpenAI' })).toBe('workflow-music-generator.svg');
+    });
+
+    test('comes from the app name when the display name has no ASCII letters', async () => {
+      expect(await savedName({ display_name: '音楽の生成', app_name: 'MusicGeneratorOpenAI' })).toBe('workflow-musicgeneratoropenai.svg');
+    });
+  });
 });
 
 // ── setStage / clearHighlights tests ────────────────────────

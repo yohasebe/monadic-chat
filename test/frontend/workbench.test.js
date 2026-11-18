@@ -224,6 +224,16 @@ describe('Workbench', () => {
     ]);
   });
 
+  test('asks for an address to save a file of the shared folder by its item and the version shown', () => {
+    const clip = { id: 'i_a', kind: 'file', actor: 'user', name: '曲 1.mp3', path: 'music/曲 1.mp3', preview: 'audio',
+      sha256: 'd'.repeat(64), version: 'd'.repeat(64), status: 'ok' };
+    view([clip]);
+    document.querySelector('#workbench-view .btn-primary').click();
+    expect(sent.map((s) => s.payload)).toEqual([{ message: 'WORKBENCH_DOWNLOAD', item_id: 'i_a', sha256: 'd'.repeat(64) }]);
+    view([Object.assign({}, clip, { status: 'changed' })]);
+    expect(document.querySelector('#workbench-view .btn-primary')).toBeNull();
+  });
+
   describe('a chat continued from the history', () => {
     test('shows the work screen when its board has something on it', () => {
       window.Workbench.expectResumed('c_1');
@@ -281,6 +291,14 @@ describe('Workbench', () => {
       window.Workbench.onDownload({ artifact_id: 'r_1', status: 'refused' });
       expect(document.getElementById('workbench-status').textContent).toContain('not accepted');
       expect(clicked).toEqual([]);
+    });
+
+    test('saves a file under the name the server gives, and says when the version shown is gone', async () => {
+      global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200, blob: () => Promise.resolve(new Blob(['x'])) }));
+      await window.Workbench.onDownload({ type: 'workbench_download', item_id: 'i_a', url: '/workbench/asset/t', name: '曲 1.mp3' });
+      expect(clicked).toEqual([{ href: 'blob:x', download: '曲 1.mp3' }]);
+      window.Workbench.onDownload({ item_id: 'i_a', status: 'refused', reason: 'changed' });
+      expect(document.getElementById('workbench-status').textContent).toContain('changed');
     });
   });
 
@@ -578,7 +596,7 @@ describe('Workbench', () => {
       expect(document.querySelector('#workbench-view audio')).toBe(first);
     });
 
-    test('asks once more for a medium that fails, then says it is not played instead of asking again', () => {
+    test('asks once more for a medium that fails, then says it could not be played instead of asking again', () => {
       jest.useFakeTimers();
       try {
         const clip = { id: 'i_a', kind: 'file', actor: 'user', name: 'a.mkv', path: 'a.mkv', preview: 'video',
@@ -595,7 +613,7 @@ describe('Workbench', () => {
         document.querySelector('#workbench-view video').dispatchEvent(new Event('error'));
         jest.runOnlyPendingTimers();
         expect(document.querySelector('#workbench-view video')).toBeNull();
-        expect(document.getElementById('workbench-view').textContent).toContain('not played');
+        expect(document.getElementById('workbench-view').textContent).toContain('could not be played');
         expect(payloads().filter((p) => p.message === 'WORKBENCH_VIEW').length).toBe(asked);
       } finally {
         jest.useRealTimers();
@@ -1090,7 +1108,10 @@ describe('Workbench', () => {
 
     beforeEach(() => {
       drawn = [];
+      const real = require(js('monadic/workbench-render.js'));
       window.WorkbenchRender = {
+        Refused: real.Refused,
+        failureNotice: real.failureNotice,
         draw: jest.fn((box, kind, text, opts) => {
           const handle = { done: Promise.resolve(), dispose: jest.fn() };
           box.textContent = `drawn ${kind}: ${text}`;
@@ -1171,7 +1192,7 @@ describe('Workbench', () => {
       expect(pane.textContent).toContain('too large to draw');
       expect(window.WorkbenchRender.draw).not.toHaveBeenCalled();
       global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve('x'), headers: { get: () => null } }));
-      window.WorkbenchRender.draw = jest.fn(() => ({ done: Promise.reject(new Error('bad spec')), dispose: jest.fn() }));
+      window.WorkbenchRender.draw = jest.fn(() => ({ done: Promise.reject(new window.WorkbenchRender.Refused('bad spec')), dispose: jest.fn() }));
       viewDoc([doc({ id: 'i_e' })]);
       await settle();
       await settle();

@@ -27,7 +27,10 @@ RSpec.describe 'monadic.sh deliver-secrets' do
         exit 0
       SH
       File.chmod(0o755, fake)
-      env = { 'PATH' => "#{dir}:#{ENV['PATH']}", 'MONADIC_RUBY_CONTAINER' => 'op-test' }
+      # The engine named the way the Docker CLI takes it (a local socket),
+      # so monadic.sh uses it without asking the stand-in for contexts.
+      env = { 'PATH' => "#{dir}:#{ENV['PATH']}", 'MONADIC_RUBY_CONTAINER' => 'op-test',
+              'DOCKER_HOST' => 'unix:///var/run/docker.sock', 'DOCKER_CONTEXT' => nil }
       Open3.capture3(env, 'bash', File.join(root, 'docker/monadic.sh'), 'deliver-secrets', stdin_data: '{}')
     end
   end

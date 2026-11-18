@@ -186,8 +186,6 @@ features do
 
   toggle true             # Render <div class='toggle'> blocks in assistant messages as collapsible show/hide sections
   jupyter true            # Enable access to Jupyter notebook interface
-  code_runs_in_chat_folder true # run_code runs each run in a folder of the chat's folder;
-                          # the files it writes are shown on the work screen
   image_generation true   # Enable AI image generation tools in conversation
   initiate_from_assistant true # Allow assistant to send first message in conversation
   autonomy "high"         # Set autonomy level: "high", "medium" (default), or "low"

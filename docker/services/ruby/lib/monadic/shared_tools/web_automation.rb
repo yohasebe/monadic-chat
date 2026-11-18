@@ -344,8 +344,16 @@ module MonadicSharedTools
         return { success: false, error: "Invalid URL format. Please provide a valid HTTP or HTTPS URL." }
       end
 
+      # The captures go in a run folder of the chat, never the top of the
+      # shared folder.
+      app_name = session.respond_to?(:[]) ? session.dig(:parameters, 'app_name') : nil
+      job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench,
+                                                      app_name: app_name || self.class.name)
+      return { success: false, error: "There is no chat folder to keep the screenshots in." } unless job
+
       # Build command
-      cmd_parts = ["viewport_capturer.py", url]
+      cmd_parts = ["viewport_capturer.py", Shellwords.escape(url),
+                   "-o", Shellwords.escape(File.join(Monadic::Utils::SharedPathGuard::CONTAINER_ROOT, job[:relative]))]
 
       # Apply preset or custom dimensions
       if preset
@@ -371,12 +379,11 @@ module MonadicSharedTools
         # Parse output to extract screenshot filenames
         output_lines = output.split("\n")
         screenshots = output_lines.select { |line| line.strip.start_with?("- ") }
-                                 .map { |line| line.strip[2..-1] }
+                                 .map { |line| File.join(job[:relative], File.basename(line.strip[2..-1])) }
 
-        # The model is given the first one; the captures are kept in the
-        # chat's folder and shown on the work screen.
+        # The model is given the first one; the captures are in the chat's
+        # run folder and shown on the work screen.
         view = model_view_of(screenshots.first)
-        screenshots = keep_captures(screenshots, session, workbench)
         shown = show_captures(screenshots, workbench)
 
         # Store in session
@@ -528,11 +535,11 @@ module MonadicSharedTools
         next browser_state_error(code) unless code == :ok
 
         headless_flag = headless ? "true" : "false"
-        command = "web_navigator.py --action start --managed --url #{Shellwords.escape(url)} --headless #{headless_flag}"
         started = nil
         kept = false
         begin
-          started = parse_navigator_response(send_command(command: command, container: "python"))
+          started = navigator_result(BrowserOwner.navigator(['--action', 'start', '--managed', '--url', url.to_s,
+                                                             '--headless', headless_flag]), chat)
         ensure
           kept = BrowserOwner.finish_start(chat, started && started[:success] ? started[:session_id] : nil, epoch,
                                            window: started && started[:window])
@@ -875,8 +882,8 @@ module MonadicSharedTools
         session_id = BrowserOwner.session_for(chat, epoch)
         next browser_state_error(BrowserOwner.replaced?(chat, epoch) ? :replaced : :none) unless session_id
 
-        command = "web_navigator.py #{action_args} --managed --session-id #{Shellwords.escape(session_id)}"
-        result = parse_navigator_response(send_command(command: command, container: "python"))
+        args = [*Shellwords.split(action_args), '--managed', '--session-id', session_id]
+        result = navigator_result(BrowserOwner.navigator(args), chat)
         # The chat was replaced meanwhile: what the action saw is not its own.
         next browser_state_error(:replaced) unless BrowserOwner.holds?(chat, session_id, epoch)
 
@@ -900,6 +907,17 @@ module MonadicSharedTools
     def browser_state_error(code)
       error_code, message = BROWSER_STATE_ERRORS.fetch(code)
       { success: false, error_code: error_code, error: message }
+    end
+
+    # The navigator's answer, with the names of what it saved turned into
+    # their paths in the chat's capture folder (BrowserOwner.capture_dir).
+    def navigator_result(output, chat)
+      result = parse_navigator_response(output.to_s)
+      %i[screenshot svg_file].each do |key|
+        result[key] = BrowserOwner.capture_path(result[key], chat) if result[key]
+      end
+      result[:screenshots] = Array(result[:screenshots]).filter_map { |name| BrowserOwner.capture_path(name, chat) } if result[:screenshots]
+      result
     end
 
     def parse_navigator_response(output)
@@ -941,10 +959,10 @@ module MonadicSharedTools
     # A copy of a screenshot (a name directly in the shared folder) for the
     # model to see, removed once read; nil when it cannot be made.
     def model_view_of(shot)
-      return nil unless shot.is_a?(String) && File.basename(shot) == shot
+      return nil unless Monadic::Utils::ToolImageUtils.tool_image_path?(shot)
 
       folder = Monadic::Utils::Environment.data_path
-      view = Monadic::Utils::ToolImageUtils.for_model_name
+      view = File.join(File.dirname(shot), Monadic::Utils::ToolImageUtils.for_model_name).delete_prefix("./")
       Monadic::Utils::ToolImageUtils.sweep_for_model
       Monadic::Utils::SharedPathGuard.copy_file!(File.join(folder, shot), File.join(folder, view))
       view
@@ -975,9 +993,9 @@ module MonadicSharedTools
 
       folder = Monadic::Utils::Environment.data_path
       names.map do |name|
-        next name unless name.is_a?(String) && File.basename(name) == name
+        next name unless Monadic::Utils::ToolImageUtils.tool_image_path?(name)
 
-        kept = File.join(job[:relative], name)
+        kept = File.join(job[:relative], File.basename(name))
         Monadic::Utils::SharedPathGuard.rename_file!(File.join(folder, name), File.join(folder, kept))
         kept
       rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError

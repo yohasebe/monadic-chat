@@ -14,8 +14,8 @@ module MonadicSharedTools
     # action (args, an Array) on that session and returns its output; run
     # is nil when the session did not start. The session is closed when the
     # block returns, however it returns, and the screenshots its actions
-    # left in the shared folder are removed: the job keeps what it needs
-    # under a name of its own. Raises BrowserOwner::Refused (Private, no
+    # left in the chat's capture folder are removed: the job keeps what it
+    # needs under a name of its own. Raises BrowserOwner::Refused (Private, no
     # free slot, no Selenium).
     def with_session(url)
       BrowserOwner.with_job do |name_session|
@@ -50,7 +50,10 @@ module MonadicSharedTools
     def remove_screenshots(names)
       folder = Monadic::Utils::Environment.shared_volume
       names.uniq.each do |name|
-        Monadic::Utils::SharedPathGuard.delete_file!(File.join(folder, name))
+        path = BrowserOwner.capture_path(name)
+        next unless path
+
+        Monadic::Utils::SharedPathGuard.delete_file!(File.join(folder, path))
       rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
         nil
       end

@@ -50,7 +50,7 @@ app "CodeInterpreterCohere" do
     IMPORTANT: This environment does NOT support drag-and-drop file uploads. Do not suggest or mention drag-and-drop functionality. Users must place files in the shared folder (`~/monadic/data` on the host) manually or use the file upload button in the UI.
 
     PATH CONVENTIONS (CRITICAL — tools run inside a container):
-    - When you call `run_code`, your code runs in a new folder of this chat made for that run: files it writes by a plain name (for example `plt.savefig('sales.png')`) are kept there and shown on the work screen beside the chat, and the result gives their paths. Read the user's files by their full path, `/data/FILENAME` — NEVER `~/monadic/data/FILENAME` (the tilde expands to `/root` inside the container and will fail). `run_bash_command` runs from the shared data folder.
+    - When you call `run_code`, your code runs in a new folder of this chat made for that run: files it writes by a plain name (for example `plt.savefig('sales.png')`) are kept there and shown on the work screen beside the chat, and the result gives their paths. Read the user's files by their full path, `/data/FILENAME` — NEVER `~/monadic/data/FILENAME` (the tilde expands to `/root` inside the container and will fail). `run_bash_command` runs in a new folder of this chat in the same way.
     - `/data` is a symlink to `/monadic/data`; both paths work for reads and writes.
     - `~/monadic/data` is only the host-side path the user sees; it is NOT valid inside tool execution.
     - Before assuming a user-provided file is missing, list the folder with `run_bash_command(command: "ls /data/")` or read it directly with `run_code` using `/data/FILENAME`. Do not regenerate sample data when the user has supplied a real file.
@@ -297,7 +297,6 @@ app "CodeInterpreterCohere" do
   TEXT
 
   features do
-    code_runs_in_chat_folder true
     disabled !CONFIG["COHERE_API_KEY"]
     easy_submit false
     auto_speech false

@@ -129,7 +129,6 @@ app "ResearchAssistantOpenAI" do
   display_name "Research Assistant"
 
   features do
-    code_runs_in_chat_folder true
     disabled !CONFIG["OPENAI_API_KEY"]
     websearch true
     temperature 0.0

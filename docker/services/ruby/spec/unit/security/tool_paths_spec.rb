@@ -37,7 +37,13 @@ RSpec.describe 'Tool input boundaries' do
   end
   let(:audio) { Class.new { include AudioTranscriptionAgent }.new }
   let(:vision) { Class.new { include ImageAnalysisAgent }.new }
-  let(:drawio) { Class.new { include DrawIOGrapher }.new }
+  let(:drawio) do
+    me = chat_caller
+    Class.new do
+      include DrawIOGrapher
+      define_method(:write_drawio_file) { |**args| super(**{ workbench: me }.merge(args)) }
+    end.new
+  end
   let(:conduit) { Monadic::MCP::Conduit }
 
   around do |example|
@@ -265,9 +271,6 @@ RSpec.describe 'Tool input boundaries' do
       File.symlink(target, File.join(@root, 'report.txt'))
       result = helper.write_file_to_shared_folder(filepath: 'report.txt', content: 'overwrite')
       expect(!result[:success] || result[:saved_as].match?(%r{\Aconversations/[^/]+/work/})).to be(true)
-      writer = Class.new { include MonadicHelper }.new
-      stub_const('MonadicApp::LOCAL_SHARED_VOL', @root)
-      expect(writer.send(:write_to_file, filename: 'report', extension: 'txt', text: 'overwrite')).to start_with('Error')
       expect(File.read(target)).to eq('kept')
     end
 
@@ -289,8 +292,12 @@ RSpec.describe 'Tool input boundaries' do
         expect(File.read(File.join(@root, result[:saved_as]))).to eq('literal')
       end
       shell_names('.drawio').each do |name|
-        expect(drawio.write_drawio_file(content: '<mxfile/>', filename: name)).to include('saved successfully')
-        expect(File.file?(File.join(@root, name))).to be(true)
+        said = drawio.write_drawio_file(content: '<mxfile/>', filename: name)
+        next expect(said).to(start_with('❌')) if name.include?("\n")
+
+        expect(said).to include('saved successfully')
+        saved = said[%r{as (conversations/[^/]+/work/.+)\.\z}m, 1]
+        expect(File.file?(File.join(@root, saved))).to be(true)
       end
       expect(File.exist?(File.join(@root, 'sentinel'))).to be(false)
     end
@@ -299,7 +306,9 @@ RSpec.describe 'Tool input boundaries' do
       it "#{method}: refuses external paths and never starts a preview" do
         allow(drawio).to receive(:send_command) { raise 'Unexpected preview command' }
         outside_inputs('.drawio').each do |path|
-          expect(drawio.public_send(method, content: '<mxfile/>', filename: path)).to start_with('❌')
+          said = drawio.public_send(method, content: '<mxfile/>', filename: path)
+          # Refused, or kept in this chat's work folder: never where the path points.
+          expect(said.start_with?('❌') || said.match?(%r{as conversations/[^/]+/work/})).to be(true), path
         end
         expect(File.read(File.join(@outside, 'private.drawio'))).to eq('fixture')
         expect(drawio).not_to have_received(:send_command)
@@ -310,7 +319,7 @@ RSpec.describe 'Tool input boundaries' do
       FileUtils.mkdir_p(File.join(@root, '日本語 folder'))
       result = drawio.write_drawio_file(content: '<mxfile/>', filename: '日本語 folder/space name')
       expect(result).to include('saved successfully')
-      allow(File).to receive(:open).and_raise(Errno::EACCES, 'private diagnostic')
+      allow(Monadic::Utils::SharedPathGuard).to receive(:write_file!).and_raise(Errno::EACCES, 'private diagnostic')
       result = drawio.write_drawio_file(content: '<mxfile/>', filename: 'denied')
       expect(result).to start_with('❌')
       expect(result).not_to match(/Backtrace|private diagnostic|\.rb:/)

@@ -2,6 +2,7 @@ require 'nokogiri'
 require 'fileutils'
 require_relative '../../lib/monadic/utils/shared_path_guard'
 require_relative '../../lib/monadic/workbench/chat_output'
+require_relative '../../lib/monadic/workspace/chat_files'
 
 module DrawIOGrapher
   # Template for a valid minimal Draw.io diagram
@@ -20,32 +21,24 @@ module DrawIOGrapher
     </mxfile>
   XML
 
-  def write_drawio_file(content:, filename: "diagram")
+  # Writes the diagram as a .drawio file in the chat's work folder
+  # (Workspace::ChatFiles), whatever place filename names, and says where.
+  def write_drawio_file(content:, filename: "diagram", workbench: nil)
     return "❌ Invalid filename" unless filename.is_a?(String)
 
-    # Handle file extension
     filename = "#{filename}.drawio" unless filename.end_with?(".drawio")
+    app = workbench&.session&.dig(:parameters, "app_name")
+    place = Monadic::Workspace::ChatFiles.for_write(filename, caller: workbench, app_name: app.to_s.empty? ? self.class.name : app)
+    guard = Monadic::Utils::SharedPathGuard
+    guard.mkdir_p!(File.dirname(place.full), strict: true)
+    guard.write_file!(place.full, validate_and_repair_drawio_xml(content), strict: true)
+    return "❌ The file could not be verified at #{place.relative}." unless guard.file_stat(place.full)&.size.to_i.positive?
 
-    # Use the unified environment module for data directory
-    data_dir = Monadic::Utils::Environment.shared_volume
-
-    # Ensure the data directory exists
-    unless File.directory?(data_dir)
-      begin
-        FileUtils.mkdir_p(data_dir)
-      rescue StandardError => e
-        return "❌ Could not create directory #{data_dir}: #{e.message}"
-      end
-    end
-
-    filepath = Monadic::Utils::SharedPathGuard.resolve_in_shared(filename, extensions: %w[.drawio], must_exist: false)
-    return "❌ Invalid shared file path" unless filepath
-
-    # Validate and repair XML content
-    validated_content = validate_and_repair_drawio_xml(content)
-
-    # Write the file synchronously - this keeps the spinner active until completion
-    write_file_synchronously(validated_content, filepath, filename, data_dir)
+    "The file has been saved successfully to the shared folder as #{place.relative}."
+  rescue Monadic::Workspace::ChatFiles::Refused => e
+    "❌ #{e.message}"
+  rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+    "❌ The file could not be written"
   end
 
   # Validates and repairs the diagram, keeps it as a .drawio file in a run
@@ -72,40 +65,6 @@ module DrawIOGrapher
   end
 
   private
-
-  def write_file_synchronously(validated_content, filepath, filename, data_dir)
-    begin
-      resolved = Monadic::Utils::SharedPathGuard.resolve_in_shared(filepath, extensions: %w[.drawio], must_exist: false)
-      return "❌ Invalid shared file path" unless resolved
-
-      Monadic::Utils::SharedPathGuard.write_file!(resolved, validated_content)
-
-      # Verify file was written with shorter retry intervals for better UX
-      success = false
-      max_retrial = 10
-      max_retrial.times do |_i|
-        sleep 0.2
-        if File.exist?(filepath)
-          success = true
-          break
-        end
-      end
-
-      # Final verification - ensure file is readable and has content
-      if success && File.size(filepath) > 0
-        result = "The file #{filename} has been saved successfully to the shared folder (#{data_dir})."
-      else
-        result = "❌ The file could not be verified at #{filepath}."
-      end
-
-      STDOUT.flush
-      return result
-    rescue StandardError => e
-      error_result = "❌ The file could not be written"
-      STDOUT.flush
-      return error_result
-    end
-  end
 
   # Validate and repair Draw.io XML content
   def validate_and_repair_drawio_xml(content)

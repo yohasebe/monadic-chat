@@ -11,7 +11,7 @@
     - The Session Context panel is removed: apps show their state as notes on the work screen
     - What the apps make is saved in the chat's folder in `conversations/` and shown on the work screen
     - Code Interpreter, Research Assistant and Math Tutor run code in the chat's folder: **read your own files by their full path (`/monadic/data/...`)**
-    - Files the AI writes with the file tools are kept in the chat's work folder (`conversations/…/work/`), and the reply gives their paths
+    - Files the AI writes with the file tools are kept in the chat's work folder (`conversations/…/work/`), and the reply gives their paths; nothing an app or a document import makes is saved at the top of the shared folder, and code starts in a run folder of the chat in every app
     - MCP: generated speech, images, videos and music are saved under `mcp/` in the shared folder
     - Deleting a turn also takes back the app's state and moves the files the reply made to the chat's `trash` folder
     - The Jupyter apps run notebooks without starting JupyterLab; `Start JupyterLab` is `Open JupyterLab`

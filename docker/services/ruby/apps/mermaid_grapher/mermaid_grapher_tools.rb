@@ -38,12 +38,20 @@ module MermaidGrapherTools
     # 2. Generate HTML
     # Unique per call, so concurrent previews never share a file name
     timestamp = "#{Time.now.to_i}_#{SecureRandom.hex(4)}"
-    html_filename = "mermaid_live_#{timestamp}.html"
-    screenshot_filename = Monadic::Utils::ToolImageUtils.for_model_name
+    # The page and its screenshots stay in the chat's folder (its browser's
+    # capture folder), never at the top of the shared folder.
+    scratch = MonadicSharedTools::BrowserOwner.capture_dir
+    unless scratch
+      return format_tool_response(build_preview_payload(success: false, error: "There is no chat folder for the preview.",
+                                                        validated_code: sanitized_code))
+    end
+
+    html_filename = File.join(scratch, "mermaid_live_#{timestamp}.html")
+    screenshot_filename = File.join(scratch, Monadic::Utils::ToolImageUtils.for_model_name)
     preview_name = screenshot_filename.delete_suffix(".png")
     shared_volume = Monadic::Utils::Environment.shared_volume
     html_path = File.join(shared_volume, html_filename)
-    Monadic::Utils::SharedPathGuard.write_file!(html_path, build_mermaid_html(sanitized_code))
+    Monadic::Utils::SharedPathGuard.write_file!(html_path, build_mermaid_html(sanitized_code), strict: true)
 
     # 3. A browser session of its own for this preview (ScratchBrowser)
     file_url = "file:///monadic/data/#{html_filename}"
@@ -77,7 +85,7 @@ module MermaidGrapherTools
 
       if ss_result[:success] && ss_result[:tiled] && ss_result[:screenshots]
         # Tiled mode: multiple overlapping screenshots for tall diagrams
-        image_files = copy_screenshot_tiles(ss_result[:screenshots], preview_name, shared_volume)
+        image_files = copy_screenshot_tiles(ss_result[:screenshots], preview_name, shared_volume, scratch)
         if image_files.any?
           # No gallery_html — Mermaid diagrams are rendered as SVG directly by
           # the client-side MarkdownRenderer. Instead, inject via _image so the
@@ -99,7 +107,7 @@ module MermaidGrapherTools
         end
       elsif ss_result[:success] && ss_result[:screenshot]
         # Single image mode: diagram fits in one capture
-        src = File.join(shared_volume, ss_result[:screenshot])
+        src = File.join(shared_volume, scratch, File.basename(ss_result[:screenshot].to_s))
         dst = File.join(shared_volume, screenshot_filename)
         (Monadic::Utils::SharedPathGuard.copy_file!(src, dst) rescue nil)
 
@@ -230,9 +238,9 @@ module MermaidGrapherTools
   private
 
   # Copy tiled screenshot files to stable filenames and return the list
-  def copy_screenshot_tiles(tile_filenames, base_name, shared_volume)
+  def copy_screenshot_tiles(tile_filenames, base_name, shared_volume, scratch)
     tile_filenames.each_with_index.filter_map do |tile_file, idx|
-      src = File.join(shared_volume, tile_file)
+      src = File.join(shared_volume, scratch, File.basename(tile_file.to_s))
       dst_name = "#{base_name}_tile#{idx + 1}.png"
       # Read and written as plain files of the shared folder, never through a link.
       Monadic::Utils::SharedPathGuard.copy_file!(src, File.join(shared_volume, dst_name))
@@ -299,7 +307,7 @@ module MermaidGrapherTools
   # images, older than PREVIEW_IMAGE_MAX_AGE seconds
   def cleanup_old_mermaid_files
     shared_volume = Monadic::Utils::Environment.shared_volume
-    %w[mermaid_live_*.html mermaid_test_*.html].each do |pattern|
+    %w[mermaid_live_*.html mermaid_test_*.html].flat_map { |name| [name, "conversations/*/work/.browser/#{name}"] }.each do |pattern|
       Dir.glob(File.join(shared_volume, pattern)).each do |f|
         # Another preview may remove its own file meanwhile
         next if Time.now - File.lstat(f).mtime < PREVIEW_IMAGE_MAX_AGE
@@ -432,7 +440,12 @@ module MermaidGrapherTools
   def validate_with_mermaid_cli(code)
     # Use Selenium to validate Mermaid diagram
     # Unique per call, so concurrent checks never share a file name
-    html_filename = "mermaid_test_#{Time.now.to_i}_#{SecureRandom.hex(4)}.html"
+    # The page goes in the chat's capture folder; without a chat the check
+    # is not run (the caller falls back to the static check).
+    scratch = MonadicSharedTools::BrowserOwner.capture_dir
+    raise StandardError, "There is no chat folder for the check" unless scratch
+
+    html_filename = File.join(scratch, "mermaid_test_#{Time.now.to_i}_#{SecureRandom.hex(4)}.html")
 
     # Determine correct path based on environment
     shared_volume = Monadic::Utils::Environment.shared_volume
@@ -495,7 +508,7 @@ module MermaidGrapherTools
     HTML
 
     # Write HTML file
-    Monadic::Utils::SharedPathGuard.write_file!(html_path, html_content)
+    Monadic::Utils::SharedPathGuard.write_file!(html_path, html_content, strict: true)
 
     # Use Selenium to check for errors
     command = <<~CMD

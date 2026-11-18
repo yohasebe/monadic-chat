@@ -5,34 +5,40 @@
 # Largest upload accepted, checked before the body is read (config.ru).
 DOCUMENT_UPLOAD_MAX_BYTES = 200_000_000
 
-# Convert a document file to text. Always returns JSON (see JSON routes
-# in docs_dev/developer/anti_pattern_lints.md).
+# Converts a document to text for a message; always returns JSON (see JSON
+# routes in docs_dev/developer/anti_pattern_lints.md). The document is kept
+# as an attachment of the chat the page belongs to (its inputs/ folder),
+# fixed by UploadContext before the body is read; nothing is written at the
+# top of the shared folder.
 post "/document" do
   content_type :json
 
-  return error_json("No file selected. Please choose a document file to convert.") unless params["docFile"]
+  chat_id = request.env[Monadic::Workspace::UploadContext::CHAT_KEY]
+  unless Monadic::Workspace::Ids.valid?(:chat, chat_id)
+    return error_json("This page is no longer connected. Reload the page and import the document again.")
+  end
+
+  upload = params["docFile"]
+  return error_json("No file selected. Please choose a document file to convert.") unless upload.is_a?(Hash) && upload[:tempfile]
 
   begin
-    doc_file_handler = params["docFile"]["tempfile"]
     doc_label = params["docLabel"].to_s.encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
-    # basename prevents directory-traversal style filenames
-    filename = File.basename(params["docFile"]["filename"])
+    record = Monadic::Workspace::Attachments.accept!(
+      chat_id: chat_id,
+      app_name: request.env[Monadic::Workspace::UploadContext::APP_KEY],
+      purpose: "document",
+      original_name: upload[:filename].to_s,
+      source: upload[:tempfile]
+    )
+    name = record[:original_name].to_s.dup.force_encoding("UTF-8").scrub
 
-    user_data_dir = Monadic::Utils::Environment.data_path
-    doc_file_path = File.join(user_data_dir, filename)
-    # Never through a link in its place (code a model runs could have made one)
-    Monadic::Utils::SharedPathGuard.write_file!(doc_file_path, doc_file_handler.read, mode: "wb")
-
-    utf8_filename = File.basename(doc_file_path).force_encoding("UTF-8")
-    doc_file_handler.close
-
-    markdown = MonadicApp.doc2markdown(utf8_filename)
+    markdown = MonadicApp.doc2markdown(record[:relative_path])
 
     if markdown.to_s.strip.empty?
       return error_json("No content could be extracted from the document")
     end
 
-    doc_text = "Filename: " + utf8_filename + "\n---\n" + markdown
+    doc_text = "Filename: " + name + "\n---\n" + markdown
     result = if doc_label.to_s != ""
               "\n---\n" + doc_label + "\n---\n" + doc_text
             else
@@ -40,8 +46,14 @@ post "/document" do
             end
 
     { success: true, content: result }.to_json
+  rescue Monadic::Workspace::FileTypes::Rejected, Monadic::Workspace::Attachments::Unusable => e
+    error_json(e.message)
+  rescue Monadic::Workspace::Folders::Unavailable, Monadic::Workspace::Ledger::Unreadable
+    error_json("The chat folder is not available. Check the shared folder and try again.")
   rescue => e
     error_json("Error processing document: #{e.message}")
+  ensure
+    upload[:tempfile].close! if upload.is_a?(Hash) && upload[:tempfile].respond_to?(:close!)
   end
 end
 

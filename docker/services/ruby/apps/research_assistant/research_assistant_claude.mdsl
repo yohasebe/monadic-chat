@@ -137,7 +137,6 @@ app "ResearchAssistantClaude" do
   display_name "Research Assistant"
 
   features do
-    code_runs_in_chat_folder true
     disabled !CONFIG["ANTHROPIC_API_KEY"]
     websearch true  # Claude uses native web search
     easy_submit false

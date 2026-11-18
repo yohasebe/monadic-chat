@@ -60,6 +60,16 @@ RSpec.describe "tool arguments never reach a shell" do
       end
     end
 
+    # The run folder of the chat the code runs in.
+    let(:run_dir) { { path: @dir, relative: "conversations/c/artifacts/j_1" } }
+
+    it "runs nothing without a run folder of a chat" do
+      result = app.send(:send_code, code: "print(1)", command: "python", extension: "py", max_retries: 0)
+      expect(result).to include("no chat folder")
+      expect(calls).to be_empty
+      expect(Dir.glob(File.join(@dir, "**", "code_*"))).to be_empty
+    end
+
     it "refuses an execution command that is not an interpreter name" do
       ["python; touch PWNED", "$(touch PWNED)", "`touch PWNED`", "/bin/sh -c x; y", ""].each do |command|
         result = app.send(:send_code, code: "print(1)", command: command, extension: "py", max_retries: 0)
@@ -77,7 +87,7 @@ RSpec.describe "tool arguments never reach a shell" do
     end
 
     it "runs the code in the Python container with an argv array, the command split into its own arguments" do
-      result = app.send(:send_code, code: "print(1)", command: "python3 -u", extension: "py", max_retries: 0)
+      result = app.send(:send_code, code: "print(1)", command: "python3 -u", extension: "py", max_retries: 0, run_dir: run_dir)
       expect(calls.size).to eq(1), "send_code returned #{result.inspect} before running docker"
       exec, present, container = calls.first
       expect(container).to eq(:python)
@@ -93,14 +103,14 @@ RSpec.describe "tool arguments never reach a shell" do
       allow(Time).to receive(:now).and_return(Time.at(0))
       taken = File.join(@dir, "code_#{Time.at(0).strftime('%Y%m%d_%H%M%S')}_deadbeef.py")
       File.write(taken, "existing user data")
-      result = app.send(:send_code, code: "print(1)", command: "python", extension: "py", max_retries: 0)
+      result = app.send(:send_code, code: "print(1)", command: "python", extension: "py", max_retries: 0, run_dir: run_dir)
       expect(result).to start_with("Error executing code")
       expect(calls).to be_empty
       expect(File.read(taken)).to eq("existing user data")
     end
 
     it "keeps each attempt's code file when asked to" do
-      app.send(:send_code, code: "print(1)", command: "python", extension: "py", max_retries: 1, retry_delay: 0, keep_file: true)
+      app.send(:send_code, code: "print(1)", command: "python", extension: "py", max_retries: 1, retry_delay: 0, keep_file: true, run_dir: run_dir)
       expect(calls.size).to eq(2)
       expect(Dir.glob(File.join(@dir, "code_*.py")).size).to eq(2)
     end

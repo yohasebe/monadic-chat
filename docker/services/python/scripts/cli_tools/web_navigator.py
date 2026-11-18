@@ -24,8 +24,12 @@ except ImportError:
     trim_screenshot = None
 
 WEBDRIVER_URL = "http://selenium_service:4444"
-SESSION_FILE = "/monadic/data/.browser_session_id"
-SCREENSHOT_DIR = "/monadic/data"
+# Where screenshots and saved SVGs go: the folder the Monadic server names for
+# the chat (MONADIC_OUTPUT_DIR), never the top of the shared folder. Without
+# one (a manual run), a folder of the container's own.
+SCREENSHOT_DIR = os.environ.get("MONADIC_OUTPUT_DIR") or "/tmp/monadic-browser"
+# The browser session of a manual run (not --managed); kept in the container.
+SESSION_FILE = "/tmp/monadic-browser/.browser_session_id"
 VIEWPORT_WIDTH = 1280
 VIEWPORT_HEIGHT = 900
 # The WebDriver session the caller says this browser is (the Monadic server
@@ -65,6 +69,7 @@ def _session_error(r):
 
 def _save_session(session_id):
     """Persist session ID to file."""
+    os.makedirs(os.path.dirname(SESSION_FILE), exist_ok=True)
     with open(SESSION_FILE, "w") as f:
         f.write(session_id)
 
@@ -134,6 +139,7 @@ def _take_screenshot(session_id):
     img_data = base64.b64decode(r["value"])
     timestamp = int(time.time() * 1000)
     filename = f"browser_{timestamp}.png"
+    os.makedirs(SCREENSHOT_DIR, exist_ok=True)
     filepath = os.path.join(SCREENSHOT_DIR, filename)
     with open(filepath, "wb") as f:
         f.write(img_data)
@@ -696,6 +702,7 @@ def action_extract_svg(args):
     # Save SVG to file
     timestamp = int(time.time() * 1000)
     filename = f"diagram_{timestamp}.svg"
+    os.makedirs(SCREENSHOT_DIR, exist_ok=True)
     filepath = os.path.join(SCREENSHOT_DIR, filename)
 
     with open(filepath, "w", encoding="utf-8") as f:

@@ -6,7 +6,6 @@ require 'async/queue'
 require 'async/condition'
 require 'async/semaphore'
 require 'json'
-require 'open3'
 require 'monadic/utils/extra_logger'
 require 'monadic/utils/model_spec'
 require_relative '../../../../lib/monadic/utils/websocket'
@@ -2882,26 +2881,14 @@ RSpec.describe 'STS function calling — tool host and context' do
     expect(defined?(WebSocketHelper::StsToolHost)).to be_nil
   end
 
-  # The code is written to this run's shared folder and run in the python
-  # container, so the container must mount that same folder; docker says
-  # which folder it mounts.
-  def python_mounts_this_shared_folder?
-    name = Monadic::Utils::ContainerDependencies::CONTAINER_NAMES[:python]
-    format = '{{range .Mounts}}{{if eq .Destination "/monadic/data"}}{{.Source}}{{end}}{{end}}'
-    source, status = Open3.capture2('docker', 'inspect', '-f', format, name, err: File::NULL)
-    return false unless status.success? && !source.strip.empty?
-    File.realpath(source.strip) == File.realpath(Monadic::Utils::Environment.shared_volume)
-  rescue SystemCallError
-    false
-  end
-
-  it 'run_code executes through the real chain when the python container is up' do
-    skip 'python container not running' unless Monadic::Utils::ContainerDependencies.container_running?(:python)
-    skip 'python container mounts another shared folder' unless python_mounts_this_shared_folder?
+  # Code runs only in a run folder of a chat: through the tool host without
+  # one, nothing runs and nothing is written.
+  it 'run_code through the tool host runs nothing without a chat' do
     host = WebSocketHelper.sts_tool_host.new
+    expect(host).not_to receive(:capture_command)
     result = host.run_code(code: 'print(1 + 1)', command: 'python', extension: 'py', session: nil)
     expect(result).to be_a(String)
-    expect(result).to include('Output: 2')
+    expect(result).to include('no chat folder')
   end
 
   it 'captures the session on the reactor side and passes it into the tool thread' do

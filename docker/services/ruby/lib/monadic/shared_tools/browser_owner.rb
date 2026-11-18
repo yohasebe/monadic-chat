@@ -4,6 +4,9 @@ require 'json'
 require 'set'
 require_relative '../shell'
 require_relative '../workspace/chats'
+require_relative '../workspace/folders'
+require_relative '../utils/environment'
+require_relative '../utils/shared_path_guard'
 require_relative 'browser_operator'
 
 module MonadicSharedTools
@@ -111,13 +114,50 @@ module MonadicSharedTools
     end
 
     # The output of web_navigator.py with args (an Array), run in the Python
-    # container.
-    def navigator(args, timeout: 120)
+    # container. What it saves (screenshots, SVGs) goes in the chat's
+    # capture folder (capture_dir); without a chat, in a folder of the
+    # container's own, never the shared folder.
+    # capture: false for a call that saves nothing (a status check), so it
+    # makes no folder.
+    def navigator(args, timeout: 120, capture: true)
       runner = @lock.synchronize { @runner }
       return runner.call(args, timeout) if runner
 
-      stdout, = Monadic::Shell.exec(container: :python, argv: ['web_navigator.py', *args], timeout: timeout)
+      dir = capture ? capture_dir : nil
+      env = dir ? { 'MONADIC_OUTPUT_DIR' => File.join(Monadic::Utils::SharedPathGuard::CONTAINER_ROOT, dir) } : {}
+      stdout, = Monadic::Shell.exec(container: :python, argv: ['web_navigator.py', *args], env: env, timeout: timeout)
       stdout
+    end
+
+    CAPTURE_DIR = '.browser'
+
+    # The folder, in the shared folder, where the chat's browser saves its
+    # screenshots: work/.browser of the chat's folder, made when missing.
+    # nil without a chat or its folder.
+    def capture_dir(chat = current_chat)
+      return nil unless chat
+
+      session = Thread.current[:session] || Thread.current[:rack_session]
+      app_name = session.respond_to?(:dig) ? session.dig(:parameters, 'app_name') : nil
+      folder = Monadic::Workspace::Folders.ensure_for_chat!(chat, app_name: app_name || 'Chat')
+      return nil unless folder[:status] == :ready
+
+      relative = File.join(folder[:relative_dir], 'work', CAPTURE_DIR)
+      Monadic::Utils::SharedPathGuard.mkdir_p!(File.join(Monadic::Utils::Environment.data_path, relative), strict: true)
+      relative
+    rescue ArgumentError, Monadic::Workspace::Folders::Unavailable, Monadic::Workspace::Ledger::Unreadable,
+           Monadic::Utils::SharedPathGuard::InvalidPath,
+           SystemCallError
+      nil
+    end
+
+    # The path in the shared folder of a file the navigator saved under name
+    # (a plain name it printed), or nil.
+    def capture_path(name, chat = current_chat)
+      return nil unless name.is_a?(String) && name.match?(/\A[\w.-]+\z/) && !name.start_with?('.')
+
+      dir = capture_dir(chat)
+      dir && File.join(dir, name)
     end
 
     # For tests: runner.call(args, timeout) in place of the Python container.
@@ -407,7 +447,7 @@ module MonadicSharedTools
     # What Selenium reports: { sessions: [ids], max: n }, or nil when it
     # cannot be asked or reports no slots.
     def observe
-      result = result_of(navigator(['--action', 'status'], timeout: STATUS_TIMEOUT))
+      result = result_of(navigator(['--action', 'status'], timeout: STATUS_TIMEOUT, capture: false))
       return nil unless result && result['success'] == true && result['max_sessions'].to_i.positive?
 
       { sessions: Array(result['sessions']), max: result['max_sessions'].to_i }

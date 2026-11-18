@@ -34,7 +34,7 @@ Monadic Chatを終了します。
 
 コンソールには、File、Edit、Actions、Open、Help、Window のメニューがあります。macOS では、File メニューは Monadic Chat という名前で表示されます。Edit には通常の編集のコマンド、Help には文書を開くコマンド、Window には Minimize、Close、Reload があります。
 
-### Actions メニュー
+### アクション メニュー :id=actions-menu
 
 ![アクション メニュー](../assets/images/figures/menu-actions.svg)
 
@@ -77,10 +77,10 @@ JupyterLab（[http://localhost:8889](http://localhost:8889)）をブラウザー
 JupyterLabを停止します。
 
 **ドキュメントDBをインポート** <br />
-ドキュメント DB（ナレッジベースに保存した会話・PDF・その他の Knowledge Base エントリすべて）を、共有フォルダ内の書き出したファイルから取り込みます。会話の履歴はドキュメント DB に含まれず、変わりません。実行前に、現在の DB を置き換えることを警告する確認ダイアログ（**Replace and Import**）が表示されます。受け入れられるファイル名は `monadic-qdrant.tar.gz`（平文）または `monadic-qdrant.tar.gz.enc`（暗号化、エクスポート時のパスフレーズを入力するよう促されます）です。
+ドキュメント DB（ナレッジベースに保存した会話・PDF・その他の Knowledge Base エントリすべて）を、共有フォルダ内の書き出したファイルから取り込みます。会話の履歴はドキュメント DB に含まれず、変わりません。実行前に、現在の DB を置き換えることを警告する確認ダイアログ（**置き換えてインポート**）が表示されます。受け入れられるファイル名は `monadic-qdrant.tar.gz`（平文）または `monadic-qdrant.tar.gz.enc`（暗号化、エクスポート時のパスフレーズを入力するよう促されます）です。パスフレーズが違うときやファイルが壊れているときは何も取り込まれず、今の DB はそのまま残ります。
 
 **ドキュメントDBをエクスポート** <br />
-ドキュメント DB 全体を共有フォルダにエクスポートします。確認ダイアログには 2 つの選択肢があります: **Encrypt and Export**（デフォルト — パスフレーズを尋ね、`monadic-qdrant.tar.gz.enc` を書き出します）と **Export Plain**（暗号化せずに `monadic-qdrant.tar.gz` を書き出します。ナレッジベースに保存した会話と PDF が平文で含まれることを強く警告）。エクスポートには[会話の履歴](web-interface.md#chat-history-panel)は含まれません。マシン外に出る可能性があるエクスポートは暗号化版を使ってください。暗号化フォーマットとインポート／復号の挙動の詳細は [匿名化](../advanced-topics/anonymization.md#document-db-export-import) を参照してください。
+ドキュメント DB 全体を共有フォルダにエクスポートします。確認ダイアログには 2 つの選択肢があります: **暗号化してエクスポート**（デフォルト — 8 文字以上のパスフレーズを尋ね、AES-256-GCM で暗号化して `monadic-qdrant.tar.gz.enc` を書き出します。パスフレーズは復元できません）と **平文でエクスポート**（暗号化せずに `monadic-qdrant.tar.gz` を書き出します。ナレッジベースに保存した会話と PDF が平文で含まれることを強く警告）。エクスポートには[会話の履歴](web-interface.md#chat-history-panel)は含まれません。マシン外に出る可能性があるエクスポートは暗号化版を使ってください。
 
 ### Open メニュー
 

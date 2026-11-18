@@ -61,7 +61,7 @@ Conduit は以下の `monadic_*` ツールを公開します。各ツールの�
 - `monadic_list_kb` — Knowledge Base の項目の一覧
 - `monadic_import_kb` — テキスト、または共有フォルダのファイル（PDF、Markdown、Word、Excel、PowerPoint、ソースコード）を Global の項目として取り込み
 
-これらの道具と、`monadic_query`・`monadic_parallel_query`・`monadic_confidence` の `knowledge_base` 引数は、既定ではすべての項目を読みます（`all`）。`ChatOpenAI` のようにアプリの名前を渡すと、そのアプリの項目と Global の項目だけを読みます。`knowledge_base` を渡したチャットの道具は、検索を手元で行い、見つかった文章を質問と一緒にプロバイダーへ送ります。
+これらの道具は、既定ではすべての項目を読みます（`all`）。`ChatOpenAI` のようにアプリの名前を渡すと、そのアプリの項目と Global の項目だけを読みます。チャットの道具 `monadic_query`・`monadic_parallel_query`・`monadic_confidence` は、`knowledge_base` 引数を渡したときだけ Knowledge Base を使います。`all` ならすべての項目を、アプリの名前ならそのアプリの項目と Global の項目を探します。検索は手元で行い、見つかった文章を質問と一緒にプロバイダーへ送ります。引数を渡さなければ、Knowledge Base のものは何も送りません。
 
 **解析（入力）**
 - `monadic_analyze_image` — 画像の説明・質問応答
@@ -69,7 +69,7 @@ Conduit は以下の `monadic_*` ツールを公開します。各ツールの�
 - `monadic_analyze_audio` — 音声の定性的解析（例: 音楽批評）
 - `monadic_analyze_video` — 動画のフレーム抽出・ビジョン解析・音声文字起こし
 
-**生成（出力は共有ボリューム `~/monadic/data` の `mcp/` の下に、一回ずつ別のフォルダで保存。結果で保存したパスを返す）**
+**生成（出力は共有フォルダ `~/monadic/data` の `mcp/` の下に、一回ずつ別のフォルダで保存。結果で保存したパスを返す）**
 - `monadic_speak` — テキスト読み上げ（TTS）
 - `monadic_generate_code` — 指定したプロバイダー（`openai`、`anthropic`、`xai`）のコードエージェントによるコード生成
 - `monadic_generate_image` — 画像生成

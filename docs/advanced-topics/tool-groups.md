@@ -212,12 +212,12 @@ app "MyAssistantOpenAI" do
   # Groups the app can reach for when the conversation calls for them.
   reachable_skills :web_search_tools, :image_analysis
 
-  # Or reach for the curated pool of read-only safe groups in one line:
+  # Or reach for the curated pool of safe groups in one line:
   # reachable_skills :safe
 end
 ```
 
-`reachable_skills :group_a, :group_b` is the same as importing each group with `import_shared_tools :group_a, visibility: "conditional"`. `reachable_skills :safe` expands to the read-only groups: Web Search, File Reading, Image Analysis, Video Analysis, Audio Transcription, Session Context, Verification and Planning.
+`reachable_skills :group_a, :group_b` is the same as importing each group with `import_shared_tools :group_a, visibility: "conditional"`. `reachable_skills :safe` expands to Web Search, File Reading, Image Analysis, Video Analysis, Audio Transcription, Session Context, Verification and Planning. None of them writes files; Session Context changes the chat's own notes.
 
 Acquired skills are kept when a session is exported and restored when it is imported, so a saved conversation resumes with the same tools.
 

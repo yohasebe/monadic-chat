@@ -99,11 +99,8 @@ class ProcessDocumentation
 
   # ─── Document discovery ────────────────────────────────────────────────
 
-  # Only documents git tracks may go into the dump. The shipped beta.34 dump
-  # carried docs_dev/external_apis/README.md, which .gitignore excludes: the
-  # walk below reads the working tree, so being present on disk was enough to
-  # be indexed and packaged. Asking git instead keeps anything gitignored or
-  # merely untracked out of the index in the first place.
+  # Only documents git tracks may go into the dump: a file present on disk
+  # but gitignored or untracked is never indexed or packaged.
   def tracked_files
     @tracked_files ||= begin
       out, status = Open3.capture2('git', '-C', PROJECT_ROOT, 'ls-files', '-z')

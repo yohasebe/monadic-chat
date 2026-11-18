@@ -1,24 +1,22 @@
 # Shared Folder
 
-When you first start Monadic Chat, a `~/monadic/data` directory is created. This directory is the default Shared Folder for sharing files within Monadic Chat's Docker containers.
+When you first start Monadic Chat, a `~/monadic/data` directory is created. This directory is the default shared folder for sharing files within Monadic Chat's Docker containers.
 
-The `Shared Folder` button in the Monadic Chat console (or **Open → Open Shared Folder**) opens the Shared Folder in your OS file manager.
+The **Shared Folder** button in the Monadic Chat console (or **Open → Open Shared Folder**) opens the shared folder in your OS file manager.
 
 ![The console window](../assets/images/figures/console-window.svg)
 
-By placing files in this directory, you can access those files within Monadic Chat's Docker containers. The path to the Shared Folder within each Docker container is `/monadic/data`, while the path on your local machine is `~/monadic/data`.
+By placing files in this directory, you can access those files within Monadic Chat's Docker containers. The path to the shared folder within each Docker container is `/monadic/data`, while the path on your local machine is `~/monadic/data`.
 
-In apps that can execute code (e.g., Code Interpreter app), you can read files from the Shared Folder. A file at the top of the Shared Folder can be given by its name alone; for a file in a subfolder, give its path relative to the Shared Folder.
+In apps that can execute code (e.g., Code Interpreter app), code reads your files from the shared folder by their full path in the container, such as `/monadic/data/input.csv`: the code runs in a folder of its own for the chat, so a name alone is looked for there.
 
-During the execution of some processes on the AI agent side (using function calling, for example), intermediate files may be saved in the Shared Folder.
-
-JupyterLab also starts in `/monadic/data`, so the Shared Folder is available there as well — see [JupyterLab Integration](./jupyterlab.md).
+JupyterLab also starts in `/monadic/data`, so the shared folder is available there as well — see [JupyterLab Integration](./jupyterlab.md).
 
 ## The `${SHARED}` Variable
 
-You can refer to the Shared Folder in conversation with `${SHARED}`. The assistant understands `${SHARED}` as the Shared Folder, so you can ask it to read or write files there without typing a full path — for example, *"Save the summary to `${SHARED}/notes.md`"* or *"Read `${SHARED}/data.csv` and chart it."* When the assistant uses `${SHARED}` in a tool call, Monadic Chat replaces it with the Shared Folder's actual location.
+You can refer to the shared folder in conversation with `${SHARED}`. The assistant understands `${SHARED}` as the shared folder, so you can ask it to read files there without typing a full path — for example, *"Read `${SHARED}/data.csv` and chart it."* When the assistant uses `${SHARED}` in a tool call, Monadic Chat replaces it with the shared folder's actual location.
 
-Every app can read and write text files in the Shared Folder: the assistant has `read_file_from_shared_folder`, `write_file_to_shared_folder`, and `list_files_in_shared_folder` in every app (Live Conversation has its own set of tools instead). This lets you exchange files with the assistant in any app — supplying source text to translate, saving a transcript, or referring to a file produced in an earlier turn. These tools do not write into the `apps`, `helpers`, `scripts`, and `services` folders.
+Every app can read and write text files in the shared folder: the assistant has `read_file_from_shared_folder`, `write_file_to_shared_folder`, and `list_files_in_shared_folder` in every app (Live Conversation has its own set of tools instead). This lets you exchange files with the assistant in any app — supplying source text to translate, saving a transcript, or referring to a file produced in an earlier turn. A file the assistant writes is kept in the chat's work folder (`conversations/…/work/`) under the name asked for, wherever the request places it, and the reply gives its path; adding to a file of yours outside the chat starts from a copy of it there. Your own file is not changed.
 
 In the assistant's responses, a `${SHARED}` reference is shown as a clickable token: hover over it to see the path. In the Monadic Chat window, clicking it opens that location in your OS file manager; in an external browser, clicking it copies the path.
 
@@ -30,7 +28,7 @@ In addition to `${SHARED}`, several other variables are available in every conve
 
 | Variable | Resolves to |
 | --- | --- |
-| `${SHARED}` | The Shared Folder (`~/monadic/data` on your machine). |
+| `${SHARED}` | The shared folder (`~/monadic/data` on your machine). |
 | `${TODAY}` | Today's date in ISO 8601 format (`YYYY-MM-DD`). |
 | `${MODEL}` | The AI model currently answering the conversation. |
 | `${APP}` | The display name of the current app. |
@@ -59,7 +57,7 @@ Interface variables fall into two groups, and they are shown differently in the 
 - **Path-like variables are decorated.** `${SHARED}` stays visible as the `${SHARED}` symbol in the response, with the path on hover (see above).
 - **Value-like variables are expanded.** `${TODAY}`, `${MODEL}`, `${APP}`, `${LANG}`, and the app-specific variables are replaced inline by their value. For example, a sentence written as "Today is `${TODAY}`" is shown as "Today is 2026-05-31".
 
-In tool calls and file paths, every interface variable expands to its real value when the assistant uses it, not only in displayed text. Variables can also be combined. A request like *"Write a report to `${SHARED}/report_${TODAY}.txt`"* writes the file to the Shared Folder with the date filled in, producing a filename such as `report_2026-05-31.txt`.
+In tool calls and file paths, every interface variable expands to its real value when the assistant uses it, not only in displayed text. Variables can also be combined. A request like *"Write a report to `${SHARED}/report_${TODAY}.txt`"* writes the file with the date filled in, producing a filename such as `report_2026-05-31.txt` in the chat's work folder.
 
 ## Available Variables Panel
 
@@ -152,4 +150,4 @@ send_command(
 )
 ```
 
-Commands run with `/monadic/data` as the working directory, so scripts can reach other files in the shared folder with relative paths. For writing apps that call scripts, see [Developing Apps](../advanced-topics/develop_apps.md).
+Commands given to `send_command` in an app's own code run with `/monadic/data` as the working directory, so scripts can reach other files in the shared folder with relative paths (code the assistant runs in a chat uses the run folder described above). For writing apps that call scripts, see [Developing Apps](../advanced-topics/develop_apps.md).

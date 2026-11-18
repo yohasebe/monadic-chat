@@ -17,8 +17,8 @@ module MusicAnalystTools
   include Monadic::Utils::MusicFeatures
 
   # Fallback Gemini model for qualitative critique when the SSOT default is
-  # unavailable. Must support audio input; gemini-3.6-flash does.
-  CRITIQUE_MODEL_FALLBACK = "gemini-3.6-flash"
+  # unavailable. Must support audio input; gemini-3.8-flash does.
+  CRITIQUE_MODEL_FALLBACK = "gemini-3.8-flash"
 
   # critique_audio is for real audio only; MIDI has no waveform to "listen" to.
   CRITIQUE_AUDIO_EXTS = %w[mp3 mpeg m4a mp4 wav ogg flac].freeze

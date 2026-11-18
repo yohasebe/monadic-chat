@@ -7,13 +7,13 @@
 **アクション → インストールオプション** で、設定ウィンドウの **インストールオプション** の項目が開きます。ここで、追加のコンポーネントを選べます。
 
 - **LaTeX**：**Install LaTeX (minimal set for diagrams)**。Concept Visualizer に必要です
-- **Python Libraries (CPU)**：nltk、spaCy、gensim、mediapipe、transformers
+- **Python Libraries (CPU)**：nltk、spaCy、gensim、mediapipe、transformers、Plotly static images
 - **Music Analysis**：librosa + madmom。音楽の分析のアプリに必要です
 - **System Tools (CLI)**：ImageMagick（`convert` / `mogrify`）
 - **Name Finder — Additional Languages**：伏せる名前を探すときに英語のほかに扱う言語（[匿名化](anonymization.md)）。保存すると効き、再ビルドは要りません
 - **Knowledge Base 品質パック (Docling)**：レイアウトの解析と OCR で PDF からテキストを取り出す、別のコンテナ。OCR の言語も選べます
 
-オプションの一覧は[設定リファレンス](/ja/reference/configuration.md)の表にあります。
+Python の各オプションが入れるものは[標準 Python コンテナ](../docker-integration/python-container.md#install-options)で説明しています。オプションの一覧は[設定リファレンス](/ja/reference/configuration.md)の表にあります。
 
 ### パネルの動作
 

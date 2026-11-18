@@ -111,7 +111,7 @@ Responses APIを使用するモデルでは、ローカルファイルのアッ�
 
 ## 音声認識モデルの選択 :id=speech-to-text-model-selection
 
-Web UI の音声パネルで音声認識モデルを選択できます。複数のプロバイダーのモデルが利用可能です。一覧は[音声パネル](/ja/basic-usage/web-interface.md)を参照してください（各モデルはプロバイダーのAPIキーが確認されると選択可能になります）。
+Web UI の音声パネルで音声認識モデルを選択できます。複数のプロバイダーのモデルが利用可能です。一覧は[音声パネル](/ja/basic-usage/web-interface.md#speech-settings-panel)を参照してください（各モデルは、プロバイダーの API キーが設定されていると選べます）。
 
 ## リアルタイムストリーミング音声認識 :id=realtime-streaming-transcription
 

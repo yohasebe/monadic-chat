@@ -2,7 +2,7 @@
 
 Monadic Chat runs Python tools in `monadic-chat-python-container`. AI agents execute Python code inside this container and return the results.
 
-## Install Options
+## Install Options :id=install-options
 
 **Actions → Install Options** in the console lets you add optional components to the Python container:
 

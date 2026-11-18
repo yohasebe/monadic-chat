@@ -1,31 +1,31 @@
 app "ChatGemini" do
   description do
     en <<~TEXT
-    General conversational AI assistant. Supports text and images. Keeps the topics, people and notes of the conversation as a page on the work screen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=google-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    General conversational AI assistant. Supports text and images. Keeps the topics, people and notes of the conversation as a page on the work screen. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ja <<~TEXT
-    汎用会話AIアシスタント。テキストと画像をサポート。 会話のトピック・人物・メモを記録し、作業画面のページとして表示します。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=google-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    汎用会話AIアシスタント。テキストと画像をサポート。 会話のトピック・人物・メモを記録し、作業画面のページとして表示します。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/apps/chat-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     zh <<~TEXT
-    通用对话AI助手。支持文本和图像。 记录对话中的主题、人物和笔记，并在工作画面中以页面形式显示。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=google-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    通用对话AI助手。支持文本和图像。 记录对话中的主题、人物和笔记，并在工作画面中以页面形式显示。 <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ko <<~TEXT
-    범용 대화 AI 어시스턴트. 텍스트와 이미지 지원. 대화의 주제, 인물, 메모를 기록하여 작업 화면의 페이지로 표시합니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=google-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    범용 대화 AI 어시스턴트. 텍스트와 이미지 지원. 대화의 주제, 인물, 메모를 기록하여 작업 화면의 페이지로 표시합니다. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     es <<~TEXT
-    Asistente de IA conversacional general. Admite texto e imágenes. Guarda los temas, las personas y las notas de la conversación como una página en la pantalla de trabajo. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=google-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Asistente de IA conversacional general. Admite texto e imágenes. Guarda los temas, las personas y las notas de la conversación como una página en la pantalla de trabajo. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     fr <<~TEXT
-    Assistant IA conversationnel général. Prend en charge texte et images. Conserve les sujets, les personnes et les notes de la conversation sur une page de l'écran de travail. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=google-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Assistant IA conversationnel général. Prend en charge texte et images. Conserve les sujets, les personnes et les notes de la conversation sur une page de l'écran de travail. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     de <<~TEXT
-    Allgemeiner KI-Konversationsassistent. Unterstützt Text und Bilder. Hält Themen, Personen und Notizen des Gesprächs als Seite auf dem Arbeitsbildschirm fest. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=google-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Allgemeiner KI-Konversationsassistent. Unterstützt Text und Bilder. Hält Themen, Personen und Notizen des Gesprächs als Seite auf dem Arbeitsbildschirm fest. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   icon "comment"

@@ -54,20 +54,9 @@ The **Export** button opens a dialog with two independent choices:
 
 For a chat that hides words the dialog starts with **Masked**. Choosing **Restored** without encryption shows a warning, and the file name ends in `-PRIVATE`.
 
-To open an export, use **Import** (and the passphrase for an encrypted file). A file from an earlier version that carries words marked for hiding is read into the chat's list; the page says how many, and you can check them in the panel. In new messages, `⟦` and `⟧` are ordinary characters.
+To open an export, use **Import** (and the passphrase for an encrypted file). If the import reports hidden words, open **Anonymize** and check the list.
 
-## Document DB Export and Import (Actions menu) :id=document-db-export-import
-
-The **Actions → Export Document DB** and **Actions → Import Document DB** menu items operate on the entire qdrant volume — every conversation saved to the Knowledge Base, every PDF, and every other Knowledge Base entry. The [chat history](../basic-usage/web-interface.md#chat-history-panel) is not part of it. Both items show a confirmation dialog before proceeding.
-
-For export, you can choose between:
-
-- **Encrypt and Export** (default): prompts for a passphrase, encrypts the tarball with AES-256-GCM (PBKDF2-SHA256, 600 000 iterations) over a per-export salt, and writes `monadic-qdrant.tar.gz.enc` to the shared folder. The plaintext tarball is removed after a successful encryption pass.
-- **Export Plain**: writes the unencrypted tarball directly. The dialog warns that the file contains every conversation saved to the Knowledge Base and every PDF in plaintext.
-
-Import detects the file extension automatically: `.tar.gz` is unpacked directly; `.tar.gz.enc` prompts for the passphrase, decrypts to a temporary plaintext file, runs the qdrant volume import, and removes the temporary file. A wrong passphrase or tampered ciphertext fails decryption (the tarball is never partially unpacked) and the qdrant volume is left untouched.
-
-Encryption format: `[magic 'MQDB'] [version 0x01] [salt 16] [iv 12] [ciphertext] [authTag 16]`, streaming-friendly so multi-GB volumes do not need to fit in memory.
+To back up or restore the whole Knowledge Base (every chat saved to it and every PDF), use **Export Document DB** and **Import Document DB** in the console's [Actions menu](../basic-usage/console-panel.md#actions-menu).
 
 ## Finding Names :id=finding-names
 

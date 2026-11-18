@@ -21,6 +21,8 @@ module MonadicHelper
     rescue StandardError
       # Ignore session lookup issues
     end
+    return JSON.generate({ success: false, message: "There is no chat folder to keep the image in." }) unless out_dir
+
     # Build CLI command
     parts = []
     parts << "image_generator_openai.rb"
@@ -34,9 +36,9 @@ module MonadicHelper
     parts << "-b #{Shellwords.shellescape(background)}" if background
     parts << "--compression #{output_compression.to_i}" if output_compression && output_compression.to_i > 0
     parts << "--fidelity #{Shellwords.shellescape(input_fidelity)}" if input_fidelity
-    # A run for a chat's workbench writes in the job folder the server made
-    # (Monadic::Workbench::JobOutput), not in the shared folder.
-    parts << "--out-dir #{Shellwords.shellescape(out_dir)}" if out_dir
+    # The run writes in the job folder the server made
+    # (Monadic::Workbench::JobOutput), never at the top of the shared folder.
+    parts << "--out-dir #{Shellwords.shellescape(out_dir)}"
     Array(job_inputs).each { |path| parts << "--job-input #{Shellwords.shellescape(path)}" }
 
     # Process image parameters
@@ -98,6 +100,7 @@ module MonadicHelper
   def generate_image_with_grok(prompt: "", aspect_ratio: nil, quality: nil, operation: "generate", images: nil, image_model: nil,
                               out_dir: nil, job_inputs: [])
     require 'json'
+    return JSON.generate({ success: false, message: "There is no chat folder to keep the image in." }) unless out_dir
 
     parts = ["image_generator_grok.rb", "-p", Shellwords.shellescape(prompt)]
     parts << "-o" << Shellwords.shellescape(operation) if operation && operation != "generate"
@@ -107,9 +110,9 @@ module MonadicHelper
     if images.is_a?(Array)
       images.each { |img| parts << "-i" << Shellwords.shellescape(img) }
     end
-    # A run for a chat's workbench writes in the job folder the server made
-    # (Monadic::Workbench::JobOutput), not in the shared folder.
-    parts << "--out-dir" << Shellwords.shellescape(out_dir) if out_dir
+    # The run writes in the job folder the server made
+    # (Monadic::Workbench::JobOutput), never at the top of the shared folder.
+    parts << "--out-dir" << Shellwords.shellescape(out_dir)
     Array(job_inputs).each { |path| parts << "--job-input" << Shellwords.shellescape(path) }
     command = parts.join(' ')
 
@@ -157,7 +160,7 @@ module MonadicHelper
   # Adapter for xAI Grok Imagine video generation
   # Accepts keyword args: prompt, duration, aspect_ratio, resolution, image_path
   # In a chat, the video is saved in a run folder of the chat's folder and
-  # shown on the work screen; without one, at the top of the shared folder.
+  # shown on the work screen; without one, none is made.
   def generate_video_with_grok_imagine(prompt:, duration: nil, aspect_ratio: nil, resolution: nil,
                                        image_path: nil, max_wait: 420, session: nil, workbench: nil)
     # Resolve the source image for image-to-video. Uploaded images live in the
@@ -165,9 +168,14 @@ module MonadicHelper
     # volume for the CLI generator. Shared with the Veo path via ToolImageUtils.
     # If an upload exists but can't be materialized, surface the error instead
     # of silently downgrading to text-to-video.
+    job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench,
+                                                    app_name: session&.dig(:parameters, "app_name") || "VideoGeneratorGrok")
+    return JSON.generate({ success: false, message: "There is no chat folder to keep the video in." }) unless job
+
     begin
-      image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(session, image_path: image_path)
+      image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(session, image_path: image_path, into: job)
     rescue Monadic::Utils::ToolImageUtils::ImageMaterializationError => e
+      Monadic::Workbench::ChatOutput.drop_if_empty(job)
       return JSON.generate({ success: false, message: e.message })
     end
 
@@ -180,9 +188,7 @@ module MonadicHelper
     parts << "-a" << Shellwords.shellescape(aspect_ratio) if aspect_ratio
     parts << "-r" << Shellwords.shellescape(resolution) if resolution
     parts << "--max-wait" << max_wait.to_i.to_s
-    job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench,
-                                                    app_name: session&.dig(:parameters, "app_name") || "VideoGeneratorGrok")
-    parts << "--out-dir" << Shellwords.shellescape(job[:path]) if job
+    parts << "--out-dir" << Shellwords.shellescape(job[:path])
 
     if image_path && !image_path.to_s.strip.empty?
       parts << "-i" << Shellwords.shellescape(image_path)

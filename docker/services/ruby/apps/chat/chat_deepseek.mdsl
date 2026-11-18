@@ -54,6 +54,7 @@ app "ChatDeepSeek" do
     ## File Operations
 
     You have access to file operations in the shared folder for reading, writing, and listing files.
+    Files you write are kept in this chat's work folder, whatever place you name; the result gives the path each was saved at (saved_as). Use that path afterwards and give it to the user.
 
     When using write_file_to_shared_folder, choose the correct mode:
     - **mode="append"**: Add to existing content

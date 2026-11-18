@@ -21,13 +21,31 @@ module Monadic
     module ChatOutput
       module_function
 
+      OUTSIDE_KEY = :monadic_outside_root
+
+      # Runs the block as work asked for from outside any chat (the MCP
+      # server): run folders are then made under root (one of
+      # LedgerSchema::OUTSIDE_ROOTS) instead of a chat's folder.
+      def outside(root)
+        previous = Thread.current[OUTSIDE_KEY]
+        Thread.current[OUTSIDE_KEY] = root
+        yield
+      ensure
+        Thread.current[OUTSIDE_KEY] = previous
+      end
+
       # A run folder for one run of a tool: in the chat the reply was asked
-      # in (workbench), or else the session's. nil without a chat or its
-      # folder. The reply that runs the tool records it as made (Made), so
-      # deleting that turn takes the folder with it.
+      # in (workbench), or else the session's; for work from outside any
+      # chat (outside), under its root. nil otherwise, or when the folder
+      # cannot be made: a caller then saves nothing, never at the top of the
+      # shared folder. The reply that runs the tool records it as made
+      # (Made), so deleting that turn takes the folder with it.
       def run_folder(session:, workbench:, app_name:)
         chat_id = workbench&.chat_id || (session && session[Monadic::Workspace::Chats::SESSION_KEY])
-        return nil unless Monadic::Workspace::Ids.valid?(:chat, chat_id)
+        unless Monadic::Workspace::Ids.valid?(:chat, chat_id)
+          root = Thread.current[OUTSIDE_KEY]
+          return root ? Monadic::Workspace::Jobs.create_outside_chat!(root) : nil
+        end
 
         folder = Monadic::Workspace::Folders.ensure_for_chat!(chat_id, app_name: app_name)
         return nil unless folder[:status] == :ready

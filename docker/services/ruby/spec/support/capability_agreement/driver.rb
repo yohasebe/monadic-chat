@@ -124,8 +124,11 @@ results = cases.map do |kase|
   note_events = take_events(events_path)
   probe_calls = take_calls(docker_log)
 
+  # The speech goes in a run folder, as for a chat's reply.
+  run_dir = File.join(Monadic::Utils::Environment.shared_volume, "conversations", "agreement", "artifacts", "j_1")
+  FileUtils.mkdir_p(run_dir)
   speech = Monadic::Utils::TtsProvider::API_KEYS.keys.to_h do |provider|
-    text = app.text_to_speech(provider: provider, text: "Hello.")
+    text = app.text_to_speech(provider: provider, text: "Hello.", out_dir: run_dir)
     [provider, take_events(events_path).merge("text" => text.to_s)]
   end
 

@@ -9,6 +9,7 @@ require_relative '../embeddings/errors'
 require_relative '../vector_store/errors'
 require_relative '../library'
 require_relative 'conduit_agent'
+require_relative '../workbench/chat_output'
 require_relative '../agents/second_opinion_agent'
 require_relative '../agents/image_analysis_agent'
 require_relative '../agents/audio_transcription_agent'
@@ -80,7 +81,8 @@ module Monadic
         tool = registry.find { |t| t[:name] == name }
         raise "Unknown Conduit tool: #{name}" unless tool
 
-        send(tool[:handler], arguments || {})
+        # What a tool makes goes under mcp/ (no chat to keep it in).
+        Monadic::Workbench::ChatOutput.outside("mcp") { send(tool[:handler], arguments || {}) }
       end
 
       # ---- Tool registry --------------------------------------------------
@@ -642,7 +644,8 @@ module Monadic
           {
             name: "monadic_speak",
             description: "Synthesize speech from text (text-to-speech) and save an audio file " \
-                         "to the shared volume (~/monadic/data). Returns the saved filename. " \
+                         "in a folder of its own under mcp/ in the shared volume (~/monadic/data). " \
+                         "Returns its path there. " \
                          "Uses your own API keys; spends provider tokens (budget-gated). " \
                          "Providers: openai (default), gemini/google, elevenlabs. " \
                          "ElevenLabs requires an explicit `voice` (voice_id).",
@@ -709,7 +712,8 @@ module Monadic
           {
             name: "monadic_generate_image",
             description: "Generate an image from a text prompt and save it to the shared " \
-                         "volume (~/monadic/data). Returns the saved filename(s). Uses your own " \
+                         "volume (~/monadic/data), in a folder of its own under mcp/. Returns the " \
+                         "path(s) there. Uses your own " \
                          "API keys; spends provider tokens (budget-gated). Providers: openai " \
                          "(default), grok/xai, gemini/google. Can take a while — run via " \
                          "monadic_submit and poll for progress.",
@@ -738,8 +742,8 @@ module Monadic
           {
             name: "monadic_generate_video",
             description: "Generate a video from a text prompt (optionally image-to-video) and " \
-                         "save it to the shared volume (~/monadic/data). Returns the saved " \
-                         "filename. Uses your own API keys; spends provider tokens (budget-" \
+                         "save it in a folder of its own under mcp/ in the shared volume " \
+                         "(~/monadic/data). Returns its path there. Uses your own API keys; spends provider tokens (budget-" \
                          "gated). Providers: gemini/veo (default), grok/xai. LONG-RUNNING " \
                          "(minutes) — run via monadic_submit and poll for progress.",
             input_schema: {
@@ -763,7 +767,8 @@ module Monadic
           {
             name: "monadic_generate_music",
             description: "Generate music/audio from a text prompt (Lyria) and save it to the " \
-                         "shared volume (~/monadic/data). Returns the saved filename. Uses your " \
+                         "shared volume (~/monadic/data), in a folder of its own under mcp/. " \
+                         "Returns its path there. Uses your " \
                          "own API keys; spends provider tokens (budget-gated). LONG-RUNNING — " \
                          "run via monadic_submit and poll for progress.",
             input_schema: {
@@ -1683,14 +1688,18 @@ module Monadic
         # reasonable budget backstop alongside the platform's hard ceiling.
         est_tokens = CostGuard.estimate_tokens(text)
         reply = CostGuard.reserving(est_tokens) do |reservation|
+          job = Monadic::Workbench::ChatOutput.run_folder(session: nil, workbench: nil, app_name: "MCP")
           result = tts_host.text_to_speech(
             provider: provider, text: text, speed: speed,
-            voice_id: voice, language: language, instructions: instructions
+            voice_id: voice, language: language, instructions: instructions,
+            out_dir: job && job[:path]
           ).to_s
           reservation.settle(est_tokens)
 
-          filename = extract_audio_filename(result)
+          name = extract_audio_filename(result)
+          filename = name && job && File.join(job[:relative], File.basename(name))
           success = !filename.nil? && !speak_error?(result)
+          Monadic::Workbench::ChatOutput.drop_if_empty(job) unless success
 
           {
             provider: provider,
@@ -1867,15 +1876,19 @@ module Monadic
         reply = CostGuard.reserving(IMAGE_GEN_ESTIMATE) do |reservation|
           # The helper methods wrap themselves in ProgressBroadcaster.with_progress,
           # which mirrors progress into the current job for polling clients.
-          raw = invoke_image_generator(provider, prompt: prompt, aspect_ratio: aspect_ratio, size: size)
+          job = Monadic::Workbench::ChatOutput.run_folder(session: nil, workbench: nil, app_name: "MCP")
+          raw = invoke_image_generator(provider, prompt: prompt, aspect_ratio: aspect_ratio, size: size,
+                                                 out_dir: job && job[:path])
           result = normalize_image_result(provider, raw)
+          result[:files] = result[:files].map { |name| File.join(job[:relative], File.basename(name)) } if result[:success]
+          Monadic::Workbench::ChatOutput.drop_if_empty(job) unless result[:success]
           reservation.settle(IMAGE_GEN_ESTIMATE)
 
           {
             provider: provider,
             success: result[:success],
             files: (result[:success] ? result[:files] : nil),
-            note: (result[:success] ? "Saved to ~/monadic/data/" : nil),
+            note: (result[:success] ? "Saved in the shared folder (~/monadic/data) at the paths in files" : nil),
             error: (result[:success] ? nil : "❌ #{result[:error]}"),
             budget: CostGuard.status
           }.compact
@@ -1894,21 +1907,21 @@ module Monadic
         IMAGE_PROVIDERS.include?(v) ? v : "openai"
       end
 
-      def invoke_image_generator(provider, prompt:, aspect_ratio:, size:)
+      def invoke_image_generator(provider, prompt:, aspect_ratio:, size:, out_dir:)
         case provider
         when "openai"
           model = Monadic::Utils::ModelSpec.default_image_model("openai") || "gpt-image-2.5-flare"
           media_app_host.generate_image_with_openai(
-            operation: "generate", model: model, prompt: prompt, size: (size || "1024x1024"), n: 1
+            operation: "generate", model: model, prompt: prompt, size: (size || "1024x1024"), n: 1, out_dir: out_dir
           )
         when "grok"
           media_app_host.generate_image_with_grok(
-            prompt: prompt, aspect_ratio: aspect_ratio, operation: "generate"
+            prompt: prompt, aspect_ratio: aspect_ratio, operation: "generate", out_dir: out_dir
           )
         when "gemini"
           gemini_media_host.generate_image_with_gemini(
             prompt: prompt, operation: "generate", model: "gemini",
-            aspect_ratio: aspect_ratio, image_size: size
+            aspect_ratio: aspect_ratio, image_size: size, out_dir: out_dir
           )
         end
       end
@@ -1985,6 +1998,10 @@ module Monadic
       # Collect saved filenames from a generator result: top-level filename/file
       # plus any videos/images/files array of {filename}/{file} or bare strings.
       def media_filenames(data)
+        # A generator that kept its output in a run folder gives its path in
+        # the shared folder; the bare names are for the older shape.
+        return [data["path"], data["lyrics_path"]].compact if data["path"]
+
         files = [data["filename"], data["file"]]
         %w[videos images files].each do |key|
           arr = data[key]
@@ -2024,7 +2041,7 @@ module Monadic
             provider: provider,
             success: result[:success],
             files: (result[:success] ? result[:files] : nil),
-            note: (result[:success] ? "Saved to ~/monadic/data/" : nil),
+            note: (result[:success] ? "Saved in the shared folder (~/monadic/data) at the paths in files" : nil),
             error: (result[:success] ? nil : "❌ #{result[:error]}"),
             budget: CostGuard.status
           }.compact
@@ -2085,7 +2102,7 @@ module Monadic
             provider: "gemini",
             success: result[:success],
             files: (result[:success] ? result[:files] : nil),
-            note: (result[:success] ? "Saved to ~/monadic/data/" : nil),
+            note: (result[:success] ? "Saved in the shared folder (~/monadic/data) at the paths in files" : nil),
             error: (result[:success] ? nil : "❌ #{result[:error]}"),
             budget: CostGuard.status
           }.compact

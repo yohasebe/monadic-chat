@@ -35,7 +35,6 @@ docker/services/ruby/lib/monadic/workspace/shared_folder.rb | File.unlink(temp) 
 docker/services/ruby/lib/monadic/agents/ai_user_agent.rb | FileUtils.mkdir_p(log_dir) | log | log folder
 docker/services/ruby/lib/monadic/agents/ai_user_agent.rb | File.open(File.join(log_dir, 'ai_user_debug.log'), 'a') | log | debug log in the log folder
 docker/services/ruby/lib/monadic/agents/audio_analysis_agent.rb | Tempfile.new(["music_analyst" | system-temp | the system's temporary folder
-docker/services/ruby/lib/monadic/utils/tool_image_utils.rb | FileUtils.mkdir_p(dir) unless Dir.exist?(dir) | shared-root | the shared folder itself
 docker/services/ruby/lib/monadic/utils/extra_logger.rb | File.open(log_file | log | extra log
 docker/services/ruby/lib/monadic/utils/setup.rb | FileUtils.mkdir_p(File.dirname(ENV_PATH)) | config | config folder
 docker/services/ruby/lib/monadic/utils/setup.rb | FileUtils.touch(ENV_PATH) | config | config env file

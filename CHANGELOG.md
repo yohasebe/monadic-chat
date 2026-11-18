@@ -2,6 +2,7 @@
   - Security
     - The browser tool does not read what is typed in password and other secret fields **(rebuild the Python container)**
     - The desktop app keeps the protections the server sets for its pages
+    - The AI's file tools do not read or list the folders of other chats
   - Changes you may notice
     - The Privacy Filter and Private chats are replaced by `Anonymize`; every chat is kept in the chat history: **delete a chat you do not want to keep**
     - The PDF Database is removed: **import PDFs into the Knowledge Base** (earlier PDFs are not moved)
@@ -10,6 +11,8 @@
     - The Session Context panel is removed: apps show their state as notes on the work screen
     - What the apps make is saved in the chat's folder in `conversations/` and shown on the work screen
     - Code Interpreter, Research Assistant and Math Tutor run code in the chat's folder: **read your own files by their full path (`/monadic/data/...`)**
+    - Files the AI writes with the file tools are kept in the chat's work folder (`conversations/…/work/`), and the reply gives their paths
+    - MCP: generated speech, images, videos and music are saved under `mcp/` in the shared folder
     - Deleting a turn also takes back the app's state and moves the files the reply made to the chat's `trash` folder
     - The Jupyter apps run notebooks without starting JupyterLab; `Start JupyterLab` is `Open JupyterLab`
     - Syntax Tree no longer needs LaTeX

@@ -47,14 +47,11 @@ RSpec.describe MusicGeneratorTools do
     posted.find { |e| e.first == :post }[1]
   end
 
-  it 'saves the audio and labels the result with the service and model' do
+  it 'keeps nothing without a chat, and says so with the service' do
     result = JSON.parse(tool.generate_music_with_elevenlabs(prompt: 'a calm piano piece'))
-    expect(result['success']).to be true
-    expect(result['service']).to eq('ElevenLabs Music')
-    expect(result['model']).to eq('music_v2_5')
-    expect(result['mime_type']).to eq('audio/mpeg')
-    expect(result['filename']).to match(/\Aelevenlabs_music_\d+_[0-9a-f]{6}\.mp3\z/)
-    expect(File.binread(File.join(tmpdir, result['filename']))).to eq('MP3-BYTES')
+    expect(result).to include('success' => false, 'service' => 'ElevenLabs Music')
+    expect(result['error']).to include('no chat folder')
+    expect(Dir.children(tmpdir)).to be_empty
   end
 
   it "in a chat, keeps the track in a run folder of the chat's folder and shows it on the work screen" do

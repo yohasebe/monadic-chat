@@ -231,12 +231,12 @@ RSpec.describe 'Gemini request transport invariants' do
     after { FileUtils.rm_rf(@shared) }
 
     it 'authenticates native image generation in headers' do
-      helper.generate_image_with_gemini_native(prompt: 'Hello', model: 'gemini-3.1-flash-image')
+      helper.generate_image_with_gemini_native(prompt: 'Hello', model: 'gemini-3.1-flash-image', out_dir: @shared)
       expect_header_auth
     end
 
     it 'authenticates the legacy image generation entry point in headers' do
-      helper.generate_image_with_gemini(prompt: 'Hello')
+      helper.generate_image_with_gemini(prompt: 'Hello', out_dir: @shared)
       expect_header_auth
     end
 
@@ -254,14 +254,15 @@ RSpec.describe 'Gemini request transport invariants' do
     end
 
     it 'authenticates Imagen in headers' do
-      helper.generate_image_with_imagen_direct(prompt: 'Hello', model: 'imagen-test')
+      helper.generate_image_with_imagen_direct(prompt: 'Hello', model: 'imagen-test', out_dir: @shared)
       expect_header_auth
     end
 
     it 'authenticates music generation in headers' do
       helper.generate_music_with_lyria(prompt: 'Hello')
       expect_header_auth
-      expect(Dir.children(@shared)).to all(start_with('lyria_music_'))
+      # No chat here: the track is not kept, and nothing lands at the top.
+      expect(Dir.children(@shared)).to be_empty
     end
   end
 

@@ -27,24 +27,24 @@ module MonadicSharedTools
         tools: [
           {
             name: "read_file_from_shared_folder",
-            description: "Read a file from the shared folder and return its content with metadata",
+            description: "Read a file of this chat (its work folder first) or one the user put in the shared folder, and return its content with metadata. Other chats' folders cannot be read.",
             parameters: [
               {
                 name: :filepath,
                 type: "string",
-                description: "Relative or absolute path to the file (e.g., 'reports/summary.md')",
+                description: "Path as a file tool returned it (e.g., 'conversations/<chat folder>/work/report.md'), a name in this chat's work folder (e.g., 'report.md'), or a path of the user's own file in the shared folder",
                 required: true
               }
             ]
           },
           {
             name: "write_file_to_shared_folder",
-            description: "Write or append content to a file in the shared folder with Unicode and subdirectory support",
+            description: "Write or append content to a file in this chat's work folder. Every file is saved there, also when another place is named; the result gives the path it was saved at (saved_as for file tools, execution_path for code). Use those paths afterwards.",
             parameters: [
               {
                 name: :filepath,
                 type: "string",
-                description: "Path to the file (relative to shared folder or absolute). Supports subdirectories and Unicode characters (e.g., 'プロジェクト/2025年/レポート.md')",
+                description: "File name, with subfolders if wanted, inside this chat's work folder (e.g., 'report.md' or 'src/app.py'); Unicode is fine",
                 required: true
               },
               {
@@ -63,18 +63,18 @@ module MonadicSharedTools
           },
           {
             name: "list_files_in_shared_folder",
-            description: "List all files and directories in the shared folder or a subdirectory",
+            description: "List the files and folders of this chat's work folder, or of a folder the user made in the shared folder. Other chats' folders are not listed.",
             parameters: [
               {
                 name: :directory,
                 type: "string",
-                description: "Subdirectory to list (optional, defaults to root folder)",
+                description: "Folder to list (optional; this chat's work folder when left out, '/' for the top of the shared folder)",
                 required: false
               }
             ]
           }
         ],
-        default_hint: "Call request_tool(\"file_operations\") when you need to read, write, or list files in the shared folder."
+        default_hint: "Call request_tool(\"file_operations\") when you need to read, write, or list files of this chat or the shared folder."
       },
 
       workbench: {

@@ -38,6 +38,7 @@ app "CodingAssistantDeepSeek" do
 
   You have access to file operation tools. When saving files:
   - Use the `write_file_to_shared_folder` function
+  - Files you write are kept in this chat's work folder, whatever place you name; the result gives the path each was saved at (saved_as). Use that path afterwards and give it to the user.
   - Keep file content simple and avoid excessive special characters
   - For code files, ensure proper escaping of quotes and special characters
   - Call the function ONCE with complete content - do not repeat the call

@@ -100,10 +100,8 @@ RSpec.describe "Ruby-side writes into the shared folder" do
     it "keeps only the last part of the name" do
       skip "ClaudeHelper not loaded" unless defined?(ClaudeHelper)
       host = Class.new { include ClaudeHelper }.new
-      stub_const("MonadicApp::LOCAL_SHARED_VOL", @root)
-      host.send(:save_to_documents, "puts :ran", "../helpers/x.rb")
-      expect(File.exist?(File.join(@root, "helpers", "x.rb"))).to be(false)
-      expect(File.exist?(File.join(@root, "documents", "x.rb"))).to be(true)
+      expect(host.send(:document_file_name, "../helpers/x.rb")).to eq("x.rb")
+      expect(host.send(:document_file_name, "..")).to eq("claude_file")
     end
   end
 

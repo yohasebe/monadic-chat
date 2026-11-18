@@ -38,21 +38,28 @@ RSpec.describe "Text-to-speech input file" do
 
   it "gives the command the text, then removes it when the command worked" do
     helper.outcome = "speech.mp3"
-    expect(helper.text_to_speech(text: "Thank you all")).to eq("speech.mp3")
+    expect(helper.text_to_speech(text: "Thank you all", out_dir: @dir)).to eq("speech.mp3")
     expect(helper.seen).to eq("Thank you all")
     expect(Dir.children(@dir)).to be_empty
   end
 
   it "removes it when the command reports an error" do
     helper.outcome = "ERROR: GEMINI_API_KEY is not set."
-    helper.text_to_speech(text: "Thank you all", provider: "gemini")
+    helper.text_to_speech(text: "Thank you all", provider: "gemini", out_dir: @dir)
     expect(helper.seen).to eq("Thank you all")
     expect(Dir.children(@dir)).to be_empty
   end
 
   it "removes it when the command raises" do
     helper.outcome = RuntimeError.new("stopped")
-    expect { helper.text_to_speech(text: "Thank you all") }.to raise_error(RuntimeError)
+    expect { helper.text_to_speech(text: "Thank you all", out_dir: @dir) }.to raise_error(RuntimeError)
+    expect(Dir.children(@dir)).to be_empty
+  end
+
+  it "makes nothing without a folder to put the speech in" do
+    helper.outcome = "speech.mp3"
+    expect(helper.text_to_speech(text: "Thank you all")).to start_with("Error occurred:")
+    expect(helper.seen).to be_nil
     expect(Dir.children(@dir)).to be_empty
   end
 

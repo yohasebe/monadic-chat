@@ -35,8 +35,9 @@ module Monadic
       RUN = /\Aj_[a-f0-9]{20}\z/
       ARTIFACT_STATES = %w[ready].freeze
       # Folders of the shared folder that hold runs asked for from outside
-      # any chat (the MCP server).
-      OUTSIDE_ROOTS = %w[transcriptions].freeze
+      # any chat (the MCP server): timed transcripts, and what its other
+      # tools make (speech, images, videos, music).
+      OUTSIDE_ROOTS = %w[transcriptions mcp].freeze
       SHA256 = /\A[0-9a-f]{64}\z/
       # A publication is a checked copy of an attachment or an artifact that
       # the page loads by its own name (/data/<name>). Pending while it is

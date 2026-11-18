@@ -1,345 +1,187 @@
 # frozen_string_literal: true
 
-# Shared file operations tools for Monadic Chat applications
-# Provides unified file operations across all apps with Unicode support
+# Shared file operations tools for Monadic Chat applications.
 #
-# - Unicode filename support
-# - Structured Hash responses
-# - Automatic directory creation
-# - Filepath-based interface
+# The files a model writes go into its chat's work/ folder
+# (Monadic::Workspace::ChatFiles decides where); reads and listings may also
+# reach the user's own files in the shared folder, never another chat's
+# folder. Every result gives the path the file is at, so the next call (and
+# code the model runs) uses that path.
 
 require 'fileutils'
 require_relative '../utils/shared_path_guard'
+require_relative '../workspace/chat_files'
 
 module MonadicSharedTools
   module FileOperations
     include MonadicHelper
 
-    CONTAINER_DATA_PREFIX = Monadic::Utils::SharedPathGuard::CONTAINER_ROOT
+    CHAT_FILES = Monadic::Workspace::ChatFiles
 
-    # Normalize a path from container format (/monadic/data/...) to host format
-    # when running in dev mode. In container mode, returns path unchanged.
-    def normalize_path_for_host(path)
-      return path if Monadic::Utils::Environment.in_container?
-      return path unless path == CONTAINER_DATA_PREFIX || path.start_with?("#{CONTAINER_DATA_PREFIX}/")
-
-      data_dir = Monadic::Utils::Environment.data_path
-      data_dir + path[CONTAINER_DATA_PREFIX.length..]
+    # Read a file: one of this chat's (work/, inputs/, ...) or one the user
+    # put in the shared folder outside conversations/. No link is followed
+    # on the way, so none can lead into another chat's folder.
+    def read_file_from_shared_folder(filepath:, workbench: nil)
+      place = CHAT_FILES.for_read(filepath, caller: workbench, app_name: file_tools_app_name(workbench))
+      content, stat = Monadic::Utils::SharedPathGuard.read_file!(place.full, strict: true) do |f|
+        [f.read.force_encoding("UTF-8"), f.stat]
+      end
+      {
+        success: true,
+        filepath: place.relative,
+        execution_path: place.container_path,
+        content: content,
+        metadata: {
+          size: stat.size,
+          modified_at: stat.mtime.iso8601,
+          created_at: stat.ctime.iso8601,
+          lines: content.lines.count
+        }
+      }
+    rescue CHAT_FILES::Refused => e
+      { success: false, error: e.message, filepath: filepath }
+    rescue Monadic::Utils::SharedPathGuard::InvalidPath, Errno::ENOENT, Errno::EISDIR, Errno::ENOTDIR
+      { success: false, error: "File not found", filepath: filepath }
+    rescue Errno::EACCES
+      { success: false, error: "Permission denied", filepath: filepath }
+    rescue StandardError => e
+      { success: false, error: "Error reading file: #{e.class.name.split('::').last}", filepath: filepath }
     end
 
-    # Normalize a host path to container format (/monadic/data/...) for use
-    # in Python/Docker code. In container mode, returns path unchanged.
-    def normalize_path_for_container(path)
-      Monadic::Utils::SharedPathGuard.command_path(path, container: "python", must_exist: false) || path
-    end
-
-    # Read a file from the shared folder
-    #
-    # @param filepath [String] Relative or absolute path to the file
-    # @return [Hash] Result hash with success status and file data
-    # @example
-    #   read_file_from_shared_folder(filepath: "reports/summary.md")
-    #   => {
-    #        success: true,
-    #        filepath: "reports/summary.md",
-    #        content: "# Summary\n...",
-    #        metadata: {
-    #          size: 1234,
-    #          modified_at: "2025-10-29T10:00:00Z",
-    #          lines: 42
-    #        }
-    #      }
-    def read_file_from_shared_folder(filepath:)
-      data_dir = Monadic::Utils::Environment.data_path
-
-      # Handle both absolute and relative paths
-      full_path = if filepath.start_with?('/')
-                    # Normalize container paths (/monadic/data/...) to host paths in dev mode
-                    normalize_path_for_host(filepath)
-                  else
-                    File.join(data_dir, filepath)
-                  end
-
-      # Security: Validate path is within shared folder
-      unless validate_file_path(full_path)
-        return {
-          success: false,
-          error: "File path is outside the shared folder or invalid",
-          filepath: filepath
-        }
+    # Write or append to a file of this chat. A path outside the chat's
+    # work/ folder is placed there under the same relative name; the result
+    # says where (saved_as) and what was asked for (requested). Appending
+    # to a file of the user's own outside the chat starts from a copy of it.
+    def write_file_to_shared_folder(filepath:, content:, mode: "write", workbench: nil)
+      unless %w[write append].include?(mode)
+        return { success: false, error: "Invalid mode. Use 'write' to overwrite or 'append' to add to existing file" }
       end
 
-      # Read once, as a plain file of the shared folder (never through a link,
-      # even one put there after the check above); the metadata is of the file
-      # read.
-      begin
-        content, stat = Monadic::Utils::SharedPathGuard.read_file!(full_path) { |f| [f.read.force_encoding("UTF-8"), f.stat] }
-
-        {
-          success: true,
-          filepath: filepath,
-          content: content,
-          metadata: {
-            size: stat.size,
-            modified_at: stat.mtime.iso8601,
-            created_at: stat.ctime.iso8601,
-            lines: content.lines.count
-          }
-        }
-      rescue Monadic::Utils::SharedPathGuard::InvalidPath, Errno::ENOENT, Errno::EISDIR
-        {
-          success: false,
-          error: "File not found",
-          filepath: filepath
-        }
-      rescue Errno::EACCES => e
-        {
-          success: false,
-          error: "Permission denied",
-          filepath: filepath
-        }
-      rescue StandardError => e
-        {
-          success: false,
-          error: "Error reading file: #{e.message}",
-          filepath: filepath
-        }
-      end
-    end
-
-    # Write or append content to a file in the shared folder
-    #
-    # @param filepath [String] Path to the file (relative to shared folder or absolute)
-    #                          Supports subdirectories and Unicode characters
-    # @param content [String] Content to write
-    # @param mode [String] Write mode: "write" (overwrite) or "append" (default: "write")
-    # @return [Hash] Result hash with success status and file info
-    # @example
-    #   write_file_to_shared_folder(
-    #     filepath: "プロジェクト/2025年/日本語レポート.md",
-    #     content: "# 内容\n",
-    #     mode: "write"
-    #   )
-    #   => {
-    #        success: true,
-    #        filepath: "プロジェクト/2025年/日本語レポート.md",
-    #        full_path: "<shared-volume>/プロジェクト/2025年/日本語レポート.md",
-    #        action: "created",
-    #        metadata: { size: 15, bytes_added: 15 }
-    #      }
-    def write_file_to_shared_folder(filepath:, content:, mode: "write")
-      # Validate mode parameter
-      unless ["write", "append"].include?(mode)
-        return {
-          success: false,
-          error: "Invalid mode. Use 'write' to overwrite or 'append' to add to existing file"
-        }
+      place = CHAT_FILES.for_write(filepath, caller: workbench, app_name: file_tools_app_name(workbench))
+      guard = Monadic::Utils::SharedPathGuard
+      existed = !guard.file_stat(place.full).nil?
+      original_size = existed ? guard.file_stat(place.full).size : 0
+      copied_from = nil
+      if mode == "append" && !existed && place.moved
+        copied_from = copy_source_for_append(filepath, workbench)
       end
 
-      full_path = validate_file_path(filepath)
-      unless full_path
-        return { success: false, error: "File path is outside the shared folder or invalid", filepath: filepath }
-      end
-      unless Monadic::Utils::SharedPathGuard.tool_writable?(full_path)
-        return { success: false, error: "Files are not written to the apps, helpers, scripts or services folders", filepath: filepath }
-      end
-      relative_path = normalize_path_for_container(full_path).delete_prefix("#{CONTAINER_DATA_PREFIX}/")
-
-      begin
-        # Automatically create parent directories
-        dir = File.dirname(full_path)
-        Monadic::Utils::SharedPathGuard.mkdir_p!(dir)
-        unless validate_file_path(full_path) == full_path && Monadic::Utils::SharedPathGuard.tool_writable?(full_path)
-          return { success: false, error: "File path is outside the shared folder or invalid", filepath: filepath }
-        end
-
-        # Check if file exists (for action reporting)
-        file_existed = File.exist?(full_path)
-        original_size = file_existed ? File.size(full_path) : 0
-
-        # Determine file mode ('w' = write/overwrite, 'a' = append)
-        file_mode = mode == "append" ? 'a' : 'w'
-
-        # Write the file (UTF-8), never through a link
-        Monadic::Utils::SharedPathGuard.write_file!(filepath, content.to_s.encode("UTF-8"), mode: file_mode)
-
-        # Verify the file was written
-        unless File.exist?(full_path)
-          return {
-            success: false,
-            error: "File could not be verified after writing",
-            filepath: relative_path
-          }
-        end
-
-        # Determine action performed
-        action = if mode == "append" && file_existed
-                   "appended"
-                 elsif file_existed
-                   "overwritten"
-                 else
-                   "created"
-                 end
-
-        # Calculate new file size
-        file_size = File.size(full_path)
-
-        {
-          success: true,
-          filepath: relative_path,
-          full_path: normalize_path_for_container(full_path),
-          action: action,
-          metadata: {
-            size: file_size,
-            bytes_added: mode == "append" ? file_size - original_size : file_size,
-            original_size: file_existed ? original_size : nil
-          }
-        }
-
-      rescue Errno::ENOSPC => e
-        {
-          success: false,
-          error: "Not enough disk space",
-          filepath: relative_path
-        }
-      rescue Errno::EACCES => e
-        {
-          success: false,
-          error: "Permission denied",
-          filepath: relative_path
-        }
-      rescue StandardError => e
-        {
-          success: false,
-          error: "Error writing file: #{e.message}",
-          filepath: relative_path
-        }
-      end
-    end
-
-    # List all files and directories in the shared folder
-    #
-    # @param directory [String, nil] Subdirectory to list (optional, defaults to root)
-    # @return [Hash] Result hash with success status and file/directory listings
-    # @example
-    #   list_files_in_shared_folder(directory: "reports")
-    #   => {
-    #        success: true,
-    #        path: "/reports",
-    #        directories: [
-    #          {name: "2025", type: "directory", items: 3},
-    #          {name: "archive", type: "directory", items: 10}
-    #        ],
-    #        files: [
-    #          {name: "summary.md", type: "file", size: 1234, modified_at: "...", extension: ".md"},
-    #          {name: "data.csv", type: "file", size: 5678, modified_at: "...", extension: ".csv"}
-    #        ],
-    #        total_directories: 2,
-    #        total_files: 2
-    #      }
-    def list_files_in_shared_folder(directory: nil)
-      data_dir = Monadic::Utils::Environment.data_path
-
-      # Determine target directory
-      if directory.nil? || directory.empty?
-        target_dir = data_dir
-        relative_path = "/"
+      guard.mkdir_p!(File.dirname(place.full), strict: true)
+      text = content.to_s.encode("UTF-8")
+      if copied_from
+        guard.write_file!(place.full, copied_from[:bytes] + text, strict: true)
       else
-        # Remove leading slash if present
-        directory = directory.sub(/^\//, '')
-        target_dir = File.join(data_dir, directory)
-        relative_path = "/#{directory}"
-
-        # Security: Validate path is within shared folder
-        unless validate_file_path(target_dir)
-          return {
-            success: false,
-            error: "Directory path is outside the shared folder or invalid",
-            path: relative_path
-          }
-        end
+        guard.write_file!(place.full, text, mode: mode == "append" ? "a" : "w", strict: true)
       end
+      stat = guard.file_stat(place.full)
+      raise Errno::ENOENT unless stat
 
-      # Check if directory exists
-      unless File.exist?(target_dir)
-        return {
-          success: false,
-          error: "Directory not found",
-          path: relative_path
-        }
-      end
+      action = if copied_from then "copied_and_appended"
+               elsif mode == "append" && existed then "appended"
+               elsif existed then "overwritten"
+               else "created"
+               end
+      result = {
+        success: true,
+        requested: filepath,
+        saved_as: place.relative,
+        filepath: place.relative,
+        execution_path: place.container_path,
+        placed_in_chat_folder: place.moved,
+        action: action,
+        metadata: { size: stat.size, bytes_added: stat.size - original_size, original_size: existed ? original_size : nil }
+      }
+      result[:copied_from] = copied_from[:relative] if copied_from
+      result[:note] = placement_note(place, copied_from) if place.moved
+      result
+    rescue CHAT_FILES::Refused => e
+      { success: false, error: e.message, filepath: filepath }
+    rescue Monadic::Utils::SharedPathGuard::InvalidPath => e
+      { success: false, error: e.message, filepath: filepath }
+    rescue Errno::ENOSPC
+      { success: false, error: "Not enough disk space", filepath: filepath }
+    rescue Errno::EACCES
+      { success: false, error: "Permission denied", filepath: filepath }
+    rescue StandardError => e
+      { success: false, error: "Error writing file: #{e.class.name.split('::').last}", filepath: filepath }
+    end
 
-      # Check if it's actually a directory
-      unless File.directory?(target_dir)
-        return {
-          success: false,
-          error: "Path is not a directory",
-          path: relative_path
-        }
-      end
+    # List a folder: this chat's work/ when none is named, a folder of this
+    # chat, or one the user made. The folders of other chats are not shown
+    # (the top level lists conversations/ without what is in it).
+    def list_files_in_shared_folder(directory: nil, workbench: nil)
+      place = CHAT_FILES.for_list(directory, caller: workbench, app_name: file_tools_app_name(workbench))
+      guard = Monadic::Utils::SharedPathGuard
+      guard.mkdir_p!(place.full, strict: true) if place.source == :chat && place.relative.end_with?("/#{CHAT_FILES::WORK}")
+      dir = if place.relative.empty?
+              File.realpath(Monadic::Utils::Environment.data_path)
+            else
+              guard.directory_stat(place.full) && place.full
+            end
+      return { success: false, error: "Directory not found", path: place.relative } unless dir
 
-      begin
-        # Get entries, excluding hidden files (starting with '.')
-        entries = Dir.entries(target_dir).reject { |e| e.start_with?('.') }
-
-        directories = []
-        files = []
-
-        # Process each entry. A link is listed as a link and never followed:
-        # what it points to may be outside the shared folder.
-        entries.sort.each do |entry|
-          full_entry_path = File.join(target_dir, entry)
-          stat = File.lstat(full_entry_path)
-
-          if stat.symlink?
-            files << { name: entry, type: "link" }
-          elsif stat.directory?
-            # Count items in subdirectory
-            item_count = Dir.entries(full_entry_path).reject { |e| e.start_with?('.') }.size
-
-            directories << {
-              name: entry,
-              type: "directory",
-              items: item_count
-            }
+      directories = []
+      files = []
+      Dir.children(dir).reject { |e| e.start_with?('.') }.sort.each do |entry|
+        stat = File.lstat(File.join(dir, entry))
+        if stat.symlink?
+          files << { name: entry, type: "link" }
+        elsif stat.directory?
+          if place.relative.empty? && CHAT_FILES.conversations_name?(entry)
+            directories << { name: entry, type: "directory", note: "chat folders; only this chat's own is readable" }
           else
-            # Get file metadata
-            files << {
-              name: entry,
-              type: "file",
-              size: stat.size,
-              modified_at: stat.mtime.iso8601,
-              extension: File.extname(entry)
-            }
+            directories << { name: entry, type: "directory", items: Dir.children(File.join(dir, entry)).reject { |e| e.start_with?('.') }.size }
           end
-        rescue Errno::ENOENT
-          # Removed while the folder was listed
-          next
+        else
+          files << { name: entry, type: "file", size: stat.size, modified_at: stat.mtime.iso8601, extension: File.extname(entry) }
         end
-
-        {
-          success: true,
-          path: relative_path,
-          directories: directories,
-          files: files,
-          total_directories: directories.size,
-          total_files: files.size,
-          total_items: entries.size
-        }
-
-      rescue Errno::EACCES => e
-        {
-          success: false,
-          error: "Permission denied accessing directory",
-          path: relative_path
-        }
-      rescue StandardError => e
-        {
-          success: false,
-          error: "Error listing files: #{e.message}",
-          path: relative_path
-        }
+      rescue Errno::ENOENT
+        next
       end
+      {
+        success: true,
+        path: place.relative.empty? ? "/" : place.relative,
+        execution_path: place.container_path,
+        directories: directories,
+        files: files,
+        total_directories: directories.size,
+        total_files: files.size,
+        total_items: directories.size + files.size
+      }
+    rescue CHAT_FILES::Refused => e
+      { success: false, error: e.message, path: directory }
+    rescue Monadic::Utils::SharedPathGuard::InvalidPath, Errno::ENOTDIR
+      { success: false, error: "Directory not found", path: directory }
+    rescue Errno::EACCES
+      { success: false, error: "Permission denied accessing directory", path: directory }
+    rescue StandardError => e
+      { success: false, error: "Error listing files: #{e.class.name.split('::').last}", path: directory }
+    end
+
+    private
+
+    def file_tools_app_name(workbench)
+      app = workbench&.session&.dig(:parameters, "app_name")
+      app.to_s.empty? ? self.class.name : app
+    end
+
+    # The user's own file the model named, when it is outside the chat:
+    # { relative:, bytes: } to start an append from, or nil.
+    def copy_source_for_append(filepath, workbench)
+      source = CHAT_FILES.for_read(filepath, caller: workbench, app_name: file_tools_app_name(workbench))
+      return nil unless source.source == :shared
+
+      bytes = Monadic::Utils::SharedPathGuard.read_bytes!(source.full, strict: true)
+      { relative: source.relative, bytes: bytes.force_encoding("UTF-8") }
+    rescue CHAT_FILES::Refused, Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+      nil
+    end
+
+    def placement_note(place, copied_from)
+      base = "Files of this chat are kept in its folder: this one was saved at #{place.relative}, " \
+             "not at #{place.requested}. Use #{place.relative} with the file tools and " \
+             "#{place.container_path} in code."
+      copied_from ? "#{base} It starts with a copy of #{copied_from[:relative]}, which was left as it was." : base
     end
   end
 end

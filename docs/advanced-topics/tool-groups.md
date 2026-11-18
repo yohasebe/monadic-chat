@@ -36,9 +36,11 @@ The lists of apps below name the built-in apps that import each group.
 **Apps using this**: Code Interpreter, Jupyter Notebook, Math Tutor, Research Assistant
 
 #### File Operations (3 tools)
-- Read files from the shared folder
-- Write or append to files in the shared folder
-- List files in the shared folder
+- Read files of the chat, or files you put in the shared folder
+- Write or append to files in the chat's work folder (`conversations/…/work/`), whatever place the AI names; the result gives the path each file was saved at
+- List files of the chat's work folder, or of a folder you made in the shared folder
+
+Other chats' folders are not read, written or listed.
 
 **Apps using this**: Every app gets this group automatically.
 

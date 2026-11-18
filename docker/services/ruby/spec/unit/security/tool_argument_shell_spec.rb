@@ -125,7 +125,7 @@ RSpec.describe "tool arguments never reach a shell" do
 
     it "keeps every option one argument" do
       HOSTILE.each do |value|
-        helper.text_to_speech(provider: value, speed: value, voice_id: value, language: value, instructions: value, text: "hi")
+        helper.text_to_speech(provider: value, speed: value, voice_id: value, language: value, instructions: value, text: "hi", out_dir: @dir)
         # Run the built command with the script replaced by printf
         script = helper.command.sub(/\Atts_query\.rb/, "printf '%s\\n'")
         stdout, _stderr, status = Open3.capture3("/bin/sh", "-c", script)

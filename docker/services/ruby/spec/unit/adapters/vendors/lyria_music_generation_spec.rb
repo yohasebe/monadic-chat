@@ -37,10 +37,21 @@ RSpec.describe 'GeminiHelper#generate_music_with_lyria' do
     }
   end
 
+  # The track is kept for a chat; each call here is one of this chat's.
+  let(:state_dir) { Dir.mktmpdir }
+  let(:workbench) { Struct.new(:chat_id).new(Monadic::Workspace::Ids.generate(:chat)) }
+  after { FileUtils.remove_entry(state_dir) if File.directory?(state_dir) }
+
+  def lyrics_of(result)
+    result['lyrics_path'] && File.read(File.join(tmpdir, result['lyrics_path']))
+  end
+
   before do
     stub_const('CONFIG', { 'GEMINI_API_KEY' => 'test-key' })
-    allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(tmpdir)
-    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(tmpdir)
+    allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(File.realpath(tmpdir))
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(File.realpath(tmpdir))
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(state_dir)
+    allow(MonadicSharedTools::WorkbenchTools).to receive(:show_file).and_return('{"status":"shown_in_work_screen"}')
     # with_progress just runs the block (no websocket in unit context)
     allow(Monadic::Utils::ProgressBroadcaster).to receive(:with_progress) { |*_, &blk| blk.call }
   end
@@ -51,15 +62,15 @@ RSpec.describe 'GeminiHelper#generate_music_with_lyria' do
                                  text: "[[A0]]\n[0.0:] First line\n[:] Second line"))
     )
 
-    result = JSON.parse(helper.generate_music_with_lyria(prompt: 'a calm tune'))
+    result = JSON.parse(helper.generate_music_with_lyria(prompt: 'a calm tune', workbench: workbench))
 
     expect(result['success']).to be true
     expect(result['mime_type']).to eq('audio/mpeg')
-    expect(result['filename']).to match(/\Alyria_music_\d+_[0-9a-f]{6}\.mp3\z/)
+    expect(File.basename(result['path'])).to match(/\Alyria_music_\d+_[0-9a-f]{6}\.mp3\z/)
     # lyrics formatted: timestamp → [m:ss], continuation aligned, raw codes gone
-    expect(result['lyrics']).to eq("[0:00] First line\n       Second line")
+    expect(lyrics_of(result)).to include("[0:00] First line\n       Second line")
     # file actually written with the decoded audio bytes
-    saved = File.join(tmpdir, result['filename'])
+    saved = File.join(tmpdir, result['path'])
     expect(File.exist?(saved)).to be true
     expect(File.binread(saved)).to eq('FAKE-AUDIO-BYTES')
   end
@@ -92,18 +103,18 @@ RSpec.describe 'GeminiHelper#generate_music_with_lyria' do
     allow(Net::HTTP).to receive(:start).and_return(
       response('200', audio_body(mime: 'audio/wav', text: '<instrumental>'))
     )
-    result = JSON.parse(helper.generate_music_with_lyria(prompt: 'x', lyria_model: 'pro'))
-    expect(result['filename']).to end_with('.wav')
-    expect(result['lyrics']).to eq('') # instrumental → no lyrics
+    result = JSON.parse(helper.generate_music_with_lyria(prompt: 'x', lyria_model: 'pro', workbench: workbench))
+    expect(result['path']).to end_with('.wav')
+    expect(result['lyrics_path']).to be_nil # instrumental → no lyrics
   end
 
   it 'treats section markers alone (how Lyria 3.5 marks an instrumental) as no lyrics' do
     allow(Net::HTTP).to receive(:start).and_return(
       response('200', audio_body(mime: 'audio/mpeg', text: "[[A0]]\n[[B1]]\n[[C2]]\n[[D3]]"))
     )
-    result = JSON.parse(helper.generate_music_with_lyria(prompt: 'x'))
+    result = JSON.parse(helper.generate_music_with_lyria(prompt: 'x', workbench: workbench))
     expect(result['success']).to be true
-    expect(result['lyrics']).to eq('')
+    expect(result['lyrics_path']).to be_nil
   end
 
   it 'returns success:false with the API error message on a non-200' do
@@ -199,9 +210,10 @@ RSpec.describe 'GeminiHelper#generate_music_with_lyria' do
       allow(Net::HTTP).to receive(:start).and_return(
         response('200', audio_body(mime: 'audio/mpeg', text: '[[A0]]'))
       )
-      result = JSON.parse(helper.generate_music_with_lyria(prompt: 'x', lyria_model: 'pro', output_format: 'wav'))
+      result = JSON.parse(helper.generate_music_with_lyria(prompt: 'x', lyria_model: 'pro', output_format: 'wav',
+                                                          workbench: workbench))
       expect(result['mime_type']).to eq('audio/mpeg')
-      expect(result['filename']).to end_with('.mp3')
+      expect(result['path']).to end_with('.mp3')
     end
 
     it 'ignores a WAV request on the Clip model (Clip is MP3-only)' do

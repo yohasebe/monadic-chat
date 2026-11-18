@@ -119,13 +119,15 @@ RSpec.describe "Files of a chat" do
     words = nil
     target = false
     APPS[app_name].singleton_class.prepend(Module.new do
-      define_method(:api_request) do |_role, _session, &block|
+      define_method(:api_request) do |_role, session, &block|
         block&.call({ "type" => "fragment", "content" => "reply #{words}" })
         Monadic::Shell.capture(["echo", "command #{words}"])
         puts "stdout #{words}"
         warn "warning #{words}"
         Thread.new { raise "thread #{words}" }.join rescue nil
-        tool = write_file_to_shared_folder(filepath: "note-#{words}.txt", content: "file #{words}")
+        # As the server runs the tool: for the chat of the reply.
+        tool = write_file_to_shared_folder(filepath: "note-#{words}.txt", content: "file #{words}",
+                                           workbench: Monadic::Workbench::Caller.current(session))
         report.call("TOOL", { "written" => tool[:success] }) if target
         if kill_midway && target
           STDOUT.flush
@@ -341,7 +343,8 @@ RSpec.describe "Files of a chat" do
       expect(done["old_page"]).to eq("enabled" => false)
       found = files_with(run[:mark], run[:home])
       expect(found.grep(%r{\Amonadic/state/history\.sqlite3})).not_to be_empty
-      expect(found).to include("monadic/log/extra.log", "monadic/log/command.log", "monadic/data/note-#{run[:mark]}.txt")
+      expect(found).to include("monadic/log/extra.log", "monadic/log/command.log")
+      expect(found.grep(%r{\Amonadic/data/conversations/[^/]+/work/note-#{run[:mark]}\.txt\z})).not_to be_empty
       expect(printed(run, "stdout")).to be >= 1
       expect(printed(run, "stderr")).to be >= 2 # the warning and the thread's exception
       expect(done["writes"].map(&:last)).to include("/monadic/state/history.sqlite3", "/monadic/log/extra.log",

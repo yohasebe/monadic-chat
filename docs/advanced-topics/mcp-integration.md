@@ -69,7 +69,7 @@ These tools and the `knowledge_base` argument of `monadic_query`, `monadic_paral
 - `monadic_analyze_audio` — qualitative analysis of audio (e.g. music critique)
 - `monadic_analyze_video` — frame extraction, vision analysis, and audio transcription of a video
 
-**Generation (output saved to the shared volume `~/monadic/data`)**
+**Generation (each output is saved in a folder of its own under `mcp/` in the shared volume `~/monadic/data`; the result gives its path)**
 - `monadic_speak` — text-to-speech
 - `monadic_generate_code` — code generation via the code agent of the provider you name (`openai`, `anthropic` or `xai`)
 - `monadic_generate_image` — image generation

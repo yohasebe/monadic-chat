@@ -244,6 +244,8 @@
     "dockerEngineNotRunning": "Docker가 실행되고 있지 않습니다. Docker 서비스(sudo systemctl start docker) 또는 Docker Desktop을 시작한 후 다시 시도하세요.",
     "noInternetAtStartup": "시작할 때 인터넷 연결을 찾지 못했습니다. 로컬 모델, 설정, 파일은 계속 사용할 수 있습니다. 클라우드 AI 제공자, 컨테이너 이미지 다운로드, 업데이트 확인에는 연결이 필요합니다. 온라인 상태가 되면 Monadic Chat을 다시 시작하세요.",
     "dockerNotRunningStart": "Docker가 실행되고 있지 않습니다. Docker Desktop(또는 사용 중인 Docker 호환 환경)을 시작하고 <b>시작</b> 버튼을 누르세요.",
+    "dockerRefused": "Docker를 사용할 수 없습니다: {{reason}}.",
+    "dockerEngine": "Docker 엔진: {{engine}}",
     "systemInitComplete": "시스템 초기화 완료",
     "openingBrowser": "브라우저를 여는 중입니다.",
     "openBrowserManually": "http://localhost:4567에서 수동으로 브라우저를 열어주세요",

@@ -143,6 +143,8 @@
     "dockerEngineNotRunning": "Dockerが実行されていません。Dockerのサービス（sudo systemctl start docker）またはDocker Desktopを起動してから再試行してください。",
     "noInternetAtStartup": "起動時にインターネットに接続できませんでした。ローカルのモデル、設定、ファイルは使えます。クラウドのAIプロバイダー、コンテナイメージのダウンロード、アップデートの確認には接続が必要です。オンラインになったらMonadic Chatを再起動してください。",
     "dockerNotRunningStart": "Dockerが実行されていません。Docker Desktop（またはお使いのDocker互換の環境）を起動して<b>開始</b>ボタンを押してください。",
+    "dockerRefused": "Dockerを使えません：{{reason}}。",
+    "dockerEngine": "Dockerのエンジン：{{engine}}",
     "systemInitComplete": "システム初期化完了",
     "openingBrowser": "ブラウザを開いています。",
     "openBrowserManually": "http://localhost:4567 を手動で開いてください",

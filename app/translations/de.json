@@ -136,6 +136,8 @@
     "dockerEngineNotRunning": "Docker läuft nicht. Starten Sie den Docker-Dienst (sudo systemctl start docker) oder Docker Desktop und versuchen Sie es erneut.",
     "noInternetAtStartup": "Beim Start wurde keine Internetverbindung gefunden. Lokale Modelle, Einstellungen und Dateien funktionieren weiterhin; Cloud-KI-Anbieter, das Herunterladen von Container-Images und die Suche nach Updates benötigen eine Verbindung. Starten Sie Monadic Chat neu, sobald Sie online sind.",
     "dockerNotRunningStart": "Docker läuft nicht. Starten Sie Docker Desktop (oder die Docker-kompatible Umgebung, die Sie verwenden) und drücken Sie die <b>Start</b>-Taste.",
+    "dockerRefused": "Docker kann nicht verwendet werden: {{reason}}.",
+    "dockerEngine": "Docker-Engine: {{engine}}",
     "systemInitComplete": "Systeminitialisierung abgeschlossen",
     "openingBrowser": "Browser wird geöffnet.",
     "openBrowserManually": "Bitte öffnen Sie den Browser manuell unter http://localhost:4567",

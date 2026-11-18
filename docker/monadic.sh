@@ -221,6 +221,78 @@ if [ -z "$DOCKER" ]; then
   DOCKER="docker"
 fi
 
+# ---------------- Which Docker engine ----------------
+# The engine is the one the Docker CLI chooses here (DOCKER_CONTEXT, then
+# DOCKER_HOST, then the current context), resolved once and fixed for the
+# rest of this run: every docker and docker compose call below goes to it,
+# whatever changes meanwhile. Only a local socket is used: the shared folder
+# is bind-mounted, and a remote engine would not see it.
+#   RUNTIME_ORIGIN   context | DOCKER_CONTEXT | DOCKER_HOST
+#   RUNTIME_CONTEXT  the context name (empty for DOCKER_HOST)
+#   RUNTIME_ENDPOINT unix:///... (npipe:// on Windows' own CLI)
+#   RUNTIME_DESKTOP  1 when the endpoint is Docker Desktop's
+#   RUNTIME_REFUSED  why it is not used, or empty
+resolve_runtime() {
+  RUNTIME_ORIGIN=""
+  RUNTIME_CONTEXT=""
+  RUNTIME_ENDPOINT=""
+  RUNTIME_DESKTOP=0
+  RUNTIME_REFUSED=""
+  if [ -n "${DOCKER_CONTEXT:-}" ]; then
+    RUNTIME_ORIGIN="DOCKER_CONTEXT"
+    RUNTIME_CONTEXT="${DOCKER_CONTEXT}"
+  elif [ -n "${DOCKER_HOST:-}" ]; then
+    RUNTIME_ORIGIN="DOCKER_HOST"
+    RUNTIME_ENDPOINT="${DOCKER_HOST}"
+  else
+    RUNTIME_ORIGIN="context"
+    RUNTIME_CONTEXT=$("${DOCKER}" context show 2>/dev/null)
+  fi
+  if [ -n "${RUNTIME_CONTEXT}" ]; then
+    RUNTIME_ENDPOINT=$("${DOCKER}" context inspect "${RUNTIME_CONTEXT}" --format '{{.Endpoints.docker.Host}}' 2>/dev/null)
+  fi
+  case "${RUNTIME_ENDPOINT}" in
+    unix://*|npipe://*) ;;
+    "") RUNTIME_REFUSED="no engine is configured for the Docker CLI" ;;
+    *) RUNTIME_REFUSED="the Docker CLI points to a remote engine (${RUNTIME_ENDPOINT%%://*}), which cannot see the shared folder" ;;
+  esac
+  case "${RUNTIME_CONTEXT}:${RUNTIME_ENDPOINT}" in
+    desktop-linux:*|*:unix://*/.docker/run/docker.sock|*:npipe:*docker_engine*) RUNTIME_DESKTOP=1 ;;
+  esac
+  if [ -z "${RUNTIME_REFUSED}" ]; then
+    export DOCKER_HOST="${RUNTIME_ENDPOINT}"
+    unset DOCKER_CONTEXT
+  fi
+}
+
+# The socket of that engine as its containers see it, for the Ruby
+# container's mount (not the CLI's socket: a VM-based engine forwards
+# that one from inside the VM). Podman serves its API from the socket its
+# own service names; the others serve /var/run/docker.sock.
+runtime_mount_socket() {
+  local components sock
+  components=$("${DOCKER}" version --format '{{range .Server.Components}}{{.Name}} {{end}}' 2>/dev/null)
+  if [[ "${components}" == *Podman* ]] && command -v podman >/dev/null 2>&1; then
+    sock=$(podman info --format '{{.Host.RemoteSocket.Path}}' 2>/dev/null)
+    sock="${sock#unix://}"
+    [ -n "${sock}" ] && { echo "${sock}"; return; }
+  fi
+  echo "/var/run/docker.sock"
+}
+
+# A line for the app: which engine, from where, and whether it answers.
+runtime_report() {
+  local answers=0 engine=""
+  if [ -z "${RUNTIME_REFUSED}" ] && "${DOCKER}" info >/dev/null 2>&1; then
+    answers=1
+    engine=$("${DOCKER}" version --format '{{.Server.Platform.Name}}' 2>/dev/null | tr -d '\r')
+  fi
+  printf 'origin=%s\ncontext=%s\nendpoint=%s\ndesktop=%s\nanswers=%s\nengine=%s\nrefused=%s\n' \
+    "${RUNTIME_ORIGIN}" "${RUNTIME_CONTEXT}" "${RUNTIME_ENDPOINT}" "${RUNTIME_DESKTOP}" "${answers}" "${engine}" "${RUNTIME_REFUSED}"
+}
+
+resolve_runtime
+
 # Don't escape spaces - we'll quote the variable when using it
 
 
@@ -390,6 +462,11 @@ wait_for_ruby_ready() {
 }
 
 set_docker_compose() {
+  # The engine's own socket for the Ruby container's mount (compose.yml),
+  # always from the engine: a value inherited from the environment is not
+  # used, so the mount has one source.
+  MONADIC_DOCKER_SOCK="$(runtime_mount_socket)"
+  export MONADIC_DOCKER_SOCK
   # Every way a container is started goes through here, and stops when the
   # code folders are not right. Taking containers down ("teardown") does not
   # stop, so that it stays a way to recover.
@@ -2024,6 +2101,18 @@ import_db() {
 }
 
 # Parse the user command
+# A remote or unset engine is not used for anything but the reports.
+case "$1" in
+  check|runtime|"") ;;
+  *)
+    if [ -n "${RUNTIME_REFUSED}" ]; then
+      echo "[HTML]: <p>Docker cannot be used: ${RUNTIME_REFUSED}.</p>"
+      echo "Docker cannot be used: ${RUNTIME_REFUSED}" >&2
+      exit 1
+    fi
+    ;;
+esac
+
 case "$1" in
 build_ruby_container)
   ensure_data_dir "ruby" &&
@@ -2151,7 +2240,14 @@ build)
   fi
   ;;
 check)
-  check_if_docker_desktop_is_running
+  if [ -n "${RUNTIME_REFUSED}" ]; then
+    echo "refused"
+  else
+    check_if_docker_desktop_is_running
+  fi
+  ;;
+runtime)
+  runtime_report
   ;;
 start)
   ensure_data_dir "" &&

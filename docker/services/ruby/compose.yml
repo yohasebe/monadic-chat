@@ -21,7 +21,13 @@ services:
       EXTRACTOR_LANGS: ${EXTRACTOR_LANGS:-}
       EXTRA_LOGGING: ${EXTRA_LOGGING:-}
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      # The engine's own socket (monadic.sh sets MONADIC_DOCKER_SOCK from the
+      # engine); never made when it is missing.
+      - type: bind
+        source: ${MONADIC_DOCKER_SOCK:-/var/run/docker.sock}
+        target: /var/run/docker.sock
+        bind:
+          create_host_path: false
       # The named-volume entries (data:/config:/log:) are inert cruft: the
       # bind mount that follows each one targets the same container path
       # and wins, so no named volume is ever materialized (verified

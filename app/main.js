@@ -803,13 +803,46 @@ class DockerManager {
     });
   }
 
+  // The engine the Docker CLI chooses, as monadic.sh resolves it (the same
+  // place every command runs, inside WSL on Windows): { origin, context,
+  // desktop, answers, engine, refused }, or null when it cannot be asked.
+  runtimeInfo() {
+    return new Promise((resolve) => {
+      exec(monadicCmd('runtime'), { timeout: 20000 }, (error, stdout) => {
+        if (error) return resolve(null);
+        const info = {};
+        for (const line of stdout.split('\n')) {
+          const at = line.indexOf('=');
+          // Shown in the console's HTML: plain characters only (a context
+          // name is the user's own text).
+          if (at > 0) info[line.slice(0, at).trim()] = line.slice(at + 1).trim().replace(/[^\w .,:()\/@+-]/g, '');
+        }
+        resolve(info);
+      });
+    });
+  }
+
   async ensureDockerDesktopRunning() {
-    // Check Docker Desktop status
+    const runtime = await this.runtimeInfo();
+    if (runtime && runtime.refused) {
+      noticeInMainWindow(formatMessage('warning', 'messages.dockerRefused', { reason: runtime.refused }) + '<hr />');
+      return;
+    }
+    if (runtime && runtime.answers === '1' && runtime.engine) {
+      const where = runtime.context ? `${runtime.engine} (${runtime.context})` : runtime.engine;
+      writeToScreen(formatMessage('info', 'messages.dockerEngine', { engine: where }));
+    }
+    // Check the engine's status
     const st = await this.checkStatus();
     if (!st && process.platform === 'linux' && this.accessDenied) {
       // Starting Docker cannot help: it is running, but not for this user.
       // Shown in the main window rather than a modal dialog, which would
       // cover the window at startup.
+      noticeInMainWindow(formatMessage('warning', this.dockerUnavailableMessageKey()) + '<hr />');
+      return;
+    }
+    if (!st && runtime && runtime.desktop !== '1') {
+      // Another engine is chosen: its owner starts it.
       noticeInMainWindow(formatMessage('warning', this.dockerUnavailableMessageKey()) + '<hr />');
       return;
     }

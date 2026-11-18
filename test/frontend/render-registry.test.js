@@ -34,12 +34,17 @@ describe('Renderers', () => {
     jest.resetModules();
     document.body.innerHTML = `<script type="application/json" id="render-formats">${TABLE}</script>`;
     draws = [];
+    // The notice of a failure is the drawing part's own (its wording is
+    // tested there); a syntax error comes as Refused, as from the frame.
+    const real = require(js('monadic/workbench-render.js'));
     window.WorkbenchRender = {
+      Refused: real.Refused,
+      failureNotice: real.failureNotice,
       KINDS: ['markdown', 'diagram', 'table', 'svg', 'html', 'vega_lite'],
       draw: jest.fn((box, kind, text) => {
         const handle = { kind, text, dispose: jest.fn(), svg: () => `<svg>${text}</svg>`, done: Promise.resolve() };
         if (text.includes('broken')) {
-          handle.done = Promise.reject(new Error('<b>Parse error</b> on line 2'));
+          handle.done = Promise.reject(new real.Refused('<b>Parse error</b> on line 2'));
           handle.done.catch(() => {});
         }
         if (text.includes('slow')) {
@@ -151,8 +156,8 @@ describe('Renderers', () => {
       await settle();
       await settle();
       const alert = el.querySelector('.render-wrap .alert-danger');
-      expect(alert.textContent).toContain('Mermaid Syntax Error:');
-      expect(alert.textContent).toContain('<b>Parse error</b> on line 2');
+      expect(alert.textContent).toContain('could not be drawn');
+      expect(alert.querySelector('details pre').textContent).toBe('<b>Parse error</b> on line 2');
       expect(alert.querySelector('b')).toBeNull();
       expect(Array.from(el.querySelectorAll('.render-actions button')).map((b) => b.textContent)).toEqual(['Try again']);
     });

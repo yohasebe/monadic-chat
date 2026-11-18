@@ -335,6 +335,7 @@
       "notBuilt": "pas encore construit",
       "optionsChanged": "options modifiées ({{options}})",
       "pythonContainer": "Conteneur Python",
+      "privacyContainer": "Conteneur Privacy (détection des noms)",
       "minutes": "{{range}} min"
     }
   }

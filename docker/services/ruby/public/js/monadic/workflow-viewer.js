@@ -1914,18 +1914,16 @@ const WorkflowViewer = (function () {
       return '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(clone);
     },
     // Trigger a browser download of the current graph as an .svg file.
-    // Filename derives from the current app's display name (slug) with a
-    // safe fallback. No-op when the graph hasn't loaded yet.
+    // Filename derives from the current app's display name (slug), then
+    // from its app name when the display name has no ASCII letters (a
+    // Japanese name, say). No-op when the graph hasn't loaded yet.
     downloadSvg: function (opts) {
       var svg = this.exportSvg(opts);
       if (!svg) return false;
-      var slug = 'workflow';
-      try {
-        if (currentData && (currentData.display_name || currentData.app_name)) {
-          slug = String(currentData.display_name || currentData.app_name)
-            .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'workflow';
-        }
-      } catch (e) { /* keep default slug */ }
+      var slugOf = function (name) {
+        return name ? String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : '';
+      };
+      var slug = (currentData && (slugOf(currentData.display_name) || slugOf(currentData.app_name))) || 'workflow';
       var blob = new Blob([svg], { type: 'image/svg+xml' });
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');

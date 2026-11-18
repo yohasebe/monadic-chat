@@ -643,7 +643,7 @@ img.base64-image {
 .func-stop,
 .func-delete,
 .func-edit,
-div.sourcecode-toggle,
+.sourcecode-toggle,
 #interaction-check-all,
 #interaction-uncheck-all,
 #interaction-toggle-all {
@@ -677,16 +677,21 @@ pre {
 
 /* START: SOURCECODE TOGGLE STYLE IMPROVEMENTS - ADDED 2025-04-09 */
 
-div.sourcecode-toggle {
+.sourcecode-toggle {
+  display: block;
   color: #777;
   margin-top: 0.5em;
   margin-bottom: 0.75em;
-  font-size: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
   user-select: none;
 }
 
-div.sourcecode-toggle i {
+.sourcecode-toggle i {
   margin-right: 0.5em;
 }
 
@@ -1198,7 +1203,8 @@ blockquote ol {
   display: inline-block;
 }
 
-div.sourcecode-toggle:hover {
+.sourcecode-toggle:hover,
+.sourcecode-toggle:focus-visible {
   color: #555;
   text-decoration: underline;
 }
@@ -5960,7 +5966,7 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 .verify-panel-text th, .verify-panel-text td {
   border: 1px solid var(--border-color); padding: 0.15rem 0.4rem;
 }
-.verify-panel-text pre { font-size: 0.8rem; overflow-x: auto; }
+.verify-panel-text pre { font-size: inherit; overflow-x: auto; }
 .verify-panel-raw { white-space: pre-wrap; margin: 0; font-family: inherit; }
 
 /* Verify: at-a-glance header chip */

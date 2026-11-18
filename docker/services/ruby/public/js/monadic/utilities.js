@@ -1261,10 +1261,6 @@ function checkParams() {
 function resetEvent(_event, resetToDefaultApp = false) {
   audioInit();
 
-  // Detect iOS/iPadOS
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
   // True when the current chat has at least one user/assistant turn
   // worth saving — system-only sessions (no exchange yet) shouldn't
   // offer "Save & Reset" because there is nothing to preserve.
@@ -1273,64 +1269,58 @@ function resetEvent(_event, resetToDefaultApp = false) {
     return window.messages.some(m => m && (m.role === 'user' || m.role === 'assistant'));
   })();
 
-  // For iOS devices, bypass the modal and use standard confirm dialog
-  if (isIOS) {
-    if (confirm("Are you sure you want to reset the chat?")) {
+  // The same translated modal on every platform (iOS included), with the
+  // "Save to Knowledge Base" choice when there is something to save.
+  const resetModal = $id("resetConfirmation");
+  const saveAndResetBtn = $id("resetSaveAndConfirm");
+  if (saveAndResetBtn) {
+    // Only surface the third button when the user has something to
+    // preserve AND the current app actually supports saving to the
+    // Knowledge Base. Without the capability check, apps with
+    // `library_save false` (e.g. Music Analyst) leaked a save path here
+    // even though the main Save button is correctly disabled — an
+    // asymmetry between the two save entry points.
+    const kbSaveEligible = !!(window.libraryPanel
+      && typeof window.libraryPanel.isCurrentAppKbSaveEligible === 'function'
+      && window.libraryPanel.isCurrentAppKbSaveEligible());
+    saveAndResetBtn.style.display = (hasSaveableContent && kbSaveEligible) ? '' : 'none';
+  }
+  if (resetModal) {
+    bootstrap.Modal.getOrCreateInstance(resetModal).show();
+    resetModal.addEventListener("shown.bs.modal", function () {
+      const resetConfirmed = $id("resetConfirmed");
+      if (resetConfirmed) resetConfirmed.focus();
+    }, { once: true });
+  }
+  const resetConfirmedBtn = $id("resetConfirmed");
+  if (resetConfirmedBtn) {
+    resetConfirmedBtn.onclick = function (event) {
+      event.preventDefault();
       doResetActions(resetToDefaultApp);
-    }
-  } else {
-    // For other platforms, use the Bootstrap modal
-    const resetModal = $id("resetConfirmation");
-    const saveAndResetBtn = $id("resetSaveAndConfirm");
-    if (saveAndResetBtn) {
-      // Only surface the third button when the user has something to
-      // preserve AND the current app actually supports saving to the
-      // Knowledge Base. Without the capability check, apps with
-      // `library_save false` (e.g. Music Analyst) leaked a save path here
-      // even though the main Save button is correctly disabled — an
-      // asymmetry between the two save entry points.
-      const kbSaveEligible = !!(window.libraryPanel
-        && typeof window.libraryPanel.isCurrentAppKbSaveEligible === 'function'
-        && window.libraryPanel.isCurrentAppKbSaveEligible());
-      saveAndResetBtn.style.display = (hasSaveableContent && kbSaveEligible) ? '' : 'none';
-    }
-    if (resetModal) {
-      bootstrap.Modal.getOrCreateInstance(resetModal).show();
-      resetModal.addEventListener("shown.bs.modal", function () {
-        const resetConfirmed = $id("resetConfirmed");
-        if (resetConfirmed) resetConfirmed.focus();
-      }, { once: true });
-    }
-    const resetConfirmedBtn = $id("resetConfirmed");
-    if (resetConfirmedBtn) {
-      resetConfirmedBtn.onclick = function (event) {
-        event.preventDefault();
-        doResetActions(resetToDefaultApp);
-      };
-    }
-    if (saveAndResetBtn) {
-      saveAndResetBtn.onclick = function (event) {
-        event.preventDefault();
-        // Defer to the same modal the sidebar Save button opens so the
-        // user can edit the title, pick a scope, and see the LLM-suggested
-        // title — the previous direct-LIBRARY_SAVE path skipped all three.
-        if (!window.libraryPanel || typeof window.libraryPanel.openSaveModal !== 'function') return;
-        const m = $id("resetConfirmation");
-        const open = function () { window.libraryPanel.openSaveModal(); };
-        if (m && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-          const inst = bootstrap.Modal.getInstance(m);
-          if (inst) {
-            // Wait for the reset modal to fully hide before showing the
-            // save modal — overlapping shows produce stacked backdrops
-            // that block both dialogs in Bootstrap 5.
-            m.addEventListener('hidden.bs.modal', open, { once: true });
-            inst.hide();
-            return;
-          }
+    };
+  }
+  if (saveAndResetBtn) {
+    saveAndResetBtn.onclick = function (event) {
+      event.preventDefault();
+      // Defer to the same modal the sidebar Save button opens so the
+      // user can edit the title, pick a scope, and see the LLM-suggested
+      // title — the previous direct-LIBRARY_SAVE path skipped all three.
+      if (!window.libraryPanel || typeof window.libraryPanel.openSaveModal !== 'function') return;
+      const m = $id("resetConfirmation");
+      const open = function () { window.libraryPanel.openSaveModal(); };
+      if (m && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        const inst = bootstrap.Modal.getInstance(m);
+        if (inst) {
+          // Wait for the reset modal to fully hide before showing the
+          // save modal — overlapping shows produce stacked backdrops
+          // that block both dialogs in Bootstrap 5.
+          m.addEventListener('hidden.bs.modal', open, { once: true });
+          inst.hide();
+          return;
         }
-        open();
-      };
-    }
+      }
+      open();
+    };
   }
 }
 

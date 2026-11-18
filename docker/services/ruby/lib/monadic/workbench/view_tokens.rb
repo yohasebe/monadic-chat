@@ -12,7 +12,8 @@ module Monadic
     # in the page; :render, the whole of a text file the page draws; or
     # :download, saved as a file), for the tab and
     # connection generation it was given to, in one chat at one epoch, and
-    # works for TTL seconds. The page asks for new ones over the main socket.
+    # works for TTL seconds (a :download token, for one GET: spend). The
+    # page asks for new ones over the main socket.
     # Kept in memory only (as are the tokens that remove an image,
     # Approvals, which have no expiry).
     module ViewTokens
@@ -58,6 +59,11 @@ module Monadic
           end
           view
         end
+      end
+
+      # Uses up a token (a :download token serves one GET).
+      def spend(token)
+        @lock.synchronize { @views.delete(token) }
       end
 
       def drop_connection(tab, generation)

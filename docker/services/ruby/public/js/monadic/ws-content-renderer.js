@@ -308,7 +308,10 @@
         pendingRenders.forEach(function(item) {
           var errEl = item.diagramContainer.querySelector('#error-' + item.containerId);
           if (errEl) {
-            errEl.innerHTML = '<div class="alert alert-danger"><strong>DrawIO Viewer Error:</strong><br>Failed to load viewer library.</div>';
+            var alert = document.createElement('div');
+            alert.className = 'alert alert-danger';
+            alert.textContent = renderText('drawioViewerFailed', 'The draw.io viewer could not be loaded.');
+            errEl.replaceChildren(alert);
             $show(errEl);
           }
           var diagEl = item.diagramContainer.querySelector('.diagram');
@@ -329,7 +332,11 @@
         if (diagEl && diagEl.style.display !== 'none' && diagEl.offsetParent !== null) {
           var btn = document.createElement('div');
           btn.className = 'mb-3';
-          btn.innerHTML = '<button class="btn btn-secondary btn-sm">Download .drawio</button>';
+          var dl = document.createElement('button');
+          dl.type = 'button';
+          dl.className = 'btn btn-secondary btn-sm';
+          dl.textContent = renderText('downloadDrawio', 'Download .drawio');
+          btn.appendChild(dl);
           btn.addEventListener('click', function() {
             var blob = new Blob([item.xmlContent], { type: 'application/xml;charset=utf-8' });
             var url = URL.createObjectURL(blob);
@@ -518,6 +525,11 @@
     });
   }
 
+  // A text of the render strings (ui.render.*), or its English fallback.
+  function renderText(key, fallback) {
+    return (typeof webUIi18n !== 'undefined' && webUIi18n.t) ? (webUIi18n.t('ui.render.' + key) || fallback) : fallback;
+  }
+
   // ── Toggle / source code helpers ───────────────────────────────────
 
   function applyToggle(element, nl2br) {
@@ -546,21 +558,22 @@
     if (domEl.dataset.title) {
       title = domEl.dataset.title;
     }
-    var toggleHide = "<i class='fa-solid fa-toggle-on'></i> " + title;
-    var toggleShow = "<i class='fa-solid fa-toggle-off'></i> " + title;
-    var controlDiv = document.createElement('div');
+    // A button (the keyboard reaches it); the title is text, never markup.
+    var controlDiv = document.createElement('button');
+    controlDiv.type = 'button';
     controlDiv.className = 'sourcecode-toggle unselectable';
-    controlDiv.innerHTML = toggleShow;
+    var icon = document.createElement('i');
+    icon.className = 'fa-solid fa-toggle-off';
+    icon.setAttribute('aria-hidden', 'true');
+    controlDiv.append(icon, document.createTextNode(' ' + title));
+    controlDiv.setAttribute('aria-expanded', 'false');
     domEl.parentNode.insertBefore(controlDiv, domEl);
     controlDiv.addEventListener('click', function () {
       var sourcecode = this.nextElementSibling;
-      if (sourcecode.style.display === 'none') {
-        $show(sourcecode);
-        this.innerHTML = toggleHide;
-      } else {
-        $hide(sourcecode);
-        this.innerHTML = toggleShow;
-      }
+      var show = sourcecode.style.display === 'none';
+      if (show) $show(sourcecode); else $hide(sourcecode);
+      icon.className = show ? 'fa-solid fa-toggle-on' : 'fa-solid fa-toggle-off';
+      this.setAttribute('aria-expanded', show ? 'true' : 'false');
     });
     $hide(domEl);
   }

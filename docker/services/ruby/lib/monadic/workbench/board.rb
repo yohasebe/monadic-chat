@@ -355,11 +355,15 @@ module Monadic
         end
       end
 
-      # Whether the tab's selection now was offered quietly (offer).
-      def offered_quietly?(tab:, generation:)
+      # selection, and whether it was offered quietly (offer), read
+      # together: [item_id or nil, serial or nil, quiet].
+      def selection_with_quiet(tab:, generation:)
         @lock.synchronize do
           held = @selected[tab.to_s]
-          !!(held && held[:generation] == generation && held[:quiet])
+          next [nil, nil, false] unless held && held[:generation] == generation && live?(tab, generation)
+
+          item_id = @data['items'].key?(held[:item_id]) ? held[:item_id] : nil
+          [item_id, held[:serial], !!(item_id && held[:quiet])]
         end
       end
 

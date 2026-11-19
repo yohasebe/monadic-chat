@@ -613,6 +613,28 @@ describe('Workbench', () => {
       expect(payloads()).toEqual([]);
     });
 
+    test('takes a quiet selection whose item comes in a later view, and one in a first view', () => {
+      view([], { selected: null });
+      view([], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [] }, selected: 'i_1',
+        selection_quiet: true });
+      expect(shown()).toBeNull();
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [item()] }, selected: 'i_1',
+        selection_quiet: true });
+      expect(shown()).toBe('i_1');
+
+      window.Workbench.select(null);
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 4, items: [item()] }, selected: 'i_1',
+        selection_quiet: true, initial: true });
+      expect(shown()).toBe('i_1');
+    });
+
+    test('a first view shows the open browser before an item offered quietly', () => {
+      const open = { id: 'i_b', kind: 'browser', actor: 'agent', version: 'browser:1', status: 'open' };
+      view([item(), open], { selected: 'i_1', selection_quiet: true, initial: true });
+      expect(window.Workbench.showsBrowser()).toBe(true);
+      expect(payloads()).toContainEqual({ message: 'WORKBENCH_SELECT', item_id: 'i_b' });
+    });
+
     test('keeps what the work screen shows when an item is offered quietly', () => {
       view([item()]);
       window.LayoutController.setPane.mockClear();

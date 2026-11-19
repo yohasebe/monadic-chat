@@ -50,6 +50,10 @@ module Monadic
                    'notes' => Monadic::TurnState::Keeper.status(chat_id) }.compact
         end
 
+        # The selection is read before the items: an item it names was on
+        # the board then, so the items read after hold it unless it was
+        # removed meanwhile.
+        selected, serial, quiet = board.selection_with_quiet(tab: tab, generation: generation)
         snapshot = board.snapshot
         approvals = {}
         assets = {}
@@ -68,10 +72,8 @@ module Monadic
           renders[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256],
                                                                                          purpose: :render)
         end
-        selected, serial = board.selection(tab: tab, generation: generation)
-        quiet = selected && board.offered_quietly?(tab: tab, generation: generation) ? true : nil
         { 'type' => 'workbench', 'board' => snapshot, 'approvals' => approvals, 'assets' => assets,
-          'renders' => renders, 'selected' => selected, 'selection_serial' => serial, 'selection_quiet' => quiet,
+          'renders' => renders, 'selected' => selected, 'selection_serial' => serial, 'selection_quiet' => quiet || nil,
           'initial' => initial, 'notes' => Monadic::TurnState::Keeper.status(chat_id) }.compact
       end
 

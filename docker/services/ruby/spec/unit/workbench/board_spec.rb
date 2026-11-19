@@ -322,7 +322,7 @@ RSpec.describe "the workbench (board, artifact, approvals, record)" do
       second = add("b.png", "b")
       expect(board.offer(tab: "tab-1", generation: 1, item_id: first["id"], quiet: true)).to be(true)
       expect(board.selected(tab: "tab-1", generation: 1)).to eq(first["id"])
-      expect(board.offered_quietly?(tab: "tab-1", generation: 1)).to be(true)
+      expect(board.selection_with_quiet(tab: "tab-1", generation: 1)).to match([first["id"], Integer, true])
 
       expect(board.offer(tab: "tab-1", generation: 1, item_id: second["id"], quiet: true)).to be(false)
       expect(board.selected(tab: "tab-1", generation: 1)).to eq(first["id"])
@@ -333,12 +333,12 @@ RSpec.describe "the workbench (board, artifact, approvals, record)" do
       second = add("b.png", "b")
       board.select(tab: "tab-1", generation: 1, item_id: second["id"])
       expect(board.offer(tab: "tab-1", generation: 1, item_id: first["id"], quiet: true)).to be(false)
-      expect(board.offered_quietly?(tab: "tab-1", generation: 1)).to be(false)
+      expect(board.selection_with_quiet(tab: "tab-1", generation: 1).last).to be(false)
 
       board.select(tab: "tab-2", generation: 1, item_id: nil)
       board.offer(tab: "tab-2", generation: 1, item_id: first["id"], quiet: true)
       board.select(tab: "tab-2", generation: 1, item_id: second["id"])
-      expect(board.offered_quietly?(tab: "tab-2", generation: 1)).to be(false)
+      expect(board.selection_with_quiet(tab: "tab-2", generation: 1).last).to be(false)
     end
   end
 

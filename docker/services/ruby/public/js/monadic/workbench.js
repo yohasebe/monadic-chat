@@ -1300,7 +1300,8 @@
     if (selected && !itemById(selected)) selected = null;
     const arrived = rowItems().filter((item) => !seen.has(item.id));
     arrived.forEach((item) => seen.add(item.id));
-    const held = data.selected || null;
+    // A selection whose item has not arrived yet is taken when it does.
+    const held = data.selected && itemById(data.selected) ? data.selected : null;
     const told = held !== serverSelected;
     serverSelected = held;
     serverSerial = typeof data.selection_serial === 'number' ? data.selection_serial : null;
@@ -1331,11 +1332,15 @@
     // What the page still shows is told again; otherwise the chat's open
     // browser is shown, as before.
     if (data.initial) {
-      if (!selected) {
+      // The chat's open browser first; an item offered quietly fills a
+      // screen that would show nothing. A shown attachment stays, and the
+      // server is told so.
+      if (!selected && !local) {
         const open = rowItems().find(liveBrowser);
         if (open) selected = open.id;
+        else if (held && data.selection_quiet) selected = held;
       }
-      if (selected) tellSelected();
+      if (selected || held) tellSelected();
     }
     // Images the board put away to make room (not removed here).
     if (before.some((id) => !itemById(id) && !removed.has(id))) {

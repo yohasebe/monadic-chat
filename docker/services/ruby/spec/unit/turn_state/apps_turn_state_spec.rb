@@ -241,7 +241,7 @@ RSpec.describe "the Monadic apps' state by turn" do
       run_reply { research.add_finding(finding: "A", source: "s1", session: session) }
 
       page = Monadic::TurnState::Notes.render(session, research.send(:state_notes), research)
-      expect(page).to include("# Research notes", "## Findings", "- A [Source: s1] (turn 1)", "## Sources", "- s1 (turn 1)")
+      expect(page).to include("# Research notes", "## Findings", "- A \\[Source: s1\\] (turn 1)", "## Sources", "- s1 (turn 1)")
     end
   end
 

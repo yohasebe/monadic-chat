@@ -665,16 +665,13 @@ module MonadicDSL
 
     include_statements += include_modules
 
-    # Include shared tool modules for imported tool groups
-    # This ensures the Ruby methods are available when AI calls the tools
-    if state.settings[:imported_tool_groups]
-      state.settings[:imported_tool_groups].each do |group_info|
-        group_name = group_info[:name]
-        module_name = MonadicSharedTools::Registry.module_name_for(group_name)
-        if module_name
-          include_statements << module_name
-        end
-      end
+    # Include shared tool modules for imported tool groups, offered to the
+    # model or kept for the app's own use (internal)
+    group_names = Array(state.settings[:imported_tool_groups]).map { |group_info| group_info[:name] } +
+                  Array(state.settings[:internal_tool_groups])
+    group_names.uniq.each do |group_name|
+      module_name = MonadicSharedTools::Registry.module_name_for(group_name)
+      include_statements << module_name if module_name
     end
 
     include_lines = include_statements.map { |m| "        include #{m} if defined?(#{m})" }.join("\n")
@@ -766,6 +763,12 @@ module MonadicDSL
     # Add imported_tool_groups if specified
     if state.settings[:imported_tool_groups]
       class_def << "        @settings[:imported_tool_groups] = #{state.settings[:imported_tool_groups].inspect}\n"
+    end
+
+    # Tools of groups kept for the app's own use: never offered to the model
+    if state.settings[:internal_tool_names]
+      class_def << "        @settings[:internal_tool_groups] = #{state.settings[:internal_tool_groups].inspect}\n"
+      class_def << "        @settings[:internal_tool_names] = #{state.settings[:internal_tool_names].inspect}\n"
     end
 
     # Build and add badges

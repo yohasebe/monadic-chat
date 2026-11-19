@@ -37,6 +37,7 @@ require_relative 'websocket/misc_handlers'
 require_relative 'websocket/privacy_handler'
 require_relative 'websocket/word_table_handler'
 require_relative 'websocket/verify_handler'
+require_relative 'websocket/notes_keeper'
 require_relative 'websocket/history_handler'
 require_relative 'websocket/sts_stream_handler'
 

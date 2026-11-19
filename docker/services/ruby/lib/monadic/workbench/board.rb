@@ -338,6 +338,31 @@ module Monadic
         end
       end
 
+      # Selects item_id for the tab's connection only when it selects
+      # nothing (checked and done under one lock). quiet: an item for an
+      # empty work screen only (the notes after a reply): the page shows it
+      # where nothing is shown and brings nothing forward. Returns whether
+      # it was selected.
+      def offer(tab:, generation:, item_id:, quiet: false)
+        @lock.synchronize do
+          next false unless live?(tab, generation) && @data['items'].key?(item_id)
+
+          held = @selected[tab.to_s]
+          next false if held && held[:generation] == generation && @data['items'].key?(held[:item_id])
+
+          selected!(tab, generation, item_id)[:quiet] = quiet
+          true
+        end
+      end
+
+      # Whether the tab's selection now was offered quietly (offer).
+      def offered_quietly?(tab:, generation:)
+        @lock.synchronize do
+          held = @selected[tab.to_s]
+          !!(held && held[:generation] == generation && held[:quiet])
+        end
+      end
+
       # What the tab's connection has selected (an item still on the board),
       # or nil (also for a connection that is no longer the tab's).
       def selected(tab:, generation:)

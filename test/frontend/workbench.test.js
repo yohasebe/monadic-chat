@@ -234,6 +234,22 @@ describe('Workbench', () => {
     expect(document.querySelector('#workbench-view .btn-primary')).toBeNull();
   });
 
+  test('says on its tab and above its items that the notes are being updated, without touching the reply\'s status', () => {
+    document.body.insertAdjacentHTML('beforeend',
+      '<button id="side-tab-work"><i id="side-tab-work-mark" hidden></i></button><div id="workbench-notes-status" hidden></div>');
+    const mark = () => document.getElementById('side-tab-work-mark');
+    const line = () => document.getElementById('workbench-notes-status');
+    view([], { notes: 'updating' });
+    expect(mark().hidden).toBe(false);
+    expect(line().hidden).toBe(false);
+    expect(line().textContent).toContain('Updating the notes');
+    view([]);
+    expect(mark().hidden).toBe(true);
+    expect(line().hidden).toBe(true);
+    expect(window.setAlert).not.toHaveBeenCalled();
+    expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+  });
+
   describe('a chat continued from the history', () => {
     test('shows the work screen when its board has something on it', () => {
       window.Workbench.expectResumed('c_1');
@@ -584,6 +600,28 @@ describe('Workbench', () => {
       const next = item({ id: 'i_2', artifact_id: 'r_2', sha256: 'b'.repeat(64) });
       view([item(), next], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item(), next] }, selected: 'i_2' });
       expect(shown()).toBe('i_1');
+      expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
+    });
+
+    test('shows a quietly offered item on a work screen that shows nothing, without taking the pane', () => {
+      view([], { selected: null });
+      sent.length = 0;
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] },
+        selected: 'i_1', selection_quiet: true });
+      expect(shown()).toBe('i_1');
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+      expect(payloads()).toEqual([]);
+    });
+
+    test('keeps what the work screen shows when an item is offered quietly', () => {
+      view([item()]);
+      window.LayoutController.setPane.mockClear();
+      sent.length = 0;
+      const next = item({ id: 'i_2', artifact_id: 'r_2', sha256: 'b'.repeat(64) });
+      view([item(), next], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item(), next] },
+        selected: 'i_2', selection_quiet: true });
+      expect(shown()).toBe('i_1');
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
       expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
     });
 

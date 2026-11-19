@@ -8,6 +8,7 @@
     - The PDF Database is removed: **import PDFs into the Knowledge Base** (earlier PDFs are not moved)
     - Every app can save to and search the Knowledge Base; `Use Knowledge Base for retrieval (this session)` is off by default and remembered for each app
     - Chat Plus is merged into Chat, Language Practice Plus into Language Practice, and Music Lab is called Music Tutor; chats made with the old apps open in the new ones
+    - Chat answers without waiting for its notes: the notes are updated after each reply with one more request to the same provider and model
     - The Session Context panel is removed: apps show their state as notes on the work screen
     - What the apps make is saved in the chat's folder in `conversations/` and shown on the work screen
     - Code Interpreter, Research Assistant and Math Tutor run code in the chat's folder: **read your own files by their full path (`/monadic/data/...`)**
@@ -52,6 +53,7 @@
     - A dropped connection during a reply gives the page back for input
     - Streamed replies no longer lose words
     - Earlier replies are no longer duplicated or dropped with Ollama, Mistral and DeepSeek
+    - The AI User panel names Ollama as the provider of Ollama apps
     - Long chains of tool calls work with every provider
     - Ollama apps no longer repeat a tool call or end a reply empty
     - A reply stopped for repeated tool calls names the tools

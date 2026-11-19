@@ -35,7 +35,8 @@ module Monadic
         list.each_with_object(Set.new) do |entry, names|
           next unless entry.is_a?(Hash)
 
-          decls = entry["function_declarations"] || entry[:function_declarations]
+          decls = entry["function_declarations"] || entry[:function_declarations] ||
+                  entry["functionDeclarations"] || entry[:functionDeclarations]
           if decls
             Array(decls).each { |d| add_name(names, d) }
           else
@@ -44,12 +45,38 @@ module Monadic
         end
       end
 
-      def add_name(names, entry)
-        return unless entry.is_a?(Hash)
+      # The tools without those named in names, in every provider's shape
+      # (a Gemini declarations entry keeps the others, and goes when none is
+      # left). Entries without a name (native or server tools) stay.
+      def without(tools, names)
+        names = Set.new(Array(names).map { |name| normalize(name) })
+        return tools if names.empty?
+        return without([tools], names).first if tools.is_a?(Hash)
+        return tools unless tools.is_a?(Array)
+
+        tools.filter_map do |entry|
+          next entry unless entry.is_a?(Hash)
+
+          decls_key = %w[function_declarations functionDeclarations].find { |k| entry.key?(k) } ||
+                      %i[function_declarations functionDeclarations].find { |k| entry.key?(k) }
+          if decls_key
+            kept = Array(entry[decls_key]).reject { |d| names.include?(name_of(d)) }
+            kept.empty? ? nil : entry.merge(decls_key => kept)
+          else
+            names.include?(name_of(entry)) ? nil : entry
+          end
+        end
+      end
+
+      def name_of(entry)
+        return "" unless entry.is_a?(Hash)
 
         fn = entry["function"] || entry[:function]
-        name = (fn.is_a?(Hash) ? (fn["name"] || fn[:name]) : nil) || entry["name"] || entry[:name]
-        name = normalize(name)
+        normalize((fn.is_a?(Hash) ? (fn["name"] || fn[:name]) : nil) || entry["name"] || entry[:name])
+      end
+
+      def add_name(names, entry)
+        name = name_of(entry)
         names << name unless name.empty?
       end
       private_class_method :add_name

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../../workspace/chats'
+require_relative '../../utils/tool_dispatch_guard'
 
 module Monadic
   module Workbench
@@ -56,30 +57,7 @@ module Monadic
         # Every provider's tool shapes: {name:}, {function: {name:}},
         # {type: "function", name:}, and Gemini's {function_declarations:}.
         def without_look(tools)
-          return tools unless tools.is_a?(Array)
-
-          tools.filter_map do |entry|
-            next entry unless entry.is_a?(Hash)
-
-            decls_key = %w[function_declarations functionDeclarations].find { |k| entry.key?(k) } ||
-                        %i[function_declarations functionDeclarations].find { |k| entry.key?(k) }
-            if decls_key
-              kept = Array(entry[decls_key]).reject { |d| look?(d) }
-              next nil if kept.empty?
-
-              entry.merge(decls_key => kept)
-            else
-              look?(entry) ? nil : entry
-            end
-          end
-        end
-
-        def look?(entry)
-          return false unless entry.is_a?(Hash)
-
-          fn = entry['function'] || entry[:function]
-          name = (fn.is_a?(Hash) ? (fn['name'] || fn[:name]) : nil) || entry['name'] || entry[:name]
-          name.to_s.strip == TOOL
+          Monadic::Utils::ToolDispatchGuard.without(tools, [TOOL])
         end
       end
     end

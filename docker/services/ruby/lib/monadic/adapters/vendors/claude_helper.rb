@@ -209,16 +209,22 @@ module ClaudeHelper
     end
 
     # Extract system message - Claude API expects this as a top-level parameter
+    # (a system message among the messages is moved there too: the API takes
+    # only user and assistant turns in messages).
+    given = Array(options["messages"])
+    system_texts = given.select { |m| m["role"].to_s == "system" }.map { |m| m["content"].to_s }
     if options["system"]
       body["system"] = options["system"]
     elsif options["ai_user_system_message"]
       body["system"] = options["ai_user_system_message"]
+    elsif system_texts.any?
+      body["system"] = system_texts.join("\n\n")
     end
-    
+
     # Handle messages - check if custom messages are provided (e.g., from SecondOpinionAgent)
     if options["messages"]
       # Convert messages to Claude's expected format
-      body["messages"] = options["messages"].map do |msg|
+      body["messages"] = given.reject { |m| m["role"].to_s == "system" }.map do |msg|
         content = msg["content"]
         # Ensure content is in the expected format for Claude API
         if content.is_a?(String)

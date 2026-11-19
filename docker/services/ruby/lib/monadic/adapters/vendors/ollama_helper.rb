@@ -1,3 +1,4 @@
+require_relative '../../utils/content_free_logging'
 require 'http'
 require_relative "../../utils/system_prompt_injector"
 require_relative "../../utils/usage_normalizer"
@@ -272,6 +273,11 @@ module OllamaHelper
 
     body.merge!(options)
     body["model"] = model if body["model"].to_s.strip.empty?
+    # Ollama reads the output limit as options.num_predict.
+    limit = [body.delete("max_completion_tokens"), body.delete("max_tokens")].compact.first
+    if limit
+      body["options"] = { "num_predict" => limit.to_i }.merge(body["options"].is_a?(Hash) ? body["options"] : {})
+    end
     http = HTTP.headers(headers)
 
     res = nil
@@ -314,7 +320,9 @@ module OllamaHelper
       rescue StandardError
         res.body.to_s
       end
-      Monadic::Utils::ExtraLogger.log { "[Ollama API Error] #{error}" }
+      Monadic::Utils::ExtraLogger.log do
+        Monadic::Utils::ContentFreeLogging.active? ? "[Ollama API Error] #{res.status}" : "[Ollama API Error] #{error}"
+      end
       "ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(error.to_s)}"
     end
   rescue StandardError => e

@@ -1262,12 +1262,31 @@
 
   // ---- messages from the server --------------------------------------
 
+  // The notes the app adds after a reply (data.notes): 'updating' while
+  // they are made. Shown on the work screen's tab and above its items
+  // only: the reply's own status (the top of the page, the spinner, Ready)
+  // is not touched.
+  function showNotesStatus(state) {
+    const mark = $id('side-tab-work-mark');
+    const line = $id('workbench-notes-status');
+    const text = state === 'updating' ? t('ui.workbench.notesUpdating', 'Updating the notes…') : '';
+    if (mark) {
+      mark.hidden = state !== 'updating';
+      if (text) mark.setAttribute('title', text); else mark.removeAttribute('title');
+    }
+    if (line) {
+      line.textContent = text;
+      line.hidden = !text;
+    }
+  }
+
   function onView(data) {
     const next = data && data.board;
     if (!next || !Array.isArray(next.items)) return;
     if (board && next.chat_id === board.chat_id && next.board_id && next.board_id === board.board_id &&
         next.revision < board.revision) return;
     if (board && next.chat_id !== board.chat_id) reset();
+    showNotesStatus(data.notes || null);
     const before = items().map((item) => item.id);
     board = next;
     approvals = data.approvals || {};
@@ -1292,7 +1311,17 @@
     }
     // What the server selected for this tab (an item made or opened for
     // it) is brought forward once.
-    if (told && held && held !== selected && itemById(held) && !data.initial) bringForward(itemById(held));
+    if (told && held && held !== selected && itemById(held) && !data.initial) {
+      // An item offered quietly (the notes after a reply) is shown only on
+      // a work screen that shows nothing, and the pane stays; otherwise the
+      // server is told what this tab still shows.
+      if (data.selection_quiet) {
+        if (!selected && !local) selected = held;
+        else tellSelected();
+      } else {
+        bringForward(itemById(held));
+      }
+    }
     // What the user opened is shown, whatever the server's selection said.
     if (pendingOpen && itemById(pendingOpen)) {
       showOpened(pendingOpen);

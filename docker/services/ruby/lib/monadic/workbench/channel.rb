@@ -12,6 +12,7 @@ require_relative '../workspace/ids'
 require_relative '../workspace/attachments'
 require_relative '../workspace/ledger'
 require_relative '../workspace/shared_folder_preview'
+require_relative '../turn_state/keeper'
 
 module Monadic
   module Workbench
@@ -45,7 +46,8 @@ module Monadic
         # is new) lets it go.
         unless board
           return { 'type' => 'workbench', 'board' => empty_board(chat_id), 'approvals' => {}, 'assets' => {},
-                   'renders' => {}, 'selected' => nil, 'initial' => initial }
+                   'renders' => {}, 'selected' => nil, 'initial' => initial,
+                   'notes' => Monadic::TurnState::Keeper.status(chat_id) }.compact
         end
 
         snapshot = board.snapshot
@@ -67,8 +69,10 @@ module Monadic
                                                                                          purpose: :render)
         end
         selected, serial = board.selection(tab: tab, generation: generation)
+        quiet = selected && board.offered_quietly?(tab: tab, generation: generation) ? true : nil
         { 'type' => 'workbench', 'board' => snapshot, 'approvals' => approvals, 'assets' => assets,
-          'renders' => renders, 'selected' => selected, 'selection_serial' => serial, 'initial' => initial }
+          'renders' => renders, 'selected' => selected, 'selection_serial' => serial, 'selection_quiet' => quiet,
+          'initial' => initial, 'notes' => Monadic::TurnState::Keeper.status(chat_id) }.compact
       end
 
       # The user's removal of an image from the board, sent with the token

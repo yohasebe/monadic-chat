@@ -58,6 +58,9 @@ module WebSocketHelper
           content = last_one["choices"][0]
 
           text = content["text"] || content["message"]["content"]
+          # The reply as the model wrote it, before anything is added for the
+          # page (what the notes kept after the reply are made from).
+          model_text = text.to_s.dup
 
           # Append tool HTML fragments (e.g., ABC notation from Music Tutor).
           # Tools store HTML in session[:tool_html_fragments]; the ABC block
@@ -244,6 +247,15 @@ module WebSocketHelper
 
           session[:messages] << new_data
           sync_session_state!
+          # The notes added after the reply, for an app that keeps them
+          # itself (Monadic::TurnState::Keeper): the user message this reply
+          # answers (its request), and the model the request was sent with.
+          # A reply that removed notes adds none (Keeper.removing!).
+          if request_id && !model_text.strip.empty? && Monadic::TurnState::Keeper.keeping?(session) &&
+             !Monadic::TurnState::Keeper.removed_in?(request_id)
+            answered = session[:messages].reverse.find { |m| m.is_a?(Hash) && m["role"] == "user" && m["request_id"] == request_id }
+            keep_notes(session, answered, new_data, Monadic::TurnState::Keeper.sent(request_id), model_text)
+          end
           # The app's state, as its notes on the work screen show it; the
           # page also lists the files the chat's replies made.
           Monadic::TurnState::Notes.refresh(session, show: true, tab: ws_session_id) if state_changes || new_data["workbench_made"]

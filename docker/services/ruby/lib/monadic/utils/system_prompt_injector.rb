@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'language_config'
+require_relative '../turn_state/keeper'
 require_relative 'tts_marker_vocabulary'
 require_relative 'capability_notes'
 require_relative '../workbench/outputs'
@@ -410,7 +411,8 @@ module Monadic
           },
           generator: ->(session, _options) {
             path = Monadic::TurnState::Notes.current(session)
-            path && format(STATE_NOTES_PROMPT, path: Monadic::Utils::SystemPromptInjector.path_as_sent(session, path))
+            text = Monadic::Utils::SystemPromptInjector.state_kept_by_app?(session) ? STATE_NOTES_KEPT_PROMPT : STATE_NOTES_PROMPT
+            path && format(text, path: Monadic::Utils::SystemPromptInjector.path_as_sent(session, path))
           }
         },
         # The app's state as its load tool gives it (Monadic::TurnState::
@@ -442,6 +444,12 @@ module Monadic
       STATE_NOTES_PROMPT = "The state this app keeps is shown to the user as a page on the work screen, in the shared " \
                            "folder: %<path>s. It is made again from the state after each reply, so it is only read: " \
                            "to change what it shows, change the state with your tools, and do not write to this file."
+
+      # For an app that keeps its state itself, after each reply (its state
+      # tools are internal): the model has no tools to change it.
+      STATE_NOTES_KEPT_PROMPT = "The state this app keeps is shown to the user as a page on the work screen, in the " \
+                                "shared folder: %<path>s. The app adds to it from the conversation after each reply, " \
+                                "and you remove from it with your tools when the user asks; do not write to this file."
 
       # At most this many of the chat's files are named in the prompt, the
       # newest.
@@ -488,6 +496,12 @@ module Monadic
         # it: each hidden word as its placeholder, which the tools that read
         # a file put back (Privacy::Words::RESTORED_ARGUMENTS). The path as
         # it is for a chat without a word table.
+        # Whether the app the session is in keeps its notes itself after
+        # each reply (Monadic::TurnState::Keeper).
+        def state_kept_by_app?(session)
+          Monadic::TurnState::Keeper.keeping?(session)
+        end
+
         def path_as_sent(session, path)
           return path unless defined?(Monadic::Utils::Privacy::Words)
 

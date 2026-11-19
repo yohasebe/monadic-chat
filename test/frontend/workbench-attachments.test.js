@@ -148,6 +148,16 @@ describe('Attachments on the work screen', () => {
     expect(pane().dataset.local).toBeUndefined();
   });
 
+  test('an item offered quietly leaves the attachment shown', () => {
+    view([], { selected: null });
+    window.Workbench.showAttachment({ source: 'draft', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
+    view([NOTES], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [NOTES] }, selected: 'i_t',
+      selection_quiet: true });
+    expect(window.Workbench.shownAttachment()).not.toBeNull();
+    expect(pane().dataset.local).toBeDefined();
+    expect(lastSelect().payload).toMatchObject({ item_id: null });
+  });
+
   test('a new item the server brings forward puts the attachment away, so what is shown is what is named', () => {
     view([], { selected: null });
     window.Workbench.showAttachment({ source: 'draft', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });

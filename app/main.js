@@ -1000,11 +1000,13 @@ class DockerManager {
 
             // Handled a whole line at a time (a marker or a warning cut
             // between two chunks would otherwise be missed or lost).
-            const stdoutLines = createLineBuffer(function (block) {
-              const { rest: output, took } = pulls.filter(block);
+            const stdoutLines = createLineBuffer(function (output) {
+              // The image download lines leave the block (see pulls).
+              const { rest, took } = pulls.filter(output);
               if (took) showPull(false);
-              if (!output) return;
+              if (!rest) return;
               if (pulls.active()) showPull(true);
+              output = rest;
               
               // Translate Docker messages before displaying
               let translatedOutput = output;

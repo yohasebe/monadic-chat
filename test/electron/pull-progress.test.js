@@ -27,6 +27,17 @@ describe('image download progress', () => {
     expect(pulls.active()).toBe(false);
   });
 
+  test('takes the layer lines out of a block of many lines and keeps the rest', () => {
+    const pulls = createPullProgress();
+    const layers = Array.from({ length: 40 }, (_, i) => ` d2a21abf354f Downloading ${(1.7 + i / 1000).toFixed(3)}GB`);
+    const block = ['Starting Python image build (atomic) . . .', ...layers, ' 683a6a24624c Download complete 0B', ''].join('\n');
+    const { rest, took } = pulls.filter(block);
+    expect(took).toBe(true);
+    expect(rest).toBe('Starting Python image build (atomic) . . .\n');
+    expect(pulls.progress().bytes).toBe(1739000000);
+    expect(pulls.filter(layers.join('\n') + '\n')).toEqual({ rest: '', took: true });
+  });
+
   test('starts again after a reset', () => {
     const pulls = createPullProgress();
     pulls.take('683a6a24624c Downloading 10MB');

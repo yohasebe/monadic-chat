@@ -1000,11 +1000,10 @@ class DockerManager {
 
             // Handled a whole line at a time (a marker or a warning cut
             // between two chunks would otherwise be missed or lost).
-            const stdoutLines = createLineBuffer(function (output) {
-              if (pulls.take(output)) {
-                showPull(false);
-                return;
-              }
+            const stdoutLines = createLineBuffer(function (block) {
+              const { rest: output, took } = pulls.filter(block);
+              if (took) showPull(false);
+              if (!output) return;
               if (pulls.active()) showPull(true);
               
               // Translate Docker messages before displaying

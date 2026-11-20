@@ -33,6 +33,14 @@ function createPullProgress() {
       if (size !== null && size > downloaded.get(id)) downloaded.set(id, size);
       return true;
     },
+    // A block of whole lines as the console receives it (often many at
+    // once): the layer lines leave it. Returns what is left to show and
+    // whether any layer line was in it.
+    filter(block) {
+      const lines = String(block).split('\n');
+      const kept = lines.filter((line) => !this.take(line));
+      return { rest: kept.some((line) => line.trim()) ? kept.join('\n') : '', took: kept.length < lines.length };
+    },
     active() {
       return downloaded.size > 0;
     },

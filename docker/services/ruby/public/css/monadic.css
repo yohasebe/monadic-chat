@@ -6652,7 +6652,6 @@ body.side-pane-resizing {
   background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
   border: var(--border-width) solid var(--border-light);
 }
-.summary-tab,
 /* The work screen's tab while the notes of a reply are being updated. */
 .side-pane-tab-mark {
   margin-left: 6px;
@@ -6679,6 +6678,7 @@ body.side-pane-resizing {
   color: var(--text-secondary, #6c757d);
 }
 
+.summary-tab,
 .side-pane-tab {
   padding: 0 var(--spacing-md);
   /* One line; a label longer than the column allows ends in an ellipsis. */

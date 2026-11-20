@@ -34,6 +34,7 @@ RSpec.describe "Monadic::Utils::SharedPathGuard.user_code_files" do
     guard.instance_variable_set(:@told_user_code_flag_ignored, nil)
     allow(File).to receive(:file?).and_call_original
     allow(File).to receive(:file?).with("/.dockerenv").and_return(false)
+    allow(File).to receive(:file?).with("/run/.containerenv").and_return(false)
     @home = File.join(@root, "home")
     FileUtils.mkdir_p(File.join(@home, "monadic", "config"))
     allow(Etc).to receive(:getpwuid).and_return(Struct.new(:dir).new(@home))
@@ -41,8 +42,23 @@ RSpec.describe "Monadic::Utils::SharedPathGuard.user_code_files" do
 
   it "loads them in the container" do
     allow(File).to receive(:file?).with("/.dockerenv").and_return(true)
+    allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(true)
     ENV.delete("MONADIC_LOAD_USER_CODE")
     expect(guard.user_code_files(@helpers, "*.rb")).to eq([@file])
+  end
+
+  it "loads them in a container Podman made" do
+    allow(File).to receive(:file?).with("/run/.containerenv").and_return(true)
+    allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(true)
+    ENV.delete("MONADIC_LOAD_USER_CODE")
+    expect(guard.user_code_files(@helpers, "*.rb")).to eq([@file])
+  end
+
+  it "loads none in a container whose settings say it is the host" do
+    allow(File).to receive(:file?).with("/run/.containerenv").and_return(true)
+    allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(false)
+    ENV.delete("MONADIC_LOAD_USER_CODE")
+    expect { expect(guard.user_code_files(@helpers, "*.rb")).to eq([]) }.to output.to_stdout
   end
 
   it "loads none in development mode, and says how to load them" do

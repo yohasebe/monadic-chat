@@ -17,7 +17,7 @@
 # what this Dockerfile publishes. The existing named volume
 # (monadic-chat-qdrant-data) is reused across versions; qdrant migrates
 # storage forward automatically but not backward — do not downgrade.
-FROM qdrant/qdrant:v1.19.1@sha256:12364fe851b9f17356fc88189fc06d1b521262e04659ec7345975b00c9246a10
+FROM docker.io/qdrant/qdrant:v1.19.1@sha256:12364fe851b9f17356fc88189fc06d1b521262e04659ec7345975b00c9246a10
 
 ARG PROJECT_TAG=monadic-chat
 LABEL project=${PROJECT_TAG}

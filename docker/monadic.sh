@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Add /usr/local/bin to the PATH
-export PATH=${PATH}:/usr/local/bin
+# Add the folders a Docker CLI is installed in (Docker Desktop, Homebrew,
+# other Docker-compatible runtimes) to the PATH
+export PATH=${PATH}:/usr/local/bin:/opt/homebrew/bin:~/.docker/bin
 
 # Read version from version.rb (reliable source in both dev and packaged app)
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
@@ -220,10 +221,91 @@ if [ -z "$DOCKER" ]; then
   DOCKER="docker"
 fi
 
+# ---------------- Which Docker engine ----------------
+# The engine is the one the Docker CLI chooses here (DOCKER_CONTEXT, then
+# DOCKER_HOST, then the current context), resolved once and fixed for the
+# rest of this run: every docker and docker compose call below goes to it,
+# whatever changes meanwhile. Only a local socket is used: the shared folder
+# is bind-mounted, and a remote engine would not see it.
+#   RUNTIME_ORIGIN   context | DOCKER_CONTEXT | DOCKER_HOST
+#   RUNTIME_CONTEXT  the context name (empty for DOCKER_HOST)
+#   RUNTIME_ENDPOINT unix:///... (npipe:// on Windows' own CLI)
+#   RUNTIME_DESKTOP  1 when the endpoint is Docker Desktop's
+#   RUNTIME_REFUSED  why it is not used, or empty
+resolve_runtime() {
+  RUNTIME_ORIGIN=""
+  RUNTIME_CONTEXT=""
+  RUNTIME_ENDPOINT=""
+  RUNTIME_DESKTOP=0
+  RUNTIME_REFUSED=""
+  if [ -n "${DOCKER_CONTEXT:-}" ]; then
+    RUNTIME_ORIGIN="DOCKER_CONTEXT"
+    RUNTIME_CONTEXT="${DOCKER_CONTEXT}"
+  elif [ -n "${DOCKER_HOST:-}" ]; then
+    RUNTIME_ORIGIN="DOCKER_HOST"
+    RUNTIME_ENDPOINT="${DOCKER_HOST}"
+  else
+    RUNTIME_ORIGIN="context"
+    RUNTIME_CONTEXT=$("${DOCKER}" context show 2>/dev/null)
+  fi
+  if [ -n "${RUNTIME_CONTEXT}" ]; then
+    RUNTIME_ENDPOINT=$("${DOCKER}" context inspect "${RUNTIME_CONTEXT}" --format '{{.Endpoints.docker.Host}}' 2>/dev/null)
+  fi
+  case "${RUNTIME_ENDPOINT}" in
+    unix://*|npipe://*) ;;
+    "") RUNTIME_REFUSED="no engine is configured for the Docker CLI" ;;
+    *) RUNTIME_REFUSED="the Docker CLI points to a remote engine (${RUNTIME_ENDPOINT%%://*}), which cannot see the shared folder" ;;
+  esac
+  case "${RUNTIME_CONTEXT}:${RUNTIME_ENDPOINT}" in
+    desktop-linux:*|*:unix://*/.docker/run/docker.sock|*:npipe:*docker_engine*) RUNTIME_DESKTOP=1 ;;
+  esac
+  if [ -z "${RUNTIME_REFUSED}" ]; then
+    export DOCKER_HOST="${RUNTIME_ENDPOINT}"
+    unset DOCKER_CONTEXT
+  fi
+}
+
+# The socket of that engine as its containers see it, for the Ruby
+# container's mount (not the CLI's socket: a VM-based engine forwards
+# that one from inside the VM). Podman serves its API from the socket its
+# own service names; the others serve /var/run/docker.sock.
+runtime_mount_socket() {
+  local components sock
+  components=$("${DOCKER}" version --format '{{range .Server.Components}}{{.Name}} {{end}}' 2>/dev/null)
+  if [[ "${components}" == *Podman* ]] && command -v podman >/dev/null 2>&1; then
+    sock=$(podman info --format '{{.Host.RemoteSocket.Path}}' 2>/dev/null)
+    sock="${sock#unix://}"
+    [ -n "${sock}" ] && { echo "${sock}"; return; }
+  fi
+  echo "/var/run/docker.sock"
+}
+
+# Whether this script runs in a container: the file Docker or Podman puts
+# in every container.
+in_container() {
+  [[ -f "/.dockerenv" || -f "/run/.containerenv" ]]
+}
+
+# A line for the app: which engine, from where, and whether it answers.
+runtime_report() {
+  local answers=0 engine="" product="" first=""
+  if [ -z "${RUNTIME_REFUSED}" ] && "${DOCKER}" info >/dev/null 2>&1; then
+    answers=1
+    engine=$("${DOCKER}" version --format '{{.Server.Platform.Name}}' 2>/dev/null | tr -d '\r')
+    # The name the engine gives itself, for display only: its first
+    # component, "<Name> Engine" (Podman), or plain "Engine" (Docker).
+    first=$("${DOCKER}" version --format '{{range .Server.Components}}{{.Name}}{{"\n"}}{{end}}' 2>/dev/null | head -n 1 | tr -d '\r')
+    product="${first% Engine}"
+    { [ -z "${product}" ] || [ "${product}" = "${first}" ]; } && product="Docker"
+  fi
+  printf 'origin=%s\ncontext=%s\nendpoint=%s\ndesktop=%s\nanswers=%s\nengine=%s\nproduct=%s\nrefused=%s\n' \
+    "${RUNTIME_ORIGIN}" "${RUNTIME_CONTEXT}" "${RUNTIME_ENDPOINT}" "${RUNTIME_DESKTOP}" "${answers}" "${engine}" "${product}" "${RUNTIME_REFUSED}"
+}
+
+resolve_runtime
+
 # Don't escape spaces - we'll quote the variable when using it
 
-# Define the paths to the support scripts
-SCRIPTS=("mac-start-docker.sh" "wsl2-start-docker.sh" "linux-start-docker.sh")
 
 normalize_path() {
   local path="$1"
@@ -391,11 +473,16 @@ wait_for_ruby_ready() {
 }
 
 set_docker_compose() {
+  # The engine's own socket for the Ruby container's mount (compose.yml),
+  # always from the engine: a value inherited from the environment is not
+  # used, so the mount has one source.
+  MONADIC_DOCKER_SOCK="$(runtime_mount_socket)"
+  export MONADIC_DOCKER_SOCK
   # Every way a container is started goes through here, and stops when the
   # code folders are not right. Taking containers down ("teardown") does not
   # stop, so that it stays a way to recover.
   if [[ "${1:-}" != "teardown" ]]; then
-    [[ -f "/.dockerenv" ]] || ensure_code_dirs || exit 1
+    in_container || ensure_code_dirs || exit 1
   fi
   local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services")
 
@@ -487,7 +574,7 @@ EOF
 # the user: left to Docker, a missing source is created as root on Linux and
 # the server run from the host could not write its ledger there.
 ensure_state_dir() {
-  if [[ -f "/.dockerenv" ]]; then
+  if in_container; then
     mkdir -p "/monadic/state"
   else
     mkdir -p "${HOME_DIR}/monadic/state" && chmod 700 "${HOME_DIR}/monadic/state"
@@ -522,7 +609,7 @@ ensure_data_dir() {
   local log_dir
   local config_dir
 
-  if [[ -f "/.dockerenv" ]]; then
+  if in_container; then
     data_dir="/monadic/data"
     log_dir="/monadic/log"
     config_dir="/monadic/config"
@@ -536,7 +623,7 @@ ensure_data_dir() {
   mkdir -p "${log_dir}"
   mkdir -p "${config_dir}"
   ensure_state_dir
-  [[ -f "/.dockerenv" ]] || ensure_code_dirs || exit 1
+  in_container || ensure_code_dirs || exit 1
 
   safe_rm "${log_dir}/command.log"
   safe_rm "${log_dir}/jupyter.log"
@@ -563,34 +650,6 @@ ensure_data_dir() {
 
 }
 
-# Function to start Docker based on OS
-start_docker() {
-  case "${HOST_OS}" in
-  Darwin)
-    start_script="${ROOT_DIR}/services/support_scripts/${SCRIPTS[0]}"
-    ;;
-  Linux)
-    if [[ $(uname -r) == *microsoft* ]]; then
-      start_script="${ROOT_DIR}/services/support_scripts/${SCRIPTS[1]}"
-    else
-      start_script="${ROOT_DIR}/services/support_scripts/${SCRIPTS[2]}"
-    fi
-    ;;
-  *)
-    echo "Unsupported operating system: ${HOST_OS}" >&2
-    # exit 1
-    ;;
-  esac
-
-  if [[ -f "${start_script}" ]]; then
-    # return this function after the script has been executed without any errors
-    sh "${start_script}" && echo "[HTML]: <p>Starting Docker...</p>"
-  else
-    echo "Start script not found: ${start_script}" >&2
-    # exit 1
-  fi
-
-}
 
 # Function to build Ruby container only
 build_ruby_container() {
@@ -630,7 +689,9 @@ build_ruby_container() {
     echo "[INFO] Force rebuild requested, using --no-cache" | tee -a "${log_file}"
   fi
   set_setup_script_build_flags rbsetup
-  DOCKER_BUILDKIT=1 ${DOCKER} build ${build_extra} "${SETUP_BUILD_FLAGS[@]}" \
+  # --load: a builder that runs in its own container (an engine without
+  # BuildKit, such as Podman) keeps the image only in its cache otherwise.
+  DOCKER_BUILDKIT=1 ${DOCKER} build --load ${build_extra} "${SETUP_BUILD_FLAGS[@]}" \
     --build-arg GEMS_FINGERPRINT="${gems_hash}" \
     -f "${dockerfile}" \
     -t yohasebe/monadic-chat:${MONADIC_VERSION} \
@@ -835,7 +896,7 @@ build_python_container() {
     echo "[HTML]: <p>Starting Python image build (atomic) . . .</p>" | tee -a "${build_log}"
     # IMPORTANT: cache_flags must not be quoted so an empty value expands to nothing
     set_setup_script_build_flags pysetup
-    DOCKER_BUILDKIT=1 ${DOCKER} build ${cache_flags} "${SETUP_BUILD_FLAGS[@]}" -f "${dockerfile}" ${build_args} -t "${temp_tag}" "${ROOT_DIR}/services/python" 2>&1 | tee -a "${build_log}"
+    DOCKER_BUILDKIT=1 ${DOCKER} build --load ${cache_flags} "${SETUP_BUILD_FLAGS[@]}" -f "${dockerfile}" ${build_args} -t "${temp_tag}" "${ROOT_DIR}/services/python" 2>&1 | tee -a "${build_log}"
     if [ "${PIPESTATUS[0]}" -ne 0 ]; then
       echo "[ERROR] Docker build failed" | tee -a "${build_log}"
       echo "[BUILD_COMPLETE] failed"
@@ -1460,15 +1521,14 @@ check_dockerfiles_changed() {
 # harmlessly when a stopped container still references an image; the
 # next start retries after `down` has removed those containers.
 remove_legacy_prebuilt_images() {
-  local img
+  local ref
   # yohasebe/selenium (locally built) and qdrant/qdrant (upstream pull)
   # joined this list when both moved to ghcr.io prebuilt images
   # (monadic-selenium / monadic-qdrant) in beta.21.
-  for img in yohasebe/monadic-privacy yohasebe/monadic-embeddings yohasebe/monadic-extractor yohasebe/selenium qdrant/qdrant; do
-    if ${DOCKER} images -q "${img}" 2>/dev/null | grep -q .; then
-      echo "[INFO] Removing legacy local image ${img} (replaced by ghcr.io prebuilt)"
-      ${DOCKER} rmi "${img}" >/dev/null 2>&1 || true
-    fi
+  # Only the latest tag, the one those versions pulled or built.
+  for ref in $(image_refs yohasebe/monadic-privacy yohasebe/monadic-embeddings yohasebe/monadic-extractor yohasebe/selenium qdrant/qdrant | grep ':latest$'); do
+    echo "[INFO] Removing legacy local image ${ref} (replaced by ghcr.io prebuilt)"
+    ${DOCKER} rmi "${ref}" >/dev/null 2>&1 || true
   done
 }
 
@@ -1481,7 +1541,7 @@ start_docker_compose() {
   local retries=0
   while ! ${DOCKER} info > /dev/null 2>&1; do
     if [ $retries -ge $RETRY_COUNT ]; then
-      echo "Docker did not start. Please start Docker Desktop manually."
+      echo "Docker did not start. Please start Docker Desktop or the Docker-compatible runtime you use."
       # exit 1
     fi
     retries=$((retries + 1))
@@ -1853,12 +1913,13 @@ remove_containers() {
   # Stop all Docker Compose services with project name (including profiled services)
   eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_DOWN} -p \"monadic-chat\" down --remove-orphans"
 
-  local images=$(${DOCKER} images --filter "reference=yohasebe/monadic-chat" --format "{{.Repository}}:{{.Tag}}")
+  # Podman names an image it builds itself localhost/...
+  local images=$(image_refs yohasebe/monadic-chat localhost/yohasebe/monadic-chat)
   local containers=$(${DOCKER} ps -a --filter "name=monadic-chat-" --format "{{.Names}}")
 
   # Remove the Docker images and containers of the monadic-chat project
   for image in ${images}; do
-    remove_image "${image}"
+    ${DOCKER} rmi -f "${image}" >/dev/null
   done
 
   for container in ${containers}; do
@@ -1884,28 +1945,41 @@ remove_containers() {
 # build calls it first), where deleting the prebuilt service images would
 # force a multi-GB re-download on every rebuild. Uninstall, however,
 # must leave no images behind — docs/getting-started/uninstallation.md
-# enumerates exactly these. The substring match in remove_image covers
-# both the ghcr.io/yohasebe/monadic-* prebuilt repos and the legacy
-# locally built yohasebe/monadic-* names with one call each.
+# enumerates exactly these: the ghcr.io/yohasebe/monadic-* prebuilt repos
+# and the legacy locally built yohasebe/monadic-* names.
 remove_service_images() {
-  remove_image "yohasebe/monadic-embeddings"
-  remove_image "yohasebe/monadic-privacy"
-  remove_image "yohasebe/monadic-extractor"
-  remove_image "yohasebe/monadic-python"
-  remove_image "yohasebe/monadic-qdrant"
-  remove_image "yohasebe/monadic-selenium"
-  remove_image "yohasebe/python"
+  local name
+  for name in monadic-embeddings monadic-privacy monadic-extractor monadic-python monadic-qdrant monadic-selenium; do
+    remove_image "ghcr.io/yohasebe/${name}" "yohasebe/${name}"
+  done
+  remove_image yohasebe/python localhost/yohasebe/python
   # Legacy names from before the ghcr.io unification (locally built
   # selenium, upstream qdrant) — still present on upgraded installs.
-  remove_image "yohasebe/selenium"
-  remove_image "qdrant/qdrant"
-  remove_image "yohasebe/pgvector"
+  remove_image yohasebe/selenium qdrant/qdrant yohasebe/pgvector
 }
 
-# Function to remove images containing the string in $1
+# The images (repository:tag) of exactly the repositories named. Engines
+# list and match names differently (Docker shortens docker.io names, Podman
+# names them in full and matches a short name against any registry), so the
+# list is read and compared here. Removing by name only untags: other tags
+# of the same image stay.
+image_refs() {
+  ${DOCKER} images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | tr -d '\r' | awk -v names="$*" '
+    BEGIN { n = split(names, list, " "); for (i = 1; i <= n; i++) want[list[i]] = 1 }
+    /:<none>$/ { next }
+    {
+      repo = $0; sub(/:[^:\/]*$/, "", repo)
+      # docker.io/x/y is x/y; docker.io/library/z is z (one component only)
+      short = repo; sub(/^docker\.io\//, "", short)
+      if (short ~ /^library\/[^\/]+$/) sub(/^library\//, "", short)
+      if ((repo in want) || (short in want)) print $0
+    }'
+}
+
+# Removes the images of the repositories named (see image_refs)
 remove_image() {
-  local images=$(${DOCKER} images --format "{{.Repository}}:{{.Tag}}" | grep "$1")
-  for image in ${images}; do
+  local image
+  for image in $(image_refs "$@"); do
     ${DOCKER} rmi -f "${image}" >/dev/null
   done
 }
@@ -1927,21 +2001,28 @@ remove_volume() {
 # Function to remove project-specific dangling images
 remove_project_dangling_images() {
   local project_label="monadic-chat"
-  ${DOCKER} images -f "dangling=true" -f "label=project=${project_label}" --format "{{.ID}}" | xargs -r docker rmi -f
+  ${DOCKER} images -f "dangling=true" -f "label=project=${project_label}" --format "{{.ID}}" | xargs -r "${DOCKER}" rmi -f
 }
 
 # Function to remove older images
 remove_older_images() {
-  local image_name="$1"
-  local latest_image_id=$(${DOCKER} images --format "{{.ID}}" "${image_name}:${MONADIC_VERSION}")
-  ${DOCKER} images --format "{{.ID}} {{.Repository}}:{{.Tag}}" "${image_name}" | grep -v "${latest_image_id}" | awk '{print $1}' | xargs -r ${DOCKER} rmi -f
+  local image_name="$1" ref
+  local current=$(${DOCKER} image inspect --format '{{.Id}}' "${image_name}:${MONADIC_VERSION}" 2>/dev/null)
+  # Without this version's image (its build failed), the older ones are
+  # what is left to run: keep them.
+  [ -z "${current}" ] && return 0
+  # By name, not by ID: a tag the user gave the same image stays.
+  for ref in $(image_refs "${image_name}" "localhost/${image_name}"); do
+    [ "$(${DOCKER} image inspect --format '{{.Id}}' "${ref}" 2>/dev/null)" = "${current}" ] && continue
+    ${DOCKER} rmi -f "${ref}" >/dev/null 2>&1 || true
+  done
 }
 
 # function to start jupyter lab
 run_jupyter() {
   local command="$1"
   local container_name="monadic-chat-python-container"
-  if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
+  if ${DOCKER} ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
     start_docker_compose silent
   else
     echo "[HTML]: <p>Container '${container_name}' does not exist. Please build the container first.</p><hr />"
@@ -2043,6 +2124,18 @@ import_db() {
 }
 
 # Parse the user command
+# A remote or unset engine is not used for anything but the reports.
+case "$1" in
+  check|runtime|"") ;;
+  *)
+    if [ -n "${RUNTIME_REFUSED}" ]; then
+      echo "[HTML]: <p>Docker cannot be used: ${RUNTIME_REFUSED}.</p>"
+      echo "Docker cannot be used: ${RUNTIME_REFUSED}" >&2
+      exit 1
+    fi
+    ;;
+esac
+
 case "$1" in
 build_ruby_container)
   ensure_data_dir "ruby" &&
@@ -2170,7 +2263,14 @@ build)
   fi
   ;;
 check)
-  check_if_docker_desktop_is_running
+  if [ -n "${RUNTIME_REFUSED}" ]; then
+    echo "refused"
+  else
+    check_if_docker_desktop_is_running
+  fi
+  ;;
+runtime)
+  runtime_report
   ;;
 start)
   ensure_data_dir "" &&
@@ -2184,7 +2284,7 @@ stop)
     echo "[SERVER STOPPED]" &&
     echo "[HTML]: <p><b>Monadic Chat has been stopped.</b></p>"
   else
-    echo "[HTML]: <p>Docker Desktop is not running, skipping stop operation.</p>"
+    echo "[HTML]: <p>Docker is not running, skipping stop operation.</p>"
   fi
   ;;
 restart)

@@ -153,6 +153,7 @@ docker compose --project-directory docker/services -f docker/services/compose.ym
 - `~/monadic/data` → `/monadic/data` (shared data)
 - `~/monadic/config` → `/monadic/config` (API keys, settings)
 - `~/monadic/log` → `/monadic/log` (logs)
+- The engine's socket → `/var/run/docker.sock` (Ruby only; `monadic.sh` sets `MONADIC_DOCKER_SOCK` from the engine). The Ruby service runs with `security_opt: label=disable` because an engine that applies SELinux labels (Podman) otherwise blocks it from that socket, and the socket already gives it the engine, so the label confines nothing more.
 
 ## Port Mappings (defaults)
 

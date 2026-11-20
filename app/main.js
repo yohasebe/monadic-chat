@@ -18,6 +18,7 @@ const opReferences = require('./op_references');
 const keyCheck = require('./key_check');
 const { createRevealHandler, createTrashHandler, showSharedPath, NO_ANSWER } = require('./shared_folder_reveal');
 const { copyAddressItems } = require('./context_menu_copy');
+const { createPullProgress } = require('./pull_progress');
 const { writeStreamNoFollow, readStreamNoFollow, openReadNoFollow } = require('./no_follow_files');
 const { monadicShEnv, monadicInvocation } = require('./monadic_env');
 const { keepWarnings, createLineBuffer } = require('./build_output');
@@ -623,6 +624,13 @@ function showDockerMissingNotice() {
 }
 let wsl2Installed = false;
 
+// PATH with the folders a Docker CLI is installed in on macOS, after the
+// app's own (the same folders monadic.sh adds).
+function dockerSearchPath() {
+  const extra = ['/usr/local/bin', '/opt/homebrew/bin', path.join(os.homedir(), '.docker', 'bin')];
+  return [process.env.PATH || '', ...extra].filter(Boolean).join(':');
+}
+
 let dotenv;
 if (app.isPackaged) {
   dotenv = require('dotenv');
@@ -796,13 +804,52 @@ class DockerManager {
     });
   }
 
+  // The engine the Docker CLI chooses, as monadic.sh resolves it (the same
+  // place every command runs, inside WSL on Windows): { origin, context,
+  // desktop, answers, engine, refused }, or null when it cannot be asked.
+  runtimeInfo() {
+    return new Promise((resolve) => {
+      exec(monadicCmd('runtime'), { timeout: 20000 }, (error, stdout) => {
+        if (error) return resolve(null);
+        const info = {};
+        for (const line of stdout.split('\n')) {
+          const at = line.indexOf('=');
+          // Shown in the console's HTML: plain characters only (a context
+          // name is the user's own text).
+          if (at > 0) info[line.slice(0, at).trim()] = line.slice(at + 1).trim().replace(/[^\w .,:()\/@+-]/g, '');
+        }
+        resolve(info);
+      });
+    });
+  }
+
   async ensureDockerDesktopRunning() {
-    // Check Docker Desktop status
+    const runtime = await this.runtimeInfo();
+    if (runtime && runtime.refused) {
+      noticeInMainWindow(formatMessage('warning', 'messages.dockerRefused', { reason: runtime.refused }) + '<hr />');
+      return;
+    }
+    if (runtime && runtime.answers === '1' && runtime.engine) {
+      const engine = runtime.product || runtime.engine;
+      writeToScreen(runtime.context
+        ? formatMessage('info', 'messages.dockerEngineContext', { engine, context: runtime.context })
+        : formatMessage('info', 'messages.dockerEngine', { engine }));
+    }
+    // The engine's name for the indicator (display only): what it calls
+    // itself, or, when it does not answer, Docker for Docker Desktop's
+    // context and the context's name otherwise.
+    if (runtime) noteEngineName(runtime);
+    // Check the engine's status
     const st = await this.checkStatus();
     if (!st && process.platform === 'linux' && this.accessDenied) {
       // Starting Docker cannot help: it is running, but not for this user.
       // Shown in the main window rather than a modal dialog, which would
       // cover the window at startup.
+      noticeInMainWindow(formatMessage('warning', this.dockerUnavailableMessageKey()) + '<hr />');
+      return;
+    }
+    if (!st && runtime && runtime.desktop !== '1') {
+      // Another engine is chosen: its owner starts it.
       noticeInMainWindow(formatMessage('warning', this.dockerUnavailableMessageKey()) + '<hr />');
       return;
     }
@@ -845,8 +892,10 @@ class DockerManager {
           });
         });
       } else if (os.platform() === 'darwin') {
-        exec('/usr/local/bin/docker -v', function (err, stdout) {
-          dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
+        // The Docker CLI where Docker Desktop, Homebrew and other runtimes
+        // put it; an app opened from the Finder has a short PATH.
+        exec('docker -v', { env: { ...process.env, PATH: dockerSearchPath() } }, function (err, stdout) {
+          dockerInstalled = !err && (stdout.includes('docker') || stdout.includes('Docker'));
           dockerMissing = !dockerInstalled;
           if (!dockerInstalled) {
             reportDockerMissing();
@@ -931,9 +980,33 @@ class DockerManager {
               }
             });
             
+            // Image downloads: their layer lines become one line on the
+            // console, updated in place (the log files keep every line).
+            const pulls = createPullProgress();
+            let pullShownAt = 0;
+            const showPull = (done) => {
+              const now = Date.now();
+              if (!done && now - pullShownAt < 250) return;
+              pullShownAt = now;
+              const { bytes, text: size } = pulls.progress();
+              // Without a size yet (a small image arrives in one step), none is said.
+              const key = done ? (bytes ? 'messages.pullDone' : 'messages.pullDoneNoSize')
+                : (bytes ? 'messages.pullProgress' : 'messages.pullProgressNoSize');
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('pull-progress', { done, text: i18n.t(key, { size }) });
+              }
+              if (done) pulls.reset();
+            };
+
             // Handled a whole line at a time (a marker or a warning cut
             // between two chunks would otherwise be missed or lost).
             const stdoutLines = createLineBuffer(function (output) {
+              // The image download lines leave the block (see pulls).
+              const { rest, took } = pulls.filter(output);
+              if (took) showPull(false);
+              if (!rest) return;
+              if (pulls.active()) showPull(true);
+              output = rest;
               
               // Translate Docker messages before displaying
               let translatedOutput = output;
@@ -1001,7 +1074,10 @@ class DockerManager {
                   // Styled version info with visual separation
                   const appLabel = i18n.t('messages.versionInfoApp');
                   const containerLabel = i18n.t('messages.versionInfoContainer');
-                  translatedOutput = `[HTML]: <p style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"><span class="msg-version-app" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-desktop" style="color: #4CACDC; margin-right: 4px;"></i>${appLabel} <strong>v${appVersionMatch[1]}</strong></span><span class="msg-version-container" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-brands fa-docker" style="color: #2496ED; margin-right: 4px;"></i>${containerLabel} <strong>v${containerVersionMatch[1]}</strong></span></p>`;
+                  // "None": no Ruby image yet (monadic.sh compares it as a version).
+                  const containerVersion = containerVersionMatch[1] === 'None'
+                    ? i18n.t('messages.containerNotBuilt') : `v${containerVersionMatch[1]}`;
+                  translatedOutput = `[HTML]: <p style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"><span class="msg-version-app" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-desktop" style="color: #4CACDC; margin-right: 4px;"></i>${appLabel} <strong>v${appVersionMatch[1]}</strong></span><span class="msg-version-container" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-cubes" style="color: #2496ED; margin-right: 4px;"></i>${containerLabel} <strong>${containerVersion}</strong></span></p>`;
                 }
               }
 
@@ -1103,6 +1179,7 @@ class DockerManager {
 
             subprocess.on('close', function (code) {
               stdoutLines.flush();
+              if (pulls.active()) showPull(true);
               if (code !== 0) {
                 dialog.showErrorBox(i18n.t('dialogs.error'), i18n.t('dialogs.dockerCommandFailed', { code }));
               }
@@ -3052,13 +3129,12 @@ function writeToScreen(text) {
   }
 }
 
-// The console's first message: what to have running, and how to start
+// The console's first message: how to start (whether the container engine
+// runs is shown by the indicator, and said when it does not)
 function openingMessageHtml() {
-  const tipKey = process.platform === 'linux' ? 'messages.standaloneModeTipLinux' : 'messages.standaloneModeTip';
   return `
     [HTML]: 
     <p><b>Monadic Chat</b></p>
-    <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${i18n.t(tipKey)}</p>
     <p>${i18n.t('messages.pressStartButton')}</p>
     <hr />`;
 }
@@ -3192,6 +3268,7 @@ function createMainWindow() {
     }
     mainWindowLoaded = true;
     pendingMainWindowNotices.splice(0).forEach(html => writeToScreen(html));
+    sendEngineName();
     
     // Send interface language to Web UI
     const envPath = getEnvPath();
@@ -4859,6 +4936,29 @@ let lastDockerStatusCheckTime = 0;
 const DOCKER_STATUS_CHECK_INTERVAL = 2000; // Check every 2 seconds for better responsiveness
 
 let lastSecretDeliveryCheck = 0;
+// The container engine's name (display only): what the engine calls itself,
+// or, while it does not answer, Docker for Docker Desktop's context and the
+// context's name otherwise. A name not from the engine is asked again once
+// the engine answers.
+let engineName = null;
+let engineNameFromEngine = false;
+let engineNameAsking = false;
+let engineNameAskedAt = 0;
+// The CLI's context can change while the app runs: the name is asked again
+// now and then.
+const ENGINE_NAME_RECHECK_MS = 60000;
+
+function noteEngineName(runtime) {
+  engineNameFromEngine = Boolean(runtime.product);
+  engineName = runtime.product || (runtime.desktop === '1' ? 'Docker' : runtime.context) || 'Docker';
+  sendEngineName();
+}
+
+function sendEngineName() {
+  if (engineName && mainWindow && !mainWindow.isDestroyed() && mainWindowLoaded) {
+    mainWindow.webContents.send('engine-name', engineName);
+  }
+}
 async function updateDockerStatus() {
   const now = Date.now();
   // Only perform check if enough time has passed since last check
@@ -4874,6 +4974,14 @@ async function updateDockerStatus() {
   }
   if (dockerInstalled) {
     const status = await dockerManager.checkStatus();
+    if (status && !engineNameAsking &&
+        (!engineNameFromEngine || now - engineNameAskedAt >= ENGINE_NAME_RECHECK_MS)) {
+      engineNameAsking = true;
+      engineNameAskedAt = now;
+      dockerManager.runtimeInfo()
+        .then((runtime) => { if (runtime) noteEngineName(runtime); })
+        .finally(() => { engineNameAsking = false; });
+    }
     // The Ruby container can be restarted outside a Start (rebuilds,
     // restarts of dependent services); its new instance needs the values too.
     if (status && secretCache.hasValues() && now - lastSecretDeliveryCheck >= 5000) {
@@ -4883,6 +4991,7 @@ async function updateDockerStatus() {
     if (mainWindow && !mainWindow.isDestroyed()) {
       // Pass Docker status to UI (running or not)
       mainWindow.webContents.send('docker-desktop-status-update', status);
+      sendEngineName();
       // if status is false, meaning Docker Desktop is not running,
       // update the context menu and buttons only if the current status is not "Stopped"
       if (!status && currentStatus !== 'Stopped') {

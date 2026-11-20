@@ -1,4 +1,4 @@
-FROM python:3.12-slim-bookworm
+FROM docker.io/library/python:3.12-slim-bookworm
 # Default needed: the CI publish workflow builds without build-args, and
 # the project label drives label-filtered cleanup (remove_project_dangling_images).
 ARG PROJECT_TAG=monadic-chat

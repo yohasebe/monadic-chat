@@ -376,7 +376,9 @@ module Monadic
       # containers whose mounts keep apps and helpers read-only.
       def user_code_files(dir, pattern)
         files = code_files(dir, pattern)
-        return files if File.file?("/.dockerenv") || user_code_asked_for_on_host?
+        # In a container whose settings also say so: a setting can only turn
+        # the loading off, never on.
+        return files if (Environment.container_marker? && Environment.in_container?) || user_code_asked_for_on_host?
 
         unless files.empty? || @told_user_code_skipped
           @told_user_code_skipped = true

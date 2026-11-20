@@ -1,4 +1,4 @@
-FROM python:3.11.10-slim-bookworm
+FROM docker.io/library/python:3.11.10-slim-bookworm
 
 ARG PROJECT_TAG=monadic-chat
 ARG MODEL_NAME=intfloat/multilingual-e5-base

@@ -190,6 +190,10 @@ module MonadicDSL
     # Convert tools to provider-specific format
 
     def to_h
+      internal = internal_tool_names
+      @tools.reject! { |tool| internal.include?(tool.name) }
+      groups = Array(@state.settings[:internal_tool_groups]).map(&:to_s)
+      @state.settings[:imported_tool_groups]&.reject! { |g| groups.include?(g[:name].to_s) }
       conditional_metadata = []
       formatted_tools = @tools.map do |tool|
         formatted = @formatter.format(tool)
@@ -218,6 +222,13 @@ module MonadicDSL
       # tools from the PTD metadata whenever a later injection runs, silently
       # un-hiding them. Union keeps this idempotent for repeated calls on the same
       # config and cumulative across configs.
+      if internal.any? && @state.settings[:progressive_tools]
+        pt = @state.settings[:progressive_tools]
+        pt[:all_tool_names] = Array(pt[:all_tool_names]) - internal
+        pt[:always_visible] = Array(pt[:always_visible]) - internal
+        pt[:conditional] = Array(pt[:conditional]).reject { |c| internal.include?(c[:name]) }
+      end
+
       if @tools.any?
         pt = (@state.settings[:progressive_tools] ||= {})
         pt[:provider] = @provider
@@ -232,6 +243,20 @@ module MonadicDSL
 
       wrapper = PROVIDER_WRAPPERS[@provider] || PROVIDER_WRAPPERS[:default]
       wrapper.call(formatted_tools)
+    end
+
+    # A group imported for the app's own use only (visibility "internal"):
+    # its module is included (Monadic::DSL reads internal_tool_groups), and
+    # its tools are never offered, also when another import of the same group
+    # came first or comes later (to_h leaves them out).
+    def import_internal(group, names)
+      @state.settings[:internal_tool_groups] = Array(@state.settings[:internal_tool_groups]) | [group.to_sym]
+      @state.settings[:internal_tool_names] = Array(@state.settings[:internal_tool_names]) | names.map(&:to_s)
+      @tools.reject! { |tool| names.include?(tool.name) }
+    end
+
+    def internal_tool_names
+      Array(@state.settings[:internal_tool_names]).map(&:to_s)
     end
 
     # Provider-specific settings
@@ -259,7 +284,13 @@ module MonadicDSL
     # Import shared tool groups with specified visibility
     #
     # @param groups [Array<Symbol>] Tool group names (e.g., :file_operations, :web_search_tools)
-    # @param visibility [String] Visibility type: "always", "conditional", or "initial" (default: "conditional")
+    # @param visibility [String] Visibility type: "always", "conditional", "initial", or "internal"
+    #   (default: "conditional"). "internal" imports the group for the app's
+    #   own use (its Ruby methods, and the state and notes it declares) and
+    #   never offers its tools to the model: they are not defined, and their
+    #   names are kept in settings[:internal_tool_names] so the request leaves
+    #   them out whatever else asks for them. With "internal", offer: names
+    #   tools of the group that are offered all the same (always).
     # @param options [Hash] Additional options
     # @option options [String] :unlock_hint Custom unlock hint (overrides default)
     def import_shared_tools(*groups, visibility: "conditional", **options)
@@ -285,6 +316,24 @@ module MonadicDSL
 
         # Get tool specifications from registry
         tool_specs = MonadicSharedTools::Registry.tools_for(group)
+
+        if visibility.to_s == "internal"
+          # The tools named in offer: are still offered (always); the
+          # others are kept for the app's own use.
+          offered = Array(options[:offer]).map(&:to_s)
+          import_internal(group, tool_specs.map(&:name) - offered)
+          tool_specs.select { |spec| offered.include?(spec.name) }.each do |spec|
+            next if @tools.any? { |t| t.name == spec.name }
+
+            define_tool spec.name, spec.description do
+              spec.parameters.each do |param|
+                parameter param[:name], param[:type], param[:description], required: param[:required], items: param[:items]
+              end
+              visibility "always"
+            end
+          end
+          next
+        end
 
         # Define each tool in the group and count actually added tools
         added_tool_count = 0

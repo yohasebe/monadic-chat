@@ -134,6 +134,23 @@ RSpec.describe "An app's state with the session a real chat has" do
     expect(board.selected(tab: "tab-2", generation: nil)).to eq(item[:id])
   end
 
+  it "selects the notes kept after a reply only for a tab that shows nothing" do
+    run_reply { app.update_context(topics: ["AI"], session: session) }
+    folder = Monadic::Workspace::Folders.ensure!(session, app_name: Monadic::TurnState.app_of(session))
+    other = File.join(folder[:relative_dir], "other.md")
+    File.write(File.join(@data, other), "other")
+    board = Monadic::Workbench::Board.for(chat)
+    shown, = board.add_file(path: other, origin: { actor: :assistant, tab: "tab-2", generation: nil },
+                            epoch: Monadic::Workspace::Chats.epoch(chat), wait: 0)
+
+    path = Monadic::TurnState::Notes.refresh(session, show: :quiet, tab: "tab-1")
+    Monadic::TurnState::Notes.refresh(session, show: :quiet, tab: "tab-2")
+    page = board.snapshot[:items].find { |i| i[:path] == path }
+
+    expect(board.selected(tab: "tab-1", generation: nil)).to eq(page[:id])
+    expect(board.selected(tab: "tab-2", generation: nil)).to eq(shown["id"])
+  end
+
   it "gives a value of the state to what reads it outside the tools" do
     run_reply { tools.monadic_save_state(key: "context", payload: { "notebook_filename" => "a.ipynb" }, session: session) }
 

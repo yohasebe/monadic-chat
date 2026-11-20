@@ -12,6 +12,7 @@ require_relative '../workspace/ids'
 require_relative '../workspace/attachments'
 require_relative '../workspace/ledger'
 require_relative '../workspace/shared_folder_preview'
+require_relative '../turn_state/keeper'
 
 module Monadic
   module Workbench
@@ -45,9 +46,14 @@ module Monadic
         # is new) lets it go.
         unless board
           return { 'type' => 'workbench', 'board' => empty_board(chat_id), 'approvals' => {}, 'assets' => {},
-                   'renders' => {}, 'selected' => nil, 'initial' => initial }
+                   'renders' => {}, 'selected' => nil, 'initial' => initial,
+                   'notes' => Monadic::TurnState::Keeper.status(chat_id) }.compact
         end
 
+        # The selection is read before the items: an item it names was on
+        # the board then, so the items read after hold it unless it was
+        # removed meanwhile.
+        selected, serial, quiet = board.selection_with_quiet(tab: tab, generation: generation)
         snapshot = board.snapshot
         approvals = {}
         assets = {}
@@ -66,9 +72,9 @@ module Monadic
           renders[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256],
                                                                                          purpose: :render)
         end
-        selected, serial = board.selection(tab: tab, generation: generation)
         { 'type' => 'workbench', 'board' => snapshot, 'approvals' => approvals, 'assets' => assets,
-          'renders' => renders, 'selected' => selected, 'selection_serial' => serial, 'initial' => initial }
+          'renders' => renders, 'selected' => selected, 'selection_serial' => serial, 'selection_quiet' => quiet || nil,
+          'initial' => initial, 'notes' => Monadic::TurnState::Keeper.status(chat_id) }.compact
       end
 
       # The user's removal of an image from the board, sent with the token

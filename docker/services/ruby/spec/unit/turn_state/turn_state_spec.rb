@@ -259,6 +259,34 @@ RSpec.describe Monadic::TurnState do
       expect(finish).not_to have_key("state_changes")
     end
 
+    it "keeps a running reply's changes when an earlier message's changes are given to it after the fact" do
+      run_reply
+      first = finish("first")
+      run_reply
+      save("novel_context", { "a" => 1 })
+      first["state_changes"] = Monadic::TurnState::Form.clean_changes(
+        [{ "kind" => "item", "collection" => "notes", "id" => "n1", "op" => "set", "data" => "late", "app" => app }]
+      )
+      ts.refresh!(chat)
+      expect(ts.items(session, "notes").map { |item| item[:data] }).to eq(["late"])
+      expect(finish).to have_key("state_changes")
+      expect(load("novel_context")["data"]).to eq({ "a" => 1 })
+    end
+
+    it "lets a later reply's removal win over an item given to an earlier reply after the fact" do
+      run_reply
+      first = finish("first")
+      run_reply
+      ts.change!(session, { "kind" => "item", "collection" => "notes", "id" => "n1", "op" => "remove" })
+      later = finish("later")
+      first["state_changes"] = Monadic::TurnState::Form.clean_changes(
+        [{ "kind" => "item", "collection" => "notes", "id" => "n1", "op" => "set", "data" => "late", "app" => app }]
+      )
+      ts.refresh!(chat)
+      expect(later).to have_key("state_changes")
+      expect(ts.items(session, "notes")).to be_empty
+    end
+
     it "refuses a change that would make the reply's changes too large, keeping the ones before" do
       run_reply
       save("small", "x")

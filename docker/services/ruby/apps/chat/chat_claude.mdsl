@@ -33,21 +33,9 @@ app "ChatClaude" do
   system_prompt <<~TEXT
     You are a friendly and professional consultant with deep knowledge across various domains. You provide thoughtful, well-reasoned responses while maintaining a warm and approachable tone. Insert an emoji that you deem appropriate for the user's input at the beginning of your response.
 
-    ## Context Tracking
+    ## Notes of the Conversation
 
-    You have session context tools to track conversation information. The user sees the context as a page on the work screen, made again after each reply that changes it.
-
-    **When to update context** (use `update_context`):
-    - Topics being discussed → topics parameter
-    - People mentioned → people parameter
-    - Important facts, dates, preferences → notes parameter
-
-    **To remove items**: Use `remove_from_context` or `clear_context`.
-
-    Example:
-    - User mentions "I'm John, a software engineer" → call update_context(people: ["John - software engineer"])
-    - User asks about Python → call update_context(topics: ["Python programming"])
-    - User says "remember I prefer dark mode" → call update_context(notes: ["User prefers dark mode"])
+    The topics, people and notes of this conversation are kept as a page on the work screen. New ones are added from the conversation after each reply without your help, so answer directly and do not narrate note-keeping. Call `remove_from_context` or `clear_context` only when the user explicitly asks you to forget, remove or clear notes, and say what was removed only after the tool reports it; never call them otherwise.
 
     ## File Operations
 
@@ -81,6 +69,7 @@ app "ChatClaude" do
   display_name "Chat"
 
   features do
+    keep_notes true
     max_tool_rounds 10
     websearch true
     disabled !CONFIG["ANTHROPIC_API_KEY"]
@@ -92,8 +81,8 @@ app "ChatClaude" do
   end
 
   tools do
-    # Import shared session context tools
-    import_shared_tools :session_context, visibility: "always"
+    # The conversation's notes: added by the app after each reply; removing is offered for explicit requests
+    import_shared_tools :session_context, visibility: "internal", offer: %w[remove_from_context clear_context]
     # Import shared file operations tools
     import_shared_tools :file_operations, visibility: "always"
   end

@@ -417,24 +417,9 @@ window.loadParams = function(params, calledFor = "loadParams") {
   // Update AI Assistant info badge when model is loaded
   if (params.model) {
     const selectedModel = params.model;
-    // Extract provider from app_name parameter
-    let provider = "OpenAI";
-    if (params.app_name && apps[params.app_name] && apps[params.app_name].group) {
-      const group = apps[params.app_name].group.toLowerCase();
-      if (group.includes("anthropic") || group.includes("claude")) {
-        provider = "Anthropic";
-      } else if (group.includes("gemini") || group.includes("google")) {
-        provider = "Google";
-      } else if (group.includes("cohere")) {
-        provider = "Cohere";
-      } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
-        provider = "Mistral";
-      } else if (group.includes("deepseek")) {
-        provider = "DeepSeek";
-      } else if (group.includes("grok") || group.includes("xai")) {
-        provider = "xAI";
-      }
-    }
+    // The provider of the app's group (getProviderFromGroup in monadic.js).
+    const group = params.app_name && apps[params.app_name] ? apps[params.app_name].group : null;
+    const provider = typeof window.getProviderFromGroup === 'function' ? window.getProviderFromGroup(group) : 'OpenAI';
     // Update the badge in the AI User section
     const aiAssistantText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.aiAssistant') : 'AI Assistant';
     const aiAssistantInfo = $id("ai-assistant-info");

@@ -284,6 +284,9 @@ module WebSocketHelper
                                app_name: params["app_name"], attachment_refs: attachment_refs))
       session[:messages] << user_message_data
       sync_session_state!
+      # The model this request is sent with, for the notes kept after its
+      # reply (Monadic::TurnState::Keeper).
+      Monadic::TurnState::Keeper.sent_with(request_context.request_id, params["model"], message_text)
 
       # Auto-detect: lock the session language (for finding words to hide)
       # from the user's actual typed text.

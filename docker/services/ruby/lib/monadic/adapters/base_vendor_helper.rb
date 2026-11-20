@@ -258,6 +258,13 @@ module BaseVendorHelper
   # so a call of a tool that was left out is refused.
   def offer_tools!(body, session, app, provider:, model:)
     if body["tools"]
+      body["tools"] = Monadic::Utils::ToolDispatchGuard.without(body["tools"], internal_tool_names(app))
+      if body["tools"].nil?
+        body.delete("tools")
+        body.delete("tool_choice")
+      end
+    end
+    if body["tools"]
       body["tools"] = Monadic::Workbench::Look::Availability.filter(body["tools"], session: session,
                                                                      provider: provider, model: model)
       # Nothing is left to offer: no tools and no choice among them.
@@ -267,6 +274,13 @@ module BaseVendorHelper
       end
     end
     Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
+  end
+
+  # The tools the app keeps for its own use (DSL visibility "internal"):
+  # never offered, whatever the request was built from.
+  def internal_tool_names(app)
+    settings = defined?(APPS) && APPS[app].respond_to?(:settings) ? APPS[app].settings : nil
+    settings.respond_to?(:[]) ? Array(settings[:internal_tool_names] || settings["internal_tool_names"]) : []
   end
 
   # A tool's result that is a look (Look::Result) answers tool_call_id: its

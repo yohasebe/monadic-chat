@@ -59,6 +59,9 @@
   let selected = null;
   // Images already seen (a new one is brought forward once).
   const seen = new Set();
+  // Items that came to a work screen with nothing on it, until the work
+  // screen is shown or one of them is offered (the chat's first).
+  const firsts = new Set();
   // Images removed from here (not put away by the board to make room).
   const removed = new Set();
   // What each message records as made, as last drawn.
@@ -143,6 +146,21 @@
     if (!el) return false;
     if (el.isContentEditable || el.tagName === 'TEXTAREA') return true;
     return el.tagName === 'INPUT' && !['button', 'checkbox', 'radio', 'submit'].includes(el.type);
+  }
+
+  // The user is writing something: a field in focus that has text. The
+  // message box takes the focus after each reply, so focus alone is not
+  // writing.
+  const TEXT_INPUTS = ['', 'text', 'search', 'email', 'url', 'tel', 'password'];
+
+  function writing() {
+    const el = document.activeElement;
+    if (!el) return false;
+    let text = null;
+    if (el.isContentEditable) text = el.textContent;
+    else if (el.tagName === 'TEXTAREA') text = el.value;
+    else if (el.tagName === 'INPUT' && TEXT_INPUTS.includes(el.getAttribute('type') || '')) text = el.value;
+    return typeof text === 'string' && text !== '';
   }
 
   // A path in a line under an item is shown by its file name (short-paths.js).
@@ -935,16 +953,43 @@
   // column is, unless the user is typing (then only the announcement says
   // so).
   function bringForward(item) {
-    // The user is typing, or turned this off: the pane stays (the
+    // The user is writing, or turned this off: the pane stays (the
     // announcement says what came), and the server is told what this tab
     // still shows.
-    if (typing() || !autoSwitch()) {
+    if (writing() || !autoSwitch()) {
       tellSelected();
       return;
     }
     // What the page showed of an attachment gives way to the new item.
     clearLocal();
     selected = item.id;
+    showWorkPane();
+  }
+
+  // Whether the work screen is the pane shown (with no side column to
+  // read, it is).
+  function workPaneShown() {
+    const lc = window.LayoutController;
+    return !lc || (!lc.isMenuHidden() && lc.selectedPane() === 'work');
+  }
+
+  // What came to the work screen while another pane was shown: the tab
+  // keeps a mark until the work screen is shown.
+  function markUnseen(on) {
+    const mark = $id('side-tab-work-new');
+    if (mark) mark.hidden = !on;
+  }
+
+  if (typeof document !== 'undefined') {
+    document.addEventListener('layoutchange', () => {
+      if (!workPaneShown()) return;
+      markUnseen(false);
+      firsts.clear();
+    });
+  }
+
+  // The side column, when shown, turns to the work screen.
+  function showWorkPane() {
     const lc = window.LayoutController;
     if (lc && !lc.isMenuHidden() && lc.selectedPane() !== 'work') lc.setPane('work');
   }
@@ -954,6 +999,7 @@
     // the menu rather than an empty work screen (a new item brings it back).
     const lc = window.LayoutController;
     if (lc && typeof lc.setPane === 'function' && lc.selectedPane() === 'work') lc.setPane('settings');
+    markUnseen(false);
     clearLocal();
     versionsOf = null;
     board = null;
@@ -971,6 +1017,7 @@
     letGo(drawnBody);
     drawnBody = null;
     seen.clear();
+    firsts.clear();
     removed.clear();
     operations.clear();
     records.clear();
@@ -1262,13 +1309,34 @@
 
   // ---- messages from the server --------------------------------------
 
+  // The notes the app adds after a reply (data.notes): 'updating' while
+  // they are made. Shown on the work screen's tab and above its items
+  // only: the reply's own status (the top of the page, the spinner, Ready)
+  // is not touched.
+  function showNotesStatus(state) {
+    const mark = $id('side-tab-work-mark');
+    const line = $id('workbench-notes-status');
+    const text = state === 'updating' ? t('ui.workbench.notesUpdating', 'Updating the notes…') : '';
+    if (mark) {
+      mark.hidden = state !== 'updating';
+      if (text) mark.setAttribute('title', text); else mark.removeAttribute('title');
+    }
+    if (line) {
+      line.textContent = text;
+      line.hidden = !text;
+    }
+  }
+
   function onView(data) {
     const next = data && data.board;
     if (!next || !Array.isArray(next.items)) return;
     if (board && next.chat_id === board.chat_id && next.board_id && next.board_id === board.board_id &&
         next.revision < board.revision) return;
-    if (board && next.chat_id !== board.chat_id) reset();
+    const switched = !!board && next.chat_id !== board.chat_id;
+    if (switched) reset();
+    showNotesStatus(data.notes || null);
     const before = items().map((item) => item.id);
+    const versions = new Map(rowItems().map((item) => [item.id, item.version]));
     board = next;
     approvals = data.approvals || {};
     assets = data.assets || {};
@@ -1281,7 +1349,9 @@
     if (selected && !itemById(selected)) selected = null;
     const arrived = rowItems().filter((item) => !seen.has(item.id));
     arrived.forEach((item) => seen.add(item.id));
-    const held = data.selected || null;
+    if (before.length === 0 && !data.initial && !workPaneShown()) arrived.forEach((item) => firsts.add(item.id));
+    // A selection whose item has not arrived yet is taken when it does.
+    const held = data.selected && itemById(data.selected) ? data.selected : null;
     const told = held !== serverSelected;
     serverSelected = held;
     serverSerial = typeof data.selection_serial === 'number' ? data.selection_serial : null;
@@ -1292,7 +1362,30 @@
     }
     // What the server selected for this tab (an item made or opened for
     // it) is brought forward once.
-    if (told && held && held !== selected && itemById(held) && !data.initial) bringForward(itemById(held));
+    if (told && held && held !== selected && itemById(held) && !data.initial) {
+      // An item offered quietly (the notes after a reply) is shown only on
+      // a work screen that shows nothing; otherwise the server is told what
+      // this tab still shows. The pane turns to it only when it is the
+      // first item of the chat's work screen.
+      if (data.selection_quiet) {
+        const first = firsts.has(held);
+        firsts.clear();
+        if (!selected && !local) {
+          selected = held;
+          if (first && !writing() && autoSwitch()) showWorkPane();
+        } else {
+          tellSelected();
+        }
+      } else {
+        bringForward(itemById(held));
+      }
+    }
+    // A new item, or a new version of one (the notes made again), while
+    // another pane is shown.
+    if (!switched && !data.initial && !workPaneShown() &&
+        rowItems().some((item) => !versions.has(item.id) || versions.get(item.id) !== item.version)) {
+      markUnseen(true);
+    }
     // What the user opened is shown, whatever the server's selection said.
     if (pendingOpen && itemById(pendingOpen)) {
       showOpened(pendingOpen);
@@ -1302,11 +1395,15 @@
     // What the page still shows is told again; otherwise the chat's open
     // browser is shown, as before.
     if (data.initial) {
-      if (!selected) {
+      // The chat's open browser first; an item offered quietly fills a
+      // screen that would show nothing. A shown attachment stays, and the
+      // server is told so.
+      if (!selected && !local) {
         const open = rowItems().find(liveBrowser);
         if (open) selected = open.id;
+        else if (held && data.selection_quiet) selected = held;
       }
-      if (selected) tellSelected();
+      if (selected || held) tellSelected();
     }
     // Images the board put away to make room (not removed here).
     if (before.some((id) => !itemById(id) && !removed.has(id))) {

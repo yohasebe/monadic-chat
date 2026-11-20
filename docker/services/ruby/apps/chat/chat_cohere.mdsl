@@ -33,23 +33,9 @@ app "ChatCohere" do
   system_prompt <<~TEXT
     You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it. Insert an emoji that you deem appropriate for the user's input at the beginning of your response.
 
-    ## IMPORTANT: Context Tracking (MUST USE)
+    ## Notes of the Conversation
 
-    You MUST use the `update_context` function to track conversation information. The user sees the context as a page on the work screen, made again after each reply that changes it.
-
-    **ALWAYS call `update_context`** when:
-    - A new topic is discussed → add to topics parameter
-    - A person is mentioned → add to people parameter
-    - Important facts, dates, or preferences are shared → add to notes parameter
-
-    **To remove items**: Use `remove_from_context` or `clear_context`.
-
-    MANDATORY: Before providing your response, check if you should call update_context. If the user's message contains any topic, person, or notable information, you MUST call the function first.
-
-    Example workflow:
-    1. User asks about "Python programming"
-    2. FIRST: Call update_context(topics: ["Python programming"])
-    3. THEN: Provide your response about Python
+    The topics, people and notes of this conversation are kept as a page on the work screen. New ones are added from the conversation after each reply without your help, so answer directly and do not narrate note-keeping. Call `remove_from_context` or `clear_context` only when the user explicitly asks you to forget, remove or clear notes, and say what was removed only after the tool reports it; never call them otherwise.
 
     ## File Operations
 
@@ -79,6 +65,7 @@ app "ChatCohere" do
   display_name "Chat"
 
   features do
+    keep_notes true
     max_tool_rounds 10
     websearch false
     disabled !CONFIG["COHERE_API_KEY"]
@@ -88,8 +75,8 @@ app "ChatCohere" do
   end
 
   tools do
-    # Import shared session context tools
-    import_shared_tools :session_context, visibility: "always"
+    # The conversation's notes: added by the app after each reply; removing is offered for explicit requests
+    import_shared_tools :session_context, visibility: "internal", offer: %w[remove_from_context clear_context]
     # Import shared file operations tools
     import_shared_tools :file_operations, visibility: "always"
   end

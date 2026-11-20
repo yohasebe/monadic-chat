@@ -144,7 +144,7 @@ function getProviderFromGroup(group) {
     return "Google";
   } else if (groupLower.includes("cohere")) {
     return "Cohere";
-  } else if (groupLower.includes("mistral")) {
+  } else if (["mistral", "pixtral", "ministral", "magistral", "devstral", "voxtral", "mixtral"].some((name) => groupLower.includes(name))) {
     return "Mistral";
   } else if (groupLower.includes("deepseek")) {
     return "DeepSeek";
@@ -937,27 +937,11 @@ document.addEventListener("DOMContentLoaded", function () {
     if (modelChangeEl) {
       modelChangeEl.addEventListener("change", function() {
         const selectedModel = this.value;
-        // Extract provider from params.group first (synced in proceedWithAppChange), fallback to current app group
-        let provider = "OpenAI";
+        // The provider of params.group (synced in proceedWithAppChange), or of the current app's group.
         var appsEl = $id("apps");
         const currentApp = appsEl ? appsEl.value : '';
         const grp = (typeof params !== 'undefined' && params && params["group"]) ? params["group"] : (apps[currentApp] && apps[currentApp].group ? apps[currentApp].group : null);
-        if (grp) {
-          const group = grp.toLowerCase();
-          if (group.includes("anthropic") || group.includes("claude")) {
-            provider = "Anthropic";
-          } else if (group.includes("gemini") || group.includes("google")) {
-            provider = "Google";
-          } else if (group.includes("cohere")) {
-            provider = "Cohere";
-          } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
-            provider = "Mistral";
-          } else if (group.includes("deepseek")) {
-            provider = "DeepSeek";
-          } else if (group.includes("grok") || group.includes("xai")) {
-            provider = "xAI";
-          }
-        }
+        const provider = getProviderFromGroup(grp);
         // Update the badge in the AI User section with provider name and model
         const aiAssistantText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.aiAssistant') : 'AI Assistant';
         var aiAssistantInfo = $id("ai-assistant-info");

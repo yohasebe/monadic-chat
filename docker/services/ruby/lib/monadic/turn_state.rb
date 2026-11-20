@@ -29,6 +29,7 @@ module Monadic
     @records = {}
     @writers = {}
     @revisions = Hash.new(0)
+    @refreshes = Hash.new(0)
     @closed = {}
     @cache = {}
     @update_locks = Hash.new { |h, k| h[k] = Mutex.new }
@@ -165,12 +166,25 @@ module Monadic
       end
     end
 
+    # An earlier message's changes were given to it after the fact (the
+    # notes kept after a reply): the derived state is made again, and a
+    # running reply's changes still go to its message (its revision stays).
+    def refresh!(chat_id)
+      return unless chat_id
+
+      @lock.synchronize do
+        @refreshes[chat_id] += 1
+        @cache.delete(chat_id)
+      end
+    end
+
     # For tests.
     def reset!
       @lock.synchronize do
         @records.clear
         @writers.clear
         @revisions.clear
+        @refreshes.clear
         @closed.clear
         @cache.clear
         @update_locks.clear
@@ -296,7 +310,7 @@ module Monadic
     def committed(session, app)
       chat_id = session.respond_to?(:[]) ? session[Monadic::Workspace::Chats::SESSION_KEY] : nil
       messages = Array(session.respond_to?(:[]) ? session[:messages] : nil)
-      signature = [app, @lock.synchronize { @revisions[chat_id] }, messages.size,
+      signature = [app, @lock.synchronize { [@revisions[chat_id], @refreshes[chat_id]] }, messages.size,
                    messages.last.is_a?(Hash) ? messages.last['mid'] : nil, base_of(session, app).hash]
       cached = chat_id && @lock.synchronize { @cache[chat_id] }
       return cached[:index] if cached && cached[:signature] == signature

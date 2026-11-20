@@ -60,7 +60,9 @@ describe('PDF export of drawings', () => {
     draws = [];
     // As the drawing part does: the image comes once the diagram is drawn;
     // a failure leaves none.
+    const real = require(js('monadic/workbench-render.js'));
     window.WorkbenchRender = {
+      failureNotice: real.failureNotice,
       draw: jest.fn((box, kind, text) => {
         const handle = { dispose: jest.fn(), svg: () => `<svg id="d">${text}</svg>` };
         if (text.includes('slow')) {

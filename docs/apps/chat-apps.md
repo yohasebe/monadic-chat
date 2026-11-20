@@ -8,13 +8,13 @@ General-purpose conversation and assistant apps: chat, voice conversation, and a
 
 Have a conversation with the AI, which responds with appropriate emojis. Web search is available for models that support tool calling; whether a provider uses its built-in search or the Tavily API (requires a `TAVILY_API_KEY`) is shown in the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities).
 
-<span id="chat-plus"></span>Chat keeps track of the conversation. As the AI responds, it updates these lists, shown on the [work screen](../basic-usage/web-interface.md#work-screen) as the **Context** page:
+<span id="chat-plus"></span>Chat keeps track of the conversation. After each reply, these lists are updated from that exchange and shown on the [work screen](../basic-usage/web-interface.md#work-screen) as the **Context** page; the reply does not wait for them, and the work screen's tab shows a mark while they are updated:
 
 - **Topics**: The topics discussed so far.
 - **People**: The people mentioned in the conversation.
 - **Notes**: Key facts and preferences to remember.
 
-Deleting a turn takes back what that turn added to the lists. The lists are kept with models that support tool calling; with an Ollama model without the `tools` capability, they are not kept.
+The lists are made with one more request per reply to the same provider and model. Ask the AI to forget or remove an item, or to clear the lists, and its reply removes it from the saved lists; the conversation itself keeps what was said. Deleting a turn takes back what that turn added to the lists. With an Ollama model without the `tools` capability, the lists are not kept.
 
 With `Open URL` below the message box, you can open a web page on the work screen or read its text into your message, with any provider.
 

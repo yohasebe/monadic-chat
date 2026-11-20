@@ -12,6 +12,7 @@ require_relative '../workspace/ids'
 require_relative '../workspace/attachments'
 require_relative '../workspace/ledger'
 require_relative '../workspace/shared_folder_preview'
+require_relative '../turn_state/keeper'
 
 module Monadic
   module Workbench
@@ -45,9 +46,14 @@ module Monadic
         # is new) lets it go.
         unless board
           return { 'type' => 'workbench', 'board' => empty_board(chat_id), 'approvals' => {}, 'assets' => {},
-                   'renders' => {}, 'selected' => nil, 'initial' => initial }
+                   'renders' => {}, 'selected' => nil, 'initial' => initial,
+                   'notes' => Monadic::TurnState::Keeper.status(chat_id) }.compact
         end
 
+        # The selection is read before the items: an item it names was on
+        # the board then, so the items read after hold it unless it was
+        # removed meanwhile.
+        selected, serial, quiet = board.selection_with_quiet(tab: tab, generation: generation)
         snapshot = board.snapshot
         approvals = {}
         assets = {}
@@ -66,9 +72,9 @@ module Monadic
           renders[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256],
                                                                                          purpose: :render)
         end
-        selected, serial = board.selection(tab: tab, generation: generation)
         { 'type' => 'workbench', 'board' => snapshot, 'approvals' => approvals, 'assets' => assets,
-          'renders' => renders, 'selected' => selected, 'selection_serial' => serial, 'initial' => initial }
+          'renders' => renders, 'selected' => selected, 'selection_serial' => serial, 'selection_quiet' => quiet || nil,
+          'initial' => initial, 'notes' => Monadic::TurnState::Keeper.status(chat_id) }.compact
       end
 
       # The user's removal of an image from the board, sent with the token
@@ -174,17 +180,24 @@ module Monadic
         select_result(*(board ? board.selection(tab: tab, generation: generation) : [nil, nil]), e.message, seq)
       end
 
-      # An address from which this connection's page saves a copy of an
-      # image of the chat (on the board or not: a message's record names it
-      # too), for a short time. Refused for another chat's image, or a
-      # connection a newer one replaced. Whether the file is
-      # still the one recorded is checked when the page asks for it.
+      # An address from which this connection's page saves, once and for a
+      # short time, a copy of an image of the chat (artifact_id: on the
+      # board or not, a message's record names it too) or of a file item of
+      # the chat's board at the version the page shows (item_id and
+      # sha256). Refused for another chat's image or item, a version the
+      # board no longer has, or a connection a newer one replaced. The name
+      # given is the file's own; whether the file is still that version is
+      # checked when the page asks for it.
       def download(obj, session, tab:, generation:, live:)
         artifact_id = obj['artifact_id']
-        return download_refusal(artifact_id, 'not_allowed') unless live.call(tab) == generation
+        item_id = obj['item_id']
+        refusal = { 'artifact_id' => artifact_id, 'item_id' => item_id }
+        return download_refusal(refusal, 'not_allowed') unless [artifact_id, item_id].compact.size == 1
+        return download_refusal(refusal, 'not_allowed') unless live.call(tab) == generation
 
         chat_id = chat_id_of(session)
-        return download_refusal(artifact_id, 'not_allowed') unless chat_id
+        return download_refusal(refusal, 'not_allowed') unless chat_id
+        return file_download(obj, chat_id, tab: tab, generation: generation) if item_id
 
         record = Artifact.record_of(artifact_id, chat_id: chat_id)
         token = ViewTokens.issue(tab: tab, generation: generation, chat_id: chat_id,
@@ -193,7 +206,27 @@ module Monadic
         { 'type' => 'workbench_download', 'artifact_id' => artifact_id, 'url' => AssetServer::PREFIX + token,
           'name' => File.basename(record[:copy_path]) }
       rescue Artifact::NotAllowed
-        download_refusal(artifact_id, 'not_allowed')
+        download_refusal(refusal, 'not_allowed')
+      end
+
+      def file_download(obj, chat_id, tab:, generation:)
+        item_id = obj['item_id']
+        sha256 = obj['sha256']
+        refusal = { 'item_id' => item_id }
+        return download_refusal(refusal, 'not_allowed') unless item_id.is_a?(String) && sha256.is_a?(String) &&
+                                                               sha256.match?(/\A\h{64}\z/)
+
+        board = Board.existing(chat_id) or return download_refusal(refusal, 'not_allowed')
+        entry = board.file_entry(item_id, sha256: sha256)
+        token = ViewTokens.issue(tab: tab, generation: generation, chat_id: chat_id,
+                                 epoch: Monadic::Workspace::Chats.epoch(chat_id), item_id: item_id,
+                                 sha256: sha256, purpose: :download)
+        { 'type' => 'workbench_download', 'item_id' => item_id, 'url' => AssetServer::PREFIX + token,
+          'name' => File.basename(entry['path']) }
+      rescue Artifact::Changed
+        download_refusal(refusal, 'changed')
+      rescue Artifact::NotAllowed
+        download_refusal(refusal, 'not_allowed')
       end
 
       # The reply of request_id was recorded as the message mid in the
@@ -273,8 +306,8 @@ module Monadic
           'status' => reason ? 'refused' : 'accepted', 'reason' => reason, 'seq' => seq }.compact
       end
 
-      def download_refusal(artifact_id, reason)
-        { 'type' => 'workbench_download', 'artifact_id' => artifact_id, 'status' => 'refused', 'reason' => reason }
+      def download_refusal(ids, reason)
+        { 'type' => 'workbench_download', 'status' => 'refused', 'reason' => reason }.merge(ids.compact)
       end
     end
   end

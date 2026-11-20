@@ -235,6 +235,7 @@
       "notBuilt": "아직 빌드되지 않음",
       "optionsChanged": "옵션 변경됨 ({{options}})",
       "pythonContainer": "Python 컨테이너",
+      "privacyContainer": "Privacy 컨테이너(이름 찾기)",
       "minutes": "{{range}}분"
     }
   },

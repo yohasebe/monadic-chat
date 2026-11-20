@@ -1,31 +1,31 @@
 app "VoiceInterpreterOpenAI" do
   description do
     en <<~TEXT
-    Real-time voice translation between languages. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Real-time voice translation between languages. <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ja <<~TEXT
-    言語間のリアルタイム音声翻訳。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    言語間のリアルタイム音声翻訳。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/apps/language-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     zh <<~TEXT
-    语言之间的实时语音翻译。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    语言之间的实时语音翻译。 <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ko <<~TEXT
-    언어 간 실시간 음성 번역. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    언어 간 실시간 음성 번역. <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     es <<~TEXT
-    Traducción de voz en tiempo real entre idiomas. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Traducción de voz en tiempo real entre idiomas. <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     fr <<~TEXT
-    Traduction vocale en temps réel entre langues. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Traduction vocale en temps réel entre langues. <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     de <<~TEXT
-    Echtzeit-Sprachübersetzung zwischen Sprachen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Echtzeit-Sprachübersetzung zwischen Sprachen. <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
 

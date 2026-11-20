@@ -408,7 +408,7 @@
       render();
     } catch (e) {
       if (mine !== generation || (e && e.name === 'AbortError')) return;
-      showError(t('loadFailed', 'The shared folder could not be read') + ': ' + e.message);
+      showError(t('loadFailed', 'The shared folder could not be read'));
     } finally {
       matchingBusy = false;
       renderBands();
@@ -480,12 +480,32 @@
     return true;
   }
 
+  // A short reason in the interface language for an error code the app
+  // gives (never the code itself).
+  const REASONS = {
+    'the entry is not there': 'reasonNotThere',
+    'the entry changed': 'reasonChanged',
+    'the shared folder changed': 'reasonChanged',
+    'the path goes through a link': 'reasonLink',
+    'not a file or folder': 'reasonNotFile',
+    'not to be removed': 'reasonNotRemovable',
+    'the server did not answer': 'reasonNoAnswer'
+  };
+  function reason(code) {
+    const key = REASONS[code] || 'reasonFailed';
+    const fallbacks = { reasonNotThere: 'it is no longer there', reasonChanged: 'it changed meanwhile',
+      reasonLink: 'it is reached through a link', reasonNotFile: 'it is not a file or folder',
+      reasonNotRemovable: 'it is not to be removed', reasonNoAnswer: 'the server did not answer',
+      reasonFailed: 'it could not be done' };
+    return t(key, fallbacks[key]);
+  }
+
   async function reveal(item) {
     try {
       const result = await window.electronAPI.revealSharedEntry(state.rootId, item.path);
-      if (!result || !result.ok) showError(t('revealFailed', 'Could not show it') + ': ' + ((result && result.error) || ''));
-    } catch (e) {
-      showError(t('revealFailed', 'Could not show it') + ': ' + e.message);
+      if (!result || !result.ok) showError(t('revealFailed', 'Could not show it') + ': ' + reason(result && result.error));
+    } catch (_e) {
+      showError(t('revealFailed', 'Could not show it') + ': ' + reason(null));
     }
   }
 
@@ -963,7 +983,7 @@
     } catch (e) {
       if (mine !== generation || (e && e.name === 'AbortError')) return;
       loadingEnded();
-      showError(t('loadFailed', 'The shared folder could not be read') + ': ' + e.message);
+      showError(t('loadFailed', 'The shared folder could not be read'));
     }
   }
 
@@ -1043,13 +1063,13 @@
             result.results.forEach(function (r) {
               if (r.ok) moved.push(r.path);
               else if (r.not_tried) notTried += 1;
-              else failed.push(r.path + ' (' + (r.error || '') + ')');
+              else failed.push(r.path + ' (' + reason(r.error) + ')');
             });
           } else {
-            chunk.forEach(function (p) { failed.push(p + ' (' + ((result && result.error) || '') + ')'); });
+            chunk.forEach(function (p) { failed.push(p + ' (' + reason(result && result.error) + ')'); });
           }
         } catch (e) {
-          chunk.forEach(function (p) { failed.push(p + ' (' + e.message + ')'); });
+          chunk.forEach(function (p) { failed.push(p + ' (' + reason(null) + ')'); });
         }
       }
     } finally {

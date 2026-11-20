@@ -143,11 +143,36 @@ RSpec.describe "MonadicSharedTools::SessionContext" do
       expect(context).to eq("topics" => %w[AI Python], "people" => ["Alice"], "notes" => ["Note2"])
     end
 
-    it "changes nothing for a text that is not kept" do
-      _, message = run_reply { app.remove_from_context(topics: ["NonExistent"], session: session) }
+    it "changes nothing for a text that is not kept, and says it was not found" do
+      result, message = run_reply { app.remove_from_context(topics: ["NonExistent"], session: session) }
 
+      expect(result).to include(success: false, not_found: ["NonExistent"])
       expect(context["topics"]).to eq(%w[AI Ruby Python])
       expect(message).not_to have_key("state_changes")
+    end
+
+    it "says which texts it did not find when it removed others" do
+      result, = run_reply { app.remove_from_context(topics: %w[Ruby Elixir], session: session) }
+
+      expect(result).to include(success: true, not_found: ["Elixir"])
+      expect(context["topics"]).to eq(%w[AI Python])
+    end
+
+    it "removes a person named without the role" do
+      run_reply { app.update_context(people: ["Sato - teaches linguistics"], session: session) }
+      run_reply { app.remove_from_context(people: ["Sato"], session: session) }
+
+      expect(context["people"]).to eq(%w[John Alice])
+    end
+
+    it "removes the item stored, whatever id its text would have" do
+      run_reply do
+        Monadic::TurnState.change!(session, { "kind" => "item", "collection" => "notes", "id" => "t_#{"a" * 24}",
+                                              "op" => "set", "data" => "Imported" })
+      end
+      run_reply { app.remove_from_context(notes: ["Imported"], session: session) }
+
+      expect(context["notes"]).to eq(%w[Note1 Note2])
     end
   end
 
@@ -158,6 +183,16 @@ RSpec.describe "MonadicSharedTools::SessionContext" do
 
       expect(result[:success]).to be true
       expect(context).to eq("topics" => [], "people" => [], "notes" => [])
+    end
+
+    it "removes items stored under ids their texts would not give" do
+      run_reply do
+        Monadic::TurnState.change!(session, { "kind" => "item", "collection" => "topics", "id" => "t_#{"a" * 24}",
+                                              "op" => "set", "data" => "Imported" })
+      end
+      run_reply { app.clear_context(session: session) }
+
+      expect(context["topics"]).to eq([])
     end
   end
 

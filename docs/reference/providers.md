@@ -12,10 +12,10 @@ Chat providers, each with its own vendor adapter:
 - **Mistral AI** — chat, code generation, vision, text-to-speech, and speech-to-text
 - **Cohere** — chat, vision, and speech-to-text
 - **xAI Grok** — chat, code generation, vision, image generation, video generation, text-to-speech, and speech-to-text
-- **DeepSeek** — chat and vision (an attached image switches the request to a vision model)
+- **DeepSeek** — chat and vision (with a model that cannot see images, an attached image switches the request to a vision model)
 - **Ollama** — chat with local models on your own machine. Ollama runs natively on the host OS (not in a Docker container); vision and tool-calling support depend on the installed model. See [Using Ollama](/advanced-topics/ollama.md).
 
-Speech-only service:
+Audio service:
 
 - **ElevenLabs** — text-to-speech voices, Scribe speech-to-text, and ElevenLabs Music in Music Generator; not a chat provider
 
@@ -23,7 +23,7 @@ For providers without a native web search capability, web search is provided thr
 
 ## API Key Setup
 
-Each provider requires its own API key. Enter keys in the **API Keys** category of the **Settings** window (**Open → Settings**) or write them directly to `~/monadic/config/env` — the panel and the file edit the same configuration. The full list of key variables is in the [Configuration Reference](/reference/configuration.md#api-keys), and the panel itself is described in [Console Panel](/basic-usage/console-panel.md).
+Each cloud provider and service requires its own API key; Ollama runs on your computer and needs none (see [Using Ollama](/advanced-topics/ollama.md)). Enter keys in the **API Keys** category of the **Settings** window (**Open → Settings**) or write them directly to `~/monadic/config/env` — the panel and the file edit the same configuration. The full list of key variables is in the [Configuration Reference](/reference/configuration.md#api-keys), and the panel itself is described in [Console Panel](/basic-usage/console-panel.md).
 
 The apps and UI options for each provider become selectable once its key is configured. You can start with a single key and add more providers later.
 

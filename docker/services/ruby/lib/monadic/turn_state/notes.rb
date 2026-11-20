@@ -171,9 +171,11 @@ module Monadic
         end
       end
 
+      # A value as text on one line: what a model wrote is shown as written,
+      # never as a link, an image, emphasis or markup.
       def inline(value)
         text = value.is_a?(String) ? value : JSON.generate(value)
-        text.gsub(/\s*\n\s*/, ' ').strip
+        text.gsub(/\s*\n\s*/, ' ').strip.gsub(/[\\`*_\[\]<>!|~]/) { |c| "\\#{c}" }
       end
 
       def blank?(value)
@@ -192,21 +194,27 @@ module Monadic
       # Read again where the work screen shows it; put there when asked,
       # for origin's tab to select. A page already there is selected only
       # for a tab that shows nothing (a page loaded again): what the user
-      # is looking at stays.
+      # is looking at stays. show: :quiet does the same for a new page (the
+      # notes kept after a reply), and the page shows it only where nothing
+      # is shown (Board#offer).
       def put_on_screen(chat_id, path, show, origin)
         board = chat_id && (show ? Monadic::Workbench::Board.for(chat_id) : Monadic::Workbench::Board.existing(chat_id))
         return unless board
 
+        tab = origin[:tab]
+        generation = origin[:generation]
         if (item = board.snapshot[:items].find { |found| found[:path] == path })
           Monadic::Workbench::Document.refresh(chat_id, [path])
-          if show && origin[:tab] && board.selected(tab: origin[:tab], generation: origin[:generation]).nil?
-            board.select(tab: origin[:tab], generation: origin[:generation], item_id: item[:id])
-            Monadic::Workbench::Channel.changed(chat_id)
-          end
         elsif show
-          board.add_file(path: path, origin: origin, epoch: Monadic::Workspace::Chats.epoch(chat_id), wait: 0)
+          added = origin.merge(show == :quiet ? { tab: nil, generation: nil } : {})
+          item, = board.add_file(path: path, origin: added, epoch: Monadic::Workspace::Chats.epoch(chat_id), wait: 0)
           Monadic::Workbench::Channel.changed(chat_id)
+          return unless show == :quiet
         end
+        return unless show && item && tab
+
+        offered = board.offer(tab: tab, generation: generation, item_id: item[:id] || item['id'], quiet: show == :quiet)
+        Monadic::Workbench::Channel.changed(chat_id) if offered
       rescue Monadic::Workbench::Board::Refused, Monadic::Workbench::FileItem::Busy
         nil
       end

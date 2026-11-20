@@ -61,7 +61,7 @@ Conduit exposes the following `monadic_*` tools. Each tool's full input schema i
 - `monadic_list_kb` — list the entries of the Knowledge Base
 - `monadic_import_kb` — import text, or a file in the shared folder (PDF, Markdown, Word, Excel, PowerPoint, source code), as a Global entry
 
-These tools and the `knowledge_base` argument of `monadic_query`, `monadic_parallel_query` and `monadic_confidence` read every entry by default (`all`). Give an app name, such as `ChatOpenAI`, to read only that app's entries and the Global ones. With `knowledge_base`, the chat tools search on your computer and send the passages found to the provider with the question.
+These tools read every entry by default (`all`); give an app name, such as `ChatOpenAI`, to read only that app's entries and the Global ones. The chat tools `monadic_query`, `monadic_parallel_query` and `monadic_confidence` use the Knowledge Base only when their `knowledge_base` argument is given: `all` searches every entry, and an app name searches that app's entries and the Global ones. They search on your computer and send the passages found to the provider with the question; without the argument, nothing from the Knowledge Base is sent.
 
 **Analysis (input)**
 - `monadic_analyze_image` — describe or answer questions about an image
@@ -69,7 +69,7 @@ These tools and the `knowledge_base` argument of `monadic_query`, `monadic_paral
 - `monadic_analyze_audio` — qualitative analysis of audio (e.g. music critique)
 - `monadic_analyze_video` — frame extraction, vision analysis, and audio transcription of a video
 
-**Generation (each output is saved in a folder of its own under `mcp/` in the shared volume `~/monadic/data`; the result gives its path)**
+**Generation (each output is saved in a folder of its own under `mcp/` in the shared folder `~/monadic/data`; the result gives its path)**
 - `monadic_speak` — text-to-speech
 - `monadic_generate_code` — code generation via the code agent of the provider you name (`openai`, `anthropic` or `xai`)
 - `monadic_generate_image` — image generation

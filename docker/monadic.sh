@@ -1879,16 +1879,6 @@ stop_container() {
   ${DOCKER} container stop -t 0 "$1" >/dev/null
 }
 
-# Define a function to import the database contents from an external file
-import_database() {
-  bash "${ROOT_DIR}/services/support_scripts/import_vector_db.sh"
-}
-
-# Define a function to export the database contents to an external file
-export_database() {
-  bash "${ROOT_DIR}/services/support_scripts/export_vector_db.sh"
-}
-
 # Download the latest version of Monadic Chat and rebuild the Docker image
 update_monadic() {
   # Stop all Docker Compose services (including profiled services)
@@ -2271,10 +2261,6 @@ restart)
   echo "[SERVER STARTED]" &&
   docker_start_log "silent"
   ;;
-import)
-  stop_docker_compose &&
-  import_database
-  ;;
 start-jupyter)
   run_jupyter run
   ;;
@@ -2319,9 +2305,6 @@ stop-selenium)
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-info' style='color: #61b0ff;'></i>Selenium container is not running.</p><hr />"
   fi
-  ;;
-export)
-  export_database
   ;;
 update)
   update_monadic &&

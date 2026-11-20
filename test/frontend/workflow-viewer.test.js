@@ -627,33 +627,31 @@ describe('WorkflowViewer graph structure', () => {
   });
 
   describe('Error handling', () => {
-    test('should display error when fetch fails', async () => {
-      global.fetch.mockRejectedValueOnce(new Error('Network error'));
+    async function failedWith(response) {
+      if (response instanceof Error) global.fetch.mockRejectedValueOnce(response);
+      else global.fetch.mockResolvedValueOnce(response);
       window.WorkflowViewer._doLoadApp('BadApp');
       await new Promise(r => setTimeout(r, 0));
-      const container = document.getElementById('workflow-viewer-container');
-      expect(container.innerHTML).toContain('Failed');
-      expect(container.innerHTML).toContain('Network error');
+      return document.getElementById('workflow-viewer-container');
+    }
+
+    test('says the workflow could not be shown when the fetch fails, without the error text', async () => {
+      const container = await failedWith(new Error('Network error'));
+      expect(container.textContent).toContain('could not be shown');
+      expect(container.textContent).not.toContain('Network error');
     });
 
-    test('should display error for non-OK HTTP response', async () => {
-      global.fetch.mockResolvedValueOnce({ ok: false, status: 404 });
-      window.WorkflowViewer._doLoadApp('MissingApp');
-      await new Promise(r => setTimeout(r, 0));
-      const container = document.getElementById('workflow-viewer-container');
-      expect(container.innerHTML).toContain('Failed');
-      expect(container.innerHTML).toContain('404');
+    test('says so for a response that is not OK', async () => {
+      const container = await failedWith({ ok: false, status: 404 });
+      expect(container.textContent).toContain('could not be shown');
+      expect(container.textContent).not.toContain('404');
     });
 
-    test('should display error from API error response', async () => {
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ error: 'App not found' }),
-      });
-      window.WorkflowViewer._doLoadApp('GhostApp');
-      await new Promise(r => setTimeout(r, 0));
-      const container = document.getElementById('workflow-viewer-container');
-      expect(container.innerHTML).toContain('App not found');
+    test('shows no markup or text the server gave as the error', async () => {
+      const container = await failedWith({ ok: true, json: async () => ({ error: '<img src=x onerror=alert(1)>App not found' }) });
+      expect(container.textContent).toContain('could not be shown');
+      expect(container.querySelector('img')).toBeNull();
+      expect(container.textContent).not.toContain('App not found');
     });
   });
 
@@ -1023,6 +1021,38 @@ describe('WorkflowViewer.exportSvg', () => {
 
   test('exportSvg should be a public method', () => {
     expect(typeof window.WorkflowViewer.exportSvg).toBe('function');
+  });
+
+  describe('the name of the saved file', () => {
+    async function savedName(names) {
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true, json: async () => Object.assign({}, SAMPLE_MINIMAL, names),
+      });
+      document.getElementById('workflow-viewer-panel').classList.remove('wv-panel-collapsed');
+      window.WorkflowViewer._doLoadApp('TestApp');
+      await new Promise(r => setTimeout(r, 0));
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      document.getElementById('workflow-viewer-container').appendChild(svg);
+      global.URL.createObjectURL = jest.fn(() => 'blob:x');
+      global.URL.revokeObjectURL = jest.fn();
+      let name = null;
+      const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function () { name = this.download; });
+      try {
+        window.WorkflowViewer.downloadSvg();
+      } finally {
+        click.mockRestore();
+        delete global.fetch;
+      }
+      return name;
+    }
+
+    test('comes from the display name', async () => {
+      expect(await savedName({ display_name: 'Music Generator', app_name: 'MusicGeneratorOpenAI' })).toBe('workflow-music-generator.svg');
+    });
+
+    test('comes from the app name when the display name has no ASCII letters', async () => {
+      expect(await savedName({ display_name: '音楽の生成', app_name: 'MusicGeneratorOpenAI' })).toBe('workflow-musicgeneratoropenai.svg');
+    });
   });
 });
 

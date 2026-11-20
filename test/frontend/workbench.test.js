@@ -43,6 +43,13 @@ describe('Workbench', () => {
   }
 
   // The item the pane shows, or null.
+  // The user writes in the message box (focus and text).
+  function writeMessage() {
+    const box = document.getElementById('message');
+    box.value = 'draft';
+    box.focus();
+  }
+
   function shown() {
     const pane = document.getElementById('workbench-view');
     return pane && !pane.hidden ? pane.dataset.item : null;
@@ -70,7 +77,8 @@ describe('Workbench', () => {
       <div id="workbench-items" hidden></div>
       <div id="work-screen-browser"></div>
       <div id="workbench-view" hidden></div>
-      <textarea id="message"></textarea>`;
+      <textarea id="message"></textarea>
+      <span id="side-tab-work-new" hidden></span>`;
     sent = [];
     messages = [{ mid: 'm-1', role: 'assistant', text: 'done' }];
     layout = { hidden: false, pane: 'settings' };
@@ -207,7 +215,7 @@ describe('Workbench', () => {
 
     layout.hidden = false;
     window.Workbench.select(null);
-    document.getElementById('message').focus();
+    writeMessage();
     view([item(), item({ id: 'i_2', artifact_id: 'r_2', name: 'dog.png', sha256: 'b'.repeat(64) })]);
     expect(window.LayoutController.setPane).not.toHaveBeenCalled();
     expect(shown()).toBeNull();
@@ -222,6 +230,32 @@ describe('Workbench', () => {
     expect(sent.map((s) => s.payload)).toEqual([
       { message: 'WORKBENCH_DOWNLOAD', artifact_id: 'r_1' }, { message: 'WORKBENCH_DOWNLOAD', artifact_id: 'r_1' }
     ]);
+  });
+
+  test('asks for an address to save a file of the shared folder by its item and the version shown', () => {
+    const clip = { id: 'i_a', kind: 'file', actor: 'user', name: '曲 1.mp3', path: 'music/曲 1.mp3', preview: 'audio',
+      sha256: 'd'.repeat(64), version: 'd'.repeat(64), status: 'ok' };
+    view([clip]);
+    document.querySelector('#workbench-view .btn-primary').click();
+    expect(sent.map((s) => s.payload)).toEqual([{ message: 'WORKBENCH_DOWNLOAD', item_id: 'i_a', sha256: 'd'.repeat(64) }]);
+    view([Object.assign({}, clip, { status: 'changed' })]);
+    expect(document.querySelector('#workbench-view .btn-primary')).toBeNull();
+  });
+
+  test('says on its tab and above its items that the notes are being updated, without touching the reply\'s status', () => {
+    document.body.insertAdjacentHTML('beforeend',
+      '<button id="side-tab-work"><i id="side-tab-work-mark" hidden></i></button><div id="workbench-notes-status" hidden></div>');
+    const mark = () => document.getElementById('side-tab-work-mark');
+    const line = () => document.getElementById('workbench-notes-status');
+    view([], { notes: 'updating' });
+    expect(mark().hidden).toBe(false);
+    expect(line().hidden).toBe(false);
+    expect(line().textContent).toContain('Updating the notes');
+    view([]);
+    expect(mark().hidden).toBe(true);
+    expect(line().hidden).toBe(true);
+    expect(window.setAlert).not.toHaveBeenCalled();
+    expect(window.LayoutController.setPane).not.toHaveBeenCalled();
   });
 
   describe('a chat continued from the history', () => {
@@ -281,6 +315,14 @@ describe('Workbench', () => {
       window.Workbench.onDownload({ artifact_id: 'r_1', status: 'refused' });
       expect(document.getElementById('workbench-status').textContent).toContain('not accepted');
       expect(clicked).toEqual([]);
+    });
+
+    test('saves a file under the name the server gives, and says when the version shown is gone', async () => {
+      global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200, blob: () => Promise.resolve(new Blob(['x'])) }));
+      await window.Workbench.onDownload({ type: 'workbench_download', item_id: 'i_a', url: '/workbench/asset/t', name: '曲 1.mp3' });
+      expect(clicked).toEqual([{ href: 'blob:x', download: '曲 1.mp3' }]);
+      window.Workbench.onDownload({ item_id: 'i_a', status: 'refused', reason: 'changed' });
+      expect(document.getElementById('workbench-status').textContent).toContain('changed');
     });
   });
 
@@ -449,7 +491,7 @@ describe('Workbench', () => {
       window.Workbench.onOpened({ type: 'workbench_opened', item_id: 'i_f', path: 'reports/notes.txt', added: true });
       // Shown when the board has it, even while the user types and whatever
       // the server's selection was before.
-      document.getElementById('message').focus();
+      writeMessage();
       global.fetch = jest.fn(() => new Promise(() => {}));
       view([item(), file()], { selected: 'i_1' });
       expect(window.LayoutController.setMenuHidden).toHaveBeenCalledWith(false);
@@ -558,14 +600,199 @@ describe('Workbench', () => {
       expect(document.getElementById('workbench-stepper').hidden).toBe(true);
     });
   });
+  describe('the mark on the work screen tab', () => {
+    const mark = () => document.getElementById('side-tab-work-new');
+    const notes = (version) => item({ id: 'i_n', kind: 'file', name: 'notes.md', version, sha256: version });
+    const board = (items, revision) => ({ board: { board_id: 'b1', chat_id: 'c_1', revision, items }, selected: null });
+
+    test('marks a new version of an item that comes while another pane is shown, until the work screen is shown', () => {
+      view([notes('v1')], Object.assign(board([notes('v1')], 1), { initial: true }));
+      expect(mark().hidden).toBe(true);
+      view([notes('v2')], board([notes('v2')], 2));
+      expect(mark().hidden).toBe(false);
+      window.LayoutController.setPane('work');
+      document.dispatchEvent(new Event('layoutchange'));
+      expect(mark().hidden).toBe(true);
+    });
+
+    test('marks a new item, but nothing that comes while the work screen is shown', () => {
+      layout.pane = 'work';
+      view([notes('v1')], board([notes('v1')], 1));
+      view([notes('v2')], board([notes('v2')], 2));
+      expect(mark().hidden).toBe(true);
+      layout.pane = 'settings';
+      const next = item({ id: 'i_2', version: 'x' });
+      view([notes('v2'), next], board([notes('v2'), next], 3));
+      expect(mark().hidden).toBe(false);
+    });
+
+    test('does not mark the board a connection is sent first, nor the board of another chat', () => {
+      view([notes('v1')], Object.assign(board([notes('v1')], 1), { initial: true }));
+      expect(mark().hidden).toBe(true);
+      view([notes('v1')], { board: { board_id: 'b2', chat_id: 'c_2', revision: 1, items: [notes('v1')] }, selected: null });
+      expect(mark().hidden).toBe(true);
+    });
+  });
+
   describe('keeping the page and the server in step', () => {
     test('tells the server what the pane still shows when an item arrives while the user types', () => {
       view([item()]);
-      document.getElementById('message').focus();
+      writeMessage();
       sent.length = 0;
       const next = item({ id: 'i_2', artifact_id: 'r_2', sha256: 'b'.repeat(64) });
       view([item(), next], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item(), next] }, selected: 'i_2' });
       expect(shown()).toBe('i_1');
+      expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
+    });
+
+    test('turns the pane to a quietly offered item that is the first of the work screen', () => {
+      view([], { selected: null });
+      sent.length = 0;
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] },
+        selected: 'i_1', selection_quiet: true });
+      expect(shown()).toBe('i_1');
+      expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
+      expect(payloads()).toEqual([]);
+    });
+
+    test('turns the pane to the first quietly offered item while the message box only has the focus', () => {
+      view([], { selected: null });
+      document.getElementById('message').focus();
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] },
+        selected: 'i_1', selection_quiet: true });
+      expect(shown()).toBe('i_1');
+      expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
+    });
+
+    test('turns the pane to the first item when its quiet selection comes in a later view', () => {
+      view([], { selected: null });
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] }, selected: null });
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [item()] }, selected: 'i_1',
+        selection_quiet: true });
+      expect(shown()).toBe('i_1');
+      expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
+    });
+
+    test('takes the pane for the first item only at its first offer, and not after the work screen was shown', () => {
+      view([], { selected: null });
+      writeMessage();
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] }, selected: 'i_1',
+        selection_quiet: true });
+      document.getElementById('message').value = '';
+      window.Workbench.select(null);
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [item()] }, selected: 'i_1',
+        selection_quiet: true });
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+
+      // Another chat (its board resets the page).
+      view([], { board: { board_id: 'b2', chat_id: 'c_2', revision: 1, items: [] }, selected: null });
+      view([item()], { board: { board_id: 'b2', chat_id: 'c_2', revision: 2, items: [item()] }, selected: null });
+      window.LayoutController.setPane('work');
+      document.dispatchEvent(new Event('layoutchange'));
+      window.LayoutController.setPane('settings');
+      window.LayoutController.setPane.mockClear();
+      view([item()], { board: { board_id: 'b2', chat_id: 'c_2', revision: 3, items: [item()] }, selected: 'i_1',
+        selection_quiet: true });
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+    });
+
+    test('does not take the pane for an item that came while the work screen was shown', () => {
+      layout.pane = 'work';
+      view([], { selected: null });
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] }, selected: null });
+      layout.pane = 'settings';
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [item()] }, selected: 'i_1',
+        selection_quiet: true });
+      expect(shown()).toBe('i_1');
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+    });
+
+    test('does not take the pane for an item that was on the board a connection is sent first', () => {
+      view([item()], { selected: null, initial: true });
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] }, selected: 'i_1',
+        selection_quiet: true });
+      expect(shown()).toBe('i_1');
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+    });
+
+    test('counts spaces in the message box as writing, and not a focused slider', () => {
+      view([], { selected: null });
+      const box = document.getElementById('message');
+      box.value = '    ';
+      box.focus();
+      const next = item({ id: 'i_2', artifact_id: 'r_2', sha256: 'b'.repeat(64) });
+      view([next], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [next] }, selected: 'i_2',
+        selection_quiet: true });
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+
+      box.value = '';
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.value = '0.5';
+      document.body.appendChild(slider);
+      slider.focus();
+      window.Workbench.select(null);
+      layout.pane = 'settings';
+      const third = item({ id: 'i_3', artifact_id: 'r_3', sha256: 'c'.repeat(64) });
+      view([next, third], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [next, third] }, selected: 'i_3' });
+      expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
+    });
+
+    test('shows the first quietly offered item without taking the pane while the user types', () => {
+      view([], { selected: null });
+      writeMessage();
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] },
+        selected: 'i_1', selection_quiet: true });
+      expect(shown()).toBe('i_1');
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+    });
+
+    test('shows a later quietly offered item on a work screen that shows nothing, without taking the pane', () => {
+      view([item()]);
+      window.Workbench.select(null);
+      layout.pane = 'settings';
+      window.LayoutController.setPane.mockClear();
+      sent.length = 0;
+      const next = item({ id: 'i_2', artifact_id: 'r_2', sha256: 'b'.repeat(64) });
+      view([item(), next], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item(), next] },
+        selected: 'i_2', selection_quiet: true });
+      expect(shown()).toBe('i_2');
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+      expect(payloads()).toEqual([]);
+    });
+
+    test('takes a quiet selection whose item comes in a later view, and one in a first view', () => {
+      view([], { selected: null });
+      view([], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [] }, selected: 'i_1',
+        selection_quiet: true });
+      expect(shown()).toBeNull();
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [item()] }, selected: 'i_1',
+        selection_quiet: true });
+      expect(shown()).toBe('i_1');
+
+      window.Workbench.select(null);
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 4, items: [item()] }, selected: 'i_1',
+        selection_quiet: true, initial: true });
+      expect(shown()).toBe('i_1');
+    });
+
+    test('a first view shows the open browser before an item offered quietly', () => {
+      const open = { id: 'i_b', kind: 'browser', actor: 'agent', version: 'browser:1', status: 'open' };
+      view([item(), open], { selected: 'i_1', selection_quiet: true, initial: true });
+      expect(window.Workbench.showsBrowser()).toBe(true);
+      expect(payloads()).toContainEqual({ message: 'WORKBENCH_SELECT', item_id: 'i_b' });
+    });
+
+    test('keeps what the work screen shows when an item is offered quietly', () => {
+      view([item()]);
+      window.LayoutController.setPane.mockClear();
+      sent.length = 0;
+      const next = item({ id: 'i_2', artifact_id: 'r_2', sha256: 'b'.repeat(64) });
+      view([item(), next], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item(), next] },
+        selected: 'i_2', selection_quiet: true });
+      expect(shown()).toBe('i_1');
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
       expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
     });
 
@@ -578,7 +805,7 @@ describe('Workbench', () => {
       expect(document.querySelector('#workbench-view audio')).toBe(first);
     });
 
-    test('asks once more for a medium that fails, then says it is not played instead of asking again', () => {
+    test('asks once more for a medium that fails, then says it could not be played instead of asking again', () => {
       jest.useFakeTimers();
       try {
         const clip = { id: 'i_a', kind: 'file', actor: 'user', name: 'a.mkv', path: 'a.mkv', preview: 'video',
@@ -595,7 +822,7 @@ describe('Workbench', () => {
         document.querySelector('#workbench-view video').dispatchEvent(new Event('error'));
         jest.runOnlyPendingTimers();
         expect(document.querySelector('#workbench-view video')).toBeNull();
-        expect(document.getElementById('workbench-view').textContent).toContain('not played');
+        expect(document.getElementById('workbench-view').textContent).toContain('could not be played');
         expect(payloads().filter((p) => p.message === 'WORKBENCH_VIEW').length).toBe(asked);
       } finally {
         jest.useRealTimers();
@@ -648,7 +875,7 @@ describe('Workbench', () => {
 
     test('brings forward an item the server selects again after the page kept another', () => {
       view([item()]);
-      document.getElementById('message').focus();
+      writeMessage();
       const next = item({ id: 'i_2', artifact_id: 'r_2', sha256: 'b'.repeat(64) });
       const both = { board_id: 'b1', chat_id: 'c_1', items: [item(), next] };
       view([item(), next], { board: Object.assign({ revision: 2 }, both), selected: 'i_2' });
@@ -1090,7 +1317,10 @@ describe('Workbench', () => {
 
     beforeEach(() => {
       drawn = [];
+      const real = require(js('monadic/workbench-render.js'));
       window.WorkbenchRender = {
+        Refused: real.Refused,
+        failureNotice: real.failureNotice,
         draw: jest.fn((box, kind, text, opts) => {
           const handle = { done: Promise.resolve(), dispose: jest.fn() };
           box.textContent = `drawn ${kind}: ${text}`;
@@ -1171,7 +1401,7 @@ describe('Workbench', () => {
       expect(pane.textContent).toContain('too large to draw');
       expect(window.WorkbenchRender.draw).not.toHaveBeenCalled();
       global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve('x'), headers: { get: () => null } }));
-      window.WorkbenchRender.draw = jest.fn(() => ({ done: Promise.reject(new Error('bad spec')), dispose: jest.fn() }));
+      window.WorkbenchRender.draw = jest.fn(() => ({ done: Promise.reject(new window.WorkbenchRender.Refused('bad spec')), dispose: jest.fn() }));
       viewDoc([doc({ id: 'i_e' })]);
       await settle();
       await settle();

@@ -2,7 +2,7 @@
 
 ##### Q: I downloaded a model with Ollama, but it is not reflected in the web interface. What should I do? :id=ollama-model-not-showing
 
-**A**: It may take a moment for a newly downloaded model to become available. Wait a while and then reload the web interface. If the model still does not appear, run `ollama list` in your terminal to verify the model is installed. If the model is listed but not appearing in the web interface, try restarting Monadic Chat.
+**A**: Choose an Ollama app again: the model list is read from Ollama each time an Ollama app is chosen. If the model still does not appear, run `ollama list` in your terminal to check that the model is installed.
 
 ---
 

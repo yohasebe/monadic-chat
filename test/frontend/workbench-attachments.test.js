@@ -148,6 +148,53 @@ describe('Attachments on the work screen', () => {
     expect(pane().dataset.local).toBeUndefined();
   });
 
+  test('an item offered quietly leaves the attachment shown', () => {
+    view([], { selected: null });
+    window.Workbench.showAttachment({ source: 'draft', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
+    view([NOTES], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [NOTES] }, selected: 'i_t',
+      selection_quiet: true });
+    expect(window.Workbench.shownAttachment()).not.toBeNull();
+    expect(pane().dataset.local).toBeDefined();
+    expect(lastSelect().payload).toMatchObject({ item_id: null });
+  });
+
+  test('an item first offered while the attachment is shown does not take the pane at a later offer', () => {
+    view([], { selected: null });
+    window.Workbench.showAttachment({ source: 'draft', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
+    view([NOTES], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [NOTES] }, selected: 'i_t',
+      selection_quiet: true });
+    window.Workbench.select('i_t');
+    window.Workbench.select(null);
+    window.Workbench.onSelected({ type: 'workbench_selected', status: 'accepted', item_id: null,
+      seq: lastSelect().payload.seq });
+    layout.pane = 'settings';
+    window.LayoutController.setPane.mockClear();
+    view([NOTES], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [NOTES] }, selected: 'i_t',
+      selection_quiet: true });
+    expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+  });
+
+  test('a first view that offers an item quietly leaves the attachment shown and tells the server', () => {
+    view([], { selected: null });
+    window.Workbench.showAttachment({ source: 'draft', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
+    sent.length = 0;
+    view([NOTES], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [NOTES] }, selected: 'i_t',
+      selection_quiet: true, initial: true });
+    expect(window.Workbench.shownAttachment()).not.toBeNull();
+    expect(lastSelect().payload).toMatchObject({ item_id: null });
+  });
+
+  test('a first view leaves the attachment shown over the open browser and tells the server', () => {
+    view([], { selected: null });
+    window.Workbench.showAttachment({ source: 'draft', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
+    sent.length = 0;
+    const open = { id: 'i_b', kind: 'browser', actor: 'agent', version: 'browser:1', status: 'open' };
+    view([NOTES, open], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [NOTES, open] }, selected: 'i_t',
+      selection_quiet: true, initial: true });
+    expect(window.Workbench.shownAttachment()).not.toBeNull();
+    expect(lastSelect().payload).toMatchObject({ item_id: null });
+  });
+
   test('a new item the server brings forward puts the attachment away, so what is shown is what is named', () => {
     view([], { selected: null });
     window.Workbench.showAttachment({ source: 'draft', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });

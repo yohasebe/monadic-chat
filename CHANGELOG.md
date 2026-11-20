@@ -8,6 +8,7 @@
     - The PDF Database is removed: **import PDFs into the Knowledge Base** (earlier PDFs are not moved)
     - Every app can save to and search the Knowledge Base; `Use Knowledge Base for retrieval (this session)` is off by default and remembered for each app
     - Chat Plus is merged into Chat, Language Practice Plus into Language Practice, and Music Lab is called Music Tutor; chats made with the old apps open in the new ones
+    - Chat answers without waiting for its notes: the notes are updated after each reply with one more request to the same provider and model
     - The Session Context panel is removed: apps show their state as notes on the work screen
     - What the apps make is saved in the chat's folder in `conversations/` and shown on the work screen
     - Code Interpreter, Research Assistant and Math Tutor run code in the chat's folder: **read your own files by their full path (`/monadic/data/...`)**
@@ -22,6 +23,7 @@
     - Default models: GPT Image 2.5 Flare for OpenAI images, Mistral Large 4 and Grok 4.7 for code, and Gemini Omni 1.2 Flash for Gemini videos
     - Apps that name no model start with GPT-6.1 Terra (OpenAI) and Grok 4.3 (xAI); Coding Assistant, Code Interpreter, Jupyter Notebook and Second Opinion keep GPT-6.1 Sol and Grok 4.7
     - Mistral Medium 3.5 is no longer offered; chats that used it continue with Mistral Large 4
+    - Gemini apps offer Gemini 3.8 Flash in place of Gemini 3.6 Flash, and Gemini speech-to-text uses Gemini 3.8 Flash
     - Language Practice writes its advice in the interface language
     - The sidebar has `Menu`, `Work screen`, `Files` and `History` tabs
     - A chat's browser closes on `Reset`, an app change, an import or after 5 minutes unused; of the Selenium container's ports, only noVNC (7900) is open
@@ -38,11 +40,21 @@
     - The music apps take attached audio and MIDI files
     - New models: Gemini 4 Hydrogen, Gemini 4 Carbon, Claude Fable 5.2, GPT-6.1 Terra, GPT Image 2.6 Flare and Sunburst, and ElevenLabs Scribe v3
     - Settings > API Keys can check each key with its provider and show whether the provider's default models are in that key's model list
+    - Every file on the work screen has `Save as…`, which saves it under its own name
+    - The `Work screen` tab shows a dot when something new comes to it while another tab is shown
   - Fixed
     - `Cancel` stops a reply while tools are running
+    - The conversation export says when it did not start, and runs once per click
+    - The Settings categories and the switches that show a diagram's source work with the keyboard
+    - The export dialog, draw.io diagrams and the first setup follow the interface language
+    - `Reset` on iOS offers to save the chat to the Knowledge Base
+    - A workflow SVG of an app with a non-English name is saved under the app's name
+    - The workflow viewer's loading and error messages follow the interface language
+    - Claude apps with an advisor no longer tell a model that cannot use it to call it
     - A dropped connection during a reply gives the page back for input
     - Streamed replies no longer lose words
     - Earlier replies are no longer duplicated or dropped with Ollama, Mistral and DeepSeek
+    - The AI User panel names Ollama as the provider of Ollama apps
     - Long chains of tool calls work with every provider
     - Ollama apps no longer repeat a tool call or end a reply empty
     - A reply stopped for repeated tool calls names the tools

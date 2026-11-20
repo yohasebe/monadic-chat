@@ -108,3 +108,76 @@ describe('WsPrivacyHandler.resetExportDialog — content default', () => {
     expect(document.getElementById('privacy-export-content-section').style.display).toBe('none');
   });
 });
+
+describe('WsPrivacyHandler — the export request and its answer', () => {
+  function buildDialog() {
+    document.body.innerHTML = `
+      <input type="checkbox" id="export-encrypt-toggle" />
+      <input type="radio" name="privacyExportContent" id="privacyExportContentRestored" value="restored" checked />
+      <input type="text" id="privacy-export-passphrase" />
+      <input type="text" id="privacy-export-passphrase-confirm" />
+      <div id="privacy-export-status"></div>
+      <div id="privacy-export-pass-section"></div>
+      <div id="privacy-export-restored-warning"></div>
+      <button id="privacy-export-continue"></button>
+      <div class="privacy-strength-bar"></div>
+      <div id="privacy-strength-label"></div>
+    `;
+    window.WordTable = { hidesWords: () => false };
+    window.WsPrivacyHandler.resetExportDialog();
+  }
+
+  const status = () => document.getElementById('privacy-export-status').textContent;
+  const button = () => document.getElementById('privacy-export-continue');
+  let sent;
+
+  beforeEach(() => {
+    sent = [];
+    window.safeWsSend = (payload) => { sent.push(payload); return { sent: true }; };
+    global.URL.createObjectURL = jest.fn(() => 'blob:x');
+    global.URL.revokeObjectURL = jest.fn();
+    buildDialog();
+  });
+  afterEach(() => { document.body.innerHTML = ''; delete window.WordTable; delete window.safeWsSend; });
+
+  it('asks once, with an id, and waits with the button off', () => {
+    button().click();
+    button().click();
+    expect(sent).toHaveLength(1);
+    expect(sent[0].request_id).toMatch(/^exp-/);
+    expect(button().disabled).toBe(true);
+  });
+
+  it('says the export was not sent, and lets the user try again, when it could not be sent', () => {
+    window.safeWsSend = () => ({ sent: false, queued: false });
+    button().click();
+    expect(status()).toContain('could not be sent');
+    expect(button().disabled).toBe(false);
+  });
+
+  it('takes only the answer to the request it is waiting for, and says the download started', () => {
+    button().click();
+    const id = sent[0].request_id;
+    window.WsPrivacyHandler.handleExportData({ request_id: 'exp-earlier', content_base64: btoa('{}'), filename: 'old.json' });
+    expect(status()).not.toContain('old.json');
+    window.WsPrivacyHandler.handleExportData({ request_id: id, content_base64: btoa('{}'), filename: 'chat.json' });
+    expect(status()).toContain('chat.json');
+    expect(status()).not.toMatch(/Downloaded/);
+    expect(button().disabled).toBe(false);
+  });
+
+  it('shows a translated reason, never the server detail, for an error', () => {
+    button().click();
+    window.WsPrivacyHandler.handleExportError({ request_id: sent[0].request_id, error: 'export_failed', detail: 'Internal stack' });
+    expect(status()).not.toContain('Internal stack');
+    expect(button().disabled).toBe(false);
+  });
+
+  it('ignores an answer that arrives after the dialog was opened again', () => {
+    button().click();
+    const id = sent[0].request_id;
+    window.WsPrivacyHandler.resetExportDialog();
+    window.WsPrivacyHandler.handleExportData({ request_id: id, content_base64: btoa('{}'), filename: 'late.json' });
+    expect(status()).toBe('');
+  });
+});

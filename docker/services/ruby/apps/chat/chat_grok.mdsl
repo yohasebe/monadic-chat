@@ -1,31 +1,31 @@
 app "ChatGrok" do
   description do
     en <<~TEXT
-    General conversational AI assistant. Supports text and images. Keeps the topics, people and notes of the conversation as a page on the work screen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    General conversational AI assistant. Supports text and images. Keeps the topics, people and notes of the conversation as a page on the work screen. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ja <<~TEXT
-    汎用会話AIアシスタント。テキストと画像をサポート。 会話のトピック・人物・メモを記録し、作業画面のページとして表示します。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    汎用会話AIアシスタント。テキストと画像をサポート。 会話のトピック・人物・メモを記録し、作業画面のページとして表示します。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/apps/chat-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     zh <<~TEXT
-    通用对话AI助手。支持文本和图像。 记录对话中的主题、人物和笔记，并在工作画面中以页面形式显示。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    通用对话AI助手。支持文本和图像。 记录对话中的主题、人物和笔记，并在工作画面中以页面形式显示。 <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ko <<~TEXT
-    범용 대화 AI 어시스턴트. 텍스트와 이미지 지원. 대화의 주제, 인물, 메모를 기록하여 작업 화면의 페이지로 표시합니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    범용 대화 AI 어시스턴트. 텍스트와 이미지 지원. 대화의 주제, 인물, 메모를 기록하여 작업 화면의 페이지로 표시합니다. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     es <<~TEXT
-    Asistente de IA conversacional general. Admite texto e imágenes. Guarda los temas, las personas y las notas de la conversación como una página en la pantalla de trabajo. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Asistente de IA conversacional general. Admite texto e imágenes. Guarda los temas, las personas y las notas de la conversación como una página en la pantalla de trabajo. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     fr <<~TEXT
-    Assistant IA conversationnel général. Prend en charge texte et images. Conserve les sujets, les personnes et les notes de la conversation sur une page de l'écran de travail. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Assistant IA conversationnel général. Prend en charge texte et images. Conserve les sujets, les personnes et les notes de la conversation sur une page de l'écran de travail. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     de <<~TEXT
-    Allgemeiner KI-Konversationsassistent. Unterstützt Text und Bilder. Hält Themen, Personen und Notizen des Gesprächs als Seite auf dem Arbeitsbildschirm fest. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Allgemeiner KI-Konversationsassistent. Unterstützt Text und Bilder. Hält Themen, Personen und Notizen des Gesprächs als Seite auf dem Arbeitsbildschirm fest. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   icon "comment"
@@ -33,21 +33,9 @@ app "ChatGrok" do
   system_prompt <<~TEXT
     You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it. Insert an emoji that you deem appropriate for the user's input at the beginning of your response.
 
-    ## Context Tracking
+    ## Notes of the Conversation
 
-    You have session context tools to track conversation information. The user sees the context as a page on the work screen, made again after each reply that changes it.
-
-    **When to update context** (use `update_context`):
-    - Topics being discussed → topics parameter
-    - People mentioned → people parameter
-    - Important facts, dates, preferences → notes parameter
-
-    **To remove items**: Use `remove_from_context` or `clear_context`.
-
-    Example:
-    - User mentions "I'm John, a software engineer" → call update_context(people: ["John - software engineer"])
-    - User asks about Python → call update_context(topics: ["Python programming"])
-    - User says "remember I prefer dark mode" → call update_context(notes: ["User prefers dark mode"])
+    The topics, people and notes of this conversation are kept as a page on the work screen. New ones are added from the conversation after each reply without your help, so answer directly and do not narrate note-keeping. Call `remove_from_context` or `clear_context` only when the user explicitly asks you to forget, remove or clear notes, and say what was removed only after the tool reports it; never call them otherwise.
 
     ## File Operations
 
@@ -78,6 +66,7 @@ app "ChatGrok" do
   display_name "Chat"
 
   features do
+    keep_notes true
     max_tool_rounds 10
     websearch true
     disabled !CONFIG["XAI_API_KEY"]
@@ -87,8 +76,8 @@ app "ChatGrok" do
   end
 
   tools do
-    # Import shared session context tools
-    import_shared_tools :session_context, visibility: "always"
+    # The conversation's notes: added by the app after each reply; removing is offered for explicit requests
+    import_shared_tools :session_context, visibility: "internal", offer: %w[remove_from_context clear_context]
     # Import shared file operations tools
     import_shared_tools :file_operations, visibility: "always"
   end

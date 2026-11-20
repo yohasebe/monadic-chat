@@ -1,5 +1,6 @@
 # frozen_string_literal: false
 
+require_relative '../../utils/content_free_logging'
 require_relative "../../utils/request_retry"
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/usage_normalizer"
@@ -124,7 +125,9 @@ module DeepSeekHelper
     target_uri = "#{API_ENDPOINT}/chat/completions"
     
     # Debug the full request body
-    DebugHelper.debug("DeepSeek API request body: #{JSON.pretty_generate(workbench_loggable(body))}", category: :api, level: :debug)
+    unless Monadic::Utils::ContentFreeLogging.active?
+      DebugHelper.debug("DeepSeek API request body: #{JSON.pretty_generate(workbench_loggable(body))}", category: :api, level: :debug)
+    end
     
     http = HTTP.headers(headers)
     

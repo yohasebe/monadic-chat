@@ -1,31 +1,31 @@
 app "MusicGeneratorGemini" do
   description do
     en <<~TEXT
-    Turn text descriptions into music audio files, with or without vocals, with Google's Lyria 3.5. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Turn text descriptions into music audio files, with or without vocals, with Google's Lyria 3.5. <a href="https://yohasebe.github.io/monadic-chat/#/apps/music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ja <<~TEXT
-    テキストの説明から、歌入りまたは歌なしの音楽の音声ファイルをGoogleのLyria 3.5で生成。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    テキストの説明から、歌入りまたは歌なしの音楽の音声ファイルをGoogleのLyria 3.5で生成。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/apps/music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     zh <<~TEXT
-    使用Google的Lyria 3.5将文本描述生成为音乐音频文件，可带人声或不带人声。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    使用Google的Lyria 3.5将文本描述生成为音乐音频文件，可带人声或不带人声。 <a href="https://yohasebe.github.io/monadic-chat/#/apps/music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ko <<~TEXT
-    Google의 Lyria 3.5로 텍스트 설명을 보컬이 있거나 없는 음악 오디오 파일로 만듭니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Google의 Lyria 3.5로 텍스트 설명을 보컬이 있거나 없는 음악 오디오 파일로 만듭니다. <a href="https://yohasebe.github.io/monadic-chat/#/apps/music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     es <<~TEXT
-    Convierte descripciones de texto en archivos de audio musical, con o sin voz, con Lyria 3.5 de Google. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Convierte descripciones de texto en archivos de audio musical, con o sin voz, con Lyria 3.5 de Google. <a href="https://yohasebe.github.io/monadic-chat/#/apps/music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     fr <<~TEXT
-    Transformez des descriptions textuelles en fichiers audio musicaux, avec ou sans voix, avec Lyria 3.5 de Google. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Transformez des descriptions textuelles en fichiers audio musicaux, avec ou sans voix, avec Lyria 3.5 de Google. <a href="https://yohasebe.github.io/monadic-chat/#/apps/music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     de <<~TEXT
-    Textbeschreibungen in Musik-Audiodateien umwandeln, mit oder ohne Gesang, mit Googles Lyria 3.5. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Textbeschreibungen in Musik-Audiodateien umwandeln, mit oder ohne Gesang, mit Googles Lyria 3.5. <a href="https://yohasebe.github.io/monadic-chat/#/apps/music-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
 
@@ -35,7 +35,7 @@ app "MusicGeneratorGemini" do
 
   llm do
     provider "gemini"
-    model ["gemini-3.1-pro-preview", "gemini-3.6-flash"]
+    model ["gemini-3.1-pro-preview", "gemini-3.8-flash"]
     context_size 10
   end
 

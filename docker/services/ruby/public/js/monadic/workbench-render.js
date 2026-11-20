@@ -60,6 +60,39 @@
 
   class Refused extends Error {}
 
+  // An error whose message was written for people (translated).
+  function shown(message) {
+    const error = new Error(message);
+    error.forPeople = true;
+    return error;
+  }
+
+  // What to tell the user of a failure to draw: { message, detail }. A
+  // Refused error is about the content (a syntax error, a size limit), so
+  // its text is offered as detail the user can act on; a message written
+  // for people is shown as it is; anything else (a library that did not
+  // load, an exception) becomes the general message.
+  function describeError(error) {
+    if (error instanceof Refused) return { message: t('renderFailed', 'This could not be drawn.'), detail: String(error.message || '') };
+    if (error && error.forPeople) return { message: String(error.message), detail: '' };
+    return { message: t('renderFailed', 'This could not be drawn.'), detail: '' };
+  }
+
+  // The notice for a failure to draw: the message, and the detail (a
+  // syntax error the user can fix) folded under "Details".
+  function failureNotice(error, className) {
+    const described = describeError(error);
+    const notice = element('div', className);
+    notice.appendChild(element('div', null, described.message));
+    if (described.detail) {
+      const more = element('details', 'mt-1');
+      const label = (typeof webUIi18n !== 'undefined' && webUIi18n.t && webUIi18n.t('ui.render.details')) || 'Details';
+      more.append(element('summary', null, label), element('pre', 'mb-0 render-failure-detail', described.detail));
+      notice.appendChild(more);
+    }
+    return notice;
+  }
+
   // ---- images: data: URLs of image types only --------------------------
 
   function dataImageOk(src) {
@@ -461,7 +494,7 @@
     box.replaceChildren(img);
     return new Promise((resolve, reject) => {
       img.addEventListener('load', () => resolve(), { once: true });
-      img.addEventListener('error', () => reject(new Error(t('svgFailed', 'The image could not be drawn.'))), { once: true });
+      img.addEventListener('error', () => reject(shown(t('svgFailed', 'The image could not be drawn.'))), { once: true });
     }).finally(() => {
       if (!live()) release(url);
     }).then(() => url);
@@ -692,7 +725,7 @@
     if (!state) return;
     delete frames[kind];
     window.removeEventListener('message', state.listener);
-    if (state.waiting) state.waiting.reject(new Error(t('renderFailed', 'This could not be drawn.')));
+    if (state.waiting) state.waiting.reject(shown(t('renderFailed', 'This could not be drawn.')));
     state.frame.remove();
   }
 
@@ -722,7 +755,7 @@
       };
       const loading = loadLibrary(kind);
       const timer = setTimeout(() => {
-        finish(reject, new Error(t('renderTimeout', 'Drawing took too long.')));
+        finish(reject, shown(t('renderTimeout', 'Drawing took too long.')));
         if (state && frames[kind] === state) dropFrame(kind);
         // Still reading the library: that read ends, and the next drawing
         // reads it again.
@@ -780,12 +813,12 @@
       const onError = () => {
         done();
         end();
-        reject(new Error(t('renderFailed', 'This could not be drawn.')));
+        reject(shown(t('renderFailed', 'This could not be drawn.')));
       };
       const timer = setTimeout(() => {
         done();
         end();
-        reject(new Error(t('renderTimeout', 'Drawing took too long.')));
+        reject(shown(t('renderTimeout', 'Drawing took too long.')));
       }, CHART_WAIT_MS);
       worker.addEventListener('message', onMessage);
       worker.addEventListener('error', onError);
@@ -842,7 +875,7 @@
   }
 
   const api = {
-    draw, KINDS, Refused,
+    draw, KINDS, Refused, describeError, failureNotice,
     // For tests: what is taken apart from drawing.
     codeLanguage, highlightedLines,
     parseTable, pageDocument, diagramChecked, dataImageOk, cssLoads,

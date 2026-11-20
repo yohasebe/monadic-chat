@@ -17,6 +17,14 @@
   // was opened for: the word table can arrive or change while it is open.
   let _contentChosen = false;
   let _chatShown = null;
+  // The export asked for and not answered yet: its id, so an answer to an
+  // earlier request (or after the dialog was opened again) is not taken
+  // for this one.
+  let _pendingExport = null;
+
+  function t(key, fallback) {
+    return typeof webUIi18n !== 'undefined' ? webUIi18n.t(key) : fallback;
+  }
 
   // A chat that hides words defaults to "masked", so the words are not
   // written to disk by accident; "restored" stays available. The content
@@ -59,6 +67,7 @@
     if (encryptToggle) encryptToggle.checked = false;
     _contentChosen = false;
     _chatShown = shownChat();
+    _pendingExport = null;
     const pass = document.getElementById('privacy-export-passphrase');
     const conf = document.getElementById('privacy-export-passphrase-confirm');
     if (pass) pass.value = '';
@@ -72,8 +81,8 @@
   // Inline passphrase strength scoring: 0-4 based on length and the
   // diversity of character classes (lower / upper / digit / symbol).
   function scorePassphrase(pw) {
-    if (!pw) return { score: 0, label: 'Enter a passphrase' };
-    if (pw.length < 8) return { score: 0, label: 'Too short (need ≥ 8 chars)' };
+    if (!pw) return { score: 0, label: t('ui.exportStrengthEmpty', 'Enter a passphrase') };
+    if (pw.length < 8) return { score: 0, label: t('ui.exportStrengthShort', 'Too short (8 characters or more)') };
     let classes = 0;
     if (/[a-z]/.test(pw)) classes++;
     if (/[A-Z]/.test(pw)) classes++;
@@ -85,8 +94,8 @@
     else if (pw.length >= 12 || classes >= 3) score = 2;
     else if (pw.length >= 10 || classes >= 2) score = 1;
     else score = 0;
-    const labels = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong'];
-    return { score: score, label: labels[score] };
+    const fallbacks = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong'];
+    return { score: score, label: t('ui.exportStrength' + score, fallbacks[score]) };
   }
 
   function updateStrengthMeter(pw) {
@@ -147,6 +156,10 @@
   function checkContinueEnabled() {
     const continueBtn = document.getElementById('privacy-export-continue');
     if (!continueBtn) return;
+    if (_pendingExport) {
+      continueBtn.disabled = true;
+      return;
+    }
     if (!isEncryptChecked()) {
       // Plain export: always allowed (user has been warned via the alert box).
       continueBtn.disabled = false;
@@ -189,18 +202,37 @@
     if (encrypt) {
       payload.passphrase = (document.getElementById('privacy-export-passphrase') || {}).value || '';
     }
-    setExportStatus('Preparing export...', 'text-muted');
+    if (_pendingExport) return;
+    _pendingExport = 'exp-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+    payload.request_id = _pendingExport;
+    setExportStatus(t('ui.exportPreparing', 'Preparing the export…'), 'text-muted');
+    checkContinueEnabled();
     // PRIVACY_EXPORT is non-idempotent (server re-runs encryption +
-    // streams a base64 blob; replay would re-do that work and emit a
-    // second response the UI wouldn't expect). Default safeWsSend
-    // behavior (fail-fast alert when WS is not OPEN) is the honest
-    // outcome — strictly better than the prior silent `return` that
-    // left "Preparing export..." stuck in the dialog.
-    window.safeWsSend(payload);
+    // streams a base64 blob), so it is not queued for replay: when it
+    // could not be sent, the dialog says so and the user tries again.
+    const sent = window.safeWsSend(payload);
+    if (sent && sent.sent === false && sent.queued === false) {
+      _pendingExport = null;
+      setExportStatus(t('ui.exportNotSent', 'The export could not be sent. Check the connection and try again.'), 'text-danger');
+      checkContinueEnabled();
+    }
+  }
+
+  // Whether an answer belongs to the export this dialog is waiting for;
+  // when it does, the dialog stops waiting.
+  function answersPending(data) {
+    if (!_pendingExport || !data || data.request_id !== _pendingExport) return false;
+    _pendingExport = null;
+    checkContinueEnabled();
+    return true;
   }
 
   function handleExportData(data) {
-    if (!data || !data.content_base64) return;
+    if (!answersPending(data)) return;
+    if (!data.content_base64) {
+      setExportStatus(t('ui.exportFailed', 'The export failed. Try again.'), 'text-danger');
+      return;
+    }
     try {
       const binary = atob(data.content_base64);
       const bytes = new Uint8Array(binary.length);
@@ -214,22 +246,20 @@
       a.click();
       document.body.removeChild(a);
       setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
-      setExportStatus('Downloaded: ' + a.download, 'text-success');
-      // Auto-close after a brief delay so the user sees the success message
-      setTimeout(function () {
-        const modalEl = document.getElementById('privacyExportModal');
-        if (modalEl && window.bootstrap && window.bootstrap.Modal) {
-          window.bootstrap.Modal.getInstance(modalEl)?.hide();
-        }
-      }, 800);
-    } catch (e) {
-      setExportStatus('Download failed: ' + e.message, 'text-danger');
+      // The browser was handed the file; whether it was saved (or the
+      // save was cancelled) is not known here.
+      setExportStatus(t('ui.exportStarted', 'Download started: {name}').replace('{name}', a.download), 'text-success');
+    } catch (_e) {
+      setExportStatus(t('ui.exportFailed', 'The export failed. Try again.'), 'text-danger');
     }
   }
 
   function handleExportError(data) {
-    const detail = (data && (data.detail || data.error)) || 'unknown error';
-    setExportStatus('Export error: ' + detail, 'text-danger');
+    if (!answersPending(data)) return;
+    const message = data.error === 'passphrase_required'
+      ? t('ui.exportPassphraseRequired', 'A passphrase is needed.')
+      : t('ui.exportFailed', 'The export failed. Try again.');
+    setExportStatus(message, 'text-danger');
   }
 
   // Wire dialog interactions (document-level delegation, idempotent).

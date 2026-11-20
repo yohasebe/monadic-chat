@@ -5,7 +5,7 @@ app "MonadicHelpOpenAI" do
     TEXT
     
     ja <<~TEXT
-    Monadic Chatの使用方法とガイダンス。 <a href="https://yohasebe.github.io/monadic-chat/" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Monadic Chatの使用方法とガイダンス。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     zh <<~TEXT

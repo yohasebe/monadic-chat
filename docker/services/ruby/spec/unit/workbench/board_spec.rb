@@ -316,6 +316,32 @@ RSpec.describe "the workbench (board, artifact, approvals, record)" do
     end
   end
 
+  describe "offering an item to a tab" do
+    it "selects it only for a tab that selects nothing, and says when it was offered quietly" do
+      first = add("a.png", "a")
+      second = add("b.png", "b")
+      expect(board.offer(tab: "tab-1", generation: 1, item_id: first["id"], quiet: true)).to be(true)
+      expect(board.selected(tab: "tab-1", generation: 1)).to eq(first["id"])
+      expect(board.selection_with_quiet(tab: "tab-1", generation: 1)).to match([first["id"], Integer, true])
+
+      expect(board.offer(tab: "tab-1", generation: 1, item_id: second["id"], quiet: true)).to be(false)
+      expect(board.selected(tab: "tab-1", generation: 1)).to eq(first["id"])
+    end
+
+    it "leaves what the user chose, and is no longer quiet once the user chooses" do
+      first = add("a.png", "a")
+      second = add("b.png", "b")
+      board.select(tab: "tab-1", generation: 1, item_id: second["id"])
+      expect(board.offer(tab: "tab-1", generation: 1, item_id: first["id"], quiet: true)).to be(false)
+      expect(board.selection_with_quiet(tab: "tab-1", generation: 1).last).to be(false)
+
+      board.select(tab: "tab-2", generation: 1, item_id: nil)
+      board.offer(tab: "tab-2", generation: 1, item_id: first["id"], quiet: true)
+      board.select(tab: "tab-2", generation: 1, item_id: second["id"])
+      expect(board.selection_with_quiet(tab: "tab-2", generation: 1).last).to be(false)
+    end
+  end
+
   describe "approvals" do
     it "works only for the connection it was issued to, and stops when that connection or chat goes" do
       approvals = Monadic::Workbench::Approvals

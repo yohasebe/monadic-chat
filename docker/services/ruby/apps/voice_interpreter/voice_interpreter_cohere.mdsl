@@ -1,31 +1,31 @@
 app "VoiceInterpreterCohere" do
   description do
     en <<~TEXT
-    Real-time voice translation between languages using Cohere's translation model. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Real-time voice translation between languages using Cohere's translation model. <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ja <<~TEXT
-    Cohereの翻訳モデルを使用した言語間のリアルタイム音声翻訳。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Cohereの翻訳モデルを使用した言語間のリアルタイム音声翻訳。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/apps/language-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     zh <<~TEXT
-    使用Cohere翻译模型的语言之间的实时语音翻译。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    使用Cohere翻译模型的语言之间的实时语音翻译。 <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ko <<~TEXT
-    Cohere 번역 모델을 사용한 언어 간 실시간 음성 번역. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Cohere 번역 모델을 사용한 언어 간 실시간 음성 번역. <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     es <<~TEXT
-    Traducción de voz en tiempo real entre idiomas usando el modelo de traducción de Cohere. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Traducción de voz en tiempo real entre idiomas usando el modelo de traducción de Cohere. <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     fr <<~TEXT
-    Traduction vocale en temps réel entre langues utilisant le modèle de traduction de Cohere. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Traduction vocale en temps réel entre langues utilisant le modèle de traduction de Cohere. <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     de <<~TEXT
-    Echtzeit-Sprachübersetzung zwischen Sprachen mit dem Cohere-Übersetzungsmodell. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Echtzeit-Sprachübersetzung zwischen Sprachen mit dem Cohere-Übersetzungsmodell. <a href="https://yohasebe.github.io/monadic-chat/#/apps/language-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
 

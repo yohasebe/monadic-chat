@@ -351,4 +351,25 @@ describe('WorkbenchRender', () => {
   test('refuses a kind it does not draw', async () => {
     await expect(R.draw(document.createElement('div'), 'pdf', 'x').done).rejects.toThrow(R.Refused);
   });
+
+  describe('the notice of a failure to draw', () => {
+    test('folds the reason for refused content under Details', () => {
+      const notice = R.failureNotice(new R.Refused('Parse error on line 2'), 'alert');
+      expect(notice.firstChild.textContent).toBe('This could not be drawn.');
+      expect(notice.querySelector('details summary').textContent).toBe('Details');
+      expect(notice.querySelector('details pre').textContent).toBe('Parse error on line 2');
+    });
+
+    test('shows no internal error text', () => {
+      const notice = R.failureNotice(new Error('markdown-it is not loaded'), 'alert');
+      expect(notice.textContent).toBe('This could not be drawn.');
+      expect(notice.querySelector('details')).toBeNull();
+    });
+
+    test('shows a message written for people as it is', () => {
+      const error = R.describeError(Object.assign(new Error('Drawing took too long.'), { forPeople: true }));
+      expect(error).toEqual({ message: 'Drawing took too long.', detail: '' });
+      expect(R.failureNotice(null, 'alert').textContent).toBe('This could not be drawn.');
+    });
+  });
 });

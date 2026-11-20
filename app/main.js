@@ -3795,7 +3795,7 @@ function computePendingContainerBuilds(imageStatus = null) {
   if (privacyEnabled && notBuilt('privacy', snapshots.privacy_service)) {
     result.push({
       container: 'privacy_service',
-      label: 'Privacy (name finder)',
+      label: i18n.t('dialogs.pendingBuilds.privacyContainer'),
       changed: null,
       buildCommand: 'build_privacy_container',
       minutes: '3–5'

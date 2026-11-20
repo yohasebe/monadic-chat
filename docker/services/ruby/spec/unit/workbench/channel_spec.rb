@@ -215,13 +215,17 @@ RSpec.describe "the workbench over the main socket (channel, asset server)" do
       expect(headers).not_to have_key("content-disposition")
     end
 
-    it "serves a download as a file to save under the image's name" do
+    it "serves a download once, as bytes to save under the image's name" do
       item = image
-      status, headers, body = fetch_asset(download(item.dig("artifact", "id"))["url"])
+      url = download(item.dig("artifact", "id"))["url"]
+      status, headers, body = fetch_asset(url)
       name = item.dig("artifact", "name")
       expect(status).to eq(200)
       expect(body.join).to eq(png(64, 48))
+      expect(headers).to include("content-type" => "application/octet-stream", "x-content-type-options" => "nosniff",
+                                 "cache-control" => "no-store")
       expect(headers["content-disposition"]).to eq("attachment; filename=\"#{name}\"; filename*=UTF-8''#{name}")
+      expect(fetch_asset(url).first).to eq(404)
     end
 
     it "gives the same not-found to other sites, other methods, unknown and expired tokens" do

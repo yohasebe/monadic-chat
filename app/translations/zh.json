@@ -235,6 +235,7 @@
       "notBuilt": "尚未构建",
       "optionsChanged": "选项已更改（{{options}}）",
       "pythonContainer": "Python 容器",
+      "privacyContainer": "Privacy 容器（名称识别）",
       "minutes": "{{range}} 分钟"
     }
   },

@@ -34,7 +34,7 @@ Exit Monadic Chat.
 
 The console has a menu bar with the menus File, Edit, Actions, Open, Help and Window. On macOS, the File menu is shown under the name Monadic Chat. Edit has the usual editing commands, Help opens the documentation, and Window has Minimize, Close and Reload.
 
-### Actions Menu
+### Actions Menu :id=actions-menu
 
 ![The Actions menu](../assets/images/figures/menu-actions.svg)
 
@@ -77,10 +77,10 @@ Open JupyterLab ([http://localhost:8889](http://localhost:8889)) in your browser
 Stop JupyterLab.
 
 **Import Document DB** <br />
-Import the entire Document DB (conversations saved to the Knowledge Base, PDFs, and other Knowledge Base entries) from a previously exported file in the shared folder. The chat history is not part of the Document DB and is not changed. A confirmation dialog warns that importing replaces the current database (**Replace and Import**). The accepted filenames are `monadic-qdrant.tar.gz` (plain) or `monadic-qdrant.tar.gz.enc` (encrypted, prompts for the passphrase used at export time).
+Import the entire Document DB (conversations saved to the Knowledge Base, PDFs, and other Knowledge Base entries) from a previously exported file in the shared folder. The chat history is not part of the Document DB and is not changed. A confirmation dialog warns that importing replaces the current database (**Replace and Import**). The accepted filenames are `monadic-qdrant.tar.gz` (plain) or `monadic-qdrant.tar.gz.enc` (encrypted, prompts for the passphrase used at export time). With a wrong passphrase or a damaged file nothing is imported, and the current database stays as it is.
 
 **Export Document DB** <br />
-Export the entire Document DB to the shared folder. A confirmation dialog offers two choices: **Encrypt and Export** (default — prompts for a passphrase and writes `monadic-qdrant.tar.gz.enc`) or **Export Plain** (writes `monadic-qdrant.tar.gz` unencrypted, with a strong warning that every conversation saved to the Knowledge Base and every PDF travels in cleartext). The export does not include the [chat history](web-interface.md#chat-history-panel). Use the encrypted form for any export that may leave your machine. For the encryption format and import/decryption behavior, see [Anonymization](../advanced-topics/anonymization.md#document-db-export-import).
+Export the entire Document DB to the shared folder. A confirmation dialog offers two choices: **Encrypt and Export** (default — prompts for a passphrase of at least 8 characters, encrypts the file with AES-256-GCM and writes `monadic-qdrant.tar.gz.enc`; the passphrase cannot be recovered) or **Export Plain** (writes `monadic-qdrant.tar.gz` unencrypted, with a strong warning that every conversation saved to the Knowledge Base and every PDF travels in cleartext). The export does not include the [chat history](web-interface.md#chat-history-panel). Use the encrypted form for any export that may leave your machine.
 
 ### Open Menu
 

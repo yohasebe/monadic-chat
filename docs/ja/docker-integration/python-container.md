@@ -2,7 +2,7 @@
 
 Monadic Chat は `monadic-chat-python-container` で Python のツールを動かします。AI エージェントはこのコンテナで Python のコードを実行し、結果を返します。
 
-## Install Options
+## Install Options :id=install-options
 
 コンソールの **アクション → インストールオプション** で、Python コンテナに追加のコンポーネントを加えられます。
 

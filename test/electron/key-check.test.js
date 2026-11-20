@@ -296,7 +296,7 @@ describe('1Password references', () => {
     const result = await opReferences.resolveOne('op://Vault/Item/key', { op: '/usr/local/bin/op', runner, platform: 'darwin' });
     expect(result).toEqual({ failure: 'cancelled' });
     expect(calls).toHaveLength(1);
-    expect(calls[0].input).toBe('{{ op://Vault/Item/key }}');
+    expect(calls[0].input).toBe('{{ op://Vault/Item/key }}\n');
     expect(calls[0].args.join(' ')).not.toContain('Vault');
   });
 

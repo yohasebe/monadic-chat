@@ -2,7 +2,7 @@
 
 ## システム要件 :id=system-requirements
 
-- **Docker**: Docker Desktop（新しい版）、または Linux では Docker Engine
+- **Docker**: Docker Desktop（新しい版）、または Linux では Docker Engine。`docker` コマンドから使えるほかのエンジンについては[コンテナのエンジン](../docker-integration/basic-architecture.md#container-engine)を参照
 - **メモリ**: 最低8GB RAM（16GB推奨）
 - **ストレージ**: Dockerイメージとユーザーデータ用の十分な空き容量
 - **macOS**: Apple Silicon（M1以降）上の macOS 13（Ventura）以降が必要です。Intel Macはサポートされていません。

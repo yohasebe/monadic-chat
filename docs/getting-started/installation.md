@@ -2,7 +2,7 @@
 
 ## System Requirements :id=system-requirements
 
-- **Docker**: Docker Desktop (a recent version), or Docker Engine on Linux
+- **Docker**: Docker Desktop (a recent version), or Docker Engine on Linux. Other engines that the `docker` command can use: see [Container Engine](../docker-integration/basic-architecture.md#container-engine)
 - **Memory**: At least 8GB RAM (16GB recommended)
 - **Storage**: Sufficient free disk space for Docker images and user data
 - **macOS**: macOS 13 (Ventura) or later on Apple Silicon (M1 or later). Intel Macs are not supported.

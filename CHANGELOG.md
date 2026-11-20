@@ -10,6 +10,7 @@
     - Chat Plus is merged into Chat, Language Practice Plus into Language Practice, and Music Lab is called Music Tutor; chats made with the old apps open in the new ones
     - Chat answers without waiting for its notes: the notes are updated after each reply with one more request to the same provider and model
     - The Session Context panel is removed: apps show their state as notes on the work screen
+    - Docker Desktop is started only when it is the engine the `docker` command uses
     - What the apps make is saved in the chat's folder in `conversations/` and shown on the work screen
     - Code Interpreter, Research Assistant and Math Tutor run code in the chat's folder: **read your own files by their full path (`/monadic/data/...`)**
     - Files the AI writes with the file tools are kept in the chat's work folder (`conversations/…/work/`), and the reply gives their paths; nothing an app or a document import makes is saved at the top of the shared folder, and code starts in a run folder of the chat in every app
@@ -41,6 +42,8 @@
     - New models: Gemini 4 Hydrogen, Gemini 4 Carbon, Claude Fable 5.2, GPT-6.1 Terra, GPT Image 2.6 Flare and Sunburst, and ElevenLabs Scribe v3
     - Settings > API Keys can check each key with its provider and show whether the provider's default models are in that key's model list
     - Every file on the work screen has `Save as…`, which saves it under its own name
+    - Monadic Chat uses the engine the `docker` command uses, so Podman and Colima work besides Docker Desktop; the status bar names the engine
+    - Image downloads show as one line that counts up in the console
     - The `Work screen` tab shows a dot when something new comes to it while another tab is shown
   - Fixed
     - `Cancel` stops a reply while tools are running

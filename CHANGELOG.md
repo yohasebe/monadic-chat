@@ -44,6 +44,7 @@
     - The `Work screen` tab shows a dot when something new comes to it while another tab is shown
   - Fixed
     - `Cancel` stops a reply while tools are running
+    - Keys that 1Password provides one at a time no longer end in a line break that stopped the providers from accepting them
     - The conversation export says when it did not start, and runs once per click
     - The Settings categories and the switches that show a diagram's source work with the keyboard
     - The export dialog, draw.io diagrams and the first setup follow the interface language

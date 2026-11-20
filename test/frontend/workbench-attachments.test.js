@@ -158,6 +158,22 @@ describe('Attachments on the work screen', () => {
     expect(lastSelect().payload).toMatchObject({ item_id: null });
   });
 
+  test('an item first offered while the attachment is shown does not take the pane at a later offer', () => {
+    view([], { selected: null });
+    window.Workbench.showAttachment({ source: 'draft', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
+    view([NOTES], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [NOTES] }, selected: 'i_t',
+      selection_quiet: true });
+    window.Workbench.select('i_t');
+    window.Workbench.select(null);
+    window.Workbench.onSelected({ type: 'workbench_selected', status: 'accepted', item_id: null,
+      seq: lastSelect().payload.seq });
+    layout.pane = 'settings';
+    window.LayoutController.setPane.mockClear();
+    view([NOTES], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [NOTES] }, selected: 'i_t',
+      selection_quiet: true });
+    expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+  });
+
   test('a first view that offers an item quietly leaves the attachment shown and tells the server', () => {
     view([], { selected: null });
     window.Workbench.showAttachment({ source: 'draft', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });

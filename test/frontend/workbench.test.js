@@ -43,6 +43,13 @@ describe('Workbench', () => {
   }
 
   // The item the pane shows, or null.
+  // The user writes in the message box (focus and text).
+  function writeMessage() {
+    const box = document.getElementById('message');
+    box.value = 'draft';
+    box.focus();
+  }
+
   function shown() {
     const pane = document.getElementById('workbench-view');
     return pane && !pane.hidden ? pane.dataset.item : null;
@@ -70,7 +77,8 @@ describe('Workbench', () => {
       <div id="workbench-items" hidden></div>
       <div id="work-screen-browser"></div>
       <div id="workbench-view" hidden></div>
-      <textarea id="message"></textarea>`;
+      <textarea id="message"></textarea>
+      <span id="side-tab-work-new" hidden></span>`;
     sent = [];
     messages = [{ mid: 'm-1', role: 'assistant', text: 'done' }];
     layout = { hidden: false, pane: 'settings' };
@@ -207,7 +215,7 @@ describe('Workbench', () => {
 
     layout.hidden = false;
     window.Workbench.select(null);
-    document.getElementById('message').focus();
+    writeMessage();
     view([item(), item({ id: 'i_2', artifact_id: 'r_2', name: 'dog.png', sha256: 'b'.repeat(64) })]);
     expect(window.LayoutController.setPane).not.toHaveBeenCalled();
     expect(shown()).toBeNull();
@@ -483,7 +491,7 @@ describe('Workbench', () => {
       window.Workbench.onOpened({ type: 'workbench_opened', item_id: 'i_f', path: 'reports/notes.txt', added: true });
       // Shown when the board has it, even while the user types and whatever
       // the server's selection was before.
-      document.getElementById('message').focus();
+      writeMessage();
       global.fetch = jest.fn(() => new Promise(() => {}));
       view([item(), file()], { selected: 'i_1' });
       expect(window.LayoutController.setMenuHidden).toHaveBeenCalledWith(false);
@@ -592,10 +600,44 @@ describe('Workbench', () => {
       expect(document.getElementById('workbench-stepper').hidden).toBe(true);
     });
   });
+  describe('the mark on the work screen tab', () => {
+    const mark = () => document.getElementById('side-tab-work-new');
+    const notes = (version) => item({ id: 'i_n', kind: 'file', name: 'notes.md', version, sha256: version });
+    const board = (items, revision) => ({ board: { board_id: 'b1', chat_id: 'c_1', revision, items }, selected: null });
+
+    test('marks a new version of an item that comes while another pane is shown, until the work screen is shown', () => {
+      view([notes('v1')], Object.assign(board([notes('v1')], 1), { initial: true }));
+      expect(mark().hidden).toBe(true);
+      view([notes('v2')], board([notes('v2')], 2));
+      expect(mark().hidden).toBe(false);
+      window.LayoutController.setPane('work');
+      document.dispatchEvent(new Event('layoutchange'));
+      expect(mark().hidden).toBe(true);
+    });
+
+    test('marks a new item, but nothing that comes while the work screen is shown', () => {
+      layout.pane = 'work';
+      view([notes('v1')], board([notes('v1')], 1));
+      view([notes('v2')], board([notes('v2')], 2));
+      expect(mark().hidden).toBe(true);
+      layout.pane = 'settings';
+      const next = item({ id: 'i_2', version: 'x' });
+      view([notes('v2'), next], board([notes('v2'), next], 3));
+      expect(mark().hidden).toBe(false);
+    });
+
+    test('does not mark the board a connection is sent first, nor the board of another chat', () => {
+      view([notes('v1')], Object.assign(board([notes('v1')], 1), { initial: true }));
+      expect(mark().hidden).toBe(true);
+      view([notes('v1')], { board: { board_id: 'b2', chat_id: 'c_2', revision: 1, items: [notes('v1')] }, selected: null });
+      expect(mark().hidden).toBe(true);
+    });
+  });
+
   describe('keeping the page and the server in step', () => {
     test('tells the server what the pane still shows when an item arrives while the user types', () => {
       view([item()]);
-      document.getElementById('message').focus();
+      writeMessage();
       sent.length = 0;
       const next = item({ id: 'i_2', artifact_id: 'r_2', sha256: 'b'.repeat(64) });
       view([item(), next], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item(), next] }, selected: 'i_2' });
@@ -603,12 +645,119 @@ describe('Workbench', () => {
       expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
     });
 
-    test('shows a quietly offered item on a work screen that shows nothing, without taking the pane', () => {
+    test('turns the pane to a quietly offered item that is the first of the work screen', () => {
       view([], { selected: null });
       sent.length = 0;
       view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] },
         selected: 'i_1', selection_quiet: true });
       expect(shown()).toBe('i_1');
+      expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
+      expect(payloads()).toEqual([]);
+    });
+
+    test('turns the pane to the first quietly offered item while the message box only has the focus', () => {
+      view([], { selected: null });
+      document.getElementById('message').focus();
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] },
+        selected: 'i_1', selection_quiet: true });
+      expect(shown()).toBe('i_1');
+      expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
+    });
+
+    test('turns the pane to the first item when its quiet selection comes in a later view', () => {
+      view([], { selected: null });
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] }, selected: null });
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [item()] }, selected: 'i_1',
+        selection_quiet: true });
+      expect(shown()).toBe('i_1');
+      expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
+    });
+
+    test('takes the pane for the first item only at its first offer, and not after the work screen was shown', () => {
+      view([], { selected: null });
+      writeMessage();
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] }, selected: 'i_1',
+        selection_quiet: true });
+      document.getElementById('message').value = '';
+      window.Workbench.select(null);
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [item()] }, selected: 'i_1',
+        selection_quiet: true });
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+
+      // Another chat (its board resets the page).
+      view([], { board: { board_id: 'b2', chat_id: 'c_2', revision: 1, items: [] }, selected: null });
+      view([item()], { board: { board_id: 'b2', chat_id: 'c_2', revision: 2, items: [item()] }, selected: null });
+      window.LayoutController.setPane('work');
+      document.dispatchEvent(new Event('layoutchange'));
+      window.LayoutController.setPane('settings');
+      window.LayoutController.setPane.mockClear();
+      view([item()], { board: { board_id: 'b2', chat_id: 'c_2', revision: 3, items: [item()] }, selected: 'i_1',
+        selection_quiet: true });
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+    });
+
+    test('does not take the pane for an item that came while the work screen was shown', () => {
+      layout.pane = 'work';
+      view([], { selected: null });
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] }, selected: null });
+      layout.pane = 'settings';
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [item()] }, selected: 'i_1',
+        selection_quiet: true });
+      expect(shown()).toBe('i_1');
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+    });
+
+    test('does not take the pane for an item that was on the board a connection is sent first', () => {
+      view([item()], { selected: null, initial: true });
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] }, selected: 'i_1',
+        selection_quiet: true });
+      expect(shown()).toBe('i_1');
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+    });
+
+    test('counts spaces in the message box as writing, and not a focused slider', () => {
+      view([], { selected: null });
+      const box = document.getElementById('message');
+      box.value = '    ';
+      box.focus();
+      const next = item({ id: 'i_2', artifact_id: 'r_2', sha256: 'b'.repeat(64) });
+      view([next], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [next] }, selected: 'i_2',
+        selection_quiet: true });
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+
+      box.value = '';
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.value = '0.5';
+      document.body.appendChild(slider);
+      slider.focus();
+      window.Workbench.select(null);
+      layout.pane = 'settings';
+      const third = item({ id: 'i_3', artifact_id: 'r_3', sha256: 'c'.repeat(64) });
+      view([next, third], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [next, third] }, selected: 'i_3' });
+      expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
+    });
+
+    test('shows the first quietly offered item without taking the pane while the user types', () => {
+      view([], { selected: null });
+      writeMessage();
+      view([item()], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item()] },
+        selected: 'i_1', selection_quiet: true });
+      expect(shown()).toBe('i_1');
+      expect(window.LayoutController.setPane).not.toHaveBeenCalled();
+    });
+
+    test('shows a later quietly offered item on a work screen that shows nothing, without taking the pane', () => {
+      view([item()]);
+      window.Workbench.select(null);
+      layout.pane = 'settings';
+      window.LayoutController.setPane.mockClear();
+      sent.length = 0;
+      const next = item({ id: 'i_2', artifact_id: 'r_2', sha256: 'b'.repeat(64) });
+      view([item(), next], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item(), next] },
+        selected: 'i_2', selection_quiet: true });
+      expect(shown()).toBe('i_2');
       expect(window.LayoutController.setPane).not.toHaveBeenCalled();
       expect(payloads()).toEqual([]);
     });
@@ -726,7 +875,7 @@ describe('Workbench', () => {
 
     test('brings forward an item the server selects again after the page kept another', () => {
       view([item()]);
-      document.getElementById('message').focus();
+      writeMessage();
       const next = item({ id: 'i_2', artifact_id: 'r_2', sha256: 'b'.repeat(64) });
       const both = { board_id: 'b1', chat_id: 'c_1', items: [item(), next] };
       view([item(), next], { board: Object.assign({ revision: 2 }, both), selected: 'i_2' });

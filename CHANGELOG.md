@@ -41,6 +41,7 @@
     - New models: Gemini 4 Hydrogen, Gemini 4 Carbon, Claude Fable 5.2, GPT-6.1 Terra, GPT Image 2.6 Flare and Sunburst, and ElevenLabs Scribe v3
     - Settings > API Keys can check each key with its provider and show whether the provider's default models are in that key's model list
     - Every file on the work screen has `Save as…`, which saves it under its own name
+    - The `Work screen` tab shows a dot when something new comes to it while another tab is shown
   - Fixed
     - `Cancel` stops a reply while tools are running
     - The conversation export says when it did not start, and runs once per click

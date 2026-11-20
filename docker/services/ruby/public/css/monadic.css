@@ -6659,6 +6659,21 @@ body.side-pane-resizing {
   color: var(--text-secondary, #6c757d);
 }
 
+/* Something new on the work screen, kept until the work screen is shown. */
+.side-pane-tab-new {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  vertical-align: middle;
+}
+
+.side-pane-tab-new[hidden] {
+  display: none;
+}
+
 /* What the work screen says of the notes kept after a reply. */
 .workbench-notes-status {
   color: var(--text-secondary, #6c757d);

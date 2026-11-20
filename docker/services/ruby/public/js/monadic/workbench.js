@@ -401,27 +401,30 @@
     line.appendChild(element('code', null, item.path || item.name || ''));
     shortenPaths(line);
     info.appendChild(line);
+    // The buttons under the item, in one row that keeps them apart.
+    const actions = element('div', 'workbench-actions');
+    info.appendChild(actions);
     if (item.status === 'ok' && item.artifact_id) {
-      info.appendChild(saveButton(item.artifact_id, 'btn-primary mt-2'));
+      actions.appendChild(saveButton(item.artifact_id, 'btn-primary'));
     } else if (item.status === 'ok' && item.kind === 'file' && item.sha256) {
-      info.appendChild(fileSaveButton(item, 'btn-primary mt-2'));
+      actions.appendChild(fileSaveButton(item, 'btn-primary'));
     }
     // A file is read again where it is shown (the board takes it at the
     // version it has now): after it changed, or whenever the user asks.
     if (item.kind === 'file' && item.status === 'changed') {
-      info.appendChild(button(t('ui.workbench.reopen', 'Open it as it is now'), 'btn-secondary mt-2',
+      actions.appendChild(button(t('ui.workbench.reopen', 'Open it as it is now'), 'btn-secondary',
         () => openFile(item.path)));
     } else if (item.kind === 'file' && item.status === 'ok') {
-      info.appendChild(button(t('ui.workbench.reload', 'Reload'), 'btn-secondary mt-2', () => openFile(item.path)));
+      actions.appendChild(button(t('ui.workbench.reload', 'Reload'), 'btn-secondary', () => openFile(item.path)));
     }
     if (item.kind === 'file' && item.status === 'ok' && /\.ipynb$/i.test(item.path || '')) {
-      info.appendChild(button(t('ui.workbench.jupyterOpen', 'Open in JupyterLab'), 'btn-secondary mt-2',
+      actions.appendChild(button(t('ui.workbench.jupyterOpen', 'Open in JupyterLab'), 'btn-secondary',
         () => openInJupyter(item.path)));
     }
     // A document put together from sections (Workbench::Document): its
     // earlier versions can be listed and opened as files of their own.
     if (item.kind === 'file' && item.status === 'ok' && DOCUMENT_PATH.test(item.path || '')) {
-      info.appendChild(button(t('ui.workbench.versions', 'Versions'), 'btn-outline-secondary mt-2 ms-2', () => askVersions(item.path)));
+      actions.appendChild(button(t('ui.workbench.versions', 'Versions'), 'btn-outline-secondary', () => askVersions(item.path)));
       info.appendChild(element('div', 'workbench-versions mt-2'));
     }
   }

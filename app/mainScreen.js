@@ -554,6 +554,22 @@ document.addEventListener('DOMContentLoaded', () => {
   window.electronAPI.onUpdateDockerStatusIndicator((_event, isRunning) => {
     updateDockerStatusUI(isRunning); 
   });
+  // Image downloads: one line, updated in place until the download ends.
+  if (window.electronAPI.onPullProgress) {
+    window.electronAPI.onPullProgress((_event, data) => {
+      if (!data || typeof data.text !== 'string') return;
+      let line = document.getElementById('pull-progress-line');
+      if (!line) {
+        line = document.createElement('p');
+        line.id = 'pull-progress-line';
+        htmlOutputElement.appendChild(line);
+        htmlMessageCount += 1;
+      }
+      line.textContent = data.text;
+      if (data.done) line.removeAttribute('id');
+      htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
+    });
+  }
   if (window.electronAPI.onEngineName) {
     window.electronAPI.onEngineName((_event, name) => {
       // The characters main.js keeps in an engine or context name.

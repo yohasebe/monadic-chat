@@ -18,6 +18,7 @@ const opReferences = require('./op_references');
 const keyCheck = require('./key_check');
 const { createRevealHandler, createTrashHandler, showSharedPath, NO_ANSWER } = require('./shared_folder_reveal');
 const { copyAddressItems } = require('./context_menu_copy');
+const { createPullProgress } = require('./pull_progress');
 const { writeStreamNoFollow, readStreamNoFollow, openReadNoFollow } = require('./no_follow_files');
 const { monadicShEnv, monadicInvocation } = require('./monadic_env');
 const { keepWarnings, createLineBuffer } = require('./build_output');
@@ -979,9 +980,31 @@ class DockerManager {
               }
             });
             
+            // Image downloads: their layer lines become one line on the
+            // console, updated in place (the log files keep every line).
+            const pulls = createPullProgress();
+            let pullShownAt = 0;
+            const showPull = (done) => {
+              const now = Date.now();
+              if (!done && now - pullShownAt < 250) return;
+              pullShownAt = now;
+              const size = pulls.progress().text;
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('pull-progress', {
+                  done, text: i18n.t(done ? 'messages.pullDone' : 'messages.pullProgress', { size })
+                });
+              }
+              if (done) pulls.reset();
+            };
+
             // Handled a whole line at a time (a marker or a warning cut
             // between two chunks would otherwise be missed or lost).
             const stdoutLines = createLineBuffer(function (output) {
+              if (pulls.take(output)) {
+                showPull(false);
+                return;
+              }
+              if (pulls.active()) showPull(true);
               
               // Translate Docker messages before displaying
               let translatedOutput = output;
@@ -1049,7 +1072,10 @@ class DockerManager {
                   // Styled version info with visual separation
                   const appLabel = i18n.t('messages.versionInfoApp');
                   const containerLabel = i18n.t('messages.versionInfoContainer');
-                  translatedOutput = `[HTML]: <p style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"><span class="msg-version-app" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-desktop" style="color: #4CACDC; margin-right: 4px;"></i>${appLabel} <strong>v${appVersionMatch[1]}</strong></span><span class="msg-version-container" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-brands fa-docker" style="color: #2496ED; margin-right: 4px;"></i>${containerLabel} <strong>v${containerVersionMatch[1]}</strong></span></p>`;
+                  // "None": no Ruby image yet (monadic.sh compares it as a version).
+                  const containerVersion = containerVersionMatch[1] === 'None'
+                    ? i18n.t('messages.containerNotBuilt') : `v${containerVersionMatch[1]}`;
+                  translatedOutput = `[HTML]: <p style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"><span class="msg-version-app" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-desktop" style="color: #4CACDC; margin-right: 4px;"></i>${appLabel} <strong>v${appVersionMatch[1]}</strong></span><span class="msg-version-container" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-cubes" style="color: #2496ED; margin-right: 4px;"></i>${containerLabel} <strong>${containerVersion}</strong></span></p>`;
                 }
               }
 
@@ -1151,6 +1177,7 @@ class DockerManager {
 
             subprocess.on('close', function (code) {
               stdoutLines.flush();
+              if (pulls.active()) showPull(true);
               if (code !== 0) {
                 dialog.showErrorBox(i18n.t('dialogs.error'), i18n.t('dialogs.dockerCommandFailed', { code }));
               }

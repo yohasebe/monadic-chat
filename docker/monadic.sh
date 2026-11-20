@@ -2001,7 +2001,7 @@ remove_volume() {
 # Function to remove project-specific dangling images
 remove_project_dangling_images() {
   local project_label="monadic-chat"
-  ${DOCKER} images -f "dangling=true" -f "label=project=${project_label}" --format "{{.ID}}" | xargs -r docker rmi -f
+  ${DOCKER} images -f "dangling=true" -f "label=project=${project_label}" --format "{{.ID}}" | xargs -r "${DOCKER}" rmi -f
 }
 
 # Function to remove older images
@@ -2022,7 +2022,7 @@ remove_older_images() {
 run_jupyter() {
   local command="$1"
   local container_name="monadic-chat-python-container"
-  if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
+  if ${DOCKER} ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
     start_docker_compose silent
   else
     echo "[HTML]: <p>Container '${container_name}' does not exist. Please build the container first.</p><hr />"

@@ -14,6 +14,21 @@ Monadic Chat は、言語モデルの API と合わせて、いくつかの Dock
 - ポートはすべて `127.0.0.1`（localhost）に割り当てられ、そのコンピューターからだけ使えます
 - ブラウザーのタブごとに、独立した会話のセッションになります（[マルチタブのセッション管理](../advanced-topics/advanced-configuration.md#multi-tab-sessions)を参照）
 
+## コンテナのエンジン :id=container-engine
+
+Monadic Chat は、`docker` コマンドが使うエンジンを使います。`DOCKER_CONTEXT` で指定されたもの、無ければ `DOCKER_HOST` で指定されたもの、それも無ければ今の Docker の接続先（`docker context use` で選んだもの）です。起動時のコンソールにエンジンと接続先の名前が出て、上部の表示にエンジンの名前が出ます。
+
+- 標準は **Docker Desktop**、Linux では **Docker Engine** も使えます。選ばれているエンジンが Docker Desktop で、動いていないときは、Monadic Chat が起動します。
+- `docker` コマンドから使えるほかのエンジンでも動きます。macOS では **Podman** と **Colima**（Lima の仮想マシンで Docker Engine を動かすもの）で動作を確かめています。こうしたエンジンには次が必要です。
+  - `docker` コマンドと、その `compose` と `buildx` のプラグイン
+  - **開始** を押す前にエンジンを動かしておくこと（Monadic Chat が起動するのは Docker Desktop だけです）
+  - コンテナのためのメモリ。エンジンの仮想マシンに 8 GB あれば、すべてのコンテナが動きます
+  - ホームフォルダをエンジンと共有すること（`~/monadic` がコンテナから見えるようにするため）
+- 使うのはこのコンピューターのエンジンだけです。接続先や `DOCKER_HOST` が `ssh://` や `tcp://` を指すときは使いません。
+- イメージはエンジンごとに別です。エンジンを切り替えた後の最初の **開始** では、イメージをもう一度ダウンロードして作ります。
+
+各エンジンのインストールと設定は、それぞれの文書を参照してください。
+
 ## 標準の Docker コンテナ :id=standard-containers
 
 ### Ruby コンテナ（`monadic-chat-ruby-container`） :id=ruby-container

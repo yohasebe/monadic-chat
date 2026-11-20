@@ -6701,6 +6701,16 @@ body.side-pane-resizing {
   outline: 2px solid var(--color-link);
   outline-offset: 2px;
 }
+/* The buttons under a work screen item (Save as, Reload, ...), apart. */
+.workbench-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+.workbench-actions:empty {
+  display: none;
+}
 /* The workbench in the work screen pane (workbench.js): its items (each
    image with a remove button) and the one selected */
 .workbench-items {

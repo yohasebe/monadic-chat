@@ -533,6 +533,22 @@ describe('Workbench', () => {
       expect(sent[0].payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'reports/notes.txt' });
     });
 
+    test('puts the buttons under a file in one row that keeps them apart', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      const css = require('fs').readFileSync(js('../css/monadic.css'), 'utf8');
+      const style = document.createElement('style');
+      style.textContent = css;
+      document.head.appendChild(style);
+      view([file({ path: 'conversations/c_1/documents/notes.md', name: 'notes.md' })]);
+      const pane = document.getElementById('workbench-view');
+      const row = pane.querySelector('.workbench-actions');
+      const labels = Array.from(row.querySelectorAll('button')).map((b) => b.textContent);
+      expect(labels).toEqual(['Download', 'Reload', 'Versions']);
+      expect(getComputedStyle(row).display).toBe('flex');
+      expect(getComputedStyle(row).gap).not.toBe('');
+      style.remove();
+    });
+
     test('lists the versions of a document, newest first, and opens the one chosen', () => {
       global.fetch = jest.fn(() => new Promise(() => {}));
       const doc = 'conversations/c_1/documents/reply-to-tanaka.md';

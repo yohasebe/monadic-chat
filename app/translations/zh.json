@@ -250,6 +250,8 @@
     "dockerEngineContext": "容器引擎：{{engine}}（Docker 上下文：{{context}}）",
     "pullProgress": "正在下载容器镜像… {{size}}",
     "pullDone": "已下载容器镜像（{{size}}）",
+    "pullProgressNoSize": "正在下载容器镜像…",
+    "pullDoneNoSize": "已下载容器镜像",
     "containerNotBuilt": "尚未构建",
     "systemInitComplete": "系统初始化完成",
     "openingBrowser": "正在打开浏览器。",

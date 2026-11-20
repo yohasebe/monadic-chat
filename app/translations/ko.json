@@ -250,6 +250,8 @@
     "dockerEngineContext": "컨테이너 엔진: {{engine}} (Docker 컨텍스트: {{context}})",
     "pullProgress": "컨테이너 이미지를 다운로드하는 중… {{size}}",
     "pullDone": "컨테이너 이미지를 다운로드했습니다 ({{size}})",
+    "pullProgressNoSize": "컨테이너 이미지를 다운로드하는 중…",
+    "pullDoneNoSize": "컨테이너 이미지를 다운로드했습니다",
     "containerNotBuilt": "아직 만들지 않음",
     "systemInitComplete": "시스템 초기화 완료",
     "openingBrowser": "브라우저를 여는 중입니다.",

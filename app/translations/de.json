@@ -141,6 +141,8 @@
     "dockerEngineContext": "Container-Engine: {{engine}} (Docker-Kontext: {{context}})",
     "pullProgress": "Container-Images werden heruntergeladen… {{size}}",
     "pullDone": "Container-Images heruntergeladen ({{size}})",
+    "pullProgressNoSize": "Container-Images werden heruntergeladen…",
+    "pullDoneNoSize": "Container-Images heruntergeladen",
     "containerNotBuilt": "noch nicht erstellt",
     "systemInitComplete": "Systeminitialisierung abgeschlossen",
     "openingBrowser": "Browser wird geöffnet.",

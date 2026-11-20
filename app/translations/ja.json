@@ -148,6 +148,8 @@
     "dockerEngineContext": "コンテナのエンジン：{{engine}}（Docker の接続先：{{context}}）",
     "pullProgress": "コンテナのイメージをダウンロードしています… {{size}}",
     "pullDone": "コンテナのイメージをダウンロードしました（{{size}}）",
+    "pullProgressNoSize": "コンテナのイメージをダウンロードしています…",
+    "pullDoneNoSize": "コンテナのイメージをダウンロードしました",
     "containerNotBuilt": "まだ作っていません",
     "systemInitComplete": "システム初期化完了",
     "openingBrowser": "ブラウザを開いています。",

@@ -148,6 +148,8 @@
     "dockerEngineContext": "Container engine: {{engine}} (Docker context: {{context}})",
     "pullProgress": "Downloading container images… {{size}}",
     "pullDone": "Downloaded container images ({{size}})",
+    "pullProgressNoSize": "Downloading container images…",
+    "pullDoneNoSize": "Downloaded container images",
     "containerNotBuilt": "not built yet",
     "systemInitComplete": "System initialization complete",
     "openingBrowser": "Opening the browser.",

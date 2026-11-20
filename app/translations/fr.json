@@ -141,6 +141,8 @@
     "dockerEngineContext": "Moteur de conteneurs : {{engine}} (contexte Docker : {{context}})",
     "pullProgress": "Téléchargement des images de conteneurs… {{size}}",
     "pullDone": "Images de conteneurs téléchargées ({{size}})",
+    "pullProgressNoSize": "Téléchargement des images de conteneurs…",
+    "pullDoneNoSize": "Images de conteneurs téléchargées",
     "containerNotBuilt": "pas encore créée",
     "systemInitComplete": "Initialisation du système terminée",
     "openingBrowser": "Ouverture du navigateur.",

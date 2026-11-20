@@ -988,11 +988,12 @@ class DockerManager {
               const now = Date.now();
               if (!done && now - pullShownAt < 250) return;
               pullShownAt = now;
-              const size = pulls.progress().text;
+              const { bytes, text: size } = pulls.progress();
+              // Without a size yet (a small image arrives in one step), none is said.
+              const key = done ? (bytes ? 'messages.pullDone' : 'messages.pullDoneNoSize')
+                : (bytes ? 'messages.pullProgress' : 'messages.pullProgressNoSize');
               if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('pull-progress', {
-                  done, text: i18n.t(done ? 'messages.pullDone' : 'messages.pullProgress', { size })
-                });
+                mainWindow.webContents.send('pull-progress', { done, text: i18n.t(key, { size }) });
               }
               if (done) pulls.reset();
             };

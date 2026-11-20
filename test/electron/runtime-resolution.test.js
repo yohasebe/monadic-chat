@@ -21,7 +21,7 @@ case "$1 $2" in
       *) exit 1 ;;
     esac ;;
   "info "*|"info") exit 0 ;;
-  "version --format") echo "Fake Engine" ;;
+  "version --format") echo "\${FAKE_COMPONENT:-Engine}" ;;
   *) exit 0 ;;
 esac
 `;
@@ -65,6 +65,13 @@ describe('the Docker engine monadic.sh uses', () => {
   test("takes DOCKER_HOST when no context is named, and knows Docker Desktop's socket", () => {
     const { report } = run('runtime', { DOCKER_HOST: `unix://${dir}/.docker/run/docker.sock` });
     expect(report).toMatchObject({ origin: 'DOCKER_HOST', context: '', desktop: '1', refused: '' });
+  });
+
+  test.each([
+    ['Docker for an engine whose first component is "Engine"', {}, 'Docker'],
+    ['the name an engine gives itself as "<Name> Engine"', { FAKE_COMPONENT: 'Podman Engine' }, 'Podman']
+  ])('names %s', (_name, env, product) => {
+    expect(run('runtime', env).report.product).toBe(product);
   });
 
   test.each([

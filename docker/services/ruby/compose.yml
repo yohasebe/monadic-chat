@@ -20,6 +20,12 @@ services:
       EXTRACTOR_SERVICE: ${EXTRACTOR_SERVICE:-}
       EXTRACTOR_LANGS: ${EXTRACTOR_LANGS:-}
       EXTRA_LOGGING: ${EXTRA_LOGGING:-}
+    # Where SELinux confines containers (Podman's machine, Fedora and RHEL
+    # hosts), it stops this container reaching the engine's socket; the
+    # socket already gives it the engine, so the label adds nothing here.
+    # Engines without SELinux ignore it.
+    security_opt:
+      - label=disable
     volumes:
       # The engine's own socket (monadic.sh sets MONADIC_DOCKER_SOCK from the
       # engine); never made when it is missing.
@@ -54,9 +60,11 @@ services:
     # the host (config/env entries written as op:// references). They are
     # streamed in through `docker exec -i` stdin and never touch the
     # container's layers, its config (`docker inspect`) or its environment.
-    # The server runs as root here, hence uid 0 and mode 0700.
+    # The server runs as root here; a tmpfs belongs to the container's root
+    # unless told otherwise, so only the mode is set (engines such as Podman
+    # take no uid or gid here).
     tmpfs:
-      - /run/monadic-secrets:mode=0700,uid=0,gid=0,size=64k
+      - /run/monadic-secrets:mode=0700,size=64k
     ports:
       # Published to the host loopback only: nothing on the web server checks
       # who connects.

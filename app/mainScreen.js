@@ -148,15 +148,25 @@ function addCommandListeners() {
   });
 }
 
+// The container engine's name for the indicator, as the engine gives it
+// (no name until it is known). Display only.
+let engineName = null;
+
+function drawEngineLabel(element) {
+  element.textContent = '';
+  const icon = document.createElement('i');
+  icon.className = engineName === 'Docker' ? 'fa-brands fa-docker' : 'fa-solid fa-cubes';
+  element.append(' ', icon, engineName ? ` ${engineName} ` : ' ');
+}
+
 // Function to update UI based on Docker status
 function updateDockerStatusUI(isRunning) {
   const dockerStatusElement = document.getElementById('dockerStatus');
   const dockerLabelElement = document.getElementById('dockerLabel');
 
-  // Normal Docker mode
   if (dockerLabelElement) {
     dockerLabelElement.style.display = '';
-    dockerLabelElement.innerHTML = ' <i class="fa-brands fa-docker"></i> Docker ';
+    drawEngineLabel(dockerLabelElement);
   }
   
   if (dockerStatusElement) {
@@ -544,6 +554,15 @@ document.addEventListener('DOMContentLoaded', () => {
   window.electronAPI.onUpdateDockerStatusIndicator((_event, isRunning) => {
     updateDockerStatusUI(isRunning); 
   });
+  if (window.electronAPI.onEngineName) {
+    window.electronAPI.onEngineName((_event, name) => {
+      // The characters main.js keeps in an engine or context name.
+      if (typeof name !== 'string' || !/^[\w .,:()/@+-]{1,128}$/.test(name)) return;
+      engineName = name;
+      const label = document.getElementById('dockerLabel');
+      if (label) drawEngineLabel(label);
+    });
+  }
 
   // Update Monadic Chat status 
   // The checks need the English status; the label is translated here.
@@ -677,23 +696,16 @@ document.addEventListener('DOMContentLoaded', () => {
     serverStarted = false;
     inStartupPhase = false;
     
-    // Show the initial message. On Linux, Docker is often the Docker
-    // Engine service, not Docker Desktop.
-    const isLinux = window.electronAPI && window.electronAPI.platform === 'linux';
-    const tipKey = isLinux ? 'messages.standaloneModeTipLinux' : 'messages.standaloneModeTip';
-    const dockerTip = desktopText(tipKey)
-      || (isLinux ? 'Please make sure Docker is running while using Monadic Chat.'
-                  : 'Please make sure Docker (Docker Desktop or a Docker-compatible runtime) is running while using Monadic Chat.');
+    // Show the initial message.
     const pressStart = desktopText('messages.pressStartButton')
       || 'Press <b>start</b> button to initialize the server.';
     const initialMessage = `
         <p><b>Monadic Chat</b></p>
-        <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${dockerTip}</p>
         <p>${pressStart}</p>
         <hr />`;
     
     htmlOutputElement.innerHTML = initialMessage;
-    htmlMessageCount = 4; // Count initial messages (title, tip, start instruction, hr)
+    htmlMessageCount = 3; // Count initial messages (title, start instruction, hr)
     
     // Show the last update check result if available
     if (lastUpdateResult) {

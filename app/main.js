@@ -829,9 +829,15 @@ class DockerManager {
       return;
     }
     if (runtime && runtime.answers === '1' && runtime.engine) {
-      const where = runtime.context ? `${runtime.engine} (${runtime.context})` : runtime.engine;
-      writeToScreen(formatMessage('info', 'messages.dockerEngine', { engine: where }));
+      const engine = runtime.product || runtime.engine;
+      writeToScreen(runtime.context
+        ? formatMessage('info', 'messages.dockerEngineContext', { engine, context: runtime.context })
+        : formatMessage('info', 'messages.dockerEngine', { engine }));
     }
+    // The engine's name for the indicator (display only): what it calls
+    // itself, or, when it does not answer, Docker for Docker Desktop's
+    // context and the context's name otherwise.
+    if (runtime) noteEngineName(runtime);
     // Check the engine's status
     const st = await this.checkStatus();
     if (!st && process.platform === 'linux' && this.accessDenied) {
@@ -3094,13 +3100,12 @@ function writeToScreen(text) {
   }
 }
 
-// The console's first message: what to have running, and how to start
+// The console's first message: how to start (whether the container engine
+// runs is shown by the indicator, and said when it does not)
 function openingMessageHtml() {
-  const tipKey = process.platform === 'linux' ? 'messages.standaloneModeTipLinux' : 'messages.standaloneModeTip';
   return `
     [HTML]: 
     <p><b>Monadic Chat</b></p>
-    <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${i18n.t(tipKey)}</p>
     <p>${i18n.t('messages.pressStartButton')}</p>
     <hr />`;
 }
@@ -3234,6 +3239,7 @@ function createMainWindow() {
     }
     mainWindowLoaded = true;
     pendingMainWindowNotices.splice(0).forEach(html => writeToScreen(html));
+    sendEngineName();
     
     // Send interface language to Web UI
     const envPath = getEnvPath();
@@ -4901,6 +4907,29 @@ let lastDockerStatusCheckTime = 0;
 const DOCKER_STATUS_CHECK_INTERVAL = 2000; // Check every 2 seconds for better responsiveness
 
 let lastSecretDeliveryCheck = 0;
+// The container engine's name (display only): what the engine calls itself,
+// or, while it does not answer, Docker for Docker Desktop's context and the
+// context's name otherwise. A name not from the engine is asked again once
+// the engine answers.
+let engineName = null;
+let engineNameFromEngine = false;
+let engineNameAsking = false;
+let engineNameAskedAt = 0;
+// The CLI's context can change while the app runs: the name is asked again
+// now and then.
+const ENGINE_NAME_RECHECK_MS = 60000;
+
+function noteEngineName(runtime) {
+  engineNameFromEngine = Boolean(runtime.product);
+  engineName = runtime.product || (runtime.desktop === '1' ? 'Docker' : runtime.context) || 'Docker';
+  sendEngineName();
+}
+
+function sendEngineName() {
+  if (engineName && mainWindow && !mainWindow.isDestroyed() && mainWindowLoaded) {
+    mainWindow.webContents.send('engine-name', engineName);
+  }
+}
 async function updateDockerStatus() {
   const now = Date.now();
   // Only perform check if enough time has passed since last check
@@ -4916,6 +4945,14 @@ async function updateDockerStatus() {
   }
   if (dockerInstalled) {
     const status = await dockerManager.checkStatus();
+    if (status && !engineNameAsking &&
+        (!engineNameFromEngine || now - engineNameAskedAt >= ENGINE_NAME_RECHECK_MS)) {
+      engineNameAsking = true;
+      engineNameAskedAt = now;
+      dockerManager.runtimeInfo()
+        .then((runtime) => { if (runtime) noteEngineName(runtime); })
+        .finally(() => { engineNameAsking = false; });
+    }
     // The Ruby container can be restarted outside a Start (rebuilds,
     // restarts of dependent services); its new instance needs the values too.
     if (status && secretCache.hasValues() && now - lastSecretDeliveryCheck >= 5000) {
@@ -4925,6 +4962,7 @@ async function updateDockerStatus() {
     if (mainWindow && !mainWindow.isDestroyed()) {
       // Pass Docker status to UI (running or not)
       mainWindow.webContents.send('docker-desktop-status-update', status);
+      sendEngineName();
       // if status is false, meaning Docker Desktop is not running,
       // update the context menu and buttons only if the current status is not "Stopped"
       if (!status && currentStatus !== 'Stopped') {

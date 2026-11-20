@@ -13,7 +13,7 @@ command_exists() {
 # Function to check if running in Docker
 
 is_in_docker() {
-    [ -f /.dockerenv ] || grep -q docker /proc/1/cgroup 2>/dev/null
+    [ -f /.dockerenv ] || [ -f /run/.containerenv ] || grep -q docker /proc/1/cgroup 2>/dev/null
 }
 
 # Function to detect OS

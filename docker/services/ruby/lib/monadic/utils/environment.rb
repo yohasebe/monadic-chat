@@ -9,6 +9,10 @@ module Monadic
       # it, whatever the mode the server runs in.
       CONTAINER_DATA_PATH = '/monadic/data'
 
+      # The files a container engine puts in every container: Docker's and
+      # Podman's.
+      CONTAINER_MARKERS = ['/.dockerenv', '/run/.containerenv'].freeze
+
       module_function
 
       # Core environment detection
@@ -19,8 +23,14 @@ module Monadic
         elsif defined?(::IN_CONTAINER)
           ::IN_CONTAINER
         else
-          File.file?("/.dockerenv")
+          container_marker?
         end
+      end
+
+      # Whether this process runs in a container, from the engine's marker
+      # file alone (no setting or constant can change it).
+      def container_marker?
+        CONTAINER_MARKERS.any? { |path| File.file?(path) }
       end
 
       # Path resolution methods

@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Listen for docker status indicator update from the main process
   onUpdateDockerStatusIndicator: (callback) => ipcRenderer.on('docker-desktop-status-update', callback),
+  onEngineName: (callback) => ipcRenderer.on('engine-name', callback),
   
   // Listen for network URL display command
   onDisplayNetworkUrl: (callback) => ipcRenderer.on('display-network-url', callback),

@@ -280,15 +280,26 @@ runtime_mount_socket() {
   echo "/var/run/docker.sock"
 }
 
+# Whether this script runs in a container: the file Docker or Podman puts
+# in every container.
+in_container() {
+  [[ -f "/.dockerenv" || -f "/run/.containerenv" ]]
+}
+
 # A line for the app: which engine, from where, and whether it answers.
 runtime_report() {
-  local answers=0 engine=""
+  local answers=0 engine="" product="" first=""
   if [ -z "${RUNTIME_REFUSED}" ] && "${DOCKER}" info >/dev/null 2>&1; then
     answers=1
     engine=$("${DOCKER}" version --format '{{.Server.Platform.Name}}' 2>/dev/null | tr -d '\r')
+    # The name the engine gives itself, for display only: its first
+    # component, "<Name> Engine" (Podman), or plain "Engine" (Docker).
+    first=$("${DOCKER}" version --format '{{range .Server.Components}}{{.Name}}{{"\n"}}{{end}}' 2>/dev/null | head -n 1 | tr -d '\r')
+    product="${first% Engine}"
+    { [ -z "${product}" ] || [ "${product}" = "${first}" ]; } && product="Docker"
   fi
-  printf 'origin=%s\ncontext=%s\nendpoint=%s\ndesktop=%s\nanswers=%s\nengine=%s\nrefused=%s\n' \
-    "${RUNTIME_ORIGIN}" "${RUNTIME_CONTEXT}" "${RUNTIME_ENDPOINT}" "${RUNTIME_DESKTOP}" "${answers}" "${engine}" "${RUNTIME_REFUSED}"
+  printf 'origin=%s\ncontext=%s\nendpoint=%s\ndesktop=%s\nanswers=%s\nengine=%s\nproduct=%s\nrefused=%s\n' \
+    "${RUNTIME_ORIGIN}" "${RUNTIME_CONTEXT}" "${RUNTIME_ENDPOINT}" "${RUNTIME_DESKTOP}" "${answers}" "${engine}" "${product}" "${RUNTIME_REFUSED}"
 }
 
 resolve_runtime
@@ -471,7 +482,7 @@ set_docker_compose() {
   # code folders are not right. Taking containers down ("teardown") does not
   # stop, so that it stays a way to recover.
   if [[ "${1:-}" != "teardown" ]]; then
-    [[ -f "/.dockerenv" ]] || ensure_code_dirs || exit 1
+    in_container || ensure_code_dirs || exit 1
   fi
   local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services")
 
@@ -563,7 +574,7 @@ EOF
 # the user: left to Docker, a missing source is created as root on Linux and
 # the server run from the host could not write its ledger there.
 ensure_state_dir() {
-  if [[ -f "/.dockerenv" ]]; then
+  if in_container; then
     mkdir -p "/monadic/state"
   else
     mkdir -p "${HOME_DIR}/monadic/state" && chmod 700 "${HOME_DIR}/monadic/state"
@@ -598,7 +609,7 @@ ensure_data_dir() {
   local log_dir
   local config_dir
 
-  if [[ -f "/.dockerenv" ]]; then
+  if in_container; then
     data_dir="/monadic/data"
     log_dir="/monadic/log"
     config_dir="/monadic/config"
@@ -612,7 +623,7 @@ ensure_data_dir() {
   mkdir -p "${log_dir}"
   mkdir -p "${config_dir}"
   ensure_state_dir
-  [[ -f "/.dockerenv" ]] || ensure_code_dirs || exit 1
+  in_container || ensure_code_dirs || exit 1
 
   safe_rm "${log_dir}/command.log"
   safe_rm "${log_dir}/jupyter.log"
@@ -678,7 +689,9 @@ build_ruby_container() {
     echo "[INFO] Force rebuild requested, using --no-cache" | tee -a "${log_file}"
   fi
   set_setup_script_build_flags rbsetup
-  DOCKER_BUILDKIT=1 ${DOCKER} build ${build_extra} "${SETUP_BUILD_FLAGS[@]}" \
+  # --load: a builder that runs in its own container (an engine without
+  # BuildKit, such as Podman) keeps the image only in its cache otherwise.
+  DOCKER_BUILDKIT=1 ${DOCKER} build --load ${build_extra} "${SETUP_BUILD_FLAGS[@]}" \
     --build-arg GEMS_FINGERPRINT="${gems_hash}" \
     -f "${dockerfile}" \
     -t yohasebe/monadic-chat:${MONADIC_VERSION} \
@@ -883,7 +896,7 @@ build_python_container() {
     echo "[HTML]: <p>Starting Python image build (atomic) . . .</p>" | tee -a "${build_log}"
     # IMPORTANT: cache_flags must not be quoted so an empty value expands to nothing
     set_setup_script_build_flags pysetup
-    DOCKER_BUILDKIT=1 ${DOCKER} build ${cache_flags} "${SETUP_BUILD_FLAGS[@]}" -f "${dockerfile}" ${build_args} -t "${temp_tag}" "${ROOT_DIR}/services/python" 2>&1 | tee -a "${build_log}"
+    DOCKER_BUILDKIT=1 ${DOCKER} build --load ${cache_flags} "${SETUP_BUILD_FLAGS[@]}" -f "${dockerfile}" ${build_args} -t "${temp_tag}" "${ROOT_DIR}/services/python" 2>&1 | tee -a "${build_log}"
     if [ "${PIPESTATUS[0]}" -ne 0 ]; then
       echo "[ERROR] Docker build failed" | tee -a "${build_log}"
       echo "[BUILD_COMPLETE] failed"
@@ -1508,15 +1521,14 @@ check_dockerfiles_changed() {
 # harmlessly when a stopped container still references an image; the
 # next start retries after `down` has removed those containers.
 remove_legacy_prebuilt_images() {
-  local img
+  local ref
   # yohasebe/selenium (locally built) and qdrant/qdrant (upstream pull)
   # joined this list when both moved to ghcr.io prebuilt images
   # (monadic-selenium / monadic-qdrant) in beta.21.
-  for img in yohasebe/monadic-privacy yohasebe/monadic-embeddings yohasebe/monadic-extractor yohasebe/selenium qdrant/qdrant; do
-    if ${DOCKER} images -q "${img}" 2>/dev/null | grep -q .; then
-      echo "[INFO] Removing legacy local image ${img} (replaced by ghcr.io prebuilt)"
-      ${DOCKER} rmi "${img}" >/dev/null 2>&1 || true
-    fi
+  # Only the latest tag, the one those versions pulled or built.
+  for ref in $(image_refs yohasebe/monadic-privacy yohasebe/monadic-embeddings yohasebe/monadic-extractor yohasebe/selenium qdrant/qdrant | grep ':latest$'); do
+    echo "[INFO] Removing legacy local image ${ref} (replaced by ghcr.io prebuilt)"
+    ${DOCKER} rmi "${ref}" >/dev/null 2>&1 || true
   done
 }
 
@@ -1901,12 +1913,13 @@ remove_containers() {
   # Stop all Docker Compose services with project name (including profiled services)
   eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_DOWN} -p \"monadic-chat\" down --remove-orphans"
 
-  local images=$(${DOCKER} images --filter "reference=yohasebe/monadic-chat" --format "{{.Repository}}:{{.Tag}}")
+  # Podman names an image it builds itself localhost/...
+  local images=$(image_refs yohasebe/monadic-chat localhost/yohasebe/monadic-chat)
   local containers=$(${DOCKER} ps -a --filter "name=monadic-chat-" --format "{{.Names}}")
 
   # Remove the Docker images and containers of the monadic-chat project
   for image in ${images}; do
-    remove_image "${image}"
+    ${DOCKER} rmi -f "${image}" >/dev/null
   done
 
   for container in ${containers}; do
@@ -1932,28 +1945,41 @@ remove_containers() {
 # build calls it first), where deleting the prebuilt service images would
 # force a multi-GB re-download on every rebuild. Uninstall, however,
 # must leave no images behind — docs/getting-started/uninstallation.md
-# enumerates exactly these. The substring match in remove_image covers
-# both the ghcr.io/yohasebe/monadic-* prebuilt repos and the legacy
-# locally built yohasebe/monadic-* names with one call each.
+# enumerates exactly these: the ghcr.io/yohasebe/monadic-* prebuilt repos
+# and the legacy locally built yohasebe/monadic-* names.
 remove_service_images() {
-  remove_image "yohasebe/monadic-embeddings"
-  remove_image "yohasebe/monadic-privacy"
-  remove_image "yohasebe/monadic-extractor"
-  remove_image "yohasebe/monadic-python"
-  remove_image "yohasebe/monadic-qdrant"
-  remove_image "yohasebe/monadic-selenium"
-  remove_image "yohasebe/python"
+  local name
+  for name in monadic-embeddings monadic-privacy monadic-extractor monadic-python monadic-qdrant monadic-selenium; do
+    remove_image "ghcr.io/yohasebe/${name}" "yohasebe/${name}"
+  done
+  remove_image yohasebe/python localhost/yohasebe/python
   # Legacy names from before the ghcr.io unification (locally built
   # selenium, upstream qdrant) — still present on upgraded installs.
-  remove_image "yohasebe/selenium"
-  remove_image "qdrant/qdrant"
-  remove_image "yohasebe/pgvector"
+  remove_image yohasebe/selenium qdrant/qdrant yohasebe/pgvector
 }
 
-# Function to remove images containing the string in $1
+# The images (repository:tag) of exactly the repositories named. Engines
+# list and match names differently (Docker shortens docker.io names, Podman
+# names them in full and matches a short name against any registry), so the
+# list is read and compared here. Removing by name only untags: other tags
+# of the same image stay.
+image_refs() {
+  ${DOCKER} images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | tr -d '\r' | awk -v names="$*" '
+    BEGIN { n = split(names, list, " "); for (i = 1; i <= n; i++) want[list[i]] = 1 }
+    /:<none>$/ { next }
+    {
+      repo = $0; sub(/:[^:\/]*$/, "", repo)
+      # docker.io/x/y is x/y; docker.io/library/z is z (one component only)
+      short = repo; sub(/^docker\.io\//, "", short)
+      if (short ~ /^library\/[^\/]+$/) sub(/^library\//, "", short)
+      if ((repo in want) || (short in want)) print $0
+    }'
+}
+
+# Removes the images of the repositories named (see image_refs)
 remove_image() {
-  local images=$(${DOCKER} images --format "{{.Repository}}:{{.Tag}}" | grep "$1")
-  for image in ${images}; do
+  local image
+  for image in $(image_refs "$@"); do
     ${DOCKER} rmi -f "${image}" >/dev/null
   done
 }
@@ -1980,9 +2006,16 @@ remove_project_dangling_images() {
 
 # Function to remove older images
 remove_older_images() {
-  local image_name="$1"
-  local latest_image_id=$(${DOCKER} images --format "{{.ID}}" "${image_name}:${MONADIC_VERSION}")
-  ${DOCKER} images --format "{{.ID}} {{.Repository}}:{{.Tag}}" "${image_name}" | grep -v "${latest_image_id}" | awk '{print $1}' | xargs -r ${DOCKER} rmi -f
+  local image_name="$1" ref
+  local current=$(${DOCKER} image inspect --format '{{.Id}}' "${image_name}:${MONADIC_VERSION}" 2>/dev/null)
+  # Without this version's image (its build failed), the older ones are
+  # what is left to run: keep them.
+  [ -z "${current}" ] && return 0
+  # By name, not by ID: a tag the user gave the same image stays.
+  for ref in $(image_refs "${image_name}" "localhost/${image_name}"); do
+    [ "$(${DOCKER} image inspect --format '{{.Id}}' "${ref}" 2>/dev/null)" = "${current}" ] && continue
+    ${DOCKER} rmi -f "${ref}" >/dev/null 2>&1 || true
+  done
 }
 
 # function to start jupyter lab

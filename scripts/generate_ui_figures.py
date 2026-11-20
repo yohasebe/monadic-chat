@@ -1090,16 +1090,22 @@ def app_table(name, variable, languages):
 
 
 def console_parts():
-    """The console window as app/index.html builds it: its status labels and its buttons."""
+    """The console window as app/index.html builds it: its status labels and its buttons.
+    The engine's label is drawn by mainScreen.js once the engine names itself; the figure
+    shows Docker Desktop's, as mainScreen.js draws it."""
     html = app_source('index.html')
     head = html[html.index('<div class="status-wrapper">'):html.index('<div class="message-wrapper">')]
     group = html[html.index('<div class="button-group">'):]
     group = group[:group.index('</div>')]
     name = re.search(APP_ICON + r'></i> <b>([^<]+)</b>', head)
-    states = re.findall(r'<span id="\w+Label" data-i18n="([^"]+)">\s*' + APP_ICON, head)
+    engine = re.search(r"icon\.className = engineName === '(Docker)' \? '(fa-brands|fa-solid) (fa-[a-z0-9-]+)'",
+                       app_source('mainScreen.js'))
+    system = re.findall(r'<span id="systemLabel" data-i18n="([^"]+)">\s*' + APP_ICON, head)
     buttons = re.findall(r'<button id="(\w+)"( disabled)? data-i18n="([^"]+)">' + APP_ICON, group)
-    if not (name and len(states) == 2 and buttons):
+    if not (name and engine and '<span id="dockerLabel">' in head and len(system) == 1 and buttons):
         raise SystemExit('app/index.html no longer builds the console window as its figure reads it')
+    # (text or translation key, is a key, icon style, icon)
+    states = [(engine.group(1), False, engine.group(2), engine.group(3)), (system[0][0], True) + system[0][1:]]
     return name.groups(), states, buttons
 
 
@@ -1123,9 +1129,9 @@ def console_window(table, color, title, language):
     cx, cy = x + pad, y + 14
     cx += figure.icon(style, icon, cx, cy, 14, ink) + 6
     cx += figure.text(cx, cy + 12, name, 14, ink, '700') + 22
-    for (key, s_style, s_icon), state in zip(states, ('running', 'started')):
+    for (text, is_key, s_style, s_icon), state in zip(states, ('running', 'started')):
         cx += figure.icon(s_style, s_icon, cx, cy, 14, ink) + 6
-        cx += figure.text(cx, cy + 12, label(words, key), 14, ink) + 8
+        cx += figure.text(cx, cy + 12, label(words, text) if is_key else text, 14, ink) + 8
         cx += figure.text(cx, cy + 12, status[state], 14, green, '600') + 20
     # The messages, and the log under them
     inner = width - pad * 2
@@ -1142,7 +1148,9 @@ def console_window(table, color, title, language):
 def settings_parts(category):
     """The settings window as app/settings.html builds it: its categories, and one panel's settings."""
     html = app_source('settings.html')
-    items = re.findall(r'<li data-category="([a-z-]+)"[^>]*>\s*' + APP_ICON + r'></i>\s*<span data-i18n="([^"]+)">', html)
+    # Each category is a button inside its list item (it takes the keyboard)
+    items = re.findall(r'<li data-category="([a-z-]+)"[^>]*>\s*(?:<button\b[^>]*>\s*)?' + APP_ICON
+                       + r'></i>\s*<span data-i18n="([^"]+)">', html)
     footer = re.findall(r'<button type="button" id="(?:save|close)-settings-btn">\s*' + APP_ICON
                         + r'></i>\s*<span data-i18n="([^"]+)">', html)
     start = html.find('id="panel-%s"' % category)

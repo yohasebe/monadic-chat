@@ -947,6 +947,14 @@ module GrokHelper
     obj["function_returns"] = []
   end
 
+  # The reasoning effort to ask a model for: the value given when the catalog
+  # lists it for the model, otherwise nil (nothing is sent).
+  def grok_reasoning_effort(model, value)
+    effort = value.to_s.strip
+    options = (Monadic::Utils::ModelSpec.get_reasoning_effort_options(model) rescue nil)&.dig(:options)
+    options.is_a?(Array) && options.include?(effort) ? effort : nil
+  end
+
   def api_request(role, session, call_depth: 0, disable_streaming: false, &block)
     # Reset call_depth counter and tool state for each new user turn
     if role == "user"
@@ -1152,6 +1160,9 @@ module GrokHelper
     # calls it led to (the request is not stored on the server).
     if (Monadic::Utils::ModelSpec.model_has_property?(model, "reasoning_effort") rescue false)
       body["include"] = ["reasoning.encrypted_content"]
+      # The effort the user chose, when it is one the model takes.
+      effort = grok_reasoning_effort(model, reasoning_effort)
+      body["reasoning"] = { "effort" => effort } if effort
     end
 
 

@@ -1037,6 +1037,14 @@ function resetParams() {
   }, 500);
 }
 
+// A model's input limit: the last number of its context window, which the
+// catalog writes as [max] or [min, max]. The default for a model with none.
+function maxInputTokensOf(spec) {
+  const range = spec ? spec["context_window"] : null;
+  const max = Array.isArray(range) ? range[range.length - 1] : range;
+  return Number.isFinite(max) && max > 0 ? max : DEFAULT_MAX_INPUT_TOKENS;
+}
+
 function setParams() {
   const appsEl = $id("apps");
   const app_name = appsEl ? appsEl.value : null;
@@ -1184,11 +1192,7 @@ function setParams() {
   params["auto_speech"] = spAutoSpeech ? spAutoSpeech.checked : false;
 
   const spec = modelSpec[params["model"]];
-  if (spec && spec["context_window"]) {
-    params["max_input_tokens"] = spec["context_window"][1];
-  } else {
-    params["max_input_tokens"] = DEFAULT_MAX_INPUT_TOKENS;
-  }
+  params["max_input_tokens"] = maxInputTokensOf(spec);
 
   if (spec && spec["tool_capability"]) {
     params["tool_capability"] = spec["tool_capability"];

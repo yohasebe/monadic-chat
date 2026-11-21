@@ -48,6 +48,9 @@
   - Fixed
     - `Cancel` stops a reply while tools are running
     - An Ollama model's thinking stays hidden and is turned off while `Show Thinking` is off, also the first time a model is used
+    - The reasoning effort chosen for a Grok model and `Max Output Tokens` for an Ollama model are sent with the chat request
+    - Gemini chats count their active messages and tokens against the model's input limit
+    - Models added in `~/monadic/config/models.json` get their properties on the server as in the web interface
     - An app update makes the Python container again when only its scripts changed
     - Keys that 1Password provides one at a time no longer end in a line break that stopped the providers from accepting them
     - The conversation export says when it did not start, and runs once per click

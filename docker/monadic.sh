@@ -782,7 +782,7 @@ service_image_ready() {
 # them failed, and says so; the update is not recorded as done, so the
 # next start tries it again.
 report_image_update_failed() {
-  echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color:#FF7F07;'></i> Some container images could not be updated (see docker_build.log); starting with the ones already installed. The update is tried again on the next start.</p>"
+  echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color:#FF7F07;'></i> Some container images could not be updated (see docker_build.log); starting with the ones already installed, which do not have this version's fixes. The update is tried again on the next start.</p>"
 }
 
 build_python_container() {
@@ -1407,6 +1407,21 @@ calculate_docker_hash() {
   fi
 }
 
+# The hash of everything that goes into the Python image: its Dockerfile and
+# the files it copies (the scripts among them), so that a version whose
+# scripts alone changed also makes the image again. compose.yml is not in
+# the image; bytecode and Finder files are not part of the source.
+calculate_python_image_hash() {
+  local dir="${ROOT_DIR}/services/python"
+  [ -d "${dir}" ] || dir="$(echo "${dir}" | sed 's/app\.asar/app/')"
+  if [ ! -f "${dir}/Dockerfile" ]; then
+    echo "file_not_found"
+    return
+  fi
+  (cd "${dir}" && find . -type f ! -name 'compose.yml' ! -name '*.pyc' ! -name '.DS_Store' ! -path '*/__pycache__/*' -print0 \
+    | LC_ALL=C sort -z | xargs -0 shasum -a 256) | shasum -a 256 | awk '{print $1}'
+}
+
 # Function to save container versions to JSON file in user's config directory
 save_container_versions() {
   local config_dir="${HOME_DIR}/monadic/config"
@@ -1414,9 +1429,8 @@ save_container_versions() {
   
   local json_file="${config_dir}/container_versions.json"
   
-  # Calculate hash for Python container Dockerfile
-  local python_dockerfile="${ROOT_DIR}/services/python/Dockerfile"
-  local python_hash=$(calculate_docker_hash "$python_dockerfile")
+  # The hash of what goes into the Python image
+  local python_hash=$(calculate_python_image_hash)
   
   # Calculate hash for Selenium container Dockerfile
   local selenium_dockerfile="${ROOT_DIR}/services/selenium/Dockerfile"
@@ -1468,8 +1482,7 @@ check_dockerfiles_changed() {
   EMBEDDINGS_DOCKERFILE_CHANGED=false
 
   # Calculate current hashes
-  local python_dockerfile="${ROOT_DIR}/services/python/Dockerfile"
-  local python_hash=$(calculate_docker_hash "$python_dockerfile")
+  local python_hash=$(calculate_python_image_hash)
 
   local selenium_dockerfile="${ROOT_DIR}/services/selenium/Dockerfile"
   local selenium_hash=$(calculate_docker_hash "$selenium_dockerfile")

@@ -61,4 +61,13 @@ RSpec.describe "The settings of a DeepSeek turn" do
     expect(searching.call({ "websearch" => false }, { "websearch" => true })).to eq([false, false])
     expect(searching.call({}, { "websearch" => true })).to eq([false, false])
   end
+
+  it "does not give the search tools to a model the catalog says takes no tools" do
+    stub_const("CONFIG", CONFIG.to_h.merge("TAVILY_API_KEY" => "k"))
+    allow(Monadic::Utils::ModelSpec).to receive(:get_model_property).and_call_original
+    allow(Monadic::Utils::ModelSpec).to receive(:get_model_property).with(model, "tool_capability").and_return(false)
+    sent = bodies({ "websearch" => true })
+    expect(sent).not_to be_empty
+    expect(JSON.generate(sent.first)).not_to include("tavily_search")
+  end
 end

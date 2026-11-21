@@ -41,6 +41,18 @@ describe('refreshOllamaModels', () => {
     expect(window.proceedWithAppChange).toHaveBeenCalledWith('ChatOllama');
   });
 
+  it('takes what the models can do when the list is the same and the page held the names alone', async () => {
+    window.modelSpec['gpt-oss:20b'] = undefined;
+    installed['gpt-oss:20b'] = { tool_capability: true, supports_thinking: true };
+    expect(await window.refreshOllamaModels('ChatOllama')).toBe(true);
+    expect(window.modelSpec['gpt-oss:20b']).toEqual({ tool_capability: true, supports_thinking: true });
+    expect(window.proceedWithAppChange).toHaveBeenCalledWith('ChatOllama');
+
+    window.proceedWithAppChange.mockClear();
+    expect(await window.refreshOllamaModels('ChatOllama')).toBe(false);
+    expect(window.proceedWithAppChange).not.toHaveBeenCalled();
+  });
+
   it('does nothing for an app of another provider', async () => {
     expect(await window.refreshOllamaModels('ChatOpenAI')).toBe(false);
     expect(global.fetch).not.toHaveBeenCalledWith('/api/ollama/models');

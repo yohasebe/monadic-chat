@@ -221,7 +221,8 @@ module DeepSeekHelper
     context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
 
-    websearch = deepseek_web_search?(obj)
+    # A model the spec says cannot call tools is not given the search tools.
+    websearch = deepseek_web_search?(obj) && Monadic::Utils::ModelSpec.get_model_property(model, "tool_capability") != false
 
     if role != "tool"
       message = obj["message"].to_s

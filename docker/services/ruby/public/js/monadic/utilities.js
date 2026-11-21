@@ -1081,11 +1081,9 @@ function setParams() {
   // The interface language, for what an app writes in the user's own
   // language (Language Practice's advice).
   params["ui_language"] = document.cookie.match(/ui-language=([^;]+)/)?.[1] || "en";
-  if (websearchEl && websearchEl.checked && modelSpec[params["model"]]?.["tool_capability"]) {
-    params["websearch"] = true;
-  } else {
-    params["websearch"] = false;
-  }
+  // What the user chose: whether the model can search (by itself or with a
+  // tool) is the server's to decide.
+  params["websearch"] = !!(websearchEl && websearchEl.checked);
 
   // Handle reasoning/thinking parameters with provider-specific mapping
   const reasoningEffortEl = $id("reasoning-effort");

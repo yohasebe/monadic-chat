@@ -785,6 +785,22 @@ report_image_update_failed() {
   echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color:#FF7F07;'></i> Some container images could not be updated (see docker_build.log); starting with the ones already installed. The update is tried again on the next start.</p>"
 }
 
+# Whether the Ruby container (the server) is running.
+ruby_container_running() {
+  [ "$("${DOCKER}" inspect --format '{{.State.Running}}' monadic-chat-ruby-container 2>/dev/null)" = "true" ]
+}
+
+# Says that the server did not start, with what the engine said of it ($1:
+# the file holding the engine's messages). The last error is the reason.
+report_ruby_not_started() {
+  local reason
+  reason=$(grep -E 'Error response from daemon|^Error' "$1" 2>/dev/null | tail -n 1 | tr -d '\r' \
+    | sed -e 's/^[[:space:]]*//' -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
+  echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color:#DC4C64;'></i> The Ruby container did not start, so Monadic Chat is not running.</p>"
+  [ -n "${reason}" ] && echo "[HTML]: <p><code>${reason}</code></p>"
+  echo "[HTML]: <p>Fix the cause and press <b>Start</b> again.</p><hr />"
+}
+
 build_python_container() {
   local _lock_acquired=false
   if acquire_build_lock; then _lock_acquired=true; fi
@@ -1765,7 +1781,19 @@ start_docker_compose() {
     echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the prebuilt Knowledge Base Quality Pack image (~1.3 GB, one time) . . .</p>"
   fi
 
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} -p \"monadic-chat\" up -d"
+  # The engine's messages (stderr) are kept: when the server's container
+  # does not start, the last error is shown and the start ends here, without
+  # waiting for a server that cannot answer.
+  local up_messages
+  up_messages=$(mktemp)
+  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} ${ALL_PROFILES_UP} -p \"monadic-chat\" up -d" 2> "${up_messages}"
+  cat "${up_messages}" >&2
+  if ! ruby_container_running; then
+    report_ruby_not_started "${up_messages}"
+    rm -f "${up_messages}"
+    return 1
+  fi
+  rm -f "${up_messages}"
 
   # Informational flow for smoother UX
   # Keep health check noise out of user-facing messages; log to output only

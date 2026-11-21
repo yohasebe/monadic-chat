@@ -156,6 +156,8 @@
     "openBrowserManually": "http://localhost:4567 を手動で開いてください",
     "browserOpenFailed": "ブラウザを自動で開けませんでした。http://localhost:4567 を手動で開いてください。",
     "serverVerifyFailed": "サーバーが実行中であることを確認できませんでした。Dockerの状態を確認して再起動してください。",
+    "rubyNotStarted": "Ruby コンテナが起動しなかったため、Monadic Chat は動いていません。",
+    "fixAndStartAgain": "原因を取り除いてから、もう一度<b>開始</b>を押してください。",
     "errorConnecting": "サーバーへの接続エラー。Dockerの状態を確認して再起動してください。",
     "newVersionAvailable": "新しいバージョン({{version}})が利用可能です（現在: {{current}}）。",
     "downloadAndInstall": "ダウンロードしてインストール",

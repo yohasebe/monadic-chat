@@ -19,9 +19,10 @@ const keyCheck = require('./key_check');
 const { createRevealHandler, createTrashHandler, showSharedPath, NO_ANSWER } = require('./shared_folder_reveal');
 const { copyAddressItems } = require('./context_menu_copy');
 const { createPullProgress } = require('./pull_progress');
+const { statusAfterClose } = require('./command_status');
 const { writeStreamNoFollow, readStreamNoFollow, openReadNoFollow } = require('./no_follow_files');
 const { monadicShEnv, monadicInvocation } = require('./monadic_env');
-const { keepWarnings, createLineBuffer } = require('./build_output');
+const { keepWarnings, createLineBuffer, versionsIn, translateStartFailure } = require('./build_output');
 const designTokens = require('./design_tokens');
 const { createThemeSync } = require('./theme_sync');
 const { createFitHandler } = require('./fit_window');
@@ -1009,7 +1010,7 @@ class DockerManager {
               output = rest;
               
               // Translate Docker messages before displaying
-              let translatedOutput = output;
+              let translatedOutput = translateStartFailure(output, (key) => i18n.t(key));
               
               // Handle HTML messages with specific patterns
               if (output.includes('Custom Ruby setup script')) {
@@ -1067,17 +1068,14 @@ class DockerManager {
                   translatedOutput = `[HTML]: <p>${i18n.t('messages.systemAvailableAt')}: ${urlMatch[0]}</p>`;
                 }
               } else if (output.includes('Monadic Chat app v') && output.includes('Container image v')) {
-                // Extract versions - include all characters until whitespace or end of line
-                const appVersionMatch = output.match(/Monadic Chat app v([^\s]+)/);
-                const containerVersionMatch = output.match(/Container image v([^\s]+)/);
-                if (appVersionMatch && containerVersionMatch) {
+                const versions = versionsIn(output);
+                if (versions) {
                   // Styled version info with visual separation
                   const appLabel = i18n.t('messages.versionInfoApp');
                   const containerLabel = i18n.t('messages.versionInfoContainer');
-                  // "None": no Ruby image yet (monadic.sh compares it as a version).
-                  const containerVersion = containerVersionMatch[1] === 'None'
-                    ? i18n.t('messages.containerNotBuilt') : `v${containerVersionMatch[1]}`;
-                  translatedOutput = `[HTML]: <p style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"><span class="msg-version-app" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-desktop" style="color: #4CACDC; margin-right: 4px;"></i>${appLabel} <strong>v${appVersionMatch[1]}</strong></span><span class="msg-version-container" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-cubes" style="color: #2496ED; margin-right: 4px;"></i>${containerLabel} <strong>${containerVersion}</strong></span></p>`;
+                  const containerVersion = versions.container
+                    ? `v${versions.container}` : i18n.t('messages.containerNotBuilt');
+                  translatedOutput = `[HTML]: <p style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"><span class="msg-version-app" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-desktop" style="color: #4CACDC; margin-right: 4px;"></i>${appLabel} <strong>v${versions.app}</strong></span><span class="msg-version-container" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-cubes" style="color: #2496ED; margin-right: 4px;"></i>${containerLabel} <strong>${containerVersion}</strong></span></p>`;
                 }
               }
 
@@ -1184,17 +1182,13 @@ class DockerManager {
                 dialog.showErrorBox(i18n.t('dialogs.error'), i18n.t('dialogs.dockerCommandFailed', { code }));
               }
 
-              // Don't update status here for 'start'/'build' commands - wait for SERVER STARTED
-              if (command !== 'start' && command !== 'build') {
-                currentStatus = statusAfterCommand;
-                updateTrayImage(statusAfterCommand);
-                updateStatusIndicator(statusAfterCommand);
-                updateContextMenu(false);
-              } else if (command === 'build' && (code !== 0 || !serverStartedReceived)) {
-                // Build failed or containers didn't start — set to Stopped
-                currentStatus = 'Stopped';
-                updateTrayImage('Stopped');
-                updateStatusIndicator('Stopped');
+              // A command that starts the server leaves the status to the
+              // check after SERVER STARTED, or ends Stopped without that line.
+              const ended = statusAfterClose({ command, code, serverStarted: serverStartedReceived, statusAfterCommand });
+              if (ended) {
+                currentStatus = ended;
+                updateTrayImage(ended);
+                updateStatusIndicator(ended);
                 updateContextMenu(false);
               }
 

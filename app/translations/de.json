@@ -149,6 +149,8 @@
     "openBrowserManually": "Bitte öffnen Sie den Browser manuell unter http://localhost:4567",
     "browserOpenFailed": "Automatisches Öffnen des Browsers fehlgeschlagen. Bitte öffnen Sie manuell durch Navigation zu: http://localhost:4567",
     "serverVerifyFailed": "Konnte nicht überprüfen, ob der Server läuft. Bitte überprüfen Sie den Docker-Status und versuchen Sie einen Neustart.",
+    "rubyNotStarted": "Der Ruby-Container wurde nicht gestartet, daher läuft Monadic Chat nicht.",
+    "fixAndStartAgain": "Beheben Sie die Ursache und drücken Sie erneut <b>Start</b>.",
     "errorConnecting": "Fehler beim Verbinden mit dem Server. Bitte überprüfen Sie den Docker-Status und versuchen Sie einen Neustart.",
     "newVersionAvailable": "Eine neue Version ({{version}}) ist verfügbar (aktuell: {{current}}).",
     "downloadAndInstall": "Herunterladen & installieren",

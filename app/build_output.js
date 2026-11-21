@@ -36,4 +36,26 @@ function createLineBuffer(handle) {
   };
 }
 
-module.exports = { keepWarnings, createLineBuffer };
+// The versions in monadic.sh's line "Monadic Chat app vA ... Container image
+// vB</p>": { app, container }, with container null when there is no Ruby
+// image yet (monadic.sh writes "None"). null for any other line.
+function versionsIn(output) {
+  const app = /Monadic Chat app v([^\s<]+)/.exec(output);
+  const container = /Container image v([^\s<]+)/.exec(output);
+  if (!app || !container) return null;
+  return { app: app[1], container: container[1] === 'None' ? null : container[1] };
+}
+
+// monadic.sh's lines for a server that did not start, in the interface
+// language; the engine's own message between them stays as it is. `t` gives
+// the translation of a key. Any other output comes back unchanged.
+const START_FAILURE = [
+  ['The Ruby container did not start, so Monadic Chat is not running.', 'messages.rubyNotStarted'],
+  ['Fix the cause and press <b>Start</b> again.', 'messages.fixAndStartAgain']
+];
+
+function translateStartFailure(output, t) {
+  return START_FAILURE.reduce((text, [english, key]) => text.split(english).join(t(key)), String(output));
+}
+
+module.exports = { keepWarnings, createLineBuffer, versionsIn, translateStartFailure };

@@ -210,14 +210,18 @@ module DeepSeekHelper
     app = obj["app_name"]
 
     prompt_suffix = obj["prompt_suffix"]
-    model = obj["model"]
+    # The settings of the message being answered, the same in every request
+    # of its answer. A message that names no temperature is sent with 0; an
+    # output limit it does not name is not sent.
+    turn = Monadic::TurnSettings.current(obj)
+    model = turn.model
 
-    max_tokens = obj["max_tokens"]&.to_i
-    temperature = obj["temperature"].to_f
-    context_size = obj["context_size"].to_i
+    max_tokens = turn.max_tokens
+    temperature = turn.temperature || 0.0
+    context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
 
-    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?(obj)
+    websearch = deepseek_web_search?(obj)
 
     if role != "tool"
       message = obj["message"].to_s
@@ -642,7 +646,7 @@ module DeepSeekHelper
     end
 
     # A model the spec says cannot call tools is offered none of the app's.
-    app_tools = [] if Monadic::Utils::ModelSpec.get_model_property(obj["model"], "tool_capability") == false
+    app_tools = [] if Monadic::Utils::ModelSpec.get_model_property(Monadic::TurnSettings.current(obj).model, "tool_capability") == false
 
     DebugHelper.debug("DeepSeek app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
     DebugHelper.debug("DeepSeek app_tools from settings: #{app_tools.inspect}", category: :api, level: :debug)
@@ -760,12 +764,21 @@ module DeepSeekHelper
   # True when this request runs with thinking on: reasoning_content
   # "disabled" or effort "none" turns it off.
   def deepseek_thinking_on?(obj)
-    deepseek_thinking_switch?(obj["model"]) &&
-      obj["reasoning_content"].to_s != "disabled" && obj["reasoning_effort"].to_s != "none"
+    turn = Monadic::TurnSettings.current(obj)
+    deepseek_thinking_switch?(turn.model) && turn.reasoning_content != "disabled" && turn.reasoning_effort != "none"
+  end
+
+  # Whether the message being answered was sent with Web Search on (and the
+  # search key is set): the same for every request and tool call of its answer.
+  def deepseek_web_search?(obj)
+    Monadic::SharedTools::TavilyDefinitions.websearch_requested?(
+      { "websearch" => Monadic::TurnSettings.current(obj).websearch }
+    )
   end
 
   def configure_deepseek_reasoning(body, obj, is_json, role)
-    model = obj["model"].to_s
+    turn = Monadic::TurnSettings.current(obj)
+    model = turn.model.to_s
 
     if deepseek_thinking_switch?(model)
       # thinking.type follows the reasoning_content setting (API default: enabled).
@@ -775,7 +788,7 @@ module DeepSeekHelper
       # The effort goes beside thinking, not in it, and only one the model
       # takes (model_spec.js: [options, default]).
       if thinking_type == "enabled"
-        effort = obj["reasoning_effort"].to_s
+        effort = turn.reasoning_effort.to_s
         levels = Array(Monadic::Utils::ModelSpec.get_reasoning_effort_options(model)&.dig(:options)).map(&:to_s)
         body["reasoning_effort"] = effort if effort != "none" && levels.include?(effort)
       end
@@ -947,7 +960,7 @@ module DeepSeekHelper
     app_tools = APPS[app]&.settings&.[]("tools") || []
     all_tools = app_tools.dup
 
-    websearch_enabled = CONFIG["TAVILY_API_KEY"] && (obj["websearch"].to_s == "true" || obj["websearch"] == true)
+    websearch_enabled = deepseek_web_search?(obj)
     all_tools.concat(WEBSEARCH_TOOLS) if websearch_enabled
 
     valid_tool_names = all_tools.map { |t|
@@ -1226,7 +1239,7 @@ module DeepSeekHelper
     # the request did not offer it.
     web_search_off = lambda {
       next unless Monadic::SharedTools::TavilyDefinitions.web_search_tool?(function_name) &&
-                  !Monadic::SharedTools::TavilyDefinitions.websearch_requested?(session[:parameters])
+                  !deepseek_web_search?(session[:parameters])
 
       Monadic::Utils::ExtraLogger.log { "[DeepSeek] Web Search off — blocked #{function_name}" }
       "❌ Web search is turned off for this conversation. " \
@@ -1278,7 +1291,7 @@ module DeepSeekHelper
       # repeated attempts with other web tools ("Repeated errors"). Force the
       # next request to omit tools so the model answers from its own knowledge.
       if Monadic::SharedTools::TavilyDefinitions.web_search_tool?(function_name) &&
-         !Monadic::SharedTools::TavilyDefinitions.websearch_requested?(obj)
+         !deepseek_web_search?(obj)
         obj["_skip_tools_next_request"] = true
       end
     end

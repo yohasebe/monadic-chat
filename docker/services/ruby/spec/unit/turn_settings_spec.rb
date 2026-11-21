@@ -9,9 +9,10 @@ RSpec.describe Monadic::TurnSettings do
 
   it "reads each setting the message names" do
     turn = of("model" => "m", "show_thinking" => "true", "websearch" => false, "reasoning_effort" => "high",
-              "temperature" => "0.7", "presence_penalty" => "0.2", "frequency_penalty" => 0, "max_tokens" => "512",
+              "reasoning_content" => "enabled", "temperature" => "0.7", "presence_penalty" => "0.2", "frequency_penalty" => 0, "max_tokens" => "512",
               "context_size" => "20", "max_input_tokens" => 8000)
     expect(turn.to_h).to eq(model: "m", show_thinking: true, websearch: false, reasoning_effort: "high",
+                            reasoning_content: "enabled",
                             temperature: 0.7, presence_penalty: 0.2, frequency_penalty: 0.0, max_tokens: 512,
                             context_size: 20, max_input_tokens: 8000)
   end

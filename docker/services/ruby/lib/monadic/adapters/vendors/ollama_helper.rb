@@ -425,15 +425,12 @@ module OllamaHelper
       }
     }
 
-    # Enable thinking for models that support it. For Ollama, the Show Thinking
-    # toggle is the sole control (Ollama has no reasoning_effort API parameter —
-    # only binary think on/off). The toggle defaults to OFF in the UI; users can
-    # switch it ON to see the model's thinking.
-    show_thinking = obj["show_thinking"]
-    show_thinking_off = [false, "false"].include?(show_thinking)
-    if !show_thinking_off && supports_thinking?(obj["model"])
-      body["think"] = true
-    end
+    # For Ollama, the Show Thinking toggle is the sole control (Ollama has no
+    # reasoning_effort API parameter — only binary think on/off), and it is
+    # off unless the user turned it on. A model that can think is told either
+    # way: left unsaid, it thinks.
+    think = think_parameter(obj)
+    body["think"] = think unless think.nil?
 
     # Add tool definitions if available and within call depth limit. A model
     # that cannot call tools gets none: the same app then holds a plain
@@ -642,12 +639,9 @@ module OllamaHelper
 
     obj = session[:parameters]
 
-    # Show Thinking toggle: default to true when unset, disable only on an
-    # explicit false/"false". Some thinking models ignore the `think:false`
+    # Show Thinking toggle. Some thinking models ignore the `think:false`
     # request parameter so we filter at emit time regardless.
-    show_thinking_param = obj["show_thinking"]
-    show_thinking_enabled = show_thinking_param.nil? ||
-                             ![false, "false"].include?(show_thinking_param)
+    show_thinking_enabled = OllamaHelper.thinking_shown?(obj)
 
     records = StreamRecords.new(:ndjson)
     usage = nil
@@ -809,7 +803,9 @@ module OllamaHelper
                else
                  "#{accumulated}\n\n#{thinking_result}"
                end
-      message["reasoning_content"] = merged unless merged.strip.empty?
+      # Kept off the reply while the toggle is off (a model that thinks
+      # regardless still returns its reasoning).
+      message["reasoning_content"] = merged unless merged.strip.empty? || !show_thinking_enabled
       result = {
         "choices" => [{
           "message" => message,
@@ -952,6 +948,19 @@ module OllamaHelper
   # array per model (e.g. ["completion","vision","tools","thinking"]).
   # Fallback: if the API call fails, fall back to a name-based heuristic
   # so thinking-named models still work when Ollama is temporarily flaky.
+  # Whether the user asked to see the model's thinking: on only when the
+  # Show Thinking toggle says so. With no setting (the toggle not on the page
+  # yet, a request from outside the page) it is off, as the toggle starts.
+  def self.thinking_shown?(params)
+    [true, "true"].include?(params && params["show_thinking"])
+  end
+
+  # The `think` value of a request: true or false for a model that can
+  # think, nil (not sent) for one that cannot.
+  def think_parameter(params)
+    supports_thinking?(params["model"]) ? OllamaHelper.thinking_shown?(params) : nil
+  end
+
   def supports_thinking?(model_name)
     return false unless model_name.is_a?(String)
     caps = OllamaHelper.fetch_model_capabilities(model_name)

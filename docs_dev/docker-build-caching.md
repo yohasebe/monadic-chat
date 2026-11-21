@@ -9,7 +9,7 @@ This page describes when the Ruby and Python images are built or downloaded, and
 | Situation | What happens |
 |---|---|
 | Containers missing, or first install (`needs_full_rebuild`) | Full `docker compose build --no-cache` of every service with a build section, then `up -d`. A failed build stops Start |
-| Version update with changed Python, Selenium or Embeddings Dockerfiles (`needs_selective_rebuild`) | Ruby is rebuilt with cache. Python is built with `docker compose build` (the prebuilt image is pulled first and used through `cache_from`); Selenium and Embeddings are pulled |
+| Version update with changed Python image sources (the Dockerfile or any file it copies, `calculate_python_image_hash`), or a changed Selenium or Embeddings Dockerfile (`needs_selective_rebuild`) | Ruby is rebuilt with cache. Python is built with `docker compose build` (the prebuilt image is pulled first and used through `cache_from`); Selenium and Embeddings are pulled |
 | Version update or Gem change only (`needs_ruby_rebuild`) | Only Ruby is rebuilt, with cache |
 | Nothing changed | No build |
 

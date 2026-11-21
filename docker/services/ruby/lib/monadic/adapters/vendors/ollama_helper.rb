@@ -124,7 +124,9 @@ module OllamaHelper
       return nil unless res.status.success?
 
       data = JSON.parse(res.body)
-      capabilities = data["capabilities"].is_a?(Array) ? data["capabilities"] : []
+      # A server that reports no capabilities says nothing of the model.
+      reported = data["capabilities"].is_a?(Array)
+      capabilities = reported ? data["capabilities"] : []
 
       # context_length is nested under model_info with arch-specific prefix
       # (e.g. "qwen3vl.context_length", "llama.context_length"). We scan for
@@ -141,6 +143,7 @@ module OllamaHelper
 
       entry = {
         capabilities: capabilities,
+        reported: reported,
         context_length: context_length,
         fetched_at: Time.now
       }
@@ -351,7 +354,10 @@ module OllamaHelper
 
     obj = session[:parameters]
     app = obj["app_name"]
-    model = obj["model"]
+    # The settings of the message being answered, the same in every request
+    # of its answer.
+    turn = Monadic::TurnSettings.current(obj)
+    model = turn.model
 
     # Validate model exists
     available_models = list_models
@@ -362,8 +368,7 @@ module OllamaHelper
       return [res]
     end
 
-    temperature = obj["temperature"].to_f
-    context_size = obj["context_size"].to_i
+    context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
 
     # Proactive Tavily gate (mirrors Cohere / DeepSeek / Mistral). If
@@ -373,7 +378,7 @@ module OllamaHelper
     # gate is required because a model that can call tools would
     # otherwise call tavily_search and surface "Tavily API key is not
     # configured" mid-conversation.
-    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?(obj)
+    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?({ "websearch" => turn.websearch })
 
     message = obj["message"].to_s
 
@@ -418,23 +423,23 @@ module OllamaHelper
     }
 
     body = {
-      "model" => obj["model"],
+      "model" => model,
       "stream" => true,
-      "options" => chat_options(obj, temperature)
+      "options" => chat_options(turn)
     }
 
     # For Ollama, the Show Thinking toggle is the sole control (Ollama has no
     # reasoning_effort API parameter — only binary think on/off), and it is
     # off unless the user turned it on. A model that can think is told either
     # way: left unsaid, it thinks.
-    think = think_parameter(obj)
+    think = think_parameter(turn)
     body["think"] = think unless think.nil?
 
     # Add tool definitions if available and within call depth limit. A model
     # that cannot call tools gets none: the same app then holds a plain
     # conversation with it.
     tools_config = obj["tools"]
-    tools_allowed = supports_tools?(obj["model"]) && session[:call_depth_per_turn].to_i < tool_round_limit(session, MAX_FUNC_CALLS)
+    tools_allowed = supports_tools?(model) && session[:call_depth_per_turn].to_i < tool_round_limit(session, MAX_FUNC_CALLS)
     if tools_config && tools_allowed
       formatted_tools = format_tools_for_ollama(tools_config)
       # Ollama sources tools from obj["tools"] (frontend), so PTD filtering must
@@ -475,6 +480,7 @@ module OllamaHelper
     end
 
     messages_containing_img = false
+    takes_images = !known_without_vision?(model)
     system_message_modified = false
     body["messages"] = context.compact.map do |msg|
       # Apply unified system prompt injector to first system message
@@ -500,8 +506,10 @@ module OllamaHelper
       end
 
       # A user message keeps its images when the request returns tool
-      # results too: the answer is written by that later request.
-      if msg["images"] && (role == "user" || msg["role"] == "user")
+      # results too: the answer is written by that later request. A model
+      # known to take no images gets the text alone (images sent to an
+      # earlier model of the chat included).
+      if msg["images"] && takes_images && (role == "user" || msg["role"] == "user")
         message["images"] = msg["images"]&.map do |img|
           img["data"].split(",")[1]
         end
@@ -535,7 +543,7 @@ module OllamaHelper
           elsif msg["role"] == "system" && system_message
             system_message
           else
-            tool_round_entry(msg, session)
+            tool_round_entry(msg, session, images: takes_images)
           end
         end
       end
@@ -639,7 +647,8 @@ module OllamaHelper
 
     # Show Thinking toggle. Some thinking models ignore the `think:false`
     # request parameter so we filter at emit time regardless.
-    show_thinking_enabled = OllamaHelper.thinking_shown?(obj)
+    turn = Monadic::TurnSettings.current(obj)
+    show_thinking_enabled = turn.show_thinking == true
 
     records = StreamRecords.new(:ndjson)
     usage = nil
@@ -749,7 +758,7 @@ module OllamaHelper
       # re-invocation, as the model reads them (a user message's attachments
       # described after its text, as in the request for the message).
       # In a later round of the turn, the rounds before it are there already.
-      context_size = obj["context_size"].to_i
+      context_size = turn.context_size.to_i
       context = Array(obj["function_returns"]).dup
       if context.empty?
         context = [session[:messages].first]
@@ -820,14 +829,15 @@ module OllamaHelper
   end
 
   # A message of a tool round as Ollama reads it. The user's message (a
-  # session message here) keeps what the work screen shows, and its images;
+  # session message here) keeps what the work screen shows, and its images
+  # where the model takes them;
   # the assistant's message keeps its reasoning and the tool calls it made, and each result
   # names its tool, or the model sees results of calls it never made and
   # makes them again.
-  def tool_round_entry(msg, session)
+  def tool_round_entry(msg, session, images: true)
     content = msg["content"] || msg["text"] || ""
     entry = { "role" => msg["role"], "content" => Monadic::Workbench::Observation.appended(content, observation_for(session, msg)) }
-    if msg["role"] == "user" && msg["images"].is_a?(Array) && !msg["images"].empty?
+    if images && msg["role"] == "user" && msg["images"].is_a?(Array) && !msg["images"].empty?
       entry["images"] = msg["images"].filter_map { |img| img["data"].to_s.split(",")[1] }
     end
     if msg["role"] == "assistant"
@@ -901,7 +911,7 @@ module OllamaHelper
 
     # Images a tool made for the model (a screenshot) go with the results,
     # to a model that takes images.
-    if tool_images.any? && supports_vision?(obj["model"])
+    if tool_images.any? && supports_vision?(Monadic::TurnSettings.current(obj).model)
       images = tool_images.filter_map do |name|
         img = Monadic::Utils::ToolImageUtils.encode_image_for_api(name)
         { "data" => "data:#{img[:media_type]};base64,#{img[:base64_data]}" } if img
@@ -941,31 +951,35 @@ module OllamaHelper
     caps ? caps[:capabilities].include?("vision") : false
   end
 
+  # Whether the local server says the model takes no images. Not so where
+  # it could not be asked or reports no capabilities: the chat's images are
+  # then sent as they are.
+  def known_without_vision?(model_name)
+    caps = model_name.is_a?(String) && OllamaHelper.fetch_model_capabilities(model_name)
+    caps && caps[:reported] != false ? !caps[:capabilities].include?("vision") : false
+  end
+
   # Detect whether an Ollama model supports the `think:true` parameter.
   # Primary source: Ollama's /api/show endpoint returns a `capabilities`
   # array per model (e.g. ["completion","vision","tools","thinking"]).
   # Fallback: if the API call fails, fall back to a name-based heuristic
   # so thinking-named models still work when Ollama is temporarily flaky.
-  # Whether the user asked to see the model's thinking: on only when the
-  # Show Thinking toggle says so. With no setting (the toggle not on the page
-  # yet, a request from outside the page) it is off, as the toggle starts.
-  def self.thinking_shown?(params)
-    [true, "true"].include?(params && params["show_thinking"])
-  end
-
-  # The options of a chat request. Ollama reads the output limit as
-  # num_predict; without a limit none is sent.
-  def chat_options(params, temperature)
-    options = { "temperature" => temperature }
-    limit = params["max_tokens"].to_i
-    options["num_predict"] = limit if limit.positive?
+  # The options of a chat request, of the turn's settings. A message that
+  # names no temperature is sent with 0; Ollama reads the output limit as
+  # num_predict, and without a limit none is sent.
+  def chat_options(turn)
+    options = { "temperature" => turn.temperature || 0.0 }
+    options["num_predict"] = turn.max_tokens if turn.max_tokens
     options
   end
 
   # The `think` value of a request: true or false for a model that can
-  # think, nil (not sent) for one that cannot.
-  def think_parameter(params)
-    supports_thinking?(params["model"]) ? OllamaHelper.thinking_shown?(params) : nil
+  # think, nil (not sent) for one that cannot. The model's thinking is
+  # asked for only when the message says to show it: with no setting (the
+  # toggle not on the page yet, a request from outside the page) it is off,
+  # as the toggle starts.
+  def think_parameter(turn)
+    supports_thinking?(turn.model) ? turn.show_thinking == true : nil
   end
 
   def supports_thinking?(model_name)

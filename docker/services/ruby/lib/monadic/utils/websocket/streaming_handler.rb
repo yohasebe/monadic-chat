@@ -242,7 +242,8 @@ module WebSocketHelper
       chat_id: chat_at_start, request_id: request_id,
       attachment_ids: earlier_ids + Array(attachment_refs).map { |a| a["attachment_id"] },
       tab: ws_session_id, generation: session[:_ws_generation],
-      observation: (user_sent ? workbench_observation(session, chat_at_start, request_id, reported_range) : nil)
+      observation: (user_sent ? workbench_observation(session, chat_at_start, request_id, reported_range) : nil),
+      settings: Monadic::TurnSettings.accepted(obj, session[:parameters])
     )
 
     session[:parameters].merge! obj
@@ -394,7 +395,7 @@ module WebSocketHelper
       # Show Thinking off (the user's toggle, or the app's default where the
       # model has no toggle): the model's thinking is not sent to the page
       # as it streams, as it is not attached to the reply.
-      thinking_hidden = [false, "false"].include?(obj["show_thinking"])
+      thinking_hidden = request_context.settings.show_thinking == false
 
       prev_texts_for_tts = []
       ErrorPatternDetector.begin_turn(session)
@@ -693,6 +694,8 @@ module WebSocketHelper
           # before the page asks for it must not land it in the new chat.
           response["_chat_id"] = chat_at_start if response.is_a?(Hash)
           response["_request_id"] = request_id if response.is_a?(Hash)
+          # So do its settings: the reply is shown and counted with them.
+          response["_settings"] = request_context.settings if response.is_a?(Hash)
           answers << response unless chat_changed.call
         end
       end

@@ -2,6 +2,7 @@
 
 require 'set'
 require_relative 'ids'
+require_relative '../turn_settings'
 
 module Monadic
   module Workspace
@@ -23,11 +24,14 @@ module Monadic
       # workbench selects there what the answer shows), or nil.
       # observation: what the model is told of the work screen with this
       # message (Workbench::Observation, frozen), or nil.
-      attr_reader :request_id, :chat_id, :attachment_ids, :tab, :generation, :observation
+      # settings: the settings the message is answered with
+      # (Monadic::TurnSettings), or nil.
+      attr_reader :request_id, :chat_id, :attachment_ids, :tab, :generation, :observation, :settings
 
       def initialize(chat_id:, attachment_ids: [], request_id: Ids.generate(:request), tab: nil, generation: nil,
-                     observation: nil)
+                     observation: nil, settings: nil)
         @request_id = request_id
+        @settings = settings
         @chat_id = chat_id
         @tab = tab&.to_s
         @generation = generation

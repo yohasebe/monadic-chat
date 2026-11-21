@@ -31,7 +31,11 @@ module TurnSettingsTurn
   # @turn_uris). message: what the message brought; kept: the chat's
   # parameters before it; change: what the tool changes in them.
   # models: the names a provider's own list of models answers with.
-  def turn_bodies(helper_module, format:, kind:, key:, message:, kept: {}, change: {}, history: [], models: [])
+  # answering: the settings of a message of another chat being answered
+  # while this request is made (a tool of its reply asks a model of its
+  # own); the request then has no message of its own.
+  def turn_bodies(helper_module, format:, kind:, key:, message:, kept: {}, change: {}, history: [], models: [],
+                  answering: nil)
     helper = Class.new(MonadicApp) { include helper_module }.new
     allow(helper).to receive(:sleep)
     session = { parameters: { "app_name" => "SpecApp", "message" => "What is the weather?", "tools" => [TOOL] }
@@ -62,8 +66,13 @@ module TurnSettingsTurn
     allow(HTTP).to receive(:timeout).and_return(chain)
     chat = Monadic::Workspace::Ids.generate(:chat)
     session[Monadic::Workspace::Chats::SESSION_KEY] = chat
-    context = Monadic::Workspace::RequestContext.new(chat_id: chat,
-                                                     settings: Monadic::TurnSettings.accepted(message, kept))
+    context = if answering
+                Monadic::Workspace::RequestContext.new(chat_id: chat, parameters: answering,
+                                                       settings: Monadic::TurnSettings.of(answering))
+              else
+                Monadic::Workspace::RequestContext.new(chat_id: chat, parameters: session[:parameters],
+                                                       settings: Monadic::TurnSettings.accepted(message, kept))
+              end
     Monadic::Workspace::RequestContext.with(context) { helper.api_request("user", session) { |_| } }
     bodies
   end

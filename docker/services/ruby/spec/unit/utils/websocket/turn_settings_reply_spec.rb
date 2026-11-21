@@ -63,6 +63,22 @@ RSpec.describe "The settings a reply is recorded with" do
     broadcasts.reverse.find { |b| b["type"] == "html" }&.fetch("content")
   end
 
+  it "gives the provider call the message's settings for the chat's parameters, and not for a tool's own" do
+    read = {}
+    app = Object.new
+    app.define_singleton_method(:api_request) do |_role, session, &_block|
+      read[:chat] = Monadic::TurnSettings.current(session[:parameters])
+      read[:tool] = Monadic::TurnSettings.current({ "model" => "of-a-tool" })
+      [{ "choices" => [{ "message" => { "content" => "ANSWER" }, "finish_reason" => "stop" }] }]
+    end
+    app.define_singleton_method(:settings) { {} }
+    stub_const("APPS", { "FakeApp" => app })
+    session[:parameters].merge!("show_thinking" => true, "temperature" => "1.5")
+    reply_card({ "model" => "of-the-message", "temperature" => "0.3" }, {})
+    expect(read[:chat].to_h.compact).to eq(model: "of-the-message", temperature: 0.3)
+    expect(read[:tool].model).to eq("of-a-tool")
+  end
+
   it "leaves the thinking off the reply of a message sent with Show Thinking off" do
     card = reply_card({ "show_thinking" => false }, { "show_thinking" => true })
     expect(card["text"]).to eq("ANSWER")

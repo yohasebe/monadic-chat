@@ -40,6 +40,17 @@ RSpec.describe "The settings of a Grok turn" do
     end
   end
 
+  it "sends a request a tool makes of its own with that request's settings, not those of the reply it runs in" do
+    sent = turn_bodies(GrokHelper, format: StreamContract::Responses, kind: :sse, key: "XAI_API_KEY",
+                       message: { "model" => model, "context_size" => "5", "temperature" => "0.1" },
+                       answering: { "model" => "the-chat-s-model", "temperature" => "1.9", "max_tokens" => "9000",
+                                    "presence_penalty" => "1.5" })
+    sent.each do |body|
+      expect(body.slice("model", "temperature")).to eq("model" => model, "temperature" => 0.1)
+      expect(body.keys).not_to include("max_output_tokens", "presence_penalty")
+    end
+  end
+
   it "sends a penalty the message names as zero, and none for what is not a number" do
     sent = bodies({ "presence_penalty" => "0", "frequency_penalty" => 0.0 })
     sent.each { |body| expect(body.slice("presence_penalty", "frequency_penalty")).to eq("presence_penalty" => 0.0, "frequency_penalty" => 0.0) }

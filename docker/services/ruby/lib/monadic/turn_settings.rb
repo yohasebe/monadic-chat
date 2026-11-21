@@ -49,11 +49,12 @@ module Monadic
           max_input_tokens: count(given["max_input_tokens"]))
     end
 
-    # The settings of the request being answered, or those of the given
-    # parameters where no message was accepted for it (a caller that makes
-    # its own request).
+    # The settings a request made with the given parameters is sent with:
+    # those of the message being answered when the parameters are its
+    # chat's, and otherwise those the parameters name (a caller that makes
+    # a request of its own, in a reply's tool or outside any reply).
     def self.current(parameters)
-      Workspace::RequestContext.current&.settings || of(parameters)
+      Workspace::RequestContext.current&.settings_for(parameters) || of(parameters)
     end
 
     def self.text(value)

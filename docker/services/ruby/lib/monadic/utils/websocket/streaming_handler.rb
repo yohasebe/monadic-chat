@@ -243,7 +243,7 @@ module WebSocketHelper
       attachment_ids: earlier_ids + Array(attachment_refs).map { |a| a["attachment_id"] },
       tab: ws_session_id, generation: session[:_ws_generation],
       observation: (user_sent ? workbench_observation(session, chat_at_start, request_id, reported_range) : nil),
-      settings: Monadic::TurnSettings.accepted(obj, session[:parameters])
+      settings: Monadic::TurnSettings.accepted(obj, session[:parameters]), parameters: session[:parameters]
     )
 
     session[:parameters].merge! obj

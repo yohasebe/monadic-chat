@@ -78,11 +78,21 @@ RSpec.describe Monadic::TurnSettings do
   end
 
   describe ".current" do
-    it "is the settings of the request being answered, whatever the given parameters say" do
-      settings = of("model" => "of-the-message", "show_thinking" => false)
-      context = Monadic::Workspace::RequestContext.new(chat_id: "c", settings: settings)
+    let(:settings) { of("model" => "of-the-message", "show_thinking" => false) }
+    let(:kept) { { "model" => "kept", "show_thinking" => true } }
+
+    it "is the settings of the message being answered for its chat's parameters, whatever they say" do
+      context = Monadic::Workspace::RequestContext.new(chat_id: "c", settings: settings, parameters: kept)
       Monadic::Workspace::RequestContext.with(context) do
-        expect(described_class.current("model" => "kept", "show_thinking" => true)).to equal(settings)
+        expect(described_class.current(kept)).to equal(settings)
+      end
+    end
+
+    it "is read from parameters that are not the chat's, also while a message is answered" do
+      context = Monadic::Workspace::RequestContext.new(chat_id: "c", settings: settings, parameters: kept)
+      Monadic::Workspace::RequestContext.with(context) do
+        expect(described_class.current("model" => "of-a-tool").model).to eq("of-a-tool")
+        expect(described_class.current(kept.dup).model).to eq("kept")
       end
     end
 

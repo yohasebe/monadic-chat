@@ -993,19 +993,23 @@ module GrokHelper
                      end
 
     prompt_suffix = obj["prompt_suffix"]
-    model = obj["model"]
+    # The settings of the message being answered, the same in every request
+    # of its answer. A message that names no temperature is sent with 0; a
+    # penalty or an output limit it does not name is not sent.
+    turn = Monadic::TurnSettings.current(obj)
+    model = turn.model
 
-    max_tokens = obj["max_tokens"]&.to_i
-    temperature = obj["temperature"].to_f
-    presence_penalty = obj["presence_penalty"] ? obj["presence_penalty"].to_f : nil
-    frequency_penalty = obj["frequency_penalty"] ? obj["frequency_penalty"].to_f : nil
-    reasoning_effort = obj["reasoning_effort"]
-    context_size = obj["context_size"].to_i
+    max_tokens = turn.max_tokens
+    temperature = turn.temperature || 0.0
+    presence_penalty = turn.presence_penalty
+    frequency_penalty = turn.frequency_penalty
+    reasoning_effort = turn.reasoning_effort
+    context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
     message_with_snippet = nil
 
     # Check for websearch configuration
-    websearch = obj["websearch"] == "true" || obj["websearch"] == true
+    websearch = turn.websearch == true
 
     # Dynamically switch model if websearch is needed but not supported
     original_model = model
@@ -1020,7 +1024,7 @@ module GrokHelper
       DebugHelper.debug("Grok websearch disabled (requested=#{websearch}, supports=#{Monadic::Utils::ModelSpec.supports_web_search?(model)})", category: :api, level: :info)
     end
 
-    Monadic::Utils::ExtraLogger.log { "=== Grok websearch parameter check ===\nobj[\"websearch\"] = #{obj["websearch"].inspect} (type: #{obj["websearch"].class})\nwebsearch enabled = #{websearch}" }
+    Monadic::Utils::ExtraLogger.log { "=== Grok websearch parameter check ===\nwebsearch enabled = #{websearch}" }
 
     message = nil
     data = nil

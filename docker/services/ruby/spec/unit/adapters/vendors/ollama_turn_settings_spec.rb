@@ -1,69 +1,25 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "json"
-require_relative "../../../support/stream_contract"
+require_relative "../../../support/turn_settings_turn"
 require_relative "../../../../lib/monadic/adapters/vendors/ollama_helper"
 
 # An Ollama turn is sent with the settings of its message: in every request
 # of the turn, whatever the chat's kept parameters say meanwhile.
 RSpec.describe "The settings of an Ollama turn" do
-  TOOL = { "type" => "function",
-           "function" => { "name" => "first_tool", "description" => "t",
-                           "parameters" => { "type" => "object", "properties" => {} } } }.freeze
+  include TurnSettingsTurn
 
-  # The app whose tool changes the chat's kept parameters while the turn
-  # runs, as a change made on the page would.
-  class ChangingApp
-    def initialize(session, change) = (@session, @change = session, change)
-
-    def settings = { "tools" => [TOOL] }
-
-    def first_tool(**)
-      @session[:parameters].merge!(@change)
-      "done"
-    end
-  end
-
-  def lines(objects) = objects.map { |o| "#{JSON.generate(o)}\n" }.join
-
-  # The bodies of the requests of one turn: the model calls the tool, then
-  # answers. message: what the message brought; kept: the chat's parameters;
-  # change: what the tool changes in them; capabilities: by model.
+  # capabilities: what the local server says of each model (nil: it could
+  # not be asked).
   def bodies_of_turn(message:, kept: {}, change: {}, capabilities: {}, history: [])
-    helper = Class.new(MonadicApp) { include OllamaHelper }.new
-    allow(helper).to receive(:sleep)
-    session = { parameters: { "app_name" => "SpecApp", "message" => "What is the weather?", "tools" => [TOOL] }
-                            .merge(kept).merge(message),
-                messages: [{ "role" => "system", "text" => "S", "active" => true }] + history }
-    stub_const("APPS", { "SpecApp" => ChangingApp.new(session, change) })
     allow(OllamaHelper).to receive(:find_endpoint).and_return("http://localhost:11434/api")
     allow(OllamaHelper).to receive(:fetch_model_capabilities) do |model|
       names = capabilities.fetch(model, %w[completion tools])
       names.is_a?(Array) ? { capabilities: names } : names
     end
-    answers = [lines(StreamContract::Ollama.calls([["first_tool", {}]])), lines(StreamContract::Ollama.text(["Done."]))]
-    bodies = []
-    chain = double("http")
-    %i[timeout headers].each { |m| allow(chain).to receive(m).and_return(chain) }
-    allow(chain).to receive(:post) do |_uri, json:|
-      bodies << JSON.parse(JSON.generate(json))
-      answer = answers.length > 1 ? answers.shift : answers.first
-      body = Object.new.tap { |o| o.define_singleton_method(:each) { |&blk| blk.call(answer.dup) } }
-      double("res", status: HTTP::Response::Status.new(200), body: body)
-    end
-    allow(chain).to receive(:get) do
-      names = (capabilities.keys + [message["model"], kept["model"], change["model"]]).compact.uniq
-      double("res", status: HTTP::Response::Status.new(200), body: JSON.generate({ "models" => names.map { |n| { "name" => n } } }))
-    end
-    allow(HTTP).to receive(:headers).and_return(chain)
-    allow(HTTP).to receive(:timeout).and_return(chain)
-    chat = Monadic::Workspace::Ids.generate(:chat)
-    session[Monadic::Workspace::Chats::SESSION_KEY] = chat
-    context = Monadic::Workspace::RequestContext.new(chat_id: chat,
-                                                     settings: Monadic::TurnSettings.accepted(message, kept))
-    Monadic::Workspace::RequestContext.with(context) { helper.api_request("user", session) { |_| } }
-    bodies
+    turn_bodies(OllamaHelper, format: StreamContract::Ollama, kind: :ndjson, key: nil, message: message, kept: kept,
+                change: change, history: history,
+                models: (capabilities.keys + [message["model"], kept["model"], change["model"]]).compact.uniq)
   end
 
   let(:thinker) { { "thinker" => %w[completion tools thinking], "other" => %w[completion tools thinking] } }

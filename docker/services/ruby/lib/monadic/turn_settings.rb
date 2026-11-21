@@ -10,7 +10,11 @@ module Monadic
   #
   # A field is nil when the message did not say: what that means is each
   # provider's to decide (send a default, or leave the field out).
-  TurnSettings = Data.define(:model, :show_thinking, :websearch, :temperature, :max_tokens, :context_size,
+  #
+  # reasoning_effort is the level the message names, as named: which levels
+  # a model takes, and what is sent for one it does not, is its provider's.
+  TurnSettings = Data.define(:model, :show_thinking, :websearch, :reasoning_effort, :temperature,
+                             :presence_penalty, :frequency_penalty, :max_tokens, :context_size,
                              :max_input_tokens) do
     # The settings of a message as it is accepted: its own, and for what a
     # chat keeps from message to message (the model, and how much of the
@@ -30,7 +34,10 @@ module Monadic
       new(model: text(given["model"]),
           show_thinking: flag(given["show_thinking"]),
           websearch: flag(given["websearch"]),
+          reasoning_effort: text(given["reasoning_effort"]),
           temperature: number(given["temperature"]),
+          presence_penalty: number(given["presence_penalty"]),
+          frequency_penalty: number(given["frequency_penalty"]),
           max_tokens: count(given["max_tokens"]),
           context_size: count(given["context_size"]),
           max_input_tokens: count(given["max_input_tokens"]))

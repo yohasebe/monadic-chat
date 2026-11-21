@@ -8,9 +8,11 @@ RSpec.describe Monadic::TurnSettings do
   def of(given) = described_class.of(given)
 
   it "reads each setting the message names" do
-    turn = of("model" => "m", "show_thinking" => "true", "websearch" => false, "temperature" => "0.7",
-              "max_tokens" => "512", "context_size" => "20", "max_input_tokens" => 8000)
-    expect(turn.to_h).to eq(model: "m", show_thinking: true, websearch: false, temperature: 0.7, max_tokens: 512,
+    turn = of("model" => "m", "show_thinking" => "true", "websearch" => false, "reasoning_effort" => "high",
+              "temperature" => "0.7", "presence_penalty" => "0.2", "frequency_penalty" => 0, "max_tokens" => "512",
+              "context_size" => "20", "max_input_tokens" => 8000)
+    expect(turn.to_h).to eq(model: "m", show_thinking: true, websearch: false, reasoning_effort: "high",
+                            temperature: 0.7, presence_penalty: 0.2, frequency_penalty: 0.0, max_tokens: 512,
                             context_size: 20, max_input_tokens: 8000)
   end
 
@@ -30,6 +32,8 @@ RSpec.describe Monadic::TurnSettings do
     expect(of("temperature" => "1e999").temperature).to be_nil
     expect(of("temperature" => Float::NAN).temperature).to be_nil
     expect(of("websearch" => "on").websearch).to be_nil
+    expect(of("presence_penalty" => "much").presence_penalty).to be_nil
+    expect(of("reasoning_effort" => "").reasoning_effort).to be_nil
     [0, "0", -5, "", "many", "1.5", 1.5, "1e999", "1e3"].each do |value|
       expect(of("max_tokens" => value).max_tokens).to be_nil, value.inspect
       expect(of("context_size" => value).context_size).to be_nil, value.inspect
@@ -49,13 +53,15 @@ RSpec.describe Monadic::TurnSettings do
   end
 
   describe ".accepted" do
-    let(:kept) { { "model" => "kept", "context_size" => "9", "max_input_tokens" => "4000", "show_thinking" => true,
-                   "temperature" => "1.2", "max_tokens" => "900", "websearch" => true } }
+    let(:kept) do
+      { "model" => "kept", "context_size" => "9", "max_input_tokens" => "4000", "show_thinking" => true,
+        "temperature" => "1.2", "max_tokens" => "900", "websearch" => true, "reasoning_effort" => "high",
+        "presence_penalty" => "0.5", "frequency_penalty" => "0.5" }
+    end
 
     it "takes the chat's model and limits where the message leaves them out, and nothing else of the chat's" do
       turn = described_class.accepted({ "temperature" => "0.3" }, kept)
-      expect(turn.to_h).to eq(model: "kept", show_thinking: nil, websearch: nil, temperature: 0.3, max_tokens: nil,
-                              context_size: 9, max_input_tokens: 4000)
+      expect(turn.to_h.compact).to eq(model: "kept", temperature: 0.3, context_size: 9, max_input_tokens: 4000)
     end
 
     it "takes the message's own where it names them" do

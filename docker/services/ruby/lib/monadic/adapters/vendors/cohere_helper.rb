@@ -544,13 +544,14 @@ module CohereHelper
 
   # Build a single Cohere message with image content. Returns the message hash, or error Array.
   private def build_cohere_image_message(msg, obj, role, text_override: nil, &block)
+    turn = Monadic::TurnSettings.current(obj)
     content = [{ "type" => "text", "text" => (text_override || msg["text"].to_s.strip) }]
 
     msg["images"].each do |img|
       begin
-        spec_vision = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "vision_capability")
+        spec_vision = Monadic::Utils::ModelSpec.get_model_property(turn.model, "vision_capability")
         vision_capable = spec_vision.nil? ? true : !!spec_vision
-        spec_pdf = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_pdf")
+        spec_pdf = Monadic::Utils::ModelSpec.get_model_property(turn.model, "supports_pdf")
         pdf_capable = spec_pdf.nil? ? false : !!spec_pdf
       rescue StandardError
         vision_capable = true
@@ -593,29 +594,34 @@ module CohereHelper
     { "role" => role, "content" => content }
   end
 
+  # Whether a turn's model reasons: "enabled" or "disabled" for a model that
+  # can ("enabled" unless the message says "disabled"), nil for one that
+  # cannot. The same for the request and for the reply read from it.
+  private def cohere_reasoning(turn)
+    return nil unless CohereHelper.is_thinking_model?(turn.model)
+
+    turn.reasoning_effort.to_s.strip.downcase == "disabled" ? "disabled" : "enabled"
+  end
+
   # Configure reasoning (thinking) mode for Cohere command-a-reasoning models.
   # Modifies body in-place: sets body["thinking"] and potentially body["messages"] for single-text workaround.
   private def configure_cohere_reasoning(body, messages, obj, session)
-    is_reasoning_model = CohereHelper.is_thinking_model?(obj["model"])
-    valid_reasoning_values = %w[enabled disabled]
-    if is_reasoning_model && !valid_reasoning_values.include?(obj["reasoning_effort"].to_s.strip.downcase)
-      obj["reasoning_effort"] = "enabled"
-    end
-
-    return unless is_reasoning_model && obj["reasoning_effort"]
+    turn = Monadic::TurnSettings.current(obj)
+    reasoning = cohere_reasoning(turn)
+    return unless reasoning
 
     has_assistant_messages = messages.any? { |m| m["role"] == "assistant" }
 
-    Monadic::Utils::ExtraLogger.log { "Cohere reasoning check:\n  Model: #{obj["model"]}\n  Reasoning effort: #{obj["reasoning_effort"]}\n  Has assistant messages: #{has_assistant_messages}\n  Message count: #{messages.size}\n  Message roles: #{messages.map { |m| m["role"] }.join(", ")}" }
+    Monadic::Utils::ExtraLogger.log { "Cohere reasoning check:\n  Model: #{turn.model}\n  Reasoning: #{reasoning}\n  Has assistant messages: #{has_assistant_messages}\n  Message count: #{messages.size}\n  Message roles: #{messages.map { |m| m["role"] }.join(", ")}" }
 
     # Models flagged `native_multiturn_reasoning` (e.g. North Mini Code) handle
     # the standard Cohere v2 multi-turn tool flow with reasoning on — verified
     # empirically — so they skip the single-text flattening below and keep the
     # native message array. Flattening is reserved for models like
     # command-a-reasoning that need it.
-    native_multiturn = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "native_multiturn_reasoning") == true
+    native_multiturn = Monadic::Utils::ModelSpec.get_model_property(turn.model, "native_multiturn_reasoning") == true
 
-    if obj["reasoning_effort"] == "enabled"
+    if reasoning == "enabled"
       if has_assistant_messages && !native_multiturn
         Monadic::Utils::ExtraLogger.log { "Cohere: Using single-text workaround for reasoning model with history" }
 
@@ -638,17 +644,18 @@ module CohereHelper
         Monadic::Utils::ExtraLogger.log { "  Single text format applied. New message count: #{body["messages"].size}\n  Thinking enabled: #{body["thinking"].inspect}\n  Message preview (first 500 chars):\n  #{body["messages"][0]["content"][0..500]}...\n  Total message length: #{body["messages"][0]["content"].length} chars" }
       else
         body["thinking"] = { "type" => "enabled" }
-        DebugHelper.debug("Cohere: Reasoning enabled for #{obj["model"]} (no assistant messages)", category: :api, level: :info)
+        DebugHelper.debug("Cohere: Reasoning enabled for #{turn.model} (no assistant messages)", category: :api, level: :info)
       end
     else
       body["thinking"] = { "type" => "disabled" }
-      DebugHelper.debug("Cohere: Reasoning disabled for #{obj["model"]}", category: :api, level: :info)
+      DebugHelper.debug("Cohere: Reasoning disabled for #{turn.model}", category: :api, level: :info)
     end
   end
 
   # Configure tools for the request: progressive disclosure, legacy tools, SSOT capability check.
   # Modifies body in-place.
   private def configure_cohere_tools(body, obj, app, session, role, websearch)
+    turn = Monadic::TurnSettings.current(obj)
     # NOTE: tools must be configured on tool-round requests (role == "tool")
     # too. The conversation replays an assistant message carrying tool_calls,
     # and Cohere rejects that with INVALID_TOOL_GENERATION unless the matching
@@ -716,7 +723,7 @@ module CohereHelper
 
     # SSOT: If the model is not tool-capable, remove tools/tool_choice
     begin
-      spec_tool = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "tool_capability")
+      spec_tool = Monadic::Utils::ModelSpec.get_model_property(turn.model, "tool_capability")
       tool_capable = spec_tool.nil? ? true : !!spec_tool
     rescue StandardError
       tool_capable = true
@@ -833,12 +840,16 @@ module CohereHelper
                        session[:messages].first&.dig("text").to_s
                      end
 
-    temperature = obj["temperature"]&.to_f
-    max_tokens = obj["max_tokens"]&.to_i
-    context_size = obj["context_size"].to_i
+    # The settings of the message being answered, the same in every request
+    # of its answer. A temperature or an output limit the message does not
+    # name is not sent.
+    turn = Monadic::TurnSettings.current(obj)
+    temperature = turn.temperature
+    max_tokens = turn.max_tokens
+    context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
 
-    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?(obj)
+    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?({ "websearch" => turn.websearch })
     message = obj["message"]
 
     # Handle non-tool messages and update session
@@ -903,7 +914,7 @@ module CohereHelper
 
     # Resolve streaming capability
     begin
-      spec_stream = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_streaming")
+      spec_stream = Monadic::Utils::ModelSpec.get_model_property(turn.model, "supports_streaming")
       supports_streaming = spec_stream.nil? ? true : !!spec_stream
     rescue StandardError
       supports_streaming = true
@@ -911,7 +922,7 @@ module CohereHelper
     supports_streaming = true if ENV[COHERE_LEGACY_MODE_ENV] == "true"
 
     # Construct request body
-    body = { "model" => obj["model"], "stream" => supports_streaming }
+    body = { "model" => turn.model, "stream" => supports_streaming }
     body["temperature"] = temperature if temperature && temperature.between?(0.0, 2.0)
     body["max_tokens"] = max_tokens if max_tokens && max_tokens.positive?
 
@@ -1023,6 +1034,7 @@ module CohereHelper
                                          fragment_sequence:, usage_input_tokens:,
                                          usage_output_tokens:, usage_total_tokens:,
                                          session: nil, &block)
+    turn = Monadic::TurnSettings.current(obj)
     if result
       # Send DONE message to complete the stream
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => finish_reason })
@@ -1063,8 +1075,8 @@ module CohereHelper
       response
     else
       # No text content — reasoning model fallback
-      is_reasoning_model = obj["reasoning_model"] || CohereHelper.is_thinking_model?(obj["model"])
-      reasoning_actually_enabled = obj["reasoning_effort"] == "enabled"
+      is_reasoning_model = obj["reasoning_model"] || CohereHelper.is_thinking_model?(turn.model)
+      reasoning_actually_enabled = cohere_reasoning(turn) == "enabled"
 
       if is_reasoning_model && reasoning_actually_enabled
         default_response = "I've processed your request. How can I help you further?"

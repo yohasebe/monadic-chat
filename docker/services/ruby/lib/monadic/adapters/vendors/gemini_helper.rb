@@ -1180,16 +1180,18 @@ module GeminiHelper
     obj = session[:parameters]
     app = obj["app_name"]
 
-    temperature = obj["temperature"]&.to_f
-    
-    # Handle max_tokens
-    max_tokens = obj["max_tokens"]&.to_i
+    # The settings of the message being answered, the same in every request
+    # of its answer. A temperature or an output limit the message does not
+    # name is not sent.
+    turn = Monadic::TurnSettings.current(obj)
+    temperature = turn.temperature
+    max_tokens = turn.max_tokens
 
-    context_size = obj["context_size"].to_i
+    context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
 
     # Resolve model capabilities (web search, thinking, tools, streaming)
-    model_name = obj["model"]
+    model_name = turn.model
     caps = resolve_gemini_model_capabilities(obj, model_name)
     use_native_websearch = caps[:use_native_websearch]
     thinking_level = caps[:thinking_level]
@@ -1389,7 +1391,7 @@ module GeminiHelper
       # to prevent infinite loops. However, some apps may need multiple sequential calls.
       
       # Check if this is a legacy Gemini 2.5 model (for backward compatibility)
-      is_legacy_gemini = obj["model"] && obj["model"].include?("2.5")
+      is_legacy_gemini = model_name && model_name.include?("2.5")
 
       # Check if this is a Jupyter app that needs multiple tool calls
       is_jupyter_app = app.to_s.include?("jupyter") ||
@@ -1580,7 +1582,7 @@ module GeminiHelper
     end
     
     # Execute API call (endpoint selection, HTTP request, retry, error handling)
-    Monadic::Utils::ExtraLogger.log { "[api_request] role=#{role}, calling execute_gemini_api_call with model=#{obj["model"]}, contents_count=#{body["contents"]&.length}, tools_count=#{body["tools"]&.length}" }
+    Monadic::Utils::ExtraLogger.log { "[api_request] role=#{role}, calling execute_gemini_api_call with model=#{model_name}, contents_count=#{body["contents"]&.length}, tools_count=#{body["tools"]&.length}" }
     # Only the request is retried, so nothing before it (such as the
     # user card) is sent again, and only until part of the reply has reached
     # the browser. Each attempt sends a copy of the request body, which the
@@ -1634,7 +1636,8 @@ module GeminiHelper
 
   # Resolve model capabilities: web search, thinking, tools, streaming (SSOT-based)
   def resolve_gemini_model_capabilities(obj, model_name)
-    requested_websearch = obj["websearch"] == true || obj["websearch"] == "true"
+    turn = Monadic::TurnSettings.current(obj)
+    requested_websearch = turn.websearch == true
     spec_supports_websearch = Monadic::Utils::ModelSpec.supports_web_search?(model_name)
     use_native_websearch = requested_websearch && spec_supports_websearch
     unless use_native_websearch
@@ -1645,17 +1648,19 @@ module GeminiHelper
     # Handle thinking models based on reasoning_effort or thinking_level
     thinking_level_config = Monadic::Utils::ModelSpec.get_thinking_level_options(model_name)
     thinking_level = nil
-    reasoning_effort = obj["reasoning_effort"]
+    reasoning_effort = turn.reasoning_effort
     # "none" is an application control, not an API thinking level. Preserve
     # it for the budget branch when the catalog permits disabling thinking.
     disable_thinking = reasoning_effort == "none" &&
       Monadic::Utils::ModelSpec.get_thinking_budget(model_name)&.[]("can_disable")
     reasoning_effort = nil if reasoning_effort == "none" && !disable_thinking
     if thinking_level_config && !disable_thinking
-      thinking_level = gemini_thinking_level(model_name, obj["reasoning_effort"] || obj["thinking_level"])
+      thinking_level = gemini_thinking_level(model_name, turn.reasoning_effort || turn.thinking_level)
       reasoning_effort = nil  # Avoid mixing thinking_budget and thinking_level
     end
-    is_thinking_model = thinking_level_config ? true : (!reasoning_effort.nil? && !reasoning_effort.empty?)
+    # A model the catalog gives neither levels nor a budget is not asked to
+    # think, whatever effort came with the message.
+    is_thinking_model = thinking_level_config ? true : (!reasoning_effort.nil? && gemini_thinking_budget?(model_name))
 
     # Resolve tool capability (SSOT + optional legacy override)
     spec_tool_capable = Monadic::Utils::ModelSpec.get_model_property(model_name, "tool_capability")
@@ -1681,6 +1686,10 @@ module GeminiHelper
     }
   end
 
+  def gemini_thinking_budget?(model_name)
+    !Monadic::Utils::ModelSpec.get_thinking_budget(model_name).nil?
+  end
+
   # Build the Gemini API request body (safety settings, generationConfig, thinkingConfig, systemInstruction)
   def build_gemini_request_body(obj:, model_name:, session:, context:, temperature:, max_tokens:,
                                 is_thinking_model:, thinking_level:, reasoning_effort:, tool_capable:,
@@ -1689,7 +1698,7 @@ module GeminiHelper
     # a user/MDSL temperature. No Gemini entry does — the Gemini 3 guide
     # mandates the default (1.0); lower values risk looping / degraded output —
     # yet MDSL-set temperatures were reaching the API here. Drop them.
-    if temperature && !Monadic::Utils::ModelSpec.supports_temperature?(model_name || obj["model"])
+    if temperature && !Monadic::Utils::ModelSpec.supports_temperature?(model_name || Monadic::TurnSettings.current(obj).model)
       temperature = nil
     end
 
@@ -1731,11 +1740,11 @@ module GeminiHelper
       # Surface the model's reasoning in the UI when "Show Thinking" is on.
       # Defaults to on; only an explicit false disables it. The streaming
       # handler emits parts with thought == true as "thinking" fragments.
-      include_thoughts = ![false, "false"].include?(obj["show_thinking"])
+      include_thoughts = Monadic::TurnSettings.current(obj).show_thinking != false
 
       # Thinking level (Gemini 3)
       if thinking_level
-        model_for_budget = model_name || obj["model"]
+        model_for_budget = model_name || Monadic::TurnSettings.current(obj).model
         thinking_budget = Monadic::Utils::ModelSpec.get_thinking_budget(model_for_budget)
         # A level the catalog gives a budget for is sent as that budget;
         # any other is sent as the level itself.
@@ -1748,7 +1757,7 @@ module GeminiHelper
           end
       # Thinking budget (for models with thinking_budget support)
       elsif is_thinking_model && reasoning_effort
-        model = obj["model"]
+        model = model_name || Monadic::TurnSettings.current(obj).model
 
         Monadic::Utils::ExtraLogger.log {
           tb = Monadic::Utils::ModelSpec.get_thinking_budget(model)
@@ -2207,7 +2216,8 @@ module GeminiHelper
                               app:, session:, call_depth:, &block)
     # Use v1beta for thinking models or PDF handling, v1alpha for others
     endpoint = (is_thinking_model || has_pdf_part) ? "https://generativelanguage.googleapis.com/v1beta" : API_ENDPOINT
-    target_uri = "#{endpoint}/models/#{obj["model"]}:streamGenerateContent?alt=sse"
+    model = Monadic::TurnSettings.current(obj).model
+    target_uri = "#{endpoint}/models/#{model}:streamGenerateContent?alt=sse"
 
     http = HTTP.headers(headers.merge("x-goog-api-key" => api_key))
 
@@ -2220,7 +2230,7 @@ module GeminiHelper
 
     # The tools as the model is offered them; what depends on them is
     # settled after.
-    offer_tools!(body, session, app, provider: "gemini", model: obj["model"])
+    offer_tools!(body, session, app, provider: "gemini", model: model)
 
     # Final safety check: Remove toolConfig if no function_declarations exist
     has_any_function_declarations = body["tools"]&.any? { |tool|
@@ -2237,7 +2247,7 @@ module GeminiHelper
     Monadic::Utils::Privacy::Words.sending(hiding&.first, hiding&.last) do
       MAX_RETRIES.times do |attempt|
         Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Attempt #{attempt + 1}/#{MAX_RETRIES}" } if attempt > 0
-        res = post_with_workbench_looks(session, provider: "gemini", model: obj["model"]) do
+        res = post_with_workbench_looks(session, provider: "gemini", model: model) do
           http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout)
               .post(target_uri, json: Monadic::Utils::GeminiRequest.without_storage(body))
         end

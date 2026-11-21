@@ -14,8 +14,10 @@ module Monadic
   # reasoning_effort is the level the message names, as named: which levels
   # a model takes, and what is sent for one it does not, is its provider's.
   # reasoning_content is the switch of a model's thinking where an app or
-  # a model has one beside the effort ("enabled", "disabled").
-  TurnSettings = Data.define(:model, :show_thinking, :websearch, :reasoning_effort, :reasoning_content, :temperature,
+  # a model has one beside the effort ("enabled", "disabled"); thinking_level
+  # is a level an app names for a model that takes levels of its own.
+  TurnSettings = Data.define(:model, :show_thinking, :websearch, :reasoning_effort, :reasoning_content,
+                             :thinking_level, :temperature,
                              :presence_penalty, :frequency_penalty, :max_tokens, :context_size,
                              :max_input_tokens) do
     # The settings of a message as it is accepted: its own, and for what a
@@ -38,6 +40,7 @@ module Monadic
           websearch: flag(given["websearch"]),
           reasoning_effort: text(given["reasoning_effort"]),
           reasoning_content: text(given["reasoning_content"]),
+          thinking_level: text(given["thinking_level"]),
           temperature: number(given["temperature"]),
           presence_penalty: number(given["presence_penalty"]),
           frequency_penalty: number(given["frequency_penalty"]),

@@ -27,9 +27,9 @@ module TurnSettingsTurn
     kind == :ndjson ? objects.map { |o| "#{JSON.generate(o)}\n" }.join : objects.map { |o| "data: #{JSON.generate(o)}\n\n" }.join
   end
 
-  # The bodies of the requests of the turn. message: what the message
-  # brought; kept: the chat's parameters before it; change: what the tool
-  # changes in them.
+  # The bodies of the requests of the turn (where they were sent is left in
+  # @turn_uris). message: what the message brought; kept: the chat's
+  # parameters before it; change: what the tool changes in them.
   # models: the names a provider's own list of models answers with.
   def turn_bodies(helper_module, format:, kind:, key:, message:, kept: {}, change: {}, history: [], models: [])
     helper = Class.new(MonadicApp) { include helper_module }.new
@@ -43,7 +43,9 @@ module TurnSettingsTurn
     bodies = []
     chain = double("http")
     %i[timeout headers via].each { |m| allow(chain).to receive(m).and_return(chain) }
-    allow(chain).to receive(:post) do |_uri, json:|
+    @turn_uris = []
+    allow(chain).to receive(:post) do |uri, json:|
+      @turn_uris << uri.to_s
       bodies << JSON.parse(JSON.generate(json))
       answer = answers.length > 1 ? answers.shift : answers.first
       body = Object.new.tap do |o|

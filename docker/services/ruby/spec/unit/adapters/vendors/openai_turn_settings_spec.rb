@@ -68,6 +68,12 @@ RSpec.describe "The settings of an OpenAI turn" do
       expect(JSON.generate(sent.first)).to include("iVBORw0KGgo=")
     end
 
+    it "is sent to a model the catalog does not know" do
+      sent = turn_bodies(OpenAIHelper, format: StreamContract::Responses, kind: :sse, key: "OPENAI_API_KEY",
+                         message: { "model" => "a-model-of-no-catalog", "context_size" => "5" }, history: history)
+      expect(JSON.generate(sent.first)).to include("iVBORw0KGgo=")
+    end
+
     it "is not sent to a model the catalog says takes none, whatever the page said" do
       allow(Monadic::Utils::ModelSpec).to receive(:vision_capability?).and_return(false)
       sent = bodies({ "vision_capability" => true }, history: history)

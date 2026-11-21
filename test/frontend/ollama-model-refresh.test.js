@@ -20,6 +20,8 @@ describe('refreshOllamaModels', () => {
       ChatOpenAI: { group: 'OpenAI', models: JSON.stringify(['gpt-6.1-sol']) }
     };
     window.proceedWithAppChange = jest.fn();
+    // The app the page shows as chosen.
+    document.body.innerHTML = '<select id="apps"><option value="ChatOllama" selected>a</option><option value="ChatOpenAI">b</option></select>';
     require('../../docker/services/ruby/public/js/monadic/model_loader.js');
     // The page's own first load of the models is done before each case.
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -51,6 +53,14 @@ describe('refreshOllamaModels', () => {
     window.proceedWithAppChange.mockClear();
     expect(await window.refreshOllamaModels('ChatOllama')).toBe(false);
     expect(window.proceedWithAppChange).not.toHaveBeenCalled();
+  });
+
+  it('does not set the page back to an app left while Ollama was asked', async () => {
+    document.getElementById('apps').value = 'ChatOpenAI';
+    installed['qwen3:30b'] = { tool_capability: true };
+    expect(await window.refreshOllamaModels('ChatOllama')).toBe(false);
+    expect(window.proceedWithAppChange).not.toHaveBeenCalled();
+    expect(JSON.parse(window.apps.ChatOllama.models)).toEqual(['gpt-oss:20b', 'qwen3:30b']);
   });
 
   it('does nothing for an app of another provider', async () => {

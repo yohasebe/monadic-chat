@@ -113,6 +113,18 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
         allow(app).to receive(:sub_agent_api_call).and_return("Mocked response text")
       end
 
+      it "asks with the model and Web Search setting of the message being answered, not as changed since" do
+        asked = []
+        allow(app).to receive(:sub_agent_api_call) { |model, *_rest, websearch: false| asked << [model, websearch]; "text" }
+        session[:parameters].merge!("model" => "changed-since", "websearch" => false)
+        context = Monadic::Workspace::RequestContext.new(
+          chat_id: "c", parameters: session[:parameters],
+          settings: Monadic::TurnSettings.of("model" => "of-the-message", "websearch" => true)
+        )
+        Monadic::Workspace::RequestContext.with(context) { app.dispatch_parallel_tasks(tasks: valid_tasks, session: session) }
+        expect(asked.uniq).to eq([["of-the-message", true]])
+      end
+
       it "returns PARALLEL TASKS COMPLETED message" do
         result = app.dispatch_parallel_tasks(tasks: valid_tasks, session: session)
         expect(result).to include("PARALLEL TASKS COMPLETED")

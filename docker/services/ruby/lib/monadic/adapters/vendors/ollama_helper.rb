@@ -378,7 +378,10 @@ module OllamaHelper
     # gate is required because a model that can call tools would
     # otherwise call tavily_search and surface "Tavily API key is not
     # configured" mid-conversation.
-    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?({ "websearch" => turn.websearch })
+    # A model that calls no tools is neither given the search tools nor
+    # told of them.
+    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?({ "websearch" => turn.websearch }) &&
+                supports_tools?(model)
 
     message = obj["message"].to_s
 

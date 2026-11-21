@@ -578,7 +578,10 @@ module MistralHelper
     # The reactive `tavily_disabled` flag below remains as defense in
     # depth (catches the case where the key is set at boot but Tavily
     # rejects it at request time — e.g. revoked / rate-limited).
-    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?({ "websearch" => turn.websearch })
+    # A model that calls no tools is neither given the search tools nor
+    # told of them.
+    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?({ "websearch" => turn.websearch }) &&
+                Monadic::Utils::ModelSpec.get_model_property(turn.model, "tool_capability") != false
     if session[:parameters]["tavily_disabled"]
       websearch = false
     end

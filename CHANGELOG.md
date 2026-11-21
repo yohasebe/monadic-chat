@@ -51,11 +51,11 @@
     - The reasoning effort chosen for a Grok model and `Max Output Tokens` for an Ollama model are sent with the chat request
     - Gemini chats count their active messages and tokens against the model's input limit
     - Models added in `~/monadic/config/models.json` get their properties on the server as in the web interface
-    - A setting changed while a reply is being made applies from the next message, and a setting a message does not carry is no longer taken from an earlier message
+    - A setting changed while a reply is being made applies from the next message, and a reasoning, `Show Thinking`, `Web Search`, temperature, penalty or `Max Output Tokens` setting a message does not carry is no longer taken from an earlier message
     - `Web Search` works with models that search by themselves and take no tools
     - The reasoning effort of a Mistral model can be chosen
     - Images earlier in a chat are sent to OpenAI models that take images, and are not sent to Ollama models that take none
-    - Gemini models without thinking levels or a thinking budget are sent no thinking settings
+    - Gemini models without thinking levels or a thinking budget are sent no thinking settings in a chat
     - An Ollama app chosen after Ollama started shows what its models can do
     - An app update makes the Python container again when only its scripts changed
     - Keys that 1Password provides one at a time no longer end in a line break that stopped the providers from accepting them

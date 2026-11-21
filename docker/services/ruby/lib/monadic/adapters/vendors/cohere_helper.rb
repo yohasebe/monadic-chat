@@ -849,7 +849,10 @@ module CohereHelper
     context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
 
-    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?({ "websearch" => turn.websearch })
+    # A model that calls no tools is neither given the search tools nor
+    # told of them.
+    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?({ "websearch" => turn.websearch }) &&
+                Monadic::Utils::ModelSpec.get_model_property(turn.model, "tool_capability") != false
     message = obj["message"]
 
     # Handle non-tool messages and update session

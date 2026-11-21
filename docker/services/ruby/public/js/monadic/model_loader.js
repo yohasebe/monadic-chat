@@ -70,10 +70,13 @@
       });
       Object.assign(window.modelSpec, models);
       if (JSON.stringify(current) === JSON.stringify(names) && !capabilitiesChanged) return false;
-
       Object.keys(apps).forEach((key) => {
         if (String(apps[key].group || '').toLowerCase() === 'ollama') apps[key].models = JSON.stringify(names);
       });
+      // Another app chosen while Ollama was asked keeps the page: it is not
+      // set back to this one.
+      const chosen = typeof $id === 'function' ? $id('apps') : null;
+      if (chosen && chosen.value !== appValue) return false;
       if (typeof window.proceedWithAppChange === 'function') window.proceedWithAppChange(appValue);
       return true;
     } finally {

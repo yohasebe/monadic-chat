@@ -69,6 +69,18 @@ RSpec.describe "The settings of an Ollama turn" do
     expect(searching.call({}, { "websearch" => true })).to eq([false, false])
   end
 
+  it "neither gives the search tools to a model that calls no tools nor tells it of them" do
+    stub_const("CONFIG", CONFIG.to_h.merge("TAVILY_API_KEY" => "k"))
+    told = lambda do |names|
+      body = bodies_of_turn(message: { "model" => "m", "context_size" => "5", "websearch" => true },
+                            capabilities: { "m" => names }).first
+      [JSON.generate(body["tools"]).include?("tavily_search"),
+       body["messages"].first["content"].include?(Monadic::SharedTools::TavilyDefinitions::PROMPT)]
+    end
+    expect(told.call(%w[completion tools])).to eq([true, true])
+    expect(told.call(%w[completion])).to eq([false, false])
+  end
+
   describe "the images of the chat's messages" do
     let(:history) do
       [{ "role" => "user", "text" => "Look.", "active" => true,

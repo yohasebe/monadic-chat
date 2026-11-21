@@ -258,6 +258,8 @@
     "openBrowserManually": "请手动在 http://localhost:4567 打开浏览器",
     "browserOpenFailed": "无法自动打开浏览器。请手动导航到: http://localhost:4567",
     "serverVerifyFailed": "无法验证服务器正在运行。请检查Docker状态并尝试重启。",
+    "rubyNotStarted": "Ruby 容器未能启动，因此 Monadic Chat 没有运行。",
+    "fixAndStartAgain": "请排除原因后再次按<b>开始</b>。",
     "errorConnecting": "连接服务器时出错。请检查Docker状态并尝试重启。",
     "newVersionAvailable": "新版本({{version}})可用（当前: {{current}}）。",
     "downloadAndInstall": "下载并安装",

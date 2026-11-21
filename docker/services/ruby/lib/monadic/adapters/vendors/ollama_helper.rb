@@ -420,9 +420,7 @@ module OllamaHelper
     body = {
       "model" => obj["model"],
       "stream" => true,
-      "options" => {
-        "temperature" => temperature,
-      }
+      "options" => chat_options(obj, temperature)
     }
 
     # For Ollama, the Show Thinking toggle is the sole control (Ollama has no
@@ -953,6 +951,15 @@ module OllamaHelper
   # yet, a request from outside the page) it is off, as the toggle starts.
   def self.thinking_shown?(params)
     [true, "true"].include?(params && params["show_thinking"])
+  end
+
+  # The options of a chat request. Ollama reads the output limit as
+  # num_predict; without a limit none is sent.
+  def chat_options(params, temperature)
+    options = { "temperature" => temperature }
+    limit = params["max_tokens"].to_i
+    options["num_predict"] = limit if limit.positive?
+    options
   end
 
   # The `think` value of a request: true or false for a model that can

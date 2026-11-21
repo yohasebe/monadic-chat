@@ -73,11 +73,13 @@
       Object.keys(apps).forEach((key) => {
         if (String(apps[key].group || '').toLowerCase() === 'ollama') apps[key].models = JSON.stringify(names);
       });
-      // Another app chosen while Ollama was asked keeps the page: it is not
-      // set back to this one.
+      // The app the page shows now is the one set up again: another chosen
+      // while Ollama was asked is not set back to this one, and takes the
+      // new list when it is an Ollama app too.
       const chosen = typeof $id === 'function' ? $id('apps') : null;
-      if (chosen && chosen.value !== appValue) return false;
-      if (typeof window.proceedWithAppChange === 'function') window.proceedWithAppChange(appValue);
+      const shown = chosen && chosen.value !== appValue ? chosen.value : appValue;
+      if (String((apps[shown] || {}).group || '').toLowerCase() !== 'ollama') return false;
+      if (typeof window.proceedWithAppChange === 'function') window.proceedWithAppChange(shown);
       return true;
     } finally {
       refreshingOllama = false;

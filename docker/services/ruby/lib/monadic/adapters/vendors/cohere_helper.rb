@@ -852,7 +852,8 @@ module CohereHelper
     # A model that calls no tools is neither given the search tools nor
     # told of them.
     websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?({ "websearch" => turn.websearch }) &&
-                Monadic::Utils::ModelSpec.get_model_property(turn.model, "tool_capability") != false
+                (Monadic::Utils::ModelSpec.get_model_property(turn.model, "tool_capability") != false ||
+                 ENV[COHERE_LEGACY_MODE_ENV] == "true")
     message = obj["message"]
 
     # Handle non-tool messages and update session

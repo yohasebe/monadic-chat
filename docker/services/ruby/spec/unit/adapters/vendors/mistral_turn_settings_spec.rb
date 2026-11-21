@@ -21,9 +21,13 @@ RSpec.describe "The settings of a Mistral turn" do
     Array(Monadic::Utils::ModelSpec.get_reasoning_effort_options(name)&.dig(:options)).map(&:to_s) - ["none"]
   end
 
-  def bodies(message, kept: {}, change: {})
-    turn_bodies(MistralHelper, format: StreamContract::ChatCompletions, kind: :sse, key: "MISTRAL_API_KEY",
-                message: { "model" => model, "context_size" => "5" }.merge(message), kept: kept, change: change)
+  # keep: gives back the chat's messages after the turn; session: a chat's
+  # messages to go on from.
+  def bodies(message, kept: {}, change: {}, keep: false, session: nil)
+    sent = turn_bodies(MistralHelper, format: StreamContract::ChatCompletions, kind: :sse, key: "MISTRAL_API_KEY",
+                       message: { "model" => model, "context_size" => "5" }.merge(message), kept: kept, change: change,
+                       messages: session)
+    keep ? @turn_messages : sent
   end
 
   it "keeps the message's settings in the request that sends the tool's result back" do
@@ -59,21 +63,52 @@ RSpec.describe "The settings of a Mistral turn" do
     expect(searching.call({}, { "websearch" => true })).to eq([false, false])
   end
 
-  it "offers the search tools as they are in an app that unlocks its tools on request" do
-    stub_const("CONFIG", CONFIG.to_h.merge("TAVILY_API_KEY" => "k"))
-    progressive = Class.new(TurnSettingsTurn::ChangingApp) do
-      def settings
-        request_tool = { "type" => "function",
-                         "function" => { "name" => "request_tool", "description" => "t",
-                                         "parameters" => { "type" => "object", "properties" => {} } } }
-        { "tools" => [TurnSettingsTurn::TOOL, request_tool],
-          "progressive_tools" => { all_tool_names: %w[first_tool request_tool], always_visible: %w[first_tool request_tool],
-                                   conditional: [] } }
+  describe "in an app that unlocks its tools on request" do
+    # The app's tools: first_tool and request_tool, and with own_search the
+    # search tools too, shown only once asked for.
+    def progressive_app(own_search: false)
+      search = own_search ? MistralHelper::WEBSEARCH_TOOLS : []
+      names = %w[first_tool request_tool] + search.map { |t| t.dig("function", "name") || t.dig(:function, :name) }
+      conditional = search.map { |t| { name: t.dig("function", "name") || t.dig(:function, :name), unlock_conditions: [] } }
+      Class.new(TurnSettingsTurn::ChangingApp) do
+        define_method(:settings) do
+          request_tool = { "type" => "function",
+                           "function" => { "name" => "request_tool", "description" => "t",
+                                           "parameters" => { "type" => "object", "properties" => {} } } }
+          { "tools" => [TurnSettingsTurn::TOOL, request_tool] + search,
+            "progressive_tools" => { all_tool_names: names, always_visible: %w[first_tool request_tool],
+                                     conditional: conditional } }
+        end
       end
     end
-    stub_const("TurnSettingsTurn::ChangingApp", progressive)
-    names = ->(message) { bodies(message).first["tools"].map { |t| t.dig("function", "name") } }
-    expect(names.call({ "websearch" => true })).to include("first_tool", "tavily_search")
-    expect(names.call({ "websearch" => false })).not_to include("tavily_search")
+
+    before { stub_const("CONFIG", CONFIG.to_h.merge("TAVILY_API_KEY" => "k")) }
+
+    def names_of(body) = Array(body["tools"]).map { |t| t.dig("function", "name") }
+
+    def told?(body) = body["messages"].first["content"].include?(MistralHelper::WEBSEARCH_PROMPT)
+
+    it "offers the search tools as they are, and tells the model of them, in both requests" do
+      stub_const("TurnSettingsTurn::ChangingApp", progressive_app)
+      sent = bodies({ "websearch" => true })
+      expect(sent.map { |b| names_of(b).include?("tavily_search") }).to eq([true, true])
+      expect(sent.map { |b| told?(b) }).to eq([true, true])
+    end
+
+    it "neither offers them nor tells of them with Web Search off, also after a message sent with it on" do
+      stub_const("TurnSettingsTurn::ChangingApp", progressive_app)
+      history = bodies({ "websearch" => true }, keep: true)
+      sent = bodies({ "websearch" => false }, session: history)
+      expect(sent).not_to be_empty
+      sent.each do |body|
+        expect(names_of(body)).not_to include("tavily_search")
+        expect(told?(body)).to be(false)
+      end
+    end
+
+    it "leaves the search tools of an app that has its own to that app's way of showing them" do
+      stub_const("TurnSettingsTurn::ChangingApp", progressive_app(own_search: true))
+      expect(names_of(bodies({ "websearch" => true }).first)).not_to include("tavily_search")
+    end
   end
 end

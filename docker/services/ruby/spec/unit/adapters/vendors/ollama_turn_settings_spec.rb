@@ -81,6 +81,15 @@ RSpec.describe "The settings of an Ollama turn" do
     expect(told.call(%w[completion])).to eq([false, false])
   end
 
+  it "gives the search tools to a model the local server could not be asked about, or reports no capabilities of" do
+    stub_const("CONFIG", CONFIG.to_h.merge("TAVILY_API_KEY" => "k"))
+    [nil, { capabilities: [], reported: false }].each do |answer|
+      body = bodies_of_turn(message: { "model" => "m", "context_size" => "5", "websearch" => true },
+                            capabilities: { "m" => answer }).first
+      expect(JSON.generate(body["tools"])).to include("tavily_search"), answer.inspect
+    end
+  end
+
   describe "the images of the chat's messages" do
     let(:history) do
       [{ "role" => "user", "text" => "Look.", "active" => true,

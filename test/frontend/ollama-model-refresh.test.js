@@ -63,6 +63,15 @@ describe('refreshOllamaModels', () => {
     expect(JSON.parse(window.apps.ChatOllama.models)).toEqual(['gpt-oss:20b', 'qwen3:30b']);
   });
 
+  it('sets up the Ollama app chosen meanwhile, with the models installed now', async () => {
+    document.getElementById('apps').insertAdjacentHTML('beforeend', '<option value="CodingAssistantOllama">c</option>');
+    document.getElementById('apps').value = 'CodingAssistantOllama';
+    installed['qwen3:30b'] = { tool_capability: true };
+    expect(await window.refreshOllamaModels('ChatOllama')).toBe(true);
+    expect(window.proceedWithAppChange).toHaveBeenCalledTimes(1);
+    expect(window.proceedWithAppChange).toHaveBeenCalledWith('CodingAssistantOllama');
+  });
+
   it('does nothing for an app of another provider', async () => {
     expect(await window.refreshOllamaModels('ChatOpenAI')).toBe(false);
     expect(global.fetch).not.toHaveBeenCalledWith('/api/ollama/models');

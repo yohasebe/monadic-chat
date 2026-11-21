@@ -945,7 +945,9 @@ module OllamaHelper
   def supports_tools?(model_name)
     return true unless model_name.is_a?(String)
     caps = OllamaHelper.fetch_model_capabilities(model_name)
-    caps ? caps[:capabilities].include?("tools") : true
+    # Tools are offered where the local server could not be asked, or
+    # reports no capabilities.
+    caps && caps[:reported] != false ? caps[:capabilities].include?("tools") : true
   end
 
   # Whether an Ollama model takes images (the vision capability).

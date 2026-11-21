@@ -34,13 +34,16 @@ module TurnSettingsTurn
   # answering: the settings of a message of another chat being answered
   # while this request is made (a tool of its reply asks a model of its
   # own); the request then has no message of its own.
+  # messages: the messages of a chat to go on from (left in @turn_messages
+  # after a turn), in place of a new chat's.
   def turn_bodies(helper_module, format:, kind:, key:, message:, kept: {}, change: {}, history: [], models: [],
-                  answering: nil)
+                  answering: nil, messages: nil)
     helper = Class.new(MonadicApp) { include helper_module }.new
     allow(helper).to receive(:sleep)
     session = { parameters: { "app_name" => "SpecApp", "message" => "What is the weather?", "tools" => [TOOL] }
                             .merge(kept).merge(message),
-                messages: [{ "role" => "system", "text" => "S", "active" => true }] + history }
+                messages: messages || ([{ "role" => "system", "text" => "S", "active" => true }] + history) }
+    @turn_messages = session[:messages]
     stub_const("APPS", { "SpecApp" => ChangingApp.new(session, change) })
     stub_const("CONFIG", CONFIG.to_h.merge(key => "k")) if key
     answers = [format.calls([["first_tool", {}]]), format.text(["Done."])].map { |a| encode_stream(kind, a) }

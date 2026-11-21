@@ -581,7 +581,8 @@ module MistralHelper
     # A model that calls no tools is neither given the search tools nor
     # told of them.
     websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?({ "websearch" => turn.websearch }) &&
-                Monadic::Utils::ModelSpec.get_model_property(turn.model, "tool_capability") != false
+                (Monadic::Utils::ModelSpec.get_model_property(turn.model, "tool_capability") != false ||
+                 ENV[MISTRAL_LEGACY_MODE_ENV] == "true")
     if session[:parameters]["tavily_disabled"]
       websearch = false
     end
@@ -675,7 +676,15 @@ module MistralHelper
     body["max_tokens"] = max_tokens || 4096
 
     context = model_facing_context(context)
-    configure_mistral_tools(body, obj, app, session, websearch, context)
+    configure_mistral_tools(body, obj, app, session, websearch)
+
+    # Force text-only response when force-stop is active (e.g., after parallel dispatch
+    # or verification sets call_depth_per_turn = FORCE_STOP_DEPTH). Prevents the model from attempting
+    # tool calls that would hit MAX_FUNC_CALLS and truncate the synthesis response.
+    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= tool_round_limit(session, MAX_FUNC_CALLS)
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
 
     msg_result = build_mistral_messages(body, context, obj, session, role, &block)
     return msg_result if msg_result.is_a?(Array)
@@ -689,14 +698,6 @@ module MistralHelper
     # A chat with a word table hides its words with it (each attempt below
     # is sent only while the table is unchanged).
     hiding = hide_words_in_request!(body, session)
-
-    # Force text-only response when force-stop is active (e.g., after parallel dispatch
-    # or verification sets call_depth_per_turn = FORCE_STOP_DEPTH). Prevents the model from attempting
-    # tool calls that would hit MAX_FUNC_CALLS and truncate the synthesis response.
-    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= tool_round_limit(session, MAX_FUNC_CALLS)
-      body.delete("tools")
-      body.delete("tool_choice")
-    end
 
     # Log extra information if enabled
     Monadic::Utils::ExtraLogger.log { "Processing Mistral query (Call depth: #{call_depth})\n#{JSON.pretty_generate(workbench_loggable(body))}" }
@@ -931,7 +932,7 @@ module MistralHelper
 
   # Configure tools for the Mistral API request, including progressive tool
   # disclosure, websearch tools, and SSOT capability gates.
-  def configure_mistral_tools(body, obj, app, session, websearch, context)
+  def configure_mistral_tools(body, obj, app, session, websearch)
     turn = Monadic::TurnSettings.current(obj)
     app_settings = APPS[app]&.settings
     app_tools = app_settings&.[]("tools")
@@ -1007,10 +1008,13 @@ module MistralHelper
         DebugHelper.debug("Mistral: skill visibility re-apply skipped due to #{e.message}", category: :api, level: :warning)
       end
 
-      # Web Search is the user's own toggle: the search tools are offered as
-      # they are, not behind request_tool (an app such as Chat names none
-      # of its own to unlock).
-      if websearch
+      # Web Search is the user's own toggle: in an app that names no search
+      # tools of its own (Chat), they are offered as they are, not behind
+      # request_tool. An app that has them keeps its own way of showing them.
+      names_search_tools = Array(app_settings && app_settings["tools"]).any? do |tool|
+        tool.is_a?(Hash) && (tool.dig(:function, :name) || tool.dig("function", "name")).to_s.start_with?("tavily_")
+      end
+      if websearch && !names_search_tools
         merged += WEBSEARCH_TOOLS
         merged.uniq! { |tool| tool.dig(:function, :name) || tool.dig("function", "name") }
       end
@@ -1020,18 +1024,6 @@ module MistralHelper
       else
         final_tools = merged
         DebugHelper.debug("Mistral progressive tools: #{final_tools.map { |t| t.dig(:function, :name) || t.dig('function', 'name') }.compact.join(', ')}", category: :api, level: :debug)
-
-        if websearch && !app.to_s.include?("ResearchAssistant")
-          has_tavily = final_tools.any? { |tool| (tool.dig(:function, :name) || tool.dig("function", "name"))&.start_with?("tavily_") }
-          if has_tavily
-            system_msg = context.first
-            if system_msg && system_msg["role"] == "system" && !system_msg["websearch_added"]
-              system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
-              system_msg["websearch_added"] = true
-              DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
-            end
-          end
-        end
       end
     else
       if request_tools && !request_tools.empty?
@@ -1056,15 +1048,6 @@ module MistralHelper
       elsif websearch
         final_tools = WEBSEARCH_TOOLS.dup
         DebugHelper.debug("Mistral websearch tools only", category: :api, level: :debug)
-      end
-
-      if final_tools && websearch && !app.to_s.include?("ResearchAssistant")
-        system_msg = context.first
-        if system_msg && system_msg["role"] == "system" && !system_msg["websearch_added"]
-          system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
-          system_msg["websearch_added"] = true
-          DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
-        end
       end
     end
 
@@ -1125,6 +1108,11 @@ module MistralHelper
   def build_mistral_messages(body, context, obj, session, role, &block)
     turn = Monadic::TurnSettings.current(obj)
     system_message_modified = false
+    # The model is told of the search tools in the requests that carry them,
+    # and in no other (Research Assistant's own prompt tells of them).
+    search_told = !obj["app_name"].to_s.include?("ResearchAssistant") && Array(body["tools"]).any? do |tool|
+      tool.is_a?(Hash) && (tool.dig(:function, :name) || tool.dig("function", "name")).to_s.start_with?("tavily_")
+    end
     # Defensive: `context` comes from session[:messages], which only ever holds
     # user/assistant/system turns — tool results live in obj["function_returns"]
     # and are appended fresh for the current round below (role == "tool"). This
@@ -1142,9 +1130,9 @@ module MistralHelper
           base_prompt: msg["text"],
           session: session,
           options: {
-            websearch_enabled: false,
+            websearch_enabled: search_told,
             reasoning_model: false,
-            websearch_prompt: nil,
+            websearch_prompt: search_told ? WEBSEARCH_PROMPT : nil,
             system_prompt_suffix: obj["system_prompt_suffix"]
           },
           separator: "\n\n---\n\n"

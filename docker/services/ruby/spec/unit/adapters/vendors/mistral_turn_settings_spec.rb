@@ -58,4 +58,22 @@ RSpec.describe "The settings of a Mistral turn" do
     expect(searching.call({ "websearch" => false }, { "websearch" => true })).to eq([false, false])
     expect(searching.call({}, { "websearch" => true })).to eq([false, false])
   end
+
+  it "offers the search tools as they are in an app that unlocks its tools on request" do
+    stub_const("CONFIG", CONFIG.to_h.merge("TAVILY_API_KEY" => "k"))
+    progressive = Class.new(TurnSettingsTurn::ChangingApp) do
+      def settings
+        request_tool = { "type" => "function",
+                         "function" => { "name" => "request_tool", "description" => "t",
+                                         "parameters" => { "type" => "object", "properties" => {} } } }
+        { "tools" => [TurnSettingsTurn::TOOL, request_tool],
+          "progressive_tools" => { all_tool_names: %w[first_tool request_tool], always_visible: %w[first_tool request_tool],
+                                   conditional: [] } }
+      end
+    end
+    stub_const("TurnSettingsTurn::ChangingApp", progressive)
+    names = ->(message) { bodies(message).first["tools"].map { |t| t.dig("function", "name") } }
+    expect(names.call({ "websearch" => true })).to include("first_tool", "tavily_search")
+    expect(names.call({ "websearch" => false })).not_to include("tavily_search")
+  end
 end

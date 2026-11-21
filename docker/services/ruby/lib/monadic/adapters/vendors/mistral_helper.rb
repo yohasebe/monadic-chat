@@ -1007,6 +1007,14 @@ module MistralHelper
         DebugHelper.debug("Mistral: skill visibility re-apply skipped due to #{e.message}", category: :api, level: :warning)
       end
 
+      # Web Search is the user's own toggle: the search tools are offered as
+      # they are, not behind request_tool (an app such as Chat names none
+      # of its own to unlock).
+      if websearch
+        merged += WEBSEARCH_TOOLS
+        merged.uniq! { |tool| tool.dig(:function, :name) || tool.dig("function", "name") }
+      end
+
       if merged.empty?
         DebugHelper.debug("Mistral progressive tools: none unlocked", category: :api, level: :debug)
       else

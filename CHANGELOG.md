@@ -54,6 +54,7 @@
     - A setting changed while a reply is being made applies from the next message, and a reasoning, `Show Thinking`, `Web Search`, temperature, penalty or `Max Output Tokens` setting a message does not carry is no longer taken from an earlier message
     - `Web Search` works with models that search by themselves and take no tools
     - The reasoning effort of a Mistral model can be chosen
+    - Chat and other apps that unlock their tools on request search the web with Mistral models when `Web Search` is on
     - Images earlier in a chat are sent to OpenAI models that take images, and are not sent to Ollama models that take none
     - Gemini models without thinking levels or a thinking budget are sent no thinking settings in a chat
     - An Ollama app chosen after Ollama started shows what its models can do

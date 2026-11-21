@@ -370,7 +370,7 @@ module OpenAIHelper
     non_tool_model = !tool_capability
     supports_websearch = Monadic::Utils::ModelSpec.supports_web_search?(model)
 
-    websearch_enabled = obj["websearch"] == "true" || obj["websearch"] == true
+    websearch_enabled = Monadic::TurnSettings.current(obj).websearch == true
     use_responses_api_for_websearch = websearch_enabled &&
                                       Monadic::Utils::ModelSpec.supports_web_search?(model)
 
@@ -420,8 +420,9 @@ module OpenAIHelper
   private def build_openai_base_body(model, obj, app, caps, max_completion_tokens, temperature, presence_penalty, frequency_penalty)
     body = { "model" => model }
     reasoning_model = caps[:reasoning_model]
-    reasoning_effort = obj["reasoning_effort"]
-    verbosity = obj["verbosity"]
+    turn = Monadic::TurnSettings.current(obj)
+    reasoning_effort = turn.reasoning_effort
+    verbosity = turn.verbosity
 
     # Add verbosity for models that support it (via ModelSpec)
     if verbosity && Monadic::Utils::ModelSpec.supports_verbosity?(model)
@@ -855,11 +856,9 @@ module OpenAIHelper
     end
 
     if messages_containing_img
-      supports_vision = !!obj["vision_capability"]
-      begin
-        supports_vision ||= !!MonadicApp.check_vision_capability(body["model"]) if defined?(MonadicApp)
-      rescue StandardError
-      end
+      # Whether the model takes images is the catalog's to say (a model it
+      # does not know is sent them), not the page's.
+      supports_vision = Monadic::Utils::ModelSpec.vision_capability?(body["model"])
 
       unless supports_vision
         formatted_error = Monadic::Utils::ErrorFormatter.api_error(
@@ -1018,7 +1017,8 @@ module OpenAIHelper
     }
 
     effort_config = Monadic::Utils::ModelSpec.get_reasoning_effort_options(model)
-    effort = openai_effort_for(model, body["reasoning_effort"] || obj["reasoning_effort"] || effort_config&.dig(:default))
+    effort = openai_effort_for(model, body["reasoning_effort"] || Monadic::TurnSettings.current(obj).reasoning_effort ||
+                                      effort_config&.dig(:default))
     if effort && effort_config && effort_config[:options].include?(effort)
       # Omitting "none" would select the API's default reasoning level.
       responses_body["reasoning"] = { "effort" => effort }
@@ -1382,17 +1382,21 @@ module OpenAIHelper
                      end
 
     prompt_suffix = obj["prompt_suffix"]
-    model = obj["model"]
-    reasoning_effort = obj["reasoning_effort"]
+    # The settings of the message being answered, the same in every request
+    # of its answer. A message that names no temperature or penalty is sent
+    # with 0 where the model takes them; an output limit it does not name
+    # is the model's.
+    turn = Monadic::TurnSettings.current(obj)
+    model = turn.model
+    reasoning_effort = turn.reasoning_effort
 
-    # Handle max_tokens
-    max_completion_tokens = obj["max_completion_tokens"]&.to_i || obj["max_tokens"]&.to_i
+    max_completion_tokens = turn.max_completion_tokens || turn.max_tokens
 
     # Store the original model for comparison later
     original_user_model = model
 
     # If no max_tokens specified, use model defaults for reasoning models
-    if max_completion_tokens.nil? || max_completion_tokens == 0
+    if max_completion_tokens.nil?
       require_relative '../../utils/model_token_utils'
       max_completion_tokens = ModelTokenUtils.get_max_tokens(original_user_model)
       DebugHelper.debug("OpenAI: Using default max_tokens #{max_completion_tokens} for model #{original_user_model}", category: :api, level: :info)
@@ -1404,10 +1408,10 @@ module OpenAIHelper
     # Define shared folder path based on environment
     shared_folder = Monadic::Utils::Environment.shared_volume
 
-    temperature = obj["temperature"].to_f
-    presence_penalty = obj["presence_penalty"].to_f
-    frequency_penalty = obj["frequency_penalty"].to_f
-    context_size = obj["context_size"].to_i
+    temperature = turn.temperature || 0.0
+    presence_penalty = turn.presence_penalty || 0.0
+    frequency_penalty = turn.frequency_penalty || 0.0
+    context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
     message_with_snippet = nil
 
@@ -1595,7 +1599,7 @@ module OpenAIHelper
 
     obj = session[:parameters]
     # Determine reasoning model solely via model_spec
-    reasoning_model = Monadic::Utils::ModelSpec.model_has_property?(obj["model"], "reasoning_effort")
+    reasoning_model = Monadic::Utils::ModelSpec.model_has_property?(Monadic::TurnSettings.current(obj).model, "reasoning_effort")
 
     records = StreamRecords.new(:sse)
     stream_error = nil
@@ -2321,7 +2325,7 @@ module OpenAIHelper
                       response_data&.dig("metadata", "model") ||
                       response_data&.dig("model") ||
                       query["model"] ||
-                      obj["model"]
+                      Monadic::TurnSettings.current(obj).model
 
       Monadic::Utils::ExtraLogger.log { "[OpenAI Streaming] response.in_progress event\n  current_model: #{current_model}\n  streaming_model: #{state[:streaming_model]}\n  Will skip: #{current_model && Monadic::Utils::ModelSpec.skip_in_progress_events?(current_model)}" }
 
@@ -2358,7 +2362,7 @@ module OpenAIHelper
 
       # Debug logging for GPT-5 streaming issues
       if Monadic::Utils::ExtraLogger.enabled?
-        current_model = state[:streaming_model] || json["model"] || query["model"] || obj["model"]
+        current_model = state[:streaming_model] || json["model"] || query["model"] || Monadic::TurnSettings.current(obj).model
         if current_model && current_model.to_s.downcase.include?("gpt-5")
           Monadic::Utils::ExtraLogger.log { "[OpenAI Streaming] response.output_text.delta for #{current_model} - fragment: #{fragment.inspect}, sequence: #{state[:fragment_sequence]}" }
         end

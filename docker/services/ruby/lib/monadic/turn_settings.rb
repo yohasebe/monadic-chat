@@ -16,10 +16,11 @@ module Monadic
   # reasoning_content is the switch of a model's thinking where an app or
   # a model has one beside the effort ("enabled", "disabled"); thinking_level
   # is a level an app names for a model that takes levels of its own.
+  # max_completion_tokens is an output limit under the name one provider
+  # reads before max_tokens.
   TurnSettings = Data.define(:model, :show_thinking, :websearch, :reasoning_effort, :reasoning_content,
-                             :thinking_level, :temperature,
-                             :presence_penalty, :frequency_penalty, :max_tokens, :context_size,
-                             :max_input_tokens) do
+                             :thinking_level, :verbosity, :temperature, :presence_penalty, :frequency_penalty,
+                             :max_tokens, :max_completion_tokens, :context_size, :max_input_tokens) do
     # The settings of a message as it is accepted: its own, and for what a
     # chat keeps from message to message (the model, and how much of the
     # chat goes with a message) the chat's where the message leaves it out,
@@ -41,10 +42,12 @@ module Monadic
           reasoning_effort: text(given["reasoning_effort"]),
           reasoning_content: text(given["reasoning_content"]),
           thinking_level: text(given["thinking_level"]),
+          verbosity: text(given["verbosity"]),
           temperature: number(given["temperature"]),
           presence_penalty: number(given["presence_penalty"]),
           frequency_penalty: number(given["frequency_penalty"]),
           max_tokens: count(given["max_tokens"]),
+          max_completion_tokens: count(given["max_completion_tokens"]),
           context_size: count(given["context_size"]),
           max_input_tokens: count(given["max_input_tokens"]))
     end

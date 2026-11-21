@@ -36,7 +36,7 @@ GEM
       cairo-gobject (= 4.4.0)
       gdk_pixbuf2 (= 4.4.0)
       rake
-    rsyntaxtree (2.6.0)
+    rsyntaxtree (2.8.0)
       optimist (>= 3.0.1)
       pango
       parslet
@@ -48,7 +48,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
-  rsyntaxtree (= 2.6.0)
+  rsyntaxtree (= 2.8.0)
 
 CHECKSUMS
   cairo (1.18.5) sha256=e57356141c91748061b10260e185735bd6e2288ab81ab300a6de3adfa270a623
@@ -68,7 +68,7 @@ CHECKSUMS
   rake (13.4.2) sha256=cb825b2bd5f1f8e91ca37bddb4b9aaf345551b4731da62949be002fa89283701
   red-colors (0.5.0) sha256=0a33f603d1843035fe467485ba4461022e3b5a2de9a0f0371e7cc0939b99ad19
   rsvg2 (4.4.0) sha256=30793faf9071a0df0dae51df9fdbd40e1b095292e5781a1dcf2b9706e28b243a
-  rsyntaxtree (2.6.0) sha256=b1c79a94440a07249cd734dc1c2099c850f407d8491530f363bba93c4c207762
+  rsyntaxtree (2.8.0) sha256=748ecd668e5f540db24673196c306aa65423f34362adfdd76f2db1e1cbe388c7
 
 BUNDLED WITH
    2.6.9

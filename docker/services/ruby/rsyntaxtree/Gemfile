@@ -4,4 +4,4 @@
 # app's bundle, with every gem at the version and checksum of Gemfile.lock.
 source "https://rubygems.org"
 
-gem "rsyntaxtree", "2.6.0"
+gem "rsyntaxtree", "2.8.0"

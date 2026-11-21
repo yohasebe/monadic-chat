@@ -349,6 +349,7 @@ module MistralHelper
   # Reads a streamed reply record by record: its text, thinking, tool calls,
   # finish reason and usage, and the error the stream reported if it did.
   private def read_mistral_stream(response_body, obj, is_reasoning_model, &block)
+    turn = Monadic::TurnSettings.current(obj)
     records = StreamRecords.new(:sse)
     stream_error = nil
     content_buffer = ""
@@ -452,10 +453,10 @@ module MistralHelper
           # is sent its lowest level even when no reasoning was asked for,
           # and returns its reasoning as structured thinking parts, which
           # are extracted separately — so its answer streams as usual.
-          if mistral_buffer_answer?(obj["model"], obj["reasoning_effort"], is_reasoning_model)
+          if mistral_buffer_answer?(turn.model, turn.reasoning_effort, is_reasoning_model)
             # Debug logging for reasoning model detection
             if CONFIG["EXTRA_LOGGING"]
-              DebugHelper.debug("Mistral: Processing content for reasoning model: #{obj["model"]}", category: :api, level: :debug) if content_buffer.length == 0
+              DebugHelper.debug("Mistral: Processing content for reasoning model: #{turn.model}", category: :api, level: :debug) if content_buffer.length == 0
             end
             # For reasoning models with reasoning active, collect all
             # content and process thinking blocks later.
@@ -559,12 +560,14 @@ module MistralHelper
     # Get parameters from session
     obj = session[:parameters]
     app = obj["app_name"]
+    # The settings of the message being answered, the same in every request
+    # of its answer. A message that names no temperature is sent with 0.
+    turn = Monadic::TurnSettings.current(obj)
 
-    # Handle max_tokens
-    max_tokens = obj["max_tokens"]&.to_i
+    max_tokens = turn.max_tokens
 
-    temperature = obj["temperature"].to_f
-    context_size = obj["context_size"].to_i
+    temperature = turn.temperature || 0.0
+    context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
 
     # Handle both string and boolean values for websearch parameter.
@@ -575,7 +578,11 @@ module MistralHelper
     # The reactive `tavily_disabled` flag below remains as defense in
     # depth (catches the case where the key is set at boot but Tavily
     # rejects it at request time — e.g. revoked / rate-limited).
-    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?(obj)
+    # A model that calls no tools is neither given the search tools nor
+    # told of them.
+    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?({ "websearch" => turn.websearch }) &&
+                (Monadic::Utils::ModelSpec.get_model_property(turn.model, "tool_capability") != false ||
+                 ENV[MISTRAL_LEGACY_MODE_ENV] == "true")
     if session[:parameters]["tavily_disabled"]
       websearch = false
     end
@@ -632,30 +639,30 @@ module MistralHelper
 
     # Check if this is a reasoning model via SSOT (magistral, mistral-small-4, etc.)
     is_reasoning_model = defined?(Monadic::Utils::ModelSpec) &&
-                         Monadic::Utils::ModelSpec.supports_thinking?(obj["model"])
+                         Monadic::Utils::ModelSpec.supports_thinking?(turn.model)
     
     # Set body for the API request
     body = {
-      "model" => obj["model"],
+      "model" => turn.model,
       "messages" => []
     }
     
     # Reasoning models get the effort mistral_effort_for decides; temperature
     # goes with it when the model is not reasoning ("none", or no effort).
-    mistral_effort = mistral_effort_for(obj["model"], obj["reasoning_effort"])
+    mistral_effort = mistral_effort_for(turn.model, turn.reasoning_effort)
     if is_reasoning_model && mistral_effort
       body["reasoning_effort"] = mistral_effort
-      DebugHelper.debug("Mistral: Using reasoning_effort '#{mistral_effort}' for model #{obj["model"]}", category: :api, level: :info)
+      DebugHelper.debug("Mistral: Using reasoning_effort '#{mistral_effort}' for model #{turn.model}", category: :api, level: :info)
     end
     if !is_reasoning_model || mistral_effort.nil? || mistral_effort == "none"
-      body["temperature"] = temperature || 0.7
+      body["temperature"] = temperature
       # Mistral Large 4 refuses temperature 0 (greedy sampling) unless top_p is 1.
       body["top_p"] = 1.0 if body["temperature"].to_f.zero?
     end
 
     # SSOT: supports_streaming gate (default true)
     begin
-      spec_stream = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_streaming")
+      spec_stream = Monadic::Utils::ModelSpec.get_model_property(turn.model, "supports_streaming")
       supports_streaming = spec_stream.nil? ? true : !!spec_stream
     rescue StandardError
       supports_streaming = true
@@ -669,7 +676,15 @@ module MistralHelper
     body["max_tokens"] = max_tokens || 4096
 
     context = model_facing_context(context)
-    configure_mistral_tools(body, obj, app, session, websearch, context)
+    configure_mistral_tools(body, obj, app, session, websearch)
+
+    # Force text-only response when force-stop is active (e.g., after parallel dispatch
+    # or verification sets call_depth_per_turn = FORCE_STOP_DEPTH). Prevents the model from attempting
+    # tool calls that would hit MAX_FUNC_CALLS and truncate the synthesis response.
+    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= tool_round_limit(session, MAX_FUNC_CALLS)
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
 
     msg_result = build_mistral_messages(body, context, obj, session, role, &block)
     return msg_result if msg_result.is_a?(Array)
@@ -683,14 +698,6 @@ module MistralHelper
     # A chat with a word table hides its words with it (each attempt below
     # is sent only while the table is unchanged).
     hiding = hide_words_in_request!(body, session)
-
-    # Force text-only response when force-stop is active (e.g., after parallel dispatch
-    # or verification sets call_depth_per_turn = FORCE_STOP_DEPTH). Prevents the model from attempting
-    # tool calls that would hit MAX_FUNC_CALLS and truncate the synthesis response.
-    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= tool_round_limit(session, MAX_FUNC_CALLS)
-      body.delete("tools")
-      body.delete("tool_choice")
-    end
 
     # Log extra information if enabled
     Monadic::Utils::ExtraLogger.log { "Processing Mistral query (Call depth: #{call_depth})\n#{JSON.pretty_generate(workbench_loggable(body))}" }
@@ -925,7 +932,8 @@ module MistralHelper
 
   # Configure tools for the Mistral API request, including progressive tool
   # disclosure, websearch tools, and SSOT capability gates.
-  def configure_mistral_tools(body, obj, app, session, websearch, context)
+  def configure_mistral_tools(body, obj, app, session, websearch)
+    turn = Monadic::TurnSettings.current(obj)
     app_settings = APPS[app]&.settings
     app_tools = app_settings&.[]("tools")
     progressive_settings = app_settings && (app_settings[:progressive_tools] || app_settings["progressive_tools"])
@@ -1000,23 +1008,22 @@ module MistralHelper
         DebugHelper.debug("Mistral: skill visibility re-apply skipped due to #{e.message}", category: :api, level: :warning)
       end
 
+      # Web Search is the user's own toggle: in an app that names no search
+      # tools of its own (Chat), they are offered as they are, not behind
+      # request_tool. An app that has them keeps its own way of showing them.
+      names_search_tools = Array(app_settings && app_settings["tools"]).any? do |tool|
+        tool.is_a?(Hash) && (tool.dig(:function, :name) || tool.dig("function", "name")).to_s.start_with?("tavily_")
+      end
+      if websearch && !names_search_tools
+        merged += WEBSEARCH_TOOLS
+        merged.uniq! { |tool| tool.dig(:function, :name) || tool.dig("function", "name") }
+      end
+
       if merged.empty?
         DebugHelper.debug("Mistral progressive tools: none unlocked", category: :api, level: :debug)
       else
         final_tools = merged
         DebugHelper.debug("Mistral progressive tools: #{final_tools.map { |t| t.dig(:function, :name) || t.dig('function', 'name') }.compact.join(', ')}", category: :api, level: :debug)
-
-        if websearch && !app.to_s.include?("ResearchAssistant")
-          has_tavily = final_tools.any? { |tool| (tool.dig(:function, :name) || tool.dig("function", "name"))&.start_with?("tavily_") }
-          if has_tavily
-            system_msg = context.first
-            if system_msg && system_msg["role"] == "system" && !system_msg["websearch_added"]
-              system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
-              system_msg["websearch_added"] = true
-              DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
-            end
-          end
-        end
       end
     else
       if request_tools && !request_tools.empty?
@@ -1042,15 +1049,6 @@ module MistralHelper
         final_tools = WEBSEARCH_TOOLS.dup
         DebugHelper.debug("Mistral websearch tools only", category: :api, level: :debug)
       end
-
-      if final_tools && websearch && !app.to_s.include?("ResearchAssistant")
-        system_msg = context.first
-        if system_msg && system_msg["role"] == "system" && !system_msg["websearch_added"]
-          system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
-          system_msg["websearch_added"] = true
-          DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
-        end
-      end
     end
 
     if final_tools && !final_tools.empty?
@@ -1063,7 +1061,7 @@ module MistralHelper
 
     # SSOT: If the model is not tool-capable, remove tools/tool_choice
     begin
-      spec_tool = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "tool_capability")
+      spec_tool = Monadic::Utils::ModelSpec.get_model_property(turn.model, "tool_capability")
       tool_src = spec_tool.nil? ? "fallback" : "spec"
       tool_capable = spec_tool.nil? ? true : !!spec_tool
     rescue StandardError
@@ -1084,7 +1082,7 @@ module MistralHelper
       audit = []
       # Re-query streaming from SSOT for audit
       begin
-        spec_stream = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_streaming")
+        spec_stream = Monadic::Utils::ModelSpec.get_model_property(turn.model, "supports_streaming")
         s_src = spec_stream.nil? ? "fallback" : "spec"
         audit << "streaming:#{spec_stream.nil? ? true : !!spec_stream}(#{s_src})"
       rescue StandardError
@@ -1092,9 +1090,9 @@ module MistralHelper
       end
       audit << "tools:#{tool_capable}(#{tool_src})"
       begin
-        vprop = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "vision_capability")
+        vprop = Monadic::Utils::ModelSpec.get_model_property(turn.model, "vision_capability")
         vsrc = vprop.nil? ? "fallback" : "spec"
-        pprop = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_pdf")
+        pprop = Monadic::Utils::ModelSpec.get_model_property(turn.model, "supports_pdf")
         psrc = pprop.nil? ? "fallback" : "spec"
         audit << "vision:#{!!vprop}(#{vsrc})"
         audit << "pdf:#{!!pprop}(#{psrc})"
@@ -1108,7 +1106,13 @@ module MistralHelper
   # Build the messages array for the Mistral API request body.
   # Returns true on success, or an Array (error response) for the orchestrator to propagate.
   def build_mistral_messages(body, context, obj, session, role, &block)
+    turn = Monadic::TurnSettings.current(obj)
     system_message_modified = false
+    # The model is told of the search tools in the requests that carry them,
+    # and in no other (Research Assistant's own prompt tells of them).
+    search_told = !obj["app_name"].to_s.include?("ResearchAssistant") && Array(body["tools"]).any? do |tool|
+      tool.is_a?(Hash) && (tool.dig(:function, :name) || tool.dig("function", "name")).to_s.start_with?("tavily_")
+    end
     # Defensive: `context` comes from session[:messages], which only ever holds
     # user/assistant/system turns — tool results live in obj["function_returns"]
     # and are appended fresh for the current round below (role == "tool"). This
@@ -1126,9 +1130,9 @@ module MistralHelper
           base_prompt: msg["text"],
           session: session,
           options: {
-            websearch_enabled: false,
+            websearch_enabled: search_told,
             reasoning_model: false,
-            websearch_prompt: nil,
+            websearch_prompt: search_told ? WEBSEARCH_PROMPT : nil,
             system_prompt_suffix: obj["system_prompt_suffix"]
           },
           separator: "\n\n---\n\n"
@@ -1141,9 +1145,9 @@ module MistralHelper
 
         msg["images"].each do |img|
           begin
-            vprop = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "vision_capability")
+            vprop = Monadic::Utils::ModelSpec.get_model_property(turn.model, "vision_capability")
             vision_capable = vprop.nil? ? true : !!vprop
-            pprop = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_pdf")
+            pprop = Monadic::Utils::ModelSpec.get_model_property(turn.model, "supports_pdf")
             pdf_capable = pprop.nil? ? false : !!pprop
           rescue StandardError
             vision_capable = true
@@ -1195,7 +1199,7 @@ module MistralHelper
         end
         { "role" => msg["role"], "content" => content }
       elsif msg["role"] == "assistant" && msg["thinking"].to_s.strip != "" &&
-            (Monadic::Utils::ModelSpec.supports_thinking?(obj["model"]) rescue false)
+            (Monadic::Utils::ModelSpec.supports_thinking?(turn.model) rescue false)
         # Magistral stops reasoning as soon as the history contains an
         # assistant turn WITHOUT a thinking block (the same request streams
         # thinking deltas with the block replayed and none without;
@@ -1364,6 +1368,7 @@ module MistralHelper
   # Build the final text response, including thinking extraction for Magistral models.
   def build_mistral_text_response(content_buffer, thinking, obj, session, finish_reason,
                                   usage_prompt_tokens, usage_completion_tokens, usage_total_tokens, &block)
+    turn = Monadic::TurnSettings.current(obj)
     res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
     block&.call res
 
@@ -1387,7 +1392,7 @@ module MistralHelper
     # Clean content for reasoning models (thinking blocks, LaTeX artifacts)
     final_content = content_buffer
     is_reasoning = defined?(Monadic::Utils::ModelSpec) &&
-                   Monadic::Utils::ModelSpec.supports_thinking?(obj["model"])
+                   Monadic::Utils::ModelSpec.supports_thinking?(turn.model)
     if is_reasoning
       if content_buffer.include?("<think>") || content_buffer.include?("<thinking>")
         thinking_matches = content_buffer.scan(/<think>(.*?)<\/think>/m)
@@ -1438,7 +1443,7 @@ module MistralHelper
     if thinking && !thinking.empty?
       response["choices"][0]["message"]["thinking"] = thinking.join("\n\n")
       if CONFIG["EXTRA_LOGGING"]
-        DebugHelper.debug("Mistral: Collected #{thinking.length} thinking block(s) for #{obj["model"]}", category: :api, level: :info)
+        DebugHelper.debug("Mistral: Collected #{thinking.length} thinking block(s) for #{turn.model}", category: :api, level: :info)
       end
     end
 

@@ -39,14 +39,18 @@ RSpec.describe 'chat request settings' do
   describe 'the output limit of an Ollama model' do
     subject(:helper) { Class.new { include OllamaHelper }.new }
 
+    def options(given)
+      helper.send(:chat_options, Monadic::TurnSettings.of(given))
+    end
+
     it 'is sent as num_predict' do
-      expect(helper.send(:chat_options, { 'max_tokens' => '512' }, 0.7)).to eq('temperature' => 0.7, 'num_predict' => 512)
-      expect(helper.send(:chat_options, { 'max_tokens' => 32_768 }, 0.2)).to include('num_predict' => 32_768)
+      expect(options('temperature' => 0.7, 'max_tokens' => '512')).to eq('temperature' => 0.7, 'num_predict' => 512)
+      expect(options('temperature' => 0.2, 'max_tokens' => 32_768)).to include('num_predict' => 32_768)
     end
 
     it 'is not sent when there is none' do
-      [{}, { 'max_tokens' => nil }, { 'max_tokens' => 0 }, { 'max_tokens' => '' }].each do |params|
-        expect(helper.send(:chat_options, params, 0.7)).to eq('temperature' => 0.7)
+      [{}, { 'max_tokens' => nil }, { 'max_tokens' => 0 }, { 'max_tokens' => '' }].each do |given|
+        expect(options(given.merge('temperature' => '0.7'))).to eq('temperature' => 0.7)
       end
     end
   end

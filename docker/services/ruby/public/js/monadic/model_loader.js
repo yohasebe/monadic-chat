@@ -63,13 +63,23 @@
       if (names.length === 0) return false;
       let current = [];
       try { current = JSON.parse(app.models || '[]'); } catch (_) { current = []; }
-      if (JSON.stringify(current) === JSON.stringify(names)) return false;
-
+      // What each model can do is taken also when the list is the same: the
+      // page may hold the names alone (Ollama could not be asked before).
+      const capabilitiesChanged = names.some((name) => {
+        return JSON.stringify(window.modelSpec[name]) !== JSON.stringify(models[name]);
+      });
       Object.assign(window.modelSpec, models);
+      if (JSON.stringify(current) === JSON.stringify(names) && !capabilitiesChanged) return false;
       Object.keys(apps).forEach((key) => {
         if (String(apps[key].group || '').toLowerCase() === 'ollama') apps[key].models = JSON.stringify(names);
       });
-      if (typeof window.proceedWithAppChange === 'function') window.proceedWithAppChange(appValue);
+      // The app the page shows now is the one set up again: another chosen
+      // while Ollama was asked is not set back to this one, and takes the
+      // new list when it is an Ollama app too.
+      const chosen = typeof $id === 'function' ? $id('apps') : null;
+      const shown = chosen && chosen.value !== appValue ? chosen.value : appValue;
+      if (String((apps[shown] || {}).group || '').toLowerCase() !== 'ollama') return false;
+      if (typeof window.proceedWithAppChange === 'function') window.proceedWithAppChange(shown);
       return true;
     } finally {
       refreshingOllama = false;

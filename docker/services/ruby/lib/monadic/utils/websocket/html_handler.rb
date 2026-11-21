@@ -39,6 +39,14 @@ module WebSocketHelper
     end
   end
 
+  # The limits the history is counted with after a reply: those its
+  # message was accepted with.
+  private def past_limits(params, turn)
+    return params unless turn
+
+    params.merge("context_size" => turn.context_size, "max_input_tokens" => turn.max_input_tokens)
+  end
+
   private def handle_ws_html(connection, obj, session, thread, queue)
     wait_for_answer(thread)
     # How each answer taken here ended, sent once after all of it is handled.
@@ -51,6 +59,7 @@ module WebSocketHelper
         # dropped, not shown in or saved to the chat the page is in now.
         owner = last_one.delete("_chat_id") if last_one.is_a?(Hash)
         request_id = last_one.delete("_request_id") if last_one.is_a?(Hash)
+        turn = last_one.delete("_settings") if last_one.is_a?(Hash)
         outcomes[request_id] ||= "no_reply" if request_id
         next if owner && owner != session[Monadic::Workspace::Chats::SESSION_KEY]
 
@@ -206,9 +215,8 @@ module WebSocketHelper
           # Ollama thinking models) generate reasoning regardless of API flags,
           # so filtering here guarantees the UI preference is honored for all
           # providers in one place.
-          show_thinking_param = params["show_thinking"]
-          show_thinking_enabled = show_thinking_param.nil? ||
-                                   ![false, "false"].include?(show_thinking_param)
+          show_thinking_param = turn ? turn.show_thinking : params["show_thinking"]
+          show_thinking_enabled = ![false, "false"].include?(show_thinking_param)
           if thinking && !thinking.to_s.strip.empty? && show_thinking_enabled
             new_data["thinking"] = thinking
             Monadic::Utils::ExtraLogger.log { "[Thinking] attached to final card (len=#{thinking.to_s.length})" }
@@ -266,7 +274,7 @@ module WebSocketHelper
           params = get_session_params
       current_app_name = obj["app_name"] || params["app_name"]
       messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
-          past_messages_data = check_past_messages(params)
+          past_messages_data = check_past_messages(past_limits(params, turn))
 
           # Send status updates
           if past_messages_data[:changed]

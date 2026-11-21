@@ -28,6 +28,7 @@ class ReasoningMapper {
         case 'Google':
           return this._mapGemini(spec, uiValue);
         case 'xAI':
+        case 'Mistral':
           return this._mapGrok(spec, uiValue);
         case 'DeepSeek':
           return this._mapDeepSeek(spec, uiValue);
@@ -63,6 +64,7 @@ class ReasoningMapper {
       case 'Google':
         return spec.hasOwnProperty('reasoning_effort') || spec.supports_thinking_level === true || spec.thinking_budget !== undefined;
       case 'xAI':
+      case 'Mistral':
         return spec.hasOwnProperty('reasoning_effort');
       case 'DeepSeek':
         return spec.hasOwnProperty('reasoning_effort');
@@ -116,6 +118,7 @@ class ReasoningMapper {
           break;
 
         case 'xAI':
+        case 'Mistral':
           if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0])) {
             options = spec.reasoning_effort[0];
           }
@@ -296,6 +299,7 @@ class ReasoningMapper {
         return spec.thinking_budget && spec.thinking_budget.can_disable ? 'low' : 'medium';
         
       case 'xAI':
+      case 'Mistral':
         if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort) && spec.reasoning_effort.length >= 2) {
           return spec.reasoning_effort[1]; // Default value
         }

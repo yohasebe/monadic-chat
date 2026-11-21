@@ -195,8 +195,9 @@ module ClaudeHelper
     # "none" goes through configure_claude_thinking too: on models that always
     # think it becomes the lowest effort rather than the model's default.
     if options["reasoning_effort"]
-      # configure_claude_thinking reads obj["model"]; send_query's authoritative
-      # model is the keyword arg, so merge it in (options may omit "model").
+      # configure_claude_thinking reads the model of the parameters it is
+      # given; send_query's authoritative model is the keyword arg, so merge
+      # it in (options may omit "model").
       tc = configure_claude_thinking(options.merge("model" => model), model, max_tokens_value, nil)
       if tc[:thinking_enabled]
         if tc[:adaptive_effort]
@@ -446,11 +447,12 @@ module ClaudeHelper
   # Configure thinking mode parameters (budget_tokens, adaptive effort, max_tokens).
   # Returns a config hash: { thinking_enabled, budget_tokens, adaptive_effort, max_tokens }.
   private def configure_claude_thinking(obj, model, user_max_tokens, app)
-    supports_thinking = Monadic::Utils::ModelSpec.supports_thinking?(obj["model"])
+    turn = Monadic::TurnSettings.current(obj)
+    supports_thinking = Monadic::Utils::ModelSpec.supports_thinking?(turn.model)
     use_adaptive = supports_thinking &&
-                   Monadic::Utils::ModelSpec.supports_adaptive_thinking?(obj["model"])
+                   Monadic::Utils::ModelSpec.supports_adaptive_thinking?(turn.model)
 
-    if supports_thinking && obj["reasoning_effort"] && obj["reasoning_effort"] != "none"
+    if supports_thinking && turn.reasoning_effort && turn.reasoning_effort != "none"
       thinking_enabled = true
 
       if use_adaptive
@@ -458,7 +460,7 @@ module ClaudeHelper
         # Opus 4.7 introduces xhigh and max effort levels; earlier adaptive
         # models (Opus 4.6, Sonnet 4.6) cap out at "high" and will get the
         # clamped value via the upstream reasoning_effort selector.
-        adaptive_effort = case obj["reasoning_effort"]
+        adaptive_effort = case turn.reasoning_effort
                           when "minimal" then "low"
                           when "low"     then "low"
                           when "medium"  then "medium"
@@ -470,7 +472,7 @@ module ClaudeHelper
         max_tokens = user_max_tokens
       else
         adaptive_effort = nil
-        case obj["reasoning_effort"]
+        case turn.reasoning_effort
         when "minimal"
           budget_tokens = [[(user_max_tokens * 0.25).to_i, 1024].max, 8000].min
           max_tokens = user_max_tokens
@@ -505,13 +507,13 @@ module ClaudeHelper
       # block_binding that dynamically loaded skills need, so send the lowest
       # effort the model offers. Only an explicit request to switch reasoning
       # off does this; an unspecified effort still gets the model's default.
-      if supports_thinking && use_adaptive && obj["reasoning_effort"] == "none" &&
-         Monadic::Utils::ModelSpec.thinking_on_by_default?(obj["model"])
-        lowest = Monadic::Utils::ModelSpec.get_reasoning_effort_options(obj["model"])&.dig(:options)&.first
+      if supports_thinking && use_adaptive && turn.reasoning_effort == "none" &&
+         Monadic::Utils::ModelSpec.thinking_on_by_default?(turn.model)
+        lowest = Monadic::Utils::ModelSpec.get_reasoning_effort_options(turn.model)&.dig(:options)&.first
         if lowest
           thinking_enabled = true
           adaptive_effort = lowest
-          Monadic::Utils::ExtraLogger.log { "Claude: reasoning off requested; #{obj["model"]} always thinks, sending effort #{lowest}" }
+          Monadic::Utils::ExtraLogger.log { "Claude: reasoning off requested; #{turn.model} always thinks, sending effort #{lowest}" }
         end
       end
     end
@@ -536,7 +538,7 @@ module ClaudeHelper
 
     # Determine if thinking display should be omitted (faster streaming)
     # Only supported on adaptive thinking models (Opus 4.6, Sonnet 4.6)
-    omit_display = thinking_enabled && use_adaptive && obj["show_thinking"].to_s == "false"
+    omit_display = thinking_enabled && use_adaptive && turn.show_thinking == false
 
     { thinking_enabled: thinking_enabled, budget_tokens: budget_tokens,
       adaptive_effort: adaptive_effort, max_tokens: max_tokens,
@@ -546,6 +548,7 @@ module ClaudeHelper
   # Build HTTP headers and base request body (model, stream, system, thinking, context management).
   # Returns [headers, body].
   private def build_claude_headers_and_body(model, obj, app, session, system_prompts, thinking_config, temperature, role)
+    turn = Monadic::TurnSettings.current(obj)
     spec_beta = Monadic::Utils::ModelSpec.get_model_property(model, "beta_flags")
     app_beta = APPS[app]&.settings&.[]("betas")
 
@@ -593,7 +596,7 @@ module ClaudeHelper
 
     body = {
       "system" => system_prompts,
-      "model" => obj["model"],
+      "model" => turn.model,
       "stream" => supports_streaming,
       "cache_control" => { "type" => "ephemeral" }
     }
@@ -605,7 +608,7 @@ module ClaudeHelper
     # `context_management false` — in that case only the context_size sliding
     # window (client-side) trims history, and the beta header is not sent.
     begin
-      supports_context_management = Monadic::Utils::ModelSpec.supports_context_management?(obj["model"])
+      supports_context_management = Monadic::Utils::ModelSpec.supports_context_management?(turn.model)
       app_context_management = APPS[app]&.settings&.[]("context_management")
       app_context_management = APPS[app]&.settings&.[](:context_management) if app_context_management.nil?
       opted_out = (app_context_management == false)
@@ -804,10 +807,11 @@ module ClaudeHelper
   # Configure tools on the request body for both user and tool roles.
   # Handles tool parsing, PTD filtering, websearch, Skills, and tool_choice.
   private def configure_claude_tools(body, obj, app, session, role, thinking_enabled, use_native_websearch)
+    turn = Monadic::TurnSettings.current(obj)
     app_settings = APPS[app]&.settings
     app_tools = app_settings && (app_settings[:tools] || app_settings["tools"]) ? (app_settings[:tools] || app_settings["tools"]) : []
     app_skills = APPS[app]&.settings&.[]("skills")
-    tool_capable, _tool_capable_source = resolve_tool_capability(obj["model"])
+    tool_capable, _tool_capable_source = resolve_tool_capability(turn.model)
 
     # Parse tools_param from JSON string
     tools_param = obj["tools"]
@@ -820,7 +824,7 @@ module ClaudeHelper
     end
 
     if role != "tool"
-      websearch_enabled = obj["websearch"] == "true" || obj["websearch"] == true
+      websearch_enabled = turn.websearch == true
       include_web_search_tool = websearch_enabled && use_native_websearch
       web_search_tool = { "type" => "web_search_20250305", "name" => "web_search", "max_uses" => 5 }
 
@@ -1173,14 +1177,18 @@ module ClaudeHelper
     api_key = CONFIG["ANTHROPIC_API_KEY"]
     obj = session[:parameters]
     app = obj["app_name"]
-    model = obj["model"]
+    # The settings of the message being answered, the same in every request
+    # of its answer. A temperature the message does not name is not sent;
+    # an output limit it does not name is the model's.
+    turn = Monadic::TurnSettings.current(obj)
+    model = turn.model
 
     session[:messages] ||= []
 
     # Check if web search is enabled
-    websearch = obj["websearch"] == "true" || obj["websearch"] == true
+    websearch = turn.websearch == true
 
-    Monadic::Utils::ExtraLogger.log { "Claude websearch parameter check:\nobj[\"websearch\"] = #{obj["websearch"].inspect} (type: #{obj["websearch"].class})\nwebsearch enabled = #{websearch}" }
+    Monadic::Utils::ExtraLogger.log { "Claude websearch enabled = #{websearch}" }
 
     use_native_websearch = websearch &&
                           Monadic::Utils::ModelSpec.supports_web_search?(model) &&
@@ -1190,17 +1198,16 @@ module ClaudeHelper
     # Build system prompts
     system_prompts = build_claude_system_prompts(session, obj, use_native_websearch)
 
-    temperature = obj["temperature"]&.to_f
+    temperature = turn.temperature
 
-    # Handle max_tokens
-    max_tokens = obj["max_tokens"]&.to_i
-    if max_tokens.nil? || max_tokens == 0
+    max_tokens = turn.max_tokens
+    if max_tokens.nil?
       require_relative "../../utils/model_token_utils"
       max_tokens = ModelTokenUtils.get_max_tokens(model)
       DebugHelper.debug("Claude: Using default max_tokens #{max_tokens} for model #{model}", category: :api, level: :info)
     end
 
-    context_size = obj["context_size"].to_i
+    context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
     message = obj["message"].to_s
 
@@ -1279,10 +1286,10 @@ module ClaudeHelper
     end
 
     # Capability audit (optional)
-    Monadic::Utils::ExtraLogger.log { "Claude SSOT capabilities for #{obj["model"]}: body_keys=#{body.keys.join(",")}" }
+    Monadic::Utils::ExtraLogger.log { "Claude SSOT capabilities for #{turn.model}: body_keys=#{body.keys.join(",")}" }
 
     # Execute API call
-    websearch_enabled = obj["websearch"] == "true" || obj["websearch"] == true
+    websearch_enabled = turn.websearch == true
     # Only the request is retried, so nothing before it (such as the
     # user card) is sent again, and only until part of the reply has reached
     # the browser. Each attempt sends a copy of the request body, which the

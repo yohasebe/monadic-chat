@@ -17,31 +17,23 @@ RSpec.describe 'OllamaHelper and the Show Thinking toggle' do
       .and_return({ capabilities: names, context_length: 8192, fetched_at: Time.now })
   end
 
-  describe 'whether thinking is shown' do
-    it 'is on only when the toggle says so' do
-      expect(OllamaHelper.thinking_shown?({ "show_thinking" => true })).to be(true)
-      expect(OllamaHelper.thinking_shown?({ "show_thinking" => "true" })).to be(true)
-    end
-
-    it 'is off when the toggle is off, and when no setting came' do
-      expect(OllamaHelper.thinking_shown?({ "show_thinking" => false })).to be(false)
-      expect(OllamaHelper.thinking_shown?({ "show_thinking" => "false" })).to be(false)
-      expect(OllamaHelper.thinking_shown?({})).to be(false)
-      expect(OllamaHelper.thinking_shown?(nil)).to be(false)
-    end
+  def turn(given)
+    Monadic::TurnSettings.of({ "model" => "m" }.merge(given))
   end
 
   describe 'the think value of a request' do
-    it 'tells a model that can think either way' do
+    it 'tells a model that can think either way, and is on only when the toggle says so' do
       capabilities("completion", "thinking")
-      expect(helper.send(:think_parameter, { "model" => "m", "show_thinking" => true })).to be(true)
-      expect(helper.send(:think_parameter, { "model" => "m", "show_thinking" => false })).to be(false)
-      expect(helper.send(:think_parameter, { "model" => "m" })).to be(false)
+      expect(helper.send(:think_parameter, turn("show_thinking" => true))).to be(true)
+      expect(helper.send(:think_parameter, turn("show_thinking" => "true"))).to be(true)
+      expect(helper.send(:think_parameter, turn("show_thinking" => false))).to be(false)
+      expect(helper.send(:think_parameter, turn("show_thinking" => "false"))).to be(false)
+      expect(helper.send(:think_parameter, turn({}))).to be(false)
     end
 
     it 'is not sent to a model that cannot think' do
       capabilities("completion", "tools")
-      expect(helper.send(:think_parameter, { "model" => "m", "show_thinking" => true })).to be_nil
+      expect(helper.send(:think_parameter, turn("show_thinking" => true))).to be_nil
     end
   end
 

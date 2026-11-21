@@ -185,4 +185,25 @@ describe('ReasoningMapper', () => {
     });
 
   });
+  describe('Mistral', () => {
+    beforeAll(() => {
+      window.modelSpec['a-mistral-model'] = { reasoning_effort: [['low', 'medium', 'high'], 'low'], supports_thinking: true };
+      window.modelSpec['a-mistral-model-without-levels'] = { supports_thinking: true };
+    });
+
+    test('offers the levels the model takes, with its default', () => {
+      expect(ReasoningMapper.isSupported('Mistral', 'a-mistral-model')).toBe(true);
+      expect(ReasoningMapper.getAvailableOptions('Mistral', 'a-mistral-model')).toEqual(['low', 'medium', 'high']);
+      expect(ReasoningMapper.getDefaultValue('Mistral', 'a-mistral-model')).toBe('low');
+    });
+
+    test('sends the level chosen', () => {
+      expect(ReasoningMapper.mapToProviderParameter('Mistral', 'a-mistral-model', 'high')).toEqual({ reasoning_effort: 'high' });
+      expect(ReasoningMapper.mapToProviderParameter('Mistral', 'a-mistral-model', 'max')).toBeNull();
+    });
+
+    test('offers none for a model without levels', () => {
+      expect(ReasoningMapper.isSupported('Mistral', 'a-mistral-model-without-levels')).toBe(false);
+    });
+  });
 });

@@ -36,9 +36,15 @@ module Monadic
       # True only when the session has web search explicitly turned off
       # (false/"false"). A missing value (e.g. headless callers that manage web
       # search themselves) leaves the tools untouched.
+      #
+      # While a message is answered, it is the message's own setting that
+      # counts: a toggle changed since does not reach its reply.
       def websearch_disabled?(session)
         params = session.respond_to?(:[]) ? session[:parameters] : nil
         return false unless params.respond_to?(:[])
+
+        turn = defined?(Monadic::Workspace::RequestContext) && Monadic::Workspace::RequestContext.current&.settings_for(params)
+        return turn.websearch == false if turn
 
         value = if params.respond_to?(:key?)
                   params.key?("websearch") ? params["websearch"] : params[:websearch]

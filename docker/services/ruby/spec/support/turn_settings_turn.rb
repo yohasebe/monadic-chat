@@ -36,8 +36,13 @@ module TurnSettingsTurn
   # own); the request then has no message of its own.
   # messages: the messages of a chat to go on from (left in @turn_messages
   # after a turn), in place of a new chat's.
+  # failing: how many of the first requests fail on the network, each after
+  # the change is made to the chat's kept parameters (their bodies are left
+  # in @turn_failed, not among those given back).
+  # answers: the model's streams in order, in place of a tool call and then
+  # an answer; the last is given again to every later request.
   def turn_bodies(helper_module, format:, kind:, key:, message:, kept: {}, change: {}, history: [], models: [],
-                  answering: nil, messages: nil)
+                  answering: nil, messages: nil, failing: 0, answers: nil)
     helper = Class.new(MonadicApp) { include helper_module }.new
     allow(helper).to receive(:sleep)
     session = { parameters: { "app_name" => "SpecApp", "message" => "What is the weather?", "tools" => [TOOL] }
@@ -46,12 +51,18 @@ module TurnSettingsTurn
     @turn_messages = session[:messages]
     stub_const("APPS", { "SpecApp" => ChangingApp.new(session, change) })
     stub_const("CONFIG", CONFIG.to_h.merge(key => "k")) if key
-    answers = [format.calls([["first_tool", {}]]), format.text(["Done."])].map { |a| encode_stream(kind, a) }
+    answers = (answers || [format.calls([["first_tool", {}]]), format.text(["Done."])]).map { |a| encode_stream(kind, a) }
     bodies = []
+    @turn_failed = []
     chain = double("http")
     %i[timeout headers via].each { |m| allow(chain).to receive(m).and_return(chain) }
     @turn_uris = []
     allow(chain).to receive(:post) do |uri, json:|
+      if @turn_failed.size < failing
+        @turn_failed << JSON.parse(JSON.generate(json))
+        session[:parameters].merge!(change)
+        raise HTTP::ConnectionError, "offline"
+      end
       @turn_uris << uri.to_s
       bodies << JSON.parse(JSON.generate(json))
       answer = answers.length > 1 ? answers.shift : answers.first
